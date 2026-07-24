@@ -769,13 +769,14 @@ test('a generation that phones home is refused, on the harness-off path too', as
   await page.locator('.wz-step textarea').fill('A simple test slate');
   await page.getByRole('button', { name: '✦ Generate' }).click();
 
-  // Refused, and told in the graphic's own terms rather than as a rule number.
+  // Refused, and told in the graphic's own terms rather than as a rule number. The findings
+  // surface in the on-air readiness report (unsafe-js rules are not claimed by a readiness row,
+  // so they show as their own lines there — verbatim).
   await expect(page.locator('.wz-step .status-bad')).toBeVisible(GENERATED);
-  // The findings list names what the code does, in the graphic's own terms.
-  const findings = page.locator('.wz-step ul.hint li');
-  await expect(findings.filter({ hasText: 'calls fetch()' })).toHaveCount(1);
-  await expect(findings.filter({ hasText: 'touches browser storage' })).toHaveCount(1);
-  await expect(findings.filter({ hasText: 'reaches outside its own frame' })).toHaveCount(1);
+  const readiness = page.getByTestId('ai-readiness');
+  await expect(readiness).toContainText('calls fetch()');
+  await expect(readiness).toContainText('touches browser storage');
+  await expect(readiness).toContainText('reaches outside its own frame');
   await expect(page.locator('.wz-step .status-ok')).toHaveCount(0);
 });
 
