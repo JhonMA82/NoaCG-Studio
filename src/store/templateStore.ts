@@ -264,7 +264,11 @@ interface TemplateState {
 }
 
 /** Build the sample-data map from a template's fields, preserving existing edited values. */
-function syncSampleData(template: SpxTemplate, existing: Record<string, string>): Record<string, string> {
+/** The data-carrying fields' values: whatever `existing` already holds, else the definition's
+ *  own default. EXPORTED because the export surface needs the identical answer for a graphic
+ *  that is NOT the open project — a saved record off a Home card, or a template the wizard
+ *  just built — so what a target bakes in never depends on which door the export came through. */
+export function syncSampleData(template: SpxTemplate, existing: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = {};
   for (const field of template.fields) {
     if (!DATA_FTYPES.includes(field.ftype)) continue;

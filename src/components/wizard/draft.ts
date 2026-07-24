@@ -76,6 +76,12 @@ export interface DesignFieldSpec {
 }
 
 export interface WizardDraft {
+  /** What the finished graphic is CALLED (the Finish step). Empty = fall back to the design's
+   *  own catalog name, which is what every project was called before this step existed. It
+   *  matters most on the export branch: the name slugs the zip AND, for the SPX and CasparCG
+   *  targets, the template FOLDER inside it — the name the operator reads in the playout
+   *  server. Shipping `hairline/index.html` is the reason this field exists. */
+  name: string;
   category: TemplateCategory | null;
   variantId: string | null;
   aspectId: string;
@@ -154,6 +160,7 @@ export function mergeDraft(draft: WizardDraft, patch: DraftPatch): WizardDraft {
 
 export function initialDraft(): WizardDraft {
   return {
+    name: '',
     category: null,
     variantId: null,
     aspectId: ASPECTS[0].id,
@@ -408,6 +415,12 @@ function withDesignFieldSpecs(template: SpxTemplate, draft: WizardDraft): SpxTem
   return next;
 }
 
+/** The graphic's name: what the Finish step was given, else the design's own catalog name
+ *  (which is what a project was called before that step existed). */
+export function draftName(variant: TemplateVariant, draft: WizardDraft): string {
+  return draft.name.trim() || variant.name;
+}
+
 export function buildDraftTemplate(
   variant: TemplateVariant,
   draft: WizardDraft,
@@ -415,6 +428,10 @@ export function buildDraftTemplate(
   opts: { stretchDemo?: boolean } = {},
 ): SpxTemplate {
   let template = variant.create(draftToOptions(variant, draft));
+  // The name rides the built template, so it reaches the editor's topbar, the Save dialog's
+  // prefill, and the export slug through ONE path rather than being applied per branch.
+  const named = draftName(variant, draft);
+  if (named !== template.name) template = { ...template, name: named };
   if (variant.category === 'imported-design') {
     template = withEraseSeedFields(template, draft);
     template = withDesignFieldSpecs(template, draft);

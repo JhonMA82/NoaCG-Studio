@@ -1227,6 +1227,13 @@ kbd {
 .wz-zone.selected { border-color: var(--accent); background: rgba(246, 166, 35, 0.25); }
 .wz-nudge { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .wz-nudge input { width: 80px; }
+/* The Style step's size/position disclosure. It wraps three panel-sections, so unlike the
+   Browse step's chip disclosure its summary carries a rule above it — the collapsed row has
+   to read as the boundary of the step's tuning half, not as a stray line of text. */
+.wz-style-more { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.wz-style-more summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 2px 0; }
+.wz-style-more summary:hover { color: var(--text); }
+.wz-style-more[open] summary { margin-bottom: 6px; }
 
 /* Step 5: animation */
 /* The Template step's discovery filters: small chips above the variant grid. */
@@ -1249,9 +1256,20 @@ kbd {
 .wz-browse-tiles { margin-bottom: 12px; }
 .wz-browse-tiles .wz-cat { padding: 9px 12px; gap: 0; }
 .wz-filter-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+/* A closed <details> hides its non-summary children through a UA rule — and ANY author rule
+   setting `display` on those children silently beats it. Both wizard disclosures wrap rows
+   built from `.row` / `.wz-filter-row`, which are `display: flex`, so "More filters" never
+   actually collapsed: the specialist facets rendered permanently open, which is precisely the
+   stacked-height problem the disclosure was added to solve. Restore the collapse as an author
+   rule, so it outranks whatever the content is classed with. */
+details:not([open]) > *:not(summary) { display: none; }
+
 .wz-browse-more { margin: 0 0 10px; }
 .wz-browse-more summary { cursor: pointer; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
 .wz-browse-more .wz-filter-row { margin: 4px 0 8px; }
+/* Canvas format sits OUTSIDE .wz-browse-filters (it narrows nothing), so it needs the rule
+   the filter block used to give it: separated from the search field above it. */
+.wz-browse-format { margin-top: 12px; }
 .wz-browse-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .wz-browse-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wz-browse-count { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
@@ -1323,6 +1341,23 @@ kbd {
 .wz-anim-dirs { display: flex; gap: 4px; }
 .wz-anim-dirs button { flex: 1; padding: 4px 0; font-size: 14px; line-height: 1; }
 .wz-anim-dirs button.active { border-color: var(--accent); color: var(--accent); }
+
+/* Step 6: finish — name it, read back what was built, then take one of the two doors. */
+.wz-finish-name { width: 100%; max-width: 420px; font-size: 15px; }
+/* The read-back. A definition list rather than a table: these are label/value pairs, and the
+   grid keeps every value on one column edge so the block scans vertically. */
+.wz-finish-summary { display: grid; gap: 6px; margin: 0; }
+.wz-finish-summary > div { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; }
+.wz-finish-summary dt { font-size: 12px; color: var(--text-dim); }
+.wz-finish-summary dd { margin: 0; font-size: 13px; }
+/* The two doors share the row evenly. The basis has to be small enough that BOTH fit beside
+   the live preview: the step pane is ~563px of content on a 1280-wide laptop, so a 280px
+   basis wrapped them into a column and pushed Export 34px below the fold — the one control
+   this step exists for. At 240 they sit side by side at ~274px each, which is also the width
+   every other entry card in the wizard already uses. Wrap is kept for narrow viewports, where
+   stacking full-width is right. */
+.wz-finish-doors { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.wz-finish-doors .wz-entry-card { width: auto; flex: 1 1 240px; }
 
 .issue { padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); }
 .issue.error { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.4); }
@@ -3311,6 +3346,15 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   color: var(--text-dim);
 }
 .save-field input, .save-field select { width: 100%; }
+
+/* The standalone export window — same borrowed `.wz-modal`, same reason to resize it. Narrow
+   on purpose: the surface inside is the dock panel's single column of target cards, and
+   stretching that to the wizard's 1520px would strand each radio button a screen away from
+   the label it belongs to. Height follows the content (the render section roughly doubles it)
+   and scrolls in its own body. */
+.export-window { max-width: 620px; width: min(620px, 94vw); height: auto; max-height: 92vh; }
+.export-window .wz-header h2 { font-size: 16px; margin: 0; }
+.export-window-body { overflow-y: auto; padding: 14px 18px 18px; min-height: 0; flex: 1; }
 
 /* ══ Home (routed dashboard) + the per-graphic control panel page ═════════════════════════ */
 
