@@ -47,7 +47,9 @@ function tickerShowCurrent() {
   var items = tickerItems();
   var track = document.getElementById('ticker-track');
   if (!track || items.length === 0) return;
-  track.innerHTML = renderTickerItem(items[tickerIndex % items.length]);
+  // escapeHtml() for the same reason rebuildTicker() uses it: the item text is data, and the
+  // rotator writes it through innerHTML.
+  track.innerHTML = renderTickerItem(escapeHtml(items[tickerIndex % items.length]));
 }
 
 // tickerMarquee(): the classic endless travel. The track holds the items TWICE, so sliding
