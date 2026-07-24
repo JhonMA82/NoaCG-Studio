@@ -309,7 +309,7 @@ Key reuse points, concretely:
 - **Safety gate:** `publishGate(template)` from `src/community/gate.ts` - the *same* gate the
   interactive publish path runs, so a nightly draft is held to the exact standard a user submission is
   (external-dep and missing-asset promoted to blocking; un-serializable/oversized blocked;
-  suspicious-JS flagged).
+  unsafe JS - network, storage, dynamic code, cross-frame reach - blocked outright).
 - **The deterministic motion checker** GOALS/ERA5 call the one justified generation-side investment:
   land it here as a shared `scripts/lib/motionCheck.mjs`, lifting `ai-compare.mjs`'s mid-motion +
   settled overlap sampler and adding a third sample. The bench and this job both import it.
