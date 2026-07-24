@@ -72,6 +72,18 @@ function bytesOf(s: string): number {
   return typeof s === 'string' ? s.length : 0;
 }
 
+/**
+ * Which unsafe constructs one JS pane contains — DETECTION only, no phrasing. Exported because
+ * the AI harness screens generated code with the SAME list (src/ai/safety.ts): a template written
+ * by a model that just read an uploaded reference image is no more trusted than one written by a
+ * stranger, and two lists of what counts as unsafe would drift apart within a release. The two
+ * callers word the finding differently because they are telling different people different things
+ * ("delete that block before publishing" vs "the AI wrote this, don't apply it").
+ */
+export function unsafeJsConstructs(js: string): { rule: string; note: string }[] {
+  return UNSAFE_JS.filter(({ re }) => re.test(js)).map(({ rule, note }) => ({ rule, note }));
+}
+
 /** Structural + safety checks beyond the SPX contract. Returns errors (block sharing) and warnings
  *  (informational; a human reviewer decides). */
 export function runBench(template: SpxTemplate): ValidationResult {
@@ -121,17 +133,15 @@ export function runBench(template: SpxTemplate): ValidationResult {
   }
 
   // 3. Unsafe JS — blocks sharing. See UNSAFE_JS for why these are errors and not warnings.
-  for (const { re, rule, note } of UNSAFE_JS) {
-    if (re.test(template.js)) {
-      errors.push({
-        rule,
-        message:
-          `The template JavaScript ${note}, which a shared graphic may not do — it would run in ` +
-          `the browser of everyone who imports it. If this is a Live data, Show chat, Remote ` +
-          `control or Hosted control block, delete that marked block before publishing (it points ` +
-          `at your own show or sheet, not theirs).`,
-      });
-    }
+  for (const { rule, note } of unsafeJsConstructs(template.js)) {
+    errors.push({
+      rule,
+      message:
+        `The template JavaScript ${note}, which a shared graphic may not do — it would run in ` +
+        `the browser of everyone who imports it. If this is a Live data, Show chat, Remote ` +
+        `control or Hosted control block, delete that marked block before publishing (it points ` +
+        `at your own show or sheet, not theirs).`,
+    });
   }
 
   // 4. Absolute URLs in the JS. Reported under the SAME rule as the HTML/CSS scan so the author

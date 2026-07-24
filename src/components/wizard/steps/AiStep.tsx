@@ -7,6 +7,7 @@ import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxVal
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
+import { mergeSafety, withSafetyChecks } from '../../../ai/safety';
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import {
   emptyGenerationSpec,
@@ -158,11 +159,22 @@ export default function AiStep({
   // (lifecycle, field binding, overlap/overflow, double-length stress) — bench findings
   // drive the provider's repair rounds. The structured setup adds its own checks on top
   // (requested fields present, uploaded fonts actually used).
+  //
+  // The SAFETY screen (src/ai/safety.ts) wraps the pair before the spec checks: it asks what the
+  // generated code DOES, which nothing else here asks. It sits INSIDE the injected validator on
+  // purpose — the bench executes the result the moment it lands, so the finding has to reach the
+  // provider's repair loop rather than a review step the code has already run past. `imported`
+  // is the source for a convert, so a template that already called fetch() before the AI touched
+  // it is not reported as something the AI introduced.
   const baseValidate: SpxValidator = async (t) => mergeResults(validateTemplate(t), await benchTemplateRuntime(t));
-  const validate: SpxValidator = withSpecChecks(baseValidate, activeSpec) ?? baseValidate;
+  const safeValidate: SpxValidator = withSafetyChecks(baseValidate, imported?.template ?? null);
+  const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
 
   const showChange = (change: AiTemplateChange) => {
-    const v = change.validation ?? validateTemplate(change.template);
+    // Screened here as well as inside the injected validator, because `generateRaw` (the harness
+    // OFF path) validates itself and never runs ours — this is the one place every path passes
+    // through on its way to the user.
+    const v = mergeSafety(change.validation ?? validateTemplate(change.template), change.template, imported?.template);
     setSummary(change.summary);
     setValidation(v);
     setLastPath(change.path ?? null);

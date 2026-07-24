@@ -108,6 +108,33 @@ deterministically first (`convertEmittedRegion`, pipeline item 5): repair rounds
 on FUNCTIONAL findings, and residual `bench-editability` findings surface as warnings -
 except when a modify started from a data-shaped template, where they stay errors.
 
+## The safety screen (`safety.ts`) - what the code DOES, not whether it is correct
+
+The quality gate above asks whether a result is CORRECT. Nothing in it asks what the generated
+JavaScript *does*, and the model does not read only the user's brief: it reads uploaded REFERENCE
+IMAGES (text inside a picture is instructions to a vision model) and, on modify/convert, a whole
+HTML file the user may have been handed by someone else. So `safetyFindings` screens the emitted
+JS for network calls, browser storage, runtime code building and cross-frame reach, sharing its
+construct list with the community share gate (`validation/templateBench.ts` `unsafeJsConstructs`)
+- one question, one answer, one place to update.
+
+It blocks rather than warns because a generated template is EXECUTED automatically: the runtime
+bench loads it the moment a result lands, before anyone has looked at it, in an iframe that today
+shares the app's origin.
+
+- **`withSafetyChecks`** wraps the INJECTED validator, so a finding reaches the repair loop and
+  the model gets a round to write the code properly.
+- **`mergeSafety`** screens again where a result is SHOWN (AiStep's `showChange`, AIPromptPanel).
+  That belt exists because `generateRaw` validates itself and never runs the injected validator -
+  keeping that path pure is deliberate, so the screen meets it at the consumer instead.
+- **`source`** is the template a modify/convert started from, and only constructs the result ADDED
+  are reported: a graphic that already carries a Live data or Show chat block legitimately calls
+  `fetch()`, and restyling it must not become impossible because the model preserved the user's
+  own code. A generate passes no source.
+
+Honest limit: a regex screen refuses the obvious, not the determined (`window['fetc'+'h']`). The
+containment that would actually hold is denying the preview iframe the app's origin.
+
 ## Telemetry & the value proof
 
 `telemetry.ts` records every run locally (stages, tokens from the API usage block, repair
