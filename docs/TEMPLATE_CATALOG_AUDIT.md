@@ -303,6 +303,13 @@ already do so (tickers and credit crawls scroll past the edge by design); and a 
 changed categories. The affected-spec sweep ended 511 passed / 2 failed, both green in isolation and
 in the disjoint-set pattern of concurrent-worktree contention rather than a code fault.
 
+That overflow sweep is now a committed gate: `scripts/overflow-sweep.mjs`. It renders every
+variant at 1920x1080, settles it, and reports any painted box that escapes the frame or clips its
+own content, diffing against `scripts/overflow-baseline.json` (202 variants escape or clip by
+design - reveal masks, ticker and credit-crawl scroll, transition covers that slide in from
+off-frame, decorative glow/divider bleed) so only a NEW escape fails. Re-record the baseline with
+`--update-baseline` on a deliberate look change, the same discipline as the two catalog baselines.
+
 Still open from §6: footprint minimums, backgrounds on full-coverage graphics, the streaming pack,
 the data layer, the animation vocabulary, and vertical.
 
