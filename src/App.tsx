@@ -4,6 +4,7 @@ import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
 import HostedControlPage from './components/HostedControlPage';
 import HomePage from './components/home/HomePage';
+import ExportWindow from './components/ExportWindow';
 import GraphicControlPage from './components/home/GraphicControlPage';
 import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
@@ -91,13 +92,24 @@ export default function App() {
   const controlSlug = params.get('control');
   if (controlSlug) return <HostedControlPage slug={controlSlug} />;
 
-  // Routed surfaces: Home (and a package's view), a saved graphic's control panel.
-  if (route.view === 'home' || route.view === 'package') return <HomePage route={route} />;
-  if (route.view === 'control') return <GraphicControlPage id={route.id} />;
+  // Routed surfaces: Home (and a package's view), a saved graphic's control panel; then the
+  // editor, which is open to everyone — no login wall (Era 5.6). Account features (cloud
+  // sync, community, AI) gate themselves via useAuthState and the on-demand SignInDialog.
+  const surface =
+    route.view === 'home' || route.view === 'package' ? <HomePage route={route} />
+    : route.view === 'control' ? <GraphicControlPage id={route.id} />
+    : route.view === 'video' ? <VideoAppShell />
+    : route.view === 'graphic' ? <AppShell />
+    : kind === 'video' ? <VideoAppShell />
+    : <AppShell />;
 
-  // The editor is open to everyone — no login wall (Era 5.6). Account features (cloud sync,
-  // community, AI) gate themselves via useAuthState and the on-demand SignInDialog.
-  if (route.view === 'video') return <VideoAppShell />;
-  if (route.view === 'graphic') return <AppShell />;
-  return kind === 'video' ? <VideoAppShell /> : <AppShell />;
+  // The export window mounts HERE rather than inside a shell: Home is a SIBLING of AppShell,
+  // not a child, and both open it. Its request lives in a module store, so mounting it in
+  // each surface would put two modals on screen at once.
+  return (
+    <>
+      {surface}
+      <ExportWindow />
+    </>
+  );
 }

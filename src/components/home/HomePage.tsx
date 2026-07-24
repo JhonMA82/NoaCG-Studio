@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import { useRouter, type Route } from '../../app/router';
-import { useTemplateStore } from '../../store/templateStore';
+import { syncSampleData, useTemplateStore } from '../../store/templateStore';
 import { openGraphicById, useSaveUi } from '../../store/saveActions';
+import { useExportUi } from '../ExportWindow';
 import {
   deleteGraphic,
   duplicateGraphic,
@@ -451,6 +452,7 @@ function GraphicRow({
   onPublish?: (g: GraphicDoc) => void;
 }) {
   const navigate = useRouter((s) => s.navigate);
+  const openExport = useExportUi((s) => s.openExport);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(g.name);
   const [moving, setMoving] = useState(false);
@@ -524,6 +526,21 @@ function GraphicRow({
             Open
           </button>
           <button onClick={() => navigate({ view: 'control', id: g.id })} title="Open its control panel">🎛</button>
+          {/* Export without opening the editor first. The same window the wizard finishes
+              into, over this record's own template + its active entry's values. */}
+          <button
+            onClick={() =>
+              openExport({
+                template: g.template,
+                sampleData: syncSampleData(g.template, activeValues(g) ?? {}),
+                graphicId: g.id,
+              })
+            }
+            title="Export this graphic"
+            data-testid="export-graphic"
+          >
+            ⬇
+          </button>
           <button onClick={() => { setName(g.name); setRenaming(true); }} title="Rename">✎</button>
           <button
             onClick={() => { duplicateGraphic(g.id); onChanged(); }}

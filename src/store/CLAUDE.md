@@ -76,6 +76,11 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   (+ Ctrl+Y), bound in AppShell, unless focus is in Monaco or a form field.
 - **setHtml/setCss/setJs** - editor edits; editing HTML re-parses the definition so
   `fields`/`settings` stay in sync. The preview rebuilds on a ~350 ms debounce.
+- **syncSampleData(template, existing)** - EXPORTED (not just internal): the data-carrying
+  fields' values, `existing` winning over each definition default. The export surface needs
+  the identical answer for a graphic that is NOT the open project (a saved record exported
+  off a Home card), so what a target bakes in never depends on which door the export came
+  through.
 - **lastChange** - per-tab changed-line ranges from every apply (drives the editor's
   change-highlight decorations).
 - **replayNonce** - motion applies (timeline/Inspector edits) auto-replay via PlayoutSimulator.

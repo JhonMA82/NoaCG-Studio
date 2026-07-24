@@ -486,13 +486,25 @@ e2e/layout.spec.ts.
   per card: templates needing their own runtime are greyed with the reason, and the lines choice
   stands down for a category whose designs have no stepped build at all. Pinned by e2e/assets.spec.ts, e2e/asset-workflow.spec.ts +
   e2e/template-insert.spec.ts.
-- **AIPromptPanel**; **ExportPanel** (validation inline; remembers the last-picked target via
-  model/prefs.ts). Below the zip targets it mounts **render/RenderPanel** — the Video & image
-  section (MP4/WebM/PNG/sequence/ProRes via the render API) — ONLY when `isRenderConfigured()`
-  (VITE_RENDER_API): unconfigured builds grow zero render UI, and ProRes/sequence gate on
-  `needsSignIn` like AI does. Its measured In/Hold/Out breakdown re-runs when the template or
-  sample data changes; job state lives in src/render/renderJobStore.ts (sessionStorage resume).
-  Contracts in src/render/CLAUDE.md; specs in e2e/render.spec.ts (stubbed API).
+- **AIPromptPanel**; **ExportSurface** + its two hosts. The surface holds everything export
+  DOES - the six zip targets, the inline validation gate, and (when `isRenderConfigured()`)
+  the render section - and reads NO store: template, sampleData and `graphicId` all arrive as
+  props, because the same screen has to serve a graphic that is not the open project.
+  **ExportPanel** is the dock panel, a thin store adapter that also feeds the verdict back via
+  `setValidation`. **ExportWindow** is the standalone modal (`useExportUi.openExport(request)`,
+  the store co-located with the component like InsertTemplateDialog's): export is not a reward
+  for opening the editor, so the wizard's Finish step ends there and so does a saved graphic's
+  ⬇ button on Home. It mounts ONCE in **App.tsx**, beside the routed surface - Home is a
+  SIBLING of AppShell, not a child, and both open it, so mounting per shell would put two
+  modals on screen. It closes on a route change (the request is a SNAPSHOT of one graphic and
+  must not outlive its surface - browser Back is the case), recording the opening route on the
+  effect's first run for a request so the wizard's batched close→navigate→open hop is not
+  mistaken for navigating away. Sample data for a non-open graphic goes through templateStore's
+  exported `syncSampleData`, so what a target bakes never depends on which door was used.
+  **render/RenderPanel** takes the same three props; ProRes/sequence gate on `needsSignIn` like
+  AI does, its measured In/Hold/Out breakdown re-runs when the template or sample data changes,
+  and job state lives in src/render/renderJobStore.ts (sessionStorage resume). Contracts in
+  src/render/CLAUDE.md; specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
 - **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**
   (AI key/model + workflow defaults from model/prefs.ts).
 
@@ -598,10 +610,37 @@ undo/redo keys as AppShell with the same Monaco/form-field guard. AI chat gates 
 
 ## Wizard (wizard/)
 
-CreationWizard (Entry -> Browse -> Fields -> Style -> Animation, persistent live preview),
-draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
+CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
+preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
 which generates the complete, commented template. FIVE entry cards: template, Create with AI,
 video, Import graphic, blank.
+
+**Finish** (steps/FinishStep.tsx - the last step of every catalog-shaped mode, design included)
+is the wizard's ONE branch. It carries the graphic's NAME (`draft.name`, applied inside
+`buildDraftTemplate` so it reaches the topbar, the Save prefill and the export slug through one
+path; blank falls back to the design's catalog name), a read-back of what was chosen, and two
+doors:
+- **Open in the editor** - the classic ending. Creates and hands over; saving stays the
+  user's move.
+- **Export it** - creates, SAVES to the library, closes onto `#/home/graphics`, and opens
+  ExportWindow. The editor is never revealed. The save is not optional: this door exists for
+  someone who is done, and a graphic that was configured, exported and dropped would cost
+  every wizard choice to reproduce. A FAILED save deliberately stays in the editor instead,
+  where the topbar's failed status is visible and Save can be retried.
+Both doors go through `applyDraftProject`, which is what keeps them byte-identical - the
+editor path formats through Prettier (`applyGenerated`), so an export path skipping it would
+ship different HTML for the same choices. The footer's quiet "Create project" shortcut stands
+down ON Finish (the cards are the actions) and works from every step before it, as always.
+The graphic's name matters most on the export door: it slugs the zip AND, for the SPX and
+CasparCG targets, the template FOLDER inside it - the name the operator reads in the playout
+server. Pinned by e2e/wizard-finish.spec.ts.
+
+**A closed `<details>` needs an author rule here.** The UA hides a disclosure's non-summary
+children with `display: none`, which ANY author rule setting `display` on those children beats
+- and both wizard disclosures wrap `.row` / `.wz-filter-row`, which are `display: flex`. Browse's
+"More filters" therefore never collapsed at all until styles.css grew
+`details:not([open]) > *:not(summary) { display: none }`. `toBeVisible()` is blind to it, so
+both specs assert the content's measured HEIGHT is 0, never the `open` attribute.
 
 **Browse** (steps/BrowseStep.tsx, mode 'template' only) is the FACETED template storefront
 (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) replacing the old Category -> Template pair: search
@@ -625,9 +664,14 @@ outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now). On ≤768px the facet
 controls collapse behind the `.wz-browse-drawer-btn` toggle (active-count badge; search,
 active chips and results stay visible — closed by default via a matchMedia initial state,
-and desktop CSS ignores the closed state entirely). The import-images
+and desktop CSS ignores the closed state entirely). The CANVAS FORMAT row (aspect /
+resolution / fps, `.wz-browse-format`) sits OUTSIDE `.wz-browse-filters` and above the
+toggle: it is not a facet — `browseTemplates` never reads it, so nothing is narrowed — and
+inside the drawer it asked a phone user to open a control labelled "Filters" to make a
+decision that filters nothing. The import-images
 continuation (mode 'import') keeps the old ImportStep -> TemplateStep flow and indices; the
-catalog flow's later steps sit one index earlier (`animStep`).
+catalog flow's later steps sit one index earlier (`animStep`), and FINISH follows Animation
+in every mode (`finishStep = animStep + 1`).
 
 **Import graphic** (mode 'design', steps/ImportDesignStep + PrepareDesignStep +
 PlaceFieldsStep + the shared AnimationStep) is a SETUP flow, not a second editor:

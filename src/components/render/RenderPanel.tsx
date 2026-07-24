@@ -6,7 +6,8 @@
 // (useAuthState().needsSignIn + openSignIn), and the server re-checks everything.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTemplateStore } from '../../store/templateStore';
+import type { SpxTemplate } from '../../model/types';
+import type { ValidationResult } from '../../validation/validateTemplate';
 import { useAuthState } from '../auth/useAuthState';
 import { loadPrefs, savePrefs } from '../../model/prefs';
 import { FPS_OPTIONS } from '../../model/types';
@@ -24,10 +25,17 @@ const SCALES = [0.5, 1, 2];
 
 const fmtSec = (ms: number) => (Math.round(ms / 100) / 10).toString().replace(/\.0$/, '');
 
-export default function RenderPanel() {
-  const template = useTemplateStore((s) => s.template);
-  const sampleData = useTemplateStore((s) => s.sampleData);
-  const validation = useTemplateStore((s) => s.validation);
+interface Props {
+  /** The graphic to render. Passed in rather than read from the store, so this section works
+   *  for a graphic that is not the open project — the wizard's export window renders a
+   *  freshly built template that has never been applied. */
+  template: SpxTemplate;
+  sampleData: Record<string, string>;
+  /** The export gate's result; null before the first run. Only ever disables the button. */
+  validation: ValidationResult | null;
+}
+
+export default function RenderPanel({ template, sampleData, validation }: Props) {
   const { needsSignIn, signedIn, backendConfigured } = useAuthState();
   const { job, busy, start } = useRenderJob();
 
