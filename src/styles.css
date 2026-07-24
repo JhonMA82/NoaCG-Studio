@@ -904,6 +904,12 @@ kbd {
   border-bottom: 1px solid var(--border);
 }
 .wz-header h2 { margin: 0; font-size: 18px; }
+/* `.wz-header` has no justify-content: the WIZARD's ✕ only lands on the right edge because
+   `.wz-dots` between them carries margin-left:auto and eats the free space. A header with just
+   a title and a close button has nothing doing that, so the ✕ sat one 20px gap from the title,
+   mid-header. Push it over for those two. */
+.save-dialog .wz-header .gallery-close,
+.export-window .wz-header .gallery-close { margin-left: auto; }
 .wz-dots { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
 .wz-dot {
   font-size: 12px;
@@ -3013,6 +3019,20 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
      viewport keeps the preview real; the step scrolls in what is left. */
   .wz-side { flex: 0 0 38vh; border-left: none; border-top: 1px solid var(--border); }
   .wz-header { padding: 12px 14px; gap: 10px; }
+  /* The step rail keeps NUMBERS for every step and the word only for the one you are on.
+     Six labelled pills wrapped to four rows and took ~290px of an 812px screen before a
+     single control appeared — the header was the biggest thing on the page. */
+  .wz-dot-label { display: none; }
+  .wz-dot.active .wz-dot-label { display: inline; }
+  /* The row KEEPS wrapping - forcing nowrap just ran the last numbers off the screen edge.
+     What buys the single row is space, not a wrap ban: the mode caption ("New project") is
+     ~110px of a 375px header saying what the user just chose two taps ago, while the active
+     pill already names where they are. The brand mark stays. */
+  .wz-title-step, .wz-title-sep { display: none; }
+  .wz-dots { gap: 2px; }
+  /* nowrap on the PILL, though: the active one is the only two-word item in the row, and left
+     to wrap it broke onto "6 / Finish" and grew into a tall blob beside the flat numbers. */
+  .wz-dot { padding: 5px 8px; white-space: nowrap; }
   .wz-entry { padding: 16px 4px; }
   .wz-entry-card { width: 100%; }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */

@@ -30,6 +30,7 @@ import type { VideoProject } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
+import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
 import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 
@@ -65,6 +66,7 @@ export default function CreationWizard() {
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
 
+  const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
@@ -279,12 +281,17 @@ export default function CreationWizard() {
 
   // Design mode previews from the moment the artwork lands, through the Prepare step —
   // the user sees the real graphic (and its default entrance) before creating.
+  //
+  // FINISH ON A PHONE IS THE ONE EXCEPTION. Stacked, the preview claims a fixed 38vh and the
+  // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
+  // step that exists to offer a choice. Every earlier step had already shown the graphic, and
+  // the step's own read-back says what was built, so the actions win the room here.
   const showPreview =
-    mode === 'ai' ? step === 1 && !!aiResult
+    (mode === 'ai' ? step === 1 && !!aiResult
     : mode === 'video' ? false
     : mode === 'design' ? step >= 1 && !!previewTemplate
     : mode === 'template' ? step >= 1 && !!previewTemplate
-    : step >= 2 && !!previewTemplate;
+    : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
@@ -344,7 +351,11 @@ export default function CreationWizard() {
                   onClick={() => setStep(s)}
                   title={t}
                 >
-                  <span>{i + 1}</span> {t}
+                  {/* The label is its own element so a PHONE can drop it from every step but
+                      the active one: six labelled pills wrap to four rows and ate ~290px of an
+                      812px screen before any content appeared. Numbers still name the step,
+                      and the one you are on keeps its word. */}
+                  <span>{i + 1}</span> <span className="wz-dot-label">{t}</span>
                 </button>
               );
             })}
