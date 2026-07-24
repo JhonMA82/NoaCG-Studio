@@ -111,7 +111,9 @@ test('structured setup: pinned category + user fields + intensity land in the cr
   expect(design!.userText).toContain('Structured setup');
   expect(design!.userText).toContain('Location');
 
-  await page.getByRole('button', { name: 'Create project' }).click();
+  // Create with AI ends on the shared Finish step now — Next, then the editor door.
+  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByTestId('wz-finish-editor').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
 
   // The created template carries the user's fields as real DataFields, the intensity as

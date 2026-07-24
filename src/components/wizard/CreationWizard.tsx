@@ -22,7 +22,7 @@ import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
-import FinishStep from './steps/FinishStep';
+import FinishStep, { aiSummaryRows, catalogSummaryRows } from './steps/FinishStep';
 import { useExportUi } from '../ExportWindow';
 import type { SpxTemplate } from '../../model/types';
 import { clearSpecDraft, type GenerationSpec } from '../../model/generationSpec';
@@ -41,7 +41,7 @@ import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveAction
 // editor ever being involved (steps/FinishStep.tsx + components/ExportWindow.tsx).
 const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
-const STEP_TITLES_AI = ['Start', 'Create'];
+const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
 // (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
@@ -153,7 +153,9 @@ export default function CreationWizard() {
   // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
   // continuation keeps the old six-step shape. Finish always follows it.
   const animStep = mode === 'import' ? 5 : 4;
-  const finishStep = animStep + 1;
+  // AI has no configuring steps of its own — the result IS the configuration — so its Finish
+  // sits right after Create (index 2), not after an animation step it never shows.
+  const finishStep = mode === 'ai' ? 2 : animStep + 1;
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
   const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
@@ -194,16 +196,51 @@ export default function CreationWizard() {
     void applyGenerated(createBlankTemplate(draftResolution(draft), draft.fps));
   };
 
-  const createFromAi = () => {
-    if (!aiResult?.valid) return;
-    // The picked harness alternative becomes the project — commit the staged preference
-    // (aggregated, subtle; see src/ai/preferences.ts). A no-alternatives run staged nothing.
+  // The AI graphic's name: the Finish field, else the generated design's own name — the same
+  // rule catalog modes apply through draftName, just off the result instead of a variant.
+  const aiName = (): string => draft.name.trim() || (aiResult?.template.name ?? '');
+
+  /**
+   * Build the AI result as the working project. The AI create path DIFFERS from the catalog
+   * one and must keep its steps: commit the staged preference pick (aggregated, subtle; see
+   * src/ai/preferences.ts — a no-alternatives run staged nothing), and, AFTER the whole-project
+   * swap clears the store's spec, adopt the result's own spec so it rides the autosave slot and
+   * the next Save. Returns the applied template (read back post-format) or null. Both Finish
+   * doors go through here, so the editor and export endings stay byte-identical.
+   */
+  const applyAiProject = async (): Promise<SpxTemplate | null> => {
+    if (!aiResult?.valid) return null;
     commitStagedSelection();
-    void applyGenerated(aiResult.template).then(() => {
-      // AFTER the apply: the whole-project swap just cleared the store's spec, so the
-      // created project now adopts its own (it rides the autosave slot + the next Save).
-      useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
-      clearSpecDraft();
+    const name = aiName();
+    // The Finish name rides the built template, exactly as the catalog path's draftName does,
+    // so it reaches the topbar, the Save prefill, and the export slug through one path.
+    const template = aiResult.template.name === name ? aiResult.template : { ...aiResult.template, name };
+    await applyGenerated(template);
+    useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
+    clearSpecDraft();
+    return useTemplateStore.getState().template;
+  };
+
+  /** The AI editor door: create and hand over. Saving stays the user's move. */
+  const createFromAi = () => {
+    void applyAiProject();
+  };
+
+  /** The AI export door: create, SAVE, and go straight to the export window (mirrors
+   *  createAndExport). The save is not optional — an export-only creation that vanished would
+   *  cost the whole AI generation to reproduce. A failed save deliberately stays in the editor. */
+  const createFromAiAndExport = () => {
+    void applyAiProject().then((template) => {
+      if (!template) return;
+      const saved = saveGraphicAs(aiName(), { kind: 'standalone' });
+      const s = useTemplateStore.getState();
+      closeGallery();
+      if (saved.ok) useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+      useExportUi.getState().openExport({
+        template: s.template,
+        sampleData: s.sampleData,
+        graphicId: s.saved.graphicId,
+      });
     });
   };
 
@@ -287,7 +324,7 @@ export default function CreationWizard() {
   // step that exists to offer a choice. Every earlier step had already shown the graphic, and
   // the step's own read-back says what was built, so the actions win the room here.
   const showPreview =
-    (mode === 'ai' ? step === 1 && !!aiResult
+    (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
     : mode === 'video' ? false
     : mode === 'design' ? step >= 1 && !!previewTemplate
     : mode === 'template' ? step >= 1 && !!previewTemplate
@@ -396,30 +433,35 @@ export default function CreationWizard() {
             {step === 1 && mode === 'video' && (
               <VideoStep onCreate={createVideo} onOpen={createVideo} />
             )}
-            {step === 1 && mode === 'ai' && (
-              <AiStep
-                resolution={draftResolution(draft)}
-                fps={draft.fps}
-                brandPalette={matchBrand && brand ? brand.palette : null}
-                result={aiResult?.template ?? null}
-                onResult={(template, valid, spec) => setAiResult(template ? { template, valid, spec } : null)}
-                onOpenImported={(imported) => {
-                  // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the
-                  // user's file opens exactly as written, and the Export panel's inline
-                  // validation shows what (if anything) needs fixing before it is
-                  // SPX/CasparCG/OGraf-ready. applyTemplate closes the wizard.
-                  applyTemplate(imported, { resetSampleData: true });
-                  setActiveTab('html');
-                  useTemplateStore.getState().setActivePanel('export');
-                  toSpxShell();
-                }}
-                onUseTemplates={(images) => {
-                  // Skip the AI: design AROUND the images with the catalog — the existing
-                  // images -> category -> template-picker continuation (logo-slot first).
-                  patch({ importedImages: images, logoAssetPath: images[0]?.path ?? null });
-                  setMode('import');
-                }}
-              />
+            {/* AiStep stays MOUNTED across the Create → Finish move (hidden on Finish), so
+                stepping to the doors and back never discards the thread, the three directions,
+                or the refinement history — none of which is lifted into the draft. */}
+            {mode === 'ai' && (step === 1 || step === finishStep) && (
+              <div hidden={step === finishStep}>
+                <AiStep
+                  resolution={draftResolution(draft)}
+                  fps={draft.fps}
+                  brandPalette={matchBrand && brand ? brand.palette : null}
+                  result={aiResult?.template ?? null}
+                  onResult={(template, valid, spec) => setAiResult(template ? { template, valid, spec } : null)}
+                  onOpenImported={(imported) => {
+                    // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the
+                    // user's file opens exactly as written, and the Export panel's inline
+                    // validation shows what (if anything) needs fixing before it is
+                    // SPX/CasparCG/OGraf-ready. applyTemplate closes the wizard.
+                    applyTemplate(imported, { resetSampleData: true });
+                    setActiveTab('html');
+                    useTemplateStore.getState().setActivePanel('export');
+                    toSpxShell();
+                  }}
+                  onUseTemplates={(images) => {
+                    // Skip the AI: design AROUND the images with the catalog — the existing
+                    // images -> category -> template-picker continuation (logo-slot first).
+                    patch({ importedImages: images, logoAssetPath: images[0]?.path ?? null });
+                    setMode('import');
+                  }}
+                />
+              </div>
             )}
             {step === 1 && mode === 'design' && (
               <ImportDesignStep
@@ -575,12 +617,27 @@ export default function CreationWizard() {
             {/* Finish — shared by every catalog-shaped mode, design included. */}
             {step === finishStep && mode !== 'ai' && mode !== 'video' && variant && (
               <FinishStep
-                variant={variant}
-                draft={draft}
-                onDraft={patch}
+                name={draft.name}
+                namePlaceholder={variant.name}
+                onName={(name) => patch({ name })}
+                summary={catalogSummaryRows(variant, draft)}
                 onOpenEditor={create}
                 onExport={createAndExport}
                 busy={!previewTemplate}
+              />
+            )}
+            {/* Finish — Create with AI takes the SAME branch: the result is summarised off the
+                template itself (no catalog variant behind it), and both doors route through
+                applyAiProject so the editor and export endings stay byte-identical. */}
+            {step === finishStep && mode === 'ai' && aiResult && (
+              <FinishStep
+                name={draft.name}
+                namePlaceholder={aiResult.template.name}
+                onName={(name) => patch({ name })}
+                summary={aiSummaryRows(aiResult.template, aiResult.valid)}
+                onOpenEditor={createFromAi}
+                onExport={createFromAiAndExport}
+                busy={!aiResult.valid}
               />
             )}
             <div className="wz-step-fade" aria-hidden="true" />
@@ -602,7 +659,7 @@ export default function CreationWizard() {
         <div className="wz-footer">
           <div className="row" style={{ gap: 14, alignItems: 'center' }}>
             {step > 0 && <button onClick={() => goToStep(-1)}>‹ Back</button>}
-            {brand && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {brand && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
               <label className="wz-match" title="Reuse this project's palette and font so the new graphic belongs to the same package">
                 <input
                   type="checkbox"
@@ -622,14 +679,16 @@ export default function CreationWizard() {
             )}
           </div>
           <div className="row" style={{ gap: 8 }}>
+            {/* AI's Create step advances to Finish once a valid result stands — the two doors
+                (open in the editor / export) live there, same as every catalog mode. */}
             {mode === 'ai' && step === 1 && (
               <button
-                className="primary"
+                className="primary wz-next"
                 disabled={!aiResult?.valid}
-                onClick={createFromAi}
+                onClick={() => goToStep(1)}
                 title={aiResult && !aiResult.valid ? 'The result has validation errors — refine or regenerate first' : undefined}
               >
-                Create project
+                Next ›
               </button>
             )}
             {/* "Create project" is the quiet shortcut out of any configuring step — create
