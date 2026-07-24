@@ -752,6 +752,16 @@ the same locator either way. `conversation()` feeds the bounded transcript into
 `modify` now takes a context), and **✦ 3 more like this** re-runs the design stage seeded
 with the picked direction's spec.
 
+**The result card reports what was MEASURED, not a verdict.** `validation/readiness.ts` groups
+existing findings into six operator-facing rows; it adds no checks, which is what lets a row
+read "not played, so not tested" on the raw one-shot path rather than claiming a bench that
+never ran. Rules no row claims are shown verbatim, never swallowed. Cost comes from
+`ai/runStats.ts` over the telemetry ring: a median expectation before Generate (null below two
+matching runs — no invented number for a first-time user) and actuals after, recorded on a RUN
+and never in `showChange`, since re-picking an alternative costs nothing. **No money is ever
+shown** — prices are not in this codebase and a stale one would be believed — and zero tokens
+prints as silence, because "0 tokens" is a measurement claim rather than the absence of one.
+
 **Brand is PROPOSED, never applied.** The strip (`.ai-brand`) offers colours read out of the
 first uploaded image — `src/assets/paletteExtract.ts`, deterministic arithmetic, no model call
 — and the install's saved looks (`loadLooks()`). Both write `spec.brandColors`, the lock

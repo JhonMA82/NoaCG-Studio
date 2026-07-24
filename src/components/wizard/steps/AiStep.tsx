@@ -26,6 +26,8 @@ import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
 import type { Palette } from '../../../model/wizard';
 import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
 import { benchTemplateRuntime, mergeResults } from '../../../validation/runtimeBench';
+import { readinessRows, unclaimedFindings } from '../../../validation/readiness';
+import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
 import MoreControlPanel from './ai/MoreControlPanel';
 
@@ -151,6 +153,9 @@ export default function AiStep({
   // An example brief is armed before it replaces a brief the user already wrote (the
   // two-step pattern used for every other destructive click in the app).
   const [armedExample, setArmedExample] = useState<string | null>(null);
+  // What the run that produced the current result actually cost. Read from telemetry after
+  // each run rather than threaded back through the provider — the provider is UI-free.
+  const [spent, setSpent] = useState<RunCost | null>(null);
   // BRAND. Colours read out of the uploaded artwork (deterministic, no model call) and the
   // looks already saved in this install — both PROPOSE, and land on `spec.brandColors`,
   // which is the existing lock the assembler already honours over anything the AI picks.
@@ -261,6 +266,17 @@ export default function AiStep({
   };
 
   /**
+   * The actuals for the run that just finished, read off the telemetry ring the provider
+   * already writes. Called after a RUN, never from showChange — picking a different
+   * alternative costs nothing, and attributing the run's tokens to that click would be a
+   * quiet lie about what the user just spent.
+   */
+  const recordSpend = () => {
+    const record = lastRun();
+    setSpent(record ? runCost(record) : null);
+  };
+
+  /**
    * Stage the current pick for preference learning.
    *
    * The CHOSEN facets are the direction as it stands NOW — a refinement is part of what the
@@ -292,6 +308,7 @@ export default function AiStep({
       setSelected(0);
       clearStagedSelection();
       showChange(change);
+      recordSpend();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -393,6 +410,7 @@ export default function AiStep({
         setSelected(first);
         showChange(list[first]);
         stagePick(list[first], list);
+        recordSpend();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -437,6 +455,7 @@ export default function AiStep({
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
         showChange(change);
         stagePick(change, originals);
+        recordSpend();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -792,7 +811,7 @@ export default function AiStep({
             {!imported && (
               <label
                 className="wz-match"
-                title="On: the NoaCG harness designs three alternatives on the catalog design system, live-tests each, and learns from your picks. Off: the model's own one-shot take."
+                title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft — the model's own take, checked but never played."
               >
                 <input
                   type="checkbox"
@@ -801,7 +820,7 @@ export default function AiStep({
                   onChange={(e) => saveSetting({ useHarness: e.target.checked })}
                   disabled={!!busy}
                 />
-                Use NoaCG harness (3 options)
+                Design 3 options and test them live
               </label>
             )}
             {!imported && (
@@ -815,6 +834,25 @@ export default function AiStep({
             )}
             <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>
           </div>
+
+          {/* What a run like this has cost lately. Shown only once this browser has done
+              enough of them to have an answer — a first-time user gets no number rather
+              than an invented one. Tokens and seconds, never money: prices are not in this
+              codebase and a stale figure presented as cost would be believed. */}
+          {(() => {
+            const expected = runExpectation(imported ? 'convert' : 'generate', settings.useHarness);
+            if (!expected || busy) return null;
+            return (
+              <p className="hint" style={{ marginTop: 6 }} data-testid="ai-expectation">
+                Typically ~{formatDuration(expected.ms)}
+                {hasTokenCounts(expected) && (
+                  <> and ~{formatTokens(expected.inputTokens)} in / {formatTokens(expected.outputTokens)} out</>
+                )}
+                {settings.useHarness ? ' for all three options' : ''} — median of your last{' '}
+                {expected.runs} runs.
+              </p>
+            );
+          })()}
 
           {moreOpen && !imported && (
             <MoreControlPanel
@@ -941,31 +979,58 @@ export default function AiStep({
                     : '✓ Passes SPX validation and the live playout test — press Play in the preview, then Create project.'
                   : `✗ ${validation?.errors.length} check(s) failing — refine or regenerate.`}
               </p>
-              {validation && !validation.ok && (
-                <>
-                  <ul className="hint" style={{ margin: '4px 0 0 16px' }}>
-                    {validation.errors.map((e, i) => (
-                      <li key={i}>{e.message}</li>
-                    ))}
-                  </ul>
-                  {/* The findings are the app's words, not the user's job to translate —
-                      one press sends them back as the instruction. */}
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <button className="primary" data-testid="ai-fix" onClick={fixNow}>
-                      ⟳ Fix these
-                    </button>
-                    <span className="hint">Sends the failing checks back to the AI to repair.</span>
-                  </div>
-                </>
-              )}
-              {validation?.ok && validation.warnings.length > 0 && (
-                // Honest fine print on a passing result — e.g. a custom build whose motion
-                // stays hand-crafted code (read-only timeline), or a title-safe note.
-                <ul className="hint" style={{ margin: '4px 0 0 16px' }}>
-                  {validation.warnings.map((e, i) => (
-                    <li key={i}>⚠ {e.message}</li>
+              {/* ON-AIR READINESS: the checks that already ran, grouped into what an
+                  operator cares about. It adds no checks — it reports the findings the
+                  bench and the validator produced, which is what lets a row say "not
+                  tested" honestly when the live bench was never part of this result. */}
+              {validation && (
+                <div className="ai-ready" data-testid="ai-readiness">
+                  {readinessRows(validation, lastPath !== 'raw' && lastPath !== null).map((row) => (
+                    <div key={row.id} className={`ai-ready-row ${row.state}`}>
+                      <span className="ai-ready-mark" aria-hidden="true">
+                        {row.state === 'pass' ? '✓' : row.state === 'warn' ? '⚠' : row.state === 'fail' ? '✗' : '·'}
+                      </span>
+                      <span className="ai-ready-label">
+                        {row.label}
+                        {row.state === 'untested' && <em> — not played, so not tested</em>}
+                      </span>
+                      {row.messages.length > 0 && (
+                        <ul className="ai-ready-notes">
+                          {row.messages.map((m, i) => (
+                            <li key={i}>{m}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   ))}
-                </ul>
+                  {unclaimedFindings(validation).map((f, i) => (
+                    <div key={`x${i}`} className="ai-ready-row warn">
+                      <span className="ai-ready-mark" aria-hidden="true">⚠</span>
+                      <span className="ai-ready-label">{f.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {validation && !validation.ok && (
+                // The findings are the app's words, not the user's job to translate —
+                // one press sends them back as the instruction.
+                <div className="row" style={{ marginTop: 8 }}>
+                  <button className="primary" data-testid="ai-fix" onClick={fixNow}>
+                    ⟳ Fix these
+                  </button>
+                  <span className="hint">Sends the failing checks back to the AI to repair.</span>
+                </div>
+              )}
+              {spent && (
+                <p className="hint" style={{ marginTop: 6 }} data-testid="ai-spent">
+                  This run: {formatDuration(spent.ms)}
+                  {hasTokenCounts(spent) && (
+                    <>
+                      , {formatTokens(spent.inputTokens)} tokens in / {formatTokens(spent.outputTokens)} out
+                    </>
+                  )}
+                  .
+                </p>
               )}
               {refined && (
                 // A refinement is a bet: it may be worse than what the AI first proposed, and

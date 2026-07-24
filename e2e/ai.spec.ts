@@ -118,6 +118,9 @@ function toolUse(name: string, input: unknown) {
     body: JSON.stringify({
       content: [{ type: 'tool_use', id: 'tu_1', name, input }],
       stop_reason: 'tool_use',
+      // The real Messages API returns this block and telemetry records it. Without it the
+      // fixture would exercise the no-usage path on every test by accident.
+      usage: { input_tokens: 4200, output_tokens: 1100 },
     }),
   };
 }
@@ -173,7 +176,7 @@ test('harness off (the toggle): one raw model call, no design stage', async ({ p
     return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
   });
   await openAiStep(page);
-  await expect(page.getByLabel(/Use NoaCG harness/)).not.toBeChecked();
+  await expect(page.getByLabel(/Design 3 options/)).not.toBeChecked();
   await page.locator('.wz-step textarea').fill('A simple test slate');
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
@@ -188,7 +191,7 @@ test('the harness checkbox is on by default', async ({ page }) => {
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5' })),
   );
   await openAiStep(page);
-  await expect(page.getByLabel(/Use NoaCG harness/)).toBeChecked();
+  await expect(page.getByLabel(/Design 3 options/)).toBeChecked();
 });
 
 test('describe-it: prompt → validated template → create project', async ({ page }) => {
@@ -543,6 +546,99 @@ test('brand: the colours in an uploaded logo are offered, and the pick locks the
     return useTemplateStore.getState().template.css;
   });
   expect(css).toContain('#1e9e8a');
+});
+
+test('readiness: a passing result reports what was checked, and the raw path admits what was not', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    if (requestedTool(route) === 'emit_design_alternatives')
+      return route.fulfill(toolUse('emit_design_alternatives', { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+
+  // The harness path played the graphic, so every row is a real verdict.
+  const report = page.getByTestId('ai-readiness');
+  await expect(report).toContainText('Operator fields reach the graphic');
+  await expect(report).toContainText('Survives text twice as long');
+  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(0);
+  await expect(report.locator('.ai-ready-row.pass')).toHaveCount(6);
+
+  // The actuals for the run are reported, not just the verdict.
+  await expect(page.getByTestId('ai-spent')).toContainText('tokens in');
+});
+
+test('cost: a run whose provider reported no token usage says nothing about tokens', async ({ page }) => {
+  // "0 tokens" is a measurement claim, not an absence of one — the line must report the
+  // time it does know and stay silent about what it does not.
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        content: [{ type: 'tool_use', id: 'tu_1', name: 'emit_design_alternatives', input: { alternatives: THREE_ALTS } }],
+        stop_reason: 'tool_use',
+        // No usage block at all.
+      }),
+    }),
+  );
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  await expect(page.getByTestId('ai-spent')).toBeVisible();
+  await expect(page.getByTestId('ai-spent')).not.toContainText('tokens');
+  await expect(page.getByTestId('ai-spent')).not.toContainText('0 ');
+});
+
+test('readiness: the raw one-shot never claims the checks it did not run', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5', useHarness: false })),
+  );
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) =>
+    route.fulfill(toolUse('emit_template', VALID_TEMPLATE)),
+  );
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A simple test slate');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+
+  // This path statically validates and never plays the graphic. The rows that depend on
+  // playing it must say so rather than borrow the credit.
+  const report = page.getByTestId('ai-readiness');
+  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(3);
+  await expect(report).toContainText('not played, so not tested');
+  // …while the checks that DID run still report honestly.
+  await expect(report.locator('.ai-ready-row.pass')).toHaveCount(3);
+});
+
+test('cost: no history means no number, and history is reported as tokens and seconds', async ({ page }) => {
+  await openAiStep(page);
+  // A first-time user gets no expectation rather than an invented one.
+  await expect(page.getByTestId('ai-expectation')).toHaveCount(0);
+
+  // Seed two past harness runs, the shape telemetry.ts writes.
+  await page.evaluate(() => {
+    const run = (id: string, ms: number, inTok: number, outTok: number) => ({
+      id, kind: 'generate', startedAt: '2026-07-24T10:00:00.000Z', totalMs: ms, route: 'grounded',
+      repairRounds: 0, ok: true,
+      stages: [{ stage: 'design-alternatives', ms, model: 'claude-sonnet-5', usage: { inputTokens: inTok, outputTokens: outTok } }],
+    });
+    localStorage.setItem('spx-gfx-ai-telemetry', JSON.stringify([run('a', 20_000, 12_000, 3000), run('b', 30_000, 14_000, 4000)]));
+  });
+  await page.reload();
+  await page.locator('[data-entry="ai"]').click();
+  const expectation = page.getByTestId('ai-expectation');
+  await expect(expectation).toContainText('25 s'); // the median of 20 s and 30 s
+  await expect(expectation).toContainText('13k in'); // …and of the input tokens (≥10k: no decimal)
+  await expect(expectation).toContainText('3.5k out'); // …and of the output tokens (<10k: one decimal)
+  await expect(expectation).toContainText('median of your last 2 runs');
+
+  // The raw path is a different cost, and those runs are not attributed to it.
+  await page.getByLabel(/Design 3 options/).uncheck();
+  await expect(page.getByTestId('ai-expectation')).toHaveCount(0);
 });
 
 test('describe-it: a flourish runs the polish pass and lands as a marked override block', async ({ page }) => {

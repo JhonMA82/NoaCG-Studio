@@ -141,7 +141,7 @@ Memory of the taxonomy work records a ratified decision that the kit surface is 
 Entry card, not a Browse mode** ("Browse yields one graphic, a kit yields several"), shape
 decided and unbuilt. AI generation is the strongest possible filling for that card.
 
-### F9 — No cost or time expectation, before or after (severity: low-medium)
+### F9 — No cost or time expectation, before or after (severity: low-medium) — CLOSED by Phase 6
 
 BYO-key users pay per generation. The settings block offers a model select with blurbs
 (`AiStep.tsx:492-501`) and nothing else. `telemetry.ts` records tokens, stages, repair rounds
@@ -340,15 +340,38 @@ More-control panel and the video step alike. Filenames now have their own `.wz-f
 This is where no competitor currently plays, and it is nearly free architecturally because
 the grounded assembly path is already category-agnostic.
 
-### Phase 6 — Transparency and trust *(no API spend)*
+### Phase 6 — Transparency and trust — **BUILT 2026-07-24**
 
-19. **Cost/time expectation before Generate** (from `telemetry.ts` history: median stages,
-    tokens, seconds for the chosen mode) and **actuals after**.
-20. **An on-air readiness card** — surface what the bench already measured (title-safe,
-    contrast, double-length stress, lifecycle) as a readable report rather than a pass/fail
-    line. This is a selling point competitors cannot match and it is already computed.
-21. **Rename the harness checkbox** to user words ("Design 3 options and live-test them" vs
-    "One quick draft"), keeping the setting id and the e2e-pinned default.
+19. **Cost/time expectation before Generate, actuals after.** ✅ `src/ai/runStats.ts` reads the
+    telemetry ring the provider has always written: the median of up to the last 8 matching
+    runs, split by harness-vs-raw because that IS the choice the checkbox offers. Below 2
+    matching runs it returns null — a first-time user gets **no number rather than an invented
+    one**. Actuals come from `lastRun()` after each run, never from `showChange` (picking a
+    different alternative costs nothing, and charging the run's tokens to that click would be
+    a quiet lie).
+20. **On-air readiness report.** ✅ `src/validation/readiness.ts` groups findings that already
+    exist into six operator-facing rows. It **adds no checks** — that is what lets a row say
+    "not played, so not tested" honestly on the raw path instead of borrowing credit for a
+    bench that never ran. Findings whose rule no row claims are surfaced verbatim rather than
+    swallowed.
+21. **Renamed the harness checkbox** ✅ to "Design 3 options and test them live"; the setting
+    id and the e2e-pinned default are unchanged.
+
+**No money is displayed, deliberately.** Per-token prices are not in this codebase and they
+change; a stale figure presented as cost would be *believed*. Tokens and seconds are exactly
+what was measured, and a BYO-key user maps them to their own bill.
+
+*Verified:* build green; ai + ai-depth + ai-more-control = 28/28, with four new cases (a
+passing result reports six real verdicts; the raw path reports three passes and three
+untested; no history means no expectation while seeded history gives a median; a run whose
+provider reported no usage says nothing about tokens). **Mutation-tested:** deleting the
+untested-row guard makes the raw path claim all six checks and fails the spec.
+
+*Found by looking:* the first render said **"0 tokens in / 0 out"** whenever the response
+carried no `usage` block. Zero is a measurement claim, not an absence of one — the line now
+reports the time it knows and stays silent about what it does not, and the e2e fixture grew
+a `usage` block so it stops exercising the no-usage path by accident. `formatDuration` also
+answered "0 s" for a sub-second run; it now says "<1 s".
 
 ---
 

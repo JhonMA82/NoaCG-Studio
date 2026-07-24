@@ -776,6 +776,31 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 /* The picked accent is ringed rather than recoloured — the swatch IS the colour, so any
    overlay on it would misreport what was chosen. */
 .ai-swatch.picked { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
+
+/* On-air readiness: one row per thing that was checked. */
+.ai-ready { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.ai-ready-row {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 6px;
+  align-items: start;
+  font-size: 12px;
+}
+.ai-ready-mark { text-align: center; }
+.ai-ready-row.pass .ai-ready-mark { color: var(--ok); }
+.ai-ready-row.warn .ai-ready-mark { color: var(--warn); }
+.ai-ready-row.fail .ai-ready-mark { color: var(--danger); }
+/* An untested row is dimmed WHOLE - the mark and the words together - so it cannot be
+   mistaken at a glance for a row that passed. */
+.ai-ready-row.untested { color: var(--text-dim); }
+.ai-ready-row.untested em { font-style: normal; }
+.ai-ready-notes {
+  grid-column: 2;
+  margin: 2px 0 0;
+  padding-left: 16px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
 /* An earlier generation, compact: its directions as thumbnails with the one you had picked
    marked, and the way back to it. */
 .ai-past {
