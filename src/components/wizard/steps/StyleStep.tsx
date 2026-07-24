@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { FONTS, familyFromFileName, fontFormatForExt, registerAppFont } from '../../../model/fonts';
 import { PALETTES, paletteById, type Palette, type TemplateVariant, type Zone9 } from '../../../model/wizard';
 import { fileToDataUrl } from '../../../assets/assetUtils';
@@ -56,8 +56,28 @@ const TYPE_SIZES: { label: string; scale: number }[] = [
   { label: 'L', scale: 1.15 },
 ];
 
+/** What the collapsed "Size & position" disclosure says it is holding. Empty while everything
+ *  sits at the design's own defaults — a summary that reads "Default" on a first visit is
+ *  noise, and the one that matters is the one naming a choice you can no longer see. */
+function placementSummaryOf(draft: WizardDraft): string {
+  const parts: string[] = [];
+  const size = SIZES.find((s) => s.scale === draft.sizeScale);
+  if (draft.sizeScale !== 1 && size) parts.push(`size ${size.label}`);
+  const type = TYPE_SIZES.find((s) => s.scale === draft.typeScale);
+  if (draft.typeScale !== 1 && type) parts.push(`text ${type.label}`);
+  if (draft.zone) parts.push(draft.zone.replace('-', ' '));
+  if (draft.nudge.x !== 0 || draft.nudge.y !== 0) parts.push('nudged');
+  return parts.join(' · ');
+}
+
 /** Step 4 — colors, font, size, and position. */
 export default function StyleStep({ variant, draft, onDraft }: Props) {
+  const placementSummary = placementSummaryOf(draft);
+  // Open on arrival only if something in there is already off-default — which is how Back
+  // returns a user to the nudge they set. Controlled with onToggle rather than a bare `open`
+  // prop: this component re-renders on every draft change, so an uncontrolled `open` would
+  // spring the disclosure back open under a user who had just shut it.
+  const [placementTouched, setPlacementTouched] = useState(() => placementSummaryOf(draft) !== '');
   // The variant's own style family first, then the rest.
   const palettes = [...PALETTES].sort(
     (a, b) => Number(b.styleTags.includes(variant.styleTag)) - Number(a.styleTags.includes(variant.styleTag)),
@@ -211,69 +231,92 @@ export default function StyleStep({ variant, draft, onDraft }: Props) {
         </div>
       </div>
 
-      <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
-        <div className="panel-section">
-          <h3>Graphic size <span className="muted">(the whole graphic)</span></h3>
-          <div className="row" style={{ gap: 6 }}>
-            {SIZES.map((s) => (
-              <button
-                key={s.label}
-                className={draft.sizeScale === s.scale ? 'active' : ''}
-                onClick={() => onDraft({ sizeScale: s.scale })}
-              >
-                {s.label}
-              </button>
-            ))}
+      {/* Size and placement under progressive disclosure (the Browse step's `More filters`
+          idiom). Palette and font are the two choices a user came here to make; size, type
+          scale, zone and nudge are TUNING, and every one of them is tuned per design already
+          — the variant's defaultZone, its own type scale. Open, they made this the heaviest
+          step in the wizard: five decision groups against the Fields step's one or two.
+          `open` when anything inside has been touched, so a moved graphic never hides the
+          control that moved it. */}
+      <details
+        className="wz-style-more"
+        open={placementTouched}
+        onToggle={(e) => setPlacementTouched(e.currentTarget.open)}
+      >
+        <summary>Size &amp; position{placementSummary && <span className="muted"> — {placementSummary}</span>}</summary>
+        <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
+          <div className="panel-section">
+            <h3>Graphic size <span className="muted">(everything, together)</span></h3>
+            <div className="row" style={{ gap: 6 }}>
+              {SIZES.map((s) => (
+                <button
+                  key={s.label}
+                  className={draft.sizeScale === s.scale ? 'active' : ''}
+                  onClick={() => onDraft({ sizeScale: s.scale })}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {/* Two identical S/M/L triplets under two near-identical labels read as a
+                duplicated control. They are not: this one scales the whole graphic. */}
+            <p className="hint" style={{ marginTop: 6 }}>
+              Scales the panel, the bars and the type as one — the design keeps its proportions.
+            </p>
           </div>
-        </div>
 
-        <div className="panel-section">
-          <h3>Text size <span className="muted">(type only)</span></h3>
-          <div className="row" style={{ gap: 6 }}>
-            {TYPE_SIZES.map((s) => (
-              <button
-                key={s.label}
-                className={draft.typeScale === s.scale ? 'active' : ''}
-                onClick={() => onDraft({ typeScale: s.scale })}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="panel-section">
+            <h3>Text size <span className="muted">(type inside it)</span></h3>
+            <div className="row" style={{ gap: 6 }}>
+              {TYPE_SIZES.map((s) => (
+                <button
+                  key={s.label}
+                  className={draft.typeScale === s.scale ? 'active' : ''}
+                  onClick={() => onDraft({ typeScale: s.scale })}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              Type only, on top of the size above — for longer names, or a heavier look at the
+              same footprint.
+            </p>
           </div>
-        </div>
 
-        <div className="panel-section">
-          <h3>Position <span className="muted">(zones snap to safe areas)</span></h3>
-          <div className="wz-zones">
-            {ZONES.map((z) => (
-              <button
-                key={z}
-                className={`wz-zone ${activeZone === z ? 'selected' : ''}`}
-                onClick={() => onDraft({ zone: z })}
-                title={z}
-              />
-            ))}
-          </div>
-          <div className="row" style={{ gap: 8, marginTop: 8 }}>
-            <label className="wz-nudge">
-              Nudge X
-              <input
-                type="number"
-                value={draft.nudge.x}
-                onChange={(e) => onDraft({ nudge: { x: Number(e.target.value) || 0 } })}
-              />
-            </label>
-            <label className="wz-nudge">
-              Nudge Y
-              <input
-                type="number"
-                value={draft.nudge.y}
-                onChange={(e) => onDraft({ nudge: { y: Number(e.target.value) || 0 } })}
-              />
-            </label>
+          <div className="panel-section">
+            <h3>Position <span className="muted">(zones snap to safe areas)</span></h3>
+            <div className="wz-zones">
+              {ZONES.map((z) => (
+                <button
+                  key={z}
+                  className={`wz-zone ${activeZone === z ? 'selected' : ''}`}
+                  onClick={() => onDraft({ zone: z })}
+                  title={z}
+                />
+              ))}
+            </div>
+            <div className="row" style={{ gap: 8, marginTop: 8 }}>
+              <label className="wz-nudge">
+                Nudge X
+                <input
+                  type="number"
+                  value={draft.nudge.x}
+                  onChange={(e) => onDraft({ nudge: { x: Number(e.target.value) || 0 } })}
+                />
+              </label>
+              <label className="wz-nudge">
+                Nudge Y
+                <input
+                  type="number"
+                  value={draft.nudge.y}
+                  onChange={(e) => onDraft({ nudge: { y: Number(e.target.value) || 0 } })}
+                />
+              </label>
+            </div>
           </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

@@ -261,18 +261,11 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         aria-label="Search templates"
       />
 
-      {/* Mobile-only drawer toggle (CSS hides it above the breakpoint). */}
-      <button
-        className="wz-browse-drawer-btn"
-        aria-expanded={filtersOpen}
-        onClick={() => setFiltersOpen((o) => !o)}
-      >
-        ☰ Filters{drawerCount > 0 ? ` (${drawerCount})` : ''} {filtersOpen ? '▴' : '▾'}
-      </button>
-
-      <div className="wz-browse-filters" data-open={filtersOpen || undefined}>
-      {/* Canvas format (carried over from the old Template step). */}
-      <div className="wz-format row">
+      {/* Canvas format — the graphic's own frame, NOT a facet: nothing here narrows the
+          results (browseTemplates never reads aspect), so it sits OUTSIDE the filter block
+          and stays visible when the mobile drawer is shut. Inside it, changing 9:16 meant
+          opening a control labelled "Filters" to make a decision that filters nothing. */}
+      <div className="wz-format row wz-browse-format">
         <label>
           Aspect
           <select
@@ -305,6 +298,16 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         </label>
       </div>
 
+      {/* Mobile-only drawer toggle (CSS hides it above the breakpoint). */}
+      <button
+        className="wz-browse-drawer-btn"
+        aria-expanded={filtersOpen}
+        onClick={() => setFiltersOpen((o) => !o)}
+      >
+        ☰ Filters{drawerCount > 0 ? ` (${drawerCount})` : ''} {filtersOpen ? '▴' : '▾'}
+      </button>
+
+      <div className="wz-browse-filters" data-open={filtersOpen || undefined}>
       {/* What are you making? (optional; ranks, never hides) */}
       <div className="wz-format row wz-browse-programme">
         <label>

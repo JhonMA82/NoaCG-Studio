@@ -86,6 +86,31 @@ const GROUNDED_SPEC = {
   ],
 };
 
+/** A plain text answer — what the brainstorm turn (no forced tool) gets back. */
+function textReply(text: string) {
+  return {
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ content: [{ type: 'text', text }], stop_reason: 'end_turn' }),
+  };
+}
+
+/** A 1×1 PNG, enough to travel the whole attach path (data URL → vision block → asset). */
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/** The whole text of a request, for asserting what the model was actually told. */
+function requestText(route: Route): string {
+  const body = route.request().postDataJSON() as {
+    messages: { content: { type: string; text?: string }[] }[];
+  };
+  return body.messages
+    .map((m) => (Array.isArray(m.content) ? m.content.map((c) => c.text ?? '').join(' ') : ''))
+    .join(' ');
+}
+
 function toolUse(name: string, input: unknown) {
   return {
     status: 200,
@@ -93,6 +118,9 @@ function toolUse(name: string, input: unknown) {
     body: JSON.stringify({
       content: [{ type: 'tool_use', id: 'tu_1', name, input }],
       stop_reason: 'tool_use',
+      // The real Messages API returns this block and telemetry records it. Without it the
+      // fixture would exercise the no-usage path on every test by accident.
+      usage: { input_tokens: 4200, output_tokens: 1100 },
     }),
   };
 }
@@ -148,7 +176,7 @@ test('harness off (the toggle): one raw model call, no design stage', async ({ p
     return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
   });
   await openAiStep(page);
-  await expect(page.getByLabel(/Use NoaCG harness/)).not.toBeChecked();
+  await expect(page.getByLabel(/Design 3 options/)).not.toBeChecked();
   await page.locator('.wz-step textarea').fill('A simple test slate');
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
@@ -163,7 +191,7 @@ test('the harness checkbox is on by default', async ({ page }) => {
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5' })),
   );
   await openAiStep(page);
-  await expect(page.getByLabel(/Use NoaCG harness/)).toBeChecked();
+  await expect(page.getByLabel(/Design 3 options/)).toBeChecked();
 });
 
 test('describe-it: prompt → validated template → create project', async ({ page }) => {
@@ -214,6 +242,403 @@ test('harness on: three grounded alternatives, zero coder calls, the pick is rem
   expect((prefs as { selections: number }).selections).toBe(1);
   expect((prefs as { chosen: Record<string, number> }).chosen['variantId:lt02']).toBe(1);
   expect((prefs as { shown: Record<string, number> }).shown['variantId:lt03']).toBe(1);
+});
+
+// The three directions differ in real design decisions, so the picker has to SHOW them.
+const THREE_ALTS = [
+  { ...GROUNDED_SPEC, variantId: 'lt01', name: 'Grounded One', density: 'airy' },
+  { ...GROUNDED_SPEC, variantId: 'lt02', name: 'Grounded Two', density: 'compact' },
+  { ...GROUNDED_SPEC, variantId: 'lt03', name: 'Grounded Three', density: 'standard' },
+];
+
+test('harness on: the directions are live previews that name their design decisions', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    if (requestedTool(route) === 'emit_design_alternatives')
+      return route.fulfill(toolUse('emit_design_alternatives', { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  // Each card renders the REAL graphic — the whole point of the alternatives call.
+  await expect(page.locator('[data-alt] .wz-mini iframe')).toHaveCount(3);
+  // …and says what makes it different from the other two.
+  await expect(page.locator('[data-alt="1"]')).toContainText('airy');
+  await expect(page.locator('[data-alt="2"]')).toContainText('compact');
+});
+
+test('harness on: refining a direction keeps the others, and the pick still trains preferences', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    // A grounded refine goes back through the DESIGN stage (spec-level), not the coder.
+    if (tool === 'emit_design_spec')
+      return route.fulfill(toolUse(tool, { ...GROUNDED_SPEC, variantId: 'lt02', name: 'Grounded Two Warmer' }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+
+  await page.locator('[data-alt="2"]').click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded Two');
+  await page.getByPlaceholder(/Refine it/).fill('warmer colours');
+  await page.getByRole('button', { name: 'Refine', exact: true }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded Two Warmer', GENERATED);
+
+  // The other two directions were NOT thrown away by the refinement.
+  await expect(page.locator('[data-alt]')).toHaveCount(3);
+  await expect(page.locator('[data-alt="1"]')).toContainText('Grounded One');
+  await expect(page.locator('[data-alt="3"]')).toContainText('Grounded Three');
+
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Two Warmer');
+  // Refining used to CLEAR the staged pick, so a user who improved a direction before
+  // creating it trained the preference data with nothing at all.
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-ai-preferences') ?? '{}'));
+  expect((prefs as { selections: number }).selections).toBe(1);
+  expect((prefs as { chosen: Record<string, number> }).chosen['variantId:lt02']).toBe(1);
+  expect((prefs as { shown: Record<string, number> }).shown['variantId:lt01']).toBe(1);
+});
+
+test('harness on: a refinement can be undone back to the design that was proposed', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    if (tool === 'emit_design_spec')
+      return route.fulfill(toolUse(tool, { ...GROUNDED_SPEC, variantId: 'lt02', name: 'Grounded Two Warmer' }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  await page.locator('[data-alt="2"]').click();
+  await expect(page.getByTestId('ai-revert')).toHaveCount(0); // nothing to undo yet
+
+  await page.getByPlaceholder(/Refine it/).fill('warmer colours');
+  await page.getByRole('button', { name: 'Refine', exact: true }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded Two Warmer', GENERATED);
+  await page.getByTestId('ai-revert').click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded Two');
+  await expect(page.getByTestId('ai-revert')).toHaveCount(0);
+});
+
+test('a failing result offers one press that sends the findings back', async ({ page }) => {
+  // The coder's own repair rounds are exhausted (MAX_REPAIR_ROUNDS = 2), so the result is
+  // surfaced still failing — that is the moment the user is left holding raw findings.
+  let templateCalls = 0;
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    if (requestedTool(route) !== 'emit_template') return route.fulfill(toolResponse(route, VALID_TEMPLATE));
+    templateCalls += 1;
+    return route.fulfill(toolUse('emit_template', templateCalls <= 3 ? INVALID_TEMPLATE : VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A slate the coder cannot get right');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('.wz-step .status-bad')).toContainText('check(s) failing', GENERATED);
+  await page.getByTestId('ai-fix').click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+  await expect(page.getByTestId('ai-fix')).toHaveCount(0);
+});
+
+test('an example brief never silently replaces a brief you wrote', async ({ page }) => {
+  await openAiStep(page);
+  const box = page.locator('.wz-step textarea');
+  // Nothing to lose: one click fills the box.
+  await page.getByRole('button', { name: 'Election results' }).click();
+  await expect(box).toHaveValue(/Election results panel/);
+
+  // Now the brief is the user's own — the same click has to ask first.
+  await box.fill('my own carefully written brief');
+  await page.getByRole('button', { name: 'Weather now' }).click();
+  await expect(box).toHaveValue('my own carefully written brief');
+  await page.getByRole('button', { name: 'Replace your brief?' }).click();
+  await expect(box).toHaveValue(/weather now/i);
+});
+
+test('the conversation is one thread, and it travels with the brief', async ({ page }) => {
+  let designText = '';
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (!tool)
+      return route.fulfill(
+        textReply('A substitutions strap wants the player names side by side.\nBRIEF: A football substitution strap with both player names.'),
+      );
+    if (tool === 'emit_design_alternatives') {
+      designText = requestText(route);
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    }
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('halftime of a local derby, something for substitutions');
+  await page.getByTestId('ai-talk').click();
+  // Both sides of the exchange land in the ONE transcript.
+  await expect(page.getByTestId('ai-thread')).toContainText('halftime of a local derby');
+  await expect(page.getByTestId('ai-thread')).toContainText('side by side');
+  // The box is empty, but the talk arrived at a brief — Generate acts on it.
+  await expect(page.locator('.wz-step textarea')).toHaveValue('');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  // The generator was told the whole conversation, not just a copied summary line.
+  expect(designText).toContain('halftime of a local derby');
+  expect(designText).toContain('side by side');
+});
+
+test('an earlier generation stays in the thread and can be brought back', async ({ page }) => {
+  let round = 0;
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives') {
+      round += 1;
+      const suffix = round === 1 ? 'One' : 'Two';
+      return route.fulfill(
+        toolUse(tool, {
+          alternatives: THREE_ALTS.map((a, i) => ({ ...a, name: `Round ${suffix} ${i + 1}` })),
+        }),
+      );
+    }
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Round One 1', GENERATED);
+
+  await page.locator('.wz-step textarea').fill('Actually try something bolder');
+  await page.getByRole('button', { name: '↻ Start over' }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Round Two 1', GENERATED);
+  // The first round was not thrown away — it is in the thread, with its three thumbnails.
+  await expect(page.getByTestId('ai-past')).toHaveCount(1);
+  await expect(page.getByTestId('ai-past').locator('.wz-mini iframe')).toHaveCount(3);
+
+  await page.getByRole('button', { name: '↩ Bring back' }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Round One 1');
+  // …and the round it displaced took its place in the thread.
+  await expect(page.getByTestId('ai-past')).toHaveCount(1);
+  await expect(page.getByTestId('ai-past')).toContainText('Round Two 1');
+});
+
+test('"3 more like this" seeds the design stage with the picked direction', async ({ page }) => {
+  const designTexts: string[] = [];
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives') {
+      designTexts.push(requestText(route));
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    }
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  await page.locator('[data-alt="2"]').click();
+  await page.getByTestId('ai-more-like').click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  expect(designTexts).toHaveLength(2);
+  // The second call carries the picked direction's own spec as the thing to vary FROM.
+  expect(designTexts[1]).toContain('THREE MORE LIKE THIS');
+  expect(designTexts[1]).toContain('lt02');
+  expect(designTexts[0]).not.toContain('THREE MORE LIKE THIS');
+});
+
+test('an image attached to a refinement reaches the model and is bundled', async ({ page }) => {
+  let refineText = '';
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    if (tool === 'emit_design_spec') {
+      refineText = requestText(route);
+      return route.fulfill(toolUse(tool, { ...GROUNDED_SPEC, variantId: 'lt02', name: 'With The Badge' }));
+    }
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+
+  // Attach mid-thread — the same drop zone input the composer's 📎 opens.
+  await page.locator('.wz-step input[type="file"]').setInputFiles({
+    name: 'badge.png',
+    mimeType: 'image/png',
+    buffer: PNG_1X1,
+  });
+  await page.locator('.wz-step textarea').fill('put this badge on the left');
+  await page.getByRole('button', { name: 'Refine', exact: true }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('With The Badge', GENERATED);
+  // The refinement named the attachment by its bundled path, not merely "an image".
+  expect(refineText).toContain('images/badge.png');
+  expect(refineText).toContain('put this badge on the left');
+
+  await page.getByRole('button', { name: 'Create project' }).click();
+  // The apply is async — read the store only once the created project is actually up, or
+  // the read lands on the boot template and the assertion says nothing about this test.
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('With The Badge');
+  const assets = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.assets.map((a: { path: string }) => a.path);
+  });
+  expect(assets).toContain('images/badge.png');
+});
+
+// A 4×4 PNG: half a strong teal, a quarter warm cream, a quarter near-black ink — a logo,
+// the paper it is printed on, and its outline. Both neutrals are deliberately TINTED
+// (cream s=0.73, ink s=0.17), so filtering on saturation alone would let them through:
+// only the lightness guard keeps paper and ink from being offered as the brand.
+const PNG_TEAL_ON_WHITE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAG0lEQVR4nGOQm9cFRwwonL+/PsERAys7GxwBAG88Fh1fl4uoAAAAAElFTkSuQmCC',
+  'base64',
+);
+
+test('brand: the colours in an uploaded logo are offered, and the pick locks the accent', async ({ page }) => {
+  let designText = '';
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_design_alternatives') {
+      designText = requestText(route);
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    }
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step input[type="file"]').setInputFiles({
+    name: 'crest.png',
+    mimeType: 'image/png',
+    buffer: PNG_TEAL_ON_WHITE,
+  });
+
+  // Extraction is deterministic arithmetic, not a model call — no request is made for it.
+  await expect(page.getByTestId('ai-brand')).toBeVisible();
+  const swatches = page.locator('.ai-swatch');
+  await expect(swatches).toHaveCount(1); // the cream and the ink are scored out
+  const hex = await swatches.first().getAttribute('data-swatch');
+  expect(hex?.toLowerCase()).toBe('#1e9e8a');
+
+  await swatches.first().click();
+  await expect(page.getByTestId('ai-brand')).toContainText('#1e9e8a');
+  // Re-running extraction gives the same answer — the same file may never yield a different
+  // brand from one press to the next.
+  await page.locator('.wz-step input[type="file"]').setInputFiles({
+    name: 'crest2.png',
+    mimeType: 'image/png',
+    buffer: PNG_TEAL_ON_WHITE,
+  });
+  await expect(page.locator('.ai-swatch').first()).toHaveAttribute('data-swatch', hex ?? '');
+
+  await page.locator('.wz-step textarea').fill('A lower third for our club');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  // The picked colour reaches the model as an exact instruction…
+  expect(designText).toContain('#1e9e8a');
+  // …and survives assembly, whatever the model asked for (applySpecLocks).
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded One');
+  const css = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.css;
+  });
+  expect(css).toContain('#1e9e8a');
+});
+
+test('readiness: a passing result reports what was checked, and the raw path admits what was not', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    if (requestedTool(route) === 'emit_design_alternatives')
+      return route.fulfill(toolUse('emit_design_alternatives', { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+
+  // The harness path played the graphic, so every row is a real verdict.
+  const report = page.getByTestId('ai-readiness');
+  await expect(report).toContainText('Operator fields reach the graphic');
+  await expect(report).toContainText('Survives text twice as long');
+  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(0);
+  await expect(report.locator('.ai-ready-row.pass')).toHaveCount(6);
+
+  // The actuals for the run are reported, not just the verdict.
+  await expect(page.getByTestId('ai-spent')).toContainText('tokens in');
+});
+
+test('cost: a run whose provider reported no token usage says nothing about tokens', async ({ page }) => {
+  // "0 tokens" is a measurement claim, not an absence of one — the line must report the
+  // time it does know and stay silent about what it does not.
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        content: [{ type: 'tool_use', id: 'tu_1', name: 'emit_design_alternatives', input: { alternatives: THREE_ALTS } }],
+        stop_reason: 'tool_use',
+        // No usage block at all.
+      }),
+    }),
+  );
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  await expect(page.getByTestId('ai-spent')).toBeVisible();
+  await expect(page.getByTestId('ai-spent')).not.toContainText('tokens');
+  await expect(page.getByTestId('ai-spent')).not.toContainText('0 ');
+});
+
+test('readiness: the raw one-shot never claims the checks it did not run', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5', useHarness: false })),
+  );
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) =>
+    route.fulfill(toolUse('emit_template', VALID_TEMPLATE)),
+  );
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A simple test slate');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+
+  // This path statically validates and never plays the graphic. The rows that depend on
+  // playing it must say so rather than borrow the credit.
+  const report = page.getByTestId('ai-readiness');
+  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(3);
+  await expect(report).toContainText('not played, so not tested');
+  // …while the checks that DID run still report honestly.
+  await expect(report.locator('.ai-ready-row.pass')).toHaveCount(3);
+});
+
+test('cost: no history means no number, and history is reported as tokens and seconds', async ({ page }) => {
+  await openAiStep(page);
+  // A first-time user gets no expectation rather than an invented one.
+  await expect(page.getByTestId('ai-expectation')).toHaveCount(0);
+
+  // Seed two past harness runs, the shape telemetry.ts writes.
+  await page.evaluate(() => {
+    const run = (id: string, ms: number, inTok: number, outTok: number) => ({
+      id, kind: 'generate', startedAt: '2026-07-24T10:00:00.000Z', totalMs: ms, route: 'grounded',
+      repairRounds: 0, ok: true,
+      stages: [{ stage: 'design-alternatives', ms, model: 'claude-sonnet-5', usage: { inputTokens: inTok, outputTokens: outTok } }],
+    });
+    localStorage.setItem('spx-gfx-ai-telemetry', JSON.stringify([run('a', 20_000, 12_000, 3000), run('b', 30_000, 14_000, 4000)]));
+  });
+  await page.reload();
+  await page.locator('[data-entry="ai"]').click();
+  const expectation = page.getByTestId('ai-expectation');
+  await expect(expectation).toContainText('25 s'); // the median of 20 s and 30 s
+  await expect(expectation).toContainText('13k in'); // …and of the input tokens (≥10k: no decimal)
+  await expect(expectation).toContainText('3.5k out'); // …and of the output tokens (<10k: one decimal)
+  await expect(expectation).toContainText('median of your last 2 runs');
+
+  // The raw path is a different cost, and those runs are not attributed to it.
+  await page.getByLabel(/Design 3 options/).uncheck();
+  await expect(page.getByTestId('ai-expectation')).toHaveCount(0);
 });
 
 test('describe-it: a flourish runs the polish pass and lands as a marked override block', async ({ page }) => {

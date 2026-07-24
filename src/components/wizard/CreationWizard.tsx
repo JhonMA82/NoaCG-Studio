@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { variantById, variantsFor } from '../../templates/catalog';
 import { createBlankTemplate } from '../../templates/blank';
-import { brandPatch, buildDraftTemplate, draftResolution, initialDraft, mergeDraft, type DraftPatch, type WizardDraft } from './draft';
+import { brandPatch, buildDraftTemplate, draftName, draftResolution, initialDraft, mergeDraft, type DraftPatch, type WizardDraft } from './draft';
 import { loadBrand, saveBrand, type ProjectBrand } from '../../model/brand';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
@@ -22,19 +22,25 @@ import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
+import FinishStep from './steps/FinishStep';
+import { useExportUi } from '../ExportWindow';
 import type { SpxTemplate } from '../../model/types';
 import { clearSpecDraft, type GenerationSpec } from '../../model/generationSpec';
 import type { VideoProject } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
+import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
-import { openGraphicDoc, useSaveUi } from '../../store/saveActions';
+import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
-const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation'];
-const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation'];
+// Every catalog-shaped flow ends on FINISH: the graphic is named there, and the wizard's one
+// branch is taken — open it in the editor, or go straight to its export packages without the
+// editor ever being involved (steps/FinishStep.tsx + components/ExportWindow.tsx).
+const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'];
+const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_AI = ['Start', 'Create'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
@@ -42,13 +48,14 @@ const STEP_TITLES_VIDEO = ['Start', 'Video'];
 // in/out animation, create — and land in the real canvas editor with a graphic that already
 // works. Text and Animation are optional stops: Create is available from the Design step on
 // (docs/IMPORT_MVP.md).
-const STEP_TITLES_DESIGN = ['Start', 'Design', 'Prepare', 'Text', 'Animation'];
+const STEP_TITLES_DESIGN = ['Start', 'Design', 'Prepare', 'Text', 'Animation', 'Finish'];
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
- * Entry → Category → Template → Fields → Style → Animation — with a persistent live
- * preview from step 2 on. Creating writes the complete, teachable template code; the
- * editor (and the live panels) take over from there.
+ * Entry → Browse → Fields → Style → Animation → Finish — with a persistent live preview
+ * from step 2 on. Creating writes the complete, teachable template code; Finish decides
+ * where that lands: the editor (and the live panels) take over, or the graphic is saved
+ * and goes straight to its export packages with the editor never opening.
  */
 export default function CreationWizard() {
   const open = useTemplateStore((s) => s.galleryOpen);
@@ -59,6 +66,7 @@ export default function CreationWizard() {
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
 
+  const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
@@ -143,8 +151,9 @@ export default function CreationWizard() {
   );
 
   // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
-  // continuation keeps the old six-step shape.
+  // continuation keeps the old six-step shape. Finish always follows it.
   const animStep = mode === 'import' ? 5 : 4;
+  const finishStep = animStep + 1;
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
   const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
@@ -198,11 +207,19 @@ export default function CreationWizard() {
     });
   };
 
-  const create = () => {
-    if (!previewTemplate || !variant) return;
+  /**
+   * Build the drafted graphic and make it the working project. BOTH Finish doors go through
+   * here — including the export one, which is what keeps the two endings byte-identical: the
+   * editor path formats through Prettier (applyGenerated), so an export path that skipped it
+   * would ship different HTML for the same choices.
+   *
+   * Returns the applied template (read back from the store, post-format) or null.
+   */
+  const applyDraftProject = async (): Promise<SpxTemplate | null> => {
+    if (!previewTemplate || !variant) return null;
     // Design mode rebuilds WITHOUT the preview-only stretch-demo line; every other mode's
     // preview is exactly the created code already.
-    void applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate);
+    await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate);
     // An imported design creates BARE and hands off to the editor's Data tab — that is
     // where its fields are added, as real placed layers (docs/IMPORT_MVP.md).
     if (variant.category === 'imported-design') useTemplateStore.getState().setActivePanel('data');
@@ -214,6 +231,42 @@ export default function CreationWizard() {
         (draft.paletteId ? paletteById(draft.paletteId) : variant.defaultPalette),
       fontId: draft.fontId && draft.fontId !== 'custom' ? draft.fontId : draft.fontId === 'custom' ? null : variant.defaultFontId,
       customFont: draft.fontId === 'custom' ? draft.customFont : null,
+    });
+    return useTemplateStore.getState().template;
+  };
+
+  /** The editor door (and the quiet from-any-step shortcut): create and hand over. Saving
+   *  stays the user's move, exactly as it always has been. */
+  const create = () => {
+    void applyDraftProject();
+  };
+
+  /**
+   * The export door: create it, SAVE it, and go straight to the export window — the editor is
+   * never revealed. The save is not optional here. This branch exists for someone who is done,
+   * and a graphic that was configured, exported and then dropped would be unrecoverable: every
+   * wizard choice would have to be made again to get the same package back.
+   *
+   * On success the wizard closes onto HOME rather than the editor, so shutting the export
+   * window leaves the user in the library holding the thing they just made. If the save fails
+   * (a full quota is the realistic cause) we deliberately stay in the editor instead: the
+   * topbar's failed-save status is visible there and Save can be retried, where Home would
+   * just be a library missing the graphic with nothing saying why.
+   */
+  const createAndExport = () => {
+    void applyDraftProject().then((template) => {
+      if (!template || !variant) return;
+      const saved = saveGraphicAs(draftName(variant, draft), { kind: 'standalone' });
+      // Read AFTER the save: it renames the working template to the record's name, which is
+      // what the export slugs the zip and the SPX/CasparCG template folder from.
+      const s = useTemplateStore.getState();
+      closeGallery();
+      if (saved.ok) useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+      useExportUi.getState().openExport({
+        template: s.template,
+        sampleData: s.sampleData,
+        graphicId: s.saved.graphicId,
+      });
     });
   };
 
@@ -228,12 +281,17 @@ export default function CreationWizard() {
 
   // Design mode previews from the moment the artwork lands, through the Prepare step —
   // the user sees the real graphic (and its default entrance) before creating.
+  //
+  // FINISH ON A PHONE IS THE ONE EXCEPTION. Stacked, the preview claims a fixed 38vh and the
+  // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
+  // step that exists to offer a choice. Every earlier step had already shown the graphic, and
+  // the step's own read-back says what was built, so the actions win the room here.
   const showPreview =
-    mode === 'ai' ? step === 1 && !!aiResult
+    (mode === 'ai' ? step === 1 && !!aiResult
     : mode === 'video' ? false
     : mode === 'design' ? step >= 1 && !!previewTemplate
     : mode === 'template' ? step >= 1 && !!previewTemplate
-    : step >= 2 && !!previewTemplate;
+    : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
@@ -293,7 +351,11 @@ export default function CreationWizard() {
                   onClick={() => setStep(s)}
                   title={t}
                 >
-                  <span>{i + 1}</span> {t}
+                  {/* The label is its own element so a PHONE can drop it from every step but
+                      the active one: six labelled pills wrap to four rows and ate ~290px of an
+                      812px screen before any content appeared. Numbers still name the step,
+                      and the one you are on keeps its word. */}
+                  <span>{i + 1}</span> <span className="wz-dot-label">{t}</span>
                 </button>
               );
             })}
@@ -510,6 +572,17 @@ export default function CreationWizard() {
                 onReplay={() => setReplayKey((k) => k + 1)}
               />
             )}
+            {/* Finish — shared by every catalog-shaped mode, design included. */}
+            {step === finishStep && mode !== 'ai' && mode !== 'video' && variant && (
+              <FinishStep
+                variant={variant}
+                draft={draft}
+                onDraft={patch}
+                onOpenEditor={create}
+                onExport={createAndExport}
+                busy={!previewTemplate}
+              />
+            )}
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
 
@@ -559,14 +632,14 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {/* "Create project" is the quiet shortcut (primary only on the last step,
-                where it's the sole forward action); "Next ›" is the highlighted path.
+            {/* "Create project" is the quiet shortcut out of any configuring step — create
+                now, remaining steps keep their defaults. It stands down entirely on FINISH,
+                whose two door cards ARE the actions: a third button saying almost the same
+                thing as one of them would only make the branch harder to read.
                 Design mode: Create is available from the Design step on (a design that
-                needs no erase, fields, or animation choice creates immediately); the
-                Animation step is its last, where Create is the one CTA. */}
-            {mode !== 'ai' && mode !== 'video' && (mode === 'import' ? step >= 2 : step >= 1) && (
+                needs no erase, fields, or animation choice creates immediately). */}
+            {mode !== 'ai' && mode !== 'video' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
-                className={step === animStep ? 'primary' : undefined}
                 disabled={!previewTemplate}
                 onClick={create}
                 title={
@@ -578,7 +651,7 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {mode !== 'ai' && mode !== 'video' && step > 0 && step < animStep && (
+            {mode !== 'ai' && mode !== 'video' && step > 0 && step < finishStep && (
               <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
                 Next ›
               </button>

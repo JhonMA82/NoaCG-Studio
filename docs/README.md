@@ -47,6 +47,7 @@ Layers of documentation, top to bottom:
 | `GROWTH_EXECUTION_PLAN.md` | The adoption push. Locked 2026-07-08; only open signup done. The §9 backlog is the work queue when growth resumes. |
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |
 | `VIDEO_DESIGN_QUALITY_PLAN.md` | Video AI quality. Most of it landed (arm B, fonts, readability gates); still open: the experiment-gated vision critic (§3.5) and the chip-set palette decision (§3.6). |
+| `AI_WIZARD_PLAN.md` | Create-with-AI review + six-phase plan (2026-07-24). **Phases 1, 2, 4 and 6 built** — every offline-provable phase is done (visual alternatives + non-destructive refine; one thread with conversation-as-context, mid-thread attachments and "3 more like this"; brand colours from an uploaded logo + saved looks; the on-air readiness report + cost expectation). Only **phases 3 and 5 remain, and both spend real API money**. One open question: whether the thread should persist (§6.2). |
 
 ## Rationale / historical (do not read as current behaviour)
 

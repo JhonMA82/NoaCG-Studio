@@ -211,12 +211,17 @@ show chat, and AI (hosted mode). Offline builds (no Supabase env) must grow **ze
 
 ### The choose-first creation flow (primary UX)
 
-New projects go through the **CreationWizard** (Entry -> Browse -> Fields -> Style -> Animation,
-persistent live preview); the Browse step is a FACETED template storefront
+New projects go through the **CreationWizard** (Entry -> Browse -> Fields -> Style -> Animation
+-> Finish, persistent live preview); the Browse step is a FACETED template storefront
 (docs/TEMPLATE_TAXONOMY_PROPOSAL.md: search + programme ranking + category tiles + field/style/
 capability facets over src/model/taxonomy.ts + src/templates/templateMeta.ts);
 `variant.create(options)` generates the complete, commented
 template, applied with `resetSampleData: true` so a project starts from its own field defaults.
+The **Finish** step names the graphic and holds the flow's one branch: open it in the editor,
+or **export it without the editor ever opening** - that door saves the graphic to the library,
+lands on Home, and opens the standalone export window (the same surface as the editor's Export
+panel, also reachable from any saved graphic on Home). Export is not a reward for opening the
+editor.
 The Entry step leads with **Continue working** (recent library graphics + the door to Home),
 then the broadcast-graphics cards: templates, **"Create with AI"** (a brief plus optional images
 and/or an existing .html/.zip - every AI result runs the harness with the runtime bench injected,

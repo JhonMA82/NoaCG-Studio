@@ -486,13 +486,25 @@ e2e/layout.spec.ts.
   per card: templates needing their own runtime are greyed with the reason, and the lines choice
   stands down for a category whose designs have no stepped build at all. Pinned by e2e/assets.spec.ts, e2e/asset-workflow.spec.ts +
   e2e/template-insert.spec.ts.
-- **AIPromptPanel**; **ExportPanel** (validation inline; remembers the last-picked target via
-  model/prefs.ts). Below the zip targets it mounts **render/RenderPanel** — the Video & image
-  section (MP4/WebM/PNG/sequence/ProRes via the render API) — ONLY when `isRenderConfigured()`
-  (VITE_RENDER_API): unconfigured builds grow zero render UI, and ProRes/sequence gate on
-  `needsSignIn` like AI does. Its measured In/Hold/Out breakdown re-runs when the template or
-  sample data changes; job state lives in src/render/renderJobStore.ts (sessionStorage resume).
-  Contracts in src/render/CLAUDE.md; specs in e2e/render.spec.ts (stubbed API).
+- **AIPromptPanel**; **ExportSurface** + its two hosts. The surface holds everything export
+  DOES - the six zip targets, the inline validation gate, and (when `isRenderConfigured()`)
+  the render section - and reads NO store: template, sampleData and `graphicId` all arrive as
+  props, because the same screen has to serve a graphic that is not the open project.
+  **ExportPanel** is the dock panel, a thin store adapter that also feeds the verdict back via
+  `setValidation`. **ExportWindow** is the standalone modal (`useExportUi.openExport(request)`,
+  the store co-located with the component like InsertTemplateDialog's): export is not a reward
+  for opening the editor, so the wizard's Finish step ends there and so does a saved graphic's
+  ⬇ button on Home. It mounts ONCE in **App.tsx**, beside the routed surface - Home is a
+  SIBLING of AppShell, not a child, and both open it, so mounting per shell would put two
+  modals on screen. It closes on a route change (the request is a SNAPSHOT of one graphic and
+  must not outlive its surface - browser Back is the case), recording the opening route on the
+  effect's first run for a request so the wizard's batched close→navigate→open hop is not
+  mistaken for navigating away. Sample data for a non-open graphic goes through templateStore's
+  exported `syncSampleData`, so what a target bakes never depends on which door was used.
+  **render/RenderPanel** takes the same three props; ProRes/sequence gate on `needsSignIn` like
+  AI does, its measured In/Hold/Out breakdown re-runs when the template or sample data changes,
+  and job state lives in src/render/renderJobStore.ts (sessionStorage resume). Contracts in
+  src/render/CLAUDE.md; specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
 - **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**
   (AI key/model + workflow defaults from model/prefs.ts).
 
@@ -598,10 +610,37 @@ undo/redo keys as AppShell with the same Monaco/form-field guard. AI chat gates 
 
 ## Wizard (wizard/)
 
-CreationWizard (Entry -> Browse -> Fields -> Style -> Animation, persistent live preview),
-draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
+CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
+preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
 which generates the complete, commented template. FIVE entry cards: template, Create with AI,
 video, Import graphic, blank.
+
+**Finish** (steps/FinishStep.tsx - the last step of every catalog-shaped mode, design included)
+is the wizard's ONE branch. It carries the graphic's NAME (`draft.name`, applied inside
+`buildDraftTemplate` so it reaches the topbar, the Save prefill and the export slug through one
+path; blank falls back to the design's catalog name), a read-back of what was chosen, and two
+doors:
+- **Open in the editor** - the classic ending. Creates and hands over; saving stays the
+  user's move.
+- **Export it** - creates, SAVES to the library, closes onto `#/home/graphics`, and opens
+  ExportWindow. The editor is never revealed. The save is not optional: this door exists for
+  someone who is done, and a graphic that was configured, exported and dropped would cost
+  every wizard choice to reproduce. A FAILED save deliberately stays in the editor instead,
+  where the topbar's failed status is visible and Save can be retried.
+Both doors go through `applyDraftProject`, which is what keeps them byte-identical - the
+editor path formats through Prettier (`applyGenerated`), so an export path skipping it would
+ship different HTML for the same choices. The footer's quiet "Create project" shortcut stands
+down ON Finish (the cards are the actions) and works from every step before it, as always.
+The graphic's name matters most on the export door: it slugs the zip AND, for the SPX and
+CasparCG targets, the template FOLDER inside it - the name the operator reads in the playout
+server. Pinned by e2e/wizard-finish.spec.ts.
+
+**A closed `<details>` needs an author rule here.** The UA hides a disclosure's non-summary
+children with `display: none`, which ANY author rule setting `display` on those children beats
+- and both wizard disclosures wrap `.row` / `.wz-filter-row`, which are `display: flex`. Browse's
+"More filters" therefore never collapsed at all until styles.css grew
+`details:not([open]) > *:not(summary) { display: none }`. `toBeVisible()` is blind to it, so
+both specs assert the content's measured HEIGHT is 0, never the `open` attribute.
 
 **Browse** (steps/BrowseStep.tsx, mode 'template' only) is the FACETED template storefront
 (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) replacing the old Category -> Template pair: search
@@ -625,9 +664,14 @@ outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now). On ≤768px the facet
 controls collapse behind the `.wz-browse-drawer-btn` toggle (active-count badge; search,
 active chips and results stay visible — closed by default via a matchMedia initial state,
-and desktop CSS ignores the closed state entirely). The import-images
+and desktop CSS ignores the closed state entirely). The CANVAS FORMAT row (aspect /
+resolution / fps, `.wz-browse-format`) sits OUTSIDE `.wz-browse-filters` and above the
+toggle: it is not a facet — `browseTemplates` never reads it, so nothing is narrowed — and
+inside the drawer it asked a phone user to open a control labelled "Filters" to make a
+decision that filters nothing. The import-images
 continuation (mode 'import') keeps the old ImportStep -> TemplateStep flow and indices; the
-catalog flow's later steps sit one index earlier (`animStep`).
+catalog flow's later steps sit one index earlier (`animStep`), and FINISH follows Animation
+in every mode (`finishStep = animStep + 1`).
 
 **Import graphic** (mode 'design', steps/ImportDesignStep + PrepareDesignStep +
 PlaceFieldsStep + the shared AnimationStep) is a SETUP flow, not a second editor:
@@ -708,13 +752,74 @@ e2e/ai-more-control.spec.ts).
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to
-turn it off. On → `generateAlternatives`: three directions, rendered as `[data-alt]`
-option buttons; selecting one swaps the preview and STAGES the pick
-(src/ai/preferences.ts); CreationWizard's `createFromAi` COMMITS it — the aggregated
-counters become the design stage's subtle preference hint. Off → `generateRaw` (one-shot,
-static validation only, no bench). Conversion of an imported template always runs the
-validated conversion flow regardless of the checkbox. The default is pinned by
+turn it off. On → `generateAlternatives`: three directions rendered as `[data-alt]` PICKER
+CARDS — a live **MiniPreview** of each built template plus its design words (density,
+heading weight, alignment, panel) and a pass/fail mark, because the three differ in real
+compositional decisions and a list of names showed none of them. Off → `generateRaw`
+(one-shot, static validation only, no bench). Conversion of an imported template always runs
+the validated conversion flow regardless of the checkbox. The default is pinned by
 e2e/ai.spec.ts ("the harness checkbox is on by default").
+
+**The directions SURVIVE a refinement.** `alternatives` (the current state of each
+direction) and `originals` (each as first generated) are parallel arrays; a refine replaces
+only `alternatives[selected]`, so the other directions stay pickable and **↺ Undo
+refinements** restores the proposed design without spending a generation. `stagePick` stages
+the pick for src/ai/preferences.ts on selection AND after every refinement — CHOSEN facets
+from the direction as it stands, SHOWN from the ORIGINALS, since that was the choice
+actually faced; a lone result stages nothing (counting it would score every facet as picked
+100% of the times shown). Refining used to CLEAR the stage, so users who improved a
+direction before creating it — the most engaged ones — trained the model with nothing.
+CreationWizard's `createFromAi` COMMITS whatever is staged.
+
+A FAILING result carries **⟳ Fix these** (`data-testid="ai-fix"`): the exact validator
+findings go back as the instruction, at CODE level (no spec — the findings are about emitted
+code). It is a button, not an automatic loop: a grounded assembly failing its own bench is a
+platform bug worth surfacing (src/ai/CLAUDE.md), but leaving a non-technical user holding
+raw findings is not a resolution. The per-card verdict uses `.wz-alt-mark.ok/.bad`, NOT
+`.status-ok`/`.status-bad` — those name the verdict on the CURRENT result, and four
+elements answering to the same words broke a spec the moment cards appeared.
+
+An **example brief is armed before it replaces a brief the user wrote** (two-step, like every
+other destructive click here): the chip reads "Replace your brief?" until confirmed, and
+typing disarms it. Pinned by e2e/ai.spec.ts.
+
+**ONE thread, ONE composer.** The step had two chat-shaped surfaces that could not see each
+other — a brainstorm panel producing a string the user copied into the prompt box, and a
+refine input inside the result card — and the generator read neither. Now `turns` is a single
+transcript (`.ai-thread`): talk turns plus `past` turns, which are earlier generations kept
+whole (their directions, their originals, which one was picked) with **↩ Bring back**;
+restoring archives whatever it displaces, so exploring a second idea never costs the first.
+The one textarea generates, talks (**🗨 Talk it through**) or refines — the primary button
+follows the state, and the "Refine it…" placeholder is retained so the composer answers to
+the same locator either way. `conversation()` feeds the bounded transcript into
+`GenerateContext` (src/ai/CLAUDE.md), **📎 Attach** adds images to the turn (bundled, because
+`modify` now takes a context), and **✦ 3 more like this** re-runs the design stage seeded
+with the picked direction's spec.
+
+**The result card reports what was MEASURED, not a verdict.** `validation/readiness.ts` groups
+existing findings into six operator-facing rows; it adds no checks, which is what lets a row
+read "not played, so not tested" on the raw one-shot path rather than claiming a bench that
+never ran. Rules no row claims are shown verbatim, never swallowed. Cost comes from
+`ai/runStats.ts` over the telemetry ring: a median expectation before Generate (null below two
+matching runs — no invented number for a first-time user) and actuals after, recorded on a RUN
+and never in `showChange`, since re-picking an alternative costs nothing. **No money is ever
+shown** — prices are not in this codebase and a stale one would be believed — and zero tokens
+prints as silence, because "0 tokens" is a measurement claim rather than the absence of one.
+
+**Brand is PROPOSED, never applied.** The strip (`.ai-brand`) offers colours read out of the
+first uploaded image — `src/assets/paletteExtract.ts`, deterministic arithmetic, no model call
+— and the install's saved looks (`loadLooks()`). Both write `spec.brandColors`, the lock
+`applySpecLocks` already honours over anything the AI picks, so brand needed no new plumbing
+to win. The pick stays the user's on purpose: nothing can tell whether the red in a crest is
+the identity or the shirt behind it. A filename chip uses **`.wz-file-chip`**, never
+`.wz-fid` — that one is the fixed 24px FIELD-ID badge, and borrowing it crushed every
+filename onto two lines.
+
+Two ordering rules the transcript depends on: **archive the current result BEFORE recording
+the new request** (it is chronological — the standing result happened first), and **record
+the request even when the box was empty** and the brief came from the talk, or a generation
+leaves no trace of what it was asked to make. Both were wrong first and caught by looking at
+the rendered thread, not by reading the code.
 
 **Video mode** (Entry card "Video or animation with AI" -> steps/VideoStep): prompt + a
 GENERATION-ENGINE picker (the VIDEO_ENGINES cards: Remotion preselected, HyperFrames tagged

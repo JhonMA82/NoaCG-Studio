@@ -86,6 +86,15 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
             + Add a line
           </button>
         )}
+        {/* Why the list stops at maxLines. This was a section of its own with a heading and no
+            control in it — three lines of prose sitting where a fourth decision looked like it
+            should be, on a step that often holds only two inputs. It answers a real question,
+            so it stays; it just stops presenting itself as something to do. */}
+        <p className="hint" style={{ marginTop: 10 }}>
+          The wizard keeps to the lines this design actually shows. Extra fields and custom
+          layouts come after creating, where the design can adapt to them — the Data tab adds a
+          field, and AI editing or the canvas works it into the graphic.
+        </p>
       </div>
 
       {variant.logo !== 'none' && (
@@ -139,14 +148,6 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
         </div>
       )}
 
-      <div className="panel-section">
-        <h3>Need more fields? <span className="muted">(after creating)</span></h3>
-        <p className="hint">
-          The wizard keeps to the lines this design actually shows. Extra fields and custom
-          layouts are added after creating, where the design can adapt to them: the Data tab
-          adds a field, and AI editing or the canvas editor works it into the graphic.
-        </p>
-      </div>
     </div>
   );
 }
