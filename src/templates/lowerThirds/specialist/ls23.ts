@@ -72,6 +72,7 @@ ${slot(o, 3, 'lower-third-subject', '        ')}
   background: var(--panel-bg);      /* the quiet panel behind the text */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
   width: fit-content;               /* the strap hugs its content */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width strap even for a short name — the void fills the rest */
   max-width: calc(1000px * var(--scale));  /* a credential line runs long — but never past
                                              the category auto-fit cap (the frame safe area) */
 }

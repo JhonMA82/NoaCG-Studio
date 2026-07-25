@@ -83,6 +83,7 @@ ${duoGridCss({ gap: 'calc(33px * var(--scale))', columnMax: 'calc(511px * var(--
    above set the two-column structure; these are its surface and its room. */
 .lower-third-box {
   margin-left: calc(9px * var(--scale));    /* starts where the accent bar ends */
+  min-width: calc(750px * var(--scale));    /* a two-person panel keeps a broadcast-width floor — the void fills the rest */
   padding: calc(27px * var(--scale)) calc(51px * var(--scale)) calc(29px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

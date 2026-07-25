@@ -90,6 +90,7 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow), var(--panel-keyline);  /* lift + the 1px inner edge */
   overflow: hidden;                 /* the artwork's corner follows the card's */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for a short title — the void fills the rest */
   max-width: calc(950px * var(--scale));  /* a release line runs long */
 }
 

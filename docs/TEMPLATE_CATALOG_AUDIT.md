@@ -374,10 +374,44 @@ cinematic designs (`lt32`-`lt38`) use a radial-gradient scrim that fades to tran
 edge - "no panel, no edges" is the family's entire premise (`lt35`'s header: "which is the panel
 look this family exists to avoid") - so none qualify, categorically.
 
-24/89 lower thirds now hold broadcast width. The remaining 65 are the 32-design specialist pack
-(`lowerThirds/specialist/`, not yet individually assessed) and the rest of the catalog's footprint
-minimums (standings/results >= 50%, quiz boards >= 55%), which follow the same per-design
-discipline.
+The fifth installment covered the 32-design specialist pack (`lowerThirds/specialist/`),
+completing every one of the 89 lower thirds the audit counts. 25 designs qualified: `ls03` Duo
+Void, `ls04` Host & Guest, `ls05` Studio Pair, `ls06` Commentary Booth, `ls07` Booth Line, `ls08`
+Squad Number, `ls09` Player Stats, `ls10` Club Crest, `ls11` Team Tag, `ls12` Caster Deck, `ls13`
+Desk Duo, `ls14` Pulpit, `ls15` Scripture Reading, `ls16` Service Speaker, `ls17` Lectern, `ls18`
+Faculty Card, `ls19` Session Speaker, `ls22` Party Strap, `ls23` Analysis Kicker, `ls24` Expert
+Panel, `ls25` Now Playing, `ls26` Stage Artist, `ls28` Live Remote, `ls29` Field Report and `ls31`
+Creator Stack - each screenshot-verified at short-name lengths.
+
+Three designs (`ls03`/`ls04`/`ls06`/`ls13` - the two-person duo and booth panels) needed a wider
+value than the usual 600px: 750px, so a floor built for one name doesn't crowd two independent
+people. Three more (`ls20` Candidate Bar, `ls21` Debate Podium, `ls27` Track Cue, `ls30` World
+Clock) already carried an equivalent `min-width` from before this pass, authored by whoever built
+the specialist pack for the same "a run of these keeps one width" reasoning - left untouched.
+
+Two needed a companion fix beyond the `min-width` itself, for the same reason `lt42` did earlier
+in this pass: a fixed element on the OUTSIDE edge that default flex packing would strand once the
+box grew. `ls28` Live Remote has a flag flush left AND a clock closing the rail flush right, so
+neither `justify-content` value alone preserves both ends - the fix instead put `flex: 1 1 auto`
+on the middle cell, so it absorbs the reserved width and both ends stay put. `ls32` Stream
+Identity has the same shape (handle block leading, an optional goal cell trailing) but was left
+alone instead of fixed: the goal cell is not always present, which is exactly the stranded-trailing-
+element trap `lt54`/`lt47` were excluded for, and the design's own header calls it "compact... it
+lives in a corner for a whole stream" - the same self-described-compact framing as the other
+exclusions.
+
+`ls02` Duo Frost was left alone for a different reason than any prior exclusion: it renders two
+people as two SEPARATE cards with real air between them ("the gap IS the composition"), and its
+own comments say a short name's card should NOT inflate to match a long one's - the opposite of
+what the strap floor does. `ls01` Split Interview is panel-free (no background at all, matching
+the minimal family's other panel-less designs). `ls32` is covered above.
+
+**89/89 lower thirds now assessed for the strap floor.** 49 hold broadcast width (20 house/glass/
+sport, 4 minimal/editorial, 25 specialist - see this section and the two above); the remaining 40
+were excluded for one of five documented reasons: panel-free by family, deliberately-compact
+persistent marks, pill/capsule shapes, a design whose signature effect the floor would erase, or
+a trailing optional element the floor would strand. The rest of the catalog's footprint minimums
+(standings/results >= 50%, quiz boards >= 55%) are a separate pass with their own geometry.
 
 Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
 the streaming pack, the data layer, the animation vocabulary, and vertical.

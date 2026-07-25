@@ -72,6 +72,7 @@ ${slot(o, 1, 'lower-third-title', '        ')}
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
   width: fit-content;               /* the rail below decides the width */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
 }
 
 /* The name row — compact, because the numbers below are the reason the strap is up. */

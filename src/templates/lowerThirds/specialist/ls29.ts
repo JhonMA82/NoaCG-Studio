@@ -83,6 +83,7 @@ ${slot(o, 2, 'lower-third-extra')}
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
   -webkit-backdrop-filter: var(--panel-blur);  /* Safari spelling of the same effect */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short dateline — the void fills the rest */
   max-width: calc(871px * var(--scale));  /* a correspondent's beat runs long */
 }
 

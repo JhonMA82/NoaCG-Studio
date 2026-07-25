@@ -73,6 +73,7 @@ ${slot(o, 3, 'lower-third-extra', '        ')}
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
   width: fit-content;               /* the slab hugs its content */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short handle — the void fills the rest */
 }
 
 /* The accent floor — the graphic's accent node, a full-width bar along the bottom edge. */
