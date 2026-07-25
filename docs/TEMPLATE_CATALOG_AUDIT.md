@@ -322,9 +322,20 @@ Applied to the six house designs whose shape is a filled strap - `lt11` House St
 House Board (27 -> 36%) - each screenshot-verified at default and short-name lengths. Deliberately
 left alone: the compact tags and social-handle marks (`lt50`, `lt14` - the matrix's compact size
 class), the trailing-logo ident (`lt54`, where a reserved width strands the empty logo well), and
-the already-wide `lt12`. The glass cards, sport slabs and the other panel straps across the 89
-lower thirds are the same pattern applied further, and the rest of the catalog's footprint
-minimums (standings/results >= 50%, quiz boards >= 55%) follow the same per-design discipline.
+the already-wide `lt12`.
+
+The second installment carried the same lever to the glass cards and sport slabs: `lt08` Frosted
+Card, `lt15` Frost Strap, `lt46` Glass Column, `lt05` Angle Slab, `lt39` Block Caps and `lt43`
+Center Slab all now hold ~31-32% of frame with a two-character name, each screenshot-verified at
+default and short-name lengths. Two designs on the original list were left alone on inspection,
+for the same reasons `lt50`/`lt14`/`lt54` were: `lt45` Glass Chip is explicitly built to be the
+family's smallest footprint - "a chip rather than a card... where a full-width strap would
+swallow the shot" - so reserving broadcast width there would defeat the design's own purpose;
+`lt47` Glass Sign has the same `[text | accent divider | optional logo]` flex-row shape that
+`lt54` was reverted for - with the logo off, a `min-width` would strand empty void after the
+divider instead of filling behind the text. The remaining panel straps across the 89 lower thirds
+are the same pattern applied further, and the rest of the catalog's footprint minimums
+(standings/results >= 50%, quiz boards >= 55%) follow the same per-design discipline.
 
 Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
 the streaming pack, the data layer, the animation vocabulary, and vertical.
