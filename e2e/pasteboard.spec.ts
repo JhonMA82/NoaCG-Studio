@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { createProject } from './_create';
 import { canvasBox, elementPoint } from './_canvas';
+import { frameRect } from './_frame';
 
 // The off-canvas pasteboard (plans/happy-marinating-pebble.md): the editor shows a working
 // margin around the canvas so content positioned OUTSIDE the canvas is visible and editable.
@@ -58,27 +59,31 @@ test('the pasteboard is sized by the authored motion, and grows when the motion 
   // Author an entrance that starts with the Name line fully clear of the canvas's left edge:
   // the margin now has something to hold, so it grows — and holds it.
   await createProject(page, 'Kicker');
+  // Measured from where the line SETTLES, so the push clears the edge whatever the layout: the
+  // rect is doc px, and the pad is what separates the doc origin from the canvas. Read via
+  // Playwright's frame-scoped API (CDP, not a page-JS reach) — this iframe carries no
+  // allow-same-origin — and passed into the page as a plain value.
+  const r = await frameRect(page, '#f0');
   await awaitPreviewRebuild(page, () =>
-    page.evaluate(async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-      const { setKeyframe } = await import('/src/blocks/animEdit.ts');
-      const { computePad } = await import('/src/components/pasteboard.ts');
-      const s = useTemplateStore.getState();
-      const data = parseAnimData(s.template.js)!;
-      // Measured from where the line SETTLES, so the push clears the edge whatever the layout:
-      // rect.left is doc px, and the pad is what separates the doc origin from the canvas.
-      const iframe = document.querySelector('iframe.preview-frame') as HTMLIFrameElement;
-      const r = iframe.contentDocument!.querySelector('#f0')!.getBoundingClientRect();
-      const settledLeft = r.left - computePad(s.template).padX; // doc px → canvas px
-      // Keyed at a MOMENT the scrub can land on exactly: between keyframes the value depends on
-      // the step's ease, and this test is about where the pasteboard holds the element, not
-      // about easing maths.
-      const at = Math.round(data.steps[0].duration * 50) / 100;
-      const next = setKeyframe(data, 0, '#f0', 'x', at, -Math.round(settledLeft + r.width + 120));
-      s.applyTemplate({ ...s.template, js: spliceAnimData(s.template.js, next)! });
-      return at;
-    }),
+    page.evaluate(
+      async ({ left, width }) => {
+        const { useTemplateStore } = await import('/src/store/templateStore.ts');
+        const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+        const { setKeyframe } = await import('/src/blocks/animEdit.ts');
+        const { computePad } = await import('/src/components/pasteboard.ts');
+        const s = useTemplateStore.getState();
+        const data = parseAnimData(s.template.js)!;
+        const settledLeft = left - computePad(s.template).padX; // doc px → canvas px
+        // Keyed at a MOMENT the scrub can land on exactly: between keyframes the value depends
+        // on the step's ease, and this test is about where the pasteboard holds the element,
+        // not about easing maths.
+        const at = Math.round(data.steps[0].duration * 50) / 100;
+        const next = setKeyframe(data, 0, '#f0', 'x', at, -Math.round(settledLeft + width + 120));
+        s.applyTemplate({ ...s.template, js: spliceAnimData(s.template.js, next)! });
+        return at;
+      },
+      { left: r.left, width: r.width },
+    ),
   );
   const at = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -225,9 +230,13 @@ test('preset-authored off-canvas: a slide preset entrance renders + selects on t
   // deepen its start so the preset-authored entrance clears the canvas edge — a preset
   // producing a big travel is the same code path, larger value. This proves preset positions
   // outside the canvas render and hit-test, not just manual drags.
+  // The box's SETTLED rect, read via Playwright's frame-scoped API (CDP, not a page-JS reach) —
+  // this iframe carries no allow-same-origin — and passed into the page as a plain value.
+  const box = await frameRect(page, '.lower-third-box');
   let authored: { ok: boolean; entryY?: number } = { ok: false };
   await awaitPreviewRebuild(page, async () => {
-    authored = await page.evaluate(async () => {
+    authored = await page.evaluate(
+      async ({ boxTop, boxHeight }) => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
     const { presetDonor, applyPresetData } = await import('/src/blocks/presetApply.ts');
@@ -244,13 +253,13 @@ test('preset-authored off-canvas: a slide preset entrance renders + selects on t
     const ys = next.steps[0].layers['.lower-third-box']?.y;
     if (!ys || !ys.length) return { ok: false };
     const { padY } = computePad(s.template);
-    const iframe = document.querySelector('iframe.preview-frame') as HTMLIFrameElement;
-    const box = iframe.contentDocument!.querySelector('.lower-third-box')!.getBoundingClientRect();
-    const settledCanvasCenterY = box.top + box.height / 2 - padY; // doc px → canvas px
+    const settledCanvasCenterY = boxTop + boxHeight / 2 - padY; // doc px → canvas px
     ys[0].value = Math.round(s.template.resolution.height + 120 - settledCanvasCenterY);
       s.applyTemplate({ ...s.template, js: spliceAnimData(s.template.js, next)! });
       return { ok: true, entryY: ys[0].value };
-    });
+      },
+      { boxTop: box.top, boxHeight: box.height },
+    );
   });
   expect(authored.ok).toBeTruthy();
   expect(authored.entryY as number).toBeGreaterThan(0);

@@ -6,7 +6,7 @@ import { emitPresetRegion, swappablePresetsForType } from '../blocks/presetRegis
 import { importAnimData } from '../blocks/animImport';
 import { replaceRegionWithAnimData } from '../templates/shared/animRuntime';
 import type { AnimPresetId } from '../model/wizard';
-import type { SpxWindow } from './PlayoutSimulator';
+import { PREVIEW_PLAYHEAD_TYPE, type PreviewPlayheadMessage } from '../preview/previewProtocol';
 
 // Phase 8 (docs/TIMELINE_V2_PLAN.md · DYNAMIC_MOTION_SCOPE §8.1) — the LEGACY timeline,
 // read-only by design.
@@ -93,34 +93,35 @@ export default function LegacyTimeline({ iframeRef }: Props) {
   }, [model, template.name]);
 
   // The live playhead follows the simulator's running timeline through In, every press, and Out.
+  // The document PUSHES its playhead every frame (composeDocument's `simulate` script) since this
+  // iframe carries no allow-same-origin — a `runId` change is the wire equivalent of the old
+  // object-identity check against `contentWindow.__activeTl`.
   const phaseRef = useRef(phaseId);
   phaseRef.current = phaseId;
-  const lastActiveRef = useRef<unknown>(null);
+  const lastRunIdRef = useRef<number | null>(null);
   useEffect(() => {
     if (!model) return;
-    let raf = 0;
-    const inDur = model.phases.find((p) => p.id === 'in')?.duration ?? 0;
     const knownIds = new Set(['in', 'out', ...model.steps.map((_, k) => `step-${k + 2}`)]);
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const w = iframeRef.current?.contentWindow as SpxWindow | null;
-      const active = w?.__activeTl;
-      if (active && active !== lastActiveRef.current) {
-        lastActiveRef.current = active; // a new run reclaims the playhead from a paused scrub
+    const inDur = model.phases.find((p) => p.id === 'in')?.duration ?? 0;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const msg = ev.data as PreviewPlayheadMessage | undefined;
+      if (!msg || msg.type !== PREVIEW_PLAYHEAD_TYPE) return;
+      if (msg.active && msg.runId !== lastRunIdRef.current) {
+        lastRunIdRef.current = msg.runId; // a new run reclaims the playhead from a paused scrub
         if (scrubbingRef.current) setScrubbing(false);
       }
-      if (!active) lastActiveRef.current = null;
+      if (!msg.active) lastRunIdRef.current = null;
       if (scrubbingRef.current) return;
-      if (active) {
-        if (active.phase !== phaseRef.current && knownIds.has(active.phase)) setPhaseId(active.phase);
-        const dur = Math.max(active.tl.duration(), 0.001);
-        setTime(active.tl.time() % (dur + 0.0001)); // endless loops wrap visually
+      if (msg.active) {
+        if (msg.phase !== phaseRef.current && knownIds.has(msg.phase)) setPhaseId(msg.phase);
+        setTime(msg.time); // endless loops wrap visually (the document already wraps it)
       } else if (phaseRef.current === 'in') {
         setTime(inDur); // idle = settled at the end of the entrance
       }
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [model, iframeRef]);
 
   /**

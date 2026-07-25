@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { createProject } from './_create';
+import { timelineState } from './_keys';
 
 // Timeline v2 Phase 3 — the read-first step timeline behind the dock toggle: step clips
 // with cue markers on a time ruler, a click/drag playhead that scrubs the real preview
@@ -393,15 +394,7 @@ test('v2: Space plays; arrows nudge the selected keyframe on the grid', async ({
   await createHairline(page);
   // Space = ▶ Play (never while typing): the simulator owns a fresh running timeline.
   await page.keyboard.press(' ');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const w = (document.querySelector('iframe.preview-frame') as HTMLIFrameElement)
-          .contentWindow as { __activeTl?: unknown } | null;
-        return !!w?.__activeTl;
-      }),
-    )
-    .toBe(true);
+  await expect.poll(() => timelineState(page)).not.toBe('none');
   // Select a diamond and nudge it right one grid step (0.05 s).
   const times = async () => {
     const data = await animData(page);

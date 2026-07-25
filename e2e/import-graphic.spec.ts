@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
+import { previewFrame } from './_frame';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
@@ -539,21 +540,22 @@ async function measureLine(page: Page, value: string) {
   await page.getByTestId('dock-body-right').getByRole('button', { name: '⟳ Update' }).click();
   const frame = page.frameLocator('iframe.preview-frame');
   await expect(frame.locator('#f0')).toHaveText(value);
-  return page.evaluate(() => {
-    const doc = (document.querySelector('iframe.preview-frame') as HTMLIFrameElement).contentDocument!;
-    const line = doc.getElementById('f0')!;
-    const slot = doc.getElementById('fw0')!;
-    const fontSize = parseFloat(doc.defaultView!.getComputedStyle(line).fontSize);
-    return {
-      lineWidth: line.getBoundingClientRect().width,
-      slotWidth: slot.getBoundingClientRect().width,
-      fontSize,
-      // Rows as a RATIO of the line's own type size, not its computed line-height —
-      // `line-height: normal` computes to the string "normal", which parses to NaN. One
-      // row of text is ~1.2x its font-size; two rows are ~2.4x.
-      rowRatio: line.getBoundingClientRect().height / fontSize,
-    };
-  });
+  return previewFrame(page)
+    .locator('body')
+    .evaluate(() => {
+      const line = document.getElementById('f0')!;
+      const slot = document.getElementById('fw0')!;
+      const fontSize = parseFloat(getComputedStyle(line).fontSize);
+      return {
+        lineWidth: line.getBoundingClientRect().width,
+        slotWidth: slot.getBoundingClientRect().width,
+        fontSize,
+        // Rows as a RATIO of the line's own type size, not its computed line-height —
+        // `line-height: normal` computes to the string "normal", which parses to NaN. One
+        // row of text is ~1.2x its font-size; two rows are ~2.4x.
+        rowRatio: line.getBoundingClientRect().height / fontSize,
+      };
+    });
 }
 
 /** A single row of text sits well under 1.8x its own type size; more rows sit above it. */

@@ -24,7 +24,13 @@ import CanvasSelection, { type CanvasRect } from './CanvasSelection';
 import { partLocked } from './partLocks';
 import { editorShortcutsLive } from './spaceKey';
 import { phaseIdOf } from './StepTimeline';
-import type { SpxWindow } from './PlayoutSimulator';
+import {
+  postCanvasCmd,
+  queryCanvas,
+  CANVAS_RECTS_TYPE,
+  type CanvasRect as TrackedRect,
+  type CanvasRectsMessage,
+} from '../preview/canvasControlProtocol';
 import { useIsMobile } from './useIsMobile';
 
 interface Props {
@@ -132,7 +138,11 @@ interface LineSizeDrag {
  *  apply once the keys go quiet. */
 interface NudgeBurst {
   lines: { wrapperId: string; baseX: number; baseY: number; scaled: boolean }[];
-  /** Selected non-placed layers, moved on the keyframe channel (GSAP x/y at burst start). */
+  /** Selected non-placed layers, moved on the keyframe channel (GSAP x/y at burst start).
+   *  Bases start at 0 and are filled in once the async GSAP-property query resolves (see
+   *  `startNudgeBurst`) — a burst that commits before the query answers just moves nothing on
+   *  the keyframe channel yet, which self-corrects the moment it lands (same-tab postMessage
+   *  resolves long before an OS key-repeat's next tick in practice). */
   keyed: { selector: string; baseX: number; baseY: number }[];
   dx: number;
   dy: number;
@@ -197,6 +207,18 @@ const SCALE_MAX = 4;
  * registry's `part.label` — clicking the selected part again climbs to its container
  * (panel → whole graphic), and empty canvas or Escape deselects. Selection is editor UI
  * state ONLY: it never writes a byte into the template.
+ *
+ * The template rendered here can be AI-generated or imported code, so this iframe carries no
+ * `allow-same-origin` (composeDocument's `canvasControl` option instead — see
+ * preview/canvasControlProtocol.ts for the full protocol design). Every rect this layer used to
+ * read via `contentDocument.querySelector(...).getBoundingClientRect()` now comes from a
+ * continuous rect-push cache (`rectsRef`) the document reports every animation frame; the
+ * handful of reads a rect can't answer (a GSAP-resolved transform value, an element's live text)
+ * go through `queryCanvas`, a small correlated request/reply that only ever fires at gesture
+ * start or on a double-click — never per pointermove. Every live-preview WRITE (a drag's inline
+ * style, a GSAP `.set()`, the `--scale` override, the type-on-canvas mirror) is a fire-and-forget
+ * `postCanvasCmd`. Nothing about the gesture MODEL changed — only where a read or write actually
+ * executes.
  */
 export default function CanvasInteraction({ iframeRef, width, height, padX = 0, padY = 0 }: Props) {
   const template = useTemplateStore((s) => s.template);
@@ -220,6 +242,10 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   const [layerDrag, setLayerDrag] = useState<LayerDrag | null>(null);
   const layerDragRef = useRef<LayerDrag | null>(null);
   layerDragRef.current = layerDrag;
+  /** Guards the async GSAP-baseline query that corrects a layer drag's bases in place — a
+   *  NEWER drag (or the same one released and restarted) invalidates any in-flight correction
+   *  from an older one. */
+  const layerDragSeqRef = useRef(0);
   const [placeDrag, setPlaceDrag] = useState<PlaceDrag | null>(null);
   const placeDragRef = useRef<PlaceDrag | null>(null);
   placeDragRef.current = placeDrag;
@@ -248,6 +274,9 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   const [layerTf, setLayerTf] = useState<LayerTransformDrag | null>(null);
   const layerTfRef = useRef<LayerTransformDrag | null>(null);
   layerTfRef.current = layerTf;
+  /** Guards the async GSAP-baseline query that corrects a layer-transform drag's base in
+   *  place (see `layerDragSeqRef`'s comment — the identical hazard). */
+  const layerTfSeqRef = useRef(0);
   const [lineSize, setLineSize] = useState<LineSizeDrag | null>(null);
   const lineSizeRef = useRef<LineSizeDrag | null>(null);
   lineSizeRef.current = lineSize;
@@ -280,9 +309,9 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   const toggleSelectedPart = useTemplateStore((s) => s.toggleSelectedPart);
   const partLocks = useTemplateStore((s) => s.partLocks);
   const setPartLock = useTemplateStore((s) => s.setPartLock);
-  /** The selected elements' live rects in DOC px (rAF-tracked below; rendered via × scale into
-   *  the doc-space overlay); the PRIMARY (first selected) carries the chip, the rest get plain
-   *  outlines. */
+  /** The selected elements' live rects in DOC px (from the rect-push cache below; rendered via
+   *  × scale into the doc-space overlay); the PRIMARY (first selected) carries the chip, the
+   *  rest get plain outlines. */
   const [selRect, setSelRect] = useState<CanvasRect | null>(null);
   const [extraRects, setExtraRects] = useState<CanvasRect[]>([]);
   // The canvas CONTEXT MENU (right-click): screen px within the overlay. One action for
@@ -321,7 +350,28 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   // The template's addressable parts — THE shared element-identity contract
   // (model/structure.ts). Selection and hover only ever name elements through it.
   const parts = useMemo(() => getTemplateParts(template.html, template.fields), [template.html, template.fields]);
-  const selectedPart = selected ? parts.find((p) => p.selector === selected) ?? null : null;
+  const selectedPart = useMemo(
+    () => (selected ? parts.find((p) => p.selector === selected) ?? null : null),
+    [selected, parts],
+  );
+
+  // A structural fact from the template's OWN markup — parsed once here, independent of the
+  // live iframe (whose DOM this layer no longer reaches into). Used only to answer "is A an
+  // ancestor of B", which never changes with a live GSAP transform, so it needs no iframe read.
+  const structureDoc = useMemo(() => new DOMParser().parseFromString(template.html, 'text/html'), [template.html]);
+  const containsSelector = useCallback(
+    (outerSel: string, innerSel: string): boolean => {
+      if (outerSel === innerSel) return false;
+      try {
+        const outer = structureDoc.querySelector(outerSel);
+        const inner = structureDoc.querySelector(innerSel);
+        return !!(outer && inner && outer.contains(inner));
+      } catch {
+        return false;
+      }
+    },
+    [structureDoc],
+  );
 
   // ── "Appears on press" from the chip — the SAME control the timeline offers, under the
   //    same conditions (steps on, part eligible), writing the same patch (blocks/stepAssign.ts
@@ -415,14 +465,107 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     return { step, tRel: dataModel.steps[step].duration };
   };
 
-  const gsapOf = () => (iframeRef.current?.contentWindow as SpxWindow | null)?.gsap ?? null;
+  const win = useCallback((): Window | null => iframeRef.current?.contentWindow ?? null, [iframeRef]);
+
+  // ── The rect-push cache (preview/canvasControlProtocol.ts): every hit-test and measurement
+  //    below reads THIS instead of the iframe's DOM directly. `rectsRef` is a ref (not state) —
+  //    it updates every animation frame, and re-rendering on every one of those would be pure
+  //    waste; only the pieces of UI that must react (selRect/extraRects) get their own state,
+  //    set from inside the same listener. ──
+  const rectsRef = useRef<Record<string, TrackedRect | null>>({});
+
+  /** The rect standing for a part: its own tracked rect, or — for a placed field whose element
+   *  is hidden (an EMPTY image slot) — its wrapper's, so the slot stays selectable/outlined/
+   *  draggable while it shows only its dashed placeholder. Mirrors the former `partScreenEl`. */
+  const rectOf = useCallback(
+    (selector: string): TrackedRect | null => {
+      const own = rectsRef.current[selector];
+      if (own) return own;
+      const pl = placed[selector];
+      return pl ? rectsRef.current[`#${pl.wrapperId}`] ?? null : null;
+    },
+    [placed],
+  );
+
+  // What to TRACK: every registered part, every field (textFieldAt), every placed line's
+  // wrapper (the hidden-element fallback above), and the design box (designSpace) — the full
+  // set of selectors any gesture below might ever need a rect for. Re-sent whenever the set
+  // actually changes (a template edit adds/removes parts, fields, or placed lines).
+  const trackedSelectors = useMemo(() => {
+    const set = new Set<string>();
+    set.add(rootSelector);
+    for (const p of parts) set.add(p.selector);
+    for (const f of template.fields) set.add(`#${f.field}`);
+    for (const pl of Object.values(placed)) set.add(`#${pl.wrapperId}`);
+    if (designInfo) set.add(`.${designInfo.prefix}-box`);
+    return Array.from(set);
+  }, [rootSelector, parts, template.fields, placed, designInfo]);
+  // Kept in a ref (not just closed over) so the on-load handler below always re-sends the
+  // CURRENT list — its own effect registers once (`[iframeRef]`, since `iframeRef` is stable)
+  // and must not carry a stale first-render closure across every later reload.
+  const trackedSelectorsRef = useRef<string[]>(trackedSelectors);
+  trackedSelectorsRef.current = trackedSelectors;
+  const sentTrackRef = useRef<string>('');
+  useEffect(() => {
+    const key = JSON.stringify(trackedSelectors);
+    if (key === sentTrackRef.current) return;
+    sentTrackRef.current = key;
+    postCanvasCmd(win(), { cmd: 'track', selectors: trackedSelectors });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackedSelectors]);
+  // Re-assert on load too — a fresh document's script starts with an empty tracked list, and a
+  // reload whose selector SET happens not to have changed (e.g. a CSS-only edit) would otherwise
+  // never resend it (the effect above only fires when the list's CONTENT changes).
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const onLoad = () => postCanvasCmd(win(), { cmd: 'track', selectors: trackedSelectorsRef.current });
+    iframe.addEventListener('load', onLoad);
+    return () => iframe.removeEventListener('load', onLoad);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iframeRef]);
+
+  const near = (a: CanvasRect | null, b: CanvasRect | null) =>
+    !!a && !!b &&
+    Math.abs(a.left - b.left) < 0.5 &&
+    Math.abs(a.top - b.top) < 0.5 &&
+    Math.abs(a.width - b.width) < 0.5 &&
+    Math.abs(a.height - b.height) < 0.5;
+
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const msg = ev.data as CanvasRectsMessage | undefined;
+      if (!msg || msg.type !== CANVAS_RECTS_TYPE) return;
+      rectsRef.current = msg.rects;
+      if (selectedParts.length === 0) return;
+      const rects = selectedParts.map((sel) => {
+        const r = rectOf(sel);
+        return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+      });
+      setSelRect((prev) => (near(prev, rects[0]) ? prev : rects[0]));
+      const extras = rects.slice(1).filter((r): r is CanvasRect => r !== null);
+      setExtraRects((prev) =>
+        prev.length === extras.length && prev.every((p, i) => near(p, extras[i])) ? prev : extras,
+      );
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [iframeRef, selectedParts, rectOf]);
+
+  // Selection cleared → the rects clear too (no rect-push message will do it for us, since we
+  // only recompute selRect/extraRects when a push arrives).
+  useEffect(() => {
+    if (selectedParts.length === 0) {
+      setSelRect(null);
+      setExtraRects((prev) => (prev.length ? [] : prev));
+    }
+  }, [selectedParts]);
 
   /** Put the dragged layers back where the drag found them (Escape / cancelled gesture). */
   const resetLayerDrag = (ld: LayerDrag) => {
-    const g = gsapOf();
     for (const layer of ld.layers) {
-      const el = doc()?.querySelector<HTMLElement>(layer.selector);
-      if (el) g?.set(el, { x: layer.baseX, y: layer.baseY });
+      postCanvasCmd(win(), { cmd: 'gsap-set', selector: layer.selector, vars: { x: layer.baseX, y: layer.baseY } });
     }
   };
 
@@ -449,11 +592,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   /** Clear the placement drag's inline left/top previews — the stylesheet position returns. */
   const resetPlaceDrag = (pd: PlaceDrag) => {
     for (const line of pd.lines) {
-      const el = doc()?.getElementById(line.wrapperId);
-      if (el) {
-        el.style.left = '';
-        el.style.top = '';
-      }
+      postCanvasCmd(win(), { cmd: 'set-style', selector: `#${line.wrapperId}`, props: { left: '', top: '' } });
     }
   };
 
@@ -471,15 +610,17 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     setActiveTab('css');
   };
 
-  /** The design box's on-screen origin and the computed --scale (doc px per design px) —
-   *  the space the placement rules are written in. Null until the preview holds the box. */
+  /** The design box's on-screen origin and the authored --scale (doc px per design px) — the
+   *  space the placement rules are written in. `--scale` is read off the template's OWN CSS
+   *  (getCssVariable), not the live DOM: the only thing that ever overrides it inline is the
+   *  scale-corner drag, which can never be active at the same time as a placement/text-tool
+   *  gesture (only one drag is ever in flight), so the authored value is always the live one
+   *  here. Null until the rect-push cache holds the box (i.e. the document has loaded). */
   const designSpace = () => {
-    const d = doc();
-    if (!d || !designInfo) return null;
-    const box = d.querySelector<HTMLElement>(`.${designInfo.prefix}-box`);
-    if (!box) return null;
-    const r = box.getBoundingClientRect();
-    const scaleVar = parseFloat(getComputedStyle(d.documentElement).getPropertyValue('--scale')) || 1;
+    if (!designInfo) return null;
+    const r = rectOf(`.${designInfo.prefix}-box`);
+    if (!r) return null;
+    const scaleVar = parseFloat(getCssVariable(template.css, 'scale') ?? '') || 1;
     return { left: r.left, top: r.top, scaleVar };
   };
 
@@ -645,27 +786,16 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   /** Clear a size drag's inline previews — the stylesheet values return. */
   const clearLineSizePreview = useCallback(
     (d: LineSizeDrag) => {
-      const dd = iframeRef.current?.contentDocument;
-      if (!dd) return;
       if (d.kind === 'font') {
-        const el = dd.getElementById(d.fieldId);
-        if (el) el.style.fontSize = '';
+        postCanvasCmd(win(), { cmd: 'set-style', selector: `#${d.fieldId}`, props: { fontSize: '' } });
       } else if (d.kind === 'area') {
-        const w = dd.getElementById(d.wrapperId);
-        if (w) w.style.maxWidth = '';
+        postCanvasCmd(win(), { cmd: 'set-style', selector: `#${d.wrapperId}`, props: { maxWidth: '' } });
       } else {
-        const w = dd.getElementById(d.wrapperId);
-        if (w) {
-          w.style.width = '';
-          w.style.height = '';
-        }
+        postCanvasCmd(win(), { cmd: 'set-style', selector: `#${d.wrapperId}`, props: { width: '', height: '' } });
       }
     },
-    [iframeRef],
+    [win],
   );
-
-  const doc = () => iframeRef.current?.contentDocument ?? null;
-  const rootEl = () => doc()?.querySelector<HTMLElement>(rootSelector) ?? null;
 
   /** Pointer event → doc px. The overlay's top-left is the pasteboard corner, and iframe
    *  element rects are in the same doc space, so this is the one space hit-testing uses.
@@ -676,70 +806,39 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     return { x: (e.clientX - box.left) / scale, y: (e.clientY - box.top) / scale };
   };
 
-  const inRect = (p: { x: number; y: number }, r: DOMRect) =>
-    p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+  const inRect = (p: { x: number; y: number }, r: { left: number; top: number; width: number; height: number }) =>
+    p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
 
-  /** The VISIBLE editable text element under the point (hidden #fN source divs excluded). */
+  /** The VISIBLE editable text element under the point (hidden #fN source divs excluded, image
+   *  fields excluded by ftype — both app-side facts, no DOM read needed). */
   const textFieldAt = (p: { x: number; y: number }) => {
-    const d = doc();
-    if (!d) return null;
     for (const f of template.fields) {
-      const el = d.getElementById(f.field);
-      // Editable = a rendered text element. Images have their own field UX (Data panel);
-      // hidden source divs (credits/tickers/timers/quiz) are consumed by the template JS.
-      if (!el || el.tagName === 'IMG' || el.offsetParent === null) continue;
-      if (inRect(p, el.getBoundingClientRect())) return { field: f.field, ftype: f.ftype, el };
+      if (f.ftype === 'filelist') continue; // images have their own field UX (Data panel)
+      const r = rectOf(`#${f.field}`);
+      if (!r) continue; // not rendered — a hidden source div (credits/tickers/timers/quiz)
+      if (inRect(p, r)) return { field: f.field, ftype: f.ftype, rect: r };
     }
     return null;
   };
 
-  /** The on-screen element that STANDS FOR a part: the element itself when rendered, or —
-   *  for a placed field whose element is hidden (an EMPTY image slot: setFieldValue
-   *  display:none's the img until a value arrives) — its rendered wrapper, so the slot stays
-   *  selectable, outlined, and draggable while it shows only its dashed placeholder. */
-  const partScreenEl = (d: Document, selector: string): HTMLElement | null => {
-    const el = d.querySelector<HTMLElement>(selector);
-    if (el && el.getClientRects().length > 0) return el;
-    const pl = placed[selector];
-    if (pl) {
-      const w = d.getElementById(pl.wrapperId);
-      if (w && w.getClientRects().length > 0) return w;
-    }
-    return null;
-  };
-
-  /** Registered parts under a canvas point, innermost first (closest-ancestor order). */
-  const partChainAt = (p: { x: number; y: number }): { part: TemplatePart; el: HTMLElement }[] => {
-    const d = doc();
-    if (!d) return [];
-    const resolved: { part: TemplatePart; el: HTMLElement }[] = [];
+  /** Registered parts under a canvas point, innermost first. Rect-containment + a depth/area
+   *  tie-break — the SAME fallback algorithm the pre-conversion code used only for templates
+   *  that opt out of pointer hit-testing (`pointer-events: none`), now used universally: a rect
+   *  carries no paint-order information, so the true `elementFromPoint` stacking order this used
+   *  to try first is no longer available without a per-pointermove round trip. `depth` rides
+   *  with each pushed rect for exactly this tie-break, computed by the document since only it
+   *  can walk `parentElement`. */
+  const partChainAt = (p: { x: number; y: number }): { part: TemplatePart; rect: TrackedRect }[] => {
+    const hits: { part: TemplatePart; rect: TrackedRect }[] = [];
     for (const part of parts) {
-      const el = partScreenEl(d, part.selector);
-      if (el) resolved.push({ part, el }); // rendered only
+      const r = rectOf(part.selector);
+      if (r && inRect(p, r)) hits.push({ part, rect: r });
     }
-    // Walk up from the element the point actually hits, collecting its ancestor parts.
-    const chain: { part: TemplatePart; el: HTMLElement }[] = [];
-    for (let el = d.elementFromPoint(p.x, p.y); el && el !== d.body && el !== d.documentElement; el = el.parentElement) {
-      const hit = resolved.find((r) => r.el === el);
-      if (hit) chain.push(hit);
-    }
-    if (chain.length > 0) return chain;
-    // Fallback for templates that opt out of pointer hit-testing (pointer-events: none is
-    // a legitimate overlay style in imported code): rect containment, innermost first.
-    const depth = (el: Element) => {
-      let n = 0;
-      for (let q = el.parentElement; q; q = q.parentElement) n++;
-      return n;
-    };
-    return resolved
-      .filter((r) => inRect(p, r.el.getBoundingClientRect()))
-      .sort((a, b) => {
-        const byDepth = depth(b.el) - depth(a.el);
-        if (byDepth !== 0) return byDepth;
-        const ra = a.el.getBoundingClientRect();
-        const rb = b.el.getBoundingClientRect();
-        return ra.width * ra.height - rb.width * rb.height; // ties: the smaller wins
-      });
+    return hits.sort((a, b) => {
+      const byDepth = b.rect.depth - a.rect.depth;
+      if (byDepth !== 0) return byDepth;
+      return a.rect.width * a.rect.height - b.rect.width * b.rect.height; // ties: the smaller wins
+    });
   };
 
   /** A click selects the innermost part under the point; clicking the SELECTED part again
@@ -772,8 +871,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   // makes it real code; cancelEdit restores the template's own text.
   useEffect(() => {
     if (!editing) return;
-    const el = doc()?.getElementById(editing.field);
-    if (el && el.tagName !== 'IMG') el.textContent = editing.value;
+    postCanvasCmd(win(), { cmd: 'set-text', selector: `#${editing.field}`, text: editing.value });
   }, [editing?.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tool lifecycle keys: Escape disarms back to Select; T arms the type tool (the classic
@@ -835,39 +933,6 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     if (alive.length !== selectedParts.length) setSelectedParts(alive);
   }, [parts, selectedParts, setSelectedParts]);
 
-  // Track every selected element's on-screen rect (primary + extras). rAF on purpose:
-  // animations, preview rebuilds, and the scale handle all move the elements, and the
-  // loop re-resolves the selectors against whatever document the iframe currently holds.
-  useEffect(() => {
-    if (selectedParts.length === 0) {
-      setSelRect(null);
-      setExtraRects((prev) => (prev.length ? [] : prev));
-      return;
-    }
-    const near = (a: CanvasRect | null, b: CanvasRect | null) =>
-      !!a && !!b &&
-      Math.abs(a.left - b.left) < 0.5 &&
-      Math.abs(a.top - b.top) < 0.5 &&
-      Math.abs(a.width - b.width) < 0.5 &&
-      Math.abs(a.height - b.height) < 0.5;
-    let raf = requestAnimationFrame(function track() {
-      const d = doc();
-      const rects = selectedParts.map((sel) => {
-        // partScreenEl: a hidden placed field (an empty image slot) outlines via its wrapper.
-        const el = d ? partScreenEl(d, sel) : null;
-        const r = el ? el.getBoundingClientRect() : null;
-        return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
-      });
-      setSelRect((prev) => (near(prev, rects[0]) ? prev : rects[0]));
-      const extras = rects.slice(1).filter((r): r is CanvasRect => r !== null);
-      setExtraRects((prev) =>
-        prev.length === extras.length && prev.every((p, i) => near(p, extras[i])) ? prev : extras,
-      );
-      raf = requestAnimationFrame(track);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [selectedParts, placed]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Escape deselects — but never steals the key from a drag, the inline editor (both own
   // their Escape), or a focused form field / Monaco.
   useEffect(() => {
@@ -878,9 +943,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
         // Spring the layer back to where the drag found it, keep it selected. Refs only, so
         // this Escape effect needs no extra deps.
         const d = layerTfRef.current;
-        const w = iframeRef.current?.contentWindow as SpxWindow | null;
-        const el = iframeRef.current?.contentDocument?.querySelector<HTMLElement>(d.selector);
-        if (el) w?.gsap?.set(el, d.kind === 'scale' ? { scale: d.base } : { rotation: d.base });
+        postCanvasCmd(win(), { cmd: 'gsap-set', selector: d.selector, vars: d.kind === 'scale' ? { scale: d.base } : { rotation: d.base } });
         setLayerTf(null);
         return;
       }
@@ -895,18 +958,11 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
         const b = nudgeRef.current;
         if (b.timer) clearTimeout(b.timer);
         nudgeRef.current = null;
-        const dd = iframeRef.current?.contentDocument;
         for (const line of b.lines) {
-          const el = dd?.getElementById(line.wrapperId);
-          if (el) {
-            el.style.left = '';
-            el.style.top = '';
-          }
+          postCanvasCmd(win(), { cmd: 'set-style', selector: `#${line.wrapperId}`, props: { left: '', top: '' } });
         }
-        const w = iframeRef.current?.contentWindow as SpxWindow | null;
         for (const k of b.keyed) {
-          const el = dd?.querySelector<HTMLElement>(k.selector);
-          if (el) w?.gsap?.set(el, { x: k.baseX, y: k.baseY });
+          postCanvasCmd(win(), { cmd: 'gsap-set', selector: k.selector, vars: { x: k.baseX, y: k.baseY } });
         }
         return;
       }
@@ -922,7 +978,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, setSelected, iframeRef, clearLineSizePreview]);
+  }, [selected, setSelected, iframeRef, clearLineSizePreview, win]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (editing) return; // the editor overlay handles its own events
@@ -977,11 +1033,10 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       .map((sel) => ({ sel, place: placed[sel] as LinePlacement | undefined }))
       .filter((x): x is { sel: string; place: LinePlacement } => !!x.place);
     if (placedSel.length > 0) {
-      const d = doc();
       const els = placedSel
-        .map((x) => ({ ...x, el: d?.getElementById(x.place.wrapperId) ?? null }))
-        .filter((x): x is { sel: string; place: LinePlacement; el: HTMLElement } => !!x.el && x.el.getClientRects().length > 0);
-      if (els.some((x) => inRect(p, x.el.getBoundingClientRect()))) {
+        .map((x) => ({ ...x, rect: rectOf(`#${x.place.wrapperId}`) }))
+        .filter((x): x is { sel: string; place: LinePlacement; rect: TrackedRect } => !!x.rect);
+      if (els.some((x) => inRect(p, x.rect))) {
         e.currentTarget.setPointerCapture(e.pointerId);
         if (promoted) {
           // Grabbed in one gesture: select it now, and remember that the release must not
@@ -989,7 +1044,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
           setSelected(promoted);
           promotedRef.current = promoted;
         }
-        const scaleVar = d ? parseFloat(getComputedStyle(d.documentElement).getPropertyValue('--scale')) || 1 : 1;
+        const scaleVar = parseFloat(getCssVariable(template.css, 'scale') ?? '') || 1;
         setPlaceDrag({
           lines: els.map((x) => ({
             selector: x.sel,
@@ -1013,38 +1068,63 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     // parts live there).
     const kfSel = kfSelectors.filter((sel) => !isLocked(sel));
     if (kfSel.length > 0) {
-      const d = doc();
-      const els = kfSel
-        .map((sel) => ({ sel, el: d?.querySelector<HTMLElement>(sel) ?? null }))
-        .filter((x): x is { sel: string; el: HTMLElement } => !!x.el && x.el.getClientRects().length > 0);
-      if (els.some((x) => inRect(p, x.el.getBoundingClientRect()))) {
+      const hitEls = kfSel
+        .map((sel) => ({ sel, rect: rectOf(sel) }))
+        .filter((x): x is { sel: string; rect: TrackedRect } => !!x.rect);
+      if (hitEls.some((x) => inRect(p, x.rect))) {
         e.currentTarget.setPointerCapture(e.pointerId);
-        const g = gsapOf();
         // Layers contained in another dragged layer ride along on the parent's
-        // transform — keying them too would move them twice.
-        const top = els.filter((x) => !els.some((o) => o !== x && o.el.contains(x.el)));
+        // transform — keying them too would move them twice. A structural fact from the
+        // template's own markup (containsSelector), not the live DOM.
+        const top = hitEls.filter((x) => !hitEls.some((o) => o !== x && containsSelector(o.sel, x.sel)));
+        const startX = e.clientX;
+        const startY = e.clientY;
+        // The drag state is created SYNCHRONOUSLY (bases at 0, corrected below once the query
+        // resolves) — never only inside the `.then()`. A fast click (pointerdown immediately
+        // followed by pointerup, as Playwright's `.click()` does) can otherwise complete before
+        // the async baseline query answers, leaving `onPointerUp` unable to find and clear a
+        // drag that doesn't exist yet — and once the query DOES resolve, it would set the drag
+        // state AFTER the gesture already ended, with nothing left to ever clear it again
+        // (stuck for the rest of the session, e.g. blocking Escape's deselect guard).
+        const seq = ++layerDragSeqRef.current;
         setLayerDrag({
-          layers: top.map((x) => ({
-            selector: x.sel,
-            baseX: Number(g?.getProperty?.(x.el, 'x') ?? 0),
-            baseY: Number(g?.getProperty?.(x.el, 'y') ?? 0),
-          })),
-          startX: e.clientX,
-          startY: e.clientY,
+          layers: top.map((x) => ({ selector: x.sel, baseX: 0, baseY: 0 })),
+          startX,
+          startY,
           dx: 0,
           dy: 0,
           active: false,
         });
+        void queryCanvas(
+          win(),
+          top.flatMap((x) => [
+            { kind: 'gsap-prop' as const, selector: x.sel, prop: 'x' },
+            { kind: 'gsap-prop' as const, selector: x.sel, prop: 'y' },
+          ]),
+        ).then((values) => {
+          if (layerDragSeqRef.current !== seq) return; // superseded/released/cancelled meanwhile
+          setLayerDrag((cur) =>
+            cur
+              ? {
+                  ...cur,
+                  layers: top.map((x, i) => ({
+                    selector: x.sel,
+                    baseX: Number(values[i * 2] ?? 0),
+                    baseY: Number(values[i * 2 + 1] ?? 0),
+                  })),
+                }
+              : cur,
+          );
+        });
         return;
       }
     }
-    const el = rootEl();
-    if (!el) return;
-    const r = el.getBoundingClientRect();
+    const rr = rectOf(rootSelector);
+    if (!rr) return;
     // A LOCKED root keeps its selection and its handles but gives up the zone drag, so the
     // press draws a marquee straight over the graphic — which is the point of locking it
     // while placing fields on top.
-    if (!inRect(p, r) || isLocked(rootSelector)) {
+    if (!inRect(p, rr) || isLocked(rootSelector)) {
       // EMPTY canvas: a drag lassos (shift keeps the existing selection); a plain
       // click still selects/deselects on release (below the threshold → selectAt).
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -1058,7 +1138,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       dx: 0,
       dy: 0,
       active: false,
-      root: { left: r.left, top: r.top, width: r.width, height: r.height },
+      root: { left: rr.left, top: rr.top, width: rr.width, height: rr.height },
     });
   };
 
@@ -1066,8 +1146,6 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
    *  marquee (the root spans the whole graphic — including it would make any marquee a
    *  whole-graphic selection). Shift adds the hits to the existing selection. */
   const commitLasso = (ls: { x0: number; y0: number; x1: number; y1: number; additive: boolean }) => {
-    const d = doc();
-    if (!d) return;
     const left = Math.min(ls.x0, ls.x1);
     const top = Math.min(ls.y0, ls.y1);
     const right = Math.max(ls.x0, ls.x1);
@@ -1076,10 +1154,9 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     for (const part of parts) {
       if (part.kind === 'root') continue;
       if (isLocked(part.selector)) continue; // a locked part takes no gesture, marquee included
-      const pel = partScreenEl(d, part.selector);
-      if (!pel) continue;
-      const pr = pel.getBoundingClientRect();
-      if (pr.left < right && pr.right > left && pr.top < bottom && pr.bottom > top) {
+      const pr = rectOf(part.selector);
+      if (!pr) continue;
+      if (pr.left < right && pr.left + pr.width > left && pr.top < bottom && pr.top + pr.height > top) {
         hits.push(part.selector);
       }
     }
@@ -1119,11 +1196,11 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       setPlaceDrag({ ...pd, dx, dy, active });
       if (active) {
         for (const line of pd.lines) {
-          const el = doc()?.getElementById(line.wrapperId);
-          if (el) {
-            el.style.left = placementCss(line.baseX + dx, line.scaled);
-            el.style.top = placementCss(line.baseY + dy, line.scaled);
-          }
+          postCanvasCmd(win(), {
+            cmd: 'set-style',
+            selector: `#${line.wrapperId}`,
+            props: { left: placementCss(line.baseX + dx, line.scaled), top: placementCss(line.baseY + dy, line.scaled) },
+          });
         }
       }
       return;
@@ -1137,10 +1214,8 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       const active = ld.active || Math.hypot(e.clientX - ld.startX, e.clientY - ld.startY) > DRAG_THRESHOLD;
       setLayerDrag({ ...ld, dx, dy, active });
       if (active) {
-        const g = gsapOf();
         for (const layer of ld.layers) {
-          const el = doc()?.querySelector<HTMLElement>(layer.selector);
-          if (el) g?.set(el, { x: layer.baseX + dx, y: layer.baseY + dy });
+          postCanvasCmd(win(), { cmd: 'gsap-set', selector: layer.selector, vars: { x: layer.baseX + dx, y: layer.baseY + dy } });
         }
       }
       return;
@@ -1159,7 +1234,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     // A hand over everything movable said "hand" over the entire graphic and taught nothing;
     // what a click will select is shown by the hover outline and its name chip instead.
     const p = clientToDoc(e);
-    const r = rootEl()?.getBoundingClientRect();
+    const r = rectOf(rootSelector);
     if (r && inRect(p, r)) {
       setHoverRect({ left: r.left, top: r.top, width: r.width, height: r.height });
     } else {
@@ -1178,7 +1253,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     const top = partChainAt(p)[0] ?? null;
     setHoverPart((prev) => {
       if (!top) return prev === null ? prev : null;
-      const tr = top.el.getBoundingClientRect();
+      const tr = top.rect;
       if (
         prev &&
         prev.selector === top.part.selector &&
@@ -1230,9 +1305,10 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     const value = Math.round(Math.min(SCALE_MAX, Math.max(SCALE_MIN, d.origScale * factor)) * 100) / 100;
     setScaleDrag({ ...d, value });
     // Live preview: an inline :root override on the preview document (the rebuild clears it).
-    doc()?.documentElement.style.setProperty('--scale', String(value));
-    // The handle follows the graphic's REAL corner while it grows/shrinks.
-    const r = rootEl()?.getBoundingClientRect();
+    postCanvasCmd(win(), { cmd: 'set-scale-var', value });
+    // The handle follows the graphic's REAL corner while it grows/shrinks (the rect cache
+    // catches up within a frame of the command above).
+    const r = rectOf(rootSelector);
     if (r) setHoverRect({ left: r.left, top: r.top, width: r.width, height: r.height });
   };
 
@@ -1241,7 +1317,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     setScaleDrag(null);
     if (!d) return;
     e.stopPropagation();
-    doc()?.documentElement.style.removeProperty('--scale');
+    postCanvasCmd(win(), { cmd: 'set-scale-var', value: null });
     if (d.value === d.origScale) return;
     // The SAME write the Style panel's size control makes (the :root --scale variable),
     // committed as one undoable apply; the editor highlights it and jumps to it.
@@ -1254,8 +1330,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
   //    spliceAnimData path everything else edits through, pivoting around the layer's
   //    transform-origin (GSAP honours the element's current transformOrigin). ──
   const resetLayerTf = (d: LayerTransformDrag) => {
-    const el = doc()?.querySelector<HTMLElement>(d.selector);
-    if (el) gsapOf()?.set(el, d.kind === 'scale' ? { scale: d.base } : { rotation: d.base });
+    postCanvasCmd(win(), { cmd: 'gsap-set', selector: d.selector, vars: d.kind === 'scale' ? { scale: d.base } : { rotation: d.base } });
   };
   const cancelLayerTf = () => {
     const d = layerTfRef.current;
@@ -1267,45 +1342,57 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const g = gsapOf();
-    const el = doc()?.querySelector<HTMLElement>(layerTfSel);
-    const raw = kind === 'scale' ? Number(g?.getProperty?.(el, 'scaleX')) : Number(g?.getProperty?.(el, 'rotation'));
-    const base = Number.isFinite(raw) ? raw : kind === 'scale' ? 1 : 0;
-    // The layer centre in SCREEN px (the overlay's own screen origin + the rect centre).
+    // The layer centre in SCREEN px (the overlay's own screen origin + the rect centre) — a
+    // read of the APP's own DOM (the `.canvas-layer` wrapper this component renders), not the
+    // iframe's, so it stays synchronous.
     const layerBox = (e.currentTarget as HTMLElement).closest('.canvas-layer')?.getBoundingClientRect();
     const cx = (layerBox?.left ?? 0) + (selRect.left + selRect.width / 2) * scale;
     const cy = (layerBox?.top ?? 0) + (selRect.top + selRect.height / 2) * scale;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const sel = layerTfSel;
+    // The drag state is created SYNCHRONOUSLY (a fallback base, corrected below once the query
+    // resolves) — see the identical note on the keyframe-drag's baseline query in
+    // onPointerDown: a fast click can complete before this answers, and a drag object created
+    // only inside `.then()` would then be set AFTER the gesture already ended, with nothing
+    // left to ever clear it (stuck for the rest of the session, e.g. blocking Escape).
+    const fallbackBase = kind === 'scale' ? 1 : 0;
+    const seq = ++layerTfSeqRef.current;
     setLayerTf({
       kind,
-      selector: layerTfSel,
-      base,
-      startX: e.clientX,
-      startY: e.clientY,
+      selector: sel,
+      base: fallbackBase,
+      startX,
+      startY,
       refSize: (selRect.width + selRect.height) * scale,
       centerX: cx,
       centerY: cy,
-      startAngle: (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI,
-      value: base,
+      startAngle: (Math.atan2(startY - cy, startX - cx) * 180) / Math.PI,
+      value: fallbackBase,
       active: false,
+    });
+    void queryCanvas(win(), [{ kind: 'gsap-prop', selector: sel, prop: kind === 'scale' ? 'scaleX' : 'rotation' }]).then(([raw]) => {
+      if (layerTfSeqRef.current !== seq) return; // superseded/released/cancelled meanwhile
+      const n = Number(raw);
+      const base = Number.isFinite(n) ? n : fallbackBase;
+      setLayerTf((cur) => (cur ? { ...cur, base, value: base } : cur));
     });
   };
   const moveLayerTf = (e: React.PointerEvent) => {
     const d = layerTfRef.current;
     if (!d) return;
     e.stopPropagation();
-    const el = doc()?.querySelector<HTMLElement>(d.selector);
-    const g = gsapOf();
     let value: number;
     if (d.kind === 'scale') {
       // Diagonal corner drag, proportional to the layer's size at start.
       const gesture = e.clientX - d.startX + (e.clientY - d.startY);
       const factor = 1 + gesture / Math.max(80, d.refSize);
       value = Math.round(Math.min(SCALE_MAX, Math.max(SCALE_MIN, d.base * factor)) * 100) / 100;
-      if (el) g?.set(el, { scale: value });
+      postCanvasCmd(win(), { cmd: 'gsap-set', selector: d.selector, vars: { scale: value } });
     } else {
       const angle = (Math.atan2(e.clientY - d.centerY, e.clientX - d.centerX) * 180) / Math.PI;
       value = Math.round((d.base + (angle - d.startAngle)) * 10) / 10;
-      if (el) g?.set(el, { rotation: value });
+      postCanvasCmd(win(), { cmd: 'gsap-set', selector: d.selector, vars: { rotation: value } });
     }
     const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
     setLayerTf({ ...d, value, active });
@@ -1361,22 +1448,20 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     let valueH = 0;
     if (d.kind === 'font') {
       value = Math.min(400, Math.max(6, Math.round(d.base * factor)));
-      const el = doc()?.getElementById(d.fieldId);
-      if (el) el.style.fontSize = placementCss(value, d.scaled);
+      postCanvasCmd(win(), { cmd: 'set-style', selector: `#${d.fieldId}`, props: { fontSize: placementCss(value, d.scaled) } });
     } else if (d.kind === 'area') {
       // The area box's WIDTH follows the drag; the text rewraps against it live.
       value = Math.min(4000, Math.max(24, Math.round(d.base * factor)));
-      const w = doc()?.getElementById(d.wrapperId);
-      if (w) w.style.maxWidth = placementCss(value, d.scaled);
+      postCanvasCmd(win(), { cmd: 'set-style', selector: `#${d.wrapperId}`, props: { maxWidth: placementCss(value, d.scaled) } });
     } else {
       // The slot keeps its aspect: width drives, height follows the same factor.
       value = Math.min(2000, Math.max(12, Math.round(d.base * factor)));
       valueH = Math.max(12, Math.round(d.baseH * (value / d.base)));
-      const w = doc()?.getElementById(d.wrapperId);
-      if (w) {
-        w.style.width = placementCss(value, d.scaled);
-        w.style.height = placementCss(valueH, d.scaled);
-      }
+      postCanvasCmd(win(), {
+        cmd: 'set-style',
+        selector: `#${d.wrapperId}`,
+        props: { width: placementCss(value, d.scaled), height: placementCss(valueH, d.scaled) },
+      });
     }
     const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
     setLineSize({ ...d, value, valueH, active });
@@ -1455,6 +1540,21 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     }
   };
 
+  /** Preview the burst's current delta: placed lines through inline left/top, keyed layers
+   *  through GSAP x/y — both fire-and-forget commands. Called on every key of the burst. */
+  const applyNudgePreview = (burst: NudgeBurst) => {
+    for (const line of burst.lines) {
+      postCanvasCmd(win(), {
+        cmd: 'set-style',
+        selector: `#${line.wrapperId}`,
+        props: { left: placementCss(line.baseX + burst.dx, line.scaled), top: placementCss(line.baseY + burst.dy, line.scaled) },
+      });
+    }
+    for (const k of burst.keyed) {
+      postCanvasCmd(win(), { cmd: 'gsap-set', selector: k.selector, vars: { x: k.baseX + burst.dx, y: k.baseY + burst.dy } });
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.key.startsWith('Arrow')) return;
@@ -1473,11 +1573,10 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
         .filter((p): p is LinePlacement => !!p);
       // The keyframe-channel targets mirror the drag: selected, not placed, not the root —
       // and layers contained in another nudged layer ride along on the parent's transform.
-      const d = doc();
       const keyedEls = kfSelectors
-        .map((sel) => ({ sel, el: d?.querySelector<HTMLElement>(sel) ?? null }))
-        .filter((x): x is { sel: string; el: HTMLElement } => !!x.el && x.el.getClientRects().length > 0);
-      const keyedTop = keyedEls.filter((x) => !keyedEls.some((o) => o !== x && o.el.contains(x.el)));
+        .map((sel) => ({ sel, rect: rectOf(sel) }))
+        .filter((x): x is { sel: string; rect: TrackedRect } => !!x.rect);
+      const keyedTop = keyedEls.filter((x) => !keyedEls.some((o) => o !== x && containsSelector(o.sel, x.sel)));
       if (placedTargets.length === 0 && keyedTop.length === 0) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
@@ -1485,35 +1584,42 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
       let burst = nudgeRef.current;
       if (!burst) {
-        // Bases are captured once per burst; every later press just grows the delta.
-        const g = gsapOf();
+        // Bases for placed lines come from parsed CSS (app-side, synchronous); bases for keyed
+        // layers need the live GSAP-resolved x/y, which only the document can answer — start at
+        // 0 and correct in place once the query resolves (see the NudgeBurst comment: an
+        // extremely low-risk race, since same-tab postMessage resolves long before an OS
+        // key-repeat's next tick in practice).
+        const keyedSelectors = keyedTop.map((x) => x.sel);
         burst = {
           lines: placedTargets.map((p) => ({ wrapperId: p.wrapperId, baseX: p.x, baseY: p.y, scaled: p.scaled })),
-          keyed: keyedTop.map((x) => ({
-            selector: x.sel,
-            baseX: Number(g?.getProperty?.(x.el, 'x') ?? 0),
-            baseY: Number(g?.getProperty?.(x.el, 'y') ?? 0),
-          })),
+          keyed: keyedSelectors.map((sel) => ({ selector: sel, baseX: 0, baseY: 0 })),
           dx: 0,
           dy: 0,
           timer: null,
         };
         nudgeRef.current = burst;
+        if (keyedSelectors.length > 0) {
+          const thisBurst = burst;
+          void queryCanvas(
+            win(),
+            keyedSelectors.flatMap((sel) => [
+              { kind: 'gsap-prop' as const, selector: sel, prop: 'x' },
+              { kind: 'gsap-prop' as const, selector: sel, prop: 'y' },
+            ]),
+          ).then((values) => {
+            if (nudgeRef.current !== thisBurst) return; // committed/cancelled meanwhile
+            thisBurst.keyed = keyedSelectors.map((sel, i) => ({
+              selector: sel,
+              baseX: Number(values[i * 2] ?? 0),
+              baseY: Number(values[i * 2 + 1] ?? 0),
+            }));
+            applyNudgePreview(thisBurst);
+          });
+        }
       }
       burst.dx += dx;
       burst.dy += dy;
-      for (const line of burst.lines) {
-        const el = doc()?.getElementById(line.wrapperId);
-        if (el) {
-          el.style.left = placementCss(line.baseX + burst.dx, line.scaled);
-          el.style.top = placementCss(line.baseY + burst.dy, line.scaled);
-        }
-      }
-      const g = gsapOf();
-      for (const k of burst.keyed) {
-        const el = doc()?.querySelector<HTMLElement>(k.selector);
-        if (el) g?.set(el, { x: k.baseX + burst.dx, y: k.baseY + burst.dy });
-      }
+      applyNudgePreview(burst);
       if (burst.timer) clearTimeout(burst.timer);
       burst.timer = setTimeout(commitNudge, 450);
     };
@@ -1629,18 +1735,23 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
     const p = clientToDoc(e);
     const hit = textFieldAt(p);
     if (!hit) return;
-    const r = hit.el.getBoundingClientRect();
-    setEditing({
-      field: hit.field,
-      multiline: hit.ftype === 'textarea',
-      value: sampleData[hit.field] ?? hit.el.textContent ?? '',
-      rect: { left: r.left, top: r.top, width: r.width, height: r.height },
-      origText: hit.el.textContent ?? '',
-    });
     // Selection follows the edited field when it's a registered part (the second click
     // that got us here may have climbed to the panel meanwhile).
     const part = parts.find((pt) => pt.selector === `#${hit.field}`);
     if (part) setSelected(part.selector);
+    // A double-click is low-frequency, so a round trip for the element's LIVE text (it can
+    // differ from sample data — a static default rendered straight in the markup) costs
+    // nothing observable, unlike the per-pointermove hit-test this never needed to become.
+    void queryCanvas(win(), [{ kind: 'text', selector: `#${hit.field}` }]).then(([text]) => {
+      const origText = typeof text === 'string' ? text : '';
+      setEditing({
+        field: hit.field,
+        multiline: hit.ftype === 'textarea',
+        value: sampleData[hit.field] ?? origText,
+        rect: { left: hit.rect.left, top: hit.rect.top, width: hit.rect.width, height: hit.rect.height },
+        origText,
+      });
+    });
   };
 
   /** Make the edited value real code: definition default + static text + live sample. */
@@ -1678,8 +1789,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       return;
     }
     // Typing mirrored live into the preview element; put the template's own text back.
-    const el = doc()?.getElementById(ed.field);
-    if (el && el.tagName !== 'IMG' && ed.origText !== undefined) el.textContent = ed.origText;
+    if (ed.origText !== undefined) postCanvasCmd(win(), { cmd: 'set-text', selector: `#${ed.field}`, text: ed.origText });
   };
 
   // Ghost rect (screen px) while an ACTIVE drag is under way.
@@ -1978,7 +2088,7 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
           onPointerDown={startScaleDrag}
           onPointerMove={moveScaleDrag}
           onPointerUp={endScaleDrag}
-          onPointerCancel={() => { setScaleDrag(null); doc()?.documentElement.style.removeProperty('--scale'); }}
+          onPointerCancel={() => { setScaleDrag(null); postCanvasCmd(win(), { cmd: 'set-scale-var', value: null }); }}
         />
       )}
       {scaleDrag && (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
+import { postPreviewCmd, PREVIEW_BOX_TYPE, type PreviewCmd } from '../../preview/previewProtocol';
 import type { SpxTemplate } from '../../model/types';
 
 interface Props {
@@ -13,12 +14,19 @@ interface Props {
   demoText?: string | null;
 }
 
-type SpxWindow = Window & { play?: () => void; stop?: () => void; next?: () => void; update?: (d: string) => void };
-
 /**
  * The wizard's persistent live preview: the real composed template in a scaled iframe.
  * The entrance plays automatically on every (debounced) rebuild so each choice is felt
  * immediately; Replay / Out let the user test the motion at any time.
+ *
+ * The brief behind a template can be an AI prompt or an imported file, so this iframe carries no
+ * `allow-same-origin` like every other preview surface — a generated document must never be able
+ * to read the app's own origin (a stored provider key, a signed-in session) through
+ * `parent.localStorage`. There is therefore no reaching in (`contentWindow.play()`,
+ * `contentDocument` reads): every command goes through composeDocument's `liveControl` channel
+ * (`postCmd` below posts `{ type: 'spx-preview-cmd', cmd, data? }`) and the document reports its
+ * own box back (`spx-preview-box`) after any command that can move it — the same wire shape
+ * GraphicThumb and MiniPreview read for their settle-once cards.
  */
 export default function WizardPreview({ template, replayKey = 0, demoOut = false, demoText = null }: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -28,8 +36,9 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   // Zoom-to-graphic: default shows the whole canvas; the toggle reframes the view onto
   // just the graphic so small formats (corner bugs, tickers) are actually inspectable.
   const [zoomed, setZoomed] = useState(false);
-  // The graphic's layout box in canvas px, measured transform-free (offset* ignores the
-  // entrance's GSAP transforms, so mid-animation measurements still give the settled box).
+  // The graphic's layout box in canvas px, reported by the document itself (postMessage) rather
+  // than measured here — mid-animation reports still give the settled box, since the entrance's
+  // GSAP motion never transforms the root itself (presets move the box and lines inside it).
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   // Pending lifecycle-demo timers (out + back in) — cleared on any new play/stop.
   const demoTimers = useRef<number[]>([]);
@@ -44,6 +53,15 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   templateRef.current = template;
   const demoTextRef = useRef(demoText);
   demoTextRef.current = demoText;
+  // Bumped every time a new srcdoc is actually committed — an onLoad's deferred play() checks
+  // this before firing, so a stale timer from a document the debounce has since replaced can
+  // never send a command to whatever the iframe went on to load next.
+  const docGenRef = useRef(0);
+
+  /** Post a command into the live document (no-op if the iframe hasn't loaded one yet). */
+  const postCmd = useCallback((msg: PreviewCmd) => {
+    postPreviewCmd(frameRef.current?.contentWindow, msg);
+  }, []);
 
   /** The values a push sends: the template's samples, with the demo override on field 1. */
   const pushValues = (tpl: SpxTemplate) => {
@@ -73,62 +91,42 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   // Committing a new srcdoc also cancels any pending demo timers — a stop()/play()
   // scheduled against the previous document must never hit the reloading one (it
   // would blank the preview right after the user's change).
-  const doc = useMemo(() => composeDocument(template), [template]);
+  const doc = useMemo(() => composeDocument(template, { liveControl: true }), [template]);
   useEffect(() => {
     const t = setTimeout(() => {
       clearDemo();
+      docGenRef.current += 1;
       setSrcdoc(doc);
     }, 220);
     return () => clearTimeout(t);
   }, [doc, clearDemo]);
 
-  const win = (): SpxWindow | null => (frameRef.current?.contentWindow as SpxWindow) ?? null;
+  // The document's own box, reported after any command that can move it (composeDocument's
+  // liveControl channel) — never read via contentDocument, since this iframe carries no
+  // allow-same-origin.
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== frameRef.current?.contentWindow) return;
+      const msg = ev.data;
+      if (msg && typeof msg === 'object' && msg.type === PREVIEW_BOX_TYPE) {
+        setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
-  /** Measure the graphic's box in canvas px. The root is the body's first <div> (the
-   *  `.{prefix}` wrapper every generated template has). getBoundingClientRect is right
-   *  here: it includes the zone anchoring's STATIC transform (centered zones position
-   *  via translate(-50%)), while the entrance's GSAP motion never transforms the root
-   *  itself (presets move the box and lines inside it), so a mid-flight measurement
-   *  still equals the settled box. The iframe's own scale doesn't reach in — inside
-   *  the document, coordinates are plain canvas pixels. */
-  const measureBox = () => {
-    const root = frameRef.current?.contentDocument?.body?.querySelector('div');
-    if (!root) return setBox(null);
-    const r = root.getBoundingClientRect();
-    setBox(r.width > 0 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null);
-  };
-
-  const playIn = () => {
-    const w = win();
-    if (!w || typeof w.play !== 'function') return;
+  const playIn = useCallback(() => {
     clearDemo();
-    const tpl = templateRef.current;
-    w.update?.(JSON.stringify(pushValues(tpl)));
-    w.play();
-    measureBox(); // every (re)play follows a load or a data push — refresh the zoom framing
+    postCmd({ cmd: 'play', data: JSON.stringify(pushValues(templateRef.current)) });
     if (demoOut) {
       // Show the exit too, then come back on air so the preview isn't left empty.
       demoTimers.current.push(
-        window.setTimeout(() => win()?.stop?.(), 1700),
-        window.setTimeout(() => win()?.play?.(), 2800),
+        window.setTimeout(() => postCmd({ cmd: 'stop' }), 1700),
+        window.setTimeout(() => postCmd({ cmd: 'play' }), 2800),
       );
     }
-  };
-
-  // Play once the document's fonts are usable (a data-URL @font-face decodes in a few
-  // frames) so a font choice is seen on the entrance itself — capped so a slow decode
-  // never stalls the preview. No-ops if the iframe has reloaded meanwhile.
-  const playWhenReady = () => {
-    const loadedDoc = frameRef.current?.contentDocument ?? null;
-    let done = false;
-    const go = () => {
-      if (done || frameRef.current?.contentDocument !== loadedDoc) return;
-      done = true;
-      playIn();
-    };
-    void loadedDoc?.fonts?.ready.then(go);
-    window.setTimeout(go, 400);
-  };
+  }, [clearDemo, demoOut, postCmd]);
 
   // Replay when the parent asks (e.g. animation preset changed but srcdoc identical).
   useEffect(() => {
@@ -140,9 +138,8 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   // the running document — the user watches the REAL mechanism, not a wizard imitation.
   useEffect(() => {
     if (demoText == null) return;
-    const w = win();
-    if (!w || typeof w.update !== 'function') return;
-    w.update(JSON.stringify(pushValues(templateRef.current)));
+    postCmd({ cmd: 'update', data: JSON.stringify(pushValues(templateRef.current)) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- postCmd is stable; pushValues reads live refs
   }, [demoText]);
 
   // The view: whole canvas by default; zoomed reframes onto the graphic's box.
@@ -167,9 +164,14 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
         <iframe
           ref={frameRef}
           title="Wizard live preview"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           srcDoc={srcdoc}
-          onLoad={() => setTimeout(playWhenReady, 60)}
+          onLoad={() => {
+            const gen = docGenRef.current;
+            setTimeout(() => {
+              if (docGenRef.current === gen) playIn(); // else a newer document has since loaded
+            }, 60);
+          }}
           style={{ width, height, transform: `translate(-50%, -50%) scale(${z}) translate(${tx}px, ${ty}px)` }}
         />
       </div>
@@ -181,13 +183,13 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
           <button
             className={zoomed ? 'active' : ''}
             disabled={!box}
-            onClick={() => { if (!zoomed) measureBox(); setZoomed(!zoomed); }}
+            onClick={() => { if (!zoomed) postCmd({ cmd: 'measure' }); setZoomed(!zoomed); }}
             title={zoomed ? 'Show the whole canvas again' : 'Zoom the preview to just the graphic'}
           >
             {zoomed ? '▭ Whole canvas' : '⌖ Zoom to graphic'}
           </button>
           <button onClick={playIn} title={demoOut ? 'Replay the animation (in, then out)' : 'Replay the entrance animation'}>▶ Replay</button>
-          <button onClick={() => { clearDemo(); win()?.stop?.(); }} title="Play the exit animation">■ Out</button>
+          <button onClick={() => { clearDemo(); postCmd({ cmd: 'stop' }); }} title="Play the exit animation">■ Out</button>
         </div>
       </div>
     </div>

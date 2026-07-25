@@ -9,7 +9,10 @@ import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
-import { settleGraphic } from './settleGraphic';
+import { settleGraphic, reportGraphicBox } from './settleGraphic';
+import { PREVIEW_CMD_TYPE, PREVIEW_STATE_TYPE, PREVIEW_PLAYHEAD_TYPE } from './previewProtocol';
+import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
+import { CANVAS_CMD_TYPE, CANVAS_QUERY_TYPE, CANVAS_REPLY_TYPE, CANVAS_RECTS_TYPE } from './canvasControlProtocol';
 import type { SpxTemplate } from '../model/types';
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
@@ -34,20 +37,67 @@ export interface ComposeOptions {
   authoring?: { padX: number; padY: number };
   /**
    * Park the graphic at its settled on-air state from INSIDE the document, driving it with this
-   * data (a JSON string, the shape `update()` takes). Once settled, the document also reports its
-   * own bounding box back to `parent` (`{ type: 'spx-preview-box', x, y, w, h }`) — a caller that
-   * needs to frame on the graphic (preview/frameGraphic.ts) reads that instead of
-   * `measureGraphicBox`'s direct `contentDocument` read, which cross-origin content cannot do.
+   * data (a JSON string, the shape `update()` takes) once and reporting the result back. Once
+   * settled, the document also reports its own bounding box back to `parent`
+   * (`{ type: 'spx-preview-box', x, y, w, h }`) — a caller that needs to frame on the graphic
+   * (preview/frameGraphic.ts) reads that instead of a `contentDocument` read, which the iframe's
+   * `sandbox="allow-scripts"` (no `allow-same-origin`) makes impossible from outside.
    *
-   * Every other preview surface settles from the OUTSIDE (settleGraphicOnLoad reaches into the
-   * iframe), which needs same-origin access. A surface showing UNTRUSTED content — the moderation
-   * queue's preview of a stranger's template, or a Home card's thumbnail rendering AI/imported
-   * code — runs it with `sandbox="allow-scripts"` and nothing else, so there is no reaching in,
-   * and without this it showed a black rectangle for every graphic that is hidden until play():
-   * exactly the surface whose only job is to LOOK at the thing. The recipe is not restated here;
-   * the shared function is serialized into the document.
+   * For a one-shot preview — the moderation queue's look at a stranger's template, a Home card's
+   * thumbnail, a wizard picker card — this is the whole recipe: without it, every graphic that is
+   * hidden until `play()` would show as a black rectangle, on the one surface whose only job is
+   * to LOOK at the thing. A preview that needs REPEATED control after that (play again, push new
+   * data, fire an operator event) reaches for `liveControl` below instead; the two options
+   * compose (WizardPreview and GraphicControlPage use `liveControl` alone and settle their first
+   * frame with an explicit `'settle'`/`'play'` command instead, since here the data to settle
+   * with can change after compose without rebuilding the document — see their own comments).
    */
   settleWithData?: string;
+  /**
+   * Install a COMMAND CHANNEL inside the document instead of settling it once: the wizard's
+   * persistent live preview (WizardPreview.tsx) needs to play/stop/update the SAME document
+   * repeatedly (Replay, Out, a demo-text push) at times the parent can't predict, so a one-shot
+   * settle isn't enough — but the template being previewed can be AI-generated or hand-imported
+   * code, so the iframe still carries no `allow-same-origin` and the parent still can't reach in
+   * directly.
+   *
+   * The document listens for the commands in preview/previewProtocol.ts's `PreviewCmd` union
+   * (play/stop/next/update/settle/measure/dispatch/state) and calls the matching SPX or machine
+   * function; a caller should send through that module's `postPreviewCmd`, not a raw
+   * `postMessage`, so the wire shape can't drift. `'play'`, `'settle'` and `'measure'` reply with
+   * the document's box exactly like `settleWithData` does, so a caller measuring for the
+   * zoom-to-graphic framing never needs `contentDocument`; `'state'` replies with the machine's
+   * pointers (`PreviewStateMessage`), for a caller polling what a state chip names and what greys
+   * an event button. `'play'` and `'settle'` wait (capped) on `document.fonts.ready` first, so a
+   * font choice shows whether the play/settle comes from the initial load or a later command.
+   */
+  liveControl?: boolean;
+  /**
+   * The EDITOR's own live simulator (PlayoutSimulator.tsx): play/stop/next/settle/scrub/snap,
+   * distinct from `liveControl`'s plain commands because these prefer the house builder contract
+   * (`buildInTimeline`/`buildOutTimeline`/`revealNextStep`) when the template has one, own
+   * `window.__activeTl`/`__scrubTl` for a pushed playhead (`PreviewPlayheadMessage`, read by
+   * StepTimeline/LegacyTimeline instead of polling `contentWindow`), and schedule the SPX `out`
+   * auto-exit timer off the document's own `SPXGCTemplateDefinition` — none of which
+   * WizardPreview/GraphicControlPage need. The command set (`'sim-play'`/`'sim-stop'`/
+   * `'sim-next'`/`'sim-settle'`/`'scrub'`/`'snap'`, plus the plain `'update'`/`'dispatch'`/
+   * `'state'` this option ALSO answers so the editor's iframe needs no other option turned on
+   * for those) lives in preview/previewProtocol.ts's `PreviewCmd`; the composition itself is
+   * preview/simulatorRuntime.ts's `runSimCommand`, serialized here for the same reason
+   * `settleGraphic` is — it drives live GSAP timeline objects that cannot cross `postMessage`.
+   */
+  simulate?: boolean;
+  /**
+   * The EDITOR canvas's direct-manipulation channel (CanvasInteraction.tsx): hit-testing, live
+   * drag/scale/rotate previews, and inline text editing, none of which fit `liveControl`'s
+   * discrete commands — see preview/canvasControlProtocol.ts for the full design (a continuous
+   * rect-push stream in place of per-pointermove hit-test queries, plus a small correlated
+   * request/reply for the handful of reads a rect can't answer: a GSAP-resolved transform value,
+   * an element's live text). This document tracks whatever selectors the `'track'` command names
+   * and reports their rects every animation frame (`CanvasRectsMessage`) regardless of whether
+   * anything is selected — hover hit-testing needs them too.
+   */
+  canvasControl?: boolean;
 }
 
 /** Inject inline <style>, GSAP, and the template JS into the document <head>/<body>. */
@@ -151,15 +201,10 @@ window.addEventListener('unhandledrejection', function (ev) {
     ? `\n<script id="spx-settle">
 (function () {
   var settle = ${settleGraphic.toString()};
+  var report = ${reportGraphicBox.toString()};
   var run = function () {
     settle(window, ${JSON.stringify(options.settleWithData)});
-    try {
-      var root = document.body && document.body.querySelector('div');
-      var r = root && root.getBoundingClientRect();
-      if (r && r.width > 0 && r.height > 0) {
-        parent.postMessage({ type: 'spx-preview-box', x: r.left, y: r.top, w: r.width, h: r.height }, '*');
-      }
-    } catch (e) {}
+    report(window);
   };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(run, run);
   else run();
@@ -167,11 +212,215 @@ window.addEventListener('unhandledrejection', function (ev) {
 </script>`
     : '';
 
+  // The live-control bootstrap (see ComposeOptions.liveControl): a command channel over
+  // postMessage in place of contentWindow/contentDocument access. `waitFonts` mirrors the
+  // fonts-ready cap the settle bootstrap folds into `run` above; here it gates every 'play'
+  // (not just the first) since a Replay click should also show the chosen font, and awaiting an
+  // already-resolved `fonts.ready` costs nothing observable.
+  const liveControlTag = options.liveControl
+    ? `\n<script id="spx-live-control">
+(function () {
+  var settle = ${settleGraphic.toString()};
+  var report = ${reportGraphicBox.toString()};
+  function waitFonts(cb) {
+    if (document.fonts && document.fonts.ready) {
+      var done = false;
+      var go = function () { if (done) return; done = true; cb(); };
+      document.fonts.ready.then(go, go);
+      setTimeout(go, 400);
+    } else {
+      cb();
+    }
+  }
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== window.parent) return;
+    var msg = ev.data;
+    if (!msg || msg.type !== ${JSON.stringify(PREVIEW_CMD_TYPE)}) return;
+    if (msg.cmd === 'update') {
+      try { window.update && window.update(msg.data); } catch (e) {}
+    } else if (msg.cmd === 'play') {
+      waitFonts(function () {
+        try {
+          if (msg.data != null) window.update && window.update(msg.data);
+          window.play && window.play();
+        } catch (e) {}
+        report(window);
+      });
+    } else if (msg.cmd === 'settle') {
+      waitFonts(function () {
+        settle(window, msg.data);
+        report(window);
+      });
+    } else if (msg.cmd === 'stop') {
+      try { window.stop && window.stop(); } catch (e) {}
+    } else if (msg.cmd === 'next') {
+      try { window.next && window.next(); } catch (e) {}
+    } else if (msg.cmd === 'dispatch') {
+      try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
+    } else if (msg.cmd === 'measure') {
+      report(window);
+    } else if (msg.cmd === 'state') {
+      try {
+        var s = window.noacgMachineState ? window.noacgMachineState() : null;
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s }, '*');
+      } catch (e) {}
+    }
+  });
+})();
+</script>`
+    : '';
+
+  // The editor's simulator bootstrap (see ComposeOptions.simulate): runSimCommand
+  // (preview/simulatorRuntime.ts) drives window.__activeTl/__scrubTl directly, so the
+  // composition has to live where those timeline objects do. It also answers the plain
+  // 'update'/'dispatch'/'state' commands itself (the editor's iframe turns on `simulate` alone,
+  // never `liveControl`, so exactly one script is ever listening for a given message — running
+  // both would double-handle a shared command name like 'dispatch'). The playhead push is a
+  // free-running rAF loop: while a timeline is active it reports {phase, time, duration} every
+  // frame so StepTimeline/LegacyTimeline can draw a live playhead without polling
+  // contentWindow; it costs nothing while idle (an active-check and nothing else).
+  const simulateTag = options.simulate
+    ? `\n<script id="spx-simulate">
+(function () {
+  var killAllTimelines = ${killAllTimelines.toString()};
+  var resetGraphicInline = ${resetGraphicInline.toString()};
+  var runSimCommand = ${runSimCommand.toString()};
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== window.parent) return;
+    var msg = ev.data;
+    if (!msg || msg.type !== ${JSON.stringify(PREVIEW_CMD_TYPE)}) return;
+    if (msg.cmd === 'update') {
+      try { window.update && window.update(msg.data); } catch (e) {}
+    } else if (msg.cmd === 'dispatch') {
+      try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
+    } else if (msg.cmd === 'state') {
+      try {
+        var s = window.noacgMachineState ? window.noacgMachineState() : null;
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s }, '*');
+      } catch (e) {}
+    } else if (msg.cmd === 'sim-play') {
+      try { runSimCommand(window, { action: 'sim-play', data: msg.data }); } catch (e) {}
+    } else if (msg.cmd === 'sim-stop') {
+      try { runSimCommand(window, { action: 'sim-stop' }); } catch (e) {}
+    } else if (msg.cmd === 'sim-next') {
+      try { runSimCommand(window, { action: 'sim-next' }); } catch (e) {}
+    } else if (msg.cmd === 'sim-settle') {
+      try { runSimCommand(window, { action: 'sim-settle', data: msg.data }); } catch (e) {}
+    } else if (msg.cmd === 'scrub') {
+      try { runSimCommand(window, { action: 'scrub', phase: msg.phase, time: msg.time, data: msg.data, from: msg.from }); } catch (e) {}
+    } else if (msg.cmd === 'snap') {
+      try { runSimCommand(window, { action: 'snap', assignments: msg.assignments, timers: msg.timers }); } catch (e) {}
+    }
+  });
+  (function tickPlayhead() {
+    requestAnimationFrame(tickPlayhead);
+    var active = window.__activeTl || window.__scrubTl;
+    try {
+      if (active) {
+        var dur = Math.max(active.tl.duration(), 0.001);
+        var time = active.tl.time() % (dur + 0.0001);
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_PLAYHEAD_TYPE)}, active: true, phase: active.phase, time: time, duration: dur, runId: active.runId }, '*');
+      } else {
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_PLAYHEAD_TYPE)}, active: false, phase: '', time: 0, duration: 0, runId: 0 }, '*');
+      }
+    } catch (e) {}
+  })();
+})();
+</script>`
+    : '';
+
+  // The editor canvas's direct-manipulation channel (see ComposeOptions.canvasControl and
+  // preview/canvasControlProtocol.ts). `tracked` starts empty until the parent's first 'track'
+  // command arrives (right after load), so the rect push is a no-op until then.
+  const canvasControlTag = options.canvasControl
+    ? `\n<script id="spx-canvas-control">
+(function () {
+  var tracked = [];
+  function elDepth(el) {
+    var n = 0;
+    for (var q = el.parentElement; q; q = q.parentElement) n++;
+    return n;
+  }
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== window.parent) return;
+    var msg = ev.data;
+    if (!msg) return;
+    if (msg.type === ${JSON.stringify(CANVAS_CMD_TYPE)}) {
+      if (msg.cmd === 'track') {
+        tracked = msg.selectors || [];
+      } else if (msg.cmd === 'gsap-set') {
+        try {
+          var gEl = document.querySelector(msg.selector);
+          if (gEl && window.gsap) window.gsap.set(gEl, msg.vars);
+        } catch (e) {}
+      } else if (msg.cmd === 'set-style') {
+        try {
+          var sEl = document.querySelector(msg.selector);
+          if (sEl) {
+            for (var k in msg.props) {
+              if (Object.prototype.hasOwnProperty.call(msg.props, k)) sEl.style[k] = msg.props[k];
+            }
+          }
+        } catch (e) {}
+      } else if (msg.cmd === 'set-scale-var') {
+        try {
+          if (msg.value == null) document.documentElement.style.removeProperty('--scale');
+          else document.documentElement.style.setProperty('--scale', String(msg.value));
+        } catch (e) {}
+      } else if (msg.cmd === 'set-text') {
+        try {
+          var tEl = document.querySelector(msg.selector);
+          if (tEl && tEl.tagName !== 'IMG') tEl.textContent = msg.text;
+        } catch (e) {}
+      }
+    } else if (msg.type === ${JSON.stringify(CANVAS_QUERY_TYPE)}) {
+      try {
+        var values = (msg.requests || []).map(function (r) {
+          try {
+            var el = document.querySelector(r.selector);
+            if (!el) return null;
+            if (r.kind === 'text') return el.textContent;
+            var v = window.gsap && window.gsap.getProperty ? window.gsap.getProperty(el, r.prop) : null;
+            var n = Number(v);
+            return isNaN(n) ? null : n;
+          } catch (e) {
+            return null;
+          }
+        });
+        parent.postMessage({ type: ${JSON.stringify(CANVAS_REPLY_TYPE)}, reqId: msg.reqId, values: values }, '*');
+      } catch (e) {}
+    }
+  });
+  (function tickRects() {
+    requestAnimationFrame(tickRects);
+    try {
+      var rects = {};
+      for (var i = 0; i < tracked.length; i++) {
+        var sel = tracked[i];
+        var el2 = null;
+        try { el2 = document.querySelector(sel); } catch (e) {}
+        if (el2 && el2.getClientRects().length > 0) {
+          var r = el2.getBoundingClientRect();
+          rects[sel] = { left: r.left, top: r.top, width: r.width, height: r.height, depth: elDepth(el2) };
+        } else {
+          rects[sel] = null;
+        }
+      }
+      parent.postMessage({ type: ${JSON.stringify(CANVAS_RECTS_TYPE)}, rects: rects }, '*');
+    } catch (e) {}
+  })();
+})();
+</script>`
+    : '';
+
   // Error capture + template JS go right before </body> so the DOM exists when functions run.
   if (/<\/body>/i.test(html)) {
-    html = html.replace(/<\/body>/i, `${captureTag}\n${jsTag}${settleTag}\n</body>`);
+    html = html.replace(
+      /<\/body>/i,
+      `${captureTag}\n${jsTag}${settleTag}${liveControlTag}${simulateTag}${canvasControlTag}\n</body>`,
+    );
   } else {
-    html = html + captureTag + jsTag + settleTag;
+    html = html + captureTag + jsTag + settleTag + liveControlTag + simulateTag + canvasControlTag;
   }
 
   return html;

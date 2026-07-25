@@ -12,10 +12,11 @@
  * a card that framed differently from the picker card it came from would read as a different
  * design.
  *
- * Both those surfaces show untrusted content, so their iframes carry no `allow-same-origin` -
- * the box arrives over `postMessage` from composeDocument's settle script, not by reading
- * `contentDocument` from here. WizardPreview (same-origin, its own template) still measures its
- * own box directly.
+ * Every preview surface shows content its own iframe cannot be trusted to expose the app to
+ * (an AI result, an import, a stranger's shared template — and even the wizard's own live
+ * preview, since a brief can still generate arbitrary code), so none of their iframes carry
+ * `allow-same-origin`: the box always arrives over `postMessage` from composeDocument's settle
+ * or live-control script, never by reading `contentDocument` from here.
  */
 
 /** The graphic's bounding box in CANVAS px (the iframe body is full-bleed and untransformed). */
