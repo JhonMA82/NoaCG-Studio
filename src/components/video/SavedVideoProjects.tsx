@@ -2,7 +2,7 @@
 // project into the durable list (the autosaved current slot is separate; this list is
 // the explicit keep). Mirrors the PacketManager modal conventions.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   deleteSavedVideoProject,
   listSavedVideoProjects,
@@ -21,6 +21,9 @@ export default function SavedVideoProjects({ onClose }: Props) {
   const loadProject = useVideoProjectStore((s) => s.loadProject);
   const [items, setItems] = useState(listSavedVideoProjects);
   const [note, setNote] = useState<string | null>(null);
+  // Dismiss only when the backdrop click's press began there, so a drag-select never closes.
+  // See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
 
   const refresh = () => setItems(listSavedVideoProjects());
 
@@ -31,7 +34,14 @@ export default function SavedVideoProjects({ onClose }: Props) {
   };
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal" style={{ maxWidth: 640 }} data-testid="saved-videos">
         <div className="wz-header">
           <div className="wz-title">

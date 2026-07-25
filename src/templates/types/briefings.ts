@@ -62,15 +62,8 @@ import {
   STATEMENT_FIELDS,
 } from '../pack4/content';
 import { CLEAN, FROST, HOUSE, VOLT } from '../pack4/skin';
-import type { GraphicType, TypeTimeline, TypePart } from './graphicType';
-
-// A `required` line part is a trap for a pack whose whole premise is that a cleared field takes
-// no space (pack4/markup.ts): a design is index-safe, so creating with fewer lines emits fewer
-// `#fN` elements, and a required one then makes `create()` THROW instead of degrading — which
-// the catalog sweep's two-line create surfaced. So only STRUCTURAL parts a design always emits
-// regardless of line count (the box, a divider, an alert wash) are required; every line part is
-// documented but optional, exactly as topic-card marks only its first line.
-const optionalLine = (id: string, selector: string): TypePart => ({ id, selector, kind: 'line', required: false });
+import { optionalLine } from './graphicType';
+import type { GraphicType, TypeTimeline } from './graphicType';
 
 /** The four families' motion vocabularies, shared by every type in this pack. A design is
  *  authored for one of them, and `TypeDesign.animationPresets` is what keeps it. */

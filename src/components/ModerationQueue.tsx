@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../preview/composeDocument';
 import { fieldDescriptors } from '../control/controlModel';
 import type { SpxTemplate } from '../model/types';
@@ -40,6 +40,8 @@ export default function ModerationQueue({ onClose }: Props) {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Dismiss only when the backdrop click's press began on the backdrop. See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
 
   const refresh = async () => {
     const [it, rp] = await Promise.all([listAllForModeration(), listReports()]);
@@ -89,7 +91,14 @@ export default function ModerationQueue({ onClose }: Props) {
   const selectedReports = selected ? reports.filter((r) => r.template_id === selected.id) : [];
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal pk-modal">
         <div className="wz-header">
           <div>
