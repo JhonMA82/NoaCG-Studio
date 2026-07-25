@@ -136,7 +136,10 @@ src/
                  AIPromptPanel, TemplateValidator, ExportPanel, wizard/ (stepper + live preview)
 public/fonts/   six bundled open-license fonts (ship with every export)
 scripts/        l3-sweep.mjs — per-category variant validation sweep + taste screenshots
-                (Playwright; `node scripts/l3-sweep.mjs <shots-dir> <category>`)
+                (Playwright; `node scripts/l3-sweep.mjs <shots-dir> <category>`);
+                type-floor.mjs — fails on any catalog text under its category size floor;
+                overflow-sweep.mjs — fails on any box that escapes the 1920x1080 frame or
+                clips its own content (diffs against scripts/overflow-baseline.json)
 docs/           GOALS.md · DESIGN_LANGUAGE.md · SPX_TEMPLATE_FORMAT.md
 ```
 

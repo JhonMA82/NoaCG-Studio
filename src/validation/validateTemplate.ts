@@ -31,8 +31,9 @@ export interface ValidationResult {
 const ALLOWED_EXTERNAL: string[] = ['.supabase.co'];
 
 /** True when a URL's HOST ends with an allowed suffix — a real host check, not a substring match
- *  (so `evil.supabase.co.attacker.com` is NOT allowed). */
-function isAllowedExternal(url: string): boolean {
+ *  (so `evil.supabase.co.attacker.com` is NOT allowed). Exported for the community share gate,
+ *  which applies the same allowlist to URLs written into the template JS. */
+export function isAllowedExternal(url: string): boolean {
   try {
     const host = new URL(url.startsWith('//') ? `https:${url}` : url).host.toLowerCase();
     return ALLOWED_EXTERNAL.some((suffix) => host === suffix.replace(/^\./, '') || host.endsWith(suffix));

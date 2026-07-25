@@ -10,5 +10,19 @@
     "api/render/cancel.ts": { "maxDuration": 60 },
     "api/render/cleanup.ts": { "maxDuration": 300 }
   },
-  "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }]
+  "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
 }
