@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICKER } from './_machines';
+import { frameMachineState, frameOpacity } from './_frame';
 
 // Phase 1 of the state-machine model (docs/noacg-master-goals.md §1.4,
 // docs/STATE_MACHINE_SCHEMA.md): the five acceptance criteria, driven against HAND-WRITTEN
@@ -448,13 +449,11 @@ test('preview: snap-to-state works in the editor, and the event strip guards lik
     useTemplateStore.getState().sendSnap({ flow: 'locked' });
   })()`);
   await expect(page.getByTestId('sim-state-chip')).toHaveText('locked', { timeout: 5000 });
-  const pose = await page.evaluate(() => {
-    const w = document.querySelector<HTMLIFrameElement>('iframe.preview-frame')!.contentWindow as Window & {
-      noacgMachineState?: () => { groups: Record<string, string> };
-    };
-    const opacity = (sel: string) => Number(w.getComputedStyle(w.document.querySelector(sel)!).opacity);
-    return { state: w.noacgMachineState!().groups.flow, root: opacity('.qz'), rows: opacity('.qz-rows') };
-  });
+  const pose = {
+    state: (await frameMachineState(page)).flow,
+    root: await frameOpacity(page, '.qz'),
+    rows: await frameOpacity(page, '.qz-rows'),
+  };
   expect(pose).toEqual({ state: 'locked', root: 1, rows: 1 });
 
   // The strip is guarded by the graph: select after lock is dead — and now SAYS so, rather

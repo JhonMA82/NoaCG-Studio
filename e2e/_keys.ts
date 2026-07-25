@@ -7,26 +7,46 @@ import { expect, type Page } from '@playwright/test';
 // handler firing alongside the intended one, which every existing spec happily passed through.
 // So the probes here answer "did the graphic play?" rather than "did the pan arm?".
 
-interface ProbeTl { __activeTl?: { __panProbe?: number } }
+// The preview iframe carries no allow-same-origin (it can render AI-generated/imported code),
+// so these probes can't reach `contentWindow.__activeTl` directly any more. composeDocument's
+// `simulate` script instead PUSHES its playhead every animation frame
+// (`{ type: 'spx-preview-playhead', active, runId, ... }`, preview/previewProtocol.ts) — `runId`
+// is a monotonic counter stamped onto every NEW running timeline, the wire equivalent of the old
+// object-identity check against `__activeTl`. Sampling one incoming push is enough: nothing is
+// pushed while idle, so `active` alone tells 'none' apart from a running timeline, and comparing
+// `runId` against whatever was last stamped tells 'parked' (the same run survives) from 'fresh'
+// (a new play() started).
+
+function readPlayhead(page: Page): Promise<{ active: boolean; runId: number }> {
+  return page.evaluate(
+    () =>
+      new Promise<{ active: boolean; runId: number }>((resolve) => {
+        const handler = (ev: MessageEvent) => {
+          const msg = ev.data as { type?: string; active?: boolean; runId?: number } | undefined;
+          if (msg?.type !== 'spx-preview-playhead') return;
+          window.removeEventListener('message', handler);
+          resolve({ active: !!msg.active, runId: msg.runId ?? 0 });
+        };
+        window.addEventListener('message', handler);
+      }),
+  );
+}
 
 /** 'none' = nothing running, 'parked' = the stamped timeline survives, 'fresh' = play() ran. */
-export function timelineState(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const w = (document.querySelector('iframe.preview-frame') as HTMLIFrameElement | null)
-      ?.contentWindow as unknown as ProbeTl | null;
-    if (!w?.__activeTl) return 'none';
-    return w.__activeTl.__panProbe === 1 ? 'parked' : 'fresh';
-  });
+export async function timelineState(page: Page): Promise<string> {
+  const sample = await readPlayhead(page);
+  if (!sample.active) return 'none';
+  const stamped = await page.evaluate(() => (window as unknown as { __stampedRunId?: number }).__stampedRunId);
+  return stamped === sample.runId ? 'parked' : 'fresh';
 }
 
 /** Mark the parked timeline (if any) so a later read can tell it from a fresh play(). */
 export async function stampTimeline(page: Page): Promise<string> {
-  await page.evaluate(() => {
-    const w = (document.querySelector('iframe.preview-frame') as HTMLIFrameElement | null)
-      ?.contentWindow as unknown as ProbeTl | null;
-    if (w?.__activeTl) w.__activeTl.__panProbe = 1;
-  });
-  return timelineState(page);
+  const sample = await readPlayhead(page);
+  await page.evaluate((runId) => {
+    (window as unknown as { __stampedRunId: number }).__stampedRunId = runId;
+  }, sample.active ? sample.runId : -1);
+  return sample.active ? 'parked' : 'none';
 }
 
 /**

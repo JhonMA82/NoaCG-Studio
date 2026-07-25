@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 import { awaitPreviewRebuild } from './_preview';
+import { frameMachineState, frameOpacity, framePlay, frameStop, frameStyleProp, previewFrame } from './_frame';
 
 // Phase 4 of docs/noacg-master-goals.md — the node editor. The machine GRAPH surface in the
 // bottom dock: inspect a template's states and arrows, snap the preview, edit transitions
@@ -10,8 +11,6 @@ import { awaitPreviewRebuild } from './_preview';
 // non-programmer opens a template, sees its graph, changes a transition's style, breaks
 // something, and restores the shipped state.
 
-const FRAME = 'iframe.preview-frame';
-
 async function openGraph(page: Page) {
   await page.getByTestId('timeline-surface-toggle').click();
   await expect(page.getByTestId('machine-graph')).toBeVisible();
@@ -19,11 +18,7 @@ async function openGraph(page: Page) {
 
 /** The preview's machine pointers (the runtime's own introspection). */
 async function machineState(page: Page): Promise<Record<string, string>> {
-  return page.evaluate((frameSel) => {
-    const f = document.querySelector(frameSel) as HTMLIFrameElement;
-    const w = f.contentWindow as Window & { noacgMachineState?: () => { groups: Record<string, string> } };
-    return w.noacgMachineState ? w.noacgMachineState().groups : {};
-  }, FRAME);
+  return frameMachineState(page);
 }
 
 async function templateJs(page: Page): Promise<string> {
@@ -119,25 +114,31 @@ test('a styled transition plays the arrow\'s change and lands exactly on the tar
   await expect(page.getByTestId('mg-transition-card')).toContainText('Enter → Answer selected');
   await awaitPreviewRebuild(page, () => page.getByTestId('mg-style').selectOption('fade'));
 
-  const result = await page.evaluate(async (frameSel) => {
-    const f = document.querySelector(frameSel) as HTMLIFrameElement;
-    const w = f.contentWindow as Window & {
-      play?: () => void;
-      noacgDispatch?: (e: string) => unknown;
-      noacgMachineState?: () => { groups: Record<string, string> };
-    };
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    w.play?.();
-    await sleep(900); // the entrance settles
-    w.noacgDispatch?.('select');
-    const pointerMovedSynchronously = w.noacgMachineState?.().groups.main === 'selected';
-    // The styled change is 0.6 s total; give it time plus slack, then read the pose.
-    await sleep(1400);
-    const doc = f.contentDocument!;
-    const root = doc.querySelector('.quiz') as HTMLElement;
-    const opacity = Number(w.getComputedStyle(root).opacity);
-    return { pointerMovedSynchronously, opacity, state: w.noacgMachineState?.().groups.main };
-  }, FRAME);
+  // ONE evaluate call, like the interpreter's own dispatch sequence used to run against a
+  // direct contentWindow reference: noacgDispatch can recurse synchronously into processing a
+  // queued follow-up event, and splitting this into separate round trips (a play() call, an
+  // externally-timed wait, then a dispatch call) desyncs that recursion from real wall time
+  // closely enough to throw — reproducible even against the pre-conversion app code, so it is
+  // purely about keeping the sequence in one page-side execution, not about same-origin access.
+  const result = await previewFrame(page)
+    .locator('body')
+    .evaluate(async () => {
+      const w = window as unknown as {
+        play?: () => void;
+        noacgDispatch?: (e: string) => unknown;
+        noacgMachineState?: () => { groups: Record<string, string> };
+      };
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      w.play?.();
+      await sleep(900); // the entrance settles
+      w.noacgDispatch?.('select');
+      const pointerMovedSynchronously = w.noacgMachineState?.().groups.main === 'selected';
+      // The styled change is 0.6 s total; give it time plus slack, then read the pose.
+      await sleep(1400);
+      const root = document.querySelector('.quiz') as HTMLElement;
+      const opacity = Number(getComputedStyle(root).opacity);
+      return { pointerMovedSynchronously, opacity, state: w.noacgMachineState?.().groups.main };
+    });
 
   expect(result.pointerMovedSynchronously).toBe(true);
   expect(result.state).toBe('selected');
@@ -439,20 +440,21 @@ test('a branch state gets its own timeline, and it really plays', async ({ page 
   });
   expect(validation).toEqual([]);
 
-  // And the point of the whole exercise: entering the branch PLAYS its timeline.
-  const moved = await page.evaluate(async () => {
-    const w = document.querySelector<HTMLIFrameElement>('iframe.preview-frame')!.contentWindow as Window & {
-      play?: () => void;
-      noacgDispatch?: (e: string) => unknown;
-    };
-    const x = () => w.getComputedStyle(w.document.querySelector('.lower-third-box')!).transform;
-    w.play?.();
-    await new Promise((r) => setTimeout(r, 1400));
-    const before = x();
-    w.noacgDispatch?.('showBio');
-    await new Promise((r) => setTimeout(r, 900));
-    return { before, after: x() };
-  });
+  // And the point of the whole exercise: entering the branch PLAYS its timeline. ONE evaluate
+  // call, like the interpreter's own dispatch sequence used to run against a direct
+  // contentWindow reference — see the identical note on the "styled transition" test above.
+  const moved = await previewFrame(page)
+    .locator('body')
+    .evaluate(async () => {
+      const w = window as unknown as { play?: () => void; noacgDispatch?: (e: string) => unknown };
+      const x = () => getComputedStyle(document.querySelector('.lower-third-box')!).transform;
+      w.play?.();
+      await new Promise((r) => setTimeout(r, 1400));
+      const before = x();
+      w.noacgDispatch?.('showBio');
+      await new Promise((r) => setTimeout(r, 900));
+      return { before, after: x() };
+    });
   expect(moved.before).not.toContain('140');
   expect(moved.after).toContain('140');
 
@@ -463,12 +465,10 @@ test('a branch state gets its own timeline, and it really plays', async ({ page 
   const canvas = (await page.getByTestId('tlv2-canvas').boundingBox())!;
   /** The box's live translateX, read off the matrix — a scrub lands NEAR a keyframe, not on
    *  its exact number, so this compares distances rather than substrings. */
-  const boxX = () =>
-    page.evaluate(() => {
-      const w = document.querySelector<HTMLIFrameElement>('iframe.preview-frame')!.contentWindow!;
-      const m = w.getComputedStyle(w.document.querySelector('.lower-third-box')!).transform;
-      return Number(m.match(/matrix\(([^)]+)\)/)?.[1].split(',')[4] ?? NaN);
-    });
+  const boxX = async () => {
+    const m = await frameStyleProp(page, '.lower-third-box', 'transform');
+    return Number(m.match(/matrix\(([^)]+)\)/)?.[1].split(',')[4] ?? NaN);
+  };
   await page.mouse.click(canvas.x + 2, canvas.y + 8);
   await page.waitForTimeout(500);
   const atStart = await boxX();
@@ -699,32 +699,23 @@ test('the entrance and exit are real arrows: stylable, guarded, and next() keeps
 
   // V1 PARITY in the live preview: the stop edge exists as an arrow now, yet next() must
   // still no-op when only Out remains — and the styled stop must land the off pose.
-  const parity = await page.evaluate(async (frameSel) => {
-    const f = document.querySelector(frameSel) as HTMLIFrameElement;
-    const w = f.contentWindow as Window & {
-      play?: () => void;
-      stop?: () => void;
-      revealNextStep?: () => unknown;
-      noacgMachineState?: () => { groups: Record<string, string> };
-    };
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    w.play?.();
-    await sleep(1000); // the styled (fade) entrance settles
-    const onAir = w.noacgMachineState?.().groups.main;
-    const advanced = w.revealNextStep?.();
-    const afterNext = w.noacgMachineState?.().groups.main;
-    w.stop?.();
-    await sleep(200); // a CUT exit is instant
-    const doc = f.contentDocument!;
-    const root = doc.querySelector('.lower-third') as HTMLElement;
-    return {
-      onAir,
-      nextNoOp: advanced === null,
-      afterNext,
-      off: w.noacgMachineState?.().groups.main,
-      opacity: Number(w.getComputedStyle(root).opacity),
-    };
-  }, FRAME);
+  await framePlay(page);
+  await page.waitForTimeout(1000); // the styled (fade) entrance settles
+  const onAir = (await frameMachineState(page)).main;
+  const advanced = await previewFrame(page).locator('body').evaluate(() => {
+    const w = window as unknown as { revealNextStep?: () => unknown };
+    return w.revealNextStep ? w.revealNextStep() : undefined;
+  });
+  const afterNext = (await frameMachineState(page)).main;
+  await frameStop(page);
+  await page.waitForTimeout(200); // a CUT exit is instant
+  const parity = {
+    onAir,
+    nextNoOp: advanced === null,
+    afterNext,
+    off: (await frameMachineState(page)).main,
+    opacity: await frameOpacity(page, '.lower-third'),
+  };
   expect(parity.onAir).toBe('enter');
   expect(parity.nextNoOp).toBe(true);
   expect(parity.afterNext).toBe('enter');
