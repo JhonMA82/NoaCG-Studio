@@ -9,7 +9,7 @@ import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
-import { settleGraphic } from './settleGraphic';
+import { settleGraphic, reportGraphicBox } from './settleGraphic';
 import type { SpxTemplate } from '../model/types';
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
@@ -48,6 +48,23 @@ export interface ComposeOptions {
    * the shared function is serialized into the document.
    */
   settleWithData?: string;
+  /**
+   * Install a COMMAND CHANNEL inside the document instead of settling it once: the wizard's
+   * persistent live preview (WizardPreview.tsx) needs to play/stop/update the SAME document
+   * repeatedly (Replay, Out, a demo-text push) at times the parent can't predict, so a one-shot
+   * settle isn't enough — but the template being previewed can be AI-generated or hand-imported
+   * code, so the iframe still carries no `allow-same-origin` and the parent still can't reach in
+   * directly.
+   *
+   * The document listens for `{ type: 'spx-preview-cmd', cmd: 'play' | 'stop' | 'update' |
+   * 'measure', data?: string }` from `parent` and calls the matching SPX function
+   * (`data`, where given, is the JSON string `update()` takes); `'play'` and `'measure'` reply
+   * with the document's box exactly like `settleWithData` does, so a caller measuring for the
+   * zoom-to-graphic framing never needs `contentDocument`. `'play'` waits (capped) on
+   * `document.fonts.ready` first, so a font choice shows on the entrance whether the play comes
+   * from the initial auto-play or a later Replay click.
+   */
+  liveControl?: boolean;
 }
 
 /** Inject inline <style>, GSAP, and the template JS into the document <head>/<body>. */
@@ -151,15 +168,10 @@ window.addEventListener('unhandledrejection', function (ev) {
     ? `\n<script id="spx-settle">
 (function () {
   var settle = ${settleGraphic.toString()};
+  var report = ${reportGraphicBox.toString()};
   var run = function () {
     settle(window, ${JSON.stringify(options.settleWithData)});
-    try {
-      var root = document.body && document.body.querySelector('div');
-      var r = root && root.getBoundingClientRect();
-      if (r && r.width > 0 && r.height > 0) {
-        parent.postMessage({ type: 'spx-preview-box', x: r.left, y: r.top, w: r.width, h: r.height }, '*');
-      }
-    } catch (e) {}
+    report(window);
   };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(run, run);
   else run();
@@ -167,11 +179,54 @@ window.addEventListener('unhandledrejection', function (ev) {
 </script>`
     : '';
 
+  // The live-control bootstrap (see ComposeOptions.liveControl): a command channel over
+  // postMessage in place of contentWindow/contentDocument access. `waitFonts` mirrors the
+  // fonts-ready cap the settle bootstrap folds into `run` above; here it gates every 'play'
+  // (not just the first) since a Replay click should also show the chosen font, and awaiting an
+  // already-resolved `fonts.ready` costs nothing observable.
+  const liveControlTag = options.liveControl
+    ? `\n<script id="spx-live-control">
+(function () {
+  var report = ${reportGraphicBox.toString()};
+  function waitFonts(cb) {
+    if (document.fonts && document.fonts.ready) {
+      var done = false;
+      var go = function () { if (done) return; done = true; cb(); };
+      document.fonts.ready.then(go, go);
+      setTimeout(go, 400);
+    } else {
+      cb();
+    }
+  }
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== window.parent) return;
+    var msg = ev.data;
+    if (!msg || msg.type !== 'spx-preview-cmd') return;
+    if (msg.cmd === 'update') {
+      try { window.update && window.update(msg.data); } catch (e) {}
+    } else if (msg.cmd === 'play') {
+      waitFonts(function () {
+        try {
+          if (msg.data != null) window.update && window.update(msg.data);
+          window.play && window.play();
+        } catch (e) {}
+        report(window);
+      });
+    } else if (msg.cmd === 'stop') {
+      try { window.stop && window.stop(); } catch (e) {}
+    } else if (msg.cmd === 'measure') {
+      report(window);
+    }
+  });
+})();
+</script>`
+    : '';
+
   // Error capture + template JS go right before </body> so the DOM exists when functions run.
   if (/<\/body>/i.test(html)) {
-    html = html.replace(/<\/body>/i, `${captureTag}\n${jsTag}${settleTag}\n</body>`);
+    html = html.replace(/<\/body>/i, `${captureTag}\n${jsTag}${settleTag}${liveControlTag}\n</body>`);
   } else {
-    html = html + captureTag + jsTag + settleTag;
+    html = html + captureTag + jsTag + settleTag + liveControlTag;
   }
 
   return html;

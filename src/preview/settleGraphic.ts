@@ -52,6 +52,24 @@ export function settleGraphic(win: SettleWindow | null | undefined, data: string
 }
 
 /**
+ * Report this document's graphic box back to `parent` (`{ type: 'spx-preview-box', x, y, w, h }`).
+ * Shared by the settle bootstrap and the wizard preview's live-control bootstrap
+ * (composeDocument.ts) so the two scripts serialized into a preview document never drift on the
+ * wire shape a caller (preview/frameGraphic.ts) reads.
+ */
+export function reportGraphicBox(win: Window): void {
+  try {
+    const root = win.document.body?.querySelector('div');
+    const r = root?.getBoundingClientRect();
+    if (r && r.width > 0 && r.height > 0) {
+      win.parent.postMessage({ type: 'spx-preview-box', x: r.left, y: r.top, w: r.width, h: r.height }, '*');
+    }
+  } catch {
+    /* best-effort: a broken template still gets its frame */
+  }
+}
+
+/**
  * Settle once the document's own fonts have loaded. A text graphic laid out in the fallback
  * face and then jumped to the end of its entrance would freeze the WRONG metrics into the
  * frame, so every caller that settles on iframe load should come through here.
