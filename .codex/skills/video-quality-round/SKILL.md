@@ -10,5 +10,5 @@ description: >-
 ---
 
 Read `.agent-workflows/video-quality-round.md` (relative to the repo root) now and follow it
-in full - that file is the canonical procedure, shared with the Codex skill of the same name.
-Nothing here overrides it.
+in full - that file is the canonical procedure, shared with the Claude Code skill of the same
+name. Nothing here overrides it.
