@@ -1,29 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import { useRouter } from '../../app/router';
 import { graphicById, newEntry, updateGraphic, type ControlEntry, type GraphicDoc } from '../../model/library';
 import { fieldDescriptors, eventButtons, eventLegality, isEventLegal } from '../../control/controlModel';
 import { renderControlPanelHtml } from '../../control/controlPanelHtml';
 import { composeDocument } from '../../preview/composeDocument';
-import { settleGraphic, settleGraphicOnLoad, type SettleWindow } from '../../preview/settleGraphic';
+import {
+  postPreviewCmd,
+  PREVIEW_STATE_TYPE,
+  type PreviewCmd,
+  type PreviewMachineState,
+} from '../../preview/previewProtocol';
 import { openGraphicById, useSaveUi } from '../../store/saveActions';
 import { setFieldDefault } from '../../blocks/edit';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
 import { slug } from '../../export/common';
-
-/** The preview iframe's template globals (the SPX contract + the machine runtime). Window's
- *  own `stop()` collides with the SPX global of the same name, so this is a standalone shape
- *  rather than a Window extension. */
-interface GraphicWindow {
-  update?: (json: string) => void;
-  play?: () => void;
-  stop?: () => void;
-  next?: () => void;
-  noacgDispatch?: (event: string, payload?: Record<string, string>) => void;
-  /** The machine's pointers — what the state chip reads and what greys the event buttons. */
-  noacgMachineState?: () => { groups: Record<string, string> };
-}
 
 /**
  * The per-graphic CONTROL PANEL (route `#/control/<graphicId>`, docs/SAVED_CONTENT_MODEL.md §4):
@@ -31,6 +23,14 @@ interface GraphicWindow {
  * the state machine's event buttons, and a live preview to rehearse against. The active
  * entry's values feed Play here, the editor preview on open, and the downloadable standalone
  * controlpanel.html (entries baked in). Operating needs no account — this is local-first.
+ *
+ * This is the surface that AIRS a graphic, but the template it airs can still be AI-generated or
+ * imported code, so its iframe carries no `allow-same-origin` like every other preview surface —
+ * there is no reaching in via `contentWindow`/`contentDocument`. Every transport action (Play,
+ * Update, Next, Stop, an event button) and the machine-state poll go through
+ * preview/previewProtocol.ts's command channel instead (composeDocument's `liveControl` option);
+ * `postCmd` below posts `{ type: 'spx-preview-cmd', cmd, ... }` and the document replies with its
+ * machine pointers (`spx-preview-state`) for the poll to read.
  */
 export default function GraphicControlPage({ id }: { id: string }) {
   const navigate = useRouter((s) => s.navigate);
@@ -75,7 +75,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // keystroke, and recomposing the document there only to hand React an identical string is
   // work done to be thrown away.
   const template = doc?.template ?? null;
-  const srcdoc = useMemo(() => (template ? composeDocument(template) : ''), [template]);
+  const srcdoc = useMemo(() => (template ? composeDocument(template, { liveControl: true }) : ''), [template]);
+
+  /** Post a command into the live preview (no-op if the iframe hasn't loaded one yet). */
+  const postCmd = useCallback((msg: PreviewCmd) => {
+    postPreviewCmd(iframeRef.current?.contentWindow, msg);
+  }, []);
 
   /** The active entry's values over the graphic's own defaults — the merge `update()` performs
    *  live, and the same data the settled preview and Play both use. */
@@ -91,36 +96,44 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // and this preview used to get there by KEYING the iframe on the active entry, so every
   // switch tore the graphic down and re-composed it: GSAP re-parsed, fonts re-fetched, the
   // whole document rebuilt to change a few strings, on the one gesture stepping a rundown is
-  // made of. `settleGraphic` drives the LIVE window through the same recipe the load path uses.
-  // The dependency is the entry ID alone, deliberately: typing into the entry editor must NOT
-  // reach the graphic, because this surface is the one that AIRS — pushing a half-typed name is
-  // what the explicit ⟳ Update button exists to prevent.
+  // made of. The 'settle' command drives the LIVE document through the same recipe the load path
+  // uses. The dependency is the entry ID alone, deliberately: typing into the entry editor must
+  // NOT reach the graphic, because this surface is the one that AIRS — pushing a half-typed name
+  // is what the explicit ⟳ Update button exists to prevent.
   const activeEntryId = doc?.activeEntryId ?? null;
   const settleDataRef = useRef(activeData);
   useEffect(() => {
     settleDataRef.current = activeData;
   }, [activeData]);
   useEffect(() => {
-    settleGraphic(iframeRef.current?.contentWindow as SettleWindow | null, settleDataRef.current);
-  }, [activeEntryId]);
+    postCmd({ cmd: 'settle', data: settleDataRef.current });
+  }, [activeEntryId, postCmd]);
 
   // WHERE THE GRAPHIC IS, and which presses the machine would actually accept. Every other
   // operator surface (the editor's Rehearse panel, the event strip, the hosted page) polls the
   // runtime's own pointers and greys an event with no arrow out of the current state; this
   // page shipped without either, so a live operator saw no on-air indication at all and every
-  // button looked pressable whether or not the graphic would drop it. Same rule, same poll.
+  // button looked pressable whether or not the graphic would drop it. Same rule, same poll — but
+  // over the command channel: a 'state' request/reply round trip in place of a direct
+  // noacgMachineState() read, since the iframe carries no allow-same-origin.
   const legality = useMemo(() => (doc ? eventLegality(doc.template.js) : {}), [doc]);
-  const [machineState, setMachineState] = useState<{ groups: Record<string, string> } | null>(null);
+  const [machineState, setMachineState] = useState<PreviewMachineState | null>(null);
   useEffect(() => {
     if (buttons.length === 0) return; // an ordinary template has no machine to report
-    const tick = () => {
-      const w = iframeRef.current?.contentWindow as unknown as GraphicWindow | null;
-      setMachineState(w?.noacgMachineState?.() ?? null);
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const msg = ev.data;
+      if (msg && typeof msg === 'object' && msg.type === PREVIEW_STATE_TYPE) setMachineState(msg.state);
     };
+    window.addEventListener('message', onMessage);
+    const tick = () => postCmd({ cmd: 'state' });
     tick();
     const handle = setInterval(tick, 500);
-    return () => clearInterval(handle);
-  }, [buttons.length, doc?.id]);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      clearInterval(handle);
+    };
+  }, [buttons.length, doc?.id, postCmd]);
   const stateLabel = machineState
     ? Object.entries(machineState.groups)
         .map(([g, s]) => (Object.keys(machineState.groups).length > 1 ? `${g}:${s}` : s))
@@ -160,18 +173,20 @@ export default function GraphicControlPage({ id }: { id: string }) {
     if (error) setNote(error);
   };
 
-  const win = () => iframeRef.current?.contentWindow as unknown as GraphicWindow | null;
-
-  const sendUpdate = (values: Record<string, string>) => {
-    // The graphic's own defaults underlie the entry, exactly as update() merges live.
+  /** The values a push sends: the graphic's own defaults underlie the entry, exactly as
+   *  update() merges live. */
+  const mergedValues = (values: Record<string, string>) => {
     const merged: Record<string, string> = {};
     for (const d of descriptors) merged[d.key] = String(values[d.key] ?? d.defaultValue ?? '');
-    win()?.update?.(JSON.stringify(merged));
+    return merged;
+  };
+
+  const sendUpdate = (values: Record<string, string>) => {
+    postCmd({ cmd: 'update', data: JSON.stringify(mergedValues(values)) });
   };
 
   const playEntry = (entry: ControlEntry | null) => {
-    sendUpdate(entry?.values ?? {});
-    win()?.play?.();
+    postCmd({ cmd: 'play', data: JSON.stringify(mergedValues(entry?.values ?? {})) });
   };
 
   const addEntry = () => {
@@ -289,8 +304,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
               ref={iframeRef}
               title="Graphic preview"
               srcDoc={srcdoc}
-              sandbox="allow-scripts allow-same-origin"
-              onLoad={() => settleGraphicOnLoad(iframeRef.current, activeData)}
+              sandbox="allow-scripts"
+              onLoad={() => postCmd({ cmd: 'settle', data: activeData })}
               style={{
                 width: doc.template.resolution.width,
                 height: doc.template.resolution.height,
@@ -324,10 +339,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
             </button>
             {/* A bare "»" is not a label an operator can read under pressure — the glyph keeps
                 the SPX vocabulary, the word says what pressing it does. */}
-            <button onClick={() => win()?.next?.()} title="Advance to the next step (SPX Continue)" data-testid="control-next">
+            <button onClick={() => postCmd({ cmd: 'next' })} title="Advance to the next step (SPX Continue)" data-testid="control-next">
               » Next
             </button>
-            <button onClick={() => win()?.stop?.()} title="Take the graphic off air" data-testid="control-stop">■ Stop</button>
+            <button onClick={() => postCmd({ cmd: 'stop' })} title="Take the graphic off air" data-testid="control-stop">■ Stop</button>
             {buttons.length > 0 && <span className="control-events-sep" aria-hidden="true" />}
             {buttons.map((b) => {
               const legal = isEventLegal(legality, b.event, machineState);
@@ -338,7 +353,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   onClick={() => {
                     const payload: Record<string, string> = {};
                     for (const key of b.payload ?? []) payload[key] = String(active?.values[key] ?? '');
-                    win()?.noacgDispatch?.(b.event, payload);
+                    postCmd({ cmd: 'dispatch', event: b.event, payload });
                   }}
                   title={
                     legal

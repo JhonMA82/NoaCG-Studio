@@ -10,6 +10,7 @@ import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { settleGraphic, reportGraphicBox } from './settleGraphic';
+import { PREVIEW_CMD_TYPE, PREVIEW_STATE_TYPE } from './previewProtocol';
 import type { SpxTemplate } from '../model/types';
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
@@ -34,18 +35,20 @@ export interface ComposeOptions {
   authoring?: { padX: number; padY: number };
   /**
    * Park the graphic at its settled on-air state from INSIDE the document, driving it with this
-   * data (a JSON string, the shape `update()` takes). Once settled, the document also reports its
-   * own bounding box back to `parent` (`{ type: 'spx-preview-box', x, y, w, h }`) — a caller that
-   * needs to frame on the graphic (preview/frameGraphic.ts) reads that instead of
-   * `measureGraphicBox`'s direct `contentDocument` read, which cross-origin content cannot do.
+   * data (a JSON string, the shape `update()` takes) once and reporting the result back. Once
+   * settled, the document also reports its own bounding box back to `parent`
+   * (`{ type: 'spx-preview-box', x, y, w, h }`) — a caller that needs to frame on the graphic
+   * (preview/frameGraphic.ts) reads that instead of a `contentDocument` read, which the iframe's
+   * `sandbox="allow-scripts"` (no `allow-same-origin`) makes impossible from outside.
    *
-   * Every other preview surface settles from the OUTSIDE (settleGraphicOnLoad reaches into the
-   * iframe), which needs same-origin access. A surface showing UNTRUSTED content — the moderation
-   * queue's preview of a stranger's template, or a Home card's thumbnail rendering AI/imported
-   * code — runs it with `sandbox="allow-scripts"` and nothing else, so there is no reaching in,
-   * and without this it showed a black rectangle for every graphic that is hidden until play():
-   * exactly the surface whose only job is to LOOK at the thing. The recipe is not restated here;
-   * the shared function is serialized into the document.
+   * For a one-shot preview — the moderation queue's look at a stranger's template, a Home card's
+   * thumbnail, a wizard picker card — this is the whole recipe: without it, every graphic that is
+   * hidden until `play()` would show as a black rectangle, on the one surface whose only job is
+   * to LOOK at the thing. A preview that needs REPEATED control after that (play again, push new
+   * data, fire an operator event) reaches for `liveControl` below instead; the two options
+   * compose (WizardPreview and GraphicControlPage use `liveControl` alone and settle their first
+   * frame with an explicit `'settle'`/`'play'` command instead, since here the data to settle
+   * with can change after compose without rebuilding the document — see their own comments).
    */
   settleWithData?: string;
   /**
@@ -56,13 +59,15 @@ export interface ComposeOptions {
    * code, so the iframe still carries no `allow-same-origin` and the parent still can't reach in
    * directly.
    *
-   * The document listens for `{ type: 'spx-preview-cmd', cmd: 'play' | 'stop' | 'update' |
-   * 'measure', data?: string }` from `parent` and calls the matching SPX function
-   * (`data`, where given, is the JSON string `update()` takes); `'play'` and `'measure'` reply
-   * with the document's box exactly like `settleWithData` does, so a caller measuring for the
-   * zoom-to-graphic framing never needs `contentDocument`. `'play'` waits (capped) on
-   * `document.fonts.ready` first, so a font choice shows on the entrance whether the play comes
-   * from the initial auto-play or a later Replay click.
+   * The document listens for the commands in preview/previewProtocol.ts's `PreviewCmd` union
+   * (play/stop/next/update/settle/measure/dispatch/state) and calls the matching SPX or machine
+   * function; a caller should send through that module's `postPreviewCmd`, not a raw
+   * `postMessage`, so the wire shape can't drift. `'play'`, `'settle'` and `'measure'` reply with
+   * the document's box exactly like `settleWithData` does, so a caller measuring for the
+   * zoom-to-graphic framing never needs `contentDocument`; `'state'` replies with the machine's
+   * pointers (`PreviewStateMessage`), for a caller polling what a state chip names and what greys
+   * an event button. `'play'` and `'settle'` wait (capped) on `document.fonts.ready` first, so a
+   * font choice shows whether the play/settle comes from the initial load or a later command.
    */
   liveControl?: boolean;
 }
@@ -187,6 +192,7 @@ window.addEventListener('unhandledrejection', function (ev) {
   const liveControlTag = options.liveControl
     ? `\n<script id="spx-live-control">
 (function () {
+  var settle = ${settleGraphic.toString()};
   var report = ${reportGraphicBox.toString()};
   function waitFonts(cb) {
     if (document.fonts && document.fonts.ready) {
@@ -201,7 +207,7 @@ window.addEventListener('unhandledrejection', function (ev) {
   window.addEventListener('message', function (ev) {
     if (ev.source !== window.parent) return;
     var msg = ev.data;
-    if (!msg || msg.type !== 'spx-preview-cmd') return;
+    if (!msg || msg.type !== ${JSON.stringify(PREVIEW_CMD_TYPE)}) return;
     if (msg.cmd === 'update') {
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
@@ -212,10 +218,24 @@ window.addEventListener('unhandledrejection', function (ev) {
         } catch (e) {}
         report(window);
       });
+    } else if (msg.cmd === 'settle') {
+      waitFonts(function () {
+        settle(window, msg.data);
+        report(window);
+      });
     } else if (msg.cmd === 'stop') {
       try { window.stop && window.stop(); } catch (e) {}
+    } else if (msg.cmd === 'next') {
+      try { window.next && window.next(); } catch (e) {}
+    } else if (msg.cmd === 'dispatch') {
+      try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       report(window);
+    } else if (msg.cmd === 'state') {
+      try {
+        var s = window.noacgMachineState ? window.noacgMachineState() : null;
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s }, '*');
+      } catch (e) {}
     }
   });
 })();

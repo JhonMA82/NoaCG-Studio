@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
+import { postPreviewCmd, PREVIEW_BOX_TYPE, type PreviewCmd } from '../../preview/previewProtocol';
 import type { SpxTemplate } from '../../model/types';
 
 interface Props {
@@ -58,8 +59,8 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   const docGenRef = useRef(0);
 
   /** Post a command into the live document (no-op if the iframe hasn't loaded one yet). */
-  const postCmd = useCallback((cmd: 'play' | 'stop' | 'update' | 'measure', data?: string) => {
-    frameRef.current?.contentWindow?.postMessage({ type: 'spx-preview-cmd', cmd, data }, '*');
+  const postCmd = useCallback((msg: PreviewCmd) => {
+    postPreviewCmd(frameRef.current?.contentWindow, msg);
   }, []);
 
   /** The values a push sends: the template's samples, with the demo override on field 1. */
@@ -107,7 +108,7 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== frameRef.current?.contentWindow) return;
       const msg = ev.data;
-      if (msg && typeof msg === 'object' && msg.type === 'spx-preview-box') {
+      if (msg && typeof msg === 'object' && msg.type === PREVIEW_BOX_TYPE) {
         setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
       }
     };
@@ -117,12 +118,12 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
 
   const playIn = useCallback(() => {
     clearDemo();
-    postCmd('play', JSON.stringify(pushValues(templateRef.current)));
+    postCmd({ cmd: 'play', data: JSON.stringify(pushValues(templateRef.current)) });
     if (demoOut) {
       // Show the exit too, then come back on air so the preview isn't left empty.
       demoTimers.current.push(
-        window.setTimeout(() => postCmd('stop'), 1700),
-        window.setTimeout(() => postCmd('play'), 2800),
+        window.setTimeout(() => postCmd({ cmd: 'stop' }), 1700),
+        window.setTimeout(() => postCmd({ cmd: 'play' }), 2800),
       );
     }
   }, [clearDemo, demoOut, postCmd]);
@@ -137,7 +138,7 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
   // the running document — the user watches the REAL mechanism, not a wizard imitation.
   useEffect(() => {
     if (demoText == null) return;
-    postCmd('update', JSON.stringify(pushValues(templateRef.current)));
+    postCmd({ cmd: 'update', data: JSON.stringify(pushValues(templateRef.current)) });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- postCmd is stable; pushValues reads live refs
   }, [demoText]);
 
@@ -182,13 +183,13 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
           <button
             className={zoomed ? 'active' : ''}
             disabled={!box}
-            onClick={() => { if (!zoomed) postCmd('measure'); setZoomed(!zoomed); }}
+            onClick={() => { if (!zoomed) postCmd({ cmd: 'measure' }); setZoomed(!zoomed); }}
             title={zoomed ? 'Show the whole canvas again' : 'Zoom the preview to just the graphic'}
           >
             {zoomed ? '▭ Whole canvas' : '⌖ Zoom to graphic'}
           </button>
           <button onClick={playIn} title={demoOut ? 'Replay the animation (in, then out)' : 'Replay the entrance animation'}>▶ Replay</button>
-          <button onClick={() => { clearDemo(); postCmd('stop'); }} title="Play the exit animation">■ Out</button>
+          <button onClick={() => { clearDemo(); postCmd({ cmd: 'stop' }); }} title="Play the exit animation">■ Out</button>
         </div>
       </div>
     </div>
