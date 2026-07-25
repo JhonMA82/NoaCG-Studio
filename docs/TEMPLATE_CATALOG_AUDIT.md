@@ -351,9 +351,33 @@ whole point is its stepped, badge-like silhouette - each line paints its own bar
 text, and a shared `min-width` would flatten the two bars to one width and erase the effect the
 design exists for. `lt16` Frost Handle and `lt17` Volt Handle joined the compact-mark exclusions
 (`lt50`/`lt14`/`lt48`) - both are explicitly built to "persist quietly"/"sit... through a segment"
-rather than announce themselves. The remaining panel straps across the 89 lower thirds are the
-same pattern applied further, and the rest of the catalog's footprint minimums (standings/results
->= 50%, quiz boards >= 55%) follow the same per-design discipline.
+rather than announce themselves.
+
+The fourth installment completed the full 89-lower-third assessment: the remaining minimal (11),
+editorial (7) and cinematic (7) designs. Per DESIGN_LANGUAGE.md §8's family table, minimal and
+editorial default to no panel and cinematic is NONE with no exception clause - so this pass was
+mostly confirming exclusions rather than finding new candidates, and it is worth recording
+precisely because an earlier pass in this same session almost got one wrong: `lt31` Standfirst
+was initially assumed excluded by family (editorial), on the same wording as `lt39` Block Caps's
+"the compact end of the family" - but reading the file showed a real `background: var(--panel-bg)`
+panel, the "flat printed surface" DESIGN_LANGUAGE §3 explicitly carves out for editorial. Judging
+a design's shape requires opening the file, not just its style tag.
+
+Two minimal designs qualified: `lt03` Side Tag (a keyline panel with a real background, not just a
+hairline border) and `lt04` Kicker (a porcelain card). Two editorial designs qualified: `lt28`
+Feature Center and `lt31` Standfirst, both using the family's "flat printed surface" exception -
+ink or paper, never a chip. The other nine minimal and five editorial designs are genuinely
+panel-free (type floating directly over video, structured by rules and whitespace, DESIGN_LANGUAGE
+§3's "editorial ORGANISES" reading) and were left alone; `lt29` Imprint carried a second reason -
+the same `[text | divider | optional logo]` trailing-logo shape as `lt54`/`lt47`. All seven
+cinematic designs (`lt32`-`lt38`) use a radial-gradient scrim that fades to transparent at every
+edge - "no panel, no edges" is the family's entire premise (`lt35`'s header: "which is the panel
+look this family exists to avoid") - so none qualify, categorically.
+
+24/89 lower thirds now hold broadcast width. The remaining 65 are the 32-design specialist pack
+(`lowerThirds/specialist/`, not yet individually assessed) and the rest of the catalog's footprint
+minimums (standings/results >= 50%, quiz boards >= 55%), which follow the same per-design
+discipline.
 
 Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
 the streaming pack, the data layer, the animation vocabulary, and vertical.
