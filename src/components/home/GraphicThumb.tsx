@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
-import {
-  frameGraphic,
-  framingTransform,
-  measureGraphicBox,
-  type GraphicBox,
-} from '../../preview/frameGraphic';
-import { settleGraphicOnLoad } from '../../preview/settleGraphic';
+import { frameGraphic, framingTransform, type GraphicBox } from '../../preview/frameGraphic';
 import { fieldDescriptors } from '../../control/controlModel';
 import type { SpxTemplate } from '../../model/types';
 
@@ -97,8 +91,6 @@ export default function GraphicThumb({
     return () => io.disconnect();
   }, [visible]);
 
-  const doc = useMemo(() => (visible ? composeDocument(template) : ''), [visible, template]);
-
   // The data the thumbnail shows: the graphic's own field defaults, overlaid with whatever the
   // caller passes (the active entry) — the same merge the control panel's Play does.
   const data = useMemo(() => {
@@ -109,11 +101,27 @@ export default function GraphicThumb({
     return JSON.stringify(merged);
   }, [template, values]);
 
-  /** Park the card at the settled on-air state — the shared recipe, so a card and the operator
-   *  panel's preview can never disagree about what "at rest" looks like — then frame on the
-   *  graphic it settled into. */
-  const onLoad = () =>
-    settleGraphicOnLoad(frameRef.current, data, () => setBox(measureGraphicBox(frameRef.current)));
+  // The card renders a graphic it did not author — an AI result, an imported design, a
+  // stranger's shared template — so the iframe gets no `allow-same-origin`: it settles ITSELF
+  // (composeDocument's settleWithData, the shared recipe) and reports its box back over
+  // postMessage instead of being reached into from here.
+  const doc = useMemo(
+    () => (visible ? composeDocument(template, { settleWithData: data }) : ''),
+    [visible, template, data],
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== frameRef.current?.contentWindow) return;
+      const msg = ev.data;
+      if (msg && typeof msg === 'object' && msg.type === 'spx-preview-box') {
+        setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [visible]);
 
   const framing = frameGraphic(box, { width, height }, { w: boxW, h: boxH });
 
@@ -129,9 +137,8 @@ export default function GraphicThumb({
         <iframe
           ref={frameRef}
           title={`${label} preview`}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           srcDoc={doc}
-          onLoad={onLoad}
           tabIndex={-1}
           style={{ width, height, transform: framingTransform(framing) }}
         />
