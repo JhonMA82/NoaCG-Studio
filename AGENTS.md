@@ -241,7 +241,12 @@ surface from the CODE, never the category, which keeps pre-migration templates w
 ## Verifying changes
 
 Always `npm run build` (typecheck + lint + build) after changes. The tree stays lint-clean: fix
-findings properly rather than sprinkling eslint-disable comments.
+findings properly rather than sprinkling eslint-disable comments. Its first, fastest step is
+`node scripts/check-shared-instructions.mjs` - the drift guard for the AGENTS.md/CLAUDE.md
+split and the `.agent-workflows/` shared-workflow pattern (below): it fails if a thin wrapper
+grows real content again, stops pointing at its canonical file, or a Codex mirror goes missing.
+It self-discovers what to check from `AGENTS.md`/`.agent-workflows/*.md` files present, so a
+new nested area or a new shared command needs no separate registration - only correct wrappers.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. For the inner loop,
