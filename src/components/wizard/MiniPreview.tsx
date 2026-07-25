@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { composeDocument } from '../../preview/composeDocument';
-import {
-  frameGraphic,
-  framingTransform,
-  measureGraphicBox,
-  type GraphicBox,
-} from '../../preview/frameGraphic';
+import { frameGraphic, framingTransform, type GraphicBox } from '../../preview/frameGraphic';
+import { fieldDescriptors } from '../../control/controlModel';
 import type { TemplateVariant } from '../../model/wizard';
 import type { SpxTemplate } from '../../model/types';
 
@@ -22,11 +18,12 @@ import type { SpxTemplate } from '../../model/types';
  * because Browse can put the whole catalog on one grid. A `template` is already built — the AI
  * step's three alternatives — and is shown as-is. Sharing this component is what makes an AI
  * alternative and a catalog design look like the same kind of choice.
+ *
+ * A picker card shows a design nobody has vetted yet — an AI alternative, or any catalog
+ * variant before it is chosen — so like GraphicThumb it settles ITSELF (composeDocument's
+ * settleWithData) and reports its box back over postMessage rather than being read via
+ * contentDocument.
  */
-
-interface MiniWindow extends Window {
-  buildInTimeline?: () => { progress: (n: number) => void };
-}
 
 type Props =
   | { variant: TemplateVariant; template?: never }
@@ -60,7 +57,19 @@ export default function MiniPreview({ variant, template: built }: Props) {
     () => (visible ? (built ?? variant?.create() ?? null) : null),
     [built, variant, visible],
   );
-  const doc = useMemo(() => (template ? composeDocument(template) : ''), [template]);
+  // The card shows the design's own field defaults — a picker has no operator data to overlay.
+  const data = useMemo(() => {
+    if (!template) return '{}';
+    const merged: Record<string, string> = {};
+    for (const d of fieldDescriptors(template.fields, { includeHidden: true })) {
+      merged[d.key] = String(d.defaultValue ?? '');
+    }
+    return JSON.stringify(merged);
+  }, [template]);
+  const doc = useMemo(
+    () => (template ? composeDocument(template, { settleWithData: data }) : ''),
+    [template, data],
+  );
   const { width, height } = template?.resolution ?? { width: 1920, height: 1080 };
   const [box, setBox] = useState<GraphicBox | null>(null);
   // The card's own size, MEASURED: the grid reflows with the wizard's width, and a hard-coded
@@ -76,16 +85,18 @@ export default function MiniPreview({ variant, template: built }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  const settle = () => {
-    const w = ref.current?.contentWindow as MiniWindow | null;
-    try {
-      w?.buildInTimeline?.().progress(1); // jump straight to the settled on-air state
-    } catch {
-      /* preview is best-effort */
-    }
-    // Measure AFTER settling — mid-entrance a graphic can still sit off-canvas.
-    setBox(measureGraphicBox(ref.current));
-  };
+  useEffect(() => {
+    if (!visible) return;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== ref.current?.contentWindow) return;
+      const msg = ev.data;
+      if (msg && typeof msg === 'object' && msg.type === 'spx-preview-box') {
+        setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [visible]);
 
   const framing = frameGraphic(box, { width, height }, card);
 
@@ -95,9 +106,8 @@ export default function MiniPreview({ variant, template: built }: Props) {
         <iframe
           ref={ref}
           title={`${built?.name ?? variant?.name ?? 'Design'} preview`}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           srcDoc={doc}
-          onLoad={() => setTimeout(settle, 40)}
           tabIndex={-1}
           style={{ width, height, transform: framingTransform(framing) }}
         />

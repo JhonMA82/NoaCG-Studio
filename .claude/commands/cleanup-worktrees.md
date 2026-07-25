@@ -31,6 +31,10 @@ from the primary checkout. Never work around it.
 - Branches: only fully-merged `claude/*` branches are deleted (via `git branch -d`, never `-D`;
   git refuses an unmerged branch as a final backstop). `main` and the current branch are never
   touched. Non-`claude/*` merged branches are reported, not deleted.
+- A branch merged via "squash and merge" never passes the ancestry test (its commits aren't
+  reachable from main), so it's caught separately: if its tree is already identical to main's,
+  it's reported as a possible squash merge for manual review - never deleted automatically, since
+  tree equality is a weaker signal than true ancestry.
 - Empty leftover folders are swept; non-empty unregistered folders are reported for manual
   review, never auto-deleted. Locked/busy folders are reported to rerun later.
 

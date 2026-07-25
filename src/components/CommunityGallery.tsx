@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
 import { addLook } from '../model/packets';
 import type { ProjectBrand } from '../model/brand';
@@ -39,6 +39,9 @@ export default function CommunityGallery({ onClose, initialSlug }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Only close on a backdrop click whose press began there, so a drag-select never dismisses.
+  // See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -126,7 +129,14 @@ export default function CommunityGallery({ onClose, initialSlug }: Props) {
   );
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal pk-modal">
         <div className="wz-header">
           <div>
