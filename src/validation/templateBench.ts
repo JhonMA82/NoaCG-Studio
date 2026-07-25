@@ -7,6 +7,7 @@
 // Split of responsibility with gate.ts: this module reports raw errors/warnings; gate.ts merges them
 // with validateTemplate and decides which warnings become publish-blocking errors.
 
+import { isAllowedExternal } from './validateTemplate';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
 
@@ -17,19 +18,70 @@ const MAX_ASSET_COUNT = 24;
 /** Total data-URL payload across all assets (chars ≈ 1.33× real bytes, so ~9 MB of real media). */
 const MAX_ASSET_BYTES = 12 * 1024 * 1024;
 
-/** JS constructs that are almost never in a legitimate broadcast graphic and are hostile when run in
- *  someone else's preview/renderer. Surfaced as WARNINGS for a reviewer — not auto-blocking in the
- *  self-service beta — so a rare legitimate use is never silently refused. */
-const SUSPICIOUS_JS: { re: RegExp; note: string }[] = [
-  { re: /document\s*\.\s*cookie/, note: 'reads or writes document.cookie' },
-  { re: /\beval\s*\(/, note: 'calls eval()' },
-  { re: /new\s+Function\s*\(/, note: 'builds code at runtime with new Function()' },
-  { re: /\bWebSocket\s*\(/, note: 'opens a WebSocket' },
-  { re: /\b(?:local|session)Storage\b/, note: 'touches browser storage' },
+/**
+ * JS constructs that BLOCK sharing. A published template is code a stranger runs in their own
+ * browser, today inside a preview iframe that shares the app's origin — so a graphic that talks
+ * to the network, reaches out of its frame, or builds code at runtime is not a graphic, it is a
+ * program running on someone else's account.
+ *
+ * These were warnings while publishing went through a reviewer. It does not: `community_templates`
+ * defaults to status 'approved' (supabase/migrations/0004), so this function IS the review. A
+ * warning nobody reads is not a gate.
+ *
+ * **Be honest about what this is.** A regex screen refuses the obvious and can always be evaded by
+ * a determined author (`window['fetc'+'h']`), so it is one layer, not containment — the containment
+ * is denying the preview the app's origin. What it does buy: publishing hostile code has to be
+ * deliberate and disguised rather than a copy-paste, and the four opt-in blocks below can't be
+ * shared by accident.
+ *
+ * The network rules are also what stops an ordinary mistake: the LIVE DATA, SHOW CHAT, REMOTE
+ * CONTROL and HOSTED CONTROL blocks all point at the AUTHOR's own sheet, show or project. Shared,
+ * they make every importer's graphic phone the author's endpoint and paint the author's data.
+ * Each one is marked "edit or delete this whole block", which is exactly what the message says.
+ */
+const UNSAFE_JS: { re: RegExp; rule: string; note: string }[] = [
+  { re: /\bfetch\s*\(/, rule: 'unsafe-js-network', note: 'calls fetch()' },
+  { re: /\bXMLHttpRequest\b/, rule: 'unsafe-js-network', note: 'opens an XMLHttpRequest' },
+  { re: /\bWebSocket\s*\(/, rule: 'unsafe-js-network', note: 'opens a WebSocket' },
+  { re: /\bEventSource\s*\(/, rule: 'unsafe-js-network', note: 'opens an EventSource stream' },
+  { re: /\bsendBeacon\s*\(/, rule: 'unsafe-js-network', note: 'calls navigator.sendBeacon()' },
+  { re: /\bimport\s*\(/, rule: 'unsafe-js-network', note: 'imports a module at runtime' },
+  { re: /\bnew\s+Worker\s*\(/, rule: 'unsafe-js-network', note: 'starts a Worker' },
+  { re: /\bserviceWorker\b/, rule: 'unsafe-js-network', note: 'touches the service worker registry' },
+  { re: /\beval\s*\(/, rule: 'unsafe-js-code', note: 'calls eval()' },
+  { re: /new\s+Function\s*\(/, rule: 'unsafe-js-code', note: 'builds code at runtime with new Function()' },
+  { re: /document\s*\.\s*cookie/, rule: 'unsafe-js-data', note: 'reads or writes document.cookie' },
+  { re: /\b(?:local|session)Storage\b/, rule: 'unsafe-js-data', note: 'touches browser storage' },
+  { re: /\bindexedDB\b/, rule: 'unsafe-js-data', note: 'touches IndexedDB' },
+  // Cross-frame reach, written narrowly on purpose: a bare /\bparent\b/ would match `parentNode`
+  // and `rect.top` is ordinary geometry, so match only the properties an escape actually uses.
+  {
+    re: /\b(?:window\s*\.\s*)?(?:parent|top|opener)\s*\.\s*(?:document|location|postMessage|localStorage|sessionStorage|frames|open|origin)\b/,
+    rule: 'unsafe-js-frame',
+    note: 'reaches outside its own frame (parent/top/opener)',
+  },
 ];
+
+/** Absolute URLs written into the JS — the exfiltration route the construct list above misses
+ *  (`img.src = 'https://…/?' + data` calls nothing suspicious). Same allowlist as the HTML/CSS
+ *  scan in validateTemplate, so an opt-in Supabase block reports as `external-dependency`
+ *  (which gate.ts promotes for sharing) rather than as two different complaints. */
+const JS_URL = /\bhttps?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s'"`)]*/gi;
 
 function bytesOf(s: string): number {
   return typeof s === 'string' ? s.length : 0;
+}
+
+/**
+ * Which unsafe constructs one JS pane contains — DETECTION only, no phrasing. Exported because
+ * the AI harness screens generated code with the SAME list (src/ai/safety.ts): a template written
+ * by a model that just read an uploaded reference image is no more trusted than one written by a
+ * stranger, and two lists of what counts as unsafe would drift apart within a release. The two
+ * callers word the finding differently because they are telling different people different things
+ * ("delete that block before publishing" vs "the AI wrote this, don't apply it").
+ */
+export function unsafeJsConstructs(js: string): { rule: string; note: string }[] {
+  return UNSAFE_JS.filter(({ re }) => re.test(js)).map(({ rule, note }) => ({ rule, note }));
 }
 
 /** Structural + safety checks beyond the SPX contract. Returns errors (block sharing) and warnings
@@ -80,11 +132,26 @@ export function runBench(template: SpxTemplate): ValidationResult {
     });
   }
 
-  // 3. Suspicious JS — warn a reviewer (does not block self-service publishing).
-  for (const { re, note } of SUSPICIOUS_JS) {
-    if (re.test(template.js)) {
-      warnings.push({ rule: 'suspicious-js', message: `The template JavaScript ${note}.` });
-    }
+  // 3. Unsafe JS — blocks sharing. See UNSAFE_JS for why these are errors and not warnings.
+  for (const { rule, note } of unsafeJsConstructs(template.js)) {
+    errors.push({
+      rule,
+      message:
+        `The template JavaScript ${note}, which a shared graphic may not do — it would run in ` +
+        `the browser of everyone who imports it. If this is a Live data, Show chat, Remote ` +
+        `control or Hosted control block, delete that marked block before publishing (it points ` +
+        `at your own show or sheet, not theirs).`,
+    });
+  }
+
+  // 4. Absolute URLs in the JS. Reported under the SAME rule as the HTML/CSS scan so the author
+  //    reads one rule about one thing; gate.ts promotes it for sharing.
+  for (const url of template.js.match(JS_URL) ?? []) {
+    if (isAllowedExternal(url)) continue;
+    warnings.push({
+      rule: 'external-dependency',
+      message: `The template JavaScript references "${url}". A shared graphic must be self-contained.`,
+    });
   }
 
   return { ok: errors.length === 0, errors, warnings };

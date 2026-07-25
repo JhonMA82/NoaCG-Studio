@@ -7,8 +7,15 @@
 //                     broken or hostile template).
 //
 // Human review is the THIRD gate (status pending → approved) and lives server-side; it is deliberately
-// off in the self-service beta, so this automated gate is what stands between a submission and the
+// off in the self-service beta (`community_templates.status` defaults to 'approved' —
+// supabase/migrations/0004), so this automated gate is ALL that stands between a submission and the
 // public gallery. Keep it strict and deterministic — the platform, not the author, owns share safety.
+//
+// That is why templateBench's unsafe-JS findings are ERRORS rather than warnings: with no reviewer
+// downstream, a warning is a note nobody reads. It is a screen, not a sandbox (a determined author
+// can evade a regex), so it does not make importing a stranger's template safe on its own — it makes
+// publishing hostile code deliberate rather than accidental, and it stops the four opt-in blocks
+// (live data, show chat, remote/hosted control) being shared pointing at the author's own backend.
 
 import { validateTemplate, type ValidationIssue, type ValidationResult } from '../validation/validateTemplate';
 import { runBench } from '../validation/templateBench';

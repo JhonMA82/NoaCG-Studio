@@ -26,6 +26,7 @@ import {
   computeScale,
   dataSourceCss,
   documentHtml,
+  ESCAPE_HTML_JS,
   resetCanvasCss,
   resolveHeadingFont,
   rootVarsCss,
@@ -73,6 +74,8 @@ function creditsRuntimeJs(name: string, animationBlock: string): string {
 
 ${setFieldValueJs}
 
+${ESCAPE_HTML_JS}
+
 // parseCredits(text): three kinds of line, one rule each.
 //   "Role | Name"  -> a credit row.
 //   a line with no "|" that OPENS a section -> that section's heading.
@@ -81,6 +84,10 @@ ${setFieldValueJs}
 // A blank line starts the next section. (The heading rule is positional on purpose: a wall
 // of names is one heading followed by names, and a roll's sections already open with theirs,
 // so both read correctly from the same text with nothing to mark up.)
+//
+// Every value here is escaped ON THE WAY OUT of the parser, because the row builders below
+// concatenate it into innerHTML. Escaping at this ONE boundary is what makes the design's own
+// renderCreditRow() safe to rewrite without having to remember the rule.
 function parseCredits(text) {
   var sections = [];
   var current = [];
@@ -92,11 +99,15 @@ function parseCredits(text) {
     }
     var parts = line.split('|');
     if (parts.length >= 2) {
-      current.push({ type: 'credit', role: parts[0].trim(), name: parts.slice(1).join('|').trim() });
+      current.push({
+        type: 'credit',
+        role: escapeHtml(parts[0].trim()),
+        name: escapeHtml(parts.slice(1).join('|').trim())
+      });
     } else if (current.length === 0) {
-      current.push({ type: 'heading', text: line });   // the line that opens a section names it
+      current.push({ type: 'heading', text: escapeHtml(line) });   // the line that opens a section names it
     } else {
-      current.push({ type: 'entry', text: line });     // a plain line inside a section
+      current.push({ type: 'entry', text: escapeHtml(line) });     // a plain line inside a section
     }
   });
   if (current.length) sections.push(current);
@@ -117,7 +128,9 @@ function rebuildCredits() {
     section.forEach(function (entry) { html += renderCreditRow(entry); });
     html += '</div>';
   });
-  html += renderEndBlock(year, logo);
+  // Both escaped: the year is written as markup and the logo path is written INTO an
+  // src="..." attribute, so an unescaped quote in either would break out of it.
+  html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
   track.innerHTML = html;
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild
 }

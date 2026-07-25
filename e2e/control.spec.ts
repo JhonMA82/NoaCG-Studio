@@ -64,6 +64,44 @@ test('export bundles controlpanel.html + injects the receiver into index.html', 
   expect(panel).toContain('"key":"f0"'); // controls are field-derived
 });
 
+test('the exported control panel escapes the graphic name (it is the page title)', async ({ page }) => {
+  // The panel's <title> and <h1> ARE the graphic name, which for an imported community template
+  // is author-controlled — and the page carries the Supabase key and the hosted-control slug, so
+  // an unescaped name is a real injection. Everything else on the page rides jsonForScript into
+  // the <script>; the name is the one value written as markup.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+
+  const fired = await page.evaluate(async () => {
+    const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const base = useTemplateStore.getState().template;
+    const evil = {
+      ...base,
+      name: 'Pwn</title><script>parent.__cpx = 1</script><img src=x onerror="parent.__cpy = 1">',
+    };
+    const html = renderControlPanelHtml(evil, null, {});
+
+    const w = window as unknown as { __cpx?: number; __cpy?: number };
+    w.__cpx = 0;
+    w.__cpy = 0;
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;left:-9999px;width:600px;height:400px';
+    document.body.appendChild(f);
+    f.contentDocument!.open();
+    f.contentDocument!.write(html);
+    f.contentDocument!.close();
+    await new Promise((r) => setTimeout(r, 400));
+    const out = { script: w.__cpx, img: w.__cpy, title: f.contentDocument!.title };
+    f.remove();
+    return out;
+  });
+
+  // Neither injected vector ran, and the name survived intact as plain text.
+  expect(fired.script).toBe(0);
+  expect(fired.img).toBe(0);
+  expect(fired.title).toContain('Pwn</title>');
+});
+
 async function createHairline(page: Page) {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
 }
