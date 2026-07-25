@@ -29,6 +29,13 @@ const ZOOM_MAX = 8;
  * stage and translated by `pan`; the effective scale passed to the overlays is fit × zoom.
  * CanvasInteraction derives its own scale from that width and reads the overlay's live
  * bounding rect, so pan and zoom need no changes there — the overlay math already follows.
+ *
+ * The template rendered here can be AI-generated or imported code, so this iframe carries no
+ * `allow-same-origin` — CanvasInteraction and PlayoutSimulator (this file's two direct
+ * children, both taking `iframeRef`) never reach into it via `contentWindow`/`contentDocument`.
+ * `composeDocument`'s `simulate` and `canvasControl` options install the postMessage channels
+ * those two components drive instead (preview/simulatorRuntime.ts, preview/
+ * canvasControlProtocol.ts).
  */
 export default function PreviewFrame({ iframeRef }: Props) {
   const template = useTemplateStore((s) => s.template);
@@ -230,8 +237,12 @@ export default function PreviewFrame({ iframeRef }: Props) {
         { once: true },
       );
       // Authoring mode: render the canvas inset inside the padded document so off-canvas
-      // content is painted. Never used by exports/renders (pad is editor-only).
-      iframe.srcdoc = composeDocument(template, { authoring: { padX, padY } });
+      // content is painted. Never used by exports/renders (pad is editor-only). `simulate` +
+      // `canvasControl` install the editor's postMessage channels (PlayoutSimulator's
+      // play/stop/scrub lifecycle, CanvasInteraction's rect-push + gsap-prop queries) — this
+      // iframe carries no `allow-same-origin`, since the template it renders can be
+      // AI-generated or imported code.
+      iframe.srcdoc = composeDocument(template, { authoring: { padX, padY }, simulate: true, canvasControl: true });
     }, RELOAD_DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [template, iframeRef, setPreviewError, padX, padY]);
@@ -259,7 +270,7 @@ export default function PreviewFrame({ iframeRef }: Props) {
           ref={iframeRef}
           className="preview-frame"
           title="SPX live preview"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           style={{
             width: docW,
             height: docH,

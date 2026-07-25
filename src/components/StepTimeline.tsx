@@ -29,7 +29,7 @@ import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import LegacyTimeline from './LegacyTimeline';
 import MachineGraph from './MachineGraph';
 import { activatableFocus, editorShortcutsLive, spacePansCanvas } from './spaceKey';
-import type { SpxWindow } from './PlayoutSimulator';
+import { PREVIEW_PLAYHEAD_TYPE, type PreviewPlayheadMessage } from '../preview/previewProtocol';
 
 // Timeline v2 Phase 3 (docs/TIMELINE_V2_PLAN.md) — the step timeline, read-first.
 // A familiar clip-style timeline where the clips are the graphic's STEPS: a time ruler
@@ -388,38 +388,40 @@ function StepTimeline({
   // Canvas pointer handling (scrub vs. keyframe lasso) is defined below, once the row
   // geometry and diamond helpers are in scope — see onCanvasDown / onCanvasMove / onCanvasUp.
 
-  // Live follow: the simulator's running timeline reclaims the playhead from a scrub.
-  const lastActiveRef = useRef<unknown>(null);
+  // Live follow: the simulator's running timeline reclaims the playhead from a scrub. The
+  // document PUSHES its playhead every frame (composeDocument's `simulate` script) since this
+  // iframe carries no allow-same-origin — a `runId` change is the wire equivalent of the old
+  // object-identity check against `contentWindow.__activeTl`.
+  const lastRunIdRef = useRef<number | null>(null);
   useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const w = iframeRef.current?.contentWindow as SpxWindow | null;
-      const active = w?.__activeTl;
-      if (active && active !== lastActiveRef.current) {
-        lastActiveRef.current = active;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const msg = ev.data as PreviewPlayheadMessage | undefined;
+      if (!msg || msg.type !== PREVIEW_PLAYHEAD_TYPE) return;
+      if (msg.active && msg.runId !== lastRunIdRef.current) {
+        lastRunIdRef.current = msg.runId;
         setScrubbing(false);
       }
-      if (!active) lastActiveRef.current = null;
+      if (!msg.active) lastRunIdRef.current = null;
       if (scrubbingRef.current) return;
-      if (active) {
+      if (msg.active) {
         const idx =
-          active.phase === 'in' ? 0
-          : active.phase === 'out' ? data.steps.length - 1
-          : active.phase.startsWith('step-') ? parseInt(active.phase.slice(5), 10) - 1
+          msg.phase === 'in' ? 0
+          : msg.phase === 'out' ? data.steps.length - 1
+          : msg.phase.startsWith('step-') ? parseInt(msg.phase.slice(5), 10) - 1
           : 0;
         if (idx >= 0 && idx < data.steps.length) {
-          setHead({ step: idx, t: active.tl.time() });
+          setHead({ step: idx, t: msg.time });
           // The view follows the playhead through the run (zoomed-in timelines scroll).
           const seg = segsRef.current[idx];
-          if (seg) followScroll(seg.x + Math.min(active.tl.time(), stepSeconds(data, idx)) * pxRef.current);
+          if (seg) followScroll(seg.x + Math.min(msg.time, stepSeconds(data, idx)) * pxRef.current);
         }
       } else if (headRef.current.step !== 0 || headRef.current.t !== stepSeconds(data, 0)) {
         setHead({ step: 0, t: stepSeconds(data, 0) }); // idle = the settled entrance end
       }
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [data, iframeRef]);
 
   // ── Rows: EVERY visual layer has its own row (the ratified rule) — registry parts in

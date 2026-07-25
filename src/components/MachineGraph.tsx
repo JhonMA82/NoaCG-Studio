@@ -42,7 +42,7 @@ import {
 } from '../blocks/machineEdit';
 import { emptyStateTimeline } from '../blocks/timelineLens';
 import { writeAnimData } from '../templates/shared/animRuntime';
-import type { SpxWindow } from './PlayoutSimulator';
+import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../preview/previewProtocol';
 
 // Phase 4 (docs/noacg-master-goals.md): the node editor's read-first surface. The machine
 // GRAPH beneath the canvas — states as boxes, transitions as arrows, the default path as the
@@ -526,16 +526,22 @@ export default function MachineGraph({ iframeRef, data, onOpenStep, onOpenStateT
   const currentRef = useRef(current);
   currentRef.current = current;
   useEffect(() => {
-    const tick = () => {
-      const w = iframeRef.current?.contentWindow as SpxWindow | null;
-      const state = w?.noacgMachineState?.();
-      const next = state ? state.groups : null;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== iframeRef.current?.contentWindow) return;
+      const msg = ev.data as PreviewStateMessage | undefined;
+      if (!msg || msg.type !== PREVIEW_STATE_TYPE) return;
+      const next = msg.state ? msg.state.groups : null;
       const prev = currentRef.current;
       if (JSON.stringify(next) !== JSON.stringify(prev)) setCurrent(next);
     };
+    window.addEventListener('message', onMessage);
+    const tick = () => postPreviewCmd(iframeRef.current?.contentWindow, { cmd: 'state' });
     tick();
     const handle = setInterval(tick, 500);
-    return () => clearInterval(handle);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      clearInterval(handle);
+    };
   }, [iframeRef, data]);
 
   const selectState = (box: StateBox) => {
