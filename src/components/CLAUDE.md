@@ -796,6 +796,15 @@ the same locator either way. `conversation()` feeds the bounded transcript into
 `modify` now takes a context), and **✦ 3 more like this** re-runs the design stage seeded
 with the picked direction's spec.
 
+**The conversation TRAVELS with the created project.** AiStep reports its talk turns up via
+`onThread` on every change (so talk added AFTER the last result, before Create, is caught);
+`createFromAi` commits it to the store's `aiThread`, which persists exactly like `aiSpec`
+(SavedProject + GraphicDoc, additive optional, model/aiThread.ts). Only the talk turns travel -
+the `past` generation snapshots are heavy and the editor has no surface for them. The editor's
+**AIPromptPanel** shows the carried conversation read-only under a "Created from this
+conversation" `<details>` (`data-testid="ai-origin"`, reusing the `.ai-msg` bubbles). Pinned by
+the reload case in e2e/ai.spec.ts.
+
 **The result card reports what was MEASURED, not a verdict.** `validation/readiness.ts` groups
 existing findings into six operator-facing rows; it adds no checks, which is what lets a row
 read "not played, so not tested" on the raw one-shot path rather than claiming a bench that

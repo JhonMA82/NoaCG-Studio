@@ -407,12 +407,10 @@ export function hiddenSource(id: string, value: string, comment: string): string
   return `    <!-- ${comment} -->\n    <div id="${id}" style="display: none">${value}</div>`;
 }
 
-/** The escapeHtml helper every rebuild runtime needs (rows are built with innerHTML). */
-export const ESCAPE_HTML_JS = `// escapeHtml(): rows below are built with innerHTML — operator text is escaped first, so
-// input like "Team <3" reads as text and never runs as markup.
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}`;
+/** The escapeHtml helper every rebuild runtime needs (rows are built with innerHTML).
+ *  Defined once in shared/base.ts — re-exported here because the pack's four category files
+ *  compose their runtimes out of this module. */
+export { ESCAPE_HTML_JS } from '../shared/base';
 
 /** The DOM-ready guard every load-time rebuild needs (template.js loads in <head>). */
 export const READY_GUARD_JS = `// Render once on load so the preview shows the graphic before the first update().

@@ -7,6 +7,7 @@ import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxVal
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
+import { mergeSafety, withSafetyChecks } from '../../../ai/safety';
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import {
   emptyGenerationSpec,
@@ -23,6 +24,7 @@ import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../..
 import { importTemplateFile, isTemplateFile } from '../../../model/importTemplate';
 import { loadLooks } from '../../../model/packets';
 import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
+import type { AiThread, AiThreadMessage } from '../../../model/aiThread';
 import type { Palette } from '../../../model/wizard';
 import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
 import { benchTemplateRuntime, mergeResults } from '../../../validation/runtimeBench';
@@ -41,6 +43,10 @@ interface Props {
   /** `spec` is the structured setup the result was generated under (null = prompt-only) —
    *  the wizard saves it with the created project. */
   onResult: (template: SpxTemplate | null, valid: boolean, spec?: GenerationSpec | null) => void;
+  /** The conversation as it stands (talk turns only), reported on every change so the created
+   *  project can carry the reasoning that produced it (persisted as GraphicDoc.aiThread). Fires
+   *  independently of onResult so talk added AFTER the last result, before Create, is caught. */
+  onThread: (thread: AiThread | null) => void;
   /** Byte-faithful open of a dropped .html/.zip template — no AI, applies and closes. */
   onOpenImported: (template: SpxTemplate) => void;
   /** Continue into the catalog flow designing AROUND the dropped images (no AI needed). */
@@ -116,6 +122,7 @@ export default function AiStep({
   brandPalette,
   result,
   onResult,
+  onThread,
   onOpenImported,
   onUseTemplates,
 }: Props) {
@@ -194,6 +201,16 @@ export default function AiStep({
 
   const say = (turn: Turn) => setTurns((prev) => [...prev, turn]);
 
+  // Report the conversation up whenever it changes, so the created project carries it (persisted
+  // as GraphicDoc.aiThread). Only the talk turns travel — the `past` generation snapshots are a
+  // wizard-session affordance the editor cannot show, and would be heavy to persist (aiThread.ts).
+  useEffect(() => {
+    const messages: AiThreadMessage[] = turns
+      .filter((t): t is TalkTurn => t.kind === 'you' || t.kind === 'ai')
+      .map((t) => ({ role: t.kind === 'you' ? 'user' : 'assistant', text: t.text }));
+    onThread(messages.length ? { version: 1, messages } : null);
+  }, [turns, onThread]);
+
   /** Move the current result into the transcript before a new one takes its place. */
   const archiveCurrent = () => {
     if (!alternatives.length) return;
@@ -252,11 +269,22 @@ export default function AiStep({
   // (lifecycle, field binding, overlap/overflow, double-length stress) — bench findings
   // drive the provider's repair rounds. The structured setup adds its own checks on top
   // (requested fields present, uploaded fonts actually used).
+  //
+  // The SAFETY screen (src/ai/safety.ts) wraps the pair before the spec checks: it asks what the
+  // generated code DOES, which nothing else here asks. It sits INSIDE the injected validator on
+  // purpose — the bench executes the result the moment it lands, so the finding has to reach the
+  // provider's repair loop rather than a review step the code has already run past. `imported`
+  // is the source for a convert, so a template that already called fetch() before the AI touched
+  // it is not reported as something the AI introduced.
   const baseValidate: SpxValidator = async (t) => mergeResults(validateTemplate(t), await benchTemplateRuntime(t));
-  const validate: SpxValidator = withSpecChecks(baseValidate, activeSpec) ?? baseValidate;
+  const safeValidate: SpxValidator = withSafetyChecks(baseValidate, imported?.template ?? null);
+  const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
 
   const showChange = (change: AiTemplateChange) => {
-    const v = change.validation ?? validateTemplate(change.template);
+    // Screened here as well as inside the injected validator, because `generateRaw` (the harness
+    // OFF path) validates itself and never runs ours — this is the one place every path passes
+    // through on its way to the user.
+    const v = mergeSafety(change.validation ?? validateTemplate(change.template), change.template, imported?.template);
     setSummary(change.summary);
     setValidation(v);
     setLastPath(change.path ?? null);

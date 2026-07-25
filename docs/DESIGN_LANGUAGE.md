@@ -137,6 +137,32 @@ Text boxes **hug their content and wrap gracefully**; operators type any length.
 - Line-masks used for reveals must wrap-safe: mask the *block*, not a hardcoded height.
 - Max width defaults to keeping the panel inside the action-safe area from its anchor zone.
 
+**The strap floor (a `min-width`, for filled-panel straps).** A `fit-content` panel hugs its
+text, so a short name — "Al Roy / Host" — yields a tiny pill sitting where a broadcast strap
+belongs. The audit measured lower-third median footprint at 24% of frame against a 32% target,
+and **scaling cannot close that gap** — enlarging the type spends the runtime-bench capacity
+(§1, "Growing a graphic costs capacity"). The lever that does not is a scale-aware `min-width`
+on the panel, so it reserves a broadcast-width strap and the text left-aligns in the reserved
+void (the BBC/Sky bar):
+
+```css
+.lower-third-box {
+  min-width: calc(600px * var(--scale));   /* ~31% of frame; the void fills past the text */
+  max-width: 800px;                         /* the wrap cap is unchanged */
+}
+```
+
+It is **capacity-safe by construction**: long text already exceeds any `min-width`, so it never
+reduces the wrap headroom the bench stresses, and it sits under the `max-width` cap, so it can
+never push a box off frame. Two rules on where it applies:
+- **Only filled panels / bars / slabs / glass cards** — a shape that reads as a strap. A
+  panel-less minimal, editorial-rule, hairline or cinematic-scrim design hugs its text *by
+  intent*; a `min-width` there just strands the block in empty space. Leave those alone.
+- **Not the deliberately compact size class, nor a trailing-logo well.** A tag or a
+  social-handle mark is *meant* to be small (the matrix's "compact" size), and a `min-width` on a
+  `[words | bar | logo]` ident stretches the *empty* logo area into a gap when no logo is set.
+  Reserved width there reads as a defect, not a strap.
+
 ## 6. Position
 
 Nine anchor zones snapped to safe areas (5 % inset at 1080p ≈ 96 px sides / 54 px top-bottom;

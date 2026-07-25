@@ -219,7 +219,8 @@ Why this preserves every pillar:
   export targets. There is no second implementation to drift.
 - **No `eval` anywhere.** The runtime never parses anything — `NOACG_ANIM` is already a JS
   object. Only the editor parses (JSON.parse on extracted text). This matters: the
-  community bench (`templateBench.ts`) flags `eval(`/`new Function(` as suspicious.
+  community bench (`templateBench.ts`) REFUSES to share a template containing `eval(` or
+  `new Function(`, so a runtime that parsed its own data could not be published.
 
 ### The preserved contract (verified by audit)
 

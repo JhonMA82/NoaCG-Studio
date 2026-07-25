@@ -59,6 +59,7 @@ ${lineMasks(o)}
 .lower-third-box {
   margin-top: var(--accent-weight);  /* starts where the accent bar ends — fused */
   text-align: center;               /* the symmetric composition this design is built on */
+  min-width: calc(520px * var(--scale));  /* reserve a broadcast-width strap; the centred lines sit in the middle of the void */
   padding: calc(21px * var(--scale)) calc(59px * var(--scale)) calc(23px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

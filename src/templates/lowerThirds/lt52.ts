@@ -57,6 +57,7 @@ ${lineMasks(o)}
 .lower-third-box {
   margin-right: var(--accent-weight);  /* stops where the accent bar starts — fused */
   text-align: right;                /* lines are ragged-LEFT: they align to the bar */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width strap even for short lines — the void fills the rest */
   padding: calc(20px * var(--scale)) calc(30px * var(--scale)) calc(22px * var(--scale)) calc(56px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
