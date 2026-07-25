@@ -393,8 +393,11 @@ export function assembleQuiz(
 ): SpxTemplate {
   const font = resolveHeadingFont(o); // imported font wins over the bundled set
   const scale = computeScale(o);
-  // A question plus four answer rows reads best a bit wider than a single strap.
-  const maxTextWidth = Math.round(o.resolution.width * 0.48);
+  // A question plus four answer rows reads best a bit wider than a single strap, and the
+  // catalog audit's footprint minimum for a quiz board is 55% of frame (docs/
+  // TEMPLATE_CATALOG_AUDIT.md) — the wrap cap sits well above that floor so long questions
+  // still have room to wrap before hitting it.
+  const maxTextWidth = Math.round(o.resolution.width * 0.62);
   const optionCount = content.answers.length;
   const fields = quizFields(content);
   const id = hiddenIds(content);
@@ -435,6 +438,7 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 /* ── Auto-fit: the panel hugs its content and wraps instead of overflowing. ── */
 .quiz-box {
   width: fit-content;              /* the panel hugs the question and answers */
+  min-width: calc(1080px * var(--scale));  /* footprint floor — a board reads as a quiz at a glance, never as a note (docs/TEMPLATE_CATALOG_AUDIT.md: >= 55% of frame) */
   max-width: ${maxTextWidthCss(o.resolution, maxTextWidth)};  /* the wrap cap — follows --scale, stops at the safe area */
   will-change: transform, opacity; /* hint the browser: this element animates */
 }

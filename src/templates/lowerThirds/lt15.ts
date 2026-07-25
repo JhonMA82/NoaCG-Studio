@@ -60,6 +60,7 @@ ${lineMasks(o)}
    Starts flush with the accent edge, which fuses to its left side like the house strap's bar. */
 .lower-third-box {
   margin-left: var(--accent-weight);  /* the panel begins where the accent edge ends — fused */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width strap even for short lines — the void fills the rest */
   padding: calc(20px * var(--scale)) calc(40px * var(--scale)) calc(20px * var(--scale)) calc(28px * var(--scale));
   background: var(--panel-bg);     /* translucent white — the glass tint */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

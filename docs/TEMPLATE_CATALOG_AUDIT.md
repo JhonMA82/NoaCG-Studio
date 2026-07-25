@@ -322,12 +322,133 @@ Applied to the six house designs whose shape is a filled strap - `lt11` House St
 House Board (27 -> 36%) - each screenshot-verified at default and short-name lengths. Deliberately
 left alone: the compact tags and social-handle marks (`lt50`, `lt14` - the matrix's compact size
 class), the trailing-logo ident (`lt54`, where a reserved width strands the empty logo well), and
-the already-wide `lt12`. The glass cards, sport slabs and the other panel straps across the 89
-lower thirds are the same pattern applied further, and the rest of the catalog's footprint
-minimums (standings/results >= 50%, quiz boards >= 55%) follow the same per-design discipline.
+the already-wide `lt12`.
 
-Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
-the streaming pack, the data layer, the animation vocabulary, and vertical.
+The second installment carried the same lever to the glass cards and sport slabs: `lt08` Frosted
+Card, `lt15` Frost Strap, `lt46` Glass Column, `lt05` Angle Slab, `lt39` Block Caps and `lt43`
+Center Slab all now hold ~31-32% of frame with a two-character name, each screenshot-verified at
+default and short-name lengths. Two designs on the original list were left alone on inspection,
+for the same reasons `lt50`/`lt14`/`lt54` were: `lt45` Glass Chip is explicitly built to be the
+family's smallest footprint - "a chip rather than a card... where a full-width strap would
+swallow the shot" - so reserving broadcast width there would defeat the design's own purpose;
+`lt47` Glass Sign has the same `[text | accent divider | optional logo]` flex-row shape that
+`lt54` was reverted for - with the logo off, a `min-width` would strand empty void after the
+divider instead of filling behind the text.
+
+The third installment covered the rest of the glass and sport families: `lt10` Soft Stack, `lt49`
+Glass Board (glass) and `lt07` Number Badge, `lt40` Chevron, `lt41` Team Bar, `lt42` Right Slam,
+`lt44` Stat Strip, `lt57` Volt Call (sport) - 20/89 lower thirds now hold broadcast width.
+`lt42` Right Slam needed a companion `justify-content: flex-end` alongside its `min-width`: its
+accent bar is the LAST flex child on the outside (right) edge, so the default `flex-start`
+packing would have stranded the reserved void after the bar instead of on the inside toward
+centre - screenshot-verified the bar stays flush at the edge in both directions. Three more
+designs were left alone on inspection, for reasons distinct from the earlier exclusions: `lt09`
+Gradient Pill and `lt56` Frost Call are `border-radius: 999px` capsules - a pill reads as a
+compact chip/button, not a strap, so widening one to 31% of frame would just stretch an oval
+around a stranded label instead of reading as a broadcast bar (`lt09`'s own header calls it "one
+compact fully-rounded capsule"; `lt56`'s calls it "a compact pill alone"). `lt06` Split Bar's
+whole point is its stepped, badge-like silhouette - each line paints its own bar sized to its own
+text, and a shared `min-width` would flatten the two bars to one width and erase the effect the
+design exists for. `lt16` Frost Handle and `lt17` Volt Handle joined the compact-mark exclusions
+(`lt50`/`lt14`/`lt48`) - both are explicitly built to "persist quietly"/"sit... through a segment"
+rather than announce themselves.
+
+The fourth installment completed the full 89-lower-third assessment: the remaining minimal (11),
+editorial (7) and cinematic (7) designs. Per DESIGN_LANGUAGE.md §8's family table, minimal and
+editorial default to no panel and cinematic is NONE with no exception clause - so this pass was
+mostly confirming exclusions rather than finding new candidates, and it is worth recording
+precisely because an earlier pass in this same session almost got one wrong: `lt31` Standfirst
+was initially assumed excluded by family (editorial), on the same wording as `lt39` Block Caps's
+"the compact end of the family" - but reading the file showed a real `background: var(--panel-bg)`
+panel, the "flat printed surface" DESIGN_LANGUAGE §3 explicitly carves out for editorial. Judging
+a design's shape requires opening the file, not just its style tag.
+
+Two minimal designs qualified: `lt03` Side Tag (a keyline panel with a real background, not just a
+hairline border) and `lt04` Kicker (a porcelain card). Two editorial designs qualified: `lt28`
+Feature Center and `lt31` Standfirst, both using the family's "flat printed surface" exception -
+ink or paper, never a chip. The other nine minimal and five editorial designs are genuinely
+panel-free (type floating directly over video, structured by rules and whitespace, DESIGN_LANGUAGE
+§3's "editorial ORGANISES" reading) and were left alone; `lt29` Imprint carried a second reason -
+the same `[text | divider | optional logo]` trailing-logo shape as `lt54`/`lt47`. All seven
+cinematic designs (`lt32`-`lt38`) use a radial-gradient scrim that fades to transparent at every
+edge - "no panel, no edges" is the family's entire premise (`lt35`'s header: "which is the panel
+look this family exists to avoid") - so none qualify, categorically.
+
+The fifth installment covered the 32-design specialist pack (`lowerThirds/specialist/`),
+completing every one of the 89 lower thirds the audit counts. 25 designs qualified: `ls03` Duo
+Void, `ls04` Host & Guest, `ls05` Studio Pair, `ls06` Commentary Booth, `ls07` Booth Line, `ls08`
+Squad Number, `ls09` Player Stats, `ls10` Club Crest, `ls11` Team Tag, `ls12` Caster Deck, `ls13`
+Desk Duo, `ls14` Pulpit, `ls15` Scripture Reading, `ls16` Service Speaker, `ls17` Lectern, `ls18`
+Faculty Card, `ls19` Session Speaker, `ls22` Party Strap, `ls23` Analysis Kicker, `ls24` Expert
+Panel, `ls25` Now Playing, `ls26` Stage Artist, `ls28` Live Remote, `ls29` Field Report and `ls31`
+Creator Stack - each screenshot-verified at short-name lengths.
+
+Three designs (`ls03`/`ls04`/`ls06`/`ls13` - the two-person duo and booth panels) needed a wider
+value than the usual 600px: 750px, so a floor built for one name doesn't crowd two independent
+people. Three more (`ls20` Candidate Bar, `ls21` Debate Podium, `ls27` Track Cue, `ls30` World
+Clock) already carried an equivalent `min-width` from before this pass, authored by whoever built
+the specialist pack for the same "a run of these keeps one width" reasoning - left untouched.
+
+Two needed a companion fix beyond the `min-width` itself, for the same reason `lt42` did earlier
+in this pass: a fixed element on the OUTSIDE edge that default flex packing would strand once the
+box grew. `ls28` Live Remote has a flag flush left AND a clock closing the rail flush right, so
+neither `justify-content` value alone preserves both ends - the fix instead put `flex: 1 1 auto`
+on the middle cell, so it absorbs the reserved width and both ends stay put. `ls32` Stream
+Identity has the same shape (handle block leading, an optional goal cell trailing) but was left
+alone instead of fixed: the goal cell is not always present, which is exactly the stranded-trailing-
+element trap `lt54`/`lt47` were excluded for, and the design's own header calls it "compact... it
+lives in a corner for a whole stream" - the same self-described-compact framing as the other
+exclusions.
+
+`ls02` Duo Frost was left alone for a different reason than any prior exclusion: it renders two
+people as two SEPARATE cards with real air between them ("the gap IS the composition"), and its
+own comments say a short name's card should NOT inflate to match a long one's - the opposite of
+what the strap floor does. `ls01` Split Interview is panel-free (no background at all, matching
+the minimal family's other panel-less designs). `ls32` is covered above.
+
+**89/89 lower thirds now assessed for the strap floor.** 49 hold broadcast width (20 house/glass/
+sport, 4 minimal/editorial, 25 specialist - see this section and the two above); the remaining 40
+were excluded for one of five documented reasons: panel-free by family, deliberately-compact
+persistent marks, pill/capsule shapes, a design whose signature effect the floor would erase, or
+a trailing optional element the floor would strand.
+
+**The results-board footprint minimum (>= 50%) is done.** All 9 designs - `rs01`-`rs03` rosters,
+`st01`-`st04` standings/leaderboards, `br01`/`br02` brackets - already carried a `min-width` on
+`.results-board-box` from before this pass (538-900px, 28-47% of frame at default sample data:
+measured, not assumed), so the lever was already the right one; it just fell short of the target.
+Raised uniformly to `calc(1000px * var(--scale))` (52.1% at default data, comfortably under the
+category's 56% auto-fit cap `COMP_WIDTH.board`), `br01`/`br02` gained the same `min-width` they
+had never had (a bracket's width otherwise comes purely from `round count × 230px`, so a 1-2-round
+bracket rendered small). Unlike the lower-third pass, no design needed excluding: a results board
+is a data table, not a decorative strap, so even the two panel-less designs (`rs03`, `st04`) had
+already been given a `min-width` by whoever built the category - "hug by intent" does not apply to
+a table of rows and columns the way it does to a name strap. Verified with build, type-floor,
+overflow sweep, both catalog baselines, and a manual run of the runtime-bench check every category
+in `e2e/bench.spec.ts`'s `CATEGORIES` list gets automatically - `results-board` is not in that
+list (a pre-existing gap this pass did not create or close), so the check was run by hand against
+the same `benchTemplateRuntime` helper; all 9 pass. Six designs were also screenshot-verified.
+
+**The quiz-board footprint minimum (>= 55%) is done.** Unlike the lower-third and results-board
+passes, no per-design edits were needed: all 12 quiz boards (`qz01`-`qz12`, the four-answer,
+three-answer and true/false content sharing one assembler) go through the single
+`assembleQuiz()` in `src/templates/quiz/shared.ts`, and none of them declared their own
+`.quiz-box` width - the wrap cap (`maxTextWidth`, previously 48% of frame) and the missing floor
+both lived in that one function. Measured at default sample data before the change, the twelve
+ranged 28.6-48.0% of frame - the widest design was already at the (too-narrow) cap. Raised the
+cap to 62% and added a `min-width: calc(1080px * var(--scale))` (56.3% at default data, comfortably
+above the 55% target and under the new cap) directly to the shared box rule, so every board picked
+it up in one edit. No exclusions: a quiz board is a data board like a results board, not a
+decorative strap, so "hug by intent" doesn't apply here either - confirmed by eye on the
+true/false designs (`qz05`, `qz07`), where the two answer columns split the reserved width evenly
+rather than leaving one side empty. Verified with build, type-floor, overflow sweep, the
+committed quiz runtime-bench gate (`quiz` IS in `e2e/bench.spec.ts`'s `CATEGORIES` list, unlike
+`results-board`), and both catalog baselines re-recorded after confirming only the 12 quiz
+variants moved. Six designs (spanning all three answer counts) also screenshot-verified.
+
+Both named footprint minimums from the original audit (`docs/TEMPLATE_CATALOG_AUDIT.md` §2/§6) are
+now met: lower thirds (89/89 assessed, 49 widened), results-board (9/9, all >= 50%), and quiz
+boards (12/12, all >= 55%). Still open: backgrounds on full-coverage graphics, the streaming pack,
+the data layer, the animation vocabulary, and vertical.
 
 ## Sources
 

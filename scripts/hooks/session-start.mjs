@@ -112,7 +112,79 @@ try {
   // older checkout without the module - skip the port info
 }
 console.log(`Checkout: ${root} (${kind}, ${branchLabel})${ports}.`);
+
+// Cross-worktree activity awareness: several worktrees are usually being worked in parallel
+// (see CLAUDE.md), so before the first prompt lands, surface what files are already in flight
+// elsewhere - both uncommitted changes and commits already made but not yet merged into main.
+// This is a ONE-TIME snapshot taken at session start, not a live watch: a worktree that starts
+// touching a file after this session begins won't show up here. It only ever prints information
+// for the agent to reason about - it never blocks or warns definitively, since two sessions
+// touching the same file isn't necessarily a problem, just something worth knowing about.
+try {
+  const activity = otherWorktreeActivity(root, roots);
+  if (activity.length > 0) {
+    console.log('');
+    console.log(
+      'Other worktrees with files currently uncommitted or committed-but-not-yet-merged there ' +
+        '(snapshot at session start - check before touching the same files):',
+    );
+    for (const a of activity) {
+      const shown = a.files.slice(0, 15);
+      const more = a.files.length - shown.length;
+      console.log(`  - ${a.label}: ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`);
+    }
+  }
+} catch {
+  // Best-effort awareness only - must never block session start.
+}
+
 process.exit(0);
+
+/**
+ * For every registered worktree other than `root`, the files it has touched right now: both
+ * uncommitted working-tree changes and commits on its branch that main doesn't have yet. Skips
+ * a worktree sitting clean on `main` (nothing in flight) and any worktree with no changes at all.
+ */
+function otherWorktreeActivity(root, roots) {
+  const activity = [];
+  for (const otherRoot of roots) {
+    if (otherRoot.toLowerCase() === root.toLowerCase()) continue;
+
+    const shortRef = gitLines(['rev-parse', '--abbrev-ref', 'HEAD'], otherRoot)[0] ?? null;
+    const isDetached = shortRef === 'HEAD';
+    if (!isDetached && shortRef === 'main') continue; // sitting on main - nothing to compare
+
+    // Branches share one object store, so the ahead-of-main diff can run from any checkout;
+    // uncommitted status is per-worktree and must run in that worktree itself.
+    const diffRef = isDetached ? gitLines(['rev-parse', 'HEAD'], otherRoot)[0] ?? null : shortRef;
+    const ahead = diffRef ? gitLines(['diff', '--name-only', `main...${diffRef}`], root) : [];
+    const uncommitted = porcelainPaths(otherRoot);
+
+    const files = Array.from(new Set([...uncommitted, ...ahead]));
+    if (files.length === 0) continue;
+
+    const label = isDetached ? `${otherRoot} (detached @ ${diffRef?.slice(0, 7) ?? '?'})` : `${otherRoot} (${shortRef})`;
+    activity.push({ label, files });
+  }
+  return activity;
+}
+
+/**
+ * File paths from `git status --porcelain` in `cwd`. Each line is a fixed-width 2-character
+ * status code followed by a space then the path (e.g. " M path", "?? path") - gitLines() trims
+ * every line, which eats the leading space of a not-staged status and shifts everything after,
+ * so this reads the raw output directly instead of reusing it.
+ */
+function porcelainPaths(cwd) {
+  const res = spawnSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf8' });
+  if (res.status !== 0 || typeof res.stdout !== 'string') return [];
+  return res.stdout
+    .split('\n')
+    .map((line) => line.replace(/\r$/, ''))
+    .filter(Boolean)
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean);
+}
 
 /** Run git with the given args in `cwd` and return stdout as trimmed lines. */
 function gitLines(args, cwd) {

@@ -53,7 +53,7 @@ export const st04: TemplateVariant = defineResultsVariant(
   flex-direction: column;
   gap: calc(18px * var(--scale));
   padding: calc(5px * var(--scale)) 0 0;
-  min-width: calc(800px * var(--scale));
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a board reads as data at a glance, never as a note */
   text-shadow: 0 calc(3px * var(--scale)) calc(15px * var(--scale)) rgba(0, 0, 0, 0.55);
 }
 

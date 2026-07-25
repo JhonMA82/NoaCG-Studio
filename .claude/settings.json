@@ -20,6 +20,11 @@
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [{ "type": "command", "command": "node scripts/hooks/lint-file.mjs" }]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node scripts/hooks/stop-next.mjs" }]
+      }
     ]
   }
 }

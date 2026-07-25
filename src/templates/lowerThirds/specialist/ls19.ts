@@ -84,6 +84,7 @@ ${creditRow}${slot(o, 3, 'lower-third-extra')}
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
   -webkit-backdrop-filter: var(--panel-blur);  /* Safari spelling of the same effect */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short title — the void fills the rest */
   max-width: calc(1000px * var(--scale));  /* room for a real academic title to wrap once —
                                              kept under the category auto-fit cap, which is
                                              the frame safe area and must stay authoritative */

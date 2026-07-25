@@ -13,6 +13,11 @@
 // superset of local main, so containment still holds. Divergence is surfaced, not silently
 // trusted.
 //
+// Containment only sees true ancestry, so a branch merged via "squash and merge" (a new commit,
+// not an ancestor of the original branch) never passes it. Those are caught separately by a
+// tree-equality heuristic (possiblySquashMerged) and reported for manual review - never deleted
+// automatically, since tree equality is a weaker signal than ancestry.
+//
 // Hard rules (never broken, even with --apply):
 //   - never `git branch -D`, never `git worktree remove --force`, never touch main or the
 //     current branch;
@@ -39,6 +44,19 @@ const MAIN = 'main';
 function containedInMain(ref, cwd) {
   const res = git(['rev-list', '--count', ref, '--not', MAIN], cwd);
   return res.ok && res.stdout === '0';
+}
+
+/**
+ * True when `ref`'s tree is already identical to main's, even though its commits are not
+ * ancestors of main - the signature of a squash or rebase merge (GitHub "Squash and merge"
+ * rewrites history, so ancestry containment never sees it). `git diff --quiet` exits 0 for no
+ * difference; only called after containedInMain has already failed, so this never re-flags a
+ * true ancestor. Reporting only - never a deletion signal, since a false positive (e.g. a
+ * branch that coincidentally matches main's tree without being merged) is possible.
+ */
+function possiblySquashMerged(ref, cwd) {
+  const res = git(['diff', '--quiet', MAIN, ref], cwd);
+  return res.ok;
 }
 
 /** The branch a worktree has checked out, or null if detached. Reads the porcelain record. */
@@ -71,6 +89,7 @@ export function assess(cwd) {
     worktrees: [], // { path, branch|null, head, action: 'remove'|'skip', why }
     branches: [], // { name, action: 'delete'|'skip', why }
     otherMerged: [], // non-claude/* branches fully merged into main (reported, not deleted)
+    possibleSquashMerges: [], // tree matches main but not an ancestor - reported, not deleted
     prune: [], // stale worktree metadata git would prune
     emptyFolders: { removed: [], nonEmpty: [], locked: [] },
   };
@@ -159,7 +178,12 @@ export function assess(cwd) {
   for (const name of localBranches) {
     if (name === MAIN) continue;
     if (name === plan.currentBranch) continue; // never the current branch
-    if (!containedInMain(name, primaryRoot)) continue; // unmerged branches are left entirely alone
+    if (!containedInMain(name, primaryRoot)) {
+      // Not an ancestor of main - but a squash/rebase merge lands the same tree under a new
+      // commit, so check for that signature before writing the branch off as unmerged.
+      if (possiblySquashMerged(name, primaryRoot)) plan.possibleSquashMerges.push(name);
+      continue; // unmerged (or unconfirmed) branches are left entirely alone
+    }
     if (!name.startsWith('claude/')) {
       plan.otherMerged.push(name);
       continue;
@@ -305,6 +329,14 @@ function report(plan, done) {
     L.push('');
     L.push('## Also fully merged into main, NOT deleted (non-claude/* branches - remove manually if unwanted)');
     for (const n of plan.otherMerged) L.push(`  - ${n}`);
+  }
+
+  if (plan.possibleSquashMerges.length > 0) {
+    L.push('');
+    L.push(
+      '## Possible squash merges, NOT deleted (tree matches main but history is not an ancestor - verify then remove manually)',
+    );
+    for (const n of plan.possibleSquashMerges) L.push(`  - ${n}`);
   }
 
   const manual = [

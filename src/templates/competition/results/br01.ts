@@ -56,6 +56,7 @@ ${bracketBodyCss()}
   background: var(--panel-bg);
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a bracket reads as a tree at a glance even with few rounds */
 }
 
 /* The accent rule under the heading. */

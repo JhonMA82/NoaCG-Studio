@@ -90,6 +90,7 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow), var(--panel-keyline);  /* lift + the 1px inner edge */
   overflow: hidden;                 /* the accent edge follows the rounded corner */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for a short name — the void fills the rest */
 }
 
 /* The mark area — on the card's own surface, not in a filled block: a university mark is
