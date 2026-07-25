@@ -428,8 +428,27 @@ in `e2e/bench.spec.ts`'s `CATEGORIES` list gets automatically - `results-board` 
 list (a pre-existing gap this pass did not create or close), so the check was run by hand against
 the same `benchTemplateRuntime` helper; all 9 pass. Six designs were also screenshot-verified.
 
-The quiz-board footprint minimum (>= 55%) remains open, along with backgrounds on full-coverage
-graphics, the streaming pack, the data layer, the animation vocabulary, and vertical.
+**The quiz-board footprint minimum (>= 55%) is done.** Unlike the lower-third and results-board
+passes, no per-design edits were needed: all 12 quiz boards (`qz01`-`qz12`, the four-answer,
+three-answer and true/false content sharing one assembler) go through the single
+`assembleQuiz()` in `src/templates/quiz/shared.ts`, and none of them declared their own
+`.quiz-box` width - the wrap cap (`maxTextWidth`, previously 48% of frame) and the missing floor
+both lived in that one function. Measured at default sample data before the change, the twelve
+ranged 28.6-48.0% of frame - the widest design was already at the (too-narrow) cap. Raised the
+cap to 62% and added a `min-width: calc(1080px * var(--scale))` (56.3% at default data, comfortably
+above the 55% target and under the new cap) directly to the shared box rule, so every board picked
+it up in one edit. No exclusions: a quiz board is a data board like a results board, not a
+decorative strap, so "hug by intent" doesn't apply here either - confirmed by eye on the
+true/false designs (`qz05`, `qz07`), where the two answer columns split the reserved width evenly
+rather than leaving one side empty. Verified with build, type-floor, overflow sweep, the
+committed quiz runtime-bench gate (`quiz` IS in `e2e/bench.spec.ts`'s `CATEGORIES` list, unlike
+`results-board`), and both catalog baselines re-recorded after confirming only the 12 quiz
+variants moved. Six designs (spanning all three answer counts) also screenshot-verified.
+
+Both named footprint minimums from the original audit (`docs/TEMPLATE_CATALOG_AUDIT.md` §2/§6) are
+now met: lower thirds (89/89 assessed, 49 widened), results-board (9/9, all >= 50%), and quiz
+boards (12/12, all >= 55%). Still open: backgrounds on full-coverage graphics, the streaming pack,
+the data layer, the animation vocabulary, and vertical.
 
 ## Sources
 
