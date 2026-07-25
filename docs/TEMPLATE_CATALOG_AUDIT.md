@@ -333,9 +333,27 @@ family's smallest footprint - "a chip rather than a card... where a full-width s
 swallow the shot" - so reserving broadcast width there would defeat the design's own purpose;
 `lt47` Glass Sign has the same `[text | accent divider | optional logo]` flex-row shape that
 `lt54` was reverted for - with the logo off, a `min-width` would strand empty void after the
-divider instead of filling behind the text. The remaining panel straps across the 89 lower thirds
-are the same pattern applied further, and the rest of the catalog's footprint minimums
-(standings/results >= 50%, quiz boards >= 55%) follow the same per-design discipline.
+divider instead of filling behind the text.
+
+The third installment covered the rest of the glass and sport families: `lt10` Soft Stack, `lt49`
+Glass Board (glass) and `lt07` Number Badge, `lt40` Chevron, `lt41` Team Bar, `lt42` Right Slam,
+`lt44` Stat Strip, `lt57` Volt Call (sport) - 20/89 lower thirds now hold broadcast width.
+`lt42` Right Slam needed a companion `justify-content: flex-end` alongside its `min-width`: its
+accent bar is the LAST flex child on the outside (right) edge, so the default `flex-start`
+packing would have stranded the reserved void after the bar instead of on the inside toward
+centre - screenshot-verified the bar stays flush at the edge in both directions. Three more
+designs were left alone on inspection, for reasons distinct from the earlier exclusions: `lt09`
+Gradient Pill and `lt56` Frost Call are `border-radius: 999px` capsules - a pill reads as a
+compact chip/button, not a strap, so widening one to 31% of frame would just stretch an oval
+around a stranded label instead of reading as a broadcast bar (`lt09`'s own header calls it "one
+compact fully-rounded capsule"; `lt56`'s calls it "a compact pill alone"). `lt06` Split Bar's
+whole point is its stepped, badge-like silhouette - each line paints its own bar sized to its own
+text, and a shared `min-width` would flatten the two bars to one width and erase the effect the
+design exists for. `lt16` Frost Handle and `lt17` Volt Handle joined the compact-mark exclusions
+(`lt50`/`lt14`/`lt48`) - both are explicitly built to "persist quietly"/"sit... through a segment"
+rather than announce themselves. The remaining panel straps across the 89 lower thirds are the
+same pattern applied further, and the rest of the catalog's footprint minimums (standings/results
+>= 50%, quiz boards >= 55%) follow the same per-design discipline.
 
 Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
 the streaming pack, the data layer, the animation vocabulary, and vertical.

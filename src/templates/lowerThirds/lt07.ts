@@ -64,6 +64,7 @@ ${lineMasks(o, '        ')}
 .lower-third-box {
   display: flex;                   /* badge and text sit side by side */
   align-items: stretch;            /* the badge stretches to the text panel's height */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
   background: var(--panel-bg);     /* dark panel behind the text stack */
   box-shadow: var(--panel-shadow);  /* the slab's authored panel lift */
 }

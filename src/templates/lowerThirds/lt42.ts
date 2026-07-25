@@ -44,6 +44,8 @@ ${lineMasks(o, '        ')}
 .lower-third-box {
   display: flex;                   /* words and bar sit side by side */
   align-items: stretch;            /* the bar runs the slab's full height */
+  justify-content: flex-end;       /* the bar stays flush on the outside edge when min-width reserves extra room */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills on the inside, toward centre */
   background: var(--panel-bg);     /* dark panel behind the text stack */
   box-shadow: var(--panel-shadow);  /* the family's hard offset lift */
 }
