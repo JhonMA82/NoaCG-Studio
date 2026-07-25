@@ -410,11 +410,26 @@ the minimal family's other panel-less designs). `ls32` is covered above.
 sport, 4 minimal/editorial, 25 specialist - see this section and the two above); the remaining 40
 were excluded for one of five documented reasons: panel-free by family, deliberately-compact
 persistent marks, pill/capsule shapes, a design whose signature effect the floor would erase, or
-a trailing optional element the floor would strand. The rest of the catalog's footprint minimums
-(standings/results >= 50%, quiz boards >= 55%) are a separate pass with their own geometry.
+a trailing optional element the floor would strand.
 
-Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
-the streaming pack, the data layer, the animation vocabulary, and vertical.
+**The results-board footprint minimum (>= 50%) is done.** All 9 designs - `rs01`-`rs03` rosters,
+`st01`-`st04` standings/leaderboards, `br01`/`br02` brackets - already carried a `min-width` on
+`.results-board-box` from before this pass (538-900px, 28-47% of frame at default sample data:
+measured, not assumed), so the lever was already the right one; it just fell short of the target.
+Raised uniformly to `calc(1000px * var(--scale))` (52.1% at default data, comfortably under the
+category's 56% auto-fit cap `COMP_WIDTH.board`), `br01`/`br02` gained the same `min-width` they
+had never had (a bracket's width otherwise comes purely from `round count × 230px`, so a 1-2-round
+bracket rendered small). Unlike the lower-third pass, no design needed excluding: a results board
+is a data table, not a decorative strap, so even the two panel-less designs (`rs03`, `st04`) had
+already been given a `min-width` by whoever built the category - "hug by intent" does not apply to
+a table of rows and columns the way it does to a name strap. Verified with build, type-floor,
+overflow sweep, both catalog baselines, and a manual run of the runtime-bench check every category
+in `e2e/bench.spec.ts`'s `CATEGORIES` list gets automatically - `results-board` is not in that
+list (a pre-existing gap this pass did not create or close), so the check was run by hand against
+the same `benchTemplateRuntime` helper; all 9 pass. Six designs were also screenshot-verified.
+
+The quiz-board footprint minimum (>= 55%) remains open, along with backgrounds on full-coverage
+graphics, the streaming pack, the data layer, the animation vocabulary, and vertical.
 
 ## Sources
 

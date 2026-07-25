@@ -60,6 +60,7 @@ ${bracketBodyCss()}
   -webkit-backdrop-filter: var(--panel-blur);
   box-shadow: var(--panel-shadow);
   border-top: calc(3px * var(--scale)) solid color-mix(in srgb, var(--accent) 50%, transparent);
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a bracket reads as a tree at a glance even with few rounds */
 }
 
 /* The accent rule under the heading, wearing the house glow. */
