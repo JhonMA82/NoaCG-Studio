@@ -31,7 +31,8 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
   with the design pushes the graphic off screen. Scale the type and the padding around it; leave
   the box where the frame put it.
 - **Growing a graphic costs capacity.** Every design has a width budget, and the runtime bench
-  (`e2e/bench.spec.ts`) spends it by doubling the length of every text value. Enlarge the type and
+  (`e2e/catalog/catalog-bench.spec.ts`, `npm run test:e2e:catalog`) spends it by doubling the
+  length of every text value. Enlarge the type and
   that budget shrinks: elements collide, text clips, the strap runs off frame. So a design may
   grow at most **1.25x** to reach the floor; past that, raise the small labels to the floor and
   leave the geometry alone. A design already at its bench limit takes the label change only - and

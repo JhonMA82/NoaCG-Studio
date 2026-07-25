@@ -268,8 +268,13 @@ new nested area or a new shared command needs no separate registration - only co
   fails on any box that newly escapes the 1920x1080 frame or clips its own content, diffing
   against `scripts/overflow-baseline.json` (~200 variants clip by design - reveal masks, ticker/
   crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
-  change). Neither measures capacity: `npx playwright test bench.spec.ts` is the ONLY gate that
-  catches a design growing past its width budget (it doubles every text value), so run it too.
+  change). Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
+  `e2e/catalog/catalog-bench.spec.ts`) is the ONLY gate that catches a design growing past its
+  width budget (it doubles every text value), so run it too. It is intentionally excluded from
+  the default `npm run test:e2e` merge-gate suite - benching every catalog variant across every
+  category is the single heaviest thing in the suite, and (like the other two gates above) it
+  only needs to run when the catalog or `src/validation/runtimeBench.ts` actually changed;
+  `npm run test:e2e:affected` already knows this and runs it automatically when relevant.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

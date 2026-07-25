@@ -5,8 +5,8 @@
 // This is the deterministic half of the AI harness's quality guarantee: validateTemplate
 // checks the code's structure, this bench checks its observable behaviour. Every finding is
 // a teaching message (the exact text is fed back to the model in a repair round), and the
-// whole catalog must pass its own bench - e2e/bench.spec.ts runs it over every variant, so
-// the thresholds are calibrated against the house's own artifacts.
+// whole catalog must pass its own bench - e2e/catalog/catalog-bench.spec.ts runs it over every
+// variant, so the thresholds are calibrated against the house's own artifacts.
 //
 // Browser-only (needs a live DOM); the AI provider never imports it - the UI injects it as
 // an SpxValidator (src/ai/provider.ts), the same seam the video harness uses.

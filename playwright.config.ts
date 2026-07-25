@@ -9,8 +9,11 @@ const base = `http://localhost:${devPort()}`;
 export default defineConfig({
   testDir: './e2e',
   // The authed community flows live in e2e/configured and run under playwright.live.config.ts (a
-  // configured, signed-in backend). Keep them out of this offline-pinned suite.
-  testIgnore: '**/configured/**',
+  // configured, signed-in backend). The exhaustive catalog calibration tripwire lives in
+  // e2e/catalog and runs under playwright.catalog.config.ts (npm run test:e2e:catalog) - it is a
+  // catalog-wide quality gate, not a feature-flow test, so it stays out of the default merge-gate
+  // suite the same way the authed flows do.
+  testIgnore: ['**/configured/**', '**/catalog/**'],
   timeout: 30_000,
   expect: { timeout: 7_000 },
   // The suite is parallel-safe: every test gets a fresh browser context (isolated storage),

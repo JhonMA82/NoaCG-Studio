@@ -14,8 +14,8 @@ here is a second engine.
 Contracts: `src/templates/alerts/shared.ts`, `src/templates/publicInfo/shared.ts`,
 `src/templates/tickers/shared.ts`. Machines: `src/templates/types/alertLevel.ts`,
 `src/templates/types/publicNotice.ts`, `src/templates/types/ticker.ts`.
-Tests: `e2e/public-service.spec.ts` (behaviour), `e2e/bench.spec.ts` (the calibration
-tripwire, now covering both new categories), `e2e/catalog-baseline.spec.ts` (source + render).
+Tests: `e2e/public-service.spec.ts` (behaviour), `e2e/catalog/catalog-bench.spec.ts` (the
+calibration tripwire, now covering both new categories), `e2e/catalog-baseline.spec.ts` (source + render).
 
 ---
 
@@ -120,7 +120,7 @@ Every claim below is an assertion in `e2e/public-service.spec.ts` unless stated 
 | **Save / load** | Three machine-bearing graphics saved to the library, the page RELOADED, then read back from storage: still valid, still carrying their groups, their state counts and their control events. |
 | **Exports** | All six targets × three graphics = 18 packages. Each builds, carries a code file, loads nothing off the network, and every relative reference it makes resolves to a file inside the package (the dangling-reference class). The severity blocks, the language columns and the ticker track all survive packaging. |
 | **Canonical validation** | `validateTemplate` clean (0 errors, 0 warnings) on all 29 — including `validateMachine`, which would error on a timer armed against a timeline that never ends. |
-| **Runtime bench** | `e2e/bench.spec.ts`'s calibration tripwire now runs `alert` and `public-info` too: all 29 pass overlap, overflow, stress, hidden-on-stop, binding and the house editability contract. |
+| **Runtime bench** | `e2e/catalog/catalog-bench.spec.ts`'s calibration tripwire now runs `alert` and `public-info` too: all 29 pass overlap, overflow, stress, hidden-on-stop, binding and the house editability contract. |
 | **Category sweeps** | `node scripts/l3-sweep.mjs <dir> alert` (10/10 clean), `public-info` (9/9), `ticker` (20/20, twice). |
 | **Baselines** | Source + render baselines re-recorded. No PRE-EXISTING entry moved — the diff is additions only, which is what proves the shared assembler changes were additive. |
 | **Look** | `node scripts/pack8-shots.mjs <dir>` renders all 29 settled over a video-like backdrop, plus the severity ramp and the rotator's second language. |

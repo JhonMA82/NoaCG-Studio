@@ -191,7 +191,7 @@ const CAPTURE = `(async () => {
         // colour, radius, blur, shadow, weight, tracking, and the layout those imply — is
         // fully determined by the CSS with no timeline running at all. Removing motion from
         // the measurement removes the whole class of timing flake with it. The animated
-        // runtime is still covered, by bench.spec.ts.
+        // runtime is still covered, by e2e/catalog/catalog-bench.spec.ts.
         const still = doc.createElement('style');
         still.textContent =
           '*, *::before, *::after { animation: none !important; transition: none !important; }' +

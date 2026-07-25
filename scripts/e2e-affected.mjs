@@ -64,6 +64,12 @@ const CORE = [
 // Files that never affect the offline e2e surface.
 const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^\.dependency-cruiser\.cjs$/];
 
+// Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
+// e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
+// type-floor.mjs/overflow-sweep.mjs: it only needs to run when the catalog itself, or the
+// runtime bench it's calibrated against, could have changed.
+const CATALOG_TRIGGERS = [/^src\/templates\//, /^src\/blocks\//, /^src\/assets\//, /^src\/validation\/runtimeBench\.ts$/];
+
 const args = process.argv.slice(2);
 const listOnly = args.includes('--list');
 const baseArg = args.find((a) => !a.startsWith('--'));
@@ -88,9 +94,11 @@ if (changed.length === 0) {
 
 const specs = new Set();
 let full = false;
+let catalogAffected = false;
 const unmapped = [];
 for (const file of changed) {
   if (IGNORE.some((r) => r.test(file))) continue;
+  if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalogAffected = true;
   if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
     specs.add(file.replace(/^e2e\//, ''));
     continue;
@@ -108,6 +116,9 @@ for (const file of changed) {
     for (const [, list] of rules) for (const s of list) specs.add(s);
   }
 }
+// A core/unmapped change gets the same conservative default the offline suite gets: assume it
+// could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
+if (full) catalogAffected = true;
 
 if (unmapped.length > 0) {
   console.log('e2e-affected: no mapping for these files (falling back to the full suite):');
@@ -117,15 +128,26 @@ if (unmapped.length > 0) {
 const plan = full ? [] : [...specs].sort();
 if (full) {
   console.log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
-} else if (plan.length === 0) {
+} else if (plan.length === 0 && !catalogAffected) {
   console.log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
   process.exit(0);
-} else {
+} else if (plan.length > 0) {
   console.log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
   for (const s of plan) console.log('  -', s);
+}
+if (catalogAffected) {
+  console.log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
 }
 
 if (listOnly) process.exit(0);
 
-const result = spawnSync('npx', ['playwright', 'test', ...plan], { stdio: 'inherit', shell: true });
-process.exit(result.status ?? 1);
+let status = 0;
+if (plan.length > 0 || full) {
+  const result = spawnSync('npx', ['playwright', 'test', ...plan], { stdio: 'inherit', shell: true });
+  status = result.status ?? 1;
+}
+if (catalogAffected) {
+  const catalogResult = spawnSync('npx', ['playwright', 'test', '--config=playwright.catalog.config.ts'], { stdio: 'inherit', shell: true });
+  status = status || (catalogResult.status ?? 1);
+}
+process.exit(status);

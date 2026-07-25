@@ -757,7 +757,7 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
 - [x] **The runtime bench in the loop** — every AI result is exercised in a live iframe
       (lifecycle, field binding, overlap/overflow, doubled-text stress, house editability);
       findings feed repair rounds verbatim; the whole catalog must pass its own bench
-      (e2e/bench.spec.ts calibration tripwire). The offline stub assembles catalog-grade
+      (e2e/catalog/catalog-bench.spec.ts calibration tripwire). The offline stub assembles catalog-grade
       results through the same pipeline.
 - [x] **Value proven, not assumed** — per-run telemetry (tokens, latency, calls, repairs,
       route, variant diversity) + scripts/ai-compare.mjs rebuilt as the standing proof: same
