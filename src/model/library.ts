@@ -10,6 +10,7 @@
 
 import type { SpxTemplate, TemplateType } from './types';
 import type { GenerationSpec } from './generationSpec';
+import type { AiThread } from './aiThread';
 import { loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { uuid } from './id';
 
@@ -47,6 +48,10 @@ export interface GraphicDoc {
    *  with the save so a later refine can start from the same structured decisions. Additive
    *  optional; rides the sync record unchanged. */
   aiSpec?: GenerationSpec | null;
+  /** The Create-with-AI conversation this graphic was created from (model/aiThread.ts) — kept
+   *  with the save so the graphic carries the reasoning that produced it. Additive optional,
+   *  same rails as aiSpec (no version bump: rule 6, additive fields never bump). */
+  aiThread?: AiThread | null;
 }
 
 const GRAPHICS_KEY = 'spx-gfx-graphics';
@@ -121,6 +126,7 @@ export function createGraphic(
     entries?: ControlEntry[];
     activeEntryId?: string | null;
     aiSpec?: GenerationSpec | null;
+    aiThread?: AiThread | null;
   },
 ): { doc: GraphicDoc; error: string | null } {
   const doc: GraphicDoc = {
@@ -134,6 +140,7 @@ export function createGraphic(
     entries: opts.entries ?? [],
     activeEntryId: opts.activeEntryId ?? null,
     aiSpec: opts.aiSpec ?? null,
+    aiThread: opts.aiThread ?? null,
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
@@ -145,7 +152,7 @@ export function createGraphic(
 /** Update fields of an existing graphic (the Save path, rename, move, entries…). */
 export function updateGraphic(
   id: string,
-  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec'>>,
+  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread'>>,
 ): { doc: GraphicDoc | null; error: string | null } {
   const all = rawGraphics();
   const doc = all.find((g) => g.id === id && !g.deleted);

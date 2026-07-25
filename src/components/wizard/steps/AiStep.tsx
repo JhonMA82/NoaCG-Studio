@@ -23,6 +23,7 @@ import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../..
 import { importTemplateFile, isTemplateFile } from '../../../model/importTemplate';
 import { loadLooks } from '../../../model/packets';
 import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
+import type { AiThread, AiThreadMessage } from '../../../model/aiThread';
 import type { Palette } from '../../../model/wizard';
 import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
 import { benchTemplateRuntime, mergeResults } from '../../../validation/runtimeBench';
@@ -41,6 +42,10 @@ interface Props {
   /** `spec` is the structured setup the result was generated under (null = prompt-only) —
    *  the wizard saves it with the created project. */
   onResult: (template: SpxTemplate | null, valid: boolean, spec?: GenerationSpec | null) => void;
+  /** The conversation as it stands (talk turns only), reported on every change so the created
+   *  project can carry the reasoning that produced it (persisted as GraphicDoc.aiThread). Fires
+   *  independently of onResult so talk added AFTER the last result, before Create, is caught. */
+  onThread: (thread: AiThread | null) => void;
   /** Byte-faithful open of a dropped .html/.zip template — no AI, applies and closes. */
   onOpenImported: (template: SpxTemplate) => void;
   /** Continue into the catalog flow designing AROUND the dropped images (no AI needed). */
@@ -116,6 +121,7 @@ export default function AiStep({
   brandPalette,
   result,
   onResult,
+  onThread,
   onOpenImported,
   onUseTemplates,
 }: Props) {
@@ -193,6 +199,16 @@ export default function AiStep({
       .map((t) => ({ role: t.kind === 'you' ? 'user' : 'assistant', text: t.text }));
 
   const say = (turn: Turn) => setTurns((prev) => [...prev, turn]);
+
+  // Report the conversation up whenever it changes, so the created project carries it (persisted
+  // as GraphicDoc.aiThread). Only the talk turns travel — the `past` generation snapshots are a
+  // wizard-session affordance the editor cannot show, and would be heavy to persist (aiThread.ts).
+  useEffect(() => {
+    const messages: AiThreadMessage[] = turns
+      .filter((t): t is TalkTurn => t.kind === 'you' || t.kind === 'ai')
+      .map((t) => ({ role: t.kind === 'you' ? 'user' : 'assistant', text: t.text }));
+    onThread(messages.length ? { version: 1, messages } : null);
+  }, [turns, onThread]);
 
   /** Move the current result into the transcript before a new one takes its place. */
   const archiveCurrent = () => {

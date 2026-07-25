@@ -733,6 +733,47 @@ test('describe-it: refine sends the current code back through modify', async ({ 
   expect(prompts[1]).toContain('Test Slate');
 });
 
+test('the conversation that produced an AI graphic travels with it, and survives a reload', async ({ page }) => {
+  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+    const tool = requestedTool(route);
+    if (!tool)
+      return route.fulfill(
+        textReply('A substitutions strap wants the player names side by side.\nBRIEF: A football substitution strap.'),
+      );
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('halftime of a local derby, something for substitutions');
+  await page.getByTestId('ai-talk').click();
+  await expect(page.getByTestId('ai-thread')).toContainText('side by side');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  await page.getByRole('button', { name: 'Create project' }).click();
+  // The picked grounded direction becomes the project (harness on assembles from the catalog).
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded One');
+
+  // The editor's AI panel carries the conversation the graphic was created from, read-only —
+  // both sides of the exchange, not just the picked brief.
+  await page.getByTestId('dock-tab-ai').click();
+  const origin = page.getByTestId('ai-origin');
+  await expect(origin).toContainText('halftime of a local derby');
+  await expect(origin).toContainText('side by side');
+
+  // It rode the autosave slot, so a fresh session restores it — the whole point of (c) over a
+  // session-only thread.
+  await page.waitForFunction(() => {
+    const raw = localStorage.getItem('spx-gfx-project');
+    if (!raw) return false;
+    const p = JSON.parse(raw) as { aiThread?: { messages?: unknown[] } };
+    return !!p.aiThread?.messages?.length;
+  });
+  await page.reload();
+  await page.getByTestId('dock-tab-ai').click();
+  await expect(page.getByTestId('ai-origin')).toContainText('halftime of a local derby');
+});
+
 test('describe-it: without a key, generation is gated and settings open', async ({ page }) => {
   // An explicitly EMPTY saved key (not a removed one): the developer's own .env key would
   // otherwise configure the app through the env fallback and break the premise.

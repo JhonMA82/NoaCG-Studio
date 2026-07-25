@@ -391,16 +391,26 @@ answered "0 s" for a sub-second run; it now says "<1 s".
 
 1. **Kit scope (Phase 5):** which graphics belong in a default kit — fixed list per genre, or
    AI-proposed from the brief and user-trimmed?
-2. **Conversation persistence (Phase 2) — OPEN, and currently answered the safe way.** The
-   thread is session-only: closing the wizard loses it, and creating a project does not carry
-   it. Three options, none free:
-   - *Leave it* (today). No persisted-format change, no migration, no staleness.
+2. **Conversation persistence (Phase 2) — RESOLVED 2026-07-25: persist with the project.**
+   The thread now travels with the created graphic. AiStep reports its talk turns up
+   (`onThread`); `createFromAi` commits them to the store's `aiThread`, which rides the same
+   rails as `aiSpec` — `SavedProject.aiThread` (autosave slot) and `GraphicDoc.aiThread` (every
+   Save), synced. The editor's AI panel shows the carried conversation read-only ("Created from
+   this conversation"). Only the talk turns travel; the `past` generation snapshots are a
+   wizard-session affordance, heavy to persist and unshowable in the editor (`model/aiThread.ts`).
+
+   **Correction to the cost stated when this question was raised:** it does NOT need a version
+   bump or a migration. `aiThread` is an ADDITIVE OPTIONAL field, and rule 6 is explicit —
+   "additive optional fields never bump the version." It is the exact pattern `aiSpec` already
+   shipped under: `SavedProject` has no version field at all, and `GraphicDoc` stayed `version: 1`
+   when `aiSpec` was added. Bumping `GraphicDoc` to 2 would have been wrong — every current build
+   would treat new records as an unknown version and degrade them read-only for no reason.
+
+   The two rejected options, for the record:
+   - *Leave it session-only* (the Phase 2 default). No persistence, no staleness.
    - *Cross-session draft* (localStorage, like the More-control spec draft). Survives closing
-     the wizard; a weeks-old conversation can then silently become context for a new brief.
-   - *Persist with the project* (like the video shell's chat). The most useful — a graphic
-     would carry the reasoning that produced it, and a later "make this warmer" could read it
-     — but `GraphicDoc`/`SavedProject` are versioned persisted formats, so it needs a version
-     bump and a migration in the same commit (root CLAUDE.md rule 6).
+     the wizard; a weeks-old conversation could then silently become context for an unrelated
+     brief — the staleness (c) avoids by binding the conversation to its own graphic.
 3. **Phase 3 budget:** is a real-token `ai-compare` run authorised, and at what bank size?
 4. **Custom-brief machines:** should the AI ever propose states/events for an off-catalog
    brief, or does the operator model stay type-derived only?

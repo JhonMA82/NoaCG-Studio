@@ -6,6 +6,7 @@
 
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
+import type { AiThread } from './aiThread';
 import { uuid } from './id';
 
 export interface SavedProject {
@@ -26,6 +27,10 @@ export interface SavedProject {
   /** The AI generation spec this project was created from (the "More control" setup), kept
    *  so a later refine can start from the same structured decisions. Additive optional. */
   aiSpec?: GenerationSpec | null;
+  /** The Create-with-AI conversation this project was created from (model/aiThread.ts), kept
+   *  so the graphic carries the reasoning that produced it. Additive optional — same rails as
+   *  aiSpec. */
+  aiThread?: AiThread | null;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
 }
@@ -59,6 +64,7 @@ export function saveProject(
   baseline?: SpxTemplate,
   link?: { graphicId: string | null; dirty: boolean },
   aiSpec?: GenerationSpec | null,
+  aiThread?: AiThread | null,
 ): void {
   try {
     const existing = loadProject();
@@ -73,6 +79,8 @@ export function saveProject(
       dirty: link ? link.dirty : existing?.dirty ?? false,
       // undefined = a plain autosave carries the spec over; null explicitly clears it.
       aiSpec: aiSpec === undefined ? existing?.aiSpec ?? null : aiSpec,
+      // Same rule for the conversation: carry it over on a plain autosave, clear on explicit null.
+      aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();

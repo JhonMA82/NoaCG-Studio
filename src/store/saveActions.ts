@@ -18,13 +18,14 @@ import {
 } from '../model/library';
 import { createPacketNamed } from '../model/packets';
 import { saveProject } from '../model/project';
+import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 
 /** Persist the working slot's save link NOW — the autosave subscription only fires on a
  *  template change, and a Save that changes nothing else must still survive a reload. */
 function persistLink(): void {
   const s = useTemplateStore.getState();
-  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec);
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
 }
 
 /** Where a first save / Save As puts the graphic. */
@@ -47,7 +48,7 @@ export function saveCurrentGraphic(): 'saved' | 'needs-name' | 'failed' {
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
-  const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec });
+  const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread });
   if (!doc || error) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
     if (!doc) {
@@ -70,6 +71,7 @@ export function saveGraphicAs(name: string, dest: SaveDestination): { ok: boolea
     packageId: destPackageId(dest),
     baseline: s.baseline,
     aiSpec: s.aiSpec,
+    aiThread: s.aiThread,
   });
   if (error) {
     s.setSaved({ ...s.saved, status: 'failed' });
@@ -94,8 +96,8 @@ export function openGraphicDoc(doc: GraphicDoc): void {
   store.applyTemplate(doc.template, { resetSampleData: true });
   useDocKindStore.getState().setKind('spx');
   if (doc.baseline) useTemplateStore.setState({ baseline: doc.baseline });
-  // The swap cleared the working spec; a saved AI creation brings its own back.
-  useTemplateStore.setState({ aiSpec: doc.aiSpec ?? null });
+  // The swap cleared the working spec and conversation; a saved AI creation brings its own back.
+  useTemplateStore.setState({ aiSpec: doc.aiSpec ?? null, aiThread: normalizeThread(doc.aiThread) });
   const entry = doc.activeEntryId ? doc.entries.find((e) => e.id === doc.activeEntryId) : null;
   if (entry) {
     for (const [field, value] of Object.entries(entry.values)) {

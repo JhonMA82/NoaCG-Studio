@@ -19,6 +19,10 @@ export default function AIPromptPanel() {
   const template = useTemplateStore((s) => s.template);
   const activeTab = useTemplateStore((s) => s.activeTab);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
+  // The Create-with-AI conversation this graphic was created from (null unless it was an AI
+  // creation). Carried with the project (GraphicDoc.aiThread) and shown read-only below, so
+  // the reasoning that produced the graphic travels with it.
+  const aiThread = useTemplateStore((s) => s.aiThread);
   const { needsSignIn } = useAuthState();
 
   const [prompt, setPrompt] = useState('');
@@ -84,6 +88,21 @@ export default function AIPromptPanel() {
           )}
         </p>
       </div>
+
+      {aiThread && aiThread.messages.length > 0 && (
+        // Read-only: the conversation is a record of how the graphic was described, not a live
+        // thread. Refining here is the Modify/Fix buttons below; this just carries the reasoning.
+        <details className="ai-origin" data-testid="ai-origin">
+          <summary>Created from this conversation</summary>
+          <div className="ai-origin-thread">
+            {aiThread.messages.map((m, i) => (
+              <div key={i} className={`ai-msg ${m.role === 'user' ? 'user' : 'assistant'}`}>
+                <span>{m.text}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       <textarea
         rows={3}
