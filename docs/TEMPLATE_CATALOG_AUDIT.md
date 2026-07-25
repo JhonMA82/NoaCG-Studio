@@ -303,8 +303,31 @@ already do so (tickers and credit crawls scroll past the edge by design); and a 
 changed categories. The affected-spec sweep ended 511 passed / 2 failed, both green in isolation and
 in the disjoint-set pattern of concurrent-worktree contention rather than a code fault.
 
-Still open from §6: footprint minimums, backgrounds on full-coverage graphics, the streaming pack,
-the data layer, the animation vocabulary, and vertical.
+That overflow sweep is now a committed gate: `scripts/overflow-sweep.mjs`. It renders every
+variant at 1920x1080, settles it, and reports any painted box that escapes the frame or clips its
+own content, diffing against `scripts/overflow-baseline.json` (202 variants escape or clip by
+design - reveal masks, ticker and credit-crawl scroll, transition covers that slide in from
+off-frame, decorative glow/divider bleed) so only a NEW escape fails. Re-record the baseline with
+`--update-baseline` on a deliberate look change, the same discipline as the two catalog baselines.
+
+**The footprint pass (§6 item 1's second half) has started with the NoaCG house straps.** The
+type-floor lift moved the lower-third median from 22% to 24% of frame width as a side effect;
+the 32% target is a per-design geometry pass that scaling cannot reach (the capacity limit). The
+lever is a scale-aware `min-width` on filled-panel straps - it reserves a broadcast-width bar and
+left-aligns the text in the void, and it is capacity-safe by construction (long text already
+exceeds it, so it never eats the bench's wrap headroom; it sits under the max-width cap, so it
+never pushes off frame). Now documented as **"the strap floor"** in `docs/DESIGN_LANGUAGE.md` §5.
+Applied to the six house designs whose shape is a filled strap - `lt11` House Strap (25 -> 32%),
+`lt13` House Interview, `lt51` House Center, `lt52` House Right, `lt55` House Call and `lt53`
+House Board (27 -> 36%) - each screenshot-verified at default and short-name lengths. Deliberately
+left alone: the compact tags and social-handle marks (`lt50`, `lt14` - the matrix's compact size
+class), the trailing-logo ident (`lt54`, where a reserved width strands the empty logo well), and
+the already-wide `lt12`. The glass cards, sport slabs and the other panel straps across the 89
+lower thirds are the same pattern applied further, and the rest of the catalog's footprint
+minimums (standings/results >= 50%, quiz boards >= 55%) follow the same per-design discipline.
+
+Still open from §6: the rest of the footprint minimums, backgrounds on full-coverage graphics,
+the streaming pack, the data layer, the animation vocabulary, and vertical.
 
 ## Sources
 

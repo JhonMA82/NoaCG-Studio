@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getAiProvider } from '../ai';
+import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
 import { useAuthState } from './auth/useAuthState';
 import SignInPrompt from './auth/SignInPrompt';
@@ -45,13 +46,20 @@ export default function AIPromptPanel() {
   // full Generate (a brand-new template, no cursor or surgical intent to preserve) and formats
   // HTML only — CSS keeps its house comment alignment and JS keeps its timeline-owned animation
   // region (see src/format/formatCode.ts). Modify/Fix stay byte-faithful to the AI's edit.
+  //
+  // The result is screened for unsafe JS as well as validated (src/ai/safety.ts): what the AI
+  // wrote can be steered by an uploaded reference or by an imported file, and the confirm-before-
+  // apply card is where that has to be caught. A MODIFY passes the current template as the source,
+  // so code the user themselves put there (a Live data block calls fetch) is not reported as
+  // something the AI introduced; a GENERATE — a brand-new template — passes none.
   const runChange = async (fn: () => Promise<TemplateChange>, autoFormat = false) => {
     setBusy(true);
     setExplanation(null);
     try {
       let change = await fn();
       if (autoFormat) change = { ...change, template: await formatTemplate(change.template) };
-      setPending({ change, validation: validateTemplate(change.template) });
+      const base = validateTemplate(change.template);
+      setPending({ change, validation: mergeSafety(base, change.template, autoFormat ? null : template) });
     } finally {
       setBusy(false);
     }

@@ -18,6 +18,25 @@ async function openRenderPanel(page: Page) {
   await expect(page.getByTestId('render-breakdown')).not.toContainText('Measuring', { timeout: 15_000 });
 }
 
+/** Walk the wizard to Finish and take the EXPORT door, landing in the standalone ExportWindow
+ *  (the same surface Home's ⬇ card opens) with the editor never revealed. */
+async function openExportWindowViaFinish(page: Page, name: string) {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByTestId('wz-finish-name').fill(name);
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+}
+
+/** The render section, once measured, inside a given root (the dock panel or the modal). */
+async function awaitRenderMeasured(root: ReturnType<Page['getByTestId']>) {
+  await expect(root.getByTestId('render-panel')).toBeVisible();
+  await expect(root.getByTestId('render-breakdown')).not.toContainText('Measuring', { timeout: 15_000 });
+}
+
 test('render section lists the five formats and a real timing breakdown', async ({ page }) => {
   await createHairline(page);
   await openRenderPanel(page);
@@ -146,4 +165,60 @@ test('cancel mid-render returns to the idle form', async ({ page }) => {
   await expect(page.getByTestId('render-error')).toContainText('Render cancelled');
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByTestId('render-start')).toBeVisible();
+});
+
+// The render section is part of the STORE-INDEPENDENT ExportSurface, so it must also work
+// inside the standalone ExportWindow — the surface reached without ever opening the editor
+// (the wizard's Finish export door, and a saved graphic's ⬇ on Home). render.spec's other
+// cases only ever drive the dock panel; these two exercise the modal.
+
+test('the standalone export window carries the render section, measured off the saved record', async ({ page }) => {
+  await createHairline(page);
+  // Save it, then export from Home's ⬇ card — the door that reads the RECORD's template, not
+  // the store, so the render section here measures a graphic independent of the working doc.
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Saved Render Target');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('export-graphic').first().click();
+  const win = page.getByTestId('export-window');
+  await expect(win).toBeVisible();
+
+  await awaitRenderMeasured(win);
+  for (const id of ['mp4', 'webm', 'png-still', 'png-sequence', 'prores4444']) {
+    await expect(win.getByTestId(`render-format-${id}`)).toBeVisible();
+  }
+  const breakdown = win.getByTestId('render-breakdown');
+  await expect(breakdown).toContainText('In');
+  await expect(breakdown).toContainText('Out');
+  await expect(win.getByTestId('render-start')).toBeEnabled();
+});
+
+test('a render runs to a download from inside the standalone export window (stubbed API)', async ({ page }) => {
+  const statuses = [
+    { state: 'rendering', percent: 45, format: 'mp4', jobId: 'jw', frames: { rendered: 60, encoded: 0, total: 150 } },
+    {
+      state: 'complete', percent: 100, format: 'mp4', jobId: 'jw',
+      output: { url: '/api/render/file?id=jw', downloadUrl: '/api/render/file?id=jw', bytes: 250_000, contentType: 'video/mp4', expiresAt: new Date(Date.now() + 3600_000).toISOString() },
+    },
+  ];
+  let statusCalls = 0;
+  await page.route('**/api/render/start', (route) =>
+    route.fulfill({ status: 202, json: { jobId: 'jw', jobToken: 'tok', pollIntervalMs: 100, totalFrames: 150 } }));
+  await page.route('**/api/render/status**', (route) =>
+    route.fulfill({ status: 200, json: statuses[Math.min(statusCalls++, statuses.length - 1)] }));
+
+  await openExportWindowViaFinish(page, 'Windowed Render');
+  const win = page.getByTestId('export-window');
+  await awaitRenderMeasured(win);
+
+  await win.getByTestId('render-start').click();
+  await expect(win.getByTestId('render-progress')).toBeVisible();
+  await expect(win.getByTestId('render-result')).toBeVisible({ timeout: 10_000 });
+  await expect(win.getByTestId('render-result')).toContainText('MP4');
+  const href = await win.getByTestId('render-download').getAttribute('href');
+  expect(href).toContain('/api/render/file?id=jw');
+  expect(href).toContain('token=tok');
 });
