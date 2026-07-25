@@ -140,6 +140,21 @@ test('template cards frame onto the graphic, not the empty canvas around it', as
   // performs. Assert the framing is real (zoomed past the whole-canvas fit) and that the
   // graphic sits INSIDE its card rather than being cropped by the zoom.
   await page.goto('/app');
+  // MiniPreview's iframe carries no allow-same-origin (it renders unvetted designs), so its
+  // settled box arrives over postMessage rather than a contentDocument read — the listener must
+  // be live before any card mounts, since postMessage is a one-shot event, not readable state.
+  await page.evaluate(() => {
+    (window as unknown as { __miniBoxes: Map<MessageEventSource, unknown> }).__miniBoxes =
+      new Map();
+    window.addEventListener('message', (ev) => {
+      const data = ev.data as { type?: string } | undefined;
+      if (data?.type === 'spx-preview-box' && ev.source) {
+        (
+          window as unknown as { __miniBoxes: Map<MessageEventSource, unknown> }
+        ).__miniBoxes.set(ev.source, ev.data);
+      }
+    });
+  });
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
@@ -151,20 +166,22 @@ test('template cards frame onto the graphic, not the empty canvas around it', as
     const cards = [...document.querySelectorAll('.wz-variant')].slice(0, 5);
     cards[0]?.scrollIntoView();
     await new Promise((r) => setTimeout(r, 2500));
+    const boxes = (window as unknown as { __miniBoxes: Map<Window, { x: number; y: number; w: number; h: number }> })
+      .__miniBoxes;
     const out: { zoom: number; insideL: boolean; insideR: boolean }[] = [];
     cards.forEach((card) => {
       const mini = card.querySelector('.wz-mini')!.getBoundingClientRect();
       const f = card.querySelector('iframe') as HTMLIFrameElement | null;
-      const inner = f?.contentDocument?.body?.querySelector('div')?.getBoundingClientRect();
+      const inner = f?.contentWindow ? boxes.get(f.contentWindow) : undefined;
       if (!f || !inner) return;
       const fr = f.getBoundingClientRect();
       const scale = fr.width / f.offsetWidth;         // rendered scale of the canvas
       const fit = mini.width / f.offsetWidth;          // the whole-canvas fit it replaces
-      const gx = fr.left + inner.left * scale;
+      const gx = fr.left + inner.x * scale;
       out.push({
         zoom: scale / fit,
         insideL: gx >= mini.left - 1,
-        insideR: gx + inner.width * scale <= mini.right + 1,
+        insideR: gx + inner.w * scale <= mini.right + 1,
       });
     });
     return out;

@@ -11,6 +11,11 @@
  * wizard's template cards (wizard/MiniPreview) and Home's library cards (home/GraphicThumb) - and
  * a card that framed differently from the picker card it came from would read as a different
  * design.
+ *
+ * Both those surfaces show untrusted content, so their iframes carry no `allow-same-origin` -
+ * the box arrives over `postMessage` from composeDocument's settle script, not by reading
+ * `contentDocument` from here. WizardPreview (same-origin, its own template) still measures its
+ * own box directly.
  */
 
 /** The graphic's bounding box in CANVAS px (the iframe body is full-bleed and untransformed). */
@@ -34,24 +39,6 @@ const INSET = 0.05;
 /** How far past the plain whole-canvas fit the zoom may go - so a tiny corner bug is not blown
  *  up past its own detail. */
 const MAX_ZOOM = 4;
-
-/**
- * Measure the graphic inside a settled preview iframe, or null when it cannot be read (a
- * cross-origin document, a template that throws, nothing rendered yet).
- *
- * Call it AFTER settling: mid-entrance a graphic can still sit off-canvas, and framing on that
- * would park the card on empty space.
- */
-export function measureGraphicBox(frame: HTMLIFrameElement | null): GraphicBox | null {
-  try {
-    const root = frame?.contentDocument?.body?.querySelector('div');
-    const r = root?.getBoundingClientRect();
-    if (!r || r.width <= 0 || r.height <= 0) return null;
-    return { x: r.left, y: r.top, w: r.width, h: r.height };
-  } catch {
-    return null;
-  }
-}
 
 /** What to apply to the canvas-sized iframe: a scale plus a canvas-px slide of the graphic's box
  *  to the middle. */
