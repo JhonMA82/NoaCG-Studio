@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   listMyShows,
   createShow,
@@ -28,6 +28,9 @@ export default function ModerationPanel({ onClose }: Props) {
   const [queue, setQueue] = useState<ChatRow[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  // Dismiss only when the backdrop click's press began there, so a drag-select out of the
+  // new-show title field never closes and drops what was typed. See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
 
   useEffect(() => {
     void listMyShows().then((s) => {
@@ -86,7 +89,14 @@ export default function ModerationPanel({ onClose }: Props) {
   const sorted = [...queue].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.created_at.localeCompare(a.created_at));
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal pk-modal">
         <div className="wz-header">
           <div>

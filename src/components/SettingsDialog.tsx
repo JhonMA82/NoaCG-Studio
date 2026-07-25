@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AI_MODELS, loadAiSettings, saveAiSettings } from '../ai/settings';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
@@ -17,6 +17,9 @@ interface Props {
  */
 export default function SettingsDialog({ onClose }: Props) {
   useModalGate(); // global editor shortcuts stand down while this is up
+  // A text-selection drag that starts in a field and releases on the backdrop routes its click
+  // to the backdrop; only dismiss when the press ALSO started there. See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
   const [ai, setAi] = useState(loadAiSettings);
   const [prefs, setPrefs] = useState(loadPrefs);
 
@@ -30,7 +33,14 @@ export default function SettingsDialog({ onClose }: Props) {
   };
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal pk-modal settings-modal" data-testid="settings">
         <div className="wz-header">
           <div>
