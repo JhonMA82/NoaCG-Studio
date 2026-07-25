@@ -51,6 +51,26 @@ export interface TypePart {
   required: boolean;
 }
 
+/**
+ * A LINE part is always optional, and a `required: true` on one is a trap.
+ *
+ * `create()` re-checks the required parts on EVERY call, and a design is index-safe (maskLine
+ * emits nothing for a line the caller left out, so a cleared field takes no space — the whole
+ * premise of the info-card pack). So creating with fewer lines than a required line's index —
+ * which the catalog sweep does deliberately, a two-line create to test wrapping — legitimately
+ * emits fewer `#fN` elements, and a required one then makes `create()` THROW instead of
+ * degrading. Only STRUCTURAL parts a design always emits regardless of line count (the box, a
+ * divider, an alert wash) may be required; a line part is documented but optional. That a design
+ * emits its lines at all at the full field set is proven by the fields gate and by the
+ * `create({})` the conformance spec runs — not by making a partial create throw.
+ */
+export const optionalLine = (id: string, selector: string): TypePart => ({
+  id,
+  selector,
+  kind: 'line',
+  required: false,
+});
+
 export interface TypeStructure {
   /** The class prefix contract ('lower-third'); what detectPrefix keys off. */
   prefix: string;

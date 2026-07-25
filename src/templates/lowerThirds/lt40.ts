@@ -46,6 +46,7 @@ ${lineMasks(o, '        ')}
 .lower-third-box {
   display: flex;                   /* chevron and text sit side by side */
   align-items: stretch;            /* the chevron runs the slab's full height */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
   background: var(--panel-bg);     /* dark panel behind the text stack */
   box-shadow: var(--panel-shadow);  /* the family's hard offset lift */
 }

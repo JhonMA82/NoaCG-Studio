@@ -47,6 +47,7 @@ ${lineMasks(o)}
     css: `/* The box: presets animate THIS element, so it carries no lean of its own. */
 .lower-third-box {
   position: relative;              /* anchors the painted slab (::before) and the accent edge */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
   padding: calc(16px * var(--scale)) calc(36px * var(--scale));  /* tight vertical, wide horizontal */
 }
 

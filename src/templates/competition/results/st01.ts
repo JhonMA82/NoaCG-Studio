@@ -56,7 +56,7 @@ export const st01: TemplateVariant = defineResultsVariant(
   background: var(--panel-bg);
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
-  min-width: calc(900px * var(--scale));
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a board reads as data at a glance, never as a note */
 }
 
 /* The accent rule between the heading and the table. */

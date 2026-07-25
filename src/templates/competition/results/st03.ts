@@ -58,7 +58,7 @@ export const st03: TemplateVariant = defineResultsVariant(
   -webkit-backdrop-filter: var(--panel-blur);
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow), var(--panel-keyline);
-  min-width: calc(850px * var(--scale));
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a board reads as data at a glance, never as a note */
 }
 
 /* The accent — a soft rule under the heading. */

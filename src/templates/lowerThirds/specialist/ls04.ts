@@ -67,6 +67,7 @@ ${personColumn(o, right, { column: 'lower-third-person lower-third-support', nam
   align-items: end;                 /* both sit on the card's floor — the guest's extra
                                        height then reads as prominence, not as offset */
   column-gap: calc(38px * var(--scale));
+  min-width: calc(750px * var(--scale));  /* a two-person card keeps a broadcast-width floor — the void fills the rest */
   padding: calc(25px * var(--scale)) calc(40px * var(--scale)) calc(28px * var(--scale));
   background: var(--panel-bg);      /* the family's translucent white */
   backdrop-filter: var(--panel-blur);  /* the frost itself */

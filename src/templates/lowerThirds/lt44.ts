@@ -76,6 +76,7 @@ ${statCells}
 .lower-third-box {
   display: flex;                   /* bar and body sit side by side */
   align-items: stretch;            /* the bar runs the slab's full height */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for short lines — the void fills the rest */
   background: var(--panel-bg);     /* dark panel behind everything */
   box-shadow: var(--panel-shadow);  /* the family's hard offset lift */
 }

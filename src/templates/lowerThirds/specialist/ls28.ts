@@ -74,6 +74,7 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
 .lower-third-box {
   display: flex;                    /* flag, place, clock */
   align-items: stretch;             /* every cell runs the rail's full height */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width rail even for a short place — the middle cell absorbs the extra room */
   background: var(--panel-bg);      /* the quiet panel behind the text */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
 }
@@ -125,11 +126,14 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
   text-overflow: ellipsis;          /* …with an honest ellipsis */
 }
 
-/* The place cell. */
+/* The place cell — the rail's only flexible cell: it absorbs the min-width's extra room so
+   the flag stays flush left and the clock keeps closing the rail flush right (default flex
+   packing would otherwise strand that room after the clock instead). */
 .lower-third-text {
   display: flex;                    /* location over context */
   flex-direction: column;           /* top to bottom */
   justify-content: center;          /* vertically centred against the flag */
+  flex: 1 1 auto;                   /* grows into the rail's reserved width */
   min-width: 0;                     /* let it shrink so long place names wrap */
   padding: calc(11px * var(--scale)) calc(30px * var(--scale)) calc(13px * var(--scale)) calc(28px * var(--scale));
 }

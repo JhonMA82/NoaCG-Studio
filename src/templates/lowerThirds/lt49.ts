@@ -80,6 +80,7 @@ ${lineMasks(o, '        ')}
   display: flex;                   /* the three pieces sit side by side */
   align-items: center;             /* …vertically centred against each other */
   gap: calc(28px * var(--scale));  /* one even gap between all three pieces */
+  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for short lines — the void fills the rest */
   padding: calc(25px * var(--scale)) calc(55px * var(--scale)) calc(25px * var(--scale)) calc(25px * var(--scale));
   background: var(--panel-bg);     /* translucent white — the glass tint */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

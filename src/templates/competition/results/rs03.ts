@@ -51,7 +51,7 @@ export const rs03: TemplateVariant = defineResultsVariant(
   flex-direction: column;
   gap: calc(20px * var(--scale));
   padding-left: calc(25px * var(--scale));
-  min-width: calc(538px * var(--scale));
+  min-width: calc(1000px * var(--scale));  /* footprint floor — a board reads as data at a glance, never as a note */
   text-shadow: 0 calc(3px * var(--scale)) calc(15px * var(--scale)) rgba(0, 0, 0, 0.55);
 }
 

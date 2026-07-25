@@ -34,14 +34,18 @@ export interface ComposeOptions {
   authoring?: { padX: number; padY: number };
   /**
    * Park the graphic at its settled on-air state from INSIDE the document, driving it with this
-   * data (a JSON string, the shape `update()` takes).
+   * data (a JSON string, the shape `update()` takes). Once settled, the document also reports its
+   * own bounding box back to `parent` (`{ type: 'spx-preview-box', x, y, w, h }`) — a caller that
+   * needs to frame on the graphic (preview/frameGraphic.ts) reads that instead of
+   * `measureGraphicBox`'s direct `contentDocument` read, which cross-origin content cannot do.
    *
    * Every other preview surface settles from the OUTSIDE (settleGraphicOnLoad reaches into the
    * iframe), which needs same-origin access. A surface showing UNTRUSTED content — the moderation
-   * queue's preview of a stranger's template — runs it with `sandbox="allow-scripts"` and nothing
-   * else, so there is no reaching in, and without this it showed a black rectangle for every
-   * graphic that is hidden until play(): exactly the surface whose only job is to LOOK at the
-   * thing. The recipe is not restated here; the shared function is serialized into the document.
+   * queue's preview of a stranger's template, or a Home card's thumbnail rendering AI/imported
+   * code — runs it with `sandbox="allow-scripts"` and nothing else, so there is no reaching in,
+   * and without this it showed a black rectangle for every graphic that is hidden until play():
+   * exactly the surface whose only job is to LOOK at the thing. The recipe is not restated here;
+   * the shared function is serialized into the document.
    */
   settleWithData?: string;
 }
@@ -147,7 +151,16 @@ window.addEventListener('unhandledrejection', function (ev) {
     ? `\n<script id="spx-settle">
 (function () {
   var settle = ${settleGraphic.toString()};
-  var run = function () { settle(window, ${JSON.stringify(options.settleWithData)}); };
+  var run = function () {
+    settle(window, ${JSON.stringify(options.settleWithData)});
+    try {
+      var root = document.body && document.body.querySelector('div');
+      var r = root && root.getBoundingClientRect();
+      if (r && r.width > 0 && r.height > 0) {
+        parent.postMessage({ type: 'spx-preview-box', x: r.left, y: r.top, w: r.width, h: r.height }, '*');
+      }
+    } catch (e) {}
+  };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(run, run);
   else run();
 })();

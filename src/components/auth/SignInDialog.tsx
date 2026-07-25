@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '../../backend/auth';
 import { useAuthState } from './useAuthState';
 import { useAuthUi } from './authUi';
@@ -27,6 +27,9 @@ export default function SignInDialog() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  // Only dismiss on a backdrop click whose press ALSO began on the backdrop, so a drag that
+  // selects text in the email/password field and releases outside never closes. See SaveDialogs.
+  const pressedOnBackdrop = useRef(false);
 
   // Close automatically the moment a session exists (email sign-in resolves in-page; the OAuth
   // path leaves the page entirely, so it never needs this).
@@ -80,7 +83,14 @@ export default function SignInDialog() {
   };
 
   return (
-    <div className="auth-gate auth-overlay" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div
+      className="auth-gate auth-overlay"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) close();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="auth-card" role="dialog" aria-modal="true" aria-label="Sign in">
         <button className="auth-close" onClick={close} title="Close (keep working without an account)">✕</button>
         <div className="auth-logo"><BrandLogo size={44} stacked /></div>
