@@ -490,9 +490,15 @@ const results = await page.evaluate(async (CATEGORY) => {
     const cap = optsOutOfAutoFit && declaredWidth
       ? declaredWidth
       : Number((t4.css.match(/max-width:\s*(?:min\(calc\()?(\d+)px/) || [])[1] ?? 830);
-    // A hugging box must WRAP a long value; a band must CONTAIN it. Both must respect their
-    // own cap.
-    const fits = optsOutOfAutoFit ? (!!r4.contained || !!r4.wrapped) : !!r4.wrapped;
+    // A long value passes when it stays INSIDE the box and the box stays within its cap
+    // (boxW <= cap, checked below). It gets inside the box one of two ways: a heading too long
+    // for one line WRAPS, or a shorter line simply FITS on one line. Requiring a wrap
+    // specifically was a lower-third-shaped assumption — there #f0 is the name, and a long one
+    // cannot fit on one line within the narrow cap, so it always wraps. Info-card designs whose
+    // #f0 is a LABEL rather than the heading (now/next's kicker, the process heading, the offer
+    // kicker) fit a long value on one line instead, which is the design working, not a failure.
+    // Overflow is still caught — the value then escapes the box and `contained` is false.
+    const fits = !!r4.wrapped || !!r4.contained;
     row.checks.autoFit = !r4.fatal && fits && r4.boxW <= cap + 2;
     if (!row.checks.autoFit) row.issues.push('autofit: ' + JSON.stringify({ fatal: r4.fatal, wrapped: r4.wrapped, contained: r4.contained, boxW: r4.boxW, cap }));
     out.push(row);

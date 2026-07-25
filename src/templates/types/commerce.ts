@@ -22,6 +22,7 @@ import { card42 } from '../infoCards/card42';
 import { card43 } from '../infoCards/card43';
 import { card44 } from '../infoCards/card44';
 import { card45 } from '../infoCards/card45';
+import { optionalLine } from './graphicType';
 import type { GraphicType } from './graphicType';
 
 /** PRODUCT CARD — the thing being sold, its price, and what it used to cost. The live-commerce
@@ -36,8 +37,8 @@ export const productCardType: GraphicType = {
     category: 'info-card',
     parts: [
       { id: 'box', selector: '.info-card-box', kind: 'panel', required: true },
-      { id: 'product', selector: '#f0', kind: 'line', required: true },
-      { id: 'price', selector: '#f1', kind: 'line', required: true },
+      optionalLine('product', '#f0'),
+      optionalLine('price', '#f1'),
     ],
   },
   fields: [
@@ -104,8 +105,8 @@ export const offerCardType: GraphicType = {
     category: 'info-card',
     parts: [
       { id: 'box', selector: '.info-card-box', kind: 'panel', required: true },
-      { id: 'kicker', selector: '#f0', kind: 'line', required: true },
-      { id: 'claim', selector: '#f1', kind: 'line', required: true },
+      optionalLine('kicker', '#f0'),
+      optionalLine('claim', '#f1'),
     ],
   },
   fields: [
@@ -169,8 +170,11 @@ export const listingCardType: GraphicType = {
     category: 'info-card',
     parts: [
       { id: 'box', selector: '.info-card-box', kind: 'panel', required: true },
-      { id: 'title', selector: '#f0', kind: 'line', required: true },
-      { id: 'value', selector: '#f3', kind: 'line', required: true },
+      optionalLine('title', '#f0'),
+      // The value legitimately drops when the listing is used with fewer lines — card42 omits
+      // the whole value block so no rule floats beside an empty column — so it cannot be a
+      // required part even though it is the card's point. See optionalLine.
+      optionalLine('value', '#f3'),
     ],
   },
   fields: [
@@ -243,8 +247,8 @@ export const qrCardType: GraphicType = {
     category: 'info-card',
     parts: [
       { id: 'box', selector: '.info-card-box', kind: 'panel', required: true },
-      { id: 'headline', selector: '#f0', kind: 'line', required: true },
-      { id: 'address', selector: '#f1', kind: 'line', required: true },
+      optionalLine('headline', '#f0'),
+      optionalLine('address', '#f1'),
     ],
   },
   fields: [
