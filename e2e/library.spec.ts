@@ -43,6 +43,35 @@ test('save names the graphic into a new package; the status stays honest through
   await expect(page.locator('.tpl-name')).toHaveText('Presenter lower third');
 });
 
+test('save dialog: a text-selection drag that ends on the backdrop never closes it', async ({ page }) => {
+  // The backdrop closes on an OUTSIDE click — but a drag that STARTS in the name field and
+  // releases over the backdrop (selecting text, overshooting the input) routes its `click` to
+  // the backdrop (the nearest common ancestor of press and release), which used to shut the
+  // dialog and discard everything typed. The pressedOnBackdrop guard requires the PRESS to have
+  // begun on the backdrop too.
+  await createProject(page, 'Hairline');
+  await page.getByTestId('save-graphic').click();
+  const dialog = page.getByTestId('save-dialog');
+  await expect(dialog).toBeVisible();
+
+  const input = page.getByTestId('save-name');
+  await input.fill('Half-typed important name');
+  const box = (await input.boundingBox())!;
+  // Press inside the field, drag left onto the bare backdrop, release there.
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(12, 12, { steps: 8 });
+  await page.mouse.up();
+
+  // The dialog stays open and the typed name is intact.
+  await expect(dialog).toBeVisible();
+  await expect(input).toHaveValue('Half-typed important name');
+
+  // A genuine press-and-release on the backdrop still cancels.
+  await page.mouse.click(12, 12);
+  await expect(dialog).toBeHidden();
+});
+
 test('Home lists the library; a package opens with its graphics; Back walks the history', async ({ page }) => {
   await createProject(page, 'Hairline');
   await saveAs(page, 'Presenter lower third', 'new-package', 'Election Night');

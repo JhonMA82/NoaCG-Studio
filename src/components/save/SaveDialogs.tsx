@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   saveCurrentGraphic,
@@ -40,6 +40,10 @@ function SaveDialog() {
   const [dest, setDest] = useState<string>('standalone'); // 'standalone' | 'new' | a package id
   const [newPackage, setNewPackage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Backdrop click-to-close must only fire on a genuine outside click — not when a text
+  // selection drag STARTED in the name field and released over the backdrop (which routes the
+  // release's `click` to the backdrop, the nearest common ancestor, discarding the typed name).
+  const pressedOnBackdrop = useRef(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,7 +68,14 @@ function SaveDialog() {
   };
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) close();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal save-dialog" role="dialog" aria-modal="true" aria-label="Save graphic" data-testid="save-dialog">
         <div className="wz-header">
           <h2>{dialog.mode === 'save-as' ? 'Save a copy' : 'Save graphic'}</h2>
@@ -123,6 +134,9 @@ function ConfirmSwitchDialog() {
   const openSaveDialog = useSaveUi((s) => s.openSaveDialog);
   const graphicId = useTemplateStore((s) => s.saved.graphicId);
   const name = useTemplateStore((s) => s.template.name);
+  // Same guard as the save dialog: a press that began inside the dialog and released on the
+  // backdrop must not be read as an outside click (see SaveDialog).
+  const pressedOnBackdrop = useRef(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -155,7 +169,14 @@ function ConfirmSwitchDialog() {
   };
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeConfirm(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) closeConfirm();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal save-dialog" role="dialog" aria-modal="true" aria-label="Unsaved changes" data-testid="confirm-switch">
         <div className="wz-header">
           <h2>Unsaved changes</h2>
