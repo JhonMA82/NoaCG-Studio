@@ -62,6 +62,15 @@ Loaded alongside the root CLAUDE.md when working in this directory. Keep it accu
   context), and motion feel (it lives in the NOACG_ANIM block, not in CSS).
 - **brand.ts** - ProjectBrand save/load (localStorage 'spx-gfx-brand'), captured on every wizard
   Create.
+- **aiThread.ts** - the Create-with-AI CONVERSATION a graphic was created from (the talk turns
+  of components/wizard/steps/AiStep.tsx), captured at create so the graphic carries the reasoning
+  that produced it. Persisted BESIDE aiSpec as `SavedProject.aiThread` / `GraphicDoc.aiThread`,
+  both ADDITIVE OPTIONAL - rule 6 says additive fields never bump the version, so it rides the
+  sync record exactly as aiSpec does (NO version bump, no migration). Only the talk turns travel;
+  the wizard's heavy per-generation "Bring back" snapshots are a session affordance the editor
+  can't show and would be quota-heavy to persist. `normalizeThread` is the migrate-on-read guard
+  (unknown version -> "no thread", never a crash). Shown read-only in the editor's AI panel
+  (components/AIPromptPanel.tsx).
 - **generationSpec.ts** - the AI "More control" panel's user-authored GenerationSpec (category
   id union, SpecFieldDef on FieldKind, fonts as CustomFont choices, animation intent incl. the
   intensity->speed x easing map) + the cross-session draft ('spx-gfx-ai-spec-draft'). Lives HERE
@@ -71,7 +80,8 @@ Loaded alongside the root CLAUDE.md when working in this directory. Keep it accu
 - **library.ts** - the GRAPHICS LIBRARY (docs/SAVED_CONTENT_MODEL.md): every durably saved
   graphic is ONE `GraphicDoc` with a STABLE uuid ('spx-gfx-graphics', sync kind 'graphic',
   supabase migration 0009) - template + baseline + `packageId` (null = standalone) + the
-  control panel's `entries` (`ControlEntry` named data rows) + `activeEntryId`. Packet
+  control panel's `entries` (`ControlEntry` named data rows) + `activeEntryId`, plus the AI
+  provenance `aiSpec` + `aiThread` (both ADDITIVE OPTIONAL - version stays 1). Packet
   conventions (updatedAt LWW, tombstones). `migrateEmbeddedGraphics` extracts v1 packets'
   embedded graphics into the library UNDER THEIR OWN ids (convergent across devices) and
   rewrites the packet as version 2; it runs on every loadAllGraphics.

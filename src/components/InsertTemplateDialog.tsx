@@ -4,7 +4,7 @@
 // the inserted root, In/Out choreography merged, donor machine dropped); this dialog is a
 // thin picker over it. One applyTemplate = the whole insertion is one undo step.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import { useTemplateStore } from '../store/templateStore';
 import { CATEGORIES, type TemplateVariant } from '../model/wizard';
@@ -37,6 +37,9 @@ export default function InsertTemplateDialog() {
   const [placement, setPlacement] = useState<InsertPlacement>('start');
   const [steps, setSteps] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Dismiss only when the backdrop click's press also started on the backdrop; a drag-select
+  // out of a field must not close and lose the picker state. See save/SaveDialogs.tsx.
+  const pressedOnBackdrop = useRef(false);
 
   const variants = useMemo(() => (open ? variantsFor(catId) : []), [open, catId]);
   // What each card's donor would be — code-derived, never a category list. Two facts come
@@ -76,7 +79,14 @@ export default function InsertTemplateDialog() {
   };
 
   return (
-    <div className="gallery-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="gallery-backdrop"
+      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose();
+        pressedOnBackdrop.current = false;
+      }}
+    >
       <div className="wz-modal insert-tpl-dialog" role="dialog" aria-modal="true" aria-label="Add template graphic" data-testid="insert-tpl-dialog">
         <div className="wz-header">
           <h2>Add a template graphic to this project</h2>

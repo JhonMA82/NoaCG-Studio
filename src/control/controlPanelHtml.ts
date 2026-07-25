@@ -98,6 +98,19 @@ function jsonForScript(value: unknown): string {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
+/** Safe to drop into element text or a <title>. The panel's title is the graphic (or show) NAME,
+ *  which for an imported community template is author-controlled — and this page carries the
+ *  Supabase key and the hosted-control slug, so an unescaped name here is a real injection. Every
+ *  other value on the page already rides through jsonForScript into the <script>; the title is the
+ *  one thing written as markup, so it is the one thing that needs this. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
  * `inlineAssets` is the packaging shape, not a preference. Beside a FOLDER package the panel
  * and the graphic both sit next to a real images/ folder, so a relative path is the right
@@ -147,7 +160,7 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${title} — control panel</title>
+<title>${escapeHtml(title)} — control panel</title>
 <style>
   :root { --bg:#10141b; --panel:#171d26; --line:#2a3444; --text:#e8ecf2; --dim:#8b95a5; --accent:#3aa0ff; }
   * { box-sizing: border-box; }
@@ -190,7 +203,7 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
 </head>
 <body>
 <header>
-  <h1>${title}</h1>
+  <h1>${escapeHtml(title)}</h1>
   <span class="status" id="status">connecting…</span>
   <label class="live"><input type="checkbox" id="live" checked style="width:auto" /> live</label>
 </header>

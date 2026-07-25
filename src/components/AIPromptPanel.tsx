@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getAiProvider } from '../ai';
+import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
 import { useAuthState } from './auth/useAuthState';
 import SignInPrompt from './auth/SignInPrompt';
@@ -19,6 +20,10 @@ export default function AIPromptPanel() {
   const template = useTemplateStore((s) => s.template);
   const activeTab = useTemplateStore((s) => s.activeTab);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
+  // The Create-with-AI conversation this graphic was created from (null unless it was an AI
+  // creation). Carried with the project (GraphicDoc.aiThread) and shown read-only below, so
+  // the reasoning that produced the graphic travels with it.
+  const aiThread = useTemplateStore((s) => s.aiThread);
   const { needsSignIn } = useAuthState();
 
   const [prompt, setPrompt] = useState('');
@@ -41,13 +46,20 @@ export default function AIPromptPanel() {
   // full Generate (a brand-new template, no cursor or surgical intent to preserve) and formats
   // HTML only — CSS keeps its house comment alignment and JS keeps its timeline-owned animation
   // region (see src/format/formatCode.ts). Modify/Fix stay byte-faithful to the AI's edit.
+  //
+  // The result is screened for unsafe JS as well as validated (src/ai/safety.ts): what the AI
+  // wrote can be steered by an uploaded reference or by an imported file, and the confirm-before-
+  // apply card is where that has to be caught. A MODIFY passes the current template as the source,
+  // so code the user themselves put there (a Live data block calls fetch) is not reported as
+  // something the AI introduced; a GENERATE — a brand-new template — passes none.
   const runChange = async (fn: () => Promise<TemplateChange>, autoFormat = false) => {
     setBusy(true);
     setExplanation(null);
     try {
       let change = await fn();
       if (autoFormat) change = { ...change, template: await formatTemplate(change.template) };
-      setPending({ change, validation: validateTemplate(change.template) });
+      const base = validateTemplate(change.template);
+      setPending({ change, validation: mergeSafety(base, change.template, autoFormat ? null : template) });
     } finally {
       setBusy(false);
     }
@@ -84,6 +96,21 @@ export default function AIPromptPanel() {
           )}
         </p>
       </div>
+
+      {aiThread && aiThread.messages.length > 0 && (
+        // Read-only: the conversation is a record of how the graphic was described, not a live
+        // thread. Refining here is the Modify/Fix buttons below; this just carries the reasoning.
+        <details className="ai-origin" data-testid="ai-origin">
+          <summary>Created from this conversation</summary>
+          <div className="ai-origin-thread">
+            {aiThread.messages.map((m, i) => (
+              <div key={i} className={`ai-msg ${m.role === 'user' ? 'user' : 'assistant'}`}>
+                <span>{m.text}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       <textarea
         rows={3}

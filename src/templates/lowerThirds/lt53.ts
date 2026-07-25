@@ -95,6 +95,7 @@ ${lineMasks(o, '        ')}
   align-items: center;              /* …vertically centred against each other */
   gap: calc(28px * var(--scale));   /* the gap between the well and the words */
   margin-left: var(--accent-weight);  /* starts where the accent bar ends */
+  min-width: calc(680px * var(--scale));  /* a board reserves a wider strap than a two-line name — the void fills the rest */
   padding: calc(24px * var(--scale)) calc(61px * var(--scale)) calc(26px * var(--scale)) calc(28px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

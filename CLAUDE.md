@@ -191,7 +191,8 @@ public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports)
                the bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source -
                src/export/CLAUDE.md) + data-URL asset helpers, src/teach/ the Monaco tooltips
 scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATION - docs/
-               DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
+               DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, type-floor.mjs + overflow-sweep.mjs (catalog
+               quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
                render-smoke*.mjs, hooks/ (guard hooks wired in .claude/settings.json)
 api/           the render service's Vercel functions; typechecked by tsconfig.api.json
 render-worker/ the Remotion renderer and player-host/ the preview host - own exact-pinned packages
@@ -255,6 +256,13 @@ findings properly rather than sprinkling eslint-disable comments.
   one gets its own branch in the script rather than a waiver: the audience sweep checks the
   MESSAGE wraps and clamps (its `#f0` is a kicker, not the text), and the quiz sweep reads the
   correct-answer field off the template instead of assuming a four-answer layout.
+- **Catalog quality gates (run after any catalog-wide change):** `node scripts/type-floor.mjs`
+  fails on any text under its category size floor; `node scripts/overflow-sweep.mjs --baseline`
+  fails on any box that newly escapes the 1920x1080 frame or clips its own content, diffing
+  against `scripts/overflow-baseline.json` (~200 variants clip by design - reveal masks, ticker/
+  crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
+  change). Neither measures capacity: `npx playwright test bench.spec.ts` is the ONLY gate that
+  catches a design growing past its width budget (it doubles every text value), so run it too.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

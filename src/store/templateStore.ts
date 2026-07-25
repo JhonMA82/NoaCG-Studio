@@ -9,6 +9,7 @@ import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
 import { loadProject, saveProject } from '../model/project';
 import type { GenerationSpec } from '../model/generationSpec';
+import { normalizeThread, type AiThread } from '../model/aiThread';
 import { hasCurrentVideoProject } from '../model/videoProject';
 import { PATH_TARGET, type TimelineTarget } from '../blocks/timelineLens';
 
@@ -234,6 +235,12 @@ interface TemplateState {
    *  swap unless the new document brings its own. */
   aiSpec: GenerationSpec | null;
   setAiSpec: (aiSpec: GenerationSpec | null) => void;
+  /** The Create-with-AI conversation this project was created from (null = not carried).
+   *  Rides the same rails as aiSpec — the autosave slot (SavedProject.aiThread) and every
+   *  Save (GraphicDoc.aiThread) — and is cleared by a whole-project swap unless the new
+   *  document brings its own. */
+  aiThread: AiThread | null;
+  setAiThread: (aiThread: AiThread | null) => void;
   /** Mark a canvas gesture as started/ended (see canvasGestureActive). */
   setCanvasGestureActive: (active: boolean) => void;
   /** Arm a canvas tool (see canvasTool). */
@@ -333,6 +340,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     status: 'idle',
   },
   aiSpec: initialProject?.aiSpec ?? null,
+  aiThread: normalizeThread(initialProject?.aiThread),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setPreviewBg: (bg) => set({ previewBg: bg }),
@@ -388,6 +396,9 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
         // The previous project's generation spec cannot describe the new document — the AI
         // create path (and openGraphicDoc) set the right one just after the swap.
         aiSpec: opts?.resetSampleData ? null : s.aiSpec,
+        // Same as aiSpec: a new document cannot carry the previous one's conversation — the AI
+        // create path and openGraphicDoc set the right thread just after the swap.
+        aiThread: opts?.resetSampleData ? null : s.aiThread,
         validation: null,
         galleryOpen: false,
         // Snapshot the pre-apply template so the action can be undone; a fresh edit
@@ -478,6 +489,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   setSaved: (saved) => set({ saved }),
 
   setAiSpec: (aiSpec) => set({ aiSpec }),
+  setAiThread: (aiThread) => set({ aiThread }),
 
   setCanvasGestureActive: (canvasGestureActive) => set({ canvasGestureActive }),
 
@@ -548,6 +560,6 @@ useTemplateStore.subscribe((state, prev) => {
   if (projectSaveTimer) clearTimeout(projectSaveTimer);
   projectSaveTimer = setTimeout(() => {
     const s = useTemplateStore.getState();
-    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec);
+    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
   }, 800);
 });
