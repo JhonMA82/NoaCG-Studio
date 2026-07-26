@@ -6,7 +6,7 @@ import {
   sameOrigin,
   userAiKeysCookie,
 } from '../_lib/aiCredentials.js';
-import { isAiProviderId } from '../../src/ai/modelTypes.ts';
+import { isAiProviderId } from '../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 1024;
 

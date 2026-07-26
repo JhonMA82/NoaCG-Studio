@@ -9,7 +9,7 @@ import {
   type ModelResult,
   type ModelRoute,
   type ModelUsage,
-} from '../../src/ai/modelTypes.ts';
+} from '../../src/ai/modelTypes.js';
 
 type Fetch = typeof fetch;
 

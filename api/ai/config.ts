@@ -1,7 +1,7 @@
 import { bearerToken, json, methodGuard } from '../_lib/http.js';
 import { serverAuthConfigured, verifyUser } from '../_lib/auth.js';
 import { canStoreUserAiKeys, managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
-import { AI_PROVIDER_IDS } from '../../src/ai/modelTypes.ts';
+import { AI_PROVIDER_IDS } from '../../src/ai/modelTypes.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

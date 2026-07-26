@@ -4,19 +4,29 @@ import {
   executeGatewayRequest,
   GatewayError,
   validateGatewayBody,
-} from './aiGateway.ts';
-import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.ts';
-import type { AiGatewayRequestBody, AiProviderId } from '../../src/ai/modelTypes.ts';
+} from './aiGateway.js';
+import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.js';
+import type { AiGatewayRequestBody, AiProviderId } from '../../src/ai/modelTypes.js';
 
-const originalEnv = { ...process.env };
+const CONTROLLED_ENV = [
+  'AI_KEY_ENCRYPTION_SECRET',
+  'AI_MODEL_PRICING_JSON',
+  'AI_RETRY_LIMIT',
+  'PUBLIC_APP_URL',
+] as const;
+const originalEnv = new Map(CONTROLLED_ENV.map((name) => [name, process.env[name]]));
 
 beforeEach(() => {
+  for (const name of CONTROLLED_ENV) delete process.env[name];
   process.env.AI_RETRY_LIMIT = '0';
-  delete process.env.AI_MODEL_PRICING_JSON;
 });
 
 afterEach(() => {
-  process.env = { ...originalEnv };
+  for (const name of CONTROLLED_ENV) {
+    const value = originalEnv.get(name);
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
 });
 
 function body(provider: AiProviderId = 'anthropic', model = 'test-model'): AiGatewayRequestBody {
@@ -63,6 +73,7 @@ test('selects OpenAI Responses and normalizes usage and configured cost', async 
 });
 
 test('selects OpenRouter through its OpenAI-compatible endpoint', async () => {
+  delete process.env.PUBLIC_APP_URL;
   let calledUrl = '';
   let sentHeaders = new Headers();
   const result = await executeGatewayRequest(body('openrouter', 'vendor/model'), {
@@ -82,6 +93,23 @@ test('selects OpenRouter through its OpenAI-compatible endpoint', async () => {
   assert.equal(sentHeaders.get('x-title'), 'NoaCG Studio');
   assert.equal(result.model, 'vendor/model');
   assert.deepEqual(result.usage.estimatedCost, { amount: 0.002, currency: 'USD', source: 'provider' });
+});
+
+test('sends a configured public app URL as OpenRouter attribution', async () => {
+  process.env.PUBLIC_APP_URL = 'https://noacg-studio.vercel.app';
+  let sentHeaders = new Headers();
+  await executeGatewayRequest(body('openrouter', 'vendor/model'), {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sentHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }));
+    },
+  });
+
+  assert.equal(sentHeaders.get('http-referer'), 'https://noacg-studio.vercel.app');
 });
 
 test('reports a missing key before making a provider request', async () => {

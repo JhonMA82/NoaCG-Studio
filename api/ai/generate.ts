@@ -2,7 +2,7 @@ import { bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { serverAuthConfigured, verifyUser } from '../_lib/auth.js';
 import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
-import type { AiGatewayErrorBody, AiProviderId } from '../../src/ai/modelTypes.ts';
+import type { AiGatewayErrorBody, AiProviderId } from '../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 12_000_000;
 

@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { AI_PROVIDER_IDS, type AiProviderId } from '../../src/ai/modelTypes.ts';
+import { AI_PROVIDER_IDS, type AiProviderId } from '../../src/ai/modelTypes.js';
 
 const COOKIE_NAME = 'noacg_ai_keys';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
