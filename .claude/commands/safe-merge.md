@@ -1,6 +1,7 @@
 ---
 description: Safely merge a branch or worktree into main - live preflight checks, verified build, then push
 argument-hint: [branch-name (optional - will be detected if omitted)]
+disable-model-invocation: true
 ---
 
 Argument: $ARGUMENTS

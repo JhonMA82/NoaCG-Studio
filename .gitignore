@@ -53,7 +53,17 @@ shots-*/
 !.claude/skills/ograf-expert/
 !.claude/skills/spx-html-template-expert/
 !.claude/skills/video-quality-round/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/cleanup-worktrees/
+!.agents/skills/handoff/
+!.agents/skills/next/
+!.agents/skills/noacg-task/
+!.agents/skills/ograf-expert/
+!.agents/skills/safe-merge/
+!.agents/skills/spx-html-template-expert/
+!.agents/skills/video-quality-round/
 skills-lock.json
 
 # Remotion deploy bundle (built by render-worker/bundle.mjs in the Vercel build step)

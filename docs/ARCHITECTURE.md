@@ -2,7 +2,7 @@
 
 **Binding.** This doc holds the cross-domain rules: the domain registry, the allowed dependency
 edges, where new code goes, and the honest list of known debts. Per-domain contracts stay in the
-nested `CLAUDE.md` files and the docs they reference - this doc never repeats them. Update this
+nested `AGENTS.md` files and the docs they reference - this doc never repeats them. Update this
 file in the same PR that changes a cross-domain edge.
 
 ## 1. Stance
@@ -22,7 +22,8 @@ first, then consume the seam.
 ## 2. Domain registry
 
 Layers are the mental model; the edge table in §3 is the law. Higher layers import lower ones,
-never the reverse. `*` = the domain carries its own CLAUDE.md with the detailed contract.
+never the reverse. `*` = the domain carries its own `AGENTS.md` with the detailed contract and a
+thin `CLAUDE.md` import.
 
 | Layer | Domain | Owns | Public seam (import these) |
 |---|---|---|---|
@@ -87,7 +88,7 @@ dependency-cruiser; §7):
 
 | The change is... | It lives in |
 |---|---|
-| a new persisted shape, or any shape change to one | `model/` - version + migration in the same commit (root CLAUDE.md rule 6) |
+| a new persisted shape, or any shape change to one | `model/` - version + migration in the same commit (root `AGENTS.md` rule 6) |
 | a deterministic edit to template code | a named patcher in `blocks/` |
 | a new catalog template, variant, pack, or graphic type | `templates/` |
 | a new export target or packaging convention | `export/targets/` + the registry |

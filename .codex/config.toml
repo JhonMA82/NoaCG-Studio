@@ -1,0 +1,3 @@
+# The root and nested AGENTS.md contracts intentionally carry detailed binding rules.
+# Keep the full root-to-area instruction chain available in trusted Codex sessions.
+project_doc_max_bytes = 131072

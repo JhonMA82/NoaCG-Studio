@@ -208,7 +208,7 @@ export function allocatePort({ root, registryDir, isRootActive, isPortBusy = () 
     `No dev-server port is available for ${me}.\n` +
       `All ${SLOT_COUNT} ports in the approved range ${PORT_RANGE_LABEL} are taken:\n` +
       blocked.map((line) => `  ${line}`).join('\n') +
-      `\nRemove worktrees that are finished (/cleanup-worktrees), or run ` +
+      `\nRemove finished worktrees with the cleanup-worktrees workflow, or run ` +
       `\`node scripts/dev-port.mjs --list\` to see who holds what.`,
   );
 }

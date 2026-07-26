@@ -39,6 +39,10 @@ completed, repo/branch state if it matters, the remaining work, key constraints 
 (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks, the best next step. No
 transcript dump.
 
+When work remains, include the exact current branch and short HEAD, whether the working tree is
+clean, and the last known verification command/result tied to that commit. If verification is
+missing or stale, say so as remaining work rather than running it during handoff.
+
 Skip this section entirely when nothing remains - don't pad it out to look complete.
 
 ### 3. Bottom line
@@ -58,15 +62,15 @@ Do this work for yourself - almost none of it reaches the response. Run the chec
 commands for the user to run.
 
 - **Where am I** - `git branch --show-current`, `git worktree list`, `git rev-parse --short HEAD`.
-  Never ASSUME where `main` is; worktrees live under `.claude/worktrees/<name>` on `claude/*`.
+  Never ASSUME where `main` is; inspect every registered worktree and expect both `claude/*`
+  and `codex/*` feature branches.
 - **What's outstanding** - `git status --porcelain=v1 --branch`, untracked files worth keeping
   (`git ls-files --others --exclude-standard`), `git stash list`, any mid-merge/rebase state, and
   whether the work actually reached `main`/`origin/main` when the session's story says it did.
 - **Validation** - reuse existing evidence: a `npm run build` already run, the safe-merge
   workflow's gate, any `e2e/` or in-browser check already done. `npm run build` (tsc + eslint +
-  vite) is the gate; there is no unit-test suite. Only run something if code changed *after* the
-  last check, and then prefer `npm run build` or ONE focused `e2e/` spec - **never the whole
-  `npm run test:e2e` suite**.
+  vite) is the gate; focused script tests may also apply. Do not run verification during
+  handoff. If code changed after the last check, record verification as the next required action.
 
 A finding reaches the response only if it is actionable, and then it belongs in the prompt as
 remaining work. If the answer is the boring expected one, say nothing.
@@ -74,11 +78,8 @@ remaining work. If the answer is the boring expected one, say nothing.
 ## Rules
 
 - **Read, don't write.** Never merge, push, commit, delete, clean, stash, reset, or rewrite
-  history. Report problems; never silently fix them.
-- **Create no files** - no handoff file, session summary, or timestamped note. Deliver in the
-  response. Only if the session produced genuinely long-lived project knowledge (an architectural
-  decision, a constraint, a known risk, a milestone change), update the relevant EXISTING memory
-  file and its index (Claude Code: `C:\Users\ahonemi\.claude\projects\C--claude-NoaCG-Studio\memory\`
-  and its `MEMORY.md`; Codex has no equivalent persistent memory store today, so surface the note
-  in the response instead). When unsure, ask instead.
+  history, run builds, or execute tests. Report problems; never silently fix them.
+- **Create or update no files** - no handoff file, session summary, timestamped note, project
+  document, or tool-specific memory. Deliver all continuation context in the response so the same
+  handoff works in Claude Code and Codex.
 - **Be fast enough to use after every session.**

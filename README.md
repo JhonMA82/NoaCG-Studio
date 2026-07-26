@@ -15,8 +15,9 @@ generated HTML/CSS/JS stays clean, commented, and the single source of truth —
 optional. AI and the live panels write deterministic, readable code; nothing hides behind a
 visual-only scene model.
 
-For contributor/agent guidance and conventions, see [`CLAUDE.md`](CLAUDE.md). For the SPX template
-format, see [`docs/SPX_TEMPLATE_FORMAT.md`](docs/SPX_TEMPLATE_FORMAT.md).
+For contributor and agent guidance, see the authoritative [`AGENTS.md`](AGENTS.md);
+[`CLAUDE.md`](CLAUDE.md) imports it for Claude Code. For the SPX template format, see
+[`docs/SPX_TEMPLATE_FORMAT.md`](docs/SPX_TEMPLATE_FORMAT.md).
 
 ## Run
 

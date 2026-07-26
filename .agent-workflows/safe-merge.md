@@ -12,12 +12,17 @@ disagrees with the happy path.
 Branch to merge: the argument given at invocation, if any (if empty, detect it in Phase 1 and
 confirm with the user before merging).
 
+This workflow carries standing permission to update and push `main`, so it runs **only when the
+user explicitly invokes it by name**. Never infer invocation from a general request to inspect,
+review, or discuss a merge.
+
 ## Repo layout (this project)
 
 - `main` is normally checked out at the repo root (`C:\claude\NoaCG-Studio`) - but never
   ASSUME it is; determine where (and whether) `main` is checked out from `git worktree list`
   every run.
-- Feature/agent worktrees live under `.claude/worktrees/<name>` on `claude/*` branches.
+- Feature worktrees commonly live under `.claude/worktrees/<name>` on `claude/*` or `codex/*`
+  branches, but paths and prefixes are never safety signals.
 - The verification gate is `npm run build` (typecheck + build). UI-facing changes should
   also get an e2e pass (`npm run test:e2e`) or at least an in-browser check.
 - Standing permission exists to push verified work to `origin/main`.
@@ -25,6 +30,9 @@ confirm with the user before merging).
 ## Hard safety rules (never break these, even if asked mid-flow)
 
 - Never `push --force`, never `reset --hard`, never delete a branch that isn't fully merged.
+- The source must resolve to one exact local branch (`refs/heads/<branch>`), must not be `main`,
+  and must be checked out in one known worktree. Never accept a remote ref, revision expression,
+  tag, detached commit, or argument beginning with `-` as the source branch.
 - Update `main` only with `git pull --ff-only`; the final merge into `main` is
   `git merge --ff-only` (see Phase 4). Git itself must refuse any unexpected non-fast-forward.
 - **Local `main` vs `origin/main` before the requested merge (`MAIN_SYNC` rule):**
@@ -37,6 +45,8 @@ confirm with the user before merging).
   location. If `main` is checked out nowhere, follow the Phase 1 "main not checked out"
   procedure - never switch, reset, stash, discard, or overwrite anything on a hunch.
 - Never stash or discard uncommitted changes without explicitly asking first.
+- Never merge with a dirty source or target worktree. If either is dirty, stop and let the user
+  decide how to preserve that work outside this workflow.
 - If a merge hits conflicts you are not confident resolving, `git merge --abort` and
   report the conflicting files rather than guessing.
 - Never remove a worktree or delete a branch. Cleanup is out of scope for this workflow -
@@ -54,24 +64,29 @@ or branch history, so it is safe here). Report findings before any later state c
 
 Run and summarize:
 
-1. `git status --porcelain` in the root checkout - is main's working tree clean?
-2. `git worktree list` - what worktrees exist, what branch is each on, and **where is
+1. `git worktree list --porcelain` - what worktrees exist, what branch is each on, and **where is
    `main` checked out** (or nowhere)? This determines every later main-updating step's
    checkout; if no worktree has it, see "If `main` is not checked out anywhere" below.
-3. `git fetch origin --prune`
+2. If `main` is checked out, run `git status --porcelain` in that exact worktree. Stop if it is
+   dirty. Do not substitute the repository root unless the worktree list says the root holds
+   `main`.
+3. `git fetch origin --prune`.
 4. `git rev-list --left-right --count main...origin/main` - ahead, behind, or diverged?
    Apply the `MAIN_SYNC` rule (Hard safety rules).
 5. Identify the source branch: use the invocation argument if given; otherwise list candidate
-   branches (`git branch --list 'claude/*' --list '*' --no-merged main` plus the worktree list)
-   and ask the user which one to merge if it isn't obvious.
-6. In the source branch's worktree: `git status --porcelain` - any uncommitted work?
+   branches (`git branch --no-merged main` plus the worktree list) and ask the user which one to
+   merge if it isn't obvious. Validate the chosen name with `git check-ref-format --branch
+   <branch>`, reject `main` and any leading `-`, then require `git show-ref --verify
+   refs/heads/<branch>` to succeed. Locate the one worktree whose porcelain branch line is
+   exactly `refs/heads/<branch>`; if none or more than one can be resolved, stop.
+6. In that exact source worktree, run `git status --porcelain`. Stop if it is dirty.
 7. Preview the merge: `git log --oneline main..<branch>` (what comes in) and
    `git log --oneline <branch>..main` (what the branch is missing), plus
-   `git merge-tree $(git merge-base main <branch>) main <branch> | grep -c '^<<<'`
-   or a `git merge --no-commit --no-ff` dry-run equivalent to predict conflicts.
-   On Windows PowerShell prefer: `git merge-base main <branch>` then
-   `git diff --name-only <base> <branch>` intersected with `git diff --name-only <base> main`
-   to list files touched on both sides.
+   `git merge-base main <branch>` followed by
+   `git merge-tree <base> main <branch>`. Inspect its output for conflicts. On Windows
+   PowerShell, also intersect `git diff --name-only <base> <branch>` with
+   `git diff --name-only <base> main` and report overlapping paths conservatively. **Never use
+   `git merge --no-commit` as a preview**; it changes the index and working tree.
 
 ### If `main` is not checked out anywhere
 
@@ -125,9 +140,10 @@ branch - it is never where conflicts get resolved.
 
 1. If Phase 1 found `main` checked out nowhere and the gate reported SAFE, reattach now:
    `node scripts/reattach-main.mjs <root>` (it re-verifies safety, then switches).
-2. If the source worktree has uncommitted changes: ask the user - commit them there
-   (with a proper message), or leave them out? Never silently stash.
-3. Update main from the remote: `git pull --ff-only origin main`.
+2. Recheck the actual `main` and source worktrees with `git status --porcelain`. Stop if either
+   became dirty after assessment.
+3. In the actual `main` worktree, update main from the remote:
+   `git pull --ff-only origin main`.
 4. Record `INTEGRATED_MAIN_SHA = git rev-parse main` - the exact main integrated into the
    branch, re-checked in Phase 4.
 5. In the SOURCE branch's worktree, integrate that main into the branch: `git merge main`.
@@ -137,14 +153,18 @@ branch - it is never where conflicts get resolved.
 1. Resolve any conflicts from the `git merge main`, carefully. Resolve only what is
    mechanically obvious; for anything semantic, stop and show the user the conflicting hunks.
    If it is not confidently resolvable, `git merge --abort` and report. This happens on the
-   BRANCH, so main stays untouched.
+   BRANCH, so main stays untouched. When conflicts are resolved, complete the merge commit before
+   continuing; never verify a half-finished merge.
 2. Pin the commit under test: `VERIFIED_SHA = git rev-parse <branch>` and state it. The exact
    commit that passes verification must be the exact commit that becomes `main`.
 3. Verify on the integrated branch: run `npm run build` in the worktree. If the work is
    user-facing, also run the relevant e2e specs or check the affected flow in the browser
-   per the root `AGENTS.md`/`CLAUDE.md`'s "Verifying changes". A red build means fix-or-abort -
+   per the root `AGENTS.md` "Verifying changes" contract. A red build means fix-or-abort -
    do not proceed to main. (Any fix creates a new commit; re-record `VERIFIED_SHA` and rebuild.)
-4. Confirm the branch still points at the verified commit: `git rev-parse <branch>` must
+4. Confirm the source worktree is clean with `git status --porcelain`. The checked filesystem
+   must exactly match the commit being promoted; generated or uncommitted changes make the
+   verification invalid.
+5. Confirm the branch still points at the verified commit: `git rev-parse <branch>` must
    equal `VERIFIED_SHA`. If it moved, re-verify.
 
 ## Phase 4 - Re-check main, fast-forward merge, and push
@@ -152,6 +172,8 @@ branch - it is never where conflicts get resolved.
 Do this immediately before merging - main may have moved on the remote while you verified.
 
 1. `git fetch origin`, then confirm ALL of:
+   - the actual `main` worktree and source worktree are still clean;
+   - `git rev-parse <branch>` still equals `VERIFIED_SHA`;
    - local `main` still matches `origin/main`: `git rev-parse main` == `git rev-parse origin/main`;
    - `main` has not moved since it was integrated into the branch:
      `git rev-parse origin/main` == `INTEGRATED_MAIN_SHA`;
@@ -161,10 +183,10 @@ Do this immediately before merging - main may have moved on the remote while you
    the new latest `main` into the source branch (`git pull --ff-only origin main`, then
    `git merge main` in the worktree), rerun the Phase 3 verification (new `VERIFIED_SHA`),
    and only then repeat this Phase 4 re-check.
-3. Fast-forward merge from main's checkout: `git merge --ff-only <branch>`. Git refuses this
-   if it is not a fast-forward; if it fails, STOP and report (main moved, or the branch does
-   not contain main). Because the branch already includes main, a healthy run fast-forwards
-   cleanly, bringing in only this branch's commits.
+3. Fast-forward merge from the actual main worktree:
+   `git merge --ff-only <branch>`. Git refuses this if it is not a fast-forward; if it fails,
+   STOP and report (main moved, or the branch does not contain main). Because the branch already
+   includes main, a healthy run fast-forwards cleanly, bringing in only this branch's commits.
 4. Confirm the exact verified commit is now `main`: `git rev-parse main` must equal
    `VERIFIED_SHA`. Do not push otherwise.
 5. Push: `git push origin main` (standing permission). If Phase 1 flagged pre-existing

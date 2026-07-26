@@ -2,7 +2,7 @@
 //
 // ONE definition, shared by two callers so they can never drift:
 //   - scripts/hooks/session-start.mjs   auto self-heal on every session start
-//   - the /safe-merge command           Phase 1 assessment + Phase 2 reattach
+//   - the shared safe-merge workflow    Phase 1 assessment + Phase 2 reattach
 //
 // The primary checkout (repo root) is our canonical `main` worktree. The client's worktree
 // machinery parks it on a DETACHED HEAD (same commit, off the branch) whenever it spins up a

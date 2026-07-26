@@ -3,7 +3,7 @@
 // The client's "worktree" checkbox sometimes scaffolds .claude/worktrees/<name>/ WITHOUT
 // running `git worktree add` - an unregistered stub whose file and git operations silently
 // fall through to the primary checkout, where they can collide with other sessions' work
-// (this has caused real cross-session clobbering; see the worktree notes in CLAUDE.md).
+// (this has caused real cross-session clobbering; see the worktree notes in AGENTS.md).
 // This hook compares the session cwd against `git worktree list` and warns loudly when
 // that is happening; otherwise it prints a one-line orientation (checkout, branch, and
 // this checkout's dev/live ports). SessionStart stdout is added to the agent's context.
@@ -27,7 +27,7 @@ const roots = gitLines(['worktree', 'list', '--porcelain'], sessionCwd)
   .map((line) => normalize(line.slice('worktree '.length)));
 if (roots.length === 0) process.exit(0); // not a git checkout - nothing to check
 
-// Sweep leftover EMPTY worktree folders (shared rule with /cleanup-worktrees). `git worktree
+// Sweep leftover EMPTY worktree folders (shared rule with cleanup-worktrees). `git worktree
 // remove` on Windows can't delete the folder while a session is cwd'd inside it, so it
 // deregisters the worktree and empties the files but leaves the now-empty directory behind.
 // Once that session ends the folder unlocks; the next session removes it here. The helper is
@@ -46,7 +46,7 @@ for (const dir of removed) {
 // Keep the primary checkout on `main` - it is our canonical main worktree. The client parks
 // it on a detached HEAD (same commit, off the branch) whenever it spins up a linked worktree,
 // so `main` drifts off the root. Reattach it whenever that is unambiguously safe; the single
-// shared definition of "safe" lives in scripts/reattach-main.mjs (also used by /safe-merge).
+// shared definition of "safe" lives in scripts/reattach-main.mjs (also used by safe-merge).
 // This never touches a dirty tree, real detached work, or a main that is checked out elsewhere.
 try {
   const { assessment, message } = reattachMainIfSafe(roots[0]);
@@ -114,7 +114,7 @@ try {
 console.log(`Checkout: ${root} (${kind}, ${branchLabel})${ports}.`);
 
 // Cross-worktree activity awareness: several worktrees are usually being worked in parallel
-// (see CLAUDE.md), so before the first prompt lands, surface what files are already in flight
+// (see AGENTS.md), so before the first prompt lands, surface what files are already in flight
 // elsewhere - both uncommitted changes and commits already made but not yet merged into main.
 // This is a ONE-TIME snapshot taken at session start, not a live watch: a worktree that starts
 // touching a file after this session begins won't show up here. It only ever prints information
