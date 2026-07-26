@@ -41,6 +41,7 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
       const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
       const { formatTemplate } = await import('/src/format/formatCode.ts');
       const { saveBrand } = await import('/src/model/brand.ts');
+      const { saveProject } = await import('/src/model/project.ts');
       const { useTemplateStore } = await import('/src/store/templateStore.ts');
       const { useDocKindStore } = await import('/src/store/docKindStore.ts');
 
@@ -78,6 +79,18 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
         fontId: variant.defaultFontId,
         customFont: null,
       });
+
+      // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
+      // reach a reload assertion sooner than a person can finish the wizard. Persist the same
+      // working-slot payload now so returning-user tests start from a durable created project.
+      const created = useTemplateStore.getState();
+      saveProject(
+        created.template,
+        created.baseline,
+        { graphicId: created.saved.graphicId, dirty: created.saved.dirty },
+        created.aiSpec,
+        created.aiThread,
+      );
     }, wanted),
   );
   await expect(page.locator('.wz-modal')).toBeHidden();
