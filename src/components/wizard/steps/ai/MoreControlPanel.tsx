@@ -48,6 +48,9 @@ interface Props {
   references: AssetFile[];
   onReferences: (refs: AssetFile[]) => void;
   disabled: boolean;
+  allowedCategories?: readonly GenerationSpec['category'][];
+  allowReferences?: boolean;
+  maxFields?: number;
 }
 
 /** The field kinds offered in the field editor, with operator-facing words. */
@@ -94,7 +97,12 @@ function Section({
 
 // ── Sections ─────────────────────────────────────────────────────────────────
 
-function CategorySection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' | 'disabled'>) {
+function CategorySection({
+  spec,
+  onSpec,
+  disabled,
+  allowedCategories,
+}: Pick<Props, 'spec' | 'onSpec' | 'disabled' | 'allowedCategories'>) {
   const pick = (id: GenerationSpec['category']) => {
     const next: GenerationSpec = { ...spec, category: id, categoryInferred: false };
     // A fresh pick seeds the suggested fields — but never clobbers fields the user wrote.
@@ -123,7 +131,7 @@ function CategorySection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpe
           <strong>✦ Let AI decide</strong>
           <span>Inferred from the brief — shown and editable on the result.</span>
         </button>
-        {AI_CATEGORIES.map((c) => (
+        {AI_CATEGORIES.filter((category) => !allowedCategories || allowedCategories.includes(category.id)).map((c) => (
           <button
             key={c.id}
             type="button"
@@ -152,7 +160,12 @@ function CategorySection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpe
   );
 }
 
-function FieldsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' | 'disabled'>) {
+function FieldsSection({
+  spec,
+  onSpec,
+  disabled,
+  maxFields,
+}: Pick<Props, 'spec' | 'onSpec' | 'disabled' | 'maxFields'>) {
   const setFields = (fields: SpecFieldDef[]) => onSpec({ ...spec, fields });
   const patch = (id: string, p: Partial<SpecFieldDef>) =>
     setFields(spec.fields.map((f) => (f.id === id ? { ...f, ...p } : f)));
@@ -217,11 +230,12 @@ function FieldsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec'
       <div className="row" style={{ marginTop: 6 }}>
         <button
           type="button"
-          disabled={disabled}
+          disabled={disabled || (maxFields !== undefined && spec.fields.length >= maxFields)}
           onClick={() => setFields([...spec.fields, { id: freshFieldId(), label: '', kind: 'text' }])}
         >
           + Add field
         </button>
+        {maxFields !== undefined && <span className="hint">{spec.fields.length} of {maxFields} fields</span>}
       </div>
     </>
   );
@@ -233,6 +247,7 @@ function LookSection({
   references,
   onReferences,
   disabled,
+  allowReferences = true,
 }: Props) {
   const refInput = useRef<HTMLInputElement>(null);
   const addRefs = async (files: FileList | null) => {
@@ -316,38 +331,46 @@ function LookSection({
         </div>
       )}
 
-      <label style={{ marginTop: 10 }}>Style references</label>
-      <p className="hint" style={{ marginTop: 2 }}>
-        Mood boards, screenshots, frames you like. These INFLUENCE the design only — they are
-        never placed in the graphic and never copied. (Logos and images that should APPEAR in
-        the graphic go in the main drop zone above.)
-      </p>
-      <div className="row wrap" style={{ alignItems: 'center', gap: 6 }}>
-        {references.map((r) => (
-          <span key={r.path} className="wz-file-chip" title={r.path}>
-            {r.path.replace(/^images\//, '')}
-            <button
-              type="button"
-              style={{ marginLeft: 6, padding: '0 6px' }}
-              onClick={() => onReferences(references.filter((x) => x.path !== r.path))}
-              title="Remove reference"
-            >
-              ✕
+      {allowReferences ? (
+        <>
+          <label style={{ marginTop: 10 }}>Style references</label>
+          <p className="hint" style={{ marginTop: 2 }}>
+            Mood boards, screenshots, frames you like. These INFLUENCE the design only - they are
+            never placed in the graphic and never copied. (Logos and images that should APPEAR in
+            the graphic go in the main drop zone above.)
+          </p>
+          <div className="row wrap" style={{ alignItems: 'center', gap: 6 }}>
+            {references.map((r) => (
+              <span key={r.path} className="wz-file-chip" title={r.path}>
+                {r.path.replace(/^images\//, '')}
+                <button
+                  type="button"
+                  style={{ marginLeft: 6, padding: '0 6px' }}
+                  onClick={() => onReferences(references.filter((x) => x.path !== r.path))}
+                  title="Remove reference"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+            <input
+              ref={refInput}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => { void addRefs(e.target.files); e.target.value = ''; }}
+            />
+            <button type="button" onClick={() => refInput.current?.click()} disabled={disabled}>
+              + Add reference images
             </button>
-          </span>
-        ))}
-        <input
-          ref={refInput}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: 'none' }}
-          onChange={(e) => { void addRefs(e.target.files); e.target.value = ''; }}
-        />
-        <button type="button" onClick={() => refInput.current?.click()} disabled={disabled}>
-          + Add reference images
-        </button>
-      </div>
+          </div>
+        </>
+      ) : (
+        <p className="hint" style={{ marginTop: 10 }}>
+          NoaCG Lite accepts one compatible logo, but does not send or recreate reference images.
+        </p>
+      )}
     </>
   );
 }

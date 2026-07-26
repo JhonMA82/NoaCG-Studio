@@ -1,0 +1,199 @@
+import { randomUUID } from 'node:crypto';
+import type { ModelResult } from '../../src/ai/modelTypes.js';
+import { supabaseSecretKey } from './jobStore.js';
+import type { LiteProfile } from './aiLiteProfile.js';
+
+export type LiteGenerationStatus =
+  | 'reserved'
+  | 'model_running'
+  | 'spec_ready'
+  | 'usable'
+  | 'accepted'
+  | 'unsupported'
+  | 'failed'
+  | 'expired';
+
+export interface LiteGenerationRecord {
+  id: string;
+  userId: string;
+  ipHash: string;
+  idempotencyKey: string;
+  profile: 'lite';
+  status: LiteGenerationStatus;
+  promptVersion: string;
+  requestedCategory: string | null;
+  resolvedCategory: string | null;
+  provider: string | null;
+  model: string | null;
+  attemptCount: number;
+  repairCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  reasoningTokens: number;
+  providerCostUsd: number;
+  validationRuleCodes: string[];
+  runtimeMs: number | null;
+  rejectionReason: string | null;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+}
+
+export interface LiteUsageSnapshot {
+  dailyStarts: number;
+  monthlyStarts: number;
+  dailySuccesses: number;
+  monthlySuccesses: number;
+  activeForUser: number;
+  activeGlobal: number;
+  dailyFleetSpendUsd: number;
+}
+
+export type LiteReservation =
+  | { status: 'created'; record: LiteGenerationRecord }
+  | { status: 'duplicate'; record: LiteGenerationRecord }
+  | { status: 'daily-start-limit' | 'monthly-start-limit' | 'daily-success-limit' | 'monthly-success-limit' | 'user-concurrency' | 'fleet-concurrency' | 'fleet-spend' };
+
+export interface LiteGenerationStore {
+  usage(userId: string, now: number): Promise<LiteUsageSnapshot>;
+  reserve(input: {
+    userId: string;
+    ipHash: string;
+    idempotencyKey: string;
+    requestedCategory: string | null;
+    now: number;
+    profile: LiteProfile;
+  }): Promise<LiteReservation>;
+  get(id: string): Promise<LiteGenerationRecord | null>;
+  update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null>;
+}
+
+const ACTIVE = new Set<LiteGenerationStatus>(['reserved', 'model_running', 'spec_ready']);
+const SUCCESS = new Set<LiteGenerationStatus>(['usable', 'accepted']);
+
+function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGenerationRecord {
+  return {
+    id: randomUUID(),
+    userId: input.userId,
+    ipHash: input.ipHash,
+    idempotencyKey: input.idempotencyKey,
+    profile: 'lite',
+    status: 'reserved',
+    promptVersion: input.profile.promptVersion,
+    requestedCategory: input.requestedCategory,
+    resolvedCategory: null,
+    provider: null,
+    model: null,
+    attemptCount: 0,
+    repairCount: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    reasoningTokens: 0,
+    // Reserve the worst-case session amount until provider usage reconciles it.
+    providerCostUsd: input.profile.maxProviderCostUsd,
+    validationRuleCodes: [],
+    runtimeMs: null,
+    rejectionReason: null,
+    createdAt: input.now,
+    updatedAt: input.now,
+    expiresAt: input.now + input.profile.expiryMs,
+  };
+}
+
+export function modelResultPatch(result: ModelResult): Partial<LiteGenerationRecord> {
+  return {
+    provider: result.provider,
+    model: result.model,
+    attemptCount: result.attempts.reduce((sum, item) => sum + item.attempts, 0),
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    cachedInputTokens: result.usage.cachedInputTokens ?? 0,
+    reasoningTokens: result.usage.reasoningTokens ?? 0,
+    providerCostUsd: result.usage.estimatedCost?.amount ?? 0,
+  };
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+const MONTH = 30 * DAY;
+
+export class MemoryLiteGenerationStore implements LiteGenerationStore {
+  private readonly records = new Map<string, LiteGenerationRecord>();
+
+  async usage(userId: string, now: number): Promise<LiteUsageSnapshot> {
+    const records = [...this.records.values()];
+    const userRecords = records.filter((record) => record.userId === userId);
+    return {
+      dailyStarts: userRecords.filter((record) => record.createdAt >= now - DAY).length,
+      monthlyStarts: userRecords.filter((record) => record.createdAt >= now - MONTH).length,
+      dailySuccesses: userRecords.filter((record) => record.createdAt >= now - DAY && SUCCESS.has(record.status)).length,
+      monthlySuccesses: userRecords.filter((record) => record.createdAt >= now - MONTH && SUCCESS.has(record.status)).length,
+      activeForUser: userRecords.filter((record) => ACTIVE.has(record.status) && record.expiresAt > now).length,
+      activeGlobal: records.filter((record) => ACTIVE.has(record.status) && record.expiresAt > now).length,
+      dailyFleetSpendUsd: records
+        .filter((record) => record.createdAt >= now - DAY)
+        .reduce((sum, record) => sum + record.providerCostUsd, 0),
+    };
+  }
+
+  async reserve(input: Parameters<LiteGenerationStore['reserve']>[0]): Promise<LiteReservation> {
+    const duplicate = [...this.records.values()].find((record) =>
+      record.userId === input.userId && record.idempotencyKey === input.idempotencyKey,
+    );
+    if (duplicate) return { status: 'duplicate', record: duplicate };
+    const usage = await this.usage(input.userId, input.now);
+    if (usage.dailyStarts >= input.profile.dailyStarts) return { status: 'daily-start-limit' };
+    if (usage.monthlyStarts >= input.profile.monthlyStarts) return { status: 'monthly-start-limit' };
+    if (usage.dailySuccesses >= input.profile.dailySuccesses) return { status: 'daily-success-limit' };
+    if (usage.monthlySuccesses >= input.profile.monthlySuccesses) return { status: 'monthly-success-limit' };
+    if (usage.activeForUser >= input.profile.maxConcurrentPerUser) return { status: 'user-concurrency' };
+    if (usage.activeGlobal >= input.profile.maxConcurrentFleet) return { status: 'fleet-concurrency' };
+    if (usage.dailyFleetSpendUsd + input.profile.maxProviderCostUsd > input.profile.dailyFleetSpendUsd) {
+      return { status: 'fleet-spend' };
+    }
+    const record = newRecord(input);
+    this.records.set(record.id, record);
+    return { status: 'created', record };
+  }
+
+  async get(id: string): Promise<LiteGenerationRecord | null> {
+    return this.records.get(id) ?? null;
+  }
+
+  async update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null> {
+    const current = this.records.get(id);
+    if (!current) return null;
+    const next = { ...current, ...patch, id: current.id, userId: current.userId, updatedAt: Date.now() };
+    this.records.set(id, next);
+    return next;
+  }
+}
+
+let memoryStore: MemoryLiteGenerationStore | null = null;
+let storePromise: Promise<LiteGenerationStore> | null = null;
+
+export function resetLiteGenerationStoreForTests(): void {
+  memoryStore = null;
+  storePromise = null;
+}
+
+/** Managed Lite must never depend on an ephemeral function instance for quotas or IP hashing. */
+export function liteLedgerConfigured(): boolean {
+  const url = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
+  const salt = (process.env.IP_HASH_SALT ?? '').trim();
+  return Boolean(url && supabaseSecretKey() && salt.length >= 16);
+}
+
+export async function getLiteGenerationStore(): Promise<LiteGenerationStore> {
+  if (storePromise) return storePromise;
+  storePromise = (async () => {
+    if (supabaseSecretKey() && (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)) {
+      const { SupabaseLiteGenerationStore } = await import('./aiLiteStoreSupabase.js');
+      return new SupabaseLiteGenerationStore();
+    }
+    memoryStore ??= new MemoryLiteGenerationStore();
+    return memoryStore;
+  })();
+  return storePromise;
+}

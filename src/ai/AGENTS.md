@@ -43,6 +43,27 @@ work (below) and the refreshed structure briefs closed enough to make it the def
   design-stage prompt a SUBTLE tie-breaker only after ≥8 selections and ≥6 shows per facet;
   it never overrides the brief and never reacts to a single click.
 
+## NoaCG Lite - the managed free profile
+
+Lite is the catalog-only, one-result profile selected with `GenerateOptions.profile =
+'lite'`. Its model-bound design call goes through the trusted `/api/ai/lite/generations`
+endpoint and the compact allowlist in `liteContract.ts`; the browser cannot supply a model,
+route, fallback, system prompt, or cost policy. A ready response rejoins this file's existing
+`groundedResult` path, so `specToTemplate`, real catalog assemblers, deterministic
+adjustments, fields, NOACG_ANIM, assets, validation, runtime checks, and exports stay shared.
+
+Lite must never call `generateRaw`, `generateAlternatives`, custom code generation, polish,
+import conversion, or code repair. `modify` is allowed only while the caller passes the
+grounded DesignSpec and the template remains house-shaped; it produces another constrained
+DesignSpec. A grounded failure is reported to the server as a platform validation failure.
+No model call may rewrite the compiled code. Unsupported scope returns a typed explanation
+and simplification, never an automatic expensive fallback.
+
+`liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
+trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider
+configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
+aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
+
 ## The pipeline (claudeProvider.generate — one harness run; generateAlternatives runs it ×3)
 
 1. **Design spec** (`designSpec.ts`, forced `emit_design_spec`) - the only mandatory model

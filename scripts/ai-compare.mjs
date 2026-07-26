@@ -31,13 +31,14 @@
 // format grounds — any C/D win is a TASTE / LAYOUT / RELIABILITY win, not format knowledge.
 // The neutral cross-arm scores are the runtime bench, the overlap count, and the screenshots.
 //
-// Requirements: the dev server (this checkout's port — scripts/dev-port.mjs) and
-// VITE_ANTHROPIC_API_KEY in .env (or the environment). ⚠ SPENDS REAL TOKENS — roughly
+// Requirements: the dev server (this checkout's port - scripts/dev-port.mjs) started with
+// server-only ANTHROPIC_API_KEY. The key never enters this browser process or its storage.
+// SPENDS REAL TOKENS - roughly
 // count × (1 raw + ROUNDS_B + pre-harness 1-3 + harness 1-4) calls. Third arg limits to the
 // first N briefs or a comma-separated id list.
 
 import { chromium } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
@@ -72,30 +73,20 @@ const BRIEFS = [
   ['head-to-head', 'A player head-to-head stat panel: two athletes named at the top, then four stat rows, each stat labelled in the centre with a bar growing outward left for player one and right for player two (mirrored/diverging). Fields: two player names and a textarea "Stat | left | right". Bold sports-analysis look. Mid-center.'],
 ];
 
-// ── Key: .env first, then the environment ──
-function readKey() {
-  const clean = (v) => v.replace(/^[\s"']+|[\s"']+$/g, '');
-  if (process.env.VITE_ANTHROPIC_API_KEY) return clean(process.env.VITE_ANTHROPIC_API_KEY);
-  if (existsSync('.env')) {
-    const m = readFileSync('.env', 'utf8').match(/^VITE_ANTHROPIC_API_KEY=(.+)$/m);
-    if (m) return clean(m[1]) || null;
-  }
-  return null;
-}
-const KEY = readKey();
-if (!KEY) {
-  console.error('No VITE_ANTHROPIC_API_KEY found (in .env or the environment). Aborting before spending anything.');
-  process.exit(1);
-}
-
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 0.5 });
-await page.addInitScript((key) => {
-  // proxyUrl:'' pins DIRECT mode - an empty string beats loadAiSettings' ?? fallback to
-  // the dev server's VITE_AI_PROXY_URL, so a full .env no longer reroutes bench calls.
-  localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: key, model: 'claude-sonnet-5', proxyUrl: '' }));
-}, KEY);
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+const configured = await page.evaluate(async () => {
+  const { refreshAiConfiguration, saveAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
+  await refreshAiConfiguration();
+  saveAiSettings({ provider: 'anthropic', model: 'claude-sonnet-5', fallbacks: [] });
+  return aiConfigured();
+});
+if (!configured) {
+  console.error('No server-managed Anthropic route is available. Start the dev server with server-only ANTHROPIC_API_KEY.');
+  await browser.close();
+  process.exit(1);
+}
 await page.waitForTimeout(800);
 
 const selected = /^[a-z-]+(,[a-z-]+)*$/.test(FILTER)

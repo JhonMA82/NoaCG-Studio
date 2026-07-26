@@ -30,7 +30,6 @@ import { devPort } from '../scripts/dev-port.mjs';
 const MUST_BE_EMPTY = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
-  'VITE_ANTHROPIC_API_KEY',
   'VITE_AI_PROXY_URL',
 ] as const;
 

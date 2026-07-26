@@ -13,7 +13,14 @@ export function aiApiPlugin() {
   };
 }
 
-const ROUTES = new Set(['generate', 'config', 'credentials']);
+const ROUTES = new Set([
+  'generate',
+  'config',
+  'credentials',
+  'lite/status',
+  'lite/generations',
+  'lite/outcome',
+]);
 
 async function handle(server, req, res) {
   try {

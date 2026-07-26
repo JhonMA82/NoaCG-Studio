@@ -9,6 +9,7 @@ import type { ValidationResult } from '../validation/validateTemplate';
 import type { DesignSpec } from './designSpec';
 import type { ChatMessage } from './brainstorm';
 import type { GenerationSpec } from '../model/generationSpec';
+import type { CreativeAiProfileId } from './liteTypes';
 
 /** Extra inputs for generation: uploaded images (logo / still), brand colors, canvas. */
 export interface GenerateContext {
@@ -50,6 +51,8 @@ export type SpxValidator = (template: SpxTemplate) => Promise<ValidationResult>;
 
 /** Options every template-producing provider method accepts. */
 export interface GenerateOptions {
+  /** A server-owned product profile. Omitted preserves the existing BYO/provider flow. */
+  profile?: CreativeAiProfileId;
   /** Validate candidates (and drive the repair loop). Falls back to static validation. */
   validate?: SpxValidator;
   /** Stage announcements for the UI's busy line ("Designing…", "Testing it live…"). */
@@ -75,6 +78,8 @@ export interface AiTemplateChange extends TemplateChange {
   /** On grounded results: the design spec that produced the template (pass it back via
    *  GenerateOptions.spec so refinements can stay at spec level). */
   spec?: DesignSpec;
+  /** Server ledger id for a managed generation. It is transient and never enters SpxTemplate. */
+  generationId?: string;
 }
 
 export interface AIProvider {

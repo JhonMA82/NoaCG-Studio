@@ -13,5 +13,4 @@
 
 export const VITE_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 export const VITE_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const VITE_ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 export const VITE_AI_PROXY_URL = import.meta.env.VITE_AI_PROXY_URL;

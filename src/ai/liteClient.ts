@@ -1,0 +1,126 @@
+import { getAccessToken } from '../backend/auth';
+import type { DesignSpec } from './designSpec';
+import type { GenerateContext } from './provider';
+import type {
+  LiteGenerationRequest,
+  LiteGenerationResult,
+  LiteOutcomeRequest,
+  LiteStatusResponse,
+  LiteUnsupportedCode,
+} from './liteTypes';
+
+interface LiteApiError {
+  error?: { code?: string; message?: string; retryable?: boolean };
+}
+
+export class LiteRequestError extends Error {
+  readonly code: string;
+  readonly retryable: boolean;
+
+  constructor(code: string, message: string, retryable = false) {
+    super(message);
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+export class LiteUnsupportedError extends Error {
+  readonly code: LiteUnsupportedCode;
+  readonly suggestedBrief?: string;
+
+  constructor(code: LiteUnsupportedCode, message: string, suggestedBrief?: string) {
+    super(message);
+    this.code = code;
+    this.suggestedBrief = suggestedBrief;
+  }
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  return {
+    'content-type': 'application/json',
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function checkedJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as LiteApiError | null;
+    throw new LiteRequestError(
+      body?.error?.code ?? 'generation_failed',
+      body?.error?.message ?? 'NoaCG Lite could not complete the request.',
+      body?.error?.retryable ?? false,
+    );
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function loadLiteStatus(): Promise<LiteStatusResponse> {
+  const token = await getAccessToken();
+  const response = await fetch('/api/ai/lite/status', {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  });
+  return checkedJson<LiteStatusResponse>(response);
+}
+
+export async function generateLiteDesign(
+  prompt: string,
+  context: GenerateContext,
+  priorSpec?: DesignSpec,
+): Promise<LiteGenerationResult> {
+  const request: LiteGenerationRequest = {
+    idempotencyKey: crypto.randomUUID(),
+    prompt,
+    generationSpec: context.spec
+      ? {
+          version: 1,
+          category: context.spec.category,
+          fields: context.spec.fields.map(({ label, kind, description, example }) => ({
+            label,
+            kind,
+            description,
+            example,
+          })),
+          styleNotes: context.spec.styleNotes,
+          mood: context.spec.mood,
+          avoidNotes: context.spec.avoidNotes,
+          brandColors: context.spec.brandColors,
+          animation: context.spec.animation as unknown as Record<string, unknown>,
+        }
+      : null,
+    priorSpec: priorSpec as unknown as LiteGenerationRequest['priorSpec'],
+    conversation: context.conversation?.map((turn) => ({ role: turn.role, content: turn.text })),
+    palette: context.palette,
+    primaryFont: context.customFont
+      ? { family: context.customFont.family, uploaded: true }
+      : context.spec?.fonts?.primary?.fontId
+        ? { family: context.spec.fonts.primary.fontId, uploaded: false }
+        : null,
+    hasLogo: context.images.length === 1,
+    resolution: context.resolution,
+    fps: context.fps,
+  };
+  const response = await fetch('/api/ai/lite/generations', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(request),
+  });
+  const result = await checkedJson<LiteGenerationResult>(response);
+  if (result.decision.status === 'unsupported') {
+    throw new LiteUnsupportedError(
+      result.decision.code,
+      result.decision.message,
+      result.decision.suggestedBrief,
+    );
+  }
+  return result;
+}
+
+export async function recordLiteOutcome(request: LiteOutcomeRequest): Promise<void> {
+  const response = await fetch('/api/ai/lite/outcome', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(request),
+  });
+  await checkedJson(response);
+}

@@ -32,6 +32,7 @@ import { convertToDataRegion } from '../templates/shared/standard';
 import { specSections } from './spec/specPrompt';
 import { applySpecLocks, applySpecOutPreset, narrowedSpecTool } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
+import { generateLiteDesign, LiteRequestError, recordLiteOutcome } from './liteClient';
 
 // ── Structured output: the model must return the template via this tool ─────
 
@@ -737,6 +738,53 @@ async function groundedResult(
   };
 }
 
+async function liteGroundedResult(
+  prompt: string,
+  context: GenerateContext,
+  options: GenerateOptions | undefined,
+  run: AiRunRecorder,
+  priorSpec?: DesignSpec,
+): Promise<AiTemplateChange> {
+  options?.onProgress?.('Designing with NoaCG Lite…');
+  const started = Date.now();
+  const generated = await generateLiteDesign(prompt, context, priorSpec);
+  const decision = generated.decision;
+  if (decision.status !== 'ready') throw new LiteRequestError('generation_failed', 'NoaCG Lite returned no design.');
+  run.stage('lite-design-spec', started, undefined, generated.usage);
+  run.managed('lite', generated.generationId);
+  const spec = applySpecLocks(
+    {
+      ...decision.spec,
+      fit: 'catalog',
+      flourish: null,
+      lines: Array.isArray(decision.spec.lines) ? decision.spec.lines : [],
+    } as DesignSpec,
+    context.spec,
+  );
+  const assembledAt = Date.now();
+  try {
+    const change = await groundedResult(spec, context, { ...options, profile: undefined }, run);
+    const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
+    await recordLiteOutcome({
+      generationId: generated.generationId,
+      action: change.validation?.ok === false ? 'validation-failed' : 'usable',
+      resolvedCategory: spec.category,
+      validationRuleCodes: ruleCodes,
+      runtimeMs: Date.now() - assembledAt,
+    }).catch(() => undefined);
+    return { ...change, generationId: generated.generationId };
+  } catch (error) {
+    await recordLiteOutcome({
+      generationId: generated.generationId,
+      action: 'validation-failed',
+      resolvedCategory: spec.category,
+      validationRuleCodes: ['platform_compile'],
+      runtimeMs: Date.now() - assembledAt,
+    }).catch(() => undefined);
+    throw error;
+  }
+}
+
 /** Rebuild a GenerateContext from a template being refined (its images ride its assets). */
 function contextFrom(template: SpxTemplate, outer?: GenerateContext): GenerateContext {
   const own = template.assets.filter((a) => a.path.startsWith('images/'));
@@ -772,6 +820,10 @@ function designNotes(spec: DesignSpec): string {
 export const claudeProvider: AIProvider = {
   async generate(prompt, context, options) {
     return recorded('generate', async (run) => {
+      if (options?.profile === 'lite') {
+        if (!context) throw new LiteRequestError('invalid_request', 'NoaCG Lite needs a generation context.');
+        return liteGroundedResult(prompt, context, options, run);
+      }
       const userContent: ContentBlock[] = [
         ...imageBlocks(context),
         { type: 'text', text: contextText(prompt, context) },
@@ -817,6 +869,9 @@ export const claudeProvider: AIProvider = {
   },
 
   async generateRaw(prompt, context, options) {
+    if (options?.profile === 'lite') {
+      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not generate unrestricted template code.');
+    }
     return recorded('generate', async (run) => {
       options?.onProgress?.('Generating…');
       const t0 = Date.now();
@@ -837,6 +892,7 @@ export const claudeProvider: AIProvider = {
   },
 
   async generateAlternatives(prompt, context, options) {
+    if (options?.profile === 'lite') return [await this.generate(prompt, context, options)];
     const run = startAiRun('generate');
     try {
       const userContent: ContentBlock[] = [
@@ -898,6 +954,15 @@ export const claudeProvider: AIProvider = {
   },
 
   async modify(prompt, template, context, options) {
+    if (options?.profile === 'lite') {
+      if (!context || !options.spec || !detectPrefix(template.html) || !parseAnimData(template.js)) {
+        throw new LiteRequestError(
+          'unsupported_operation',
+          'NoaCG Lite can refine only a grounded Lite design. Create a new Lite graphic for a structural change.',
+        );
+      }
+      return recorded('modify', (run) => liteGroundedResult(prompt, contextFrom(template, context), options, run, options.spec));
+    }
     // A grounded result refines at SPEC level while it is still house-shaped; anything
     // else (foreign imports, hand-edited code, custom builds) refines at code level.
     // An image attached to this turn does NOT force the code level: the design stage sees
@@ -922,6 +987,9 @@ export const claudeProvider: AIProvider = {
   },
 
   async fix(template, options) {
+    if (options?.profile === 'lite') {
+      throw new LiteRequestError('platform_validation', 'A Lite validation failure is a NoaCG platform defect and is not repaired with generated code.');
+    }
     const validation = validateTemplate(template);
     const problems = validation.ok
       ? 'No validator errors — review the template for runtime bugs (replay-safety, missing ids) and fix what you find.'
@@ -930,6 +998,9 @@ export const claudeProvider: AIProvider = {
   },
 
   async makeSpxReady(template, options) {
+    if (options?.profile === 'lite') {
+      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not rewrite existing template code.');
+    }
     return modifyAs(
       'make-ready',
       'Make this template fully SPX-ready: a complete SPXGCTemplateDefinition matching the DOM ' +
@@ -942,6 +1013,9 @@ export const claudeProvider: AIProvider = {
   },
 
   async convertImport(prompt, imported, context, options) {
+    if (options?.profile === 'lite') {
+      throw new LiteRequestError('unsupported_operation', 'NoaCG Lite does not convert imported templates.');
+    }
     const request = prompt.trim() || 'Bring it fully up to the house standards.';
     return modifyAs(
       'convert',

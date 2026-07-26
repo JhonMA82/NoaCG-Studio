@@ -14,6 +14,9 @@ const ENTRYPOINTS = [
   'api/ai/config.ts',
   'api/ai/credentials.ts',
   'api/ai/generate.ts',
+  'api/ai/lite/status.ts',
+  'api/ai/lite/generations.ts',
+  'api/ai/lite/outcome.ts',
 ];
 
 async function artifactFiles(directory) {
@@ -28,15 +31,21 @@ async function artifactFiles(directory) {
 const smokeSource = String.raw`
   import assert from 'node:assert/strict';
 
-  const [configUrl, credentialsUrl, generateUrl] = process.argv.slice(1);
+  const [configUrl, credentialsUrl, generateUrl, liteStatusUrl, liteGenerationsUrl, liteOutcomeUrl] = process.argv.slice(1);
   const [
     { default: configHandler },
     { default: credentialsHandler },
     { default: generateHandler },
+    { default: liteStatusHandler },
+    { default: liteGenerationsHandler },
+    { default: liteOutcomeHandler },
   ] = await Promise.all([
     import(configUrl),
     import(credentialsUrl),
     import(generateUrl),
+    import(liteStatusUrl),
+    import(liteGenerationsUrl),
+    import(liteOutcomeUrl),
   ]);
 
   const configResponse = await configHandler.fetch(
@@ -88,6 +97,38 @@ const smokeSource = String.raw`
     new Request('https://noacg.test/api/ai/generate'),
   );
   assert.equal(generateResponse.status, 405);
+
+  const liteStatusResponse = await liteStatusHandler.fetch(
+    new Request('https://noacg.test/api/ai/lite/status'),
+  );
+  assert.equal(liteStatusResponse.status, 200);
+  const liteStatus = await liteStatusResponse.json();
+  assert.equal(liteStatus.profile, 'lite');
+  assert.equal(liteStatus.enabled, false);
+  assert.equal(liteStatus.available, false);
+  assert.equal(JSON.stringify(liteStatus).includes('gemini'), false);
+  assert.equal(JSON.stringify(liteStatus).includes('qwen'), false);
+
+  process.env.AI_LITE_ENABLED = 'true';
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_ANON_KEY = 'public-anon-placeholder';
+  const incompleteLiteStatusResponse = await liteStatusHandler.fetch(
+    new Request('https://noacg.test/api/ai/lite/status'),
+  );
+  const incompleteLiteStatus = await incompleteLiteStatusResponse.json();
+  assert.equal(incompleteLiteStatus.enabled, true);
+  assert.equal(incompleteLiteStatus.available, false);
+  assert.equal(incompleteLiteStatus.reason, 'not-configured');
+
+  assert.equal(
+    (await liteGenerationsHandler.fetch(new Request('https://noacg.test/api/ai/lite/generations'))).status,
+    405,
+  );
+  assert.equal(
+    (await liteOutcomeHandler.fetch(new Request('https://noacg.test/api/ai/lite/outcome'))).status,
+    405,
+  );
 `;
 
 test('Vercel-style JavaScript artifacts load and execute every Creative AI function', async (t) => {

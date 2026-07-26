@@ -64,7 +64,6 @@ export default defineConfig({
       VITE_RENDER_API: '1',
       VITE_AI_PROVIDER: '',
       VITE_AI_MODEL: '',
-      VITE_ANTHROPIC_API_KEY: '',
       VITE_AI_PROXY_URL: '',
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: '',

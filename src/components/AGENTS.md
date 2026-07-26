@@ -750,6 +750,17 @@ persists as a cross-session draft and, on Create, lands on the store's `aiSpec` 
 the project). A prompt-only user never touches it - an empty spec injects nothing (pinned by
 e2e/ai-more-control.spec.ts).
 
+When the server exposes **NoaCG Lite**, this same step becomes the smallest managed profile
+surface: one result, included/free-user copy, remaining allowance, a seven-category filter,
+at most eight fields, one compatible logo, and no style-reference upload. Provider/model
+settings, brainstorm, raw mode, three alternatives, "more like this", custom/import
+conversion, and code repair are hidden. A supported request calls the existing provider with
+`profile: 'lite'`; its returned DesignSpec still compiles and benches through the normal
+harness. An unsupported response shows the server's explanation and one simplification.
+Creating or exporting records acceptance by generation id; the id is transient and never
+enters the template or saved graphic. If Lite is disabled, the established advanced/BYO
+surface is unchanged.
+
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to
 turn it off. On → `generateAlternatives`: three directions rendered as `[data-alt]` PICKER
@@ -777,13 +788,15 @@ actually faced; a lone result stages nothing (counting it would score every face
 direction before creating it — the most engaged ones — trained the model with nothing.
 CreationWizard's `createFromAi` COMMITS whatever is staged.
 
-A FAILING result carries **⟳ Fix these** (`data-testid="ai-fix"`): the exact validator
+A failing non-Lite result carries **⟳ Fix these** (`data-testid="ai-fix"`): the exact validator
 findings go back as the instruction, at CODE level (no spec — the findings are about emitted
 code). It is a button, not an automatic loop: a grounded assembly failing its own bench is a
 platform bug worth surfacing (src/ai/AGENTS.md), but leaving a non-technical user holding
 raw findings is not a resolution. The per-card verdict uses `.wz-alt-mark.ok/.bad`, NOT
 `.status-ok`/`.status-bad` — those name the verdict on the CURRENT result, and four
 elements answering to the same words broke a spec the moment cards appeared.
+Lite instead labels the same failure as a NoaCG platform defect and spends no code-repair
+call.
 
 An **example brief is armed before it replaces a brief the user wrote** (two-step, like every
 other destructive click here): the chip reads "Replace your brief?" until confirmed, and

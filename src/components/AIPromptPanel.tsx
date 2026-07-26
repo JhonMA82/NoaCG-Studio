@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAiProvider } from '../ai';
 import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
@@ -8,6 +8,7 @@ import { useTemplateStore } from '../store/templateStore';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { formatTemplate } from '../format/formatCode';
 import type { TemplateChange } from '../model/types';
+import { loadLiteStatus } from '../ai/liteClient';
 
 type Pending = { change: TemplateChange; validation: ValidationResult } | null;
 
@@ -30,6 +31,18 @@ export default function AIPromptPanel() {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [liteEnabled, setLiteEnabled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void loadLiteStatus()
+      .then((status) => {
+        if (alive) setLiteEnabled(status.enabled);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Hosted mode, no account: AI is an account feature (creating/exporting never is). The offline
   // build has no backend, so needsSignIn is always false there and nothing changes.
@@ -95,6 +108,13 @@ export default function AIPromptPanel() {
             </>
           )}
         </p>
+        {liteEnabled && (
+          <p className="hint">
+            NoaCG Lite creates and refines grounded graphics in New project. It does not rewrite
+            an existing template's code. The controls below use the separately configured
+            advanced or BYO provider path.
+          </p>
+        )}
       </div>
 
       {aiThread && aiThread.messages.length > 0 && (

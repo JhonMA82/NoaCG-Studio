@@ -5,7 +5,9 @@ import type { AIProvider } from './provider';
 import { aiProvider as stubProvider } from './stubProvider';
 import { claudeProvider } from './claudeProvider';
 import { aiConfigured } from './settings';
+import type { CreativeAiProfileId } from './liteTypes';
 
-export function getAiProvider(): AIProvider {
+export function getAiProvider(profile?: CreativeAiProfileId): AIProvider {
+  if (profile === 'lite') return claudeProvider;
   return aiConfigured() ? claudeProvider : stubProvider;
 }

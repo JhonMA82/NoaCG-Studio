@@ -30,6 +30,6 @@ export default defineConfig({
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,
-    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_RENDER_API: '1', VITE_ANTHROPIC_API_KEY: '', VITE_AI_MODEL: '', VITE_AI_PROXY_URL: '' },
+    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_RENDER_API: '1', VITE_AI_MODEL: '', VITE_AI_PROXY_URL: '' },
   },
 });

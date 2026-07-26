@@ -33,6 +33,9 @@ import { readinessRows, unclaimedFindings } from '../../../validation/readiness'
 import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
 import MoreControlPanel from './ai/MoreControlPanel';
+import { LITE_AI_CATEGORIES } from '../../../ai/liteContract';
+import { LiteUnsupportedError, loadLiteStatus, recordLiteOutcome } from '../../../ai/liteClient';
+import type { LiteStatusResponse } from '../../../ai/liteTypes';
 
 interface Props {
   resolution: Resolution;
@@ -43,7 +46,12 @@ interface Props {
   result: SpxTemplate | null;
   /** `spec` is the structured setup the result was generated under (null = prompt-only) —
    *  the wizard saves it with the created project. */
-  onResult: (template: SpxTemplate | null, valid: boolean, spec?: GenerationSpec | null) => void;
+  onResult: (
+    template: SpxTemplate | null,
+    valid: boolean,
+    spec?: GenerationSpec | null,
+    generationId?: string,
+  ) => void;
   /** The conversation as it stands (talk turns only), reported on every change so the created
    *  project can carry the reasoning that produced it (persisted as GraphicDoc.aiThread). Fires
    *  independently of onResult so talk added AFTER the last result, before Create, is caught. */
@@ -92,6 +100,13 @@ type Turn = TalkTurn | PastTurn;
  */
 const CONVERSATION_TURNS = 10;
 
+const LITE_EXAMPLE_PROMPTS = [
+  { label: 'News lower third', prompt: 'A restrained public-news lower third for a reporter name and role. Dark editorial palette, clear hierarchy, calm entrance.' },
+  { label: 'Lecture title', prompt: 'A university lecture title card with course name, lecture title, and speaker. Modern, credible, spacious, and easy to read.' },
+  { label: 'Match score', prompt: 'A simple two-team football scoreboard with editable team names and scores. Energetic but highly legible.' },
+  { label: 'Countdown', prompt: 'A clean event countdown timer with an editable label. Confident broadcast motion and strong numeric typography.' },
+] as const;
+
 /**
  * The design decisions behind one direction, in the user's words. The whole point of the
  * three alternatives is that they differ in REAL decisions (composition, density, weight,
@@ -128,7 +143,24 @@ export default function AiStep({
   onUseTemplates,
 }: Props) {
   const { needsSignIn } = useAuthState();
+  const [liteStatus, setLiteStatus] = useState<LiteStatusResponse | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void loadLiteStatus()
+      .then((status) => {
+        if (alive) setLiteStatus(status);
+      })
+      .catch(() => {
+        if (alive) setLiteStatus(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [needsSignIn]);
+  const liteMode = Boolean(liteStatus?.enabled);
+  const liteActive = Boolean(liteStatus?.available);
   const [settings, setSettings] = useState(loadAiSettings);
+  const aiReady = liteMode ? liteActive : aiConfigured(settings);
   const [showSettings, setShowSettings] = useState(!aiConfigured());
   const [prompt, setPrompt] = useState('');
   const [images, setImages] = useState<AssetFile[]>([]);
@@ -138,6 +170,13 @@ export default function AiStep({
   const [moreOpen, setMoreOpen] = useState(() => !specIsEmpty(loadSpecDraft()));
   const [references, setReferences] = useState<AssetFile[]>([]);
   useEffect(() => saveSpecDraft(spec), [spec]);
+  useEffect(() => {
+    if (!liteMode) return;
+    if (spec.category !== 'auto' && !LITE_AI_CATEGORIES.some((category) => category === spec.category)) {
+      setSpec((current) => ({ ...current, category: 'auto', categoryInferred: false }));
+    }
+    if (references.length) setReferences([]);
+  }, [liteMode, references.length, spec.category]);
   const activeSpec = specIsEmpty(spec) ? null : spec;
   const [imported, setImported] = useState<{ fileName: string; template: SpxTemplate } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -215,6 +254,10 @@ export default function AiStep({
   /** Move the current result into the transcript before a new one takes its place. */
   const archiveCurrent = () => {
     if (!alternatives.length) return;
+    const generationId = alternatives[selected]?.generationId;
+    if (generationId) {
+      void recordLiteOutcome({ generationId, action: 'discarded' }).catch(() => undefined);
+    }
     say({ kind: 'past', changes: alternatives, originals, selected });
   };
 
@@ -261,6 +304,14 @@ export default function AiStep({
     const next = [...images];
     for (const file of list) {
       if (!file.type.startsWith('image/')) continue;
+      if (liteMode && next.length >= (liteStatus?.limits.logos ?? 1)) {
+        setError('NoaCG Lite accepts one logo for a compatible catalog design.');
+        break;
+      }
+      if (liteMode && file.size > (liteStatus?.limits.logoBytes ?? 2_000_000)) {
+        setError('The NoaCG Lite logo limit is 2 MB.');
+        continue;
+      }
       next.push({ path: uniqueAssetPath(file.name, next), data: await fileToDataUrl(file) });
     }
     if (next.length !== images.length) setImages(next);
@@ -290,7 +341,7 @@ export default function AiStep({
     setValidation(v);
     setLastPath(change.path ?? null);
     setLastSpec(change.spec ?? null);
-    onResult(change.template, v.ok, activeSpec);
+    onResult(change.template, v.ok, activeSpec, change.generationId);
     return v;
   };
 
@@ -331,7 +382,11 @@ export default function AiStep({
     setBusy(label);
     setError(null);
     try {
-      const change = await fn({ validate, onProgress: (stage) => setBusy(stage) });
+      const change = await fn({
+        validate,
+        onProgress: (stage) => setBusy(stage),
+        ...(liteActive ? { profile: 'lite' as const } : {}),
+      });
       setAlternatives([change]);
       setOriginals([change]);
       setSelected(0);
@@ -339,7 +394,13 @@ export default function AiStep({
       showChange(change);
       recordSpend();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof LiteUnsupportedError && e.suggestedBrief
+          ? `${e.message} Try: ${e.suggestedBrief}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setBusy(null);
     }
@@ -359,8 +420,8 @@ export default function AiStep({
     : null;
   /** `seed` = "three more like this": the direction whose spirit the new ones should keep. */
   const contextFor = (seed?: DesignSpec): GenerateContext => ({
-    images,
-    references: references.length ? references : undefined,
+    images: liteActive ? images.slice(0, 1) : images,
+    references: !liteActive && references.length ? references : undefined,
     palette: specPalette ?? brandPalette,
     customFont: spec.fonts?.primary?.customFont,
     spec: activeSpec,
@@ -410,10 +471,23 @@ export default function AiStep({
     // the harness switch: OFF = the default one-shot (statically validated, no repair
     // loop), ON = three harness alternatives with the live bench injected.
     if (imported) {
+      if (liteActive) {
+        setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new common graphic.');
+        return;
+      }
       void run(
         (options) => getAiProvider().convertImport(brief, imported.template, context, options),
         'Converting your template…',
       );
+      return;
+    }
+    if (liteActive) {
+      void run(
+        (options) => getAiProvider('lite').generate(brief, context, options),
+        'Creating one NoaCG Lite graphic…',
+      ).then(() => {
+        void loadLiteStatus().then(setLiteStatus).catch(() => undefined);
+      });
       return;
     }
     if (!settings.useHarness) {
@@ -476,9 +550,10 @@ export default function AiStep({
       setBusy(label);
       setError(null);
       try {
-        const change = await getAiProvider().modify(instruction, result, contextFor(), {
+        const change = await getAiProvider(liteActive ? 'lite' : undefined).modify(instruction, result, contextFor(), {
           validate,
           onProgress: (stage) => setBusy(stage),
+          ...(liteActive ? { profile: 'lite' as const } : {}),
           ...(useSpec && lastSpec ? { spec: lastSpec } : {}),
         });
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
@@ -534,12 +609,18 @@ export default function AiStep({
   return (
     <div>
       <div className="panel-section">
-        <h3>Create with AI</h3>
+        <h3>{liteMode ? 'NoaCG Lite' : 'Create with AI'}</h3>
         <p className="hint">
-          Describe what you need — and drop in a logo, brand stills, or an existing template to
-          convert. Every result is validated AND exercised in a live playout test before you can
-          create it, and lands as clean, editable code.
+          {liteMode
+            ? 'Included for free users. Describe one common broadcast graphic and Lite creates one editable result, then validates and exercises it in the live playout bench. Complex or unsupported requests are explained instead of being forced into a poor design.'
+            : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
         </p>
+        {liteMode && liteStatus?.allowance && (
+          <p className="hint" data-testid="lite-allowance">
+            {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}
+            {liteStatus.allowance.monthlySuccessesRemaining} this month
+          </p>
+        )}
       </div>
 
       {/* The drop zone (images + existing templates). Never gated: the no-AI import lives here. */}
@@ -560,11 +641,15 @@ export default function AiStep({
           style={{ display: 'none' }}
           onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }}
         />
-        <strong>Drop a logo, images — or an existing template — here</strong>
+        <strong>{liteMode ? 'Drop one optional logo - or an existing template to open as code' : 'Drop a logo, images, or an existing template here'}</strong>
         <span className="hint">
-          Images feed the design (logos work best as PNG with transparency). An{' '}
-          <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
-          can be opened as code unchanged, or converted to house standards with AI.
+          {liteMode ? (
+            <>The logo stays a normal template asset and is not sent to the model. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
+          ) : (
+            <>Images feed the design (logos work best as PNG with transparency). An{' '}
+              <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
+              can be opened as code unchanged, or converted to house standards with AI.</>
+          )}
         </span>
       </div>
 
@@ -574,8 +659,8 @@ export default function AiStep({
           <span className="hint" style={{ marginLeft: 8 }}>{imported.fileName} — existing template</span>
           <p className="hint" style={{ marginTop: 6 }}>
             <b>Open as code</b> keeps it byte-for-byte (validate and re-export it as SPX /
-            CasparCG / OGraf). Or describe what to change and <b>Convert</b> brings it to the
-            house standards with AI.
+            CasparCG / OGraf).
+            {!liteMode && <> Or describe what to change and <b>Convert</b> brings it to the house standards with AI.</>}
           </p>
           <div className="row" style={{ marginTop: 8 }}>
             <button className="primary" onClick={() => onOpenImported(imported.template)}>
@@ -611,12 +696,19 @@ export default function AiStep({
         // above (Open as code) and the catalog continuation stay fully open.
         <div style={{ marginTop: 12 }}>
           <SignInPrompt
-            feature="Create with AI"
-            reason="Sign in to use AI — describe any graphic and get a validated, editable template."
+            feature={liteMode ? 'NoaCG Lite' : 'Create with AI'}
+            reason={liteMode
+              ? 'Sign in to use the included NoaCG Lite allowance for common editable graphics.'
+              : 'Sign in to use AI and get a validated, editable template.'}
           />
         </div>
       ) : (
         <>
+          {liteMode && !liteActive && (
+            <p className="status-bad" style={{ marginTop: 10 }}>
+              NoaCG Lite is temporarily unavailable. Existing templates and the normal editor still work.
+            </p>
+          )}
           {/* THE THREAD: talk turns and earlier generations, oldest first. */}
           {turns.length > 0 && (
             <div className="ai-thread" data-testid="ai-thread">
@@ -673,9 +765,10 @@ export default function AiStep({
               They belong to the empty state — once there is a thread they are noise. */}
           {turns.length === 0 && (
           <div className="row wrap" style={{ marginTop: 12, marginBottom: 6, gap: 6 }}>
-            {EXAMPLE_PROMPTS.map((ex) => {
+            {(liteMode ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS).map((ex) => {
               // A brief the user wrote themselves is real work; replacing it takes two clicks.
-              const dirty = Boolean(prompt.trim()) && !EXAMPLE_PROMPTS.some((e) => e.prompt === prompt);
+              const examples = liteMode ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS;
+              const dirty = Boolean(prompt.trim()) && !examples.some((e) => e.prompt === prompt);
               const armed = armedExample === ex.label;
               return (
                 <button
@@ -719,7 +812,7 @@ export default function AiStep({
             disabled={!!busy}
           />
 
-          {turns.length === 0 && (
+          {turns.length === 0 && !liteMode && (
             <p className="hint" style={{ marginTop: 6 }}>
               Not sure yet? Describe the show or the moment ("halftime of a local derby, we need
               something for substitutions") and press <b>Talk it through</b> — the conversation
@@ -792,7 +885,7 @@ export default function AiStep({
             {result && !imported ? (
               <button
                 className="primary"
-                disabled={!!busy || !aiConfigured(settings) || !prompt.trim()}
+                disabled={!!busy || !aiReady || !prompt.trim()}
                 onClick={refineNow}
               >
                 Refine
@@ -800,20 +893,27 @@ export default function AiStep({
             ) : (
               <button
                 className="primary"
-                disabled={!!busy || !aiConfigured(settings) || (!briefNow() && !imported)}
+                disabled={
+                  !!busy
+                  || !aiReady
+                  || (!briefNow() && !imported)
+                  || (liteMode && Boolean(imported))
+                }
                 onClick={() => generate()}
               >
-                {imported ? '⚡ Convert with AI' : '✦ Generate'}
+                {imported && !liteMode ? '⚡ Convert with AI' : liteMode ? '✦ Create one Lite graphic' : '✦ Generate'}
               </button>
             )}
-            <button
-              disabled={chatBusy || !!busy || !prompt.trim() || !aiConfigured(settings)}
-              onClick={() => void sendChat()}
-              data-testid="ai-talk"
-              title="Think it through with the AI first — the conversation travels with the brief when you generate."
-            >
-              🗨 Talk it through
-            </button>
+            {!liteMode && (
+              <button
+                disabled={chatBusy || !!busy || !prompt.trim() || !aiConfigured(settings)}
+                onClick={() => void sendChat()}
+                data-testid="ai-talk"
+                title="Think it through with the AI first - the conversation travels with the brief when you generate."
+              >
+                🗨 Talk it through
+              </button>
+            )}
             <button
               disabled={!!busy}
               onClick={() => fileInput.current?.click()}
@@ -823,11 +923,11 @@ export default function AiStep({
               📎 Attach
             </button>
             {result && !imported && (
-              <button disabled={!!busy || !aiConfigured(settings) || !briefNow()} onClick={() => generate()}>
+              <button disabled={!!busy || !aiReady || !briefNow()} onClick={() => generate()}>
                 ↻ Start over
               </button>
             )}
-            {result && !imported && alternatives[selected]?.spec && settings.useHarness && (
+            {!liteMode && result && !imported && alternatives[selected]?.spec && settings.useHarness && (
               <button
                 disabled={!!busy || !aiConfigured(settings)}
                 data-testid="ai-more-like"
@@ -837,7 +937,7 @@ export default function AiStep({
                 ✦ 3 more like this
               </button>
             )}
-            {!imported && (
+            {!liteMode && !imported && (
               <label
                 className="wz-match"
                 title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft — the model's own take, checked but never played."
@@ -861,14 +961,14 @@ export default function AiStep({
                 {moreOpen ? '▾' : '▸'} More control{activeSpec ? ' ●' : ''}
               </button>
             )}
-            <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>
+            {!liteMode && <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>}
           </div>
 
           {/* What a run like this has cost lately. Shown only once this browser has done
               enough of them to have an answer — a first-time user gets no number rather
               than an invented one. Tokens and seconds, never money: prices are not in this
               codebase and a stale figure presented as cost would be believed. */}
-          {(() => {
+          {!liteMode && (() => {
             const expected = runExpectation(imported ? 'convert' : 'generate', settings.useHarness);
             if (!expected || busy) return null;
             return (
@@ -890,10 +990,13 @@ export default function AiStep({
               references={references}
               onReferences={setReferences}
               disabled={!!busy}
+              allowedCategories={liteMode ? LITE_AI_CATEGORIES : undefined}
+              allowReferences={!liteMode}
+              maxFields={liteMode ? liteStatus?.limits.fields ?? 8 : undefined}
             />
           )}
 
-          {showSettings && (
+          {showSettings && !liteMode && (
             <div className="panel-section" style={{ marginTop: 10 }}>
               <h3>AI settings</h3>
               <AiProviderSettings settings={settings} onChange={saveSetting} />
@@ -970,7 +1073,7 @@ export default function AiStep({
                     disabled={!!busy}
                   >
                     <option value="" disabled>—</option>
-                    {AI_CATEGORIES.map((c) => (
+                    {AI_CATEGORIES.filter((category) => !liteMode || LITE_AI_CATEGORIES.includes(category.id as never)).map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>{' '}
@@ -1016,7 +1119,7 @@ export default function AiStep({
                   ))}
                 </div>
               )}
-              {validation && !validation.ok && (
+              {validation && !validation.ok && !liteMode && (
                 // The findings are the app's words, not the user's job to translate —
                 // one press sends them back as the instruction.
                 <div className="row" style={{ marginTop: 8 }}>
@@ -1025,6 +1128,11 @@ export default function AiStep({
                   </button>
                   <span className="hint">Sends the failing checks back to the AI to repair.</span>
                 </div>
+              )}
+              {validation && !validation.ok && liteMode && (
+                <p className="hint" style={{ marginTop: 8 }}>
+                  This is a NoaCG platform failure, so Lite will not spend another model call trying to rewrite generated code.
+                </p>
               )}
               {spent && (
                 <p className="hint" style={{ marginTop: 6 }} data-testid="ai-spent">

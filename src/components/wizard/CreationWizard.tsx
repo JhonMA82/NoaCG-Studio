@@ -34,6 +34,7 @@ import { useModalGate } from '../spaceKey';
 import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
 import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
+import { recordLiteOutcome } from '../../ai/liteClient';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -77,10 +78,16 @@ export default function CreationWizard() {
   const [replayKey, setReplayKey] = useState(0);
   // Describe-it mode: the AI's current (validated) result, previewed live like any draft —
   // plus the structured setup it was generated under (saved with the created project).
-  const [aiResult, setAiResult] = useState<{ template: SpxTemplate; valid: boolean; spec?: GenerationSpec | null } | null>(null);
+  const [aiResult, setAiResult] = useState<{
+    template: SpxTemplate;
+    valid: boolean;
+    spec?: GenerationSpec | null;
+    generationId?: string;
+  } | null>(null);
   // The Create-with-AI conversation as it stands (talk turns only), reported by AiStep on every
   // change — committed to the created project so the graphic carries the reasoning that made it.
   const [aiThread, setAiThread] = useState<AiThread | null>(null);
+  const acceptedAiGeneration = useRef<string | null>(null);
   // The saved project brand (the "Use current project's colors & font" toggle keeps new
   // graphics in the same package).
   const [brand, setBrand] = useState<ProjectBrand | null>(null);
@@ -126,6 +133,7 @@ export default function CreationWizard() {
       setDraft(initialDraft());
       setBrowseFilters(NO_BROWSE_FILTERS);
       setAiResult(null);
+      acceptedAiGeneration.current = null;
       setAiThread(null);
       setStretchDemo(null);
       const b = loadBrand();
@@ -135,6 +143,14 @@ export default function CreationWizard() {
       setMatchBrand(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
+    void recordLiteOutcome({
+      generationId: aiResult.generationId,
+      action: 'discarded',
+    }).catch(() => undefined);
+  }, [open, aiResult]);
 
   // Escape closes (keeps the current project).
   useEffect(() => {
@@ -215,6 +231,7 @@ export default function CreationWizard() {
    */
   const applyAiProject = async (): Promise<SpxTemplate | null> => {
     if (!aiResult?.valid) return null;
+    if (aiResult.generationId) acceptedAiGeneration.current = aiResult.generationId;
     commitStagedSelection();
     const name = aiName();
     // The Finish name rides the built template, exactly as the catalog path's draftName does,
@@ -226,6 +243,12 @@ export default function CreationWizard() {
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
     useTemplateStore.getState().setAiThread(aiThread);
     clearSpecDraft();
+    if (aiResult.generationId) {
+      void recordLiteOutcome({
+        generationId: aiResult.generationId,
+        action: 'accepted',
+      }).catch(() => undefined);
+    }
     return useTemplateStore.getState().template;
   };
 
@@ -451,7 +474,8 @@ export default function CreationWizard() {
                   fps={draft.fps}
                   brandPalette={matchBrand && brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
-                  onResult={(template, valid, spec) => setAiResult(template ? { template, valid, spec } : null)}
+                  onResult={(template, valid, spec, generationId) =>
+                    setAiResult(template ? { template, valid, spec, generationId } : null)}
                   onThread={setAiThread}
                   onOpenImported={(imported) => {
                     // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the

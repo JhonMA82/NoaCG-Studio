@@ -6,11 +6,17 @@ import {
   projectRoot,
 } from './api-runtime-build.mjs';
 
-const runtime = await buildApiRuntime(['api/_lib/aiGateway.test.ts']);
+const runtime = await buildApiRuntime([
+  'api/_lib/aiGateway.test.ts',
+  'api/_lib/aiLite.test.ts',
+]);
 
 try {
-  const testFile = path.join(runtime.outputDir, 'api/_lib/aiGateway.test.js');
-  const result = spawnSync(process.execPath, ['--test', testFile], {
+  const testFiles = [
+    path.join(runtime.outputDir, 'api/_lib/aiGateway.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/aiLite.test.js'),
+  ];
+  const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,
     env: isolatedTestEnvironment(),
     stdio: 'inherit',

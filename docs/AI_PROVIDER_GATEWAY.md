@@ -18,6 +18,36 @@ transport beneath that system.
 There is no provider-specific branch in DesignSpec, validation, repair, preference learning,
 or UI application logic.
 
+## NoaCG Lite
+
+NoaCG Lite is a server-owned product profile over the same gateway and harness. Its browser
+client calls `POST /api/ai/lite/generations` with a typed brief, not an arbitrary system
+prompt, provider, model, route, or fallback. The server builds a versioned compact catalog
+prompt, enforces the fixed route policy, and returns either one allowlisted catalog
+DesignSpec or an explicit unsupported decision. The existing browser harness then calls the
+real `variant.create()` assembler, deterministic design adjustments, static validation, the
+safety screen, and the live runtime bench. The result is an ordinary `SpxTemplate`.
+
+Lite cannot enter raw generation, the custom coder, polish, import conversion, code
+modification, code repair, or the three-alternative path. One focused structured-spec repair
+or one fixed fallback may run, but both share a hard two-attempt session ceiling. A
+deterministic compilation or runtime failure is recorded as a NoaCG platform failure and is
+never sent to a model for code repair.
+
+The public status endpoint returns only availability, supported product categories, public
+input limits, and remaining allowance. It never returns provider names, model ids, prices,
+endpoint slugs, keys, or fallback rules. Primary and fallback routes, provider endpoints,
+prices, prompt version, allowances, concurrency, fleet spend, timeouts, and the kill switch
+are server configuration. Changing the selected Lite model needs no browser deployment.
+
+The durable `ai_generations` ledger is server-write-only. It records ids, salted IP hashes,
+profile and prompt version, status, resolved category, route accounting, normalized tokens,
+provider cost, timing, and machine-readable rule codes. It does not store prompts,
+conversations, images, fonts, DesignSpecs, templates, generated code, provider bodies, or
+raw IP addresses. Successful validation and user acceptance are separate outcome events, so
+cost per machine-usable and cost per accepted graphic can be measured without collecting
+student content.
+
 ## Configuration
 
 Browser-visible values are non-secret:
@@ -55,12 +85,30 @@ timeout, rate-limit, and provider-availability failures retry. After a route is 
 an explicitly configured fallback may run.
 
 Usage is normalized to input, output, and total tokens. OpenRouter provider-reported cost is
-kept when present. Other estimates are emitted only when the operator supplies current prices
+kept when present. Cached input and reasoning tokens are normalized when providers report
+them. Other estimates are emitted only when the operator supplies current prices
 through `AI_MODEL_PRICING_JSON`, keyed by `provider:model` with `inputPerMillion` and
 `outputPerMillion`. Missing pricing produces no estimate rather than a stale claim.
 
 Provider response bodies and credentials are never copied into errors or logs. User-facing
 errors use stable gateway codes and sanitized messages.
+
+For managed Lite OpenRouter calls the server also forces zero-data-retention routing,
+denies provider data collection, requires parameter support, disables provider-selected
+fallback, restricts routing to an audited endpoint allowlist, and applies a maximum input and
+output token price. Lite fails closed when the endpoint allowlist or current price entry is
+missing.
+
+The `AI_LITE_*` settings documented in `.env.example` are private Vercel environment
+variables. `AI_LITE_ENABLED` defaults off. Production enablement also requires Supabase
+authentication, the `0010_ai_generations.sql` migration, a Supabase secret key, both managed
+route keys, an `IP_HASH_SALT` of at least 16 characters, and an audited OpenRouter endpoint
+list where applicable. Lite stays unavailable instead of falling back to an in-memory quota
+ledger or the development IP-hash salt when that durable configuration is incomplete.
+
+`scripts/check-client-secrets.mjs` rejects provider key names with a public build prefix and
+secret-looking values in client source and the final browser bundle. Real-token benchmark
+scripts use the server gateway and never seed provider credentials into localStorage.
 
 ## Structured output
 

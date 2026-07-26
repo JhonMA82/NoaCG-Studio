@@ -12,11 +12,9 @@
 // offline stub provider and the bench's own plumbing runs end to end for FREE - use it to
 // prove a bench change works before spending anything.
 //
-// Requirements: the dev server (this checkout's port — scripts/dev-port.mjs) and
-// VITE_ANTHROPIC_API_KEY in .env (or the environment). The bench seeds the app's AI
-// settings itself (key + model + proxyUrl:'' + harness off), so a dev server started with
-// a fuller .env (hosted-mode VITE_AI_PROXY_URL) still benches in direct bring-your-own-key
-// mode. ⚠ The dev server must NOT have the SUPABASE vars set, though: with a backend
+// Requirements: the dev server (this checkout's port - scripts/dev-port.mjs) started with
+// server-only ANTHROPIC_API_KEY. The key never enters this browser process or its storage.
+// The dev server must NOT have the SUPABASE vars set, though: with a backend
 // configured the visitor is signed out, and the wizard's video step renders a sign-in prompt
 // instead of the engine picker and prompt box - the bench then times out on a missing
 // control rather than saying anything useful. ⚠ SPENDS REAL TOKENS — a video generation is two Sonnet calls
@@ -67,22 +65,6 @@ const SHOT_FRACTIONS = [0.12, 0.3, 0.5, 0.7, 0.88, 1];
 // Readability is checked where the hero must be legible — the hold phase.
 const CHECK_FRACTIONS = [0.5, 0.6, 0.7];
 
-// ── Key: .env first, then the environment ──
-function readKey() {
-  const clean = (v) => v.replace(/^[\s"']+|[\s"']+$/g, '');
-  if (process.env.VITE_ANTHROPIC_API_KEY) return clean(process.env.VITE_ANTHROPIC_API_KEY);
-  if (existsSync('.env')) {
-    const m = readFileSync('.env', 'utf8').match(/^VITE_ANTHROPIC_API_KEY=(.+)$/m);
-    if (m) return clean(m[1]) || null;
-  }
-  return null;
-}
-const KEY = STUB ? '' : readKey();
-if (!STUB && !KEY) {
-  console.error('No VITE_ANTHROPIC_API_KEY found (in .env or the environment). Aborting before spending anything.');
-  process.exit(1);
-}
-
 // Selection: chip labels, a count, or a custom-briefs JSON file. A custom brief is
 // {label, prompt, durationSec?, transparent?, assets?: [file paths]} and is typed into the
 // wizard's prompt box, with any assets really uploaded first.
@@ -98,15 +80,6 @@ if (FILTER.endsWith('.json') && existsSync(FILTER)) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1720, height: 980 } });
-await page.addInitScript((key) => {
-  // proxyUrl:'' pins DIRECT mode - an empty string beats loadAiSettings' ?? fallback to the
-  // dev server's VITE_AI_PROXY_URL, so a full .env no longer reroutes bench calls. NOTE:
-  // `useHarness` is deliberately NOT seeded - it gates the SPX wizard only (AiStep), never
-  // the video path, so pinning it here would just be a stale mirror of an unrelated default.
-  // --stub seeds an EMPTY key, which is how aiConfigured() falls back to the offline stub
-  // provider - the free plumbing check.
-  localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: key, model: 'claude-sonnet-5', proxyUrl: '' }));
-}, KEY);
 
 // ── In-page diagnostics ──
 // The repair loop is invisible from outside: intermediate validator findings are handed
@@ -186,25 +159,29 @@ const serverIsDown = (e) => /ERR_CONNECTION_REFUSED|ECONNREFUSED|net::ERR_CONNEC
     await browser.close();
     process.exit(1);
   }
-  const resolved = await page.evaluate(async () => {
-    const { loadAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
+  const resolved = await page.evaluate(async ({ stub }) => {
+    const { loadAiSettings, aiConfigured, refreshAiConfiguration, saveAiSettings } = await import('/src/ai/settings.ts');
+    if (!stub) {
+      await refreshAiConfiguration();
+      saveAiSettings({ provider: 'anthropic', model: 'claude-sonnet-5', fallbacks: [] });
+    }
     const s = loadAiSettings();
-    return { direct: !s.proxyUrl && Boolean(s.apiKey), configured: aiConfigured(), model: s.model };
-  });
+    return { configured: aiConfigured(), model: s.model };
+  }, { stub: STUB });
   if (STUB && resolved.configured) {
     console.error(`Preflight failed: --stub must resolve to the OFFLINE provider, got ${JSON.stringify(resolved)}.`);
     await browser.close();
     process.exit(1);
   }
-  if (!STUB && !resolved.direct) {
-    console.error(`Preflight failed: expected direct BYO-key mode, got ${JSON.stringify(resolved)}.`);
+  if (!STUB && !resolved.configured) {
+    console.error(`Preflight failed: expected a server-managed Anthropic route, got ${JSON.stringify(resolved)}.`);
     await browser.close();
     process.exit(1);
   }
   console.log(
     STUB
       ? `Preflight OK: OFFLINE stub provider (${ENGINE}) — no tokens will be spent.`
-      : `Preflight OK: direct mode, model ${resolved.model}, engine ${ENGINE}.`,
+      : `Preflight OK: server gateway, model ${resolved.model}, engine ${ENGINE}.`,
   );
 }
 

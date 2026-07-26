@@ -112,6 +112,54 @@ test('sends a configured public app URL as OpenRouter attribution', async () => 
   assert.equal(sentHeaders.get('http-referer'), 'https://noacg-studio.vercel.app');
 });
 
+test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and price controls', async () => {
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(body('openrouter', 'vendor/model'), {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: {
+          prompt_tokens: 20,
+          completion_tokens: 8,
+          prompt_tokens_details: { cached_tokens: 12 },
+          completion_tokens_details: { reasoning_tokens: 3 },
+          cost: 0.0004,
+        },
+      }));
+    },
+  }, {
+    maxAttempts: 1,
+    retryLimit: 0,
+    timeoutMs: 5000,
+    openRouter: {
+      zdr: true,
+      dataCollection: 'deny',
+      requireParameters: true,
+      allowProviderFallbacks: false,
+      only: ['audited/provider'],
+      maxInputPerMillion: 0.11,
+      maxOutputPerMillion: 0.8,
+    },
+  });
+
+  const provider = sent.provider as Record<string, unknown>;
+  const maxPrice = provider.max_price as Record<string, number>;
+  assert.deepEqual({ ...provider, max_price: undefined }, {
+    zdr: true,
+    data_collection: 'deny',
+    require_parameters: true,
+    allow_fallbacks: false,
+    only: ['audited/provider'],
+    max_price: undefined,
+  });
+  assert.ok(Math.abs(maxPrice.prompt - 0.00000011) < 1e-16);
+  assert.ok(Math.abs(maxPrice.completion - 0.0000008) < 1e-16);
+  assert.equal(result.usage.cachedInputTokens, 12);
+  assert.equal(result.usage.reasoningTokens, 3);
+});
+
 test('reports a missing key before making a provider request', async () => {
   let called = false;
   await assert.rejects(
@@ -154,6 +202,42 @@ test('validates structured output after the provider parses it', async () => {
       keyFor,
       fetchImpl: async () => new Response(JSON.stringify({
         content: [{ type: 'tool_use', name: 'result', input: { wrong: true } }],
+        stop_reason: 'tool_use',
+        usage: { input_tokens: 10, output_tokens: 4 },
+      })),
+    }),
+    (error: unknown) => error instanceof GatewayError && error.code === 'malformed_response',
+  );
+});
+
+test('enforces structured string and numeric constraints at the gateway boundary', async () => {
+  const structured = body('anthropic');
+  structured.request.structuredOutput = {
+    name: 'result',
+    description: 'A bounded color and scale.',
+    schema: {
+      type: 'object',
+      required: ['color', 'scale'],
+      additionalProperties: false,
+      properties: {
+        color: {
+          type: 'string',
+          maxLength: 9,
+          pattern: '^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$',
+        },
+        scale: { type: 'number', minimum: 0.7, maximum: 1.4 },
+      },
+    },
+  };
+  await assert.rejects(
+    executeGatewayRequest(structured, {
+      keyFor,
+      fetchImpl: async () => new Response(JSON.stringify({
+        content: [{
+          type: 'tool_use',
+          name: 'result',
+          input: { color: 'red; background: url(https://example.test)', scale: 99 },
+        }],
         stop_reason: 'tool_use',
         usage: { input_tokens: 10, output_tokens: 4 },
       })),
@@ -214,6 +298,22 @@ test('retries a transient failure only within the configured bound', async () =>
     route: { provider: 'openai', model: 'test-model' },
     attempts: 2,
   }]);
+});
+
+test('shares a hard attempt ceiling across retries and fallback routes', async () => {
+  const routed = body('anthropic', 'primary');
+  routed.fallbacks = [{ provider: 'openai', model: 'fallback' }];
+  const calls: string[] = [];
+  await assert.rejects(executeGatewayRequest(routed, {
+    keyFor,
+    sleep: async () => {},
+    fetchImpl: async (input) => {
+      calls.push(String(input));
+      return new Response('{}', { status: 503 });
+    },
+  }, { maxAttempts: 2, retryLimit: 2 }));
+  assert.equal(calls.length, 2);
+  assert.equal(calls.every((url) => url.includes('anthropic.com')), true);
 });
 
 test('never includes provider secrets or upstream error text in errors', async () => {

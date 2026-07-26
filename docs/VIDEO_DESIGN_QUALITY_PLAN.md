@@ -184,7 +184,7 @@ spec also matches on the chip's opening words - the one place chip prose is load
   seed only `{apiKey, model}`, so a dev server started from a full `.env` (the main
   checkout's sets VITE_AI_PROXY_URL for hosted mode) silently routed every bench call to
   the hosted gateway - unauthenticated, mismetered, or failing. Pruning the worktree
-  `.env` to only VITE_ANTHROPIC_API_KEY forced direct mode.
+  `.env` to only the server-side `ANTHROPIC_API_KEY` forced the managed gateway route.
 - **Which file**: the `.env` at the root of the checkout whose dev server the bench
   drives (each worktree has its own; Vite reads it at server start, and video-bench.mjs
   also reads the key from it).

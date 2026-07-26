@@ -16,7 +16,7 @@ type Fetch = typeof fetch;
 export interface ProviderAdapter {
   id: AiProviderId;
   endpoint: string;
-  createRequest(request: ModelRequest, route: ModelRoute, key: string): RequestInit;
+  createRequest(request: ModelRequest, route: ModelRoute, key: string, policy?: GatewayExecutionPolicy): RequestInit;
   parseResponse(data: unknown, request: ModelRequest, route: ModelRoute): { output: unknown; usage: ModelUsage };
 }
 
@@ -41,13 +41,23 @@ export class GatewayError extends Error {
 const safeNumber = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 
-function totalUsage(inputTokens: unknown, outputTokens: unknown, estimatedCost?: ModelUsage['estimatedCost']): ModelUsage {
+function totalUsage(
+  inputTokens: unknown,
+  outputTokens: unknown,
+  estimatedCost?: ModelUsage['estimatedCost'],
+  cachedInputTokens?: unknown,
+  reasoningTokens?: unknown,
+): ModelUsage {
   const input = safeNumber(inputTokens);
   const output = safeNumber(outputTokens);
+  const cached = safeNumber(cachedInputTokens);
+  const reasoning = safeNumber(reasoningTokens);
   return {
     inputTokens: input,
     outputTokens: output,
     totalTokens: input + output,
+    ...(cached ? { cachedInputTokens: cached } : {}),
+    ...(reasoning ? { reasoningTokens: reasoning } : {}),
     ...(estimatedCost ? { estimatedCost } : {}),
   };
 }
@@ -78,7 +88,16 @@ function parseStructured(text: string): unknown {
 function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
   if (!schemaValue || typeof schemaValue !== 'object' || Array.isArray(schemaValue)) return false;
   const schema = schemaValue as Record<string, unknown>;
+  if (Array.isArray(schema.oneOf)) {
+    return schema.oneOf.filter((candidate) => schemaAccepts(value, candidate)).length === 1;
+  }
+  if (Array.isArray(schema.anyOf)) {
+    return schema.anyOf.some((candidate) => schemaAccepts(value, candidate));
+  }
   if (Array.isArray(schema.enum) && !schema.enum.some((item) => Object.is(item, value))) return false;
+  if (Array.isArray(schema.type)) {
+    return schema.type.some((type) => schemaAccepts(value, { ...schema, type }));
+  }
   if (schema.type === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const record = value as Record<string, unknown>;
@@ -96,8 +115,25 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
     if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) return false;
     return schema.items === undefined || value.every((item) => schemaAccepts(item, schema.items));
   }
-  if (schema.type === 'string') return typeof value === 'string';
-  if (schema.type === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (schema.type === 'string') {
+    if (typeof value !== 'string') return false;
+    if (typeof schema.minLength === 'number' && value.length < schema.minLength) return false;
+    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) return false;
+    if (typeof schema.pattern === 'string') {
+      try {
+        if (!new RegExp(schema.pattern).test(value)) return false;
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (schema.type === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
+    if (typeof schema.maximum === 'number' && value > schema.maximum) return false;
+    return true;
+  }
   if (schema.type === 'integer') return Number.isInteger(value);
   if (schema.type === 'boolean') return typeof value === 'boolean';
   if (schema.type === 'null') return value === null;
@@ -203,7 +239,15 @@ export const anthropicAdapter: ProviderAdapter = {
       safeNumber(usage.input_tokens)
       + safeNumber(usage.cache_creation_input_tokens)
       + safeNumber(usage.cache_read_input_tokens);
-    return { output, usage: totalUsage(inputTokens, usage.output_tokens) };
+    return {
+      output,
+      usage: totalUsage(
+        inputTokens,
+        usage.output_tokens,
+        undefined,
+        usage.cache_read_input_tokens,
+      ),
+    };
   },
 };
 
@@ -254,9 +298,21 @@ export const openAiAdapter: ProviderAdapter = {
           .join('\n');
     if (!text) throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
     const usage = object(data.usage ?? {});
+    const inputDetails = data.usage && typeof data.usage === 'object'
+      ? object(usage.input_tokens_details ?? {})
+      : {};
+    const outputDetails = data.usage && typeof data.usage === 'object'
+      ? object(usage.output_tokens_details ?? {})
+      : {};
     return {
       output: request.structuredOutput ? parseStructured(text) : text,
-      usage: totalUsage(usage.input_tokens, usage.output_tokens),
+      usage: totalUsage(
+        usage.input_tokens,
+        usage.output_tokens,
+        undefined,
+        inputDetails.cached_tokens,
+        outputDetails.reasoning_tokens,
+      ),
     };
   },
 };
@@ -264,7 +320,7 @@ export const openAiAdapter: ProviderAdapter = {
 export const openRouterAdapter: ProviderAdapter = {
   id: 'openrouter',
   endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-  createRequest(request, route, key) {
+  createRequest(request, route, key, policy) {
     const publicAppUrl = (process.env.PUBLIC_APP_URL ?? '').trim();
     const body = {
       model: route.model,
@@ -279,6 +335,21 @@ export const openRouterAdapter: ProviderAdapter = {
                 description: request.structuredOutput.description,
                 strict: false,
                 schema: request.structuredOutput.schema,
+              },
+            },
+          }
+        : {}),
+      ...(policy?.openRouter
+        ? {
+            provider: {
+              zdr: policy.openRouter.zdr,
+              data_collection: policy.openRouter.dataCollection,
+              require_parameters: policy.openRouter.requireParameters,
+              allow_fallbacks: policy.openRouter.allowProviderFallbacks,
+              only: policy.openRouter.only,
+              max_price: {
+                prompt: policy.openRouter.maxInputPerMillion / 1_000_000,
+                completion: policy.openRouter.maxOutputPerMillion / 1_000_000,
               },
             },
           }
@@ -310,9 +381,21 @@ export const openRouterAdapter: ProviderAdapter = {
         : '';
     if (!text) throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
     const usage = object(data.usage ?? {});
+    const promptDetails = usage.prompt_tokens_details && typeof usage.prompt_tokens_details === 'object'
+      ? object(usage.prompt_tokens_details)
+      : {};
+    const completionDetails = usage.completion_tokens_details && typeof usage.completion_tokens_details === 'object'
+      ? object(usage.completion_tokens_details)
+      : {};
     return {
       output: request.structuredOutput ? parseStructured(text) : text,
-      usage: totalUsage(usage.prompt_tokens, usage.completion_tokens, providerCost(usage.cost)),
+      usage: totalUsage(
+        usage.prompt_tokens,
+        usage.completion_tokens,
+        providerCost(usage.cost),
+        promptDetails.cached_tokens,
+        completionDetails.reasoning_tokens,
+      ),
     };
   },
 };
@@ -386,12 +469,12 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
   };
 }
 
-function timeoutMs(): number {
+function configuredTimeoutMs(): number {
   const value = Number(process.env.AI_TIMEOUT_MS ?? 120_000);
   return Number.isFinite(value) ? Math.min(300_000, Math.max(5_000, Math.round(value))) : 120_000;
 }
 
-function retryLimit(): number {
+function configuredRetryLimit(): number {
   const value = Number(process.env.AI_RETRY_LIMIT ?? 1);
   return Number.isFinite(value) ? Math.min(2, Math.max(0, Math.round(value))) : 1;
 }
@@ -412,12 +495,13 @@ async function oneAttempt(
   route: ModelRoute,
   key: string,
   fetchImpl: Fetch,
+  policy?: GatewayExecutionPolicy,
 ): Promise<{ output: unknown; usage: ModelUsage }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs());
+  const timer = setTimeout(() => controller.abort(), policy?.timeoutMs ?? configuredTimeoutMs());
   try {
     const response = await fetchImpl(adapter.endpoint, {
-      ...adapter.createRequest(request, route, key),
+      ...adapter.createRequest(request, route, key, policy),
       signal: controller.signal,
     });
     if (!response.ok) throw providerFailure(response.status);
@@ -443,7 +527,30 @@ export interface GatewayDependencies {
   sleep?: (ms: number) => Promise<void>;
 }
 
-function configuredPrice(route: ModelRoute): { inputPerMillion: number; outputPerMillion: number } | null {
+export interface OpenRouterRoutingPolicy {
+  zdr: true;
+  dataCollection: 'deny';
+  requireParameters: true;
+  allowProviderFallbacks: false;
+  only: string[];
+  maxInputPerMillion: number;
+  maxOutputPerMillion: number;
+}
+
+export interface GatewayExecutionPolicy {
+  /** Total provider attempts across all routes, including retries. */
+  maxAttempts?: number;
+  retryLimit?: number;
+  timeoutMs?: number;
+  openRouter?: OpenRouterRoutingPolicy;
+}
+
+export interface ModelPrice {
+  inputPerMillion: number;
+  outputPerMillion: number;
+}
+
+export function configuredPrice(route: ModelRoute): ModelPrice | null {
   const raw = process.env.AI_MODEL_PRICING_JSON;
   if (!raw) return null;
   try {
@@ -455,6 +562,17 @@ function configuredPrice(route: ModelRoute): { inputPerMillion: number; outputPe
   } catch {
     return null;
   }
+}
+
+export function estimateModelCost(
+  route: ModelRoute,
+  inputTokens: number,
+  outputTokens: number,
+  override?: ModelPrice,
+): number | null {
+  const price = override ?? configuredPrice(route);
+  if (!price) return null;
+  return (inputTokens * price.inputPerMillion + outputTokens * price.outputPerMillion) / 1_000_000;
 }
 
 function withEstimatedCost(usage: ModelUsage, route: ModelRoute): ModelUsage {
@@ -475,14 +593,19 @@ function withEstimatedCost(usage: ModelUsage, route: ModelRoute): ModelUsage {
 export async function executeGatewayRequest(
   body: AiGatewayRequestBody,
   dependencies: GatewayDependencies,
+  policy?: GatewayExecutionPolicy,
 ): Promise<ModelResult> {
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const sleep = dependencies.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const routes = [body.route, ...(body.fallbacks ?? [])];
   const attempts: ModelResult['attempts'] = [];
   let lastError: GatewayError | null = null;
+  let totalAttempts = 0;
+  const retries = policy?.retryLimit ?? configuredRetryLimit();
+  const maxAttempts = policy?.maxAttempts ?? Number.POSITIVE_INFINITY;
 
   for (const route of routes) {
+    if (totalAttempts >= maxAttempts) break;
     const key = await dependencies.keyFor(route.provider);
     if (!key) {
       lastError = new GatewayError('missing_key', `No ${route.provider} API key is configured.`, 412, false);
@@ -491,10 +614,11 @@ export async function executeGatewayRequest(
     }
     const adapter = AI_ADAPTERS[route.provider];
     let routeAttempts = 0;
-    for (let retry = 0; retry <= retryLimit(); retry++) {
+    for (let retry = 0; retry <= retries && totalAttempts < maxAttempts; retry++) {
       routeAttempts += 1;
+      totalAttempts += 1;
       try {
-        const result = await oneAttempt(adapter, body.request, route, key, fetchImpl);
+        const result = await oneAttempt(adapter, body.request, route, key, fetchImpl, policy);
         validateStructuredOutput(result.output, body.request);
         attempts.push({ route, attempts: routeAttempts });
         return {
@@ -508,7 +632,7 @@ export async function executeGatewayRequest(
         lastError = error instanceof GatewayError
           ? error
           : new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);
-        if (!lastError.retryable || retry === retryLimit()) break;
+        if (!lastError.retryable || retry === retries || totalAttempts >= maxAttempts) break;
         await sleep(250 * (retry + 1));
       }
     }

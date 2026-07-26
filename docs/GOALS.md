@@ -657,13 +657,18 @@ in the 🛡 queue) → **gate-trusted auto-publish later** once the automatic ga
 Reuses `claudeProvider.generate` + `publishGate` + the bench harness; runs on GitHub Actions cron + one
 read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI + weekly audit,
 2026-07-21); the generation jobs B/C are plan only — see the plan doc for the verified guardrails
-(the nightly-drafts migration, numbered `0010` there) and open decisions.
+(the nightly-drafts migration, numbered `0011` there) and open decisions.
 
 ### AI mode (after the wizard works)
 - [x] Model-independent gateway beneath the existing Claude-backed `AIProvider`: Anthropic,
       OpenAI Responses, and OpenRouter adapters; server-only managed keys; sealed HttpOnly
       user keys; normalized structured output, usage, estimated cost, errors, bounded retries,
       and explicit fallback routes (`docs/AI_PROVIDER_GATEWAY.md`)
+- [x] **NoaCG Lite managed profile (2026-07-27)** - one catalog-grounded editable result for
+      common graphics; server-owned model and privacy routing; explicit unsupported decisions;
+      one shared two-attempt budget; durable allowance/cost/outcome ledger; no prompt/content
+      storage; one-result UI with no provider names; kill switch and configuration-only model
+      replacement (`docs/AI_PROVIDER_GATEWAY.md`)
 - [x] Prompt → graphic template ("Describe it" wizard entry: validated before apply, one
       automatic repair round on validator errors, refine loop on the result; generated code
       keeps the house contracts so the Style/Motion panels and brand still work on it)

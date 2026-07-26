@@ -42,6 +42,10 @@ export interface ModelUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Input tokens served from a provider cache, when reported. Included in inputTokens. */
+  cachedInputTokens?: number;
+  /** Reasoning tokens, when separately reported. Included in outputTokens. */
+  reasoningTokens?: number;
   /** An estimate only, derived from explicit operator pricing or provider-reported cost. */
   estimatedCost?: {
     amount: number;

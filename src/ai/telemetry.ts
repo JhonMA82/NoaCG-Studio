@@ -10,10 +10,11 @@
 import { uuid } from '../model/id';
 import type { AiPath } from './provider';
 import type { ModelUsage } from './modelTypes';
+import type { CreativeAiProfileId } from './liteTypes';
 
 /** Normalized token and optional cost metadata from any model provider. */
 export type AiUsage = Pick<ModelUsage, 'inputTokens' | 'outputTokens'>
-  & Partial<Pick<ModelUsage, 'totalTokens' | 'estimatedCost'>>;
+  & Partial<Pick<ModelUsage, 'totalTokens' | 'cachedInputTokens' | 'reasoningTokens' | 'estimatedCost'>>;
 
 export type AiRunKind = 'generate' | 'modify' | 'convert' | 'fix' | 'make-ready';
 
@@ -43,6 +44,8 @@ export interface AiRunRecord {
   startedAt: string; // ISO timestamp
   totalMs: number;
   route?: AiPath;
+  profile?: CreativeAiProfileId;
+  generationId?: string;
   stages: AiStageRecord[];
   repairRounds: number;
   ok?: boolean;
@@ -92,6 +95,7 @@ export interface AiRunRecorder {
   stage(name: string, startedMs: number, model?: string, usage?: AiUsage): void;
   repair(): void;
   route(route: AiPath): void;
+  managed(profile: CreativeAiProfileId, generationId: string): void;
   diversity(d: AiDiversity): void;
   finish(ok: boolean, errorRules?: string[]): AiRunRecord;
 }
@@ -117,6 +121,10 @@ export function startAiRun(kind: AiRunKind): AiRunRecorder {
     },
     route(route) {
       record.route = route;
+    },
+    managed(profile, generationId) {
+      record.profile = profile;
+      record.generationId = generationId;
     },
     diversity(d) {
       record.diversity = { ...record.diversity, ...d };

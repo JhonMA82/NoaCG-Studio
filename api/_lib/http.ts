@@ -27,11 +27,36 @@ export function methodGuard(req: Request, method: string): Response | null {
 }
 
 export async function readJson<T>(req: Request, maxBytes: number): Promise<T> {
-  const buf = await req.arrayBuffer();
-  if (buf.byteLength > maxBytes) {
-    throw Object.assign(new Error(`request body exceeds ${Math.round(maxBytes / 1e6)} MB`), { code: 'too_large' });
+  const tooLarge = (): Error =>
+    Object.assign(new Error(`request body exceeds ${Math.round(maxBytes / 1e6)} MB`), { code: 'too_large' });
+  const declaredLength = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw tooLarge();
+
+  const reader = req.body?.getReader();
+  if (!reader) return JSON.parse('') as T;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
   }
-  return JSON.parse(new TextDecoder().decode(buf)) as T;
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(body)) as T;
 }
 
 export function bearerToken(req: Request): string | null {
