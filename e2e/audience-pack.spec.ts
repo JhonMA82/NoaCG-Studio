@@ -27,8 +27,27 @@ const HARNESS = `
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;border:0;';
     document.body.appendChild(f);
     await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
-    await new Promise((r) => setTimeout(r, 60));
+    await waitFor(function () {
+      return f.contentDocument && f.contentDocument.readyState === 'complete' &&
+        typeof f.contentWindow.play === 'function' &&
+        typeof f.contentWindow.noacgDispatch === 'function';
+    }, id + ' runtime readiness');
     return { win: f.contentWindow, doc: f.contentDocument, tpl: tpl, frame: f };
+  }
+  /** Poll real observable state instead of guessing how quickly a loaded CI runner will react. */
+  async function waitFor(check, label, timeout) {
+    timeout = timeout || 3000;
+    const started = performance.now();
+    while (!check()) {
+      if (performance.now() - started >= timeout) throw new Error('Timed out waiting for ' + label);
+      await new Promise(requestAnimationFrame);
+    }
+  }
+  /** Complete exactly the transition returned by the serial event queue. */
+  function finish(timeline) {
+    if (!timeline) return false;
+    timeline.progress(1);
+    return true;
   }
   /** Play and let every timeline settle, without waiting out real seconds. */
   function settle(win) {
@@ -254,20 +273,16 @@ test('the vote board handles no votes, uneven options, and a dead heat', async (
     // 2. OPTIONS WITH NO COUNT AT ALL — the operator typed the choices before the votes came
     //    in. The option still appears; hiding it would misreport the poll.
     win.update(JSON.stringify({ f1: 'Yes\\nNo | 12' }));
-    await new Promise((r) => setTimeout(r, 30));
     const noCounts = { rows: doc.querySelectorAll('.poll-row').length, shares: shares() };
 
     // 3. SIX OPTIONS, WILDLY UNEVEN. The shares must still total 100.
     win.update(JSON.stringify({ f1: 'A | 1\\nB | 2\\nC | 3\\nD | 4\\nE | 5\\nF | 985' }));
-    await new Promise((r) => setTimeout(r, 30));
     const many = shares().map(Number);
     const total = Math.round(many.reduce((a, b) => a + b, 0));
 
     // 4. THE CALL. Show the result, then call the leader.
-    win.next();
-    await new Promise((r) => setTimeout(r, 60));
-    win.noacgDispatch('call');
-    await new Promise((r) => setTimeout(r, 60));
+    finish(win.next());
+    finish(win.noacgDispatch('call'));
     const called = {
       winners: doc.querySelectorAll('.poll-winner').length,
       lastIsWinner: doc.querySelectorAll('.poll-row')[5].classList.contains('poll-winner'),
@@ -277,9 +292,7 @@ test('the vote board handles no votes, uneven options, and a dead heat', async (
     // 5. A DEAD HEAT. Two rows share the lead, so NOTHING is called — a projected winner
     //    picked out of a tie is simply untrue.
     win.update(JSON.stringify({ f1: 'A | 500\\nB | 500' }));
-    await new Promise((r) => setTimeout(r, 30));
-    win.noacgDispatch('call');
-    await new Promise((r) => setTimeout(r, 60));
+    finish(win.noacgDispatch('call'));
     const heat = {
       winners: doc.querySelectorAll('.poll-winner').length,
       tied: doc.querySelector('.poll').classList.contains('poll-tied'),
@@ -287,7 +300,6 @@ test('the vote board handles no votes, uneven options, and a dead heat', async (
 
     // 6. Figures survive a data update DURING the result: a live vote ticks up, it does not blank.
     win.update(JSON.stringify({ f1: 'A | 900\\nB | 100' }));
-    await new Promise((r) => setTimeout(r, 30));
     const live = { shares: shares(), figures: figures(), widths: Array.from(doc.querySelectorAll('.poll-bar-fill')).map((f) => f.style.width) };
 
     frame.remove();
@@ -335,24 +347,19 @@ test('two-, three- and four-answer boards all select, lock, and refuse a late ch
       const drawn = doc.querySelectorAll('.quiz-option').length;
 
       // Pick, then change the pick freely — one Selected state, the letter is data.
-      win.noacgDispatch('select', { ['f' + (rows + 2)]: 'A' });
-      await new Promise((r) => setTimeout(r, 40));
+      const firstAccepted = finish(win.noacgDispatch('select', { ['f' + (rows + 2)]: 'A' }));
       const first = at();
-      win.noacgDispatch('select', { ['f' + (rows + 2)]: rows >= 3 ? 'C' : 'B' });
-      await new Promise((r) => setTimeout(r, 40));
+      const changedAccepted = finish(win.noacgDispatch('select', { ['f' + (rows + 2)]: rows >= 3 ? 'C' : 'B' }));
       const changed = at();
 
       // Lock it in. After this a late change is STRUCTURALLY impossible — there is no select
       // arrow out of locked, so the event is dropped along with its payload.
-      win.noacgDispatch('lock');
-      await new Promise((r) => setTimeout(r, 40));
-      win.noacgDispatch('select', { ['f' + (rows + 2)]: 'A' });
-      await new Promise((r) => setTimeout(r, 40));
+      const lockAccepted = finish(win.noacgDispatch('lock'));
+      const latePickAccepted = finish(win.noacgDispatch('select', { ['f' + (rows + 2)]: 'A' }));
       const afterLock = at();
 
       // Reveal. The correct row lights up; a wrong pick is marked differently.
-      win.noacgDispatch('judge');
-      await new Promise((r) => setTimeout(r, 60));
+      const judgeAccepted = finish(win.noacgDispatch('judge'));
       const revealed = {
         correct: doc.querySelectorAll('.quiz-correct').length,
         wrong: doc.querySelectorAll('.quiz-wrong').length,
@@ -364,14 +371,21 @@ test('two-, three- and four-answer boards all select, lock, and refuse a late ch
       // rather than settled — forcing every live timeline to its end would also fire the reveal
       // step's own call again, which is the harness talking, not the graphic.
       win.play();
-      await new Promise((r) => setTimeout(r, 800));
+      await waitFor(function () {
+        return sel() === 0 &&
+          doc.querySelectorAll('.quiz-correct').length === 0 &&
+          !doc.querySelector('.quiz').classList.contains('quiz-locked');
+      }, id + ' replay reset');
       const afterReplay = {
         sel: sel(),
         correct: doc.querySelectorAll('.quiz-correct').length,
         locked: doc.querySelector('.quiz').classList.contains('quiz-locked'),
       };
 
-      out.push({ id, rows, drawn, first, changed, afterLock, revealed, afterReplay });
+      out.push({
+        id, rows, drawn, first, changed, afterLock, revealed, afterReplay,
+        firstAccepted, changedAccepted, lockAccepted, latePickAccepted, judgeAccepted,
+      });
       frame.remove();
     }
     return out;
@@ -379,13 +393,20 @@ test('two-, three- and four-answer boards all select, lock, and refuse a late ch
 
   for (const r of report as Array<{
     id: string; rows: number; drawn: number; first: number; changed: number; afterLock: number;
+    firstAccepted: boolean; changedAccepted: boolean; lockAccepted: boolean;
+    latePickAccepted: boolean; judgeAccepted: boolean;
     revealed: { correct: number; wrong: number; dim: number; correctIsRight: boolean };
     afterReplay: { sel: number; correct: number; locked: boolean };
   }>) {
     expect(r.drawn, `${r.id}: draws one row per answer`).toBe(r.rows);
+    expect(r.firstAccepted, `${r.id}: accepts the first pick`).toBe(true);
+    expect(r.changedAccepted, `${r.id}: accepts a changed pick`).toBe(true);
     expect(r.first, `${r.id}: the first pick lands on A`).toBe(0);
     expect(r.changed, `${r.id}: the pick can be changed freely`).not.toBe(r.first);
+    expect(r.lockAccepted, `${r.id}: accepts the lock`).toBe(true);
+    expect(r.latePickAccepted, `${r.id}: structurally rejects a pick after lock`).toBe(false);
     expect(r.afterLock, `${r.id}: a late change after the lock is refused`).toBe(r.changed);
+    expect(r.judgeAccepted, `${r.id}: accepts the reveal`).toBe(true);
     expect(r.revealed.correct, `${r.id}: exactly one row is marked correct`).toBe(1);
     expect(r.revealed.correctIsRight, `${r.id}: and it is the one the operator chose as correct`).toBe(true);
     expect(r.revealed.wrong, `${r.id}: the losing pick is told apart from the winner`).toBe(1);

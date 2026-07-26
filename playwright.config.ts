@@ -6,6 +6,7 @@ import { devPort } from './scripts/dev-port.mjs';
 // The port comes from scripts/dev-port.mjs (5174 in the main checkout, a stable per-worktree
 // port in a linked worktree), so parallel worktrees never reuse each other's servers.
 const base = `http://localhost:${devPort()}`;
+const isCi = Boolean(process.env.CI);
 export default defineConfig({
   testDir: './e2e',
   // The authed community flows live in e2e/configured and run under playwright.live.config.ts (a
@@ -20,20 +21,25 @@ export default defineConfig({
   // the dev server is stateless in the pinned offline mode, and the render specs stub their
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across
   // workers instead of leaving the largest file as the serial critical path.
-  // 4 workers is the measured sweet spot on a 16-core dev box: the full suite passes clean,
-  // and 8 workers only shaved ~30 s while making the tightest UI timings (Monaco decorations,
-  // the stub AI's generate) flake under CPU contention.
+  // 4 workers is the measured sweet spot on a 16-core dev box. GitHub's smaller runners use
+  // one worker each and scale across four independent shards instead: the same aggregate
+  // concurrency, without four browsers and one Vite server fighting over a single runner.
   fullyParallel: true,
-  workers: 4,
+  workers: isCi ? 1 : 4,
   retries: 0,
-  reporter: [['list']],
+  // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
+  // failure is readable in the live Actions log without downloading the combined report.
+  reporter: isCi ? [['line'], ['blob']] : [['list']],
   // Refuses to run against an already-running dev server that is not offline-pinned. The
   // webServer.env below only applies when Playwright STARTS the server; reuseExistingServer
   // adopts an existing one as-is, silently skipping every pin. See e2e/_offline-guard.ts.
   globalSetup: './e2e/_offline-guard.ts',
   use: {
     baseURL: base,
-    trace: 'on-first-retry',
+    // There are deliberately no retries to disguise flakes, so collect diagnostics on the
+    // first failure rather than waiting for a retry that will never happen.
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

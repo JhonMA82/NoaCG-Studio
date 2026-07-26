@@ -470,22 +470,23 @@ test('dark-on-dark text and text painted across other text are caught by the gat
     // `color` decides the contrast verdict: a fill a shade off the #16101e background, vs white.
     const heroWith = (color: string) =>
       verdict(
-        `<div id="second-word" style="position:absolute;left:600px;top:450px;font:900 180px Arial;color:${color};">RIFT</div>`,
+        `<div id="second-word" style="position:absolute;left:600px;top:450px;font:900 180px Archivo,sans-serif;color:${color};">RIFT</div>`,
         '',
       );
-    // `top` decides the overlap verdict: 660 lays the kicker across the wordmark's glyphs,
-    // 820 clears it.
+    // Use the bundled video fonts so Linux CI and local browsers measure identical glyphs.
+    // `top` still decides the verdict: 590 puts the kicker well inside the wordmark's ink,
+    // while 820 leaves an unambiguous gap.
     const kickerAt = (top: number) =>
       verdict(
-        `<div id="mark" style="position:absolute;left:200px;top:400px;font:900 280px Arial;color:#fff;">LANDFALL</div>
-         <div id="kicker" style="position:absolute;left:560px;top:${top}px;font:700 40px Arial;color:#9fb8bb;">STORM COVERAGE // COLD OPEN</div>`,
+        `<div id="mark" style="position:absolute;left:200px;top:400px;font:900 280px Archivo,sans-serif;color:#fff;">LANDFALL</div>
+         <div id="kicker" style="position:absolute;left:560px;top:${top}px;font:700 48px 'Space Grotesk',sans-serif;color:#9fb8bb;">STORM COVERAGE // COLD OPEN</div>`,
         '',
       );
 
     return {
       darkOnDark: await heroWith('#231a30'),
       lightOnDark: await heroWith('#f2eefa'),
-      crossed: await kickerAt(660),
+      crossed: await kickerAt(590),
       cleared: await kickerAt(820),
     };
   });

@@ -103,6 +103,16 @@ test('export target choice is remembered as the default across reloads', async (
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   // Reload: the restored project opens directly (no wizard over a returning user's work);
   // the Export tab must preselect the remembered target.
+  // Project autosave is intentionally debounced, so wait for the real persistence record
+  // instead of racing a reload against that debounce under full-suite load.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const { loadProject } = await import('/src/model/project.ts');
+        return loadProject()?.template.name ?? null;
+      }),
+    )
+    .toBe('Hairline');
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeHidden();

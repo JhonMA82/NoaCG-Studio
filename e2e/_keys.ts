@@ -17,19 +17,45 @@ import { expect, type Page } from '@playwright/test';
 // `runId` against whatever was last stamped tells 'parked' (the same run survives) from 'fresh'
 // (a new play() started).
 
-function readPlayhead(page: Page): Promise<{ active: boolean; runId: number }> {
+export interface PlayheadSample {
+  active: boolean;
+  runId: number;
+  phase: string;
+  time: number;
+  duration: number;
+}
+
+function readPlayhead(page: Page): Promise<PlayheadSample> {
   return page.evaluate(
     () =>
-      new Promise<{ active: boolean; runId: number }>((resolve) => {
+      new Promise<PlayheadSample>((resolve) => {
         const handler = (ev: MessageEvent) => {
-          const msg = ev.data as { type?: string; active?: boolean; runId?: number } | undefined;
+          const msg = ev.data as {
+            type?: string;
+            active?: boolean;
+            runId?: number;
+            phase?: string;
+            time?: number;
+            duration?: number;
+          } | undefined;
           if (msg?.type !== 'spx-preview-playhead') return;
           window.removeEventListener('message', handler);
-          resolve({ active: !!msg.active, runId: msg.runId ?? 0 });
+          resolve({
+            active: !!msg.active,
+            runId: msg.runId ?? 0,
+            phase: msg.phase ?? '',
+            time: msg.time ?? 0,
+            duration: msg.duration ?? 0,
+          });
         };
         window.addEventListener('message', handler);
       }),
   );
+}
+
+/** Read the next pushed playhead sample, including its exact phase-local clock. */
+export function timelineProgress(page: Page): Promise<PlayheadSample> {
+  return readPlayhead(page);
 }
 
 /** 'none' = nothing running, 'parked' = the stamped timeline survives, 'fresh' = play() ran. */
