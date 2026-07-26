@@ -6,7 +6,7 @@
 > design below, and 5.6 became the open editor). Only **5.7 payments** remains open, deferred
 > by decision. Three postures here are still load-bearing and now live elsewhere: offline
 > feature-detection in one place (`docs/ARCHITECTURE.md` §3 invariant 1), the AGPL/private
-> gateway repo split, and "a green build never verifies a server path" (root CLAUDE.md).
+> gateway repo split, and "a green build never verifies a server path" (root `AGENTS.md`).
 > Read this doc for the rationale record, not for current shape.
 
 The coherent planning round GOALS.md calls for. `docs/GOALS.md` keeps the checklist, this keeps

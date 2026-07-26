@@ -3,15 +3,16 @@
 The map of this directory. Every file below is classified by what it is TODAY; a doc whose
 header says HISTORICAL is kept for rationale and must not be read as current behaviour.
 When work changes what a binding doc describes, update the doc in the same PR (root
-CLAUDE.md rule); when a plan finishes, mark it historical here and in its header rather
+`AGENTS.md` rule); when a plan finishes, mark it historical here and in its header rather
 than letting it read as open.
 
 Layers of documentation, top to bottom:
 
-1. **Vision & principles** — root `CLAUDE.md` (identity + non-negotiables),
+1. **Vision & principles** — root `AGENTS.md` (identity + non-negotiables),
    `GOALS.md` (north star, business posture, and the milestone log).
 2. **Cross-domain architecture** — `ARCHITECTURE.md` (binding, machine-enforced).
-3. **Domain contracts** — the nested `src/*/CLAUDE.md` files plus the binding docs below.
+3. **Domain contracts** — nested `AGENTS.md` files (with thin `CLAUDE.md` imports) plus the
+   binding docs below.
 4. **Active plans** — work that is decided but not done.
 5. **Rationale / historical** — completed plans and measurement records, kept because they
    explain why the code is shaped the way it is. Git preserves everything; these stay

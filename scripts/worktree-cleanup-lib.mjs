@@ -1,5 +1,5 @@
-// Shared worktree-hygiene helpers, so the SessionStart hook and the /cleanup-worktrees
-// command can never drift on the rules that actually delete things.
+// Shared worktree-hygiene helpers, so the SessionStart hook and the shared cleanup-worktrees
+// workflow can never drift on the rules that actually delete things.
 //
 // The one non-negotiable here is the empty-leftover-folder sweep: on Windows `git worktree
 // remove` cannot delete a folder while a session is cwd'd inside it, so it deregisters the
@@ -44,24 +44,23 @@ export function worktreeRoots(cwd) {
 }
 
 /**
- * Sweep leftover EMPTY worktree folders under `<primaryRoot>/.claude/worktrees`.
+ * Inspect leftover worktree folders without changing them.
  *
  * A folder is removed ONLY when all of these hold:
  *   - it is not a registered git worktree (`registeredRoots`),
  *   - it is not a protected path (`protect`, e.g. the caller's own cwd),
  *   - it is completely empty.
  *
- * Returns { removed, nonEmpty, locked }: paths removed, non-empty leftovers left for manual
- * review, and empty-but-locked folders (a live session still owns them) to retry later.
- * Never throws - hygiene must never break session start or the command.
+ * Returns { empty, nonEmpty, unreadable }. Never throws - hygiene must never break session
+ * start or the cleanup command.
  */
-export function sweepEmptyLeftoverFolders({ primaryRoot, registeredRoots, protect = [] }) {
-  const removed = [];
+export function inspectLeftoverFolders({ primaryRoot, registeredRoots, protect = [] }) {
+  const empty = [];
   const nonEmpty = [];
-  const locked = [];
+  const unreadable = [];
   try {
     const worktreesDir = join(primaryRoot, '.claude', 'worktrees');
-    if (!existsSync(worktreesDir)) return { removed, nonEmpty, locked };
+    if (!existsSync(worktreesDir)) return { empty, nonEmpty, unreadable };
     for (const name of readdirSync(worktreesDir)) {
       const dir = normalize(join(worktreesDir, name));
       if (registeredRoots.some((r) => samePath(r, dir))) continue; // a live registered worktree
@@ -70,21 +69,40 @@ export function sweepEmptyLeftoverFolders({ primaryRoot, registeredRoots, protec
       try {
         entries = readdirSync(dir);
       } catch {
-        continue; // not a directory or vanished - ignore
+        unreadable.push(dir);
+        continue;
       }
       if (entries.length > 0) {
         nonEmpty.push(dir); // stub with files - report only, never auto-delete
         continue;
       }
-      try {
-        rmdirSync(dir); // rmdir refuses a non-empty dir, so this only ever removes an empty one
-        removed.push(dir);
-      } catch {
-        locked.push(dir); // still owned by a live session, or a transient lock - retry later
-      }
+      empty.push(dir);
     }
   } catch {
     // Best-effort: a surprise here must never propagate.
   }
-  return { removed, nonEmpty, locked };
+  return { empty, nonEmpty, unreadable };
+}
+
+/**
+ * Remove only folders that a fresh read-only inspection still classifies as empty and
+ * unregistered. `rmdirSync` is the final non-empty backstop.
+ */
+export function sweepEmptyLeftoverFolders(options) {
+  const removed = [];
+  const locked = [];
+  const assessment = inspectLeftoverFolders(options);
+  for (const dir of assessment.empty) {
+    try {
+      rmdirSync(dir);
+      removed.push(dir);
+    } catch {
+      locked.push(dir);
+    }
+  }
+  return {
+    removed,
+    nonEmpty: assessment.nonEmpty,
+    locked: [...assessment.unreadable, ...locked],
+  };
 }

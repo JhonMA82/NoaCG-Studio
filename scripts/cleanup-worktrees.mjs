@@ -1,17 +1,17 @@
 // Bulk cleanup of stale worktrees, their merged branches, stale worktree metadata, and empty
 // leftover folders - safely, from the primary `main` checkout.
 //
-// Default is a read-only DRY RUN. Pass --apply to actually delete. The /cleanup-worktrees
-// command drives this: dry-run, show the plan, then apply when the assessment is clean.
+// Default is a read-only DRY RUN. Pass --apply to actually delete. The explicitly invoked shared
+// cleanup workflow drives this: dry-run, show the plan, then apply when the assessment is clean.
 //
 // The ONE trustworthy test for "this work is safely in main" is commit containment:
 //   git rev-list --count <ref> --not main   == 0
 // (equivalently `git merge-base --is-ancestor <ref> main`). Branch names, `gone` upstream
 // markers, and human/AI memory are NEVER trusted for a deletion decision - a branch that
 // merged main into itself, or an old ancestor tip, both look alarming by name/diff yet are
-// fully contained. Containment is checked against LOCAL main; if origin/main is ahead, it is a
-// superset of local main, so containment still holds. Divergence is surfaced, not silently
-// trusted.
+// fully contained. Automatic removal requires containment in BOTH local main and origin/main:
+// local containment proves the primary checkout has the work, and remote containment proves it
+// has been backed up outside this machine. Ahead, behind, and divergence are surfaced explicitly.
 //
 // Containment only sees true ancestry, so a branch merged via "squash and merge" (a new commit,
 // not an ancestor of the original branch) never passes it. Those are caught separately by a
@@ -24,14 +24,15 @@
 //   - never remove a worktree with uncommitted changes, or a detached worktree whose HEAD is
 //     not contained in main (it may hold unique work);
 //   - never delete a non-empty unregistered folder (report it for manual review);
-//   - only ever delete a branch whose commits are fully contained in main, and even then let
-//     `git branch -d` refuse as a final backstop.
+//   - only delete managed claude/* or codex/* branches whose commits are fully contained in local
+//     main and origin/main, and even then let `git branch -d` refuse as a final backstop.
 
 import { fileURLToPath } from 'node:url';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
 import {
   git,
+  inspectLeftoverFolders,
   normalize,
   samePath,
   worktreeRoots,
@@ -39,11 +40,18 @@ import {
 } from './worktree-cleanup-lib.mjs';
 
 const MAIN = 'main';
+const REMOTE_MAIN = 'origin/main';
+const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/'];
 
-/** True when every commit of `ref` is already reachable from main (nothing would be lost). */
-function containedInMain(ref, cwd) {
-  const res = git(['rev-list', '--count', ref, '--not', MAIN], cwd);
+/** True when every commit of `ref` is already reachable from `target`. */
+function containedIn(ref, target, cwd) {
+  const res = git(['rev-list', '--count', ref, '--not', target], cwd);
   return res.ok && res.stdout === '0';
+}
+
+/** Automatic deletion requires both local containment and remote backup. */
+function safelyBackedUp(ref, cwd) {
+  return containedIn(ref, MAIN, cwd) && containedIn(ref, REMOTE_MAIN, cwd);
 }
 
 /**
@@ -87,11 +95,11 @@ export function assess(cwd) {
     currentBranch: null,
     mainSync: null, // { ahead, behind, state }
     worktrees: [], // { path, branch|null, head, action: 'remove'|'skip', why }
-    branches: [], // { name, action: 'delete'|'skip', why }
-    otherMerged: [], // non-claude/* branches fully merged into main (reported, not deleted)
+    branches: [], // { name, head, action: 'delete'|'skip', why }
+    otherMerged: [], // branches outside managed prefixes (reported, not deleted)
     possibleSquashMerges: [], // tree matches main but not an ancestor - reported, not deleted
     prune: [], // stale worktree metadata git would prune
-    emptyFolders: { removed: [], nonEmpty: [], locked: [] },
+    emptyFolders: { empty: [], nonEmpty: [], unreadable: [] },
   };
 
   const primaryRoot = primaryCheckout(cwd);
@@ -123,14 +131,24 @@ export function assess(cwd) {
   }
   plan.currentBranch =
     git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout || null; // null when detached
+  if (plan.currentBranch !== MAIN) {
+    return {
+      ...plan,
+      ok: false,
+      reason:
+        `the primary checkout must be on ${MAIN}; it is ` +
+        `${plan.currentBranch ? `on ${plan.currentBranch}` : 'detached'}`,
+    };
+  }
 
   // Sync status vs origin/main (read-only; fetch is done by the caller before assess()).
   const lr = git(['rev-list', '--left-right', '--count', `${MAIN}...origin/${MAIN}`], primaryRoot);
-  if (lr.ok && /^\d+\s+\d+$/.test(lr.stdout)) {
-    const [ahead, behind] = lr.stdout.split(/\s+/).map(Number);
-    const state = ahead && behind ? 'diverged' : ahead ? 'ahead' : behind ? 'behind' : 'in-sync';
-    plan.mainSync = { ahead, behind, state };
+  if (!lr.ok || !/^\d+\s+\d+$/.test(lr.stdout)) {
+    return { ...plan, ok: false, reason: `could not compare ${MAIN} with ${REMOTE_MAIN}` };
   }
+  const [ahead, behind] = lr.stdout.split(/\s+/).map(Number);
+  const state = ahead && behind ? 'diverged' : ahead ? 'ahead' : behind ? 'behind' : 'in-sync';
+  plan.mainSync = { ahead, behind, state };
 
   const wtInfo = worktreeBranches(primaryRoot);
 
@@ -146,19 +164,23 @@ export function assess(cwd) {
     } else if (status.stdout !== '') {
       entry.why = 'uncommitted changes present';
     } else if (info.branch) {
-      if (samePath(info.branch, MAIN) || info.branch === MAIN) {
+      if (info.branch === MAIN) {
         entry.why = 'holds main - never removed';
-      } else if (containedInMain(info.branch, primaryRoot)) {
+      } else if (safelyBackedUp(info.branch, primaryRoot)) {
         entry.action = 'remove';
-        entry.why = `branch ${info.branch} fully merged into main`;
+        entry.why = `branch ${info.branch} contained in main and origin/main`;
+      } else if (containedIn(info.branch, MAIN, primaryRoot)) {
+        entry.why = `branch ${info.branch} is only contained in local main, not origin/main`;
       } else {
         entry.why = `branch ${info.branch} has commits not in main`;
       }
     } else {
       // Detached: safe to remove only if the checked-out commit is contained in main.
-      if (info.head && containedInMain(info.head, primaryRoot)) {
+      if (info.head && safelyBackedUp(info.head, primaryRoot)) {
         entry.action = 'remove';
-        entry.why = `detached HEAD ${info.head.slice(0, 7)} contained in main`;
+        entry.why = `detached HEAD ${info.head.slice(0, 7)} contained in main and origin/main`;
+      } else if (info.head && containedIn(info.head, MAIN, primaryRoot)) {
+        entry.why = 'detached HEAD is only contained in local main, not origin/main';
       } else {
         entry.why = 'detached HEAD not contained in main - may hold unique work';
       }
@@ -171,27 +193,55 @@ export function assess(cwd) {
     plan.worktrees.filter((w) => w.action !== 'remove' && w.branch).map((w) => w.branch),
   );
 
-  // Branch classification. Default scope: fully-merged claude/* branches (incl. ones whose
-  // worktree still exists). Non-claude merged branches are reported only.
+  // Branch classification. Default scope: fully merged managed branches, including ones whose
+  // worktree still exists. Other merged branches are reported only.
   const branchList = git(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], primaryRoot);
   const localBranches = branchList.ok ? branchList.stdout.split('\n').filter(Boolean) : [];
   for (const name of localBranches) {
     if (name === MAIN) continue;
     if (name === plan.currentBranch) continue; // never the current branch
-    if (!containedInMain(name, primaryRoot)) {
+    const head = git(['rev-parse', name], primaryRoot).stdout || null;
+    if (!containedIn(name, MAIN, primaryRoot)) {
       // Not an ancestor of main - but a squash/rebase merge lands the same tree under a new
       // commit, so check for that signature before writing the branch off as unmerged.
       if (possiblySquashMerged(name, primaryRoot)) plan.possibleSquashMerges.push(name);
+      if (MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+        plan.branches.push({
+          name,
+          head,
+          action: 'skip',
+          why: 'has commits not contained in local main',
+        });
+      }
       continue; // unmerged (or unconfirmed) branches are left entirely alone
     }
-    if (!name.startsWith('claude/')) {
+    if (!safelyBackedUp(name, primaryRoot)) {
+      plan.branches.push({
+        name,
+        head,
+        action: 'skip',
+        why: 'contained in local main but not backed up to origin/main',
+      });
+      continue;
+    }
+    if (!MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix))) {
       plan.otherMerged.push(name);
       continue;
     }
     if (keptWorktreeBranches.has(name)) {
-      plan.branches.push({ name, action: 'skip', why: 'still checked out in a worktree left in place' });
+      plan.branches.push({
+        name,
+        head,
+        action: 'skip',
+        why: 'still checked out in a worktree left in place',
+      });
     } else {
-      plan.branches.push({ name, action: 'delete', why: 'fully merged into main' });
+      plan.branches.push({
+        name,
+        head,
+        action: 'delete',
+        why: 'contained in main and origin/main',
+      });
     }
   }
 
@@ -201,14 +251,101 @@ export function assess(cwd) {
     plan.prune = pruneDry.stdout.split('\n').filter(Boolean);
   }
 
-  // Empty leftover folders (read-only preview: sweep only runs for real under --apply).
+  plan.emptyFolders = inspectLeftoverFolders({
+    primaryRoot,
+    registeredRoots: roots,
+    protect: [cwd],
+  });
   return plan;
 }
 
-function apply(plan, cwd) {
+function currentPrimaryBranch(primaryRoot) {
+  return git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout || null;
+}
+
+function worktreeStillSafeToRemove(worktree, primaryRoot) {
+  const status = git(['status', '--porcelain'], worktree.path);
+  if (!status.ok || status.stdout !== '') return false;
+  const current = worktreeBranches(primaryRoot).get(normalize(worktree.path));
+  if (!current) return false;
+  if (current.branch) {
+    return (
+      current.branch === worktree.branch &&
+      current.head === worktree.head &&
+      current.branch !== MAIN &&
+      safelyBackedUp(current.branch, primaryRoot)
+    );
+  }
+  return (
+    !worktree.branch &&
+    current.head === worktree.head &&
+    Boolean(current.head) &&
+    safelyBackedUp(current.head, primaryRoot)
+  );
+}
+
+export function assessmentRisks(plan) {
+  const risks = [];
+  if (!plan.ok) return [plan.reason ?? 'assessment failed'];
+  if (plan.mainSync?.ahead) {
+    risks.push(`local main has ${plan.mainSync.ahead} commit(s) not in origin/main`);
+  }
+  for (const worktree of plan.worktrees.filter((entry) => entry.action === 'skip')) {
+    if (
+      worktree.why.includes('uncommitted') ||
+      worktree.why.includes('unique work') ||
+      worktree.why.includes('could not read') ||
+      worktree.why.includes('only contained in local main') ||
+      worktree.why.includes('has commits not in main')
+    ) {
+      risks.push(`${worktree.path}: ${worktree.why}`);
+    }
+  }
+  for (const branch of plan.branches.filter((entry) => entry.action === 'skip')) {
+    if (
+      branch.why.includes('not backed up to origin/main') ||
+      branch.why.includes('not contained in local main')
+    ) {
+      risks.push(`${branch.name}: ${branch.why}`);
+    }
+  }
+  for (const folder of plan.emptyFolders.nonEmpty) {
+    risks.push(`${folder}: non-empty unregistered folder`);
+  }
+  for (const folder of plan.emptyFolders.unreadable) {
+    risks.push(`${folder}: unreadable unregistered folder`);
+  }
+  return risks;
+}
+
+export function applyPlan(
+  plan,
+  cwd,
+  {
+    prunePorts = pruneStalePorts,
+    refreshRemote = () => git(['fetch', 'origin', '--prune'], plan.primaryRoot),
+  } = {},
+) {
   const done = { removedWorktrees: [], deletedBranches: [], pruned: false, sweep: null, releasedPorts: [], errors: [] };
 
+  const refreshed = refreshRemote();
+  if (!refreshed?.ok) {
+    done.errors.push(
+      `could not refresh origin before applying cleanup: ` +
+        `${refreshed?.stderr || refreshed?.stdout || 'fetch failed'}`,
+    );
+    return done;
+  }
+  if (currentPrimaryBranch(plan.primaryRoot) !== MAIN) {
+    done.errors.push(`primary checkout is no longer on ${MAIN} - no cleanup actions applied`);
+    return done;
+  }
+
   for (const w of plan.worktrees.filter((x) => x.action === 'remove')) {
+    if (!worktreeStillSafeToRemove(w, plan.primaryRoot)) {
+      done.errors.push(`worktree ${w.path}: safety state changed after assessment - skipped`);
+      continue;
+    }
     const res = git(['worktree', 'remove', w.path], plan.primaryRoot); // never --force
     if (res.ok) done.removedWorktrees.push(w.path);
     else done.errors.push(`worktree remove ${w.path}: ${res.stderr || res.stdout || 'failed (folder may be locked/busy)'}`);
@@ -217,8 +354,13 @@ function apply(plan, cwd) {
   // Re-derive deletable branches after removals (a just-freed branch is now deletable). Keep
   // the same containment gate; `git branch -d` is the final backstop that refuses unmerged.
   for (const b of plan.branches.filter((x) => x.action === 'delete')) {
-    if (!containedInMain(b.name, plan.primaryRoot)) {
-      done.errors.push(`branch ${b.name}: no longer contained in main - skipped`);
+    if (
+      !MANAGED_BRANCH_PREFIXES.some((prefix) => b.name.startsWith(prefix)) ||
+      !b.head ||
+      git(['rev-parse', b.name], plan.primaryRoot).stdout !== b.head ||
+      !safelyBackedUp(b.name, plan.primaryRoot)
+    ) {
+      done.errors.push(`branch ${b.name}: identity or backup state changed after assessment - skipped`);
       continue;
     }
     const res = git(['branch', '-d', b.name], plan.primaryRoot);
@@ -242,7 +384,7 @@ function apply(plan, cwd) {
   // otherwise the port stays held until some later allocation happens to land on it
   // (docs/DEV_PORTS.md). Only reservations whose worktree is gone are touched.
   try {
-    done.releasedPorts = pruneStalePorts().map((t) => t.port);
+    done.releasedPorts = prunePorts().map((t) => t.port);
   } catch (err) {
     done.errors.push(`dev-port reservations: ${err.message}`);
   }
@@ -261,8 +403,8 @@ function report(plan, done) {
     L.push(`main vs origin/main: ${state}` + (state === 'in-sync' ? '' : ` (ahead ${ahead}, behind ${behind})`));
     if (state === 'diverged' || state === 'ahead') {
       L.push(
-        `  ! local main is ${state} of origin/main. Deletions below are still safe (all are ` +
-          'contained in LOCAL main, so no work is lost), but push/reconcile main soon.',
+        `  ! local main is ${state} from origin/main. Only refs independently contained in both ` +
+          'local main and origin/main are eligible for automatic deletion.',
       );
     }
   }
@@ -314,7 +456,11 @@ function report(plan, done) {
     for (const d of locked) L.push(`  - ${d} [locked/busy - rerun later]`);
     for (const d of nonEmpty) L.push(`  - ${d} [NON-EMPTY - manual review, not deleted]`);
   } else {
-    L.push('  (swept only under --apply)');
+    const { empty, nonEmpty, unreadable } = plan.emptyFolders;
+    if (empty.length === 0 && nonEmpty.length === 0 && unreadable.length === 0) L.push('  (none)');
+    for (const d of empty) L.push(`  - ${d} [empty - will remove]`);
+    for (const d of unreadable) L.push(`  - ${d} [UNREADABLE - manual review, not deleted]`);
+    for (const d of nonEmpty) L.push(`  - ${d} [NON-EMPTY - manual review, not deleted]`);
   }
 
   L.push('');
@@ -327,7 +473,10 @@ function report(plan, done) {
 
   if (plan.otherMerged.length > 0) {
     L.push('');
-    L.push('## Also fully merged into main, NOT deleted (non-claude/* branches - remove manually if unwanted)');
+    L.push(
+      '## Also contained in main and origin/main, NOT deleted ' +
+        '(branches outside claude/* and codex/* - remove manually if unwanted)',
+    );
     for (const n of plan.otherMerged) L.push(`  - ${n}`);
   }
 
@@ -341,6 +490,13 @@ function report(plan, done) {
 
   const manual = [
     ...wtSkip.map((w) => `${w.path} - ${w.why}`),
+    ...brSkip.map((b) => `${b.name} - ${b.why}`),
+    ...(!done ? plan.emptyFolders.nonEmpty : []).map(
+      (d) => `${d} - non-empty leftover folder`,
+    ),
+    ...(!done ? plan.emptyFolders.unreadable : []).map(
+      (d) => `${d} - unreadable leftover folder`,
+    ),
     ...(done?.sweep?.nonEmpty ?? []).map((d) => `${d} - non-empty leftover folder`),
     ...(done?.sweep?.locked ?? []).map((d) => `${d} - locked, rerun later`),
     ...(done?.errors ?? []),
@@ -353,18 +509,41 @@ function report(plan, done) {
   return L.join('\n');
 }
 
-// CLI: `node scripts/cleanup-worktrees.mjs [--apply]` (default: dry run).
+// CLI: `node scripts/cleanup-worktrees.mjs [--apply] [--acknowledge-risks]`
+// Default is a dry run. Risk acknowledgement is valid only after the user approves the safe subset.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const doApply = process.argv.includes('--apply');
+  const acknowledgedRisks = process.argv.includes('--acknowledge-risks');
   const cwd = normalize(process.cwd());
+
+  const primaryRoot = primaryCheckout(cwd);
+  if (primaryRoot) {
+    const fetched = git(['fetch', 'origin', '--prune'], primaryRoot);
+    if (!fetched.ok) {
+      console.log(
+        `Cannot run cleanup: could not refresh origin: ` +
+          `${fetched.stderr || fetched.stdout || 'git fetch failed'}`,
+      );
+      process.exit(2);
+    }
+  }
 
   const plan = assess(cwd);
   if (!plan.ok) {
     console.log(`Cannot run cleanup: ${plan.reason}`);
-    process.exit(0);
+    process.exit(2);
   }
 
-  const done = doApply ? apply(plan, cwd) : null;
+  const risks = assessmentRisks(plan);
+  if (doApply && risks.length > 0 && !acknowledgedRisks) {
+    console.log(report(plan, null));
+    console.log('\nCannot apply without explicit acknowledgement of these skipped-risk items:');
+    for (const risk of risks) console.log(`  - ${risk}`);
+    console.log('After user approval, rerun with --apply --acknowledge-risks.');
+    process.exit(2);
+  }
+
+  const done = doApply ? applyPlan(plan, cwd) : null;
   console.log(report(plan, done));
-  process.exit(0);
+  process.exit(done?.errors.length ? 1 : 0);
 }

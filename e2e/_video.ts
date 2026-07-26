@@ -90,7 +90,7 @@ export async function expectOfflineAi(page: Page): Promise<void> {
     configured,
     'this spec needs the OFFLINE stub provider, but the dev server resolves AI as configured - ' +
       "a hand-started server on this checkout's port is being reused with a real key in .env. " +
-      'Stop it and let the suite start its own (see CLAUDE.md "Verifying changes").',
+      'Stop it and let the suite start its own (see AGENTS.md "Verifying changes").',
   ).toBe(false);
 }
 

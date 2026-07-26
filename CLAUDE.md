@@ -4,9 +4,9 @@
 
 ## Claude Code specifics
 
-- `AGENTS.md` above is the shared, tool-agnostic contract (also read by Codex and any other
-  agent). Nothing Claude-specific belongs in it - put that here instead.
-- `/safe-merge`, referenced in `AGENTS.md`'s Git section as the one standing exception to "never
-  land on main unasked," is a Claude Code skill (`.claude/commands/safe-merge.md`).
-- Nested per-area contracts (directories marked * in `AGENTS.md`'s architecture map) are still
-  plain `CLAUDE.md` files - they have not been split into `AGENTS.md` + `CLAUDE.md` pairs yet.
+- `AGENTS.md` is the authoritative shared project contract. Keep Claude-only behavior in this
+  file unless a cross-tool rule needs to name both adapters.
+- Shared command behavior lives in `.agent-workflows/`. Files under `.claude/commands/` are thin
+  Claude adapters; the matching Codex adapters live under `.agents/skills/`.
+- Nested per-area contracts use the same pattern: `AGENTS.md` is authoritative and the sibling
+  `CLAUDE.md` imports it.

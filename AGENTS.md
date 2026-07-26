@@ -38,6 +38,7 @@ npm install
 npm run dev      # Vite dev server (landing at /, THE EDITOR AT /app)
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
+npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
 ```
 
 **The dev port is per-checkout** (`scripts/dev-port.mjs`, which prints it): 5174 in the main
@@ -55,8 +56,9 @@ shim so old root `?chat=`/`?template=` share links land on `/app` with their que
 the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
 in production). E2E specs navigate to `/app`.
 
-There is **no unit-test suite**. Verify with `npm run build` plus in-browser checks (below); never
-mark work done on a green build alone if the behaviour is observable.
+There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
+Verify product changes with `npm run build` plus in-browser checks (below); never mark work done
+on a green build alone if the behaviour is observable.
 
 ## Non-negotiable principles (these override default behaviour)
 
@@ -243,10 +245,11 @@ surface from the CODE, never the category, which keeps pre-migration templates w
 Always `npm run build` (typecheck + lint + build) after changes. The tree stays lint-clean: fix
 findings properly rather than sprinkling eslint-disable comments. Its first, fastest step is
 `node scripts/check-shared-instructions.mjs` - the drift guard for the AGENTS.md/CLAUDE.md
-split and the `.agent-workflows/` shared-workflow pattern (below): it fails if a thin wrapper
-grows real content again, stops pointing at its canonical file, or a Codex mirror goes missing.
-It self-discovers what to check from `AGENTS.md`/`.agent-workflows/*.md` files present, so a
-new nested area or a new shared command needs no separate registration - only correct wrappers.
+split and the `.agent-workflows/` shared-workflow pattern: it validates thin imports, Claude
+commands, Codex skills under `.agents/skills/`, metadata, explicit-invocation safety, referenced
+scripts, and the configured instruction-size budget. It self-discovers `AGENTS.md` and shared
+workflow files, so a new nested area or shared command needs no separate registration - only
+correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. For the inner loop,
@@ -319,13 +322,13 @@ new nested area or a new shared command needs no separate registration - only co
   main, no `git push origin main`. Being in the primary checkout on `main` is not
   permission to land - the user decides when work lands, *after* they know the change is safe.
   Commit verified work to the feature branch, report what you did and verified, and STOP.
-- **The one exception is invoking the repo's merge-to-main flow by name** (a Claude Code skill
-  called `/safe-merge`; other agents should treat an equally explicit, named request to run that
-  flow as the same standing exception). Invoking it IS the ask: run that flow to completion for
-  the named branch - preflight, merge into `main`, push, guarded cleanup - without asking again for
-  the merge or the push. The permission is scoped to that invocation and that branch; it never
-  carries to another branch, a later turn, or any other route onto `main`. If the flow's own checks
-  fail, stop and report - permission to run the flow is not permission to land something broken.
+- **The one exception is invoking the repo's merge-to-main flow by name** (`/safe-merge` in
+  Claude Code or `$safe-merge` in Codex). Invoking it IS the ask: run that flow to completion for
+  the named branch - preflight, merge into `main`, and push - without asking again for the merge
+  or push. It does not authorize branch or worktree cleanup. The permission is scoped to that
+  invocation and that branch; it never carries to another branch, a later turn, or any other route
+  onto `main`. If the flow's checks fail, stop and report - permission to run the flow is not
+  permission to land something broken.
 - **Commit messages:** clear and human-readable, explaining the actual change - understandable to an
   outside developer reading the history cold. No chat/session language, internal planning names, or
   AI-sounding phrases ("as requested", "starting era 5", "continued work"). Never mention Claude,

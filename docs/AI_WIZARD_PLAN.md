@@ -8,7 +8,7 @@ to prove, that is stated in the phase.
 Scope: `src/components/wizard/steps/AiStep.tsx` + `steps/ai/MoreControlPanel.tsx` (the
 surface) and `src/ai/` (the harness). The video harness (`src/ai/video/`) is referenced only
 as the in-house comparison. Contracts it must not break: `src/ai/CLAUDE.md` (the doctrine),
-`docs/DESIGN_LANGUAGE.md`, and the root CLAUDE.md pillars.
+`docs/DESIGN_LANGUAGE.md`, and the root `AGENTS.md` pillars.
 
 ---
 

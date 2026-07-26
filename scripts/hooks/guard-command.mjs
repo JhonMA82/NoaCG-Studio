@@ -3,8 +3,8 @@
 //
 //  1. Dev servers go through the Claude preview tools, never a raw shell command - a stray
 //     server on this checkout's port is exactly the "reuseExistingServer picks up the wrong
-//     env" e2e trap documented in CLAUDE.md.
-//  2. Commit messages follow the house rules (CLAUDE.md "Git"): no Co-Authored-By trailers,
+//     env" e2e trap documented in AGENTS.md.
+//  2. Commit messages follow the house rules (AGENTS.md "Git"): no Co-Authored-By trailers,
 //     no AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
 //  4. The e2e suites only start when their port is free - Playwright would otherwise reuse
@@ -34,7 +34,7 @@ if (DEV_SERVER_PATTERNS.some((p) => p.test(command))) {
   deny(
     'Dev servers are managed by the Claude preview tools in this repo, never a raw shell command - ' +
       'a hand-started server on this checkout\'s port makes the e2e suite silently reuse it with the ' +
-      'wrong env (see CLAUDE.md "Verifying changes" gotchas).\n' +
+      'wrong env (see AGENTS.md "Verifying changes" gotchas).\n' +
       'Use preview_start with {name: "dev"} instead - .claude/launch.json already points it at this ' +
       "checkout's port (node scripts/dev-port.mjs prints it). For a production build, run `npm run build`.",
   );
@@ -50,7 +50,7 @@ if (isCommit) {
   if (/co-authored-by/i.test(command) || /🤖/u.test(command)) {
     deny(
       'Blocked: commit messages in this repo never carry Co-Authored-By trailers or ' +
-        '"Generated with" footers (user rule in CLAUDE.md "Git"). Rewrite the message without them.',
+        '"Generated with" footers (user rule in AGENTS.md "Git"). Rewrite the message without them.',
     );
   }
 
@@ -82,7 +82,7 @@ if (isCommit) {
     const hits = STYLE_VIOLATIONS.filter(([pattern]) => pattern.test(command)).map(([, why]) => why);
     if (hits.length > 0) {
       deny(
-        `Blocked: this commit command trips the commit-message style rules (CLAUDE.md "Git"): ${hits.join('; ')}.\n` +
+        `Blocked: this commit command trips the commit-message style rules (AGENTS.md "Git"): ${hits.join('; ')}.\n` +
           'Messages must read as written by a human developer for an outside reader - no AI/agent/chat ' +
           'language, no internal codenames. If a mention is deliberate because the commit is genuinely ' +
           'about AI tooling, include ALLOW_AI_MENTION=1 in the command to bypass this check.',
@@ -116,7 +116,7 @@ if (/\btest:e2e\b/.test(command) || /\bplaywright\s+test\b/.test(command)) {
       `Blocked: something is already listening on port ${port} - this checkout's ${live ? 'live' : 'offline'} ` +
         'e2e port. Playwright runs with reuseExistingServer:true, so it would reuse that server with ' +
         `whatever env it was started with, and the ${live ? 'configured-mode' : 'offline-pinned'} specs ` +
-        'fail confusingly (see CLAUDE.md "Verifying changes" gotchas).\n' +
+        'fail confusingly (see AGENTS.md "Verifying changes" gotchas).\n' +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         "Servers in other worktrees are harmless - they live on their own ports.",
     );
