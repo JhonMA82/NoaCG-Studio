@@ -205,15 +205,22 @@ put it (a logo slot takes a mark; a full-frame still does not).
 
 ## Other files
 
-- `anthropic.ts` - the one API client (BYO key or VITE_AI_PROXY_URL gateway); forced-tool
-  calls, `callClaudeDetailed` returns usage + model, `cacheSystem` marks a prompt-cache
-  breakpoint (the coder + its repairs share one system prompt).
+- `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser
+  client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
+  and OpenRouter without branching the harness. Structured output, usage, costs, errors,
+  retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;
+  other adapters ignore it.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME specToTemplate
   pipeline, so offline results are catalog-grade; block answers remain as fallback. It honors
   the structured setup through the same `applySpecLocks`/post-passes, which is what keeps
   the whole More-control flow e2e-testable without tokens (e2e/ai-more-control.spec.ts).
-- `settings.ts`, `index.ts` (getAiProvider), `brainstorm.ts`, `examplePrompts.ts`,
-  `presets.ts` - unchanged roles.
+- `settings.ts` stores only non-secret provider/model/routing preferences and server-reported
+  credential availability. Raw keys never enter localStorage. `index.ts` (getAiProvider),
+  `brainstorm.ts`, `examplePrompts.ts`, and `presets.ts` keep their existing roles.
+
+The binding gateway and key-handling contract is `docs/AI_PROVIDER_GATEWAY.md`. Provider
+adapters never own DesignSpec, validation, repair, preference learning, or graphic-type
+context. New providers enter below `AIProvider`, never beside it.
 
 **Deferred (benchmark-gated, deliberate):** a selective vision taste critic (free-form path
 only, evidence-based findings, never auto-rewrites a valid grounded result), a curated taste

@@ -82,13 +82,14 @@ npm run build    # typecheck + production build to dist/
   slot as a real Logo field; uploads are stored as data URLs, render live in the preview, and
   export as real files under `images/`. Brand colours are managed as `:root` CSS variables.
 - **AI mode** — the "Describe it" entry generates a complete template from a prompt, optionally
-  with your logo / a still frame (Claude sees the images) and your project's brand colors. The
+  with your logo / a still frame (the selected model sees the images) and your project's brand colors. The
   generated code keeps the same contracts as the wizard's (`:root` style vars, marked ANIMATION
   region), so the Style/Motion panels keep working on it; every result is **validated before it
   can apply**, with one automatic repair round, and a refine box iterates on the result. The AI
-  panel modifies / fixes / explains the current graphic. Bring your own Anthropic key (in-app AI
-  settings or `.env`, see `.env.example`); it is stored locally and sent only to Anthropic. A
-  `VITE_AI_PROXY_URL` config exists for pointing at a hosted key-holding gateway instead.
+  panel modifies / fixes / explains the current graphic. Anthropic, OpenAI Responses, and
+  OpenRouter routes share the same harness. Managed keys stay in server environment variables;
+  optional user keys are sealed server-side in an HttpOnly cookie. See `.env.example` and
+  `docs/AI_PROVIDER_GATEWAY.md`.
 - **Validation, inside Export** — runtime functions, `SPXGCTemplateDefinition`, field↔DOM
   mapping, relative asset paths (HTML + CSS), missing assets, JS syntax, and preview runtime
   errors run automatically in the Export panel; errors are listed inline and block the download.

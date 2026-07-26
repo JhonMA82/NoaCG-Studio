@@ -2,11 +2,11 @@
 // the SPX provider's emit_template): the Motion Director's plan, the coder's module, and
 // the cheap skill classifier.
 
-import type { ClaudeTool } from '../anthropic';
+import type { ModelTool } from '../modelGateway';
 import type { VideoInputType } from '../../model/videoTypes';
 import { SKILLS } from './skills';
 
-export const MOTION_PLAN_TOOL: ClaudeTool = {
+export const MOTION_PLAN_TOOL: ModelTool = {
   name: 'emit_motion_plan',
   description: 'Return the structured motion-design plan for the video.',
   input_schema: {
@@ -46,7 +46,7 @@ export const MOTION_PLAN_TOOL: ClaudeTool = {
   },
 };
 
-export const REMOTION_MODULE_TOOL: ClaudeTool = {
+export const REMOTION_MODULE_TOOL: ModelTool = {
   name: 'emit_remotion_module',
   description: 'Return the complete Remotion composition module and its editable inputs.',
   input_schema: {
@@ -96,7 +96,7 @@ export const REMOTION_MODULE_TOOL: ClaudeTool = {
   },
 };
 
-export const HYPERFRAMES_MODULE_TOOL: ClaudeTool = {
+export const HYPERFRAMES_MODULE_TOOL: ModelTool = {
   name: 'emit_hyperframes_composition',
   description: 'Return the complete standalone HyperFrames composition document.',
   input_schema: {
@@ -114,7 +114,7 @@ export const HYPERFRAMES_MODULE_TOOL: ClaudeTool = {
   },
 };
 
-export const DETECT_SKILLS_TOOL: ClaudeTool = {
+export const DETECT_SKILLS_TOOL: ModelTool = {
   name: 'detect_skills',
   description: 'Pick the motion-design skills most relevant to the request.',
   input_schema: {

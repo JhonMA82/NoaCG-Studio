@@ -1,5 +1,5 @@
-// AI provider interface. The app is built entirely against this interface so the Claude-backed
-// provider and the deterministic stub are interchangeable. AI output is always run through
+// Creative AI provider interface. The app is built entirely against this interface so the
+// model-gateway-backed harness and deterministic stub are interchangeable. AI output is always run through
 // validation before it can be applied or exported — the platform owns the structure.
 
 import type { AssetFile, Resolution, SpxTemplate, TemplateChange } from '../model/types';

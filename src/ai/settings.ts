@@ -1,63 +1,240 @@
-// AI settings: which model, and how to reach it. Two modes share one interface:
-//   - Direct (bring your own key): the browser calls Anthropic with YOUR key. The key is
-//     stored in localStorage (or read from .env) and never leaves your machine except to
-//     Anthropic itself. Never commit a key to the repo.
-//   - Proxy (hosted): VITE_AI_PROXY_URL points at a backend gateway that holds the real key
-//     server-side (auth/billing live there). The app sends the same request body, minus keys.
+// Browser-safe AI routing preferences. API keys never enter this module or localStorage:
+// managed keys stay in server environment variables, while optional user keys are sealed
+// by /api/ai/credentials into an HttpOnly cookie.
+
+import { getAccessToken } from '../backend/auth';
+import {
+  AI_PROVIDER_IDS,
+  isAiProviderId,
+  type AiGatewayErrorBody,
+  type AiProviderId,
+  type ModelRoute,
+} from './modelTypes';
 
 const STORAGE_KEY = 'spx-gfx-ai';
 
+export interface AiModelOption {
+  provider: AiProviderId;
+  id: string;
+  label: string;
+  blurb: string;
+  role?: 'default' | 'fast';
+}
+
+export interface AiProviderOption {
+  id: AiProviderId;
+  label: string;
+  blurb: string;
+}
+
+export const AI_PROVIDERS: AiProviderOption[] = [
+  { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models through the existing NoaCG harness.' },
+  { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models through the Responses API.' },
+  { id: 'openrouter', label: 'OpenRouter', blurb: 'Hosted models through OpenRouter’s OpenAI-compatible API.' },
+];
+
+/** Central model catalog. The rest of NoaCG only stores opaque provider/model routes. */
+export const AI_MODELS: AiModelOption[] = [
+  {
+    provider: 'anthropic',
+    id: 'claude-sonnet-5',
+    label: 'Claude Sonnet 5',
+    blurb: 'Recommended Claude route for design and code.',
+    role: 'default',
+  },
+  {
+    provider: 'anthropic',
+    id: 'claude-opus-4-8',
+    label: 'Claude Opus 4.8',
+    blurb: 'Maximum Claude quality; slower and more expensive.',
+  },
+  {
+    provider: 'anthropic',
+    id: 'claude-haiku-4-5-20251001',
+    label: 'Claude Haiku 4.5',
+    blurb: 'Fast Claude route for lightweight planning stages.',
+    role: 'fast',
+  },
+  {
+    provider: 'openai',
+    id: 'gpt-5.6',
+    label: 'GPT-5.6',
+    blurb: 'OpenAI Responses API route for design and code.',
+    role: 'default',
+  },
+  {
+    provider: 'openrouter',
+    id: 'openai/gpt-5.6',
+    label: 'GPT-5.6 via OpenRouter',
+    blurb: 'A default OpenRouter route; any supported model id can be entered.',
+    role: 'default',
+  },
+];
+
 export interface AiSettings {
-  /** Anthropic API key (direct mode). Empty when unset. */
-  apiKey: string;
-  /** Model id, e.g. "claude-sonnet-5". */
+  provider: AiProviderId;
   model: string;
-  /** Gateway base URL (hosted mode). Empty = direct mode. */
-  proxyUrl: string;
+  /** Explicitly ordered routes only. No entry means no cross-provider fallback. */
+  fallbacks: ModelRoute[];
+  /** Non-secret availability cache populated by /api/ai/config or a successful key save. */
+  configuredProviders: AiProviderId[];
+  keyStorageAvailable: boolean | null;
   /**
-   * Generate through the NoaCG harness (design-spec routing, grounded assembly, the live
-   * bench, three alternatives) instead of the plain one-shot generation. ON by default:
-   * the benchmark (scripts/ai-compare.mjs) showed the harness a clean win on reliability,
-   * editability, overlaps, and cost. The checkbox still turns it off for the raw one-shot.
+   * Generate through the NoaCG harness (DesignSpec routing, grounded assembly, runtime
+   * bench and alternatives) rather than the plain one-shot path.
    */
   useHarness: boolean;
 }
 
-export const DEFAULT_MODEL = 'claude-sonnet-5';
+export interface AiProviderStatus {
+  id: AiProviderId;
+  userKey: boolean;
+  managedKey: boolean;
+  available: boolean;
+  requiresSignIn: boolean;
+}
 
-/** The models offered in the settings dropdown (any id can be typed via .env instead). */
-export const AI_MODELS: { id: string; label: string; blurb: string }[] = [
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', blurb: 'Recommended — strong design + code, fast, low cost.' },
-  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', blurb: 'Maximum quality; slower and several times the cost.' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', blurb: 'Cheapest and fastest; simpler results.' },
-];
+export interface AiConfiguration {
+  keyStorageAvailable: boolean;
+  providers: AiProviderStatus[];
+}
+
+export const DEFAULT_PROVIDER: AiProviderId = 'anthropic';
+export const DEFAULT_MODEL = 'claude-sonnet-5';
 
 function env(name: string): string {
   return String((import.meta.env as Record<string, unknown>)[name] ?? '');
 }
 
-/** Load settings: values saved in the app win, .env fills the gaps. */
-export function loadAiSettings(): AiSettings {
-  let saved: Partial<AiSettings> = {};
+export function modelsForProvider(provider: AiProviderId): AiModelOption[] {
+  return AI_MODELS.filter((model) => model.provider === provider);
+}
+
+export function defaultModelForProvider(provider: AiProviderId, role: 'default' | 'fast' = 'default'): string {
+  const models = modelsForProvider(provider);
+  return models.find((model) => model.role === role)?.id
+    ?? models.find((model) => model.role === 'default')?.id
+    ?? models[0]?.id
+    ?? '';
+}
+
+function validRoutes(value: unknown): ModelRoute[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((route): route is Record<string, unknown> => Boolean(route) && typeof route === 'object' && !Array.isArray(route))
+    .filter((route) => isAiProviderId(route.provider) && typeof route.model === 'string' && Boolean(route.model.trim()))
+    .slice(0, 3)
+    .map((route) => ({ provider: route.provider as AiProviderId, model: String(route.model).trim() }));
+}
+
+function envRoutes(): ModelRoute[] {
   try {
-    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<AiSettings>;
+    return validRoutes(JSON.parse(env('VITE_AI_FALLBACKS') || '[]'));
   } catch {
-    // Corrupt storage — fall back to env/defaults.
+    return [];
   }
+}
+
+function validProviders(value: unknown): AiProviderId[] {
+  if (!Array.isArray(value)) return [];
+  return AI_PROVIDER_IDS.filter((provider) => value.includes(provider));
+}
+
+function readSaved(): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const saved = parsed as Record<string, unknown>;
+    // One-way security migration: old releases stored the raw Anthropic key here. Never
+    // retransmit it implicitly; erase it and ask the user to enter it into secure storage.
+    if ('apiKey' in saved || 'proxyUrl' in saved) {
+      delete saved.apiKey;
+      delete saved.proxyUrl;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    }
+    return saved;
+  } catch {
+    return {};
+  }
+}
+
+/** Load only non-secret routing and availability preferences. */
+export function loadAiSettings(): AiSettings {
+  const saved = readSaved();
+  const envProvider = env('VITE_AI_PROVIDER');
+  const provider = isAiProviderId(saved.provider)
+    ? saved.provider
+    : isAiProviderId(envProvider)
+      ? envProvider
+      : DEFAULT_PROVIDER;
+  const model = typeof saved.model === 'string' && saved.model.trim()
+    ? saved.model.trim()
+    : env('VITE_AI_MODEL') || defaultModelForProvider(provider) || DEFAULT_MODEL;
   return {
-    apiKey: saved.apiKey ?? env('VITE_ANTHROPIC_API_KEY'),
-    model: saved.model || env('VITE_AI_MODEL') || DEFAULT_MODEL,
-    proxyUrl: saved.proxyUrl ?? env('VITE_AI_PROXY_URL'),
-    useHarness: saved.useHarness ?? true,
+    provider,
+    model,
+    fallbacks: 'fallbacks' in saved ? validRoutes(saved.fallbacks) : envRoutes(),
+    configuredProviders: validProviders(saved.configuredProviders),
+    keyStorageAvailable: typeof saved.keyStorageAvailable === 'boolean' ? saved.keyStorageAvailable : null,
+    useHarness: typeof saved.useHarness === 'boolean' ? saved.useHarness : true,
   };
 }
 
-export function saveAiSettings(settings: Partial<AiSettings>): void {
-  const merged = { ...loadAiSettings(), ...settings };
+export function saveAiSettings(patch: Partial<AiSettings>): void {
+  const current = loadAiSettings();
+  const provider = patch.provider ?? current.provider;
+  const providerChanged = provider !== current.provider;
+  const merged: AiSettings = {
+    ...current,
+    ...patch,
+    provider,
+    model: patch.model ?? (providerChanged ? defaultModelForProvider(provider) : current.model),
+    fallbacks: validRoutes(patch.fallbacks ?? current.fallbacks),
+    configuredProviders: validProviders(patch.configuredProviders ?? current.configuredProviders),
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 }
 
-/** True when generation can actually run (a key for direct mode, or a gateway URL). */
-export function aiConfigured(s: AiSettings = loadAiSettings()): boolean {
-  return Boolean(s.proxyUrl || s.apiKey);
+export function aiConfigured(settings: AiSettings = loadAiSettings()): boolean {
+  return settings.configuredProviders.includes(settings.provider);
+}
+
+async function gatewayHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+export async function refreshAiConfiguration(): Promise<AiConfiguration> {
+  const response = await fetch('/api/ai/config', { headers: await gatewayHeaders() });
+  if (!response.ok) throw new Error('Could not read AI provider configuration.');
+  const config = await response.json() as AiConfiguration;
+  const available = config.providers.filter((provider) => provider.available).map((provider) => provider.id);
+  saveAiSettings({ configuredProviders: available, keyStorageAvailable: config.keyStorageAvailable });
+  return config;
+}
+
+async function credentialRequest(method: 'PUT' | 'DELETE', provider: AiProviderId, key?: string): Promise<void> {
+  const response = await fetch('/api/ai/credentials', {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider, ...(key ? { key } : {}) }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as AiGatewayErrorBody | null;
+    throw new Error(body?.error.message ?? 'Could not update the provider key.');
+  }
+}
+
+export async function saveUserAiKey(provider: AiProviderId, key: string): Promise<void> {
+  await credentialRequest('PUT', provider, key.trim());
+  const current = loadAiSettings();
+  saveAiSettings({
+    configuredProviders: validProviders([...current.configuredProviders, provider]),
+    keyStorageAvailable: true,
+  });
+}
+
+export async function deleteUserAiKey(provider: AiProviderId): Promise<void> {
+  await credentialRequest('DELETE', provider);
+  await refreshAiConfiguration();
 }

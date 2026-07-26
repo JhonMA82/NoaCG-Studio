@@ -93,6 +93,7 @@ dependency-cruiser; §7):
 | a new catalog template, variant, pack, or graphic type | `templates/` |
 | a new export target or packaging convention | `export/targets/` + the registry |
 | an operator surface, protocol message, or receiver | `control/` |
+| an AI model transport or credential boundary | `api/ai/` + `api/_lib/aiGateway.ts`; shared browser-safe contracts in `ai/modelTypes.ts` |
 | prompt, harness, provider, or AI settings work | `ai/` (SPX) or `ai/video/` |
 | manifest, schedule, tier, or render-job work | `render/` (respect the purity trio) |
 | a cloud table, sync kind, or auth change | `backend/` + `supabase/migrations/` (RLS in the same migration) |
@@ -158,7 +159,8 @@ the row. Do not add rows without updating §3's justification trail.
   cycles containing an `import type` edge are tolerated - they are erased at compile time, and
   the registry/type-hub patterns in `export/`, `ai/`, and `templates/shared` depend on them.
   Scope is `src/` only: `api/`, `render-worker/`, and `player-host/` are separate programs whose
-  sanctioned imports into `src/render` live outside this graph. This subsumes invariant 5 -
+  sanctioned imports into `src/render` and the pure `src/ai/modelTypes.ts` contract live
+  outside this graph. This subsumes invariant 5 -
   with the purity trio in Stage A, every §3 invariant is now machine-enforced.
 
 Both stages are wired, so §3 needs no further tooling. `scripts/e2e-affected.mjs` stays a second,

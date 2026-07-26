@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiProvider } from '../../../ai';
 import { brainstorm, type ChatMessage } from '../../../ai/brainstorm';
 import { EXAMPLE_PROMPTS } from '../../../ai/examplePrompts';
-import { AI_MODELS, aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
+import { aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
 import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator } from '../../../ai/provider';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
@@ -19,6 +19,7 @@ import {
 } from '../../../model/generationSpec';
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
+import AiProviderSettings from '../../AiProviderSettings';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
 import { importTemplateFile, isTemplateFile } from '../../../model/importTemplate';
@@ -895,31 +896,7 @@ export default function AiStep({
           {showSettings && (
             <div className="panel-section" style={{ marginTop: 10 }}>
               <h3>AI settings</h3>
-              {!settings.proxyUrl && (
-                <>
-                  <label>Anthropic API key</label>
-                  <input
-                    type="password"
-                    placeholder="sk-ant-…"
-                    value={settings.apiKey}
-                    onChange={(e) => saveSetting({ apiKey: e.target.value.trim() })}
-                  />
-                  <p className="hint">
-                    Stored only in this browser (localStorage) and sent only to Anthropic. Get one at
-                    console.anthropic.com — or set VITE_ANTHROPIC_API_KEY in .env.
-                  </p>
-                </>
-              )}
-              <label style={{ marginTop: 8 }}>Model</label>
-              <select value={settings.model} onChange={(e) => saveSetting({ model: e.target.value })}>
-                {AI_MODELS.map((m) => (
-                  <option key={m.id} value={m.id} title={m.blurb}>{m.label}</option>
-                ))}
-                {!AI_MODELS.some((m) => m.id === settings.model) && (
-                  <option value={settings.model}>{settings.model}</option>
-                )}
-              </select>
-              <p className="hint">{AI_MODELS.find((m) => m.id === settings.model)?.blurb ?? 'Custom model id (from .env).'}</p>
+              <AiProviderSettings settings={settings} onChange={saveSetting} />
             </div>
           )}
 

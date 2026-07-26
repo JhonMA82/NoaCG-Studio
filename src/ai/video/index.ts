@@ -1,5 +1,5 @@
-// Video provider selection, mirroring ai/index.ts: the Claude motion-design harness when
-// AI is configured (key or proxy), the deterministic offline stub otherwise.
+// Video provider selection, mirroring ai/index.ts: the established motion-design harness
+// when the selected gateway route is configured, the deterministic offline stub otherwise.
 
 import { aiConfigured } from '../settings';
 import type { VideoAIProvider } from './provider';

@@ -660,9 +660,10 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
 (the nightly-drafts migration, numbered `0010` there) and open decisions.
 
 ### AI mode (after the wizard works)
-- [x] Claude-backed `AIProvider` (key via the in-app AI settings or `VITE_ANTHROPIC_API_KEY`;
-      model configurable, Sonnet 5 default; `VITE_AI_PROXY_URL` is the seam a future hosted
-      gateway plugs into without app changes)
+- [x] Model-independent gateway beneath the existing Claude-backed `AIProvider`: Anthropic,
+      OpenAI Responses, and OpenRouter adapters; server-only managed keys; sealed HttpOnly
+      user keys; normalized structured output, usage, estimated cost, errors, bounded retries,
+      and explicit fallback routes (`docs/AI_PROVIDER_GATEWAY.md`)
 - [x] Prompt → graphic template ("Describe it" wizard entry: validated before apply, one
       automatic repair round on validator errors, refine loop on the result; generated code
       keeps the house contracts so the Style/Motion panels and brand still work on it)

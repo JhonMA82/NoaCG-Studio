@@ -198,7 +198,8 @@ scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATI
                DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, type-floor.mjs + overflow-sweep.mjs (catalog
                quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
                render-smoke*.mjs, hooks/ (guard hooks wired in .claude/settings.json)
-api/           the render service's Vercel functions; typechecked by tsconfig.api.json
+api/           server-only Vercel functions: the render service plus the Creative AI model
+               gateway and sealed user-key endpoints; typechecked by tsconfig.api.json
 render-worker/ the Remotion renderer and player-host/ the preview host - own exact-pinned packages
 player-host/   so the non-OSI license never enters the AGPL bundle. The player host is built into
                public/player-host/ as ONE self-contained page (JS, fonts, textChecks.js inlined -

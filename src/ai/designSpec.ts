@@ -9,7 +9,7 @@
 // is a named failure mode. Deterministic adjustments map those parameters onto the
 // assembled code (src/ai/designAdjust.ts).
 
-import type { ClaudeTool } from './anthropic';
+import type { ModelTool } from './modelGateway';
 import type { GenerateContext } from './provider';
 import {
   CATEGORIES,
@@ -215,7 +215,7 @@ const SPEC_INPUT_SCHEMA: Record<string, unknown> = {
     },
 };
 
-export const DESIGN_SPEC_TOOL: ClaudeTool = {
+export const DESIGN_SPEC_TOOL: ModelTool = {
   name: 'emit_design_spec',
   description:
     'Return the design decision for the brief: the route (catalog chassis vs custom build) plus ' +
@@ -224,7 +224,7 @@ export const DESIGN_SPEC_TOOL: ClaudeTool = {
 };
 
 /** The harness generates THREE alternatives per brief — one call, three distinct directions. */
-export const DESIGN_ALTERNATIVES_TOOL: ClaudeTool = {
+export const DESIGN_ALTERNATIVES_TOOL: ModelTool = {
   name: 'emit_design_alternatives',
   description:
     'Return THREE genuinely different design directions for the brief. Each is a complete design ' +

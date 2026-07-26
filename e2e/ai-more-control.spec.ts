@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
 // data fields, animation intensity, draft persistence, and the untouched prompt-only
-// default. The Anthropic API is mocked at the network level (see ai.spec.ts); the harness
+// default. The normalized gateway is mocked at the network level (see ai.spec.ts); the harness
 // runs its REAL pipeline — applySpecLocks, grounded assembly, validation + runtime bench.
 
 const GROUNDED_SPEC = {
@@ -16,13 +16,16 @@ const GROUNDED_SPEC = {
   lines: [{ title: 'Name', sample: 'Ada Lovelace' }],
 };
 
-function toolUse(name: string, input: unknown) {
+function toolUse(_name: string, input: unknown) {
   return {
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      content: [{ type: 'tool_use', id: 'tu_1', name, input }],
-      stop_reason: 'tool_use',
+      output: input,
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+      attempts: [{ route: { provider: 'anthropic', model: 'claude-sonnet-5' }, attempts: 1 }],
     }),
   };
 }
@@ -35,15 +38,16 @@ interface CapturedRequest {
 
 function capture(route: Route): CapturedRequest {
   const body = route.request().postDataJSON() as {
-    tools?: { name: string; input_schema: Record<string, unknown> }[];
-    messages?: { role: string; content: { type: string; text?: string }[] }[];
+    request?: {
+      structuredOutput?: { name: string; schema: Record<string, unknown> };
+      messages?: { role: string; content: { type: string; text?: string }[] | string }[];
+    };
   };
   return {
-    tool: body.tools?.[0]?.name ?? '',
-    schema: body.tools?.[0]?.input_schema,
-    userText: (body.messages ?? [])
-      .flatMap((m) => m.content)
-      .map((c) => c.text ?? '')
+    tool: body.request?.structuredOutput?.name ?? '',
+    schema: body.request?.structuredOutput?.schema,
+    userText: (body.request?.messages ?? [])
+      .flatMap((message) => typeof message.content === 'string' ? [message.content] : message.content.map((item) => item.text ?? ''))
       .join('\n'),
   };
 }
@@ -65,14 +69,14 @@ async function openAiStep(page: Page) {
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
   await page.addInitScript(() =>
-    localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5', useHarness: true })),
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
 });
 
 test('structured setup: pinned category + user fields + intensity land in the created project', async ({ page }) => {
   const requests: CapturedRequest[] = [];
   let templateCalls = 0;
-  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+  await page.route('/api/ai/generate', (route: Route) => {
     const req = capture(route);
     requests.push(req);
     if (req.tool === 'emit_template') templateCalls += 1;
@@ -163,7 +167,7 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
 
 test('prompt-only generation injects no structured setup and keeps the full category space', async ({ page }) => {
   const requests: CapturedRequest[] = [];
-  await page.route('https://api.anthropic.com/v1/messages', (route: Route) => {
+  await page.route('/api/ai/generate', (route: Route) => {
     const req = capture(route);
     requests.push(req);
     if (req.tool === 'emit_design_alternatives')

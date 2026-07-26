@@ -760,6 +760,12 @@ compositional decisions and a list of names showed none of them. Off → `genera
 the validated conversion flow regardless of the checkbox. The default is pinned by
 e2e/ai.spec.ts ("the harness checkbox is on by default").
 
+AI settings use the shared `AiProviderSettings` surface for provider, opaque model id, and
+user-key submission. The component may hold a key only in its unsaved password-field state
+and must submit it to `/api/ai/credentials`; it must never pass a key through `AiSettings`,
+localStorage, query parameters, telemetry, logs, or rendered error detail. Model lists are
+provider-scoped suggestions, not an application-wide allowlist.
+
 **The directions SURVIVE a refinement.** `alternatives` (the current state of each
 direction) and `originals` (each as first generated) are parallel arrays; a refine replaces
 only `alternatives[selected]`, so the other directions stay pickable and **↺ Undo

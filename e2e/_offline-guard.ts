@@ -49,6 +49,7 @@ export default async function offlineGuard(): Promise<void> {
 
   const browser = await chromium.launch();
   let env: Record<string, unknown>;
+  let managedProviders: string[];
   try {
     const page = await browser.newPage();
     await page.goto(`${base}/app`, { waitUntil: 'domcontentloaded' });
@@ -56,18 +57,27 @@ export default async function offlineGuard(): Promise<void> {
       const probe = (await import('/e2e/_env-probe.ts')) as Record<string, unknown>;
       return { ...probe };
     });
+    const aiConfig = await fetch(`${base}/api/ai/config`).then((response) => response.json()) as {
+      providers?: { id?: string; managedKey?: boolean }[];
+    };
+    managedProviders = (aiConfig.providers ?? [])
+      .filter((provider) => provider.managedKey)
+      .map((provider) => provider.id ?? 'unknown');
   } finally {
     await browser.close();
   }
 
   const leaked = MUST_BE_EMPTY.filter((k) => String(env[k] ?? '').trim() !== '');
-  if (leaked.length === 0) return;
+  if (leaked.length === 0 && managedProviders.length === 0) return;
 
   const detail = leaked.map((k) => `  ${k} = ${redact(String(env[k]))}`).join('\n');
+  const managed = managedProviders.length
+    ? `\n  server AI providers = ${managedProviders.join(', ')} (key values withheld)`
+    : '';
   throw new Error(
     `Refusing to run the offline e2e suite against a server that is not offline-pinned.\n\n` +
       `A dev server is already listening on ${base}, so Playwright reused it ` +
-      `(reuseExistingServer) and webServer.env was never applied. It carries:\n\n${detail}\n\n` +
+      `(reuseExistingServer) and webServer.env was never applied. It carries:\n\n${detail}${managed}\n\n` +
       `Stop that server and re-run, so Playwright starts its own pinned one.\n` +
       `(Started via the preview tools? Stop it there. This checkout's port comes from ` +
       `scripts/dev-port.mjs.)`,

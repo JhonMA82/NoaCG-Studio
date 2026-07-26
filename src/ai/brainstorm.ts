@@ -3,7 +3,7 @@
 // machine-readable "BRIEF:" line reflecting the whole conversation so far — the UI offers
 // it as a one-click fill for the prompt box.
 
-import { callClaude } from './anthropic';
+import { callModel } from './modelGateway';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -29,7 +29,7 @@ Rules:
 
 /** One brainstorm turn. Returns the reply text (BRIEF line stripped) + the brief. */
 export async function brainstorm(history: ChatMessage[]): Promise<{ reply: string; brief: string | null }> {
-  const text = (await callClaude({
+  const text = (await callModel({
     system: SYSTEM,
     messages: history.map((m) => ({ role: m.role, content: [{ type: 'text' as const, text: m.text }] })),
     maxTokens: 700,

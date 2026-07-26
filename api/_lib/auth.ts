@@ -18,6 +18,11 @@ function supabaseEnv(): { url: string; anonKey: string } | null {
   return url && anonKey ? { url, anonKey } : null;
 }
 
+/** Managed paid services require a valid user when a hosted backend is configured. */
+export function serverAuthConfigured(): boolean {
+  return supabaseEnv() !== null;
+}
+
 /** Resolve a Bearer JWT to a user id; null = anonymous (absent/invalid token or no backend). */
 export async function verifyUser(token: string | null): Promise<AuthedUser | null> {
   if (!token) return null;

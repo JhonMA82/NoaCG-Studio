@@ -62,7 +62,7 @@ export async function signOut(): Promise<void> {
 
 /**
  * The current user's access token (JWT), or null. Used to authorize the metered AI gateway —
- * callClaude attaches it as a Bearer header in proxy mode. Reads the live session so the client
+ * The AI gateway client attaches it as a Bearer header for managed server-key mode. Reads the live session so the client
  * refreshes an expired token first. Returns null offline / logged out, so self-hosters with their
  * own proxy (and no login) are unaffected.
  */

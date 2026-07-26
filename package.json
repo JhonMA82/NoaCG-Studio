@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "dev:bench": "node scripts/dev-bench.mjs",
-    "build": "node scripts/check-shared-instructions.mjs && node --test scripts/worktree-safety.test.mjs && node scripts/build-player-host.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build",
+    "build": "node scripts/check-shared-instructions.mjs && node --test scripts/worktree-safety.test.mjs api/_lib/aiGateway.test.ts && node scripts/build-player-host.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build",
     "build:player-host": "node scripts/build-player-host.mjs --force",
     "check:shared-instructions": "node scripts/check-shared-instructions.mjs",
     "lint": "eslint . --max-warnings 0",
@@ -20,6 +20,7 @@
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
     "test:ports": "node --test scripts/port-registry.test.mjs",
     "test:worktree-safety": "node --test scripts/worktree-safety.test.mjs",
+    "test:ai-gateway": "node --test api/_lib/aiGateway.test.ts",
     "postinstall": "node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs"
   },
   "dependencies": {

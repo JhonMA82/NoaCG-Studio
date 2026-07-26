@@ -9,7 +9,7 @@
 // never make a result worse.
 
 import type { SpxTemplate } from '../model/types';
-import type { ClaudeTool } from './anthropic';
+import type { ModelTool } from './modelGateway';
 import { detectPrefix } from '../model/structure';
 import { parseAnimData } from '../blocks/animData';
 
@@ -21,7 +21,7 @@ export interface PolishPatch {
   html?: string;
 }
 
-export const POLISH_TOOL: ClaudeTool = {
+export const POLISH_TOOL: ModelTool = {
   name: 'emit_polish',
   description:
     'Return the flourish as a bounded patch: override CSS (appended after the design CSS) ' +

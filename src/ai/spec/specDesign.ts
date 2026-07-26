@@ -10,7 +10,7 @@ import { swappablePresetsForType } from '../../blocks/presetRegistry';
 import type { SpxTemplate } from '../../model/types';
 import type { AnimPresetId } from '../../model/wizard';
 import { variantsFor, variantById } from '../../templates/catalog';
-import type { ClaudeTool } from '../anthropic';
+import type { ModelTool } from '../modelGateway';
 import type { DesignSpec } from '../designSpec';
 import { aiCategoryById } from './categories';
 import {
@@ -76,10 +76,10 @@ export function applySpecLocks(design: DesignSpec, user: GenerationSpec | null |
  * collapses to one value and the chassis enum to that category's variants. The model can
  * then only route WITHIN the decision — the strongest form of "do not override the user".
  */
-export function narrowedSpecTool(base: ClaudeTool, user: GenerationSpec | null | undefined): ClaudeTool {
+export function narrowedSpecTool(base: ModelTool, user: GenerationSpec | null | undefined): ModelTool {
   const cat = user && user.category !== 'auto' ? aiCategoryById(user.category) : undefined;
   if (!cat) return base;
-  const tool = JSON.parse(JSON.stringify(base)) as ClaudeTool;
+  const tool = JSON.parse(JSON.stringify(base)) as ModelTool;
   const root = tool.input_schema as { properties?: Record<string, unknown> };
   // The alternatives tool nests the spec schema under alternatives.items.
   const alts = root.properties?.alternatives as { items?: { properties?: Record<string, unknown> } } | undefined;

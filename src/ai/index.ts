@@ -1,5 +1,5 @@
-// Provider selection: the Claude provider when the user configured a key (or a gateway
-// URL), the deterministic stub otherwise — same interface, so the UI never cares.
+// Provider selection: the established Creative AI harness when the selected gateway route
+// is configured, the deterministic stub otherwise. The UI and harness never branch by vendor.
 
 import type { AIProvider } from './provider';
 import { aiProvider as stubProvider } from './stubProvider';

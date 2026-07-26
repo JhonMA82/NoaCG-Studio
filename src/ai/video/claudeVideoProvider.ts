@@ -1,4 +1,5 @@
-// The Claude-backed video provider - the NoaCG motion-design harness. Not one raw
+// The established video provider - the NoaCG motion-design harness over the selected model
+// gateway route. Not one raw
 // prompt-to-code call but staged: (a) skill detection loads only relevant craft guidance,
 // (b) the Motion Director produces a structured timed plan, (c) the coder writes the
 // composition against the ENGINE's contract + the plan + one canonical example (Remotion
@@ -7,7 +8,7 @@
 // real example, errors-back repair) for the video world. Stages a and b are engine-
 // independent - the same brief, plan, skills, assets, and settings feed both coders.
 
-import { callClaude, type ContentBlock } from '../anthropic';
+import { callModel, type ContentBlock } from '../modelGateway';
 import { parseDataUrl } from '../../assets/assetUtils';
 import type { MotionPlan, VideoChatMessage, VideoEngine, VideoInput } from '../../model/videoTypes';
 import { hyperframesInputs } from '../../video/hyperframes/parse';
@@ -36,7 +37,6 @@ import {
 
 /** Bounded automatic repair: the initial emit plus up to two errors-back rounds. */
 const MAX_REPAIR_ROUNDS = 2;
-const HAIKU = 'claude-haiku-4-5-20251001';
 
 // ── Context formatting ───────────────────────────────────────────────────────
 
@@ -100,13 +100,13 @@ async function detectSkills(prompt: string, model?: string): Promise<VideoSkill[
   if (byKeyword.length > 0) return byKeyword;
   // Nothing matched - one cheap classification call picks up to 3 skills.
   try {
-    const result = (await callClaude({
+    const result = (await callModel({
       system:
         'Classify a motion-graphics request onto the most relevant skills. Pick at most 3; pick none when nothing clearly applies.',
       messages: [{ role: 'user', content: prompt }],
       tool: DETECT_SKILLS_TOOL,
       maxTokens: 300,
-      model: model ?? HAIKU,
+      ...(model ? { model } : { modelRole: 'fast' }),
     })) as { skills: string[] };
     return result.skills.map((id) => skillById(id)).filter((s): s is VideoSkill => !!s);
   } catch {
@@ -165,7 +165,7 @@ async function directMotion(
   // written exactly once per generation, and directorSystem stays a pure function.
   const cards = selectReferenceCards(prompt);
   noteReferenceUse(cards.map((c) => c.id));
-  const plan = (await callClaude({
+  const plan = (await callModel({
     system: directorSystem(skills, ctx.engine, cards),
     messages: [{ role: 'user', content: [...vision, { type: 'text', text }] }],
     tool: MOTION_PLAN_TOOL,
@@ -292,7 +292,7 @@ async function generateValidated(
   // large and IDENTICAL across the first call and every repair round - one cache breakpoint
   // turns those re-sends into cache reads. Cost only; the prompt itself is untouched.
   let emitted = cfg.toEmitted(
-    await callClaude({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true }),
+    await callModel({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true }),
   );
 
   if (!validate) return { emitted, validation: null };
@@ -305,7 +305,7 @@ async function generateValidated(
     // SPX repair round. Runtime findings carry frame numbers.
     const errorList = validation.errors.map((e) => `- ${e.rule}: ${e.message}`).join('\n');
     emitted = cfg.toEmitted(
-      await callClaude({
+      await callModel({
         system,
         messages: [
           ...baseMessages,

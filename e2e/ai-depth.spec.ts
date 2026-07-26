@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 
-// Era 3: the Describe-it step's example prompts + brainstorm chat (Anthropic mocked).
+// Era 3: the Describe-it step's example prompts + brainstorm chat (gateway mocked).
 
 async function openAiStep(page: Page) {
   await page.goto('/app');
@@ -10,7 +10,7 @@ async function openAiStep(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
-    localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5' })),
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
 });
 
@@ -22,18 +22,18 @@ test('example prompts fill the brief with one click', async ({ page }) => {
 });
 
 test('brainstorm chat: replies render and the BRIEF line becomes the prompt', async ({ page }) => {
-  await page.route('https://api.anthropic.com/v1/messages', (route: Route) =>
+  await page.route('/api/ai/generate', (route: Route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        content: [{
-          type: 'text',
-          text:
-            'A substitution graphic works best as a two-line lower third: player off (red arrow), player on (green arrow). Want the club crest in it?\n' +
-            'BRIEF: A football substitution lower third: two fields (player off, player on) with red/green direction arrows, club crest image field on the left, sport family, bottom-left, snap-fast entrance.',
-        }],
-        stop_reason: 'end_turn',
+        output:
+          'A substitution graphic works best as a two-line lower third: player off (red arrow), player on (green arrow). Want the club crest in it?\n' +
+          'BRIEF: A football substitution lower third: two fields (player off, player on) with red/green direction arrows, club crest image field on the left, sport family, bottom-left, snap-fast entrance.',
+        provider: 'anthropic',
+        model: 'claude-sonnet-5',
+        usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
+        attempts: [{ route: { provider: 'anthropic', model: 'claude-sonnet-5' }, attempts: 1 }],
       }),
     }),
   );

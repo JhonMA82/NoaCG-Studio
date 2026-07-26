@@ -1,5 +1,5 @@
-// Shared harness for the video-editor specs that need the REAL Claude provider path (the
-// offline stub can't express "the model emitted X"). The Anthropic API is mocked at the
+// Shared harness for video-editor specs that need the real model-backed provider path (the
+// offline stub can't express "the model emitted X"). The normalized gateway is mocked at the
 // network level, so everything downstream - the staged harness, the forced tools, validation,
 // the repair loop, the apply - runs exactly as in production, on emits we choose.
 
@@ -26,19 +26,22 @@ const MOTION_PLAN = {
   phases: [{ name: 'Hold', startSec: 0, endSec: 5, description: 'The headline holds centre.' }],
 };
 
-function toolResponse(name: string, input: unknown) {
+function toolResponse(_name: string, input: unknown) {
   return {
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      content: [{ type: 'tool_use', id: 'tu_1', name, input }],
-      stop_reason: 'tool_use',
+      output: input,
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+      attempts: [{ route: { provider: 'anthropic', model: 'claude-sonnet-5' }, attempts: 1 }],
     }),
   };
 }
 
 /**
- * Answer every Claude call by its forced tool. `modules` are handed out in order to successive
+ * Answer every model call by its structured-output name. `modules` are handed out in order to successive
  * emit_remotion_module calls (the first is the generation, the next are refinements); the last
  * one repeats once the list runs out.
  *
@@ -53,9 +56,9 @@ export async function mockClaude(
   { delayMs = 0 }: { delayMs?: number } = {},
 ): Promise<{ emits: () => number }> {
   let emits = 0;
-  await page.route('https://api.anthropic.com/v1/messages', async (route: Route) => {
-    const body = route.request().postDataJSON() as { tools?: { name: string }[] };
-    const tool = body.tools?.[0]?.name ?? '';
+  await page.route('/api/ai/generate', async (route: Route) => {
+    const body = route.request().postDataJSON() as { request?: { structuredOutput?: { name?: string } } };
+    const tool = body.request?.structuredOutput?.name ?? '';
     if (tool === 'emit_motion_plan') return route.fulfill(toolResponse(tool, MOTION_PLAN));
     if (tool === 'detect_skills') return route.fulfill(toolResponse(tool, { skills: [] }));
     const module = modules[Math.min(emits, modules.length - 1)];
@@ -78,8 +81,8 @@ export async function mockClaude(
  * transport before touching the wizard, so the failure names its own cause on the first line
  * and no generation is ever started.
  *
- * Specs that mock the API at the network level (mockClaude + useFakeAiKey) seed their own
- * key into localStorage and are unaffected; this guard is for the stub-provider specs.
+ * Specs that mock the gateway (mockClaude + useFakeAiKey) seed non-secret availability
+ * into localStorage and are unaffected; this guard is for the stub-provider specs.
  */
 export async function expectOfflineAi(page: Page): Promise<void> {
   const configured = await page.evaluate(async () => {
@@ -94,10 +97,10 @@ export async function expectOfflineAi(page: Page): Promise<void> {
   ).toBe(false);
 }
 
-/** A fake key, so the real provider runs and the route above answers it. */
+/** Non-secret configured status, so the real provider runs and the route above answers it. */
 export async function useFakeAiKey(page: Page): Promise<void> {
   await page.addInitScript(() =>
-    localStorage.setItem('spx-gfx-ai', JSON.stringify({ apiKey: 'sk-ant-test', model: 'claude-sonnet-5' })),
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
 }
 

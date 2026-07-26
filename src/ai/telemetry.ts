@@ -9,12 +9,11 @@
 
 import { uuid } from '../model/id';
 import type { AiPath } from './provider';
+import type { ModelUsage } from './modelTypes';
 
-/** Token usage of one model call (from the Messages API `usage` block). */
-export interface AiUsage {
-  inputTokens: number;
-  outputTokens: number;
-}
+/** Normalized token and optional cost metadata from any model provider. */
+export type AiUsage = Pick<ModelUsage, 'inputTokens' | 'outputTokens'>
+  & Partial<Pick<ModelUsage, 'totalTokens' | 'estimatedCost'>>;
 
 export type AiRunKind = 'generate' | 'modify' | 'convert' | 'fix' | 'make-ready';
 

@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { ASPECTS, FPS_OPTIONS } from '../../model/types';
-import { AI_MODELS } from '../../ai/settings';
+import { loadAiSettings, modelsForProvider } from '../../ai/settings';
 import { driftRequest, settingsDrift } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 
@@ -18,6 +18,8 @@ export default function VideoSettingsPanel() {
   const project = useVideoProjectStore((s) => s.project);
   const patchSettings = useVideoProjectStore((s) => s.patchSettings);
   const requestAi = useVideoProjectStore((s) => s.requestAi);
+  const globalAi = loadAiSettings();
+  const modelOptions = modelsForProvider(globalAi.provider);
   const busy = useVideoProjectStore((s) => s.busy);
   const drift = settingsDrift(project);
 
@@ -160,18 +162,18 @@ export default function VideoSettingsPanel() {
 
       <div className="panel-section">
         <h3>AI model</h3>
-        <select
+        <input
+          list="video-ai-models"
           value={project.aiModel}
           onChange={(e) => patchSettings({ aiModel: e.target.value })}
-        >
-          <option value="">Use the global AI setting</option>
-          {AI_MODELS.map((m) => (
-            <option key={m.id} value={m.id} title={m.blurb}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-        <p className="hint">The model this project's chat uses for generation and edits.</p>
+          placeholder={`Use global setting (${globalAi.model})`}
+        />
+        <datalist id="video-ai-models">
+          {modelOptions.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+        </datalist>
+        <p className="hint">
+          Optional model override for this project on the global {globalAi.provider} provider.
+        </p>
       </div>
     </div>
   );

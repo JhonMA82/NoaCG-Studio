@@ -4,9 +4,10 @@
 // continues. A reopen strip surfaces saved video projects (open needs no account).
 
 import { useRef, useState } from 'react';
-import { AI_MODELS, aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
+import { aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
+import AiProviderSettings from '../../AiProviderSettings';
 import { fileToDataUrl } from '../../../assets/assetUtils';
 import { uniqueVideoAssetPath } from '../../../video/types';
 import { ASPECTS, FPS_OPTIONS, type AssetFile } from '../../../model/types';
@@ -339,30 +340,7 @@ export default function VideoStep({ onCreate, onOpen }: Props) {
           {showSettings && (
             <div className="panel-section" style={{ marginTop: 10 }}>
               <h3>AI settings</h3>
-              {!settings.proxyUrl && (
-                <>
-                  <label>Anthropic API key</label>
-                  <input
-                    type="password"
-                    placeholder="sk-ant-…"
-                    value={settings.apiKey}
-                    onChange={(e) => saveSetting({ apiKey: e.target.value.trim() })}
-                  />
-                  <p className="hint">
-                    Stored only in this browser (localStorage) and sent only to Anthropic.
-                  </p>
-                </>
-              )}
-              <label style={{ marginTop: 8 }}>Model</label>
-              <select value={settings.model} onChange={(e) => saveSetting({ model: e.target.value })}>
-                {AI_MODELS.map((m) => (
-                  <option key={m.id} value={m.id} title={m.blurb}>{m.label}</option>
-                ))}
-                {!AI_MODELS.some((m) => m.id === settings.model) && (
-                  <option value={settings.model}>{settings.model}</option>
-                )}
-              </select>
-              <p className="hint">{AI_MODELS.find((m) => m.id === settings.model)?.blurb ?? 'Custom model id (from .env).'}</p>
+              <AiProviderSettings settings={settings} onChange={saveSetting} />
             </div>
           )}
         </>

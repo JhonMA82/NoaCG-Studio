@@ -8,9 +8,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { getVideoAiProvider } from '../../ai/video';
 import type { VideoGenerateResult, VideoValidator } from '../../ai/video/provider';
-import { AI_MODELS, aiConfigured, loadAiSettings, saveAiSettings } from '../../ai/settings';
+import { aiConfigured, loadAiSettings, saveAiSettings } from '../../ai/settings';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
+import AiProviderSettings from '../AiProviderSettings';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { describeAssets } from '../../video/types';
 import { validateVideoModule } from '../../video/validate';
@@ -321,31 +322,7 @@ export default function VideoAiChatPanel() {
       {showSettings && (
         <div className="panel-section" style={{ marginTop: 8 }}>
           <h3>AI settings</h3>
-          {!settings.proxyUrl && (
-            <>
-              <label>Anthropic API key</label>
-              <input
-                type="password"
-                placeholder="sk-ant-…"
-                value={settings.apiKey}
-                onChange={(e) => saveSetting({ apiKey: e.target.value.trim() })}
-              />
-              <p className="hint">
-                Stored only in this browser (localStorage) and sent only to Anthropic.
-              </p>
-            </>
-          )}
-          <label style={{ marginTop: 8 }}>Model</label>
-          <select value={settings.model} onChange={(e) => saveSetting({ model: e.target.value })}>
-            {AI_MODELS.map((m) => (
-              <option key={m.id} value={m.id} title={m.blurb}>
-                {m.label}
-              </option>
-            ))}
-            {!AI_MODELS.some((m) => m.id === settings.model) && (
-              <option value={settings.model}>{settings.model}</option>
-            )}
-          </select>
+          <AiProviderSettings settings={settings} onChange={saveSetting} />
         </div>
       )}
     </div>

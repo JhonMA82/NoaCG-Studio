@@ -54,11 +54,22 @@ export default defineConfig({
     // VITE_RENDER_API is pinned ON: the render section is part of the offline surface the
     // suite covers (the local executor renders with zero backend — the self-host mode).
     // Render specs stub /api/render/* with page.route, so no real render runs in CI.
-    // VITE_ANTHROPIC_API_KEY is pinned EMPTY so AI-adjacent specs exercise the offline
-    // stub providers deterministically (a real key in the developer's .env must never
-    // leak into the suite - the video specs rely on the stub generator).
+    // Every managed AI key is pinned EMPTY so AI-adjacent specs exercise the offline
+    // stub providers deterministically. Gateway-backed specs mock /api/ai/generate.
     // NOTE: none of this applies when reuseExistingServer adopts a server someone else
     // already started - that path is guarded by globalSetup above, not by this env block.
-    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_RENDER_API: '1', VITE_ANTHROPIC_API_KEY: '', VITE_AI_MODEL: '', VITE_AI_PROXY_URL: '' },
+    env: {
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_ANON_KEY: '',
+      VITE_RENDER_API: '1',
+      VITE_AI_PROVIDER: '',
+      VITE_AI_MODEL: '',
+      VITE_ANTHROPIC_API_KEY: '',
+      VITE_AI_PROXY_URL: '',
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: '',
+      OPENROUTER_API_KEY: '',
+      AI_KEY_ENCRYPTION_SECRET: '',
+    },
   },
 });

@@ -1,4 +1,5 @@
-// The Claude-backed AI provider: prompt → complete SPX template, validated before it can
+// The established Creative AI harness (originally Claude-backed): prompt → complete SPX
+// template through the selected model gateway route, validated before it can
 // apply. The system prompt teaches the model this project's contracts (SPX runtime, :root
 // style vars, marked ANIMATION region, auto-fit, teachable ES5) and shows a real catalog
 // design's generated code as the canonical example — with the ANIMATION region in its
@@ -9,7 +10,7 @@
 // errors-back repair loop, RE-VALIDATED every round; anything still broken is surfaced to
 // the user with its findings attached, never auto-applied.
 
-import { callClaude, callClaudeDetailed, type ClaudeTool, type ContentBlock } from './anthropic';
+import { callModel, callModelDetailed, type ModelTool, type ContentBlock } from './modelGateway';
 import type { AiPath, AIProvider, AiTemplateChange, GenerateContext, GenerateOptions } from './provider';
 import { startAiRun, type AiRunKind, type AiRunRecorder } from './telemetry';
 import { parseDefinition } from '../model/spxDefinition';
@@ -34,7 +35,7 @@ import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 
 // ── Structured output: the model must return the template via this tool ─────
 
-const TEMPLATE_TOOL: ClaudeTool = {
+const TEMPLATE_TOOL: ModelTool = {
   name: 'emit_template',
   description: 'Return the complete SPX template as its three code files.',
   input_schema: {
@@ -364,7 +365,7 @@ async function generateValidated(
   let t0 = Date.now();
   // The system prompt is byte-identical across the emit and its repair rounds — one
   // prompt-cache breakpoint absorbs most of the loop's input cost.
-  const first = await callClaudeDetailed({
+  const first = await callModelDetailed({
     system,
     messages: [{ role: 'user', content: userContent }],
     tool: TEMPLATE_TOOL,
@@ -400,7 +401,7 @@ async function generateValidated(
     options?.onProgress?.(`Repairing (round ${round})…`);
     run?.repair();
     t0 = Date.now();
-    const repair = await callClaudeDetailed({
+    const repair = await callModelDetailed({
       system,
       messages: [
         { role: 'user', content: userContent },
@@ -606,7 +607,7 @@ async function specRefine(
     : '';
   try {
     const t0 = Date.now();
-    const result = await callClaudeDetailed({
+    const result = await callModelDetailed({
       system: specSystemPrompt(),
       messages: [
         {
@@ -654,7 +655,7 @@ async function polishStage(
   options?.onProgress?.('Polishing…');
   try {
     const t0 = Date.now();
-    const result = await callClaudeDetailed({
+    const result = await callModelDetailed({
       system:
         `You add ONE bounded visual flourish to an assembled broadcast graphics template in NoaCG Studio.\n\n` +
         `Hard rules: every colour flows through the :root vars (--accent, --text-color, --text-dim, ` +
@@ -782,7 +783,7 @@ export const claudeProvider: AIProvider = {
       let spec: DesignSpec | null = null;
       try {
         const t0 = Date.now();
-        const result = await callClaudeDetailed({
+        const result = await callModelDetailed({
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
           // A pinned user category narrows the tool schema itself — the model can only
@@ -819,7 +820,7 @@ export const claudeProvider: AIProvider = {
     return recorded('generate', async (run) => {
       options?.onProgress?.('Generating…');
       const t0 = Date.now();
-      const result = await callClaudeDetailed({
+      const result = await callModelDetailed({
         system: RAW_SYSTEM,
         messages: [
           { role: 'user', content: [...imageBlocks(context), { type: 'text', text: contextText(prompt, context) }] },
@@ -849,7 +850,7 @@ export const claudeProvider: AIProvider = {
       let specs: DesignSpec[] = [];
       try {
         const t0 = Date.now();
-        const result = await callClaudeDetailed({
+        const result = await callModelDetailed({
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
           tool: narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec),
@@ -910,7 +911,7 @@ export const claudeProvider: AIProvider = {
   },
 
   async explain(code) {
-    const text = (await callClaude({
+    const text = (await callModel({
       system:
         'You are a patient broadcast-graphics coding teacher inside NoaCG Studio. ' +
         'Explain the given template code for a beginner: what it does, section by section, short and concrete. Plain text.',

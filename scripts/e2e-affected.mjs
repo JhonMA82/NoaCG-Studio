@@ -23,7 +23,9 @@ const MAP = [
   // video fonts into public/player-host/index.html, which the video specs load.
   [/^scripts\/build-player-host/, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
   [/^src\/render\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  [/^scripts\/aiDevPlugin/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'template-pack-10.spec.ts']],
   [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts']],
   [/^src\/blocks\//, ['anim-engine.spec.ts', 'timeline-v2.spec.ts', 'inspector.spec.ts', 'canvas-keyframe.spec.ts', 'legacy-timeline.spec.ts', 'multi-select.spec.ts', 'pasteboard.spec.ts', 'ux.spec.ts', 'bench.spec.ts', 'import-graphic.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
@@ -62,7 +64,7 @@ const CORE = [
 ];
 
 // Files that never affect the offline e2e surface.
-const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^\.dependency-cruiser\.cjs$/];
+const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^\.dependency-cruiser\.cjs$/];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
