@@ -866,18 +866,32 @@ test('v2: the quiz Continue is a real step — its reveal is a lifecycle call, a
       return useTemplateStore.getState().template.settings.steps;
   });
   expect(await stepsSetting()).toBe('2');
+  const beforeEdit = await timelineProgress(page);
   await page.getByTestId('tlv2-clip-0').click({ button: 'right' });
   await awaitPreviewRebuild(page, () => page.getByTestId('tlv2-menu-ease').selectOption('power2.out'));
   expect(await stepsSetting()).toBe('2');
 
   // And it still plays: Continue runs the step, the step fires the call, the answer lands.
+  // The edit restores the current playhead with a scrub after the rebuilt preview is ready.
+  // Wait for that distinct run before starting playback, so the restore cannot replace Play.
+  let editedRunId = beforeEdit.runId;
+  await expect
+    .poll(async () => {
+      const sample = await timelineProgress(page);
+      if (sample.active && sample.runId !== beforeEdit.runId) editedRunId = sample.runId;
+      return editedRunId !== beforeEdit.runId;
+    }, { timeout: 20_000 })
+    .toBe(true);
   await page.getByRole('button', { name: '▶ Play' }).click();
   // Reach the running timeline's real end before Continue. The simulator retains its timeline
   // handle after completion, so "inactive" is not the completion signal - its clock is.
   await expect
     .poll(async () => {
       const sample = await timelineProgress(page);
-      return sample.phase === 'in' && sample.duration > 0 && sample.time >= sample.duration - 0.02;
+      return sample.runId !== editedRunId
+        && sample.phase === 'in'
+        && sample.duration > 0
+        && sample.time >= sample.duration - 0.02;
     }, { timeout: 20_000 })
     .toBe(true);
   await page.getByRole('button', { name: '» Next' }).click();

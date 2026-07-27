@@ -10,7 +10,11 @@ import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
 import { fileToDataUrl } from '../../../assets/assetUtils';
 import { uniqueVideoAssetPath } from '../../../video/types';
-import { ASPECTS, FPS_OPTIONS, type AssetFile } from '../../../model/types';
+import type { AssetFile } from '../../../model/types';
+import {
+  resolutionForSelection,
+  type ProjectFormatSelection,
+} from '../../../model/projectFormat';
 import {
   createDefaultVideoProject,
   VIDEO_ENGINES,
@@ -19,6 +23,7 @@ import {
 } from '../../../model/videoTypes';
 import { listSavedVideoProjects, loadCurrentVideoProject } from '../../../model/videoProject';
 import { useDocKindStore } from '../../../store/docKindStore';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
 
 const ASSET_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.svg,.mp4,.webm,.mov';
 /** Same hard cap as the Assets panel - assets ride in the render upload + autosave. */
@@ -75,19 +80,18 @@ function clampDuration(raw: string): number {
 }
 
 interface Props {
+  format: ProjectFormatSelection;
+  onFormat: (format: ProjectFormatSelection) => void;
   onCreate: (project: VideoProject) => void;
   onOpen: (project: VideoProject) => void;
 }
 
-export default function VideoStep({ onCreate, onOpen }: Props) {
+export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props) {
   const { needsSignIn } = useAuthState();
   const [settings, setSettings] = useState(loadAiSettings);
   const [showSettings, setShowSettings] = useState(!aiConfigured());
   const [prompt, setPrompt] = useState('');
   const [engine, setEngine] = useState<VideoEngine>('remotion');
-  const [aspectId, setAspectId] = useState(ASPECTS[0].id);
-  const [resIndex, setResIndex] = useState(0);
-  const [fps, setFps] = useState(30);
   // Kept as a string so the field can be temporarily cleared while editing; the value is
   // validated (clamped to 1-60s) on blur and again at create, not on every keystroke.
   const [durationText, setDurationText] = useState('6');
@@ -101,8 +105,8 @@ export default function VideoStep({ onCreate, onOpen }: Props) {
   const docKind = useDocKindStore((s) => s.kind);
   const current = docKind === 'spx' ? loadCurrentVideoProject() : null;
 
-  const aspect = ASPECTS.find((a) => a.id === aspectId) ?? ASPECTS[0];
-  const resolution = aspect.resolutions[Math.min(resIndex, aspect.resolutions.length - 1)];
+  const resolution = resolutionForSelection(format);
+  const fps = format.fps;
 
   const saveSetting = (patch: Parameters<typeof saveAiSettings>[0]) => {
     saveAiSettings(patch);
@@ -183,6 +187,13 @@ export default function VideoStep({ onCreate, onOpen }: Props) {
         />
       ) : (
         <>
+          <ProjectFormatPicker
+            value={format}
+            onChange={onFormat}
+            idPrefix="video-format"
+            description="The composition and generated code are authored for this canvas and frame rate."
+          />
+
           <div className="panel-section">
             <h3>Describe your video</h3>
             <p className="hint">
@@ -248,36 +259,6 @@ export default function VideoStep({ onCreate, onOpen }: Props) {
                 style={{ width: 90 }}
                 data-testid="video-step-duration"
               />
-            </div>
-            <div>
-              <label>Format</label>
-              <select
-                value={aspectId}
-                onChange={(e) => {
-                  setAspectId(e.target.value);
-                  setResIndex(0);
-                }}
-              >
-                {ASPECTS.map((a) => (
-                  <option key={a.id} value={a.id}>{a.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label>Resolution</label>
-              <select value={resIndex} onChange={(e) => setResIndex(Number(e.target.value))}>
-                {aspect.resolutions.map((r, i) => (
-                  <option key={r.label} value={i}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label>FPS</label>
-              <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
-                {FPS_OPTIONS.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
             </div>
             <label className="row" style={{ gap: 6, alignItems: 'center', paddingBottom: 6 }}>
               <input

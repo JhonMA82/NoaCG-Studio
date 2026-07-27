@@ -2,8 +2,11 @@
 
 Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate.
 
-- **types.ts** - SpxTemplate (html/css/js + parsed definition - the canonical unit), Resolution,
-  ASPECTS, AssetFile, DEFAULT_SETTINGS.
+- **types.ts** - SpxTemplate (html/css/js + parsed definition - the canonical unit), AssetFile,
+  DEFAULT_SETTINGS, plus compatibility re-exports from projectFormat.ts.
+- **projectFormat.ts** - the ONE authored-format registry: stable resolution preset IDs,
+  aspect groups, FPS values/labels, graphics/video defaults, validation, and exporter capability
+  notes. Creation UI and managed AI validation consume it; do not add a second resolution list.
 - **spxDefinition.ts** - parse/serialize the `window.SPXGCTemplateDefinition` block inside the
   template HTML.
 - **structure.ts** - detectPrefix/countLines + getTemplateParts, the TemplatePart registry: THE

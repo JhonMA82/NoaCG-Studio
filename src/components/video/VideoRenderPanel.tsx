@@ -19,6 +19,7 @@ import { RENDER_FORMATS, type RenderFormatId } from '../../render/manifest';
 import { useRenderJob } from '../../render/renderJobStore';
 import RenderFormatPicker from '../render/RenderFormatPicker';
 import RenderJobSection from '../render/RenderJobSection';
+import { formatProjectSummary } from '../../model/projectFormat';
 
 const SCALES = [0.5, 1, 2];
 const fmtMb = (b: number) => `${(b / 1e6).toFixed(1)} MB`;
@@ -180,12 +181,17 @@ export default function VideoRenderPanel() {
       <p className="hint">
         Render the composition to a finished media file — exactly what the preview plays.
       </p>
+      <p data-testid="video-render-project-format">
+        <strong>Project format (authored):</strong>{' '}
+        {formatProjectSummary({ width: project.width, height: project.height }, project.fps)}
+      </p>
 
       <RenderFormatPicker format={format} onChange={pickFormat} />
 
       <div className="stack" style={{ marginTop: 10 }}>
+        <h4 style={{ margin: '0 0 2px' }}>Output settings</h4>
         <label className="row" style={{ justifyContent: 'space-between' }}>
-          <span>Resolution</span>
+          <span>Output resolution</span>
           <select
             value={scale}
             style={{ width: 170 }}
@@ -202,10 +208,16 @@ export default function VideoRenderPanel() {
             ))}
           </select>
         </label>
+        <p className="hint" data-testid="video-render-scale-explanation" style={{ margin: '-3px 0 2px' }}>
+          {scale === 1
+            ? 'Native project resolution. No scaling or layout reauthoring.'
+            : `${outW}×${outH} is scaled from the authored ${project.width}×${project.height} canvas. The composition is not reflowed, stretched, or cropped.`}
+        </p>
         {!isStill && (
           <p className="hint" style={{ margin: 0 }}>
-            Duration: {(project.durationInFrames / project.fps).toFixed(2)} s ({project.durationInFrames} frames
-            at {project.fps} fps) — change it under Settings.
+            Output frame rate follows the authored code: {project.fps} fps. Duration:{' '}
+            {(project.durationInFrames / project.fps).toFixed(2)} s ({project.durationInFrames} frames).
+            Change the project format under Settings, then resolve any authoredFor drift before rendering.
           </p>
         )}
         {format === 'mp4' && (

@@ -33,6 +33,7 @@ import {
 } from '../../../src/ai/liteContract.js';
 import type { LiteGenerationRequest, LiteGenerationResult } from '../../../src/ai/liteTypes.js';
 import type { ModelResult, ModelRoute, ModelUsage } from '../../../src/ai/modelTypes.js';
+import { validateProjectFormat } from '../../../src/model/projectFormat.js';
 
 const MAX_BODY_BYTES = 32_000;
 const ALLOWED_CATEGORY = new Set<string>(['auto', ...LITE_AI_CATEGORIES]);
@@ -60,12 +61,15 @@ function validateRequest(value: unknown, profile: ReturnType<typeof liteProfile>
   }
   const resolution = recordType(body.resolution);
   if (!onlyKeys(resolution, ['width', 'height'])) throw new Error('resolution');
+  if (!Number.isInteger(resolution.width) || !Number.isInteger(resolution.height)) {
+    throw new Error('resolution');
+  }
   if (
-    !Number.isInteger(resolution.width) || !Number.isInteger(resolution.height)
-    || Number(resolution.width) < 320 || Number(resolution.width) > 7680
-    || Number(resolution.height) < 180 || Number(resolution.height) > 4320
-  ) throw new Error('resolution');
-  if (!Number.isInteger(body.fps) || Number(body.fps) < 1 || Number(body.fps) > 120) throw new Error('fps');
+    validateProjectFormat(
+      { width: Number(resolution.width), height: Number(resolution.height) },
+      Number(body.fps),
+    ).length > 0
+  ) throw new Error('project format');
   if (body.generationSpec !== undefined && body.generationSpec !== null) {
     const spec = recordType(body.generationSpec);
     if (!onlyKeys(spec, [

@@ -4,6 +4,11 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 packages must be plug-and-play - relative paths, bundled GSAP, no CDN references - and
 validation gates every export (root non-negotiables 3 and 4).
 
+Every package preserves `SpxTemplate.resolution` and `fps`. HTML entry points carry the
+`noacg-project-format` meta tag for exact round-trip detection; OGraf/LiveOS carry the same
+authored-format statement in readable package code/instructions. This is metadata, never
+export-time reflow, stretching, or cropping.
+
 - **registry.ts** - 6 targets, each with its own successMessage + ExportContext (the Data
   panel's sampleData rides along so serverless targets can bake it, and the graphic's saved
   control-panel `entries`, which the CALLER resolves - ExportPanel reads them out of the library

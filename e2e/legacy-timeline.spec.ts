@@ -125,8 +125,9 @@ test('start over: the escape hatch out of unconvertible code writes DATA, and un
 
   // The one write this surface offers. It does not edit the hand-written motion — it replaces
   // the region with a preset, as modern data, so the way out of legacy code leads FORWARD.
-  await page.getByTestId('timeline-preset-reset').selectOption('slide-up');
-  await awaitPreviewRebuild(page);
+  await awaitPreviewRebuild(page, () =>
+    page.getByTestId('timeline-preset-reset').selectOption('slide-up'),
+  );
   const js = await templateJs(page);
   expect(js).toContain('var NOACG_ANIM'); // data, never a fresh legacy region
   expect(js).not.toContain('var animSpeed =');
@@ -134,8 +135,7 @@ test('start over: the escape hatch out of unconvertible code writes DATA, and un
   await expect(page.getByTestId('timeline-v2')).toBeVisible(); // and it is fully editable
 
   // Undo brings the hand-written version straight back, exactly as it was.
-  await page.keyboard.press('Control+z');
-  await awaitPreviewRebuild(page);
+  await awaitPreviewRebuild(page, () => page.keyboard.press('Control+z'));
   expect(await templateJs(page)).toBe(handWritten);
   await expect(page.getByTestId('timeline-unreadable')).toBeVisible();
 });

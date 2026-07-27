@@ -13,6 +13,7 @@ import { templateUsesLottie } from '../assets/lottieSupport';
 import { inlineBundledFonts } from './bundledFonts';
 import { fontLicenseComment } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
+import { injectProjectFormatMeta } from './common';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
@@ -27,7 +28,7 @@ export async function composeSelfContainedHtml(
   extraBodyScripts: string[] = [],
 ): Promise<string> {
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
-  let html = inlineAssetRefs(template.html, template.assets)
+  let html = injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template)
     // Drop the external stylesheet/script references — their contents go inline below.
     .replace(/<link\b[^>]*href=["'](?:\.\/)?(?:css\/|js\/)[^"']*["'][^>]*>\s*/gi, '')
     .replace(/<script\b[^>]*src=["'](?:\.\/)?(?:js\/|css\/)[^"']*["'][^>]*>\s*<\/script>\s*/gi, '');

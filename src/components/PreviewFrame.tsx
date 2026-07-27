@@ -302,6 +302,13 @@ export default function PreviewFrame({ iframeRef }: Props) {
       </div>
 
       <div className="preview-toolbar">
+        <span
+          className="preview-project-format"
+          data-testid="preview-project-format"
+          title="Authored project format"
+        >
+          {stageW}×{stageH} · {template.fps} fps
+        </span>
         {placedDesign && (
           <div className="tool-switch" data-testid="tool-switch">
             <button
