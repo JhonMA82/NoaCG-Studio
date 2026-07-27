@@ -65,6 +65,8 @@ export interface LiteProfile {
   fallback: ModelRoute;
   prices: Record<string, ModelPrice>;
   openRouterProviders: string[];
+  requireZdr: boolean;
+  openRouterStructuredMode: 'json-schema' | 'tool';
   maxProviderCostUsd: number;
   dailySuccesses: number;
   monthlySuccesses: number;
@@ -112,6 +114,10 @@ export function liteProfile(): LiteProfile {
     fallback,
     prices,
     openRouterProviders: providerEndpoints(),
+    requireZdr: boolEnv('AI_LITE_REQUIRE_ZDR', true),
+    openRouterStructuredMode: process.env.AI_LITE_OPENROUTER_STRUCTURED_MODE?.trim() === 'tool'
+      ? 'tool'
+      : 'json-schema',
     maxProviderCostUsd: numberEnv('AI_LITE_MAX_COST_USD', 0.007, 0.0001, 0.1),
     dailySuccesses: intEnv('AI_LITE_DAILY_SUCCESSES', 3, 0, 1000),
     monthlySuccesses: intEnv('AI_LITE_MONTHLY_SUCCESSES', 20, 0, 10_000),
@@ -170,13 +176,14 @@ export function liteOpenRouterPolicy(profile: LiteProfile, routeValue: ModelRout
     .filter((price): price is ModelPrice => Boolean(price));
   if (!routePrice(profile, routeValue) || routePrices.length === 0 || profile.openRouterProviders.length === 0) return undefined;
   return {
-    zdr: true,
+    zdr: profile.requireZdr,
     dataCollection: 'deny',
     requireParameters: true,
     allowProviderFallbacks: false,
     only: profile.openRouterProviders,
     maxInputPerMillion: Math.max(...routePrices.map((price) => price.inputPerMillion)),
     maxOutputPerMillion: Math.max(...routePrices.map((price) => price.outputPerMillion)),
+    structuredOutputMode: profile.openRouterStructuredMode,
   };
 }
 

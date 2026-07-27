@@ -160,6 +160,61 @@ test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and pr
   assert.equal(result.usage.reasoningTokens, 3);
 });
 
+test('supports forced-tool structured output through OpenRouter', async () => {
+  const structured = body('openrouter', 'vendor/tool-model');
+  structured.request.structuredOutput = {
+    name: 'result',
+    description: 'A required title.',
+    schema: {
+      type: 'object',
+      required: ['title'],
+      additionalProperties: false,
+      properties: { title: { type: 'string' } },
+    },
+  };
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(structured, {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{
+          message: {
+            content: null,
+            tool_calls: [{
+              type: 'function',
+              function: {
+                name: 'result',
+                arguments: JSON.stringify({ title: 'Lower third' }),
+              },
+            }],
+          },
+        }],
+        usage: { prompt_tokens: 8, completion_tokens: 3, cost: 0.0001 },
+      }));
+    },
+  }, {
+    maxAttempts: 1,
+    retryLimit: 0,
+    timeoutMs: 5000,
+    openRouter: {
+      zdr: false,
+      dataCollection: 'deny',
+      requireParameters: true,
+      allowProviderFallbacks: false,
+      only: ['audited/no-training-provider'],
+      maxInputPerMillion: 0.1,
+      maxOutputPerMillion: 0.2,
+      structuredOutputMode: 'tool',
+    },
+  });
+
+  assert.equal('response_format' in sent, false);
+  assert.equal(Array.isArray(sent.tools), true);
+  assert.deepEqual(result.output, { title: 'Lower third' });
+  assert.equal((sent.provider as Record<string, unknown>).zdr, false);
+});
+
 test('reports a missing key before making a provider request', async () => {
   let called = false;
   await assert.rejects(

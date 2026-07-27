@@ -63,5 +63,9 @@ test('Lite quality priors store only non-content facets and stay server-only', (
     /grant execute on function public\.ai_lite_variant_quality\(timestamptz, integer\)[\s\S]+to service_role/i,
   );
   assert.doesNotMatch(qualitySql, /security definer/i);
-  assert.match(qualitySql, /having count\(\*\) >= pg_catalog\.greatest\(p_min_samples, 4\)/i);
+  assert.match(
+    qualitySql,
+    /having count\(\*\) >= case when p_min_samples > 4 then p_min_samples else 4 end/i,
+  );
+  assert.doesNotMatch(qualitySql, /pg_catalog\.greatest/i);
 });

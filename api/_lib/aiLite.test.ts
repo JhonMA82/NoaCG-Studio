@@ -13,9 +13,14 @@ import { readJson } from './http.js';
 const ENV = [
   'AI_LITE_ENABLED',
   'AI_LITE_OPENROUTER_PROVIDERS',
+  'AI_LITE_REQUIRE_ZDR',
+  'AI_LITE_OPENROUTER_STRUCTURED_MODE',
   'AI_LITE_DAILY_STARTS',
   'AI_LITE_DAILY_SUCCESSES',
   'AI_LITE_FLEET_DAILY_SPEND_USD',
+  'AI_LITE_EVAL_MEMORY_LEDGER',
+  'NODE_ENV',
+  'VERCEL',
   'SUPABASE_URL',
   'VITE_SUPABASE_URL',
   'SUPABASE_SECRET_KEY',
@@ -54,6 +59,17 @@ test('Lite profile is disabled and OpenRouter routing fails closed by default', 
   assert.equal(liteProfileConfigured(configured), true);
   assert.equal(configured.maxAttempts, 2);
   assert.equal(configured.maxProviderCostUsd, 0.007);
+  assert.equal(configured.requireZdr, true);
+  assert.equal(configured.openRouterStructuredMode, 'json-schema');
+});
+
+test('Lite permits an explicit server-only non-ZDR forced-tool route', () => {
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/no-training-provider';
+  process.env.AI_LITE_REQUIRE_ZDR = '0';
+  process.env.AI_LITE_OPENROUTER_STRUCTURED_MODE = 'tool';
+  const profile = liteProfile();
+  assert.equal(profile.requireZdr, false);
+  assert.equal(profile.openRouterStructuredMode, 'tool');
 });
 
 test('managed Lite requires a durable server ledger and private IP-hash salt', () => {
@@ -63,6 +79,19 @@ test('managed Lite requires a durable server ledger and private IP-hash salt', (
 
   process.env.IP_HASH_SALT = 'a-private-salt-at-least-sixteen-characters';
   assert.equal(liteLedgerConfigured(), true);
+});
+
+test('local evaluation can use an explicit non-production memory ledger', () => {
+  process.env.AI_LITE_EVAL_MEMORY_LEDGER = '1';
+  process.env.IP_HASH_SALT = 'a-private-salt-at-least-sixteen-characters';
+  process.env.NODE_ENV = 'development';
+  assert.equal(liteLedgerConfigured(), true);
+
+  process.env.NODE_ENV = 'production';
+  assert.equal(liteLedgerConfigured(), false);
+  process.env.NODE_ENV = 'development';
+  process.env.VERCEL = '1';
+  assert.equal(liteLedgerConfigured(), false);
 });
 
 test('request JSON limits reject declared and streamed oversize bodies', async () => {
