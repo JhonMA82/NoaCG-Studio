@@ -219,6 +219,12 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
 let memoryStore: MemoryLiteGenerationStore | null = null;
 let storePromise: Promise<LiteGenerationStore> | null = null;
 
+function evaluationMemoryLedgerEnabled(): boolean {
+  return process.env.AI_LITE_EVAL_MEMORY_LEDGER === '1'
+    && process.env.NODE_ENV !== 'production'
+    && process.env.VERCEL !== '1';
+}
+
 export function resetLiteGenerationStoreForTests(): void {
   memoryStore = null;
   storePromise = null;
@@ -226,14 +232,19 @@ export function resetLiteGenerationStoreForTests(): void {
 
 /** Managed Lite must never depend on an ephemeral function instance for quotas or IP hashing. */
 export function liteLedgerConfigured(): boolean {
-  const url = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
   const salt = (process.env.IP_HASH_SALT ?? '').trim();
+  if (evaluationMemoryLedgerEnabled()) return salt.length >= 16;
+  const url = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
   return Boolean(url && supabaseSecretKey() && salt.length >= 16);
 }
 
 export async function getLiteGenerationStore(): Promise<LiteGenerationStore> {
   if (storePromise) return storePromise;
   storePromise = (async () => {
+    if (evaluationMemoryLedgerEnabled()) {
+      memoryStore ??= new MemoryLiteGenerationStore();
+      return memoryStore;
+    }
     if (supabaseSecretKey() && (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)) {
       const { SupabaseLiteGenerationStore } = await import('./aiLiteStoreSupabase.js');
       return new SupabaseLiteGenerationStore();

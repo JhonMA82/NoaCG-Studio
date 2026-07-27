@@ -232,6 +232,14 @@ async function failRecord(
   });
 }
 
+function internalFailureCode(error: unknown): string {
+  if (!(error instanceof Error)) return 'internal';
+  if (error.message.startsWith('Lite generation update failed:')) return 'ledger_update';
+  if (error.message.startsWith('Lite generation lookup failed:')) return 'ledger_lookup';
+  if (error.message.startsWith('Lite quality-prior lookup failed:')) return 'quality_prior_lookup';
+  return 'internal';
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     const guard = methodGuard(req, 'POST');
@@ -401,7 +409,7 @@ export default {
     } catch (error) {
       await failRecord(
         record,
-        error instanceof GatewayError ? error.code : 'internal',
+        error instanceof GatewayError ? error.code : internalFailureCode(error),
         accountedResult,
         accountedResult ? undefined : profile.maxProviderCostUsd,
       );

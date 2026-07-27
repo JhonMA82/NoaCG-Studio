@@ -18,6 +18,9 @@ const ENV = [
   'AI_LITE_DAILY_STARTS',
   'AI_LITE_DAILY_SUCCESSES',
   'AI_LITE_FLEET_DAILY_SPEND_USD',
+  'AI_LITE_EVAL_MEMORY_LEDGER',
+  'NODE_ENV',
+  'VERCEL',
   'SUPABASE_URL',
   'VITE_SUPABASE_URL',
   'SUPABASE_SECRET_KEY',
@@ -76,6 +79,19 @@ test('managed Lite requires a durable server ledger and private IP-hash salt', (
 
   process.env.IP_HASH_SALT = 'a-private-salt-at-least-sixteen-characters';
   assert.equal(liteLedgerConfigured(), true);
+});
+
+test('local evaluation can use an explicit non-production memory ledger', () => {
+  process.env.AI_LITE_EVAL_MEMORY_LEDGER = '1';
+  process.env.IP_HASH_SALT = 'a-private-salt-at-least-sixteen-characters';
+  process.env.NODE_ENV = 'development';
+  assert.equal(liteLedgerConfigured(), true);
+
+  process.env.NODE_ENV = 'production';
+  assert.equal(liteLedgerConfigured(), false);
+  process.env.NODE_ENV = 'development';
+  process.env.VERCEL = '1';
+  assert.equal(liteLedgerConfigured(), false);
 });
 
 test('request JSON limits reject declared and streamed oversize bodies', async () => {
