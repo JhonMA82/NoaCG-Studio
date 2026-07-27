@@ -13,6 +13,8 @@ import { readJson } from './http.js';
 const ENV = [
   'AI_LITE_ENABLED',
   'AI_LITE_OPENROUTER_PROVIDERS',
+  'AI_LITE_REQUIRE_ZDR',
+  'AI_LITE_OPENROUTER_STRUCTURED_MODE',
   'AI_LITE_DAILY_STARTS',
   'AI_LITE_DAILY_SUCCESSES',
   'AI_LITE_FLEET_DAILY_SPEND_USD',
@@ -54,6 +56,17 @@ test('Lite profile is disabled and OpenRouter routing fails closed by default', 
   assert.equal(liteProfileConfigured(configured), true);
   assert.equal(configured.maxAttempts, 2);
   assert.equal(configured.maxProviderCostUsd, 0.007);
+  assert.equal(configured.requireZdr, true);
+  assert.equal(configured.openRouterStructuredMode, 'json-schema');
+});
+
+test('Lite permits an explicit server-only non-ZDR forced-tool route', () => {
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/no-training-provider';
+  process.env.AI_LITE_REQUIRE_ZDR = '0';
+  process.env.AI_LITE_OPENROUTER_STRUCTURED_MODE = 'tool';
+  const profile = liteProfile();
+  assert.equal(profile.requireZdr, false);
+  assert.equal(profile.openRouterStructuredMode, 'tool');
 });
 
 test('managed Lite requires a durable server ledger and private IP-hash salt', () => {

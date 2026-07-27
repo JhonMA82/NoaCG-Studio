@@ -135,6 +135,10 @@ Every parsed result is validated again on the server against the same schema bef
 DesignSpec or template code. A missing field, wrong type, unknown field where
 `additionalProperties` is false, or malformed JSON is a normalized `malformed_response`.
 
+OpenRouter normally uses JSON Schema response formatting. An audited managed route may instead
+use a forced function tool when the model supports tools but not response formatting. The tool
+arguments pass through the same schema revalidation before reaching the harness.
+
 ## Future adapters
 
 Ollama, vLLM, and rented GPU inference are future `ProviderAdapter` implementations. They

@@ -322,12 +322,28 @@ export const openRouterAdapter: ProviderAdapter = {
   endpoint: 'https://openrouter.ai/api/v1/chat/completions',
   createRequest(request, route, key, policy) {
     const publicAppUrl = (process.env.PUBLIC_APP_URL ?? '').trim();
+    const structuredMode = policy?.openRouter?.structuredOutputMode ?? 'json-schema';
     const body = {
       model: route.model,
       messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
       max_tokens: request.maxTokens ?? 16000,
       ...(request.structuredOutput
-        ? {
+        ? structuredMode === 'tool'
+          ? {
+              tools: [{
+                type: 'function',
+                function: {
+                  name: request.structuredOutput.name,
+                  description: request.structuredOutput.description,
+                  parameters: request.structuredOutput.schema,
+                },
+              }],
+              tool_choice: {
+                type: 'function',
+                function: { name: request.structuredOutput.name },
+              },
+            }
+          : {
             response_format: {
               type: 'json_schema',
               json_schema: {
@@ -370,6 +386,17 @@ export const openRouterAdapter: ProviderAdapter = {
     const data = object(value);
     const choice = object(array(data.choices)[0]);
     const message = object(choice.message);
+    const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.map(object) : [];
+    const expectedTool = request.structuredOutput
+      ? toolCalls.find((item) => {
+          if (item.type !== 'function') return false;
+          const fn = item.function && typeof item.function === 'object' ? object(item.function) : null;
+          return fn?.name === request.structuredOutput?.name;
+        })
+      : undefined;
+    const toolFunction = expectedTool?.function && typeof expectedTool.function === 'object'
+      ? object(expectedTool.function)
+      : null;
     const text = typeof message.content === 'string'
       ? message.content
       : Array.isArray(message.content)
@@ -379,7 +406,10 @@ export const openRouterAdapter: ProviderAdapter = {
             .map((part) => part.text as string)
             .join('\n')
         : '';
-    if (!text) throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
+    const toolArguments = typeof toolFunction?.arguments === 'string' ? toolFunction.arguments : '';
+    if (!text && !toolArguments) {
+      throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
+    }
     const usage = object(data.usage ?? {});
     const promptDetails = usage.prompt_tokens_details && typeof usage.prompt_tokens_details === 'object'
       ? object(usage.prompt_tokens_details)
@@ -388,7 +418,7 @@ export const openRouterAdapter: ProviderAdapter = {
       ? object(usage.completion_tokens_details)
       : {};
     return {
-      output: request.structuredOutput ? parseStructured(text) : text,
+      output: request.structuredOutput ? parseStructured(toolArguments || text) : text,
       usage: totalUsage(
         usage.prompt_tokens,
         usage.completion_tokens,
@@ -528,13 +558,14 @@ export interface GatewayDependencies {
 }
 
 export interface OpenRouterRoutingPolicy {
-  zdr: true;
+  zdr: boolean;
   dataCollection: 'deny';
   requireParameters: true;
   allowProviderFallbacks: false;
   only: string[];
   maxInputPerMillion: number;
   maxOutputPerMillion: number;
+  structuredOutputMode?: 'json-schema' | 'tool';
 }
 
 export interface GatewayExecutionPolicy {
