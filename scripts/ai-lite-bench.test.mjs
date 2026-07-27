@@ -59,6 +59,15 @@ test('the benchmark runners compile through the shared pipeline, never inline', 
   }
 });
 
+test('the blind gallery serves only neutral review asset filenames', () => {
+  const source = read('scripts/ai-lite-gallery.mjs');
+  assert.match(source, /review-assets/);
+  assert.match(source, /copyFile\(path\.join\(OUT, screenshot\)/);
+  assert.match(source, /copyFile\(path\.join\(OUT, motion\)/);
+  assert.match(source, /screenshot: `review-assets\/\$\{screenshotName\}`/);
+  assert.match(source, /motion: motionUrl/);
+});
+
 test('every contract symbol the browser-side runners reference exists', () => {
   // The runners import the contract inside page.evaluate, where a renamed export only
   // fails at run time with a dev server up - this pin moves that break into the build
