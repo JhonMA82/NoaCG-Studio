@@ -109,8 +109,9 @@ test('v2 keyframes: convert, arm at the playhead, auto-key, interpolate — the 
 
   // Move the playhead later (70% into the clip — the tail can sit past the scroll edge
   // when the Inspector narrows the column), then change the ARMED value: auto-key
-  // creates a second keyframe at the new playhead.
-  await page.mouse.click(clip.x + clip.width * 0.7, clip.y + 40);
+  // creates a second keyframe at the new playhead. Park via the RULER band: a rows
+  // click at this x would land on the Panel track's settle diamond and select it.
+  await page.mouse.click(clip.x + clip.width * 0.7, clip.y - 10);
   await expect
     .poll(async () =>
       page.evaluate(async () => {
@@ -468,7 +469,7 @@ test('v2 polish: keyframe and step eases from the menus; ◀ ▶ jumps; label sc
 
   // ◀ jumps the playhead to the property's previous keyframe.
   const clip = (await page.getByTestId('tlv2-clip-0').boundingBox())!;
-  await page.mouse.click(clip.x + clip.width * 0.65, clip.y + 40); // park mid-step
+  await page.mouse.click(clip.x + clip.width * 0.65, clip.y - 10); // park mid-step via the ruler — the rows carry a Panel diamond near this x
   await page.getByTestId('inspector-prev-yPercent').click();
   const speed = data!.speed || 1;
   const kfTimes = data!.steps[0].layers['#f0'].yPercent.map((k: { time: number }) => k.time / speed);
