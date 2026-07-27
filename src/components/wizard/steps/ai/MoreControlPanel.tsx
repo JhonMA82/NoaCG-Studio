@@ -368,7 +368,7 @@ function LookSection({
         </>
       ) : (
         <p className="hint" style={{ marginTop: 10 }}>
-          NoaCG Lite accepts one compatible logo, but does not send or recreate reference images.
+          Image and logo input is paused while NoaCG Lite concentrates on lower-third quality.
         </p>
       )}
     </>

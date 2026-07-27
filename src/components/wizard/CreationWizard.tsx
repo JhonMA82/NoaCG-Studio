@@ -149,6 +149,7 @@ export default function CreationWizard() {
     void recordLiteOutcome({
       generationId: aiResult.generationId,
       action: 'discarded',
+      discardReason: 'closed',
     }).catch(() => undefined);
   }, [open, aiResult]);
 

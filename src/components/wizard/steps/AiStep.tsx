@@ -102,9 +102,9 @@ const CONVERSATION_TURNS = 10;
 
 const LITE_EXAMPLE_PROMPTS = [
   { label: 'News lower third', prompt: 'A restrained public-news lower third for a reporter name and role. Dark editorial palette, clear hierarchy, calm entrance.' },
-  { label: 'Lecture title', prompt: 'A university lecture title card with course name, lecture title, and speaker. Modern, credible, spacious, and easy to read.' },
-  { label: 'Match score', prompt: 'A simple two-team football scoreboard with editable team names and scores. Energetic but highly legible.' },
-  { label: 'Countdown', prompt: 'A clean event countdown timer with an editable label. Confident broadcast motion and strong numeric typography.' },
+  { label: 'University speaker', prompt: 'A university lecture lower third for a speaker name and academic role. Modern, credible, calm, and accessible.' },
+  { label: 'Esports player', prompt: 'An energetic esports lower third for a player nickname and team. Sharp hierarchy, fast controlled entrance, excellent legibility.' },
+  { label: 'Documentary guest', prompt: 'A quiet cinematic lower third for a documentary interview subject and location. Integrated with the shot, restrained, and highly readable.' },
 ] as const;
 
 /**
@@ -256,7 +256,11 @@ export default function AiStep({
     if (!alternatives.length) return;
     const generationId = alternatives[selected]?.generationId;
     if (generationId) {
-      void recordLiteOutcome({ generationId, action: 'discarded' }).catch(() => undefined);
+      void recordLiteOutcome({
+        generationId,
+        action: 'discarded',
+        discardReason: 'regenerated',
+      }).catch(() => undefined);
     }
     say({ kind: 'past', changes: alternatives, originals, selected });
   };
@@ -304,8 +308,12 @@ export default function AiStep({
     const next = [...images];
     for (const file of list) {
       if (!file.type.startsWith('image/')) continue;
-      if (liteMode && next.length >= (liteStatus?.limits.logos ?? 1)) {
-        setError('NoaCG Lite accepts one logo for a compatible catalog design.');
+      if (liteMode && (liteStatus?.limits.logos ?? 0) < 1) {
+        setError('The lower-third quality release does not accept image uploads yet.');
+        return;
+      }
+      if (liteMode && next.length >= (liteStatus?.limits.logos ?? 0)) {
+        setError('NoaCG Lite accepts only the configured number of compatible logo uploads.');
         break;
       }
       if (liteMode && file.size > (liteStatus?.limits.logoBytes ?? 2_000_000)) {
@@ -472,7 +480,7 @@ export default function AiStep({
     // loop), ON = three harness alternatives with the live bench injected.
     if (imported) {
       if (liteActive) {
-        setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new common graphic.');
+        setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
         return;
       }
       void run(
@@ -612,7 +620,7 @@ export default function AiStep({
         <h3>{liteMode ? 'NoaCG Lite' : 'Create with AI'}</h3>
         <p className="hint">
           {liteMode
-            ? 'Included for free users. Describe one common broadcast graphic and Lite creates one editable result, then validates and exercises it in the live playout bench. Complex or unsupported requests are explained instead of being forced into a poor design.'
+            ? 'Included for free users. This quality release concentrates on one excellent editable lower third, then validates and exercises it in the live playout bench. Other graphic types are explained instead of being forced into a poor design.'
             : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
         </p>
         {liteMode && liteStatus?.allowance && (
@@ -641,10 +649,10 @@ export default function AiStep({
           style={{ display: 'none' }}
           onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }}
         />
-        <strong>{liteMode ? 'Drop one optional logo - or an existing template to open as code' : 'Drop a logo, images, or an existing template here'}</strong>
+        <strong>{liteMode ? 'Drop an existing template to open as code' : 'Drop a logo, images, or an existing template here'}</strong>
         <span className="hint">
           {liteMode ? (
-            <>The logo stays a normal template asset and is not sent to the model. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
+            <>Image input is paused while Lite concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
           ) : (
             <>Images feed the design (logos work best as PNG with transparency). An{' '}
               <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
@@ -802,7 +810,9 @@ export default function AiStep({
                 ? 'Refine it — e.g. "bigger name, move it bottom-left, calmer entrance"'
                 : imported
                   ? 'e.g. "Keep the layout but bring it to our look: darker panel, our amber accent, calmer entrance."'
-                  : 'e.g. "An election results lower third for channel A7: candidate name, party, and a\nvote percentage that counts up. Dark, serious, uses our logo as a small badge on the left."'
+                  : liteMode
+                    ? 'e.g. "A calm university lower third for speaker name and academic role. Editorial, spacious, accessible, with a restrained entrance."'
+                    : 'e.g. "An election results lower third for channel A7: candidate name, party, and a\nvote percentage that counts up. Dark, serious, uses our logo as a small badge on the left."'
             }
             value={prompt}
             onChange={(e) => {
@@ -914,14 +924,16 @@ export default function AiStep({
                 🗨 Talk it through
               </button>
             )}
-            <button
-              disabled={!!busy}
-              onClick={() => fileInput.current?.click()}
-              data-testid="ai-attach"
-              title="Attach an image to this turn — it is bundled with the result, not just described."
-            >
-              📎 Attach
-            </button>
+            {!liteMode && (
+              <button
+                disabled={!!busy}
+                onClick={() => fileInput.current?.click()}
+                data-testid="ai-attach"
+                title="Attach an image to this turn — it is bundled with the result, not just described."
+              >
+                📎 Attach
+              </button>
+            )}
             {result && !imported && (
               <button disabled={!!busy || !aiReady || !briefNow()} onClick={() => generate()}>
                 ↻ Start over

@@ -657,7 +657,7 @@ in the 🛡 queue) → **gate-trusted auto-publish later** once the automatic ga
 Reuses `claudeProvider.generate` + `publishGate` + the bench harness; runs on GitHub Actions cron + one
 read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI + weekly audit,
 2026-07-21); the generation jobs B/C are plan only — see the plan doc for the verified guardrails
-(the nightly-drafts migration, numbered `0011` there) and open decisions.
+(the nightly-drafts migration, numbered `0012` there) and open decisions.
 
 ### AI mode (after the wizard works)
 - [x] Model-independent gateway beneath the existing Claude-backed `AIProvider`: Anthropic,
@@ -669,6 +669,11 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       one shared two-attempt budget; durable allowance/cost/outcome ledger; no prompt/content
       storage; one-result UI with no provider names; kill switch and configuration-only model
       replacement (`docs/AI_PROVIDER_GATEWAY.md`)
+- [x] **Lite lower-third quality foundation (2026-07-27)** - first release narrowed to lower
+      thirds; six audited chassis carry intent-aware routing guidance; semantic line roles and
+      custom-palette contrast fail before compilation; a versioned 24-brief benchmark covers
+      broadcast genres and text stress; thresholded accepted/discarded chassis outcomes feed a
+      content-free server-side tie-breaker without storing prompts or generated artifacts
 - [x] Prompt → graphic template ("Describe it" wizard entry: validated before apply, one
       automatic repair round on validator errors, refine loop on the result; generated code
       keeps the house contracts so the Style/Motion panels and brand still work on it)

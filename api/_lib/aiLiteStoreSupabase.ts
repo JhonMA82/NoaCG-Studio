@@ -6,6 +6,10 @@ import type {
   LiteReservation,
   LiteUsageSnapshot,
 } from './aiLiteStore.js';
+import type {
+  LiteLowerThirdIntentKind,
+  LiteVariantQualityPrior,
+} from '../../src/ai/liteTypes.js';
 
 interface GenerationRow {
   id: string;
@@ -17,6 +21,8 @@ interface GenerationRow {
   prompt_version: string;
   requested_category: string | null;
   resolved_category: string | null;
+  resolved_variant_id: string | null;
+  intent_kind: LiteLowerThirdIntentKind | null;
   provider: string | null;
   model: string | null;
   attempt_count: number;
@@ -29,6 +35,7 @@ interface GenerationRow {
   validation_rule_codes: string[];
   runtime_ms: number | null;
   rejection_reason: string | null;
+  feedback_reason: string | null;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -45,6 +52,8 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     promptVersion: row.prompt_version,
     requestedCategory: row.requested_category,
     resolvedCategory: row.resolved_category,
+    resolvedVariantId: row.resolved_variant_id,
+    intentKind: row.intent_kind,
     provider: row.provider,
     model: row.model,
     attemptCount: row.attempt_count,
@@ -57,6 +66,7 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     validationRuleCodes: row.validation_rule_codes ?? [],
     runtimeMs: row.runtime_ms,
     rejectionReason: row.rejection_reason,
+    feedbackReason: row.feedback_reason,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
     expiresAt: Date.parse(row.expires_at),
@@ -66,12 +76,15 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
 function patchRow(patch: Partial<LiteGenerationRecord>): Partial<GenerationRow> {
   const row: Partial<GenerationRow> = {};
   const mapping: [keyof LiteGenerationRecord, keyof GenerationRow][] = [
-    ['status', 'status'], ['resolvedCategory', 'resolved_category'], ['provider', 'provider'], ['model', 'model'],
+    ['status', 'status'], ['resolvedCategory', 'resolved_category'],
+    ['resolvedVariantId', 'resolved_variant_id'], ['intentKind', 'intent_kind'],
+    ['provider', 'provider'], ['model', 'model'],
     ['attemptCount', 'attempt_count'], ['repairCount', 'repair_count'], ['inputTokens', 'input_tokens'],
     ['outputTokens', 'output_tokens'], ['cachedInputTokens', 'cached_input_tokens'],
     ['reasoningTokens', 'reasoning_tokens'], ['providerCostUsd', 'provider_cost_usd'],
     ['validationRuleCodes', 'validation_rule_codes'], ['runtimeMs', 'runtime_ms'],
-    ['rejectionReason', 'rejection_reason'], ['expiresAt', 'expires_at'],
+    ['rejectionReason', 'rejection_reason'], ['feedbackReason', 'feedback_reason'],
+    ['expiresAt', 'expires_at'],
   ];
   for (const [source, target] of mapping) {
     if (patch[source] !== undefined) {
@@ -150,5 +163,23 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
     const { error } = await (await sb()).from('ai_generations').update(patchRow(patch)).eq('id', id);
     if (error) throw new Error('Lite generation update failed: ' + error.message);
     return this.get(id);
+  }
+
+  async qualityPriors(input: Parameters<LiteGenerationStore['qualityPriors']>[0]): Promise<LiteVariantQualityPrior[]> {
+    const { data, error } = await (await sb()).rpc('ai_lite_variant_quality', {
+      p_since: new Date(input.now - input.windowDays * 24 * 60 * 60 * 1000).toISOString(),
+      p_min_samples: input.minSamples,
+    });
+    if (error) throw new Error('Lite quality-prior lookup failed: ' + error.message);
+    if (!Array.isArray(data)) return [];
+    return data.slice(0, 24).map((row) => {
+      const value = row as Record<string, unknown>;
+      return {
+        variantId: String(value.variant_id),
+        intentKind: String(value.intent_kind) as LiteLowerThirdIntentKind,
+        accepted: Number(value.accepted),
+        discarded: Number(value.discarded),
+      };
+    });
   }
 }

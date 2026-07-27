@@ -16,11 +16,15 @@ import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { devPort } from './dev-port.mjs';
+import {
+  LITE_LOWER_THIRD_FIXTURES,
+  LITE_LOWER_THIRD_FIXTURE_VERSION,
+} from './ai-lite-lower-third-fixtures.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve(process.argv[2] || './lite-eval-out');
 const LABEL = String(process.argv[3] || 'candidate').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 40);
-const REQUESTED = Math.min(40, Math.max(1, Number(process.argv[4]) || 10));
+const REQUESTED = Math.min(40, Math.max(1, Number(process.argv[4]) || LITE_LOWER_THIRD_FIXTURES.length));
 const TOKEN = (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();
 const MAX_CALLS = 40;
 const MAX_COST_USD = 1.5;
@@ -29,19 +33,6 @@ if (!TOKEN) {
   console.error('NOACG_LITE_EVAL_BEARER_TOKEN is required. Aborting before spending anything.');
   process.exit(1);
 }
-
-const FIXTURES = [
-  ['news-lower-third', 'A restrained public-news lower third for a reporter name and role. Dark editorial palette, clear hierarchy, calm entrance.'],
-  ['esports-lower-third', 'An energetic esports lower third for a player nickname and team. Sharp hierarchy, fast controlled entrance, excellent legibility.'],
-  ['university-lower-third', 'A university lecture lower third for a speaker name and academic role. Modern, credible, calm, and accessible.'],
-  ['title-card', 'A full-frame programme title card with a short kicker, large title, and supporting line. Premium public-broadcast tone.'],
-  ['information-card', 'A multi-line information card for three public transport updates. Clear ordering, calm editorial layout, strong text capacity.'],
-  ['ticker', 'A continuous news ticker with an editable label and headline text. Precise, unobtrusive, and readable over live video.'],
-  ['countdown', 'A basic event countdown timer with an editable event label. Strong numeric typography and a confident entrance and exit.'],
-  ['scoreboard', 'A simple two-team football scoreboard with editable team names and scores. Energetic but highly legible.'],
-  ['statistics', 'A compact statistics panel showing one headline value and two supporting facts. Intentional hierarchy and restrained motion.'],
-  ['catalog-variation', 'A minimal editorial variation of a NoaCG lower third: warmer accent, more whitespace, tighter supporting text, calmer motion.'],
-];
 
 const headers = {
   'content-type': 'application/json',
@@ -68,7 +59,7 @@ await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
 const rows = [];
 let totalCostUsd = 0;
 let calls = 0;
-for (const [fixtureId, prompt] of FIXTURES.slice(0, REQUESTED)) {
+for (const [fixtureId, prompt] of LITE_LOWER_THIRD_FIXTURES.slice(0, REQUESTED)) {
   if (calls >= MAX_CALLS || totalCostUsd >= MAX_COST_USD) break;
   const started = Date.now();
   process.stdout.write(`- ${fixtureId}: `);
@@ -156,6 +147,7 @@ for (const [fixtureId, prompt] of FIXTURES.slice(0, REQUESTED)) {
       status: measured.ok ? 'machine-usable' : 'invalid',
       category: measured.category,
       variantId: measured.variantId,
+      intentKind: generated.decision.spec.intent?.kind,
       fieldCount: measured.fieldCount,
       ruleCodes: measured.ruleCodes,
       latencyMs: Date.now() - started,
@@ -183,6 +175,7 @@ await browser.close();
 
 const summary = {
   version: 1,
+  fixtureVersion: LITE_LOWER_THIRD_FIXTURE_VERSION,
   candidate: LABEL,
   calls,
   totalCostUsd,

@@ -86,8 +86,8 @@ test('obviously unsupported requests are rejected before model inference', () =>
     'unsupported',
   );
   assert.equal(
-    obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video'),
-    null,
+    obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video')?.status,
+    'unsupported',
   );
   assert.equal(
     obviousUnsupportedDecision('Create a video project in Remotion')?.status,
@@ -111,7 +111,11 @@ test('Lite accepts only a semantically matching allowlisted catalog spec', () =>
       summary: 'A clear editorial lower third.',
       category: entry.category,
       variantId: entry.variantId,
-      lines: [{ title: 'Name', sample: 'Amina Okafor' }, { title: 'Role', sample: 'Reporter' }],
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Amina Okafor', role: 'person-name' },
+        { title: 'Role', sample: 'Reporter', role: 'person-role' },
+      ],
       flourish: '',
     },
   };
@@ -122,6 +126,72 @@ test('Lite accepts only a semantically matching allowlisted catalog spec', () =>
   const malformed = structuredClone(valid);
   malformed.spec.variantId = 'not-allowed';
   assert.deepEqual(validateLiteDecision(malformed, request()).errors, ['variant_not_allowed']);
+});
+
+test('Lite rejects missing requested field roles and unreadable bespoke palettes', () => {
+  const entry = LITE_CATALOG[0];
+  const value = {
+    status: 'ready',
+    aiCategory: 'lower-third',
+    spec: {
+      fit: 'catalog',
+      reason: 'A general strap.',
+      name: 'Lecture Strap',
+      summary: 'A lower third.',
+      category: 'lower-third',
+      variantId: entry.variantId,
+      intent: { kind: 'organization', primaryRole: 'organization', secondaryRole: 'supporting-context' },
+      lines: [
+        { title: 'Faculty', sample: 'Faculty of Engineering', role: 'organization' },
+        { title: 'Context', sample: 'Annual Lecture', role: 'supporting-context' },
+      ],
+      palette: { accent: '#f6a623', text: '#111111', textDim: '#222222', panel: '#101010' },
+      flourish: '',
+    },
+  };
+  const semantic = validateLiteDecision(value, {
+    ...request(),
+    prompt: 'A university lecture lower third for a speaker name and academic role.',
+  });
+  assert.ok(semantic.errors.includes('requested_role_missing:person-name'));
+  assert.ok(semantic.errors.includes('requested_role_missing:person-role'));
+  assert.ok(semantic.errors.includes('primary_text_contrast_low'));
+  assert.ok(semantic.errors.includes('secondary_text_contrast_low'));
+});
+
+test('Lite semantic validation recognizes natural person and team role requests', () => {
+  const entry = LITE_CATALOG[0];
+  assert.ok(entry);
+  const baseSpec = {
+    fit: 'catalog' as const,
+    reason: 'A presenter strap.',
+    name: 'Presenter Strap',
+    summary: 'A lower third.',
+    category: 'lower-third',
+    variantId: entry.variantId,
+    intent: { kind: 'person' as const, primaryRole: 'person-name' as const },
+    lines: [{ title: 'Name', sample: 'Mateo Silva', role: 'person-name' as const }],
+    palette: { accent: '#f6a623', text: '#ffffff', textDim: '#cccccc', panel: '#101010' },
+    flourish: '',
+  };
+
+  const personSemantic = validateLiteDecision({
+    status: 'ready',
+    spec: baseSpec,
+  }, {
+    ...request(),
+    prompt: 'A lower third for speaker name Dr. Anika Ramanathan and academic role Professor of Engineering.',
+  });
+  assert.ok(personSemantic.errors.includes('requested_role_missing:person-role'));
+
+  const playerSemantic = validateLiteDecision({
+    status: 'ready',
+    spec: baseSpec,
+  }, {
+    ...request(),
+    prompt: 'A bold football lower third for player name Mateo Silva and team Northbridge FC.',
+  });
+  assert.ok(playerSemantic.errors.includes('requested_role_missing:team-name'));
 });
 
 test('memory ledger enforces idempotency, concurrency, and successful-generation allowances', async () => {
@@ -198,4 +268,38 @@ test('fleet admission reserves worst-case session cost before provider reconcili
     profile,
   });
   assert.equal(second.status, 'fleet-spend');
+});
+
+test('content-free accepted and discarded outcomes become thresholded chassis priors', async () => {
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_DAILY_STARTS = '20';
+  process.env.AI_LITE_DAILY_SUCCESSES = '20';
+  const profile = liteProfile();
+  const store = new MemoryLiteGenerationStore();
+  const now = Date.now();
+  for (let index = 0; index < 8; index += 1) {
+    const reservation = await store.reserve({
+      userId: 'quality-user',
+      ipHash: 'quality-ip',
+      idempotencyKey: `quality-${index}`,
+      requestedCategory: 'lower-third',
+      now: now + index,
+      profile,
+    });
+    assert.equal(reservation.status, 'created');
+    if (reservation.status !== 'created') continue;
+    await store.update(reservation.record.id, {
+      status: index < 6 ? 'accepted' : 'usable',
+      resolvedCategory: 'lower-third',
+      resolvedVariantId: 'lt11',
+      intentKind: 'person',
+      ...(index >= 6 ? { rejectionReason: 'user_discarded', feedbackReason: 'regenerated' } : {}),
+    });
+  }
+  assert.deepEqual(await store.qualityPriors({ now: now + 10, windowDays: 90, minSamples: 8 }), [{
+    variantId: 'lt11',
+    intentKind: 'person',
+    accepted: 6,
+    discarded: 2,
+  }]);
 });

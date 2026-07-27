@@ -751,8 +751,8 @@ the project). A prompt-only user never touches it - an empty spec injects nothin
 e2e/ai-more-control.spec.ts).
 
 When the server exposes **NoaCG Lite**, this same step becomes the smallest managed profile
-surface: one result, included/free-user copy, remaining allowance, a seven-category filter,
-at most eight fields, one compatible logo, and no style-reference upload. Provider/model
+surface: one result, included/free-user copy, remaining allowance, lower-third-only routing,
+at most two fields, no image or logo input, and no style-reference upload. Provider/model
 settings, brainstorm, raw mode, three alternatives, "more like this", custom/import
 conversion, and code repair are hidden. A supported request calls the existing provider with
 `profile: 'lite'`; its returned DesignSpec still compiles and benches through the normal

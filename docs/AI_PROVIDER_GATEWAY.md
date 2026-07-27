@@ -48,6 +48,18 @@ raw IP addresses. Successful validation and user acceptance are separate outcome
 cost per machine-usable and cost per accepted graphic can be measured without collecting
 student content.
 
+The first quality release is lower-third-only. Its DesignSpec carries a broad intent facet
+and an explicit semantic role for each of its one or two lines, so the server can reject
+missing requested names, roles, teams, headlines, or other field meanings before compilation.
+Six audited chassis carry compact positive and negative routing guidance. Custom palettes
+also receive deterministic primary and secondary text-contrast checks.
+
+Migration `0011_ai_lite_quality_feedback.sql` adds only the resolved chassis id, broad intent
+facet, and an enumerated discard reason to the server-only ledger. After a configurable
+minimum sample count, accepted and discarded totals become a subtle chassis tie-breaker in
+the trusted server prompt. The brief and semantic fit always outrank this aggregate prior,
+and no prompt, template, screenshot, or generated artifact is retained.
+
 ## Configuration
 
 Browser-visible values are non-secret:
@@ -101,7 +113,8 @@ missing.
 
 The `AI_LITE_*` settings documented in `.env.example` are private Vercel environment
 variables. `AI_LITE_ENABLED` defaults off. Production enablement also requires Supabase
-authentication, the `0010_ai_generations.sql` migration, a Supabase secret key, both managed
+authentication, the `0010_ai_generations.sql` and `0011_ai_lite_quality_feedback.sql`
+migrations, a Supabase secret key, both managed
 route keys, an `IP_HASH_SALT` of at least 16 characters, and an audited OpenRouter endpoint
 list where applicable. Lite stays unavailable instead of falling back to an in-memory quota
 ledger or the development IP-hash salt when that durable configuration is incomplete.

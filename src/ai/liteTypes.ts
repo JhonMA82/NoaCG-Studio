@@ -12,6 +12,32 @@ export type LiteUnsupportedCode =
   | 'external-data'
   | 'too-complex';
 
+export type LiteLowerThirdIntentKind =
+  | 'person'
+  | 'story'
+  | 'event'
+  | 'team'
+  | 'organization'
+  | 'promotion';
+
+export type LiteLowerThirdLineRole =
+  | 'person-name'
+  | 'person-role'
+  | 'organization'
+  | 'team-name'
+  | 'story-headline'
+  | 'event-name'
+  | 'location'
+  | 'social-handle'
+  | 'call-to-action'
+  | 'supporting-context';
+
+export interface LiteLowerThirdIntent {
+  kind: LiteLowerThirdIntentKind;
+  primaryRole: LiteLowerThirdLineRole;
+  secondaryRole?: LiteLowerThirdLineRole;
+}
+
 export interface LiteDesignSpec {
   fit: 'catalog';
   reason: string;
@@ -19,7 +45,8 @@ export interface LiteDesignSpec {
   summary: string;
   category: 'lower-third' | 'info-card' | 'ticker' | 'game-timer' | 'scoreboard' | 'infographic';
   variantId: string;
-  lines: { title: string; sample: string }[];
+  intent: LiteLowerThirdIntent;
+  lines: { title: string; sample: string; role: LiteLowerThirdLineRole }[];
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
   useLogoSlot?: boolean;
   zone?: string;
@@ -130,8 +157,24 @@ export interface LiteOutcomeRequest {
   resolvedCategory?: string;
   validationRuleCodes?: string[];
   runtimeMs?: number;
+  discardReason?:
+    | 'regenerated'
+    | 'closed'
+    | 'wrong-style'
+    | 'hard-to-read'
+    | 'missing-information'
+    | 'wrong-layout'
+    | 'poor-motion'
+    | 'other';
 }
 
 export interface LiteOutcomeResponse {
   recorded: true;
+}
+
+export interface LiteVariantQualityPrior {
+  variantId: string;
+  intentKind: LiteLowerThirdIntentKind;
+  accepted: number;
+  discarded: number;
 }

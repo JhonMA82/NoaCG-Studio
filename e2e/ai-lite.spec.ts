@@ -6,13 +6,13 @@ const STATUS = {
   enabled: true,
   available: true,
   requiresSignIn: false,
-  supportedCategories: ['lower-third', 'title', 'topic-card', 'ticker', 'countdown', 'scoreboard', 'stats-panel'],
+  supportedCategories: ['lower-third'],
   limits: {
     promptCharacters: 2000,
     conversationTurns: 6,
     conversationCharacters: 6000,
-    fields: 8,
-    logos: 1,
+    fields: 2,
+    logos: 0,
     logoBytes: 2_000_000,
   },
   allowance: {
@@ -35,9 +35,14 @@ const READY = {
       summary: 'A credible university news lower third with a calm entrance.',
       category: 'lower-third',
       variantId: 'lt11',
+      intent: {
+        kind: 'person',
+        primaryRole: 'person-name',
+        secondaryRole: 'person-role',
+      },
       lines: [
-        { title: 'Name', sample: 'Amara Mensah' },
-        { title: 'Role', sample: 'Student Reporter' },
+        { title: 'Name', sample: 'Amara Mensah', role: 'person-name' },
+        { title: 'Role', sample: 'Student Reporter', role: 'person-role' },
       ],
       paletteId: 'noacg',
       density: 'standard',
@@ -88,6 +93,7 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByRole('button', { name: /AI settings/ })).toHaveCount(0);
   await expect(page.getByLabel(/Design 3 options/)).toHaveCount(0);
   await expect(page.getByTestId('ai-talk')).toHaveCount(0);
+  await expect(page.getByTestId('ai-attach')).toHaveCount(0);
   await expect(page.getByText(/Gemini|Qwen|OpenRouter|Anthropic|OpenAI/)).toHaveCount(0);
 
   await page.getByTestId('more-control-toggle').click();
@@ -95,7 +101,8 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByRole('button', { name: /Lower third/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Player card/ })).toHaveCount(0);
   await page.getByRole('button', { name: /Look & references/ }).click();
-  await expect(page.getByText(/does not send or recreate reference images/)).toBeVisible();
+  await expect(page.getByText(/Image and logo input is paused/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Add reference images/ })).toHaveCount(0);
 
   await page.locator('.wz-step textarea').fill(
     'A credible university-news lower third for a student reporter name and role.',

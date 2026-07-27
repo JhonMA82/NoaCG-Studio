@@ -97,6 +97,7 @@ function validateRequest(value: unknown, profile: ReturnType<typeof liteProfile>
     if (characters > profile.limits.conversationCharacters) throw new Error('conversation length');
   }
   if (body.hasLogo !== undefined && typeof body.hasLogo !== 'boolean') throw new Error('logo');
+  if (body.hasLogo === true && profile.limits.logos < 1) throw new Error('logo unsupported');
   if (body.palette !== undefined && body.palette !== null) {
     const palette = recordType(body.palette);
     if (!onlyKeys(palette, ['accent', 'text', 'textDim', 'panel'])) throw new Error('palette');
@@ -113,7 +114,7 @@ function validateRequest(value: unknown, profile: ReturnType<typeof liteProfile>
     const prior = recordType(body.priorSpec);
     if (!onlyKeys(prior, [
       'fit', 'reason', 'name', 'summary', 'category', 'variantId', 'lines',
-      'extraFields', 'useLogoSlot', 'zone', 'paletteId', 'palette', 'fontId',
+      'intent', 'extraFields', 'useLogoSlot', 'zone', 'paletteId', 'palette', 'fontId',
       'sizeScale', 'animation', 'motionCharacter', 'typography', 'density',
       'alignment', 'shape', 'flourish',
     ])) throw new Error('prior spec');
@@ -305,9 +306,15 @@ export default {
     if (reservation.status !== 'created') return reservationError(reservation);
     let record: LiteGenerationRecord | null = reservation.record;
     record = await store.update(record.id, { status: 'model_running' });
+    const qualityPriors = await store.qualityPriors({
+      now,
+      windowDays: profile.qualityPriorWindowDays,
+      minSamples: profile.qualityPriorMinSamples,
+    }).catch(() => []);
+    const trustedSystemPrompt = liteSystemPrompt(profile.promptVersion, qualityPriors);
 
     const modelRequest = {
-      system: liteSystemPrompt(profile.promptVersion),
+      system: trustedSystemPrompt,
       messages: [{ role: 'user' as const, content: liteRequestText(request) }],
       maxTokens: profile.outputTokens,
       structuredOutput: LITE_DECISION_OUTPUT,
@@ -330,7 +337,7 @@ export default {
         const repair = withProfileCost(await executeGatewayRequest(
           {
             request: {
-              system: liteSystemPrompt(profile.promptVersion),
+              system: trustedSystemPrompt,
               messages: [{
                 role: 'user',
                 content: JSON.stringify({
@@ -367,10 +374,18 @@ export default {
       const resolvedCategory = semantic.decision.status === 'ready'
         ? semantic.decision.spec.category
         : null;
+      const resolvedVariantId = semantic.decision.status === 'ready'
+        ? semantic.decision.spec.variantId
+        : null;
+      const intentKind = semantic.decision.status === 'ready'
+        ? semantic.decision.spec.intent.kind
+        : null;
       record = await store.update(record?.id ?? '', {
         ...modelResultPatch(modelResult),
         status: semantic.decision.status === 'ready' ? 'spec_ready' : 'unsupported',
         resolvedCategory,
+        resolvedVariantId,
+        intentKind,
         rejectionReason: semantic.decision.status === 'unsupported' ? semantic.decision.code : null,
       });
       if (!record) return liteError('generation_failed', 'Lite could not persist the generation outcome.', 500);

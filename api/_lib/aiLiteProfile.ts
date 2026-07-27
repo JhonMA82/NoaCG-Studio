@@ -79,6 +79,8 @@ export interface LiteProfile {
   estimatedInputTokens: number;
   timeoutMs: number;
   expiryMs: number;
+  qualityPriorMinSamples: number;
+  qualityPriorWindowDays: number;
   limits: LitePublicLimits;
   supportedCategories: string[];
   overrideUserIds: string[];
@@ -105,7 +107,7 @@ export function liteProfile(): LiteProfile {
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-v1').trim().slice(0, 64) || 'lite-v1',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v2').trim().slice(0, 64) || 'lite-lower-third-v2',
     primary,
     fallback,
     prices,
@@ -124,12 +126,14 @@ export function liteProfile(): LiteProfile {
     estimatedInputTokens: intEnv('AI_LITE_MAX_INPUT_TOKENS', 12_000, 1000, 50_000),
     timeoutMs: intEnv('AI_LITE_TIMEOUT_MS', 30_000, 5000, 120_000),
     expiryMs: intEnv('AI_LITE_EXPIRY_MINUTES', 15, 5, 120) * 60_000,
+    qualityPriorMinSamples: intEnv('AI_LITE_PRIOR_MIN_SAMPLES', 8, 4, 1000),
+    qualityPriorWindowDays: intEnv('AI_LITE_PRIOR_WINDOW_DAYS', 90, 7, 365),
     limits: {
       promptCharacters: intEnv('AI_LITE_PROMPT_CHARACTERS', 2000, 100, 10_000),
       conversationTurns: intEnv('AI_LITE_CONVERSATION_TURNS', 6, 0, 20),
       conversationCharacters: intEnv('AI_LITE_CONVERSATION_CHARACTERS', 6000, 0, 30_000),
-      fields: intEnv('AI_LITE_FIELDS', 8, 1, 20),
-      logos: 1,
+      fields: intEnv('AI_LITE_FIELDS', 2, 1, 2),
+      logos: 0,
       logoBytes: intEnv('AI_LITE_LOGO_BYTES', 2_000_000, 100_000, 5_000_000),
     },
     supportedCategories: [...LITE_AI_CATEGORIES],

@@ -64,6 +64,19 @@ trees import it. Do not import catalog or DOM-bearing model modules from it. Mod
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
 aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
 
+The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
+with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
+for each of the one or two lines. Server semantic validation enforces requested roles and
+custom-palette contrast before deterministic compilation. Do not widen the category or
+variant allowlist without the versioned lower-third benchmark and human visual review.
+
+Lite's continuous improvement signal is content-free: the server ledger keeps only the
+resolved chassis, broad intent facet, accepted/discarded outcome, and optional enumerated
+discard reason. Aggregate per-intent chassis outcomes enter the trusted prompt only after the
+server-configured sample threshold and only as a subtle tie-breaker. They never override the
+brief, semantic fit, or the diversity doctrine. Prompts, templates, screenshots, generated
+code, and full DesignSpecs never enter the ledger.
+
 ## The pipeline (claudeProvider.generate — one harness run; generateAlternatives runs it ×3)
 
 1. **Design spec** (`designSpec.ts`, forced `emit_design_spec`) - the only mandatory model

@@ -6,6 +6,10 @@ import type { LiteOutcomeRequest, LiteOutcomeResponse } from '../../../src/ai/li
 
 const ID = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i;
 const RULE = /^[a-z0-9][a-z0-9_.:-]{0,79}$/i;
+const DISCARD_REASONS = new Set([
+  'regenerated', 'closed', 'wrong-style', 'hard-to-read',
+  'missing-information', 'wrong-layout', 'poor-motion', 'other',
+]);
 
 function validate(value: unknown): LiteOutcomeRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('object');
@@ -23,6 +27,10 @@ function validate(value: unknown): LiteOutcomeRequest {
   if (body.runtimeMs !== undefined && (!Number.isInteger(body.runtimeMs) || Number(body.runtimeMs) < 0 || Number(body.runtimeMs) > 300_000)) {
     throw new Error('runtime');
   }
+  if (
+    body.discardReason !== undefined
+    && (body.action !== 'discarded' || typeof body.discardReason !== 'string' || !DISCARD_REASONS.has(body.discardReason))
+  ) throw new Error('discard reason');
   return body as unknown as LiteOutcomeRequest;
 }
 
@@ -68,6 +76,9 @@ export default {
       resolvedCategory: body.resolvedCategory ?? record.resolvedCategory,
       validationRuleCodes: body.validationRuleCodes?.slice(0, 30) ?? record.validationRuleCodes,
       runtimeMs: body.runtimeMs ?? record.runtimeMs,
+      feedbackReason: body.action === 'discarded'
+        ? body.discardReason ?? 'other'
+        : record.feedbackReason,
       rejectionReason: body.action === 'validation-failed'
         ? 'platform_validation'
         : body.action === 'discarded'

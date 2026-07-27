@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { ModelResult } from '../../src/ai/modelTypes.js';
+import type {
+  LiteLowerThirdIntentKind,
+  LiteVariantQualityPrior,
+} from '../../src/ai/liteTypes.js';
 import { supabaseSecretKey } from './jobStore.js';
 import type { LiteProfile } from './aiLiteProfile.js';
 
@@ -23,6 +27,8 @@ export interface LiteGenerationRecord {
   promptVersion: string;
   requestedCategory: string | null;
   resolvedCategory: string | null;
+  resolvedVariantId: string | null;
+  intentKind: LiteLowerThirdIntentKind | null;
   provider: string | null;
   model: string | null;
   attemptCount: number;
@@ -35,6 +41,7 @@ export interface LiteGenerationRecord {
   validationRuleCodes: string[];
   runtimeMs: number | null;
   rejectionReason: string | null;
+  feedbackReason: string | null;
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
@@ -67,6 +74,11 @@ export interface LiteGenerationStore {
   }): Promise<LiteReservation>;
   get(id: string): Promise<LiteGenerationRecord | null>;
   update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null>;
+  qualityPriors(input: {
+    now: number;
+    windowDays: number;
+    minSamples: number;
+  }): Promise<LiteVariantQualityPrior[]>;
 }
 
 const ACTIVE = new Set<LiteGenerationStatus>(['reserved', 'model_running', 'spec_ready']);
@@ -83,6 +95,8 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     promptVersion: input.profile.promptVersion,
     requestedCategory: input.requestedCategory,
     resolvedCategory: null,
+    resolvedVariantId: null,
+    intentKind: null,
     provider: null,
     model: null,
     attemptCount: 0,
@@ -96,6 +110,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     validationRuleCodes: [],
     runtimeMs: null,
     rejectionReason: null,
+    feedbackReason: null,
     createdAt: input.now,
     updatedAt: input.now,
     expiresAt: input.now + input.profile.expiryMs,
@@ -167,6 +182,37 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     const next = { ...current, ...patch, id: current.id, userId: current.userId, updatedAt: Date.now() };
     this.records.set(id, next);
     return next;
+  }
+
+  async qualityPriors(input: Parameters<LiteGenerationStore['qualityPriors']>[0]): Promise<LiteVariantQualityPrior[]> {
+    const since = input.now - input.windowDays * DAY;
+    const groups = new Map<string, LiteVariantQualityPrior>();
+    for (const record of this.records.values()) {
+      if (
+        record.createdAt < since
+        || !record.resolvedVariantId
+        || !record.intentKind
+        || (record.status !== 'accepted' && record.rejectionReason !== 'user_discarded')
+      ) continue;
+      const key = `${record.intentKind}:${record.resolvedVariantId}`;
+      const prior = groups.get(key) ?? {
+        variantId: record.resolvedVariantId,
+        intentKind: record.intentKind,
+        accepted: 0,
+        discarded: 0,
+      };
+      if (record.status === 'accepted') prior.accepted += 1;
+      else prior.discarded += 1;
+      groups.set(key, prior);
+    }
+    return [...groups.values()]
+      .filter((prior) => prior.accepted + prior.discarded >= input.minSamples)
+      .sort((a, b) => {
+        const aRate = a.accepted / (a.accepted + a.discarded);
+        const bRate = b.accepted / (b.accepted + b.discarded);
+        return bRate - aRate || (b.accepted + b.discarded) - (a.accepted + a.discarded);
+      })
+      .slice(0, 24);
   }
 }
 
