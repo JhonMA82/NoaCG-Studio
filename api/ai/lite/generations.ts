@@ -25,10 +25,10 @@ import {
 } from '../../_lib/aiLiteStore.js';
 import {
   LITE_AI_CATEGORIES,
-  LITE_DECISION_OUTPUT,
+  LITE_READY_OUTPUT,
+  deterministicUnsupportedDecision,
   liteRequestText,
   liteSystemPrompt,
-  obviousUnsupportedDecision,
   validateLiteDecision,
 } from '../../../src/ai/liteContract.js';
 import type { LiteGenerationRequest, LiteGenerationResult } from '../../../src/ai/liteTypes.js';
@@ -271,7 +271,7 @@ export default {
       return liteError('invalid_request', 'The Lite request exceeds its supported size or shape.', 400);
     }
 
-    const unsupported = obviousUnsupportedDecision(request.prompt);
+    const unsupported = deterministicUnsupportedDecision(request);
     if (unsupported) {
       const result: LiteGenerationResult = {
         generationId: `unsupported-${crypto.randomUUID()}`,
@@ -325,7 +325,7 @@ export default {
       system: trustedSystemPrompt,
       messages: [{ role: 'user' as const, content: liteRequestText(request) }],
       maxTokens: profile.outputTokens,
-      structuredOutput: LITE_DECISION_OUTPUT,
+      structuredOutput: LITE_READY_OUTPUT,
       cacheSystem: true,
     };
 
@@ -356,7 +356,7 @@ export default {
                 }),
               }],
               maxTokens: profile.repairOutputTokens,
-              structuredOutput: LITE_DECISION_OUTPUT,
+              structuredOutput: LITE_READY_OUTPUT,
               cacheSystem: true,
             },
             route: repairRoute,
