@@ -259,6 +259,8 @@ export const RENDER_RUNTIME_JS = `// ---- NoaCG render runtime: virtual clock + 
               else if (cue.action === 'play' && typeof window.play === 'function') window.play();
               else if (cue.action === 'next' && typeof window.next === 'function') window.next();
               else if (cue.action === 'stop' && typeof window.stop === 'function') window.stop();
+              else if (cue.action === 'scheduled' && typeof window.__noacgScheduledAction === 'function')
+                window.__noacgScheduledAction(cue.payload);
             } catch (e) { report('cue ' + cue.action + ': ' + (e && e.message)); }
           };
           if (cue.atMs <= 0) timers.push({ id: nextTimerId++, deadline: 0, fn: run, args: [], intervalMs: null, seq: seq++ });

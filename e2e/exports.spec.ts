@@ -12,9 +12,12 @@ async function createHairline(page: Page) {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
-async function downloadTarget(page: Page, label: string): Promise<JSZip> {
+async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | 'Post-production' | 'Both'): Promise<JSZip> {
   await page.getByTestId('dock-tab-export').click();
   await page.locator('.issue', { hasText: label }).click();
+  if (ografUsage) {
+    await page.getByTestId('ograf-usage').getByText(ografUsage, { exact: true }).click();
+  }
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -269,6 +272,166 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   expect(result.currentStep).toBe(0);
   expect(result.opacity).toBe('1');
   expect(result.cleared).toBe(true);
+});
+
+test('ograf: non-real-time schedule seeks are deterministic in shuffled order', async ({ page }) => {
+  await createHairline(page);
+  const capabilities = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { buildOgrafManifest } = await import('/src/export/targets/ograf.ts');
+    const template = useTemplateStore.getState().template;
+    return (['live', 'post-production', 'both'] as const).map((usage) => {
+      const manifest = buildOgrafManifest(template, usage);
+      return [manifest.supportsRealTime, manifest.supportsNonRealTime];
+    });
+  });
+  expect(capabilities).toEqual([
+    [true, false],
+    [false, true],
+    [true, true],
+  ]);
+
+  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Both');
+  const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
+  expect(manifest.supportsRealTime).toBe(true);
+  expect(manifest.supportsNonRealTime).toBe(true);
+
+  const files = new Map<string, Buffer>();
+  for (const name of Object.keys(zip.files)) {
+    if (!zip.files[name].dir) files.set(name.replace(/^hairline\//, ''), await zip.file(name)!.async('nodebuffer'));
+  }
+  await page.route('http://ograf-offline.local/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '');
+    const body = files.get(path);
+    if (body == null) return route.fulfill({ status: 404, body: 'not found' });
+    return route.fulfill({
+      status: 200,
+      contentType: path.endsWith('.mjs') || path.endsWith('.js')
+        ? 'application/javascript'
+        : path.endsWith('.woff2')
+          ? 'font/woff2'
+          : 'text/plain',
+      headers: { 'access-control-allow-origin': '*' },
+      body,
+    });
+  });
+
+  const result = await page.evaluate(async () => {
+    const mod = await import('http://ograf-offline.local/graphic.mjs');
+    customElements.define('ograf-offline-under-test', mod.default);
+    const el = document.createElement('ograf-offline-under-test') as HTMLElement & {
+      load(p: unknown): Promise<unknown>;
+      setActionsSchedule(p: unknown): Promise<unknown>;
+      goToTime(p: unknown): Promise<unknown>;
+      dispose(): Promise<unknown>;
+    };
+    document.body.appendChild(el);
+    await el.load({
+      data: { f0: 'Initial', f1: 'Reporter' },
+      renderType: 'non-realtime',
+      renderCharacteristics: {},
+    });
+    await el.setActionsSchedule({
+      schedule: [
+        { timestamp: 0, action: { type: 'playAction', params: {} } },
+        { timestamp: 500, action: { type: 'updateAction', params: { data: { f0: 'Updated' } } } },
+        { timestamp: 3000, action: { type: 'stopAction', params: {} } },
+      ],
+    });
+    const snapshot = async (timestamp: number) => {
+      await el.goToTime({ timestamp });
+      const doc = el.querySelector('iframe')!.contentDocument!;
+      const root = doc.querySelector('.lower-third')!;
+      return {
+        timestamp,
+        text: doc.querySelector('#f0')?.textContent,
+        opacity: getComputedStyle(root).opacity,
+        transform: getComputedStyle(root).transform,
+      };
+    };
+    const sequential = [];
+    for (const timestamp of [120, 3100, 5600]) sequential.push(await snapshot(timestamp));
+    const shuffled = [];
+    for (const timestamp of [5600, 120, 3100, 5600]) shuffled.push(await snapshot(timestamp));
+    await el.dispose();
+    return { sequential, shuffled };
+  });
+
+  expect(result.shuffled[0]).toEqual(result.shuffled[3]);
+  for (const expected of result.sequential) {
+    expect(result.shuffled.find((frame) => frame.timestamp === expected.timestamp)).toEqual(expected);
+  }
+  expect(result.sequential[0].text).toBe('Initial');
+  expect(result.sequential[1].text).toBe('Updated');
+});
+
+test('ograf: post-production intent is blocked for non-deterministic code', async ({ page }) => {
+  await createHairline(page);
+  await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const store = useTemplateStore.getState();
+    store.applyTemplate({ ...store.template, js: `${store.template.js}\nMath.random();\n` });
+  });
+  await page.getByTestId('dock-tab-export').click();
+  await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
+  await page.getByTestId('ograf-usage').getByText('Both', { exact: true }).click();
+  await expect(page.getByText('Unseeded randomness is not deterministic.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Validate & download/ })).toBeDisabled();
+});
+
+test('ograf: scheduled custom actions reconstruct branching machine state', async ({ page }) => {
+  await createProject(page, { name: 'Arena Quiz' });
+  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Post-production');
+  const files = new Map<string, Buffer>();
+  for (const name of Object.keys(zip.files)) {
+    if (!zip.files[name].dir) files.set(name.replace(/^arena_quiz\//, ''), await zip.file(name)!.async('nodebuffer'));
+  }
+  await page.route('http://ograf-branch.local/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '');
+    const body = files.get(path);
+    if (body == null) return route.fulfill({ status: 404, body: 'not found' });
+    return route.fulfill({
+      status: 200,
+      contentType: path.endsWith('.js') || path.endsWith('.mjs') ? 'application/javascript' : path.endsWith('.woff2') ? 'font/woff2' : 'text/plain',
+      headers: { 'access-control-allow-origin': '*' },
+      body,
+    });
+  });
+
+  const frames = await page.evaluate(async () => {
+    const mod = await import('http://ograf-branch.local/graphic.mjs');
+    customElements.define('ograf-branch-under-test', mod.default);
+    const el = document.createElement('ograf-branch-under-test') as HTMLElement & {
+      load(p: unknown): Promise<unknown>;
+      setActionsSchedule(p: unknown): Promise<unknown>;
+      goToTime(p: unknown): Promise<unknown>;
+    };
+    document.body.appendChild(el);
+    await el.load({ data: {}, renderType: 'non-realtime', renderCharacteristics: {} });
+    await el.setActionsSchedule({
+      schedule: [
+        { timestamp: 0, action: { type: 'playAction', params: {} } },
+        { timestamp: 500, action: { type: 'customAction', params: { id: 'select', payload: { f6: 'C' } } } },
+        { timestamp: 1000, action: { type: 'customAction', params: { id: 'lock', payload: {} } } },
+        { timestamp: 1800, action: { type: 'customAction', params: { id: 'judge', payload: {} } } },
+      ],
+    });
+    const out = [];
+    for (const timestamp of [2200, 400, 1400, 2200]) {
+      await el.goToTime({ timestamp });
+      const frame = el.querySelector('iframe')!;
+      const win = frame.contentWindow as Window & { noacgMachineState(): { groups: Record<string, string> } };
+      out.push({
+        timestamp,
+        selected: frame.contentDocument!.querySelector('#f6')?.textContent,
+        groups: win.noacgMachineState().groups,
+      });
+    }
+    return out;
+  });
+  expect(frames[0]).toEqual(frames[3]);
+  expect(frames[1].groups).not.toEqual(frames[2].groups);
+  expect(frames[2].selected).toBe('C');
 });
 
 test('ograf: the machine\'s operator events are custom actions, guarded like every surface', async ({ page }) => {

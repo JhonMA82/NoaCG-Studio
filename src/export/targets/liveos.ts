@@ -60,7 +60,7 @@ export const liveosTarget: ExportTarget = {
   async build(template) {
     const zip = new JSZip();
     const root = zip.folder(slug(template.name))!;
-    await addOgrafPackage(root, template);
+    await addOgrafPackage(root, template, 'live');
     root.file('README.md', liveosReadme(template));
     return zip;
   },

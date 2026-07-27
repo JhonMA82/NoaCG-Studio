@@ -11,9 +11,12 @@ import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/asset
 import { templateUsesLottie } from '../../assets/lottieSupport';
 import { parseAnimData } from '../../blocks/animData';
 import { eventButtons, type ControlButton } from '../../control/controlModel';
+import { stripLiveData } from '../../control/liveData';
+import { stripRealtimeControl } from '../../control/realtimeControl';
 import type { Ftype, SpxField, SpxTemplate } from '../../model/types';
+import { RENDER_RUNTIME_JS, GSAP_DETACH_JS } from '../../render/runtimeScript';
 import { addReferencedFonts, projectFormatReadme, slug } from '../common';
-import type { ExportTarget } from '../registry';
+import type { ExportTarget, GraphicUsage } from '../registry';
 
 export const OGRAF_SCHEMA_URL = 'https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json';
 
@@ -69,7 +72,10 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
 }
 
 /** The .ograf.json manifest (required fields per spec §2 + the field-driven data schema). */
-export function buildOgrafManifest(template: SpxTemplate): Record<string, unknown> {
+export function buildOgrafManifest(
+  template: SpxTemplate,
+  usage: GraphicUsage = 'live',
+): Record<string, unknown> {
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const actions = customActions(template);
   return {
@@ -79,12 +85,51 @@ export function buildOgrafManifest(template: SpxTemplate): Record<string, unknow
     name: template.name,
     description: template.settings.description || template.name,
     main: 'graphic.mjs',
-    supportsRealTime: true,
-    supportsNonRealTime: false,
+    supportsRealTime: usage !== 'post-production',
+    supportsNonRealTime: usage !== 'live',
     schema: dataSchema(template.fields),
     stepCount,
     ...(actions.length ? { customActions: actions } : {}),
   };
+}
+
+export interface OgrafOfflineCompatibility {
+  compatible: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/** Conservative target-specific gate. Non-real-time is advertised only for templates whose
+ * authored NoaCG timeline can be replayed against the shared virtual clock. */
+export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafOfflineCompatibility {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (!parseAnimData(template.js)) {
+    errors.push('Post-production export requires a readable NOACG_ANIM timeline.');
+  }
+  const source = `${template.html}\n${template.css}\n${template.js}`;
+  if (/https?:\/\//i.test(source.replace(OGRAF_SCHEMA_URL, '')) || /(?:src|href)\s*=\s*["']\/\//i.test(source)) {
+    errors.push('External network dependencies are not available during deterministic rendering.');
+  }
+  if (/\bMath\.random\s*\(|\bcrypto\.(?:getRandomValues|randomUUID)\s*\(/.test(template.js)) {
+    errors.push('Unseeded randomness is not deterministic.');
+  }
+  if (/<(?:video|audio)\b/i.test(template.html)) {
+    errors.push('Media playback is not seekable in OGraf non-real-time mode.');
+  }
+  if (/(?:^|[;{])\s*animation(?:-name)?\s*:/im.test(template.css)) {
+    errors.push('CSS animations are wall-clock driven; move this motion into the NoaCG timeline.');
+  }
+  if (/\b(?:fetch|WebSocket|EventSource)\s*\(/.test(stripRealtimeControl(stripLiveData(template.js)))) {
+    errors.push('Live-only network code remains after removing NoaCG live-control blocks.');
+  }
+  if (/\belement\.animate\s*\(|\.animate\s*\(\s*\[/.test(template.js)) {
+    errors.push('Web Animations API calls are not controlled by the NoaCG seek clock.');
+  }
+  if (templateUsesLottie(template)) {
+    warnings.push('Lottie is driven by the virtual frame clock; verify the exported package in the target renderer.');
+  }
+  return { compatible: errors.length === 0, errors, warnings };
 }
 
 /** Deterministic self-check on the manifest we just built (spec §6 requirements). */
@@ -118,6 +163,58 @@ function bodyContent(html: string): string {
 function templateHtmlForModule(template: SpxTemplate): string {
   const lottieAssets = template.assets.filter((a) => isLottieAsset(a.path));
   return lottieAssets.length ? inlineAssetRefs(template.html, lottieAssets) : template.html;
+}
+
+function scriptSafe(source: string): string {
+  return source.replace(/<\/script/gi, '<\\/script');
+}
+
+/** Isolated document used only for non-real-time seeks. Rebuilding it for every request is
+ * the reset boundary that makes backward and shuffled seeks independent of prior frames. */
+function offlineDocument(template: SpxTemplate): string {
+  const js = stripRealtimeControl(stripLiveData(template.js));
+  const lottie = templateUsesLottie(template)
+    ? '<script src="lib/lottie.min.js"></script>'
+    : '';
+  const bridge = `
+var __ografStep = -1;
+window.__noacgScheduledAction = function (entry) {
+  if (!entry || !entry.action) return;
+  var action = entry.action;
+  var params = action.params || {};
+  if (action.type === 'updateAction') {
+    update(JSON.stringify(params.data || {}));
+    return;
+  }
+  if (action.type === 'stopAction') {
+    stop(); __ografStep = -1; return;
+  }
+  if (action.type === 'customAction') {
+    if (typeof noacgDispatch === 'function') noacgDispatch(params.id, params.payload);
+    return;
+  }
+  if (action.type !== 'playAction') return;
+  var count = ${Math.max(1, Number(template.settings.steps) || 1)};
+  var target = params.goto != null && params.goto >= 0
+    ? params.goto : __ografStep + (params.delta != null ? params.delta : 1);
+  if (__ografStep < 0 && target >= 0) { play(); __ografStep = 0; }
+  while (__ografStep >= 0 && __ografStep < target && __ografStep < count - 1) {
+    if (!next()) break;
+    __ografStep += 1;
+  }
+  if (target >= count) { stop(); __ografStep = -1; }
+};`;
+  return `<!doctype html><html><head>
+<meta name="color-scheme" content="light">
+<base href="__NOACG_BASE__">
+<style>html,body{width:${template.resolution.width}px;height:${template.resolution.height}px;overflow:hidden;margin:0;background:transparent}${template.css}</style>
+<script>${scriptSafe(RENDER_RUNTIME_JS)}</script>
+<script src="lib/gsap.min.js"></script>
+<script>${scriptSafe(GSAP_DETACH_JS)}</script>${lottie}
+</head><body>${bodyContent(templateHtmlForModule(template))}
+<script>${scriptSafe(js)}</script>
+<script>${scriptSafe(bridge)}</script>
+</body></html>`;
 }
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
@@ -181,6 +278,10 @@ const TEMPLATE_HTML = ${JSON.stringify(bodyContent(templateHtmlForModule(templat
 
 const TEMPLATE_CSS = ${JSON.stringify(template.css)};
 
+// Non-real-time rendering runs in an isolated, virtual-clock document. The document is
+// recreated for every seek, so no prior playback, timer, GSAP state, or seek order can leak.
+const OFFLINE_DOCUMENT = ${JSON.stringify(offlineDocument(template))};
+
 // Each state group's off-air state. Empty when this graphic has no state machine.
 const OFF_STATES = ${JSON.stringify(offStates)};
 
@@ -208,6 +309,13 @@ ${template.js.replace(/^/gm, '  ')}
 
 class Graphic extends HTMLElement {
   async load(params) {
+    this._renderType = (params && params.renderType) || 'realtime';
+    this._initialData = Object.assign({}, (params && params.data) || {});
+    this._schedule = [];
+    if (this._renderType === 'non-realtime') {
+      await this._renderOfflineFrame(0);
+      return { statusCode: 200 };
+    }
     await ensureGsap();${usesLottie ? '\n    await ensureLottie();' : ''}
     // Inject the template's style + markup into this element (light DOM: the template's
     // own getElementById lookups keep working exactly as in SPX).
@@ -231,12 +339,68 @@ class Graphic extends HTMLElement {
     return { statusCode: 200 };
   }
 
+  async setActionsSchedule(params) {
+    this._schedule = Array.isArray(params && params.schedule) ? params.schedule.slice() : [];
+    return { statusCode: 200 };
+  }
+
+  async goToTime(params) {
+    if (this._renderType !== 'non-realtime') {
+      return { statusCode: 409, statusMessage: 'goToTime() requires load({renderType:"non-realtime"}).' };
+    }
+    var timestamp = Math.max(0, Number(params && params.timestamp) || 0);
+    await this._renderOfflineFrame(timestamp);
+    return { statusCode: 200 };
+  }
+
+  async _renderOfflineFrame(timestamp) {
+    if (this._frame) this._frame.remove();
+    var frame = document.createElement('iframe');
+    frame.setAttribute('title', 'OGraf non-real-time frame');
+    frame.style.cssText = 'display:block;border:0;width:100%;height:100%;background:transparent';
+    this.innerHTML = '';
+    this.appendChild(frame);
+    this._frame = frame;
+    var ready = new Promise(function (resolve, reject) {
+      frame.onload = resolve;
+      frame.onerror = function () { reject(new Error('Could not initialize the OGraf render frame.')); };
+    });
+    var base = new URL('./', import.meta.url).href;
+    frame.srcdoc = OFFLINE_DOCUMENT.replace('__NOACG_BASE__', base);
+    await ready;
+    var win = frame.contentWindow;
+    var doc = frame.contentDocument;
+    if (!win || !doc || !win.__noacgRender) throw new Error('OGraf non-real-time runtime did not initialize.');
+    await win.__noacgRender.prepare({ epochMs: 0, fps: ${template.fps}, data: this._initialData });
+    win.__noacgRender.setSchedule(this._schedule.map(function (entry) {
+      return { atMs: Math.max(0, Number(entry.timestamp) || 0), action: 'scheduled', payload: entry };
+    }));
+    win.__noacgRender.seek(timestamp);
+    this._offlineTimestamp = timestamp;
+    this._offlineStep = typeof win.__ografStep === 'number' ? win.__ografStep : -1;
+    if (doc.fonts) await doc.fonts.ready;
+    await Promise.all(Array.from(doc.images).map(function (img) {
+      return img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+    }));
+    await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+    var errors = win.__noacgRender.getErrors();
+    if (errors.length) throw new Error('OGraf non-real-time render failed: ' + errors.join('; '));
+  }
+
   async updateAction(params) {
+    if (this._renderType === 'non-realtime') {
+      await this._applyOfflineAction('updateAction', params);
+      return { statusCode: 200 };
+    }
     this._runtime.update(JSON.stringify(params.data || {}));
     return { statusCode: 200 };
   }
 
   async playAction(params) {
+    if (this._renderType === 'non-realtime') {
+      await this._applyOfflineAction('playAction', params);
+      return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
+    }
     const stepCount = ${stepCount};
     const target = params && params.goto != null && params.goto >= 0
       ? params.goto
@@ -278,12 +442,23 @@ class Graphic extends HTMLElement {
   }
 
   async stopAction() {
+    if (this._renderType === 'non-realtime') {
+      await this._applyOfflineAction('stopAction', {});
+      return { statusCode: 200 };
+    }
     this._runtime.stop();
     this._step = -1;
     return { statusCode: 200 };
   }
 
   async customAction(params) {
+    if (this._renderType === 'non-realtime') {
+      if (CUSTOM_ACTION_IDS.indexOf(params && params.id) === -1) {
+        return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + (params && params.id) + '".' };
+      }
+      await this._applyOfflineAction('customAction', params);
+      return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
+    }
     const id = params && params.id;
     if (!this._runtime || !this._runtime.dispatch || CUSTOM_ACTION_IDS.indexOf(id) === -1) {
       return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + id + '".' };
@@ -305,6 +480,14 @@ class Graphic extends HTMLElement {
     }
     return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
   }
+
+  async _applyOfflineAction(type, params) {
+    this._schedule.push({
+      timestamp: this._offlineTimestamp || 0,
+      action: { type: type, params: params || {} }
+    });
+    await this._renderOfflineFrame(this._offlineTimestamp || 0);
+  }
 }
 
 export default Graphic;
@@ -319,8 +502,18 @@ export default Graphic;
  * throws on errors, so every target built on this package inherits the gate. The LiveOS
  * target reuses this verbatim: LiveOS's HTML5 graphics engine is OGraf-compliant.
  */
-export async function addOgrafPackage(root: JSZip, template: SpxTemplate): Promise<void> {
-  const manifest = buildOgrafManifest(template);
+export async function addOgrafPackage(
+  root: JSZip,
+  template: SpxTemplate,
+  usage: GraphicUsage = 'live',
+): Promise<void> {
+  if (usage !== 'live') {
+    const compatibility = validateOgrafOfflineCompatibility(template);
+    if (!compatibility.compatible) {
+      throw new Error(`OGraf post-production compatibility: ${compatibility.errors.join(' ')}`);
+    }
+  }
+  const manifest = buildOgrafManifest(template, usage);
   const errors = validateOgrafManifest(manifest);
   if (errors.length) throw new Error(`OGraf manifest invalid: ${errors.join(' ')}`);
 
@@ -347,10 +540,10 @@ export const ografTarget: ExportTarget = {
   label: 'OGraf (EBU) export',
   description: 'An OGraf v1 Graphic: manifest + Web Component wrapping this template — for OGraf-compatible renderers.',
   successMessage: '✓ Exported. Load the unzipped folder in an OGraf-compatible renderer.',
-  async build(template) {
+  async build(template, ctx) {
     const zip = new JSZip();
     const root = zip.folder(slug(template.name))!;
-    await addOgrafPackage(root, template);
+    await addOgrafPackage(root, template, ctx?.graphicUsage ?? 'live');
     root.file(
       'README.md',
       `# ${template.name} — OGraf Graphic\n\nGenerated by NoaCG Studio.\n\n` +

@@ -40,9 +40,13 @@ export-time reflow, stretching, or cropping.
 - **targets/h2r.ts** - H2R Custom HTML: GDD block from DataFields + play()-toggle shim.
 - **targets/casparcg.ts** - selfContained + JSON/XML data shim.
 - **targets/ograf.ts** - EBU OGraf v1: manifest from DataFields + graphic.mjs Web Component;
-  AMD-guarded gsap loader. `addOgrafPackage` is reused by **targets/liveos.ts** - LiveOS's HTML5
-  graphics engine is OGraf-compliant, so that target is the same package with NetOn.Live install
-  steps in the README.
+  AMD-guarded gsap loader. Export intent maps to live/non-real-time manifest capabilities.
+  Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
+  `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's
+  conservative compatibility gate must pass before `supportsNonRealTime` is advertised.
+  `addOgrafPackage` is reused by **targets/liveos.ts** in explicit live-only mode - LiveOS's HTML5
+  graphics engine is OGraf-compliant, so that target is the same live package with NetOn.Live
+  install steps in the README.
 - **packetExport.ts** - whole packet -> one zip, a Starter folder per graphic. The caller
   already holds the library records, so each `ExportableGraphic` carries its own `entries`
   straight through - no resolver needed here, unlike the show export.

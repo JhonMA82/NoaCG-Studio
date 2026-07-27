@@ -61,7 +61,8 @@ are wrong - fix the code, not the table.
 - `ai` -> templates, blocks, validation, video, backend (`getAccessToken` only - proxy metering)
 - `video` -> validation, render
 - `render` -> control, preview, showchat, backend (`getAccessToken` only)
-- `export` -> blocks, control (the panel/receiver generators are control's declared packaging seam)
+- `export` -> blocks, control (the panel/receiver generators are control's declared packaging seam);
+  `export/targets/ograf.ts` -> `render/runtimeScript.ts` (the shared deterministic virtual clock)
 - `control` -> blocks, backend
 - `community` -> backend, validation
 - `showchat` -> backend, control

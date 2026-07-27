@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { saveAs } from 'file-saver';
-import { EXPORT_TARGETS } from '../export/registry';
+import { EXPORT_TARGETS, type GraphicUsage } from '../export/registry';
+import { validateOgrafOfflineCompatibility } from '../export/targets/ograf';
 import { slug } from '../export/common';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { isRenderConfigured } from '../render/config';
@@ -52,6 +53,7 @@ export default function ExportSurface({
   });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [graphicUsage, setGraphicUsage] = useState<GraphicUsage>('live');
 
   const pickTarget = (id: string) => {
     setTargetId(id);
@@ -59,6 +61,13 @@ export default function ExportSurface({
   };
 
   const target = EXPORT_TARGETS.find((t) => t.id === targetId)!;
+  const ografCompatibility = useMemo(
+    () => validateOgrafOfflineCompatibility(template),
+    [template],
+  );
+  const offlineRequested =
+    targetId === 'ograf' && graphicUsage !== 'live';
+  const targetCompatible = !offlineRequested || ografCompatibility.compatible;
 
   // Live validation: re-runs when the template (or a preview runtime error) changes.
   const validation = useMemo(
@@ -77,7 +86,7 @@ export default function ExportSurface({
     setBusy(true);
     try {
       const entries = graphicId ? graphicById(graphicId)?.entries : undefined;
-      const zip = await target.build(template, { sampleData, entries });
+      const zip = await target.build(template, { sampleData, entries, graphicUsage });
       const blob = await zip.generateAsync({ type: 'blob' });
       saveAs(blob, `${slug(template.name)}_${target.id}.zip`);
       // Each target carries its own success line, so its deploy workflow reads correctly.
@@ -123,12 +132,55 @@ export default function ExportSurface({
         ))}
       </div>
 
+      {targetId === 'ograf' && (
+        <div className="panel-section" data-testid="ograf-usage">
+          <h3>Usage</h3>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            {([
+              ['live', 'Live'],
+              ['post-production', 'Post-production'],
+              ['both', 'Both'],
+            ] as const).map(([value, label]) => (
+              <label key={value} className="row" style={{ width: 'auto' }}>
+                <input
+                  type="radio"
+                  name="ograf-usage"
+                  value={value}
+                  checked={graphicUsage === value}
+                  onChange={() => setGraphicUsage(value)}
+                  style={{ width: 'auto' }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          {offlineRequested && ografCompatibility.errors.map((error) => (
+            <div className="issue error" key={error}>
+              <span className="rule">OGraf offline</span>
+              {error}
+            </div>
+          ))}
+          {offlineRequested && ografCompatibility.warnings.map((warning) => (
+            <div className="issue warn" key={warning}>
+              <span className="rule">OGraf offline · warning</span>
+              {warning}
+            </div>
+          ))}
+        </div>
+      )}
+
       <button
         className="primary"
         style={{ marginTop: 12, width: '100%' }}
-        disabled={busy || !validation.ok}
+        disabled={busy || !validation.ok || !targetCompatible}
         onClick={exportZip}
-        title={validation.ok ? undefined : 'Fix the validation errors below first'}
+        title={
+          !validation.ok
+            ? 'Fix the validation errors below first'
+            : !targetCompatible
+              ? 'This graphic is not compatible with deterministic OGraf rendering'
+              : undefined
+        }
       >
         {busy ? 'Building…' : `Validate & download (${target.label})`}
       </button>
