@@ -55,7 +55,7 @@ as $$
       or generation.rejection_reason = 'user_discarded'
     )
   group by generation.resolved_variant_id, generation.intent_kind
-  having count(*) >= pg_catalog.greatest(p_min_samples, 4)
+  having count(*) >= case when p_min_samples > 4 then p_min_samples else 4 end
   order by
     count(*) filter (where generation.status = 'accepted')::numeric / count(*) desc,
     count(*) desc
