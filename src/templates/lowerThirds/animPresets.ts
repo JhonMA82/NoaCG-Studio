@@ -305,10 +305,10 @@ export const ANIM_PRESETS: AnimPreset[] = [
   {
     id: 'line-reveal',
     name: 'Line reveal',
-    description: 'In: the accent line draws in, text slides up from behind its mask. Out: text drops back, the line retracts. Elegant.',
+    description: 'In: the accent line draws in, the panel follows it open, text slides up from behind its mask. Out: text drops back, the line retracts, the panel sweeps away. Elegant.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}
-// Preset: Line reveal — the accent draws in, then text slides up from behind its mask.
+// Preset: Line reveal — the accent draws in, the panel follows it open, text slides up.
 ${knobs(cfg)}
 
 // buildInTimeline(): choreographs the entrance. Called by play().
@@ -320,19 +320,28 @@ function buildInTimeline() {
   tl.fromTo('.${cfg.prefix}-accent',
     { scaleX: 0, transformOrigin: 'left center' },   // the line grows from its left end
     { scaleX: 1, duration: 0.45 / animSpeed }
+  );
+  tl.fromTo('.${cfg.prefix}-box',
+    { clipPath: 'inset(0 100% 0 0)', opacity: 0 },   // the panel draws open behind the line…
+    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.5 / animSpeed },
+    '-=0.25'                                         // …overlapping the accent draw
   );`
       : `
-  tl.fromTo('.${cfg.prefix}-box', { opacity: 0 }, { opacity: 1, duration: 0.3 / animSpeed });`
+  tl.fromTo('.${cfg.prefix}-box',
+    { clipPath: 'inset(0 100% 0 0)', opacity: 0 },   // the panel draws open left to right
+    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.5 / animSpeed }
+  );`
   }
   tl.fromTo([${linesInIntro(cfg)}],
     { yPercent: 110 },                               // start hidden below the mask edge
     { yPercent: 0, duration: 0.55 / animSpeed, stagger: 0.1 / animSpeed },
-    '-=0.15'
+    '-=0.3'
   );
+  tl.set('.${cfg.prefix}-box', { clearProps: 'clipPath' });     // drop the clip once open — skewed ::before/::after layers may poke past the box
   return tl;
 }
 
-// buildOutTimeline(): the exit — text drops back behind the mask, accent retracts.
+// buildOutTimeline(): the exit — text drops back, accent retracts, the panel sweeps off.
 function buildOutTimeline() {
   var tl = gsap.timeline({ defaults: { ease: easeOut } });
   tl.to([${lineList(cfg.lineCount)}], { yPercent: 110, duration: 0.35 / animSpeed, stagger: 0.05 / animSpeed });${
@@ -341,6 +350,10 @@ function buildOutTimeline() {
   tl.to('.${cfg.prefix}-accent', { scaleX: 0, transformOrigin: 'right center', duration: 0.3 / animSpeed }, '-=0.1');`
       : ''
   }
+  tl.fromTo('.${cfg.prefix}-box',
+    { clipPath: 'inset(0 0% 0 0%)' },                // re-arm the clip (the entrance cleared it)…
+    { clipPath: 'inset(0 0% 0 100%)', opacity: 0, duration: 0.3 / animSpeed },  // …the panel sweeps off after the line, fading
+    '-=0.15');
   tl.set('.${cfg.prefix}', { opacity: 0 });                     // fully hidden; ready to play again
   return tl;
 }${stepsBlock(cfg)}
