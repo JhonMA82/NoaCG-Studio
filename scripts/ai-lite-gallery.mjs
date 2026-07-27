@@ -125,6 +125,7 @@ const html = `<!doctype html>
   Reviewer <input id="reviewer" placeholder="initials" size="8">
   <span id="progress"></span>
   <button class="primary" id="download">Download judgements</button>
+  <button id="fresh">Start new pass</button>
 </div>
 <div id="items"></div>
 <script>
@@ -193,6 +194,13 @@ document.getElementById('download').addEventListener('click', () => {
   const who = (document.getElementById('reviewer').value || 'anonymous').replace(/[^a-z0-9_-]+/gi, '-');
   a.download = 'judgements-' + who + '.jsonl';
   a.click();
+});
+// A fresh pass clears the saved ratings so old answers never pre-fill a re-review.
+// Download your judgements first - clearing does not export them.
+document.getElementById('fresh').addEventListener('click', () => {
+  if (!confirm('Start a new pass? This clears your saved ratings in this browser. Download your judgements first if you have not.')) return;
+  localStorage.removeItem(KEY);
+  location.reload();
 });
 paint();
 </script>
