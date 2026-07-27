@@ -111,6 +111,12 @@ test('scrubbing seeks the composition deterministically', async ({ page }) => {
   await expect(player(page).getByText('5', { exact: true })).toBeVisible({ timeout: 10_000 });
 
   // Pause, then scrub to the middle: second 3 of 5 (frame 75 at 30fps) -> the countdown shows 3.
+  // The preview auto-plays after generation. Without this explicit pause it can advance again
+  // between the input event and assertion, which made the deterministic seek test timing-based.
+  const transport = page.getByTestId('video-transport');
+  const pause = transport.getByTitle('Pause');
+  if (await pause.isVisible()) await pause.click();
+  await expect(transport.getByTitle('Play', { exact: true })).toBeVisible();
   const scrubber = page.getByTestId('video-scrubber');
   await scrubber.evaluate((el: HTMLInputElement) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
@@ -303,7 +309,8 @@ test('reload restores the project; save/reopen and the SPX switch work', async (
   await page.getByTestId('video-save').click();
   await startNewProject(page);
   await page.getByRole('button', { name: 'Blank project' }).click();
-  // Blank creation is ASYNC and the click does not wait for it: startBlank fires applyGenerated
+  await page.getByTestId('blank-create').click();
+  // Blank creation is ASYNC and the click does not wait for it: createBlank fires applyGenerated
   // without awaiting, and that formats the new template through Prettier - five lazy dynamic
   // imports (standalone + the html/postcss/babel/estree plugins) - BEFORE it flips the doc-kind
   // switch that unmounts the video shell. On a busy dev server those cold module graphs take

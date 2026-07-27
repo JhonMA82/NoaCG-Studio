@@ -17,6 +17,12 @@
   "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
   "headers": [
     {
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

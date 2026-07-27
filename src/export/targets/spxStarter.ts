@@ -3,7 +3,15 @@
 // into an SPX/CasparCG templates directory. Plug-and-play: relative paths, bundled GSAP.
 
 import JSZip from 'jszip';
-import { addControlPanel, addSharedAssets, ensureExternalRefs, injectControlReceiver, slug, spxReadme } from '../common';
+import {
+  addControlPanel,
+  addSharedAssets,
+  ensureExternalRefs,
+  injectControlReceiver,
+  injectProjectFormatMeta,
+  slug,
+  spxReadme,
+} from '../common';
 import type { ExportTarget } from '../registry';
 import type { ControlEntry } from '../../model/library';
 
@@ -30,7 +38,10 @@ export async function buildStarterInto(
   template: Parameters<ExportTarget['build']>[0],
   opts?: { entries?: ControlEntry[] },
 ): Promise<void> {
-  root.file('index.html', injectControlReceiver(ensureExternalRefs(template.html), template));
+  root.file(
+    'index.html',
+    injectControlReceiver(injectProjectFormatMeta(ensureExternalRefs(template.html), template), template),
+  );
   root.file('css/template.css', cssForSubfolder(template.css));
   root.file('js/template.js', template.js);
   root.file('README.md', spxReadme(template));

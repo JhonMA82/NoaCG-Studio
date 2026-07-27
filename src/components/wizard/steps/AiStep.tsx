@@ -22,9 +22,17 @@ import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
-import { importTemplateFile, isTemplateFile } from '../../../model/importTemplate';
+import {
+  importTemplateFile,
+  isTemplateFile,
+  type AuthoredFormatDetection,
+} from '../../../model/importTemplate';
 import { loadLooks } from '../../../model/packets';
-import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
+import type { AssetFile, SpxTemplate } from '../../../model/types';
+import {
+  resolutionForSelection,
+  type ProjectFormatSelection,
+} from '../../../model/projectFormat';
 import type { AiThread, AiThreadMessage } from '../../../model/aiThread';
 import type { Palette } from '../../../model/wizard';
 import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
@@ -32,14 +40,15 @@ import { benchTemplateRuntime, mergeResults } from '../../../validation/runtimeB
 import { readinessRows, unclaimedFindings } from '../../../validation/readiness';
 import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
 import MoreControlPanel from './ai/MoreControlPanel';
 import { LITE_AI_CATEGORIES } from '../../../ai/liteContract';
 import { LiteUnsupportedError, loadLiteStatus, recordLiteOutcome } from '../../../ai/liteClient';
 import type { LiteStatusResponse } from '../../../ai/liteTypes';
 
 interface Props {
-  resolution: Resolution;
-  fps: number;
+  format: ProjectFormatSelection;
+  onFormat: (format: ProjectFormatSelection) => void;
   /** Brand colors to honor (when "Use current project's colors & font" is on and a brand exists). */
   brandPalette: Palette | null;
   /** The current AI result shown in the live preview (null until the first generation). */
@@ -133,8 +142,8 @@ function designWords(alt: AiTemplateChange): string[] {
  * ("Open as code") stays one click away and never gates on sign-in.
  */
 export default function AiStep({
-  resolution,
-  fps,
+  format,
+  onFormat,
   brandPalette,
   result,
   onResult,
@@ -142,6 +151,8 @@ export default function AiStep({
   onOpenImported,
   onUseTemplates,
 }: Props) {
+  const resolution = resolutionForSelection(format);
+  const fps = format.fps;
   const { needsSignIn } = useAuthState();
   const [liteStatus, setLiteStatus] = useState<LiteStatusResponse | null>(null);
   useEffect(() => {
@@ -178,7 +189,12 @@ export default function AiStep({
     if (references.length) setReferences([]);
   }, [liteMode, references.length, spec.category]);
   const activeSpec = specIsEmpty(spec) ? null : spec;
-  const [imported, setImported] = useState<{ fileName: string; template: SpxTemplate } | null>(null);
+  const [imported, setImported] = useState<{
+    fileName: string;
+    template: SpxTemplate;
+    detection: AuthoredFormatDetection;
+    confirmed: boolean;
+  } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -300,7 +316,13 @@ export default function AiStep({
     const templateFile = list.find(isTemplateFile);
     if (templateFile) {
       try {
-        setImported({ fileName: templateFile.name, template: await importTemplateFile(templateFile) });
+        const parsed = await importTemplateFile(templateFile);
+        setImported({
+          fileName: templateFile.name,
+          template: parsed.template,
+          detection: parsed.detection,
+          confirmed: parsed.detection.certain,
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -427,17 +449,24 @@ export default function AiStep({
     ? { id: 'ai-user-brand', name: 'Brand colors', styleTags: ['noacg'], ...spec.brandColors }
     : null;
   /** `seed` = "three more like this": the direction whose spirit the new ones should keep. */
-  const contextFor = (seed?: DesignSpec): GenerateContext => ({
-    images: liteActive ? images.slice(0, 1) : images,
-    references: !liteActive && references.length ? references : undefined,
-    palette: specPalette ?? brandPalette,
-    customFont: spec.fonts?.primary?.customFont,
-    spec: activeSpec,
-    conversation: turns.length ? conversation() : undefined,
-    ...(seed ? { seed } : {}),
-    resolution,
-    fps,
-  });
+  const contextFor = (seed?: DesignSpec): GenerateContext => {
+    // An existing imported template is the exception to new-project format selection.
+    // Once its format is detected or explicitly confirmed, conversion and later refinement
+    // stay pinned to that authored canvas instead of silently adopting the picker defaults.
+    const authoredResolution = imported?.confirmed ? imported.template.resolution : resolution;
+    const authoredFps = imported?.confirmed ? imported.template.fps : fps;
+    return {
+      images: liteActive ? images.slice(0, 1) : images,
+      references: !liteActive && references.length ? references : undefined,
+      palette: specPalette ?? brandPalette,
+      customFont: spec.fonts?.primary?.customFont,
+      spec: activeSpec,
+      conversation: turns.length ? conversation() : undefined,
+      ...(seed ? { seed } : {}),
+      resolution: authoredResolution,
+      fps: authoredFps,
+    };
+  };
 
   /** The brief a Generate press acts on: what is typed, else what the talk arrived at. */
   const briefNow = (): string => prompt.trim() || latestBrief || '';
@@ -479,6 +508,10 @@ export default function AiStep({
     // the harness switch: OFF = the default one-shot (statically validated, no repair
     // loop), ON = three harness alternatives with the live bench injected.
     if (imported) {
+      if (!imported.confirmed) {
+        setError('Confirm the imported template project format before opening or converting it.');
+        return;
+      }
       if (liteActive) {
         setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
         return;
@@ -631,6 +664,13 @@ export default function AiStep({
         )}
       </div>
 
+      <ProjectFormatPicker
+        value={format}
+        onChange={onFormat}
+        idPrefix="ai-format"
+        description="This resolution and frame rate are fixed before the first generation. AI cannot override them."
+      />
+
       {/* The drop zone (images + existing templates). Never gated: the no-AI import lives here. */}
       <div
         className={`wz-drop ${dragOver ? 'over' : ''}`}
@@ -670,8 +710,46 @@ export default function AiStep({
             CasparCG / OGraf).
             {!liteMode && <> Or describe what to change and <b>Convert</b> brings it to the house standards with AI.</>}
           </p>
+          <div data-testid="import-format-detection">
+            {imported.detection.messages.map((message) => (
+              <p className="hint" key={message} style={{ margin: '3px 0' }}>{message}</p>
+            ))}
+            {imported.confirmed ? (
+              <p className="status-ok" style={{ margin: '6px 0' }}>
+                Authored project format: {imported.template.resolution.width}×
+                {imported.template.resolution.height} · {imported.template.fps} fps
+              </p>
+            ) : (
+              <>
+                <p className="status-bad" style={{ margin: '6px 0' }}>
+                  The authored format is uncertain. NoaCG will not assume or rewrite it.
+                </p>
+                <button
+                  data-testid="confirm-import-format"
+                  onClick={() => {
+                    const chosenResolution = resolutionForSelection(format);
+                    setImported({
+                      ...imported,
+                      template: {
+                        ...imported.template,
+                        resolution: chosenResolution,
+                        fps: format.fps,
+                      },
+                      confirmed: true,
+                    });
+                  }}
+                >
+                  Use selected project format ({resolution.width}×{resolution.height} · {fps} fps)
+                </button>
+              </>
+            )}
+          </div>
           <div className="row" style={{ marginTop: 8 }}>
-            <button className="primary" onClick={() => onOpenImported(imported.template)}>
+            <button
+              className="primary"
+              disabled={!imported.confirmed}
+              onClick={() => onOpenImported(imported.template)}
+            >
               ‹› Open as code (no AI)
             </button>
             <button onClick={() => setImported(null)}>✕ Remove</button>
@@ -908,6 +986,7 @@ export default function AiStep({
                   || !aiReady
                   || (!briefNow() && !imported)
                   || (liteMode && Boolean(imported))
+                  || (Boolean(imported) && !imported?.confirmed)
                 }
                 onClick={() => generate()}
               >

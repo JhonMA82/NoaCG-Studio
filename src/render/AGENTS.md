@@ -39,7 +39,8 @@ measure, buildManifest, config) may use anything the app uses.
   MeasuredDurations, RenderCue/Segment/Schedule, durationInFrames. `width`/`height` are the
   AUTHORED template resolution - output sizing goes through `scale`, never by resizing the
   document (marquee widths, credit-roll heights, and --scale depend on layout at the
-  authored size).
+  authored size). UI labels must keep "Project format (authored)" separate from "Output
+  settings" and explain every non-1 output scale as scaling, not layout reauthoring.
 - **schedule.ts** - computeSchedule: the duration/HOLD model. User picks TOTAL duration;
   measured animation durations are preserved; the remainder splits EQUALLY across hold
   slots (after IN + after each played step, never after OUT). total < fixed = hard error.

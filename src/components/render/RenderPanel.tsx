@@ -20,6 +20,7 @@ import { RENDER_FORMATS, type MeasuredDurations, type RenderFormatId } from '../
 import { useRenderJob } from '../../render/renderJobStore';
 import RenderFormatPicker, { FORMAT_ORDER } from './RenderFormatPicker';
 import RenderJobSection from './RenderJobSection';
+import { formatProjectSummary, isProjectFrameRate } from '../../model/projectFormat';
 
 const SCALES = [0.5, 1, 2];
 
@@ -44,7 +45,10 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
   const [format, setFormat] = useState<RenderFormatId>(() =>
     FORMAT_ORDER.includes(prefs.current?.format as RenderFormatId) ? (prefs.current!.format as RenderFormatId) : 'mp4');
   const [durationSec, setDurationSec] = useState(() => prefs.current?.durationSec ?? 6);
-  const [fps, setFps] = useState<number>(() => prefs.current?.fps ?? template.fps);
+  const [fps, setFps] = useState<number>(() => {
+    const preferred = prefs.current?.fps ?? template.fps;
+    return isProjectFrameRate(preferred) ? preferred : 30;
+  });
   const [scale, setScale] = useState(() => prefs.current?.scale ?? 1);
   const [playOut, setPlayOut] = useState(true);
   const [bgColor, setBgColor] = useState('#000000');
@@ -144,12 +148,17 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
       <p className="hint">
         Render this graphic to a finished media file — transparent where the format supports it.
       </p>
+      <p data-testid="render-project-format">
+        <strong>Project format (authored):</strong>{' '}
+        {formatProjectSummary(template.resolution, template.fps)}
+      </p>
 
       {/* Format cards */}
       <RenderFormatPicker format={format} onChange={setFormat} />
 
       {/* Settings */}
       <div className="stack" style={{ marginTop: 10 }}>
+        <h4 style={{ margin: '0 0 2px' }}>Output settings</h4>
         {!isStill && (
           <label className="row" style={{ justifyContent: 'space-between' }}>
             <span>Total duration (s)</span>
@@ -167,7 +176,7 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
         )}
         {!isStill && (
           <label className="row" style={{ justifyContent: 'space-between' }}>
-            <span>Frame rate</span>
+            <span>Output frame rate</span>
             <select value={fps} style={{ width: 90 }} onChange={(e) => setFps(Number(e.target.value))}>
               {FPS_OPTIONS.filter((f) => f <= RENDER_LIMITS[tier].maxFps).map((f) => (
                 <option key={f} value={f}>{f} fps</option>
@@ -175,8 +184,14 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
             </select>
           </label>
         )}
+        {!isStill && !isProjectFrameRate(template.fps) && (
+          <p className="hint" data-testid="render-fps-compatibility" style={{ margin: '-3px 0 2px' }}>
+            The authored {template.fps} fps timing remains unchanged in package exports.
+            Media rendering uses the explicitly selected supported output frame rate.
+          </p>
+        )}
         <label className="row" style={{ justifyContent: 'space-between' }}>
-          <span>Resolution</span>
+          <span>Output resolution</span>
           <select value={scale} style={{ width: 170 }} onChange={(e) => setScale(Number(e.target.value))}>
             {SCALES.map((s) => (
               <option key={s} value={s}>
@@ -185,6 +200,11 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
             ))}
           </select>
         </label>
+        <p className="hint" data-testid="render-scale-explanation" style={{ margin: '-3px 0 2px' }}>
+          {scale === 1
+            ? 'Native project resolution. No scaling or layout reauthoring.'
+            : `${outW}×${outH} is scaled from the authored ${template.resolution.width}×${template.resolution.height} canvas. The layout is not reflowed, stretched, or cropped.`}
+        </p>
         {format === 'mp4' && (
           <label className="row" style={{ justifyContent: 'space-between' }}>
             <span>Background color <span className="hint">(MP4 has no transparency)</span></span>

@@ -13,6 +13,7 @@
 import type { AssetFile } from './types';
 import type { FieldDescriptor, VideoFieldKind } from './fieldModel';
 import { uuid } from './id';
+import { DEFAULT_VIDEO_FORMAT, DEFAULT_VIDEO_RESOLUTION } from './projectFormat';
 
 /** Which editor world the app is showing: SPX live graphics or the video editor. */
 export type DocKind = 'spx' | 'video';
@@ -276,7 +277,7 @@ export interface VideoProject {
   exportPrefs: VideoExportPrefs | null;
 }
 
-export const DEFAULT_VIDEO_FPS = 30;
+export const DEFAULT_VIDEO_FPS = DEFAULT_VIDEO_FORMAT.fps;
 export const DEFAULT_VIDEO_DURATION_SEC = 6;
 
 // The starter composition every new project begins with: real, valid Remotion code that
@@ -439,8 +440,8 @@ export function createDefaultVideoProject(
   const fps = init.fps ?? DEFAULT_VIDEO_FPS;
   const engine = init.engine ?? 'remotion';
   const durationInFrames = init.durationInFrames ?? DEFAULT_VIDEO_DURATION_SEC * fps;
-  const width = init.width ?? 1920;
-  const height = init.height ?? 1080;
+  const width = init.width ?? DEFAULT_VIDEO_RESOLUTION.width;
+  const height = init.height ?? DEFAULT_VIDEO_RESOLUTION.height;
   const transparent = init.transparent ?? false;
   return {
     id: uuid(),

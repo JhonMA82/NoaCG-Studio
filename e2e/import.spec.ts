@@ -38,6 +38,11 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
   // Import lives inside "Create with AI": drop the file, then the no-AI byte-faithful open.
   await page.locator('[data-entry="ai"]').click();
   await page.locator('.wz-drop input[type="file"]').setInputFiles({ name, mimeType: 'text/html', buffer });
+  // Foreign SPX does not carry a universal FPS field. NoaCG must say so and require an
+  // explicit project-format confirmation instead of silently assigning its default.
+  await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');
+  await expect(page.getByRole('button', { name: /Open as code \(no AI\)/ })).toBeDisabled();
+  await page.getByTestId('confirm-import-format').click();
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
     await expect(page.locator('.wz-modal')).toBeHidden();
@@ -86,7 +91,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
-    return { css: t.css, js: t.js };
+    return { css: t.css, js: t.js, resolution: t.resolution, fps: t.fps };
   });
   await page.getByTestId('dock-tab-export').click();
   const [download] = await Promise.all([
@@ -109,10 +114,19 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
-    return { name: t.name, css: t.css, js: t.js, fields: t.fields.length };
+    return {
+      name: t.name,
+      css: t.css,
+      js: t.js,
+      fields: t.fields.length,
+      resolution: t.resolution,
+      fps: t.fps,
+    };
   });
   expect(after.name).toBe('Hairline');
   expect(after.css.trim()).toBe(before.css.trim());
   expect(after.js.trim()).toBe(before.js.trim());
   expect(after.fields).toBe(2);
+  expect(after.resolution).toEqual(before.resolution);
+  expect(after.fps).toBe(before.fps);
 });

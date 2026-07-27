@@ -3,6 +3,7 @@ import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
+import { formatProjectSummary } from '../../../model/projectFormat';
 import { draftResolution, type WizardDraft } from '../draft';
 
 /** One "here is what you chose" line — the read-back the branch is taken in view of. */
@@ -46,7 +47,7 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
 
   const rows: SummaryRow[] = [
     { label: 'Design', value: variant.name },
-    { label: 'Canvas', value: `${res.width}×${res.height} · ${draft.fps} fps` },
+    { label: 'Project format', value: formatProjectSummary(res, draft.fps) },
   ];
   if (draft.lines.length > 0) {
     rows.push({
@@ -67,7 +68,10 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
 export function aiSummaryRows(template: SpxTemplate, valid: boolean): SummaryRow[] {
   const rows: SummaryRow[] = [
     { label: 'Design', value: template.name },
-    { label: 'Canvas', value: `${template.resolution.width}×${template.resolution.height} · ${template.fps} fps` },
+    {
+      label: 'Project format',
+      value: formatProjectSummary(template.resolution, template.fps),
+    },
   ];
   const fieldCount = template.fields.length;
   if (fieldCount > 0) {

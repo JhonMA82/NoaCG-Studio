@@ -1,5 +1,4 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { ASPECTS, FPS_OPTIONS } from '../../../model/types';
 import type { StyleTag } from '../../../model/fonts';
 import type { TemplateVariant } from '../../../model/wizard';
 import {
@@ -32,7 +31,13 @@ import {
 } from '../../../templates/search';
 import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
 import MiniPreview from '../MiniPreview';
-import type { DraftPatch, WizardDraft } from '../draft';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
+import {
+  draftFormatSelection,
+  formatDraftPatch,
+  type DraftPatch,
+  type WizardDraft,
+} from '../draft';
 
 interface Props {
   draft: WizardDraft;
@@ -189,7 +194,6 @@ function ResultCard({
  * lives in the wizard so Back returns with filters intact.
  */
 export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickVariant, onAi, brandFamily }: Props) {
-  const aspect = ASPECTS.find((a) => a.id === draft.aspectId) ?? ASPECTS[0];
   const set = (patch: Partial<BrowseFilters>) => onFilters((prev) => ({ ...prev, ...patch }));
   // One detail panel open at a time — the grid stays readable and Escape has one target.
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -261,42 +265,17 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         aria-label="Search templates"
       />
 
-      {/* Canvas format — the graphic's own frame, NOT a facet: nothing here narrows the
+      {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the
           results (browseTemplates never reads aspect), so it sits OUTSIDE the filter block
           and stays visible when the mobile drawer is shut. Inside it, changing 9:16 meant
           opening a control labelled "Filters" to make a decision that filters nothing. */}
-      <div className="wz-format row wz-browse-format">
-        <label>
-          Aspect
-          <select
-            value={draft.aspectId}
-            onChange={(e) => {
-              const a = ASPECTS.find((x) => x.id === e.target.value) ?? ASPECTS[0];
-              onDraft({ aspectId: a.id, resolutionLabel: a.resolutions[0].label });
-            }}
-          >
-            {ASPECTS.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Resolution
-          <select value={draft.resolutionLabel} onChange={(e) => onDraft({ resolutionLabel: e.target.value })}>
-            {aspect.resolutions.map((r) => (
-              <option key={r.label} value={r.label}>{r.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          FPS
-          <select value={draft.fps} onChange={(e) => onDraft({ fps: Number(e.target.value) })}>
-            {FPS_OPTIONS.map((f) => (
-              <option key={f} value={f}>{f} fps</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <ProjectFormatPicker
+        value={draftFormatSelection(draft)}
+        onChange={(selection) => onDraft(formatDraftPatch(selection))}
+        idPrefix="browse-format"
+        className="wz-browse-format"
+        description="Choose the authored canvas before selecting a design."
+      />
 
       {/* Mobile-only drawer toggle (CSS hides it above the breakpoint). */}
       <button

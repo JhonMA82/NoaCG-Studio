@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ASPECTS, FPS_OPTIONS } from '../../../model/types';
 import type { StyleTag } from '../../../model/fonts';
 import type { TemplateVariant } from '../../../model/wizard';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
 import MiniPreview from '../MiniPreview';
-import type { DraftPatch, WizardDraft } from '../draft';
+import {
+  draftFormatSelection,
+  formatDraftPatch,
+  type DraftPatch,
+  type WizardDraft,
+} from '../draft';
 
 interface Props {
   variants: TemplateVariant[];
@@ -45,7 +50,6 @@ function matches(v: TemplateVariant, f: Filters): boolean {
 
 /** Step 2 — pick the design (plus canvas format), narrowed by practical filters. */
 export default function TemplateStep({ variants, draft, onDraft, onPickVariant }: Props) {
-  const aspect = ASPECTS.find((a) => a.id === draft.aspectId) ?? ASPECTS[0];
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
 
   // Only offer chips that can actually narrow THIS category's catalog.
@@ -61,39 +65,12 @@ export default function TemplateStep({ variants, draft, onDraft, onPickVariant }
 
   return (
     <div>
-      {/* Canvas format */}
-      <div className="wz-format row">
-        <label>
-          Aspect
-          <select
-            value={draft.aspectId}
-            onChange={(e) => {
-              const a = ASPECTS.find((x) => x.id === e.target.value) ?? ASPECTS[0];
-              onDraft({ aspectId: a.id, resolutionLabel: a.resolutions[0].label });
-            }}
-          >
-            {ASPECTS.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Resolution
-          <select value={draft.resolutionLabel} onChange={(e) => onDraft({ resolutionLabel: e.target.value })}>
-            {aspect.resolutions.map((r) => (
-              <option key={r.label} value={r.label}>{r.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          FPS
-          <select value={draft.fps} onChange={(e) => onDraft({ fps: Number(e.target.value) })}>
-            {FPS_OPTIONS.map((f) => (
-              <option key={f} value={f}>{f} fps</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <ProjectFormatPicker
+        value={draftFormatSelection(draft)}
+        onChange={(selection) => onDraft(formatDraftPatch(selection))}
+        idPrefix="legacy-template-format"
+        description="The selected template will be authored for this project format."
+      />
 
       {/* Discovery filters — style family, logo capability, line capacity. */}
       {(styleTags.length > 1 || anyLogo || anyManyLines) && (
