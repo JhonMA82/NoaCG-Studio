@@ -24,6 +24,10 @@ example_projects/
 bench-*/
 video-bench-out*/
 compare-out*/
+# NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
+# blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)
+lite-bench-out*/
+lite-eval-out*/
 
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.

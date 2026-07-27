@@ -122,19 +122,17 @@ async function measureAndCapture(spec, fixtureId) {
   try {
     await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
     const measured = await page.evaluate(async ({ spec: designSpec }) => {
-      const { specToTemplate } = await import('/src/ai/designSpec.ts');
-      const { applyDesignAdjustments } = await import('/src/ai/designAdjust.ts');
-      const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-      const { benchTemplateRuntime, mergeResults } = await import('/src/validation/runtimeBench.ts');
+      // The ONE shared compile pipeline (src/ai/litePipeline.ts) - identical to what
+      // production runs after the same server decision. Never re-inline the steps here:
+      // a benchmark-only compile path is exactly the drift the module exists to prevent.
+      const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
       const context = {
         images: [],
         palette: null,
         resolution: { width: 1920, height: 1080, label: '1080p' },
         fps: 50,
       };
-      const assembled = specToTemplate(designSpec, context);
-      const template = applyDesignAdjustments(assembled.template, designSpec);
-      const validation = mergeResults(validateTemplate(template), await benchTemplateRuntime(template));
+      const { template, validation, spec } = await compileLiteDecision(designSpec, context);
       const { composeDocument } = await import('/src/preview/composeDocument.ts');
       document.body.innerHTML = '';
       document.body.style.cssText = 'margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(circle at 35% 20%,#334155,#111827 58%,#05070a)';
@@ -149,8 +147,8 @@ async function measureAndCapture(spec, fixtureId) {
       return {
         ok: validation.ok,
         ruleCodes: validation.errors.map((error) => error.rule),
-        category: designSpec.category,
-        variantId: designSpec.variantId,
+        category: spec.category,
+        variantId: spec.variantId,
         fieldCount: template.fields.length,
       };
     }, { spec });

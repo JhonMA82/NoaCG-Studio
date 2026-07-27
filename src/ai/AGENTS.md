@@ -59,6 +59,14 @@ DesignSpec. A grounded failure is reported to the server as a platform validatio
 No model call may rewrite the compiled code. Unsupported scope returns a typed explanation
 and simplification, never an automatic expensive fallback.
 
+**`litePipeline.ts` is the ONE grounded compile path** - normalizeLiteSpec +
+assembleGroundedTemplate (specToTemplate → applyDesignAdjustments → ensureSpecFonts →
+applySpecOutPreset) + productionSpxValidator (static + bench + safety screen, the same
+composition AiStep injects). claudeProvider is built FROM it, and the Lite benchmark
+runners (`scripts/ai-lite-*.mjs`, docs/AI_LITE_BENCHMARK.md) compile through the identical
+function - never re-inline the sequence anywhere; `scripts/ai-lite-bench.test.mjs` pins
+that no second copy exists.
+
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/

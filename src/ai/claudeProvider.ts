@@ -18,9 +18,9 @@ import { RESOLUTIONS, type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } fr
 import { parseDataUrl } from '../assets/assetUtils';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { lt01 } from '../templates/lowerThirds/lt01';
-import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, specToTemplate, type DesignSpec } from './designSpec';
+import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, type DesignSpec } from './designSpec';
 import { preferenceHint } from './preferences';
-import { applyDesignAdjustments } from './designAdjust';
+import { assembleGroundedTemplate, normalizeLiteSpec } from './litePipeline';
 import { applyPolish, POLISH_TOOL, type PolishPatch } from './polish';
 import { variantsFor } from '../templates/catalog';
 import type { TemplateVariant } from '../model/wizard';
@@ -707,12 +707,10 @@ async function groundedResult(
 ): Promise<AiTemplateChange> {
   options?.onProgress?.('Assembling…');
   const t0 = Date.now();
-  const assembled = specToTemplate(spec, ctx);
-  // The spec's compositional parameters (typography scale, density, shape, panel) apply
-  // as deterministic overrides — the brief shapes the composition, not just the colours.
-  // Then the user's own decisions: secondary/numeric uploaded fonts ground as embedded
-  // assets, and an explicit exit preset swaps in as real keyframes (blocks/presetApply).
-  let template = applySpecOutPreset(ensureSpecFonts(applyDesignAdjustments(assembled.template, spec), ctx?.spec), ctx?.spec);
+  // The deterministic assembly sequence lives in litePipeline, shared verbatim with the
+  // Lite benchmark runners — one compile path, so a benchmark result describes the product.
+  const assembled = assembleGroundedTemplate(spec, ctx);
+  let template = assembled.template;
   run.stage('assemble', t0);
   run.diversity(assembled.diversity);
   options?.onProgress?.('Testing it…');
@@ -752,15 +750,7 @@ async function liteGroundedResult(
   if (decision.status !== 'ready') throw new LiteRequestError('generation_failed', 'NoaCG Lite returned no design.');
   run.stage('lite-design-spec', started, undefined, generated.usage);
   run.managed('lite', generated.generationId);
-  const spec = applySpecLocks(
-    {
-      ...decision.spec,
-      fit: 'catalog',
-      flourish: null,
-      lines: Array.isArray(decision.spec.lines) ? decision.spec.lines : [],
-    } as DesignSpec,
-    context.spec,
-  );
+  const spec = normalizeLiteSpec(decision.spec as DesignSpec, context.spec);
   const assembledAt = Date.now();
   try {
     const change = await groundedResult(spec, context, { ...options, profile: undefined }, run);

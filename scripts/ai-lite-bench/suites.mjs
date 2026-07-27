@@ -1,0 +1,378 @@
+// The NoaCG Lite benchmark suite definitions - frozen briefs, gold specs, the trivial
+// floor, and the repair suite. Versioned: any change to a frozen brief, an expected label,
+// a gold spec, or a repair expectation is a NEW suite version, never a silent rewrite
+// (results recorded under different versions are not comparable).
+//
+// The CORE suite is visible and used during development. The hidden holdout lives in
+// holdout.mjs and must never be used for prompt tuning or shown in development reports.
+
+export const LITE_BENCH_SUITE_ID = 'lite-spec-v1';
+
+// ── The core suite (8 briefs, each with a labelled expected outcome) ─────────
+//
+// Briefs marked with a fixtureId reuse the exact prompt text from
+// scripts/ai-lite-lower-third-fixtures.mjs so the paid eval runner and this suite can
+// never drift apart on shared briefs. Expected decisions: Lite is lower-third-only, so
+// off-category briefs are EXPECTED-UNSUPPORTED - a model (or the zero-cost pattern
+// screen) forcing them into a lower third is the UNSUPPORTED_FORCED failure.
+//
+// `fields` are the labelled operator values - the gold and floor compilers use them, and
+// category-accuracy scoring compares `expect` against the returned decision.
+
+export const CORE_SUITE = [
+  {
+    id: 'core-news-reporter',
+    fixtureId: 'news-reporter',
+    brief: 'A restrained public-news lower third for reporter name Amina Okafor and role East Africa Correspondent. Dark editorial palette, clear hierarchy, calm entrance.',
+    expect: {
+      decision: 'ready',
+      aiCategory: 'lower-third',
+      intentKind: 'person',
+      roles: ['person-name', 'person-role'],
+    },
+    fields: {
+      primary: { title: 'Name', sample: 'Amina Okafor', role: 'person-name' },
+      secondary: { title: 'Role', sample: 'East Africa Correspondent', role: 'person-role' },
+    },
+  },
+  {
+    id: 'core-esports-player',
+    fixtureId: 'esports-player',
+    brief: 'An energetic esports lower third for player nickname NOVA and team Arctic Rift. Sharp hierarchy, fast controlled entrance, excellent legibility.',
+    expect: {
+      decision: 'ready',
+      aiCategory: 'lower-third',
+      intentKind: 'person',
+      roles: ['person-name', 'team-name'],
+    },
+    fields: {
+      primary: { title: 'Player', sample: 'NOVA', role: 'person-name' },
+      secondary: { title: 'Team', sample: 'Arctic Rift', role: 'team-name' },
+    },
+  },
+  {
+    id: 'core-university-speaker',
+    fixtureId: 'university-speaker',
+    brief: 'A university lecture lower third for speaker name Dr. Anika Ramanathan and academic role Professor of Environmental Engineering. Modern, credible, calm, and accessible.',
+    expect: {
+      decision: 'ready',
+      aiCategory: 'lower-third',
+      intentKind: 'person',
+      roles: ['person-name', 'person-role'],
+    },
+    fields: {
+      primary: { title: 'Speaker', sample: 'Dr. Anika Ramanathan', role: 'person-name' },
+      secondary: { title: 'Role', sample: 'Professor of Environmental Engineering', role: 'person-role' },
+    },
+  },
+  {
+    id: 'core-house-direction',
+    brief: 'A lower third in NoaCG’s own house style - dark control-room panel, one amber on-air accent, restrained glow - for presenter name Noa Lehti and role Broadcast Director. Confident and premium.',
+    expect: {
+      decision: 'ready',
+      aiCategory: 'lower-third',
+      intentKind: 'person',
+      roles: ['person-name', 'person-role'],
+      // The one brief with a chassis-level expectation: the house style IS lt11.
+      variantId: 'lt11',
+    },
+    fields: {
+      primary: { title: 'Name', sample: 'Noa Lehti', role: 'person-name' },
+      secondary: { title: 'Role', sample: 'Broadcast Director', role: 'person-role' },
+    },
+  },
+  {
+    id: 'core-ambiguous-default',
+    fixtureId: 'ambiguous-default',
+    brief: 'Create a professional lower third for Taylor Morgan, Senior Producer. Choose a sensible broadcast style and make both fields immediately editable.',
+    expect: {
+      decision: 'ready',
+      aiCategory: 'lower-third',
+      intentKind: 'person',
+      roles: ['person-name', 'person-role'],
+    },
+    fields: {
+      primary: { title: 'Name', sample: 'Taylor Morgan', role: 'person-name' },
+      secondary: { title: 'Role', sample: 'Senior Producer', role: 'person-role' },
+    },
+  },
+  {
+    id: 'core-title-card-longtext',
+    brief: 'A full-screen title card that opens the programme with the long title Understanding the Baltic Sea: Currents, Climate and Coastal Communities, plus a presenter credit line.',
+    expect: { decision: 'unsupported', unsupportedCode: 'unsupported-category' },
+  },
+  {
+    id: 'core-info-card-multiline',
+    brief: 'A multi-line information card listing tonight’s four panel guests with their roles, stacked under a heading.',
+    expect: { decision: 'unsupported', unsupportedCode: 'unsupported-category' },
+  },
+  {
+    id: 'core-video-request',
+    brief: 'Generate a 20-second cinematic intro video with a 3D scene and camera moves for our esports show.',
+    expect: { decision: 'unsupported', unsupportedCode: 'video-request' },
+  },
+];
+
+// ── Gold specs (the calibration CEILING) ─────────────────────────────────────
+//
+// Hand-written, deliberately good decisions for three core briefs, compiled through the
+// production pipeline. If these do not review well, the CATALOG is the ceiling and no
+// model choice will move it - that is the most valuable measurement in the system.
+// Shapes must pass validateLiteDecision (pinned by scripts/ai-lite-bench.test.mjs).
+
+export const GOLD_SPECS = [
+  {
+    briefId: 'core-news-reporter',
+    decision: {
+      status: 'ready',
+      aiCategory: 'lower-third',
+      spec: {
+        fit: 'catalog',
+        reason: 'Public-news reporter super: the editorial rule-led Masthead carries a calm, credible hierarchy.',
+        name: 'Reporter strap',
+        summary: 'Editorial masthead lower third with a confident name over a tracked role line.',
+        category: 'lower-third',
+        variantId: 'lt25',
+        intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+        lines: [
+          { title: 'Name', sample: 'Amina Okafor', role: 'person-name' },
+          { title: 'Role', sample: 'East Africa Correspondent', role: 'person-role' },
+        ],
+        flourish: '',
+      },
+    },
+  },
+  {
+    briefId: 'core-esports-player',
+    decision: {
+      status: 'ready',
+      aiCategory: 'lower-third',
+      spec: {
+        fit: 'catalog',
+        reason: 'High-energy esports player ident: the condensed Angle Slab carries fast controlled motion.',
+        name: 'Player strap',
+        summary: 'Bold forward-leaning sport slab with the nickname leading and the team beneath.',
+        category: 'lower-third',
+        variantId: 'lt05',
+        intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'team-name' },
+        lines: [
+          { title: 'Player', sample: 'NOVA', role: 'person-name' },
+          { title: 'Team', sample: 'Arctic Rift', role: 'team-name' },
+        ],
+        flourish: '',
+      },
+    },
+  },
+  {
+    briefId: 'core-university-speaker',
+    decision: {
+      status: 'ready',
+      aiCategory: 'lower-third',
+      spec: {
+        fit: 'catalog',
+        reason: 'University lecture super: the panel-free Underline reads modern, credible, and calm.',
+        name: 'Speaker strap',
+        summary: 'Minimal underline lower third with generous whitespace and a long-title-capable role line.',
+        category: 'lower-third',
+        variantId: 'lt02',
+        intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+        lines: [
+          { title: 'Speaker', sample: 'Dr. Anika Ramanathan', role: 'person-name' },
+          { title: 'Role', sample: 'Professor of Environmental Engineering', role: 'person-role' },
+        ],
+        flourish: '',
+      },
+    },
+  },
+];
+
+// ── The trivial floor ────────────────────────────────────────────────────────
+//
+// A seeded-random valid chassis within the correct category, carrying the brief's
+// labelled fields untouched. A model that does not clearly beat this on human review is
+// contributing nothing beyond the catalog itself.
+
+/** Deterministic PRNG (mulberry32) - benchmark runs must not depend on Math.random(). */
+export function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Build the floor decision for a labelled core brief: a seeded-random chassis whose
+ * intentKinds allow the brief's labelled intent. `catalog` is LITE_CATALOG (passed in -
+ * this file stays importable without the TypeScript contract).
+ */
+export function floorDecision(brief, catalog, seed) {
+  if (brief.expect.decision !== 'ready') return null;
+  const eligible = catalog.filter((entry) => entry.intentKinds.includes(brief.expect.intentKind));
+  if (!eligible.length) return null;
+  const pick = eligible[Math.floor(seededRandom(seed)() * eligible.length)];
+  const lines = [brief.fields.primary, ...(brief.fields.secondary ? [brief.fields.secondary] : [])];
+  return {
+    status: 'ready',
+    aiCategory: pick.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'Trivial floor: random valid chassis in the correct category.',
+      name: 'Floor',
+      summary: 'Random valid chassis carrying the labelled fields.',
+      category: pick.category,
+      variantId: pick.variantId,
+      intent: {
+        kind: brief.expect.intentKind,
+        primaryRole: lines[0].role,
+        ...(lines[1] ? { secondaryRole: lines[1].role } : {}),
+      },
+      lines: lines.map(({ title, sample, role }) => ({ title, sample, role })),
+      flourish: '',
+    },
+  };
+}
+
+// ── The repair suite (validator regression, zero model calls) ────────────────
+//
+// Malformed or semantically inconsistent decisions with the EXACT rule codes
+// validateLiteDecision must emit. This pins the platform half of the repair loop: the
+// server feeds these codes back to the model, so a code that stops firing (or fires
+// wrongly) silently changes what every candidate is asked to repair.
+
+const repairRequest = (prompt) => ({
+  prompt,
+  resolution: { width: 1920, height: 1080 },
+  fps: 50,
+});
+
+const readyDecision = (spec) => ({ status: 'ready', aiCategory: 'lower-third', spec });
+
+const baseSpec = () => ({
+  fit: 'catalog',
+  reason: 'r',
+  name: 'n',
+  summary: 's',
+  category: 'lower-third',
+  variantId: 'lt11',
+  intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+  lines: [
+    { title: 'Name', sample: 'Ada Example', role: 'person-name' },
+    { title: 'Role', sample: 'Example Editor', role: 'person-role' },
+  ],
+  flourish: '',
+});
+
+export const REPAIR_SUITE = [
+  {
+    id: 'repair-unknown-variant',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({ ...baseSpec(), variantId: 'lt99' }),
+    expectErrors: ['variant_not_allowed'],
+  },
+  {
+    id: 'repair-category-variant-mismatch',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({ ...baseSpec(), category: 'info-card' }),
+    expectErrors: ['category_variant_mismatch'],
+  },
+  {
+    id: 'repair-line-count',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      lines: [
+        { title: 'Name', sample: 'Ada Example', role: 'person-name' },
+        { title: 'Role', sample: 'Example Editor', role: 'person-role' },
+        { title: 'Extra', sample: 'One line too many', role: 'supporting-context' },
+      ],
+    }),
+    expectErrors: ['line_count_invalid'],
+  },
+  {
+    id: 'repair-primary-role-mismatch',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      lines: [
+        { title: 'Role', sample: 'Example Editor', role: 'person-role' },
+        { title: 'Name', sample: 'Ada Example', role: 'person-name' },
+      ],
+    }),
+    expectErrors: ['primary_role_mismatch', 'secondary_role_mismatch'],
+  },
+  {
+    id: 'repair-intent-variant-mismatch',
+    request: repairRequest('A promotional lower third with the call to action Subscribe now.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      variantId: 'lt25',
+      intent: { kind: 'promotion', primaryRole: 'call-to-action' },
+      lines: [{ title: 'Call to action', sample: 'Subscribe now', role: 'call-to-action' }],
+    }),
+    expectErrors: ['intent_variant_mismatch'],
+  },
+  {
+    id: 'repair-extra-fields-forbidden',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      extraFields: [{ title: 'Ticker', ftype: 'textfield', value: 'x' }],
+    }),
+    expectErrors: ['lower_third_extra_fields_forbidden'],
+  },
+  {
+    id: 'repair-flourish-forbidden',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({ ...baseSpec(), flourish: 'particle shimmer' }),
+    expectErrors: ['flourish_forbidden'],
+  },
+  {
+    id: 'repair-logo-not-supported',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({ ...baseSpec(), useLogoSlot: true }),
+    expectErrors: ['logo_not_supported'],
+  },
+  {
+    id: 'repair-contrast-low',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      palette: { accent: '#ffb000', text: '#777777', textDim: '#6a6a6a', panel: '#666666' },
+    }),
+    expectErrors: ['primary_text_contrast_low', 'secondary_text_contrast_low'],
+  },
+  {
+    id: 'repair-requested-role-missing',
+    request: repairRequest('A lower third for reporter name Ada Example and role Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      intent: { kind: 'organization', primaryRole: 'organization', secondaryRole: 'supporting-context' },
+      lines: [
+        { title: 'Organization', sample: 'Example Newsroom', role: 'organization' },
+        { title: 'Context', sample: 'Nightly briefing', role: 'supporting-context' },
+      ],
+    }),
+    expectErrors: ['requested_role_missing:person-name', 'requested_role_missing:person-role'],
+  },
+  {
+    id: 'repair-valid-unsupported-passes',
+    request: repairRequest('A branching state machine with four parallel groups.'),
+    decision: {
+      status: 'unsupported',
+      unsupportedCode: 'advanced-state-machine',
+      message: 'Lite does not create advanced branching or parallel state machines.',
+      suggestedBrief: 'Ask for one graphic with a simple entrance, hold, update, and exit.',
+    },
+    expectErrors: [],
+  },
+  {
+    id: 'repair-valid-gold-passes',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision(baseSpec()),
+    expectErrors: [],
+  },
+];

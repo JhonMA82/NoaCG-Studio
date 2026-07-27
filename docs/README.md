@@ -39,6 +39,8 @@ Layers of documentation, top to bottom:
 | `EXPORT_TARGETS_RESEARCH.md` | Where exports run: shipped targets + the doctrine for adding one. |
 | `FORMATTING.md` | What Prettier may and may not touch, and why. |
 | `DEV_PORTS.md` | Per-worktree dev-port reservation. |
+| `AI_LITE_BENCHMARK.md` | The NoaCG Lite model-evaluation benchmark: the context-assembly trace, the shared compile pipeline (`src/ai/litePipeline.ts`), suites, calibration, regression vs model comparison, blind review, storage boundaries. |
+| `AI_LITE_PROMOTION.md` | Lite route promotion policy: eligibility gates (thresholds owner-TODO), ranking, the proposed-route output, and the manual broadcast verification checklist. |
 | `ACCEPTANCE_SPX_CASPARCG.md` | OPEN manual checklist: the parts of acceptance only a real SPX/CasparCG stack can prove. Not yet run. |
 
 ## Active plans (decided, not done)

@@ -1,0 +1,12 @@
+{
+  "suiteId": "lite-spec-v1",
+  "gitCommit": "1a283b44af15440af6f323bf80f16253197f9f25",
+  "hashes": {
+    "liteContract": "1306b7cee51f0d72",
+    "pipeline": "fd36bbe97a778407",
+    "catalog": "14a0e3c13f2eaad6",
+    "validators": "840d7b490db08893",
+    "suite": "4e5dd7dec649124f"
+  },
+  "recordedAt": "2026-07-27T12:21:25.990Z"
+}

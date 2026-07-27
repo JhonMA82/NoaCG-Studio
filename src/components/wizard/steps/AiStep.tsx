@@ -7,7 +7,8 @@ import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxVal
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
-import { mergeSafety, withSafetyChecks } from '../../../ai/safety';
+import { mergeSafety } from '../../../ai/safety';
+import { productionSpxValidator } from '../../../ai/litePipeline';
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import {
   emptyGenerationSpec,
@@ -28,7 +29,6 @@ import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
 import type { AiThread, AiThreadMessage } from '../../../model/aiThread';
 import type { Palette } from '../../../model/wizard';
 import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
-import { benchTemplateRuntime, mergeResults } from '../../../validation/runtimeBench';
 import { readinessRows, unclaimedFindings } from '../../../validation/readiness';
 import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
@@ -325,19 +325,15 @@ export default function AiStep({
     if (next.length !== images.length) setImages(next);
   };
 
-  // The harness's injected validation pipeline: static rules + the live runtime bench
-  // (lifecycle, field binding, overlap/overflow, double-length stress) — bench findings
-  // drive the provider's repair rounds. The structured setup adds its own checks on top
-  // (requested fields present, uploaded fonts actually used).
-  //
-  // The SAFETY screen (src/ai/safety.ts) wraps the pair before the spec checks: it asks what the
-  // generated code DOES, which nothing else here asks. It sits INSIDE the injected validator on
-  // purpose — the bench executes the result the moment it lands, so the finding has to reach the
-  // provider's repair loop rather than a review step the code has already run past. `imported`
-  // is the source for a convert, so a template that already called fetch() before the AI touched
-  // it is not reported as something the AI introduced.
-  const baseValidate: SpxValidator = async (t) => mergeResults(validateTemplate(t), await benchTemplateRuntime(t));
-  const safeValidate: SpxValidator = withSafetyChecks(baseValidate, imported?.template ?? null);
+  // The harness's injected validation pipeline (static rules + the live runtime bench,
+  // wrapped in the safety screen) comes from litePipeline.productionSpxValidator — the ONE
+  // composition, shared with the Lite benchmark runners. The safety screen sits INSIDE the
+  // injected validator on purpose: the bench executes the result the moment it lands, so a
+  // finding has to reach the provider's repair loop rather than a review step the code has
+  // already run past. `imported` is the source for a convert, so a template that already
+  // called fetch() before the AI touched it is not reported as something the AI introduced.
+  // The structured setup adds its own checks on top (requested fields present, fonts used).
+  const safeValidate: SpxValidator = productionSpxValidator(imported?.template ?? null);
   const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
 
   const showChange = (change: AiTemplateChange) => {

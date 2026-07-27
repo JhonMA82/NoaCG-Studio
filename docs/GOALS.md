@@ -674,6 +674,14 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       custom-palette contrast fail before compilation; a versioned 24-brief benchmark covers
       broadcast genres and text stress; thresholded accepted/discarded chassis outcomes feed a
       content-free server-side tie-breaker without storing prompts or generated artifacts
+- [x] **Lite evaluation benchmark, free phases (2026-07-27)** - the one shared compile
+      pipeline (`src/ai/litePipeline.ts`, production and benchmark build from it; equivalence
+      pinned in the build gate); versioned core/holdout/repair suites with labelled expected
+      outcomes; zero-cost calibration (gold ceiling + seeded floor, both machine-valid) and
+      regression mode with pipeline-identity hashing; blind review gallery with planted
+      repeat items; honest report keeping machine validity, acceptance, and visual score
+      separate (`docs/AI_LITE_BENCHMARK.md`, `docs/AI_LITE_PROMOTION.md`). Model discovery/
+      comparison phases deliberately deferred until the catalog freezes.
 - [x] Prompt → graphic template ("Describe it" wizard entry: validated before apply, one
       automatic repair round on validator errors, refine loop on the result; generated code
       keeps the house contracts so the Style/Motion panels and brand still work on it)
