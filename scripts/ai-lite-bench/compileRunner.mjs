@@ -57,7 +57,7 @@ export async function assertDevServer(base) {
  * Returns { ok, ruleCodes, warnings, category, variantId, fieldCount }.
  */
 async function compileInPage(page, decision) {
-  return page.evaluate(async ({ spec }) => {
+  return page.evaluate(async ({ spec, skin }) => {
     const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const context = {
@@ -66,7 +66,7 @@ async function compileInPage(page, decision) {
       resolution: { width: 1920, height: 1080, label: '1080p' },
       fps: 50,
     };
-    const result = await compileLiteDecision(spec, context);
+    const result = await compileLiteDecision(spec, context, skin ?? undefined);
     document.body.innerHTML = '';
     document.body.style.cssText = 'margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(circle at 35% 20%,#334155,#111827 58%,#05070a)';
     const frame = document.createElement('iframe');
@@ -83,9 +83,10 @@ async function compileInPage(page, decision) {
       warningCodes: result.validation.warnings.map((warning) => warning.rule),
       category: result.spec.category,
       variantId: result.spec.variantId ?? null,
+      skinApplied: result.skinApplied,
       fieldCount: result.template.fields.length,
     };
-  }, { spec: decision.spec });
+  }, { spec: decision.spec, skin: decision.skin ?? null });
 }
 
 /**

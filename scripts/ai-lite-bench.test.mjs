@@ -91,6 +91,69 @@ test('production src never imports benchmark code (bundle exclusion)', () => {
   }
 });
 
+// ── The skin contract (server-flagged; default behavior must stay byte-stable) ─
+
+test('the default contract carries no skin; the skin contract adds it optionally', () => {
+  const base = contract.LITE_READY_OUTPUT.schema;
+  assert.equal(base.properties.skin, undefined);
+  assert.deepEqual(base.required, ['status', 'aiCategory', 'spec']);
+  const skinful = contract.LITE_READY_OUTPUT_SKIN.schema;
+  assert.ok(skinful.properties.skin, 'skin contract must offer the skin property');
+  assert.deepEqual(skinful.required, ['status', 'aiCategory', 'spec'], 'skin stays OPTIONAL');
+  assert.equal(contract.LITE_READY_OUTPUT_SKIN.name, contract.LITE_READY_OUTPUT.name);
+});
+
+test('the system prompt teaches the skin only when the profile enables it', () => {
+  assert.doesNotMatch(contract.liteSystemPrompt('v'), /Skin Canvas/);
+  assert.match(contract.liteSystemPrompt('v', [], { skin: true }), /Skin Canvas/);
+});
+
+const GOLD_SKIN = {
+  summary: 'A brutalist concrete slab with stencil type.',
+  css: '.lower-third-box { background: var(--panel-bg); border: calc(3px * var(--scale)) solid var(--accent); }',
+};
+
+test('liteSkinPatchErrors: a legal patch passes, every forbidden construct is named', () => {
+  assert.deepEqual(contract.liteSkinPatchErrors(GOLD_SKIN), []);
+  const errorsFor = (patch) => contract.liteSkinPatchErrors({ ...GOLD_SKIN, ...patch });
+  assert.ok(errorsFor({ css: ':root { --accent: red; }' }).includes('skin_css_forbidden'));
+  assert.ok(errorsFor({ css: '@font-face { font-family: x; }' }).includes('skin_css_forbidden'));
+  assert.ok(errorsFor({ css: '@import "x.css";' }).includes('skin_css_forbidden'));
+  assert.ok(errorsFor({ css: '.a { background: url(https://cdn.example/x.png); }' })
+    .includes('skin_css_external_reference'));
+  assert.ok(errorsFor({ css: '<style>.a{}</style>' }).includes('skin_css_forbidden'));
+  assert.ok(errorsFor({ css: `.a { /* ${'x'.repeat(7000)} */ }` }).includes('skin_css_too_long'));
+  assert.ok(errorsFor({ css: '' }).includes('skin_css_missing'));
+  assert.ok(errorsFor({ summary: '' }).includes('skin_summary_invalid'));
+  assert.ok(errorsFor({ html: '<script>alert(1)</script>' }).includes('skin_html_script'));
+  assert.ok(errorsFor({ html: '<img src="https://cdn.example/x.png">' })
+    .includes('skin_html_external_reference'));
+  assert.deepEqual(contract.liteSkinPatchErrors('nope'), ['skin_shape_invalid']);
+});
+
+test('validateLiteDecision strips a skin by default and validates it when enabled', () => {
+  const gold = GOLD_SPECS[0];
+  const brief = CORE_SUITE.find((b) => b.id === gold.briefId);
+  const withSkin = { ...gold.decision, skin: GOLD_SKIN };
+  // Default (skin disabled): the decision is valid and the skin never reaches the browser.
+  const stripped = contract.validateLiteDecision(withSkin, request(brief.brief));
+  assert.deepEqual(stripped.errors, []);
+  assert.equal(stripped.decision.skin, undefined);
+  // Enabled: the same decision carries the normalized skin through.
+  const carried = contract.validateLiteDecision(withSkin, request(brief.brief), 8, { skin: true });
+  assert.deepEqual(carried.errors, []);
+  assert.deepEqual(carried.decision.skin, GOLD_SKIN);
+  // Enabled with an illegal skin: a semantic failure that earns the repair round.
+  const illegal = contract.validateLiteDecision(
+    { ...gold.decision, skin: { ...GOLD_SKIN, css: ':root { color: red; }' } },
+    request(brief.brief),
+    8,
+    { skin: true },
+  );
+  assert.ok(illegal.errors.includes('skin_css_forbidden'));
+  assert.equal(illegal.decision, undefined);
+});
+
 // ── Suite integrity ──────────────────────────────────────────────────────────
 
 test('core suite: 8 briefs, unique ids, fixture texts in step with the fixture bank', () => {

@@ -5,6 +5,7 @@ import type {
   LiteGenerationRequest,
   LiteLowerThirdIntentKind,
   LiteLowerThirdLineRole,
+  LiteSkinPatch,
   LiteUnsupportedCode,
   LiteVariantQualityPrior,
 } from './liteTypes';
@@ -246,6 +247,101 @@ export const LITE_READY_OUTPUT: StructuredOutput = {
   },
 };
 
+// ── The SKIN extension (server-flagged; absent from the default contract above) ──────────
+//
+// A skin is bounded restyling for the neutral Skin Canvas chassis: override CSS appended
+// after the design CSS (cascade wins) plus optional decorative inner HTML for the root.
+// The compiled structure — fields, animation region, zone placement, SPX lifecycle — stays
+// deterministic; the browser applies the skin through the polish gate and REVERTS to the
+// spec's house chassis when any check or the runtime bench fails.
+
+export const LITE_SKIN_LIMITS = {
+  summaryChars: 200,
+  cssChars: 6000,
+  htmlChars: 4000,
+} as const;
+
+/** The canvas class contract the skin restyles — one list, shared by prompt and docs. */
+export const LITE_SKIN_CANVAS_CLASSES =
+  '.lower-third (root — never reposition it), .lower-third-box (the panel), '
+  + '.lower-third-accent (the accent bar), .lower-third-mask (per-line wrappers), '
+  + '.lower-third-name (#f0), .lower-third-title (#f1)';
+
+// Mirrors the polish gate's forbidden set, plus the offline-first rules: no imports and no
+// external URLs (generated templates carry no network dependencies, ever).
+const SKIN_CSS_FORBIDDEN = /:root\s*\{|@font-face|== ANIMATION|<[a-z!/]|@import\b/i;
+const SKIN_EXTERNAL_URL = /url\s*\(\s*['"]?\s*(?:https?:)?\/\//i;
+const SKIN_HTML_EXTERNAL = /\b(?:src|href)\s*=\s*["']?\s*(?:https?:)?\/\//i;
+
+const skinSchema: Record<string, unknown> = {
+  type: 'object',
+  required: ['summary', 'css'],
+  additionalProperties: false,
+  properties: {
+    summary: { type: 'string', minLength: 1, maxLength: LITE_SKIN_LIMITS.summaryChars },
+    css: { type: 'string', minLength: 1, maxLength: LITE_SKIN_LIMITS.cssChars },
+    html: { type: 'string', maxLength: LITE_SKIN_LIMITS.htmlChars },
+  },
+};
+
+/** The skin-enabled contract: the ready output plus an OPTIONAL skin patch. */
+export const LITE_READY_OUTPUT_SKIN: StructuredOutput = {
+  name: LITE_READY_OUTPUT.name,
+  description: 'Return one ready lower-third design, optionally with a canvas skin.',
+  schema: {
+    type: 'object',
+    required: ['status', 'aiCategory', 'spec'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ready'] },
+      aiCategory: { type: 'string', enum: LITE_AI_CATEGORIES },
+      spec: specSchema,
+      skin: skinSchema,
+    },
+  },
+};
+
+/**
+ * The ONE semantic definition of a legal skin patch — the server validates with it (so a
+ * violation earns the model a repair round with named errors) and the browser re-checks it
+ * before the structural polish gate. Returns error codes, empty = legal.
+ */
+export function liteSkinPatchErrors(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ['skin_shape_invalid'];
+  const skin = value as Record<string, unknown>;
+  const errors: string[] = [];
+  const summary = typeof skin.summary === 'string' ? skin.summary.trim() : '';
+  if (!summary || summary.length > LITE_SKIN_LIMITS.summaryChars) errors.push('skin_summary_invalid');
+  const css = typeof skin.css === 'string' ? skin.css.trim() : '';
+  if (!css) errors.push('skin_css_missing');
+  else {
+    if (css.length > LITE_SKIN_LIMITS.cssChars) errors.push('skin_css_too_long');
+    if (SKIN_CSS_FORBIDDEN.test(css)) errors.push('skin_css_forbidden');
+    if (SKIN_EXTERNAL_URL.test(css)) errors.push('skin_css_external_reference');
+  }
+  if (skin.html !== undefined) {
+    if (typeof skin.html !== 'string') errors.push('skin_html_invalid');
+    else {
+      if (skin.html.length > LITE_SKIN_LIMITS.htmlChars) errors.push('skin_html_too_long');
+      if (/<script/i.test(skin.html)) errors.push('skin_html_script');
+      if (SKIN_EXTERNAL_URL.test(skin.html) || SKIN_HTML_EXTERNAL.test(skin.html)) {
+        errors.push('skin_html_external_reference');
+      }
+    }
+  }
+  return errors;
+}
+
+/** The validated, trimmed patch (call only after liteSkinPatchErrors returned empty). */
+export function normalizeLiteSkinPatch(value: unknown): LiteSkinPatch {
+  const skin = value as { summary: string; css: string; html?: string };
+  return {
+    summary: skin.summary.trim(),
+    css: skin.css.trim(),
+    ...(typeof skin.html === 'string' && skin.html.trim() ? { html: skin.html } : {}),
+  };
+}
+
 const unsupportedPatterns: { code: LiteUnsupportedCode; pattern: RegExp; message: string; suggestion: string }[] = [
   { code: 'multi-graphic-request', pattern: /\b(package|graphics package|set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
   { code: 'advanced-state-machine', pattern: /\b(branching|state machine|multiple parallel states|conditional transition)\b/i, message: 'Lite does not create advanced branching or parallel state machines.', suggestion: 'Ask for one graphic with a simple entrance, hold, update, and exit.' },
@@ -306,9 +402,22 @@ function qualityPriorDigest(priors: readonly LiteVariantQualityPrior[]): string 
   ].join('\n');
 }
 
+/** The skin teaching block — appended only when the server profile enables skins. */
+function skinPromptLines(): string[] {
+  return [
+    'Skins: when the brief asks for a distinctive visual style none of the listed chassis can deliver, you may ALSO return skin:{summary,css,html?}. The platform then compiles the neutral Skin Canvas chassis and appends your CSS after its design CSS, so your rules win by cascade.',
+    `Skin Canvas structure (the contract — restyle these, never rename or reposition the root): ${LITE_SKIN_CANVAS_CLASSES}.`,
+    'Skin CSS rules: take colors from var(--accent), var(--text-color), var(--text-dim), var(--panel-bg); write every size as calc(Npx * var(--scale)) and multiply font sizes additionally by var(--type-scale). Never write :root, @font-face, @import, external url(), scripts, or markup inside css.',
+    'skin.html is optional and only for decorative elements: it is the root element\'s COMPLETE new inner HTML, keeping every existing id="fN" exactly once and each inside its .lower-third-mask wrapper. No <script>.',
+    'A skinned result is still a broadcast lower third: the name reads instantly over moving video, hierarchy stays intentional, and text keeps generous spacing. Distinctive means committed shape, texture, and typographic character — never illegible.',
+    'When the brief fits a listed chassis well, omit skin entirely.',
+  ];
+}
+
 export function liteSystemPrompt(
   promptVersion: string,
   qualityPriors: readonly LiteVariantQualityPrior[] = [],
+  options?: { skin?: boolean },
 ): string {
   return [
     `NoaCG Lite Design Director ${promptVersion}.`,
@@ -328,6 +437,7 @@ export function liteSystemPrompt(
     'Bespoke palette values need at least 4.5:1 primary-text contrast and 3:1 secondary-text contrast against the panel.',
     'Prioritize legibility, intentional hierarchy, generous spacing, realistic text capacity, correct lower-third conventions, and motion that follows reading order.',
     'A requested visual style should select and tune the nearest compatible chassis, not make the request unsupported.',
+    ...(options?.skin ? skinPromptLines() : []),
     'Catalog:',
     liteCatalogDigest(),
     qualityPriorDigest(qualityPriors),
@@ -436,6 +546,7 @@ export function validateLiteDecision(
   value: unknown,
   request: LiteGenerationRequest,
   maxFields = 8,
+  options?: { skin?: boolean },
 ): LiteSemanticResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return { errors: ['decision_not_object'] };
   const output = value as Record<string, unknown>;
@@ -510,5 +621,19 @@ export function validateLiteDecision(
   }
   const requested = request.generationSpec?.category;
   if (requested && requested !== 'auto' && requested !== aiCategory) errors.push('requested_category_ignored');
-  return errors.length ? { errors } : { decision: { status: 'ready', spec: { ...spec, flourish: null } }, errors: [] };
+  // The skin rides only when the server profile enables it; otherwise it is STRIPPED, so a
+  // model that emits one unprompted can never reach the browser with it. A present-but-
+  // illegal skin is a semantic failure (earning the repair round), never silently dropped.
+  let skin: LiteSkinPatch | undefined;
+  if (options?.skin && output.skin !== undefined) {
+    const skinErrors = liteSkinPatchErrors(output.skin);
+    if (skinErrors.length) errors.push(...skinErrors);
+    else skin = normalizeLiteSkinPatch(output.skin);
+  }
+  return errors.length
+    ? { errors }
+    : {
+        decision: { status: 'ready', spec: { ...spec, flourish: null }, ...(skin ? { skin } : {}) },
+        errors: [],
+      };
 }

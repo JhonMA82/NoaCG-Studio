@@ -306,9 +306,15 @@ export interface AssembledSpec {
  * Every out-of-range value CLAMPS to the nearest legal one instead of failing — the
  * platform owns correctness, the spec owns intent.
  */
-export function specToTemplate(spec: DesignSpec, ctx?: GenerateContext): AssembledSpec {
+export function specToTemplate(
+  spec: DesignSpec,
+  ctx?: GenerateContext,
+  /** Assemble THIS variant instead of resolving one from the catalog — the Lite skin
+   *  path's seam: its neutral canvas chassis is deliberately not in the browse catalog. */
+  variantOverride?: TemplateVariant,
+): AssembledSpec {
   const wantsLogo = Boolean(spec.useLogoSlot && ctx?.images?.length);
-  const variant = resolveVariant(spec, wantsLogo);
+  const variant = variantOverride ?? resolveVariant(spec, wantsLogo);
 
   // Palette precedence: the project brand (ctx) wins, then a bespoke spec palette, then a
   // curated palette id, then the chassis default (via resolveOptions).
