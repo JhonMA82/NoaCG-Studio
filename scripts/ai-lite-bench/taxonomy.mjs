@@ -32,9 +32,9 @@ const VALIDATION_RULE_MAP = [
   // Earliest, most specific mappings first - validateTemplate/runtimeBench rule ids.
   [/^anim-data|^timeline/, 'TIMELINE_INVALID'],
   [/^machine|^state/, 'STATE_INVALID'],
-  [/^bench-(runtime|lifecycle|console)/, 'RUNTIME_ERROR'],
+  [/^bench-(runtime|lifecycle|console|preplay|entrance|stop|replay)/, 'RUNTIME_ERROR'],
   [/^bench-(overlap|overflow|stress)/, 'REFLOW_FAILED'],
-  [/^bench-field|^field/, 'FIELD_CONTRACT_INVALID'],
+  [/^bench-(field|binding)|^field/, 'FIELD_CONTRACT_INVALID'],
   [/^safety|^unsafe/, 'STATIC_VALIDATION_FAILED'],
 ];
 

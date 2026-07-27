@@ -23,9 +23,14 @@ async function trimMotionVideo(rawPath, finalPath, startSeconds) {
   try {
     await run(FFMPEG, [
       '-y',
-      '-ss', Math.max(0, startSeconds - 0.12).toFixed(3),
+      // Cut 1.0s before play, inside the stage's guaranteed 1.5s CLEAR HOLD (see the
+      // wait before play below): the wall-clock -> video-clock mapping drifts by the
+      // recorder's startup latency, so a tight cut clipped into the entrance (first
+      // frame showed a half-drawn graphic) and a naive wide one reached back past the
+      // stage swap (first frame showed the app UI). The recording ends after stop()
+      // settles and there is no duration cap, so the last frame stays clear too.
+      '-ss', Math.max(0, startSeconds - 1.0).toFixed(3),
       '-i', rawPath,
-      '-t', '2.15',
       '-an',
       '-c:v', 'libvpx-vp9',
       '-crf', '22',
@@ -137,6 +142,9 @@ export async function runCompileJobs(jobs, { base, outDir, capture = false, labe
         const measured = await compileInPage(page, job.decision);
         let files = {};
         if (capture) {
+          // The CLEAR HOLD the clip trim anchors into: the stage is built and the graphic
+          // is CSS-hidden, so these frames are the honest clear-before-cue state.
+          await page.waitForTimeout(1500);
           const motionStarted = Date.now();
           await page.evaluate(() => document.querySelector('#lite-bench-frame')?.contentWindow?.play());
           await page.waitForTimeout(1100);

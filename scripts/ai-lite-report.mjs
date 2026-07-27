@@ -74,29 +74,40 @@ for (const file of await findFiles(OUT, (name) => name === 'calibration-summary.
   if (parsed.context) console.log('Context measurements:', JSON.stringify(parsed.context));
 }
 
-// Judgements join through the blind key.
-const judgements = new Map(); // item key -> [{decision, score, reviewer}]
+// Judgements join through the blind key. Every judgements*.jsonl in the out dir merges -
+// one file per reviewer (the gallery downloads judgements-<initials>.jsonl), so a class
+// of student reviewers just drop their files side by side.
+const judgements = new Map(); // item key -> [{decision, score, reviewer, note}]
 const repeats = [];
 try {
   const key = JSON.parse(await readFile(path.join(OUT, 'blind-key.json'), 'utf8'));
   const byCode = new Map(key.map((entry) => [entry.code, entry]));
-  const lines = (await readFile(path.join(OUT, 'judgements.jsonl'), 'utf8')).split('\n').filter(Boolean);
-  const judged = new Map();
-  for (const line of lines) {
-    const j = JSON.parse(line);
-    judged.set(j.code, j);
-    const entry = byCode.get(j.code);
-    if (!entry) continue;
-    if (!judgements.has(entry.key)) judgements.set(entry.key, []);
-    judgements.get(entry.key).push(j);
+  const files = (await readdir(OUT)).filter((name) => /^judgements.*\.jsonl$/.test(name));
+  if (!files.length) throw new Error('none');
+  // Repeat-item consistency is per reviewer: compare a reviewer's repeat against THEIR base.
+  const judgedByReviewer = new Map(); // reviewer -> Map(code -> judgement)
+  for (const file of files) {
+    for (const line of (await readFile(path.join(OUT, file), 'utf8')).split('\n').filter(Boolean)) {
+      const j = JSON.parse(line);
+      const reviewer = j.reviewer ?? 'anonymous';
+      if (!judgedByReviewer.has(reviewer)) judgedByReviewer.set(reviewer, new Map());
+      judgedByReviewer.get(reviewer).set(j.code, j);
+      const entry = byCode.get(j.code);
+      if (!entry) continue;
+      if (!judgements.has(entry.key)) judgements.set(entry.key, []);
+      judgements.get(entry.key).push(j);
+    }
   }
-  for (const entry of key.filter((e) => e.repeatOf)) {
-    const a = judged.get(entry.repeatOf);
-    const b = judged.get(entry.code);
-    if (a && b) repeats.push({ same: a.decision === b.decision, scoreDelta: Math.abs((a.score ?? 0) - (b.score ?? 0)) });
+  for (const [, judged] of judgedByReviewer) {
+    for (const entry of key.filter((e) => e.repeatOf)) {
+      const a = judged.get(entry.repeatOf);
+      const b = judged.get(entry.code);
+      if (a && b) repeats.push({ same: a.decision === b.decision, scoreDelta: Math.abs((a.score ?? 0) - (b.score ?? 0)) });
+    }
   }
+  console.log(`Merged ${files.length} reviewer file(s): ${files.join(', ')}`);
 } catch {
-  console.log('No judgements yet (run bench:gallery, review, and drop judgements.jsonl into the out dir).');
+  console.log('No judgements yet (run bench:gallery, review, and drop judgements*.jsonl into the out dir).');
 }
 
 const report = [];
@@ -146,6 +157,14 @@ for (const r of report) {
   const failures = Object.entries(r.failureTaxonomy);
   if (failures.length) console.log(`  failures: ${failures.map(([code, count]) => `${code}×${count}`).join(', ')}`);
 }
+
+// Reviewer notes are the fixable findings behind the numbers - print them per item.
+const noted = [...judgements.entries()]
+  .flatMap(([key, list]) => list.filter((j) => j.note).map((j) => ({ key, reviewer: j.reviewer, note: j.note })));
+if (noted.length) {
+  console.log('\nReviewer notes:');
+  for (const { key, reviewer, note } of noted) console.log(`- ${key} [${reviewer}]: ${note}`);
+}
 if (consistency) {
   console.log(`\nReviewer self-consistency: ${pct(consistency.decisionAgreement)} decision agreement, ` +
     `mean score delta ${consistency.meanScoreDelta.toFixed(2)} over ${consistency.repeats} planted repeats.`);
@@ -155,5 +174,5 @@ if (consistency) {
 }
 console.log('\nGold is the catalog ceiling and floor the zero-model baseline: read every candidate as a position between them.');
 
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency }, null, 2), 'utf8');
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, notes: noted }, null, 2), 'utf8');
 console.log(`Wrote ${path.join(OUT, 'report.json')}`);

@@ -492,6 +492,22 @@ export async function benchTemplateRuntime(
     const onAir = () =>
       collectLeaves(win).some((el) => intersection(el.getBoundingClientRect(), canvasRect) > 0);
 
+    // ── Cleared before the cue ───────────────────────────────────────────────────────
+    // A keyed graphic must render NOTHING until it is cued: the template loads in
+    // CasparCG/OBS/vMix long before the operator hits play, so anything visible at rest
+    // is on the programme output the moment the page loads. The root starts CSS-hidden
+    // and only the entrance reveals it - checked here at the exact rest state playout
+    // sees (fields updated, play() not yet called).
+    if (onAir()) {
+      errors.push(
+        issue(
+          'bench-preplay',
+          'Before play() the graphic already renders visible content - the root must start ' +
+            'CSS-hidden (opacity 0) so the frame is completely clear until the entrance reveals it.',
+        ),
+      );
+    }
+
     call('play');
 
     // THE ENTRANCE CHECK LOOKS WHILE THE ENTRANCE IS PLAYING, not after everything settles.

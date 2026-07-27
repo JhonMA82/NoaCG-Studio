@@ -120,7 +120,7 @@ const html = `<!doctype html>
 </style>
 <body>
 <h1>NoaCG Lite blind review</h1>
-<p class="sub">Screening pass: for each item answer one broadcast question - would you put this on air - and one overall 1-5 score. Judge stills at 100% for typography, spacing, hierarchy and fit; use the clip for entrance, settle and exit. Items are blind and shuffled; about 20 per session, your progress saves locally. When done, download the judgements file into this folder and run <code>npm run bench:report</code>.</p>
+<p class="sub">Screening pass: for each item answer one broadcast question - would you put this on air - and one overall 1-5 score. A short note on what is wrong is optional but valuable - it is what turns a low score into a fixable finding. Judge stills at 100% for typography, spacing, hierarchy and fit; use the clip for entrance, settle and exit. Items are blind and shuffled; about 20 per session, your progress saves locally (per browser, so several reviewers can each do their own pass). When done, download your judgements file into this folder and run <code>npm run bench:report</code> - it merges every reviewer's file.</p>
 <div class="bar">
   Reviewer <input id="reviewer" placeholder="initials" size="8">
   <span id="progress"></span>
@@ -159,6 +159,7 @@ for (const item of ITEMS.slice(0, cap)) {
     '<div class="judge">On air? ' +
     ['yes','minor','no'].map(d => '<button data-dec="' + d + '">' + ({yes:'Yes',minor:'Yes, after minor edits',no:'No'})[d] + '</button>').join('') +
     ' Score ' + [1,2,3,4,5].map(s => '<button data-score="' + s + '">' + s + '</button>').join('') +
+    ' <input class="note" size="42" maxlength="240" placeholder="What is wrong / notes (optional)">' +
     '</div>';
   card.addEventListener('click', (event) => {
     const dec = event.target.dataset?.dec, score = event.target.dataset?.score;
@@ -170,6 +171,14 @@ for (const item of ITEMS.slice(0, cap)) {
     cur.at = new Date().toISOString();
     state[item.code] = cur; save();
   });
+  const note = card.querySelector('.note');
+  note.value = state[item.code]?.note ?? '';
+  note.addEventListener('change', () => {
+    const cur = state[item.code] ?? {};
+    cur.note = note.value.trim();
+    cur.reviewer = document.getElementById('reviewer').value || 'anonymous';
+    state[item.code] = cur; save();
+  });
   container.appendChild(card);
 }
 document.getElementById('download').addEventListener('click', () => {
@@ -179,7 +188,10 @@ document.getElementById('download').addEventListener('click', () => {
     .join('\\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines + '\\n'], { type: 'application/jsonl' }));
-  a.download = 'judgements.jsonl';
+  // Per-reviewer filename so several reviewers' files can sit in the out dir together -
+  // bench:report merges every judgements*.jsonl it finds.
+  const who = (document.getElementById('reviewer').value || 'anonymous').replace(/[^a-z0-9_-]+/gi, '-');
+  a.download = 'judgements-' + who + '.jsonl';
   a.click();
 });
 paint();
