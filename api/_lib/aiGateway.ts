@@ -348,8 +348,8 @@ export const openRouterAdapter: ProviderAdapter = {
               allow_fallbacks: policy.openRouter.allowProviderFallbacks,
               only: policy.openRouter.only,
               max_price: {
-                prompt: policy.openRouter.maxInputPerMillion / 1_000_000,
-                completion: policy.openRouter.maxOutputPerMillion / 1_000_000,
+                prompt: policy.openRouter.maxInputPerMillion,
+                completion: policy.openRouter.maxOutputPerMillion,
               },
             },
           }

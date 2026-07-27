@@ -154,8 +154,8 @@ test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and pr
     only: ['audited/provider'],
     max_price: undefined,
   });
-  assert.ok(Math.abs(maxPrice.prompt - 0.00000011) < 1e-16);
-  assert.ok(Math.abs(maxPrice.completion - 0.0000008) < 1e-16);
+  assert.equal(maxPrice.prompt, 0.11);
+  assert.equal(maxPrice.completion, 0.8);
   assert.equal(result.usage.cachedInputTokens, 12);
   assert.equal(result.usage.reasoningTokens, 3);
 });
