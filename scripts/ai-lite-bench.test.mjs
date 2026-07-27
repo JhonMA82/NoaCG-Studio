@@ -11,8 +11,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildApiRuntime, projectRoot } from './api-runtime-build.mjs';
-import { CORE_SUITE, GOLD_SPECS, REPAIR_SUITE, floorDecision, seededRandom, LITE_BENCH_SUITE_ID } from './ai-lite-bench/suites.mjs';
+import { CORE_SUITE, GOLD_SPECS, REPAIR_SUITE, SPIKE_FIXTURE_IDS, floorDecision, seededRandom, LITE_BENCH_SUITE_ID } from './ai-lite-bench/suites.mjs';
 import { HOLDOUT_SUITE } from './ai-lite-bench/holdout.mjs';
+import { CHALLENGE_SUITE } from './ai-lite-bench/challenge.mjs';
 import { FAILURE_CODES, classifyFailure } from './ai-lite-bench/taxonomy.mjs';
 import { buildRunManifest, pipelineIdentityMatches } from './ai-lite-bench/manifest.mjs';
 import { LITE_LOWER_THIRD_FIXTURES } from './ai-lite-lower-third-fixtures.mjs';
@@ -132,6 +133,26 @@ test('the repair suite expectations match validateLiteDecision exactly', () => {
   for (const item of REPAIR_SUITE) {
     const result = contract.validateLiteDecision(item.decision, item.request);
     assert.deepEqual([...result.errors].sort(), [...item.expectErrors].sort(), item.id);
+  }
+});
+
+test('spike selection: 6 briefs, all from the frozen fixture bank', () => {
+  assert.equal(SPIKE_FIXTURE_IDS.length, 6);
+  assert.equal(new Set(SPIKE_FIXTURE_IDS).size, 6);
+  const bank = new Set(LITE_LOWER_THIRD_FIXTURES.map(([id]) => id));
+  for (const id of SPIKE_FIXTURE_IDS) assert.ok(bank.has(id), `${id} missing from the fixture bank`);
+});
+
+test('challenge suite: unique ids, disjoint from core and holdout, valid floors', () => {
+  const ids = CHALLENGE_SUITE.map((b) => b.id);
+  assert.equal(new Set(ids).size, ids.length);
+  const taken = new Set([...CORE_SUITE, ...HOLDOUT_SUITE].map((b) => b.id));
+  for (const id of ids) assert.ok(!taken.has(id));
+  for (const brief of CHALLENGE_SUITE.filter((b) => b.expect.decision === 'ready')) {
+    const floor = floorDecision(brief, contract.LITE_CATALOG, 7);
+    assert.deepEqual(floor, floorDecision(brief, contract.LITE_CATALOG, 7), brief.id);
+    const result = contract.validateLiteDecision(floor, request(brief.brief));
+    assert.deepEqual(result.errors, [], `${brief.id}: ${result.errors.join(', ')}`);
   }
 });
 

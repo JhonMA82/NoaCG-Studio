@@ -571,7 +571,25 @@ export function variantsFromType(type: GraphicType): TemplateVariant[] {
       defaultZone: design.defaultZone ?? type.capabilities.defaultZone,
       defaultSteps: design.defaultSteps ?? type.capabilities.defaultSteps,
       create(options) {
-        const template = attachMachine(type, design.create(type, options));
+        // A caller may legitimately pass FEWER lines than the type declares (an AI spec
+        // or Lite decision for a one-line lower third). A type-compiled design cannot
+        // drop a declared field - the field list IS the type - so missing lines ride
+        // along with empty text: the field exists and stays operator-editable, and an
+        // empty value takes no space (the :empty mask rule). Without this pad the
+        // missing-parts gate below throws on a request the platform doctrine says must
+        // CLAMP, never fail (found by the benchmark's one-line challenge brief).
+        const declared = typeLines(type.fields, design.samples);
+        const requested = options?.lines;
+        const padded = requested && requested.length > 0 && requested.length < declared.length
+          ? {
+              ...options,
+              lines: [
+                ...requested,
+                ...declared.slice(requested.length).map((line) => ({ title: line.title, sample: '' })),
+              ],
+            }
+          : options;
+        const template = attachMachine(type, design.create(type, padded));
         const missing = missingParts(type, template);
         if (missing.length > 0) {
           throw new Error(`GraphicType "${type.id}": design "${design.id}" is missing required parts: ${missing.join(', ')}.`);

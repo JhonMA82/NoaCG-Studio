@@ -113,6 +113,21 @@ export const CORE_SUITE = [
   },
 ];
 
+// ── The Phase 0 spike selection ──────────────────────────────────────────────
+//
+// Six fixture-bank briefs spanning the supported space (three core genres + the three
+// hardest text-stress fixtures), used by scripts/ai-lite-spike.mjs. From the frozen bank
+// so spike results stay comparable with later screening runs.
+
+export const SPIKE_FIXTURE_IDS = [
+  'news-reporter',
+  'esports-player',
+  'university-speaker',
+  'long-name',
+  'multilingual',
+  'story-headline',
+];
+
 // ── Gold specs (the calibration CEILING) ─────────────────────────────────────
 //
 // Hand-written, deliberately good decisions for three core briefs, compiled through the

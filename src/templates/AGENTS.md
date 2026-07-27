@@ -159,7 +159,11 @@ that emits them). The main group's default path is DERIVED, never declared: its 
 equal the step count, which depends on the preset and the line count. `attachMachine` puts the
 compiled machine on after assembly and THROWS if it is off-shape - unlike `convertToDataRegion`
 it is compiling our own declaration, so degrading would ship a control page whose buttons do
-nothing.
+nothing. One clamp sits BEFORE that gate: a caller passing FEWER lines than the type declares
+(an AI/Lite spec asking for a one-line lower third) gets the missing lines padded with empty
+text - the declared field still exists and stays editable, an empty value collapses via the
+`:empty` mask rule, and the missing-parts throw stays reserved for a design that genuinely
+fails to emit a declared part (found by the Lite benchmark's one-line challenge brief).
 
 **The trap to know:** a timer never arms on a timeline that never ends (the arming call is
 scheduled at the timeline's end). A `repeat: -1` loop or a measured `dynamics` builder makes

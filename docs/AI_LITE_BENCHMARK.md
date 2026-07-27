@@ -100,8 +100,11 @@ the irreversible investment.
   hyphenated titles, long orgs, refusals).
 - **Repair suite** - malformed/inconsistent decisions with the exact rule codes
   `validateLiteDecision` must emit. Scored separately; regression-checked in CI.
-- **Rotating challenge** - grows from real failures; diagnostic only. (Empty at v1; add
-  cases beside the suites as they appear, never retroactively into core.)
+- **Rotating challenge** - `challenge.mjs`; diagnostic only, seeded with the named stress
+  classes (extreme length, CJK + RTL Unicode, difficult contrast, rapid updates, sparse
+  content) and grown from real failures - never retroactively into core.
+  `bench:calibrate -- --challenge` compiles floor-style picks over it as a CATALOG
+  capacity probe; results are reported separately and never gate the run.
 
 Any change to a frozen brief, gold spec, expectation, or the prompt contract is a NEW suite
 version. History stays queryable, never presented as comparable across versions.
@@ -124,6 +127,9 @@ Report every candidate as a position between floor and ceiling, never as an abso
 npm run bench:calibrate   # gold ceiling + trivial floor (free; dev server required)
 npm run bench:regress     # fixed-model pipeline regression (free; --update-baseline records)
 npm run bench:lite        # the PAID eval runner (= eval:ai-lite; hard caps: 40 calls / $1.50)
+npm run bench:spike -- --label=candidate-a   # Phase 0 spike: DRY RUN with cost preview by
+                          # default; --confirm-spend executes 6 briefs x 3 runs for the
+                          # server's current route (repeat per candidate with a new label)
 npm run bench:gallery     # blind review gallery over any out-dir
 npm run bench:report      # aggregate results + judgements into the honest report
 npm run test:ai-lite-bench  # the benchmark self-tests (also in the build gate)

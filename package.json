@@ -26,6 +26,7 @@
     "bench:calibrate": "node scripts/ai-lite-calibrate.mjs",
     "bench:regress": "node scripts/ai-lite-regress.mjs",
     "bench:lite": "node scripts/ai-lite-eval.mjs",
+    "bench:spike": "node scripts/ai-lite-spike.mjs",
     "bench:gallery": "node scripts/ai-lite-gallery.mjs",
     "bench:report": "node scripts/ai-lite-report.mjs",
     "test:ai-lite-bench": "node --test scripts/ai-lite-bench.test.mjs",
