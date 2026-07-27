@@ -85,6 +85,14 @@ test('obviously unsupported requests are rejected before model inference', () =>
     obviousUnsupportedDecision('Build a package of multiple graphics with a branching state machine')?.status,
     'unsupported',
   );
+  assert.equal(
+    obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video'),
+    null,
+  );
+  assert.equal(
+    obviousUnsupportedDecision('Create a video project in Remotion')?.status,
+    'unsupported',
+  );
   assert.equal(obviousUnsupportedDecision('A minimal university lower third'), null);
 });
 
