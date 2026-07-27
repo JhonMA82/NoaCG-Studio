@@ -46,6 +46,11 @@ test('wizard: create a lower third with defaults', async ({ page }) => {
 test('wizard: blank project escape hatch', async ({ page }) => {
   await page.goto('/app');
   await page.locator('[data-entry="blank"]').click();
+  // Blank no longer silently creates with a default. It has the same authored-format setup
+  // as every other creation path and only creates after the explicit action.
+  await expect(page.getByTestId('blank-step')).toBeVisible();
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.getByTestId('blank-create').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Blank');
 });

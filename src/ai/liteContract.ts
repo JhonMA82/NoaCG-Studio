@@ -134,8 +134,6 @@ const safeColor = {
   maxLength: 9,
 };
 const zones = [
-  'top-left', 'top-center', 'top-right',
-  'mid-left', 'mid-center', 'mid-right',
   'bottom-left', 'bottom-center', 'bottom-right',
 ];
 const lineRoles: LiteLowerThirdLineRole[] = [
@@ -170,7 +168,7 @@ const specSchema: Record<string, unknown> = {
     lines: {
       type: 'array',
       minItems: 1,
-      maxItems: 3,
+      maxItems: 2,
       items: {
         type: 'object',
         required: ['title', 'sample', 'role'],
@@ -182,21 +180,6 @@ const specSchema: Record<string, unknown> = {
         },
       },
     },
-    extraFields: {
-      type: 'array',
-      maxItems: 5,
-      items: {
-        type: 'object',
-        required: ['title', 'ftype', 'value'],
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 80 },
-          ftype: { type: 'string', enum: ['textfield', 'textarea', 'number', 'filelist'] },
-          value: { type: 'string', maxLength: 500 },
-        },
-      },
-    },
-    useLogoSlot: { type: 'boolean' },
     zone: { type: 'string', enum: zones },
     paletteId: { type: 'string', maxLength: 80 },
     palette: {
@@ -248,36 +231,18 @@ const specSchema: Record<string, unknown> = {
   },
 };
 
-export const LITE_DECISION_OUTPUT: StructuredOutput = {
-  name: 'emit_noacg_lite_decision',
-  description: 'Return one supported catalog-grounded design decision or an explicit unsupported result.',
+export const LITE_READY_OUTPUT: StructuredOutput = {
+  name: 'emit_noacg_lite_design',
+  description: 'Return one ready catalog-grounded lower-third design.',
   schema: {
-    oneOf: [
-      {
-        type: 'object',
-        required: ['status', 'aiCategory', 'spec'],
-        additionalProperties: false,
-        properties: {
-          status: { type: 'string', enum: ['ready'] },
-          aiCategory: { type: 'string', enum: LITE_AI_CATEGORIES },
-          spec: specSchema,
-        },
-      },
-      {
-        type: 'object',
-        required: ['status', 'unsupportedCode', 'message', 'suggestedBrief'],
-        additionalProperties: false,
-        properties: {
-          status: { type: 'string', enum: ['unsupported'] },
-          unsupportedCode: {
-            type: 'string',
-            enum: ['unsupported-category', 'multi-graphic-request', 'advanced-state-machine', 'reference-recreation', 'import-conversion', 'video-request', 'external-data', 'too-complex'],
-          },
-          message: { type: 'string', minLength: 1, maxLength: 300 },
-          suggestedBrief: { type: 'string', minLength: 1, maxLength: 300 },
-        },
-      },
-    ],
+    type: 'object',
+    required: ['status', 'aiCategory', 'spec'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ready'] },
+      aiCategory: { type: 'string', enum: LITE_AI_CATEGORIES },
+      spec: specSchema,
+    },
   },
 };
 
@@ -296,6 +261,19 @@ export function obviousUnsupportedDecision(prompt: string): LiteDecision | null 
   return match
     ? { status: 'unsupported', code: match.code, message: match.message, suggestedBrief: match.suggestion }
     : null;
+}
+
+export function deterministicUnsupportedDecision(request: LiteGenerationRequest): LiteDecision | null {
+  const requestedCategory = request.generationSpec?.category;
+  if (requestedCategory && requestedCategory !== 'auto' && requestedCategory !== 'lower-third') {
+    return {
+      status: 'unsupported',
+      code: 'unsupported-category',
+      message: 'The first NoaCG Lite release is focused on excellent lower thirds.',
+      suggestedBrief: 'Describe one lower third for a person, story, event, team, or organization.',
+    };
+  }
+  return obviousUnsupportedDecision(request.prompt);
 }
 
 export function liteCatalogDigest(): string {
@@ -334,14 +312,19 @@ export function liteSystemPrompt(
 ): string {
   return [
     `NoaCG Lite Design Director ${promptVersion}.`,
-    'Return exactly one compact structured decision. Never write HTML, CSS, or JavaScript.',
-    'This release creates lower thirds only. Choose one listed chassis. The platform compiles it deterministically into an editable broadcast graphic.',
-    'Use status unsupported when the request is not one lower third, or needs custom code, advanced state machines, reference recreation, imports, video, external data, or another graphic category.',
-    'For unsupported output, give a short plain-language explanation and one actionable simplified brief.',
-    'For ready output, fit must be catalog and flourish must be the empty string. Use one or two realistic editable lines and identify the semantic role of each line.',
+    'The server has already established that this is one supported lower third. Return exactly one ready structured design. Never refuse it and never write HTML, CSS, or JavaScript.',
+    'Choose one listed chassis. The platform compiles it deterministically into an editable broadcast graphic.',
+    'Fit must be catalog and flourish must be the empty string. Use one or two realistic editable lines and identify the semantic role of each line.',
+    'This is a lower third, so keep it in a bottom zone. Use bottom-left unless the brief clearly supports bottom-center or bottom-right.',
+    'intent.primaryRole must exactly equal lines[0].role. When there are two lines, intent.secondaryRole is mandatory and must exactly equal lines[1].role.',
     'For a person lower third, the first line is the actual person name. Never substitute a faculty, employer, team, or programme for a requested person name. The second line is their role, organization, team, or location as requested.',
-    'For story, event, team, organization, and promotion lower thirds, keep the primary identity on line one and only the most useful supporting context on line two.',
+    'Job titles such as Producer, Director, Professor, Analyst, Correspondent, Officer, President, or Coach use role person-role. Never label a job title as a team name or generic context.',
+    'A documentary subject is a person, not a story headline: use the subject name first and their requested role or location second. Quiet documentary styling normally fits Scrim or Masthead; preserve the person identity even when the brief says documentary.',
+    'A story lower third identifies the story itself: put the concise on-air headline first with role story-headline, then only a requested location or supporting context. Never turn a headline into a person, programme title, document title, or paragraph of body copy.',
+    'For event, team, organization, and promotion lower thirds, keep the primary identity on line one and only the most useful requested context on line two.',
+    'Use House Strap for robust news readability, Masthead for editorial or public-broadcast stories, Underline for quiet clean footage, and Scrim for human-interest or documentary shots. Do not choose Scrim for urgent news or long dense context.',
     'Line titles describe what an operator edits, such as Name, Role, Team, Headline, Event, or Location. Line samples are the actual on-air copy.',
+    'Omit palette when the request supplies no exact brand colors. Do not invent a bespoke palette.',
     'Bespoke palette values need at least 4.5:1 primary-text contrast and 3:1 secondary-text contrast against the panel.',
     'Prioritize legibility, intentional hierarchy, generous spacing, realistic text capacity, correct lower-third conventions, and motion that follows reading order.',
     'A requested visual style should select and tune the nearest compatible chassis, not make the request unsupported.',
@@ -388,7 +371,7 @@ function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdL
   const labels = request.generationSpec?.fields.map((field) => field.label).join(' ') ?? '';
   const prompt = request.prompt;
   const fieldText = labels.toLowerCase();
-  const personSubject = /\b(speaker|reporter|presenter|guest|host|anchor|person|player|athlete|coach)\b/i
+  const personSubject = /\b(speaker|reporter|presenter|guest|host|anchor|person|subject|artist|creator|player|athlete|coach)\b/i
     .test(prompt);
   const playerSubject = /\b(player|athlete|coach)\b/i.test(prompt);
   if (/\b(name|speaker|presenter|guest|host|reporter|anchor|player|athlete|coach)\b/.test(fieldText)) {
@@ -408,8 +391,13 @@ function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdL
   if (personSubject && /\b(role|title|position|job|occupation)\b/i.test(prompt)) {
     roles.add('person-role');
   }
+  if (/\b(?:producer|director|professor|analyst|correspondent|officer|president|coach)\b/i.test(prompt)) {
+    roles.add('person-role');
+  }
   if (playerSubject && /\bteam\b/i.test(prompt)) roles.add('team-name');
   if (/\b(?:editable\s+)?headline\b/i.test(prompt)) roles.add('story-headline');
+  if (/\bsocial handle\b/i.test(prompt)) roles.add('social-handle');
+  if (/\b(?:primary\s+)?call to action\b/i.test(prompt)) roles.add('call-to-action');
   return roles;
 }
 

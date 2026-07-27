@@ -177,7 +177,7 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
       </div>
       <div className="wz-preview-bar">
         <span className="muted">
-          {width}×{height} · {template.fps} fps
+          Project {width}×{height} · {template.fps} fps
         </span>
         <div className="row" style={{ gap: 6 }}>
           <button

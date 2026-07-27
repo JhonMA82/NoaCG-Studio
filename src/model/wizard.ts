@@ -4,7 +4,7 @@
 // truth afterwards — the wizard never runs again on an existing project.
 
 import type { Resolution, SpxField, SpxTemplate, AssetFile } from './types';
-import { RESOLUTIONS } from './types';
+import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from './projectFormat';
 import type { CustomFont, StyleTag } from './fonts';
 import type { EasingId } from './easings';
 
@@ -402,8 +402,8 @@ export function resolveOptions(variant: TemplateVariant, options: WizardOptions 
   // value falls back to the variant's suggestions.
   const lines = (options.lines ?? variant.suggestedLines).slice(0, variant.maxLines);
   return {
-    resolution: options.resolution ?? RESOLUTIONS[0],
-    fps: options.fps ?? 25,
+    resolution: options.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
+    fps: options.fps ?? DEFAULT_GRAPHICS_FORMAT.fps,
     lines,
     extraFields: options.extraFields ?? [],
     palette: options.palette ?? variant.defaultPalette,

@@ -97,7 +97,9 @@ export async function generateLiteDesign(
         ? { family: context.spec.fonts.primary.fontId, uploaded: false }
         : null,
     hasLogo: context.images.length === 1,
-    resolution: context.resolution,
+    // ProjectFormatPreset has creation-only ID/capability fields. The managed contract is
+    // deliberately narrower and server-authoritative: only authored dimensions cross it.
+    resolution: { width: context.resolution.width, height: context.resolution.height },
     fps: context.fps,
   };
   const response = await fetch('/api/ai/lite/generations', {

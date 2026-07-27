@@ -9,7 +9,14 @@ import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 // "/app". Vercel serves /app via cleanUrls (vercel.json); this tiny plugin gives the dev
 // and preview servers the same clean URL. `?raw` imports bundle GSAP + template snippets.
 function appCleanUrl(): Plugin {
-  const rewrite = (req: { url?: string }) => {
+  const prepare = (
+    req: { url?: string },
+    res: { setHeader: (name: string, value: string) => void },
+  ) => {
+    // Preview iframes are deliberately sandboxed without allow-same-origin, so their origin
+    // is opaque. Bundled OFL fonts are public static assets and need an explicit CORS response
+    // to render there. Keep the allowance scoped to /fonts rather than every app response.
+    if (req.url?.startsWith('/fonts/')) res.setHeader('Access-Control-Allow-Origin', '*');
     if (req.url === '/app' || req.url?.startsWith('/app?')) {
       req.url = '/app.html' + (req.url.slice('/app'.length) || '');
     }
@@ -17,14 +24,14 @@ function appCleanUrl(): Plugin {
   return {
     name: 'app-clean-url',
     configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        rewrite(req);
+      server.middlewares.use((req, res, next) => {
+        prepare(req, res);
         next();
       });
     },
     configurePreviewServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        rewrite(req);
+      server.middlewares.use((req, res, next) => {
+        prepare(req, res);
         next();
       });
     },

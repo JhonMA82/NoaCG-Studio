@@ -14,7 +14,8 @@ import { callModel, callModelDetailed, type ModelTool, type ContentBlock } from 
 import type { AiPath, AIProvider, AiTemplateChange, GenerateContext, GenerateOptions } from './provider';
 import { startAiRun, type AiRunKind, type AiRunRecorder } from './telemetry';
 import { parseDefinition } from '../model/spxDefinition';
-import { RESOLUTIONS, type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
+import { type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
+import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { parseDataUrl } from '../assets/assetUtils';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { lt01 } from '../templates/lowerThirds/lt01';
@@ -282,8 +283,8 @@ function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxT
   return {
     name: emitted.name || base?.name || 'AI template',
     type: emitted.type ?? base?.type ?? 'blank',
-    resolution: ctx?.resolution ?? base?.resolution ?? RESOLUTIONS[0],
-    fps: ctx?.fps ?? base?.fps ?? 25,
+    resolution: ctx?.resolution ?? base?.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
+    fps: ctx?.fps ?? base?.fps ?? DEFAULT_GRAPHICS_FORMAT.fps,
     html: emitted.html,
     css: emitted.css,
     js: emitted.js,

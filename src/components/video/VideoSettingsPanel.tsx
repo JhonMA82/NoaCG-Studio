@@ -9,10 +9,17 @@
 // project quietly render with its exit cut off. See videoTypes.ts settingsDrift.
 
 import { useState } from 'react';
-import { ASPECTS, FPS_OPTIONS } from '../../model/types';
 import { loadAiSettings, modelsForProvider } from '../../ai/settings';
 import { driftRequest, settingsDrift } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
+import ProjectFormatPicker from '../ProjectFormatPicker';
+import {
+  DEFAULT_VIDEO_FORMAT,
+  isProjectFrameRate,
+  projectFormatForResolution,
+  resolutionForSelection,
+  type ProjectFormatSelection,
+} from '../../model/projectFormat';
 
 export default function VideoSettingsPanel() {
   const project = useVideoProjectStore((s) => s.project);
@@ -28,6 +35,7 @@ export default function VideoSettingsPanel() {
   // when not editing it mirrors the stored value. Committing on blur/Enter both clamps the
   // value and keeps duration edits to ONE undoable step instead of one per keystroke.
   const [durationDraft, setDurationDraft] = useState<string | null>(null);
+  const [choosingPreset, setChoosingPreset] = useState(false);
   const durationShown = durationDraft ?? String(Number(durationSec.toFixed(2)));
   const commitDuration = () => {
     if (durationDraft === null) return;
@@ -35,10 +43,22 @@ export default function VideoSettingsPanel() {
     patchSettings({ durationInFrames: Math.max(1, Math.round(sec * project.fps)) });
     setDurationDraft(null);
   };
-  const aspect =
-    ASPECTS.find((a) =>
-      a.resolutions.some((r) => r.width === project.width && r.height === project.height),
-    ) ?? ASPECTS[0];
+  const preset = projectFormatForResolution(project);
+  const registeredFormat = preset && isProjectFrameRate(project.fps)
+    ? { aspectId: preset.aspectId, resolutionId: preset.id, fps: project.fps }
+    : null;
+  const changeFormat = (format: ProjectFormatSelection) => {
+    const resolution = resolutionForSelection(format);
+    patchSettings({
+      width: resolution.width,
+      height: resolution.height,
+      fps: format.fps,
+      // Keep duration in seconds stable. authoredFor deliberately remains unchanged, so
+      // settingsDrift continues to tell the truth about code authored at the previous rate.
+      durationInFrames: Math.max(1, Math.round(durationSec * format.fps)),
+    });
+    setChoosingPreset(false);
+  };
 
   return (
     <div className="video-settings">
@@ -68,61 +88,37 @@ export default function VideoSettingsPanel() {
           }}
           data-testid="video-duration"
         />
-        <label style={{ marginTop: 8 }}>Frame rate</label>
-        <select
-          value={project.fps}
-          onChange={(e) => {
-            const fps = Number(e.target.value);
-            // Keep the duration in SECONDS stable across an fps change.
-            patchSettings({
-              fps,
-              durationInFrames: Math.max(1, Math.round(durationSec * fps)),
-            });
-          }}
-        >
-          {FPS_OPTIONS.map((f) => (
-            <option key={f} value={f}>
-              {f} fps
-            </option>
-          ))}
-        </select>
         <p className="hint">
           {project.durationInFrames} frames at {project.fps} fps
         </p>
       </div>
 
       <div className="panel-section">
-        <h3>Canvas</h3>
-        <label>Aspect</label>
-        <select
-          value={aspect.id}
-          onChange={(e) => {
-            const next = ASPECTS.find((a) => a.id === e.target.value);
-            if (!next) return;
-            const r = next.resolutions[0];
-            patchSettings({ width: r.width, height: r.height });
-          }}
-        >
-          {ASPECTS.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-        <label style={{ marginTop: 8 }}>Resolution</label>
-        <select
-          value={`${project.width}x${project.height}`}
-          onChange={(e) => {
-            const [w, h] = e.target.value.split('x').map(Number);
-            patchSettings({ width: w, height: h });
-          }}
-        >
-          {aspect.resolutions.map((r) => (
-            <option key={r.label} value={`${r.width}x${r.height}`}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <h3>Canvas and timing</h3>
+        {registeredFormat ? (
+          <ProjectFormatPicker
+            value={registeredFormat}
+            onChange={changeFormat}
+            idPrefix="video-settings-format"
+            description="Changing this keeps duration in seconds, but the authoredFor warning remains until code is updated."
+          />
+        ) : (
+          <div data-testid="video-custom-format">
+            <p className="hint">
+              Current authored format: {project.width}×{project.height} · {project.fps} fps.
+              This older or custom format is preserved until you explicitly choose a preset.
+            </p>
+            {!choosingPreset ? (
+              <button onClick={() => setChoosingPreset(true)}>Choose a registered preset</button>
+            ) : (
+              <ProjectFormatPicker
+                value={DEFAULT_VIDEO_FORMAT}
+                onChange={changeFormat}
+                idPrefix="video-settings-format"
+              />
+            )}
+          </div>
+        )}
         <label className="row" style={{ marginTop: 10, gap: 8, alignItems: 'center' }}>
           <input
             type="checkbox"

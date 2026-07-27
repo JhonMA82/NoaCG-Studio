@@ -2,7 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { variantById, variantsFor } from '../../templates/catalog';
 import { createBlankTemplate } from '../../templates/blank';
-import { brandPatch, buildDraftTemplate, draftName, draftResolution, initialDraft, mergeDraft, type DraftPatch, type WizardDraft } from './draft';
+import {
+  brandPatch,
+  buildDraftTemplate,
+  draftFormatSelection,
+  draftName,
+  draftResolution,
+  formatDraftPatch,
+  initialDraft,
+  mergeDraft,
+  type DraftPatch,
+  type WizardDraft,
+} from './draft';
 import { loadBrand, saveBrand, type ProjectBrand } from '../../model/brand';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
@@ -22,6 +33,7 @@ import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
+import BlankStep from './steps/BlankStep';
 import FinishStep, { aiSummaryRows, catalogSummaryRows } from './steps/FinishStep';
 import { useExportUi } from '../ExportWindow';
 import type { SpxTemplate } from '../../model/types';
@@ -35,6 +47,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
 import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
+import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -45,6 +58,7 @@ const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'
 const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
+const STEP_TITLES_BLANK = ['Start', 'Blank project'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
 // (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
 // in/out animation, create — and land in the real canvas editor with a graphic that already
@@ -70,7 +84,7 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video'>('template');
+  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   // Browse-step facet state lives here (not in the step) so Back returns with the
   // filters intact for the wizard session; a fresh open starts clean.
@@ -100,6 +114,12 @@ export default function CreationWizard() {
   // user never learns the lower entry cards exist. Scroll + resize + DOM changes all re-check.
   const stepRef = useRef<HTMLDivElement>(null);
   const [stepOverflow, setStepOverflow] = useState(false);
+  // Each route/step starts at its own first control. This is especially important on phones:
+  // the Video entry sits at the bottom of Entry, and carrying that scrollTop forward used to
+  // land Video below its project-format picker.
+  useEffect(() => {
+    if (stepRef.current) stepRef.current.scrollTop = 0;
+  }, [step, mode]);
   useEffect(() => {
     if (!open) return;
     const el = stepRef.current;
@@ -171,6 +191,10 @@ export default function CreationWizard() {
     () => (variant ? buildDraftTemplate(variant, draft, { stretchDemo: mode === 'design' }) : null),
     [variant, draft, mode],
   );
+  const blankPreview = useMemo(
+    () => (mode === 'blank' ? createBlankTemplate(draftResolution(draft), draft.fps) : null),
+    [mode, draft],
+  );
 
   // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
   // continuation keeps the old six-step shape. Finish always follows it.
@@ -214,7 +238,7 @@ export default function CreationWizard() {
     toSpxShell();
   };
 
-  const startBlank = () => {
+  const createBlank = () => {
     void applyGenerated(createBlankTemplate(draftResolution(draft), draft.fps));
   };
 
@@ -358,12 +382,14 @@ export default function CreationWizard() {
   const showPreview =
     (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
     : mode === 'video' ? false
+    : mode === 'blank' ? step === 1
     : mode === 'design' ? step >= 1 && !!previewTemplate
     : mode === 'template' ? step >= 1 && !!previewTemplate
     : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
+    : mode === 'blank' ? STEP_TITLES_BLANK
     : mode === 'design' ? STEP_TITLES_DESIGN
     : mode === 'import' ? STEP_TITLES_IMPORT
     : STEP_TITLES;
@@ -447,8 +473,12 @@ export default function CreationWizard() {
                 onTemplates={() => { setMode('template'); setStep(1); }}
                 onImportGraphic={() => { setMode('design'); setStep(1); }}
                 onAi={() => { setMode('ai'); setStep(1); }}
-                onVideo={() => { setMode('video'); setStep(1); }}
-                onBlank={startBlank}
+                onVideo={() => {
+                  if (!draft.formatTouched) patch(DEFAULT_VIDEO_FORMAT);
+                  setMode('video');
+                  setStep(1);
+                }}
+                onBlank={() => { setMode('blank'); setStep(1); }}
                 onHome={() => {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section: null });
@@ -463,7 +493,15 @@ export default function CreationWizard() {
               />
             )}
             {step === 1 && mode === 'video' && (
-              <VideoStep onCreate={createVideo} onOpen={createVideo} />
+              <VideoStep
+                format={draftFormatSelection(draft)}
+                onFormat={(selection) => patch(formatDraftPatch(selection))}
+                onCreate={createVideo}
+                onOpen={createVideo}
+              />
+            )}
+            {step === 1 && mode === 'blank' && (
+              <BlankStep draft={draft} onDraft={patch} onCreate={createBlank} />
             )}
             {/* AiStep stays MOUNTED across the Create → Finish move (hidden on Finish), so
                 stepping to the doors and back never discards the thread, the three directions,
@@ -471,8 +509,8 @@ export default function CreationWizard() {
             {mode === 'ai' && (step === 1 || step === finishStep) && (
               <div hidden={step === finishStep}>
                 <AiStep
-                  resolution={draftResolution(draft)}
-                  fps={draft.fps}
+                  format={draftFormatSelection(draft)}
+                  onFormat={(selection) => patch(formatDraftPatch(selection))}
                   brandPalette={matchBrand && brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
                   onResult={(template, valid, spec, generationId) =>
@@ -502,6 +540,8 @@ export default function CreationWizard() {
                 art={draft.designArt}
                 images={draft.importedImages}
                 resolution={draftResolution(draft)}
+                format={draftFormatSelection(draft)}
+                onFormat={(selection) => patch(formatDraftPatch(selection))}
                 onArt={(designArt, importedImages) => {
                   patch({
                     designArt,
@@ -538,6 +578,8 @@ export default function CreationWizard() {
             {step === 1 && mode === 'import' && (
               <ImportStep
                 images={draft.importedImages}
+                draft={draft}
+                onDraft={patch}
                 onImages={(importedImages) =>
                   patch({ importedImages, logoAssetPath: importedImages[0]?.path ?? null })
                 }
@@ -677,10 +719,16 @@ export default function CreationWizard() {
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
 
-          {showPreview && (mode === 'ai' ? aiResult : previewTemplate) && (
+          {showPreview && (mode === 'ai' ? aiResult : mode === 'blank' ? blankPreview : previewTemplate) && (
             <aside className="wz-side">
               <WizardPreview
-                template={mode === 'ai' ? aiResult!.template : previewTemplate!}
+                template={
+                  mode === 'ai'
+                    ? aiResult!.template
+                    : mode === 'blank'
+                      ? blankPreview!
+                      : previewTemplate!
+                }
                 replayKey={replayKey}
                 demoOut={demoOut}
                 demoText={mode === 'design' ? stretchDemo : null}
@@ -731,7 +779,7 @@ export default function CreationWizard() {
                 thing as one of them would only make the branch harder to read.
                 Design mode: Create is available from the Design step on (a design that
                 needs no erase, fields, or animation choice creates immediately). */}
-            {mode !== 'ai' && mode !== 'video' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
                 disabled={!previewTemplate}
                 onClick={create}
@@ -744,7 +792,7 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {mode !== 'ai' && mode !== 'video' && step > 0 && step < finishStep && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step > 0 && step < finishStep && (
               <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
                 Next ›
               </button>

@@ -93,8 +93,10 @@ measured numbers, raised in the UI preflight AND by the renderer.
 | ProRes 4444 MOV | prores '4444' + yuva444p10le | yes | the NLE path |
 
 All video renders capture PNG frames (broadcast gradients band under JPEG capture).
-Output size = template resolution × the scale option — the document itself is never
-resized (layout math depends on the authored resolution).
+Output size = authored project resolution × the explicit output-scale option. The document
+itself is never resized (layout math depends on the authored resolution), and the UI labels
+project format separately from output settings. Scaling a render does not reauthor, reflow,
+stretch, or crop the layout. See `docs/PROJECT_FORMATS.md`.
 
 ## Service (api/render/*)
 

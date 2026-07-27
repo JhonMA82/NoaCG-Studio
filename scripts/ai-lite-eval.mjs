@@ -1,6 +1,6 @@
 // Bounded NoaCG Lite evaluation runner. This calls the trusted managed endpoint,
 // compiles each returned DesignSpec through the real deterministic catalog path, runs the
-// static and live benches, and captures synthetic-fixture screenshots for blind review.
+// static and live benches, and captures native-resolution lifecycle media for blind review.
 //
 // It never receives or stores a provider key, model id, route, full DesignSpec, template,
 // generated code, or provider body. The bearer token must identify a real server-validated
@@ -93,7 +93,7 @@ async function trimMotionVideo(rawPath, finalPath, startSeconds) {
       '-y',
       '-ss', Math.max(0, startSeconds - 0.12).toFixed(3),
       '-i', rawPath,
-      '-t', '2.15',
+      '-t', '12',
       '-an',
       '-c:v', 'libvpx-vp9',
       '-crf', '22',
@@ -105,6 +105,32 @@ async function trimMotionVideo(rawPath, finalPath, startSeconds) {
     await unlink(finalPath).catch(() => {});
     await rename(rawPath, finalPath);
   }
+}
+
+async function waitForMotionToSettle(page) {
+  let previous = '';
+  let stableSamples = 0;
+  for (let sample = 0; sample < 50; sample += 1) {
+    const signature = await page.evaluate(() => {
+      const frame = document.querySelector('#lite-eval-frame');
+      const root = frame?.contentDocument?.body.firstElementChild;
+      if (!root) return '';
+      return [root, ...root.querySelectorAll('*')].map((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = frame.contentWindow.getComputedStyle(element);
+        return [
+          rect.x, rect.y, rect.width, rect.height,
+          style.transform, style.opacity, style.clipPath,
+        ].join('|');
+      }).join('\n');
+    });
+    if (signature && signature === previous) stableSamples += 1;
+    else stableSamples = 0;
+    if (stableSamples >= 4) return;
+    previous = signature;
+    await page.waitForTimeout(100);
+  }
+  throw new Error('Rendered motion did not settle within 5 seconds.');
 }
 
 async function measureAndCapture(spec, fixtureId) {
@@ -126,6 +152,7 @@ async function measureAndCapture(spec, fixtureId) {
       // production runs after the same server decision. Never re-inline the steps here:
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
       const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
       const context = {
         images: [],
         palette: null,
@@ -133,6 +160,15 @@ async function measureAndCapture(spec, fixtureId) {
         fps: 50,
       };
       const { template, validation, spec } = await compileLiteDecision(designSpec, context);
+      // The canonical animation durations drive the capture waits below - never a fixed
+      // sleep: the entrance/hold/exit stills must land on the phase they claim to show.
+      const animData = parseAnimData(template.js);
+      const entranceDurationMs = animData
+        ? (animData.steps[0].duration / animData.speed) * 1000
+        : 3000;
+      const exitDurationMs = animData
+        ? (animData.steps.at(-1).duration / animData.speed) * 1000
+        : 1500;
       const { composeDocument } = await import('/src/preview/composeDocument.ts');
       document.body.innerHTML = '';
       document.body.style.cssText = 'margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(circle at 35% 20%,#334155,#111827 58%,#05070a)';
@@ -150,15 +186,56 @@ async function measureAndCapture(spec, fixtureId) {
         category: spec.category,
         variantId: spec.variantId,
         fieldCount: template.fields.length,
+        zone: designSpec.zone ?? null,
+        animationPreset: designSpec.animation?.presetId ?? null,
+        entranceDurationMs,
+        exitDurationMs,
+        initialData: Object.fromEntries(designSpec.lines.map((line, index) => [`f${index}`, line.sample])),
+        updateData: Object.fromEntries(designSpec.lines.map((line, index) => {
+          const replacements = {
+            'person-name': 'Alexandra Chen-Williams',
+            'person-role': 'Senior Correspondent, International Desk',
+            organization: 'Coastal Resilience Research Institute',
+            'team-name': 'Northbridge United',
+            'story-headline': 'Regional rail services return to normal',
+            'event-name': 'Closing Plenary and Awards',
+            location: 'Central Convention Hall',
+            'social-handle': '@updated_handle',
+            'call-to-action': 'Watch the full briefing',
+            'supporting-context': 'Live update',
+          };
+          return [`f${index}`, replacements[line.role] ?? line.sample];
+        })),
       };
     }, { spec });
+    await page.evaluate((initialData) => {
+      document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(initialData));
+    }, measured.initialData);
+    await page.waitForTimeout(120);
     const motionStarted = Date.now();
     await page.evaluate(() => document.querySelector('#lite-eval-frame')?.contentWindow?.play());
-    await page.waitForTimeout(1100);
-    const screenshotFile = `${LABEL}-${fixtureId}.png`;
-    await page.screenshot({ path: path.join(OUT, screenshotFile) });
+    await page.waitForTimeout(220);
+    const entranceFile = `${LABEL}-${fixtureId}-entrance.png`;
+    await page.screenshot({ path: path.join(OUT, entranceFile) });
+    await page.waitForTimeout(Math.max(0, measured.entranceDurationMs + 250 - (Date.now() - motionStarted)));
+    await waitForMotionToSettle(page);
+    await page.waitForTimeout(80);
+    const holdFile = `${LABEL}-${fixtureId}-hold.png`;
+    await page.screenshot({ path: path.join(OUT, holdFile) });
+    await page.evaluate((updateData) => {
+      document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(updateData));
+    }, measured.updateData);
+    await page.waitForTimeout(180);
+    const updateFile = `${LABEL}-${fixtureId}-update.png`;
+    await page.screenshot({ path: path.join(OUT, updateFile) });
+    await page.waitForTimeout(420);
+    const exitStarted = Date.now();
     await page.evaluate(() => document.querySelector('#lite-eval-frame')?.contentWindow?.stop());
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(220);
+    const exitFile = `${LABEL}-${fixtureId}-exit.png`;
+    await page.screenshot({ path: path.join(OUT, exitFile) });
+    await page.waitForTimeout(Math.max(0, measured.exitDurationMs + 250 - (Date.now() - exitStarted)));
+    await waitForMotionToSettle(page);
     await page.close();
     await context.close();
     const motionFile = `${LABEL}-${fixtureId}.webm`;
@@ -169,7 +246,19 @@ async function measureAndCapture(spec, fixtureId) {
         (motionStarted - recordingStarted) / 1000,
       );
     }
-    return { ...measured, screenshotFile, ...(video ? { motionFile } : {}) };
+    return {
+      ok: measured.ok,
+      ruleCodes: measured.ruleCodes,
+      category: measured.category,
+      variantId: measured.variantId,
+      fieldCount: measured.fieldCount,
+      zone: measured.zone,
+      animationPreset: measured.animationPreset,
+      entranceDurationMs: measured.entranceDurationMs,
+      exitDurationMs: measured.exitDurationMs,
+      phaseFiles: { entrance: entranceFile, hold: holdFile, update: updateFile, exit: exitFile },
+      ...(video ? { motionFile } : {}),
+    };
   } finally {
     if (!page.isClosed()) await page.close().catch(() => {});
     await context.close().catch(() => {});
@@ -199,7 +288,14 @@ async function writeReviewPage() {
         <article>
           <h3>${escapeHtml(row.candidate)}</h3>
           ${row.motionFile ? `<video controls muted loop preload="metadata" src="${escapeHtml(row.motionFile)}"></video>` : ''}
-          ${row.screenshotFile ? `<a href="${escapeHtml(row.screenshotFile)}"><img loading="lazy" src="${escapeHtml(row.screenshotFile)}" alt="${escapeHtml(`${row.candidate} ${fixtureId}`)}"></a>` : ''}
+          <div class="phases">
+            ${Object.entries(row.phaseFiles ?? {}).map(([phase, file]) => `
+              <figure>
+                <a href="${escapeHtml(file)}"><img loading="lazy" src="${escapeHtml(file)}" alt="${escapeHtml(`${row.candidate} ${fixtureId} ${phase}`)}"></a>
+                <figcaption>${escapeHtml(phase)}</figcaption>
+              </figure>
+            `).join('')}
+          </div>
         </article>
       `).join('');
     return `
@@ -223,12 +319,14 @@ async function writeReviewPage() {
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:24px}
   article{padding:16px;background:#12161d;border:1px solid #29313d;border-radius:10px}
   img,video{display:block;width:100%;height:auto;background:#05070a;border-radius:6px}
-  img{margin-top:12px} video{margin-bottom:12px}
+  video{margin-bottom:12px}
+  .phases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  figure{margin:0} figcaption{padding-top:5px;color:#aeb7c3;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
 </style>
 <body>
   <header>
     <h1>NoaCG Lite blind lower-third review</h1>
-    <p>Candidate labels are intentionally neutral. Review the stills at 100% for typography, spacing, hierarchy, fit, and sharpness. Use the clips to judge entrance choreography, settling, hold, and exit. The clips are review proxies; runtime validation still uses the live browser graphic.</p>
+    <p>Candidate labels are intentionally neutral. Every still is captured at 1920x1080 for entrance, hold, update, and exit. Review at 100% for typography, spacing, hierarchy, fit, and sharpness. Use the clips to judge the full lifecycle choreography and settling. The clips are review proxies; runtime validation still uses the live browser graphic.</p>
   </header>
   ${cards}
 </body>
@@ -299,6 +397,10 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       variantId: measured.variantId,
       intentKind: generated.decision.spec.intent?.kind,
       fieldCount: measured.fieldCount,
+      zone: measured.zone,
+      animationPreset: measured.animationPreset,
+      entranceDurationMs: measured.entranceDurationMs,
+      exitDurationMs: measured.exitDurationMs,
       ruleCodes: measured.ruleCodes,
       latencyMs: Date.now() - started,
       costUsd,
@@ -308,7 +410,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       reasoningTokens: generated.usage?.reasoningTokens ?? 0,
       attempts: generated.attemptCount ?? 0,
       repairs: generated.repairCount ?? 0,
-      screenshotFile: measured.screenshotFile,
+      phaseFiles: measured.phaseFiles,
       motionFile: measured.motionFile,
     });
     console.log(measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`);

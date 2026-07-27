@@ -664,18 +664,22 @@ outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now). On ≤768px the facet
 controls collapse behind the `.wz-browse-drawer-btn` toggle (active-count badge; search,
 active chips and results stay visible — closed by default via a matchMedia initial state,
-and desktop CSS ignores the closed state entirely). The CANVAS FORMAT row (aspect /
-resolution / fps, `.wz-browse-format`) sits OUTSIDE `.wz-browse-filters` and above the
+and desktop CSS ignores the closed state entirely). The shared PROJECT FORMAT picker
+(`ProjectFormatPicker`, aspect / resolution / FPS, `.wz-browse-format`) sits OUTSIDE
+`.wz-browse-filters` and above the
 toggle: it is not a facet — `browseTemplates` never reads it, so nothing is narrowed — and
 inside the drawer it asked a phone user to open a control labelled "Filters" to make a
-decision that filters nothing. The import-images
+decision that filters nothing. The same controlled picker appears before generation or
+placement in AI/Lite, Import Graphic, blank, video AI, and the older import/catalog
+continuation; draft selection survives route switches. Blank is a setup step, never an
+immediate default-format create. The import-images
 continuation (mode 'import') keeps the old ImportStep -> TemplateStep flow and indices; the
 catalog flow's later steps sit one index earlier (`animStep`), and FINISH follows Animation
 in every mode (`finishStep = animStep + 1`).
 
 **Import graphic** (mode 'design', steps/ImportDesignStep + PrepareDesignStep +
 PlaceFieldsStep + the shared AnimationStep) is a SETUP flow, not a second editor:
-Start -> Design (drop the image - any raster format the browser decodes: PNG, JPEG, WebP,
+Start -> Design (choose project format, then drop the image - any raster format the browser decodes: PNG, JPEG, WebP,
 GIF, AVIF, rejecting only a file with no intrinsic pixel size, since every downstream number
 comes from that measurement; live preview from the moment it lands; Create is available from
 here on - every later step is an optional stop) -> Prepare -> Text -> Animation -> Create.

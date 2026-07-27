@@ -21,11 +21,19 @@ Findings from the 2026-07 inspection, kept here because they shape the whole des
   filtering: with one supported category there is nothing to filter yet. `'auto'` versus an
   explicit requested category changes only the ledger's `requestedCategory` and the
   `requested_category_ignored` semantic check.
-- **Measured size (2026-07-27, chars/4 approximation):** system prompt ≈ 1,070 tokens (of
-  which the catalog digest ≈ 650), structured-output schema ≈ 1,100, request ≈ 60 - about
-  **2.2k input tokens per call**, well inside the profile's 12k estimate. `bench:calibrate`
-  and `bench:regress` re-measure and record this every run (`context` in the summaries),
-  which is the catalog-growth cost curve made visible.
+- **Measured size (chars/4 approximation):** roughly **2.5k input tokens per call**
+  (system prompt incl. the ~650-token catalog digest, plus the structured-output schema and
+  the small request), well inside the profile's 12k estimate. The exact current numbers are
+  not frozen here on purpose: `bench:calibrate` and `bench:regress` re-measure and record
+  them on every run (`context` in the summaries) - that series is the catalog-growth cost
+  curve made visible.
+- **Refusals are deterministic-only.** The model's structured schema is ready-only
+  (`LITE_READY_OUTPUT`); `deterministicUnsupportedDecision` (requested-category check +
+  prompt patterns, pre-inference, zero cost) is the ONLY refusal path. Consequence for the
+  benchmark: `UNSUPPORTED_FORCED` measures the deterministic screen's misses, not model
+  judgement - an unsupported brief that slips the screen WILL be forced into a lower third.
+  The screen's coverage of the expected-unsupported briefs is regression-pinned in
+  `bench:regress` and the build-gate tests.
 - **Scaling:** the Lite digest grows ~110 tokens per audited chassis plus schema-enum
   growth. Growth is governed by *curation into* `LITE_CATALOG`, not by the raw catalog -
   widening the allowlist is a deliberate, benchmarked act (src/ai/AGENTS.md).

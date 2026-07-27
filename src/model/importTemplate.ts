@@ -9,7 +9,13 @@
 import JSZip from 'jszip';
 import { ensureExternalRefs } from '../export/common';
 import { parseDefinition } from './spxDefinition';
-import { DEFAULT_SETTINGS, RESOLUTIONS, type AssetFile, type SpxTemplate } from './types';
+import { DEFAULT_SETTINGS, type AssetFile, type SpxTemplate } from './types';
+import {
+  DEFAULT_GRAPHICS_FORMAT,
+  projectFormatForResolution,
+  resolutionForSelection,
+  type Resolution,
+} from './projectFormat';
 
 const ASSET_MIME: Record<string, string> = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
@@ -21,8 +27,98 @@ function baseName(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Imported template';
 }
 
+export interface AuthoredFormatDetection {
+  resolution: Resolution | null;
+  fps: number | null;
+  certain: boolean;
+  messages: string[];
+}
+
+export interface ImportedTemplateResult {
+  template: SpxTemplate;
+  detection: AuthoredFormatDetection;
+}
+
+function positiveNumber(value: string | undefined): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function importedResolution(width: number, height: number): Resolution {
+  const preset = projectFormatForResolution({ width, height });
+  return preset
+    ? { width: preset.width, height: preset.height, label: preset.label }
+    : { width, height, label: `Imported (${width}×${height})` };
+}
+
+/**
+ * Detect format only from explicit metadata or an unambiguous root canvas declaration.
+ * Missing timing is not guessed: SPX itself does not define a universal frame-rate field.
+ */
+export function detectAuthoredFormat(html: string, css = '', js = ''): AuthoredFormatDetection {
+  const meta = html.match(
+    /<meta\b(?=[^>]*\bname=["']noacg-project-format["'])[^>]*>/i,
+  )?.[0];
+  const metaContent = meta?.match(/\bcontent=["']([^"']+)["']/i)?.[1];
+  if (metaContent) {
+    const values = Object.fromEntries(
+      metaContent.split(';').map((part) => part.split('=').map((value) => value.trim())),
+    );
+    const width = positiveNumber(values.width);
+    const height = positiveNumber(values.height);
+    const fps = positiveNumber(values.fps);
+    if (width && height && fps) {
+      return {
+        resolution: importedResolution(width, height),
+        fps,
+        certain: true,
+        messages: ['Read exact authored width, height, and frame rate from NoaCG project metadata.'],
+      };
+    }
+  }
+
+  const candidates = new Map<string, { width: number; height: number }>();
+  const sources = [css, ...[...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1])];
+  for (const source of sources) {
+    for (const match of source.matchAll(/(?:^|})\s*(?:html\s*,\s*body|body\s*,\s*html|html|body|#root)\s*\{([^}]*)\}/gi)) {
+      const width = positiveNumber(match[1].match(/\bwidth\s*:\s*(\d+(?:\.\d+)?)px/i)?.[1]);
+      const height = positiveNumber(match[1].match(/\bheight\s*:\s*(\d+(?:\.\d+)?)px/i)?.[1]);
+      if (width && height) candidates.set(`${width}x${height}`, { width, height });
+    }
+  }
+
+  const fpsCandidates = new Set<number>();
+  for (const source of [html, js]) {
+    for (const match of source.matchAll(/\b(?:data-fps\s*=\s*["']|gsap\.ticker\.fps\s*\()\s*(\d+(?:\.\d+)?)/gi)) {
+      const fps = positiveNumber(match[1]);
+      if (fps) fpsCandidates.add(fps);
+    }
+  }
+
+  const canvas = candidates.size === 1 ? [...candidates.values()][0] : null;
+  const fps = fpsCandidates.size === 1 ? [...fpsCandidates][0] : null;
+  const messages: string[] = [];
+  if (canvas) messages.push(`Detected a ${canvas.width}×${canvas.height} root canvas.`);
+  else if (candidates.size > 1) messages.push('Found conflicting root canvas dimensions.');
+  else messages.push('Could not find an unambiguous authored canvas size.');
+  if (fps) messages.push(`Detected ${fps} fps timing.`);
+  else if (fpsCandidates.size > 1) messages.push('Found conflicting frame-rate declarations.');
+  else messages.push('Could not detect the authored frame rate. SPX does not define one universal FPS field.');
+
+  return {
+    resolution: canvas ? importedResolution(canvas.width, canvas.height) : null,
+    fps,
+    certain: Boolean(canvas && fps),
+    messages,
+  };
+}
+
 /** Split a single HTML document into the html/css/js panes. */
-export function importHtmlTemplate(fileName: string, raw: string, extra?: { css?: string; js?: string; assets?: AssetFile[] }): SpxTemplate {
+export function importHtmlTemplate(
+  fileName: string,
+  raw: string,
+  extra?: { css?: string; js?: string; assets?: AssetFile[] },
+): ImportedTemplateResult {
   const styles: string[] = [];
   const scripts: string[] = [];
 
@@ -53,19 +149,24 @@ export function importHtmlTemplate(fileName: string, raw: string, extra?: { css?
 
   const name = (raw.match(/<title[^>]*>([^<]+)<\/title>/i) || [])[1]?.trim() || baseName(fileName);
   const parsed = parseDefinition(html);
+  const detection = detectAuthoredFormat(raw, [extra?.css, ...styles].filter(Boolean).join('\n\n'), [extra?.js, ...scripts].filter(Boolean).join('\n\n'));
+  const fallback = resolutionForSelection(DEFAULT_GRAPHICS_FORMAT);
 
   return {
-    name,
-    type: 'blank',
-    resolution: RESOLUTIONS[0],
-    fps: 25,
-    html,
-    css: [extra?.css, ...styles].filter(Boolean).join('\n\n'),
-    js: [extra?.js, ...scripts].filter(Boolean).join('\n\n'),
-    fields: parsed?.fields ?? [],
-    settings: parsed?.settings ?? { ...DEFAULT_SETTINGS, description: name },
-    assets: extra?.assets ?? [],
-    layers: [],
+    template: {
+      name,
+      type: 'blank',
+      resolution: detection.resolution ?? fallback,
+      fps: detection.fps ?? DEFAULT_GRAPHICS_FORMAT.fps,
+      html,
+      css: [extra?.css, ...styles].filter(Boolean).join('\n\n'),
+      js: [extra?.js, ...scripts].filter(Boolean).join('\n\n'),
+      fields: parsed?.fields ?? [],
+      settings: parsed?.settings ?? { ...DEFAULT_SETTINGS, description: name },
+      assets: extra?.assets ?? [],
+      layers: [],
+    },
+    detection,
   };
 }
 
@@ -79,7 +180,7 @@ function toDataUrl(mime: string, bytes: Uint8Array): string {
 }
 
 /** Import an SPX-style zip: locate the html, pull in css/js files and binary assets. */
-export async function importZipTemplate(fileName: string, data: ArrayBuffer): Promise<SpxTemplate> {
+export async function importZipTemplate(fileName: string, data: ArrayBuffer): Promise<ImportedTemplateResult> {
   const zip = await JSZip.loadAsync(data);
   const files = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
 
@@ -120,7 +221,7 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
 }
 
 /** Dispatch a dropped/browsed file to the right importer. */
-export async function importTemplateFile(file: File): Promise<SpxTemplate> {
+export async function importTemplateFile(file: File): Promise<ImportedTemplateResult> {
   if (file.name.toLowerCase().endsWith('.zip')) {
     return importZipTemplate(file.name, await file.arrayBuffer());
   }

@@ -99,12 +99,20 @@ test('hidden holdout stays disjoint from the core suite', () => {
   }
 });
 
-test('expected-unsupported core briefs are caught by the zero-cost screen', () => {
+test('expected-unsupported core briefs are caught by the deterministic gate', () => {
+  // The production schema is ready-only, so this pre-inference screen is the ONLY refusal
+  // path: a miss both spends a model call and forces an unsupported brief into a graphic.
   for (const brief of CORE_SUITE.filter((b) => b.expect.decision === 'unsupported')) {
-    const screened = contract.obviousUnsupportedDecision(brief.brief);
-    assert.ok(screened, `${brief.id} would spend a model call`);
+    const screened = contract.deterministicUnsupportedDecision(request(brief.brief));
+    assert.ok(screened, `${brief.id} would spend a model call and force a wrong graphic`);
     assert.equal(screened.code, brief.expect.unsupportedCode, brief.id);
   }
+  // A requested off-catalog category refuses deterministically even with a neutral prompt.
+  const categoryScreened = contract.deterministicUnsupportedDecision({
+    ...request('A clean graphic for tonight.'),
+    generationSpec: { version: 1, category: 'scoreboard', fields: [] },
+  });
+  assert.equal(categoryScreened?.code, 'unsupported-category');
 });
 
 // ── Gold, floor, repair against the real semantic validator ──────────────────

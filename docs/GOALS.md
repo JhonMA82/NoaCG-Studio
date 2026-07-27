@@ -739,6 +739,13 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       (migration 0007), and a cleanup cron. Contract: `src/render/CLAUDE.md` +
       `docs/RENDER.md`. Still to do: live-verify the sandbox path on a real deployment
       (needs the Blob store + env vars), like H2R was.
+- [x] **One authored project format across creation (2026-07-27)** - templates, AI and Lite,
+      imported artwork, blank graphics, video AI, and the older image/catalog continuation all
+      use one preset registry and one picker before authoring starts. Saved work remains
+      untouched; HTML/SPX imports detect exact package metadata and require confirmation when
+      resolution or FPS is uncertain. Package exporters preserve authored dimensions/timing,
+      while rendered-media scale and compatible FPS are explicitly output settings
+      (`docs/PROJECT_FORMATS.md`).
 - [x] **AI video & animation projects (2026-07-13)** — a second project kind beside live
       graphics: "Video or animation with AI" in the New Project wizard creates a
       fixed-duration React/Remotion composition (stingers, intros, logo reveals,

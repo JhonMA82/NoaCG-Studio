@@ -2,9 +2,18 @@ import { useRef, useState } from 'react';
 import { CATEGORIES, type TemplateCategory } from '../../../model/wizard';
 import type { AssetFile } from '../../../model/types';
 import { fileToDataUrl, isImageAsset, uniqueAssetPath } from '../../../assets/assetUtils';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
+import {
+  draftFormatSelection,
+  formatDraftPatch,
+  type DraftPatch,
+  type WizardDraft,
+} from '../draft';
 
 interface Props {
   images: AssetFile[];
+  draft: WizardDraft;
+  onDraft: (patch: DraftPatch) => void;
   onImages: (images: AssetFile[]) => void;
   onContinue: (category: TemplateCategory) => void;
 }
@@ -15,7 +24,7 @@ interface Props {
  * logo-slot designs first and the first image pre-placed. (Existing-template import lives
  * in the Create-with-AI step itself; this step is images-only.)
  */
-export default function ImportStep({ images, onImages, onContinue }: Props) {
+export default function ImportStep({ images, draft, onDraft, onImages, onContinue }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [category, setCategory] = useState<TemplateCategory>('lower-third');
@@ -32,6 +41,13 @@ export default function ImportStep({ images, onImages, onContinue }: Props) {
 
   return (
     <div>
+      <ProjectFormatPicker
+        value={draftFormatSelection(draft)}
+        onChange={(selection) => onDraft(formatDraftPatch(selection))}
+        idPrefix="legacy-import-format"
+        description="Choose the project canvas before images are placed into a catalog design."
+      />
+
       <div
         className={`wz-drop ${dragOver ? 'over' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}

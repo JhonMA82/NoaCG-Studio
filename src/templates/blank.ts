@@ -1,7 +1,11 @@
 import { parseDefinition } from '../model/spxDefinition';
-import { DEFAULT_SETTINGS, RESOLUTIONS, type Resolution, type SpxTemplate } from '../model/types';
+import { DEFAULT_SETTINGS, type Resolution, type SpxTemplate } from '../model/types';
+import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 
-export function createBlankTemplate(res: Resolution = RESOLUTIONS[0], fps = 25): SpxTemplate {
+export function createBlankTemplate(
+  res: Resolution = DEFAULT_GRAPHICS_RESOLUTION,
+  fps = DEFAULT_GRAPHICS_FORMAT.fps,
+): SpxTemplate {
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>

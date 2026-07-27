@@ -68,10 +68,16 @@ try {
   }
   console.log(`Repair suite: ${repairPassed}/${REPAIR_SUITE.length} expectations hold.`);
 
-  // The zero-cost unsupported screen must still catch the expected-unsupported core briefs
-  // it caught when the suite was frozen (a paid model call for these is a cost regression).
+  // The zero-cost DETERMINISTIC unsupported gate (the production pre-inference screen -
+  // the model's schema is ready-only, so this screen is the ONLY refusal path) must still
+  // catch the expected-unsupported core briefs it caught when the suite was frozen: a miss
+  // is both a cost regression and an UNSUPPORTED_FORCED result waiting to happen.
   for (const brief of CORE_SUITE.filter((b) => b.expect.decision === 'unsupported')) {
-    const screened = contract.obviousUnsupportedDecision(brief.brief);
+    const screened = contract.deterministicUnsupportedDecision({
+      prompt: brief.brief,
+      resolution: { width: 1920, height: 1080 },
+      fps: 50,
+    });
     if (!screened || screened.code !== brief.expect.unsupportedCode) {
       failures += 1;
       console.error(

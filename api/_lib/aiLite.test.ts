@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import {
   LITE_CATALOG,
+  LITE_READY_OUTPUT,
+  deterministicUnsupportedDecision,
   obviousUnsupportedDecision,
   validateLiteDecision,
 } from '../../src/ai/liteContract.js';
@@ -123,6 +125,31 @@ test('obviously unsupported requests are rejected before model inference', () =>
     'unsupported',
   );
   assert.equal(obviousUnsupportedDecision('A minimal university lower third'), null);
+  assert.equal(deterministicUnsupportedDecision({
+    ...request(),
+    generationSpec: {
+      version: 1,
+      category: 'ticker',
+      fields: [],
+    },
+  })?.status, 'unsupported');
+});
+
+test('the managed model receives a ready-only lower-third schema', () => {
+  const schema = LITE_READY_OUTPUT.schema as {
+    oneOf?: unknown;
+    properties?: {
+      status?: { enum?: unknown[] };
+      spec?: { properties?: { zone?: { enum?: unknown[] } } };
+    };
+  };
+  assert.equal(schema.oneOf, undefined);
+  assert.deepEqual(schema.properties?.status?.enum, ['ready']);
+  assert.deepEqual(schema.properties?.spec?.properties?.zone?.enum, [
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+  ]);
 });
 
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {
@@ -221,6 +248,80 @@ test('Lite semantic validation recognizes natural person and team role requests'
     prompt: 'A bold football lower third for player name Mateo Silva and team Northbridge FC.',
   });
   assert.ok(playerSemantic.errors.includes('requested_role_missing:team-name'));
+});
+
+test('Lite semantic validation preserves documentary subjects and story headlines', () => {
+  const entry = LITE_CATALOG[4];
+  assert.ok(entry);
+  const base = {
+    fit: 'catalog' as const,
+    reason: 'A quiet editorial treatment.',
+    name: 'Editorial Lower Third',
+    summary: 'A restrained lower third.',
+    category: 'lower-third' as const,
+    variantId: entry.variantId,
+    palette: { accent: '#f6a623', text: '#ffffff', textDim: '#cccccc', panel: '#101010' },
+    flourish: '',
+  };
+  const documentary = validateLiteDecision({
+    status: 'ready',
+    aiCategory: 'lower-third',
+    spec: {
+      ...base,
+      intent: { kind: 'story', primaryRole: 'story-headline', secondaryRole: 'location' },
+      lines: [
+        { title: 'Headline', sample: 'Nuru Bekele', role: 'story-headline' },
+        { title: 'Location', sample: 'Lake Tana, Ethiopia', role: 'location' },
+      ],
+    },
+  }, {
+    ...request(),
+    prompt: 'A quiet documentary lower third for subject name Nuru Bekele and location Lake Tana, Ethiopia.',
+  });
+  assert.ok(documentary.errors.includes('requested_role_missing:person-name'));
+
+  const story = validateLiteDecision({
+    status: 'ready',
+    aiCategory: 'lower-third',
+    spec: {
+      ...base,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'location' },
+      lines: [
+        { title: 'Name', sample: 'Rail services resume', role: 'person-name' },
+        { title: 'Location', sample: 'Greater Manchester', role: 'location' },
+      ],
+    },
+  }, {
+    ...request(),
+    prompt: 'A news lower third for headline Rail services resume after repairs and location Greater Manchester.',
+  });
+  assert.ok(story.errors.includes('requested_role_missing:story-headline'));
+});
+
+test('Lite semantic validation treats a professional title as a person role', () => {
+  const entry = LITE_CATALOG[0];
+  const semantic = validateLiteDecision({
+    status: 'ready',
+    aiCategory: 'lower-third',
+    spec: {
+      fit: 'catalog',
+      reason: 'A professional house strap.',
+      name: 'Producer Lower Third',
+      summary: 'A professional lower third.',
+      category: 'lower-third',
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'team-name' },
+      lines: [
+        { title: 'Name', sample: 'Taylor Morgan', role: 'person-name' },
+        { title: 'Title', sample: 'Senior Producer', role: 'team-name' },
+      ],
+      flourish: '',
+    },
+  }, {
+    ...request(),
+    prompt: 'Create a professional lower third for Taylor Morgan, Senior Producer.',
+  });
+  assert.ok(semantic.errors.includes('requested_role_missing:person-role'));
 });
 
 test('memory ledger enforces idempotency, concurrency, and successful-generation allowances', async () => {

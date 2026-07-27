@@ -1,12 +1,16 @@
 import { useRef, useState } from 'react';
 import type { AssetFile, Resolution } from '../../../model/types';
+import type { ProjectFormatSelection } from '../../../model/projectFormat';
 import type { DesignArt } from '../../../model/wizard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
+import ProjectFormatPicker from '../../ProjectFormatPicker';
 
 interface Props {
   art: DesignArt | null;
   images: AssetFile[];
   resolution: Resolution;
+  format: ProjectFormatSelection;
+  onFormat: (format: ProjectFormatSelection) => void;
   onArt: (art: DesignArt, images: AssetFile[]) => void;
   onClear: () => void;
 }
@@ -21,7 +25,15 @@ interface Props {
  * inside it, and where the text defaults land. Guessing any of that would put the user's
  * artwork somewhere they didn't draw it.
  */
-export default function ImportDesignStep({ art, images, resolution, onArt, onClear }: Props) {
+export default function ImportDesignStep({
+  art,
+  images,
+  resolution,
+  format,
+  onFormat,
+  onArt,
+  onClear,
+}: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +98,18 @@ export default function ImportDesignStep({ art, images, resolution, onArt, onCle
 
   return (
     <div>
+      <ProjectFormatPicker
+        value={format}
+        onChange={onFormat}
+        disabled={!!art}
+        idPrefix="import-design-format"
+        description={
+          art
+            ? 'Remove the current artwork before changing its authored canvas.'
+            : 'Choose the canvas before artwork is measured and placed.'
+        }
+      />
+
       {/* Once the design is in, the drop zone steps DOWN to a quiet swap target: keeping it
           at full height would give the loudest element on the step to an action the user has
           already finished, and push everything that still matters below the fold. */}
@@ -139,6 +163,14 @@ export default function ImportDesignStep({ art, images, resolution, onArt, onCle
                   ? `Larger than the ${resolution.width} × ${resolution.height} frame, so it is scaled down to fit it (the extra resolution keeps it sharp) and placed as an object you can position.`
                   : `Smaller than the ${resolution.width} × ${resolution.height} frame, so it is placed as an object you can position and resize.`}
           </p>
+          {!scaled &&
+            art.width / art.height === resolution.width / resolution.height &&
+            (art.width < resolution.width || art.height < resolution.height) && (
+              <p className="status-bad" data-testid="import-raster-warning">
+                This source is smaller than the project canvas. It stays at native pixel size;
+                enlarging it to fill the frame would soften it.
+              </p>
+            )}
         </div>
       )}
 

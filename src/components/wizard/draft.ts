@@ -2,7 +2,14 @@
 // null means "use the variant's tasteful default" — draftToOptions() maps the draft onto
 // WizardOptions, and resolveOptions() (model/wizard.ts) fills the rest.
 
-import { ASPECTS, type AssetFile, type Resolution, type SpxTemplate } from '../../model/types';
+import type { AssetFile, SpxTemplate } from '../../model/types';
+import {
+  DEFAULT_GRAPHICS_FORMAT,
+  projectFormatById,
+  resolutionForSelection,
+  type ProjectFormatSelection,
+  type Resolution,
+} from '../../model/projectFormat';
 import { addPlacedLine, setLineFit, setLineTextStyle } from '../../blocks/designLayout';
 import { anyPresetById, type AnimPhase } from '../../blocks/presetRegistry';
 import { parseAnimData } from '../../blocks/animData';
@@ -84,9 +91,12 @@ export interface WizardDraft {
   name: string;
   category: TemplateCategory | null;
   variantId: string | null;
-  aspectId: string;
-  resolutionLabel: string;
+  aspectId: ProjectFormatSelection['aspectId'];
+  resolutionId: ProjectFormatSelection['resolutionId'];
   fps: number;
+  /** Session-only signal used when switching into video: untouched graphics defaults become
+   * the video defaults, while an explicit choice is carried across creation routes. */
+  formatTouched: boolean;
   lines: LineSpec[];
   /**
    * Extra definition-only fields. The wizard UI no longer offers these (the generated
@@ -163,9 +173,8 @@ export function initialDraft(): WizardDraft {
     name: '',
     category: null,
     variantId: null,
-    aspectId: ASPECTS[0].id,
-    resolutionLabel: ASPECTS[0].resolutions[0].label,
-    fps: 25,
+    ...DEFAULT_GRAPHICS_FORMAT,
+    formatTouched: false,
     lines: [],
     extraFields: [],
     paletteId: null,
@@ -188,8 +197,19 @@ export function initialDraft(): WizardDraft {
 }
 
 export function draftResolution(draft: WizardDraft): Resolution {
-  const aspect = ASPECTS.find((a) => a.id === draft.aspectId) ?? ASPECTS[0];
-  return aspect.resolutions.find((r) => r.label === draft.resolutionLabel) ?? aspect.resolutions[0];
+  return resolutionForSelection(draftFormatSelection(draft));
+}
+
+export function draftFormatSelection(draft: WizardDraft): ProjectFormatSelection {
+  const preset = projectFormatById(draft.resolutionId);
+  if (preset?.aspectId === draft.aspectId) {
+    return { aspectId: draft.aspectId, resolutionId: preset.id, fps: draft.fps };
+  }
+  return DEFAULT_GRAPHICS_FORMAT;
+}
+
+export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch {
+  return { ...selection, formatTouched: true };
 }
 
 /** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & font" toggle). */
