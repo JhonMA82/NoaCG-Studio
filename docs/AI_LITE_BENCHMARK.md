@@ -138,6 +138,11 @@ npm run bench:lite        # the PAID eval runner (= eval:ai-lite; hard caps: 40 
 npm run bench:spike -- --label=candidate-a   # Phase 0 spike: DRY RUN with cost preview by
                           # default; --confirm-spend executes 6 briefs x 3 runs for the
                           # server's current route (repeat per candidate with a new label)
+npm run bench:spike -- --label=candidate-a --suite=skin   # the SKIN spike: the six
+                          # skin-* fixture briefs (distinctive styles no house chassis
+                          # carries) against a server started with AI_LITE_SKIN_ENABLED=1;
+                          # a paid run REFUSES to start when the flag is off, and metrics
+                          # count skinApplied (skinned canvas vs house-chassis revert)
 npm run bench:gallery     # blind review gallery over any out-dir
 npm run bench:report      # aggregate results + judgements into the honest report
 npm run test:ai-lite-bench  # the benchmark self-tests (also in the build gate)

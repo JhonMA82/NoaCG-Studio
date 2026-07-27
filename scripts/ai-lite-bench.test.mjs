@@ -11,7 +11,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildApiRuntime, projectRoot } from './api-runtime-build.mjs';
-import { CORE_SUITE, GOLD_SPECS, REPAIR_SUITE, SPIKE_FIXTURE_IDS, floorDecision, seededRandom, LITE_BENCH_SUITE_ID } from './ai-lite-bench/suites.mjs';
+import { CORE_SUITE, GOLD_SPECS, REPAIR_SUITE, SKIN_SPIKE_FIXTURE_IDS, SPIKE_FIXTURE_IDS, floorDecision, seededRandom, LITE_BENCH_SUITE_ID } from './ai-lite-bench/suites.mjs';
 import { HOLDOUT_SUITE } from './ai-lite-bench/holdout.mjs';
 import { CHALLENGE_SUITE } from './ai-lite-bench/challenge.mjs';
 import { FAILURE_CODES, classifyFailure } from './ai-lite-bench/taxonomy.mjs';
@@ -223,11 +223,18 @@ test('the repair suite expectations match validateLiteDecision exactly', () => {
   }
 });
 
-test('spike selection: 6 briefs, all from the frozen fixture bank', () => {
-  assert.equal(SPIKE_FIXTURE_IDS.length, 6);
-  assert.equal(new Set(SPIKE_FIXTURE_IDS).size, 6);
+test('spike selections: 6 briefs each, all from the frozen fixture bank, disjoint', () => {
   const bank = new Set(LITE_LOWER_THIRD_FIXTURES.map(([id]) => id));
-  for (const id of SPIKE_FIXTURE_IDS) assert.ok(bank.has(id), `${id} missing from the fixture bank`);
+  for (const suite of [SPIKE_FIXTURE_IDS, SKIN_SPIKE_FIXTURE_IDS]) {
+    assert.equal(suite.length, 6);
+    assert.equal(new Set(suite).size, 6);
+    for (const id of suite) assert.ok(bank.has(id), `${id} missing from the fixture bank`);
+  }
+  // The skin suite is the styles no house chassis carries - it shares no brief with core.
+  for (const id of SKIN_SPIKE_FIXTURE_IDS) {
+    assert.ok(id.startsWith('skin-'), `${id} must be a skin-* brief`);
+    assert.ok(!SPIKE_FIXTURE_IDS.includes(id));
+  }
 });
 
 test('challenge suite: unique ids, disjoint from core and holdout, valid floors', () => {

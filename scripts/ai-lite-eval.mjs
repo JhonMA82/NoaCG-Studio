@@ -409,6 +409,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       status: measured.ok ? 'machine-usable' : 'invalid',
       category: measured.category,
       variantId: measured.variantId,
+      skinApplied: measured.skinApplied ?? false,
       intentKind: generated.decision.spec.intent?.kind,
       fieldCount: measured.fieldCount,
       zone: measured.zone,
@@ -452,6 +453,9 @@ const summary = {
   maxCalls: MAX_PROVIDER_CALLS,
   maxCostUsd: MAX_COST_USD,
   machineUsable: rows.filter((row) => row.status === 'machine-usable').length,
+  // How many results landed as the SKINNED canvas (vs reverting to a house chassis) -
+  // the skin spike's primary count; always 0 on a skin-disabled route.
+  skinApplied: rows.filter((row) => row.skinApplied).length,
   rows,
 };
 await writeFile(path.join(OUT, `${LABEL}-metrics.json`), JSON.stringify(summary, null, 2), 'utf8');

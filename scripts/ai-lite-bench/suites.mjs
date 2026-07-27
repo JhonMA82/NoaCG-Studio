@@ -128,6 +128,23 @@ export const SPIKE_FIXTURE_IDS = [
   'story-headline',
 ];
 
+// ── The SKIN spike selection ─────────────────────────────────────────────────
+//
+// The six skin-* briefs from the fixture bank (v2): distinctive visual styles no house
+// chassis carries. Run with `npm run bench:spike -- --suite=skin` against a server
+// started with AI_LITE_SKIN_ENABLED=1 - the spike runner refuses a paid skin run when
+// the status endpoint reports the flag off, because a skin-disabled route would compile
+// every brief to a house chassis and measure nothing the suite exists to measure.
+
+export const SKIN_SPIKE_FIXTURE_IDS = [
+  'skin-brutalist-poster',
+  'skin-neon-synthwave',
+  'skin-hand-crafted',
+  'skin-luxury-runway',
+  'skin-retro-festival',
+  'skin-terminal-hud',
+];
+
 // ── Gold specs (the calibration CEILING) ─────────────────────────────────────
 //
 // Hand-written, deliberately good decisions for three core briefs, compiled through the

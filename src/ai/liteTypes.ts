@@ -159,6 +159,8 @@ export interface LiteStatusResponse {
   requiresSignIn: boolean;
   reason?: 'disabled' | 'sign-in' | 'not-configured' | 'capacity';
   supportedCategories: string[];
+  /** The skin experiment's server flag - additive, so older servers simply omit it. */
+  skinEnabled?: boolean;
   limits: LitePublicLimits;
   allowance?: LiteAllowance;
 }
