@@ -108,6 +108,9 @@ test('a generic prompt renders the default title sample without errors', async (
 
 test('scrubbing seeks the composition deterministically', async ({ page }) => {
   await createCountdownProject(page);
+  // Generation can replace and autoplay the mounted composition. Do not pause or seek the
+  // provisional player before that final, undoable snapshot has landed.
+  await waitForGeneration(page);
   await expect(player(page).getByText('5', { exact: true })).toBeVisible({ timeout: 10_000 });
 
   // Pause, then scrub to the middle: second 3 of 5 (frame 75 at 30fps) -> the countdown shows 3.
