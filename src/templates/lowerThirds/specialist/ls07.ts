@@ -65,7 +65,6 @@ ${slot(o, 2, 'lower-third-caller', '        ')}
   display: flex;                    /* label · divider · callers, in a row */
   align-items: baseline;            /* every piece shares one baseline */
   gap: calc(20px * var(--scale));
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width rail even for short names — the void fills the rest */
   padding: calc(15px * var(--scale)) calc(30px * var(--scale)) calc(18px * var(--scale));
   background: var(--panel-bg);      /* the minimal family's quiet panel */
   border-radius: var(--panel-radius);  /* the family's corner radius */

@@ -50,7 +50,6 @@ ${lineMasks(o, '      ')}
   display: flex;                    /* the lines and the rule are ordered flex items */
   flex-direction: column;           /* one item per row, top to bottom */
   text-align: center;               /* the symmetric composition this design is built on */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width page even for short lines — the void fills the rest */
   padding: calc(28px * var(--scale)) calc(66px * var(--scale)) calc(33px * var(--scale));
   background: var(--panel-bg);      /* paper by default (Broadsheet), ink on a dark palette */
   box-shadow: var(--panel-shadow);  /* the family's restrained lift */

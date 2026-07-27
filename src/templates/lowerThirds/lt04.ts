@@ -46,7 +46,6 @@ ${lineMasks(o)}
   display: flex;                   /* lay the lines out as a column… */
   flex-direction: column;          /* …so \`order\` can visually reorder them */
   gap: calc(12px * var(--scale));  /* breathing room between kicker and name */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for a short name — the void fills the rest */
   padding: calc(24px * var(--scale)) calc(38px * var(--scale));  /* generous inner space */
   background: var(--panel-bg);     /* the near-white porcelain panel */
   border-radius: var(--panel-radius);  /* the card's authored panel radius */

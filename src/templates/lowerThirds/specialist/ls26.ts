@@ -73,7 +73,6 @@ ${slot(o, 2, 'lower-third-extra')}
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
   -webkit-backdrop-filter: var(--panel-blur);  /* Safari spelling of the same effect */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short billing — the void fills the rest */
   max-width: calc(950px * var(--scale));  /* a band name and a track title both run long */
 }
 

@@ -86,7 +86,6 @@ ${logo}${lineMasks(o)}
 
       css: `/* The frosted card — translucent panel, heavy backdrop blur, one soft lifting shadow. */
 .lower-third-box {
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for a short name — the void fills the rest */
   padding: calc(26px * var(--scale)) calc(35px * var(--scale));  /* generous inner air */${boxLogoDecls}
   background: var(--panel-bg);     /* translucent white — the glass tint */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

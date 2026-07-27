@@ -76,7 +76,6 @@ ${refRow}${creditRow}    </div>`,
   background: var(--panel-bg);      /* the minimal family's quiet panel */
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short reference — the void fills the rest */
   max-width: calc(850px * var(--scale));  /* a reference is short; nothing here needs the frame */
 }
 
