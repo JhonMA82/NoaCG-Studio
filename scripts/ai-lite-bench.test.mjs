@@ -59,6 +59,22 @@ test('the benchmark runners compile through the shared pipeline, never inline', 
   }
 });
 
+test('every contract symbol the browser-side runners reference exists', () => {
+  // The runners import the contract inside page.evaluate, where a renamed export only
+  // fails at run time with a dev server up - this pin moves that break into the build
+  // gate (LITE_DECISION_OUTPUT -> LITE_READY_OUTPUT broke the compile arms this way).
+  const referenced = new Set();
+  for (const file of ['scripts/ai-lite-bench/compileRunner.mjs', 'scripts/ai-lite-calibrate.mjs', 'scripts/ai-lite-regress.mjs']) {
+    for (const match of read(file).matchAll(/\bcontract\.([A-Za-z_$][\w$]*)/g)) {
+      referenced.add(match[1]);
+    }
+  }
+  for (const name of ['liteSystemPrompt', 'liteCatalogDigest', 'LITE_READY_OUTPUT', 'LITE_CATALOG']) referenced.add(name);
+  for (const name of referenced) {
+    assert.ok(name in contract, `liteContract no longer exports "${name}" (referenced by a runner)`);
+  }
+});
+
 test('production src never imports benchmark code (bundle exclusion)', () => {
   const walk = (dir) => readdirSync(path.join(projectRoot, dir), { withFileTypes: true })
     .flatMap((entry) => {

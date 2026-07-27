@@ -95,7 +95,7 @@ async function measureContext(page) {
     const { catalogDigest } = await import('/src/ai/designSpec.ts');
     const system = contract.liteSystemPrompt('measure');
     const digest = contract.liteCatalogDigest();
-    const schema = JSON.stringify(contract.LITE_DECISION_OUTPUT.schema);
+    const schema = JSON.stringify(contract.LITE_READY_OUTPUT.schema);
     const fullDigest = catalogDigest();
     return {
       liteVariants: contract.LITE_CATALOG.length,
