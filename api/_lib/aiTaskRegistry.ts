@@ -6,12 +6,15 @@
 // endpoint exposes today (availability, limits, allowance - never routes).
 
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
+import { importAnalysisProfile, type ImportAnalysisProfile } from './aiImportAnalysisProfile.js';
 import { approvedModelRoute, modelRouteKey } from './aiModelCatalog.js';
 import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
+import { IMPORT_ANALYSIS_LIMITS } from '../../src/ai/importAnalysis/contract.js';
 
-export type AiTaskId = 'lite-design-spec';
+export type AiTaskId = 'lite-design-spec' | 'imported-graphic-analysis';
 export const LITE_TASK_ID: AiTaskId = 'lite-design-spec';
+export const IMPORT_ANALYSIS_TASK_ID: AiTaskId = 'imported-graphic-analysis';
 
 export type AiTaskTier = 'anonymous' | 'free' | 'byo' | 'paid';
 
@@ -100,8 +103,46 @@ export function liteTaskProfile(profile: LiteProfile = liteProfile()): TaskProfi
   };
 }
 
+/** The imported-graphic-analysis task (plan §6): one vision call, proposal-only output,
+ *  free tier, quotas per the ratified decision 3. Derived from its own env profile the
+ *  same way the Lite view derives from liteProfile(). */
+export function importAnalysisTaskProfile(profile: ImportAnalysisProfile = importAnalysisProfile()): TaskProfile {
+  return {
+    taskId: IMPORT_ANALYSIS_TASK_ID,
+    enabled: profile.enabled,
+    schema: { id: 'import-analysis', version: profile.promptVersion },
+    tiers: ['free'],
+    limits: {
+      outputTokens: profile.outputTokens,
+      repairOutputTokens: profile.outputTokens,
+      estimatedInputTokens: profile.estimatedInputTokens,
+      maxImages: IMPORT_ANALYSIS_LIMITS.maxImages,
+      maxImageResolution: {
+        width: IMPORT_ANALYSIS_LIMITS.maxWidth,
+        height: IMPORT_ANALYSIS_LIMITS.maxHeight,
+      },
+    },
+    timeoutMs: profile.timeoutMs,
+    maxAttempts: profile.maxAttempts,
+    retryLimit: 1,
+    routePolicy: {
+      primary: profile.route,
+      // Deliberately no fallback: the vision benchmark picks ONE launch route (plan §8);
+      // a second route enters as explicit configuration when it earns its place.
+      fallbacks: [],
+      prices: profile.prices,
+      openRouterProviders: profile.openRouterProviders,
+      requireZdr: profile.requireZdr,
+      structuredMode: 'json-schema',
+      maxProviderCostUsd: profile.maxProviderCostUsd,
+    },
+    ledger: { kind: 'ai_generations', profile: profile.id },
+  };
+}
+
 const TASKS: Record<AiTaskId, () => TaskProfile> = {
   'lite-design-spec': () => liteTaskProfile(),
+  'imported-graphic-analysis': () => importAnalysisTaskProfile(),
 };
 
 export function taskProfile(taskId: AiTaskId): TaskProfile {

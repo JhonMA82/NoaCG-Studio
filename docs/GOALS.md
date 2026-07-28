@@ -732,12 +732,19 @@ The stages, in order (details in the plan):
       re-expressed as task `lite-design-spec` with `/api/ai/lite/*` URLs and behavior
       unchanged (proven by `bench:regress` + the gateway test suite); free-tier routes now
       fail closed outside the catalog (`docs/AI_TASK_REGISTRY.md`)
-- [ ] Stage 2 - external-provider disclosure/consent notice (per the ratified decision);
-      ZDR-by-default on free routes; run the Lite model benchmark and settle the primary
-      per the benchmark-first policy
-- [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
-      a server flag; vision benchmark (>=3 open-weight candidates plus proprietary
-      baselines) picks the launch route per the benchmark-first policy
+- [x] **Stage 2 build (2026-07-29)** - first-use disclosure notice on every external-provider
+      AI action (wording/version in `src/ai/consentNotice.ts`; acceptance client-side for
+      anonymous + server-side for signed-in via `ai_consents`, migration 0014; the offline
+      stub never shows it - pinned by `e2e/ai-consent.spec.ts`); ZDR-by-default pinned for
+      free task routes. STILL OPEN from Stage 2: run the Lite model benchmark (spends real
+      tokens) and settle the primary per the benchmark-first policy
+- [x] **Stage 3 build (2026-07-29)** - `imported-graphic-analysis` task behind
+      `AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off): endpoints + profile-scoped ledger
+      (migration 0015), `src/ai/importAnalysis/` contract/client/normalizer (font honesty,
+      client-side downscale), proposal-only panel on the Import Graphic Text step applying
+      via `DesignFieldSpec`; stub-first `e2e/import-analysis.spec.ts`. STILL OPEN from
+      Stage 3: the hand-labelled vision dataset + benchmark (>=3 open-weight candidates)
+      picks the launch route before the flag turns on
 - [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
 
 ### Export & platform

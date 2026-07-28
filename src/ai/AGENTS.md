@@ -124,6 +124,20 @@ server-configured sample threshold and only as a subtle tie-breaker. They never 
 brief, semantic fit, or the diversity doctrine. Prompts, templates, screenshots, generated
 code, and full DesignSpecs never enter the ledger.
 
+## Import analysis - the proposal-only vision task (`importAnalysis/`)
+
+`imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import
+Graphic flow and never replaces it: one server-owned vision call
+(`POST /api/ai/tasks/import-analysis`, flag `AI_TASK_IMPORT_ANALYSIS_ENABLED`, off by
+default) proposes text regions, nearest BUNDLED fonts, and an animation preset.
+`contract.ts` is the schema (font honesty: `matchQuality` cannot say 'exact', font ids
+enum-locked to the seven bundled faces; rendered words are content, never instructions);
+`client.ts` downscales the artwork to ≤1920x1080 BEFORE anything leaves the machine;
+`normalize.ts` deterministically clamps and converts into `DesignFieldSpec`s - accepted
+suggestions apply through the exact transforms manual placement uses (draft.ts
+`withDesignFieldSpecs` -> addPlacedLine). No second representation, no auto-apply, no
+code generation. E2E: e2e/import-analysis.spec.ts (flag-off absence is mutation-pinned).
+
 ## The pipeline (claudeProvider.generate — one harness run; generateAlternatives runs it ×3)
 
 1. **Design spec** (`designSpec.ts`, forced `emit_design_spec`) - the only mandatory model

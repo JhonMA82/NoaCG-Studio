@@ -17,16 +17,35 @@ export type LiteGenerationStatus =
   | 'failed'
   | 'expired';
 
+/** The ledger row discriminators migration 0015's CHECK constraint admits. The task
+ *  registry maps task ids onto these ('lite-design-spec' -> 'lite'); a new value ships
+ *  its constraint migration in the same commit. */
+export type AiLedgerProfile = 'lite' | 'import-analysis';
+
+/** The quota subset a reservation needs - LiteProfile and ImportAnalysisProfile both
+ *  satisfy it structurally, which is what lets one store admit every task's ledger
+ *  traffic with per-profile counting (ai_task_usage). */
+export interface LedgerQuotaProfile {
+  id: AiLedgerProfile;
+  promptVersion: string;
+  maxProviderCostUsd: number;
+  dailyStarts: number;
+  monthlyStarts: number;
+  dailySuccesses: number;
+  monthlySuccesses: number;
+  maxConcurrentPerUser: number;
+  maxConcurrentFleet: number;
+  dailyFleetSpendUsd: number;
+  expiryMs: number;
+}
+
 export interface LiteGenerationRecord {
   id: string;
   userId: string;
   ipHash: string;
   idempotencyKey: string;
-  /** The ledger row discriminator. The task registry maps task ids onto it
-   *  ('lite-design-spec' -> 'lite'); migration 0010 pins the allowed values with a
-   *  CHECK constraint, so a task introducing a new value ships that migration in the
-   *  same commit. */
-  profile: 'lite';
+  /** The ledger row discriminator (see AiLedgerProfile). */
+  profile: AiLedgerProfile;
   status: LiteGenerationStatus;
   promptVersion: string;
   requestedCategory: string | null;
@@ -75,14 +94,15 @@ export type LiteJudgeReservation =
   | { status: 'not-found' | 'expired' | 'judge-limit' | 'fleet-spend' };
 
 export interface LiteGenerationStore {
-  usage(userId: string, now: number): Promise<LiteUsageSnapshot>;
+  /** Per-profile counting: one task's traffic never consumes another's allowance. */
+  usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot>;
   reserve(input: {
     userId: string;
     ipHash: string;
     idempotencyKey: string;
     requestedCategory: string | null;
     now: number;
-    profile: LiteProfile;
+    profile: LedgerQuotaProfile;
   }): Promise<LiteReservation>;
   get(id: string): Promise<LiteGenerationRecord | null>;
   update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null>;
@@ -164,8 +184,8 @@ const MONTH = 30 * DAY;
 export class MemoryLiteGenerationStore implements LiteGenerationStore {
   private readonly records = new Map<string, LiteGenerationRecord>();
 
-  async usage(userId: string, now: number): Promise<LiteUsageSnapshot> {
-    const records = [...this.records.values()];
+  async usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot> {
+    const records = [...this.records.values()].filter((record) => record.profile === profileId);
     const userRecords = records.filter((record) => record.userId === userId);
     return {
       dailyStarts: userRecords.filter((record) => record.createdAt >= now - DAY).length,
@@ -185,7 +205,7 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
       record.userId === input.userId && record.idempotencyKey === input.idempotencyKey,
     );
     if (duplicate) return { status: 'duplicate', record: duplicate };
-    const usage = await this.usage(input.userId, input.now);
+    const usage = await this.usage(input.profile.id, input.userId, input.now);
     if (usage.dailyStarts >= input.profile.dailyStarts) return { status: 'daily-start-limit' };
     if (usage.monthlyStarts >= input.profile.monthlyStarts) return { status: 'monthly-start-limit' };
     if (usage.dailySuccesses >= input.profile.dailySuccesses) return { status: 'daily-success-limit' };
@@ -209,7 +229,7 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     if (!record || record.userId !== input.userId) return { status: 'not-found' };
     if (record.expiresAt <= input.now) return { status: 'expired' };
     if (record.judgeCount >= input.profile.judgeMaxPerGeneration) return { status: 'judge-limit' };
-    const usage = await this.usage(input.userId, input.now);
+    const usage = await this.usage('lite', input.userId, input.now);
     if (usage.dailyFleetSpendUsd + input.profile.judgeMaxCostUsd > input.profile.dailyFleetSpendUsd) {
       return { status: 'fleet-spend' };
     }

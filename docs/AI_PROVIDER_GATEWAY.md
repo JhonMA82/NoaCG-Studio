@@ -59,6 +59,13 @@ flag is promotion-time preference metadata (open wins at benchmark parity), neve
 per-request gate. BYO-key traffic is not catalog-constrained - the caller spends their own
 key on an explicitly chosen route. Details: `docs/AI_TASK_REGISTRY.md`.
 
+The second registered task is `imported-graphic-analysis`
+(`POST /api/ai/tasks/import-analysis` + `/status` + `/outcome`, flag
+`AI_TASK_IMPORT_ANALYSIS_ENABLED` default off): one vision call over the user's
+client-side-downscaled artwork, proposal-only, same trust ladder as Lite (fail-closed
+route, durable profile-scoped ledger - migration 0015 - burst gate, sign-in, cost
+ceilings, atomic quota reservation). The image is analyzed and dropped, never stored.
+
 ## NoaCG Lite
 
 NoaCG Lite is a server-owned product profile over the same gateway and harness. Its browser

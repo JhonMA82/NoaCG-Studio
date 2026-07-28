@@ -3575,6 +3575,39 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .consent-lines { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
 .consent-lines li { font-size: 13px; line-height: 1.5; color: var(--text); }
 
+/* The Import Graphic flow's optional AI analysis (proposal-only). Compact by design: it
+   sits above the placement canvas and must never crowd the manual tools it assists. */
+.ana-panel { margin: 0 0 8px; }
+.ana-error { color: var(--danger); font-size: 12px; margin: 6px 0 0; }
+.ana-result {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+}
+.ana-head { margin: 0 0 8px; font-size: 13px; }
+.ana-conf {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.ana-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ana-field-main { flex: 1; min-width: 0; }
+.ana-warnings { margin: 8px 0 0; padding-left: 18px; }
+.ana-warnings li { font-size: 12px; color: var(--text-dim); }
+.ana-instructions { flex: 1; min-width: 140px; }
+
 /* The standalone export window — same borrowed `.wz-modal`, same reason to resize it. Narrow
    on purpose: the surface inside is the dock panel's single column of target cards, and
    stretching that to the wizard's 1520px would strand each radio button a screen away from
