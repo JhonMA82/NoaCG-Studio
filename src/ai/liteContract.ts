@@ -563,6 +563,9 @@ export function liteRequestText(request: LiteGenerationRequest): string {
 export interface LiteSemanticResult {
   decision?: LiteDecision;
   errors: string[];
+  /** Content-free codes for what was deterministically REPAIRED rather than refused
+   *  (contrast clamps, removed remote-asset reaches). Empty on an untouched decision. */
+  adjustments?: string[];
 }
 
 function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdLineRole> {
@@ -629,6 +632,136 @@ function contrastRatio(foreground: string, background: string): number | null {
   const b = relativeLuminance(background);
   if (a === null || b === null) return null;
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+// ── Deterministic palette repair ──────────────────────────────────────────────────────
+// A requested palette one point of contrast short used to fail the WHOLE generation, and
+// the repair round could not save it: the model re-emitted the same colours verbatim
+// (measured 2026-07-28). That contradicted the harness doctrine, where every out-of-range
+// value CLAMPS to the nearest legal one - the platform owns correctness, the spec owns
+// intent. So the floor is now applied, not merely checked: LIGHTNESS moves, hue and
+// saturation are left exactly as asked, and the search takes the SMALLEST step that
+// clears the floor, so a brief's colour character survives as far as legibility allows.
+
+function parseHex(value: string): { r: number; g: number; b: number; alpha: string } | null {
+  const match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(value);
+  if (!match) return null;
+  const [r, g, b] = [0, 2, 4].map((index) => Number.parseInt(match[1].slice(index, index + 2), 16));
+  return { r, g, b, alpha: match[2] ?? '' };
+}
+
+function rgbToHsl({ r, g, b }: { r: number; g: number; b: number }): { h: number; s: number; l: number } {
+  const [red, green, blue] = [r / 255, g / 255, b / 255];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const delta = max - min;
+  const s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  const h = max === red
+    ? ((green - blue) / delta + (green < blue ? 6 : 0)) / 6
+    : max === green
+      ? ((blue - red) / delta + 2) / 6
+      : ((red - green) / delta + 4) / 6;
+  return { h, s, l };
+}
+
+function hslToHex(h: number, s: number, l: number, alpha: string): string {
+  const clamped = Math.min(1, Math.max(0, l));
+  const channel = (value: number): number => {
+    const t = ((value % 1) + 1) % 1;
+    const q = clamped < 0.5 ? clamped * (1 + s) : clamped + s - clamped * s;
+    const p = 2 * clamped - q;
+    const mixed = t < 1 / 6 ? p + (q - p) * 6 * t
+      : t < 1 / 2 ? q
+        : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6
+          : p;
+    return Math.round(mixed * 255);
+  };
+  const hex = s === 0
+    ? [0, 0, 0].map(() => Math.round(clamped * 255))
+    : [channel(h + 1 / 3), channel(h), channel(h - 1 / 3)];
+  return `#${hex.map((value) => value.toString(16).padStart(2, '0')).join('')}${alpha}`;
+}
+
+/**
+ * The smallest lightness move that clears `target` against the panel, hue and saturation
+ * untouched. Null when no lightness reaches it (a mid-luminance panel can put 4.5:1 out of
+ * reach entirely) - the caller then drops the bespoke palette rather than shipping or
+ * refusing. Stepped rather than binary-searched on purpose: travelling toward an extreme
+ * can pass THROUGH the panel's own luminance, so contrast is not monotonic along the path.
+ */
+function clampLightnessForContrast(color: string, panel: string, target: number): string | null {
+  const current = contrastRatio(color, panel);
+  if (current === null) return color;
+  if (current >= target) return color;
+  const parsed = parseHex(color);
+  if (!parsed) return color;
+  const { h, s, l } = rgbToHsl(parsed);
+  const toWhite = contrastRatio(`#ffffff${parsed.alpha}`, panel) ?? 0;
+  const toBlack = contrastRatio(`#000000${parsed.alpha}`, panel) ?? 0;
+  if (Math.max(toWhite, toBlack) < target) return null;
+  const extreme = toWhite >= toBlack ? 1 : 0;
+  const STEPS = 128;
+  for (let step = 1; step <= STEPS; step += 1) {
+    const candidate = hslToHex(h, s, l + (step / STEPS) * (extreme - l), parsed.alpha);
+    if ((contrastRatio(candidate, panel) ?? 0) >= target) return candidate;
+  }
+  return null;
+}
+
+export const LITE_CONTRAST_FLOOR = { primary: 4.5, secondary: 3 } as const;
+
+/**
+ * Bring a bespoke palette up to the contrast floor. Returns the repaired palette plus a
+ * content-free note per adjustment, or null when the floor is unreachable at any lightness
+ * - the caller then drops the palette and lets the chassis default carry, so a generation
+ * never dies over colour. At the CURRENT floors that null is a guard rather than a live
+ * path: 4.5:1 is out of white's reach only for a panel lighter than luminance 0.183 and
+ * out of black's only below 0.175, and no panel is both, so one extreme always reaches.
+ * It stays because the floors are configuration, not physics.
+ */
+export function clampLitePalette(
+  palette: NonNullable<LiteDesignSpec['palette']>,
+): { palette: NonNullable<LiteDesignSpec['palette']>; adjustments: string[] } | null {
+  const text = clampLightnessForContrast(palette.text, palette.panel, LITE_CONTRAST_FLOOR.primary);
+  const textDim = clampLightnessForContrast(palette.textDim, palette.panel, LITE_CONTRAST_FLOOR.secondary);
+  if (text === null || textDim === null) return null;
+  const adjustments: string[] = [];
+  if (text !== palette.text) adjustments.push('palette_text_lightness_clamped');
+  if (textDim !== palette.textDim) adjustments.push('palette_text_dim_lightness_clamped');
+  return { palette: { ...palette, text, textDim }, adjustments };
+}
+
+// ── Deterministic skin repair ─────────────────────────────────────────────────────────
+// A skin reaching for a webfont was a fatal decision error, so "chunky retro character"
+// could cost the whole generation over an @import the platform simply does not need: the
+// graphic's font is already chosen and embedded. These three constructs are REMOTE-ASSET
+// reaches and each is self-contained, so removing one cannot break the CSS around it.
+// The rest of the forbidden set stays fatal on purpose - :root redefines the pinned style
+// contract, markup in a CSS field and the ANIMATION marker mean the emit is confused
+// about its own shape, and none of those is a stray asset that can simply be dropped.
+const REMOVABLE_CSS = [
+  { code: 'skin_font_face_removed', pattern: /@font-face\s*\{[^{}]*\}/gi },
+  { code: 'skin_import_removed', pattern: /@import[^;]*;?/gi },
+  { code: 'skin_external_url_declaration_removed', pattern: /[^;{}]*url\(\s*['"]?\s*(?:https?:)?\/\/[^)]*\)[^;{}]*;?/gi },
+] as const;
+
+/**
+ * Strip the removable remote-asset reaches from a skin's CSS. Idempotent, so every layer
+ * (server semantics, then the browser before the polish gate) may call it safely.
+ */
+export function sanitizeLiteSkinPatch(value: unknown): { patch: LiteSkinPatch; removed: string[] } {
+  const patch = (value ?? {}) as LiteSkinPatch;
+  if (typeof patch.css !== 'string') return { patch, removed: [] };
+  let css = patch.css;
+  const removed: string[] = [];
+  for (const { code, pattern } of REMOVABLE_CSS) {
+    const next = css.replace(pattern, '');
+    if (next !== css) removed.push(code);
+    css = next;
+  }
+  return { patch: removed.length ? { ...patch, css } : patch, removed };
 }
 
 export function validateLiteDecision(
@@ -702,11 +835,20 @@ export function validateLiteDecision(
   const flourish = (spec as { flourish?: unknown }).flourish;
   if (typeof flourish === 'string' && flourish.trim()) errors.push('flourish_forbidden');
   if (spec.useLogoSlot && !entry?.logo) errors.push('logo_not_supported');
-  if (spec.palette) {
-    const primaryContrast = contrastRatio(spec.palette.text, spec.palette.panel);
-    const secondaryContrast = contrastRatio(spec.palette.textDim, spec.palette.panel);
-    if (primaryContrast !== null && primaryContrast < 4.5) errors.push('primary_text_contrast_low');
-    if (secondaryContrast !== null && secondaryContrast < 3) errors.push('secondary_text_contrast_low');
+  // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
+  // lightness can reach it, drop the bespoke palette so the chassis default carries. A
+  // legibility floor should cost the palette at worst, never the whole generation.
+  const adjustments: string[] = [];
+  let palette = spec.palette;
+  if (palette) {
+    const clamped = clampLitePalette(palette);
+    if (clamped) {
+      palette = clamped.palette;
+      adjustments.push(...clamped.adjustments);
+    } else {
+      palette = undefined;
+      adjustments.push('palette_dropped_contrast_unreachable');
+    }
   }
   const requested = request.generationSpec?.category;
   if (requested && requested !== 'auto' && requested !== aiCategory) errors.push('requested_category_ignored');
@@ -715,14 +857,26 @@ export function validateLiteDecision(
   // illegal skin is a semantic failure (earning the repair round), never silently dropped.
   let skin: LiteSkinPatch | undefined;
   if (options?.skin && output.skin !== undefined) {
-    const skinErrors = liteSkinPatchErrors(output.skin);
-    if (skinErrors.length) errors.push(...skinErrors);
-    else skin = normalizeLiteSkinPatch(output.skin);
+    // Strip the removable remote-asset reaches first, then judge what remains. A skin that
+    // was ONLY a webfont import sanitizes to nothing: drop the skin and keep the graphic,
+    // because the house chassis is a fine answer and a dead generation is not.
+    const sanitized = sanitizeLiteSkinPatch(output.skin);
+    adjustments.push(...sanitized.removed);
+    if (sanitized.removed.length && !String(sanitized.patch.css ?? '').trim()) {
+      adjustments.push('skin_dropped_only_remote_assets');
+    } else {
+      const skinErrors = liteSkinPatchErrors(sanitized.patch);
+      if (skinErrors.length) errors.push(...skinErrors);
+      else skin = normalizeLiteSkinPatch(sanitized.patch);
+    }
   }
-  return errors.length
-    ? { errors }
-    : {
-        decision: { status: 'ready', spec: { ...spec, flourish: null }, ...(skin ? { skin } : {}) },
-        errors: [],
-      };
+  if (errors.length) return { errors };
+  const repaired = { ...spec, flourish: null } as LiteDesignSpec;
+  if (palette) repaired.palette = palette;
+  else delete repaired.palette;
+  return {
+    decision: { status: 'ready', spec: repaired, ...(skin ? { skin } : {}) },
+    errors: [],
+    ...(adjustments.length ? { adjustments } : {}),
+  };
 }

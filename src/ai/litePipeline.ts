@@ -14,7 +14,7 @@ import { applyPolish } from './polish';
 import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
-import { liteSkinPatchErrors } from './liteContract';
+import { liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
 import type { LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
@@ -112,9 +112,14 @@ export async function attemptLiteSkinDetailed(
   ctx: GenerateContext | undefined,
   validate: SpxValidator,
 ): Promise<LiteSkinAttempt> {
-  if (liteSkinPatchErrors(skin).length) return { assembly: null, rejection: 'patch' };
+  // Sanitize again before the gate: the server already did, but this path also serves
+  // benchmark runners and any future caller, and the strip is idempotent.
+  const { patch } = sanitizeLiteSkinPatch(skin);
+  if (!String(patch.css ?? '').trim() || liteSkinPatchErrors(patch).length) {
+    return { assembly: null, rejection: 'patch' };
+  }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx, ltc01);
-  const skinned = applyPolish(template, skin, LITE_SKIN_MARKER);
+  const skinned = applyPolish(template, patch, LITE_SKIN_MARKER);
   if (!skinned) return { assembly: null, rejection: 'gate' };
   const validation = demoteSpecFields(await validate(skinned));
   return validation.ok
