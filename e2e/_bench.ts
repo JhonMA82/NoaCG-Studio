@@ -36,7 +36,8 @@ export const HELPERS = `
     "window.stop = function () { document.querySelector('.fx').style.visibility = 'hidden'; };" +
     "window.next = function () {};";
   function doc(body) {
-    return '<!DOCTYPE html><html><head></head><body>' + body + '</body></html>';
+    return '<!DOCTYPE html><html><head><style>.fx{visibility:hidden}</style></head><body>' +
+      body + '</body></html>';
   }
 `;
 
