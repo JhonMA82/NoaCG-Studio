@@ -5,10 +5,11 @@
 // block unconditionally if it didn't check anything. Two situations make that wrong:
 //
 //   1. The turn just launched work that is still running in the background (a backgrounded
-//      Bash/PowerShell command, an Agent, a Workflow, or a /loop's ScheduleWakeup). Forcing
-//      /next here produces a plan based on an incomplete picture, and the natural completion
-//      notification will bring the session back on its own - the Stop hook fires again then,
-//      with an accurate picture.
+//      Bash/PowerShell command, a foreground command the harness auto-demoted to the
+//      background after it overran its own timeout, an Agent, a Workflow, or a /loop's
+//      ScheduleWakeup). Forcing /next here produces a plan based on an incomplete picture, and
+//      the natural completion notification will bring the session back on its own - the Stop
+//      hook fires again then, with an accurate picture.
 //   2. The turn just ran the safe-merge workflow. Its own flow already ends with a report, and
 //      its guarded cleanup can remove the very worktree this hook would be running /next in -
 //      forcing another summary immediately after is redundant at best and broken at worst.
@@ -65,8 +66,10 @@ export async function hasReasonToSkip(transcriptPath) {
 
   const currentTurnBlocks = collectCurrentTurnBlocks(entries);
   const toolCalls = currentTurnBlocks.filter((block) => block?.type === 'tool_use');
+  if (toolCalls.some(isInFlightOrSelfClosing)) return true;
 
-  return toolCalls.some(isInFlightOrSelfClosing);
+  const toolResults = currentTurnBlocks.filter((block) => block?.type === 'tool_result');
+  return toolResults.some(wasAutoBackgrounded);
 }
 
 /** Content blocks from every message since the last real (human-authored) user turn. */
@@ -112,6 +115,21 @@ function isInFlightOrSelfClosing(call) {
     default:
       return false;
   }
+}
+
+// A command run in the foreground (no run_in_background flag) that overran its own timeout gets
+// auto-demoted to the background by the harness mid-call - the tool_use input never shows this,
+// only the tool_result text does ("Command did not complete within its ... timeout and was
+// moved to the background"). Same in-flight situation as an explicit run_in_background call.
+const AUTO_BACKGROUNDED_PATTERN = /\bmoved to the background\b/i;
+
+function wasAutoBackgrounded(toolResult) {
+  const content = toolResult?.content;
+  if (typeof content === 'string') return AUTO_BACKGROUNDED_PATTERN.test(content);
+  if (Array.isArray(content)) {
+    return content.some((block) => typeof block?.text === 'string' && AUTO_BACKGROUNDED_PATTERN.test(block.text));
+  }
+  return false;
 }
 
 function safeParse(line) {

@@ -66,6 +66,42 @@ test('foreground Bash command - forces /next', async (t) => {
   assert.equal(await hasReasonToSkip(path), false);
 });
 
+// Regression: a command started in the FOREGROUND (no run_in_background flag) can still end up
+// running in the background if it overruns its own timeout - the harness auto-demotes it
+// mid-call. The tool_use input never shows this; only the tool_result text does. This was
+// missed by checking only `input.run_in_background`, so a still-running build got treated as
+// "done" and the hook forced /next while the build the user was waiting on was still going.
+test('a foreground command auto-demoted to background after timing out - skips /next', async (t) => {
+  const path = writeTranscript(t, [
+    userPrompt('run the build'),
+    assistantToolUse('Bash', { command: 'npm run build' }, 'b1'),
+    {
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'b1',
+            content:
+              'Command did not complete within its 120s timeout and was moved to the background (ID: bikm0a660). Output is being written to: ...',
+          },
+        ],
+      },
+    },
+  ]);
+  assert.equal(await hasReasonToSkip(path), true);
+});
+
+test('a foreground command that finished normally (plain tool_result) - forces /next', async (t) => {
+  const path = writeTranscript(t, [
+    userPrompt('run the build'),
+    assistantToolUse('Bash', { command: 'npm run build' }, 'b1'),
+    toolResult('b1'),
+  ]);
+  assert.equal(await hasReasonToSkip(path), false);
+});
+
 test('Workflow call - always treated as in flight', async (t) => {
   const path = writeTranscript(t, [userPrompt('run a workflow'), assistantToolUse('Workflow', { script: '...' })]);
   assert.equal(await hasReasonToSkip(path), true);
