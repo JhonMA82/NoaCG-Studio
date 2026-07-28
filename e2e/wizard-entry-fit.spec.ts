@@ -47,6 +47,31 @@ test('the video strip is fully inside the scrollport at 1366x768', async ({ page
   expect(clipped).toEqual({ above: false, below: false, left: false, right: false });
 });
 
+test('the video card keeps a compact readable layout on mobile', async ({ page }) => {
+  await entryStepAt(page, 390, 844);
+  await page.locator('.wz-step').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+
+  const geometry = await page.locator('[data-entry="video"]').evaluate((card) => {
+    const rect = card.getBoundingClientRect();
+    const icon = card.querySelector('.wz-entry-icon')!.getBoundingClientRect();
+    const title = card.querySelector('strong')!.getBoundingClientRect();
+    const hint = card.querySelector('.hint')!.getBoundingClientRect();
+    return {
+      cardHeight: rect.height,
+      cardWidth: rect.width,
+      hintWidth: hint.width,
+      iconRight: icon.right,
+      titleLeft: title.left,
+      hintLeft: hint.left,
+    };
+  });
+
+  expect(geometry.cardHeight).toBeLessThan(220);
+  expect(geometry.hintWidth).toBeGreaterThan(geometry.cardWidth * 0.7);
+  expect(geometry.iconRight).toBeLessThan(geometry.titleLeft);
+  expect(Math.abs(geometry.titleLeft - geometry.hintLeft)).toBeLessThan(1);
+});
+
 test('a window too short for the step cues its overflow', async ({ page }) => {
   await entryStepAt(page, 1280, 620);
 

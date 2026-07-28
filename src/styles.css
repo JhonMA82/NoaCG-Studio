@@ -3236,8 +3236,7 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   .wz-entry { padding: 16px 4px; }
   .wz-entry-card { width: 100%; }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */
-  .wz-continue-card,
-  .wz-video-strip .wz-entry-card--video { flex-direction: column; align-items: flex-start; }
+  .wz-continue-card { flex-direction: column; align-items: flex-start; }
   .pk-body { padding: 12px 14px; }
   .gallery-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
 }
@@ -3839,6 +3838,26 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   padding: 12px 18px;
 }
 .wz-video-strip .wz-entry-card--video .hint { flex: 1; min-width: 0; }
+
+@media (max-width: 768px) {
+  /* Keep the video option compact on phones. The desktop flex row leaves the long description
+     with only a sliver beside the title, making every word wrap and turning the card into a
+     screen-tall column. This media-object grid gives the copy the full remaining width. */
+  .wz-video-strip .wz-entry-card--video {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 6px;
+  }
+  .wz-video-strip .wz-entry-card--video .wz-entry-icon {
+    grid-row: 1 / span 2;
+  }
+  .wz-video-strip .wz-entry-card--video .hint {
+    grid-column: 2;
+    width: 100%;
+  }
+}
 
 /* The video shell's workspace badge — the constant reminder this is the OTHER workspace. */
 .video-workspace-badge {
