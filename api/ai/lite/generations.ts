@@ -28,6 +28,7 @@ import {
   LITE_READY_OUTPUT,
   LITE_READY_OUTPUT_SKIN,
   deterministicUnsupportedDecision,
+  liteRepairInstructions,
   liteRequestText,
   liteSystemPrompt,
   validateLiteDecision,
@@ -358,10 +359,16 @@ export default {
               system: trustedSystemPrompt,
               messages: [{
                 role: 'user',
+                // The instructions, not just the verdicts: a code names what was wrong,
+                // never what to change, and a model handed only codes re-emits the same
+                // decision (measured - the repair round bought nothing). Saying the
+                // previous answer was REJECTED and that an identical one fails again is
+                // part of the fix: without it the model treats this as a re-ask.
                 content: JSON.stringify({
-                  task: 'Repair only the structured decision so it obeys the listed rules.',
+                  task: 'Your previous decision was REJECTED. Apply every listed fix and return the corrected decision. Returning the same values again fails again.',
+                  fixes: liteRepairInstructions(semantic.errors),
                   ruleErrors: semantic.errors,
-                  invalidDecision: modelResult.output,
+                  rejectedDecision: modelResult.output,
                   request: JSON.parse(liteRequestText(request)),
                 }),
               }],

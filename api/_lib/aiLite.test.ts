@@ -8,6 +8,7 @@ import {
   deterministicUnsupportedDecision,
   liteJudgeSystemPrompt,
   liteJudgeVerdict,
+  liteRepairInstructions,
   liteSystemPrompt,
   obviousUnsupportedDecision,
   validateLiteDecision,
@@ -286,6 +287,23 @@ test('a low-contrast palette is clamped to the floor instead of failing the gene
   const grey = (rescued.decision as { spec: { palette: Record<string, string> } }).spec.palette;
   assert.ok(ratio(grey.text, grey.panel) >= 4.5);
   assert.ok(ratio(grey.textDim, grey.panel) >= 3);
+});
+
+test('repair guidance names the EDIT, not the verdict', () => {
+  // The measured failure: handed only codes, the model re-emitted its decision verbatim.
+  const [roleFix] = liteRepairInstructions(['requested_role_missing:person-name']);
+  assert.match(roleFix, /person-name/, 'the missing role is named in the instruction');
+  assert.match(roleFix, /Add it|change/i, 'and the instruction says what to do');
+  // Every instruction must be an action, never a restatement of the code.
+  for (const code of ['primary_role_mismatch', 'intent_role_mismatch', 'skin_css_forbidden', 'logo_not_supported']) {
+    const [text] = liteRepairInstructions([code]);
+    assert.ok(text.length > 20, `${code} has real guidance`);
+    assert.doesNotMatch(text, new RegExp(code), `${code} is not just echoed back`);
+  }
+  // Repeated codes collapse; an unmapped code still yields something actionable.
+  assert.equal(liteRepairInstructions(['flourish_forbidden', 'flourish_forbidden']).length, 1);
+  assert.match(liteRepairInstructions(['brand_new_rule'])[0], /brand_new_rule/);
+  assert.deepEqual(liteRepairInstructions([]), []);
 });
 
 test('a skin reaching for a webfont keeps its styling instead of dying', () => {

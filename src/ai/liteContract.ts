@@ -560,6 +560,68 @@ export function liteRequestText(request: LiteGenerationRequest): string {
   });
 }
 
+// ── Repair guidance ───────────────────────────────────────────────────────────────────
+// The repair round used to hand the model raw rule codes and ask it to "repair the
+// decision". Measured 2026-07-28 on two live samples: it returned a BYTE-IDENTICAL
+// decision both times, so the second call bought nothing and the generation died anyway.
+// A code like `secondary_text_contrast_low` names the verdict, never the edit. Each entry
+// below says which field to change and how; `{detail}` carries the code's own suffix.
+
+const REPAIR_GUIDANCE: Record<string, string> = {
+  decision_not_object: 'Return a single JSON object shaped exactly like the schema.',
+  status_invalid: 'Set status to "ready".',
+  spec_missing: 'Include the spec object with every required field.',
+  fit_not_catalog: 'Set spec.fit to "catalog".',
+  variant_not_allowed: 'Set spec.variantId to one of the listed catalog chassis ids, copied exactly.',
+  category_variant_mismatch: 'Set spec.category to the category the chosen variantId belongs to in the catalog list.',
+  ai_category_variant_mismatch: 'Set aiCategory to the chosen chassis\'s own aiCategory from the catalog list.',
+  line_count_invalid: 'Return one or two lines - no more, no fewer - matching the chassis capacity.',
+  lower_third_intent_invalid: 'Rebuild spec.intent with a listed kind, a listed primaryRole, and (with two lines) a listed secondaryRole.',
+  primary_role_mismatch: 'Make intent.primaryRole exactly equal lines[0].role. Change the intent, not the line.',
+  secondary_role_mismatch: 'Make intent.secondaryRole exactly equal lines[1].role, and include it whenever there are two lines.',
+  intent_role_mismatch: 'The intent kind contradicts the line roles: a person-name line needs kind "person", a story-headline line needs "story", an event-name line needs "event". Change kind to match the roles you emitted.',
+  intent_variant_mismatch: 'The chosen chassis does not serve this intent kind. Pick a chassis whose listed intents include your intent.kind.',
+  line_role_invalid: 'Give every line a role from the allowed list.',
+  requested_role_missing: 'The brief explicitly asks for a {detail} line. Add it, or change an existing line\'s role to {detail}.',
+  field_count_exceeded: 'Reduce the number of lines and extra fields to the allowed maximum.',
+  lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
+  flourish_forbidden: 'Set spec.flourish to an empty string.',
+  logo_not_supported: 'Remove useLogoSlot, or choose a chassis whose catalog entry says logo:yes.',
+  requested_category_ignored: 'Return the category the request asked for.',
+  skin_shape_invalid: 'Return skin as an object with summary and css strings, or omit skin.',
+  skin_summary_invalid: 'Give skin.summary one short sentence naming the treatment.',
+  skin_css_missing: 'Give skin.css real CSS, or omit skin entirely.',
+  skin_css_too_long: 'Shorten skin.css: keep the defining rules and drop incidental ones.',
+  skin_css_forbidden: 'skin.css must contain only plain CSS rules: no :root block, no markup, no animation-region marker. Style the existing classes instead of redefining the contract.',
+  skin_css_external_reference: 'Remove every remote url() from skin.css - the graphic ships offline and loads nothing.',
+  skin_html_invalid: 'Return skin.html as a string, or omit it.',
+  skin_html_too_long: 'Shorten skin.html to the decorative elements only.',
+  skin_html_script: 'Remove every script tag from skin.html - a skin styles, it never runs code.',
+  skin_html_external_reference: 'Remove every remote src/href from skin.html - the graphic ships offline.',
+};
+
+/**
+ * Turn rule codes into the EDITS that satisfy them, deduplicated and order-preserving.
+ * An unmapped code still yields an honest instruction rather than silence.
+ */
+export function liteRepairInstructions(errors: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const instructions: string[] = [];
+  for (const error of errors) {
+    const separator = error.indexOf(':');
+    const code = separator === -1 ? error : error.slice(0, separator);
+    const detail = separator === -1 ? '' : error.slice(separator + 1);
+    const guidance = REPAIR_GUIDANCE[code];
+    const text = guidance
+      ? guidance.replace(/\{detail\}/g, detail)
+      : `Change the decision so it satisfies the rule "${error}".`;
+    if (seen.has(text)) continue;
+    seen.add(text);
+    instructions.push(text);
+  }
+  return instructions;
+}
+
 export interface LiteSemanticResult {
   decision?: LiteDecision;
   errors: string[];
