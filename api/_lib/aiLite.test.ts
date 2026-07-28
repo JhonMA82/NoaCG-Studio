@@ -512,13 +512,20 @@ test('content-free accepted and discarded outcomes become thresholded chassis pr
   }]);
 });
 
-test('the skin prompt teaches strap shape and the unwrappable name line', () => {
+test('the skin prompt teaches strap shape as geometry, not as a way to fail', () => {
   const prompt = liteSystemPrompt('test-v1', [], { skin: true });
-  assert.match(prompt, /STRAP SHAPE IS NON-NEGOTIABLE/);
-  assert.match(prompt, /squat box/);
-  assert.match(prompt, /ONE line, never wrapped/);
+  // The geometry itself.
+  assert.match(prompt, /IS a strap/);
+  assert.match(prompt, /square card, badge, or tall stack/);
+  assert.match(prompt, /single line/);
+  // The FRAMING is load-bearing, not style: stated as prohibitions with failure language,
+  // these same rules halved the skin trigger rate between paid rounds D and f - the model
+  // took the escape hatch rather than risk a "failed skin". So the prompt must keep naming
+  // omission as the likelier mistake, and must not reintroduce failure language here.
+  assert.match(prompt, /the more common mistake/);
+  assert.doesNotMatch(prompt, /failed skin|NON-NEGOTIABLE/);
   // The teaching rides only the skin-enabled prompt.
-  assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /STRAP SHAPE/);
+  assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /IS a strap/);
 });
 
 test('the skin judge fails closed and prices its own route', () => {

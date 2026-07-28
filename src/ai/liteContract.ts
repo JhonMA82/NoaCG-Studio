@@ -491,9 +491,14 @@ function skinPromptLines(): string[] {
     'Skin CSS rules: take colors from var(--accent), var(--text-color), var(--text-dim), var(--panel-bg); write every size as calc(Npx * var(--scale)) and multiply font sizes additionally by var(--type-scale). Never write :root, @font-face, @import, external url(), scripts, or markup inside css.',
     'skin.html is optional and only for decorative elements: it is the root element\'s COMPLETE new inner HTML, keeping every existing id="fN" exactly once and each inside its .lower-third-mask wrapper. No <script>.',
     'A skinned result is still a broadcast lower third: the name reads instantly over moving video, hierarchy stays intentional, and text keeps generous spacing. Distinctive means committed shape, texture, and typographic character — never illegible.',
-    'STRAP SHAPE IS NON-NEGOTIABLE: the skinned graphic stays a wide horizontal lower-third strap. Never compress it into a squat box, card, badge, or tall stack. Panel width comes from the text plus steady padding; height stays a strap, roughly one to two text lines.',
-    'The name line (#f0) must render on ONE line, never wrapped, never truncated. If your treatment would wrap it, reduce decoration or font size until it fits - a wrapped name is a failed skin.',
-    'When the brief fits a listed chassis well, omit skin entirely.',
+    // Round f measured skins emitted at HALF round D's rate right after the strap rules
+    // landed as prohibitions ("NON-NEGOTIABLE", "a failed skin"): given a way to fail and
+    // a way out, the model took the way out. The geometry is the same, stated as the shape
+    // being painted rather than a test to survive - and the escape hatch below now names
+    // omission as the likelier mistake, because a plain legal skin beats no skin at all.
+    'The canvas you are painting IS a strap: a wide horizontal band low in the frame, its width set by the text plus steady padding, its height about one to two text lines. Work with that shape - colour, texture, edges, rules, type, decoration all belong on it - rather than reshaping it into a square card, badge, or tall stack.',
+    'Keep the name line (#f0) on a single line: trim decoration or type size until it fits. Wrapping the name is the one trade never worth making.',
+    'Omit skin ONLY when the brief names no distinctive treatment and a listed chassis already IS the answer. When the brief asks for a look, returning a bare chassis pick because the treatment felt risky is the more common mistake - a restrained skin that respects the strap beats no skin.',
   ];
 }
 
