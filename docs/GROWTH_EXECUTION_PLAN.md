@@ -80,9 +80,12 @@ The "make it exist publicly" phase. Everything here is a buildable task (§9).
       offline and under DNT/GPC or an explicit opt-out (`docs/FUNNEL_EVENTS.md`). This feeds the
       weekly digest; without it nothing below is measurable. *Still to do: apply `0014` to prod,
       and turn Vercel Analytics on in the dashboard.*
-- [ ] **GitHub public presence**: proper README (screenshots, 60-second pitch, self-host quickstart,
-      AGPL clarity), topics, social preview image. The repo is itself a discovery channel
-      (self-hosters, students, contributors).
+- [x] **GitHub public presence** (2026-07-29, partly): the README is rewritten for a first-time
+      visitor - 60-second pitch, entry + browse screenshots (`docs/images/`), real catalog and
+      export numbers, self-host quickstart, a documentation index, and the AGPL point that
+      matters (the copyleft binds the app, not the graphics you export). *Still to do, and manual
+      in GitHub's settings: repo topics and the social preview image.* The repo is itself a
+      discovery channel (self-hosters, students, contributors).
 - [ ] **Accounts the founder must create by hand** (automation can't, and shouldn't): CasparCG
       forum, SPX community/Discord, Reddit (note: new accounts need age/karma before posting -
       create NOW even though posting starts weeks later), YouTube channel, X/Bluesky,
@@ -198,7 +201,8 @@ Foundations first, flywheel second, factories third. Nothing below promotes unti
    + public template page + share route.
 4. **Static prerender step** - CI generates landing + `/templates/<slug>` + article pages + sitemap
    + OG images into the deploy.
-5. **README + repo public presence** - screenshots, pitch, self-host quickstart, topics.
+5. **README + repo public presence** - ~~README, screenshots, pitch, self-host quickstart~~
+   **DONE 2026-07-29**. Left over, and manual in GitHub's settings: topics + social preview image.
 6. **Domain wiring** - after purchase: attach to Vercel, canonical + redirects. *(Founder: buy
    `noacg.studio` + `noacgstudio.com`.)*
 7. **Era 7 phases N0-N3** - migration 0006 + bot, nightly-generate script + motion checker, staging,
