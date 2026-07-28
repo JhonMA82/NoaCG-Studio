@@ -83,6 +83,11 @@ function ruleFor(kind: string, minLossPct: number): string {
   // on Range boxes that carry leading slack - each can be a legible near-miss.
   if (kind === 'contrast') return 'text-contrast';
   if (kind === 'overlap') return 'text-overlap';
+  // Unlike a Range near-miss, competing duplicate text is unambiguous: either multiple
+  // fragments carry one data-var-text binding (the runtime expands each to the full value)
+  // or displaced copies of the same glyph run collide. Keep it hard so a model cannot spend
+  // both repair rounds and still ship an unreadable wordmark as a warning.
+  if (kind === 'duplicate') return 'text-duplicate';
   return minLossPct >= TOTAL_CLIP_PCT ? 'text-clip-total' : 'text-clip';
 }
 

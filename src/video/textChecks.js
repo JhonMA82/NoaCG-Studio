@@ -33,8 +33,11 @@
 // CONTRAST: "the second word is dark-on-dark" - the fill judged against the color actually
 // painted beneath the glyphs. OVERLAP: "the kicker crosses the wordmark's baseline" - two
 // text runs colliding, which occlusion cannot see (text has no painted background).
+// DUPLICATE: several competing copies of one wordmark, commonly caused by putting the same
+// HyperFrames data-var-text binding on fragments that the runtime expands to the full value.
 //
-// Issue shape: { kind: 'clip' | 'occlusion' | 'contrast' | 'overlap', key, message }.
+// Issue shape:
+// { kind: 'clip' | 'occlusion' | 'contrast' | 'overlap' | 'duplicate', key, message }.
 // `key` is stable across frames
 // (the percentages in `message` are not) - callers dedupe and intersect on it.
 
@@ -621,14 +624,40 @@
    *  into a caption sitting tightly (and cleanly) below it. */
   var LEADING_SLACK = 0.15;
 
+  /** Exact alignment is the deliberate duplicate-glyph idiom: a glow, sheen, or outline
+   *  sharing the primary run's geometry. Displacement is what turns it into competing text. */
+  function sameTextBox(a, b) {
+    var tolerance = 2;
+    return (
+      Math.abs(a.left - b.left) <= tolerance &&
+      Math.abs(a.right - b.right) <= tolerance &&
+      Math.abs(a.top - b.top) <= tolerance &&
+      Math.abs(a.bottom - b.bottom) <= tolerance
+    );
+  }
+
+  /** An explicitly secondary visual layer may share the primary run's editable binding when
+   *  exactly aligned. Requiring a real effect keeps three opaque primary fills from claiming
+   *  to be a sheen merely because their author gave them similar names. */
+  function isTextEffectLayer(el, win) {
+    if (el.getAttribute('aria-hidden') === 'true') return true;
+    var cs = win.getComputedStyle(el);
+    if (Number(cs.opacity) < 0.8) return true;
+    if (cs.filter && cs.filter !== 'none') return true;
+    if (cs.mixBlendMode && cs.mixBlendMode !== 'normal') return true;
+    if (cs.textShadow && cs.textShadow !== 'none') return true;
+    return parseFloat(cs.webkitTextStrokeWidth || '0') > 0;
+  }
+
   /**
    * Two readable text runs painted over EACH OTHER - a kicker across a wordmark's baseline.
    * The occlusion check cannot see this: text elements have no painted background, so
    * neither ever registers as a blocker. Measured on glyph extents (Ranges), pairwise;
-   * ancestor/descendant pairs and duplicate glyph layers (sweeps, glows) are skipped.
+   * ancestor/descendant pairs and exactly aligned duplicate effect layers are skipped.
    */
   function overlapIssues(doc, win) {
     var issues = [];
+    var duplicateKeys = {};
     var texts = readableTextElements(doc, win, false);
     var boxes = [];
     for (var i = 0; i < texts.length; i++) {
@@ -647,7 +676,6 @@
         if (A.el.contains(B.el) || B.el.contains(A.el)) continue;
         var ta = (A.el.textContent || '').trim();
         var tb = (B.el.textContent || '').trim();
-        if (ta === tb) continue; // duplicate glyph layer - deliberate
         var iw = Math.min(A.box.right, B.box.right) - Math.max(A.box.left, B.box.left);
         var ih = Math.min(A.box.bottom, B.box.bottom) - Math.max(A.box.top, B.box.top);
         if (iw <= 0 || ih <= 0) continue;
@@ -657,6 +685,37 @@
         var minW = Math.min(width(A.box), width(B.box));
         if (ih < Math.max(4, 0.25 * minH)) continue;
         if (iw < Math.max(8, 0.25 * minW)) continue;
+        if (ta === tb) {
+          var bindingA = A.el.getAttribute('data-var-text') || '';
+          var bindingB = B.el.getAttribute('data-var-text') || '';
+          var repeatedBinding = bindingA && bindingA === bindingB ? bindingA : '';
+          var aligned = sameTextBox(A.box, B.box);
+          if (
+            aligned &&
+            (!repeatedBinding || isTextEffectLayer(A.el, win) || isTextEffectLayer(B.el, win))
+          ) {
+            continue;
+          }
+          var duplicateKey = 'duplicate:' + (repeatedBinding || ta.slice(0, 28));
+          if (duplicateKeys[duplicateKey]) continue;
+          duplicateKeys[duplicateKey] = true;
+          issues.push({
+            kind: 'duplicate',
+            key: duplicateKey,
+            message: repeatedBinding
+              ? '"' + label(A.el) + '" is painted as competing duplicate text layers because ' +
+                describe(A.el) + ' and ' + describe(B.el) + ' both carry data-var-text="' +
+                repeatedBinding + '". The runtime writes the FULL editable value into every bound' +
+                ' element, so fragments become overlapping copies. Bind the variable ONCE and' +
+                ' animate clip masks around that one text run; keep any aligned glow or sheen' +
+                ' unbound and aria-hidden.'
+              : '"' + label(A.el) + '" is painted as displaced duplicate text layers (' +
+                describe(A.el) + ' and ' + describe(B.el) + '), making the wordmark unreadable.' +
+                ' Keep one primary text run, or align a secondary aria-hidden effect layer exactly' +
+                ' over it.',
+          });
+          continue;
+        }
         // The smaller run is the one that moved into the other's space - name it first.
         var small = width(A.box) * height(A.box) <= width(B.box) * height(B.box) ? A : B;
         var big = small === A ? B : A;
