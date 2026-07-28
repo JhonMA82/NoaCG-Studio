@@ -81,9 +81,16 @@ function collectCurrentTurnBlocks(entries) {
   return blocks;
 }
 
-/** A genuine human prompt, as opposed to a synthetic "user" entry carrying a tool_result. */
+/**
+ * A genuine human prompt, as opposed to a synthetic "user" entry the harness injects for a
+ * tool_result, a Skill/slash-command body substitution, or Stop-hook feedback. All three of
+ * those synthetic kinds carry free `text` content indistinguishable from a real prompt by
+ * shape alone - the harness marks them with `isMeta: true`, which a real human message (typed
+ * text or a slash-command invocation) never has. Trust that flag over content shape.
+ */
 function isRealUserMessage(entry) {
   if (entry?.type !== 'user') return false;
+  if (entry?.isMeta === true) return false;
   const content = entry?.message?.content;
   if (typeof content === 'string') return content.trim().length > 0;
   return Array.isArray(content) && content.some((block) => block?.type === 'text');
