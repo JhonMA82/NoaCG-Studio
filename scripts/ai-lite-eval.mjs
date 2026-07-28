@@ -138,7 +138,7 @@ async function waitForMotionToSettle(page) {
   throw new Error('Rendered motion did not settle within 5 seconds.');
 }
 
-async function measureAndCapture(spec, fixtureId) {
+async function measureAndCapture(spec, fixtureId, skin = null) {
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
     deviceScaleFactor: 1,
@@ -152,7 +152,7 @@ async function measureAndCapture(spec, fixtureId) {
   const recordingStarted = Date.now();
   try {
     await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
-    const measured = await page.evaluate(async ({ spec: designSpec }) => {
+    const measured = await page.evaluate(async ({ spec: designSpec, skin: skinPatch }) => {
       // The ONE shared compile pipeline (src/ai/litePipeline.ts) - identical to what
       // production runs after the same server decision. Never re-inline the steps here:
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
@@ -164,7 +164,11 @@ async function measureAndCapture(spec, fixtureId) {
         resolution: { width: 1920, height: 1080, label: '1080p' },
         fps: 50,
       };
-      const { template, validation, spec } = await compileLiteDecision(designSpec, context);
+      const { template, validation, spec, skinApplied, skinOutcome, skinRejectionRules } = await compileLiteDecision(
+        designSpec,
+        context,
+        skinPatch ?? undefined,
+      );
       // The canonical animation durations drive the capture waits below - never a fixed
       // sleep: the entrance/hold/exit stills must land on the phase they claim to show.
       const animData = parseAnimData(template.js);
@@ -190,6 +194,9 @@ async function measureAndCapture(spec, fixtureId) {
         ruleCodes: validation.errors.map((error) => error.rule),
         category: spec.category,
         variantId: spec.variantId,
+        skinApplied,
+        skinOutcome,
+        skinRejectionRules: skinRejectionRules ?? null,
         fieldCount: template.fields.length,
         zone: designSpec.zone ?? null,
         animationPreset: designSpec.animation?.presetId ?? null,
@@ -212,7 +219,7 @@ async function measureAndCapture(spec, fixtureId) {
           return [`f${index}`, replacements[line.role] ?? line.sample];
         })),
       };
-    }, { spec });
+    }, { spec, skin });
     await page.evaluate((initialData) => {
       document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(initialData));
     }, measured.initialData);
@@ -259,6 +266,9 @@ async function measureAndCapture(spec, fixtureId) {
       ruleCodes: measured.ruleCodes,
       category: measured.category,
       variantId: measured.variantId,
+      skinApplied: measured.skinApplied,
+      skinOutcome: measured.skinOutcome,
+      skinRejectionRules: measured.skinRejectionRules,
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
@@ -385,7 +395,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       continue;
     }
 
-    const measured = await measureAndCapture(generated.decision.spec, fixtureId);
+    const measured = await measureAndCapture(generated.decision.spec, fixtureId, generated.decision.skin ?? null);
     await fetch(`${BASE}/api/ai/lite/outcome`, {
       method: 'POST',
       headers,
@@ -403,6 +413,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       status: measured.ok ? 'machine-usable' : 'invalid',
       category: measured.category,
       variantId: measured.variantId,
+      skinApplied: measured.skinApplied ?? false,
       intentKind: generated.decision.spec.intent?.kind,
       fieldCount: measured.fieldCount,
       zone: measured.zone,
@@ -421,7 +432,10 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       phaseFiles: measured.phaseFiles,
       motionFile: measured.motionFile,
     });
-    console.log(measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`);
+    console.log(
+      `${measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`}`
+      + ` [skin: ${measured.skinOutcome}${measured.skinRejectionRules?.length ? ` ${measured.skinRejectionRules.join('|')}` : ''}]`,
+    );
   } catch (error) {
     if (sent && !attemptAccounted) providerCalls += 1;
     rows.push({
@@ -446,6 +460,9 @@ const summary = {
   maxCalls: MAX_PROVIDER_CALLS,
   maxCostUsd: MAX_COST_USD,
   machineUsable: rows.filter((row) => row.status === 'machine-usable').length,
+  // How many results landed as the SKINNED canvas (vs reverting to a house chassis) -
+  // the skin spike's primary count; always 0 on a skin-disabled route.
+  skinApplied: rows.filter((row) => row.skinApplied).length,
   rows,
 };
 await writeFile(path.join(OUT, `${LABEL}-metrics.json`), JSON.stringify(summary, null, 2), 'utf8');

@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
@@ -38,10 +38,21 @@ function appCleanUrl(): Plugin {
   };
 }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   // Keep the Claude preview launch config pointing at this checkout's port (worktrees get
   // their own — see scripts/dev-port.mjs). Serve-time only: builds shouldn't touch files.
   if (command === 'serve') writeLaunchConfig();
+  if (command === 'serve') {
+    // The dev server mounts the REAL api/ handlers (aiDevPlugin/renderApiPlugin), and they
+    // read server-only configuration from process.env exactly as they do on Vercel — but
+    // Vite loads .env files only into import.meta.env, never process.env. Fill the gap at
+    // serve time so `AI_LITE_*`, provider keys, and the render config work locally the way
+    // production works. Only MISSING keys are filled: an inline env var (or a Playwright
+    // webServer.env override, e.g. the offline suite's blanked Supabase vars) always wins.
+    for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), ''))) {
+      if (!(key in process.env)) process.env[key] = value;
+    }
+  }
   return {
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.

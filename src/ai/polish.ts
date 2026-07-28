@@ -86,8 +86,15 @@ const MARKER = '/* ── Polish (AI flourish — same contracts as the design C
  * Apply a polish patch inside the hard walls. Returns the polished template, or null when
  * ANY gate trips (the caller reverts): CSS touching the pinned sections, a script tag, a
  * lost field id, or an animation-data selector that no longer resolves.
+ *
+ * `marker` labels the appended override block — the Lite skin path applies its patch
+ * through this same gate under its own heading.
  */
-export function applyPolish(template: SpxTemplate, patch: PolishPatch): SpxTemplate | null {
+export function applyPolish(
+  template: SpxTemplate,
+  patch: PolishPatch,
+  marker: string = MARKER,
+): SpxTemplate | null {
   const prefix = detectPrefix(template.html);
   if (!prefix) return null;
   if (typeof patch.css !== 'string' || !patch.css.trim()) return null;
@@ -121,5 +128,5 @@ export function applyPolish(template: SpxTemplate, patch: PolishPatch): SpxTempl
     }
   }
 
-  return { ...template, html, css: `${template.css}\n\n${MARKER}\n${patch.css.trim()}\n` };
+  return { ...template, html, css: `${template.css}\n\n${marker}\n${patch.css.trim()}\n` };
 }

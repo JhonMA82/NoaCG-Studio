@@ -86,9 +86,14 @@ export interface LiteProfile {
   limits: LitePublicLimits;
   supportedCategories: string[];
   overrideUserIds: string[];
+  /** The skin experiment: the model may restyle the neutral canvas chassis with bounded
+   *  CSS. Off by default — turning it on widens the schema, teaches it in the prompt, and
+   *  needs the larger output budget below. The browser reverts a failing skin on its own. */
+  skinEnabled: boolean;
 }
 
 export function liteProfile(): LiteProfile {
+  const skinEnabled = boolEnv('AI_LITE_SKIN_ENABLED');
   const primary = route(
     process.env.AI_LITE_PRIMARY_PROVIDER,
     process.env.AI_LITE_PRIMARY_MODEL,
@@ -127,8 +132,9 @@ export function liteProfile(): LiteProfile {
     maxConcurrentFleet: intEnv('AI_LITE_FLEET_CONCURRENCY', 20, 1, 1000),
     dailyFleetSpendUsd: numberEnv('AI_LITE_FLEET_DAILY_SPEND_USD', 25, 0.01, 100_000),
     maxAttempts: 2,
-    outputTokens: intEnv('AI_LITE_OUTPUT_TOKENS', 1500, 200, 4000),
-    repairOutputTokens: intEnv('AI_LITE_REPAIR_OUTPUT_TOKENS', 1000, 200, 2500),
+    // A skin rides as CSS in the same structured call, so the output budget grows with it.
+    outputTokens: intEnv('AI_LITE_OUTPUT_TOKENS', skinEnabled ? 3500 : 1500, 200, 8000),
+    repairOutputTokens: intEnv('AI_LITE_REPAIR_OUTPUT_TOKENS', skinEnabled ? 2500 : 1000, 200, 4000),
     estimatedInputTokens: intEnv('AI_LITE_MAX_INPUT_TOKENS', 12_000, 1000, 50_000),
     timeoutMs: intEnv('AI_LITE_TIMEOUT_MS', 30_000, 5000, 120_000),
     expiryMs: intEnv('AI_LITE_EXPIRY_MINUTES', 15, 5, 120) * 60_000,
@@ -143,6 +149,7 @@ export function liteProfile(): LiteProfile {
       logoBytes: intEnv('AI_LITE_LOGO_BYTES', 2_000_000, 100_000, 5_000_000),
     },
     supportedCategories: [...LITE_AI_CATEGORIES],
+    skinEnabled,
     overrideUserIds: (process.env.AI_LITE_OVERRIDE_USER_IDS ?? '')
       .split(',')
       .map((value) => value.trim())
