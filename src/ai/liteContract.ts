@@ -498,6 +498,17 @@ function skinPromptLines(): string[] {
     // omission as the likelier mistake, because a plain legal skin beats no skin at all.
     'The canvas you are painting IS a strap: a wide horizontal band low in the frame, its width set by the text plus steady padding, its height about one to two text lines. Work with that shape - colour, texture, edges, rules, type, decoration all belong on it - rather than reshaping it into a square card, badge, or tall stack.',
     'Keep the name line (#f0) on a single line: trim decoration or type size until it fits. Wrapping the name is the one trade never worth making.',
+    // briefFit is the weakest judge axis (2.60 in round h) and these three lines answer what
+    // the judge actually wrote about the 13 low-scoring skins. Its complaint is almost never
+    // "wrong style" - it is NO style: "a generic black box with white text", "a plain
+    // corporate panel", "just lines and text". Second, named motifs go unrendered ("the
+    // 'eighties horizon feel' is absent", three times). Third, when the model does commit it
+    // puts the effect ON the name ("the neon glow blurs the text"), trading the legibility
+    // the skin exists to keep. The high scorers are concrete and restrained: "the subtle
+    // gold line above the name", "ample negative space and typography".
+    'Deliver the brief\'s named motifs literally - an imperfect underline, an eighties horizon, a scanline, paper grain, an angled cut are things you DRAW with gradients, repeating gradients, borders, box-shadow, clip-path and transforms, not moods to imply. Pick two or three such moves, name them in the summary, and make each one visible in the CSS.',
+    'The most common weak skin is a recoloured box: right colours, no character. If someone could not name the requested style from the pixels alone, keep going.',
+    'Put the character where it cannot fight the words - panel shape and edges, the accent, rules and dividers, texture, and the type treatment itself (weight, case, tracking, size contrast). Glow, blur and heavy shadow belong around the graphic; the primary name stays crisp.',
     'Omit skin ONLY when the brief names no distinctive treatment and a listed chassis already IS the answer. When the brief asks for a look, returning a bare chassis pick because the treatment felt risky is the more common mistake - a restrained skin that respects the strap beats no skin.',
   ];
 }

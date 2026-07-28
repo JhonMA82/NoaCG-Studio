@@ -134,10 +134,11 @@ export function liteProfile(): LiteProfile {
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
+    // v4: brief-fit teaching - draw the named motifs, never ship a recoloured box, keep the
+    // effects off the name (v3 was the strap contract restated as shape, see skinPromptLines).
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v3').trim().slice(0, 64) || 'lite-lower-third-v3',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v4').trim().slice(0, 64) || 'lite-lower-third-v4',
     primary,
     fallback,
     prices,
