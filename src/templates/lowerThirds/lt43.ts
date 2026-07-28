@@ -44,7 +44,6 @@ ${lineMasks(o, '      ')}
     css: `/* The slab — centred, zero radius, one hard offset shadow. */
 .lower-third-box {
   text-align: center;              /* the symmetric composition this design is built on */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for short lines — the bar still spans it */
   background: var(--panel-bg);     /* dark panel behind the text stack */
   box-shadow: var(--panel-shadow);  /* the family's hard offset lift */
   padding: calc(18px * var(--scale)) calc(56px * var(--scale)) 0;  /* the bar closes the bottom */

@@ -101,6 +101,11 @@ module.exports = {
       to: { path: '^src/(blocks|control)/' },
     },
     {
+      comment: 'OGraf export -> shared deterministic virtual-clock runtime',
+      from: { path: '^src/export/targets/ograf\\.ts$' },
+      to: { path: '^src/render/runtimeScript\\.ts$' },
+    },
+    {
       comment: '§3: control -> blocks, backend',
       from: { path: '^src/control/' },
       to: { path: '^src/(blocks|backend)/' },

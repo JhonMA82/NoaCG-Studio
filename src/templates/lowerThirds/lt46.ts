@@ -56,7 +56,6 @@ ${lineMasks(o)}
 /* The card — the family's frosted surface, with the roomier padding of an extended layout. */
 .lower-third-box {
   margin-left: var(--accent-weight);  /* the card begins where the accent edge ends — fused */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for short lines — the void fills the rest */
   padding: calc(28px * var(--scale)) calc(60px * var(--scale)) calc(30px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);     /* translucent white — the glass tint */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
