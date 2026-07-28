@@ -1,6 +1,6 @@
 import { json, methodGuard } from '../_lib/http.js';
 import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
-import { discoverProviderModels } from '../_lib/aiModelCatalog.js';
+import { discoverProviderModels } from '../_lib/aiModelDiscovery.js';
 import { isAiProviderId } from '../../src/ai/modelTypes.js';
 
 export default {

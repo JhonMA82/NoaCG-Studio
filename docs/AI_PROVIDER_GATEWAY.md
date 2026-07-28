@@ -38,10 +38,26 @@ images, generated output, provider bodies, and raw IPs never enter it, and a led
 never fails the generation. It is deliberately separate from Lite's `ai_generations` ledger so
 gateway traffic cannot consume Lite's fleet-spend and concurrency budgets.
 
-Large provider catalogs are discovered server-side through `GET /api/ai/models`. OpenRouter's
-Models API and Hugging Face's Inference Providers router supply ids, capabilities, limits,
-availability, and current prices. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility
-filter and repeatable quality benchmark.
+Large provider catalogs are discovered server-side through `GET /api/ai/models`
+(`api/_lib/aiModelDiscovery.ts`). OpenRouter's Models API and Hugging Face's Inference
+Providers router supply ids, capabilities, limits, availability, and current prices.
+`docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility filter and repeatable
+quality benchmark.
+
+## Task registry and approved-route catalog
+
+Managed free-tier tasks are declared in the server task registry
+(`api/_lib/aiTaskRegistry.ts`): per task, the structured-contract reference and version,
+allowed tiers, token/image limits, timeout/retry, route policy, and ledger kind. The first
+task is `lite-design-spec` - NoaCG Lite re-expressed over the same `AI_LITE_*`
+configuration with its public URLs and behavior unchanged.
+
+Free-tier routes must additionally be entries in the server-only approved-route catalog
+(`api/_lib/aiModelCatalog.ts`); the registry fails closed (`profile_not_configured`) on
+any route outside it, including the Lite skin-judge route. The catalog's `openWeights`
+flag is promotion-time preference metadata (open wins at benchmark parity), never a
+per-request gate. BYO-key traffic is not catalog-constrained - the caller spends their own
+key on an explicitly chosen route. Details: `docs/AI_TASK_REGISTRY.md`.
 
 ## NoaCG Lite
 

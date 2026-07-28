@@ -70,7 +70,11 @@ that no second copy exists.
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
-aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
+aiLiteProfile.ts`; the server task registry (`api/_lib/aiTaskRegistry.ts`,
+docs/AI_TASK_REGISTRY.md) re-expresses that profile as task `lite-design-spec` and fails
+closed unless every managed route is in the approved-route catalog
+(`api/_lib/aiModelCatalog.ts`). The generated template carries no profile marker or
+generation ledger id.
 
 **The SKIN experiment (server-flagged, `AI_LITE_SKIN_ENABLED`, off by default):** when the
 profile enables it, the same single model call may ALSO return `skin:{summary,css,html?}` -
@@ -295,7 +299,7 @@ put it (a logo slot takes a mark; a full-frame still does not).
   client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
   OpenRouter, and compatible Hugging Face Inference Providers without branching the harness.
   `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
-  normalization stays in `api/_lib/aiModelCatalog.ts`. Structured output, usage, costs, errors,
+  normalization stays in `api/_lib/aiModelDiscovery.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;
   other adapters ignore it.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME specToTemplate

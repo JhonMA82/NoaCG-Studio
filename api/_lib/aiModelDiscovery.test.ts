@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizedHuggingFace, normalizedOpenRouter } from './aiModelCatalog.js';
+import { normalizedHuggingFace, normalizedOpenRouter } from './aiModelDiscovery.js';
 
 test('normalizes OpenRouter video capabilities, per-token pricing, and free routes', () => {
   const model = normalizedOpenRouter({

@@ -22,6 +22,10 @@ export interface LiteGenerationRecord {
   userId: string;
   ipHash: string;
   idempotencyKey: string;
+  /** The ledger row discriminator. The task registry maps task ids onto it
+   *  ('lite-design-spec' -> 'lite'); migration 0010 pins the allowed values with a
+   *  CHECK constraint, so a task introducing a new value ships that migration in the
+   *  same commit. */
   profile: 'lite';
   status: LiteGenerationStatus;
   promptVersion: string;
@@ -113,7 +117,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     userId: input.userId,
     ipHash: input.ipHash,
     idempotencyKey: input.idempotencyKey,
-    profile: 'lite',
+    profile: input.profile.id,
     status: 'reserved',
     promptVersion: input.profile.promptVersion,
     requestedCategory: input.requestedCategory,

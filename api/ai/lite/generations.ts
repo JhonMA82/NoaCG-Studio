@@ -11,11 +11,11 @@ import { liteError } from '../../_lib/aiLiteHttp.js';
 import {
   liteOpenRouterPolicy,
   liteProfile,
-  liteProfileConfigured,
   liteProfileForUser,
   routePrice,
 } from '../../_lib/aiLiteProfile.js';
-import { admitLiteIp } from '../../_lib/aiLiteRateLimit.js';
+import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
+import { LITE_TASK_ID, liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
 import {
   getLiteGenerationStore,
   liteLedgerConfigured,
@@ -253,14 +253,15 @@ export default {
 
     let profile = liteProfile();
     if (!profile.enabled) return liteError('profile_disabled', 'NoaCG Lite is currently unavailable.', 503, true);
-    if (!liteProfileConfigured(profile) || !liteLedgerConfigured()) {
+    // The registry gate: route config + the approved-route catalog, failing closed.
+    if (!taskConfigured(liteTaskProfile(profile)) || !liteLedgerConfigured()) {
       return liteError('profile_not_configured', 'NoaCG Lite is not fully configured.', 503);
     }
     if (![profile.primary, profile.fallback].every((route) => Boolean(managedAiKey(route.provider)))) {
       return liteError('profile_not_configured', 'NoaCG Lite has no configured managed route.', 503);
     }
     const callerIpHash = ipHash(req);
-    const admission = admitLiteIp(callerIpHash);
+    const admission = admitTaskIp(LITE_TASK_ID, callerIpHash);
     if (!admission.allowed) {
       return liteError('rate_limited', 'Too many Lite requests from this network. Try again shortly.', 429, true, {
         'retry-after': String(admission.retryAfterSeconds),
