@@ -116,6 +116,10 @@ async function trimMotionVideo(rawPath, finalPath, startSeconds) {
   }
 }
 
+/** True when motion settled; false after the 5s budget. Never throws: a skin with an
+ *  idle loop (a blinking cursor, a pulse) NEVER settles, and discarding a paid,
+ *  machine-usable result over that is worse than capturing the animation mid-flight -
+ *  the still is honest either way, and the row records motionSettled for the reviewer. */
 async function waitForMotionToSettle(page) {
   let previous = '';
   let stableSamples = 0;
@@ -135,11 +139,11 @@ async function waitForMotionToSettle(page) {
     });
     if (signature && signature === previous) stableSamples += 1;
     else stableSamples = 0;
-    if (stableSamples >= 4) return;
+    if (stableSamples >= 4) return true;
     previous = signature;
     await page.waitForTimeout(100);
   }
-  throw new Error('Rendered motion did not settle within 5 seconds.');
+  return false;
 }
 
 async function measureAndCapture(spec, fixtureId, skin = null) {
@@ -237,7 +241,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
     const entranceFile = `${LABEL}-${fixtureId}-entrance.png`;
     await page.screenshot({ path: path.join(OUT, entranceFile) });
     await page.waitForTimeout(Math.max(0, measured.entranceDurationMs + 250 - (Date.now() - motionStarted)));
-    await waitForMotionToSettle(page);
+    const motionSettled = await waitForMotionToSettle(page);
     await page.waitForTimeout(80);
     const holdFile = `${LABEL}-${fixtureId}-hold.png`;
     await page.screenshot({ path: path.join(OUT, holdFile) });
@@ -270,6 +274,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       ruleCodes: measured.ruleCodes,
       category: measured.category,
       variantId: measured.variantId,
+      motionSettled,
       skinApplied: measured.skinApplied,
       skinOutcome: measured.skinOutcome,
       skinRejectionRules: measured.skinRejectionRules,
@@ -402,10 +407,11 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
   process.stdout.write(`- ${fixtureId}: `);
   let sent = false;
   let attemptAccounted = false;
+  let generated = null;
   try {
     sessions += 1;
     sent = true;
-    const generated = await json(await fetch(`${BASE}/api/ai/lite/generations`, {
+    generated = await json(await fetch(`${BASE}/api/ai/lite/generations`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -472,6 +478,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       category: measured.category,
       variantId: measured.variantId,
       skinApplied: measured.skinApplied ?? false,
+      motionSettled: measured.motionSettled ?? true,
       // The funnel's FINAL state for a skinned result: 'skinned' survived the judge (or
       // ran unjudged / judge-errored open); 'judge-reverted' means production would show
       // the house chassis. The skinned stills stay on disk so the verdict is reviewable.
@@ -508,6 +515,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
     });
     console.log(
       `${measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`}`
+      + (measured.motionSettled === false ? ' [motion: never settled - idle loop?]' : '')
       + ` [skin: ${measured.skinOutcome}${measured.skinRejectionRules?.length ? ` ${measured.skinRejectionRules.join('|')}` : ''}]`
       + (judge
         ? judge.scores
@@ -517,6 +525,23 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
     );
   } catch (error) {
     if (sent && !attemptAccounted) providerCalls += 1;
+    // A rig failure after a READY decision leaves the generation ACTIVE on the ledger
+    // ('spec_ready' holds a concurrency slot for 15 minutes) - measured 2026-07-28: two
+    // stranded actives hit the eval user's concurrency cap and refused the entire rest
+    // of a spike. Close the record so the slot frees; best-effort, the row is failed
+    // either way.
+    if (generated?.decision?.status === 'ready') {
+      await fetch(`${BASE}/api/ai/lite/outcome`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          generationId: generated.generationId,
+          action: 'validation-failed',
+          validationRuleCodes: ['rig-error'],
+          runtimeMs: Date.now() - started,
+        }),
+      }).catch(() => {});
+    }
     rows.push({
       fixtureId,
       candidate: LABEL,
