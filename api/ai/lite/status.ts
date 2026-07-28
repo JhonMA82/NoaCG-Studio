@@ -2,7 +2,9 @@ import { bearerToken, json, methodGuard } from '../../_lib/http.js';
 import { serverAuthConfigured, verifyUser } from '../../_lib/auth.js';
 import { managedAiKey } from '../../_lib/aiCredentials.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
-import { liteJudgeConfigured, liteProfile, liteProfileConfigured, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
+import { liteJudgeConfigured, liteProfile, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
+import { liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
+import { approvedModelRoute } from '../../_lib/aiModelCatalog.js';
 import type { LiteStatusResponse } from '../../../src/ai/liteTypes.js';
 
 export default {
@@ -15,7 +17,7 @@ export default {
     const user = requiresSignIn ? await verifyUser(bearerToken(req)) : null;
     const routesConfigured = [profile.primary, profile.fallback].every((route) => Boolean(managedAiKey(route.provider)));
     const configured = requiresSignIn
-      && liteProfileConfigured(profile)
+      && taskConfigured(liteTaskProfile(profile))
       && liteLedgerConfigured()
       && routesConfigured;
     const available = profile.enabled && configured && Boolean(user);
@@ -33,8 +35,11 @@ export default {
             : {}),
       supportedCategories: profile.supportedCategories,
       skinEnabled: profile.skinEnabled,
-      // Only claim the judge when it would actually run: enabled, priced, allowlisted, keyed.
-      skinJudgeEnabled: liteJudgeConfigured(profile) && Boolean(managedAiKey(profile.judgeRoute.provider)),
+      // Only claim the judge when it would actually run: enabled, priced, allowlisted,
+      // catalog-approved, keyed - the same gate the judge endpoint itself applies.
+      skinJudgeEnabled: liteJudgeConfigured(profile)
+        && approvedModelRoute(profile.judgeRoute)
+        && Boolean(managedAiKey(profile.judgeRoute.provider)),
       limits: profile.limits,
     };
     if (available && user) {

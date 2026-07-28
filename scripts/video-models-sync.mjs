@@ -12,9 +12,9 @@ const out = path.resolve(
   process.argv.find((arg) => arg.startsWith('--out='))?.slice('--out='.length)
     ?? 'benchmarks/video/model-catalog.json',
 );
-const runtime = await buildApiRuntime(['api/_lib/aiModelCatalog.ts']);
+const runtime = await buildApiRuntime(['api/_lib/aiModelDiscovery.ts']);
 try {
-  const moduleUrl = pathToFileURL(path.join(runtime.outputDir, 'api/_lib/aiModelCatalog.js')).href;
+  const moduleUrl = pathToFileURL(path.join(runtime.outputDir, 'api/_lib/aiModelDiscovery.js')).href;
   const { discoverProviderModels } = await import(moduleUrl);
   const [openrouter, huggingface] = await Promise.all([
     discoverProviderModels('openrouter', process.env.OPENROUTER_API_KEY),

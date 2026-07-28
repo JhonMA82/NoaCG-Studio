@@ -1,4 +1,5 @@
 import type { ModelPrice, OpenRouterRoutingPolicy } from './aiGateway.js';
+import { approvedModelPrices } from './aiModelCatalog.js';
 import type { AiProviderId, ModelRoute } from '../../src/ai/modelTypes.js';
 import { LITE_AI_CATEGORIES } from '../../src/ai/liteContract.js';
 import type { LitePublicLimits } from '../../src/ai/liteTypes.js';
@@ -123,12 +124,11 @@ export function liteProfile(): LiteProfile {
     process.env.AI_LITE_JUDGE_MODEL,
     { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
   );
+  // The base table IS the approved-route catalog's audited price snapshot. Env
+  // overrides may adjust a price, but they cannot approve a route - approval is the
+  // task registry's catalog gate (aiTaskRegistry.taskConfigured).
   const prices: Record<string, ModelPrice> = {
-    'openrouter:google/gemini-2.5-flash-lite': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-    'openrouter:google/gemini-2.5-flash': { inputPerMillion: 0.30, outputPerMillion: 2.50 },
-    'openrouter:qwen/qwen3-coder-next': { inputPerMillion: 0.11, outputPerMillion: 0.80 },
-    'openrouter:mistralai/mistral-small-2603': { inputPerMillion: 0.15, outputPerMillion: 0.60 },
-    'openrouter:mistralai/mistral-small-24b-instruct-2501': { inputPerMillion: 0.05, outputPerMillion: 0.08 },
+    ...approvedModelPrices(),
     ...priceOverrides(),
   };
   return {

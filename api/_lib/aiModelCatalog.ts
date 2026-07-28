@@ -1,173 +1,101 @@
-import type {
-  AiDiscoveredModel,
-  AiModelCatalogResponse,
-  AiProviderId,
-} from '../../src/ai/modelTypes.js';
+// The APPROVED-ROUTE model catalog (docs/AI_PLATFORM_PLAN.md §7) - server-only, never
+// serialized to the browser. Free-tier task profiles (api/_lib/aiTaskRegistry.ts) may
+// only reference routes listed here and FAIL CLOSED otherwise, exactly the
+// liteProfileConfigured() posture: a misconfigured route refuses to run rather than
+// falling back to an unapproved one.
+//
+// `openWeights` is promotion-time PREFERENCE metadata (the ratified §15 decision 1):
+// when the NoaCG benchmarks show parity, the open-weight candidate wins the route, but
+// a superior proprietary model is never excluded for closed weights alone. Nothing in
+// the request path gates on this flag.
+//
+// Entries are audited by hand at promotion time (docs/AI_LITE_PROMOTION.md). Live
+// listings - current prices, context windows, availability - come from the discovery
+// module (aiModelDiscovery.ts); the numbers here are the audited snapshot the policy
+// layer prices against, refreshed when a route is (re)promoted.
 
-type JsonObject = Record<string, unknown>;
+import type { ModelPrice } from './aiGateway.js';
+import type { ModelRoute } from '../../src/ai/modelTypes.js';
 
-const CACHE_MS = 15 * 60 * 1000;
-const cache = new Map<string, { at: number; value: AiModelCatalogResponse }>();
-
-function object(value: unknown): JsonObject {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonObject
-    : {};
+export interface ApprovedModelCapabilities {
+  vision: boolean;
+  coding: boolean;
+  structuredOutput: boolean;
+  contextWindow: number;
 }
 
-function list(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
+export interface ApprovedModelEntry {
+  route: ModelRoute;
+  /** Promotion-time preference metadata - never a per-request gate (plan §15.1). */
+  openWeights: boolean;
+  capabilities: ApprovedModelCapabilities;
+  price: ModelPrice;
+  /** Whether the route can honour zero-data-retention routing (Lite requires it). */
+  zdrAvailable: boolean;
+  notes: string;
 }
 
-function strings(value: unknown): string[] {
-  return list(value).filter((item): item is string => typeof item === 'string');
+export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
+  {
+    route: { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
+    openWeights: false,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
+    price: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+    zdrAvailable: true,
+    notes: 'Lite design-spec primary. Proprietary incumbent; stands until the discovery funnel benches an open-weight equal (plan §7).',
+  },
+  {
+    route: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+    openWeights: false,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
+    price: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
+    zdrAvailable: true,
+    notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b).',
+  },
+  {
+    route: { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
+    openWeights: true,
+    capabilities: { vision: false, coding: true, structuredOutput: true, contextWindow: 262_144 },
+    price: { inputPerMillion: 0.11, outputPerMillion: 0.80 },
+    zdrAvailable: true,
+    notes: 'Lite design-spec fallback; open-weight coding candidate for the code benches.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'mistralai/mistral-small-2603' },
+    openWeights: true,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.15, outputPerMillion: 0.60 },
+    zdrAvailable: true,
+    notes: 'Open-weight multimodal candidate for the Lite discovery funnel and the vision suite.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'mistralai/mistral-small-24b-instruct-2501' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 32_768 },
+    price: { inputPerMillion: 0.05, outputPerMillion: 0.08 },
+    zdrAvailable: true,
+    notes: 'Open-weight text/structured candidate for the Lite discovery funnel.',
+  },
+];
+
+export function modelRouteKey(route: ModelRoute): string {
+  return `${route.provider}:${route.model}`;
 }
 
-function finite(value: unknown): number | null {
-  const number = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : null;
+const byRouteKey = new Map(APPROVED_MODEL_CATALOG.map((entry) => [modelRouteKey(entry.route), entry]));
+
+export function approvedModelEntry(route: ModelRoute): ApprovedModelEntry | null {
+  return byRouteKey.get(modelRouteKey(route)) ?? null;
 }
 
-function isoFromEpoch(value: unknown): string | null {
-  const seconds = finite(value);
-  if (seconds === null) return null;
-  const date = new Date(seconds * 1000);
-  return Number.isNaN(date.valueOf()) ? null : date.toISOString();
+export function approvedModelRoute(route: ModelRoute): boolean {
+  return byRouteKey.has(modelRouteKey(route));
 }
 
-function perMillion(value: unknown): number | null {
-  const perToken = finite(value);
-  return perToken === null ? null : perToken * 1_000_000;
-}
-
-function text(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-export function normalizedOpenRouter(value: unknown): AiDiscoveredModel | null {
-  const model = object(value);
-  const id = text(model.id);
-  if (!id) return null;
-  const architecture = object(model.architecture);
-  const pricing = object(model.pricing);
-  const topProvider = object(model.top_provider);
-  const parameters = strings(model.supported_parameters);
-  const inputPerMillion = perMillion(pricing.prompt);
-  const outputPerMillion = perMillion(pricing.completion);
-  const expiration = text(model.expiration_date);
-  const expiresAt = expiration ? Date.parse(expiration) : Number.POSITIVE_INFINITY;
-  return {
-    provider: 'openrouter',
-    id,
-    name: text(model.name) || id,
-    description: text(model.description),
-    contextLength: finite(model.context_length),
-    maxOutputTokens: finite(topProvider.max_completion_tokens),
-    inputPerMillion,
-    outputPerMillion,
-    inputModalities: strings(architecture.input_modalities),
-    supportsStructuredOutput:
-      parameters.includes('structured_outputs') || parameters.includes('response_format'),
-    supportsTools: parameters.includes('tools') && parameters.includes('tool_choice'),
-    supportsSeed: parameters.includes('seed'),
-    free: id.endsWith(':free') || (inputPerMillion === 0 && outputPerMillion === 0),
-    openWeight: Boolean(text(model.hugging_face_id)),
-    available: !Number.isFinite(expiresAt) || expiresAt > Date.now(),
-    createdAt: isoFromEpoch(model.created),
-    revision: text(model.canonical_slug) || null,
-    source: 'openrouter-models-api',
-  };
-}
-
-export function normalizedHuggingFace(value: unknown): AiDiscoveredModel | null {
-  const model = object(value);
-  const id = text(model.id);
-  if (!id) return null;
-  const architecture = object(model.architecture);
-  const providers = list(model.providers).map(object);
-  const live = providers.filter((provider) => provider.status === 'live');
-  const capable = live.filter((provider) => provider.supports_structured_output === true);
-  const priced = capable
-    .map((provider) => object(provider.pricing))
-    .map((pricing) => ({
-      input: finite(pricing.input),
-      output: finite(pricing.output),
-    }))
-    .filter((pricing): pricing is { input: number; output: number } =>
-      pricing.input !== null && pricing.output !== null,
-    );
-  const cheapest = priced.sort((a, b) => (a.input + a.output) - (b.input + b.output))[0];
-  const contexts = capable
-    .map((provider) => finite(provider.context_length))
-    .filter((context): context is number => context !== null);
-  return {
-    provider: 'huggingface',
-    id,
-    name: id.split('/').at(-1) || id,
-    description: '',
-    contextLength: contexts.length ? Math.max(...contexts) : null,
-    maxOutputTokens: null,
-    inputPerMillion: cheapest?.input ?? null,
-    outputPerMillion: cheapest?.output ?? null,
-    inputModalities: strings(architecture.input_modalities).length
-      ? strings(architecture.input_modalities)
-      : ['text'],
-    supportsStructuredOutput: capable.length > 0,
-    supportsTools: capable.some((provider) => provider.supports_tools === true),
-    supportsSeed: false,
-    free: capable.some((provider) => provider.is_free === true),
-    openWeight: true,
-    available: capable.length > 0,
-    createdAt: isoFromEpoch(model.created),
-    revision: null,
-    source: 'huggingface-router',
-  };
-}
-
-async function fetchJson(url: string, key?: string): Promise<unknown> {
-  const response = await fetch(url, {
-    headers: key ? { authorization: `Bearer ${key}` } : {},
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!response.ok) throw new Error(`model catalog returned ${response.status}`);
-  return response.json();
-}
-
-async function openRouterModels(key?: string): Promise<AiDiscoveredModel[]> {
-  const raw = object(await fetchJson(
-    'https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=structured_outputs',
-    key,
-  ));
-  return list(raw.data)
-    .map(normalizedOpenRouter)
-    .filter((model): model is AiDiscoveredModel => model !== null);
-}
-
-async function huggingFaceModels(key?: string): Promise<AiDiscoveredModel[]> {
-  const raw = object(await fetchJson('https://router.huggingface.co/v1/models', key));
-  return list(raw.data)
-    .map(normalizedHuggingFace)
-    .filter((model): model is AiDiscoveredModel => model !== null);
-}
-
-export async function discoverProviderModels(
-  provider: AiProviderId,
-  key?: string,
-): Promise<AiModelCatalogResponse> {
-  const cacheKey = `${provider}:${Boolean(key)}`;
-  const found = cache.get(cacheKey);
-  if (found && Date.now() - found.at < CACHE_MS) return found.value;
-  if (provider !== 'openrouter' && provider !== 'huggingface') {
-    return { provider, syncedAt: new Date().toISOString(), models: [] };
-  }
-  const models = provider === 'openrouter'
-    ? await openRouterModels(key)
-    : await huggingFaceModels(key);
-  const value = {
-    provider,
-    syncedAt: new Date().toISOString(),
-    models: models.sort((a, b) => a.name.localeCompare(b.name)),
-  };
-  cache.set(cacheKey, { at: Date.now(), value });
-  return value;
+/** The audited price snapshot, keyed `provider:model` - the base of Lite's price table,
+ *  so the catalog and the policy layer cannot drift apart. */
+export function approvedModelPrices(): Record<string, ModelPrice> {
+  const prices: Record<string, ModelPrice> = {};
+  for (const entry of APPROVED_MODEL_CATALOG) prices[modelRouteKey(entry.route)] = { ...entry.price };
+  return prices;
 }

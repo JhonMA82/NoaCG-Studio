@@ -17,7 +17,9 @@ import {
   liteProfile,
   routePrice,
 } from '../../_lib/aiLiteProfile.js';
-import { admitLiteIp } from '../../_lib/aiLiteRateLimit.js';
+import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
+import { LITE_TASK_ID } from '../../_lib/aiTaskRegistry.js';
+import { approvedModelRoute } from '../../_lib/aiModelCatalog.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
 import type { LiteJudgeReservation } from '../../_lib/aiLiteStore.js';
 import {
@@ -88,10 +90,17 @@ export default {
 
     const profile = liteProfile();
     if (!profile.enabled) return liteError('profile_disabled', 'NoaCG Lite is currently unavailable.', 503, true);
-    if (!liteJudgeConfigured(profile) || !liteLedgerConfigured() || !managedAiKey(profile.judgeRoute.provider)) {
+    // The judge spends managed free-tier money, so its route is catalog-gated exactly
+    // like the generation routes (aiTaskRegistry fail-closed doctrine).
+    if (
+      !liteJudgeConfigured(profile)
+      || !approvedModelRoute(profile.judgeRoute)
+      || !liteLedgerConfigured()
+      || !managedAiKey(profile.judgeRoute.provider)
+    ) {
       return liteError('profile_not_configured', 'The Lite skin judge is not enabled on this server.', 503);
     }
-    const admission = admitLiteIp(ipHash(req));
+    const admission = admitTaskIp(LITE_TASK_ID, ipHash(req));
     if (!admission.allowed) {
       return liteError('rate_limited', 'Too many Lite requests from this network. Try again shortly.', 429, true, {
         'retry-after': String(admission.retryAfterSeconds),

@@ -726,8 +726,12 @@ The stages, in order (details in the plan):
       `ai_gateway_requests` ledger row (migration 0012, task `byo-generate`); audited dead-code
       removals (kept: `referenceSelect.ts` experiment machinery, `modelRole:'fast'`, Lite
       schema members - see the plan's §1.5 annotation)
-- [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
-      task profile, behavior-identical (proven by `bench:regress`)
+- [x] **Stage 1 (2026-07-28)** - AI task registry (`api/_lib/aiTaskRegistry.ts`) + approved-route
+      model catalog (`api/_lib/aiModelCatalog.ts`, `openWeights` as promotion metadata per
+      decision 1; the prior live-discovery module moved to `aiModelDiscovery.ts`); Lite
+      re-expressed as task `lite-design-spec` with `/api/ai/lite/*` URLs and behavior
+      unchanged (proven by `bench:regress` + the gateway test suite); free-tier routes now
+      fail closed outside the catalog (`docs/AI_TASK_REGISTRY.md`)
 - [ ] Stage 2 - external-provider disclosure/consent notice (per the ratified decision);
       ZDR-by-default on free routes; run the Lite model benchmark and settle the primary
       per the benchmark-first policy
