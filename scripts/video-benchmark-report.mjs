@@ -4,6 +4,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { machineScore } from './video-benchmark-scoring.mjs';
 
 const input = path.resolve(
   process.argv.find((arg) => arg.startsWith('--input='))?.slice('--input='.length)
@@ -85,18 +86,6 @@ await writeFile(path.join(input, 'leaderboard.json'), `${JSON.stringify({
 }, null, 2)}\n`);
 await writeFile(path.join(input, 'leaderboard.html'), html(results, models, rankings, scored));
 console.log(`Leaderboard -> ${path.join(input, 'leaderboard.html')}`);
-
-function machineScore(item) {
-  let score = 0;
-  if (item.ok) score += 20;
-  if (item.gate?.ok) score += 20;
-  if (item.gate?.probed) score += 10;
-  if (!(item.issues ?? []).length) score += 15;
-  if (!(item.deadVars ?? []).length) score += 10;
-  if (item.render?.attempted && item.render.ok) score += 10;
-  score += Math.max(0, 15 - (item.repairRounds ?? 0) * 7.5);
-  return score;
-}
 
 function rank(items, score) {
   return [...items].sort((a, b) => score(b) - score(a));

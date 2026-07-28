@@ -688,7 +688,7 @@ outer: for (const example of selected) {
       // generation-time gate had skipped: two different measurements. Re-validating the
       // finished source against the live bridge records which of those two happened, so a
       // readability figure from this bench can never again rest on a gate nobody checked ran.
-      const gate = await page.evaluate(async ([source, engine]) => {
+      const measuredGate = await page.evaluate(async ([source, engine]) => {
         try {
           const { getActiveHyperframesBridge, getActivePlayerBridge } = await import('/src/video/bridgeRegistry.ts');
           const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
@@ -707,18 +707,33 @@ outer: for (const example of selected) {
           return { probed: null, ok: null, rules: [], error: String(e?.message || e) };
         }
       }, [state.source, ENGINE]);
-      const render = RENDER
+      const gate = rejected
+        ? {
+            probed: null,
+            ok: false,
+            rules: rejectionErrors,
+            skipped: 'rejected-output-kept-previous-source',
+          }
+        : measuredGate;
+      const render = !rejected && RENDER
         ? await renderStill(id)
-        : { attempted: false, ok: null, file: null, bytes: 0, latencyMs: 0 };
+        : {
+            attempted: false,
+            ok: null,
+            file: null,
+            bytes: 0,
+            latencyMs: 0,
+            ...(rejected ? { skipped: 'rejected-output-kept-previous-source' } : {}),
+          };
       const automatedChecks = {
         generationSuccess: !rejected,
         schemaAndContractValid: !rejected,
-        typeScriptBuildSuccess: gate.ok,
+        typeScriptBuildSuccess: !rejected && gate.ok,
         renderSuccess: render.attempted ? render.ok : null,
-        runtimeErrors: gate.rules ?? [],
-        visualCompleteness: issues.length === 0,
-        dataFieldCorrectness: deadVars.length === 0,
-        engineCompatibility: gate.ok,
+        runtimeErrors: rejected ? rejectionErrors : (gate.rules ?? []),
+        visualCompleteness: !rejected && issues.length === 0,
+        dataFieldCorrectness: !rejected && deadVars.length === 0,
+        engineCompatibility: !rejected && gate.ok,
         firstPassSuccess: !rejected && repairs.length === 0,
       };
 
@@ -727,7 +742,7 @@ outer: for (const example of selected) {
         modelRevision: MODEL_REVISION, benchmarkVersion: BENCHMARK_VERSION,
         promptVersion: PROMPT_VERSION, temperature: TEMPERATURE, seed: SEED,
         startedAt: runStartedAt, latencyMs: Date.now() - runStartedMs,
-        ok: !rejected, summary, inputs: state.inputs, shots, issues,
+        ok: !rejected, summary, inputs: state.inputs, shots: rejected ? [] : shots, issues,
         rejectionErrors, deadSpace, deadVars, gate, render,
         repairRounds: repairs.length,
         repairCauses: repairs.flatMap((r) => r.repairFindings),
