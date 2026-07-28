@@ -50,6 +50,11 @@ or one fixed fallback may run, but both share a hard two-attempt session ceiling
 deterministic compilation or runtime failure is recorded as a NoaCG platform failure and is
 never sent to a model for code repair.
 
+The optional skin vision judge (`POST /api/ai/lite/judge`, `AI_LITE_JUDGE_*` settings)
+follows the same posture: server-owned route and prompt, fail-closed pricing and provider
+allowlist, the same ZDR policy, cost capped per call and accounted on the generation's
+ledger row. The submitted hold frame is judged and dropped - never stored.
+
 The public status endpoint returns only availability, supported product categories, public
 input limits, and remaining allowance. It never returns provider names, model ids, prices,
 endpoint slugs, keys, or fallback rules. Primary and fallback routes, provider endpoints,

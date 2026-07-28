@@ -85,6 +85,15 @@ house chassis: a skin can decline to land, never cost the user a working result.
 flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behavior are byte-identical to before
 the skin existed, and a skin a model emits anyway is stripped server-side.
 
+**The skin VISION JUDGE (server-flagged, `AI_LITE_JUDGE_ENABLED`, off by default):** one
+server-owned, cost-capped vision call (`POST /api/ai/lite/judge`) scoring the rendered HOLD
+frame on legibility/hierarchy/briefFit/strapShape (contract + prompt in `liteContract.ts`,
+`LITE_JUDGE_*`); every axis must reach the server threshold or the caller reverts to the
+house chassis. It fails closed like the generation routes, spends only behind a generation
+the caller owns, and stores nothing. Today only the eval rig calls it (Playwright captures
+the hold frame); production wiring waits on judge-vs-blind-review calibration AND an in-app
+capture path - see docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and

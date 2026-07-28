@@ -21,6 +21,7 @@ const ROUTES = new Set([
   'lite/status',
   'lite/generations',
   'lite/outcome',
+  'lite/judge',
 ]);
 
 async function handle(server, req, res) {

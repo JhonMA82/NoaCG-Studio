@@ -43,9 +43,12 @@ for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json')
     addRow(parsed.candidate, {
       key: `${parsed.candidate}:${row.fixtureId}`,
       machineValid: row.status === 'machine-usable',
-      costUsd: row.costUsd ?? 0,
+      costUsd: (row.costUsd ?? 0) + (row.judgeCostUsd ?? 0),
       latencyMs: row.latencyMs,
       repairs: row.repairs ?? 0,
+      judgeVerdict: row.judgeVerdict ?? null,
+      judgeScores: row.judgeScores ?? null,
+      skinFinal: row.skinFinal ?? null,
       failureCode: classifyFailure({
         // Fixture-bank briefs are all supported lower thirds - an unsupported answer is
         // a category miss; a failed call carries its provider code.
@@ -120,7 +123,25 @@ for (const [group, rows] of groups) {
   const scores = judgedRows.map((j) => j.score).filter((s) => typeof s === 'number');
   const taxonomy = {};
   for (const r of rows) if (r.failureCode) taxonomy[r.failureCode] = (taxonomy[r.failureCode] ?? 0) + 1;
+  // The vision-judge funnel over skinned results. Mean per-axis scores are the
+  // calibration signal: compare them against blind-review outcomes before trusting the
+  // threshold anywhere near production.
+  const judgedSkins = rows.filter((r) => r.judgeVerdict === 'pass' || r.judgeVerdict === 'fail');
+  const judgeAxes = ['legibility', 'hierarchy', 'briefFit', 'strapShape'];
+  const skinJudge = judgedSkins.length
+    ? {
+        judged: judgedSkins.length,
+        passRate: judgedSkins.filter((r) => r.judgeVerdict === 'pass').length / judgedSkins.length,
+        reverted: rows.filter((r) => r.skinFinal === 'judge-reverted').length,
+        erroredOpen: rows.filter((r) => r.judgeVerdict === 'error').length,
+        meanScores: Object.fromEntries(judgeAxes.map((axis) => [
+          axis,
+          judgedSkins.reduce((sum, r) => sum + (r.judgeScores?.[axis] ?? 0), 0) / judgedSkins.length,
+        ])),
+      }
+    : null;
   report.push({
+    skinJudge,
     group,
     runs: n,
     machineValidRate: n ? valid / n : 0,
@@ -156,6 +177,13 @@ for (const r of report) {
   );
   const failures = Object.entries(r.failureTaxonomy);
   if (failures.length) console.log(`  failures: ${failures.map(([code, count]) => `${code}×${count}`).join(', ')}`);
+  if (r.skinJudge) {
+    const means = Object.entries(r.skinJudge.meanScores).map(([axis, mean]) => `${axis} ${mean.toFixed(1)}`).join(', ');
+    console.log(
+      `  skin judge: ${pct(r.skinJudge.passRate)} of ${r.skinJudge.judged} passed, `
+      + `${r.skinJudge.reverted} reverted${r.skinJudge.erroredOpen ? `, ${r.skinJudge.erroredOpen} errored open` : ''}; mean ${means}`,
+    );
+  }
 }
 
 // Reviewer notes are the fixable findings behind the numbers - print them per item.

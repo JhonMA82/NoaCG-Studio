@@ -2,7 +2,7 @@ import { bearerToken, json, methodGuard } from '../../_lib/http.js';
 import { serverAuthConfigured, verifyUser } from '../../_lib/auth.js';
 import { managedAiKey } from '../../_lib/aiCredentials.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
-import { liteProfile, liteProfileConfigured, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
+import { liteJudgeConfigured, liteProfile, liteProfileConfigured, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
 import type { LiteStatusResponse } from '../../../src/ai/liteTypes.js';
 
 export default {
@@ -33,6 +33,8 @@ export default {
             : {}),
       supportedCategories: profile.supportedCategories,
       skinEnabled: profile.skinEnabled,
+      // Only claim the judge when it would actually run: enabled, priced, allowlisted, keyed.
+      skinJudgeEnabled: liteJudgeConfigured(profile) && Boolean(managedAiKey(profile.judgeRoute.provider)),
       limits: profile.limits,
     };
     if (available && user) {

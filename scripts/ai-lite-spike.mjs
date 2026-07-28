@@ -64,6 +64,9 @@ console.log(`  bearer token: ${TOKEN ? 'present' : 'MISSING (set NOACG_LITE_EVAL
 console.log(`  Lite availability: ${status ? (status.available ? 'available' : `unavailable (${status.reason ?? 'unknown'})`) : 'unknown'}`);
 if (SUITE === 'skin') {
   console.log(`  skin flag: ${status ? (status.skinEnabled ? 'ENABLED' : 'DISABLED (start the server with AI_LITE_SKIN_ENABLED=1)') : 'unknown'}`);
+  // Informational, not a precondition: a judged run measures the full production funnel
+  // (skin -> bench -> vision judge -> revert), an unjudged one only skin capability.
+  console.log(`  vision judge: ${status ? (status.skinJudgeEnabled ? 'ENABLED (2-4x cost path active)' : 'disabled (AI_LITE_JUDGE_ENABLED=1 to score skins)') : 'unknown'}`);
 }
 
 if (!CONFIRMED) {
@@ -112,7 +115,10 @@ for (let run = 1; run <= RUNS; run++) {
   const metrics = JSON.parse(await readFile(path.join(runDir, `${LABEL}-metrics.json`), 'utf8'));
   totalCost += metrics.totalCostUsd ?? 0;
   runsDone.push({ run, dir: runDir, costUsd: metrics.totalCostUsd ?? 0, machineUsable: metrics.machineUsable, sessions: metrics.sessions });
-  console.log(`Run ${run}: ${metrics.machineUsable}/${metrics.sessions} machine-usable${SUITE === 'skin' ? `, ${metrics.skinApplied ?? 0} skinned` : ''}, $${(metrics.totalCostUsd ?? 0).toFixed(4)}; spike total $${totalCost.toFixed(4)}.`);
+  const judgeNote = SUITE === 'skin' && metrics.judgeCalls
+    ? `, judge ${metrics.judgePassed}/${metrics.judgeCalls} passed (${metrics.judgeReverted} reverted${metrics.judgeErrors ? `, ${metrics.judgeErrors} errored open` : ''})`
+    : '';
+  console.log(`Run ${run}: ${metrics.machineUsable}/${metrics.sessions} machine-usable${SUITE === 'skin' ? `, ${metrics.skinApplied ?? 0} skinned` : ''}${judgeNote}, $${(metrics.totalCostUsd ?? 0).toFixed(4)}; spike total $${totalCost.toFixed(4)}.`);
 }
 
 const manifest = buildRunManifest({

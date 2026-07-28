@@ -142,7 +142,10 @@ npm run bench:spike -- --label=candidate-a --suite=skin   # the SKIN spike: the 
                           # skin-* fixture briefs (distinctive styles no house chassis
                           # carries) against a server started with AI_LITE_SKIN_ENABLED=1;
                           # a paid run REFUSES to start when the flag is off, and metrics
-                          # count skinApplied (skinned canvas vs house-chassis revert)
+                          # count skinApplied (skinned canvas vs house-chassis revert).
+                          # With AI_LITE_JUDGE_ENABLED=1 the run also exercises the
+                          # VISION JUDGE (below) on every skinned result - the full
+                          # production-shaped funnel including judge-reverted counts
 npm run bench:gallery     # blind review gallery over any out-dir
 npm run bench:sameness    # visual-diversity metric over an out-dir's hold captures (free,
                           # offline): per-label mean + MIN pairwise distance (the
@@ -172,6 +175,33 @@ catalogue filtering on structured-output support, ZDR, pricing, provider pinning
 qualification → screening → confirmation with candidate identity = model + endpoint +
 revision + parameters + reasoning config, `model@reasoning=low` as its own candidate).
 Build them when a frozen suite survives more than a few weeks.
+
+## 6b. The skin vision judge (`POST /api/ai/lite/judge`)
+
+Phase 2 of the skin uniqueness strategy (the paid spike's verdict: capability exists,
+CONSISTENCY is the fight). A skin that compiles and benches clean can still be a bad
+broadcast graphic - a squat box, a wrapped name, decoration burying the text. The judge
+is one server-owned, cost-capped vision call over the rendered HOLD frame, scoring four
+integer axes 1-5: `legibility`, `hierarchy`, `briefFit`, `strapShape`. A pass requires
+EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the caller reverts to the
+house chassis, so a weak skin costs a judgement call, never an on-air graphic.
+
+Boundaries, same posture as the generation route: the browser/rig supplies only the frame
+(downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
+prompt, or policy. The judge fails closed (enabled + priced + audited-allowlist or it
+refuses), spends only behind a generation the caller owns, adds its provider cost to that
+generation's ledger row (so the fleet spend ceiling sees it), and stores nothing - the
+screenshot is judged and dropped. Config: `AI_LITE_JUDGE_*` in `.env.example`. A judge
+TRANSPORT failure fails open in the rig (the deterministic gates already passed) and is
+recorded as `judge: error`, never hidden.
+
+**Calibration before trust.** The gallery stays blind - judge scores never appear in it,
+or they would bias the reviewer. `bench:report` prints per-candidate judge pass rates and
+mean per-axis scores next to (separate) human acceptance; agreement between the judge's
+verdicts and blind review is what earns the threshold. Until that correlation is
+measured, the judge runs in the eval rig only - production wiring additionally needs an
+in-app hold-frame capture path, which does not exist yet (rig captures are Playwright
+screenshots).
 
 ## 7. Human review
 

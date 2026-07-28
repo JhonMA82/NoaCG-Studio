@@ -90,6 +90,16 @@ export interface LiteProfile {
    *  CSS. Off by default — turning it on widens the schema, teaches it in the prompt, and
    *  needs the larger output budget below. The browser reverts a failing skin on its own. */
   skinEnabled: boolean;
+  /** The skin VISION JUDGE: one server-owned vision call scoring the rendered hold frame.
+   *  Off by default; independent of skinEnabled so the judge can be staged separately. */
+  judgeEnabled: boolean;
+  judgeRoute: ModelRoute;
+  judgeMaxCostUsd: number;
+  judgeOutputTokens: number;
+  judgeEstimatedInputTokens: number;
+  /** Minimum every judge axis must reach for a pass (1-5). Calibrate against blind review
+   *  before trusting it in production - see docs/AI_LITE_BENCHMARK.md. */
+  judgeThreshold: number;
 }
 
 export function liteProfile(): LiteProfile {
@@ -104,8 +114,14 @@ export function liteProfile(): LiteProfile {
     process.env.AI_LITE_FALLBACK_MODEL,
     { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
   );
+  const judgeRoute = route(
+    process.env.AI_LITE_JUDGE_PROVIDER,
+    process.env.AI_LITE_JUDGE_MODEL,
+    { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+  );
   const prices: Record<string, ModelPrice> = {
     'openrouter:google/gemini-2.5-flash-lite': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+    'openrouter:google/gemini-2.5-flash': { inputPerMillion: 0.30, outputPerMillion: 2.50 },
     'openrouter:qwen/qwen3-coder-next': { inputPerMillion: 0.11, outputPerMillion: 0.80 },
     'openrouter:mistralai/mistral-small-2603': { inputPerMillion: 0.15, outputPerMillion: 0.60 },
     'openrouter:mistralai/mistral-small-24b-instruct-2501': { inputPerMillion: 0.05, outputPerMillion: 0.08 },
@@ -150,6 +166,13 @@ export function liteProfile(): LiteProfile {
     },
     supportedCategories: [...LITE_AI_CATEGORIES],
     skinEnabled,
+    judgeEnabled: boolEnv('AI_LITE_JUDGE_ENABLED'),
+    judgeRoute,
+    judgeMaxCostUsd: numberEnv('AI_LITE_JUDGE_MAX_COST_USD', 0.004, 0.0001, 0.1),
+    judgeOutputTokens: intEnv('AI_LITE_JUDGE_OUTPUT_TOKENS', 400, 100, 2000),
+    // One downscaled PNG plus the brief; vision tiles dominate, so keep the estimate fat.
+    judgeEstimatedInputTokens: intEnv('AI_LITE_JUDGE_INPUT_TOKENS', 4000, 1000, 20_000),
+    judgeThreshold: intEnv('AI_LITE_JUDGE_THRESHOLD', 3, 1, 5),
     overrideUserIds: (process.env.AI_LITE_OVERRIDE_USER_IDS ?? '')
       .split(',')
       .map((value) => value.trim())
@@ -200,4 +223,30 @@ export function liteProfileConfigured(profile: LiteProfile): boolean {
     if (item.provider !== 'openrouter') return true;
     return Boolean(routePrice(profile, item)) && profile.openRouterProviders.length > 0;
   });
+}
+
+/** The judge fails closed exactly like the generation routes: enabled + priced + (for
+ *  OpenRouter) allowlisted, or it does not run at all. */
+export function liteJudgeConfigured(profile: LiteProfile): boolean {
+  if (!profile.judgeEnabled) return false;
+  if (profile.judgeRoute.provider !== 'openrouter') return true;
+  return Boolean(routePrice(profile, profile.judgeRoute)) && profile.openRouterProviders.length > 0;
+}
+
+/** The judge route's OpenRouter policy. Its price caps come from the judge route's OWN
+ *  price entry - the generation routes' caps would refuse a costlier vision model. */
+export function liteJudgePolicy(profile: LiteProfile): OpenRouterRoutingPolicy | undefined {
+  if (profile.judgeRoute.provider !== 'openrouter') return undefined;
+  const price = routePrice(profile, profile.judgeRoute);
+  if (!price || profile.openRouterProviders.length === 0) return undefined;
+  return {
+    zdr: profile.requireZdr,
+    dataCollection: 'deny',
+    requireParameters: true,
+    allowProviderFallbacks: false,
+    only: profile.openRouterProviders,
+    maxInputPerMillion: price.inputPerMillion,
+    maxOutputPerMillion: price.outputPerMillion,
+    structuredOutputMode: profile.openRouterStructuredMode,
+  };
 }

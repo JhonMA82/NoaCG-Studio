@@ -2,18 +2,28 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import {
   LITE_CATALOG,
+  LITE_JUDGE_AXES,
+  LITE_JUDGE_OUTPUT,
   LITE_READY_OUTPUT,
   deterministicUnsupportedDecision,
+  liteJudgeSystemPrompt,
+  liteJudgeVerdict,
+  liteSystemPrompt,
   obviousUnsupportedDecision,
   validateLiteDecision,
+  validateLiteJudgeScores,
 } from '../../src/ai/liteContract.js';
 import type { LiteGenerationRequest } from '../../src/ai/liteTypes.js';
-import { liteProfile, liteProfileConfigured } from './aiLiteProfile.js';
+import { liteJudgeConfigured, liteJudgePolicy, liteProfile, liteProfileConfigured } from './aiLiteProfile.js';
 import { liteLedgerConfigured, MemoryLiteGenerationStore } from './aiLiteStore.js';
 import { readJson } from './http.js';
 
 const ENV = [
   'AI_LITE_ENABLED',
+  'AI_LITE_JUDGE_ENABLED',
+  'AI_LITE_JUDGE_PROVIDER',
+  'AI_LITE_JUDGE_MODEL',
+  'AI_LITE_JUDGE_THRESHOLD',
   'AI_LITE_OPENROUTER_PROVIDERS',
   'AI_LITE_REQUIRE_ZDR',
   'AI_LITE_OPENROUTER_STRUCTURED_MODE',
@@ -432,4 +442,63 @@ test('content-free accepted and discarded outcomes become thresholded chassis pr
     accepted: 6,
     discarded: 2,
   }]);
+});
+
+test('the skin prompt teaches strap shape and the unwrappable name line', () => {
+  const prompt = liteSystemPrompt('test-v1', [], { skin: true });
+  assert.match(prompt, /STRAP SHAPE IS NON-NEGOTIABLE/);
+  assert.match(prompt, /squat box/);
+  assert.match(prompt, /ONE line, never wrapped/);
+  // The teaching rides only the skin-enabled prompt.
+  assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /STRAP SHAPE/);
+});
+
+test('the skin judge fails closed and prices its own route', () => {
+  // Default: disabled.
+  assert.equal(liteJudgeConfigured(liteProfile()), false);
+
+  // Enabled but no OpenRouter provider allowlist: still closed.
+  process.env.AI_LITE_JUDGE_ENABLED = '1';
+  assert.equal(liteJudgeConfigured(liteProfile()), false);
+
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  const configured = liteProfile();
+  assert.equal(liteJudgeConfigured(configured), true);
+  // The policy caps prices at the JUDGE route's own entry, not the generation routes'.
+  const policy = liteJudgePolicy(configured);
+  assert.equal(policy?.zdr, true);
+  assert.deepEqual(policy?.only, ['audited/provider']);
+  assert.equal(policy?.maxInputPerMillion, 0.30);
+  assert.equal(policy?.maxOutputPerMillion, 2.50);
+
+  // An unpriced judge model fails closed.
+  process.env.AI_LITE_JUDGE_MODEL = 'someone/unpriced-vision-model';
+  process.env.AI_LITE_JUDGE_PROVIDER = 'openrouter';
+  assert.equal(liteJudgeConfigured(liteProfile()), false);
+  assert.equal(liteJudgePolicy(liteProfile()), undefined);
+});
+
+test('judge scores validate strictly and one weak axis sinks the verdict', () => {
+  const good = { legibility: 5, hierarchy: 4, briefFit: 4, strapShape: 5, reason: 'Clean strap, name reads instantly.' };
+  const parsed = validateLiteJudgeScores(good);
+  assert.deepEqual(parsed?.scores, { legibility: 5, hierarchy: 4, briefFit: 4, strapShape: 5 });
+  assert.equal(liteJudgeVerdict(parsed.scores, 3), 'pass');
+  assert.equal(liteJudgeVerdict({ ...parsed.scores, strapShape: 2 }, 3), 'fail');
+  assert.equal(liteJudgeVerdict(parsed.scores, 5), 'fail');
+
+  assert.equal(validateLiteJudgeScores({ ...good, legibility: 0 }), null);
+  assert.equal(validateLiteJudgeScores({ ...good, hierarchy: 6 }), null);
+  assert.equal(validateLiteJudgeScores({ ...good, briefFit: 3.5 }), null);
+  assert.equal(validateLiteJudgeScores({ ...good, reason: '' }), null);
+  const { strapShape: _dropped, ...missingAxis } = good;
+  assert.equal(validateLiteJudgeScores(missingAxis), null);
+});
+
+test('the judge prompt and schema cover exactly the four axes', () => {
+  const prompt = liteJudgeSystemPrompt('test-v1');
+  for (const axis of LITE_JUDGE_AXES) assert.ok(prompt.includes(axis), `prompt names ${axis}`);
+  assert.match(prompt, /squat box/);
+  const schema = LITE_JUDGE_OUTPUT.schema as { required?: string[]; additionalProperties?: boolean };
+  assert.deepEqual(schema.required, [...LITE_JUDGE_AXES, 'reason']);
+  assert.equal(schema.additionalProperties, false);
 });

@@ -332,6 +332,77 @@ export function liteSkinPatchErrors(value: unknown): string[] {
   return errors;
 }
 
+// ── The skin VISION JUDGE (server-executed; the rig and, later, the app call it) ──────
+// A skin that compiles and benches clean can still be a bad broadcast graphic - a squat
+// box, a wrapped name, decoration burying the hierarchy. The judge scores the RENDERED
+// hold frame; below the server threshold the caller reverts to the house chassis, so a
+// weak skin costs a judgement call, never an on-air graphic.
+
+export const LITE_JUDGE_AXES = ['legibility', 'hierarchy', 'briefFit', 'strapShape'] as const;
+
+export const LITE_JUDGE_LIMITS = {
+  briefChars: 2000,
+  summaryChars: 200,
+  reasonChars: 240,
+  /** Base64 PNG ceiling (~3 MB decoded). Callers downscale the hold frame first. */
+  imageBase64Chars: 4_000_000,
+} as const;
+
+export const LITE_JUDGE_OUTPUT: StructuredOutput = {
+  name: 'emit_skin_judgement',
+  description: 'Score the rendered lower-third skin on the four axes.',
+  schema: {
+    type: 'object',
+    required: [...LITE_JUDGE_AXES, 'reason'],
+    additionalProperties: false,
+    properties: {
+      legibility: { type: 'integer' },
+      hierarchy: { type: 'integer' },
+      briefFit: { type: 'integer' },
+      strapShape: { type: 'integer' },
+      reason: { type: 'string', minLength: 1, maxLength: LITE_JUDGE_LIMITS.reasonChars },
+    },
+  },
+};
+
+export function liteJudgeSystemPrompt(promptVersion: string): string {
+  return [
+    `NoaCG Lite Skin Judge ${promptVersion}.`,
+    'You review one 1920x1080 (possibly downscaled) HOLD frame of an AI-skinned broadcast lower third rendered over a preview background, together with the brief and the skin\'s claimed treatment. Judge the rendered pixels, not the intent.',
+    'Score each axis as an integer 1-5 (5 = broadcast-ready, 3 = acceptable, 1 = unusable):',
+    '- legibility: the primary name reads instantly at a glance over moving video; secondary text stays comfortably readable. Wrapped, truncated, cramped, or low-contrast primary text scores 1-2.',
+    '- hierarchy: one clear primary element, intentional secondary weight, decoration never competing with the text.',
+    '- briefFit: the visual treatment actually delivers the requested style, committed rather than generic.',
+    '- strapShape: the graphic remains a wide horizontal lower-third strap in the lower frame. A squat box, card, badge, tall stack, centered plate, or full-frame takeover scores 1-2.',
+    'Be strict: these graphics go on air. Reason is ONE short sentence naming the decisive observation.',
+  ].join('\n');
+}
+
+/** Parse and range-check the judge model's structured output. Null = malformed. */
+export function validateLiteJudgeScores(
+  value: unknown,
+): { scores: Record<(typeof LITE_JUDGE_AXES)[number], number>; reason: string } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const output = value as Record<string, unknown>;
+  const scores = {} as Record<(typeof LITE_JUDGE_AXES)[number], number>;
+  for (const axis of LITE_JUDGE_AXES) {
+    const score = output[axis];
+    if (!Number.isInteger(score) || (score as number) < 1 || (score as number) > 5) return null;
+    scores[axis] = score as number;
+  }
+  const reason = typeof output.reason === 'string' ? output.reason.trim().slice(0, LITE_JUDGE_LIMITS.reasonChars) : '';
+  if (!reason) return null;
+  return { scores, reason };
+}
+
+/** Pass only when EVERY axis reaches the threshold - one hard failure sinks the skin. */
+export function liteJudgeVerdict(
+  scores: Record<(typeof LITE_JUDGE_AXES)[number], number>,
+  threshold: number,
+): 'pass' | 'fail' {
+  return LITE_JUDGE_AXES.every((axis) => scores[axis] >= threshold) ? 'pass' : 'fail';
+}
+
 /** The validated, trimmed patch (call only after liteSkinPatchErrors returned empty). */
 export function normalizeLiteSkinPatch(value: unknown): LiteSkinPatch {
   const skin = value as { summary: string; css: string; html?: string };
@@ -410,6 +481,8 @@ function skinPromptLines(): string[] {
     'Skin CSS rules: take colors from var(--accent), var(--text-color), var(--text-dim), var(--panel-bg); write every size as calc(Npx * var(--scale)) and multiply font sizes additionally by var(--type-scale). Never write :root, @font-face, @import, external url(), scripts, or markup inside css.',
     'skin.html is optional and only for decorative elements: it is the root element\'s COMPLETE new inner HTML, keeping every existing id="fN" exactly once and each inside its .lower-third-mask wrapper. No <script>.',
     'A skinned result is still a broadcast lower third: the name reads instantly over moving video, hierarchy stays intentional, and text keeps generous spacing. Distinctive means committed shape, texture, and typographic character — never illegible.',
+    'STRAP SHAPE IS NON-NEGOTIABLE: the skinned graphic stays a wide horizontal lower-third strap. Never compress it into a squat box, card, badge, or tall stack. Panel width comes from the text plus steady padding; height stays a strap, roughly one to two text lines.',
+    'The name line (#f0) must render on ONE line, never wrapped, never truncated. If your treatment would wrap it, reduce decoration or font size until it fits - a wrapped name is a failed skin.',
     'When the brief fits a listed chassis well, omit skin entirely.',
   ];
 }

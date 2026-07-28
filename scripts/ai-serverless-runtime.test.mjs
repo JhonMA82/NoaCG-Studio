@@ -18,6 +18,7 @@ const ENTRYPOINTS = [
   'api/ai/lite/status.ts',
   'api/ai/lite/generations.ts',
   'api/ai/lite/outcome.ts',
+  'api/ai/lite/judge.ts',
 ];
 
 async function artifactFiles(directory) {
@@ -32,7 +33,7 @@ async function artifactFiles(directory) {
 const smokeSource = String.raw`
   import assert from 'node:assert/strict';
 
-  const [configUrl, credentialsUrl, generateUrl, modelsUrl, liteStatusUrl, liteGenerationsUrl, liteOutcomeUrl] = process.argv.slice(1);
+  const [configUrl, credentialsUrl, generateUrl, modelsUrl, liteStatusUrl, liteGenerationsUrl, liteOutcomeUrl, liteJudgeUrl] = process.argv.slice(1);
   const [
     { default: configHandler },
     { default: credentialsHandler },
@@ -41,6 +42,7 @@ const smokeSource = String.raw`
     { default: liteStatusHandler },
     { default: liteGenerationsHandler },
     { default: liteOutcomeHandler },
+    { default: liteJudgeHandler },
   ] = await Promise.all([
     import(configUrl),
     import(credentialsUrl),
@@ -49,6 +51,7 @@ const smokeSource = String.raw`
     import(liteStatusUrl),
     import(liteGenerationsUrl),
     import(liteOutcomeUrl),
+    import(liteJudgeUrl),
   ]);
 
   const configResponse = await configHandler.fetch(
@@ -136,6 +139,16 @@ const smokeSource = String.raw`
     (await liteOutcomeHandler.fetch(new Request('https://noacg.test/api/ai/lite/outcome'))).status,
     405,
   );
+  assert.equal(
+    (await liteJudgeHandler.fetch(new Request('https://noacg.test/api/ai/lite/judge'))).status,
+    405,
+  );
+  // The judge fails closed: enabled Lite alone does not enable it.
+  const judgeDisabled = await liteJudgeHandler.fetch(
+    new Request('https://noacg.test/api/ai/lite/judge', { method: 'POST', body: '{}' }),
+  );
+  assert.equal(judgeDisabled.status, 503);
+  assert.equal((await judgeDisabled.json()).error.code, 'profile_not_configured');
 `;
 
 test('Vercel-style JavaScript artifacts load and execute every Creative AI function', async (t) => {
