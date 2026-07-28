@@ -78,6 +78,8 @@ function routeLabel(path: AiPath | null): string | null {
       return '▤ Built on the catalog design system — editable everywhere, exactly like wizard output.';
     case 'grounded+polish':
       return '▤ Catalog design system plus a bounded custom flourish.';
+    case 'grounded+skin':
+      return '▤ Deterministic canvas structure with an AI-designed look.';
     case 'custom':
       return '✦ Custom build — exercised end to end in the live playout bench.';
     default:

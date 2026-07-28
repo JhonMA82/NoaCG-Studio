@@ -174,5 +174,23 @@ if (consistency) {
 }
 console.log('\nGold is the catalog ceiling and floor the zero-model baseline: read every candidate as a position between them.');
 
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, notes: noted }, null, 2), 'utf8');
+// The sameness metric (bench:sameness) folds in when it has been computed for this dir.
+let sameness = null;
+try {
+  sameness = JSON.parse(await readFile(path.join(OUT, 'sameness.json'), 'utf8'));
+  console.log('\nSameness (bench:sameness; relative distances, min pair is the tripwire):');
+  for (const s of sameness.summary ?? []) {
+    if (!s.pairwise) continue;
+    const min = (s.pairwise.min * 100).toFixed(2);
+    const mean = (s.pairwise.mean * 100).toFixed(2);
+    const houseLine = s.minHouseDistance !== undefined
+      ? `; nearest-house min ${(s.minHouseDistance * 100).toFixed(2)}`
+      : '';
+    console.log(`- ${s.label}: mean ${mean}, min ${min} (${s.pairwise.minPair.join(' ~ ')})${houseLine}`);
+  }
+} catch {
+  console.log('\nNo sameness.json yet (run bench:sameness over this dir to measure visual diversity).');
+}
+
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, notes: noted, sameness }, null, 2), 'utf8');
 console.log(`Wrote ${path.join(OUT, 'report.json')}`);

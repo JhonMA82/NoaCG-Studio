@@ -689,6 +689,35 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       `images/` assets; project brand colors carried in via the match toggle
 - [x] AI panel (modify / fix / explain / make-SPX-ready) backed by Claude when configured,
       by the deterministic stub otherwise
+- [x] **AI platform audit + plan (2026-07-28)** - repo-wide inventory of every AI surface,
+      workload classification, and the unified architecture: a shared task registry with an
+      open-weight model allowlist over the existing gateway, Lite retained as the specialized
+      catalog-grounded harness, a proposal-only Import Graphic analysis harness, and a vision
+      benchmark plan (`docs/AI_PLATFORM_PLAN.md`)
+- [x] **Editor AI panel quality gate (2026-07-28)** - the AI assistant panel injects the
+      production validator (static + runtime bench + safety screen) so its repair loop works
+      against real findings, pinned by a mutation-tested spec (`e2e/ai-panel.spec.ts`)
+
+### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15, awaiting owner review)
+
+Owner decisions blocking the build stages:
+- [ ] **Open-weight mandate for free routes** - confirming it replaces Lite's proprietary
+      Gemini Flash Lite primary with a benchmark-verified open-weight model (env change; the
+      quality/cost position is what the decision accepts)
+- [ ] Consent notice wording, and whether consent is recorded server-side
+- [ ] Free-tier quota levels for the vision task (image count, daily runs)
+- [ ] Whether `/api/ai/credentials` gains a sign-in requirement (shared-browser exposure)
+
+The stages, in order (details in the plan):
+- [ ] Stage 0 remainder - `/api/ai/generate` rate limit + content-free ledger row; dead-code
+      removals from the audit
+- [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
+      task profile, behavior-identical (proven by `bench:regress`)
+- [ ] Stage 2 - external-provider disclosure/consent notice; ZDR-by-default on free routes;
+      execute the open-weight primary decision for Lite
+- [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
+      a server flag; vision benchmark of >=3 open VLMs picks the launch route
+- [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
 
 ### Export & platform
 - [x] SPX Starter + Advanced/Pack export with validation gate

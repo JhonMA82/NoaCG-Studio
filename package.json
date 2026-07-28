@@ -29,6 +29,7 @@
     "bench:lite": "node scripts/ai-lite-eval.mjs",
     "bench:spike": "node scripts/ai-lite-spike.mjs",
     "bench:gallery": "node scripts/ai-lite-gallery.mjs",
+    "bench:sameness": "node scripts/ai-lite-sameness.mjs",
     "bench:report": "node scripts/ai-lite-report.mjs",
     "video:models:sync": "node scripts/video-models-sync.mjs",
     "video:bench:smoke": "node scripts/video-benchmark.mjs smoke",

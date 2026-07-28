@@ -32,6 +32,7 @@ export default {
             ? { reason: 'sign-in' as const }
             : {}),
       supportedCategories: profile.supportedCategories,
+      skinEnabled: profile.skinEnabled,
       limits: profile.limits,
     };
     if (available && user) {
