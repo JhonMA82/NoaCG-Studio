@@ -87,6 +87,10 @@ export const MOTION_PRINCIPLES = `## NoaCG motion-design principles (the permane
   then text/logo LAST in the JSX (explicit zIndex when in doubt). Once a text element has
   landed and is readable, nothing sweeps over or covers it: a covering wipe happens BEFORE
   the text lands, and text exits BEFORE (or with) the panels under it, never after.
+- Text on top is not enough when its backdrop has the same colour: never park light glyphs
+  across light slabs or dark glyphs across dark panels. Inspect the full wordmark at the hero
+  hold - every band of every glyph needs contrast. If slabs pass through its footprint,
+  settle them before the text lands and choose a contrasting text/backdrop pairing.
 - Compose for the WHOLE frame: the hero occupies a confident share of it (a title spans
   roughly half the width; a full-frame piece like a stinger covers the frame at its peak).
   Never a small element adrift in empty space - if it reads as under-scale, it is. Use the

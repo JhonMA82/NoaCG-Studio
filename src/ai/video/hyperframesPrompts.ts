@@ -38,6 +38,10 @@ export const HYPERFRAMES_CONTRACT = `## The composition contract (hard requireme
   duration instead).
 - Animate transforms, opacity (use gsap autoAlpha), colors, and filters. Never tween
   display or raw visibility.
+- At the hero hold, text and logos must paint above decorative panels AND contrast against
+  everything behind their full glyph area. In CSS, give the text clip/layer the higher
+  z-index; do not place a white background-clip:text wordmark across white slabs (or the dark
+  equivalent). Same-colour shapes behind text erase it even when the DOM stacking is correct.
 - EDITABLE INPUTS are composition VARIABLES, declared on the <html> element:
     <html lang="en" data-composition-variables='[
       {"id":"title","type":"string","label":"Title","default":"PRIME TIME"},

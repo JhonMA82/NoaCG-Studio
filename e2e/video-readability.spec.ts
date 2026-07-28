@@ -420,6 +420,79 @@ test('text painted behind a panel is caught by the gate, not just by the bench',
   );
 });
 
+test('gradient wordmarks broken by same-color slabs are caught by the gate', async ({ page }) => {
+  // A real OpenRouter smoke output put three white decorative slabs behind the right half of
+  // a white gradient wordmark. The text painted later, so this was not occlusion, but the
+  // same-color backdrop erased large bands of the glyphs. The old contrast check skipped every
+  // background-clip:text fill and also required every sample to fail, scoring the result clean.
+  await createHyperframesProject(page);
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.video-player-frame')).toBeVisible();
+
+  const results = await page.evaluate(async () => {
+    const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
+    const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+    const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 120, transparent: false };
+
+    const documentWith = (slabLeft: number) => `<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>t</title>
+<style>
+  body { margin: 0; }
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #101216; }
+  .slab { position: absolute; left: ${slabLeft}px; width: 780px; height: 60px; background: #fff; }
+  #top { top: 420px; } #mid { top: 540px; } #bottom { top: 660px; }
+  #title {
+    position: absolute; left: 290px; top: 395px; margin: 0;
+    color: #fff; font: 700 240px/1 Arial; letter-spacing: -0.02em; white-space: nowrap;
+    background: linear-gradient(to bottom, rgba(255,255,255,.95), rgba(255,255,255,.55));
+    -webkit-background-clip: text; background-clip: text;
+    z-index: 2;
+  }
+</style></head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="4">
+  <section class="clip" data-start="0" data-duration="4" data-track-index="1">
+    <div id="top" class="slab"></div><div id="mid" class="slab"></div><div id="bottom" class="slab"></div>
+  </section>
+  <section class="clip" data-start="0" data-duration="4" data-track-index="2">
+    <h1 id="title">NORTHLINE</h1>
+  </section>
+</div>
+<script>
+  window.__timelines = window.__timelines || {};
+  var tl = gsap.timeline({ paused: true });
+  tl.to('#root', { opacity: 1, duration: 0.1 }, 0);
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>`;
+
+    const verdict = async (slabLeft: number) => {
+      const r = await validateHyperframesComposition(
+        documentWith(slabLeft),
+        settings,
+        [],
+        getActiveHyperframesBridge(),
+      );
+      return { probed: r.probed, rules: r.errors.map((e) => e.rule), messages: r.errors.map((e) => e.message) };
+    };
+
+    return { broken: await verdict(960), clear: await verdict(1700) };
+  });
+
+  expect(results.broken.probed, 'the broken wordmark must actually have been measured').toBe(true);
+  expect(results.broken.rules, 'same-color slabs erase large bands of the gradient wordmark').toContain(
+    'text-contrast',
+  );
+  expect(results.broken.messages.join(' '), 'the repair must identify text/backdrop color').toContain(
+    'TEXT COLOR',
+  );
+  expect(results.clear.rules, 'the same wordmark with the slabs moved clear is clean').not.toContain(
+    'text-contrast',
+  );
+});
+
 test('dark-on-dark text and text painted across other text are caught by the gate', async ({ page }) => {
   // Two real bench failures shipped "clean" before these checks existed (scripts/
   // video-bench-briefs.varied.json): esports-opener drew its second title word in a
