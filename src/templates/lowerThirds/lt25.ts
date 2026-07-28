@@ -77,7 +77,7 @@ ${lineMasks(o)}
   letter-spacing: var(--label-tracking);  /* the family's label tracking — a masthead kicker breathes */
   text-transform: uppercase;        /* whatever the operator types reads as a kicker */
   color: var(--label-color);        /* the family's label colour (the accent) */
-  margin-top: calc(13px * var(--scale));  /* clear air below the name — this line is its own beat */
+  margin-top: calc(6px * var(--scale));  /* a small beat below the name — compact, the tracking gives the line its presence */
 }`,
     hasAccent: true,
   }),

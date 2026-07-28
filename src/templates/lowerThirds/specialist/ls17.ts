@@ -73,7 +73,6 @@ ${institution}    </div>`,
   background: var(--panel-bg);      /* the minimal family's quiet panel */
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short name — the void fills the rest */
   max-width: calc(894px * var(--scale));  /* academic job titles are long — give them the room */
 }
 

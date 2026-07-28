@@ -40,7 +40,6 @@ ${lineMasks(o, '      ')}
   display: flex;                    /* the rule and the name sit side by side */
   align-items: center;              /* …vertically centred against each other */
   gap: calc(20px * var(--scale));   /* the printed margin between them */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short name — the void fills the rest */
   padding: calc(16px * var(--scale)) calc(34px * var(--scale)) calc(18px * var(--scale)) calc(26px * var(--scale));
   background: var(--panel-bg);      /* ink by default; paper on the Broadsheet palette */
   box-shadow: var(--panel-shadow);  /* the family's restrained lift */

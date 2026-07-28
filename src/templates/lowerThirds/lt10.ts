@@ -60,7 +60,6 @@ ${lineMasks(o)}
   flex-wrap: wrap;                 /* later lines wrap onto their own rows */
   align-items: center;             /* the dot centers on the name row */
   row-gap: calc(7px * var(--scale));       /* breathing room between wrapped rows */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width card even for a short name — the void fills the rest */
   padding: calc(22px * var(--scale)) calc(33px * var(--scale));  /* generous card padding */
   border-radius: var(--panel-radius);                            /* the card's authored radius */
   background-color: var(--panel-bg);       /* the retintable glass layer */

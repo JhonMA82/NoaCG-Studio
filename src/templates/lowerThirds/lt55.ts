@@ -70,7 +70,6 @@ ${maskLines([maskLine('lower-third', o, 2, 'lower-third-reason', '      ')])}
 /* The panel — the house void behind the ask. */
 .lower-third-box {
   margin-left: var(--accent-weight);  /* starts where the accent bar ends */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width strap even for short lines — the void fills the rest */
   padding: calc(20px * var(--scale)) calc(38px * var(--scale)) calc(22px * var(--scale)) calc(24px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
