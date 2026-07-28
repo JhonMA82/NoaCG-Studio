@@ -698,15 +698,28 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       production validator (static + runtime bench + safety screen) so its repair loop works
       against real findings, pinned by a mutation-tested spec (`e2e/ai-panel.spec.ts`)
 
-### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15, awaiting owner review)
+### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15)
 
-Owner decisions blocking the build stages:
-- [ ] **Open-weight mandate for free routes** - confirming it replaces Lite's proprietary
-      Gemini Flash Lite primary with a benchmark-verified open-weight model (env change; the
-      quality/cost position is what the decision accepts)
-- [ ] Consent notice wording, and whether consent is recorded server-side
-- [ ] Free-tier quota levels for the vision task (image count, daily runs)
-- [ ] Whether `/api/ai/credentials` gains a sign-in requirement (shared-browser exposure)
+Owner decisions — RATIFIED 2026-07-28:
+- [x] **Model policy: benchmark-first with an open-weight preference** (not a hard mandate) -
+      an open-weight model is used whenever it performs as well as or better than the
+      proprietary alternatives on NoaCG's own benchmarks; a superior proprietary model is
+      never excluded merely for closed weights. Route selection stays explicit server
+      configuration - never a silent fallback.
+- [x] **Consent notice** - discloses that prompts and uploaded images may be sent to an
+      external AI provider, that sensitive/confidential material must not be uploaded, and
+      that NoaCG prefers ZDR-capable routes where available but cannot guarantee identical
+      retention across providers. Acceptance stored server-side for signed-in users
+      (timestamp + notice version); client-side for anonymous users, with renewed acceptance
+      whenever the notice version changes.
+- [x] **Free Import Graphic vision quota** - 1 image per analysis, 10 successful analyses
+      per day, 100 per month; images downscaled to at most 1920x1080 before sending. Only
+      successes count against the quota; abuse-oriented rate limiting is separate; actual
+      per-run provider costs are recorded so the numbers can be tuned from real usage.
+- [x] **BYO credentials require sign-in on the hosted service** - keys associate with the
+      user, not just a browser cookie. Account-free BYO-key use survives for private
+      self-hosted installs behind an explicit configuration flag, disabled by default in
+      the hosted product.
 
 The stages, in order (details in the plan):
 - [x] **Stage 0 remainder (2026-07-28)** - `/api/ai/generate` per-IP burst gate + content-free
@@ -715,10 +728,12 @@ The stages, in order (details in the plan):
       schema members - see the plan's §1.5 annotation)
 - [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
       task profile, behavior-identical (proven by `bench:regress`)
-- [ ] Stage 2 - external-provider disclosure/consent notice; ZDR-by-default on free routes;
-      execute the open-weight primary decision for Lite
+- [ ] Stage 2 - external-provider disclosure/consent notice (per the ratified decision);
+      ZDR-by-default on free routes; run the Lite model benchmark and settle the primary
+      per the benchmark-first policy
 - [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
-      a server flag; vision benchmark of >=3 open VLMs picks the launch route
+      a server flag; vision benchmark (>=3 open-weight candidates plus proprietary
+      baselines) picks the launch route per the benchmark-first policy
 - [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
 
 ### Export & platform
