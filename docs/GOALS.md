@@ -745,7 +745,16 @@ The stages, in order (details in the plan):
       via `DesignFieldSpec`; stub-first `e2e/import-analysis.spec.ts`. STILL OPEN from
       Stage 3: the hand-labelled vision dataset + benchmark (>=3 open-weight candidates)
       picks the launch route before the flag turns on
-- [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
+- [x] **Stage 4 build (2026-07-29)** - the bounded errors-back repair loop extracted to
+      `src/ai/shared/repairLoop.ts` and driven by BOTH coders (blocking-findings policy stays
+      per-caller: SPX editability demotion, video soft-finding demotion); the video harness
+      now records through the shared telemetry ring (`video-generate`/`video-refine` kinds -
+      it recorded nothing before). The audit's video-internal dedup items were found already
+      resolved on main (dead-input checks exist on both engines; the per-engine canonical
+      examples are deliberate). STILL OPEN from Stage 4: the paid `ai-compare.mjs` regression
+      run the plan names as the refactor's token-spending proof (the free proofs - build,
+      `bench:regress`, the mocked repair-round e2e specs - are green); open-model candidates
+      in the code benches ride the Stage 2 bench decision
 
 ### Export & platform
 - [x] SPX Starter + Advanced/Pack export with validation gate

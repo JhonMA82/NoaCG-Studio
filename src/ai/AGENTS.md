@@ -159,7 +159,9 @@ code generation. E2E: e2e/import-analysis.spec.ts (flag-off absence is mutation-
 5. **Custom path** - briefs whose STRUCTURE no catalog family carries go to the free-form
    coder: house contracts + the NEAREST catalog variant's real create() output as the
    canonical example + the design stage's direction, then the validated repair loop
-   (`MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed back).
+   (`shared/repairLoop.ts` - THE one bounded errors-back loop both the SPX and video
+   coders drive: `MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed
+   back; what counts as BLOCKING stays each caller's policy, injected as a filter).
    **The region contract is authored, not emitted:** the example's ANIMATION region is shown
    in its AUTHORING shape (the legacy GSAP builders, via `emitPresetRegion`) and the prompt
    teaches that grammar - natural GSAP the model is reliably good at, instead of the bespoke
@@ -233,7 +235,10 @@ containment that would actually hold is denying the preview iframe the app's ori
 ## Telemetry & the value proof
 
 `telemetry.ts` records every run locally (stages, tokens from the API usage block, repair
-rounds, route, diversity fields; localStorage ring, JSON-exportable). The standing proof:
+rounds, route, diversity fields; localStorage ring, JSON-exportable). The VIDEO harness
+records through the same ring (kinds `video-generate`/`video-refine` - it recorded
+nothing before); consumers filter by kind, so SPX statistics never mix with video runs.
+The standing proof:
 
 - `scripts/ai-compare.mjs` - same brief, same model, four arms (raw / raw+self-critique /
   pre-harness / the harness), neutral scoring (runtime bench + motion-sampled overlaps +

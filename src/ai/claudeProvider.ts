@@ -34,6 +34,7 @@ import { specSections } from './spec/specPrompt';
 import { applySpecLocks, applySpecOutPreset, narrowedSpecTool } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { generateLiteDesign, LiteRequestError, recordLiteOutcome } from './liteClient';
+import { findingsList, repairLoop } from './shared/repairLoop';
 
 // ── Structured output: the model must return the template via this tool ─────
 
@@ -297,9 +298,6 @@ function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxT
   };
 }
 
-/** How many errors-back repair rounds the free-form path gets (video-harness parity). */
-const MAX_REPAIR_ROUNDS = 2;
-
 /** The runtime bench's house-editability rule (src/validation/runtimeBench.ts). */
 const EDITABILITY_RULE = 'bench-editability';
 
@@ -381,65 +379,66 @@ async function generateValidated(
   const ground = (e: EmittedTemplate): SpxTemplate =>
     applySpecOutPreset(ensureSpecFonts(convertEmittedRegion(toTemplate(e, ctx, base)), ctx?.spec), ctx?.spec);
 
-  let emitted = first.output as EmittedTemplate;
-  let template = ground(emitted);
-  let summary = emitted.summary;
-  options?.onProgress?.('Testing it…');
-  let validation = await validateWith(template, options, run);
-
   // Editability stays a hard error only when the template being MODIFIED already carried a
   // readable data block — silently losing it would be a real regression the repair loop
   // must fight. Everywhere else (fresh custom builds, foreign imports, hand-written code)
   // a region the converter above couldn't read demotes to a warning at the end instead of
   // burning repair rounds on the one finding the model reliably fails; the findings still
-  // ride along in a round a FUNCTIONAL error triggers.
+  // ride along in a round a FUNCTIONAL error triggers (the shared loop hands reEmit the
+  // FULL error list while `blocking` decides what forces a round).
   const editabilityBlocks = !!base && !!parseAnimData(base.js);
-  const blocking = (v: ValidationResult) =>
-    editabilityBlocks ? v.errors : v.errors.filter((e) => e.rule !== EDITABILITY_RULE);
 
-  for (let round = 1; round <= MAX_REPAIR_ROUNDS && blocking(validation).length > 0; round++) {
-    // Errors-back repair: the exact findings (validator rules + bench measurements) with
-    // the full current code, forced back through the same tool.
-    options?.onProgress?.(`Repairing (round ${round})…`);
-    run?.repair();
-    t0 = Date.now();
-    const repair = await callModelDetailed({
-      system,
-      messages: [
-        { role: 'user', content: userContent },
-        { role: 'assistant', content: `I generated a template but it failed the platform's checks.` },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Your template failed these checks. Fix ALL of them and re-emit the complete template:
-${validation.errors.map((e) => `- ${e.rule}: ${e.message}`).join('\n')}
+  const { emitted: result, validation: finalValidation } = await repairLoop<
+    { emitted: EmittedTemplate; template: SpxTemplate },
+    ValidationResult
+  >({
+    emitted: { emitted: first.output as EmittedTemplate, template: ground(first.output as EmittedTemplate) },
+    validate: async (current) => {
+      options?.onProgress?.('Testing it…');
+      return validateWith(current.template, options, run);
+    },
+    blocking: (v) =>
+      editabilityBlocks ? v.errors : v.errors.filter((e) => e.rule !== EDITABILITY_RULE),
+    reEmit: async (findings, current, round) => {
+      // Errors-back repair: the exact findings (validator rules + bench measurements) with
+      // the full current code, forced back through the same tool.
+      options?.onProgress?.(`Repairing (round ${round})…`);
+      run?.repair();
+      t0 = Date.now();
+      const repair = await callModelDetailed({
+        system,
+        messages: [
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: `I generated a template but it failed the platform's checks.` },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Your template failed these checks. Fix ALL of them and re-emit the complete template:
+${findingsList(findings)}
 
 === index.html ===
-${template.html}
+${current.template.html}
 === template.css ===
-${template.css}
+${current.template.css}
 === template.js ===
-${template.js}`,
-            },
-          ],
-        },
-      ],
-      tool: TEMPLATE_TOOL,
-      cacheSystem: true,
-    });
-    run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
-    emitted = repair.output as EmittedTemplate;
-    template = ground(emitted);
-    summary = emitted.summary;
-    options?.onProgress?.('Testing it…');
-    validation = await validateWith(template, options, run);
-  }
+${current.template.js}`,
+              },
+            ],
+          },
+        ],
+        tool: TEMPLATE_TOOL,
+        cacheSystem: true,
+      });
+      run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
+      const next = repair.output as EmittedTemplate;
+      return { emitted: next, template: ground(next) };
+    },
+  });
 
-  if (!editabilityBlocks) validation = demoteEditability(validation);
-
-  return { summary, template, path: 'custom', validation };
+  const validation = editabilityBlocks ? finalValidation : demoteEditability(finalValidation);
+  return { summary: result.emitted.summary, template: result.template, path: 'custom', validation };
 }
 
 /** Telemetry wrapper: record the run whether it returns or throws. */
