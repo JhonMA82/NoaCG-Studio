@@ -26,6 +26,7 @@ const ENV = [
   'AI_LITE_PRICING_JSON',
   'AI_LITE_PROMPT_VERSION',
   'AI_LITE_SKIN_ENABLED',
+  'AI_LITE_REQUIRE_ZDR',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -102,6 +103,16 @@ test('BYO/paid tiers are not catalog-gated; free and anonymous are', () => {
   assert.equal(taskConfigured(withTiers(['anonymous'])), false);
   // A mixed tier set still carries managed free spend, so the catalog still gates it.
   assert.equal(taskConfigured(withTiers(['free', 'byo'])), false);
+});
+
+test('free-tier route policy defaults to zero-data-retention routing', () => {
+  // Stage 2 doctrine (plan §9): ZDR is the DEFAULT for every free task route. Turning
+  // it off is an explicit, audited, per-task server decision - never a default.
+  const task = liteTaskProfile();
+  assert.ok(task.tiers.includes('free'));
+  assert.equal(task.routePolicy.requireZdr, true);
+  process.env.AI_LITE_REQUIRE_ZDR = '0';
+  assert.equal(liteTaskProfile().routePolicy.requireZdr, false); // explicit opt-out honored
 });
 
 test('openWeights is preference metadata, never an approval gate', () => {

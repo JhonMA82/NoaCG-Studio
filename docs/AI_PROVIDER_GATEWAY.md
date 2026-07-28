@@ -106,6 +106,23 @@ minimum sample count, accepted and discarded totals become a subtle chassis tie-
 the trusted server prompt. The brief and semantic fit always outrank this aggregate prior,
 and no prompt, template, screenshot, or generated artifact is retained.
 
+## Disclosure and consent
+
+Every AI action that sends content off the user's machine is gated by a first-use
+disclosure notice (ratified decision 2, `docs/AI_PLATFORM_PLAN.md` §15): prompts and
+uploaded images may be sent to an external AI provider; sensitive or confidential material
+must not be uploaded; ZDR-capable routes are preferred where available but retention
+across providers is not guaranteed. The wording and version live in
+`src/ai/consentNotice.ts` - shared by the browser dialog and the server record, so they
+cannot drift. Acceptance is stored client-side for anonymous users and server-side for
+signed-in users (`POST /api/ai/consent`, table `ai_consents`, migration
+`0014_ai_consent.sql` - timestamp + notice version, nothing else); bumping
+`AI_NOTICE_VERSION` forces renewed acceptance everywhere. Offline/stub generations never
+show the notice - nothing leaves the machine.
+
+ZDR routing is the DEFAULT for every free-tier task route (`requireZdr` in the task
+profile); turning it off is an explicit, audited, per-task server decision.
+
 ## Configuration
 
 Browser-visible values are non-secret:

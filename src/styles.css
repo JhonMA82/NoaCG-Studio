@@ -3566,6 +3566,15 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 }
 .save-field input, .save-field select { width: 100%; }
 
+/* The first-use AI disclosure notice — same borrowed `.wz-modal`, sized to its short text.
+   It appears the moment an action would send content to an external AI provider (never for
+   the offline stub), so it must read as a calm disclosure, not an error. */
+.consent-dialog { max-width: 480px; width: min(480px, 92vw); height: auto; max-height: 92vh; }
+.consent-dialog .wz-header h2 { font-size: 16px; margin: 0; }
+.consent-body { padding: 14px 18px 18px; }
+.consent-lines { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
+.consent-lines li { font-size: 13px; line-height: 1.5; color: var(--text); }
+
 /* The standalone export window — same borrowed `.wz-modal`, same reason to resize it. Narrow
    on purpose: the surface inside is the dock panel's single column of target cards, and
    stretching that to the wizard's 1520px would strand each radio button a screen away from
