@@ -84,6 +84,7 @@ async function compileInPage(page, decision) {
       category: result.spec.category,
       variantId: result.spec.variantId ?? null,
       skinApplied: result.skinApplied,
+      skinOutcome: result.skinOutcome,
       fieldCount: result.template.fields.length,
     };
   }, { spec: decision.spec, skin: decision.skin ?? null });

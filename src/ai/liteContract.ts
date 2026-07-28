@@ -405,7 +405,7 @@ function qualityPriorDigest(priors: readonly LiteVariantQualityPrior[]): string 
 /** The skin teaching block — appended only when the server profile enables skins. */
 function skinPromptLines(): string[] {
   return [
-    'Skins: when the brief asks for a distinctive visual style none of the listed chassis can deliver, you may ALSO return skin:{summary,css,html?}. The platform then compiles the neutral Skin Canvas chassis and appends your CSS after its design CSS, so your rules win by cascade.',
+    'Skins: when the brief names a specific visual treatment beyond the six chassis looks - for example brutalist, neon, hand-drawn, paper, luxury couture, retro decades, terminal or HUD styling - you MUST also return skin:{summary,css} painting that treatment. Answering such a brief with only a chassis pick is a wrong answer. The platform compiles the neutral Skin Canvas chassis and appends your CSS after its design CSS, so your rules win by cascade.',
     `Skin Canvas structure (the contract — restyle these, never rename or reposition the root): ${LITE_SKIN_CANVAS_CLASSES}.`,
     'Skin CSS rules: take colors from var(--accent), var(--text-color), var(--text-dim), var(--panel-bg); write every size as calc(Npx * var(--scale)) and multiply font sizes additionally by var(--type-scale). Never write :root, @font-face, @import, external url(), scripts, or markup inside css.',
     'skin.html is optional and only for decorative elements: it is the root element\'s COMPLETE new inner HTML, keeping every existing id="fN" exactly once and each inside its .lower-third-mask wrapper. No <script>.',
@@ -424,8 +424,9 @@ export function liteSystemPrompt(
     'The server has already established that this is one supported lower third. Return exactly one ready structured design. Never refuse it and never write HTML, CSS, or JavaScript.',
     'Choose one listed chassis. The platform compiles it deterministically into an editable broadcast graphic.',
     'Fit must be catalog and flourish must be the empty string. Use one or two realistic editable lines and identify the semantic role of each line.',
+    'Length limits are hard: reason and summary are each ONE short sentence under 200 characters. Never write multi-sentence rationales anywhere.',
     'This is a lower third, so keep it in a bottom zone. Use bottom-left unless the brief clearly supports bottom-center or bottom-right.',
-    'intent.primaryRole must exactly equal lines[0].role. When there are two lines, intent.secondaryRole is mandatory and must exactly equal lines[1].role.',
+    'intent.primaryRole must exactly equal lines[0].role. When there are two lines, intent.secondaryRole is MANDATORY and must exactly equal lines[1].role - never omit it. Example: lines with roles person-name then person-role require intent {"kind":"person","primaryRole":"person-name","secondaryRole":"person-role"}.',
     'For a person lower third, the first line is the actual person name. Never substitute a faculty, employer, team, or programme for a requested person name. The second line is their role, organization, team, or location as requested.',
     'Job titles such as Producer, Director, Professor, Analyst, Correspondent, Officer, President, or Coach use role person-role. Never label a job title as a team name or generic context.',
     'A documentary subject is a person, not a story headline: use the subject name first and their requested role or location second. Quiet documentary styling normally fits Scrim or Masthead; preserve the person identity even when the brief says documentary.',

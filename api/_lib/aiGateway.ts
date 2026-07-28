@@ -81,7 +81,10 @@ function parseStructured(text: string): unknown {
     return object(JSON.parse(text));
   } catch (error) {
     if (error instanceof GatewayError) throw error;
-    throw new GatewayError('malformed_response', 'The AI provider returned an invalid structured result.', 502, false);
+    // Retryable: sampled models produce this stochastically, and providers can error
+    // mid-stream (observed as OpenRouter finish_reason "error" with a truncated body) -
+    // a fresh attempt within the bounded budget usually succeeds.
+    throw new GatewayError('malformed_response', 'The AI provider returned an invalid structured result.', 502, true);
   }
 }
 
@@ -142,7 +145,9 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
 
 function validateStructuredOutput(output: unknown, request: ModelRequest): void {
   if (request.structuredOutput && !schemaAccepts(output, request.structuredOutput.schema)) {
-    throw new GatewayError('malformed_response', 'The model returned a result that did not match the required structure.', 502, false);
+    // Retryable for the same reason as the parse failure above: schema misses under
+    // sampling are stochastic, and the bounded attempt budget is exactly for them.
+    throw new GatewayError('malformed_response', 'The model returned a result that did not match the required structure.', 502, true);
   }
 }
 

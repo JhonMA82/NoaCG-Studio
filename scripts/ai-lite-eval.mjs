@@ -164,7 +164,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
         resolution: { width: 1920, height: 1080, label: '1080p' },
         fps: 50,
       };
-      const { template, validation, spec, skinApplied } = await compileLiteDecision(
+      const { template, validation, spec, skinApplied, skinOutcome, skinRejectionRules } = await compileLiteDecision(
         designSpec,
         context,
         skinPatch ?? undefined,
@@ -195,6 +195,8 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
         category: spec.category,
         variantId: spec.variantId,
         skinApplied,
+        skinOutcome,
+        skinRejectionRules: skinRejectionRules ?? null,
         fieldCount: template.fields.length,
         zone: designSpec.zone ?? null,
         animationPreset: designSpec.animation?.presetId ?? null,
@@ -265,6 +267,8 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       category: measured.category,
       variantId: measured.variantId,
       skinApplied: measured.skinApplied,
+      skinOutcome: measured.skinOutcome,
+      skinRejectionRules: measured.skinRejectionRules,
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
@@ -428,7 +432,10 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       phaseFiles: measured.phaseFiles,
       motionFile: measured.motionFile,
     });
-    console.log(measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`);
+    console.log(
+      `${measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`}`
+      + ` [skin: ${measured.skinOutcome}${measured.skinRejectionRules?.length ? ` ${measured.skinRejectionRules.join('|')}` : ''}]`,
+    );
   } catch (error) {
     if (sent && !attemptAccounted) providerCalls += 1;
     rows.push({

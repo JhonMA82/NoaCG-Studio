@@ -89,25 +89,47 @@ export interface LiteSkinnedAssembly {
   diversity: AiDiversity;
 }
 
+/** Why a skin did not land — the eval's denominator for "how often do skins survive". */
+export type LiteSkinRejection = 'patch' | 'gate' | 'validation';
+
+export interface LiteSkinAttempt {
+  assembly: LiteSkinnedAssembly | null;
+  rejection?: LiteSkinRejection;
+  /** The failing validation's rule codes when rejection === 'validation'. */
+  rejectionRules?: string[];
+}
+
 /**
  * Try the skeleton-plus-skin assembly: compile the neutral Skin Canvas chassis through the
- * ordinary grounded sequence, apply the skin through the polish gate, validate. Returns
- * null when ANY wall trips — an illegal patch, a gate rejection, or a failing validation —
- * and the caller REVERTS to the spec's own house chassis. A skin can decline to land, but
- * it can never make a Lite result worse.
+ * ordinary grounded sequence, apply the skin through the polish gate, validate. Any wall
+ * tripping — an illegal patch, a gate rejection, or a failing validation — returns a null
+ * assembly WITH the stage that refused it, and the caller REVERTS to the spec's own house
+ * chassis. A skin can decline to land, but it can never make a Lite result worse.
  */
+export async function attemptLiteSkinDetailed(
+  spec: DesignSpec,
+  skin: LiteSkinPatch,
+  ctx: GenerateContext | undefined,
+  validate: SpxValidator,
+): Promise<LiteSkinAttempt> {
+  if (liteSkinPatchErrors(skin).length) return { assembly: null, rejection: 'patch' };
+  const { template, diversity } = assembleGroundedTemplate(spec, ctx, ltc01);
+  const skinned = applyPolish(template, skin, LITE_SKIN_MARKER);
+  if (!skinned) return { assembly: null, rejection: 'gate' };
+  const validation = demoteSpecFields(await validate(skinned));
+  return validation.ok
+    ? { assembly: { template: skinned, validation, diversity } }
+    : { assembly: null, rejection: 'validation', rejectionRules: validation.errors.map((e) => e.rule) };
+}
+
+/** The assembly-or-null shape the provider consumes (revert stays silent in production). */
 export async function attemptLiteSkin(
   spec: DesignSpec,
   skin: LiteSkinPatch,
   ctx: GenerateContext | undefined,
   validate: SpxValidator,
 ): Promise<LiteSkinnedAssembly | null> {
-  if (liteSkinPatchErrors(skin).length) return null;
-  const { template, diversity } = assembleGroundedTemplate(spec, ctx, ltc01);
-  const skinned = applyPolish(template, skin, LITE_SKIN_MARKER);
-  if (!skinned) return null;
-  const validation = demoteSpecFields(await validate(skinned));
-  return validation.ok ? { template: skinned, validation, diversity } : null;
+  return (await attemptLiteSkinDetailed(spec, skin, ctx, validate)).assembly;
 }
 
 export interface LiteCompileResult {
@@ -117,6 +139,10 @@ export interface LiteCompileResult {
   diversity: AiDiversity;
   /** True when the result is the skinned canvas; false = the spec's house chassis. */
   skinApplied: boolean;
+  /** What happened to the skin: applied, no skin on the decision, or the revert's stage. */
+  skinOutcome: 'applied' | 'none' | `rejected-${LiteSkinRejection}`;
+  /** The failing validation's rule codes when skinOutcome === 'rejected-validation'. */
+  skinRejectionRules?: string[];
 }
 
 /**
@@ -132,11 +158,19 @@ export async function compileLiteDecision(
   skin?: LiteSkinPatch,
 ): Promise<LiteCompileResult> {
   const spec = normalizeLiteSpec(raw, ctx.spec);
+  let skinOutcome: LiteCompileResult['skinOutcome'] = 'none';
+  let skinRejectionRules: string[] | undefined;
   if (skin) {
-    const skinned = await attemptLiteSkin(spec, skin, ctx, productionSpxValidator());
-    if (skinned) return { spec, ...skinned, skinApplied: true };
+    const attempt = await attemptLiteSkinDetailed(spec, skin, ctx, productionSpxValidator());
+    if (attempt.assembly) return { spec, ...attempt.assembly, skinApplied: true, skinOutcome: 'applied' };
+    skinOutcome = `rejected-${attempt.rejection ?? 'patch'}`;
+    skinRejectionRules = attempt.rejectionRules;
   }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx);
   const validation = demoteSpecFields(await productionSpxValidator()(template));
-  return { spec, template, validation, diversity, skinApplied: false };
+  return {
+    spec, template, validation, diversity,
+    skinApplied: false, skinOutcome,
+    ...(skinRejectionRules ? { skinRejectionRules } : {}),
+  };
 }
