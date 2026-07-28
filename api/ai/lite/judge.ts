@@ -29,8 +29,11 @@ import {
 } from '../../../src/ai/liteContract.js';
 import type { LiteSkinJudgeRequest, LiteSkinJudgeResult } from '../../../src/ai/liteTypes.js';
 
-// The image ceiling plus JSON overhead for the three small text fields.
-const MAX_BODY_BYTES = LITE_JUDGE_LIMITS.imageBase64Chars + 400_000;
+// The image ceiling plus room for the three small text fields and JSON syntax (base64
+// needs no escaping, so the overhead is bounded by briefChars + summaryChars + the id).
+// The total stays far below the ~4.5 MB serverless request-body limit on purpose: this
+// route's own 400 should be what an oversized frame meets, not an opaque platform 413.
+const MAX_BODY_BYTES = LITE_JUDGE_LIMITS.imageBase64Chars + 16_000;
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 // Every PNG starts with the same 8 signature bytes; base64 keeps them a stable prefix.
 const PNG_BASE64_PREFIX = 'iVBORw0KGgo';

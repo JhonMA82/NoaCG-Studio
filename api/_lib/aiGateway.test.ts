@@ -327,6 +327,36 @@ test('enforces structured string and numeric constraints at the gateway boundary
   );
 });
 
+test('enforces an integer range, and the rejection is retryable', async () => {
+  // Integers used to check only integer-ness, so a declared range bound nothing and the
+  // caller discovered the violation after paying for the call. The score below is a whole
+  // number and still out of range; malformed_response is retryable, so the bounded attempt
+  // budget gets to try again rather than burning the generation.
+  const structured = body('anthropic');
+  structured.request.structuredOutput = {
+    name: 'result',
+    description: 'A 1-5 score.',
+    schema: {
+      type: 'object',
+      required: ['score'],
+      additionalProperties: false,
+      properties: { score: { type: 'integer', minimum: 1, maximum: 5 } },
+    },
+  };
+  const reply = (score: unknown) => async () => new Response(JSON.stringify({
+    content: [{ type: 'tool_use', name: 'result', input: { score } }],
+    stop_reason: 'tool_use',
+    usage: { input_tokens: 10, output_tokens: 4 },
+  }));
+  const isRetryableMalformed = (error: unknown) =>
+    error instanceof GatewayError && error.code === 'malformed_response' && error.retryable;
+  await assert.rejects(executeGatewayRequest(structured, { keyFor, fetchImpl: reply(7) }), isRetryableMalformed);
+  await assert.rejects(executeGatewayRequest(structured, { keyFor, fetchImpl: reply(0) }), isRetryableMalformed);
+  await assert.rejects(executeGatewayRequest(structured, { keyFor, fetchImpl: reply(3.5) }), isRetryableMalformed);
+  const accepted = await executeGatewayRequest(structured, { keyFor, fetchImpl: reply(3) });
+  assert.deepEqual(accepted.output, { score: 3 });
+});
+
 test('uses an explicitly ordered fallback but never invents one', async () => {
   const routed = body('anthropic', 'primary');
   routed.fallbacks = [{ provider: 'openai', model: 'fallback' }];

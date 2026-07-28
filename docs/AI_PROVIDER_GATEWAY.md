@@ -15,6 +15,15 @@ transport beneath that system.
 5. The server normalizes text or structured output, errors, token usage, route attempts, and
    optional estimated-cost metadata before returning it to the unchanged harness.
 
+Structured output is re-validated server-side against the request's own JSON Schema
+(`schemaAccepts`), because a provider's constrained decoding is a best effort, not a
+guarantee. It honours `oneOf`/`anyOf`, `enum`, object `required`/`additionalProperties`,
+array `minItems`/`maxItems`/`items`, string `minLength`/`maxLength`/`pattern`, and
+`minimum`/`maximum` on both `number` AND `integer`. A violation is a RETRYABLE
+`malformed_response`, so the bounded attempt budget re-rolls a stochastic miss instead of
+handing the caller a shape it must reject after paying for the call. **A constraint the
+validator does not implement is not enforced anywhere** - declare only what it reads.
+
 There is no provider-specific branch in DesignSpec, validation, repair, preference learning,
 or UI application logic.
 

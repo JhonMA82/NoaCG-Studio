@@ -130,13 +130,17 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
     }
     return true;
   }
-  if (schema.type === 'number') {
+  // Integers honour minimum/maximum exactly like numbers do. They used to check only
+  // integer-ness, so a schema declaring a range got none: an out-of-range value passed
+  // the gateway and failed later in the caller's own check, which spends the call and
+  // cannot retry. Here it is a retryable malformed response instead.
+  if (schema.type === 'number' || schema.type === 'integer') {
     if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (schema.type === 'integer' && !Number.isInteger(value)) return false;
     if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
     if (typeof schema.maximum === 'number' && value > schema.maximum) return false;
     return true;
   }
-  if (schema.type === 'integer') return Number.isInteger(value);
   if (schema.type === 'boolean') return typeof value === 'boolean';
   if (schema.type === 'null') return value === null;
   return schema.type === undefined;
