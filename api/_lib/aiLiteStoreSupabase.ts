@@ -3,6 +3,7 @@ import { supabaseSecretKey } from './jobStore.js';
 import type {
   LiteGenerationRecord,
   LiteGenerationStore,
+  LiteJudgeReservation,
   LiteReservation,
   LiteUsageSnapshot,
 } from './aiLiteStore.js';
@@ -36,6 +37,7 @@ interface GenerationRow {
   runtime_ms: number | null;
   rejection_reason: string | null;
   feedback_reason: string | null;
+  judge_count: number;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -67,6 +69,7 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     runtimeMs: row.runtime_ms,
     rejectionReason: row.rejection_reason,
     feedbackReason: row.feedback_reason,
+    judgeCount: Number(row.judge_count ?? 0),
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
     expiresAt: Date.parse(row.expires_at),
@@ -163,6 +166,29 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
     const { error } = await (await sb()).from('ai_generations').update(patchRow(patch)).eq('id', id);
     if (error) throw new Error('Lite generation update failed: ' + error.message);
     return this.get(id);
+  }
+
+  async reserveJudge(input: Parameters<LiteGenerationStore['reserveJudge']>[0]): Promise<LiteJudgeReservation> {
+    const { data, error } = await (await sb()).rpc('reserve_ai_lite_judge', {
+      p_generation_id: input.generationId,
+      p_user_id: input.userId,
+      p_max_per_generation: input.profile.judgeMaxPerGeneration,
+      p_fleet_daily_spend_usd: input.profile.dailyFleetSpendUsd,
+      p_judge_cost_ceiling_usd: input.profile.judgeMaxCostUsd,
+    });
+    if (error) throw new Error('Lite judge reservation failed: ' + error.message);
+    const result = Array.isArray(data) ? data[0] : data;
+    const status = (result?.reservation_status ?? 'not-found') as LiteJudgeReservation['status'];
+    if (status === 'created') return { status, judgeCount: Number(result?.judge_count ?? 1) };
+    return { status };
+  }
+
+  async settleJudgeCost(id: string, deltaUsd: number): Promise<void> {
+    const { error } = await (await sb()).rpc('settle_ai_lite_judge_cost', {
+      p_generation_id: id,
+      p_delta_usd: deltaUsd,
+    });
+    if (error) throw new Error('Lite judge cost settlement failed: ' + error.message);
   }
 
   async qualityPriors(input: Parameters<LiteGenerationStore['qualityPriors']>[0]): Promise<LiteVariantQualityPrior[]> {

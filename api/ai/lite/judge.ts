@@ -19,6 +19,7 @@ import {
 } from '../../_lib/aiLiteProfile.js';
 import { admitLiteIp } from '../../_lib/aiLiteRateLimit.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
+import type { LiteJudgeReservation } from '../../_lib/aiLiteStore.js';
 import {
   LITE_JUDGE_LIMITS,
   LITE_JUDGE_OUTPUT,
@@ -63,6 +64,20 @@ function validateJudgeRequest(value: unknown): LiteSkinJudgeRequest {
   };
 }
 
+/** The judge's admission failures, in the generation endpoint's own error vocabulary. */
+function judgeReservationError(reservation: Exclude<LiteJudgeReservation, { status: 'created' }>): Response {
+  if (reservation.status === 'expired') {
+    return liteError('not_found', 'This generation is no longer available to judge.', 404);
+  }
+  if (reservation.status === 'judge-limit') {
+    return liteError('allowance_exhausted', 'This generation has used its skin judgements.', 429);
+  }
+  if (reservation.status === 'fleet-spend') {
+    return liteError('fleet_capacity', 'NoaCG Lite has reached its current shared capacity. Try again later.', 503, true);
+  }
+  return liteError('not_found', 'The generation to judge does not exist.', 404);
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     const guard = methodGuard(req, 'POST');
@@ -89,14 +104,6 @@ export default {
       return liteError('invalid_request', 'The judge request exceeds its supported size or shape.', 400);
     }
 
-    // Judging is tied to a real generation the caller owns - the vision spend is only
-    // reachable behind a generation that already passed Lite's own admission gates.
-    const store = await getLiteGenerationStore();
-    const record = await store.get(request.generationId);
-    if (!record || record.userId !== user.userId) {
-      return liteError('not_found', 'The generation to judge does not exist.', 404);
-    }
-
     const price = routePrice(profile, profile.judgeRoute) ?? undefined;
     const worstCase = estimateModelCost(
       profile.judgeRoute,
@@ -111,6 +118,21 @@ export default {
     if (profile.judgeRoute.provider === 'openrouter' && !openRouter) {
       return liteError('profile_not_configured', 'The Lite skin judge is not enabled on this server.', 503);
     }
+
+    // The judge is a SECOND paid call, so it passes admission of its own - the generation
+    // it rides on was admitted once, for one generation. Ownership, liveness, the
+    // per-generation cap and the daily fleet spend ceiling are decided atomically here,
+    // and the worst-case cost is booked before a cent is spent. Everything above this
+    // point is free server-side configuration, so nothing is booked for a request that
+    // could never have run.
+    const store = await getLiteGenerationStore();
+    const reservation = await store.reserveJudge({
+      generationId: request.generationId,
+      userId: user.userId,
+      now: Date.now(),
+      profile,
+    });
+    if (reservation.status !== 'created') return judgeReservationError(reservation);
 
     try {
       const result = await executeGatewayRequest(
@@ -140,9 +162,11 @@ export default {
       const costUsd = result.usage.estimatedCost?.amount
         ?? estimateModelCost(profile.judgeRoute, result.usage.inputTokens, result.usage.outputTokens, price)
         ?? 0;
-      // The judge's spend rides the generation's ledger row, so the daily fleet spend
-      // ceiling sees it. Best-effort: an update failure must not void the judgement.
-      await store.update(record.id, { providerCostUsd: record.providerCostUsd + costUsd }).catch(() => null);
+      // Settle the booked worst case down (or up) to what the provider actually charged.
+      // Best-effort: a settle failure leaves the booking standing, which over-counts the
+      // fleet spend - the safe direction - and must never void a paid judgement. A run
+      // that throws before here keeps its booking for the same reason.
+      await store.settleJudgeCost(request.generationId, costUsd - profile.judgeMaxCostUsd).catch(() => null);
       if (costUsd > profile.judgeMaxCostUsd) {
         return liteError('cost_ceiling', 'This judge call exceeded its cost ceiling and was discarded.', 503);
       }

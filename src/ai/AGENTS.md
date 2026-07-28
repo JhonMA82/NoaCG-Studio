@@ -89,10 +89,23 @@ the skin existed, and a skin a model emits anyway is stripped server-side.
 server-owned, cost-capped vision call (`POST /api/ai/lite/judge`) scoring the rendered HOLD
 frame on legibility/hierarchy/briefFit/strapShape (contract + prompt in `liteContract.ts`,
 `LITE_JUDGE_*`); every axis must reach the server threshold or the caller reverts to the
-house chassis. It fails closed like the generation routes, spends only behind a generation
-the caller owns, and stores nothing. Today only the eval rig calls it (Playwright captures
-the hold frame); production wiring waits on judge-vs-blind-review calibration AND an in-app
-capture path - see docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
+house chassis. It fails closed like the generation routes and stores nothing. Today only the
+eval rig calls it (Playwright captures the hold frame); production wiring waits on
+judge-vs-blind-review calibration AND an in-app capture path - see
+docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
+
+**The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a
+generation is admitted once, for one generation, so a second paid call cannot ride that
+admission indefinitely. Ownership, liveness (`expiresAt`), the per-generation cap
+(`AI_LITE_JUDGE_MAX_PER_GENERATION`, attempts not successes) and the daily fleet spend
+ceiling are decided ATOMICALLY in one RPC under the same advisory locks
+`reserve_ai_lite_generation` takes, and the worst-case cost is BOOKED there before the
+call - `settleJudgeCost` reconciles it to the provider's number afterwards. Booking first
+is not bookkeeping neatness: adding the cost afterwards from a value read before the call
+loses one of two overlapping judgements. A missing record and someone else's answer
+identically, so the endpoint is not a generation-id oracle. **A new paid Lite route
+repeats this shape** - the per-IP burst limiter is pre-body protection, never an
+entitlement.
 
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role

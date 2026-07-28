@@ -38,6 +38,8 @@ const ENV = [
   'SUPABASE_SECRET_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'IP_HASH_SALT',
+  'AI_LITE_JUDGE_MAX_PER_GENERATION',
+  'AI_LITE_JUDGE_MAX_COST_USD',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -408,6 +410,72 @@ test('fleet admission reserves worst-case session cost before provider reconcili
     profile,
   });
   assert.equal(second.status, 'fleet-spend');
+});
+
+test('judge admission gates ownership, liveness, the per-generation cap, and fleet spend', async () => {
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_JUDGE_MAX_PER_GENERATION = '1';
+  const profile = liteProfile();
+  const store = new MemoryLiteGenerationStore();
+  const now = Date.now();
+  const reservation = await store.reserve({
+    userId: 'user-1',
+    ipHash: 'ip-1',
+    idempotencyKey: 'key-1',
+    requestedCategory: 'lower-third',
+    now,
+    profile,
+  });
+  assert.equal(reservation.status, 'created');
+  if (reservation.status !== 'created') return;
+  const generationId = reservation.record.id;
+  const judge = { generationId, userId: 'user-1', now, profile };
+
+  // Someone else's generation and an unknown id answer identically - no id oracle.
+  assert.equal((await store.reserveJudge({ ...judge, userId: 'user-2' })).status, 'not-found');
+  assert.equal((await store.reserveJudge({ ...judge, generationId: 'missing' })).status, 'not-found');
+  // A record past its expiry is not a spend handle, however long the row survives.
+  assert.equal(
+    (await store.reserveJudge({ ...judge, now: reservation.record.expiresAt + 1 })).status,
+    'expired',
+  );
+
+  const first = await store.reserveJudge(judge);
+  assert.equal(first.status, 'created');
+  assert.equal(first.status === 'created' ? first.judgeCount : 0, 1);
+  // The worst case is BOOKED before the call, so concurrent judgements cannot race it.
+  const booked = await store.get(generationId);
+  assert.ok(Math.abs((booked?.providerCostUsd ?? 0) - (profile.maxProviderCostUsd + profile.judgeMaxCostUsd)) < 1e-9);
+  // The cap counts attempts, so a retry loop cannot spin the spend up.
+  assert.equal((await store.reserveJudge(judge)).status, 'judge-limit');
+
+  // Settling reconciles the booking to what the provider actually charged.
+  await store.settleJudgeCost(generationId, 0.001 - profile.judgeMaxCostUsd);
+  const settled = await store.get(generationId);
+  assert.ok(Math.abs((settled?.providerCostUsd ?? 0) - (profile.maxProviderCostUsd + 0.001)) < 1e-9);
+});
+
+test('judge admission refuses once the daily fleet spend ceiling would be crossed', async () => {
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  // Room for the generation's own worst-case booking, but not for a judgement on top.
+  process.env.AI_LITE_FLEET_DAILY_SPEND_USD = '0.008';
+  const profile = liteProfile();
+  const store = new MemoryLiteGenerationStore();
+  const now = Date.now();
+  const reservation = await store.reserve({
+    userId: 'user-1',
+    ipHash: 'ip-1',
+    idempotencyKey: 'key-1',
+    requestedCategory: 'lower-third',
+    now,
+    profile,
+  });
+  assert.equal(reservation.status, 'created');
+  if (reservation.status !== 'created') return;
+  assert.equal(
+    (await store.reserveJudge({ generationId: reservation.record.id, userId: 'user-1', now, profile })).status,
+    'fleet-spend',
+  );
 });
 
 test('content-free accepted and discarded outcomes become thresholded chassis priors', async () => {

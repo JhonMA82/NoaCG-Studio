@@ -95,6 +95,10 @@ export interface LiteProfile {
   judgeEnabled: boolean;
   judgeRoute: ModelRoute;
   judgeMaxCostUsd: number;
+  /** How many judgements ONE generation may book. The judge spends real money against a
+   *  record the caller already owns, so without a cap a single old generation id is an
+   *  unbounded spend handle - the per-IP burst limiter is not an entitlement. */
+  judgeMaxPerGeneration: number;
   judgeOutputTokens: number;
   judgeEstimatedInputTokens: number;
   /** Minimum every judge axis must reach for a pass (1-5). Calibrate against blind review
@@ -169,6 +173,9 @@ export function liteProfile(): LiteProfile {
     judgeEnabled: boolEnv('AI_LITE_JUDGE_ENABLED'),
     judgeRoute,
     judgeMaxCostUsd: numberEnv('AI_LITE_JUDGE_MAX_COST_USD', 0.004, 0.0001, 0.1),
+    // Three: one judgement plus room for two transient provider retries. Attempts count,
+    // not successes - a retry loop must not be able to spin the spend up.
+    judgeMaxPerGeneration: intEnv('AI_LITE_JUDGE_MAX_PER_GENERATION', 3, 1, 20),
     judgeOutputTokens: intEnv('AI_LITE_JUDGE_OUTPUT_TOKENS', 400, 100, 2000),
     // One downscaled PNG plus the brief; vision tiles dominate, so keep the estimate fat.
     judgeEstimatedInputTokens: intEnv('AI_LITE_JUDGE_INPUT_TOKENS', 4000, 1000, 20_000),
