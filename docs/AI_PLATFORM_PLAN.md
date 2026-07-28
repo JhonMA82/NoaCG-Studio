@@ -82,9 +82,9 @@ Vision input: up to 3 project images to Director and coder (no downscaling, no s
   pipeline-identity manifests, paid runner with hard caps (40 calls / $1.50). The paid
   OpenRouter **discovery funnel** (`bench:discover/qualify/confirm/compare` - structured
   output support, ZDR, pricing, provider pinning per candidate) is designed but deferred.
-- Sibling worktree `noacg-lite-lower-thirds-f83be7` (unmerged, flag off): the skin-path
-  spike (`AI_LITE_SKIN_ENABLED`, neutral `ltc01` canvas, polish-gate CSS overrides,
-  silent revert) and `bench:sameness` (pairwise visual-distance tripwire).
+- The skin path (merged 2026-07-28, server flag `AI_LITE_SKIN_ENABLED` off by default):
+  neutral `ltc01` canvas, polish-gate CSS overrides, silent revert to the house chassis;
+  plus `bench:sameness` (pairwise visual-distance tripwire).
 
 ### 1.5 Explicit negatives, duplication, dead code, bypasses
 
@@ -417,8 +417,8 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 - **Code/template suite**: reuse `ai-compare.mjs` / `ai-bench.mjs` / `video-bench.mjs`
   arms with open coding models as additional candidates; metrics already exist (build
   success, runtime validity, bench findings, repair success, overlap/readability,
-  determinism via pipeline identity). Add the sibling worktree's `bench:sameness` once
-  that branch lands.
+  determinism via pipeline identity). Fold `bench:sameness` (now on main) into the
+  vision and code scorecards where captures exist.
 - Per-model scorecards per suite; different winners per category are expected and fine.
   Promotion follows `docs/AI_LITE_PROMOTION.md` once its owner thresholds are set.
 
