@@ -6,7 +6,7 @@
 // endpoint exposes today (availability, limits, allowance - never routes).
 
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
-import { approvedModelRoute, modelRouteKey } from './aiModelCatalog.js';
+import { fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
 import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 
@@ -113,19 +113,26 @@ function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   return Boolean(policy.prices[modelRouteKey(route)]) && policy.openRouterProviders.length > 0;
 }
 
-/** True when the task's managed spend is free-tier: those routes must be catalog-
- *  approved. BYO/paid-only tasks spend the caller's own money on explicitly chosen
- *  routes, so the catalog does not constrain them. */
-function catalogConstrained(task: TaskProfile): boolean {
+/** True when the task's spend is NoaCG's own: those routes must be catalog-approved AND
+ *  funded-eligible. BYO/paid-only tasks spend the caller's own money on explicitly chosen
+ *  routes, so neither constraint applies to them. */
+function noacgFunded(task: TaskProfile): boolean {
   return task.tiers.includes('free') || task.tiers.includes('anonymous');
 }
 
+/** A funded route priced against the task's OWN table, so an env pricing override cannot
+ *  smuggle the free tier onto a route the project would not pay for. */
+function fundedRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean {
+  return fundedModelRoute(route, policy.prices[modelRouteKey(route)] ?? null);
+}
+
 /** The registry's fail-closed gate, generalizing liteProfileConfigured(): every
- *  OpenRouter route needs a current price and a provider allowlist, and every
- *  free-tier route must be a catalog-approved entry. Approval never keys off
- *  openWeights - that flag is promotion-time preference metadata (plan §15.1). */
+ *  OpenRouter route needs a current price and a provider allowlist, and every route
+ *  NoaCG funds must be a catalog-approved entry that satisfies decision 5 (OpenRouter,
+ *  under the funded-route price ceiling). Approval never keys off openWeights - that flag
+ *  is promotion-time preference metadata (plan §15.1). */
 export function taskConfigured(task: TaskProfile): boolean {
   const routes = [task.routePolicy.primary, ...task.routePolicy.fallbacks];
   if (!routes.every((route) => routeConfigured(task.routePolicy, route))) return false;
-  return !catalogConstrained(task) || routes.every(approvedModelRoute);
+  return !noacgFunded(task) || routes.every((route) => fundedRoute(task.routePolicy, route));
 }
