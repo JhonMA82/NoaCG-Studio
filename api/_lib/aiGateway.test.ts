@@ -112,6 +112,32 @@ test('sends a configured public app URL as OpenRouter attribution', async () => 
   assert.equal(sentHeaders.get('http-referer'), 'https://noacg-studio.vercel.app');
 });
 
+test('selects Hugging Face through its OpenAI-compatible inference router', async () => {
+  const routed = body('huggingface', 'openai/gpt-oss-120b');
+  routed.request.temperature = 0.2;
+  routed.request.seed = 41723;
+  let calledUrl = '';
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(routed, {
+    keyFor,
+    fetchImpl: async (input, init) => {
+      calledUrl = String(input);
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 7, completion_tokens: 2 },
+      }));
+    },
+  });
+
+  assert.equal(calledUrl, 'https://router.huggingface.co/v1/chat/completions');
+  assert.equal(sent.model, 'openai/gpt-oss-120b');
+  assert.equal(sent.temperature, 0.2);
+  assert.equal(sent.seed, 41723);
+  assert.equal(result.provider, 'huggingface');
+  assert.deepEqual(result.usage, { inputTokens: 7, outputTokens: 2, totalTokens: 9 });
+});
+
 test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and price controls', async () => {
   let sent: Record<string, unknown> = {};
   const result = await executeGatewayRequest(body('openrouter', 'vendor/model'), {

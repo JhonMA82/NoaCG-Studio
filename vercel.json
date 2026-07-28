@@ -3,6 +3,7 @@
   "buildCommand": "npm run build && npm --prefix render-worker ci && npm --prefix render-worker run typecheck && node render-worker/bundle.mjs",
   "functions": {
     "api/ai/generate.ts": { "maxDuration": 300 },
+    "api/ai/models.ts": { "maxDuration": 30 },
     "api/ai/lite/generations.ts": { "maxDuration": 60 },
     "api/ai/lite/status.ts": { "maxDuration": 30 },
     "api/ai/lite/outcome.ts": { "maxDuration": 30 },

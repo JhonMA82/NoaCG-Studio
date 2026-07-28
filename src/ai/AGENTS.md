@@ -249,7 +249,9 @@ put it (a logo slot takes a mark; a full-frame still does not).
 
 - `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser
   client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
-  and OpenRouter without branching the harness. Structured output, usage, costs, errors,
+  OpenRouter, and compatible Hugging Face Inference Providers without branching the harness.
+  `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
+  normalization stays in `api/_lib/aiModelCatalog.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;
   other adapters ignore it.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME specToTemplate
@@ -263,6 +265,10 @@ put it (a logo slot takes a mark; a full-frame still does not).
 The binding gateway and key-handling contract is `docs/AI_PROVIDER_GATEWAY.md`. Provider
 adapters never own DesignSpec, validation, repair, preference learning, or graphic-type
 context. New providers enter below `AIProvider`, never beside it.
+
+The versioned video matrix and brief bank live in `benchmarks/video/v1`; its runner must drive
+`src/ai/video` through the application, never call a model with a benchmark-only prompt pipeline.
+The binding experiment and artifact contract is `docs/VIDEO_MODEL_BENCHMARK.md`.
 
 **Deferred (benchmark-gated, deliberate):** a selective vision taste critic (free-form path
 only, evidence-based findings, never auto-rewrites a valid grounded result), a curated taste

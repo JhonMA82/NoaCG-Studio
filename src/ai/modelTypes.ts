@@ -2,7 +2,7 @@
 // server adapters. Creative AI's higher-level AIProvider contract remains the product
 // seam; these types only normalize the model transport beneath the existing harness.
 
-export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'openrouter'] as const;
+export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'openrouter', 'huggingface'] as const;
 export type AiProviderId = (typeof AI_PROVIDER_IDS)[number];
 
 export function isAiProviderId(value: unknown): value is AiProviderId {
@@ -12,6 +12,34 @@ export function isAiProviderId(value: unknown): value is AiProviderId {
 export interface ModelRoute {
   provider: AiProviderId;
   model: string;
+}
+
+export interface AiDiscoveredModel {
+  provider: AiProviderId;
+  id: string;
+  name: string;
+  description: string;
+  contextLength: number | null;
+  maxOutputTokens: number | null;
+  inputPerMillion: number | null;
+  outputPerMillion: number | null;
+  inputModalities: string[];
+  supportsStructuredOutput: boolean;
+  supportsTools: boolean;
+  supportsSeed: boolean;
+  free: boolean;
+  openWeight: boolean;
+  available: boolean;
+  createdAt: string | null;
+  revision: string | null;
+  source: 'openrouter-models-api' | 'huggingface-router';
+}
+
+export interface AiModelCatalogResponse {
+  provider: AiProviderId;
+  syncedAt: string;
+  models: AiDiscoveredModel[];
+  warning?: string;
 }
 
 export type ModelContentBlock =
@@ -36,6 +64,9 @@ export interface ModelRequest {
   modelRole?: 'default' | 'fast';
   /** Anthropic can cache a repeated system prompt; other adapters safely ignore this hint. */
   cacheSystem?: boolean;
+  /** Reproducible benchmark settings. Adapters ignore unsupported values. */
+  temperature?: number;
+  seed?: number;
 }
 
 export interface ModelUsage {

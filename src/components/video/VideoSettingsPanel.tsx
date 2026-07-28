@@ -8,7 +8,13 @@
 // says so plainly and offers to have the AI update the code, rather than letting a shortened
 // project quietly render with its exit cut off. See videoTypes.ts settingsDrift.
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  discoverAiModels,
+  modelPriceLabel,
+  videoCompatibleModels,
+  type AiDiscoveredModel,
+} from '../../ai/modelCatalog';
 import { loadAiSettings, modelsForProvider } from '../../ai/settings';
 import { driftRequest, settingsDrift } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
@@ -26,9 +32,26 @@ export default function VideoSettingsPanel() {
   const patchSettings = useVideoProjectStore((s) => s.patchSettings);
   const requestAi = useVideoProjectStore((s) => s.requestAi);
   const globalAi = loadAiSettings();
-  const modelOptions = modelsForProvider(globalAi.provider);
+  const curatedModelOptions = modelsForProvider(globalAi.provider);
+  const [discoveredModels, setDiscoveredModels] = useState<AiDiscoveredModel[]>([]);
+  const modelOptions = useMemo(
+    () => videoCompatibleModels(discoveredModels),
+    [discoveredModels],
+  );
   const busy = useVideoProjectStore((s) => s.busy);
   const drift = settingsDrift(project);
+
+  useEffect(() => {
+    let live = true;
+    setDiscoveredModels([]);
+    if (globalAi.provider !== 'openrouter' && globalAi.provider !== 'huggingface') return;
+    void discoverAiModels(globalAi.provider)
+      .then((catalog) => {
+        if (live) setDiscoveredModels(catalog.models);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [globalAi.provider]);
 
   const durationSec = project.durationInFrames / project.fps;
   // While the field is being edited it holds a raw string (which may be temporarily empty);
@@ -165,10 +188,19 @@ export default function VideoSettingsPanel() {
           placeholder={`Use global setting (${globalAi.model})`}
         />
         <datalist id="video-ai-models">
-          {modelOptions.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+          {modelOptions.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name} - {modelPriceLabel(model)}
+            </option>
+          ))}
+          {curatedModelOptions
+            .filter((model) => !modelOptions.some((item) => item.id === model.id))
+            .map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
         </datalist>
         <p className="hint">
           Optional model override for this project on the global {globalAi.provider} provider.
+          Live suggestions support structured output, at least 32K context, and the full
+          Remotion and HyperFrames code contract.
         </p>
       </div>
     </div>

@@ -15,6 +15,7 @@ export function aiApiPlugin() {
 
 const ROUTES = new Set([
   'generate',
+  'models',
   'config',
   'credentials',
   'lite/status',

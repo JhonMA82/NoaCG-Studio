@@ -23,6 +23,7 @@ example_projects/
 # The out-dir is the operator's choice, so the bench patterns are deliberately broad.
 bench-*/
 video-bench-out*/
+video-benchmark-out/
 compare-out*/
 # NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
 # blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)

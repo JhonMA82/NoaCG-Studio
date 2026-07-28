@@ -763,6 +763,13 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       and the HyperFrames engine joined as a second video engine 2026-07-18. Still to do:
       sandbox-executor live verification, a Blob upload channel for large assets, and the
       visual Motion Critic pass (experiment-gated - docs/VIDEO_DESIGN_QUALITY_PLAN.md §3.5).
+- [x] **OpenRouter/Hugging Face video model benchmark (2026-07-28)** - live server-side
+      discovery of compatible model ids, modalities, structured-output support, context/output
+      limits, availability and pricing; OpenRouter plus optional hosted Hugging Face inference
+      below the unchanged video harness; per-project model selection; and a versioned
+      Remotion/HyperFrames benchmark with fixed briefs/settings, bounded spend/concurrency,
+      raw reproducibility artifacts, real-render support, separate machine/human scoring, and
+      quality/value/free/engine/first-pass leaderboards (`docs/VIDEO_MODEL_BENCHMARK.md`).
 - [ ] Data-driven/live content architecture (ticker/scoreboard controlled from a backend) — later
 
 ### The SPX generation harness (2026-07-17 — AI that beats a bare prompt, provably)

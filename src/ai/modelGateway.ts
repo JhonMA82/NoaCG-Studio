@@ -47,6 +47,18 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
   const body: AiGatewayRequestBody = {
     request: {
       ...providerNeutralRequest,
+      ...(settings.temperature !== null && settings.provider === 'openrouter'
+        ? { temperature: settings.temperature }
+        : {}),
+      ...(settings.seed !== null && settings.provider === 'openrouter'
+        ? { seed: settings.seed }
+        : {}),
+      ...(settings.temperature !== null && settings.provider === 'huggingface'
+        ? { temperature: settings.temperature }
+        : {}),
+      ...(settings.seed !== null && settings.provider === 'huggingface'
+        ? { seed: settings.seed }
+        : {}),
       ...(structuredOutput ? { structuredOutput } : {}),
     },
     route: { provider: settings.provider, model },

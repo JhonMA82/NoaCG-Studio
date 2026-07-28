@@ -68,6 +68,8 @@ export default defineConfig({
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: '',
       OPENROUTER_API_KEY: '',
+      HUGGINGFACE_API_KEY: '',
+      HF_TOKEN: '',
       AI_KEY_ENCRYPTION_SECRET: '',
     },
   },

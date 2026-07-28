@@ -30,6 +30,10 @@
     "bench:spike": "node scripts/ai-lite-spike.mjs",
     "bench:gallery": "node scripts/ai-lite-gallery.mjs",
     "bench:report": "node scripts/ai-lite-report.mjs",
+    "video:models:sync": "node scripts/video-models-sync.mjs",
+    "video:bench:smoke": "node scripts/video-benchmark.mjs smoke",
+    "video:bench:run": "node scripts/video-benchmark.mjs run",
+    "video:bench:report": "node scripts/video-benchmark-report.mjs",
     "test:ai-lite-bench": "node --test scripts/ai-lite-bench.test.mjs",
     "postinstall": "node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs"
   },

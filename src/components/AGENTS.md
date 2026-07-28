@@ -593,7 +593,10 @@ reports any DRIFT (videoTypes.ts settingsDrift: duration, fps, frame size, trans
 one-click "update the code", which goes through store.requestAi -> the CHAT panel's one AI path,
 so it lands as a normal turn and undoes like any other edit. The render preflight repeats the
 warning. `authoredFor: null` = provenance unknown (the starter, or a pre-existing saved project):
-warn about nothing),
+warn about nothing). Its AI-model override uses the global provider and live server-side
+OpenRouter/Hugging Face catalog suggestions filtered for the full video structured-output/context
+contract; the field still accepts an opaque id when discovery is unavailable and never receives
+a provider key),
 **VideoAssetsPanel** (data-URL assets, 3 MB/asset hard cap - the render manifest budget; uploads
 go through video/types.ts uniqueVideoAssetPath so an asset's LOGICAL NAME is settled once, into
 the immutable path - adding or deleting another asset must never rename one, because the code and

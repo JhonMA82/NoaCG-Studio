@@ -11,12 +11,17 @@ transport beneath that system.
 2. The browser sends a provider-neutral request to `POST /api/ai/generate`.
 3. The server selects exactly the requested provider/model route.
 4. `api/_lib/aiGateway.ts` adapts the request to Anthropic Messages, OpenAI Responses, or
-   OpenRouter Chat Completions.
+   OpenRouter/Hugging Face OpenAI-compatible Chat Completions.
 5. The server normalizes text or structured output, errors, token usage, route attempts, and
    optional estimated-cost metadata before returning it to the unchanged harness.
 
 There is no provider-specific branch in DesignSpec, validation, repair, preference learning,
 or UI application logic.
+
+Large provider catalogs are discovered server-side through `GET /api/ai/models`. OpenRouter's
+Models API and Hugging Face's Inference Providers router supply ids, capabilities, limits,
+availability, and current prices. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility
+filter and repeatable quality benchmark.
 
 ## NoaCG Lite
 
@@ -64,7 +69,7 @@ and no prompt, template, screenshot, or generated artifact is retained.
 
 Browser-visible values are non-secret:
 
-- `VITE_AI_PROVIDER`: `anthropic`, `openai`, or `openrouter`.
+- `VITE_AI_PROVIDER`: `anthropic`, `openai`, `openrouter`, or `huggingface`.
 - `VITE_AI_MODEL`: an opaque model id for the selected provider.
 - `VITE_AI_FALLBACKS`: optional JSON array of ordered `{provider, model}` routes.
 
@@ -73,6 +78,7 @@ Managed keys are server-only:
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
 - `OPENROUTER_API_KEY`
+- `HUGGINGFACE_API_KEY` (or the conventional `HF_TOKEN`)
 
 Optional user-provided keys require `AI_KEY_ENCRYPTION_SECRET` with at least 32 characters.
 The key is submitted once to `PUT /api/ai/credentials`, sealed with AES-256-GCM, and stored
