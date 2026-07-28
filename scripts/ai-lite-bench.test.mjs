@@ -16,6 +16,7 @@ import { HOLDOUT_SUITE } from './ai-lite-bench/holdout.mjs';
 import { CHALLENGE_SUITE } from './ai-lite-bench/challenge.mjs';
 import { FAILURE_CODES, classifyFailure } from './ai-lite-bench/taxonomy.mjs';
 import { buildRunManifest, pipelineIdentityMatches } from './ai-lite-bench/manifest.mjs';
+import { nearestReference, pairwiseSummary, vectorDistance } from './ai-lite-bench/sameness.mjs';
 import { LITE_LOWER_THIRD_FIXTURES } from './ai-lite-lower-third-fixtures.mjs';
 
 const read = (relative) => readFileSync(path.join(projectRoot, relative), 'utf8');
@@ -284,6 +285,28 @@ test('run manifests are deterministic and compare pipeline identity', () => {
   assert.equal(a.suiteId, LITE_BENCH_SUITE_ID);
   assert.ok(pipelineIdentityMatches(a, b));
   assert.ok(!pipelineIdentityMatches(a, { ...b, hashes: { ...b.hashes, catalog: 'drifted' } }));
+});
+
+test('sameness math: distances, the min-pair tripwire, and nearest reference', () => {
+  assert.equal(vectorDistance([0, 0.5, 1], [0, 0.5, 1]), 0);
+  assert.equal(vectorDistance([0, 0], [1, 1]), 1);
+  assert.throws(() => vectorDistance([1], [1, 2]));
+  const items = [
+    { id: 'a', vector: [0, 0] },
+    { id: 'b', vector: [0.1, 0.1] },   // nearest to a - the tripwire pair
+    { id: 'c', vector: [1, 1] },
+  ];
+  const summary = pairwiseSummary(items);
+  assert.equal(summary.pairs, 3);
+  assert.deepEqual(summary.minPair, ['a', 'b']);
+  assert.ok(Math.abs(summary.min - 0.1) < 1e-9);
+  assert.equal(pairwiseSummary(items.slice(0, 1)), null); // one item: no fake zero
+  const nearest = nearestReference([0.2, 0.2], [
+    { id: 'house-far', vector: [1, 1] },
+    { id: 'house-near', vector: [0.25, 0.25] },
+  ]);
+  assert.equal(nearest.id, 'house-near');
+  assert.ok(Math.abs(nearest.distance - 0.05) < 1e-9);
 });
 
 test('seeded PRNG is stable across runs', () => {

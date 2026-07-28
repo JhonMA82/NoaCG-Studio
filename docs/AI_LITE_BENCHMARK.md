@@ -144,7 +144,15 @@ npm run bench:spike -- --label=candidate-a --suite=skin   # the SKIN spike: the 
                           # a paid run REFUSES to start when the flag is off, and metrics
                           # count skinApplied (skinned canvas vs house-chassis revert)
 npm run bench:gallery     # blind review gallery over any out-dir
+npm run bench:sameness    # visual-diversity metric over an out-dir's hold captures (free,
+                          # offline): per-label mean + MIN pairwise distance (the
+                          # "different briefs must produce different designs" tripwire)
+                          # and, when house references exist (default <out>/calibration,
+                          # or --house=<dir>), each item's nearest house look - for the
+                          # skin suite, "looks like no house chassis" made checkable.
+                          # Distances are relative to one capture setup, never absolute.
 npm run bench:report      # aggregate results + judgements into the honest report
+                          # (folds in sameness.json when bench:sameness has run)
 npm run test:ai-lite-bench  # the benchmark self-tests (also in the build gate)
 ```
 

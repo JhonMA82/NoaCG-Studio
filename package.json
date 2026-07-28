@@ -28,6 +28,7 @@
     "bench:lite": "node scripts/ai-lite-eval.mjs",
     "bench:spike": "node scripts/ai-lite-spike.mjs",
     "bench:gallery": "node scripts/ai-lite-gallery.mjs",
+    "bench:sameness": "node scripts/ai-lite-sameness.mjs",
     "bench:report": "node scripts/ai-lite-report.mjs",
     "test:ai-lite-bench": "node --test scripts/ai-lite-bench.test.mjs",
     "postinstall": "node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs"
