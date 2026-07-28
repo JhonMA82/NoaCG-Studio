@@ -86,6 +86,10 @@ The browser has **no** RLS policy on the table, so this route is the only writer
 one function call per event and buys two things worth more: the allowlist is enforced
 somewhere the client cannot edit, and a scraped anon key cannot forge or read a funnel.
 
+In development and self-hosting the same handler is mounted by `scripts/eventsDevPlugin.mjs`,
+so the route behaves locally exactly as it does on Vercel - browser-verified: a valid event,
+an invalid one and an oversized body are all indistinguishable 204s, and GET answers 405.
+
 The route always answers `204`, including when nothing was written. Analytics must never
 surface as an error in a user's console, and a response distinguishing "stored" from
 "dropped" would be a probe oracle.
