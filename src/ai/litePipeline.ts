@@ -10,12 +10,17 @@
 
 import { specToTemplate, type DesignSpec } from './designSpec';
 import { applyDesignAdjustments } from './designAdjust';
+import { applyPolish } from './polish';
 import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
+import { liteSkinPatchErrors } from './liteContract';
+import type { LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
 import type { SpxTemplate } from '../model/types';
+import type { TemplateVariant } from '../model/wizard';
+import { ltc01 } from '../templates/lowerThirds/skinCanvas';
 import type { ValidationResult } from '../validation/validateTemplate';
 import { validateTemplate } from '../validation/validateTemplate';
 import { benchTemplateRuntime, mergeResults } from '../validation/runtimeBench';
@@ -31,8 +36,13 @@ export interface GroundedAssembly {
  * spec's compositional parameters as deterministic overrides, then the user's own decisions
  * (uploaded fonts grounded as embedded assets, an explicit exit preset as real keyframes).
  */
-export function assembleGroundedTemplate(spec: DesignSpec, ctx?: GenerateContext): GroundedAssembly {
-  const assembled = specToTemplate(spec, ctx);
+export function assembleGroundedTemplate(
+  spec: DesignSpec,
+  ctx?: GenerateContext,
+  /** Assemble THIS chassis instead of the spec's catalog pick (the skin canvas). */
+  variantOverride?: TemplateVariant,
+): GroundedAssembly {
+  const assembled = specToTemplate(spec, ctx, variantOverride);
   const template = applySpecOutPreset(
     ensureSpecFonts(applyDesignAdjustments(assembled.template, spec), ctx?.spec),
     ctx?.spec,
@@ -67,11 +77,46 @@ export function normalizeLiteSpec(raw: DesignSpec, userSpec?: GenerateContext['s
   );
 }
 
+// ── The skin path (skeleton + skin, revert on any failure) ───────────────────
+
+/** The block heading the skin's override CSS lands under (the polish gate writes it). */
+export const LITE_SKIN_MARKER =
+  '/* ── NoaCG Lite skin (AI-authored look — same contracts as the design CSS above) ── */';
+
+export interface LiteSkinnedAssembly {
+  template: SpxTemplate;
+  validation: ValidationResult;
+  diversity: AiDiversity;
+}
+
+/**
+ * Try the skeleton-plus-skin assembly: compile the neutral Skin Canvas chassis through the
+ * ordinary grounded sequence, apply the skin through the polish gate, validate. Returns
+ * null when ANY wall trips — an illegal patch, a gate rejection, or a failing validation —
+ * and the caller REVERTS to the spec's own house chassis. A skin can decline to land, but
+ * it can never make a Lite result worse.
+ */
+export async function attemptLiteSkin(
+  spec: DesignSpec,
+  skin: LiteSkinPatch,
+  ctx: GenerateContext | undefined,
+  validate: SpxValidator,
+): Promise<LiteSkinnedAssembly | null> {
+  if (liteSkinPatchErrors(skin).length) return null;
+  const { template, diversity } = assembleGroundedTemplate(spec, ctx, ltc01);
+  const skinned = applyPolish(template, skin, LITE_SKIN_MARKER);
+  if (!skinned) return null;
+  const validation = demoteSpecFields(await validate(skinned));
+  return validation.ok ? { template: skinned, validation, diversity } : null;
+}
+
 export interface LiteCompileResult {
   spec: DesignSpec;
   template: SpxTemplate;
   validation: ValidationResult;
   diversity: AiDiversity;
+  /** True when the result is the skinned canvas; false = the spec's house chassis. */
+  skinApplied: boolean;
 }
 
 /**
@@ -83,9 +128,15 @@ export interface LiteCompileResult {
 export async function compileLiteDecision(
   raw: DesignSpec,
   ctx: GenerateContext,
+  /** A skin riding the decision: tried first, reverting to the house chassis on failure. */
+  skin?: LiteSkinPatch,
 ): Promise<LiteCompileResult> {
   const spec = normalizeLiteSpec(raw, ctx.spec);
+  if (skin) {
+    const skinned = await attemptLiteSkin(spec, skin, ctx, productionSpxValidator());
+    if (skinned) return { spec, ...skinned, skinApplied: true };
+  }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx);
   const validation = demoteSpecFields(await productionSpxValidator()(template));
-  return { spec, template, validation, diversity };
+  return { spec, template, validation, diversity, skinApplied: false };
 }

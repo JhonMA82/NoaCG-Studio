@@ -20,7 +20,11 @@ export const HELPERS = `
     return Object.assign({
       name: 'Bench fixture', type: 'blank',
       resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25,
-      html: '', css: '', js: '', fields: [], settings: { steps: '1' }, assets: [], layers: [],
+      html: '',
+      // Keyed-graphic contract (bench-preplay): nothing renders before play() - the root
+      // starts CSS-hidden and FIXTURE_JS's play() reveals it with an inline override.
+      css: '.fx { visibility: hidden; }',
+      js: '', fields: [], settings: { steps: '1' }, assets: [], layers: [],
     }, over);
   }
   // The smallest honest runtime: root visibility toggles + field writes.

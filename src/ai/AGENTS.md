@@ -72,6 +72,19 @@ trees import it. Do not import catalog or DOM-bearing model modules from it. Mod
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
 aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
 
+**The SKIN experiment (server-flagged, `AI_LITE_SKIN_ENABLED`, off by default):** when the
+profile enables it, the same single model call may ALSO return `skin:{summary,css,html?}` -
+bounded restyling for the NEUTRAL canvas chassis (`templates/lowerThirds/skinCanvas.ts`
+`ltc01`, deliberately NOT in the browse catalog). The platform still compiles everything
+deterministically; the skin CSS lands as a marked override block through the SAME polish gate
+(`applyPolish`, `LITE_SKIN_MARKER`), and `litePipeline.attemptLiteSkin` is the ONE
+implementation both production (`liteGroundedResult`, path `grounded+skin`) and the benchmark
+runners use. Any failure - an illegal patch (`liteSkinPatchErrors`, shared with the server's
+semantic validation), a gate rejection, or a failing bench - REVERTS silently to the spec's
+house chassis: a skin can decline to land, never cost the user a working result. With the
+flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behavior are byte-identical to before
+the skin existed, and a skin a model emits anyway is stripped server-side.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and

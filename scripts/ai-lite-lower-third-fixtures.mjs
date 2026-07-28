@@ -2,7 +2,10 @@
 // Keep these briefs content-free and representative. Changing this bank changes
 // the benchmark, so add a new version instead of silently rewriting old results.
 
-export const LITE_LOWER_THIRD_FIXTURE_VERSION = 1;
+// v2: appended the six skin-* briefs (distinctive visual styles for the skin path).
+// Every v1 id and text is byte-unchanged - the bump only marks that aggregated
+// summaries across the two banks are not comparable.
+export const LITE_LOWER_THIRD_FIXTURE_VERSION = 2;
 
 export const LITE_LOWER_THIRD_FIXTURES = [
   ['news-reporter', 'A restrained public-news lower third for reporter name Amina Okafor and role East Africa Correspondent. Dark editorial palette, clear hierarchy, calm entrance.'],
@@ -29,4 +32,17 @@ export const LITE_LOWER_THIRD_FIXTURES = [
   ['multilingual', 'A calm lower third for guest name Ірина Коваленко and role Керівниця освітньої програми. Keep the supplied Ukrainian copy intact and use a highly legible treatment.'],
   ['one-line', 'A cinematic one-line lower third identifying Aisha Rahman. No invented role or organization, generous spacing, subtle entrance.'],
   ['ambiguous-default', 'Create a professional lower third for Taylor Morgan, Senior Producer. Choose a sensible broadcast style and make both fields immediately editable.'],
+
+  // ── Skin briefs: distinctive visual styles no house chassis carries ──────────
+  // Written for the skin path (AI_LITE_SKIN_ENABLED): each asks for a committed look
+  // beyond the six audited chassis while remaining a legitimate broadcast lower third
+  // with two clear operator fields. On a skin-disabled route these are still valid
+  // briefs - the model simply picks the nearest chassis, which is itself a useful
+  // baseline for the comparison.
+  ['skin-brutalist-poster', 'A raw brutalist lower third for esports caster name RAZOR and role Play-by-Play. Acid poster energy: one flat aggressive color, hard edges, stencil capitals, an angled cut - deliberately unlike a standard broadcast strap, yet instantly legible.'],
+  ['skin-neon-synthwave', 'A retro synthwave lower third for streamer name Luna Vega and role Speedrun Showcase. Neon glow on deep violet, an eighties horizon feel, confident display type - expressive but fully readable over fast gameplay.'],
+  ['skin-hand-crafted', 'A hand-crafted indie documentary lower third for baker name Tomas Aalto and role Fourth-Generation Baker. Warm paper-and-ink feel, an imperfect underline, soft organic shapes - like a title drawn onto the film, never a corporate panel.'],
+  ['skin-luxury-runway', 'An ultra-luxury fashion week lower third for designer name Ingrid Solberg and role Creative Director. Hairline gold rules, extreme type-size contrast, vast negative space - couture restraint rather than broadcast furniture.'],
+  ['skin-retro-festival', 'A 1970s film-festival lower third for director name Marco Benedetti and role Jury President. Warm cream and burnt orange, chunky retro character, soft rounded shapes - period personality with modern legibility.'],
+  ['skin-terminal-hud', 'A hacker-terminal lower third for security researcher name Ada Kovacs and role Threat Intelligence Lead. Monospace readout styling, phosphor green on near-black, scanline-adjacent accents - a HUD, not a news strap.'],
 ];
