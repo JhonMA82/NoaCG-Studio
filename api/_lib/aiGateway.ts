@@ -1,5 +1,4 @@
 import {
-  AI_PROVIDER_IDS,
   isAiProviderId,
   type AiGatewayErrorCode,
   type AiGatewayRequestBody,
@@ -734,20 +733,3 @@ export async function executeGatewayRequest(
   throw lastError ?? new GatewayError('unavailable', 'No AI route was available.', 503, false);
 }
 
-export function providerConfigured(provider: AiProviderId, userKeys: Partial<Record<AiProviderId, string>>): boolean {
-  const envNames: Record<AiProviderId, string> = {
-    anthropic: 'ANTHROPIC_API_KEY',
-    openai: 'OPENAI_API_KEY',
-    openrouter: 'OPENROUTER_API_KEY',
-    huggingface: 'HUGGINGFACE_API_KEY',
-  };
-  return Boolean(
-    userKeys[provider]
-    || process.env[envNames[provider]]
-    || (provider === 'huggingface' && process.env.HF_TOKEN),
-  );
-}
-
-export function configuredProviders(userKeys: Partial<Record<AiProviderId, string>>): AiProviderId[] {
-  return AI_PROVIDER_IDS.filter((provider) => providerConfigured(provider, userKeys));
-}

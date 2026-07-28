@@ -709,8 +709,10 @@ Owner decisions blocking the build stages:
 - [ ] Whether `/api/ai/credentials` gains a sign-in requirement (shared-browser exposure)
 
 The stages, in order (details in the plan):
-- [ ] Stage 0 remainder - `/api/ai/generate` rate limit + content-free ledger row; dead-code
-      removals from the audit
+- [x] **Stage 0 remainder (2026-07-28)** - `/api/ai/generate` per-IP burst gate + content-free
+      `ai_gateway_requests` ledger row (migration 0012, task `byo-generate`); audited dead-code
+      removals (kept: `referenceSelect.ts` experiment machinery, `modelRole:'fast'`, Lite
+      schema members - see the plan's §1.5 annotation)
 - [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
       task profile, behavior-identical (proven by `bench:regress`)
 - [ ] Stage 2 - external-provider disclosure/consent notice; ZDR-by-default on free routes;

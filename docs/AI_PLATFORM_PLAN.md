@@ -109,6 +109,14 @@ Vision input: up to 3 project images to Director and coder (no downscaling, no s
   (`limits.logos = 0` hardcoded), `LiteDesignSpec` category members beyond lower-third,
   `resetLiteGenerationStoreForTests`, `configuredProviders`, stale HyperFrames parity
   comment in `playerBridge.ts`, stale Anthropic-only copy in `AIPromptPanel`.
+  **Stage 0 cleanup (2026-07-28)**: `resetLiteGenerationStoreForTests`, the unused
+  `configuredProviders`/`providerConfigured` gateway exports, the stale `playerBridge.ts`
+  comment, and the `AIPromptPanel` copy are gone. Deliberately KEPT: the `referenceSelect.ts`
+  machinery (doc-pinned experiment infrastructure - `BROADCAST_DESIGN_SYSTEM_RESEARCH.md`
+  §8.3f keeps every arm compilable, and the recency ledger is read by
+  `referenceCards.ts`), `modelRole:'fast'` (the video provider uses it), and the Lite
+  logo/category members (removing them changes the Lite schema/prompt - Stage 1
+  behavior-identity territory, not hygiene).
 - **No consent/disclosure UI exists anywhere.** `.env.example` references a "Lite
   first-use retention notice" that is not in the repo.
 - **No paid tier exists in the codebase.** Tiers today: anonymous / signed-in / BYO-key.
