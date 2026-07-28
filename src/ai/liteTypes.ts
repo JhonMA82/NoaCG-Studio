@@ -88,8 +88,47 @@ export interface LiteGenerationSpec {
   animation?: Record<string, unknown>;
 }
 
+/**
+ * A model-authored SKIN: bounded restyling CSS (plus optional decorative inner HTML) for
+ * the neutral canvas chassis. Same writable surface as the polish pass — override CSS
+ * appended after the design CSS, never :root/@font-face/scripts. The browser applies it
+ * through the polish gate and REVERTS to the spec's house chassis when any check fails.
+ */
+export interface LiteSkinPatch {
+  summary: string;
+  css: string;
+  html?: string;
+}
+
+/** The vision judge's four axes, each an integer 1-5 (5 = excellent). */
+export interface LiteSkinJudgeScores {
+  legibility: number;
+  hierarchy: number;
+  briefFit: number;
+  strapShape: number;
+}
+
+export interface LiteSkinJudgeRequest {
+  /** The generation being judged - the server verifies ownership before spending. */
+  generationId: string;
+  brief: string;
+  skinSummary: string;
+  /** Base64 PNG of the settled HOLD frame, downscaled by the caller (the server caps size). */
+  imageBase64: string;
+}
+
+export interface LiteSkinJudgeResult {
+  verdict: 'pass' | 'fail';
+  scores: LiteSkinJudgeScores;
+  /** One short judge sentence - eval tooling context only, never stored server-side. */
+  reason: string;
+  /** The server-configured minimum every axis must reach for a pass. */
+  threshold: number;
+  usage: ModelUsage;
+}
+
 export type LiteDecision =
-  | { status: 'ready'; spec: LiteDesignSpec }
+  | { status: 'ready'; spec: LiteDesignSpec; skin?: LiteSkinPatch }
   | {
       status: 'unsupported';
       code: LiteUnsupportedCode;
@@ -147,6 +186,10 @@ export interface LiteStatusResponse {
   requiresSignIn: boolean;
   reason?: 'disabled' | 'sign-in' | 'not-configured' | 'capacity';
   supportedCategories: string[];
+  /** The skin experiment's server flag - additive, so older servers simply omit it. */
+  skinEnabled?: boolean;
+  /** The skin vision judge's server flag - additive; the eval rig gates its judge calls on it. */
+  skinJudgeEnabled?: boolean;
   limits: LitePublicLimits;
   allowance?: LiteAllowance;
 }

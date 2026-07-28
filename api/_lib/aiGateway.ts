@@ -1,5 +1,4 @@
 import {
-  AI_PROVIDER_IDS,
   isAiProviderId,
   type AiGatewayErrorCode,
   type AiGatewayRequestBody,
@@ -81,7 +80,10 @@ function parseStructured(text: string): unknown {
     return object(JSON.parse(text));
   } catch (error) {
     if (error instanceof GatewayError) throw error;
-    throw new GatewayError('malformed_response', 'The AI provider returned an invalid structured result.', 502, false);
+    // Retryable: sampled models produce this stochastically, and providers can error
+    // mid-stream (observed as OpenRouter finish_reason "error" with a truncated body) -
+    // a fresh attempt within the bounded budget usually succeeds.
+    throw new GatewayError('malformed_response', 'The AI provider returned an invalid structured result.', 502, true);
   }
 }
 
@@ -142,7 +144,9 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
 
 function validateStructuredOutput(output: unknown, request: ModelRequest): void {
   if (request.structuredOutput && !schemaAccepts(output, request.structuredOutput.schema)) {
-    throw new GatewayError('malformed_response', 'The model returned a result that did not match the required structure.', 502, false);
+    // Retryable for the same reason as the parse failure above: schema misses under
+    // sampling are stochastic, and the bounded attempt budget is exactly for them.
+    throw new GatewayError('malformed_response', 'The model returned a result that did not match the required structure.', 502, true);
   }
 }
 
@@ -327,6 +331,8 @@ export const openRouterAdapter: ProviderAdapter = {
       model: route.model,
       messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
       max_tokens: request.maxTokens ?? 16000,
+      ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+      ...(request.seed !== undefined ? { seed: request.seed } : {}),
       ...(request.structuredOutput
         ? structuredMode === 'tool'
           ? {
@@ -430,10 +436,48 @@ export const openRouterAdapter: ProviderAdapter = {
   },
 };
 
+export const huggingFaceAdapter: ProviderAdapter = {
+  id: 'huggingface',
+  endpoint: 'https://router.huggingface.co/v1/chat/completions',
+  createRequest(request, route, key) {
+    return {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: route.model,
+        messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
+        max_tokens: request.maxTokens ?? 16000,
+        ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+        ...(request.seed !== undefined ? { seed: request.seed } : {}),
+        ...(request.structuredOutput
+          ? {
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: request.structuredOutput.name,
+                  description: request.structuredOutput.description,
+                  strict: false,
+                  schema: request.structuredOutput.schema,
+                },
+              },
+            }
+          : {}),
+      }),
+    };
+  },
+  parseResponse(value, request, route) {
+    return openRouterAdapter.parseResponse(value, request, route);
+  },
+};
+
 export const AI_ADAPTERS: Record<AiProviderId, ProviderAdapter> = {
   anthropic: anthropicAdapter,
   openai: openAiAdapter,
   openrouter: openRouterAdapter,
+  huggingface: huggingFaceAdapter,
 };
 
 function validateRoute(value: unknown): ModelRoute {
@@ -477,6 +521,21 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
   const maxTokens = request.maxTokens;
   if (maxTokens !== undefined && (!Number.isInteger(maxTokens) || (maxTokens as number) < 1 || (maxTokens as number) > 100_000)) {
     throw new GatewayError('invalid_request', 'The AI token limit is invalid.', 400, false);
+  }
+  if (
+    request.temperature !== undefined
+    && (typeof request.temperature !== 'number'
+      || !Number.isFinite(request.temperature)
+      || request.temperature < 0
+      || request.temperature > 2)
+  ) {
+    throw new GatewayError('invalid_request', 'The AI temperature is invalid.', 400, false);
+  }
+  if (
+    request.seed !== undefined
+    && (!Number.isSafeInteger(request.seed) || Math.abs(request.seed as number) > 2_147_483_647)
+  ) {
+    throw new GatewayError('invalid_request', 'The AI seed is invalid.', 400, false);
   }
   if (request.structuredOutput !== undefined) {
     const structured = object(request.structuredOutput);
@@ -674,15 +733,3 @@ export async function executeGatewayRequest(
   throw lastError ?? new GatewayError('unavailable', 'No AI route was available.', 503, false);
 }
 
-export function providerConfigured(provider: AiProviderId, userKeys: Partial<Record<AiProviderId, string>>): boolean {
-  const envNames: Record<AiProviderId, string> = {
-    anthropic: 'ANTHROPIC_API_KEY',
-    openai: 'OPENAI_API_KEY',
-    openrouter: 'OPENROUTER_API_KEY',
-  };
-  return Boolean(userKeys[provider] || process.env[envNames[provider]]);
-}
-
-export function configuredProviders(userKeys: Partial<Record<AiProviderId, string>>): AiProviderId[] {
-  return AI_PROVIDER_IDS.filter((provider) => providerConfigured(provider, userKeys));
-}

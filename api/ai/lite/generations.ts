@@ -26,6 +26,7 @@ import {
 import {
   LITE_AI_CATEGORIES,
   LITE_READY_OUTPUT,
+  LITE_READY_OUTPUT_SKIN,
   deterministicUnsupportedDecision,
   liteRequestText,
   liteSystemPrompt,
@@ -323,13 +324,16 @@ export default {
       windowDays: profile.qualityPriorWindowDays,
       minSamples: profile.qualityPriorMinSamples,
     }).catch(() => []);
-    const trustedSystemPrompt = liteSystemPrompt(profile.promptVersion, qualityPriors);
+    const trustedSystemPrompt = liteSystemPrompt(profile.promptVersion, qualityPriors, {
+      skin: profile.skinEnabled,
+    });
+    const structuredOutput = profile.skinEnabled ? LITE_READY_OUTPUT_SKIN : LITE_READY_OUTPUT;
 
     const modelRequest = {
       system: trustedSystemPrompt,
       messages: [{ role: 'user' as const, content: liteRequestText(request) }],
       maxTokens: profile.outputTokens,
-      structuredOutput: LITE_READY_OUTPUT,
+      structuredOutput,
       cacheSystem: true,
     };
 
@@ -341,7 +345,9 @@ export default {
         policyFor(profile, profile.primary, profile.maxAttempts),
       ), profile);
       accountedResult = modelResult;
-      let semantic = validateLiteDecision(modelResult.output, request, profile.limits.fields);
+      let semantic = validateLiteDecision(modelResult.output, request, profile.limits.fields, {
+        skin: profile.skinEnabled,
+      });
       const usedAttempts = modelResult.attempts.reduce((sum, item) => sum + item.attempts, 0);
 
       if (!semantic.decision && usedAttempts < profile.maxAttempts) {
@@ -360,7 +366,7 @@ export default {
                 }),
               }],
               maxTokens: profile.repairOutputTokens,
-              structuredOutput: LITE_READY_OUTPUT,
+              structuredOutput,
               cacheSystem: true,
             },
             route: repairRoute,
@@ -370,7 +376,9 @@ export default {
         ), profile);
         modelResult = aggregateResults(modelResult, repair);
         accountedResult = modelResult;
-        semantic = validateLiteDecision(repair.output, request, profile.limits.fields);
+        semantic = validateLiteDecision(repair.output, request, profile.limits.fields, {
+          skin: profile.skinEnabled,
+        });
         record = await store.update(record?.id ?? '', { repairCount: 1 });
       }
 

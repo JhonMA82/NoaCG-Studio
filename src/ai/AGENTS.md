@@ -72,6 +72,28 @@ trees import it. Do not import catalog or DOM-bearing model modules from it. Mod
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
 aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
 
+**The SKIN experiment (server-flagged, `AI_LITE_SKIN_ENABLED`, off by default):** when the
+profile enables it, the same single model call may ALSO return `skin:{summary,css,html?}` -
+bounded restyling for the NEUTRAL canvas chassis (`templates/lowerThirds/skinCanvas.ts`
+`ltc01`, deliberately NOT in the browse catalog). The platform still compiles everything
+deterministically; the skin CSS lands as a marked override block through the SAME polish gate
+(`applyPolish`, `LITE_SKIN_MARKER`), and `litePipeline.attemptLiteSkin` is the ONE
+implementation both production (`liteGroundedResult`, path `grounded+skin`) and the benchmark
+runners use. Any failure - an illegal patch (`liteSkinPatchErrors`, shared with the server's
+semantic validation), a gate rejection, or a failing bench - REVERTS silently to the spec's
+house chassis: a skin can decline to land, never cost the user a working result. With the
+flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behavior are byte-identical to before
+the skin existed, and a skin a model emits anyway is stripped server-side.
+
+**The skin VISION JUDGE (server-flagged, `AI_LITE_JUDGE_ENABLED`, off by default):** one
+server-owned, cost-capped vision call (`POST /api/ai/lite/judge`) scoring the rendered HOLD
+frame on legibility/hierarchy/briefFit/strapShape (contract + prompt in `liteContract.ts`,
+`LITE_JUDGE_*`); every axis must reach the server threshold or the caller reverts to the
+house chassis. It fails closed like the generation routes, spends only behind a generation
+the caller owns, and stores nothing. Today only the eval rig calls it (Playwright captures
+the hold frame); production wiring waits on judge-vs-blind-review calibration AND an in-app
+capture path - see docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and
@@ -249,7 +271,9 @@ put it (a logo slot takes a mark; a full-frame still does not).
 
 - `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser
   client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
-  and OpenRouter without branching the harness. Structured output, usage, costs, errors,
+  OpenRouter, and compatible Hugging Face Inference Providers without branching the harness.
+  `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
+  normalization stays in `api/_lib/aiModelCatalog.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;
   other adapters ignore it.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME specToTemplate
@@ -263,6 +287,10 @@ put it (a logo slot takes a mark; a full-frame still does not).
 The binding gateway and key-handling contract is `docs/AI_PROVIDER_GATEWAY.md`. Provider
 adapters never own DesignSpec, validation, repair, preference learning, or graphic-type
 context. New providers enter below `AIProvider`, never beside it.
+
+The versioned video matrix and brief bank live in `benchmarks/video/v1`; its runner must drive
+`src/ai/video` through the application, never call a model with a benchmark-only prompt pipeline.
+The binding experiment and artifact contract is `docs/VIDEO_MODEL_BENCHMARK.md`.
 
 **Deferred (benchmark-gated, deliberate):** a selective vision taste critic (free-form path
 only, evidence-based findings, never auto-rewrites a valid grounded result), a curated taste

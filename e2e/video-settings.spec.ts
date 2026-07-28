@@ -106,3 +106,75 @@ test('a project of unknown provenance warns about nothing', async ({ page }) => 
   await page.getByTestId('video-duration').blur();
   await expect(page.getByTestId('video-settings-drift')).toHaveCount(0);
 });
+
+test('offers live OpenRouter models that satisfy the full video contract', async ({ page }) => {
+  await mockClaude(page, [moduleFor('Catalog')]);
+  await createVideoProject(page);
+  await page.route('**/api/ai/models?provider=openrouter', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        provider: 'openrouter',
+        syncedAt: '2026-07-28T00:00:00.000Z',
+        models: [
+          {
+            provider: 'openrouter',
+            id: 'vendor/video-coder',
+            name: 'Video Coder',
+            description: 'A model suitable for complete compositions.',
+            contextLength: 131072,
+            maxOutputTokens: 32768,
+            inputPerMillion: 0.2,
+            outputPerMillion: 0.8,
+            inputModalities: ['text', 'image'],
+            supportsStructuredOutput: true,
+            supportsTools: true,
+            supportsSeed: true,
+            free: false,
+            openWeight: true,
+            available: true,
+            createdAt: '2026-07-01T00:00:00.000Z',
+            revision: 'vendor/video-coder-20260701',
+            source: 'openrouter-models-api',
+          },
+          {
+            provider: 'openrouter',
+            id: 'vendor/tiny-context',
+            name: 'Tiny Context',
+            description: '',
+            contextLength: 8192,
+            maxOutputTokens: 4096,
+            inputPerMillion: 0,
+            outputPerMillion: 0,
+            inputModalities: ['text'],
+            supportsStructuredOutput: true,
+            supportsTools: true,
+            supportsSeed: false,
+            free: true,
+            openWeight: true,
+            available: true,
+            createdAt: null,
+            revision: null,
+            source: 'openrouter-models-api',
+          },
+        ],
+      }),
+    });
+  });
+  await page.evaluate(async () => {
+    const { saveAiSettings } = await import('/src/ai/settings.ts');
+    saveAiSettings({
+      provider: 'openrouter',
+      model: 'vendor/video-coder',
+      configuredProviders: ['openrouter'],
+    });
+  });
+
+  await page.getByTestId('video-tab-settings').click();
+  const model = page.locator('input[list="video-ai-models"]');
+  await expect(page.locator('datalist#video-ai-models option[value="vendor/video-coder"]')).toHaveCount(1);
+  await expect(page.locator('datalist#video-ai-models option[value="vendor/tiny-context"]')).toHaveCount(0);
+  await model.fill('vendor/video-coder');
+  await expect(model).toHaveValue('vendor/video-coder');
+  await expect(page.getByText(/structured output, at least 32K context/)).toBeVisible();
+});

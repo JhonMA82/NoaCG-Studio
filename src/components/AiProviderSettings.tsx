@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  discoverAiModels,
+  modelPriceLabel,
+  videoCompatibleModels,
+  type AiDiscoveredModel,
+} from '../ai/modelCatalog';
+import {
   AI_PROVIDERS,
   deleteUserAiKey,
   modelsForProvider,
@@ -21,8 +27,10 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
   const [status, setStatus] = useState<AiProviderStatus[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const models = useMemo(() => modelsForProvider(settings.provider), [settings.provider]);
+  const [discovered, setDiscovered] = useState<AiDiscoveredModel[]>([]);
+  const curatedModels = useMemo(() => modelsForProvider(settings.provider), [settings.provider]);
   const current = status.find((provider) => provider.id === settings.provider);
+  const selectedDiscovered = discovered.find((model) => model.id === settings.model);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -44,6 +52,20 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
       });
     return () => { live = false; };
   }, []);
+
+  useEffect(() => {
+    let live = true;
+    setDiscovered([]);
+    if (settings.provider !== 'openrouter' && settings.provider !== 'huggingface') return;
+    void discoverAiModels(settings.provider)
+      .then((catalog) => {
+        if (live) setDiscovered(videoCompatibleModels(catalog.models));
+      })
+      .catch(() => {
+        if (live) setMessage('Live model discovery is unavailable. You can still enter a model id.');
+      });
+    return () => { live = false; };
+  }, [settings.provider]);
 
   const applyConfig = (config: Awaited<ReturnType<typeof refreshAiConfiguration>>) => {
     setStatus(config.providers);
@@ -108,10 +130,22 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
         placeholder="Provider model id"
       />
       <datalist id={`ai-models-${settings.provider}`}>
-        {models.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+        {discovered.map((model) => (
+          <option key={model.id} value={model.id}>
+            {model.name} - {modelPriceLabel(model)}
+          </option>
+        ))}
+        {curatedModels
+          .filter((model) => !discovered.some((item) => item.id === model.id))
+          .map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
       </datalist>
       <p className="hint">
-        {models.find((model) => model.id === settings.model)?.blurb ?? 'Any model id supported by this provider.'}
+        {selectedDiscovered
+          ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
+              selectedDiscovered.inputModalities.join(', ')
+            } input - ${modelPriceLabel(selectedDiscovered)}`
+          : curatedModels.find((model) => model.id === settings.model)?.blurb
+            ?? 'Any model id supported by this provider.'}
       </p>
 
       <label style={{ marginTop: 8 }}>User-provided key</label>

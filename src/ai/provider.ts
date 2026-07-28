@@ -68,7 +68,7 @@ export interface GenerateOptions {
 
 /** Which pipeline produced a result — surfaced honestly in the UI and in telemetry.
  *  'raw' = the default one-shot generation (harness off). */
-export type AiPath = 'grounded' | 'grounded+polish' | 'custom' | 'raw' | 'stub';
+export type AiPath = 'grounded' | 'grounded+polish' | 'grounded+skin' | 'custom' | 'raw' | 'stub';
 
 /** A template change with the harness's provenance attached. */
 export interface AiTemplateChange extends TemplateChange {

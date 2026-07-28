@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getAiProvider } from '../ai';
+import { productionSpxValidator } from '../ai/litePipeline';
 import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
 import { useAuthState } from './auth/useAuthState';
@@ -7,15 +8,15 @@ import SignInPrompt from './auth/SignInPrompt';
 import { useTemplateStore } from '../store/templateStore';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { formatTemplate } from '../format/formatCode';
-import type { TemplateChange } from '../model/types';
+import type { AiTemplateChange } from '../ai/provider';
 import { loadLiteStatus } from '../ai/liteClient';
 
-type Pending = { change: TemplateChange; validation: ValidationResult } | null;
+type Pending = { change: AiTemplateChange; validation: ValidationResult } | null;
 
 /**
- * AI panel. Backed by Claude when an API key is configured (see the wizard's Describe-it
- * step for settings), by the deterministic stub otherwise. Every result is validated and
- * shown for confirm-before-apply so the platform keeps SPX compatibility.
+ * AI panel. Backed by the configured provider when an API key is set up (see the wizard's
+ * Create-with-AI step for settings), by the deterministic stub otherwise. Every result is
+ * validated and shown for confirm-before-apply so the platform keeps SPX compatibility.
  */
 export default function AIPromptPanel() {
   const template = useTemplateStore((s) => s.template);
@@ -50,7 +51,7 @@ export default function AIPromptPanel() {
     return (
       <SignInPrompt
         feature="AI assistant"
-        reason="Sign in to use AI — generate, modify, fix, and explain graphics with Claude."
+        reason="Sign in to use AI — generate, modify, fix, and explain graphics."
       />
     );
   }
@@ -60,18 +61,23 @@ export default function AIPromptPanel() {
   // HTML only — CSS keeps its house comment alignment and JS keeps its timeline-owned animation
   // region (see src/format/formatCode.ts). Modify/Fix stay byte-faithful to the AI's edit.
   //
-  // The result is screened for unsafe JS as well as validated (src/ai/safety.ts): what the AI
-  // wrote can be steered by an uploaded reference or by an imported file, and the confirm-before-
-  // apply card is where that has to be caught. A MODIFY passes the current template as the source,
-  // so code the user themselves put there (a Live data block calls fetch) is not reported as
-  // something the AI introduced; a GENERATE — a brand-new template — passes none.
-  const runChange = async (fn: () => Promise<TemplateChange>, autoFormat = false) => {
+  // Every call injects the production validator (static + live runtime bench, wrapped in the
+  // safety screen — the same composition the wizard's AiStep wires), so the provider's repair
+  // loop works against real findings instead of static checks alone. A MODIFY-shaped action
+  // passes the current template as the safety source, so code the user themselves put there
+  // (a Live data block calls fetch) is not reported as something the AI introduced; a
+  // GENERATE — a brand-new template — passes none.
+  //
+  // The confirm card prefers the validation the provider attached (it already includes the
+  // bench and the safety findings); the static-plus-screen fallback covers the offline stub,
+  // which attaches none. mergeSafety stays as the display-side belt either way.
+  const runChange = async (fn: () => Promise<AiTemplateChange>, autoFormat = false) => {
     setBusy(true);
     setExplanation(null);
     try {
       let change = await fn();
       if (autoFormat) change = { ...change, template: await formatTemplate(change.template) };
-      const base = validateTemplate(change.template);
+      const base = change.validation ?? validateTemplate(change.template);
       setPending({ change, validation: mergeSafety(base, change.template, autoFormat ? null : template) });
     } finally {
       setBusy(false);
@@ -103,8 +109,8 @@ export default function AIPromptPanel() {
           result is validated for SPX compatibility.
           {!aiConfigured() && (
             <>
-              {' '}Currently using the offline stub — add an Anthropic API key (New project →
-              Describe it → AI settings) for full Claude-powered edits.
+              {' '}Currently using the offline stub — add an AI provider key (New project →
+              Create with AI → AI settings) for full model-backed edits.
             </>
           )}
         </p>
@@ -140,18 +146,30 @@ export default function AIPromptPanel() {
       />
 
       <div className="row wrap" style={{ marginTop: 8 }}>
-        <button disabled={busy || !prompt.trim()} onClick={() => runChange(() => getAiProvider().generate(prompt), true)}>
+        <button
+          disabled={busy || !prompt.trim()}
+          onClick={() => runChange(() => getAiProvider().generate(prompt, undefined, { validate: productionSpxValidator() }), true)}
+        >
           Generate
         </button>
-        <button disabled={busy || !prompt.trim()} onClick={() => runChange(() => getAiProvider().modify(prompt, template))}>
+        <button
+          disabled={busy || !prompt.trim()}
+          onClick={() => runChange(() => getAiProvider().modify(prompt, template, undefined, { validate: productionSpxValidator(template) }))}
+        >
           Modify
         </button>
       </div>
       <div className="row wrap" style={{ marginTop: 6 }}>
-        <button disabled={busy} onClick={() => runChange(() => getAiProvider().makeSpxReady(template))}>
+        <button
+          disabled={busy}
+          onClick={() => runChange(() => getAiProvider().makeSpxReady(template, { validate: productionSpxValidator(template) }))}
+        >
           Make SPX-ready
         </button>
-        <button disabled={busy} onClick={() => runChange(() => getAiProvider().fix(template))}>
+        <button
+          disabled={busy}
+          onClick={() => runChange(() => getAiProvider().fix(template, { validate: productionSpxValidator(template) }))}
+        >
           Fix
         </button>
         <button disabled={busy} onClick={onExplain}>

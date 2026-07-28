@@ -689,6 +689,52 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       `images/` assets; project brand colors carried in via the match toggle
 - [x] AI panel (modify / fix / explain / make-SPX-ready) backed by Claude when configured,
       by the deterministic stub otherwise
+- [x] **AI platform audit + plan (2026-07-28)** - repo-wide inventory of every AI surface,
+      workload classification, and the unified architecture: a shared task registry with an
+      open-weight model allowlist over the existing gateway, Lite retained as the specialized
+      catalog-grounded harness, a proposal-only Import Graphic analysis harness, and a vision
+      benchmark plan (`docs/AI_PLATFORM_PLAN.md`)
+- [x] **Editor AI panel quality gate (2026-07-28)** - the AI assistant panel injects the
+      production validator (static + runtime bench + safety screen) so its repair loop works
+      against real findings, pinned by a mutation-tested spec (`e2e/ai-panel.spec.ts`)
+
+### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15)
+
+Owner decisions — RATIFIED 2026-07-28:
+- [x] **Model policy: benchmark-first with an open-weight preference** (not a hard mandate) -
+      an open-weight model is used whenever it performs as well as or better than the
+      proprietary alternatives on NoaCG's own benchmarks; a superior proprietary model is
+      never excluded merely for closed weights. Route selection stays explicit server
+      configuration - never a silent fallback.
+- [x] **Consent notice** - discloses that prompts and uploaded images may be sent to an
+      external AI provider, that sensitive/confidential material must not be uploaded, and
+      that NoaCG prefers ZDR-capable routes where available but cannot guarantee identical
+      retention across providers. Acceptance stored server-side for signed-in users
+      (timestamp + notice version); client-side for anonymous users, with renewed acceptance
+      whenever the notice version changes.
+- [x] **Free Import Graphic vision quota** - 1 image per analysis, 10 successful analyses
+      per day, 100 per month; images downscaled to at most 1920x1080 before sending. Only
+      successes count against the quota; abuse-oriented rate limiting is separate; actual
+      per-run provider costs are recorded so the numbers can be tuned from real usage.
+- [x] **BYO credentials require sign-in on the hosted service** - keys associate with the
+      user, not just a browser cookie. Account-free BYO-key use survives for private
+      self-hosted installs behind an explicit configuration flag, disabled by default in
+      the hosted product.
+
+The stages, in order (details in the plan):
+- [x] **Stage 0 remainder (2026-07-28)** - `/api/ai/generate` per-IP burst gate + content-free
+      `ai_gateway_requests` ledger row (migration 0012, task `byo-generate`); audited dead-code
+      removals (kept: `referenceSelect.ts` experiment machinery, `modelRole:'fast'`, Lite
+      schema members - see the plan's §1.5 annotation)
+- [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
+      task profile, behavior-identical (proven by `bench:regress`)
+- [ ] Stage 2 - external-provider disclosure/consent notice (per the ratified decision);
+      ZDR-by-default on free routes; run the Lite model benchmark and settle the primary
+      per the benchmark-first policy
+- [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
+      a server flag; vision benchmark (>=3 open-weight candidates plus proprietary
+      baselines) picks the launch route per the benchmark-first policy
+- [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
 
 ### Export & platform
 - [x] SPX Starter + Advanced/Pack export with validation gate
@@ -763,6 +809,13 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       and the HyperFrames engine joined as a second video engine 2026-07-18. Still to do:
       sandbox-executor live verification, a Blob upload channel for large assets, and the
       visual Motion Critic pass (experiment-gated - docs/VIDEO_DESIGN_QUALITY_PLAN.md §3.5).
+- [x] **OpenRouter/Hugging Face video model benchmark (2026-07-28)** - live server-side
+      discovery of compatible model ids, modalities, structured-output support, context/output
+      limits, availability and pricing; OpenRouter plus optional hosted Hugging Face inference
+      below the unchanged video harness; per-project model selection; and a versioned
+      Remotion/HyperFrames benchmark with fixed briefs/settings, bounded spend/concurrency,
+      raw reproducibility artifacts, real-render support, separate machine/human scoring, and
+      quality/value/free/engine/first-pass leaderboards (`docs/VIDEO_MODEL_BENCHMARK.md`).
 - [ ] Data-driven/live content architecture (ticker/scoreboard controlled from a backend) — later
 
 ### The SPX generation harness (2026-07-17 — AI that beats a bare prompt, provably)

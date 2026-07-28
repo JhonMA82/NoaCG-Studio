@@ -11,12 +11,28 @@ transport beneath that system.
 2. The browser sends a provider-neutral request to `POST /api/ai/generate`.
 3. The server selects exactly the requested provider/model route.
 4. `api/_lib/aiGateway.ts` adapts the request to Anthropic Messages, OpenAI Responses, or
-   OpenRouter Chat Completions.
+   OpenRouter/Hugging Face OpenAI-compatible Chat Completions.
 5. The server normalizes text or structured output, errors, token usage, route attempts, and
    optional estimated-cost metadata before returning it to the unchanged harness.
 
 There is no provider-specific branch in DesignSpec, validation, repair, preference learning,
 or UI application logic.
+
+`POST /api/ai/generate` sits behind a per-IP burst gate (`AI_GENERATE_RATE_WINDOW_SEC` /
+`AI_GENERATE_RATE_MAX`, default 60 requests per 60 seconds, refused before the body is read).
+BYO-key traffic spends the user's own key but passes the same gate - the platform is still the
+egress. When Supabase server configuration is present, every gateway execution also writes one
+content-free row to the server-write-only `ai_gateway_requests` ledger (migration
+`0012_ai_gateway_requests.sql`): task `byo-generate`, user id when known, salted IP hash, key
+source, route, normalized tokens, provider cost, and the outcome code. Prompts, messages,
+images, generated output, provider bodies, and raw IPs never enter it, and a ledger failure
+never fails the generation. It is deliberately separate from Lite's `ai_generations` ledger so
+gateway traffic cannot consume Lite's fleet-spend and concurrency budgets.
+
+Large provider catalogs are discovered server-side through `GET /api/ai/models`. OpenRouter's
+Models API and Hugging Face's Inference Providers router supply ids, capabilities, limits,
+availability, and current prices. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility
+filter and repeatable quality benchmark.
 
 ## NoaCG Lite
 
@@ -33,6 +49,11 @@ modification, code repair, or the three-alternative path. One focused structured
 or one fixed fallback may run, but both share a hard two-attempt session ceiling. A
 deterministic compilation or runtime failure is recorded as a NoaCG platform failure and is
 never sent to a model for code repair.
+
+The optional skin vision judge (`POST /api/ai/lite/judge`, `AI_LITE_JUDGE_*` settings)
+follows the same posture: server-owned route and prompt, fail-closed pricing and provider
+allowlist, the same ZDR policy, cost capped per call and accounted on the generation's
+ledger row. The submitted hold frame is judged and dropped - never stored.
 
 The public status endpoint returns only availability, supported product categories, public
 input limits, and remaining allowance. It never returns provider names, model ids, prices,
@@ -64,7 +85,7 @@ and no prompt, template, screenshot, or generated artifact is retained.
 
 Browser-visible values are non-secret:
 
-- `VITE_AI_PROVIDER`: `anthropic`, `openai`, or `openrouter`.
+- `VITE_AI_PROVIDER`: `anthropic`, `openai`, `openrouter`, or `huggingface`.
 - `VITE_AI_MODEL`: an opaque model id for the selected provider.
 - `VITE_AI_FALLBACKS`: optional JSON array of ordered `{provider, model}` routes.
 
@@ -73,6 +94,7 @@ Managed keys are server-only:
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
 - `OPENROUTER_API_KEY`
+- `HUGGINGFACE_API_KEY` (or the conventional `HF_TOKEN`)
 
 Optional user-provided keys require `AI_KEY_ENCRYPTION_SECRET` with at least 32 characters.
 The key is submitted once to `PUT /api/ai/credentials`, sealed with AES-256-GCM, and stored

@@ -82,8 +82,13 @@ export function managedAiKey(provider: AiProviderId): string {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
     openrouter: 'OPENROUTER_API_KEY',
+    huggingface: 'HUGGINGFACE_API_KEY',
   };
-  return (process.env[names[provider]] ?? '').trim();
+  return (
+    process.env[names[provider]]
+    ?? (provider === 'huggingface' ? process.env.HF_TOKEN : '')
+    ?? ''
+  ).trim();
 }
 
 export function sameOrigin(req: Request): boolean {

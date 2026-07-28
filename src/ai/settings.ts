@@ -31,6 +31,11 @@ export const AI_PROVIDERS: AiProviderOption[] = [
   { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models through the existing NoaCG harness.' },
   { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models through the Responses API.' },
   { id: 'openrouter', label: 'OpenRouter', blurb: 'Hosted models through OpenRouter’s OpenAI-compatible API.' },
+  {
+    id: 'huggingface',
+    label: 'Hugging Face',
+    blurb: 'Open-weight models with a compatible hosted Inference Provider endpoint.',
+  },
 ];
 
 /** Central model catalog. The rest of NoaCG only stores opaque provider/model routes. */
@@ -69,6 +74,13 @@ export const AI_MODELS: AiModelOption[] = [
     blurb: 'A default OpenRouter route; any supported model id can be entered.',
     role: 'default',
   },
+  {
+    provider: 'huggingface',
+    id: 'openai/gpt-oss-120b',
+    label: 'GPT-OSS 120B via Hugging Face',
+    blurb: 'Fallback suggestion when live Hugging Face discovery is unavailable.',
+    role: 'default',
+  },
 ];
 
 export interface AiSettings {
@@ -84,6 +96,9 @@ export interface AiSettings {
    * bench and alternatives) rather than the plain one-shot path.
    */
   useHarness: boolean;
+  /** Optional provider sampling controls, primarily used by the versioned benchmark. */
+  temperature: number | null;
+  seed: number | null;
 }
 
 export interface AiProviderStatus {
@@ -177,6 +192,14 @@ export function loadAiSettings(): AiSettings {
     configuredProviders: validProviders(saved.configuredProviders),
     keyStorageAvailable: typeof saved.keyStorageAvailable === 'boolean' ? saved.keyStorageAvailable : null,
     useHarness: typeof saved.useHarness === 'boolean' ? saved.useHarness : true,
+    temperature:
+      typeof saved.temperature === 'number' && Number.isFinite(saved.temperature)
+        ? Math.min(2, Math.max(0, saved.temperature))
+        : null,
+    seed:
+      typeof saved.seed === 'number' && Number.isSafeInteger(saved.seed)
+        ? saved.seed
+        : null,
   };
 }
 

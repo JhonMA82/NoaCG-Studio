@@ -4,7 +4,8 @@
 // the raw material for iterating the video prompt harness in src/ai/video/.
 //
 //   node scripts/video-bench.mjs [out-dir] [label,label,… | count | briefs.json] [runs-per-example]
-//                                [--engine=remotion|hyperframes] [--stub]
+//                                [--engine=remotion|hyperframes] [--provider=id]
+//                                [--model=id] [--temperature=n] [--seed=n] [--render] [--stub]
 //
 // `--engine` picks the GENERATION ENGINE the wizard creates with, so the same briefs can be
 // benched through either coder; everything downstream (the source file captured, the frame
@@ -45,7 +46,19 @@ const OUT = POS[0] || './video-bench-out';
 const FILTER = POS[1] ?? '';
 const RUNS = Math.max(1, Number(POS[2]) || 1);
 const STUB = ARGS.includes('--stub');
+const RENDER = ARGS.includes('--render');
 const ENGINE = flag('engine') ?? 'remotion';
+const PROVIDER = flag('provider') ?? 'anthropic';
+const MODEL = flag('model') ?? (PROVIDER === 'anthropic' ? 'claude-sonnet-5' : '');
+const TEMPERATURE = flag('temperature') === undefined ? null : Number(flag('temperature'));
+const SEED = flag('seed') === undefined ? null : Number(flag('seed'));
+const MODEL_REVISION = flag('model-revision') ?? null;
+const BENCHMARK_VERSION = flag('benchmark-version') ?? null;
+const PROMPT_VERSION = flag('prompt-version') ?? null;
+if (!STUB && !MODEL) {
+  console.error('A real run requires --model=<provider model id>.');
+  process.exit(1);
+}
 if (!['remotion', 'hyperframes'].includes(ENGINE)) {
   console.error(`Unknown --engine=${ENGINE} (use remotion or hyperframes).`);
   process.exit(1);
@@ -99,17 +112,21 @@ await page.addInitScript(() => {
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input?.url ?? '';
     let record = null;
-    if (/anthropic\.com|\/messages$/.test(String(url)) && init?.body) {
+    if (/\/api\/ai\/generate(?:\?|$)/.test(String(url)) && init?.body) {
       try {
         const body = JSON.parse(init.body);
-        const last = body.messages?.[body.messages.length - 1];
+        const messages = body.request?.messages ?? [];
+        const last = messages[messages.length - 1];
         const text = typeof last?.content === 'string'
           ? last.content
           : (last?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
         const isRepair = /failed validation/.test(text);
         record = {
-          tool: body.tools?.[0]?.name ?? '(text)',
-          model: body.model,
+          tool: body.request?.structuredOutput?.name ?? '(text)',
+          provider: body.route?.provider,
+          model: body.route?.model,
+          startedAt: new Date().toISOString(),
+          startedMs: performance.now(),
           repairFindings: isRepair ? text.split('\n').filter((l) => l.startsWith('- ')) : [],
           failedSource: isRepair ? (text.split(/=== [^=]+ ===\n/)[1] ?? '') : '',
         };
@@ -119,8 +136,14 @@ await page.addInitScript(() => {
     const res = await origFetch(input, init);
     if (record) {
       res.clone().json().then((j) => {
-        record.inputTokens = j?.usage?.input_tokens ?? 0;
-        record.outputTokens = j?.usage?.output_tokens ?? 0;
+        record.inputTokens = j?.usage?.inputTokens ?? 0;
+        record.outputTokens = j?.usage?.outputTokens ?? 0;
+        record.estimatedCostUsd = j?.usage?.estimatedCost?.amount ?? null;
+        record.resolvedProvider = j?.provider ?? record.provider;
+        record.resolvedModel = j?.model ?? record.model;
+        record.attempts = j?.attempts ?? [];
+        record.output = j?.output ?? null;
+        record.latencyMs = Math.round(performance.now() - record.startedMs);
       }).catch(() => {});
     }
     return res;
@@ -159,29 +182,35 @@ const serverIsDown = (e) => /ERR_CONNECTION_REFUSED|ECONNREFUSED|net::ERR_CONNEC
     await browser.close();
     process.exit(1);
   }
-  const resolved = await page.evaluate(async ({ stub }) => {
+  const resolved = await page.evaluate(async ({ stub, provider, model, temperature, seed }) => {
     const { loadAiSettings, aiConfigured, refreshAiConfiguration, saveAiSettings } = await import('/src/ai/settings.ts');
     if (!stub) {
       await refreshAiConfiguration();
-      saveAiSettings({ provider: 'anthropic', model: 'claude-sonnet-5', fallbacks: [] });
+      saveAiSettings({ provider, model, fallbacks: [], temperature, seed });
     }
     const s = loadAiSettings();
-    return { configured: aiConfigured(), model: s.model };
-  }, { stub: STUB });
+    return { configured: aiConfigured(), provider: s.provider, model: s.model };
+  }, {
+    stub: STUB,
+    provider: PROVIDER,
+    model: MODEL,
+    temperature: Number.isFinite(TEMPERATURE) ? TEMPERATURE : null,
+    seed: Number.isSafeInteger(SEED) ? SEED : null,
+  });
   if (STUB && resolved.configured) {
     console.error(`Preflight failed: --stub must resolve to the OFFLINE provider, got ${JSON.stringify(resolved)}.`);
     await browser.close();
     process.exit(1);
   }
   if (!STUB && !resolved.configured) {
-    console.error(`Preflight failed: expected a server-managed Anthropic route, got ${JSON.stringify(resolved)}.`);
+    console.error(`Preflight failed: expected a configured ${PROVIDER} route, got ${JSON.stringify(resolved)}.`);
     await browser.close();
     process.exit(1);
   }
   console.log(
     STUB
       ? `Preflight OK: OFFLINE stub provider (${ENGINE}) — no tokens will be spent.`
-      : `Preflight OK: server gateway, model ${resolved.model}, engine ${ENGINE}.`,
+      : `Preflight OK: server gateway, ${resolved.provider}/${resolved.model}, engine ${ENGINE}.`,
   );
 }
 
@@ -391,11 +420,109 @@ const results = [];
 // at the end means a crash throws away every completed run, including what they cost.
 const saveResults = () => writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 2));
 
+async function renderStill(id) {
+  const started = Date.now();
+  try {
+    const manifest = await page.evaluate(async (engine) => {
+      const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+      const project = useVideoProjectStore.getState().project;
+      if (engine === 'hyperframes') {
+        const { composeHyperframesDocument } = await import('/src/video/hyperframes/compose.ts');
+        const { loadHyperframesFontCss } = await import('/src/video/hyperframes/fontCss.ts');
+        const { buildHyperframesManifest } = await import('/src/render/buildVideoManifest.ts');
+        const { videoFieldValues } = await import('/src/model/videoTypes.ts');
+        const documentHtml = composeHyperframesDocument(project.html, {
+          settings: {
+            width: project.width,
+            height: project.height,
+            fps: project.fps,
+            durationInFrames: project.durationInFrames,
+            transparent: project.transparent,
+          },
+          assets: project.assets,
+          values: videoFieldValues(project.inputs),
+          mode: 'render',
+          fontCss: await loadHyperframesFontCss(),
+        });
+        return buildHyperframesManifest({
+          name: project.name,
+          width: project.width,
+          height: project.height,
+          fps: project.fps,
+          durationInFrames: project.durationInFrames,
+          documentHtml,
+          transparent: project.transparent,
+        }, { format: 'png-still', scale: 0.5 });
+      }
+      const { compileTsx } = await import('/src/video/compile.ts');
+      const { describeAssets } = await import('/src/video/types.ts');
+      const { buildVideoManifest } = await import('/src/render/buildVideoManifest.ts');
+      const { videoFieldValues } = await import('/src/model/videoTypes.ts');
+      const compiled = compileTsx(project.tsx);
+      if (!compiled.ok) throw new Error(compiled.error);
+      const assets = {};
+      for (const info of describeAssets(project.assets)) {
+        const asset = project.assets.find((item) => item.path === info.path);
+        if (asset && typeof asset.data === 'string') assets[info.name] = asset.data;
+      }
+      return buildVideoManifest({
+        name: project.name,
+        width: project.width,
+        height: project.height,
+        fps: project.fps,
+        durationInFrames: project.durationInFrames,
+        compiledJs: compiled.js,
+        inputProps: { assets, fields: videoFieldValues(project.inputs) },
+        transparent: project.transparent,
+      }, { format: 'png-still', scale: 0.5 });
+    }, ENGINE);
+    const ip = `10.88.${ENGINE === 'hyperframes' ? 2 : 1}.${(Date.now() % 240) + 10}`;
+    const start = await fetch(`${BASE}/api/render/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+      body: JSON.stringify({ manifest }),
+    });
+    if (start.status !== 202) throw new Error(`render start returned ${start.status}: ${await start.text()}`);
+    const { jobId, jobToken, pollIntervalMs } = await start.json();
+    let status;
+    while (Date.now() - started < 5 * 60_000) {
+      await new Promise((resolve) => setTimeout(resolve, Math.max(250, pollIntervalMs)));
+      const response = await fetch(`${BASE}/api/render/status?id=${jobId}`, {
+        headers: { authorization: `Bearer ${jobToken}` },
+      });
+      if (!response.ok) throw new Error(`render status returned ${response.status}`);
+      status = await response.json();
+      if (['complete', 'failed', 'cancelled', 'expired'].includes(status.state)) break;
+    }
+    if (status?.state !== 'complete' || !status.output?.url) {
+      throw new Error(`render ended in ${status?.state ?? 'timeout'}: ${JSON.stringify(status?.error ?? {})}`);
+    }
+    const separator = status.output.url.includes('?') ? '&' : '?';
+    const download = await fetch(`${BASE}${status.output.url}${separator}token=${jobToken}`);
+    if (!download.ok) throw new Error(`render download returned ${download.status}`);
+    const bytes = Buffer.from(await download.arrayBuffer());
+    const file = `${id}-render.png`;
+    writeFileSync(`${OUT}/${file}`, bytes);
+    return { attempted: true, ok: true, file, bytes: bytes.byteLength, latencyMs: Date.now() - started };
+  } catch (error) {
+    return {
+      attempted: true,
+      ok: false,
+      file: null,
+      bytes: 0,
+      latencyMs: Date.now() - started,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 let aborted = null;
 outer: for (const example of selected) {
   const { label } = example;
   for (let run = 1; run <= RUNS; run++) {
     const id = RUNS > 1 ? `${slug(label)}-r${run}` : slug(label);
+    const runStartedAt = new Date().toISOString();
+    const runStartedMs = Date.now();
     process.stdout.write(`▸ ${id} … `);
     try {
       // Fresh page state each run; the wizard opens over whatever project autosaved.
@@ -547,6 +674,12 @@ outer: for (const example of selected) {
         (t, c) => ({ in: t.in + (c.inputTokens ?? 0), out: t.out + (c.outputTokens ?? 0) }),
         { in: 0, out: 0 },
       );
+      const estimatedCostUsd = diag.calls.some(
+        (call) => typeof call.estimatedCostUsd === 'number',
+      )
+        ? diag.calls.reduce((total, call) => total + (call.estimatedCostUsd ?? 0), 0)
+        : null;
+      writeFileSync(`${OUT}/${id}.calls.json`, JSON.stringify(diag.calls, null, 2));
 
       // Did the GATE actually measure this composition? The bench's own checks above read the
       // mounted player directly and are independent of the validator, so they stayed honest
@@ -555,7 +688,7 @@ outer: for (const example of selected) {
       // generation-time gate had skipped: two different measurements. Re-validating the
       // finished source against the live bridge records which of those two happened, so a
       // readability figure from this bench can never again rest on a gate nobody checked ran.
-      const gate = await page.evaluate(async ([source, engine]) => {
+      const measuredGate = await page.evaluate(async ([source, engine]) => {
         try {
           const { getActiveHyperframesBridge, getActivePlayerBridge } = await import('/src/video/bridgeRegistry.ts');
           const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
@@ -574,14 +707,48 @@ outer: for (const example of selected) {
           return { probed: null, ok: null, rules: [], error: String(e?.message || e) };
         }
       }, [state.source, ENGINE]);
+      const gate = rejected
+        ? {
+            probed: null,
+            ok: false,
+            rules: rejectionErrors,
+            skipped: 'rejected-output-kept-previous-source',
+          }
+        : measuredGate;
+      const render = !rejected && RENDER
+        ? await renderStill(id)
+        : {
+            attempted: false,
+            ok: null,
+            file: null,
+            bytes: 0,
+            latencyMs: 0,
+            ...(rejected ? { skipped: 'rejected-output-kept-previous-source' } : {}),
+          };
+      const automatedChecks = {
+        generationSuccess: !rejected,
+        schemaAndContractValid: !rejected,
+        typeScriptBuildSuccess: !rejected && gate.ok,
+        renderSuccess: render.attempted ? render.ok : null,
+        runtimeErrors: rejected ? rejectionErrors : (gate.rules ?? []),
+        visualCompleteness: !rejected && issues.length === 0,
+        dataFieldCorrectness: !rejected && deadVars.length === 0,
+        engineCompatibility: !rejected && gate.ok,
+        firstPassSuccess: !rejected && repairs.length === 0,
+      };
 
       results.push({
-        id, label, run, engine: ENGINE, ok: !rejected, summary, inputs: state.inputs, shots, issues,
-        rejectionErrors, deadSpace, deadVars, gate,
+        id, label, run, engine: ENGINE, provider: PROVIDER, model: MODEL,
+        modelRevision: MODEL_REVISION, benchmarkVersion: BENCHMARK_VERSION,
+        promptVersion: PROMPT_VERSION, temperature: TEMPERATURE, seed: SEED,
+        startedAt: runStartedAt, latencyMs: Date.now() - runStartedMs,
+        ok: !rejected, summary, inputs: state.inputs, shots: rejected ? [] : shots, issues,
+        rejectionErrors, deadSpace, deadVars, gate, render,
         repairRounds: repairs.length,
         repairCauses: repairs.flatMap((r) => r.repairFindings),
         calls: diag.calls.length,
-        tokens,
+        tokens, estimatedCostUsd,
+        automatedChecks,
         stages: diag.stages,
       });
       console.log(
@@ -595,10 +762,26 @@ outer: for (const example of selected) {
       saveResults();
     } catch (e) {
       results.push({
-        id, label, run, engine: ENGINE, ok: false, summary: String(e.message || e), inputs: [], shots: [],
+        id, label, run, engine: ENGINE, provider: PROVIDER, model: MODEL,
+        modelRevision: MODEL_REVISION, benchmarkVersion: BENCHMARK_VERSION,
+        promptVersion: PROMPT_VERSION, temperature: TEMPERATURE, seed: SEED,
+        startedAt: runStartedAt, latencyMs: Date.now() - runStartedMs,
+        ok: false, summary: String(e.message || e), inputs: [], shots: [],
         issues: [], rejectionErrors: [], deadSpace: 0, deadVars: [], repairRounds: 0, repairCauses: [],
         gate: { probed: null, ok: null, rules: [] },
-        calls: 0, tokens: { in: 0, out: 0 }, stages: [],
+        render: { attempted: RENDER, ok: false, file: null, bytes: 0, latencyMs: 0 },
+        calls: 0, tokens: { in: 0, out: 0 }, estimatedCostUsd: null, stages: [],
+        automatedChecks: {
+          generationSuccess: false,
+          schemaAndContractValid: false,
+          typeScriptBuildSuccess: false,
+          renderSuccess: RENDER ? false : null,
+          runtimeErrors: [String(e.message || e)],
+          visualCompleteness: false,
+          dataFieldCorrectness: false,
+          engineCompatibility: false,
+          firstPassSuccess: false,
+        },
       });
       console.log('FAILED: ' + (e.message || e));
       // A dead dev server is not a result about this brief, and every remaining run would

@@ -21,7 +21,7 @@ import { validateTemplate, type ValidationResult } from '../validation/validateT
 import { lt01 } from '../templates/lowerThirds/lt01';
 import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, type DesignSpec } from './designSpec';
 import { preferenceHint } from './preferences';
-import { assembleGroundedTemplate, normalizeLiteSpec } from './litePipeline';
+import { assembleGroundedTemplate, attemptLiteSkin, normalizeLiteSpec } from './litePipeline';
 import { applyPolish, POLISH_TOOL, type PolishPatch } from './polish';
 import { variantsFor } from '../templates/catalog';
 import type { TemplateVariant } from '../model/wizard';
@@ -754,7 +754,28 @@ async function liteGroundedResult(
   const spec = normalizeLiteSpec(decision.spec as DesignSpec, context.spec);
   const assembledAt = Date.now();
   try {
-    const change = await groundedResult(spec, context, { ...options, profile: undefined }, run);
+    // A skin riding the decision is TRIED first: the neutral canvas chassis restyled by
+    // the model's bounded CSS, through the polish gate and the full injected validator.
+    // Any failure reverts silently to the spec's own house chassis below — a skin can
+    // decline to land, but it can never cost the user a working result.
+    let change: AiTemplateChange | null = null;
+    if (decision.skin) {
+      options?.onProgress?.('Painting the canvas…');
+      const skinStarted = Date.now();
+      const skinned = await attemptLiteSkin(spec, decision.skin, context, (t) => validateWith(t, options, run));
+      run.stage('lite-skin', skinStarted);
+      if (skinned) {
+        run.diversity(skinned.diversity);
+        change = {
+          summary: spec.summary || 'An AI-designed look on the NoaCG canvas.',
+          template: skinned.template,
+          path: 'grounded+skin',
+          validation: skinned.validation,
+          spec,
+        };
+      }
+    }
+    change ??= await groundedResult(spec, context, { ...options, profile: undefined }, run);
     const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
     await recordLiteOutcome({
       generationId: generated.generationId,

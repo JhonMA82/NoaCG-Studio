@@ -508,10 +508,11 @@ test('every export target packages the new categories with no dangling reference
     // The OGraf/LiveOS targets ship the graphic as an ES module that carries its CSS as a JS
     // string, so quotes inside a url() arrive backslash-escaped — strip the escape before
     // resolving, or every one of them reads as a reference to a file called "\".
+    // OGraf replaces its srcdoc-only base placeholder with the module URL before mounting it.
     const loads = [
       ...[...html.matchAll(/(?:src|href)=\\?"([^"\\]+)/g)].map((m) => m[1]),
       ...[...html.matchAll(/url\(\s*\\?['"]?([^'")\\]+)/g)].map((m) => m[1]),
-    ].map((u) => u.trim()).filter((u) => u !== '');
+    ].map((u) => u.trim()).filter((u) => u !== '' && u !== '__NOACG_BASE__');
     const external = loads.filter((u) => /^(https?:)?\/\//i.test(u) && !/^https?:\/\/localhost/i.test(u));
     expect(external, label).toEqual([]);
 

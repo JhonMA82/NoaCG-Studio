@@ -15,11 +15,13 @@ export function aiApiPlugin() {
 
 const ROUTES = new Set([
   'generate',
+  'models',
   'config',
   'credentials',
   'lite/status',
   'lite/generations',
   'lite/outcome',
+  'lite/judge',
 ]);
 
 async function handle(server, req, res) {

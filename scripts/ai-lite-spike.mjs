@@ -23,29 +23,33 @@ import path from 'node:path';
 import { devPort } from './dev-port.mjs';
 import { buildRunManifest } from './ai-lite-bench/manifest.mjs';
 import { LITE_LOWER_THIRD_FIXTURES } from './ai-lite-lower-third-fixtures.mjs';
-import { SPIKE_FIXTURE_IDS } from './ai-lite-bench/suites.mjs';
+import { SKIN_SPIKE_FIXTURE_IDS, SPIKE_FIXTURE_IDS } from './ai-lite-bench/suites.mjs';
 
 const RUNS = 3;
 
 const arg = (name) => process.argv.find((value) => value.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 const LABEL = String(arg('label') ?? 'candidate').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 32);
 const CONFIRMED = process.argv.includes('--confirm-spend');
+// --suite=core (default) = the Phase 0 chassis-routing spike; --suite=skin = the six
+// distinctive-style briefs measuring whether the route can AUTHOR a canvas skin at all.
+const SUITE = arg('suite') === 'skin' ? 'skin' : 'core';
+const FIXTURE_IDS = SUITE === 'skin' ? SKIN_SPIKE_FIXTURE_IDS : SPIKE_FIXTURE_IDS;
 const OUT = path.resolve(arg('out') ?? './lite-bench-out/spike');
 const SPIKE_MAX_COST = Math.min(5, Math.max(0.01, Number(process.env.NOACG_LITE_SPIKE_MAX_COST_USD) || 0.5));
 const BASE = `http://localhost:${devPort()}`;
 const TOKEN = (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();
 const PER_REQUEST_CAP = Math.min(0.1, Math.max(0.0001, Number(process.env.AI_LITE_MAX_COST_USD) || 0.007));
 
-const missing = SPIKE_FIXTURE_IDS.filter((id) => !LITE_LOWER_THIRD_FIXTURES.some(([fid]) => fid === id));
+const missing = FIXTURE_IDS.filter((id) => !LITE_LOWER_THIRD_FIXTURES.some(([fid]) => fid === id));
 if (missing.length) {
   console.error(`Spike fixtures missing from the fixture bank: ${missing.join(', ')}`);
   process.exit(1);
 }
 
-const sessions = SPIKE_FIXTURE_IDS.length * RUNS;
-console.log(`Phase 0 spike - candidate label "${LABEL}"`);
-console.log(`  ${SPIKE_FIXTURE_IDS.length} briefs x ${RUNS} runs = ${sessions} paid generations`);
-console.log(`  briefs: ${SPIKE_FIXTURE_IDS.join(', ')}`);
+const sessions = FIXTURE_IDS.length * RUNS;
+console.log(`${SUITE === 'skin' ? 'Skin' : 'Phase 0'} spike - candidate label "${LABEL}" (suite: ${SUITE})`);
+console.log(`  ${FIXTURE_IDS.length} briefs x ${RUNS} runs = ${sessions} paid generations`);
+console.log(`  briefs: ${FIXTURE_IDS.join(', ')}`);
 console.log(`  worst-case ceiling: ${sessions} x $${PER_REQUEST_CAP} per-request cap = $${(sessions * PER_REQUEST_CAP).toFixed(3)}`);
 console.log(`  typical expectation at Lite routes: $0.01-$0.03 for the whole candidate`);
 console.log(`  spike stop: $${SPIKE_MAX_COST.toFixed(2)} (NOACG_LITE_SPIKE_MAX_COST_USD)`);
@@ -58,6 +62,12 @@ const status = TOKEN
 console.log(`  dev server: ${status ? `up at ${BASE}` : `NOT reachable at ${BASE} (start with the preview tools / npm run dev)`}`);
 console.log(`  bearer token: ${TOKEN ? 'present' : 'MISSING (set NOACG_LITE_EVAL_BEARER_TOKEN)'}`);
 console.log(`  Lite availability: ${status ? (status.available ? 'available' : `unavailable (${status.reason ?? 'unknown'})`) : 'unknown'}`);
+if (SUITE === 'skin') {
+  console.log(`  skin flag: ${status ? (status.skinEnabled ? 'ENABLED' : 'DISABLED (start the server with AI_LITE_SKIN_ENABLED=1)') : 'unknown'}`);
+  // Informational, not a precondition: a judged run measures the full production funnel
+  // (skin -> bench -> vision judge -> revert), an unjudged one only skin capability.
+  console.log(`  vision judge: ${status ? (status.skinJudgeEnabled ? 'ENABLED (2-4x cost path active)' : 'disabled (AI_LITE_JUDGE_ENABLED=1 to score skins)') : 'unknown'}`);
+}
 
 if (!CONFIRMED) {
   console.log('\nDRY RUN - no call was made and nothing was spent.');
@@ -66,6 +76,12 @@ if (!CONFIRMED) {
 }
 if (!TOKEN || !status?.available) {
   console.error('\nPreconditions failed - refusing to start a paid run.');
+  process.exit(1);
+}
+if (SUITE === 'skin' && !status.skinEnabled) {
+  // A skin-disabled route compiles every skin brief to a house chassis: 18 paid calls
+  // that measure nothing the suite exists to measure. Refuse rather than half-run.
+  console.error('\nThe skin suite needs the server started with AI_LITE_SKIN_ENABLED=1 - refusing to spend.');
   process.exit(1);
 }
 
@@ -85,7 +101,7 @@ for (let run = 1; run <= RUNS; run++) {
       ['scripts/ai-lite-eval.mjs', runDir, LABEL],
       {
         stdio: 'inherit',
-        env: { ...process.env, NOACG_LITE_EVAL_FIXTURES: SPIKE_FIXTURE_IDS.join(',') },
+        env: { ...process.env, NOACG_LITE_EVAL_FIXTURES: FIXTURE_IDS.join(',') },
       },
     );
     child.once('exit', resolve);
@@ -99,13 +115,16 @@ for (let run = 1; run <= RUNS; run++) {
   const metrics = JSON.parse(await readFile(path.join(runDir, `${LABEL}-metrics.json`), 'utf8'));
   totalCost += metrics.totalCostUsd ?? 0;
   runsDone.push({ run, dir: runDir, costUsd: metrics.totalCostUsd ?? 0, machineUsable: metrics.machineUsable, sessions: metrics.sessions });
-  console.log(`Run ${run}: ${metrics.machineUsable}/${metrics.sessions} machine-usable, $${(metrics.totalCostUsd ?? 0).toFixed(4)}; spike total $${totalCost.toFixed(4)}.`);
+  const judgeNote = SUITE === 'skin' && metrics.judgeCalls
+    ? `, judge ${metrics.judgePassed}/${metrics.judgeCalls} passed (${metrics.judgeReverted} reverted${metrics.judgeErrors ? `, ${metrics.judgeErrors} errored open` : ''})`
+    : '';
+  console.log(`Run ${run}: ${metrics.machineUsable}/${metrics.sessions} machine-usable${SUITE === 'skin' ? `, ${metrics.skinApplied ?? 0} skinned` : ''}${judgeNote}, $${(metrics.totalCostUsd ?? 0).toFixed(4)}; spike total $${totalCost.toFixed(4)}.`);
 }
 
 const manifest = buildRunManifest({
   mode: 'model-comparison',
   candidate: { label: LABEL, note: 'route defined server-side; see the API server env for this window' },
-  extra: { spike: { fixtureIds: SPIKE_FIXTURE_IDS, runs: runsDone, totalCostUsd: totalCost } },
+  extra: { spike: { suite: SUITE, fixtureIds: FIXTURE_IDS, runs: runsDone, totalCostUsd: totalCost } },
 });
 await writeFile(path.join(OUT, `${LABEL}-spike-manifest.json`), JSON.stringify(manifest, null, 2), 'utf8');
 console.log(`\nSpike for "${LABEL}" done: $${totalCost.toFixed(4)} total. Manifest: ${path.join(OUT, `${LABEL}-spike-manifest.json`)}`);

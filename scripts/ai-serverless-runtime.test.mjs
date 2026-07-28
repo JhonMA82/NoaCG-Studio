@@ -14,9 +14,11 @@ const ENTRYPOINTS = [
   'api/ai/config.ts',
   'api/ai/credentials.ts',
   'api/ai/generate.ts',
+  'api/ai/models.ts',
   'api/ai/lite/status.ts',
   'api/ai/lite/generations.ts',
   'api/ai/lite/outcome.ts',
+  'api/ai/lite/judge.ts',
 ];
 
 async function artifactFiles(directory) {
@@ -31,21 +33,25 @@ async function artifactFiles(directory) {
 const smokeSource = String.raw`
   import assert from 'node:assert/strict';
 
-  const [configUrl, credentialsUrl, generateUrl, liteStatusUrl, liteGenerationsUrl, liteOutcomeUrl] = process.argv.slice(1);
+  const [configUrl, credentialsUrl, generateUrl, modelsUrl, liteStatusUrl, liteGenerationsUrl, liteOutcomeUrl, liteJudgeUrl] = process.argv.slice(1);
   const [
     { default: configHandler },
     { default: credentialsHandler },
     { default: generateHandler },
+    { default: modelsHandler },
     { default: liteStatusHandler },
     { default: liteGenerationsHandler },
     { default: liteOutcomeHandler },
+    { default: liteJudgeHandler },
   ] = await Promise.all([
     import(configUrl),
     import(credentialsUrl),
     import(generateUrl),
+    import(modelsUrl),
     import(liteStatusUrl),
     import(liteGenerationsUrl),
     import(liteOutcomeUrl),
+    import(liteJudgeUrl),
   ]);
 
   const configResponse = await configHandler.fetch(
@@ -63,7 +69,7 @@ const smokeSource = String.raw`
       available: provider.available,
       requiresSignIn: provider.requiresSignIn,
     })),
-    ['anthropic', 'openai', 'openrouter'].map((id) => ({
+    ['anthropic', 'openai', 'openrouter', 'huggingface'].map((id) => ({
       id,
       userKey: false,
       managedKey: true,
@@ -97,6 +103,10 @@ const smokeSource = String.raw`
     new Request('https://noacg.test/api/ai/generate'),
   );
   assert.equal(generateResponse.status, 405);
+  assert.equal(
+    (await modelsHandler.fetch(new Request('https://noacg.test/api/ai/models?provider=invalid'))).status,
+    400,
+  );
 
   const liteStatusResponse = await liteStatusHandler.fetch(
     new Request('https://noacg.test/api/ai/lite/status'),
@@ -129,6 +139,16 @@ const smokeSource = String.raw`
     (await liteOutcomeHandler.fetch(new Request('https://noacg.test/api/ai/lite/outcome'))).status,
     405,
   );
+  assert.equal(
+    (await liteJudgeHandler.fetch(new Request('https://noacg.test/api/ai/lite/judge'))).status,
+    405,
+  );
+  // The judge fails closed: enabled Lite alone does not enable it.
+  const judgeDisabled = await liteJudgeHandler.fetch(
+    new Request('https://noacg.test/api/ai/lite/judge', { method: 'POST', body: '{}' }),
+  );
+  assert.equal(judgeDisabled.status, 503);
+  assert.equal((await judgeDisabled.json()).error.code, 'profile_not_configured');
 `;
 
 test('Vercel-style JavaScript artifacts load and execute every Creative AI function', async (t) => {
@@ -165,6 +185,7 @@ test('Vercel-style JavaScript artifacts load and execute every Creative AI funct
         ANTHROPIC_API_KEY: 'provider-key-placeholder-anthropic',
         OPENAI_API_KEY: 'provider-key-placeholder-openai',
         OPENROUTER_API_KEY: 'provider-key-placeholder-openrouter',
+        HUGGINGFACE_API_KEY: 'provider-key-placeholder-huggingface',
       }),
     },
   );

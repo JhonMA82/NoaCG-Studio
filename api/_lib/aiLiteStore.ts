@@ -225,11 +225,6 @@ function evaluationMemoryLedgerEnabled(): boolean {
     && process.env.VERCEL !== '1';
 }
 
-export function resetLiteGenerationStoreForTests(): void {
-  memoryStore = null;
-  storePromise = null;
-}
-
 /** Managed Lite must never depend on an ephemeral function instance for quotas or IP hashing. */
 export function liteLedgerConfigured(): boolean {
   const salt = (process.env.IP_HASH_SALT ?? '').trim();
