@@ -1,6 +1,6 @@
-// The burst gate in front of POST /api/render/start.
+// The per-IP burst gate, in front of POST /api/render/start and POST /api/ai/generate.
 //
-// Three guards now sit on that route, and they stop different things:
+// Three guards sit on the render route, and they stop different things:
 //   WAF rate-limit rule  — refuses a flood at the edge, before a function is invoked at
 //                          all (docs/RENDER.md; configured on Vercel, not in this repo).
 //   THIS                 — refuses one hammering client before the handler reads a body
@@ -101,5 +101,24 @@ export function hitRateLimit(key: string, caps: RateLimitCaps, nowMs: number): R
  *  salted IP hash as the anonymous render quota — raw IPs are never stored. */
 export function checkStartRateLimit(req: Request): RateLimitDecision | null {
   const decision = hitRateLimit(`start:${ipHash(req)}`, startRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
+// ── The AI model gateway's burst gate ────────────────────────────────────────────────────
+// Same posture as the render gate: refuse one hammering client before the handler reads a
+// body of up to 12 MB, per instance, before any provider is contacted. It limits BYO-key
+// traffic too — the user's own key is still the platform's egress. The limit matches the
+// Lite gate's classroom-NAT-friendly stance (a shared IP must not starve a class).
+
+export function aiGenerateRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('AI_GENERATE_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('AI_GENERATE_RATE_MAX', 60),
+  };
+}
+
+/** Null when the request may proceed, else the refusal with its Retry-After. */
+export function checkAiGenerateRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`ai-generate:${ipHash(req)}`, aiGenerateRateLimitCaps(), Date.now());
   return decision.allowed ? null : decision;
 }

@@ -18,6 +18,17 @@ transport beneath that system.
 There is no provider-specific branch in DesignSpec, validation, repair, preference learning,
 or UI application logic.
 
+`POST /api/ai/generate` sits behind a per-IP burst gate (`AI_GENERATE_RATE_WINDOW_SEC` /
+`AI_GENERATE_RATE_MAX`, default 60 requests per 60 seconds, refused before the body is read).
+BYO-key traffic spends the user's own key but passes the same gate - the platform is still the
+egress. When Supabase server configuration is present, every gateway execution also writes one
+content-free row to the server-write-only `ai_gateway_requests` ledger (migration
+`0012_ai_gateway_requests.sql`): task `byo-generate`, user id when known, salted IP hash, key
+source, route, normalized tokens, provider cost, and the outcome code. Prompts, messages,
+images, generated output, provider bodies, and raw IPs never enter it, and a ledger failure
+never fails the generation. It is deliberately separate from Lite's `ai_generations` ledger so
+gateway traffic cannot consume Lite's fleet-spend and concurrency budgets.
+
 Large provider catalogs are discovered server-side through `GET /api/ai/models`. OpenRouter's
 Models API and Hugging Face's Inference Providers router supply ids, capabilities, limits,
 availability, and current prices. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility
