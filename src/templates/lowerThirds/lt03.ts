@@ -43,7 +43,6 @@ ${lineMasks(o)}
   background: var(--panel-bg);                     /* the panel color (retint via :root) */
   border: 1px solid rgba(255, 255, 255, 0.14);     /* hairline keyline lifts the panel off video */
   border-radius: var(--panel-radius);              /* the family's panel radius */
-  min-width: calc(600px * var(--scale));           /* reserve a broadcast-width panel even for a short name — the void fills the rest */
   padding: calc(19px * var(--scale)) calc(29px * var(--scale));  /* generous breathing room */
 }
 

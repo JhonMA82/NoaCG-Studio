@@ -16,7 +16,11 @@ export interface ExportContext {
    *  Absent when the working project has no library link (never saved), which is the only
    *  honest answer there: entries are authored on the RECORD, not on the code. */
   entries?: ControlEntry[];
+  /** OGraf playout intent. Other targets ignore it. */
+  graphicUsage?: GraphicUsage;
 }
+
+export type GraphicUsage = 'live' | 'post-production' | 'both';
 
 export interface ExportTarget {
   id: string;

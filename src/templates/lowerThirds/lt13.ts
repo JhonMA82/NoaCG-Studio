@@ -57,7 +57,6 @@ ${lineMasks(o)}
 /* The panel — the house void: near-black, translucent, softly blurring the video. */
 .lower-third-box {
   margin-left: calc(8px * var(--scale));    /* starts where the accent bar ends */
-  min-width: calc(600px * var(--scale));    /* reserve a broadcast-width strap even for short lines — the void fills the rest */
   padding: calc(24px * var(--scale)) calc(64px * var(--scale)) calc(26px * var(--scale)) calc(34px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

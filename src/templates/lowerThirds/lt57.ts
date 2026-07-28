@@ -70,7 +70,6 @@ ${maskLines([
 /* The slab — near-black, leaning, painted on ::before so no preset can straighten it. */
 .lower-third-box {
   position: relative;               /* the painted slab is placed against this box */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for short lines — the void fills the rest */
   padding: calc(21px * var(--scale)) calc(54px * var(--scale)) calc(24px * var(--scale)) calc(33px * var(--scale));
 }
 .lower-third-box::before {

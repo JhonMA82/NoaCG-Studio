@@ -76,7 +76,6 @@ ${roleChip}      </div>
 /* The panel — the house void, starting where the accent bar ends. */
 .lower-third-box {
   margin-left: calc(10px * var(--scale));    /* starts where the accent bar ends */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width panel even for a short handle — the void fills the rest */
   padding: calc(25px * var(--scale)) calc(65px * var(--scale)) calc(28px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */

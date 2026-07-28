@@ -78,7 +78,6 @@ ${lineMasks(o, '        ')}
 .lower-third-box {
   display: flex;                   /* the three pieces sit side by side */
   align-items: stretch;            /* every piece runs the slab's full height */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for short lines — the void fills the rest */
   background: var(--panel-bg);     /* dark panel behind the text stack */
   box-shadow: var(--panel-shadow);  /* the family's hard offset lift */
 }
