@@ -70,7 +70,6 @@ ${personColumn(o, right, classes, '        ')}
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
   width: fit-content;               /* the slab hugs the pair */
-  min-width: calc(750px * var(--scale));  /* a two-caster desk keeps a broadcast-width floor — the void fills the rest */
 }
 
 /* The accent floor — the graphic's accent node, spanning the whole desk. */

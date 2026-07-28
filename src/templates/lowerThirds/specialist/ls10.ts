@@ -84,7 +84,6 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
 .lower-third-box {
   display: flex;                    /* crest and text side by side */
   align-items: stretch;             /* the crest panel runs the text's full height */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
 }

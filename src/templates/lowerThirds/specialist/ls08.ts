@@ -70,7 +70,6 @@ ${slot(o, 3, 'lower-third-extra', '          ')}
 .lower-third-box {
   display: flex;                    /* block and text side by side */
   align-items: stretch;             /* the block runs the full height of the text */
-  min-width: calc(600px * var(--scale));  /* reserve a broadcast-width slab even for a short name — the void fills the rest */
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
 }

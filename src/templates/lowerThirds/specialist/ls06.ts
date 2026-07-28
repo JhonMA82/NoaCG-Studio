@@ -86,7 +86,6 @@ ${personColumn(o, right, classes, '        ')}
 .lower-third-box {
   background: var(--panel-bg);      /* the flat dark slab */
   box-shadow: var(--panel-shadow);  /* the family's hard lift */
-  min-width: calc(750px * var(--scale));  /* a two-caller slab keeps a broadcast-width floor — the void fills the rest */
 }
 
 /* The header row — a full-width accent band. It is the graphic's subject line, so it takes

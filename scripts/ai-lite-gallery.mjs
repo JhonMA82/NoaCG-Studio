@@ -12,7 +12,7 @@
 // stays in blind-key.json beside the gallery (gitignored with the rest of the out dir);
 // do not open it before reviewing.
 
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { seededRandom } from './ai-lite-bench/suites.mjs';
 
@@ -98,7 +98,29 @@ await writeFile(path.join(OUT, 'blind-key.json'), JSON.stringify(
   null, 2,
 ), 'utf8');
 
-const gallery = withRepeats.map(({ code, brief, screenshot, motion }) => ({ code, brief, screenshot, motion }));
+// Opening a still at native resolution must not reveal its arm or candidate in the URL.
+// Give every displayed asset a neutral filename, including planted repeats, and keep the
+// identity mapping exclusively in blind-key.json.
+const reviewAssetsDir = path.join(OUT, 'review-assets');
+await mkdir(reviewAssetsDir, { recursive: true });
+const gallery = await Promise.all(withRepeats.map(async ({ code, brief, screenshot, motion }) => {
+  const screenshotName = `${code}-still${path.extname(screenshot) || '.png'}`;
+  await copyFile(path.join(OUT, screenshot), path.join(reviewAssetsDir, screenshotName));
+
+  let motionUrl = null;
+  if (motion) {
+    const motionName = `${code}-motion${path.extname(motion) || '.webm'}`;
+    await copyFile(path.join(OUT, motion), path.join(reviewAssetsDir, motionName));
+    motionUrl = `review-assets/${motionName}`;
+  }
+
+  return {
+    code,
+    brief,
+    screenshot: `review-assets/${screenshotName}`,
+    motion: motionUrl,
+  };
+}));
 const html = `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
