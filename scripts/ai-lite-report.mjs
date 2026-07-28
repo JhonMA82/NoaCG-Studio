@@ -39,9 +39,13 @@ const addRow = (group, row) => {
 
 for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json'))) {
   const parsed = JSON.parse(await readFile(path.join(OUT, file), 'utf8'));
+  // Mirror bench:gallery's key scoping exactly: nested runs carry their directory so a
+  // judgement joins the ONE row that was reviewed; top-level metrics keep the old shape.
+  const fileDir = path.dirname(file);
+  const keyScope = fileDir && fileDir !== '.' ? `${fileDir.replaceAll('\\', '/')}:` : '';
   for (const row of parsed.rows ?? []) {
     addRow(parsed.candidate, {
-      key: `${parsed.candidate}:${row.fixtureId}`,
+      key: `${parsed.candidate}:${keyScope}${row.fixtureId}`,
       machineValid: row.status === 'machine-usable',
       costUsd: (row.costUsd ?? 0) + (row.judgeCostUsd ?? 0),
       latencyMs: row.latencyMs,

@@ -35,12 +35,20 @@ async function collectItems(dir, relative = '') {
     const toUrl = (p) => (relative ? `${relative.replaceAll('\\', '/')}/${p}` : p);
     if (entry.name.endsWith('-metrics.json')) {
       const parsed = JSON.parse(await readFile(path.join(dir, rel), 'utf8'));
+      // Nested runs (a spike's run1/run2/run3) repeat candidate+fixture, so the item key
+      // carries the metrics file's directory - the SAME scoping bench:report derives, or
+      // a judgement would join every run's row instead of the one that was reviewed.
+      // Top-level metrics keep the historical key shape so old judgement files still join.
+      const keyScope = relative ? `${relative.replaceAll('\\', '/')}:` : '';
       for (const row of parsed.rows ?? []) {
-        if (row.screenshotFile) {
+        // Paid eval rows carry lifecycle phaseFiles (no single screenshotFile) - the HOLD
+        // frame is the review still, the same frame the vision judge scores.
+        const screenshot = row.screenshotFile ?? row.phaseFiles?.hold;
+        if (screenshot) {
           items.push({
-            key: `${parsed.candidate}:${row.fixtureId}`,
+            key: `${parsed.candidate}:${keyScope}${row.fixtureId}`,
             brief: row.fixtureId,
-            screenshot: toUrl(row.screenshotFile),
+            screenshot: toUrl(screenshot),
             motion: row.motionFile ? toUrl(row.motionFile) : null,
           });
         }
