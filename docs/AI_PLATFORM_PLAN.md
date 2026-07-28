@@ -34,7 +34,7 @@ schema-revalidated server-side. There is **no provider-specific branch in any ha
 | W7 | Lite refine | prior spec via `/api/ai/lite/generations` | `LiteDecision` | server-owned | as W3 | as W3 |
 | W8 | Convert imported .html/.zip | deterministically parsed template (never raw bytes) | `emit_template` | client-selected | injected validator, `source` exempts pre-existing constructs, 2 rounds | as W1; blocked in Lite |
 | W9 | Brainstorm ("Talk it through") | conversation | plain text ending `BRIEF:` | client-selected | none (text) | BYO/advanced only; hidden in Lite |
-| W10 | **Editor AI panel** (Generate/Modify/Fix/Explain/Make SPX-ready) | prompt + current template | `emit_template` / text | client-selected | **static `validateTemplate` only - the runtime bench and the safety-screen-in-repair NEVER run here** (undocumented gap); `mergeSafety` at display only | signed-in (hosted) |
+| W10 | **Editor AI panel** (Generate/Modify/Fix/Explain/Make SPX-ready) | prompt + current template | `emit_template` / text | client-selected | at audit time: static `validateTemplate` only - **fixed 2026-07-28**: the panel now injects `productionSpxValidator` (bench + safety in the repair loop), `mergeSafety` stays the display belt | signed-in (hosted) |
 | W11 | Polish stage (internal) | grounded template + flourish | bounded CSS/HTML patch, `applyPolish` gatekeeper, reverts on failure | client-selected | bench re-run; revert on fail | inside W1/W4; never Lite |
 | W12 | Offline stub provider | keyword match | same `specToTemplate` pipeline, no model | none | caller-side | everyone (no key) |
 
@@ -275,9 +275,9 @@ Extract into `src/ai/shared/` (browser) without changing behavior:
 
 Inside video, collapse the two FORBIDDEN tables, the duplicated example design, and the
 two dead-control checks behind the existing `emitConfig(engine)` seam.
-Close the W10 gap: `AIPromptPanel` must inject the same `productionSpxValidator`
-composition `AiStep` uses (bench + safety in the repair loop), and its Anthropic-only
-copy is updated. This is a correctness fix independent of everything else.
+The W10 gap is closed (2026-07-28): `AIPromptPanel` injects the same
+`productionSpxValidator` composition `AiStep` uses (bench + safety in the repair loop),
+and its Anthropic-only copy is updated.
 
 ## 6. Import Graphic AI assistant (design)
 
