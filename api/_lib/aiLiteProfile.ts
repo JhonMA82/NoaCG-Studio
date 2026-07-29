@@ -137,7 +137,10 @@ export function liteProfile(): LiteProfile {
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v2').trim().slice(0, 64) || 'lite-lower-third-v2',
+    // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
+    // The ledger records this per generation, so outcomes stay attributable to the prompt
+    // that produced them - bump it whenever the teaching changes, never silently.
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v3').trim().slice(0, 64) || 'lite-lower-third-v3',
     primary,
     fallback,
     prices,

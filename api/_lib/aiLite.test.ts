@@ -8,6 +8,7 @@ import {
   deterministicUnsupportedDecision,
   liteJudgeSystemPrompt,
   liteJudgeVerdict,
+  liteRepairInstructions,
   liteSystemPrompt,
   obviousUnsupportedDecision,
   validateLiteDecision,
@@ -223,8 +224,134 @@ test('Lite rejects missing requested field roles and unreadable bespoke palettes
   });
   assert.ok(semantic.errors.includes('requested_role_missing:person-name'));
   assert.ok(semantic.errors.includes('requested_role_missing:person-role'));
-  assert.ok(semantic.errors.includes('primary_text_contrast_low'));
-  assert.ok(semantic.errors.includes('secondary_text_contrast_low'));
+  // Contrast is repaired, not refused - it no longer contributes errors here.
+  assert.ok(!semantic.errors.some((code) => code.includes('contrast')));
+});
+
+test('a low-contrast palette is clamped to the floor instead of failing the generation', () => {
+  const entry = LITE_CATALOG[0];
+  const decisionWith = (palette: Record<string, string>) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'Warm period colours.',
+      name: 'Festival Strap',
+      summary: 'A 1970s festival lower third.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Marco Benedetti', role: 'person-name' },
+        { title: 'Role', sample: 'Jury President', role: 'person-role' },
+      ],
+      palette,
+      flourish: '',
+    },
+  });
+  const luminance = (hex: string) => {
+    const value = /^#([0-9a-f]{6})/i.exec(hex)![1];
+    const channels = [0, 2, 4].map((index) => {
+      const channel = Number.parseInt(value.slice(index, index + 2), 16) / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const ratio = (a: string, b: string) => {
+    const [x, y] = [luminance(a), luminance(b)];
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+
+  // The measured retro-festival shape: a warm analogous palette whose dim tone lands just
+  // under 3:1. It used to kill the generation; now it ships, repaired.
+  const warm = { accent: '#E8AC57', text: '#F5E0C3', textDim: '#A86C41', panel: '#4E3125' };
+  const result = validateLiteDecision(decisionWith(warm), request());
+  assert.deepEqual(result.errors, []);
+  assert.ok(result.adjustments?.includes('palette_text_dim_lightness_clamped'));
+  const shipped = (result.decision as { spec: { palette: Record<string, string> } }).spec.palette;
+  assert.ok(ratio(shipped.text, shipped.panel) >= 4.5, 'primary clears the floor');
+  assert.ok(ratio(shipped.textDim, shipped.panel) >= 3, 'secondary clears the floor');
+  // Hue and the untouched colours survive - only lightness moved.
+  assert.equal(shipped.accent, warm.accent);
+  assert.equal(shipped.panel, warm.panel);
+  assert.equal(shipped.text, warm.text, 'a legal colour is left exactly as asked');
+  assert.notEqual(shipped.textDim, warm.textDim);
+
+  // The pathological case the old rule refused twice over: grey on grey, both axes short.
+  // With floors of 4.5 and 3.0 one extreme always reaches (white fails only when the panel
+  // is light, black only when it is dark, and no panel is both), so this clamps rather than
+  // drops - the drop branch is a guard, not a path these floors can reach.
+  const greyOnGrey = { accent: '#ffb000', text: '#808080', textDim: '#7a7a7a', panel: '#949494' };
+  const rescued = validateLiteDecision(decisionWith(greyOnGrey), request());
+  assert.deepEqual(rescued.errors, []);
+  const grey = (rescued.decision as { spec: { palette: Record<string, string> } }).spec.palette;
+  assert.ok(ratio(grey.text, grey.panel) >= 4.5);
+  assert.ok(ratio(grey.textDim, grey.panel) >= 3);
+});
+
+test('repair guidance names the EDIT, not the verdict', () => {
+  // The measured failure: handed only codes, the model re-emitted its decision verbatim.
+  const [roleFix] = liteRepairInstructions(['requested_role_missing:person-name']);
+  assert.match(roleFix, /person-name/, 'the missing role is named in the instruction');
+  assert.match(roleFix, /Add it|change/i, 'and the instruction says what to do');
+  // Every instruction must be an action, never a restatement of the code.
+  for (const code of ['primary_role_mismatch', 'intent_role_mismatch', 'skin_css_forbidden', 'logo_not_supported']) {
+    const [text] = liteRepairInstructions([code]);
+    assert.ok(text.length > 20, `${code} has real guidance`);
+    assert.doesNotMatch(text, new RegExp(code), `${code} is not just echoed back`);
+  }
+  // Repeated codes collapse; an unmapped code still yields something actionable.
+  assert.equal(liteRepairInstructions(['flourish_forbidden', 'flourish_forbidden']).length, 1);
+  assert.match(liteRepairInstructions(['brand_new_rule'])[0], /brand_new_rule/);
+  assert.deepEqual(liteRepairInstructions([]), []);
+});
+
+test('a skin reaching for a webfont keeps its styling instead of dying', () => {
+  const entry = LITE_CATALOG[0];
+  const withSkin = (css: string) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'Period character.',
+      name: 'Festival Strap',
+      summary: 'A 1970s festival lower third.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Marco Benedetti', role: 'person-name' },
+        { title: 'Role', sample: 'Jury President', role: 'person-role' },
+      ],
+      flourish: '',
+    },
+    skin: { summary: 'Chunky retro slab.', css },
+  });
+  const retro = '@import url("https://fonts.example/retro.css");\n'
+    + '@font-face { font-family: Retro; src: url(https://fonts.example/retro.woff2); }\n'
+    + '.lower-third-box { background: #E8AC57; border-radius: calc(18px * var(--scale)); }';
+  const kept = validateLiteDecision(withSkin(retro), request(), 8, { skin: true });
+  assert.deepEqual(kept.errors, []);
+  assert.ok(kept.adjustments?.includes('skin_import_removed'));
+  assert.ok(kept.adjustments?.includes('skin_font_face_removed'));
+  const shippedCss = (kept.decision as { skin?: { css: string } }).skin!.css;
+  assert.doesNotMatch(shippedCss, /@import|@font-face|fonts\.example/);
+  assert.match(shippedCss, /border-radius/, 'the actual styling survives the strip');
+
+  // A skin that was ONLY a webfont sanitizes to nothing: drop the skin, keep the graphic.
+  const fontOnly = validateLiteDecision(
+    withSkin('@import url("https://fonts.example/retro.css");'),
+    request(),
+    8,
+    { skin: true },
+  );
+  assert.deepEqual(fontOnly.errors, []);
+  assert.equal((fontOnly.decision as { skin?: unknown }).skin, undefined);
+  assert.ok(fontOnly.adjustments?.includes('skin_dropped_only_remote_assets'));
+
+  // The confused-emit constructs stay fatal - they are not stray assets to drop.
+  const rooted = validateLiteDecision(withSkin(':root { --accent: red; }'), request(), 8, { skin: true });
+  assert.ok(rooted.errors.includes('skin_css_forbidden'));
 });
 
 test('Lite semantic validation recognizes natural person and team role requests', () => {
@@ -512,13 +639,20 @@ test('content-free accepted and discarded outcomes become thresholded chassis pr
   }]);
 });
 
-test('the skin prompt teaches strap shape and the unwrappable name line', () => {
+test('the skin prompt teaches strap shape as geometry, not as a way to fail', () => {
   const prompt = liteSystemPrompt('test-v1', [], { skin: true });
-  assert.match(prompt, /STRAP SHAPE IS NON-NEGOTIABLE/);
-  assert.match(prompt, /squat box/);
-  assert.match(prompt, /ONE line, never wrapped/);
+  // The geometry itself.
+  assert.match(prompt, /IS a strap/);
+  assert.match(prompt, /square card, badge, or tall stack/);
+  assert.match(prompt, /single line/);
+  // The FRAMING is load-bearing, not style: stated as prohibitions with failure language,
+  // these same rules halved the skin trigger rate between paid rounds D and f - the model
+  // took the escape hatch rather than risk a "failed skin". So the prompt must keep naming
+  // omission as the likelier mistake, and must not reintroduce failure language here.
+  assert.match(prompt, /the more common mistake/);
+  assert.doesNotMatch(prompt, /failed skin|NON-NEGOTIABLE/);
   // The teaching rides only the skin-enabled prompt.
-  assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /STRAP SHAPE/);
+  assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /IS a strap/);
 });
 
 test('the skin judge fails closed and prices its own route', () => {

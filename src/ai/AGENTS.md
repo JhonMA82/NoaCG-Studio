@@ -111,6 +111,15 @@ identically, so the endpoint is not a generation-id oracle. **A new paid Lite ro
 repeats this shape** - the per-IP burst limiter is pre-body protection, never an
 entitlement.
 
+**A constraint stated as a prohibition suppresses the behaviour it constrains.** The strap
+rules first shipped as "STRAP SHAPE IS NON-NEGOTIABLE" and "a wrapped name is a failed
+skin", and the next paid round emitted skins at HALF the previous rate: given a way to fail
+and a documented way out (`omit skin`), the model took the way out. The same geometry now
+reads as the shape being painted, and the escape hatch names omission as the likelier
+mistake. Measured, not theorised - prompt version `lite-lower-third-v3`, and the pin in
+`aiLite.test.ts` fails if failure language returns. When a teaching change moves a rate,
+suspect the FRAMING before the rule.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and
