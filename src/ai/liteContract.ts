@@ -362,10 +362,12 @@ export const LITE_JUDGE_AXES = ['legibility', 'textIntegrity', 'hierarchy', 'bri
  * therefore into any record of what was asked) rather than being inferred from the round.
  * v2 added `textIntegrity` after the v1 judge passed two skins whose secondary line was
  * sliced mid-letter by a clipped edge. v3 rewrote `strapShape` as inspection after the
- * first judge-vs-reviewer join caught it scoring a strapless frame 5. **v2 was never run**
- * - both changes are unmeasured, and the first paid round measures them together as v3.
+ * first judge-vs-reviewer join caught it scoring a strapless frame 5. v4 gave that same
+ * axis a scale anchor, after the join's two false reverts turned out to be text-hugging
+ * straps marked down as "a small box". **None of v2, v3 or v4 has been run** - every one
+ * of these changes is unmeasured, and the first paid round measures them together as v4.
  */
-export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v3';
+export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v4';
 
 export const LITE_JUDGE_LIMITS = {
   briefChars: 2000,
@@ -420,7 +422,14 @@ export function liteJudgeSystemPrompt(promptVersion: string): string {
     // returned "no failure found" and scored a strapless frame 5 (§6e, round j run2). The
     // rewrite asks for the same inspection textIntegrity does: find the elements first, ask
     // what binds them, and let absence be the FIRST failure rather than an unlisted one.
-    '- strapShape: judge the graphic as SHAPE before you read it. Locate every painted element - panel, bar, rule, scrim, text block, mark - and ask what holds them together. Score 1 when nothing does: text sitting on bare video with no panel, bar, rule, or scrim behind or beneath it, or any element stranded across a gap of empty video from the rest of the composition. Sitting low in the frame does not by itself make a lower third. Score 1-2 for a form roughly as tall as it is wide, a badge, a tall stack, a centered plate, or one covering most of the frame. Score 5 only for a single wide, low, horizontal composition whose parts visibly belong together.',
+    //
+    // The SCALE clause is the second correction, and it settles a contradiction between two
+    // of our own prompts: the generation prompt tells the model a strap's "width [is] set by
+    // the text plus steady padding" (and the catalog sizes with fit-content), then this axis
+    // scored two text-hugging straps 2 for being "a small box rather than a lower-third
+    // strap" - punishing exactly the rule the generator was given. Judge the band's OWN
+    // proportions, never its share of the frame.
+    '- strapShape: judge the graphic as SHAPE before you read it. Locate every painted element - panel, bar, rule, scrim, text block, mark - and ask what holds them together. Score 1 when nothing does: text sitting on bare video with no panel, bar, rule, or scrim behind or beneath it, or any element stranded across a gap of empty video from the rest of the composition. Sitting low in the frame does not by itself make a lower third. Judge the band by its OWN proportions, not by how much of the frame it fills: a lower third is sized by its text plus padding, so one spanning only a quarter or a third of the frame width is normal broadcast practice and must NOT be marked down for it. Score 1-2 for a form less than about three times wider than it is tall, a tall stack, a centered plate, or one covering most of the frame. Score 5 for a single low, horizontal band, clearly wider than tall, whose parts visibly belong together - whatever its width on screen.',
     'Be strict: these graphics go on air. Reason is ONE short sentence naming the decisive observation.',
   ].join('\n');
 }

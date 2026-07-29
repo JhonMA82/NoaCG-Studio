@@ -735,6 +735,14 @@ test('the judge prompt and schema cover exactly the scored axes', () => {
   assert.match(prompt, /no panel, bar, rule, or scrim/);
   assert.match(prompt, /stranded across a gap/);
   assert.match(prompt, /low in the frame does not by itself make a lower third/);
+  // strapShape must also carry a SCALE anchor. The generation prompt sizes a strap by "the
+  // text plus steady padding", so a text-hugging band is CORRECT; without this clause the
+  // judge reverted two of them as "a small box" - our own two prompts contradicting.
+  assert.match(prompt, /OWN proportions, not by how much of the frame it fills/);
+  assert.match(prompt, /must NOT be marked down/);
+  // The generation prompt is the other half of that contract - if it ever stops sizing the
+  // strap by its text, this axis is measuring against a rule that no longer exists.
+  assert.match(liteSystemPrompt('test-v1', [], { skin: true }), /width set by the text plus steady padding/);
   const schema = LITE_JUDGE_OUTPUT.schema as {
     required?: string[];
     additionalProperties?: boolean;

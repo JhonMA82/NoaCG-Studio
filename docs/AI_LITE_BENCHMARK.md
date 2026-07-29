@@ -187,11 +187,12 @@ pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the cal
 to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
 
 The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
-`lite-skin-judge-v3`) beside the generation prompt version. Scores from two judge versions
+`lite-skin-judge-v4`) beside the generation prompt version. Scores from two judge versions
 are not comparable and calibration is a comparison, so the version is stated in the prompt
-rather than inferred from which round produced the number. **v2 was never run** - it added
-`textIntegrity` (§6d) and v3 rewrote `strapShape` (§6e) before any paid round scored v2, so
-the first v2/v3 measurement is one round measuring both changes together.
+rather than inferred from which round produced the number. **No round has run since v1.**
+v2 added `textIntegrity` (§6d); v3 rewrote `strapShape` as inspection and v4 gave it a scale
+anchor (both §6e) - each landed before any paid round scored the one before it, so the first
+paid round measures all three changes together as v4.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -332,9 +333,38 @@ never a higher threshold:
 - **Broadcast safety is unmodelled.** The two items behind §6d's open owner decision
   (hairline rules, a 4px dot) drew 5s on the axes that would have to catch them. Whatever
   the owner decides, the judge has never been told what key and fill do to thin marks.
-- **Both false reverts were taste, not defect** - reviewer "minor" against `briefFit 1` and
-  `strapShape 2`. That is the cheap direction to be wrong in, and it is part of why round
-  f's skin trigger rate dipped.
+- **CORRECTED (2026-07-29): the false reverts were not taste.** This section first recorded
+  them as reviewer "minor" against `briefFit 1` / `strapShape 2` and moved on. Re-reading the
+  two FRAMES says otherwise, and the difference matters because the original reading implied
+  nothing needed fixing:
+  - `item-002` (round i run2, terminal-hud) is a clean strap - roughly 720x160 in a 1920x1080
+    frame, about 4.5:1, low-left - and the judge scored `strapShape` **2**, "a small box
+    rather than a lower-third strap". `item-005` (round g run3, hand-crafted) took the same 2
+    at about 3.5:1. **Both were marked down for being narrow**, and that is our own two
+    prompts contradicting each other: the generation prompt sizes a strap by "the text plus
+    steady padding" and the catalog uses `fit-content`, so a text-hugging band is exactly
+    what was asked for. The judge was scoring against a rule the generator never had, and
+    penalising compliance with the rule it did have. Fixed in `lite-skin-judge-v4`: judge the
+    band's OWN proportions (wider than tall, about 3:1), never its share of the frame, with
+    "one spanning only a quarter or a third of the frame width is normal broadcast practice"
+    stated outright. Both halves of the contract are now test-pinned together.
+  - `item-005`'s `briefFit` **1** was simply RIGHT - "a generic dark grey box… entirely
+    failing to deliver the requested handcrafted, paper-and-ink feel" describes the frame
+    accurately, and the reviewer's own note was "boring / ugly". They agreed on the quality
+    and differed on whether bad-but-fixable should air. That is a threshold question about
+    what "minor" means, not a judge error, and it should not be counted as one.
+
+- **Watch, do not yet act: `hierarchy` never discriminated.** It scored 4 or 5 on all six
+  joined items, including `item-003`, which has no composition at all. An axis that is always
+  4-5 contributes nothing to a min-axis gate. Six items cannot prove a dead axis and no
+  mechanism for the failure has been identified, so it is deliberately left alone - unlike
+  `strapShape`, where the frames showed exactly why the wording failed. Re-check it at 20.
+
+- The asymmetry behind all of this still holds: a false revert only costs a skin (the result
+  falls back to the house chassis), while a false accept would have AIRED. Reverting is the
+  cheap direction to be wrong in - but two of three reverts here were the judge misreading
+  its own contract, and that is not free either: it is part of why round f's skin trigger
+  rate dipped.
 
 So the axis DESCRIPTIONS remain the lever, as §6d found. Raising N before they are right
 just measures the wrong instrument more precisely.
