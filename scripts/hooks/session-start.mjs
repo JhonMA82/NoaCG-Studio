@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readHookInput } from './lib.mjs';
 import { reattachMainIfSafe } from '../reattach-main.mjs';
-import { formatActivity, worktreeActivity } from '../worktree-activity.mjs';
+import { formatActivity, formatBranches, scanActivity } from '../worktree-activity.mjs';
 import { sweepEmptyLeftoverFolders } from '../worktree-cleanup-lib.mjs';
 
 const input = await readHookInput();
@@ -123,15 +123,23 @@ console.log(`Checkout: ${root} (${kind}, ${branchLabel})${ports}.`);
 // reason about - it never blocks or warns definitively, since two sessions touching the same
 // file isn't necessarily a problem, just something worth knowing about.
 try {
-  const activity = await worktreeActivity(root);
-  if (activity.length > 0) {
+  const { worktrees, branches } = await scanActivity(root);
+  if (worktrees.length > 0) {
     console.log('');
     console.log(
       'Other worktrees with files currently uncommitted or committed-but-not-yet-merged there ' +
         '(snapshot at session start - check before touching the same files; re-check live with ' +
         '`node scripts/worktree-activity.mjs`):',
     );
-    for (const line of formatActivity(activity, { fileLimit: 15 })) console.log(line);
+    for (const line of formatActivity(worktrees, { fileLimit: 15 })) console.log(line);
+  }
+  if (branches.length > 0) {
+    console.log('');
+    console.log(
+      'Unmerged branches with no worktree checked out on them - a closed session leaves its ' +
+        'work here, so these files are still in flight even though nobody is in them right now:',
+    );
+    for (const line of formatBranches(branches, { fileLimit: 15, branchLimit: 5 })) console.log(line);
   }
 } catch {
   // Best-effort awareness only - must never block session start.

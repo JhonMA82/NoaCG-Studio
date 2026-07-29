@@ -39,11 +39,13 @@ quick scan, not an audit.
 - **Repo state.** `git branch --show-current`, `git status --porcelain=v1 --branch`,
   `git log --oneline -5`, untracked files worth keeping. Uncommitted verified work is always a
   candidate option; unverified work makes verification the option.
-- **What the other worktrees are already doing.** Run `node scripts/worktree-activity.mjs` - a
-  LIVE scan (the session-start snapshot is stale by now) listing every other worktree with work
-  in flight: its branch, its last commit and how long ago, and the files it has uncommitted or
-  committed-but-not-yet-merged. This is what tells you an option is already someone else's job,
-  and which files an option would collide on. Several worktrees are normally active at once.
+- **What the rest of the checkout is already doing.** Run `node scripts/worktree-activity.mjs` -
+  a LIVE scan (the session-start snapshot is stale by now) in two parts: every other WORKTREE
+  with work in flight (its branch, its last commit and how long ago, the files it has
+  uncommitted or committed-but-not-yet-merged), then every BRANCH ahead of `main` that no
+  worktree has checked out - unmerged work from a closed session, still a collision even though
+  nobody is in it. This is what tells you an option is already someone else's job, and which
+  files an option would collide on. Several worktrees are normally active at once.
 - **Verification gap.** Was `npm run build` run after the last code change? Is there observable
   behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
   alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
@@ -105,6 +107,8 @@ user picking it is what makes it user-initiated. Never run it yourself off this 
   worktree instead. Pick one and recommend it - never just flag the clash.
 - **Stale overlap** (that worktree's last commit is old and nothing is uncommitted) - name it as
   a caution, not a blocker.
+- **Overlaps a worktree-less branch** - the same rules apply; nobody is in that branch right
+  now, so the usual answer is to land it (or say it must be landed) before touching those files.
 - **Landing this branch** while another worktree is in flight on the same files - still a fine
   option, but say in one line which branch will have to take main afterwards.
 - The scan is evidence, not permission: two worktrees touching one file is often fine. Never

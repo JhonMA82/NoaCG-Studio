@@ -1,9 +1,17 @@
-// What every OTHER worktree of this checkout is currently working on.
+// What everything ELSE in this checkout is currently working on.
 //
 // Several worktrees are normally active at once (see AGENTS.md), so "is anyone already on
 // this?" is a question both the SessionStart hook and the shared `next` workflow need to
-// answer, from the same rules. A worktree counts as active when it has files in flight:
-// uncommitted working-tree changes, or commits on its branch that `main` does not have yet.
+// answer, from the same rules. The answer has TWO halves, and only reporting the first one
+// leaves a hole big enough to walk into:
+//
+//   - WORKTREES with files in flight: uncommitted working-tree changes, or commits on their
+//     branch that `main` does not have yet. This is live work, someone is probably in it now.
+//   - BRANCHES ahead of `main` that no worktree currently has checked out. A session that
+//     ends leaves its branch behind, and the client parks the freed worktree on a detached
+//     HEAD - so unmerged work stays unmerged while becoming invisible to a worktree-only
+//     scan. Observed in practice: a branch 4 commits and 26 files ahead vanished from this
+//     scan the moment its session closed.
 //
 // This is READ-ONLY and best-effort. It never blocks anything: two sessions touching one file
 // is not automatically a problem, it is just something worth knowing before starting work.
@@ -26,22 +34,31 @@ import { normalize, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs
 
 const execFileAsync = promisify(execFile);
 
-/** Files shown per worktree before the list is summarised with a "+N more" tail. */
+/** Files shown per entry before the list is summarised with a "+N more" tail. */
 const DEFAULT_FILE_LIMIT = 40;
+/** Worktree-less branches listed before the rest are summarised with a "+N more" line. */
+const DEFAULT_BRANCH_LIMIT = 10;
 
 /**
- * Activity in every registered worktree except the one containing `cwd`.
+ * Everything in flight in this checkout other than the caller's own worktree, as
+ * `{ worktrees, branches }`.
  *
- * Returns one entry per worktree that has anything in flight, each:
+ * `worktrees` is one entry per registered worktree with anything in flight:
  *   { root, name, branch, detached, head, lastCommit, uncommitted, ahead, files }
  * where `files` is the de-duplicated union of uncommitted and ahead-of-main paths, `ahead` is
  * the number of commits the branch has that `main` lacks, and `lastCommit` is
  * `{ subject, relative }` (or null when it cannot be read). A worktree sitting clean on `main`
  * is not activity and is skipped, as is one with no changed files at all.
+ *
+ * `branches` is one entry per branch ahead of `main` that NO worktree has checked out -
+ * { branch, ahead, files, lastCommit } - newest tip first. These have no working tree, so
+ * there is nothing uncommitted to report; the files are what the branch adds to `main`.
+ *
+ * Both lists carry `files`, so `overlapping()` accepts either.
  */
-export async function worktreeActivity(cwd = process.cwd()) {
+export async function scanActivity(cwd = process.cwd()) {
   const entries = worktreeEntries(cwd);
-  if (entries.length === 0) return [];
+  if (entries.length === 0) return { worktrees: [], branches: [] };
 
   const primary = entries[0].root;
   const roots = entries.map((entry) => entry.root);
@@ -92,7 +109,39 @@ export async function worktreeActivity(cwd = process.cwd()) {
       };
     }),
   );
-  return scanned.filter(Boolean);
+
+  return {
+    worktrees: scanned.filter(Boolean),
+    branches: hasMain ? await worktreeLessBranches(primary, entries, tips) : [],
+  };
+}
+
+/**
+ * Branches ahead of `main` that no worktree has checked out, newest tip first.
+ *
+ * `git branch --no-merged main` is the whole candidate set in one call - a branch fully
+ * contained in `main` has nothing in flight by definition - so only the survivors cost
+ * anything, and they are measured concurrently.
+ */
+async function worktreeLessBranches(primary, entries, tips) {
+  const attached = new Set(entries.filter((entry) => entry.branch).map((entry) => entry.branch));
+  const res = await git(['branch', '--no-merged', 'main', '--format=%(refname:short)'], primary);
+  const names = lines(res.stdout).filter((branch) => branch !== 'main' && !attached.has(branch));
+
+  const measured = await Promise.all(
+    names.map(async (branch) => {
+      const [ahead, files] = await Promise.all([
+        git(['rev-list', '--count', `main..${branch}`], primary).then((r) => count(r.stdout)),
+        git(['diff', '--name-only', `main...${branch}`], primary).then((r) => lines(r.stdout).sort()),
+      ]);
+      if (ahead === 0 && files.length === 0) return null;
+      return { branch, ahead, files, lastCommit: tips.get(branch) ?? null };
+    }),
+  );
+
+  return measured
+    .filter(Boolean)
+    .sort((a, b) => (b.lastCommit?.timestamp ?? 0) - (a.lastCommit?.timestamp ?? 0));
 }
 
 /**
@@ -105,6 +154,25 @@ export function overlapping(activity, paths) {
   return activity
     .map((entry) => ({ entry, files: entry.files.filter((file) => wanted.has(file.toLowerCase())) }))
     .filter((hit) => hit.files.length > 0);
+}
+
+/**
+ * Worktree-less branches as human-readable lines. Truncation is always stated, never silent -
+ * a list that quietly stops reads as "that was all of it".
+ */
+export function formatBranches(branches, { fileLimit = DEFAULT_FILE_LIMIT, branchLimit = DEFAULT_BRANCH_LIMIT } = {}) {
+  if (branches.length === 0) return [];
+  const out = [];
+  for (const entry of branches.slice(0, branchLimit)) {
+    const commit = entry.lastCommit ? `, last commit ${entry.lastCommit.relative}: "${entry.lastCommit.subject}"` : '';
+    out.push(`  - ${entry.branch} - ${entry.ahead} commit(s) ahead of main, no worktree${commit}`);
+    const shown = entry.files.slice(0, fileLimit);
+    const more = entry.files.length - shown.length;
+    out.push(`    files: ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`);
+  }
+  const hidden = branches.length - Math.min(branches.length, branchLimit);
+  if (hidden > 0) out.push(`  (+${hidden} more branch(es) ahead of main with no worktree)`);
+  return out;
 }
 
 /** The snapshot as human-readable lines, for a hook or a CLI run. Empty when nothing is in flight. */
@@ -143,18 +211,25 @@ async function git(args, cwd) {
 }
 
 /**
- * `{ subject, relative }` per local branch, from ONE for-each-ref over the whole checkout -
- * so no worktree needs its own `git log`.
+ * `{ subject, relative, timestamp }` per local branch, from ONE for-each-ref over the whole
+ * checkout - so no worktree needs its own `git log`. `timestamp` is the tip's commit time in
+ * seconds, used to sort worktree-less branches newest first.
  */
 async function branchTips(primary) {
   const res = await git(
-    ['for-each-ref', '--format=%(refname:short)%00%(contents:subject)%00%(committerdate:relative)', 'refs/heads'],
+    [
+      'for-each-ref',
+      '--format=%(refname:short)%00%(contents:subject)%00%(committerdate:relative)%00%(committerdate:unix)',
+      'refs/heads',
+    ],
     primary,
   );
   const tips = new Map();
   for (const line of lines(res.stdout)) {
-    const [branch, subject, relative] = line.split('\0');
-    if (branch && subject) tips.set(branch, { subject, relative: relative || 'unknown' });
+    const [branch, subject, relative, unix] = line.split('\0');
+    if (branch && subject) {
+      tips.set(branch, { subject, relative: relative || 'unknown', timestamp: count(unix ?? '') });
+    }
   }
   return tips;
 }
@@ -197,13 +272,17 @@ function isUnder(path, root) {
 
 // CLI: print the live snapshot for the checkout this is run from.
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const activity = await worktreeActivity(process.cwd());
-  if (activity.length === 0) {
-    console.log('No other worktree has work in flight right now.');
-  } else {
-    console.log(
-      'Other worktrees with work in flight (uncommitted, or committed but not yet merged into main):',
-    );
-    for (const line of formatActivity(activity)) console.log(line);
+  const { worktrees, branches } = await scanActivity(process.cwd());
+  if (worktrees.length === 0 && branches.length === 0) {
+    console.log('Nothing else in this checkout has work in flight right now.');
+  }
+  if (worktrees.length > 0) {
+    console.log('Other worktrees with work in flight (uncommitted, or committed but not yet merged into main):');
+    for (const line of formatActivity(worktrees)) console.log(line);
+  }
+  if (branches.length > 0) {
+    if (worktrees.length > 0) console.log('');
+    console.log('Branches ahead of main that no worktree has checked out (unmerged work, session likely closed):');
+    for (const line of formatBranches(branches)) console.log(line);
   }
 }
