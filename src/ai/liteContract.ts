@@ -361,9 +361,11 @@ export const LITE_JUDGE_AXES = ['legibility', 'textIntegrity', 'hierarchy', 'bri
  * docs/AI_LITE_BENCHMARK.md §6b is a comparison - so the version rides in the prompt (and
  * therefore into any record of what was asked) rather than being inferred from the round.
  * v2 added `textIntegrity` after the v1 judge passed two skins whose secondary line was
- * sliced mid-letter by a clipped edge.
+ * sliced mid-letter by a clipped edge. v3 rewrote `strapShape` as inspection after the
+ * first judge-vs-reviewer join caught it scoring a strapless frame 5. **v2 was never run**
+ * - both changes are unmeasured, and the first paid round measures them together as v3.
  */
-export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v2';
+export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v3';
 
 export const LITE_JUDGE_LIMITS = {
   briefChars: 2000,
@@ -413,7 +415,12 @@ export function liteJudgeSystemPrompt(promptVersion: string): string {
     '- textIntegrity: every rendered word is whole. Inspect the last letter of each line and every point where text meets a panel edge, an angled or rounded cut, a bar, or a decorative shape: a letter sliced part-way through, a word continuing past the panel it sits on, an ellipsis, or a line hidden behind decoration scores 1. Trace the letterforms you can actually see rather than reading the word you expect - a half-cut letter still reads as the whole word. Score 5 only when no glyph is touched.',
     '- hierarchy: one clear primary element, intentional secondary weight, decoration never competing with the text.',
     '- briefFit: the visual treatment actually delivers the requested style, committed rather than generic.',
-    '- strapShape: the graphic remains a wide horizontal lower-third strap in the lower frame. A squat box, card, badge, tall stack, centered plate, or full-frame takeover scores 1-2.',
+    // v1 enumerated WRONG SHAPES - squat box, card, badge, tall stack, centered plate,
+    // full-frame - and a graphic with no form at all matches none of them, so the checklist
+    // returned "no failure found" and scored a strapless frame 5 (§6e, round j run2). The
+    // rewrite asks for the same inspection textIntegrity does: find the elements first, ask
+    // what binds them, and let absence be the FIRST failure rather than an unlisted one.
+    '- strapShape: judge the graphic as SHAPE before you read it. Locate every painted element - panel, bar, rule, scrim, text block, mark - and ask what holds them together. Score 1 when nothing does: text sitting on bare video with no panel, bar, rule, or scrim behind or beneath it, or any element stranded across a gap of empty video from the rest of the composition. Sitting low in the frame does not by itself make a lower third. Score 1-2 for a form roughly as tall as it is wide, a badge, a tall stack, a centered plate, or one covering most of the frame. Score 5 only for a single wide, low, horizontal composition whose parts visibly belong together.',
     'Be strict: these graphics go on air. Reason is ONE short sentence naming the decisive observation.',
   ].join('\n');
 }

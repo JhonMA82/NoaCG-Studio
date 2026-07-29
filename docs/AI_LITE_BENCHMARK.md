@@ -187,9 +187,11 @@ pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the cal
 to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
 
 The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
-`lite-skin-judge-v2`) beside the generation prompt version. Scores from two judge versions
+`lite-skin-judge-v3`) beside the generation prompt version. Scores from two judge versions
 are not comparable and calibration is a comparison, so the version is stated in the prompt
-rather than inferred from which round produced the number.
+rather than inferred from which round produced the number. **v2 was never run** - it added
+`textIntegrity` (§6d) and v3 rewrote `strapShape` (§6e) before any paid round scored v2, so
+the first v2/v3 measurement is one round measuring both changes together.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -276,6 +278,7 @@ catalog, so it waits for the product owner.
 
 Also open from the same review: motion smoothness is **unverified** - the review clips are
 ~25 fps screencasts of a 50 fps graphic, so judge motion live, never from the gallery clip.
+
 ## 6e. Measured: the judge does not yet agree with a human
 
 The group means in `bench:report` average two populations that never meet, so none of them
@@ -302,8 +305,22 @@ never a higher threshold:
 - **A second blind axis, beyond the sliced word.** `strapShape` scored **5** on a graphic
   with no strap at all - bare text over the background with a stray ~4px dot floating
   above it (round j run2, luxury-runway). The axis added specifically to catch squat or
-  missing straps rated its absence perfect, so `textIntegrity` fixes the §6d defect but
-  leaves this one open.
+  missing straps rated its absence perfect.
+
+  **Why it missed, and the fix (v3).** The v1 wording was a taxonomy of WRONG SHAPES -
+  "squat box, card, badge, tall stack, centered plate, or full-frame takeover". Every entry
+  is a panel of the wrong proportion, so a frame with **no form at all** matched none of
+  them and the checklist returned "no failure found"; correct low-left placement then read
+  as a healthy lower third. The axis now asks for the same inspection `textIntegrity` does -
+  locate every painted element, ask what binds them, and score 1 when nothing does (text on
+  bare video with no panel/bar/rule/scrim, or an element stranded across a gap of empty
+  video) - with "sitting low in the frame does not by itself make a lower third" stated
+  outright, because that is the inference which produced the 5. Failure by ABSENCE comes
+  first; the shape taxonomy follows as the 1-2 band. Unmeasured, like `textIntegrity`.
+
+  It deliberately does **not** say a thin rule or a small mark is wrong: that is the open
+  owner decision below, and the stray dot here fails on being orphaned from the
+  composition, not on being small. Whichever way the owner rules, this wording holds.
 - **Broadcast safety is unmodelled.** The two items behind §6d's open owner decision
   (hairline rules, a 4px dot) drew 5s on the axes that would have to catch them. Whatever
   the owner decides, the judge has never been told what key and fill do to thin marks.

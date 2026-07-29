@@ -722,7 +722,6 @@ test('judge scores validate strictly and one weak axis sinks the verdict', () =>
 test('the judge prompt and schema cover exactly the scored axes', () => {
   const prompt = liteJudgeSystemPrompt('test-v1');
   for (const axis of LITE_JUDGE_AXES) assert.ok(prompt.includes(axis), `prompt names ${axis}`);
-  assert.match(prompt, /squat box/);
   // The judge's own version is in the prompt: scores from two judge versions are not
   // comparable, and calibration (docs/AI_LITE_BENCHMARK.md §6b) is a comparison.
   assert.ok(prompt.includes(LITE_JUDGE_PROMPT_VERSION), 'the judge prompt states its own version');
@@ -730,6 +729,12 @@ test('the judge prompt and schema cover exactly the scored axes', () => {
   // textIntegrity exists because reading is not looking: the v1 judge scored two skins
   // with a sliced last letter legibility 5. The axis must ask for INSPECTION.
   assert.match(prompt, /Trace the letterforms/);
+  // strapShape must name ABSENCE first. v1 listed only wrong-shaped panels, so a frame
+  // with no form at all matched nothing on the list and scored 5 (§6e). A future edit that
+  // drops back to a pure shape taxonomy reintroduces exactly that blind spot.
+  assert.match(prompt, /no panel, bar, rule, or scrim/);
+  assert.match(prompt, /stranded across a gap/);
+  assert.match(prompt, /low in the frame does not by itself make a lower third/);
   const schema = LITE_JUDGE_OUTPUT.schema as {
     required?: string[];
     additionalProperties?: boolean;

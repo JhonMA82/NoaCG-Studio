@@ -106,6 +106,15 @@ eval rig calls it (Playwright captures the hold frame); production wiring waits 
 judge-vs-blind-review calibration AND an in-app capture path - see
 docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
 
+**Write every judge axis as INSPECTION, and let ABSENCE be its first failure.** Both blind
+spots the human review found were the same mistake in different clothes. `legibility` asked
+the model to read, and reading completes a word whose last letter is sliced off.
+`strapShape` listed the wrong shapes a panel can take - squat box, badge, tall stack - so a
+frame with no panel at all matched nothing on the list and scored 5. An axis phrased as a
+taxonomy of variants can only find the variants; an axis phrased as "locate the elements,
+then ask what binds them" can find nothing-is-there. A new axis states what to look at,
+what counts as absent, and what earns a 5 - never a list of named failures.
+
 **The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a
 generation is admitted once, for one generation, so a second paid call cannot ride that
 admission indefinitely. Ownership, liveness (`expiresAt`), the per-generation cap
