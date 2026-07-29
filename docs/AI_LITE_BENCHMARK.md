@@ -269,12 +269,20 @@ letterforms you can actually see rather than reading the word you expect"): aske
 a vision model completes the word. **Unmeasured** - no paid round has scored a known-sliced
 frame with the v2 judge, so treat the axis as a hypothesis until one does.
 
-**3. OWNER DECISION, open: are hairlines and dots broadcast-safe?** The reviewer rejected
-two items for thin left-border lines and a small dot - "not broadcast safe" for key and
-fill. This is not a Lite question: `docs/DESIGN_LANGUAGE.md` prescribes hairlines for
-minimal/editorial/cinematic and "dots, rings" for glass, `accentForm:'hairline'` is offered
-to the model, and lt02/lt25/lt32 are built on them. Deciding it reaches the whole 54-design
-catalog, so it waits for the product owner.
+**3. OWNER DECISION, deliberately deferred: are hairlines and dots broadcast-safe?** The
+reviewer rejected two items for thin left-border lines and a small dot - "not broadcast
+safe" for key and fill. This is not a Lite question: `docs/DESIGN_LANGUAGE.md` prescribes
+hairlines for minimal/editorial/cinematic and "dots, rings" for glass,
+`accentForm:'hairline'` is offered to the model, and lt02/lt25/lt32 are built on them.
+Deciding it reaches the whole 54-design catalog.
+
+**Status: open on purpose, with no deadline** - the owner wants to see it on real key-and-
+fill hardware before ruling, so it is not a blocker and nothing should escalate it. Until
+then the codebase takes NO position: neither the judge prompt nor the skin generation
+prompt mentions stroke weight or key and fill, and `strapShape` counts a rule as a valid
+anchor exactly as DESIGN_LANGUAGE already does. **Do not guess it, do not encode a
+provisional answer, and do not "work around" it** - a silent lock is harder to undo than an
+open question. When the ruling comes, the judge needs telling either way.
 
 Also open from the same review: motion smoothness is **unverified** - the review clips are
 ~25 fps screencasts of a 50 fps graphic, so judge motion live, never from the gallery clip.
