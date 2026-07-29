@@ -8,13 +8,23 @@
 // This is READ-ONLY and best-effort. It never blocks anything: two sessions touching one file
 // is not automatically a problem, it is just something worth knowing before starting work.
 //
+// Speed matters here, because `next` runs it while the user waits. Two things keep it quick:
+// the whole-checkout facts are read ONCE up front (each worktree's branch and HEAD come from
+// `git worktree list`, every branch's tip subject and age from a single `for-each-ref`), and
+// the per-worktree calls that remain run CONCURRENTLY. Sequentially, ~5 git spawns per
+// worktree over ~9 worktrees took 4-7s on Windows - `git status` alone is up to 1.5s on a
+// large or freshly-built tree, and that latency is all waiting, not work.
+//
 // CLI (no arguments): print the live snapshot for the checkout you run it from.
 //   node scripts/worktree-activity.mjs
 
-import { spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 
-import { git, normalize, samePath, worktreeRoots } from './worktree-cleanup-lib.mjs';
+import { normalize, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
+
+const execFileAsync = promisify(execFile);
 
 /** Files shown per worktree before the list is summarised with a "+N more" tail. */
 const DEFAULT_FILE_LIMIT = 40;
@@ -29,46 +39,60 @@ const DEFAULT_FILE_LIMIT = 40;
  * `{ subject, relative }` (or null when it cannot be read). A worktree sitting clean on `main`
  * is not activity and is skipped, as is one with no changed files at all.
  */
-export function worktreeActivity(cwd = process.cwd()) {
-  const roots = worktreeRoots(cwd);
-  if (roots.length === 0) return [];
+export async function worktreeActivity(cwd = process.cwd()) {
+  const entries = worktreeEntries(cwd);
+  if (entries.length === 0) return [];
 
+  const primary = entries[0].root;
+  const roots = entries.map((entry) => entry.root);
   const self = roots.filter((root) => isUnder(normalize(cwd), root)).sort((a, b) => b.length - a.length)[0];
-  const hasMain = git(['rev-parse', '--verify', '--quiet', 'main'], roots[0]).ok;
 
-  const activity = [];
-  for (const root of roots) {
-    if (self && samePath(root, self)) continue;
+  // Anything derivable for the whole checkout at once is read once, not per worktree.
+  const [hasMain, tips] = await Promise.all([
+    git(['rev-parse', '--verify', '--quiet', 'main'], primary).then((res) => res.ok),
+    branchTips(primary),
+  ]);
 
-    const shortRef = git(['rev-parse', '--abbrev-ref', 'HEAD'], root).stdout || null;
-    const detached = shortRef === 'HEAD';
-    if (!detached && shortRef === 'main') continue; // sitting on main - nothing to compare
+  const candidates = entries.filter((entry) => {
+    if (self && samePath(entry.root, self)) return false;
+    return entry.detached || entry.branch !== 'main'; // clean on main - nothing to compare
+  });
 
-    // Branches share one object store, so anything history-only can run from this checkout;
-    // the working-tree status is per-worktree and must run inside that worktree itself.
-    const head = git(['rev-parse', 'HEAD'], root).stdout || null;
-    const diffRef = detached ? head : shortRef;
-    const ahead = hasMain && diffRef ? countLines(git(['rev-list', '--count', `main..${diffRef}`], roots[0]).stdout) : 0;
-    const aheadFiles =
-      hasMain && diffRef ? lines(git(['diff', '--name-only', `main...${diffRef}`], roots[0]).stdout) : [];
-    const uncommitted = uncommittedPaths(root);
+  // Every worktree is independent, so they are scanned concurrently: the wall clock becomes
+  // the slowest single worktree instead of the sum of all of them.
+  const scanned = await Promise.all(
+    candidates.map(async (entry) => {
+      const diffRef = entry.detached ? entry.head : entry.branch;
 
-    const files = [...new Set([...uncommitted, ...aheadFiles])].sort();
-    if (files.length === 0) continue;
+      // Branches share one object store, so anything history-only runs from the primary
+      // checkout; the working-tree status is per-worktree and must run inside it.
+      const [ahead, aheadFiles, uncommitted, tip] = await Promise.all([
+        hasMain && diffRef ? git(['rev-list', '--count', `main..${diffRef}`], primary).then((r) => count(r.stdout)) : 0,
+        hasMain && diffRef
+          ? git(['diff', '--name-only', `main...${diffRef}`], primary).then((r) => lines(r.stdout))
+          : [],
+        uncommittedPaths(entry.root),
+        // for-each-ref covered every branch already; only a detached worktree still needs asking.
+        entry.branch && tips.has(entry.branch) ? tips.get(entry.branch) : lastCommit(entry.root),
+      ]);
 
-    activity.push({
-      root,
-      name: root.split('/').pop() ?? root,
-      branch: detached ? null : shortRef,
-      detached,
-      head,
-      lastCommit: lastCommit(root),
-      uncommitted: uncommitted.length,
-      ahead,
-      files,
-    });
-  }
-  return activity;
+      const files = [...new Set([...uncommitted, ...aheadFiles])].sort();
+      if (files.length === 0) return null;
+
+      return {
+        root: entry.root,
+        name: entry.root.split('/').pop() ?? entry.root,
+        branch: entry.detached ? null : entry.branch,
+        detached: entry.detached,
+        head: entry.head,
+        lastCommit: tip,
+        uncommitted: uncommitted.length,
+        ahead,
+        files,
+      };
+    }),
+  );
+  return scanned.filter(Boolean);
 }
 
 /**
@@ -103,14 +127,43 @@ export function formatActivity(activity, { fileLimit = DEFAULT_FILE_LIMIT } = {}
   return out;
 }
 
+/**
+ * Run git in `cwd`; resolve to `{ ok, stdout }` with stdout RAW (untrimmed) - porcelain
+ * status records begin with a space for a not-staged change, and trimming would shift the
+ * path by a character. Never rejects: a failed git call is missing information here, not an
+ * error worth breaking a hook or a planning turn over.
+ */
+async function git(args, cwd) {
+  try {
+    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024 });
+    return { ok: true, stdout };
+  } catch {
+    return { ok: false, stdout: '' };
+  }
+}
+
+/**
+ * `{ subject, relative }` per local branch, from ONE for-each-ref over the whole checkout -
+ * so no worktree needs its own `git log`.
+ */
+async function branchTips(primary) {
+  const res = await git(
+    ['for-each-ref', '--format=%(refname:short)%00%(contents:subject)%00%(committerdate:relative)', 'refs/heads'],
+    primary,
+  );
+  const tips = new Map();
+  for (const line of lines(res.stdout)) {
+    const [branch, subject, relative] = line.split('\0');
+    if (branch && subject) tips.set(branch, { subject, relative: relative || 'unknown' });
+  }
+  return tips;
+}
+
 /** Paths with working-tree changes in `cwd`, staged, unstaged or untracked. */
-function uncommittedPaths(cwd) {
+async function uncommittedPaths(cwd) {
   // `-z` keeps paths with spaces or non-ASCII intact and unquoted; each record is a fixed
-  // 2-character status code, a space, then the path. The status code's first character is a
-  // SPACE for a not-staged change (" M path"), so this must read raw output - the shared git()
-  // helper trims, which would shift every such path by one character.
-  const res = spawnSync('git', ['status', '--porcelain', '-z'], { cwd, encoding: 'utf8' });
-  if (res.status !== 0 || typeof res.stdout !== 'string') return [];
+  // 2-character status code, a space, then the path.
+  const res = await git(['status', '--porcelain', '-z'], cwd);
   return res.stdout
     .split('\0')
     .filter(Boolean)
@@ -121,10 +174,9 @@ function uncommittedPaths(cwd) {
 }
 
 /** `{ subject, relative }` for the tip commit of the worktree at `root`, or null. */
-function lastCommit(root) {
-  const res = git(['log', '-1', '--format=%s%x00%cr'], root);
-  if (!res.ok) return null;
-  const [subject, relative] = res.stdout.split('\0');
+async function lastCommit(root) {
+  const res = await git(['log', '-1', '--format=%s%x00%cr'], root);
+  const [subject, relative] = res.stdout.trim().split('\0');
   if (!subject) return null;
   return { subject, relative: relative ?? 'unknown' };
 }
@@ -133,7 +185,7 @@ function lines(stdout) {
   return stdout.split('\n').map((line) => line.trim()).filter(Boolean);
 }
 
-function countLines(stdout) {
+function count(stdout) {
   const value = Number.parseInt(stdout.trim(), 10);
   return Number.isFinite(value) ? value : 0;
 }
@@ -145,7 +197,7 @@ function isUnder(path, root) {
 
 // CLI: print the live snapshot for the checkout this is run from.
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const activity = worktreeActivity(process.cwd());
+  const activity = await worktreeActivity(process.cwd());
   if (activity.length === 0) {
     console.log('No other worktree has work in flight right now.');
   } else {

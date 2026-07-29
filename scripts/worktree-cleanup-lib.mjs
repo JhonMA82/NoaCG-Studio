@@ -33,14 +33,32 @@ export function git(args, cwd) {
   };
 }
 
-/** All registered worktree roots for the checkout containing `cwd`, primary first. */
-export function worktreeRoots(cwd) {
+/**
+ * Every registered worktree for the checkout containing `cwd`, primary first, as
+ * `{ root, head, branch, detached }`. One `git worktree list` already knows each worktree's
+ * HEAD and branch, so nothing downstream needs a per-worktree `rev-parse` to learn them.
+ */
+export function worktreeEntries(cwd) {
   const res = git(['worktree', 'list', '--porcelain'], cwd);
   if (!res.ok) return [];
-  return res.stdout
-    .split('\n')
-    .filter((line) => line.startsWith('worktree '))
-    .map((line) => normalize(line.slice('worktree '.length)));
+  const entries = [];
+  for (const line of res.stdout.split('\n').map((l) => l.trim())) {
+    if (line.startsWith('worktree ')) {
+      entries.push({ root: normalize(line.slice('worktree '.length)), head: null, branch: null, detached: false });
+      continue;
+    }
+    const current = entries.at(-1);
+    if (!current) continue;
+    if (line.startsWith('HEAD ')) current.head = line.slice('HEAD '.length);
+    else if (line.startsWith('branch ')) current.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
+    else if (line === 'detached') current.detached = true;
+  }
+  return entries;
+}
+
+/** All registered worktree roots for the checkout containing `cwd`, primary first. */
+export function worktreeRoots(cwd) {
+  return worktreeEntries(cwd).map((entry) => entry.root);
 }
 
 /**

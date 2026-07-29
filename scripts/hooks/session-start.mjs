@@ -123,7 +123,7 @@ console.log(`Checkout: ${root} (${kind}, ${branchLabel})${ports}.`);
 // reason about - it never blocks or warns definitively, since two sessions touching the same
 // file isn't necessarily a problem, just something worth knowing about.
 try {
-  const activity = worktreeActivity(root);
+  const activity = await worktreeActivity(root);
   if (activity.length > 0) {
     console.log('');
     console.log(

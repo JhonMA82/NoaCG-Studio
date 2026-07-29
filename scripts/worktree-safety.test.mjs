@@ -215,7 +215,7 @@ test('leftover-folder dry run reports empty and non-empty folders without deleti
   assert.equal(existsSync(nonEmpty), true);
 });
 
-test('activity scan reports other worktrees committed and uncommitted work, never its own', (t) => {
+test('activity scan reports other worktrees committed and uncommitted work, never its own', async (t) => {
   const { primary } = makeRepo(t);
   const busy = addWorktree(primary, 'busy');
   commitInWorktree(busy.path, 'Committed but unmerged');
@@ -223,7 +223,7 @@ test('activity scan reports other worktrees committed and uncommitted work, neve
   const idle = addWorktree(primary, 'idle'); // branched off main, nothing done
   writeFileSync(join(primary, 'own-work.txt'), 'own\n');
 
-  const activity = worktreeActivity(primary);
+  const activity = await worktreeActivity(primary);
 
   assert.deepEqual(
     activity.map((entry) => entry.branch),
@@ -241,26 +241,26 @@ test('activity scan reports other worktrees committed and uncommitted work, neve
 
   // Scanned from the busy worktree itself, its own work is what must NOT be listed - the
   // primary checkout sits on main, so it cannot prove the self-exclusion on its own.
-  assert.deepEqual(worktreeActivity(busy.path), []);
+  assert.deepEqual(await worktreeActivity(busy.path), []);
 });
 
-test('activity scan drops a branch once its work is merged into main', (t) => {
+test('activity scan drops a branch once its work is merged into main', async (t) => {
   const { primary } = makeRepo(t);
   const landed = addWorktree(primary, 'landed');
   commitInWorktree(landed.path, 'Work that lands');
-  assert.equal(worktreeActivity(primary).length, 1);
+  assert.equal((await worktreeActivity(primary)).length, 1);
 
   runGit(primary, 'merge', '--ff-only', landed.branch);
 
-  assert.deepEqual(worktreeActivity(primary), []);
+  assert.deepEqual(await worktreeActivity(primary), []);
 });
 
-test('overlap detection matches only worktrees touching the given files', (t) => {
+test('overlap detection matches only worktrees touching the given files', async (t) => {
   const { primary } = makeRepo(t);
   const busy = addWorktree(primary, 'overlap');
   commitInWorktree(busy.path, 'Touch feature.txt');
 
-  const activity = worktreeActivity(primary);
+  const activity = await worktreeActivity(primary);
 
   const hit = overlapping(activity, ['src/other.ts', 'feature.txt']);
   assert.deepEqual(hit.map((h) => h.entry.branch), [busy.branch]);
