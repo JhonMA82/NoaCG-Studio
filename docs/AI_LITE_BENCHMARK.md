@@ -181,10 +181,15 @@ Build them when a frozen suite survives more than a few weeks.
 Phase 2 of the skin uniqueness strategy (the paid spike's verdict: capability exists,
 CONSISTENCY is the fight). A skin that compiles and benches clean can still be a bad
 broadcast graphic - a squat box, a wrapped name, decoration burying the text. The judge
-is one server-owned, cost-capped vision call over the rendered HOLD frame, scoring four
-integer axes 1-5: `legibility`, `hierarchy`, `briefFit`, `strapShape`. A pass requires
-EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the caller reverts to the
-house chassis, so a weak skin costs a judgement call, never an on-air graphic.
+is one server-owned, cost-capped vision call over the rendered HOLD frame, scoring five
+integer axes 1-5: `legibility`, `textIntegrity`, `hierarchy`, `briefFit`, `strapShape`. A
+pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the caller reverts
+to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
+
+The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
+`lite-skin-judge-v2`) beside the generation prompt version. Scores from two judge versions
+are not comparable and calibration is a comparison, so the version is stated in the prompt
+rather than inferred from which round produced the number.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -197,31 +202,31 @@ recorded as `judge: error`, never hidden.
 
 **Calibration before trust.** The gallery stays blind - judge scores never appear in it,
 or they would bias the reviewer. `bench:report` prints per-candidate judge pass rates and
-mean per-axis scores next to (separate) human acceptance; agreement between the judge's
-verdicts and blind review is what earns the threshold. Until that correlation is
-measured, the judge runs in the eval rig only - production wiring additionally needs an
-in-app hold-frame capture path, which does not exist yet (rig captures are Playwright
-screenshots).
+mean per-axis scores next to (separate) human acceptance, and - since those group means
+average two populations that never meet - a per-ITEM `Judge vs reviewer` matrix joining
+each blind-review decision to that same item's judge verdict. That join is what earns the
+threshold. Until it does, the judge runs in the eval rig only - production wiring
+additionally needs an in-app hold-frame capture path, which does not exist yet (rig
+captures are Playwright screenshots). First measurement: §6e.
 
-`bench:report` now **computes** that correlation rather than leaving it to the eye. For
-every item carrying both a judge verdict and a blind decision it reports raw agreement,
-**Cohen's kappa**, and the two error cells. Raw agreement alone flatters a lopsided judge -
-one that passes nearly everything scores well against reviewers who also accept most
-things - so kappa is the number that counts, and below 0.4 the report states plainly that
-the judge has not earned a threshold. With no paired items the report says agreement is
-UNMEASURED, so no judge-based threshold can be claimed by omission.
+`bench:report` computes that correlation per item rather than leaving it to the eye - the
+matrix, the false accepts and the false reverts are described in §6d. It also reports
+**Cohen's kappa** beside the raw count, because raw agreement flatters a lopsided judge: one
+that passes nearly everything scores well against reviewers who also accept most things,
+purely by chance. Below 0.4 the report says outright that the raw count is mostly chance.
 
-The cell to read first is **waved through** (judge passed, human rejected): each one is a
-defect class the judge cannot see. The rule that follows is *prefer a deterministic gate
-to a wider judge remit* - the 2026-07-29 review rejected two skins for clipped text
-("cuts of", "looks like its cut of") that the judge passed, and the answer was a bench
-detector for `clip-path` clipping (`bench-overflow`, measured at the text's own height so
-a sheared bar cannot hide behind its bounding box), not a stricter judge prompt.
+The cell to read first is a **false accept** (judge passed, human rejected): each one is a
+defect class the judge cannot see. The rule that follows is *prefer a deterministic gate to
+a wider judge remit* - the 2026-07-29 review rejected two skins for clipped text that the
+judge scored legibility 5, and the durable answer was a bench detector (§6d), not a
+stricter judge prompt.
 
 ## 6c. Measured: the skin prompt has a load ceiling
 
 Four paid rounds isolated the skin teaching, one variable at a time. Among JUDGED skins
-(the per-brief figure moves with transport failures; this one does not):
+(the per-brief figure moves with transport failures; this one does not). **These are
+`lite-skin-judge-v1` numbers** - four axes, no `textIntegrity` - so a v2 round's pass rate
+is not comparable to this table without rejudging:
 
 | prompt | pass rate | briefFit | legibility | what changed |
 | --- | --- | --- | --- | --- |
@@ -246,13 +251,107 @@ briefFit stays the weak axis (2.60 at best). The next mechanism to try is worked
 one or two high-scoring skins shown rather than described, or the curated skins the nightly
 factory is meant to produce - not more sentences.
 
+## 6d. Measured: the first blind review, and the defect nothing could see
+
+The 2026-07-29 blind review (one reviewer, 9 items of the v3 skin spike) was not
+impressed - "boring and chunky", "not premium". Two findings are engineering, one is an
+owner decision:
+
+**1. A clipped edge sliced a word, and every gate passed it.** Two `skin-brutalist-poster`
+items cut the last letter of the secondary line with an angled `clip-path` on the panel.
+The reviewer caught it twice ("cuts of", "looks like its cut of"); the runtime bench did
+not, because **clip-path clips PAINT and the bench measures LAYOUT** - the element box is
+exactly where it should be. `runtimeBench.ts` had no clip-path handling at all; this is the
+same trap `src/templates/AGENTS.md` documents for scoreboards. The first fix is upstream of
+the bench: `liteSkinPatchErrors` now rejects `clip-path` in skin CSS and in `skin.html` style
+attributes (`skin_css_clip_path` / `skin_html_clip_path`), so the model gets a repair round
+naming the replacement - shape a skewed or rotated layer BEHIND the text - and a skin that
+insists reverts to the house chassis. `background-clip: text` stays legal. The rule also
+removes a collision nobody had hit yet: `line-reveal` and `mask-wipe` animate `clipPath` on
+`.lower-third-box` and clear it on settle, so a skin's own clip would vanish for the
+entrance and snap back.
+
+**The bench now catches the defect class itself**, which the skin ban does not: a ban only
+protects Lite skins, while `clip-path` reaches the graphic from the catalog, an imported
+graphic, the full harness and hand-written code alike. `runtimeBench.ts` resolves a computed
+clip-path to the region it PAINTS (`inset`/`rect`/`xywh`/`polygon`/`circle`/`ellipse`) and
+trips `bench-overflow` when text escapes it; the element carrying the clip is checked too,
+and shapes it cannot resolve cheaply (`path()`, `url()`, keyword radii) report nothing
+rather than guess, so no valid export is blocked on a shape the bench cannot read.
+
+The non-obvious part is the **skewed bar**, which is what these two items actually used: a
+shear spans the full width in BOUNDING-BOX terms, so comparing text against the bbox can
+never fire on it. The check measures the polygon's horizontal extent across the band the
+text occupies instead. Its regression fixture is deliberately marginal - the name fits the
+600px bounding box and escapes only the shear - so the test cannot pass on bbox logic alone.
+The whole catalog stays green, including the Chevron lower third and the versus and
+scoreboard variants built on polygon clips.
+
+**2. The vision judge scored that same frame `legibility` 5 and passed it.** The pixel-level
+backstop missed a sliced word - so the answer is not a higher `AI_LITE_JUDGE_THRESHOLD`,
+which would only reject good skins for a defect it still cannot see. The judge gained a
+fifth axis, `textIntegrity`, phrased as INSPECTION rather than reading ("trace the
+letterforms you can actually see rather than reading the word you expect"): asked to read,
+a vision model completes the word. **Unmeasured** - no paid round has scored a known-sliced
+frame with the v2 judge, so treat the axis as a hypothesis until one does.
+
+**3. OWNER DECISION, open: are hairlines and dots broadcast-safe?** The reviewer rejected
+two items for thin left-border lines and a small dot - "not broadcast safe" for key and
+fill. This is not a Lite question: `docs/DESIGN_LANGUAGE.md` prescribes hairlines for
+minimal/editorial/cinematic and "dots, rings" for glass, `accentForm:'hairline'` is offered
+to the model, and lt02/lt25/lt32 are built on them. Deciding it reaches the whole 54-design
+catalog, so it waits for the product owner.
+
+Also open from the same review: motion smoothness is **unverified** - the review clips are
+~25 fps screencasts of a 50 fps graphic, so judge motion live, never from the gallery clip.
+## 6e. Measured: the judge does not yet agree with a human
+
+The group means in `bench:report` average two populations that never meet, so none of them
+can say whether the judge and a human agreed about the SAME graphic - the only thing that
+can justify a threshold. `bench:report` now joins them per ITEM through `blind-key.json`
+and prints a `Judge vs reviewer` matrix, naming FALSE ACCEPTS (the judge cleared what a
+human rejected, so it would have AIRED) apart from false reverts (which only cost a skin).
+It refuses to imply a threshold below 20 joined items, and writes `agreement` to
+`report.json`.
+
+First join: 9 reviewed items across rounds a-j, 6 carrying both verdicts. Decisions only -
+at this N the 1-5 scores are noise. **These are `lite-skin-judge-v1` scores** (four axes,
+no `textIntegrity`), so a v2 round restarts this table rather than extending it:
+
+|  | judge accept | judge revert |
+| --- | --- | --- |
+| **reviewer accept** | 2 | 2 |
+| **reviewer reject** | 1 | 1 |
+
+**3/6 is chance**, and no threshold should be read off it. What is not noise is the SHAPE of
+the disagreement - it is the quantitative backing for §6d's conclusion that the answer was
+never a higher threshold:
+
+- **A second blind axis, beyond the sliced word.** `strapShape` scored **5** on a graphic
+  with no strap at all - bare text over the background with a stray ~4px dot floating
+  above it (round j run2, luxury-runway). The axis added specifically to catch squat or
+  missing straps rated its absence perfect, so `textIntegrity` fixes the §6d defect but
+  leaves this one open.
+- **Broadcast safety is unmodelled.** The two items behind §6d's open owner decision
+  (hairline rules, a 4px dot) drew 5s on the axes that would have to catch them. Whatever
+  the owner decides, the judge has never been told what key and fill do to thin marks.
+- **Both false reverts were taste, not defect** - reviewer "minor" against `briefFit 1` and
+  `strapShape 2`. That is the cheap direction to be wrong in, and it is part of why round
+  f's skin trigger rate dipped.
+
+So the axis DESCRIPTIONS remain the lever, as §6d found. Raising N before they are right
+just measures the wrong instrument more precisely.
+
 ## 7. Human review
 
 One reviewer; fatigue is the binding constraint. `bench:gallery` builds a blind gallery:
 neutral item codes, seeded shuffle, candidate/cost/arm invisible, ~20-item sessions with
 resume, one planted unmarked repeat per session (test-retest consistency), and per item
 exactly two inputs - the broadcast decision (yes / yes-after-minor-edits / no) and one
-1-5 score. Judgements download as JSONL; `bench:report` joins them through `blind-key.json`
+1-5 score. **Both** answers are required for an item to count as judged - the first pass
+returned 7 of 9 items scoreless because the card dimmed the moment the decision landed, so
+an unscored card now stays lit and says the score is still needed. Judgements download as
+JSONL; `bench:report` joins them through `blind-key.json`
 and reports machine validity, human acceptance, and visual score **separately**, plus
 reviewer self-consistency (low agreement → widen promotion thresholds). The full-rubric
 confirmation pass (top two candidates, blind pairwise) stays manual until Phase 7+.

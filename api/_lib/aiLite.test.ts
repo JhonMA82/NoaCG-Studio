@@ -4,6 +4,7 @@ import {
   LITE_CATALOG,
   LITE_JUDGE_AXES,
   LITE_JUDGE_OUTPUT,
+  LITE_JUDGE_PROMPT_VERSION,
   LITE_READY_OUTPUT,
   deterministicUnsupportedDecision,
   liteJudgeSystemPrompt,
@@ -352,6 +353,27 @@ test('a skin reaching for a webfont keeps its styling instead of dying', () => {
   // The confused-emit constructs stay fatal - they are not stray assets to drop.
   const rooted = validateLiteDecision(withSkin(':root { --accent: red; }'), request(), 8, { skin: true });
   assert.ok(rooted.errors.includes('skin_css_forbidden'));
+
+  // The 2026-07-29 blind review's one real defect: an angled clip on the panel cut the
+  // secondary line's last letter. Nothing downstream can see it - the bench measures
+  // layout and clip-path only changes paint - so the patch gate is where it dies.
+  const clipped = validateLiteDecision(
+    withSkin('.lower-third-box { clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%); }'),
+    request(),
+    8,
+    { skin: true },
+  );
+  assert.ok(clipped.errors.includes('skin_css_clip_path'));
+  // …and the repair instruction names the replacement, not the ban.
+  assert.match(liteRepairInstructions(['skin_css_clip_path'])[0], /skewed|rotated|gradient/);
+  // background-clip: text is a legitimate technique and must survive the check.
+  const gradientText = validateLiteDecision(
+    withSkin('.lower-third-name { background: linear-gradient(#fff, #999); -webkit-background-clip: text; }'),
+    request(),
+    8,
+    { skin: true },
+  );
+  assert.deepEqual(gradientText.errors, []);
 });
 
 test('Lite semantic validation recognizes natural person and team role requests', () => {
@@ -681,11 +703,12 @@ test('the skin judge fails closed and prices its own route', () => {
 });
 
 test('judge scores validate strictly and one weak axis sinks the verdict', () => {
-  const good = { legibility: 5, hierarchy: 4, briefFit: 4, strapShape: 5, reason: 'Clean strap, name reads instantly.' };
+  const good = { legibility: 5, textIntegrity: 5, hierarchy: 4, briefFit: 4, strapShape: 5, reason: 'Clean strap, name reads instantly.' };
   const parsed = validateLiteJudgeScores(good);
-  assert.deepEqual(parsed?.scores, { legibility: 5, hierarchy: 4, briefFit: 4, strapShape: 5 });
+  assert.deepEqual(parsed?.scores, { legibility: 5, textIntegrity: 5, hierarchy: 4, briefFit: 4, strapShape: 5 });
   assert.equal(liteJudgeVerdict(parsed.scores, 3), 'pass');
   assert.equal(liteJudgeVerdict({ ...parsed.scores, strapShape: 2 }, 3), 'fail');
+  assert.equal(liteJudgeVerdict({ ...parsed.scores, textIntegrity: 1 }, 3), 'fail');
   assert.equal(liteJudgeVerdict(parsed.scores, 5), 'fail');
 
   assert.equal(validateLiteJudgeScores({ ...good, legibility: 0 }), null);
@@ -696,10 +719,17 @@ test('judge scores validate strictly and one weak axis sinks the verdict', () =>
   assert.equal(validateLiteJudgeScores(missingAxis), null);
 });
 
-test('the judge prompt and schema cover exactly the four axes', () => {
+test('the judge prompt and schema cover exactly the scored axes', () => {
   const prompt = liteJudgeSystemPrompt('test-v1');
   for (const axis of LITE_JUDGE_AXES) assert.ok(prompt.includes(axis), `prompt names ${axis}`);
   assert.match(prompt, /squat box/);
+  // The judge's own version is in the prompt: scores from two judge versions are not
+  // comparable, and calibration (docs/AI_LITE_BENCHMARK.md §6b) is a comparison.
+  assert.ok(prompt.includes(LITE_JUDGE_PROMPT_VERSION), 'the judge prompt states its own version');
+  assert.match(prompt, /test-v1/, 'and still names the generation prompt it is judging');
+  // textIntegrity exists because reading is not looking: the v1 judge scored two skins
+  // with a sliced last letter legibility 5. The axis must ask for INSPECTION.
+  assert.match(prompt, /Trace the letterforms/);
   const schema = LITE_JUDGE_OUTPUT.schema as {
     required?: string[];
     additionalProperties?: boolean;

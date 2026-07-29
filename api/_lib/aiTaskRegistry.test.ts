@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import {
   APPROVED_MODEL_CATALOG,
+  FUNDED_ROUTE_PRICE_CEILING,
+  FUNDED_ROUTE_PROVIDER,
   approvedModelEntry,
   approvedModelPrices,
   approvedModelRoute,
+  fundedModelRoute,
+  fundedRoutePrice,
   modelRouteKey,
 } from './aiModelCatalog.js';
 import {
@@ -170,6 +174,68 @@ test('every catalog entry is complete enough for the free-route policy to price 
     assert.ok(entry.zdrAvailable, `${entry.route.model} must honour the ZDR-by-default policy`);
     assert.ok(entry.notes.length > 0);
   }
+});
+
+test('every catalog entry could serve a NoaCG-funded route (plan §15 decision 5)', () => {
+  // The catalog IS the free tier's menu, so an entry that decision 5 forbids has no
+  // business in it. This is the test that fails when someone adds an Anthropic/OpenAI
+  // entry or a model the project cannot afford to subsidize.
+  for (const entry of APPROVED_MODEL_CATALOG) {
+    assert.equal(
+      entry.route.provider,
+      FUNDED_ROUTE_PROVIDER,
+      `${entry.route.model}: NoaCG-funded routes go through OpenRouter; OpenAI/Anthropic are BYO-key only`,
+    );
+    assert.equal(
+      fundedRoutePrice(entry.price),
+      true,
+      `${entry.route.model} costs more than the funded-route ceiling`,
+    );
+    assert.equal(fundedModelRoute(entry.route), true);
+  }
+});
+
+test('the funded-route ceiling admits cheap models and refuses flagship pricing', () => {
+  assert.equal(fundedRoutePrice({ inputPerMillion: 0.1, outputPerMillion: 0.4 }), true);
+  // Exactly at the ceiling is still funded; a hair over on EITHER axis is not.
+  assert.equal(fundedRoutePrice({ ...FUNDED_ROUTE_PRICE_CEILING }), true);
+  assert.equal(
+    fundedRoutePrice({
+      inputPerMillion: FUNDED_ROUTE_PRICE_CEILING.inputPerMillion + 0.01,
+      outputPerMillion: FUNDED_ROUTE_PRICE_CEILING.outputPerMillion,
+    }),
+    false,
+  );
+  assert.equal(
+    fundedRoutePrice({
+      inputPerMillion: FUNDED_ROUTE_PRICE_CEILING.inputPerMillion,
+      outputPerMillion: FUNDED_ROUTE_PRICE_CEILING.outputPerMillion + 0.01,
+    }),
+    false,
+  );
+  // Sonnet-class proprietary pricing, the case the ceiling exists to refuse.
+  assert.equal(fundedRoutePrice({ inputPerMillion: 3, outputPerMillion: 15 }), false);
+  // An unapproved route is never funded, whatever it costs.
+  assert.equal(fundedModelRoute({ provider: 'openrouter', model: 'vendor/unapproved-model' }), false);
+});
+
+test('an env price override above the ceiling fails the free tier closed', () => {
+  process.env.AI_LITE_ENABLED = '1';
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  assert.equal(taskConfigured(liteTaskProfile()), true);
+
+  // The route stays catalog-approved; only its declared price moves. The gate prices
+  // against the task's OWN table, so this must refuse rather than trust the snapshot.
+  const primaryKey = modelRouteKey({ provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' });
+  process.env.AI_LITE_PRICING_JSON = JSON.stringify({
+    [primaryKey]: { inputPerMillion: 3, outputPerMillion: 15 },
+  });
+  const overpriced = liteTaskProfile();
+  assert.equal(approvedModelRoute(overpriced.routePolicy.primary), true);
+  assert.equal(taskConfigured(overpriced), false);
+
+  // BYO/paid spend is the caller's own money, so the ceiling does not apply there.
+  assert.equal(taskConfigured({ ...overpriced, tiers: ['byo'] }), true);
 });
 
 test('the Lite price table is the catalog snapshot plus explicit env overrides', () => {

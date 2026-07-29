@@ -32,9 +32,11 @@ async function findFiles(dir, predicate, relative = '') {
 }
 
 const groups = new Map(); // candidate/arm -> rows
+const rowsByKey = new Map(); // blind-key key -> row, for the judge-vs-reviewer join below
 const addRow = (group, row) => {
   if (!groups.has(group)) groups.set(group, []);
   groups.get(group).push(row);
+  rowsByKey.set(row.key, row);
 };
 
 for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json'))) {
@@ -52,6 +54,7 @@ for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json')
       repairs: row.repairs ?? 0,
       judgeVerdict: row.judgeVerdict ?? null,
       judgeScores: row.judgeScores ?? null,
+      judgeReason: row.judgeReason ?? null,
       skinFinal: row.skinFinal ?? null,
       failureCode: classifyFailure({
         // Fixture-bank briefs are all supported lower thirds - an unsupported answer is
@@ -109,7 +112,15 @@ try {
     for (const entry of key.filter((e) => e.repeatOf)) {
       const a = judged.get(entry.repeatOf);
       const b = judged.get(entry.code);
-      if (a && b) repeats.push({ same: a.decision === b.decision, scoreDelta: Math.abs((a.score ?? 0) - (b.score ?? 0)) });
+      // An unscored side contributes no delta: treating a missing score as 0 would
+      // manufacture a 5-point disagreement and make a consistent reviewer look erratic.
+      if (a && b) {
+        repeats.push({
+          same: a.decision === b.decision,
+          scoreDelta: typeof a.score === 'number' && typeof b.score === 'number'
+            ? Math.abs(a.score - b.score) : null,
+        });
+      }
     }
   }
   console.log(`Merged ${files.length} reviewer file(s): ${files.join(', ')}`);
@@ -131,17 +142,25 @@ for (const [group, rows] of groups) {
   // calibration signal: compare them against blind-review outcomes before trusting the
   // threshold anywhere near production.
   const judgedSkins = rows.filter((r) => r.judgeVerdict === 'pass' || r.judgeVerdict === 'fail');
-  const judgeAxes = ['legibility', 'hierarchy', 'briefFit', 'strapShape'];
+  // Read the axes off the rows rather than restating the contract's list: the judge gains
+  // an axis when a blind review finds something it missed (textIntegrity did, 2026-07-29),
+  // and a hardcoded copy here would silently keep reporting the old four.
+  const judgeAxes = [...new Set(judgedSkins.flatMap((r) => Object.keys(r.judgeScores ?? {})))];
   const skinJudge = judgedSkins.length
     ? {
         judged: judgedSkins.length,
         passRate: judgedSkins.filter((r) => r.judgeVerdict === 'pass').length / judgedSkins.length,
         reverted: rows.filter((r) => r.skinFinal === 'judge-reverted').length,
         erroredOpen: rows.filter((r) => r.judgeVerdict === 'error').length,
-        meanScores: Object.fromEntries(judgeAxes.map((axis) => [
-          axis,
-          judgedSkins.reduce((sum, r) => sum + (r.judgeScores?.[axis] ?? 0), 0) / judgedSkins.length,
-        ])),
+        // Each axis averages over the rows that actually carry it, so an axis added
+        // mid-programme reports its own honest mean instead of one diluted by the rounds
+        // that predate it.
+        meanScores: Object.fromEntries(judgeAxes.map((axis) => {
+          const scored = judgedSkins.filter((r) => typeof r.judgeScores?.[axis] === 'number');
+          return [axis, scored.length
+            ? scored.reduce((sum, r) => sum + r.judgeScores[axis], 0) / scored.length
+            : null];
+        })),
       }
     : null;
   report.push({
@@ -167,53 +186,62 @@ const consistency = repeats.length
   ? {
       repeats: repeats.length,
       decisionAgreement: repeats.filter((r) => r.same).length / repeats.length,
-      meanScoreDelta: repeats.reduce((sum, r) => sum + r.scoreDelta, 0) / repeats.length,
+      meanScoreDelta: (() => {
+        const deltas = repeats.map((r) => r.scoreDelta).filter((d) => typeof d === 'number');
+        return deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : null;
+      })(),
     }
   : null;
 
-// Judge-vs-human agreement - the measurement docs/AI_LITE_BENCHMARK.md §6b names as what
-// EARNS the judge its threshold. Pass rate beside acceptance rate is not that: two numbers
-// can match in aggregate while disagreeing on every individual item.
-//
-// Raw agreement alone flatters a lopsided judge (one that passes nearly everything scores
-// high against reviewers who also accept most things), so kappa chance-corrects it. The
-// cell that matters most is wavedThrough - judge passed, human rejected - because that is
-// the failure mode that put a clipped-text graphic through both gates.
-const paired = [];
-for (const [group, rows] of groups) {
-  for (const r of rows) {
-    if (r.judgeVerdict !== 'pass' && r.judgeVerdict !== 'fail') continue;
-    for (const j of judgements.get(r.key) ?? []) {
-      if (!j.decision) continue;
-      paired.push({
-        group,
-        key: r.key,
-        judgePass: r.judgeVerdict === 'pass',
-        humanAccept: j.decision === 'yes' || j.decision === 'minor',
-        reviewer: j.reviewer ?? 'anonymous',
-      });
-    }
+// Judge-vs-reviewer agreement. The threshold decides whether a skin airs or reverts, so the
+// only thing that can justify a threshold is the judge agreeing with a human on the SAME
+// item - never the group means above, which average two populations that never meet.
+// Decisions only: reviewer yes/minor = accept, no = reject; judge pass = accept. The 1-5
+// scores are deliberately excluded, they need far more items than blind review has produced.
+const agreementItems = [];
+for (const [key, list] of judgements) {
+  const row = rowsByKey.get(key);
+  if (!row || (row.judgeVerdict !== 'pass' && row.judgeVerdict !== 'fail')) continue;
+  for (const j of list) {
+    if (j.decision !== 'yes' && j.decision !== 'minor' && j.decision !== 'no') continue;
+    agreementItems.push({
+      key,
+      reviewer: j.reviewer ?? 'anonymous',
+      reviewerAccepts: j.decision !== 'no',
+      decision: j.decision,
+      note: j.note ?? null,
+      judgeAccepts: row.judgeVerdict === 'pass',
+      judgeScores: row.judgeScores,
+      judgeReason: row.judgeReason,
+    });
   }
 }
-let judgeAgreement = null;
-if (paired.length) {
-  const n = paired.length;
-  const both = paired.filter((p) => p.judgePass && p.humanAccept).length;
-  const neither = paired.filter((p) => !p.judgePass && !p.humanAccept).length;
-  const wavedThrough = paired.filter((p) => p.judgePass && !p.humanAccept).length;
-  const overRejected = paired.filter((p) => !p.judgePass && p.humanAccept).length;
-  const observed = (both + neither) / n;
-  // Cohen's kappa against the marginal distributions of the two raters.
-  const pJudge = (both + wavedThrough) / n;
-  const pHuman = (both + overRejected) / n;
-  const expected = pJudge * pHuman + (1 - pJudge) * (1 - pHuman);
-  judgeAgreement = {
-    paired: n,
+let agreement = null;
+if (agreementItems.length) {
+  const cell = (rev, jud) => agreementItems.filter((i) => i.reviewerAccepts === rev && i.judgeAccepts === jud).length;
+  // A false accept is the expensive cell: the judge cleared something a human rejected, so
+  // it would have aired. A false revert only costs a skin.
+  const falseAccepts = agreementItems.filter((i) => !i.reviewerAccepts && i.judgeAccepts);
+  const falseReverts = agreementItems.filter((i) => i.reviewerAccepts && !i.judgeAccepts);
+  // Raw agreement flatters a LOPSIDED judge: one that passes nearly everything scores well
+  // against reviewers who also accept most things, purely by chance. Cohen's kappa corrects
+  // for that, and it is the number to read when the two sides have very different accept
+  // rates - which is exactly the regime a permissive judge creates.
+  const n = agreementItems.length;
+  const observed = (cell(true, true) + cell(false, false)) / n;
+  const pJudge = (cell(true, true) + cell(false, true)) / n;
+  const pReviewer = (cell(true, true) + cell(true, false)) / n;
+  const expected = pJudge * pReviewer + (1 - pJudge) * (1 - pReviewer);
+  agreement = {
+    items: n,
+    agreed: cell(true, true) + cell(false, false),
     observedAgreement: observed,
     kappa: expected < 1 ? (observed - expected) / (1 - expected) : null,
-    wavedThrough,
-    overRejected,
-    wavedThroughItems: paired.filter((p) => p.judgePass && !p.humanAccept).map((p) => p.key),
+    matrix: {
+      bothAccept: cell(true, true), reviewerAcceptJudgeReject: cell(true, false),
+      reviewerRejectJudgeAccept: cell(false, true), bothReject: cell(false, false),
+    },
+    falseAccepts, falseReverts, detail: agreementItems,
   };
 }
 
@@ -228,7 +256,8 @@ for (const r of report) {
   const failures = Object.entries(r.failureTaxonomy);
   if (failures.length) console.log(`  failures: ${failures.map(([code, count]) => `${code}×${count}`).join(', ')}`);
   if (r.skinJudge) {
-    const means = Object.entries(r.skinJudge.meanScores).map(([axis, mean]) => `${axis} ${mean.toFixed(1)}`).join(', ');
+    const means = Object.entries(r.skinJudge.meanScores)
+      .map(([axis, mean]) => `${axis} ${mean === null ? 'n/a' : mean.toFixed(1)}`).join(', ');
     console.log(
       `  skin judge: ${pct(r.skinJudge.passRate)} of ${r.skinJudge.judged} passed, `
       + `${r.skinJudge.reverted} reverted${r.skinJudge.erroredOpen ? `, ${r.skinJudge.erroredOpen} errored open` : ''}; mean ${means}`,
@@ -243,41 +272,39 @@ if (noted.length) {
   console.log('\nReviewer notes:');
   for (const { key, reviewer, note } of noted) console.log(`- ${key} [${reviewer}]: ${note}`);
 }
+if (agreement) {
+  const m = agreement.matrix;
+  console.log(`\nJudge vs reviewer, per item (${agreement.items} item(s) carry both verdicts):`);
+  console.log('                    judge accept   judge revert');
+  console.log(`  reviewer accept   ${String(m.bothAccept).padStart(8)}   ${String(m.reviewerAcceptJudgeReject).padStart(12)}`);
+  console.log(`  reviewer reject   ${String(m.reviewerRejectJudgeAccept).padStart(8)}   ${String(m.bothReject).padStart(12)}`);
+  console.log(`  agreement ${agreement.agreed}/${agreement.items}`
+    + (agreement.kappa === null ? '' : ` (kappa ${agreement.kappa.toFixed(2)} after chance correction)`));
+  if (agreement.kappa !== null && agreement.kappa < 0.4) {
+    console.log('  Kappa is WEAK: the raw count above is mostly chance, not agreement.');
+  }
+  for (const i of agreement.falseAccepts) {
+    console.log(`  FALSE ACCEPT (would have aired): ${i.key}`);
+    console.log(`    reviewer "${i.note ?? i.decision}" vs judge ${JSON.stringify(i.judgeScores)}`);
+  }
+  for (const i of agreement.falseReverts) {
+    console.log(`  false revert (cost a skin): ${i.key} - reviewer ${i.decision}, judge ${JSON.stringify(i.judgeScores)}`);
+  }
+  // Coin-flip agreement is the norm at these sample sizes; say so rather than letting a
+  // reader treat a small majority as calibration.
+  if (agreement.items < 20) {
+    console.log(`  Too few items to set AI_LITE_JUDGE_THRESHOLD - blind-review more of the gallery first.`);
+  }
+} else {
+  console.log('\nNo item carries both a reviewer decision and a judge verdict - the threshold is uncalibrated.');
+}
 if (consistency) {
   console.log(`\nReviewer self-consistency: ${pct(consistency.decisionAgreement)} decision agreement, ` +
-    `mean score delta ${consistency.meanScoreDelta.toFixed(2)} over ${consistency.repeats} planted repeats.`);
+    `mean score delta ${consistency.meanScoreDelta === null ? 'n/a (unscored)' : consistency.meanScoreDelta.toFixed(2)} `
+    + `over ${consistency.repeats} planted repeats.`);
   if (consistency.decisionAgreement < 0.8) {
     console.log('Self-agreement is LOW: widen the promotion threshold - small deltas cannot discriminate.');
   }
-}
-if (judgeAgreement) {
-  const { paired: n, observedAgreement, kappa, wavedThrough, overRejected } = judgeAgreement;
-  console.log(`\nJudge vs blind review: ${pct(observedAgreement)} raw agreement over ${n} paired item(s)` +
-    `${kappa === null ? '' : `, kappa ${kappa.toFixed(2)}`}.`);
-  console.log(`  judge passed / human rejected: ${wavedThrough}   judge failed / human accepted: ${overRejected}`);
-  if (wavedThrough) {
-    console.log(`  WAVED THROUGH: ${judgeAgreement.wavedThroughItems.join(', ')}`);
-    console.log('  Each of these is a defect class the judge cannot see - check whether the');
-    console.log('  deterministic bench can catch it instead before widening the judge\'s remit.');
-  }
-  // A weak kappa condemns the judge on its own - it does not depend on having planted
-  // repeats. Reviewer self-consistency, when measured, is the CEILING the judge is read
-  // against: it can never be more trustworthy than the humans that calibrate it.
-  if (kappa !== null && kappa < 0.4) {
-    console.log('  Judge agreement is WEAK after chance correction: it has NOT earned a promotion');
-    console.log('  threshold. Keep it in the eval rig and rank candidates on machine gates + blind review.');
-  }
-  if (consistency) {
-    const ceiling = consistency.decisionAgreement;
-    console.log(`  reviewer self-agreement (the ceiling): ${pct(ceiling)}`);
-    if (kappa !== null && kappa >= 0.4 && observedAgreement < ceiling - 0.1) {
-      console.log('  Judge agrees with reviewers materially less than reviewers agree with themselves:');
-      console.log('  not yet threshold-worthy.');
-    }
-  }
-} else {
-  console.log('\nNo judge/human pairs yet - judge agreement is UNMEASURED, so no judge-based');
-  console.log('promotion threshold may be claimed (docs/AI_LITE_BENCHMARK.md §6b).');
 }
 console.log('\nGold is the catalog ceiling and floor the zero-model baseline: read every candidate as a position between them.');
 
@@ -299,5 +326,5 @@ try {
   console.log('\nNo sameness.json yet (run bench:sameness over this dir to measure visual diversity).');
 }
 
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, judgeAgreement, notes: noted, sameness }, null, 2), 'utf8');
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, agreement, notes: noted, sameness }, null, 2), 'utf8');
 console.log(`Wrote ${path.join(OUT, 'report.json')}`);

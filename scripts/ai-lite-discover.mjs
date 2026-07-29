@@ -18,12 +18,10 @@ import { buildApiRuntime } from './api-runtime-build.mjs';
 
 const OUT = path.resolve(process.argv[2] || './lite-bench-out');
 
-// Lite's economics, from docs/AI_LITE_PROMOTION.md: a per-call ceiling of $0.007 and a
-// cost-per-accepted-result target of $0.01. A Lite call is roughly 2k in / 1.2k out, so a
-// route only fits the envelope if it prices well under these per-million figures. The
-// ceilings are deliberately generous - qualify and compare do the real narrowing.
-const MAX_INPUT_PER_MILLION = 1.0;
-const MAX_OUTPUT_PER_MILLION = 4.0;
+// The per-million ceilings are the FUNDED-ROUTE gate itself (api/_lib/aiModelCatalog.ts),
+// not a second opinion about it: a candidate the registry would refuse to fund has no
+// business appearing on a shortlist. Lite's own per-call ceiling of $0.007 comes from
+// docs/AI_LITE_PROMOTION.md; a Lite call measures roughly 2k in / 1.2k out.
 const EST_INPUT_TOKENS = 2000;
 const EST_OUTPUT_TOKENS = 1200;
 const PER_CALL_CEILING_USD = 0.007;
@@ -57,8 +55,10 @@ try {
     // ':free' variants are rate-limited promotional routes, not something a product can
     // build a quota on. They are excluded deliberately, not overlooked.
     if (model.free) { reject('promotional :free route'); continue; }
-    if (model.inputPerMillion > MAX_INPUT_PER_MILLION) { reject('input price over ceiling'); continue; }
-    if (model.outputPerMillion > MAX_OUTPUT_PER_MILLION) { reject('output price over ceiling'); continue; }
+    if (!catalog.fundedRoutePrice({
+      inputPerMillion: model.inputPerMillion,
+      outputPerMillion: model.outputPerMillion,
+    })) { reject('over the funded-route price ceiling'); continue; }
     const perCall = estimatedCall(model);
     if (perCall > PER_CALL_CEILING_USD) { reject('estimated call over $0.007'); continue; }
     candidates.push({
@@ -89,8 +89,7 @@ try {
     openWeightCandidates: candidates.filter((c) => c.openWeights).length,
     visionCandidates: candidates.filter((c) => c.vision).length,
     ceilings: {
-      inputPerMillion: MAX_INPUT_PER_MILLION,
-      outputPerMillion: MAX_OUTPUT_PER_MILLION,
+      fundedRoute: catalog.FUNDED_ROUTE_PRICE_CEILING,
       perCallUsd: PER_CALL_CEILING_USD,
       estimatedTokens: { input: EST_INPUT_TOKENS, output: EST_OUTPUT_TOKENS },
     },
