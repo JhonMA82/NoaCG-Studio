@@ -12,6 +12,7 @@ import { callModel, callModelDetailed, type ContentBlock } from '../modelGateway
 import { startAiRun, type AiRunRecorder } from '../telemetry';
 import { findingsList, repairLoop } from '../shared/repairLoop';
 import { parseDataUrl } from '../../assets/assetUtils';
+import type { ReferencePurpose } from '../../model/imagePurpose';
 import type { MotionPlan, VideoChatMessage, VideoEngine, VideoInput } from '../../model/videoTypes';
 import { hyperframesInputs } from '../../video/hyperframes/parse';
 import type {
@@ -52,15 +53,21 @@ function settingsText(ctx: VideoGenerateContext): string {
 }
 
 function assetsText(ctx: VideoGenerateContext): string {
-  if (ctx.assets.length === 0) return 'Assets: none uploaded.';
   const hf = ctx.engine === 'hyperframes';
   const lines = ctx.assets.map((a) => {
     const dims = a.width && a.height ? `, ${a.width}x${a.height}` : '';
     return `- ${hf ? `asset:${a.name}` : `assets['${a.name}']`} (${a.mime}${dims})`;
   });
-  return hf
-    ? `Assets available as asset: URLs (use these EXACT names, nothing else):\n${lines.join('\n')}`
-    : `Assets available via the assets prop (use these EXACT names, nothing else):\n${lines.join('\n')}`;
+  const assets = ctx.assets.length
+    ? hf
+      ? `Assets available as asset: URLs (use these EXACT names, nothing else):\n${lines.join('\n')}`
+      : `Assets available via the assets prop (use these EXACT names, nothing else):\n${lines.join('\n')}`
+    : 'Assets: none uploaded.';
+  // The reference brief rides HERE rather than at each call site: the Motion Director, the
+  // coder and the refinement all compose their prompt from this one function, and a picture
+  // the director never saw explained would have shaped nothing.
+  const brief = attachmentBrief(ctx);
+  return brief ? `${assets}\n\n${brief}` : assets;
 }
 
 /**
@@ -81,19 +88,78 @@ function currentInputsText(inputs: VideoInput[], engine: VideoEngine): string {
   return `Editable inputs the composition already declares - re-declare ALL of them with the SAME keys and types, and ${keep}. Only add, remove, or rename a key when the request actually changes what content is editable; a key that silently changes loses the value the user typed into it:\n${lines.join('\n')}`;
 }
 
-/** Uploaded raster images as vision blocks so the model designs around what it sees. */
+/**
+ * Uploaded raster images as vision blocks so the model designs around what it sees.
+ *
+ * Composition assets first, then reference material, matching the order `attachmentBrief`
+ * numbers them in - the text and the pictures have to agree on which is which.
+ */
 function imageBlocks(ctx: VideoGenerateContext, assetData: Map<string, string>): ContentBlock[] {
   const blocks: ContentBlock[] = [];
-  for (const a of ctx.assets) {
-    if (!a.mime.startsWith('image/') || a.mime === 'image/svg+xml') continue;
-    const data = assetData.get(a.name);
-    if (!data) continue;
+  const push = (mime: string, data: string | undefined): boolean => {
+    if (!mime.startsWith('image/') || mime === 'image/svg+xml' || !data) return false;
     const parsed = parseDataUrl(data);
-    if (!parsed) continue;
+    if (!parsed) return false;
     blocks.push({ type: 'image', source: { type: 'base64', media_type: parsed.mime, data: parsed.base64 } });
-    if (blocks.length >= 3) break; // enough visual context; keep the request light
+    return true;
+  };
+  for (const a of ctx.assets) {
+    push(a.mime, assetData.get(a.name));
+    if (blocks.length >= 3) return blocks; // enough visual context; keep the request light
+  }
+  for (const r of ctx.references ?? []) {
+    push(parseDataUrl(r.data)?.mime ?? '', r.data);
+    if (blocks.length >= 5) break; // references earn a little more room; they ARE the guidance
   }
   return blocks;
+}
+
+/** The short tag each reference carries (model/imagePurpose.ts's words). */
+const REFERENCE_TAG: Record<ReferencePurpose, string> = {
+  layout: 'MAKE ONE LIKE THIS',
+  mood: 'TAKE THE LOOK AND FEEL',
+  plate: 'MAKE IT WORK OVER THIS',
+};
+
+/**
+ * What the attached pictures are FOR. Composition assets are named and drawable; references
+ * are looked at and never reachable from the code - the same four purposes the SPX harness
+ * reads, because a user who learned them in one wizard should not meet new words in the other.
+ */
+function attachmentBrief(ctx: VideoGenerateContext): string {
+  const refs = ctx.references ?? [];
+  if (!refs.length) return '';
+  const lines = refs.map((r, i) => `  ${ctx.assets.length + i + 1}. ${REFERENCE_TAG[r.use]}`);
+  const has = (use: ReferencePurpose) => refs.some((r) => r.use === use);
+  const blocks = [
+    `The last ${refs.length} attached picture(s) are REFERENCE MATERIAL, not assets. They are ` +
+      `NOT in the assets prop, have no logical name, and can never be drawn - do not reference ` +
+      `them in code. They are there to be read:\n${lines.join('\n')}`,
+  ];
+  if (has('layout')) {
+    blocks.push(
+      `MAKE ONE LIKE THIS - follow the composition: placement, reading order, hierarchy, ` +
+        `density, proportion rhythm, shape language, how motion enters and leaves. Never ` +
+        `reproduce the artwork, wordmark or photography itself. If one is a sketch or ` +
+        `wireframe, read it as a DIAGRAM of what to build - its rough lines describe placement, ` +
+        `and its hand-drawn look is not a style to imitate.`,
+    );
+  }
+  if (has('mood')) {
+    blocks.push(
+      `TAKE THE LOOK AND FEEL - colour, mood, texture, weight and motion energy ONLY. Ignore ` +
+        `their layout entirely; they may not even be graphics.`,
+    );
+  }
+  if (has('plate')) {
+    blocks.push(
+      `MAKE IT WORK OVER THIS - the real background this will be shown over. Never drawn, ` +
+        `never imitated: read where it is bright, busy or dark and make the piece hold up over ` +
+        `it - contrast, panel opacity, separation, placement clear of faces. Assume the shot ` +
+        `moves, so do not rely on a gap that is only empty in this frame.`,
+    );
+  }
+  return blocks.join('\n\n');
 }
 
 // ── Stage a: skill detection ─────────────────────────────────────────────────

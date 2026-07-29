@@ -3490,6 +3490,10 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .video-asset-list, .video-saved-list { list-style: none; margin: 0; padding: 0; }
 .video-asset-list li, .video-saved-list li { border-bottom: 1px solid var(--border); padding: 6px 0; }
 .video-asset-list li:last-child, .video-saved-list li:last-child { border-bottom: none; }
+/* An asset row carries its purpose picker under the file line, so it stacks rather than
+   sitting on the flex row (model/imagePurpose.ts). */
+.video-asset-row { padding-bottom: 8px; }
+.video-asset-row .wz-purpose { margin-top: 6px; }
 
 /* The player-host iframe is the output frame itself: sized to the native composition
    resolution and scaled to fit by PreviewFrame's .preview-frame rules (absolute-centred,

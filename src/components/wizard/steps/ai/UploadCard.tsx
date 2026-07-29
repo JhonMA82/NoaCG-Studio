@@ -22,13 +22,20 @@ interface Props {
   item: PurposedImage;
   /** False in Lite, which accepts a logo and nothing else — four choices would be a lie. */
   choosable: boolean;
+  /**
+   * Offer the fixed/swappable sub-choice. False for VIDEO, where a picture reaches the
+   * composition through a declared image INPUT and "operators can swap it" describes a
+   * control the video project does not have — a toggle that changed nothing would be worse
+   * than no toggle.
+   */
+  showBinding?: boolean;
   onChange: (patch: Partial<PurposedImage>) => void;
   onRemove: () => void;
 }
 
 const BINDINGS: AssetBinding[] = ['swappable', 'fixed'];
 
-export function UploadCard({ item, choosable, onChange, onRemove }: Props) {
+export function UploadCard({ item, choosable, showBinding = true, onChange, onRemove }: Props) {
   const src = typeof item.asset.data === 'string' ? item.asset.data : undefined;
   const name = item.asset.path.replace(/^images\//, '');
 
@@ -67,7 +74,7 @@ export function UploadCard({ item, choosable, onChange, onRemove }: Props) {
           </div>
           <p className="hint wz-upload-hint">{PURPOSE_HINT[item.purpose]}</p>
 
-          {item.purpose === 'asset' && (
+          {showBinding && item.purpose === 'asset' && (
             <div className="wz-purpose wz-binding" role="group" aria-label={`Who controls ${name}`}>
               {BINDINGS.map((binding) => (
                 <button

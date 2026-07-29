@@ -90,23 +90,49 @@ export function uniqueVideoAssetPath(fileName: string, existing: AssetFile[]): s
  * Build the AI/player view of a project's assets. The name comes from the path alone, so it is
  * stable across every add and delete (uniqueVideoAssetPath settled it at upload). The tie-break
  * loop only ever fires for a project whose assets predate that rule - never for new uploads.
- *
- * `uses` (VideoProject.assetUses) REMOVES reference material from this view, and this one
- * function is why that is enough: everything downstream that can reach an asset - the code's
- * `assets.<name>`, the Content panel's image picker, the render manifest's upload - reads the
- * list from here. A mood board must inform the design without being offered as a logo or
- * shipped to the render service. An absent map keeps every asset, which is the old behaviour.
  */
-export function describeAssets(
-  assets: AssetFile[],
-  uses?: Record<string, ReferencePurpose>,
-): VideoAssetInfo[] {
+export function describeAssets(assets: AssetFile[]): VideoAssetInfo[] {
   const seen = new Set<string>();
-  return assets.filter((a) => !uses?.[a.path]).map((a) => {
+  return assets.map((a) => {
     let name = assetLogicalName(a.path);
     let i = 2;
     while (seen.has(name)) name = `${assetLogicalName(a.path)}-${i++}`;
     seen.add(name);
     return { name, path: a.path, mime: assetMime(a) };
   });
+}
+
+/**
+ * The assets the COMPOSITION may use - everything the user uploaded, minus the pictures they
+ * tagged as reference material (model/imagePurpose.ts, persisted as VideoProject.assetUses).
+ *
+ * Filtering the LIST rather than the described names is deliberate: an untagged asset is
+ * reachable four ways - `assets.<name>` in the code, the Content panel's image picker, the
+ * player's data-URL map, and the render manifest's upload - and a mood board belongs in none
+ * of them. It informs the design through vision blocks instead, so shipping it to the render
+ * service would cost the user upload budget for a picture that is never drawn. An absent map
+ * returns the list unchanged, which is every project saved before this existed.
+ *
+ * The Assets panel deliberately does NOT use this: it manages every upload, including the
+ * ones it must let you re-tag or delete.
+ */
+export function compositionAssets(project: {
+  assets: AssetFile[];
+  assetUses?: Record<string, ReferencePurpose>;
+}): AssetFile[] {
+  const uses = project.assetUses;
+  if (!uses) return project.assets;
+  return project.assets.filter((a) => !uses[a.path]);
+}
+
+/** The reference-tagged uploads, as the video providers receive them (vision only). */
+export function referenceAssets(project: {
+  assets: AssetFile[];
+  assetUses?: Record<string, ReferencePurpose>;
+}): { name: string; data: string; use: ReferencePurpose }[] {
+  const uses = project.assetUses;
+  if (!uses) return [];
+  return project.assets
+    .filter((a) => uses[a.path] && typeof a.data === 'string')
+    .map((a) => ({ name: assetLogicalName(a.path), data: a.data as string, use: uses[a.path] }));
 }

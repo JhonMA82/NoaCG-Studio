@@ -14,7 +14,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import AiProviderSettings from '../AiProviderSettings';
 import { useAiConsent } from '../AiConsentDialog';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
-import { describeAssets } from '../../video/types';
+import { compositionAssets, describeAssets, referenceAssets } from '../../video/types';
 import { validateVideoModule } from '../../video/validate';
 import { validateHyperframesComposition } from '../../video/hyperframes/validate';
 import { getActivePlayerBridge, getActiveHyperframesBridge } from '../../video/bridgeRegistry';
@@ -37,17 +37,22 @@ function settingsOf(project: VideoProject) {
 }
 
 function contextFor(project: VideoProject) {
-  const infos = describeAssets(project.assets);
+  // Composition assets and reference material part company here: the first is what the code
+  // may reach by name, the second is only ever looked at (model/imagePurpose.ts).
+  const usable = compositionAssets(project);
+  const infos = describeAssets(usable);
   const assetData = new Map<string, string>();
   for (const info of infos) {
-    const asset = project.assets.find((a) => a.path === info.path);
+    const asset = usable.find((a) => a.path === info.path);
     if (asset && typeof asset.data === 'string') assetData.set(info.name, asset.data);
   }
+  const references = referenceAssets(project);
   return {
     engine: project.engine,
     settings: settingsOf(project),
     assets: infos,
     assetData,
+    ...(references.length ? { references } : {}),
     model: project.aiModel || undefined,
   };
 }
@@ -57,8 +62,8 @@ function contextFor(project: VideoProject) {
 const validate: VideoValidator = (source, declaredInputs = []) => {
   const p = useVideoProjectStore.getState().project;
   return p.engine === 'hyperframes'
-    ? validateHyperframesComposition(source, settingsOf(p), p.assets, getActiveHyperframesBridge())
-    : validateVideoModule(source, settingsOf(p), p.assets, getActivePlayerBridge(), declaredInputs);
+    ? validateHyperframesComposition(source, settingsOf(p), compositionAssets(p), getActiveHyperframesBridge())
+    : validateVideoModule(source, settingsOf(p), compositionAssets(p), getActivePlayerBridge(), declaredInputs);
 };
 
 export default function VideoAiChatPanel() {
