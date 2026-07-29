@@ -187,13 +187,13 @@ pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the cal
 to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
 
 The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
-`lite-skin-judge-v5`) beside the generation prompt version. Scores from two judge versions
+`lite-skin-judge-v6`) beside the generation prompt version. Scores from two judge versions
 are not comparable and calibration is a comparison, so the version is stated in the prompt
 rather than inferred from which round produced the number. **No round has run since v1.**
 v2 added `textIntegrity` (§6d); v3 rewrote `strapShape` as inspection, v4 gave it a scale
-anchor and v5 corrected that anchor against measurement (all §6e) - each landed before any
-paid round scored the one before it, so the first paid round measures all four changes
-together as v5.
+anchor, v5 corrected that anchor against measurement, and v6 stopped briefFit scoring the
+brief's noun list (all §6e) - each landed before any paid round scored the one before it,
+so the first paid round measures all five changes together as v6.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -242,6 +242,15 @@ Two rules follow, and they cost about $0.05 to learn:
 briefFit stays the weak axis (2.60 at best). The next mechanism to try is worked EXAMPLES -
 one or two high-scoring skins shown rather than described, or the curated skins the nightly
 factory is meant to produce - not more sentences.
+
+> **SUPERSEDED (2026-07-29), read §6e before trusting this section.** Both experiments here
+> were tuning the GENERATOR against a `briefFit` axis that was partly unwinnable: it scored
+> the brief's noun list, including scene elements a strap cannot hold, so no amount of
+> teaching could move that share of it. That is a simpler explanation for "both attempts to
+> raise briefFit lowered it" than a prompt-load ceiling, and it means **the 2.60 figure
+> measures the axis as much as the model**. The load-ceiling lesson may still be real - v4
+> and v5 did add lines - but it is no longer *demonstrated* by these numbers. Re-derive
+> after a v6 round before spending on worked examples.
 
 ## 6d. Measured: the first blind review, and the defect nothing could see
 
@@ -384,6 +393,35 @@ never a higher threshold:
     accurately, and the reviewer's own note was "boring / ugly". They agreed on the quality
     and differed on whether bad-but-fixable should air. That is a threshold question about
     what "minor" means, not a judge error, and it should not be counted as one.
+
+- **`briefFit` was scoring the brief's noun list, and the nouns do not fit on a strap.**
+  This axis is the MINIMUM one in 44 of 59 rows, so it decides three-quarters of every
+  verdict. Reading its reasons against the frozen briefs shows what it was actually doing:
+
+  | fixture | judged rows | `briefFit` outcome |
+  | --- | --- | --- |
+  | `skin-neon-synthwave` | 12 | **every row 1-3** (ten of them exactly 2); one reached the pass threshold |
+
+  Seven of those twelve name the same cause - a missing "eighties horizon", which the brief
+  does ask for. **A horizon is a scene element.** The rendered straps are ~2.9:1 and a
+  quarter of the frame wide, and the generation prompt orders the model to "work with that
+  shape", so there is nowhere to put one. The model could satisfy `briefFit` or
+  `strapShape`, never both - the same generation-vs-judge contradiction as the strap-width
+  bug above, in its third form. The luxury reasons say it outright: "the 'vast negative
+  space' is only visible outside the graphic", marked down anyway.
+
+  This also explains §6c. Two paid prompt experiments tried to raise `briefFit` and both
+  made it *worse*, which read as a prompt-load ceiling. Part of it was simpler: a share of
+  the axis was unwinnable by construction, so teaching the model harder could not move it.
+  **Whatever §6c concluded about briefFit's 2.60 ceiling is now suspect** and should be
+  re-derived after a v6 round, not carried forward.
+
+  Fixed in `lite-skin-judge-v6`: score the requested character AT STRAP SCALE, read
+  scene-scale words as direction for colour, type, texture and edge, and never mark a
+  graphic down for lacking a scene element that could not fit on a strap. The positive test
+  is inspection-shaped - "recognisable as that style with its text removed". The briefs are
+  drift-pinned fixtures and a real user would write exactly those words, so the JUDGE is the
+  side that gives; a test pins both halves together.
 
 - **Watch, do not yet act: `hierarchy` never discriminated.** It scored 4 or 5 on all six
   joined items, including `item-003`, which has no composition at all. An axis that is always

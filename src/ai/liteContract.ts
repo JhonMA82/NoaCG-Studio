@@ -368,10 +368,12 @@ export const LITE_JUDGE_AXES = ['legibility', 'textIntegrity', 'hierarchy', 'bri
  * from a single 4.5:1 example, and measuring all 59 judged frames
  * (`scripts/ai-lite-strap-geometry.mjs`) put the median at 2.9:1 - so the guess would have
  * marked down 54% of everything the generator produces. Only 2% fall below 2:1.
- * **None of v2-v5 has been run** - every one of these changes is unmeasured, and the first
- * paid round measures them together as v5.
+ * v6 stopped `briefFit` scoring the brief's noun list: it was demanding scene elements a
+ * strap cannot hold, which is why every neon-synthwave row landed at 1-3.
+ * **None of v2-v6 has been run** - every one of these changes is unmeasured, and the first
+ * paid round measures them together as v6.
  */
-export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v5';
+export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v6';
 
 export const LITE_JUDGE_LIMITS = {
   briefChars: 2000,
@@ -420,7 +422,12 @@ export function liteJudgeSystemPrompt(promptVersion: string): string {
     // instead - a separate question, phrased as inspection rather than reading.
     '- textIntegrity: every rendered word is whole. Inspect the last letter of each line and every point where text meets a panel edge, an angled or rounded cut, a bar, or a decorative shape: a letter sliced part-way through, a word continuing past the panel it sits on, an ellipsis, or a line hidden behind decoration scores 1. Trace the letterforms you can actually see rather than reading the word you expect - a half-cut letter still reads as the whole word. Score 5 only when no glyph is touched.',
     '- hierarchy: one clear primary element, intentional secondary weight, decoration never competing with the text.',
-    '- briefFit: the visual treatment actually delivers the requested style, committed rather than generic.',
+    // Scored as a literal checklist over the brief's nouns, this axis demanded things no
+    // strap can hold: 7 of 12 neon rows were marked down for a missing "eighties horizon",
+    // and ALL 12 landed at briefFit 1-3 (§6e). A horizon is a scene element, and the
+    // generation prompt orders the model to stay a strap - so the model could only lose
+    // this axis or strapShape. Score the CHARACTER at strap scale, never the noun list.
+    '- briefFit: does the treatment deliver the requested style at STRAP SCALE? A brief describes a mood in whatever words suit it, and some of those name things a lower third cannot hold - a horizon, a landscape, a poster, a full scene, vast negative space. Read those as direction for colour, type, texture, and edge, and score whether the strap carries that character; never mark a graphic down for lacking a scene element that could not fit on a strap in the first place. A committed treatment shows a palette and typeface chosen for the style rather than defaults, shape and edge treatment belonging to it, and decoration that reads as intentional. Score 1-2 for a plain default panel that could have served any brief. Score 5 when the strap would still be recognisable as that style with its text removed.',
     // v1 enumerated WRONG SHAPES - squat box, card, badge, tall stack, centered plate,
     // full-frame - and a graphic with no form at all matches none of them, so the checklist
     // returned "no failure found" and scored a strapless frame 5 (§6e, round j run2). The

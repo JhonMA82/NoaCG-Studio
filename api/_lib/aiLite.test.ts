@@ -745,6 +745,13 @@ test('the judge prompt and schema cover exactly the scored axes', () => {
   // "under 3:1 scores 1-2" would have condemned 54% of the generator's own output.
   assert.match(prompt, /approaching square or taller than wide/);
   assert.doesNotMatch(prompt, /three times wider/, 'the 3:1 floor was measured wrong; do not restore it');
+  // briefFit must score CHARACTER at strap scale, not the brief's noun list. Scored as a
+  // checklist it demanded a scene element ("eighties horizon") no strap can hold, and every
+  // one of the 12 neon rows landed at 1-3 - the model could only lose this or strapShape.
+  assert.match(prompt, /STRAP SCALE/);
+  assert.match(prompt, /never mark a graphic down for lacking a scene element/);
+  // The other half of this contract - that the fixture briefs really do name scene-scale
+  // motifs - is pinned in scripts/ai-lite-bench.test.mjs, which can read the repo tree.
   // The generation prompt is the other half of that contract - if it ever stops sizing the
   // strap by its text, this axis is measuring against a rule that no longer exists.
   assert.match(liteSystemPrompt('test-v1', [], { skin: true }), /width set by the text plus steady padding/);
