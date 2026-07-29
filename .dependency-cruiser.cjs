@@ -125,6 +125,14 @@ module.exports = {
       to: { path: '^src/(backend|validation)/' },
     },
     {
+      comment:
+        '§3: admin -> backend (getAccessToken + isBackendConfigured only). The admin page is ' +
+        'its own MPA entry, so it needs the session token to authorize its API calls; it ' +
+        'reads no other domain, because every fact it shows comes from api/admin/*.',
+      from: { path: '^src/admin/' },
+      to: { path: '^src/backend/' },
+    },
+    {
       comment: '§3: showchat -> backend, control',
       from: { path: '^src/showchat/' },
       to: { path: '^src/(backend|control)/' },

@@ -46,6 +46,7 @@ thin `CLAUDE.md` import.
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
 | 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
+| 3 app | `admin/` | the PRIVATE admin page: its own MPA entry (`admin.html` -> `/admin`), the wire types, the authorized fetch client (docs/ADMIN.md) | (top of the graph - nothing imports these) |
 
 ## 3. Allowed edges (the ratchet)
 
@@ -66,6 +67,8 @@ here and not in §6 are wrong - fix the code, not the table.
   `export/targets/ograf.ts` -> `render/runtimeScript.ts` (the shared deterministic virtual clock)
 - `control` -> blocks, backend
 - `community` -> backend, validation
+- `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
+  from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control
 - `app` -> (nothing)
 - `components` -> any lower domain, **through its seam column in §2**

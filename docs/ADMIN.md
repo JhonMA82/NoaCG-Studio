@@ -23,6 +23,13 @@ admin row, suspended admin, and unconfigured backend all return the same generic
 `404 { error: { code: 'not_found' } }`. The page renders a plain "Not found" body in that case,
 so an unauthorized visitor cannot tell `/admin` from a typo.
 
+**There is no sign-in at `/admin`.** A sign-in form would confirm to anyone who typed the URL
+that there is something to sign in to. The owner signs in through the normal app on the same
+origin and then opens the page, which reuses that session. With no session, `/admin` is a 404
+and stays one. For the same reason the page does not pre-check locally for a backend or a
+token before calling the server: a second place deciding "may I be here" is a second thing
+that can disagree with the first.
+
 **Offline and self-hosted instances have no admin surface at all.** With Supabase env unset,
 `isBackendConfigured()` is false, every admin endpoint 404s, and the page never leaves its
 not-found state. The open editor grows zero auth UI - that contract (root `AGENTS.md`, "Auth
