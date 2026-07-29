@@ -1130,6 +1130,7 @@ export default function AiStep({
               // picture arrives. This panel only reports what is attached.
               uploads={uploads}
               disabled={!!busy}
+              allowUploads={!liteMode}
               allowedCategories={liteMode ? LITE_AI_CATEGORIES : undefined}
               maxFields={liteMode ? liteStatus?.limits.fields ?? 8 : undefined}
             />

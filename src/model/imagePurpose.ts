@@ -102,6 +102,13 @@ export function splitByPurpose(images: PurposedImage[]): {
 }
 
 /**
+ * Longest edge (px) under which a picture is treated as a MARK rather than a reference.
+ * Comfortably above a large logo export and far below any frame-shaped picture, so the two
+ * populations do not overlap in practice.
+ */
+const MARK_MAX_EDGE = 512;
+
+/**
  * The preselect. Deterministic arithmetic over the image itself — no model call, no cost.
  *
  * Only `asset` and `mood` are ever guessed. `layout` and `plate` are INTENTS that nothing in
@@ -116,10 +123,17 @@ export async function guessPurpose(asset: AssetFile): Promise<ImagePurpose> {
     if (info.kind !== 'image') return 'asset';
     // Vector art is a mark by nature — nobody mood-boards with an SVG.
     if (info.hasAlpha === 'vector') return 'asset';
-    if (!info.hasAlpha) return 'mood';
-    // Transparent AND small against a 1080-line frame: a crest, a bug, a sponsor mark.
-    const area = (info.width ?? 0) * (info.height ?? 0);
-    return area > 0 && area <= 1920 * 1080 * 0.25 ? 'asset' : 'mood';
+    const w = info.width ?? 0;
+    const h = info.height ?? 0;
+    if (!w || !h) return 'asset';
+    // SIZE is the stronger signal, and it is checked before transparency. A reference of any
+    // kind — a rival's strap, a mood board, a studio plate — is a picture of a whole frame or
+    // close to it; a mark is small. Alpha alone got this wrong: a crest flattened onto white
+    // (every JPEG logo, and the 1×1 PNG in e2e/flows.spec.ts) is opaque and still a mark.
+    if (w <= MARK_MAX_EDGE && h <= MARK_MAX_EDGE) return 'asset';
+    // Bigger than that, transparency is what still says "mark": a wide banner logo cut out
+    // against nothing is an asset, the same dimensions as an opaque photograph are not.
+    return info.hasAlpha && w * h <= 1920 * 1080 * 0.25 ? 'asset' : 'mood';
   } catch {
     // A probe failure must never block an upload. 'asset' is the older behaviour.
     return 'asset';

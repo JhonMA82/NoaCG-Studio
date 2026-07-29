@@ -59,6 +59,8 @@ interface Props {
    */
   uploads: PurposedImage[];
   disabled: boolean;
+  /** False in Lite, which takes no picture at all — the section must not invite one. */
+  allowUploads?: boolean;
   allowedCategories?: readonly GenerationSpec['category'][];
   maxFields?: number;
 }
@@ -251,7 +253,7 @@ function FieldsSection({
   );
 }
 
-function LookSection({ spec, onSpec, uploads, disabled }: Props) {
+function LookSection({ spec, onSpec, uploads, disabled, allowUploads = true }: Props) {
   const colors = spec.brandColors;
   const setColor = (key: 'accent' | 'text' | 'textDim' | 'panel', value: string) =>
     onSpec({
@@ -324,16 +326,24 @@ function LookSection({ spec, onSpec, uploads, disabled }: Props) {
         </div>
       )}
 
-      <label style={{ marginTop: 10 }}>Pictures attached</label>
-      {uploads.length ? (
-        <p className="hint" style={{ marginTop: 2 }} data-testid="mc-uploads">
-          {uploadSummary(uploads)}. Change what any of them is for in the drop zone above.
+      {!allowUploads ? (
+        <p className="hint" style={{ marginTop: 10 }}>
+          Image and logo input is paused while NoaCG Lite concentrates on lower-third quality.
         </p>
       ) : (
-        <p className="hint" style={{ marginTop: 2 }}>
-          None yet. Drop a logo, a design to follow, a mood board or a shot of your real
-          background above, then say what each one is for.
-        </p>
+        <>
+          <label style={{ marginTop: 10 }}>Pictures attached</label>
+          {uploads.length ? (
+            <p className="hint" style={{ marginTop: 2 }} data-testid="mc-uploads">
+              {uploadSummary(uploads)}. Change what any of them is for in the drop zone above.
+            </p>
+          ) : (
+            <p className="hint" style={{ marginTop: 2 }}>
+              None yet. Drop a logo, a design to follow, a mood board or a shot of your real
+              background above, then say what each one is for.
+            </p>
+          )}
+        </>
       )}
     </>
   );

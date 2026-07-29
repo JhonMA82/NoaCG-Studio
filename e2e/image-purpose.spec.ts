@@ -165,19 +165,23 @@ test('the preselect reads the picture, and only ever guesses mark-or-not', async
   await openAiStep(page);
   await attach(page, [
     { name: 'crest.png', w: 200, h: 200, alpha: true },
+    { name: 'flat-crest.png', w: 200, h: 200, alpha: false },
     { name: 'studio.png', w: 1600, h: 900, alpha: false },
   ]);
 
   const cards = page.getByTestId('ai-upload');
-  // Transparent and small: a mark. Opaque and large: not one. Neither "make one like this"
-  // nor "make it work over this" is ever guessed - no pixel distinguishes them from a mood
-  // board, so guessing would present a coin flip as a decision.
+  // SIZE decides first, then transparency. A cut-out mark and the SAME mark flattened onto
+  // white are both marks - keying only on alpha called every JPEG logo a mood board.
   await expect(cards.nth(0)).toHaveAttribute('data-purpose', 'asset');
-  await expect(cards.nth(1)).toHaveAttribute('data-purpose', 'mood');
+  await expect(cards.nth(1)).toHaveAttribute('data-purpose', 'asset');
+  // Frame-shaped and opaque: not a mark. Neither "make one like this" nor "make it work over
+  // this" is ever guessed - no pixel distinguishes them from a mood board, so guessing would
+  // present a coin flip as a decision.
+  await expect(cards.nth(2)).toHaveAttribute('data-purpose', 'mood');
 
   // The guess is visible and reversible, never a hidden default.
-  await cards.nth(1).getByTestId('purpose-plate').click();
-  await expect(cards.nth(1)).toHaveAttribute('data-purpose', 'plate');
+  await cards.nth(2).getByTestId('purpose-plate').click();
+  await expect(cards.nth(2)).toHaveAttribute('data-purpose', 'plate');
 });
 
 test('the fixed/swappable choice belongs to "use it as it is" alone', async ({ page }) => {

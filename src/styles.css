@@ -1411,7 +1411,10 @@ kbd {
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
+  /* Cards fill the column; the catalog escape button beside them must not stretch with them. */
+  align-items: stretch;
 }
+.wz-uploads > button { align-self: flex-start; }
 .wz-upload {
   border: 1px solid var(--line);
   border-radius: 8px;
