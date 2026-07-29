@@ -101,7 +101,7 @@ export default {
       return apiError('unauthorized', 'Cloud rendering is not available for this account.', 403);
     }
     const tier = resolveTier(Boolean(user), entitlement.renderTier.value);
-    const issues = validateRenderRequest(manifest, tier);
+    const issues = validateRenderRequest(manifest, tier, entitlement.renderFormats.value);
     if (issues.length > 0) {
       const signin = issues.find((i) => i.code === 'format-signin');
       if (signin) return apiError('format_requires_signin', signin.message, 403);

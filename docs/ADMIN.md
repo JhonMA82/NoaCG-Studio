@@ -101,6 +101,43 @@ permanent manual override. They differ only in whether they end, and collapsing 
 precedence order short enough to state in one line. A revoked, future-dated, expired, or
 malformed-timestamp grant does not apply - a bad date must never widen access.
 
+### What actually enforces each dimension
+
+A control that writes a row and changes nothing is worse than no control, so this is the map
+from a plan/admin dimension to the code that reads it.
+
+| Dimension | Enforced by |
+|---|---|
+| features (`ai.*`, `render.cloud`, …) | `allows()` at each gated server path - `api/render/start.ts`, `api/ai/lite/*` |
+| AI allowances | `applyEntitlementToLiteProfile()` before the reservation RPC |
+| render tier | `resolveTier(signedIn, entitlement.renderTier.value)` |
+| render formats | `validateRenderRequest(m, tier, entitlement.renderFormats.value)` |
+| template visibility | `api/_lib/templateVisibility.ts` -> `GET /api/me/entitlement` -> the wizard's Browse step and the community gallery |
+| beta cohort | the same visibility resolver; membership is never sent to the browser |
+| storage / projects | **nothing, deliberately** - observe-only, see above |
+| `plans.billing` | **nothing** - stored for a future integration |
+
+**A plan's `render_formats` REPLACES the tier's list** rather than intersecting it: "available
+export formats" is a plan dimension in its own right, so a plan must be able to grant a format
+its tier does not carry. The other caps stay orthogonal - granting ProRes does not also grant 4K
+or five minutes. A plan naming only formats the build does not have falls back to the tier
+instead of emptying the list, so a stale row costs one format rather than the feature.
+
+### The browser's own entitlement
+
+`GET /api/me/entitlement` returns the caller's resolved answer, so the UI stops guessing from
+"is there a user". Auth is optional (anonymous gets the anonymous defaults, not a 401), the
+projection is FLAT - values without their sources, because "why" is an operator's question and
+shipping it would tell every user which grants exist on their account - and it carries
+`hiddenTemplates`, the keys THIS caller may not see.
+
+It is a hide-list rather than a show-list on purpose: the catalog is code and already in the
+bundle, so a show-list would enumerate hundreds of ids and would empty the catalog the moment
+the endpoint failed. A hide-list degrades the safe way. `src/backend/myEntitlement.ts` caches it
+keyed on the access token (signing in or out is exactly a token change, and keying avoids a
+value cycle with `auth.ts`), and everything about it is UX - every gated path re-resolves
+server-side.
+
 ## 3. Roles
 
 `public.admin_users (user_id, role)` with roles `owner | admin | support`, ranked in that order.
@@ -129,6 +166,10 @@ self-promotion path and no first-run "claim this instance" flow.
 | `GET/POST /api/admin/system` | model and feature toggles, maintenance notice |
 | `GET/POST /api/admin/templates` | visibility, beta/internal marking, usage |
 | `GET /api/admin/audit` | the log |
+
+One route sits outside the admin gate on purpose: **`GET /api/me/entitlement`** is public
+(auth optional) and answers only about its own caller. It is what lets the editor stop guessing
+at access; see "The browser's own entitlement" above.
 
 The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, System,
 Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent

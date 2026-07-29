@@ -15,6 +15,7 @@ import { HF_WARNING_RULES, staticValidateHyperframes } from '../../video/hyperfr
 import { settingsDrift, videoFieldValues } from '../../model/videoTypes';
 import { buildHyperframesManifest, buildVideoManifest } from '../../render/buildVideoManifest';
 import { formatNeedsSignIn, resolveTier, validateRenderRequest, RENDER_CONFIG } from '../../render/limits';
+import { useMyEntitlement } from '../useMyEntitlement';
 import { RENDER_FORMATS, type RenderFormatId } from '../../render/manifest';
 import { useRenderJob } from '../../render/renderJobStore';
 import RenderFormatPicker from '../render/RenderFormatPicker';
@@ -142,7 +143,10 @@ export default function VideoRenderPanel() {
   }, [project, format, scale, bgColor, stillMode, stillFrame, fontCss]);
 
   const drift = settingsDrift(project);
-  const tier = resolveTier(signedIn && backendConfigured);
+  // Same source of truth as the SPX render panel: the caller's own entitlement, not "is
+  // there a user". UX only - the server re-resolves on every start.
+  const entitlement = useMyEntitlement();
+  const tier = resolveTier(signedIn && backendConfigured, entitlement.renderTier);
   const limitIssues = useMemo(
     () =>
       validateRenderRequest(
@@ -156,8 +160,9 @@ export default function VideoRenderPanel() {
           output: { format },
         },
         tier,
+        entitlement.renderFormats,
       ),
-    [project.engine, project.width, project.height, project.fps, project.durationInFrames, scale, format, tier],
+    [project.engine, project.width, project.height, project.fps, project.durationInFrames, scale, format, tier, entitlement.renderFormats],
   );
 
   const overBudget = preflight.bytes > RENDER_CONFIG.manifestMaxBytes;

@@ -24,7 +24,7 @@ import {
   type PlanShape,
 } from '../../src/entitlements/contract.js';
 
-import { resolveTier } from '../../src/render/limits.js';
+import { RENDER_LIMITS, allowedFormats, resolveTier, validateRenderRequest } from '../../src/render/limits.js';
 import { applyEntitlementToLiteProfile } from './entitlements.js';
 import { liteProfile } from './aiLiteProfile.js';
 
@@ -395,6 +395,66 @@ test('the kill switch reaches anonymous visitors too', () => {
   const resolved = resolveEntitlement({ ...bare(null), disabledFeatures: ['render.cloud'] });
   assert.equal(allows(resolved, 'render.cloud'), false);
   assert.equal(resolved.features['render.cloud'].source, 'disabled');
+});
+
+test('with no plan the allowed formats are exactly the tier\'s', () => {
+  for (const tier of ['anonymous', 'free', 'paid'] as const) {
+    assert.deepEqual(allowedFormats(tier), RENDER_LIMITS[tier].formats);
+    assert.deepEqual(allowedFormats(tier, null), RENDER_LIMITS[tier].formats);
+    assert.deepEqual(allowedFormats(tier, []), RENDER_LIMITS[tier].formats);
+  }
+});
+
+test('a plan replaces the format list, and may grant one its tier lacks', () => {
+  // ProRes is not in the anonymous tier; a plan naming it grants it. Formats and caps are
+  // orthogonal - granting ProRes must not also grant 4K, which the other checks still enforce.
+  assert.deepEqual(allowedFormats('anonymous', ['prores4444']), ['prores4444']);
+  assert.deepEqual(allowedFormats('free', ['mp4']), ['mp4'], 'a plan can also narrow');
+});
+
+test('a plan naming only unknown formats falls back instead of refusing everything', () => {
+  // A stale or mistyped plan row must cost one format, never the whole feature.
+  assert.deepEqual(allowedFormats('free', ['h265', 'gif']), RENDER_LIMITS.free.formats);
+  assert.deepEqual(allowedFormats('free', ['mp4', 'nonsense']), ['mp4'], 'the known ones still count');
+});
+
+test('the render request check honours the plan\'s formats end to end', () => {
+  const manifest = {
+    kind: 'remotion' as const,
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    scale: 1,
+    durationInFrames: 150,
+    output: { format: 'prores4444' as const },
+  };
+  // Free tier allows prores today, so the baseline passes.
+  assert.deepEqual(validateRenderRequest(manifest, 'free'), []);
+  // A plan that narrows to mp4 refuses it, and says so as a plan matter rather than a sign-in one.
+  const narrowed = validateRenderRequest(manifest, 'free', ['mp4']);
+  assert.equal(narrowed.length, 1);
+  assert.equal(narrowed[0].code, 'format-tier');
+  // And a plan that grants it on the anonymous tier passes the FORMAT check.
+  assert.equal(
+    validateRenderRequest(manifest, 'anonymous', ['prores4444']).some((issue) => issue.code.startsWith('format')),
+    false,
+  );
+});
+
+test('a suspended account cannot render a format its plan granted', () => {
+  const plan: PlanShape = {
+    key: 'studio',
+    name: 'Studio',
+    features: {},
+    limits: {},
+    renderTier: 'paid',
+    renderFormats: ['prores4444'],
+  };
+  const resolved = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended', plan });
+  // Suspension drops the tier to anonymous, and render.cloud is denied outright - the format
+  // list surviving is harmless because the feature gate refuses before it is ever consulted.
+  assert.equal(allows(resolved, 'render.cloud'), false);
+  assert.equal(resolveTier(true, resolved.renderTier.value), 'anonymous');
 });
 
 test('the key guards reject unknown strings', () => {

@@ -50,6 +50,11 @@ const MAP = [
   [/^api\/admin\//, ['admin.spec.ts']],
   [/^api\/_lib\/admin/, ['admin.spec.ts']],
   [/^scripts\/adminDevPlugin/, ['admin.spec.ts']],
+  [/^api\/me\//, ['admin.spec.ts', 'render.spec.ts']],
+  [/^scripts\/meDevPlugin/, ['admin.spec.ts']],
+  // The caller's own entitlement drives format greying, the template browser and the gallery.
+  [/^src\/backend\/myEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts', 'community.spec.ts']],
+  [/^src\/components\/useMyEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts']],
   // The entitlement contract is what the render and AI paths gate on, so a change there can
   // move behaviour in either - and in the admin surface that explains it.
   [/^src\/entitlements\//, ['admin.spec.ts', 'render.spec.ts', 'ai.spec.ts']],

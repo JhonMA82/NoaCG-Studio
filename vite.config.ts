@@ -4,6 +4,7 @@ import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
+import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
 // Three pages: index.html is the static public landing at "/", app.html is the editor at
@@ -64,7 +65,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
-    plugins: [react(), appCleanUrl(), renderApiPlugin(), aiApiPlugin(), adminApiPlugin()],
+    plugins: [react(), appCleanUrl(), renderApiPlugin(), aiApiPlugin(), adminApiPlugin(), meApiPlugin()],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port.
     // open: skipped on CI runners — there is no browser to open, only Playwright's.

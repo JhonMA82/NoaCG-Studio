@@ -82,6 +82,24 @@ test('the editor is untouched by the admin surface existing', async ({ page }) =
   await expect(page.locator('.system-notice')).toHaveCount(0);
 });
 
+// The admin surface can hide templates and narrow render formats. Offline it must do neither -
+// the catalog and the local export targets are free-forever core, and an instance with no
+// backend has no admin to have restricted anything.
+test('offline: the entitlement endpoint is absent and the catalog stays whole', async ({ page, request }) => {
+  const response = await request.get('/api/me/entitlement');
+  const body = response.ok() ? ((await response.json()) as { hiddenTemplates: string[] }) : null;
+  // Either the route answers the anonymous defaults, or it is not there at all. What it must
+  // never do is come back with something hidden.
+  if (body) expect(body.hiddenTemplates).toEqual([]);
+
+  await page.goto('/app');
+  await page.locator('[data-entry="template"]').click();
+  // The browse grid renders real cards, so nothing filtered the catalog away.
+  await expect(page.locator('.wz-variant').first()).toBeVisible();
+  const count = await page.locator('.wz-variant').count();
+  expect(count).toBeGreaterThan(5);
+});
+
 test('the landing page does not link to the admin surface either', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('a[href*="/admin"]')).toHaveCount(0);

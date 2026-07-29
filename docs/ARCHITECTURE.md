@@ -36,7 +36,7 @@ thin `CLAUDE.md` import.
 | 1 transforms | `preview/` | srcdoc composition | `composeDocument` |
 | 1 transforms | `editor/` | Monaco view-only helpers (comment visibility) | `commentVisibility` |
 | 1 transforms | `format/` | code formatting (docs/FORMATTING.md) | `formatCode` |
-| 2 services | `backend/` | THE Supabase client, auth, sync engine, asset externalization | `config` (`isBackendConfigured`, `loadBackendConfig`), `supabase` (`getSupabase`), `auth`, `syncController` |
+| 2 services | `backend/` | THE Supabase client, auth, sync engine, asset externalization, the caller's own entitlement (`myEntitlement`) | `config` (`isBackendConfigured`, `loadBackendConfig`), `supabase` (`getSupabase`), `auth`, `syncController`, `myEntitlement` |
 | 2 services | `ai/` * + `ai/video/` | generation harnesses, providers, settings/preferences | `getAiProvider()`, `getVideoAiProvider()`, `settings`, `preferences` |
 | 2 services | `export/` * | 6 targets + packet/show packaging | `registry`, `common` |
 | 2 services | `render/` * | RenderManifest, schedule, tiers, job client | `manifest`, `schedule`, `limits` (the PURE trio), `client` |

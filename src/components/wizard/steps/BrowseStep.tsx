@@ -32,6 +32,7 @@ import {
 import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
 import MiniPreview from '../MiniPreview';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
+import { useMyEntitlement } from '../../useMyEntitlement';
 import {
   draftFormatSelection,
   formatDraftPatch,
@@ -209,7 +210,14 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
   const intensities = useMemo(() => offeredIntensities(), []);
   const structures = useMemo(() => offeredStructures(), []);
   const capabilityFilters = useMemo(() => offeredCapabilityFilters(), []);
-  const outcome = useMemo(() => browseTemplates(filters, { brandFamily }), [filters, brandFamily]);
+  // Designs an admin marked beta, internal or hidden that this visitor is not entitled to.
+  // Removed before scoring rather than greyed - a card nobody can use is noise, and it would
+  // otherwise inflate every category count and the "remove the most limiting filter" hint.
+  const hiddenIds = useMyEntitlement().hiddenTemplates;
+  const outcome = useMemo(
+    () => browseTemplates(filters, { brandFamily, hiddenIds }),
+    [filters, brandFamily, hiddenIds],
+  );
 
   const [sort, sortSet] = useState<SortMode>('relevance');
   const sortResults = (list: BrowseResult[]) =>
