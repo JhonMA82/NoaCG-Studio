@@ -25,7 +25,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from '@playwright/test';
-import { BASE, killTree, settlePort, startServer } from './ai-bench-server.mjs';
+import { BASE, killTree, readEnvFile, settlePort, startServer } from './ai-bench-server.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
@@ -96,6 +96,10 @@ async function effectiveRoute() {
   }
 }
 
+// Test-account credentials for the bench subprocess sign-in - read from .env, never
+// loaded into this process beyond passing them on.
+const fileEnv = await readEnvFile();
+
 await mkdir(OUT, { recursive: true });
 const slug = (s) => s.replace(/[^a-z0-9]+/gi, '-').slice(0, 48);
 const runs = [];
@@ -133,12 +137,22 @@ for (const model of CANDIDATES) {
     await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/ai-bench.mjs', runDir, BRIEFS].filter(Boolean), {
         stdio: 'inherit',
+        // The bench signs itself in: a managed key is only available to a signed-in caller
+        // once a backend is configured, and it runs in a fresh context with no session.
+        env: { ...process.env, E2E_EMAIL: fileEnv.E2E_EMAIL ?? '', E2E_PASSWORD: fileEnv.E2E_PASSWORD ?? '' },
       });
       child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`bench exited ${code}`))));
       child.on('error', reject);
     });
 
-    const results = JSON.parse(await readFile(path.join(runDir, 'results.json'), 'utf8'));
+    const parsed = JSON.parse(await readFile(path.join(runDir, 'results.json'), 'utf8'));
+    const results = parsed.results ?? parsed;
+    // The check that counts: the route the RUN recorded, not the one resolved in a
+    // separate browser beforehand. The bench pins its own settings, and saved settings
+    // outrank env - so a mismatch here means the results belong to another model.
+    if (parsed.route && parsed.route.model !== model) {
+      throw new Error(`run recorded route ${parsed.route.provider}:${parsed.route.model}, expected ${model}`);
+    }
     runs.push({
       model,
       label,
