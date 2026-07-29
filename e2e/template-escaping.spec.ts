@@ -99,7 +99,14 @@ test('the probe still fires when a runtime skips escaping', async ({ page }) => 
     const { frame, doc, pay } = await probe(variantById('tk01'));
     // Bypass the escaping exactly as the pre-fix runtime did: raw text into the row builder.
     doc.getElementById('ticker-track').innerHTML = frame.contentWindow.renderTickerItem(pay);
-    await new Promise((r) => setTimeout(r, 600));
+    // Poll for the postMessage rather than sleeping a fixed 600ms: the img's onerror (and the
+    // message round-trip it sends) is a real browser task, not a guaranteed-fast one, and a
+    // fixed sleep under worker contention raced it and lost. 5s ceiling, checked every 25ms, so
+    // a payload that truly never fires is still caught almost as fast as the old 600ms did.
+    const deadline = Date.now() + 5000;
+    while (!hits.has('tk01') && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 25));
+    }
     frame.remove();
     return [...hits];
   })()`);
