@@ -581,3 +581,11 @@ sections 6, 7, and 9 above; GOALS.md carries the same wording):
    user rather than a browser cookie. Account-free BYO-key use survives for private
    self-hosted installs behind an explicit configuration flag, disabled by default in the
    hosted product.
+5. **Who pays decides the route.** NoaCG Lite and every other free hosted surface are paid
+   for by the project, not the user, and there is no revenue yet - so a route NoaCG pays for
+   must be a **cheap OpenRouter model**. OpenAI and Anthropic models are reachable **only
+   through the user's own sealed key** (decision 4); no managed NoaCG key is wired into a
+   hosted path for them. This is a cost constraint, not a quality judgement: it composes with
+   decision 1 rather than replacing it - benchmark whatever is worth benchmarking, but a
+   candidate cannot be promoted to a NoaCG-funded route unless it is cheap and reachable
+   through the gateway's OpenRouter adapter. Revisit when there is income.

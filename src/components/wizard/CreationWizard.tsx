@@ -48,6 +48,7 @@ import { useRouter } from '../../app/router';
 import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
 import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
+import { trackEvent } from '../../backend/events';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -274,6 +275,7 @@ export default function CreationWizard() {
         action: 'accepted',
       }).catch(() => undefined);
     }
+    trackEvent('activation', 'ai');
     return useTemplateStore.getState().template;
   };
 
@@ -325,6 +327,10 @@ export default function CreationWizard() {
       fontId: draft.fontId && draft.fontId !== 'custom' ? draft.fontId : draft.fontId === 'custom' ? null : variant.defaultFontId,
       customFont: draft.fontId === 'custom' ? draft.customFont : null,
     });
+    // ACTIVATION: the funnel's one quality signal - a visitor who made something. Recorded
+    // per create rather than once per visitor, so the analysis can ask both "did they ever"
+    // and "how often"; the mode says which door produced it.
+    trackEvent('activation', mode);
     return useTemplateStore.getState().template;
   };
 

@@ -720,6 +720,13 @@ Owner decisions — RATIFIED 2026-07-28:
       user, not just a browser cookie. Account-free BYO-key use survives for private
       self-hosted installs behind an explicit configuration flag, disabled by default in
       the hosted product.
+- [x] **Who pays decides the route** - NoaCG Lite and every other free hosted surface are paid
+      for by the project, and there is no revenue yet, so a route NoaCG funds must be a cheap
+      OpenRouter model. OpenAI and Anthropic models are reachable only through the user's own
+      sealed key; no managed NoaCG key is wired into a hosted path for them. A cost constraint
+      that composes with the benchmark-first policy rather than replacing it: a candidate can
+      only be promoted to a NoaCG-funded route if it is cheap and OpenRouter-reachable.
+      Revisit when there is income.
 
 The stages, in order (details in the plan):
 - [x] **Stage 0 remainder (2026-07-28)** - `/api/ai/generate` per-IP burst gate + content-free
@@ -737,7 +744,8 @@ The stages, in order (details in the plan):
       anonymous + server-side for signed-in via `ai_consents`, migration 0014; the offline
       stub never shows it - pinned by `e2e/ai-consent.spec.ts`); ZDR-by-default pinned for
       free task routes. STILL OPEN from Stage 2: run the Lite model benchmark (spends real
-      tokens) and settle the primary per the benchmark-first policy
+      tokens) and settle the primary per the benchmark-first policy, within the funded-route
+      cost constraint (cheap and OpenRouter-reachable - ratified decision 5)
 - [x] **Stage 3 build (2026-07-29)** - `imported-graphic-analysis` task behind
       `AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off): endpoints + profile-scoped ledger
       (migration 0015), `src/ai/importAnalysis/` contract/client/normalizer (font honesty,
