@@ -1178,7 +1178,12 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  width: 264px;
+  /* 240, not 264, so FIVE cards sit on ONE row at 1366px - the Entry step's height budget
+     (see .wz-hero) is spent by a second row, not by a card being wide. Measured: at 264 the
+     fifth card wraps and the step overflows by 30px; at 240 the row holds and the block is
+     196px instead of 340. Going narrower is counter-productive - 232 wraps the text enough
+     to grow the cards back. e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 240px;
   padding: 16px 18px;
   text-align: left;
   display: flex;
