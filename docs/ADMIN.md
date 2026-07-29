@@ -108,7 +108,12 @@ from a plan/admin dimension to the code that reads it.
 
 | Dimension | Enforced by |
 |---|---|
-| features (`ai.*`, `render.cloud`, …) | `allows()` at each gated server path - `api/render/start.ts`, `api/ai/lite/*` |
+| `ai.lite` | `api/ai/lite/generations.ts`, `judge.ts`, and `status.ts` (so the panel cannot offer what the endpoint would refuse) |
+| `ai.import-analysis` | `api/ai/tasks/import-analysis.ts` + its `status.ts` |
+| `ai.byo-key` | `api/ai/generate.ts`, on the BYO branch only, and only when a token was presented - account-free BYO must keep working |
+| `render.cloud` | `api/render/start.ts` |
+| `ai.video`, `sync.cloud`, `community.publish`, `control.hosted`, `showchat` | **nothing yet.** `ai.video` shares the gateway endpoint with BYO and needs a task discriminator to separate; the other four are RLS-shaped rather than endpoint-shaped. Their System-page switches therefore do not bite yet - do not present them as if they do |
+| disabled model routes | `api/ai/lite/generations.ts`, `judge.ts`, `tasks/import-analysis.ts`, and the MANAGED branch of `api/ai/generate.ts`. Deliberately not the BYO branch: the switch exists to stop the platform's own spend, and a BYO caller spends their own money on a model they chose |
 | AI allowances | `applyEntitlementToLiteProfile()` before the reservation RPC |
 | render tier | `resolveTier(signedIn, entitlement.renderTier.value)` |
 | render formats | `validateRenderRequest(m, tier, entitlement.renderFormats.value)` |

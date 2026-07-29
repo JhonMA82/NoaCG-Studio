@@ -68,6 +68,27 @@ export function isFeatureKey(value: string): value is FeatureKey {
   return (FEATURE_KEYS as readonly string[]).includes(value);
 }
 
+/** The feature keys that a server path actually CHECKS today (the enforcement table in
+ *  docs/ADMIN.md names the call site for each).
+ *
+ *  It exists so the admin surface can be honest: the remaining keys resolve correctly and are
+ *  stored correctly, but nothing consults them yet, so switching one off changes a row and
+ *  stops nothing. Presenting all eleven switches identically would make the System page claim
+ *  a power it does not have - and a kill switch believed in during an incident, that does not
+ *  kill, is worse than no switch at all.
+ *
+ *  Add a key here in the SAME change that adds its enforcing call site, never before. */
+export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
+  'ai.lite',
+  'ai.import-analysis',
+  'ai.byo-key',
+  'render.cloud',
+  // Template visibility is enforced through the hidden-template list rather than by a direct
+  // allows() call, but it is enforced (api/_lib/templateVisibility.ts).
+  'templates.beta',
+  'templates.internal',
+]);
+
 // ── limits ─────────────────────────────────────────────────────────────────────────────
 
 /** Numeric allowances. The `ai*` names match the LiteProfile / TaskProfile fields they

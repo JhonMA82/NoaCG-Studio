@@ -457,6 +457,25 @@ test('a suspended account cannot render a format its plan granted', () => {
   assert.equal(resolveTier(true, resolved.renderTier.value), 'anonymous');
 });
 
+test('account-free BYO stays allowed by default, because a gate now enforces it', () => {
+  // api/ai/generate.ts refuses a BYO request whose account denies ai.byo-key. That gate is
+  // only safe while the ANONYMOUS default allows it: flipping this to false would silently
+  // break every self-hosted and signed-out bring-your-own-key user, and the gate would
+  // faithfully enforce the breakage. This is the pin that catches such a flip.
+  assert.equal(allows(resolveEntitlement(bare(null)), 'ai.byo-key'), true);
+  assert.equal(allows(resolveEntitlement(bare('user-1')), 'ai.byo-key'), true);
+});
+
+test('the feature keys the server gates on are all on by default for a signed-in user', () => {
+  // Each of these has an enforcing call site now (docs/ADMIN.md, the enforcement table). If a
+  // default here turns false, the feature stops for everyone rather than for a plan that
+  // withdrew it - which is a product decision, not a default to drift into.
+  const user = resolveEntitlement(bare('user-1'));
+  for (const key of ['ai.lite', 'ai.import-analysis', 'ai.byo-key', 'render.cloud'] as const) {
+    assert.equal(allows(user, key), true, `${key} must stay on by default`);
+  }
+});
+
 test('the key guards reject unknown strings', () => {
   assert.equal(isFeatureKey('ai.lite'), true);
   assert.equal(isFeatureKey('editor.open'), false, 'the free core has no gate key');

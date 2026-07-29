@@ -4,6 +4,9 @@ import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
+import { resolveUserEntitlement } from '../_lib/entitlements.js';
+import { allows } from '../../src/entitlements/contract.js';
+import { routeDisabled, systemSettings } from '../_lib/systemSettings.js';
 import type { AiGatewayErrorBody, AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 12_000_000;
@@ -48,9 +51,34 @@ export default {
     const authRequired = serverAuthConfigured();
     const auth: { user: AuthedUser | null; verified: boolean } = { user: null, verified: false };
 
+    /** Resolve the caller once, lazily. BYO-key traffic deliberately needs no account, so an
+     *  anonymous caller is never made to pay for a verification round trip - they simply get
+     *  the anonymous defaults, which allow BYO. */
+    const entitlementFor = async () => {
+      if (!auth.verified) {
+        auth.user = await verifyUser(bearerToken(req));
+        auth.verified = true;
+      }
+      return resolveUserEntitlement(auth.user?.userId ?? null);
+    };
+
     const keyFor = async (provider: AiProviderId): Promise<string> => {
       const userKey = userKeys[provider];
-      if (userKey) return userKey;
+      if (userKey) {
+        // A signed-in account whose plan withdraws bring-your-own-key is refused; an
+        // anonymous one is not, because the anonymous default allows it and self-hosted
+        // BYO must keep working without an account. The check only costs a round trip when
+        // a token was actually presented.
+        if (bearerToken(req) && !allows(await entitlementFor(), 'ai.byo-key')) {
+          throw new GatewayError(
+            'authentication_required',
+            'Bring-your-own-key AI is not available for this account.',
+            403,
+            false,
+          );
+        }
+        return userKey;
+      }
       const managedKey = managedAiKey(provider);
       if (!managedKey) return '';
       if (authRequired) {
@@ -66,6 +94,20 @@ export default {
             false,
           );
         }
+      }
+      // A route switched off from the admin surface stops serving MANAGED traffic. Scoped to
+      // the managed key on purpose: the switch exists to stop the platform's own spend on a
+      // model that has gone wrong or expensive, and a BYO caller is spending their own money
+      // on a model they chose.
+      //
+      // keyFor is handed a PROVIDER, not a route, so find the route this request would use it
+      // for - the primary if it matches, otherwise the fallback that does.
+      const candidate = [body.route, ...(body.fallbacks ?? [])].find((route) => route.provider === provider);
+      if (candidate && routeDisabled(await systemSettings(), candidate)) {
+        // 'unavailable', not a new code: from the caller's side a switched-off route is
+        // indistinguishable from one the deployment never had, and it is not retryable by
+        // them - so the existing vocabulary already says the true thing.
+        throw new GatewayError('unavailable', 'That model is not currently available.', 503, false);
       }
       return managedKey;
     };
