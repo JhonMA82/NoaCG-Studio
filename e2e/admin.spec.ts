@@ -78,4 +78,31 @@ test('the editor is untouched by the admin surface existing', async ({ page }) =
   await expect(page.locator('.wz-modal')).toBeVisible();
   // Nothing links to it from the app: not the topbar, not a menu, not a stray anchor.
   await expect(page.locator('a[href*="/admin"]')).toHaveCount(0);
+  // And with no backend there is no notice to publish, so the band must not appear at all.
+  await expect(page.locator('.system-notice')).toHaveCount(0);
+});
+
+test('the landing page does not link to the admin surface either', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('a[href*="/admin"]')).toHaveCount(0);
+  const text = (await page.locator('body').innerText()).toLowerCase();
+  expect(text).not.toContain('/admin');
+});
+
+// Every section has to be reachable once the server says yes. Without this, a broken section
+// would look identical to a section that is correctly refusing to render.
+test('each admin section renders behind a stubbed session', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  // The data endpoints answer their real 404; every section must survive that rather than
+  // blanking the shell, because that is exactly what a partial outage looks like.
+  await page.goto('/admin');
+  await expect(page.locator('.admin-shell')).toBeVisible();
+
+  for (const label of ['Overview', 'Users', 'Plans', 'Usage and cost', 'System', 'Templates', 'Audit']) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await expect(page.locator('.admin-content h1')).toHaveText(label === 'Usage and cost' ? 'Usage and cost' : label);
+    await expect(page.locator('.admin-notfound')).toHaveCount(0);
+  }
 });

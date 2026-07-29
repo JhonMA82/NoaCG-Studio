@@ -4118,3 +4118,34 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 /* Wide enough for the LONGEST slot name, so the upload buttons share one left edge — a
    per-row width lets a renamed label silently knock the column out of alignment. */
 .mc-font-slot { min-width: 130px; }
+
+/* ── The maintenance notice (docs/ADMIN.md §7) ──────────────────────────────
+   Published from the admin surface, shown to every visitor. A single hairline
+   band above the topbar: information, not an interruption. Amber for a warning
+   because that is the product's one accent; info stays neutral so a routine
+   notice never looks like an incident. */
+.system-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  font-size: 13px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.system-notice span { flex: 1; min-width: 0; }
+.system-notice-warning {
+  color: var(--text);
+  border-bottom-color: rgba(246, 166, 35, 0.45);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.system-notice button {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.system-notice button:hover { color: var(--text); background: transparent; }

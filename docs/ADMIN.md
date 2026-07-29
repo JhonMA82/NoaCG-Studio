@@ -130,6 +130,11 @@ self-promotion path and no first-run "claim this instance" flow.
 | `GET/POST /api/admin/templates` | visibility, beta/internal marking, usage |
 | `GET /api/admin/audit` | the log |
 
+The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, System,
+Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
+rather than present-and-disabled, because a button that cannot work is a worse answer than no
+button.
+
 Every handler is wrapped by `withAdmin(req, minRole)` in `api/_lib/adminAuth.ts`, which:
 
 1. verifies the bearer JWT through the existing `verifyUser()`,
@@ -156,6 +161,11 @@ ledgers: no tokens, no passwords, no prompt or template content.
   their own rows for up to that hour. This is a property of stateless JWTs, not a bug to hide.
 - **The admin bundle is public.** It must never contain user data, secrets, or a description of
   the schema. Reviewers should treat any such addition as a defect.
+- **The user list pages the auth directory and aggregates in memory.** GoTrue has no search and
+  no server-side filter, and the Supabase client cannot express a `GROUP BY`, so listing walks
+  up to 2000 accounts and sums the 30-day ledger slice in JavaScript. That is the right trade at
+  tens of accounts and the wrong one at ten thousand. The `truncated` flag in the response is the
+  tripwire: when it starts coming back true, the fix is a database-side view, not a bigger page.
 - **`AI_LITE_OVERRIDE_USER_IDS` is legacy.** It resolves as `env-override` and can only widen AI
   access, never remove it. It is removed one release after plans ship.
 
@@ -166,6 +176,14 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0017_admin_roles` | `admin_users`, `is_admin()`, `admin_audit_log` |
 | `0018_entitlements` | `user_accounts`, `is_suspended()`, suspension added to existing write policies, `plans`, `user_plans`, `user_grants` |
 | `0019_system_and_templates` | `system_settings`, `public_system_notice()`, `template_admin` |
+
+`0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
+SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
+the maintenance notice and the list of features currently switched off. Both are effects a
+visitor already experiences, so publishing them lets the app explain itself instead of appearing
+broken. Everything else in `system_settings` - beta cohorts, model routing - stays server-side.
+The client reads it through `src/backend/systemNotice.ts` and renders `SystemNoticeBar`, which
+returns null when there is nothing to say, no backend, or a failed lookup.
 
 `0018` is the risky one: it edits live RLS policies on `documents` and `assets`. The change is
 additive (`and not is_suspended(...)`), read access is untouched so a suspended user can still

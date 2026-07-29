@@ -28,6 +28,7 @@ import { useAuthUi } from './auth/authUi';
 import SyncStatus from './SyncStatus';
 import { isBackendConfigured } from '../backend/config';
 import { useIsModerator } from '../community/useIsModerator';
+import { SystemNoticeBar } from './SystemNoticeBar';
 import { useIsMobile } from './useIsMobile';
 import { useSplitter, type Splitter } from './useSplitter';
 import { modalOpen } from './spaceKey';
@@ -325,6 +326,7 @@ export default function AppShell() {
 
   return (
     <div className="app">
+      <SystemNoticeBar />
       <header className="topbar">
         <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="NoaCG Studio — Home">
           <BrandLogo size={24} />

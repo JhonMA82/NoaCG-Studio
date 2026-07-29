@@ -16,7 +16,13 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { AdminUnavailable, adminFetch } from './client';
 import { NotFound } from './NotFound';
+import { AuditSection } from './sections/AuditSection';
 import { OverviewSection } from './sections/OverviewSection';
+import { PlansSection } from './sections/PlansSection';
+import { SystemSection } from './sections/SystemSection';
+import { TemplatesSection } from './sections/TemplatesSection';
+import { UsageSection } from './sections/UsageSection';
+import { UsersSection } from './sections/UsersSection';
 import type { AdminSessionResponse } from './types';
 
 interface AdminSection {
@@ -27,6 +33,12 @@ interface AdminSection {
 
 const SECTIONS: AdminSection[] = [
   { id: 'overview', label: 'Overview', render: (session) => <OverviewSection session={session} /> },
+  { id: 'users', label: 'Users', render: (session) => <UsersSection session={session} /> },
+  { id: 'plans', label: 'Plans', render: (session) => <PlansSection session={session} /> },
+  { id: 'usage', label: 'Usage and cost', render: () => <UsageSection /> },
+  { id: 'system', label: 'System', render: (session) => <SystemSection session={session} /> },
+  { id: 'templates', label: 'Templates', render: (session) => <TemplatesSection session={session} /> },
+  { id: 'audit', label: 'Audit', render: () => <AuditSection /> },
 ];
 
 type Gate =
