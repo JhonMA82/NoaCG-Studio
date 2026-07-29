@@ -11,6 +11,7 @@
 // SAME compiled module drives the live preview and the final render.
 
 import type { AssetFile } from './types';
+import type { ReferencePurpose } from './imagePurpose';
 import type { FieldDescriptor, VideoFieldKind } from './fieldModel';
 import { uuid } from './id';
 import { DEFAULT_VIDEO_FORMAT, DEFAULT_VIDEO_RESOLUTION } from './projectFormat';
@@ -263,6 +264,18 @@ export interface VideoProject {
   /** Uploaded assets as {path, data-URL} - the exact SPX AssetFile shape, so the
    *  backend's shape-agnostic asset walker externalizes them unchanged when sync lands. */
   assets: AssetFile[];
+  /**
+   * What an upload is FOR, keyed by its asset path (ai/imagePurpose.ts). A tagged entry is
+   * REFERENCE material: read by the AI, but never reachable as `assets.<name>`, never in the
+   * Content panel's picker, and never uploaded with the render manifest.
+   *
+   * ADDITIVE OPTIONAL, so it never bumps the format version (root AGENTS.md rule 6) and needs
+   * no migration: an absent map - every project saved before this existed - means every asset
+   * is composition material, which is exactly the old behaviour. It lives on the project
+   * rather than in the wizard because the video wizard creates INSTANTLY and the first
+   * generation runs later, in the shell; a reference has to survive that hop to be read at all.
+   */
+  assetUses?: Record<string, ReferencePurpose>;
   /** Editable composition inputs (the video Template Definition) the AI declared and the
    *  Content panel edits; their values ride into the preview and render via inputProps.
    *  The panel ALSO shows inputs read straight out of the code (model/videoInputInfer.ts);

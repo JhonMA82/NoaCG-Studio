@@ -7,14 +7,20 @@
 
 import type { MotionPlan, VideoChatMessage, VideoEngine, VideoInput } from '../../model/videoTypes';
 import type { VideoAssetInfo, VideoCompSettings, VideoValidationResult } from '../../video/types';
+import type { ReferencePurpose } from '../../model/imagePurpose';
 
 export interface VideoGenerateContext {
   /** Which composition format to emit (the project's generation engine). */
   engine: VideoEngine;
   settings: VideoCompSettings;
+  /** Assets the COMPOSITION can reach (`assets.<name>`). Reference-tagged uploads are
+   *  deliberately absent - see VideoProject.assetUses. */
   assets: VideoAssetInfo[];
   /** Raw asset data URLs by logical name - image assets become vision blocks. */
   assetData?: Map<string, string>;
+  /** Uploads that only INFORM the design (model/imagePurpose.ts): vision blocks only, never
+   *  reachable from the code, never in the Content panel, never in the render manifest. */
+  references?: { name: string; data: string; use: ReferencePurpose }[];
   /** Model id override for this project (undefined/'' = the global AI setting). */
   model?: string;
 }

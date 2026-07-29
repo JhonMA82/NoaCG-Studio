@@ -1404,6 +1404,54 @@ kbd {
   text-overflow: ellipsis;
 }
 
+/* Uploaded pictures + what each one is FOR (model/imagePurpose.ts). One card per picture:
+   the purpose is a property of the picture, so it lives on the picture. */
+.wz-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.wz-upload {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.wz-upload-head { display: flex; align-items: center; gap: 8px; }
+.wz-upload-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 4px;
+  /* A chequerboard, so a transparent logo reads as transparent rather than as a black box. */
+  background:
+    conic-gradient(from 90deg, rgba(255, 255, 255, 0.07) 25%, transparent 0 50%, rgba(255, 255, 255, 0.07) 0 75%, transparent 0)
+    0 0 / 10px 10px;
+}
+.wz-upload-name {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-upload-x { flex: none; padding: 0 6px; }
+.wz-purpose { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.wz-purpose button { font-size: 11px; padding: 4px 8px; }
+.wz-purpose button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(246, 166, 35, 0.1);
+}
+.wz-upload-hint { margin: 6px 0 0; }
+/* The binding is a sub-choice OF "use it as it is", so it reads as subordinate to it. */
+.wz-binding { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line); }
+
 /* Step 4: style pickers */
 .wz-palettes { display: flex; flex-wrap: wrap; gap: 8px; }
 .wz-palette { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; border-radius: 8px; }

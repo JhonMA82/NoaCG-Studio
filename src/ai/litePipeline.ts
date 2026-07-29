@@ -14,6 +14,7 @@ import { applyPolish } from './polish';
 import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
+import { mergeAssetIntegrity } from './assetIntegrity';
 import { liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
 import type { LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
@@ -52,12 +53,22 @@ export function assembleGroundedTemplate(
 
 /**
  * The validator the app injects for AI results (AiStep): static validation + the live
- * runtime bench, wrapped in the safety screen. Benchmark runs wire this same composition,
- * so "machine-valid" means the same thing in a report as it does in the product.
+ * runtime bench, wrapped in the safety screen and the as-is screen. Benchmark runs wire this
+ * same composition, so "machine-valid" means the same thing in a report as it does in the
+ * product.
+ *
+ * `protectedAssets` are the uploads the user marked "use it as it is" (model/imagePurpose.ts).
+ * Passing none — every caller that has no uploads, and every benchmark run — costs one
+ * comparison and changes nothing.
  */
-export function productionSpxValidator(source?: SpxTemplate | null): SpxValidator {
+export function productionSpxValidator(
+  source?: SpxTemplate | null,
+  protectedAssets: string[] = [],
+): SpxValidator {
   const base: SpxValidator = async (t) => mergeResults(validateTemplate(t), await benchTemplateRuntime(t));
-  return withSafetyChecks(base, source ?? null);
+  const safe = withSafetyChecks(base, source ?? null);
+  if (!protectedAssets.length) return safe;
+  return async (t) => mergeAssetIntegrity(await safe(t), t, protectedAssets);
 }
 
 /**

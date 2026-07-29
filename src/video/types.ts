@@ -3,6 +3,7 @@
 
 import type { ValidationIssue } from '../validation/validateTemplate';
 import type { AssetFile } from '../model/types';
+import type { ReferencePurpose } from '../model/imagePurpose';
 import { uniqueAssetPath } from '../assets/assetUtils';
 
 /** The composition settings the player and renderer need (a VideoProject subset). */
@@ -89,10 +90,19 @@ export function uniqueVideoAssetPath(fileName: string, existing: AssetFile[]): s
  * Build the AI/player view of a project's assets. The name comes from the path alone, so it is
  * stable across every add and delete (uniqueVideoAssetPath settled it at upload). The tie-break
  * loop only ever fires for a project whose assets predate that rule - never for new uploads.
+ *
+ * `uses` (VideoProject.assetUses) REMOVES reference material from this view, and this one
+ * function is why that is enough: everything downstream that can reach an asset - the code's
+ * `assets.<name>`, the Content panel's image picker, the render manifest's upload - reads the
+ * list from here. A mood board must inform the design without being offered as a logo or
+ * shipped to the render service. An absent map keeps every asset, which is the old behaviour.
  */
-export function describeAssets(assets: AssetFile[]): VideoAssetInfo[] {
+export function describeAssets(
+  assets: AssetFile[],
+  uses?: Record<string, ReferencePurpose>,
+): VideoAssetInfo[] {
   const seen = new Set<string>();
-  return assets.map((a) => {
+  return assets.filter((a) => !uses?.[a.path]).map((a) => {
     let name = assetLogicalName(a.path);
     let i = 2;
     while (seen.has(name)) name = `${assetLogicalName(a.path)}-${i++}`;
