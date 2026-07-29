@@ -740,6 +740,11 @@ test('the judge prompt and schema cover exactly the scored axes', () => {
   // judge reverted two of them as "a small box" - our own two prompts contradicting.
   assert.match(prompt, /OWN proportions, not by how much of the frame it fills/);
   assert.match(prompt, /must NOT be marked down/);
+  // The 1-2 band must stay near SQUARE. Measured over all 59 judged frames
+  // (scripts/ai-lite-strap-geometry.mjs): median 2.9:1, only 2% below 2:1 - so an earlier
+  // "under 3:1 scores 1-2" would have condemned 54% of the generator's own output.
+  assert.match(prompt, /approaching square or taller than wide/);
+  assert.doesNotMatch(prompt, /three times wider/, 'the 3:1 floor was measured wrong; do not restore it');
   // The generation prompt is the other half of that contract - if it ever stops sizing the
   // strap by its text, this axis is measuring against a rule that no longer exists.
   assert.match(liteSystemPrompt('test-v1', [], { skin: true }), /width set by the text plus steady padding/);

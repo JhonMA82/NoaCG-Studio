@@ -187,12 +187,13 @@ pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the cal
 to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
 
 The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
-`lite-skin-judge-v4`) beside the generation prompt version. Scores from two judge versions
+`lite-skin-judge-v5`) beside the generation prompt version. Scores from two judge versions
 are not comparable and calibration is a comparison, so the version is stated in the prompt
 rather than inferred from which round produced the number. **No round has run since v1.**
-v2 added `textIntegrity` (§6d); v3 rewrote `strapShape` as inspection and v4 gave it a scale
-anchor (both §6e) - each landed before any paid round scored the one before it, so the first
-paid round measures all three changes together as v4.
+v2 added `textIntegrity` (§6d); v3 rewrote `strapShape` as inspection, v4 gave it a scale
+anchor and v5 corrected that anchor against measurement (all §6e) - each landed before any
+paid round scored the one before it, so the first paid round measures all four changes
+together as v5.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -345,9 +346,39 @@ never a higher threshold:
     steady padding" and the catalog uses `fit-content`, so a text-hugging band is exactly
     what was asked for. The judge was scoring against a rule the generator never had, and
     penalising compliance with the rule it did have. Fixed in `lite-skin-judge-v4`: judge the
-    band's OWN proportions (wider than tall, about 3:1), never its share of the frame, with
-    "one spanning only a quarter or a third of the frame width is normal broadcast practice"
-    stated outright. Both halves of the contract are now test-pinned together.
+    band's OWN proportions, never its share of the frame, with "one spanning only a quarter
+    or a third of the frame width is normal broadcast practice" stated outright. Both halves
+    of the contract are now test-pinned together.
+
+    **Then MEASURED, over all 59 judged frames** (`scripts/ai-lite-strap-geometry.mjs` -
+    reconstructs the preview background from a per-pixel median across captures, so it finds
+    black brutalist panels as readily as bright ones):
+
+    | | min | p25 | median | p75 | max |
+    | --- | --- | --- | --- | --- | --- |
+    | rendered aspect ratio | 1.9:1 | 2.3:1 | **2.9:1** | 3.6:1 | 7.6:1 |
+
+    Two results, and the second is the more important:
+
+    1. **The misread was systematic, not anecdotal.** 25 of 59 stated reasons call the
+       graphic small, boxy, squat, narrow, or "not a strap" - and **13 of those 25 are at
+       least 3:1**, including a 7.6:1 band (the widest in the corpus) described as "the
+       narrow aspect ratio prevents it from being a lower third". Two of the mislabelled
+       rows scored perfectly on every other axis (`L4 H4 B5 S2`, `L5 H5 B5 S3`). This one
+       misreading is roughly a fifth of all judged rows and the largest single source of
+       reverts.
+    2. **v4's own threshold was wrong, and v5 fixes it.** v4 said "less than about three
+       times wider than tall scores 1-2" - a number guessed from one 4.5:1 example. The
+       measured median is 2.9:1, so that rule would have condemned **54% of everything the
+       generator produces**, converting a permissive axis into a near-universal revert. Only
+       2% of frames fall below 2:1. v5 moves the 1-2 band to "approaching square or taller
+       than wide" and states that a two-line strap over short text is naturally about 2.5:1.
+       A test refuses to let the 3:1 floor return.
+
+    Caveat on the instrument: it measures the INK bounding box, so a glow halo or a stray
+    orphaned mark inflates it (the strapless `item-003` measures 2.5:1 only because the
+    stray dot and the text span that box together). It answers "is the judge calling wide
+    things narrow", not "where exactly is the panel".
   - `item-005`'s `briefFit` **1** was simply RIGHT - "a generic dark grey box… entirely
     failing to deliver the requested handcrafted, paper-and-ink feel" describes the frame
     accurately, and the reviewer's own note was "boring / ugly". They agreed on the quality
