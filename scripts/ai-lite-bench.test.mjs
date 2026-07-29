@@ -138,6 +138,19 @@ test('liteSkinPatchErrors: a legal patch passes, every forbidden construct is na
   assert.ok(errorsFor({ html: '<script>alert(1)</script>' }).includes('skin_html_script'));
   assert.ok(errorsFor({ html: '<img src="https://cdn.example/x.png">' })
     .includes('skin_html_external_reference'));
+  // clip-path clips PAINT while every deterministic check we own measures LAYOUT, so a
+  // sliced letter passes the bench silently (docs/AI_LITE_BENCHMARK.md §6d).
+  assert.ok(errorsFor({ css: '.lower-third-box { clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%); }' })
+    .includes('skin_css_clip_path'));
+  assert.ok(errorsFor({ css: '.lower-third-box { -webkit-clip-path: inset(0 4% 0 0); }' })
+    .includes('skin_css_clip_path'));
+  assert.ok(errorsFor({ html: '<div style="clip-path:inset(0 10% 0 0)"></div>' })
+    .includes('skin_html_clip_path'));
+  // The check must not swallow background-clip, which is how gradient text is done.
+  assert.deepEqual(
+    errorsFor({ css: '.lower-third-name { -webkit-background-clip: text; background-clip: text; }' }),
+    [],
+  );
   assert.deepEqual(contract.liteSkinPatchErrors('nope'), ['skin_shape_invalid']);
 });
 

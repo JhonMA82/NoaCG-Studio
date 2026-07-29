@@ -146,6 +146,9 @@ const html = `<!doctype html>
   .judge{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .judge button.sel{border-color:#ffb000;color:#ffb000}
   .done{opacity:.55}
+  .needs-score{border-color:#ffb000}
+  .needs-score .score-label{color:#ffb000;font-weight:600}
+  .needs-score .score-label::after{content:' still needed'}
   .brief{color:#aeb7c3;font-size:14px;margin:0 0 10px}
 </style>
 <body>
@@ -165,20 +168,26 @@ const state = JSON.parse(localStorage.getItem(KEY) || '{}');
 const save = () => { localStorage.setItem(KEY, JSON.stringify(state)); paint(); };
 const container = document.getElementById('items');
 const SESSION = 20;
+// An item is finished only with BOTH answers. Measured the hard way on 2026-07-29: 'done'
+// counted the decision alone and .done dims the card, so the reviewer answered "on air?",
+// watched the card fade, and moved on - 7 of 9 judgements came back with no score at all.
+// Completeness now follows the doc's contract, and an unscored card stays lit and says so.
+const complete = (code) => Boolean(state[code]?.decision) && Number.isFinite(state[code]?.score);
 function paint() {
-  const judged = ITEMS.filter(i => state[i.code]?.decision).length;
+  const judged = ITEMS.filter(i => complete(i.code)).length;
   document.getElementById('progress').textContent =
     judged + ' / ' + ITEMS.length + ' judged' + (judged && judged % SESSION === 0 && judged < ITEMS.length ? ' - session done, take a break' : '');
   for (const item of ITEMS) {
     const el = document.getElementById(item.code);
-    el.classList.toggle('done', Boolean(state[item.code]?.decision));
+    el.classList.toggle('done', complete(item.code));
+    el.classList.toggle('needs-score', Boolean(state[item.code]?.decision) && !complete(item.code));
     for (const b of el.querySelectorAll('[data-dec]')) b.classList.toggle('sel', state[item.code]?.decision === b.dataset.dec);
     for (const b of el.querySelectorAll('[data-score]')) b.classList.toggle('sel', String(state[item.code]?.score) === b.dataset.score);
   }
 }
 // Resume model: render up to one session past the already-judged items; reload after a
 // break to open the next session.
-const judgedCount = ITEMS.filter(i => state[i.code]?.decision).length;
+const judgedCount = ITEMS.filter(i => complete(i.code)).length;
 const cap = Math.min(ITEMS.length, (Math.floor(judgedCount / SESSION) + 1) * SESSION);
 for (const item of ITEMS.slice(0, cap)) {
   const card = document.createElement('section');
@@ -189,7 +198,7 @@ for (const item of ITEMS.slice(0, cap)) {
     '<a href="' + item.screenshot + '" target="_blank"><img loading="lazy" src="' + item.screenshot + '"></a>' +
     '<div class="judge">On air? ' +
     ['yes','minor','no'].map(d => '<button data-dec="' + d + '">' + ({yes:'Yes',minor:'Yes, after minor edits',no:'No'})[d] + '</button>').join('') +
-    ' Score ' + [1,2,3,4,5].map(s => '<button data-score="' + s + '">' + s + '</button>').join('') +
+    ' <span class="score-label">Score</span> ' + [1,2,3,4,5].map(s => '<button data-score="' + s + '">' + s + '</button>').join('') +
     ' <input class="note" size="42" maxlength="240" placeholder="What is wrong / notes (optional)">' +
     '</div>';
   card.addEventListener('click', (event) => {
