@@ -137,13 +137,10 @@ export function liteProfile(): LiteProfile {
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    // v5: motifs BOUND to the strap - v4 asked for commitment and got it by reshaping the
-    // graphic (briefFit 5 twice, strapShape 2 both times), so the motif is now drawn inside
-    // the band and "not distinctive enough" resolves to fill/texture/type, never to size.
-    // (v4 = brief-fit teaching, v3 = the strap contract as shape. See skinPromptLines.)
+    // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v4').trim().slice(0, 64) || 'lite-lower-third-v4',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v3').trim().slice(0, 64) || 'lite-lower-third-v3',
     primary,
     fallback,
     prices,

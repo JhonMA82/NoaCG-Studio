@@ -180,7 +180,7 @@ Per-category answer to the Phase 2 question:
 quota'd), a *pipeline restriction* (catalog-only structured spec, no code paths, typed
 `LiteRequestError` on every disallowed op), a *server-owned model policy* (routes, prices,
 ZDR, prompt version - config, not code), and a *prompt contract* (6 audited chassis,
-semantic line roles, versioned `lite-lower-third-v5`). It is **not a separate harness**:
+semantic line roles, versioned `lite-lower-third-v3`). It is **not a separate harness**:
 a ready decision rejoins the identical `groundedResult` / `litePipeline.ts` compile path
 the main harness uses, pinned by `ai-lite-bench.test.mjs`.
 
