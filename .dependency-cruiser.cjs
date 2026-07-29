@@ -38,6 +38,15 @@ module.exports = {
       to: { path: '^src/$1/' },
     },
     {
+      comment:
+        'Everything may import entitlements/ - a layer-0 PURE contract that imports nothing ' +
+        'in return (§2). It is the one answer to "what may this user do", shared by the ' +
+        'browser, api/ and the admin page; a second copy of that answer is the bug it exists ' +
+        'to prevent. Its own outgoing edges are absent from this table on purpose.',
+      from: { path: '^src/' },
+      to: { path: '^src/entitlements/' },
+    },
+    {
       comment: 'The entry files at the src root (App.tsx, main.tsx, styles.css) wire the app',
       from: { path: '^src/[^/]+$' },
       to: { path: '^src/' },

@@ -29,6 +29,7 @@ thin `CLAUDE.md` import.
 |---|---|---|---|
 | 0 kernel | `model/` * | SpxTemplate, parse/serialize, persisted formats + migrations, library/shows/packets, field + structure contracts | the module named for the concern (`types`, `spxDefinition`, `library`, `structure`, `fieldModel`, ...) |
 | 0 kernel | `assets/` | data-URL helpers, vendored gsap/lottie, OFL.txt | `assetUtils`, the vendored files |
+| 0 kernel | `entitlements/` | the PURE entitlement contract: feature/limit keys, plan + grant shapes, the precedence merge and its per-value source (docs/ADMIN.md) | `contract` |
 | 1 transforms | `blocks/` * | deterministic `(template) => template` patchers, Timeline v2 engine, `NOACG_ANIM` literal, state-machine graph + mutators | `registry`, `animData`, `animMachine`, `machineEdit`, named patcher modules |
 | 1 transforms | `templates/` * | wizard catalog, assemblers, graphic types, `:root` style contract | `catalog`, `variant.create(options)`, `types/` registry |
 | 1 transforms | `validation/` | the export + AI gate, runtime bench | `validateTemplate`, `runtimeBench` |
@@ -50,8 +51,8 @@ thin `CLAUDE.md` import.
 
 The current, curated import graph. **Adding a new domain-to-domain edge requires editing this
 table in the same PR, with one sentence of justification in the commit.** Everything may import
-`model/` and `assets/`; those two are omitted from the lists. Edges not listed here and not in §6
-are wrong - fix the code, not the table.
+`model/`, `assets/` and `entitlements/`; those three are omitted from the lists. Edges not listed
+here and not in §6 are wrong - fix the code, not the table.
 
 - `templates` -> blocks (`animData`, `animMachine`, shared runtime)
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
@@ -98,6 +99,7 @@ dependency-cruiser; §7):
 | prompt, harness, provider, or AI settings work | `ai/` (SPX) or `ai/video/` |
 | manifest, schedule, tier, or render-job work | `render/` (respect the purity trio) |
 | a cloud table, sync kind, or auth change | `backend/` + `supabase/migrations/` (RLS in the same migration) |
+| a new gateable feature, plan dimension, or access rule | `entitlements/contract.ts` - one resolver, one precedence order (docs/ADMIN.md); the server loader and the admin surface consume it, never re-decide it |
 | video compile/validate/bridge work | `video/` |
 | editor UI state, undo, save/guard flow | `store/` |
 | a panel, dialog, or canvas interaction | `components/` - thin, per §5 |
