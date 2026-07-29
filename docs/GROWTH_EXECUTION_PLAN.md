@@ -83,8 +83,10 @@ The "make it exist publicly" phase. Everything here is a buildable task (§9).
       activation (a graphic created), export. Written only through `POST /api/events`, which
       enforces the allowlist server-side; no IP, no user agent, no cookies, no free text; inert
       offline and under DNT/GPC or an explicit opt-out (`docs/FUNNEL_EVENTS.md`). This feeds the
-      weekly digest; without it nothing below is measurable. *Still to do: apply `0016` to prod,
-      and turn Vercel Analytics on in the dashboard.*
+      weekly digest; without it nothing below is measurable. Migration `0016` **applied to prod
+      2026-07-29**; advisors clean (the RLS-enabled-no-policy notice is the intended
+      server-write-only posture, exactly as `ai_gateway_requests` and `ai_generations` carry).
+      *Still to do: turn Vercel Analytics on in the dashboard.*
 - [x] **GitHub public presence** (2026-07-29, partly): the README is rewritten for a first-time
       visitor - 60-second pitch, entry + browse screenshots (`docs/images/`), real catalog and
       export numbers, self-host quickstart, a documentation index, and the AGPL point that
@@ -200,8 +202,8 @@ Foundations first, flywheel second, factories third. Nothing below promotes unti
    Open for beta testers. Left over, and manual in the Supabase dashboard: require email
    confirmation + enable captcha.
 2. ~~**Funnel events + UTM capture**~~ - **DONE 2026-07-29** (`funnel_events`, migration `0016`,
-   `POST /api/events`; `docs/FUNNEL_EVENTS.md`). Left over, and manual: apply `0016` to the live
-   project, and switch Vercel Analytics on in the dashboard.
+   `POST /api/events`; `docs/FUNNEL_EVENTS.md`). `0016` applied to prod 2026-07-29. Left over,
+   and manual: switch Vercel Analytics on in the dashboard.
 3. **Anon gallery read + login-less share page** - RLS/RPC change (adversarial review like 0004/0005)
    + public template page + share route.
 4. **Static prerender step** - ~~`/templates/<slug>` pages + sitemap + robots into the deploy~~
