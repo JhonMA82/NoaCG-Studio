@@ -57,6 +57,34 @@ export function tokenMinter(fileEnv) {
   };
 }
 
+/** OpenRouter provider SLUGS for a model's real endpoints.
+ *
+ *  A route with an EMPTY allowlist is not configured at all (taskConfigured), so a bench
+ *  that injects a model but no allowlist fails closed before spending - which is what the
+ *  vision suite did on its first attempt. Slugs are resolved from OpenRouter rather than
+ *  slugified from the display name, because "Google" is `google-vertex` and a guessed slug
+ *  matches nothing, which fails the same way for a different reason. */
+export async function providerAllowlistFor(model) {
+  const get = async (url) => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+    return response.json();
+  };
+  const [providers, detail] = await Promise.all([
+    get('https://openrouter.ai/api/v1/providers'),
+    get(`https://openrouter.ai/api/v1/models/${model}/endpoints`),
+  ]);
+  const slugByName = new Map((providers.data ?? [])
+    .filter((p) => p.name && p.slug)
+    .map((p) => [p.name.toLowerCase(), p.slug]));
+  const slugs = [...new Set((detail.data?.endpoints ?? [])
+    .filter((e) => (e.supported_parameters ?? []).includes('structured_outputs'))
+    .map((e) => slugByName.get((e.provider_name ?? '').toLowerCase()))
+    .filter(Boolean))];
+  if (!slugs.length) throw new Error(`no structured-output endpoint with a known slug for ${model}`);
+  return slugs.join(',');
+}
+
 export function startServer(env) {
   return spawn('npm', ['run', 'dev'], { env: { ...process.env, ...env }, shell: true, stdio: 'ignore' });
 }

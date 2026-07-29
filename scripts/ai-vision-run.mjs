@@ -22,7 +22,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { scoreAnalysis } from './ai-vision-bench/groundTruth.mjs';
 import {
-  BASE, killTree, readEnvFile, settlePort, startServer, tokenMinter, waitForReady,
+  BASE, killTree, providerAllowlistFor, readEnvFile, settlePort, startServer, tokenMinter,
+  waitForReady,
 } from './ai-bench-server.mjs';
 
 const args = process.argv.slice(2);
@@ -40,7 +41,12 @@ const MAX_COST_USD = 1.0;
 
 const all = (await readFile(path.join(OUT, 'ground-truth.jsonl'), 'utf8'))
   .split('\n').filter(Boolean).map((line) => JSON.parse(line));
-const records = all.filter((r) => (INCLUDE_HOLDOUT ? true : r.split === 'dev'));
+const LIMIT = Number(flag('limit')) || 0;
+const selected = all.filter((r) => (INCLUDE_HOLDOUT ? true : r.split === 'dev'));
+// A limited run is for DIAGNOSIS, never for a scorecard - it is announced so a truncated
+// set cannot be mistaken for the suite.
+const records = LIMIT ? selected.slice(0, LIMIT) : selected;
+if (LIMIT) console.log(`LIMIT ${LIMIT}: diagnostic subset of ${selected.length}, not a scorecard.`);
 if (!records.length) {
   console.error('No records for this split. Generate the dataset first (bench:vision:dataset + bench:vision:hostile).');
   process.exit(1);
@@ -121,8 +127,18 @@ function floorPrediction(record, index) {
   return { version: 1, graphicType, graphicTypeConfidence: 0.3, canvas: record.truth.canvas, regions, warnings: [] };
 }
 
+/** Real pixel size straight from the PNG header (IHDR width/height are big-endian at byte
+ *  16). Deriving it from the recorded aspect assumed a 1080-high frame, which is wrong for
+ *  every portrait and ultra-wide case in the set - and telling a vision model the wrong
+ *  dimensions of the image it is looking at is not a fair test of the model. */
+function pngSize(buffer) {
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
 async function modelPrediction(record, token) {
-  const base64 = (await readFile(path.join(OUT, record.image))).toString('base64');
+  const file = await readFile(path.join(OUT, record.image));
+  const { width, height } = pngSize(file);
+  const base64 = file.toString('base64');
   const response = await fetch(`${BASE}/api/ai/tasks/import-analysis`, {
     method: 'POST',
     headers: {
@@ -131,12 +147,7 @@ async function modelPrediction(record, token) {
     },
     body: JSON.stringify({
       idempotencyKey: `${record.id}-${Date.now()}`,
-      image: {
-        base64,
-        mediaType: 'image/png',
-        width: Math.round(record.truth.canvas.aspect * 1080),
-        height: 1080,
-      },
+      image: { base64, mediaType: 'image/png', width, height },
     }),
   });
   const body = await response.json().catch(() => null);
@@ -145,7 +156,13 @@ async function modelPrediction(record, token) {
     error.code = body?.error?.code ?? `http_${response.status}`;
     throw error;
   }
-  return { analysis: body.analysis, costUsd: body.costUsd ?? 0, latencyMs: body.latencyMs ?? null };
+  // Cost rides usage.estimatedCost - the endpoint never returns a bare costUsd, so the
+  // old read silently reported every run as free.
+  return {
+    analysis: body.analysis,
+    costUsd: body.usage?.estimatedCost?.amount ?? 0,
+    latencyMs: body.usage?.latencyMs ?? null,
+  };
 }
 
 // ── Run ─────────────────────────────────────────────────────────────────────
@@ -174,7 +191,13 @@ async function runArm(arm, token) {
       error = e?.code ?? String(e.message ?? e);
     }
     const score = scoreAnalysis(record, prediction);
-    rows.push({ id: record.id, source: record.source, split: record.split, error, costUsd, ...score });
+    rows.push({
+      id: record.id, source: record.source, split: record.split, error, costUsd, ...score,
+      // Kept for the model arm only: without the prediction beside the score there is no
+      // way to tell a weak model from a misaligned harness, which is exactly the question
+      // a low precision number raises first.
+      ...(arm === 'model' ? { prediction } : {}),
+    });
   }
   return { rows, totalCost };
 }
@@ -270,10 +293,15 @@ if (ARM !== 'model') {
   const scorecards = [];
   for (const model of candidates) {
     console.log(`\n=== ${model}`);
+    // Resolved BEFORE the server starts: an empty allowlist leaves the route unconfigured,
+    // which fails closed after the server is already up and looks like a server fault.
+    const providers = await providerAllowlistFor(model);
+    console.log(`  provider allowlist: ${providers}`);
     const server = startServer({
       AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
       AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',
       AI_IMPORT_ANALYSIS_MODEL: model,
+      AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: providers,
       // The task's own quotas are sized for a USER (10 successes a day). A bench sweeps the
       // whole set in one go, so raise them here rather than reading a quota refusal as a
       // model failure - the hard stop that matters is the cost cap above.
