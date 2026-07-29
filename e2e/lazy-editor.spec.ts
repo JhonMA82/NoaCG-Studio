@@ -42,6 +42,13 @@ async function createHairline(page: Page): Promise<string[]> {
 
 const isEditorModule = (url: string) => /CodeEditor|monaco/i.test(url);
 
+// Both tests in this file do a full wizard create AND then wait out a cold Monaco mount, and
+// that mount is allowed 20 s because it is a module download the dev server transforms on
+// demand. 20 s of waiting inside a 30 s test budget leaves no room for the create in front of
+// it, so the budget - not the assertion - is what runs out first. test.slow() fixes the
+// enclosing number rather than inflating the inner one past what it is actually measuring.
+test.slow();
+
 test('desktop: Monaco is not fetched until the code pane is opened', async ({ page }) => {
   const requested = await createHairline(page);
   // The pane ships CLOSED (model/layout.ts), so a user who never opens code never pays for
@@ -65,8 +72,14 @@ test('mobile: Monaco is not fetched until "Show code"', async ({ browser }) => {
   expect(requested.some(isEditorModule)).toBe(false);
 
   // Opening the code view fetches the bundle on demand and mounts the editor.
+  //
+  // The 20 s budget is the SAME one showCode uses on the desktop path, for the same reason: a
+  // lazy Monaco mount is a module DOWNLOAD the dev server transforms on demand, not a render,
+  // and the default expect timeout is tuned for renders. This spec hand-rolls the mobile toggle
+  // rather than calling showCode, so it has to carry the budget itself - it did not, and was
+  // the one half of this pair that failed under a loaded suite.
   await page.locator('.mobile-code-toggle').click();
-  await expect(page.locator('.monaco-editor').first()).toBeVisible();
+  await expect(page.locator('.monaco-editor').first()).toBeVisible({ timeout: 20_000 });
   expect(requested.some(isEditorModule)).toBe(true);
   await context.close();
 });

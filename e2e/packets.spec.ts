@@ -78,6 +78,10 @@ test('packages: save two graphics into one, reopen one, export the package as on
 });
 
 test('looks: capture the current look in Home, apply it to another graphic, survive reload', async ({ page }) => {
+  // Two full wizard creations plus a reload in one test. That is genuinely more than a 30 s
+  // budget holds under worker contention, and it was dying on the clock with no assertion
+  // message - which reads like a broken app rather than a test that ran out of room.
+  test.slow();
   await page.goto('/app');
   await create(page, 'Lower thirds', 'Hairline');
 
