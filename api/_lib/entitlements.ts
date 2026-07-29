@@ -25,6 +25,7 @@ import {
 } from '../../src/entitlements/contract.js';
 import { adminDb, adminConfigured } from './adminAuth.js';
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
+import { systemSettings } from './systemSettings.js';
 
 interface PlanRow {
   key: string;
@@ -144,14 +145,24 @@ export async function loadEntitlementRows(userId: string): Promise<EntitlementRo
  * without touching the database.
  */
 export async function resolveUserEntitlement(userId: string | null): Promise<Entitlement> {
+  const system = await systemSettings();
   if (!userId) {
-    return resolveEntitlement({ userId: null, ...EMPTY, now: new Date().toISOString() });
+    return resolveEntitlement({
+      userId: null,
+      ...EMPTY,
+      now: new Date().toISOString(),
+      disabledFeatures: system.disabledFeatures,
+    });
   }
   const rows = await loadEntitlementRows(userId);
   return resolveEntitlement({
     userId,
     ...rows,
     now: new Date().toISOString(),
+    // The instance-wide kill switches outrank everything the plan or a grant says. An admin
+    // reaching for one is saying "this is broken right now", and a per-user override that
+    // could defeat it would make the switch useless exactly when it matters.
+    disabledFeatures: system.disabledFeatures,
     // The legacy AI_LITE_OVERRIDE_USER_IDS list, resolved as a source the admin page can name
     // rather than as invisible behaviour. Removed one release after plans ship (docs/ADMIN.md).
     envOverride: liteProfile().overrideUserIds.includes(userId),

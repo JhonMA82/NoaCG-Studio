@@ -370,6 +370,33 @@ test('a quota grant reaches the Lite profile with the plan overridden', () => {
   assert.equal(applied.dailySuccesses, 25);
 });
 
+test('an instance-wide kill switch beats a plan, a grant AND a manual override', () => {
+  const plan: PlanShape = {
+    key: 'studio',
+    name: 'Studio',
+    features: { 'ai.lite': true },
+    limits: {},
+    renderTier: 'free',
+    renderFormats: null,
+  };
+  const resolved = resolveEntitlement({
+    ...bare('user-1'),
+    plan,
+    grants: [grant({ key: 'ai.lite', value: true, reason: 'vip' })],
+    disabledFeatures: ['ai.lite'],
+  });
+  assert.equal(allows(resolved, 'ai.lite'), false, 'a switch a manual override defeats is not a switch');
+  assert.equal(resolved.features['ai.lite'].source, 'disabled');
+  // Only the named feature goes down.
+  assert.equal(allows(resolved, 'sync.cloud'), true);
+});
+
+test('the kill switch reaches anonymous visitors too', () => {
+  const resolved = resolveEntitlement({ ...bare(null), disabledFeatures: ['render.cloud'] });
+  assert.equal(allows(resolved, 'render.cloud'), false);
+  assert.equal(resolved.features['render.cloud'].source, 'disabled');
+});
+
 test('the key guards reject unknown strings', () => {
   assert.equal(isFeatureKey('ai.lite'), true);
   assert.equal(isFeatureKey('editor.open'), false, 'the free core has no gate key');

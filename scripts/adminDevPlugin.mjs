@@ -19,7 +19,7 @@ export function adminApiPlugin() {
   };
 }
 
-const ROUTES = new Set(['session']);
+const ROUTES = new Set(['session', 'users', 'user', 'plans', 'grants', 'usage', 'system', 'templates', 'audit']);
 
 function notFound(res) {
   res.statusCode = 404;

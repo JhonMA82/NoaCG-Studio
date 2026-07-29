@@ -159,11 +159,26 @@ export interface EntitlementInput {
   /** Legacy AI_LITE_OVERRIDE_USER_IDS membership. Removed one release after plans ship;
    *  until then it resolves like a permanent override so nobody's access changes. */
   envOverride?: boolean;
+  /** Features switched off instance-wide from the admin surface's system controls.
+   *
+   *  This is an INCIDENT CONTROL, not an entitlement: it outranks the plan, the grant and
+   *  the override, because the reason to reach for it is "this is broken right now" and a
+   *  kill switch that a per-user override could defeat is not a kill switch. It is the one
+   *  input that can deny something a manual override allowed, and the resolved source says
+   *  so plainly rather than leaving an operator wondering why their override did nothing. */
+  disabledFeatures?: readonly FeatureKey[];
 }
 
 // ── the resolved answer ────────────────────────────────────────────────────────────────
 
-export type EntitlementSource = 'default' | 'plan' | 'grant' | 'override' | 'env-override' | 'suspended';
+export type EntitlementSource =
+  | 'default'
+  | 'plan'
+  | 'grant'
+  | 'override'
+  | 'env-override'
+  | 'suspended'
+  | 'disabled';
 
 /** One resolved value plus the reason it holds that value. The admin page renders this
  *  triple directly - "why does this user have access" is not a separate query. */
@@ -331,9 +346,15 @@ export function resolveEntitlement(input: EntitlementInput): Entitlement {
     if (input.envOverride && !resolved.value && key.startsWith('ai.')) {
       resolved = { value: true, source: 'env-override', sourceLabel: 'AI_LITE_OVERRIDE_USER_IDS', expiresAt: null };
     }
+    // Order matters: the instance-wide kill switch is checked LAST so it wins over every
+    // other source, including a manual override. Suspension is checked before it only
+    // because "this account is suspended" is the more useful explanation of the two.
     features[key] = suspended
       ? { value: false, source: 'suspended', sourceLabel: 'Account suspended', expiresAt: null }
       : resolved;
+    if (input.disabledFeatures?.includes(key)) {
+      features[key] = { value: false, source: 'disabled', sourceLabel: 'Switched off instance-wide', expiresAt: null };
+    }
   }
 
   const limits = {} as Record<LimitKey, EntitlementValue<number | null>>;
