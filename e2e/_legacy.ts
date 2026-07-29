@@ -11,20 +11,27 @@ import { awaitPreviewRebuild } from './_preview';
 const OPEN = '/* == ANIMATION';
 const CLOSE = '/* == END ANIMATION == */';
 
-/** Swap the current template's marked region for `region`, and apply it (one undoable apply). */
+/** Swap the current template's marked region for `region`, and apply it (one undoable apply).
+ *
+ *  The rebuild wait WRAPS the evaluate rather than following it. The change happens inside the
+ *  page, and the evaluate's round trip - including a cold dynamic import of the store module -
+ *  can easily outlast the preview's 350 ms debounce. Waiting afterwards then reads a revision
+ *  that has ALREADY advanced and waits out the clock for a second rebuild nothing will trigger.
+ *  Wrapping snapshots the revision first, so "it changed" can only mean this splice. */
 async function spliceRegion(page: Page, region: string) {
-  await page.evaluate(async (body) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const store = useTemplateStore.getState();
-    const tpl = store.template;
-    const start = tpl.js.indexOf('/* == ANIMATION');
-    const end = tpl.js.indexOf('/* == END ANIMATION == */');
-    store.applyTemplate({
-      ...tpl,
-      js: tpl.js.slice(0, start) + body + tpl.js.slice(end + '/* == END ANIMATION == */'.length),
-    });
-  }, region);
-  await awaitPreviewRebuild(page);
+  await awaitPreviewRebuild(page, () =>
+    page.evaluate(async (body) => {
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const store = useTemplateStore.getState();
+      const tpl = store.template;
+      const start = tpl.js.indexOf('/* == ANIMATION');
+      const end = tpl.js.indexOf('/* == END ANIMATION == */');
+      store.applyTemplate({
+        ...tpl,
+        js: tpl.js.slice(0, start) + body + tpl.js.slice(end + '/* == END ANIMATION == */'.length),
+      });
+    }, region),
+  );
 }
 
 /**

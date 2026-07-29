@@ -99,6 +99,12 @@ test('Hidden paints comments transparent and leaves the source untouched', async
 });
 
 test('the mode survives a tab switch, a content edit, and a reload', async ({ page }) => {
+  // This is the one test here that mounts Monaco TWICE - once at the start and again after the
+  // reload - and showCode allows each mount 20 s because a lazy chunk fetch is a download, not a
+  // render. Two of those cannot fit inside a 30 s test budget under worker contention, so the
+  // test was dying on its own clock with no assertion message. The internal waits are correct;
+  // the enclosing budget was the thing that was wrong.
+  test.slow();
   await createProject(page);
   await codeEditorReady(page);
   await setMode(page, 'hidden');
