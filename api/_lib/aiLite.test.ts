@@ -657,6 +657,13 @@ test('the skin prompt teaches strap shape as geometry, not as a way to fail', ()
   assert.match(prompt, /you DRAW with gradients/);
   assert.match(prompt, /recoloured box/);
   assert.match(prompt, /the primary name stays crisp/);
+  // v4 asked for commitment and the model delivered it by RESHAPING the graphic - the two
+  // skins that finally scored briefFit 5 both scored strapShape 2 ("a small, squat box in
+  // the corner"). Motif and strap compete unless the prompt binds them, so the motif must
+  // stay inside the band and "not distinctive enough" must resolve to fill, never to size.
+  assert.match(prompt, /INSIDE the band/);
+  assert.match(prompt, /never becomes its shape/);
+  assert.match(prompt, /never size or a new silhouette/);
   // The teaching rides only the skin-enabled prompt.
   assert.doesNotMatch(liteSystemPrompt('test-v1', [], { skin: false }), /IS a strap/);
 });

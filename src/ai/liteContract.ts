@@ -507,7 +507,8 @@ function skinPromptLines(): string[] {
     // the skin exists to keep. The high scorers are concrete and restrained: "the subtle
     // gold line above the name", "ample negative space and typography".
     'Deliver the brief\'s named motifs literally - an imperfect underline, an eighties horizon, a scanline, paper grain, an angled cut are things you DRAW with gradients, repeating gradients, borders, box-shadow, clip-path and transforms, not moods to imply. Pick two or three such moves, name them in the summary, and make each one visible in the CSS.',
-    'The most common weak skin is a recoloured box: right colours, no character. If someone could not name the requested style from the pixels alone, keep going.',
+    'Draw every one of them INSIDE the band: a motif fills it, edges it, or underlines it - it never becomes its shape. A treatment that would turn the graphic into a squat box, a small corner badge, or a poster panel belongs in fill, texture and type instead.',
+    'The most common weak skin is a recoloured box: right colours, no character. If someone could not name the requested style from the pixels alone, add fill, texture and type character - never size or a new silhouette.',
     'Put the character where it cannot fight the words - panel shape and edges, the accent, rules and dividers, texture, and the type treatment itself (weight, case, tracking, size contrast). Glow, blur and heavy shadow belong around the graphic; the primary name stays crisp.',
     'Omit skin ONLY when the brief names no distinctive treatment and a listed chassis already IS the answer. When the brief asks for a look, returning a bare chassis pick because the treatment felt risky is the more common mistake - a restrained skin that respects the strap beats no skin.',
   ];
