@@ -59,6 +59,13 @@ flag is promotion-time preference metadata (open wins at benchmark parity), neve
 per-request gate. BYO-key traffic is not catalog-constrained - the caller spends their own
 key on an explicitly chosen route. Details: `docs/AI_TASK_REGISTRY.md`.
 
+The second registered task is `imported-graphic-analysis`
+(`POST /api/ai/tasks/import-analysis` + `/status` + `/outcome`, flag
+`AI_TASK_IMPORT_ANALYSIS_ENABLED` default off): one vision call over the user's
+client-side-downscaled artwork, proposal-only, same trust ladder as Lite (fail-closed
+route, durable profile-scoped ledger - migration 0015 - burst gate, sign-in, cost
+ceilings, atomic quota reservation). The image is analyzed and dropped, never stored.
+
 ## NoaCG Lite
 
 NoaCG Lite is a server-owned product profile over the same gateway and harness. Its browser
@@ -105,6 +112,23 @@ facet, and an enumerated discard reason to the server-only ledger. After a confi
 minimum sample count, accepted and discarded totals become a subtle chassis tie-breaker in
 the trusted server prompt. The brief and semantic fit always outrank this aggregate prior,
 and no prompt, template, screenshot, or generated artifact is retained.
+
+## Disclosure and consent
+
+Every AI action that sends content off the user's machine is gated by a first-use
+disclosure notice (ratified decision 2, `docs/AI_PLATFORM_PLAN.md` §15): prompts and
+uploaded images may be sent to an external AI provider; sensitive or confidential material
+must not be uploaded; ZDR-capable routes are preferred where available but retention
+across providers is not guaranteed. The wording and version live in
+`src/ai/consentNotice.ts` - shared by the browser dialog and the server record, so they
+cannot drift. Acceptance is stored client-side for anonymous users and server-side for
+signed-in users (`POST /api/ai/consent`, table `ai_consents`, migration
+`0014_ai_consent.sql` - timestamp + notice version, nothing else); bumping
+`AI_NOTICE_VERSION` forces renewed acceptance everywhere. Offline/stub generations never
+show the notice - nothing leaves the machine.
+
+ZDR routing is the DEFAULT for every free-tier task route (`requireZdr` in the task
+profile); turning it off is an explicit, audited, per-task server decision.
 
 ## Configuration
 

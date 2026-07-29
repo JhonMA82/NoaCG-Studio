@@ -24,6 +24,19 @@ keep their URLs, request shapes, and behavior. Quotas, concurrency, fleet spend,
 reservation ledger remain the policy layer (`aiLiteStore` + migrations 0010-0013); the
 registry does not duplicate them.
 
+The second is **`imported-graphic-analysis`** (plan §6): one server-owned vision call
+over the user's downscaled artwork, proposal-only, behind
+`AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off). Endpoints
+`/api/ai/tasks/import-analysis` (+ `/status`, `/outcome`), profile
+`api/_lib/aiImportAnalysisProfile.ts`, browser harness `src/ai/importAnalysis/`
+(contract + client + deterministic normalizer), UI = the Import Graphic Text step's
+`AnalyzeProposalPanel` applying accepted suggestions as ordinary `DesignFieldSpec`s. Its
+ledger rows ride `ai_generations` with `profile = 'import-analysis'` (migration 0015,
+which makes usage counting and reservation PROFILE-SCOPED - one task's traffic never
+consumes another's quotas or fleet budget). Quotas per ratified decision 3: 1 image
+(downscaled to at most 1920x1080 client-side), 10 successful analyses/day, 100/month.
+The launch route is settled by the vision benchmark (plan §8) before the flag turns on.
+
 `taskConfigured(task)` is the fail-closed gate the Lite endpoints now call (generalizing
 `liteProfileConfigured()`): every OpenRouter route needs a current price and a provider
 endpoint allowlist, and every free/anonymous-tier route must be a catalog-approved entry
@@ -66,15 +79,19 @@ Live provider listings (current prices, context windows, availability) come from
 discovery module `api/_lib/aiModelDiscovery.ts` (`GET /api/ai/models`) - discovery is a
 listing, not an approval.
 
-## Adding a task (the second consumer's checklist)
+## Adding a task (the checklist the second consumer followed)
 
 1. Register the task id and its `TaskProfile` derivation in `aiTaskRegistry.ts`.
 2. Approve its routes in the catalog (benchmark first; open-weight preference at parity).
    A task with a free or anonymous tier can only be approved onto a funded-eligible
    route - cheap and OpenRouter-reachable.
 3. If it writes `ai_generations` with a new `profile` value, ship the CHECK-constraint
-   migration in the same commit (root AGENTS.md non-negotiable 6).
+   migration in the same commit (root AGENTS.md non-negotiable 6) - and keep older
+   deployments working: Lite deliberately stays on its 0010-era RPC names so the code
+   deploy never depends on the migration being applied first (`aiLiteStoreSupabase.ts`).
 4. Rate-limit through `admitTaskIp(taskId, ipHash)` - per-task windows, pre-body, never
    an entitlement.
-5. Pin the gate in `api/_lib/aiTaskRegistry.test.ts` (`scripts/run-ai-gateway-tests.mjs`,
-   part of `npm run build`).
+5. Gate the UI on the task's status endpoint (invisible offline and when disabled), on
+   `needsSignIn`, and on the first-use disclosure notice (`useAiConsent`).
+6. Pin the gate in `api/_lib/aiTaskRegistry.test.ts` (`scripts/run-ai-gateway-tests.mjs`,
+   part of `npm run build`) and the UI's flag-off absence in a stub-first e2e spec.

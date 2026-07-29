@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+import { acceptAiNotice } from './_ai-notice';
 
 const STATUS = {
   profile: 'lite',
@@ -68,6 +69,7 @@ async function openLite(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
+  await acceptAiNotice(page);
   await page.route('/api/ai/lite/status', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',

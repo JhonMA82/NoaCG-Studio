@@ -4,23 +4,26 @@ import type { AiProviderId, ModelRoute } from '../../src/ai/modelTypes.js';
 import { LITE_AI_CATEGORIES } from '../../src/ai/liteContract.js';
 import type { LitePublicLimits } from '../../src/ai/liteTypes.js';
 
-const intEnv = (name: string, fallback: number, min: number, max: number): number => {
+// Shared AI-profile env readers: exported because every managed task profile
+// (aiImportAnalysisProfile.ts is the second) parses its knobs the same clamped,
+// typo-tolerant way - a malformed value falls back rather than removing a guard.
+export const intEnv = (name: string, fallback: number, min: number, max: number): number => {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.round(parsed))) : fallback;
 };
 
-const numberEnv = (name: string, fallback: number, min: number, max: number): number => {
+export const numberEnv = (name: string, fallback: number, min: number, max: number): number => {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 };
 
-const boolEnv = (name: string, fallback = false): boolean => {
+export const boolEnv = (name: string, fallback = false): boolean => {
   const value = process.env[name]?.trim().toLowerCase();
   if (!value) return fallback;
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 };
 
-function route(providerName: string | undefined, modelName: string | undefined, fallback: ModelRoute): ModelRoute {
+export function envRoute(providerName: string | undefined, modelName: string | undefined, fallback: ModelRoute): ModelRoute {
   const provider = providerName?.trim() as AiProviderId | undefined;
   const model = modelName?.trim();
   return provider && ['anthropic', 'openai', 'openrouter'].includes(provider) && model
@@ -109,17 +112,17 @@ export interface LiteProfile {
 
 export function liteProfile(): LiteProfile {
   const skinEnabled = boolEnv('AI_LITE_SKIN_ENABLED');
-  const primary = route(
+  const primary = envRoute(
     process.env.AI_LITE_PRIMARY_PROVIDER,
     process.env.AI_LITE_PRIMARY_MODEL,
     { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
   );
-  const fallback = route(
+  const fallback = envRoute(
     process.env.AI_LITE_FALLBACK_PROVIDER,
     process.env.AI_LITE_FALLBACK_MODEL,
     { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
   );
-  const judgeRoute = route(
+  const judgeRoute = envRoute(
     process.env.AI_LITE_JUDGE_PROVIDER,
     process.env.AI_LITE_JUDGE_MODEL,
     { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
@@ -134,7 +137,10 @@ export function liteProfile(): LiteProfile {
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v2').trim().slice(0, 64) || 'lite-lower-third-v2',
+    // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
+    // The ledger records this per generation, so outcomes stay attributable to the prompt
+    // that produced them - bump it whenever the teaching changes, never silently.
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v3').trim().slice(0, 64) || 'lite-lower-third-v3',
     primary,
     fallback,
     prices,

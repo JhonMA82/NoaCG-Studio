@@ -233,6 +233,25 @@ test('the repair suite expectations match validateLiteDecision exactly', () => {
   }
 });
 
+test('every rule the repair suite can trigger carries an actionable instruction', () => {
+  // The repair round is only worth its call if the model is told what to CHANGE - handed
+  // bare codes it re-emits the same decision (measured). This pins coverage against REAL
+  // failing decisions, so a new rule code cannot ship without guidance behind it.
+  const codes = new Set(REPAIR_SUITE.flatMap((item) =>
+    contract.validateLiteDecision(item.decision, item.request).errors));
+  assert.ok(codes.size > 0, 'the repair suite must still produce failures to cover');
+  for (const code of codes) {
+    const [instruction] = contract.liteRepairInstructions([code]);
+    assert.ok(instruction, `${code} has an instruction`);
+    // The generic fallback echoes the code; a real instruction never does.
+    assert.doesNotMatch(
+      instruction,
+      new RegExp(code.split(':')[0]),
+      `${code} still falls back to echoing itself - add guidance to REPAIR_GUIDANCE`,
+    );
+  }
+});
+
 test('spike selections: 6 briefs each, all from the frozen fixture bank, disjoint', () => {
   const bank = new Set(LITE_LOWER_THIRD_FIXTURES.map(([id]) => id));
   for (const suite of [SPIKE_FIXTURE_IDS, SKIN_SPIKE_FIXTURE_IDS]) {

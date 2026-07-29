@@ -6,7 +6,10 @@
 // The CORE suite is visible and used during development. The hidden holdout lives in
 // holdout.mjs and must never be used for prompt tuning or shown in development reports.
 
-export const LITE_BENCH_SUITE_ID = 'lite-spec-v1';
+// v2: the contrast expectation changed from refusal to deterministic clamping
+// (repair-contrast-clamped). Per docs/AI_LITE_BENCHMARK.md a changed expectation is a NEW
+// suite version - results recorded under v1 are not comparable across that line.
+export const LITE_BENCH_SUITE_ID = 'lite-spec-v2';
 
 // ── The core suite (8 briefs, each with a labelled expected outcome) ─────────
 //
@@ -369,13 +372,18 @@ export const REPAIR_SUITE = [
     expectErrors: ['logo_not_supported'],
   },
   {
-    id: 'repair-contrast-low',
+    // Kept as a REGRESSION pin with no expected errors: this palette used to be refused
+    // (primary_text_contrast_low + secondary_text_contrast_low) and the repair round could
+    // not save it, so a near-miss killed the generation. The floor is applied by clamping
+    // now, so the correct expectation is that it validates - if this ever errors again,
+    // the clamp regressed.
+    id: 'repair-contrast-clamped',
     request: repairRequest('A lower third for Ada Example, Example Editor.'),
     decision: readyDecision({
       ...baseSpec(),
       palette: { accent: '#ffb000', text: '#777777', textDim: '#6a6a6a', panel: '#666666' },
     }),
-    expectErrors: ['primary_text_contrast_low', 'secondary_text_contrast_low'],
+    expectErrors: [],
   },
   {
     id: 'repair-requested-role-missing',

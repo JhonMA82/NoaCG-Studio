@@ -4,6 +4,7 @@
 // the repair loop, the apply - runs exactly as in production, on emits we choose.
 
 import { expect, type Page, type Route } from '@playwright/test';
+import { acceptAiNotice } from './_ai-notice';
 
 /** The player host iframe's content (Playwright reaches into sandboxed frames). */
 export function player(page: Page) {
@@ -102,6 +103,9 @@ export async function useFakeAiKey(page: Page): Promise<void> {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
+  // A configured provider makes the remote path live, so the disclosure gate would open
+  // before the first generation - these specs test generation, not the notice.
+  await acceptAiNotice(page);
 }
 
 /**

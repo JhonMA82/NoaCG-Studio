@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { acceptAiNotice } from './_ai-notice';
 
 // Era 3: the Describe-it step's example prompts + brainstorm chat (gateway mocked).
 
@@ -12,6 +13,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
+  await acceptAiNotice(page);
 });
 
 test('example prompts fill the brief with one click', async ({ page }) => {

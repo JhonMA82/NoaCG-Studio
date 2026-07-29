@@ -203,6 +203,34 @@ measured, the judge runs in the eval rig only - production wiring additionally n
 in-app hold-frame capture path, which does not exist yet (rig captures are Playwright
 screenshots).
 
+## 6c. Measured: the skin prompt has a load ceiling
+
+Four paid rounds isolated the skin teaching, one variable at a time. Among JUDGED skins
+(the per-brief figure moves with transport failures; this one does not):
+
+| prompt | pass rate | briefFit | legibility | what changed |
+| --- | --- | --- | --- | --- |
+| v3 | 47% | 2.60 | 3.47 | strap rule RESTATED as geometry, prohibitions deleted |
+| v4 | 33% | 2.58 | 3.75 | +3 lines teaching brief fit |
+| v5 | 27% | 2.36 | 2.91 | +1 line binding motif to strap |
+
+**Both attempts to raise briefFit lowered it, and v5 took legibility with it.** The skin
+block went from roughly six simultaneous requirements to eleven; every line was defensible
+alone and drawn from the judge's own words, and the aggregate still degraded every axis.
+
+Two rules follow, and they cost about $0.05 to learn:
+
+- **Prefer replacing to adding.** v3 - the one change that clearly won - deleted as much as
+  it wrote. A prompt at this length is a fixed budget, not an append-only log.
+- **Watch the axis you are NOT targeting.** v4 got what it asked for: the first briefFit
+  5s. Both scored strapShape 2 ("a small, squat box in the corner rather than a
+  lower-third strap") and reverted. Instructions compete; a win on one axis that nobody
+  measured against the others is not a win.
+
+briefFit stays the weak axis (2.60 at best). The next mechanism to try is worked EXAMPLES -
+one or two high-scoring skins shown rather than described, or the curated skins the nightly
+factory is meant to produce - not more sentences.
+
 ## 7. Human review
 
 One reviewer; fatigue is the binding constraint. `bench:gallery` builds a blind gallery:

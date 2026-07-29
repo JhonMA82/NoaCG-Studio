@@ -3,6 +3,7 @@ import type { DesignArt } from '../../../model/wizard';
 import { FONTS, fontById, type CustomFont } from '../../../model/fonts';
 import { uuid } from '../../../model/id';
 import FontPicker, { ensureAppFontFace } from '../FontPicker';
+import AnalyzeProposalPanel from './AnalyzeProposalPanel';
 import type { DesignFieldSpec, DraftPatch, WizardDraft } from '../draft';
 
 interface Props {
@@ -238,6 +239,10 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
         <div className="spacer" />
         <span className="hint">{fields.length} field{fields.length === 1 ? '' : 's'}</span>
       </div>
+
+      {/* Optional, proposal-only AI assistance - renders nothing when the server task is
+          off, offline, or before artwork lands. The manual tools above never depend on it. */}
+      <AnalyzeProposalPanel art={art} draft={draft} onDraft={onDraft} />
 
       <div
         ref={stageRef}

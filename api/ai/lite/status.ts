@@ -44,7 +44,7 @@ export default {
     };
     if (available && user) {
       const effectiveProfile = liteProfileForUser(profile, user.userId);
-      const usage = await (await getLiteGenerationStore()).usage(user.userId, Date.now());
+      const usage = await (await getLiteGenerationStore()).usage('lite', user.userId, Date.now());
       response.allowance = {
         dailyStartsRemaining: Math.max(0, effectiveProfile.dailyStarts - usage.dailyStarts),
         monthlyStartsRemaining: Math.max(0, effectiveProfile.monthlyStarts - usage.monthlyStarts),

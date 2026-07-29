@@ -32,7 +32,7 @@ new account from a returning one, and a wrong number is worse than a missing one
 
 ## What is stored, and what is not
 
-Table `public.funnel_events` (migration `0014`). One row per event:
+Table `public.funnel_events` (migration `0016`). One row per event:
 
 `event`, `visitor_id`, `user_id` (null until signed in), first-touch `source` / `medium` /
 `campaign` / `referrer_host`, `detail`, `created_at`.

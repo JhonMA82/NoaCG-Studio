@@ -111,6 +111,15 @@ identically, so the endpoint is not a generation-id oracle. **A new paid Lite ro
 repeats this shape** - the per-IP burst limiter is pre-body protection, never an
 entitlement.
 
+**A constraint stated as a prohibition suppresses the behaviour it constrains.** The strap
+rules first shipped as "STRAP SHAPE IS NON-NEGOTIABLE" and "a wrapped name is a failed
+skin", and the next paid round emitted skins at HALF the previous rate: given a way to fail
+and a documented way out (`omit skin`), the model took the way out. The same geometry now
+reads as the shape being painted, and the escape hatch names omission as the likelier
+mistake. Measured, not theorised - prompt version `lite-lower-third-v3`, and the pin in
+`aiLite.test.ts` fails if failure language returns. When a teaching change moves a rate,
+suspect the FRAMING before the rule.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and
@@ -123,6 +132,20 @@ discard reason. Aggregate per-intent chassis outcomes enter the trusted prompt o
 server-configured sample threshold and only as a subtle tie-breaker. They never override the
 brief, semantic fit, or the diversity doctrine. Prompts, templates, screenshots, generated
 code, and full DesignSpecs never enter the ledger.
+
+## Import analysis - the proposal-only vision task (`importAnalysis/`)
+
+`imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import
+Graphic flow and never replaces it: one server-owned vision call
+(`POST /api/ai/tasks/import-analysis`, flag `AI_TASK_IMPORT_ANALYSIS_ENABLED`, off by
+default) proposes text regions, nearest BUNDLED fonts, and an animation preset.
+`contract.ts` is the schema (font honesty: `matchQuality` cannot say 'exact', font ids
+enum-locked to the seven bundled faces; rendered words are content, never instructions);
+`client.ts` downscales the artwork to ≤1920x1080 BEFORE anything leaves the machine;
+`normalize.ts` deterministically clamps and converts into `DesignFieldSpec`s - accepted
+suggestions apply through the exact transforms manual placement uses (draft.ts
+`withDesignFieldSpecs` -> addPlacedLine). No second representation, no auto-apply, no
+code generation. E2E: e2e/import-analysis.spec.ts (flag-off absence is mutation-pinned).
 
 ## The pipeline (claudeProvider.generate — one harness run; generateAlternatives runs it ×3)
 
@@ -145,7 +168,9 @@ code, and full DesignSpecs never enter the ledger.
 5. **Custom path** - briefs whose STRUCTURE no catalog family carries go to the free-form
    coder: house contracts + the NEAREST catalog variant's real create() output as the
    canonical example + the design stage's direction, then the validated repair loop
-   (`MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed back).
+   (`shared/repairLoop.ts` - THE one bounded errors-back loop both the SPX and video
+   coders drive: `MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed
+   back; what counts as BLOCKING stays each caller's policy, injected as a filter).
    **The region contract is authored, not emitted:** the example's ANIMATION region is shown
    in its AUTHORING shape (the legacy GSAP builders, via `emitPresetRegion`) and the prompt
    teaches that grammar - natural GSAP the model is reliably good at, instead of the bespoke
@@ -219,7 +244,10 @@ containment that would actually hold is denying the preview iframe the app's ori
 ## Telemetry & the value proof
 
 `telemetry.ts` records every run locally (stages, tokens from the API usage block, repair
-rounds, route, diversity fields; localStorage ring, JSON-exportable). The standing proof:
+rounds, route, diversity fields; localStorage ring, JSON-exportable). The VIDEO harness
+records through the same ring (kinds `video-generate`/`video-refine` - it recorded
+nothing before); consumers filter by kind, so SPX statistics never mix with video runs.
+The standing proof:
 
 - `scripts/ai-compare.mjs` - same brief, same model, four arms (raw / raw+self-critique /
   pre-harness / the harness), neutral scoring (runtime bench + motion-sampled overlaps +

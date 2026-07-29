@@ -8,7 +8,9 @@
 // real example, errors-back repair) for the video world. Stages a and b are engine-
 // independent - the same brief, plan, skills, assets, and settings feed both coders.
 
-import { callModel, type ContentBlock } from '../modelGateway';
+import { callModel, callModelDetailed, type ContentBlock } from '../modelGateway';
+import { startAiRun, type AiRunRecorder } from '../telemetry';
+import { findingsList, repairLoop } from '../shared/repairLoop';
 import { parseDataUrl } from '../../assets/assetUtils';
 import type { MotionPlan, VideoChatMessage, VideoEngine, VideoInput } from '../../model/videoTypes';
 import { hyperframesInputs } from '../../video/hyperframes/parse';
@@ -35,7 +37,8 @@ import {
   type EmittedMotionPlan,
 } from './tools';
 
-/** Bounded automatic repair: the initial emit plus up to two errors-back rounds. */
+/** Bounded automatic repair: the initial emit plus up to two errors-back rounds
+ *  (src/ai/shared/repairLoop.ts MAX_REPAIR_ROUNDS - named here only for the progress line). */
 const MAX_REPAIR_ROUNDS = 2;
 
 // ── Context formatting ───────────────────────────────────────────────────────
@@ -286,26 +289,35 @@ async function generateValidated(
   validate: VideoValidator | undefined,
   model: string | undefined,
   onProgress?: VideoProgress,
+  run?: AiRunRecorder,
 ): Promise<{ emitted: EmittedSource; validation: Awaited<ReturnType<VideoValidator>> | null }> {
   const cfg = emitConfig(engine);
   // cacheSystem: the coder system prompt (contract + skills + the canonical example) is
   // large and IDENTICAL across the first call and every repair round - one cache breakpoint
   // turns those re-sends into cache reads. Cost only; the prompt itself is untouched.
-  let emitted = cfg.toEmitted(
-    await callModel({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true }),
-  );
+  let t0 = Date.now();
+  const first = await callModelDetailed({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true });
+  run?.stage('coder', t0, first.model, first.usage);
+  const firstEmitted = cfg.toEmitted(first.output);
 
-  if (!validate) return { emitted, validation: null };
+  if (!validate) return { emitted: firstEmitted, validation: null };
 
-  onProgress?.('Checking the result in the player…');
-  let validation = await validate(emitted.source, emitted.inputs);
-  for (let round = 0; round < MAX_REPAIR_ROUNDS && !validation.ok; round++) {
-    onProgress?.(`Fixing issues the checks found (round ${round + 1} of ${MAX_REPAIR_ROUNDS})…`);
-    // Hand the EXACT validator findings back with the full source - same doctrine as the
-    // SPX repair round. Runtime findings carry frame numbers.
-    const errorList = validation.errors.map((e) => `- ${e.rule}: ${e.message}`).join('\n');
-    emitted = cfg.toEmitted(
-      await callModel({
+  const { emitted, validation } = await repairLoop<EmittedSource, Awaited<ReturnType<VideoValidator>>>({
+    emitted: firstEmitted,
+    validate: async (current) => {
+      onProgress?.('Checking the result in the player…');
+      const v0 = Date.now();
+      const verdict = await validate(current.source, current.inputs);
+      run?.stage('validate', v0);
+      return verdict;
+    },
+    reEmit: async (findings, current, round) => {
+      onProgress?.(`Fixing issues the checks found (round ${round} of ${MAX_REPAIR_ROUNDS})…`);
+      run?.repair();
+      // Hand the EXACT validator findings back with the full source - same doctrine as the
+      // SPX repair round. Runtime findings carry frame numbers.
+      t0 = Date.now();
+      const repair = await callModelDetailed({
         system,
         messages: [
           ...baseMessages,
@@ -316,16 +328,17 @@ async function generateValidated(
             // validate.ts). Saying so explicitly is load-bearing: a banned window.* access
             // once survived both repair rounds because the finding read as a general rule
             // rather than an instruction about one specific line of the model's own code.
-            content: `Your composition failed validation. Fix ALL of these and re-emit the COMPLETE source (${cfg.repairNote}):\n${errorList}\n\nWhere a finding quotes an offending line, that EXACT line must not survive your fix - delete or rewrite it, do not merely work around it. Re-read your own source for every other place the same mistake appears.\n\n=== ${cfg.fileLabel} ===\n${emitted.source}`,
+            content: `Your composition failed validation. Fix ALL of these and re-emit the COMPLETE source (${cfg.repairNote}):\n${findingsList(findings)}\n\nWhere a finding quotes an offending line, that EXACT line must not survive your fix - delete or rewrite it, do not merely work around it. Re-read your own source for every other place the same mistake appears.\n\n=== ${cfg.fileLabel} ===\n${current.source}`,
           },
         ],
         tool: cfg.tool,
         model,
         cacheSystem: true,
-      }),
-    );
-    validation = await validate(emitted.source, emitted.inputs);
-  }
+      });
+      run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
+      return cfg.toEmitted(repair.output);
+    },
+  });
   return { emitted, validation: noteUnprobed(demoteSoftFindings(validation)) };
 }
 
@@ -416,13 +429,38 @@ class ClaudeVideoProvider implements VideoAIProvider {
     validate?: VideoValidator,
     onProgress?: VideoProgress,
   ): Promise<VideoGenerateResult> {
+    // The video harness records through the same local telemetry ring the SPX harness
+    // uses (stages, tokens, repair rounds) - it recorded nothing before, which made its
+    // cost and repair behaviour invisible to the compare tooling.
+    const run = startAiRun('video-generate');
+    try {
+      const result = await this.generateRecorded(prompt, ctx, validate, onProgress, run);
+      run.finish(result.validation?.ok ?? true, result.validation?.errors.map((e) => e.rule));
+      return result;
+    } catch (e) {
+      run.finish(false, ['exception']);
+      throw e;
+    }
+  }
+
+  private async generateRecorded(
+    prompt: string,
+    ctx: VideoGenerateContext,
+    validate: VideoValidator | undefined,
+    onProgress: VideoProgress | undefined,
+    run: AiRunRecorder,
+  ): Promise<VideoGenerateResult> {
     const model = ctx.model;
     onProgress?.('Reading the brief…');
+    let t0 = Date.now();
     const skills = await detectSkills(prompt, undefined);
+    run.stage('skills', t0);
     const vision = imageBlocks(ctx, ctx.assetData ?? new Map());
 
     onProgress?.('Designing the motion plan…');
+    t0 = Date.now();
     const plan = await directMotion(prompt, ctx, skills, vision, model);
+    run.stage('motion-plan', t0);
 
     onProgress?.(ctx.engine === 'hyperframes' ? 'Writing the HyperFrames composition…' : 'Writing the Remotion code…');
     const coderText = `${settingsText(ctx)}\n${assetsText(ctx)}\n\nThe motion plan to implement:\n${planText(plan)}\n\nThe original brief:\n${prompt}`;
@@ -433,6 +471,7 @@ class ClaudeVideoProvider implements VideoAIProvider {
       validate,
       model,
       onProgress,
+      run,
     );
 
     return {
@@ -459,6 +498,25 @@ class ClaudeVideoProvider implements VideoAIProvider {
     validate?: VideoValidator,
     onProgress?: VideoProgress,
   ): Promise<VideoGenerateResult> {
+    const run = startAiRun('video-refine');
+    try {
+      const result = await this.refineRecorded(request, current, ctx, validate, onProgress, run);
+      run.finish(result.validation?.ok ?? true, result.validation?.errors.map((e) => e.rule));
+      return result;
+    } catch (e) {
+      run.finish(false, ['exception']);
+      throw e;
+    }
+  }
+
+  private async refineRecorded(
+    request: string,
+    current: { source: string; chat: VideoChatMessage[]; inputs: VideoInput[] },
+    ctx: VideoGenerateContext,
+    validate: VideoValidator | undefined,
+    onProgress: VideoProgress | undefined,
+    run: AiRunRecorder,
+  ): Promise<VideoGenerateResult> {
     const model = ctx.model;
     onProgress?.('Writing the change…');
     // Skills: the refinement request plus recent context (a "make the countdown pulse"
@@ -481,6 +539,7 @@ class ClaudeVideoProvider implements VideoAIProvider {
       validate,
       model,
       onProgress,
+      run,
     );
 
     // A refinement re-emits the COMPLETE source, so it re-declares its inputs, and merging
