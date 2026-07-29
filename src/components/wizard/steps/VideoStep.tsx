@@ -3,14 +3,20 @@
 // create itself is instant - generation runs in the video editor's chat, where iteration
 // continues. A reopen strip surfaces saved video projects (open needs no account).
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
 import { fileToDataUrl } from '../../../assets/assetUtils';
 import { uniqueVideoAssetPath } from '../../../video/types';
-import type { AssetFile } from '../../../model/types';
+import {
+  guessPurpose,
+  isReferencePurpose,
+  type PurposedImage,
+  type ReferencePurpose,
+} from '../../../model/imagePurpose';
+import { UploadCard } from './ai/UploadCard';
 import {
   resolutionForSelection,
   type ProjectFormatSelection,
@@ -96,7 +102,12 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
   // validated (clamped to 1-60s) on blur and again at create, not on every keystroke.
   const [durationText, setDurationText] = useState('6');
   const [transparent, setTransparent] = useState(false);
-  const [assets, setAssets] = useState<AssetFile[]>([]);
+  // Uploads plus what each is FOR (model/imagePurpose.ts), the same four choices the SPX
+  // wizard offers. They must be settled HERE: a video project is created instantly and its
+  // first generation runs later in the shell, so a reference has to ride along on the project
+  // to be read at all (VideoProject.assetUses).
+  const [uploads, setUploads] = useState<PurposedImage[]>([]);
+  const assets = useMemo(() => uploads.map((u) => u.asset), [uploads]);
   const [assetError, setAssetError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const saved = listSavedVideoProjects();
@@ -116,16 +127,18 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     setAssetError(null);
-    const next = [...assets];
+    const next = [...uploads];
     for (const file of Array.from(files)) {
       const data = await fileToDataUrl(file);
       if (data.length > MAX_ASSET_BYTES) {
         setAssetError(`"${file.name}" is too large (3 MB per asset) - compress or trim it.`);
         continue;
       }
-      next.push({ path: uniqueVideoAssetPath(file.name, next), data });
+      const asset = { path: uniqueVideoAssetPath(file.name, next.map((u) => u.asset)), data };
+      const purpose = file.type.startsWith('image/') ? await guessPurpose(asset) : 'asset';
+      next.push({ asset, purpose });
     }
-    setAssets(next);
+    setUploads(next);
   };
 
   const applyExample = (ex: Example) => {
@@ -138,6 +151,12 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
     const brief = prompt.trim();
     if (!brief) return;
     const durationSec = clampDuration(durationText);
+    // Only the tagged ones are recorded; an absent map means "every asset is composition
+    // material", which is exactly what an untagged upload is.
+    const assetUses: Record<string, ReferencePurpose> = {};
+    for (const u of uploads) {
+      if (isReferencePurpose(u.purpose)) assetUses[u.asset.path] = u.purpose;
+    }
     onCreate(
       createDefaultVideoProject({
         name: brief.length > 42 ? `${brief.slice(0, 42)}…` : brief,
@@ -150,6 +169,7 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
         durationInFrames: Math.max(1, Math.round(durationSec * fps)),
         transparent,
         assets,
+        ...(Object.keys(assetUses).length ? { assetUses } : {}),
       }),
     );
   };
@@ -284,19 +304,29 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
               }}
             />
             <button onClick={() => fileInput.current?.click()}>🖼 Add logo / images / video…</button>
-            {assets.map((a) => (
-              <span key={a.path} className="wz-file-chip" title={a.path}>
-                {a.path.replace(/^(images|assets)\//, '')}
-                <button
-                  style={{ marginLeft: 6, padding: '0 6px' }}
-                  onClick={() => setAssets(assets.filter((x) => x.path !== a.path))}
-                  title="Remove"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
           </div>
+          {uploads.length > 0 && (
+            <div className="wz-uploads" data-testid="video-uploads">
+              {uploads.map((item) => (
+                <UploadCard
+                  key={item.asset.path}
+                  item={item}
+                  // A video clip has no purpose to choose: it is footage, always composition
+                  // material. Offering "take the look and feel" for one would be nonsense.
+                  choosable={typeof item.asset.data === 'string' && item.asset.data.startsWith('data:image/')}
+                  showBinding={false}
+                  onChange={(patch) =>
+                    setUploads((current) =>
+                      current.map((u) => (u.asset.path === item.asset.path ? { ...u, ...patch } : u)),
+                    )
+                  }
+                  onRemove={() =>
+                    setUploads((current) => current.filter((u) => u.asset.path !== item.asset.path))
+                  }
+                />
+              ))}
+            </div>
+          )}
           {assetError && <p className="status-bad" style={{ marginTop: 6 }}>✗ {assetError}</p>}
 
           <div className="row" style={{ marginTop: 12 }}>

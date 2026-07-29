@@ -438,6 +438,41 @@ never a higher threshold:
 So the axis DESCRIPTIONS remain the lever, as §6d found. Raising N before they are right
 just measures the wrong instrument more precisely.
 
+## 6f. The v6 judge round: mostly lost to the provider, two data points, no verdict
+
+Ran 2026-07-29, `bench:spike --suite=skin --out=lite-bench-out/spike-v6`, **$0.0028**.
+Generator unchanged (`lite-lower-third-v3`), judge at `lite-skin-judge-v6`.
+
+**16 of 18 generations returned `provider_rejected` and were never billed** - the documented
+OpenRouter failure on the ZDR-pinned Google route, but at **89%** against the ~20% seen
+historically. Runs 2 and 3 produced nothing at all. **This round does not measure the judge**
+and no rate in it should be quoted. Whether to widen `AI_LITE_OPENROUTER_PROVIDERS` is the
+owner's policy call and was deliberately not touched.
+
+Two rows survived. They point in opposite directions, and at **n=1 each** neither is a
+result - they are the reason to run again, not conclusions:
+
+| fixture | scores | frame | read |
+| --- | --- | --- | --- |
+| `neon-synthwave` | L3 **T5** H4 B2 **S1** | text on bare video, no panel/bar/rule/scrim, stray dot above-left | `strapShape` 1 looks **right** - v1 scored the equivalent strapless frame 5 |
+| `terminal-hud` | L4 **T5** H4 **B5** S2 | clean outlined strap, 670x145 = **4.6:1**, 35% of frame width | `strapShape` 2 looks **wrong** - the reason says "the entire graphic is very small" |
+
+**The hypothesis this suggests, worth testing rather than believing:** the two fixes are
+phrased differently and may have fared differently because of it. v3's absence clause is
+POSITIVE - "locate every painted element, ask what holds them together" - and the strapless
+frame duly scored 1. v4/v5's scale clause is a PROHIBITION - "must NOT be marked down" for
+frame share - and the judge marked a 4.6:1 strap down for exactly that, citing "very small".
+If that holds up, it is §6c's lesson reappearing on the judge side: **a vision model follows
+an instruction about what to look at more reliably than an instruction to ignore something
+it can see.** Rewriting the scale clause positively (state what proportion earns each score,
+never mention frame share) is the change to try - but only after a round that actually
+completes, since one frame cannot distinguish this from noise.
+
+`briefFit` is equally undecided: `terminal-hud` scored 5, while `neon` scored 2 with the
+reason still naming the missing "eighties horizon" that §6e's fix targets - on a frame that
+is weak on other grounds anyway. `textIntegrity` scored 5 on both, with no clipped text in
+either; it has still never met a sliced frame.
+
 ## 7. Human review
 
 One reviewer; fatigue is the binding constraint. `bench:gallery` builds a blind gallery:

@@ -104,7 +104,12 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByRole('button', { name: /Player card/ })).toHaveCount(0);
   await page.getByRole('button', { name: /Look & references/ }).click();
   await expect(page.getByText(/Image and logo input is paused/)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Add reference images/ })).toHaveCount(0);
+  // Reference images are uploaded in the step's ONE drop zone now, so the check that Lite
+  // offers none has to be made there: no purpose picker, and the zone's own Lite copy.
+  // (The old assertion named a button this panel no longer has at all, which would have gone
+  // on passing whatever Lite did.)
+  await expect(page.getByTestId('purpose-mood')).toHaveCount(0);
+  await expect(page.locator('.wz-drop')).toContainText(/Image input is paused/);
 
   await page.locator('.wz-step textarea').fill(
     'A credible university-news lower third for a student reporter name and role.',

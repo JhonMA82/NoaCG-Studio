@@ -10,15 +10,21 @@ import type { DesignSpec } from './designSpec';
 import type { ChatMessage } from './brainstorm';
 import type { GenerationSpec } from '../model/generationSpec';
 import type { CreativeAiProfileId } from './liteTypes';
+import type { StyleReference } from '../model/imagePurpose';
 
 /** Extra inputs for generation: uploaded images (logo / still), brand colors, canvas. */
 export interface GenerateContext {
   /** Uploaded images that APPEAR IN the graphic (logo, stills) — data-URL assets
    *  (paths like images/logo.png), bundled into the result. */
   images: AssetFile[];
-  /** Style references: images that only INFLUENCE the design (mood boards, screenshots).
-   *  Sent to the model as vision input, never bundled, never placed, never copied. */
-  references?: AssetFile[];
+  /** Images that only INFLUENCE the design, each carrying WHAT it influences (model/
+   *  imagePurpose.ts): its composition, its colour and mood, or the real background the
+   *  graphic must stay legible over. Vision input only — never bundled, never placed. */
+  references?: StyleReference[];
+  /** Subset of `images` the operator must get NO control for: fixed brand furniture rather
+   *  than content. Every uploaded image used to become a swappable field, which put a
+   *  channel bug in the control panel beside the guest's name. */
+  fixedAssetPaths?: string[];
   /** Brand colors to honor (the project brand or a custom palette), if any. */
   palette: Palette | null;
   /** The user's uploaded primary font — embedded like a wizard font import. */
