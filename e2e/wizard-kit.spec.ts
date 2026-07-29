@@ -86,6 +86,12 @@ test('only looks the kit can actually be built in are offered', async ({ page })
   // The (type x family) matrix is NOT full: a pack's types only ship designs in some
   // families, and offering one that throws on Create would offer a guaranteed failure.
   // Measured 2026-07-29: editorial and cinematic resolve for no pack at all.
+  //
+  // THIS IS ALSO THE DRIFT GUARD for that claim. If someone fills the editorial or cinematic
+  // cells across the type registry, this assertion fails - and the fix is to update the three
+  // places that state the four-family split (src/templates/packs.ts, src/templates/AGENTS.md,
+  // docs/PACK_TAXONOMY.md), not to loosen the test. The `validatePacks` cell gate only checks
+  // a pack's own declared family, so nothing else would notice.
   expect(offered.length).toBeGreaterThan(0);
   expect(offered).not.toContain('editorial');
   expect(offered).not.toContain('cinematic');
