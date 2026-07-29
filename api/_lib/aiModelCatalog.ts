@@ -106,18 +106,11 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
     zdrAvailable: true,
-    notes: 'Lite discovery-funnel candidate; pinned StreamLake (quantization unreported - a '
-      + 'different endpoint is a different candidate identity, so re-pin before trusting a result).',
+    notes: 'Lite discovery-funnel candidate and the LEADER of the 2026-07-29 round - the only '
+      + '24/24 machine-usable result, against 22/24 for the incumbent. Pinned StreamLake, which '
+      + 'does not report quantization: that weakens how much the result PROVES, not the model, '
+      + 'so re-pin to a declared-precision endpoint before any promotion rests on it.',
   },
-  {
-    route: { provider: 'openrouter', model: 'microsoft/phi-4' },
-    openWeights: true,
-    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 16_384 },
-    price: { inputPerMillion: 0.07, outputPerMillion: 0.14 },
-    zdrAvailable: true,
-    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Smallest context of the set.',
-  },
-
   // ── Vision-suite candidates (import-analysis-v1, 2026-07-29) ─────────────────
   // Open-weight VLMs benched against the Gemini flash default, listed so the run can
   // happen at all - the same catalog gate applies to a vision route. Not promoted.
