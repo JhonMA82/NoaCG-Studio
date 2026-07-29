@@ -25,6 +25,8 @@
     "test:ai-serverless-runtime": "node --test scripts/ai-serverless-runtime.test.mjs",
     "eval:ai-lite": "node scripts/ai-lite-eval.mjs",
     "bench:calibrate": "node scripts/ai-lite-calibrate.mjs",
+    "bench:discover": "node scripts/ai-lite-discover.mjs",
+    "bench:qualify": "node scripts/ai-lite-qualify.mjs",
     "bench:regress": "node scripts/ai-lite-regress.mjs",
     "bench:lite": "node scripts/ai-lite-eval.mjs",
     "bench:spike": "node scripts/ai-lite-spike.mjs",
