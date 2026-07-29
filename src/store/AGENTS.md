@@ -13,7 +13,13 @@ Holds ONE VideoProject + the video editor's UI state, mirroring templateStore's 
 
 - **applyProject(next)** - the undoable choke point (30-cap history). AI results bundle
   tsx + motionPlan + chat turns into ONE snapshot so undo reverts them together.
-- **patchSettings / addAsset / removeAsset** - undoable single applies.
+- **patchSettings / addAsset / removeAsset / setAssetUse** - undoable single applies.
+  `setAssetUse(path, use)` records what an upload is FOR (model/imagePurpose.ts) in the
+  additive-optional `assetUses` map; `undefined` means composition material, and the map is
+  dropped entirely once nothing is tagged - an ABSENT map is the canonical "every asset is
+  composition material", so writing `{}` would persist a difference that means nothing.
+  `removeAsset` drops the tag with the file, or a stale entry would re-tag the next upload
+  that happened to reuse the path.
 - **setInputValue(key, value) / resetInputs** - edit the editable inputs (the video Template
   Definition). Consecutive edits to the SAME key COALESCE into one undo checkpoint (a colour
   drag, a headline typed char by char) via a module-level `inputEditKey`; every other mutator
