@@ -111,25 +111,17 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
       + 'does not report quantization: that weakens how much the result PROVES, not the model, '
       + 'so re-pin to a declared-precision endpoint before any promotion rests on it.',
   },
-  // ── Vision-suite candidates (import-analysis-v1, 2026-07-29) ─────────────────
-  // Open-weight VLMs benched against the Gemini flash default, listed so the run can
-  // happen at all - the same catalog gate applies to a vision route. Not promoted.
-  {
-    route: { provider: 'openrouter', model: 'meta-llama/llama-4-scout' },
-    openWeights: true,
-    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 10_000_000 },
-    price: { inputPerMillion: 0.10, outputPerMillion: 0.30 },
-    zdrAvailable: true,
-    notes: 'Vision-suite candidate for imported-graphic analysis.',
-  },
-  {
-    route: { provider: 'openrouter', model: 'qwen/qwen3.5-9b' },
-    openWeights: true,
-    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 256_000 },
-    price: { inputPerMillion: 0.10, outputPerMillion: 0.15 },
-    zdrAvailable: true,
-    notes: 'Vision-suite candidate for imported-graphic analysis.',
-  },
+  // No vision-suite candidates are listed. `meta-llama/llama-4-scout` and `qwen/qwen3.5-9b`
+  // were approved for the 2026-07-29 import-analysis run and REMOVED again after it, because
+  // the run did not support them: it was not a valid comparison (a per-axis size cap rejected
+  // every portrait case, and two candidates failed all 35 images for reasons never isolated),
+  // no candidate came close to usable (best region precision 23% against a gold ceiling of
+  // 100% and a floor of 0%), and llama-4-scout invented regions on artwork with no editable
+  // text - the failure that puts nonsense fields in front of a user.
+  //
+  // A vision route has to be listed here before it can be benched at all, so re-add the
+  // candidates in the SAME change as the run that justifies them, rather than leaving
+  // approvals standing on a result nobody trusts.
 ];
 
 export function modelRouteKey(route: ModelRoute): string {
