@@ -117,6 +117,26 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     zdrAvailable: true,
     notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Smallest context of the set.',
   },
+
+  // ── Vision-suite candidates (import-analysis-v1, 2026-07-29) ─────────────────
+  // Open-weight VLMs benched against the Gemini flash default, listed so the run can
+  // happen at all - the same catalog gate applies to a vision route. Not promoted.
+  {
+    route: { provider: 'openrouter', model: 'meta-llama/llama-4-scout' },
+    openWeights: true,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 10_000_000 },
+    price: { inputPerMillion: 0.10, outputPerMillion: 0.30 },
+    zdrAvailable: true,
+    notes: 'Vision-suite candidate for imported-graphic analysis.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'qwen/qwen3.5-9b' },
+    openWeights: true,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 256_000 },
+    price: { inputPerMillion: 0.10, outputPerMillion: 0.15 },
+    zdrAvailable: true,
+    notes: 'Vision-suite candidate for imported-graphic analysis.',
+  },
 ];
 
 export function modelRouteKey(route: ModelRoute): string {

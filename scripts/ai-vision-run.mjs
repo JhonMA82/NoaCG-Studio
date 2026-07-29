@@ -21,7 +21,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { scoreAnalysis } from './ai-vision-bench/groundTruth.mjs';
-import { devPort } from './dev-port.mjs';
+import {
+  BASE, killTree, readEnvFile, settlePort, startServer, tokenMinter, waitForReady,
+} from './ai-bench-server.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
@@ -31,7 +33,9 @@ const ARM = flag('arm') ?? 'gold';
 const MODEL = flag('model') ?? '';
 const INCLUDE_HOLDOUT = has('holdout');
 const CONFIRMED = has('confirm-spend');
-const MAX_CALLS = 60;
+// The COST cap is the real stop; the call cap only catches an absurd sweep (a full
+// candidate set over the whole dataset is legitimately in the low hundreds).
+const MAX_CALLS = 250;
 const MAX_COST_USD = 1.0;
 
 const all = (await readFile(path.join(OUT, 'ground-truth.jsonl'), 'utf8'))
@@ -117,13 +121,13 @@ function floorPrediction(record, index) {
   return { version: 1, graphicType, graphicTypeConfidence: 0.3, canvas: record.truth.canvas, regions, warnings: [] };
 }
 
-async function modelPrediction(record) {
+async function modelPrediction(record, token) {
   const base64 = (await readFile(path.join(OUT, record.image))).toString('base64');
-  const response = await fetch(`http://localhost:${devPort()}/api/ai/tasks/import-analysis`, {
+  const response = await fetch(`${BASE}/api/ai/tasks/import-analysis`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${(process.env.NOACG_VISION_BEARER_TOKEN ?? '').trim()}`,
+      authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       idempotencyKey: `${record.id}-${Date.now()}`,
@@ -146,98 +150,168 @@ async function modelPrediction(record) {
 
 // ── Run ─────────────────────────────────────────────────────────────────────
 
-if (ARM === 'model') {
-  if (!CONFIRMED) {
-    console.log(`DRY RUN: ${records.length} image(s) would be analyzed by ${MODEL || 'the configured route'}.`);
-    console.log('Re-run with --confirm-spend to execute. Caps: '
-      + `${MAX_CALLS} calls / $${MAX_COST_USD}.`);
-    process.exit(0);
+const pct = (x) => (x === null || x === undefined ? '-' : `${Math.round(x * 100)}%`);
+const num = (x) => (x === null || x === undefined ? '-' : x.toFixed(3));
+
+async function runArm(arm, token) {
+  const rows = [];
+  let totalCost = 0;
+  for (const [index, record] of records.entries()) {
+    let prediction = null;
+    let costUsd = 0;
+    let error = null;
+    try {
+      if (arm === 'gold') prediction = goldPrediction(record);
+      else if (arm === 'floor') prediction = floorPrediction(record, index);
+      else {
+        const result = await modelPrediction(record, token);
+        prediction = result.analysis;
+        costUsd = result.costUsd;
+        totalCost += costUsd;
+        if (totalCost > MAX_COST_USD) throw new Error('cost ceiling reached');
+      }
+    } catch (e) {
+      error = e?.code ?? String(e.message ?? e);
+    }
+    const score = scoreAnalysis(record, prediction);
+    rows.push({ id: record.id, source: record.source, split: record.split, error, costUsd, ...score });
   }
-  if (records.length > MAX_CALLS) {
-    console.error(`${records.length} records exceeds the ${MAX_CALLS}-call cap.`);
+  return { rows, totalCost };
+}
+
+function summarize(arm, label, rows, totalCost) {
+  const mean = (key) => {
+    const xs = rows.map((r) => r[key]).filter((x) => typeof x === 'number');
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  };
+  const tripwires = records.filter((r) => !r.truth.hasEditableText);
+  const hallucinated = rows.filter((r, i) => !records[i].truth.hasEditableText && r.hallucinatedRegions > 0);
+  return {
+    suite: 'import-analysis-v1',
+    arm,
+    model: label || null,
+    includedHoldout: INCLUDE_HOLDOUT,
+    records: rows.length,
+    schemaSuccessRate: rows.filter((r) => r.schemaOk).length / rows.length,
+    graphicTypeAccuracy: rows.filter((r) => r.graphicTypeCorrect).length / rows.length,
+    meanPrecision: mean('precision'),
+    meanRecall: mean('recall'),
+    meanIou: mean('meanIou'),
+    roleAccuracy: mean('roleAccuracy'),
+    fontClassAccuracy: mean('fontClassAccuracy'),
+    fontIdAccuracy: mean('fontIdAccuracy'),
+    meanColorDelta: mean('meanColorDelta'),
+    meanEditsRequired: mean('editsRequired'),
+    tripwires: tripwires.length,
+    tripwiresHallucinated: hallucinated.length,
+    totalCostUsd: totalCost,
+    rows,
+  };
+}
+
+function printSummary(s) {
+  console.log(`\nimport-analysis-v1 | arm=${s.arm}${s.model ? ` (${s.model})` : ''} | `
+    + `${s.records} record(s)${INCLUDE_HOLDOUT ? ' INCLUDING HOLDOUT' : ' (dev split)'}\n`);
+  console.log(`  schema ok            ${pct(s.schemaSuccessRate)}`);
+  console.log(`  graphic type         ${pct(s.graphicTypeAccuracy)}`);
+  console.log(`  region precision     ${pct(s.meanPrecision)}`);
+  console.log(`  region recall        ${pct(s.meanRecall)}`);
+  console.log(`  mean IoU (matched)   ${num(s.meanIou)}`);
+  console.log(`  role accuracy        ${pct(s.roleAccuracy)}`);
+  console.log(`  font class accuracy  ${pct(s.fontClassAccuracy)}`);
+  console.log(`  bundled font pick    ${pct(s.fontIdAccuracy)}`);
+  console.log(`  mean colour delta    ${num(s.meanColorDelta)}  (0 = exact)`);
+  console.log(`  mean edits required  ${num(s.meanEditsRequired)}  (regions a user must fix)`);
+  console.log(`  no-text tripwires    ${s.tripwiresHallucinated}/${s.tripwires} hallucinated`);
+  if (s.arm === 'model') console.log(`  cost                 $${s.totalCostUsd.toFixed(4)}`);
+  const failed = s.rows.filter((r) => r.error);
+  if (failed.length) {
+    console.log(`  ${failed.length} failed: ${[...new Set(failed.map((r) => r.error))].join(', ')}`);
+  }
+  if (s.arm === 'gold' && s.meanPrecision !== null
+    && (s.meanPrecision < 1 || s.meanRecall < 1 || s.graphicTypeAccuracy < 1)) {
+    console.log('\n  GOLD IS NOT PERFECT - the scorer or the dataset is wrong, not a model.');
+    console.log('  Every model number measured against this ceiling is unreadable until it is 1.0.');
+  }
+}
+
+const slug = (s) => s.replace(/[^a-z0-9]+/gi, '-').slice(0, 48);
+
+if (ARM !== 'model') {
+  const { rows, totalCost } = await runArm(ARM, '');
+  const s = summarize(ARM, MODEL, rows, totalCost);
+  await writeFile(path.join(OUT, `vision-report-${ARM}.json`), JSON.stringify(s, null, 2), 'utf8');
+  printSummary(s);
+  console.log(`\nWrote ${path.join(OUT, `vision-report-${ARM}.json`)}`);
+} else {
+  // Every candidate needs its own server, because the analysis route is server
+  // configuration - the runner never names a model (see ai-bench-server.mjs).
+  const candidates = (flag('candidates') ?? MODEL).split(',').map((c) => c.trim()).filter(Boolean);
+  if (!candidates.length) {
+    console.error('Name candidates: --candidates=<model,model,...> (each must be catalog-approved).');
     process.exit(1);
   }
-}
-
-const rows = [];
-let totalCost = 0;
-for (const [index, record] of records.entries()) {
-  let prediction = null;
-  let costUsd = 0;
-  let error = null;
-  try {
-    if (ARM === 'gold') prediction = goldPrediction(record);
-    else if (ARM === 'floor') prediction = floorPrediction(record, index);
-    else {
-      const result = await modelPrediction(record);
-      prediction = result.analysis;
-      costUsd = result.costUsd;
-      totalCost += costUsd;
-      if (totalCost > MAX_COST_USD) throw new Error('cost ceiling reached');
-    }
-  } catch (e) {
-    error = e?.code ?? String(e.message ?? e);
+  if (records.length * candidates.length > MAX_CALLS) {
+    console.error(`${records.length} records x ${candidates.length} candidates exceeds the ${MAX_CALLS}-call cap.`);
+    process.exit(1);
   }
-  const score = scoreAnalysis(record, prediction);
-  rows.push({ id: record.id, source: record.source, split: record.split, error, costUsd, ...score });
+  const fileEnv = await readEnvFile();
+  const minter = tokenMinter(fileEnv);
+  console.log(`Plan: ${candidates.length} candidate(s) x ${records.length} image(s) = `
+    + `${candidates.length * records.length} vision call(s). Cap $${MAX_COST_USD}.`);
+  console.log(minter.canMint
+    ? 'Token: minted fresh per candidate from the .env test account.'
+    : 'Token: hand-supplied - a long run may outlive it.');
+  if (!CONFIRMED) {
+    console.log('\nDRY RUN - nothing spent. Re-run with --confirm-spend to execute.');
+    process.exit(0);
+  }
+
+  const scorecards = [];
+  for (const model of candidates) {
+    console.log(`\n=== ${model}`);
+    const server = startServer({
+      AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
+      AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',
+      AI_IMPORT_ANALYSIS_MODEL: model,
+      // The task's own quotas are sized for a USER (10 successes a day). A bench sweeps the
+      // whole set in one go, so raise them here rather than reading a quota refusal as a
+      // model failure - the hard stop that matters is the cost cap above.
+      AI_IMPORT_ANALYSIS_DAILY_SUCCESSES: String(records.length * 2),
+      AI_IMPORT_ANALYSIS_DAILY_STARTS: String(records.length * 3),
+      AI_IMPORT_ANALYSIS_MONTHLY_SUCCESSES: String(records.length * candidates.length * 2),
+      AI_IMPORT_ANALYSIS_MONTHLY_STARTS: String(records.length * candidates.length * 3),
+    });
+    try {
+      const token = await minter.freshToken((process.env.NOACG_VISION_BEARER_TOKEN ?? '').trim());
+      await waitForReady('/api/ai/tasks/import-analysis/status', token);
+      console.log('  server ready');
+      const { rows, totalCost } = await runArm('model', token);
+      const s = summarize('model', model, rows, totalCost);
+      await writeFile(path.join(OUT, `vision-report-${slug(model)}.json`), JSON.stringify(s, null, 2), 'utf8');
+      printSummary(s);
+      scorecards.push(s);
+    } catch (error) {
+      console.error(`  FAILED: ${error.message}`);
+      scorecards.push({ arm: 'model', model, error: String(error.message ?? error) });
+    } finally {
+      killTree(server);
+      await settlePort();
+    }
+  }
+
+  const spent = scorecards.reduce((sum, s) => sum + (s.totalCostUsd ?? 0), 0);
+  console.log(`\n\nScorecard (dev split, ${records.length} images) - total spend $${spent.toFixed(4)}\n`);
+  console.log('  model                                     type  prec  recall  role  edits  halluc  cost');
+  for (const s of scorecards) {
+    if (s.error) { console.log(`  ${s.model.padEnd(41)} FAILED (${s.error})`); continue; }
+    console.log(`  ${s.model.padEnd(41)} ${pct(s.graphicTypeAccuracy).padStart(4)} `
+      + `${pct(s.meanPrecision).padStart(5)} ${pct(s.meanRecall).padStart(6)} `
+      + `${pct(s.roleAccuracy).padStart(5)} ${num(s.meanEditsRequired).padStart(6)} `
+      + `${`${s.tripwiresHallucinated}/${s.tripwires}`.padStart(6)} $${(s.totalCostUsd ?? 0).toFixed(4)}`);
+  }
+  console.log('\nRead against the calibration arms: gold is the ceiling this scorer can award,');
+  console.log('floor is what guessing scores. A model near the floor learned nothing from the pixels.');
+  console.log('No launch decision follows from the dev split alone - the holdout is the overfitting check.');
 }
-
-const mean = (key) => {
-  const xs = rows.map((r) => r[key]).filter((x) => typeof x === 'number');
-  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
-};
-const pct = (x) => (x === null ? '-' : `${Math.round(x * 100)}%`);
-const num = (x) => (x === null ? '-' : x.toFixed(3));
-
-const tripwires = records.filter((r) => !r.truth.hasEditableText);
-const hallucinated = rows.filter((r, i) => !records[i].truth.hasEditableText && r.hallucinatedRegions > 0);
-
-const summary = {
-  suite: 'import-analysis-v1',
-  arm: ARM,
-  model: MODEL || null,
-  includedHoldout: INCLUDE_HOLDOUT,
-  records: rows.length,
-  schemaSuccessRate: rows.filter((r) => r.schemaOk).length / rows.length,
-  graphicTypeAccuracy: rows.filter((r) => r.graphicTypeCorrect).length / rows.length,
-  meanPrecision: mean('precision'),
-  meanRecall: mean('recall'),
-  meanIou: mean('meanIou'),
-  roleAccuracy: mean('roleAccuracy'),
-  fontClassAccuracy: mean('fontClassAccuracy'),
-  fontIdAccuracy: mean('fontIdAccuracy'),
-  meanColorDelta: mean('meanColorDelta'),
-  meanEditsRequired: mean('editsRequired'),
-  tripwires: tripwires.length,
-  tripwiresHallucinated: hallucinated.length,
-  totalCostUsd: totalCost,
-  rows,
-};
-await writeFile(path.join(OUT, `vision-report-${ARM}.json`), JSON.stringify(summary, null, 2), 'utf8');
-
-console.log(`\nimport-analysis-v1 | arm=${ARM}${MODEL ? ` (${MODEL})` : ''} | `
-  + `${rows.length} record(s)${INCLUDE_HOLDOUT ? ' INCLUDING HOLDOUT' : ' (dev split)'}\n`);
-console.log(`  schema ok            ${pct(summary.schemaSuccessRate)}`);
-console.log(`  graphic type         ${pct(summary.graphicTypeAccuracy)}`);
-console.log(`  region precision     ${pct(summary.meanPrecision)}`);
-console.log(`  region recall        ${pct(summary.meanRecall)}`);
-console.log(`  mean IoU (matched)   ${num(summary.meanIou)}`);
-console.log(`  role accuracy        ${pct(summary.roleAccuracy)}`);
-console.log(`  font class accuracy  ${pct(summary.fontClassAccuracy)}`);
-console.log(`  bundled font pick    ${pct(summary.fontIdAccuracy)}`);
-console.log(`  mean colour delta    ${num(summary.meanColorDelta)}  (0 = exact)`);
-console.log(`  mean edits required  ${num(summary.meanEditsRequired)}  (regions a user must fix)`);
-console.log(`  no-text tripwires    ${summary.tripwiresHallucinated}/${summary.tripwires} hallucinated`);
-if (ARM === 'model') console.log(`  cost                 $${totalCost.toFixed(4)}`);
-
-const failed = rows.filter((r) => r.error);
-if (failed.length) {
-  console.log(`\n  ${failed.length} failed: ${[...new Set(failed.map((r) => r.error))].join(', ')}`);
-}
-if (ARM === 'gold' && summary.meanPrecision !== null
-  && (summary.meanPrecision < 1 || summary.meanRecall < 1 || summary.graphicTypeAccuracy < 1)) {
-  console.log('\n  GOLD IS NOT PERFECT - the scorer or the dataset is wrong, not a model.');
-  console.log('  Every model number measured against this ceiling is unreadable until it is 1.0.');
-}
-console.log(`\nWrote ${path.join(OUT, `vision-report-${ARM}.json`)}`);
-if (!INCLUDE_HOLDOUT) console.log('Holdout excluded (dev split only) - pass --holdout deliberately, at decision time.');
+if (!INCLUDE_HOLDOUT) console.log('\nHoldout excluded (dev split only) - pass --holdout deliberately, at decision time.');
