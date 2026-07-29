@@ -28,6 +28,7 @@
     "bench:discover": "node scripts/ai-lite-discover.mjs",
     "bench:qualify": "node scripts/ai-lite-qualify.mjs",
     "bench:compare": "node scripts/ai-lite-compare.mjs",
+    "bench:vision:dataset": "node scripts/ai-vision-dataset.mjs",
     "bench:regress": "node scripts/ai-lite-regress.mjs",
     "bench:lite": "node scripts/ai-lite-eval.mjs",
     "bench:spike": "node scripts/ai-lite-spike.mjs",

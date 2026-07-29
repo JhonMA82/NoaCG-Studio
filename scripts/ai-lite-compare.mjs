@@ -220,6 +220,18 @@ function startServer(model, providerAllowlist) {
   return child;
 }
 
+/** `npm run dev` is a WRAPPER around Vite, so killing the returned child kills the wrapper
+ *  and orphans the server that actually holds the port - across six candidates that leaks
+ *  six servers, and the next one fails on strictPort. Kill the whole tree. */
+function killTree(child) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
+  }
+}
+
 const runs = [];
 await mkdir(OUT, { recursive: true });
 
@@ -251,7 +263,7 @@ for (const model of plan) {
     console.error(`  FAILED: ${error.message}`);
     runs.push({ model, label, runDir, pinnedProvider, ok: false, error: String(error.message ?? error) });
   } finally {
-    server.kill();
+    killTree(server);
     // Vite spawns through a shell; give the port time to release before the next candidate
     // binds it (strictPort means a late release is a hard failure, not a silent reassign).
     await new Promise((resolve) => setTimeout(resolve, 3000));
