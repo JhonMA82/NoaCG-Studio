@@ -31,6 +31,7 @@
     "bench:vision:dataset": "node scripts/ai-vision-dataset.mjs",
     "bench:vision:hostile": "node scripts/ai-vision-hostile.mjs",
     "bench:vision": "node scripts/ai-vision-run.mjs",
+    "bench:harness": "node scripts/ai-bench-compare.mjs",
     "bench:regress": "node scripts/ai-lite-regress.mjs",
     "bench:lite": "node scripts/ai-lite-eval.mjs",
     "bench:spike": "node scripts/ai-lite-spike.mjs",
