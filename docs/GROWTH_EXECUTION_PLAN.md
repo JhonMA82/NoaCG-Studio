@@ -63,13 +63,18 @@ The "make it exist publicly" phase. Everything here is a buildable task (§9).
       = restore the `0002` function body). Hosted-AI free allowance stays small; BYOK unlimited.
       *Remaining, dashboard-only and manual: require email confirmation + enable captcha - the
       live project currently auto-confirms.*
-- [ ] **Public, crawlable marketing surface.** The app is a Vite SPA - crawlers get one shell.
-      Fix: a **static prerender step in CI** that generates real HTML pages into the deploy:
-      landing page, `/templates/<slug>` (one page per gallery template: screenshot, description,
-      "open in NoaCG Studio", per-target download framing - SPX / CasparCG / OGraf / OBS), format-hub
-      articles, comparison pages. Sitemap + per-page title/meta/OG image. This is the rails the
-      nightly library rides: **every approved template automatically becomes an indexable landing
-      page on the next build.**
+- [x] **Public, crawlable marketing surface** (2026-07-29, first slice): `scripts/prerender.mjs`
+      runs after `vite build` and emits 386 real `/templates/<slug>` pages + `sitemap.xml` +
+      `robots.txt` into the deploy, sourced from the catalog itself so a new design gets its page
+      on the next build (`docs/PRERENDER.md`). *Still to do: per-design deep link (the CTA can only
+      open `/app` today), per-template OG images, and the format-hub/comparison articles.*
+      The original problem statement, kept because the remaining slices answer to it: the app is
+      a Vite SPA, so crawlers get one shell. The full target is landing + `/templates/<slug>`
+      (screenshot, description, "open in NoaCG Studio", per-target download framing) + format-hub
+      articles + comparison pages, with sitemap and per-page title/meta/OG image. This is the
+      rails the nightly library rides: **every approved template automatically becomes an
+      indexable landing page on the next build** - which the generator now does by construction,
+      since it reads the catalog rather than a list.
 - [ ] **Anon read access for the gallery** (currently signed-in-only; Era 5.5 deferred item).
       Needed so the prerendered template pages are real and shareable. Includes the login-less
       share page - every shared graphic then advertises the tool (the one in-product viral loop).
@@ -78,8 +83,10 @@ The "make it exist publicly" phase. Everything here is a buildable task (§9).
       activation (a graphic created), export. Written only through `POST /api/events`, which
       enforces the allowlist server-side; no IP, no user agent, no cookies, no free text; inert
       offline and under DNT/GPC or an explicit opt-out (`docs/FUNNEL_EVENTS.md`). This feeds the
-      weekly digest; without it nothing below is measurable. *Still to do: apply `0016` to prod,
-      and turn Vercel Analytics on in the dashboard.*
+      weekly digest; without it nothing below is measurable. Migration `0016` **applied to prod
+      2026-07-29**; advisors clean (the RLS-enabled-no-policy notice is the intended
+      server-write-only posture, exactly as `ai_gateway_requests` and `ai_generations` carry).
+      *Still to do: turn Vercel Analytics on in the dashboard.*
 - [x] **GitHub public presence** (2026-07-29, partly): the README is rewritten for a first-time
       visitor - 60-second pitch, entry + browse screenshots (`docs/images/`), real catalog and
       export numbers, self-host quickstart, a documentation index, and the AGPL point that
@@ -195,12 +202,14 @@ Foundations first, flywheel second, factories third. Nothing below promotes unti
    Open for beta testers. Left over, and manual in the Supabase dashboard: require email
    confirmation + enable captcha.
 2. ~~**Funnel events + UTM capture**~~ - **DONE 2026-07-29** (`funnel_events`, migration `0016`,
-   `POST /api/events`; `docs/FUNNEL_EVENTS.md`). Left over, and manual: apply `0016` to the live
-   project, and switch Vercel Analytics on in the dashboard.
+   `POST /api/events`; `docs/FUNNEL_EVENTS.md`). `0016` applied to prod 2026-07-29. Left over,
+   and manual: switch Vercel Analytics on in the dashboard.
 3. **Anon gallery read + login-less share page** - RLS/RPC change (adversarial review like 0004/0005)
    + public template page + share route.
-4. **Static prerender step** - CI generates landing + `/templates/<slug>` + article pages + sitemap
-   + OG images into the deploy.
+4. **Static prerender step** - ~~`/templates/<slug>` pages + sitemap + robots into the deploy~~
+   **DONE 2026-07-29** (`docs/PRERENDER.md`, wired into `npm run build`). Remaining: per-template
+   OG images, article pages, and the `?design=<id>` deep link that turns these pages from a
+   description into an entrance.
 5. **README + repo public presence** - ~~README, screenshots, pitch, self-host quickstart~~
    **DONE 2026-07-29**. Left over, and manual in GitHub's settings: topics + social preview image.
 6. **Domain wiring** - after purchase: attach to Vercel, canonical + redirects. *(Founder: buy

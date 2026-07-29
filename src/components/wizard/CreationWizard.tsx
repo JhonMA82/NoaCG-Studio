@@ -49,6 +49,12 @@ import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveAction
 import { recordLiteOutcome } from '../../ai/liteClient';
 import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
+import KitStep from './steps/KitStep';
+import { createGraphic } from '../../model/library';
+import { createPacketNamed } from '../../model/packets';
+import type { TemplatePack } from '../../templates/packs';
+import { kitItems } from '../../templates/kit';
+import type { StyleTag } from '../../model/fonts';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -60,6 +66,8 @@ const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'A
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
 const STEP_TITLES_BLANK = ['Start', 'Blank project'];
+// A kit is ONE decision - which show am I running - so it has no chain of steps.
+const STEP_TITLES_KIT = ['Start', 'Kit'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
 // (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
 // in/out animation, create — and land in the real canvas editor with a graphic that already
@@ -85,7 +93,7 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank'>('template');
+  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank' | 'kit'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   // Browse-step facet state lives here (not in the step) so Back returns with the
   // filters intact for the wizard session; a fresh open starts clean.
@@ -110,6 +118,10 @@ export default function CreationWizard() {
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
+  // Kit mode: building writes N graphics + a package, so it reports progress and any
+  // partial-failure reason inline rather than failing silently.
+  const [kitBusy, setKitBusy] = useState(false);
+  const [kitError, setKitError] = useState<string | null>(null);
   // The step scroller flags when content hides below the fold (short laptop windows), so the
   // CSS can show a bottom fade cue — without it the overflow is invisible and a first-run
   // user never learns the lower entry cards exist. Scroll + resize + DOM changes all re-check.
@@ -241,6 +253,53 @@ export default function CreationWizard() {
 
   const createBlank = () => {
     void applyGenerated(createBlankTemplate(draftResolution(draft), draft.fps));
+  };
+
+  /**
+   * Build a KIT: every graphic in the pack, saved into one new package.
+   *
+   * It deliberately does NOT touch the editor - no applyTemplate, no working project. A kit's
+   * outcome is a package of several graphics, and silently opening one of them would pick for
+   * the user and leave the other N-1 looking like they had not been made. Landing on the
+   * package puts all of them in front of them instead.
+   *
+   * Graphics are written straight through `createGraphic` rather than the store's save path,
+   * because that path saves THE OPEN PROJECT and there is exactly one of those. A partial
+   * failure (a full quota is the realistic cause) stops and reports rather than leaving a
+   * half-built kit behind with nothing saying so.
+   */
+  const createKit = (pack: TemplatePack, family: StyleTag) => {
+    setKitBusy(true);
+    setKitError(null);
+    try {
+      // kitItems is the SAME resolution the step's contents list shows - types resolved
+      // through the matrix PLUS the pack's extras. Reading only the resolved types here
+      // silently dropped every extra (end credits, the versus card) while the card still
+      // counted them, so the kit built fewer graphics than it promised.
+      const built = kitItems(pack, family).map((item) => ({
+        name: item.variant.name,
+        // Only the project format is imposed. Everything else stays the design's own
+        // tasteful default: a kit's whole promise is that its graphics already look like
+        // siblings, and overriding palette or font per graphic here would fight that.
+        template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps }),
+      }));
+
+      // The package exists only once every graphic in it built, so a resolution error above
+      // never leaves an empty package on Home.
+      const packet = createPacketNamed(pack.name);
+      for (const item of built) {
+        const { error } = createGraphic(item.template, { name: item.name, packageId: packet.id });
+        if (error) throw new Error(error);
+      }
+
+      trackEvent('activation', 'kit');
+      closeGallery();
+      useRouter.getState().navigate({ view: 'package', id: packet.id });
+    } catch (error) {
+      setKitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setKitBusy(false);
+    }
   };
 
   // The AI graphic's name: the Finish field, else the generated design's own name — the same
@@ -388,6 +447,7 @@ export default function CreationWizard() {
   const showPreview =
     (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
     : mode === 'video' ? false
+    : mode === 'kit' ? false
     : mode === 'blank' ? step === 1
     : mode === 'design' ? step >= 1 && !!previewTemplate
     : mode === 'template' ? step >= 1 && !!previewTemplate
@@ -395,6 +455,7 @@ export default function CreationWizard() {
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
+    : mode === 'kit' ? STEP_TITLES_KIT
     : mode === 'blank' ? STEP_TITLES_BLANK
     : mode === 'design' ? STEP_TITLES_DESIGN
     : mode === 'import' ? STEP_TITLES_IMPORT
@@ -437,6 +498,7 @@ export default function CreationWizard() {
             <span className="wz-title-step">
               {mode === 'ai' ? 'Create with AI'
                 : mode === 'video' ? 'Video with AI'
+                : mode === 'kit' ? 'Start from a kit'
                 : mode === 'design' ? 'Import graphic'
                 : 'New project'}
             </span>
@@ -484,6 +546,7 @@ export default function CreationWizard() {
                   setMode('video');
                   setStep(1);
                 }}
+                onKit={() => { setMode('kit'); setStep(1); }}
                 onBlank={() => { setMode('blank'); setStep(1); }}
                 onHome={() => {
                   closeGallery();
@@ -504,6 +567,15 @@ export default function CreationWizard() {
                 onFormat={(selection) => patch(formatDraftPatch(selection))}
                 onCreate={createVideo}
                 onOpen={createVideo}
+              />
+            )}
+            {step === 1 && mode === 'kit' && (
+              <KitStep
+                format={draftFormatSelection(draft)}
+                onFormat={(selection) => patch(formatDraftPatch(selection))}
+                onCreate={createKit}
+                busy={kitBusy}
+                error={kitError}
               />
             )}
             {step === 1 && mode === 'blank' && (
@@ -783,9 +855,12 @@ export default function CreationWizard() {
                 now, remaining steps keep their defaults. It stands down entirely on FINISH,
                 whose two door cards ARE the actions: a third button saying almost the same
                 thing as one of them would only make the branch harder to read.
+                It stands down in KIT mode for the same reason it does on Finish: the kit's
+                own Create button IS the action, and the footer's Next would advance to a
+                step that does not exist.
                 Design mode: Create is available from the Design step on (a design that
                 needs no erase, fields, or animation choice creates immediately). */}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
                 disabled={!previewTemplate}
                 onClick={create}
@@ -798,7 +873,7 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step > 0 && step < finishStep && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
               <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
                 Next ›
               </button>

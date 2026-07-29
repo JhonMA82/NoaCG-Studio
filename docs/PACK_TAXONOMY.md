@@ -6,9 +6,17 @@ curated subset of graphic types in a fitting style family. The machine-readable 
 document is **`src/templates/packs.ts`**; `scripts/factory.mjs` validates the two against the
 live registry on every run, so this mapping cannot silently rot.
 
-**A pack is pure config.** Because the type × family matrix is full (docs/GRAPHIC_TYPES.md §6),
-every `(type, family)` cell already names a shipped, gate-checked design — so declaring a pack
-is one entry in `PACKS`, no new template work. That is the "catalog growth is a config change"
+**A pack is pure config.** Across the four PRODUCTION families the type × family matrix is full
+(docs/GRAPHIC_TYPES.md §6), so every `(type, family)` cell a pack reaches for already names a
+shipped, gate-checked design — declaring a pack is one entry in `PACKS`, no new template work.
+
+**Four families, not six** (measured 2026-07-29): `noacg` covers 61 of 62 types, `sport` 56,
+`minimal` 53, `glass` 53 — while `editorial` and `cinematic` cover 1 each. Both are real style
+families with their own designs, tokens and Browse chips, but they are BROWSE families rather
+than KIT ones: no pack resolves into either, and filling them would mean ~122 new designs. A
+surface that re-resolves a pack in another look must therefore MEASURE which families work
+rather than assume all six (`familiesFor`, `src/components/wizard/steps/KitStep.tsx`); the
+`validatePacks` cell gate only tests a pack's own declared family, so it cannot catch this. That is the "catalog growth is a config change"
 half of Phase 3's done-when, made true for the axis it is true on:
 
 - **A new pack = config.** Add the entry; the factory proves it resolves and that the format
@@ -78,7 +86,8 @@ all nine.
 
 This is also the first time the taxonomy has had two AXES: a pack can refine a format's kit
 without owning the format. If more disciplines follow (cricket, rugby, cycling), they go here
-the same way — config only, no new template work, because the type × family matrix is full.
+the same way — config only, no new template work, because the matrix is full across the four
+production families a pack can actually be declared in (above).
 
 **Extras** are catalog variants outside the type registry that belong in the kit: the versus
 card (vs01/vs02) for match-up reveals — also the sports pack's upcoming-match hero — and the

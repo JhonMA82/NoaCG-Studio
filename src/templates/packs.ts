@@ -6,15 +6,33 @@
 // that mapping IS the taxonomy document's machine-readable half.
 //
 // A pack is PURE CONFIG, and that is the point (Phase 3's "catalog growth is a config change"):
-// because the type × family matrix is full, every (type, family) cell already has a shipped,
-// gate-checked design, so declaring a pack requires no new template work — `resolvePack` just
-// looks the cells up in the live registry. A NEW pack is one entry in this array. A new THEME
-// is deliberately NOT config: it needs twelve designs and a FAMILY_TOKENS row before a pack
-// could point at it, and `validatePacks` would say so.
+// across the PRODUCTION families every (type, family) cell already has a shipped, gate-checked
+// design, so declaring a pack requires no new template work — `resolvePack` just looks the
+// cells up in the live registry. A NEW pack is one entry in this array. A new THEME is
+// deliberately NOT config: it needs twelve designs and a FAMILY_TOKENS row before a pack could
+// point at it, and `validatePacks` would say so.
+//
+// **"The matrix is full" is true of FOUR families, not six** (measured 2026-07-29):
+//
+//   noacg 61/62 types · sport 56/62 · minimal 53/62 · glass 53/62
+//   editorial 1/62 · cinematic 1/62
+//
+// Editorial and cinematic are real STYLE families — 7 catalog designs each, their own
+// FAMILY_TOKENS row and Browse chip — but they are BROWSE families, not KIT families: almost
+// no graphic TYPE ships a design in them, so no pack resolves into either. That is a
+// deliberate state, not debt: filling them means ~122 new designs, and a kit is not the only
+// thing a style family is for. Anything resolving a pack must therefore MEASURE which families
+// work (`familiesFor` in wizard/steps/KitStep.tsx) rather than assume all six do.
 //
 // `scripts/factory.mjs` validates all of this on every run: every type id resolves, every
-// cell is filled, every extra exists in the catalog, and the 60 formats are covered exactly
-// once. Editing this file cannot silently break the taxonomy.
+// extra exists in the catalog, and the 60 formats are covered exactly once. Editing this file
+// cannot silently break the taxonomy.
+//
+// One limit worth knowing: the cell check (`validatePacks`) only tests each pack's OWN
+// declared `family`. It says nothing about the other five, which is why the gate stayed green
+// the whole time the header above claimed six families' worth of cells were filled. The
+// factory's own probe has always counted "12 types x 4 families" — the two disagreed, and the
+// header was the wrong one.
 
 import type { StyleTag } from '../model/fonts';
 import { typeById, TYPES } from './types/registry';
@@ -24,8 +42,10 @@ export interface TemplatePack {
   name: string;
   /** Who this pack is for, in the wizard's voice. */
   description: string;
-  /** The DEFAULT look. Any family works — the matrix is full — so this is a taste pick,
-   *  swappable per project, not a constraint. */
+  /** The DEFAULT look, and a taste pick rather than a constraint: a pack re-resolves into any
+   *  family whose cells its types fill. That is MOST of the production families for most packs,
+   *  but never all six and not the same set for every pack — Match Day and Esports resolve in
+   *  two, editorial and cinematic in none (see the header). Ask `resolvePack`, don't assume. */
   family: StyleTag;
   /** GraphicType ids, in curated order (the order a rundown would reach for them). */
   types: string[];
