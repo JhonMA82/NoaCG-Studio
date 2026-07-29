@@ -37,7 +37,48 @@ const COUNT = Number([...flags].find((f) => f.startsWith('--count='))?.slice(8))
 const MAX_CANDIDATES = 8;
 const MAX_TOTAL_COST_USD = 3.0;
 const BASE = `http://localhost:${devPort()}`;
-const TOKEN = (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();
+
+// Access tokens live about an hour and a full comparison outruns that, so a token minted
+// once at the start dies partway through and takes the remaining candidates with it -
+// paying for generations whose results are then unusable. Mint a fresh one PER CANDIDATE
+// from the same dedicated test account the configured e2e suite already uses
+// (e2e/configured/_helpers.ts). Falls back to NOACG_LITE_EVAL_BEARER_TOKEN when the
+// credentials are absent, so an operator can still supply one by hand.
+async function readEnvFile() {
+  const env = {};
+  try {
+    const raw = await readFile(path.resolve('.env'), 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+      if (match) env[match[1]] = match[2].trim();
+    }
+  } catch { /* no .env - the fallback token path still works */ }
+  return env;
+}
+
+const fileEnv = await readEnvFile();
+const credentials = {
+  url: process.env.VITE_SUPABASE_URL || fileEnv.VITE_SUPABASE_URL || '',
+  anon: process.env.VITE_SUPABASE_ANON_KEY || fileEnv.VITE_SUPABASE_ANON_KEY || '',
+  email: process.env.E2E_EMAIL || fileEnv.E2E_EMAIL || '',
+  password: process.env.E2E_PASSWORD || fileEnv.E2E_PASSWORD || '',
+};
+const canMint = Object.values(credentials).every(Boolean);
+
+async function freshToken() {
+  if (!canMint) return (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();
+  const response = await fetch(`${credentials.url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: credentials.anon, 'content-type': 'application/json' },
+    body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = await response.json();
+  if (!body.access_token) throw new Error('could not mint an eval token for this candidate');
+  return body.access_token;
+}
+
+const TOKEN = canMint ? 'mint-per-candidate' : (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();
 
 const qualify = JSON.parse(await readFile(path.join(OUT, 'qualify.json'), 'utf8'));
 const byModel = new Map(qualify.items.map((item) => [item.route.model, item]));
@@ -94,14 +135,20 @@ if (estimate + judgeEstimate > MAX_TOTAL_COST_USD) {
   console.error('\nEstimate exceeds the hard cap. Reduce candidates or --count.');
   process.exit(1);
 }
+// Reported BEFORE the dry-run exit: whether an identity exists, and whether it can be
+// refreshed, is exactly what you want to know before committing to spend.
+if (!TOKEN) {
+  console.error('\nNo eval identity available. Either put VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,');
+  console.error('E2E_EMAIL and E2E_PASSWORD in .env so a token can be minted per candidate, or set');
+  console.error('NOACG_LITE_EVAL_BEARER_TOKEN by hand (it will expire after about an hour).');
+  process.exit(1);
+}
+console.log(canMint
+  ? '\nToken: minted fresh per candidate from the .env test account.'
+  : '\nToken: supplied by hand - a long run may outlive it.');
 if (!CONFIRMED) {
   console.log('\nDRY RUN - nothing spent, nothing started. Re-run with --confirm-spend to execute.');
   process.exit(0);
-}
-if (!TOKEN) {
-  console.error('\nNOACG_LITE_EVAL_BEARER_TOKEN is not set - the eval runner needs a real');
-  console.error('server-validated development user. Mint a fresh one (they expire in ~1h).');
-  process.exit(1);
 }
 
 // Provider SLUGS, resolved from OpenRouter rather than guessed from the display name: the
@@ -136,13 +183,13 @@ function allowlistFor(item) {
   return slug;
 }
 
-async function waitForReady(budgetMs = 90_000) {
+async function waitForReady(token, budgetMs = 90_000) {
   const deadline = Date.now() + budgetMs;
   let lastReason = 'no response';
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`${BASE}/api/ai/lite/status`, {
-        headers: { authorization: `Bearer ${TOKEN}` },
+        headers: { authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(5_000),
       });
       if (response.ok) {
@@ -185,13 +232,16 @@ for (const model of plan) {
   console.log(`  provider allowlist: ${pinnedProvider}`);
   const server = startServer(model, pinnedProvider);
   try {
-    const status = await waitForReady();
+    // Minted after the server is up, so the token is at its freshest when the long
+    // fixture loop starts rather than having aged through the previous candidate.
+    const token = await freshToken();
+    const status = await waitForReady(token);
     console.log(`  server ready (skin ${status.skinEnabled ? 'on' : 'off'}, judge ${status.skinJudgeEnabled ? 'on' : 'off'})`);
     await new Promise((resolve, reject) => {
       const evaluation = spawn(
         process.execPath,
         ['scripts/ai-lite-eval.mjs', runDir, label, String(fixtures)],
-        { env: { ...process.env, NOACG_LITE_EVAL_BEARER_TOKEN: TOKEN }, stdio: 'inherit' },
+        { env: { ...process.env, NOACG_LITE_EVAL_BEARER_TOKEN: token }, stdio: 'inherit' },
       );
       evaluation.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`eval exited ${code}`))));
       evaluation.on('error', reject);
