@@ -73,12 +73,19 @@ The "make it exist publicly" phase. Everything here is a buildable task (§9).
 - [ ] **Anon read access for the gallery** (currently signed-in-only; Era 5.5 deferred item).
       Needed so the prerendered template pages are real and shareable. Includes the login-less
       share page - every shared graphic then advertises the tool (the one in-product viral loop).
-- [ ] **Analytics + funnel events**: Vercel Analytics on; a minimal `events` table in Supabase
-      (signup, activation = first graphic created, export, return visit) with UTM/source capture.
-      This feeds the weekly digest; without it nothing below is measurable.
-- [ ] **GitHub public presence**: proper README (screenshots, 60-second pitch, self-host quickstart,
-      AGPL clarity), topics, social preview image. The repo is itself a discovery channel
-      (self-hosters, students, contributors).
+- [x] **Analytics + funnel events** (2026-07-29): the `funnel_events` table (migration `0016`)
+      plus first-touch UTM/referrer capture and the five events - visit, return, signup,
+      activation (a graphic created), export. Written only through `POST /api/events`, which
+      enforces the allowlist server-side; no IP, no user agent, no cookies, no free text; inert
+      offline and under DNT/GPC or an explicit opt-out (`docs/FUNNEL_EVENTS.md`). This feeds the
+      weekly digest; without it nothing below is measurable. *Still to do: apply `0016` to prod,
+      and turn Vercel Analytics on in the dashboard.*
+- [x] **GitHub public presence** (2026-07-29, partly): the README is rewritten for a first-time
+      visitor - 60-second pitch, entry + browse screenshots (`docs/images/`), real catalog and
+      export numbers, self-host quickstart, a documentation index, and the AGPL point that
+      matters (the copyleft binds the app, not the graphics you export). *Still to do, and manual
+      in GitHub's settings: repo topics and the social preview image.* The repo is itself a
+      discovery channel (self-hosters, students, contributors).
 - [ ] **Accounts the founder must create by hand** (automation can't, and shouldn't): CasparCG
       forum, SPX community/Discord, Reddit (note: new accounts need age/karma before posting -
       create NOW even though posting starts weeks later), YouTube channel, X/Bluesky,
@@ -187,13 +194,15 @@ Foundations first, flywheel second, factories third. Nothing below promotes unti
 1. ~~**Open signup**~~ - **DONE 2026-07-08** (migration `0006`, live-verified; kill switch kept).
    Open for beta testers. Left over, and manual in the Supabase dashboard: require email
    confirmation + enable captcha.
-2. **Funnel events + UTM capture** - Supabase `events` table + client hooks (signup, activation,
-   export, return); privacy-respecting, documented.
+2. ~~**Funnel events + UTM capture**~~ - **DONE 2026-07-29** (`funnel_events`, migration `0016`,
+   `POST /api/events`; `docs/FUNNEL_EVENTS.md`). Left over, and manual: apply `0016` to the live
+   project, and switch Vercel Analytics on in the dashboard.
 3. **Anon gallery read + login-less share page** - RLS/RPC change (adversarial review like 0004/0005)
    + public template page + share route.
 4. **Static prerender step** - CI generates landing + `/templates/<slug>` + article pages + sitemap
    + OG images into the deploy.
-5. **README + repo public presence** - screenshots, pitch, self-host quickstart, topics.
+5. **README + repo public presence** - ~~README, screenshots, pitch, self-host quickstart~~
+   **DONE 2026-07-29**. Left over, and manual in GitHub's settings: topics + social preview image.
 6. **Domain wiring** - after purchase: attach to Vercel, canonical + redirects. *(Founder: buy
    `noacg.studio` + `noacgstudio.com`.)*
 7. **Era 7 phases N0-N3** - migration 0006 + bot, nightly-generate script + motion checker, staging,

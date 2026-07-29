@@ -122,3 +122,23 @@ export function checkAiGenerateRateLimit(req: Request): RateLimitDecision | null
   const decision = hitRateLimit(`ai-generate:${ipHash(req)}`, aiGenerateRateLimitCaps(), Date.now());
   return decision.allowed ? null : decision;
 }
+
+// ── The funnel ledger's burst gate ───────────────────────────────────────────────────────
+// POST /api/events costs almost nothing per call, so this is not about protecting the
+// function — it is about the DATA. An unthrottled endpoint lets one client manufacture a
+// funnel, and a made-up activation rate is worse than a missing one. The cap is generous
+// against a real session (a page load reports at most a handful of events) and still makes
+// bulk forgery tedious. Same shared-IP stance as the other two: a classroom must not be
+// starved by a neighbour.
+
+export function eventsRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('EVENTS_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('EVENTS_RATE_MAX', 60),
+  };
+}
+
+export function checkEventsRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`events:${ipHash(req)}`, eventsRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}

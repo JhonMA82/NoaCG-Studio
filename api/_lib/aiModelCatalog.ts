@@ -92,6 +92,41 @@ export function approvedModelRoute(route: ModelRoute): boolean {
   return byRouteKey.has(modelRouteKey(route));
 }
 
+// Decision 5 (plan §15): WHO PAYS DECIDES THE ROUTE. Free hosted surfaces are funded by
+// the project, not the user, so a route NoaCG pays for must be cheap and reachable
+// through the OpenRouter adapter - which is why no entry above names OpenAI or Anthropic
+// as its provider: those models are reachable only through a user's own sealed key.
+// Unlike `openWeights` this IS a gate: the registry refuses a free-tier route that breaks
+// it, and the catalog test refuses an entry that could never serve one.
+export const FUNDED_ROUTE_PROVIDER = 'openrouter';
+
+/** The per-million ceiling a NoaCG-funded route may cost. Sits above every catalog entry
+ *  (the dearest today is the vision judge at 0.30/2.50) with room for a better model, and
+ *  below the proprietary flagships a no-revenue project cannot subsidize. Raise it
+ *  deliberately, not to admit one model that just missed. */
+export const FUNDED_ROUTE_PRICE_CEILING: ModelPrice = {
+  inputPerMillion: 1.0,
+  outputPerMillion: 5.0,
+};
+
+export function fundedRoutePrice(price: ModelPrice): boolean {
+  return (
+    price.inputPerMillion <= FUNDED_ROUTE_PRICE_CEILING.inputPerMillion &&
+    price.outputPerMillion <= FUNDED_ROUTE_PRICE_CEILING.outputPerMillion
+  );
+}
+
+/** Whether a route may carry spend NoaCG funds. `price` is the caller's EFFECTIVE price
+ *  when it has one (a task's price table can be overridden by env), so an operator cannot
+ *  point the free tier at an approved model at a price the project would not fund; it
+ *  falls back to the audited catalog snapshot. */
+export function fundedModelRoute(route: ModelRoute, price?: ModelPrice | null): boolean {
+  const entry = approvedModelEntry(route);
+  if (!entry) return false;
+  if (entry.route.provider !== FUNDED_ROUTE_PROVIDER) return false;
+  return fundedRoutePrice(price ?? entry.price);
+}
+
 /** The audited price snapshot, keyed `provider:model` - the base of Lite's price table,
  *  so the catalog and the policy layer cannot drift apart. */
 export function approvedModelPrices(): Record<string, ModelPrice> {
