@@ -6,6 +6,12 @@ catalog sweep for the affected category (root AGENTS.md, "Verifying changes").
 
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
+**kit.ts** - what a kit CONTAINS, resolved once for every consumer: the pack's types through
+the (type x family) matrix PLUS its `extras`. Both halves are the kit - a caller reading only
+`resolvePack` builds a kit missing its extras while still counting them, which is exactly the
+bug the wizard's kit step shipped with. It lives here rather than in packs.ts because that
+module deliberately does not import the catalog it is a view over.
+
 **packs.ts** - the PACK taxonomy (docs/PACK_TAXONOMY.md): a pack is a curated type-subset in a
 default family, PURE CONFIG over the filled types x families matrix; the 60 reference formats
 each map to exactly one pack. `scripts/factory.mjs` validates the config on every run (cells

@@ -52,7 +52,8 @@ import { trackEvent } from '../../backend/events';
 import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
 import { createPacketNamed } from '../../model/packets';
-import { resolvePack, type TemplatePack } from '../../templates/packs';
+import type { TemplatePack } from '../../templates/packs';
+import { kitItems } from '../../templates/kit';
 import type { StyleTag } from '../../model/fonts';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
@@ -271,18 +272,17 @@ export default function CreationWizard() {
     setKitBusy(true);
     setKitError(null);
     try {
-      const cells = resolvePack({ ...pack, family });
-      const built = cells.map((cell) => {
-        const variant = variantById(cell.designId);
-        if (!variant) throw new Error(`The ${pack.name} kit points at a missing design (${cell.designId}).`);
+      // kitItems is the SAME resolution the step's contents list shows - types resolved
+      // through the matrix PLUS the pack's extras. Reading only the resolved types here
+      // silently dropped every extra (end credits, the versus card) while the card still
+      // counted them, so the kit built fewer graphics than it promised.
+      const built = kitItems(pack, family).map((item) => ({
+        name: item.variant.name,
         // Only the project format is imposed. Everything else stays the design's own
         // tasteful default: a kit's whole promise is that its graphics already look like
         // siblings, and overriding palette or font per graphic here would fight that.
-        return {
-          name: variant.name,
-          template: variant.create({ resolution: draftResolution(draft), fps: draft.fps }),
-        };
-      });
+        template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps }),
+      }));
 
       // The package exists only once every graphic in it built, so a resolution error above
       // never leaves an empty package on Home.
@@ -855,9 +855,12 @@ export default function CreationWizard() {
                 now, remaining steps keep their defaults. It stands down entirely on FINISH,
                 whose two door cards ARE the actions: a third button saying almost the same
                 thing as one of them would only make the branch harder to read.
+                It stands down in KIT mode for the same reason it does on Finish: the kit's
+                own Create button IS the action, and the footer's Next would advance to a
+                step that does not exist.
                 Design mode: Create is available from the Design step on (a design that
                 needs no erase, fields, or animation choice creates immediately). */}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
                 disabled={!previewTemplate}
                 onClick={create}
@@ -870,7 +873,7 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step > 0 && step < finishStep && (
+            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
               <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
                 Next ›
               </button>

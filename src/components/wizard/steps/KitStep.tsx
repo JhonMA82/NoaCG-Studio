@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PACKS, resolvePack, type TemplatePack } from '../../../templates/packs';
-import { typeById } from '../../../templates/types/registry';
+import { kitItems, kitSize } from '../../../templates/kit';
 import type { StyleTag } from '../../../model/fonts';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import type { ProjectFormatSelection } from '../../../model/projectFormat';
@@ -71,8 +71,9 @@ export default function KitStep({ format, onFormat, onCreate, busy, error }: Pro
   const contents = useMemo(() => {
     if (!selected || !activeFamily) return null;
     try {
-      const cells = resolvePack({ ...selected, family: activeFamily });
-      return cells.map((cell) => typeById(cell.typeId)?.name ?? cell.typeId);
+      // The SAME resolution the create path uses (types + extras), so the list and the
+      // count can never promise something the kit does not build.
+      return kitItems(selected, activeFamily).map((item) => item.variant.name);
     } catch {
       return null;
     }
@@ -103,7 +104,7 @@ export default function KitStep({ format, onFormat, onCreate, busy, error }: Pro
               <strong>{pack.name}</strong>
               <span className="hint">{pack.description}</span>
               <span className="wz-kit-count mono">
-                {pack.types.length + (pack.extras?.length ?? 0)} graphics
+                {kitSize(pack)} graphics
               </span>
             </button>
           );
@@ -153,7 +154,7 @@ export default function KitStep({ format, onFormat, onCreate, busy, error }: Pro
             {busy ? 'Creating…' : `Create the ${selected.name} kit`}
           </button>
           <p className="hint">
-            Saves {contents?.length ?? selected.types.length} graphics into a new package and
+            Saves {contents?.length ?? kitSize(selected)} graphics into a new package and
             takes you to it. Nothing opens in the editor — open whichever one you need first.
           </p>
         </div>

@@ -19,13 +19,27 @@ test('a kit creates every graphic in it as one package and lands there', async (
   // would imply a step that does not exist.
   await expect(page.getByTestId('kit-detail')).toHaveCount(0);
 
+  // A kit is ONE decision, so the footer's step controls stand down. They did not, and the
+  // footer's Next advanced to a step kit mode does not render - a blank screen.
+  await expect(page.locator('.wz-footer .wz-next')).toHaveCount(0);
+  await expect(page.locator('.wz-footer').getByRole('button', { name: 'Create project' })).toHaveCount(0);
+
+  // The COUNT ON THE CARD is the first promise the user reads, and it must match what the
+  // kit builds. It did not: the card counted the pack's types AND extras while the create
+  // path resolved only the types, so a kit advertised as 27 graphics produced 12.
+  const cardCount = Number(
+    (await page.locator('[data-kit="church"] .wz-kit-count').innerText()).match(/\d+/)?.[0],
+  );
+  expect(cardCount).toBeGreaterThan(1);
+
   await page.locator('[data-kit="church"]').click();
   const detail = page.getByTestId('kit-detail');
   await expect(detail).toBeVisible();
-  // The kit says what is in it, by graphic type, before anything is created.
+  // The kit says what is in it, by name, before anything is created - and the list, the card
+  // count and the created package must all be the same number.
   const contents = detail.locator('.wz-kit-contents li');
   const declared = await contents.count();
-  expect(declared).toBeGreaterThan(1);
+  expect(declared).toBe(cardCount);
 
   await page.getByTestId('kit-create').click();
 
