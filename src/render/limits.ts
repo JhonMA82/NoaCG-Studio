@@ -140,8 +140,23 @@ export const RENDER_CONFIG = {
   },
 } as const;
 
-export function resolveTier(signedIn: boolean): RenderTier {
-  return signedIn ? 'free' : 'anonymous';
+export function isRenderTier(value: string): value is RenderTier {
+  return value === 'anonymous' || value === 'free' || value === 'paid';
+}
+
+/** The tier a resolved entitlement renders at.
+ *
+ *  Plans name their tier as free text (`plans.render_tier`), because the tier TABLE above is
+ *  code and a plan row must not be able to break the render path by naming something that is
+ *  not in it. An unrecognised name therefore falls back to what the caller would have got
+ *  anyway - signed in or not - rather than failing the request or silently granting 'paid'.
+ *
+ *  This module stays PURE (see the header): it takes the already-resolved tier name, it does
+ *  not load entitlements. api/_lib/entitlements.ts does that. */
+export function resolveTier(signedIn: boolean, entitledTier?: string): RenderTier {
+  const fallback: RenderTier = signedIn ? 'free' : 'anonymous';
+  if (!signedIn) return fallback; // an anonymous caller has no plan to honour
+  return entitledTier && isRenderTier(entitledTier) ? entitledTier : fallback;
 }
 
 export interface LimitIssue {

@@ -24,6 +24,10 @@ import {
   type PlanShape,
 } from '../../src/entitlements/contract.js';
 
+import { resolveTier } from '../../src/render/limits.js';
+import { applyEntitlementToLiteProfile } from './entitlements.js';
+import { liteProfile } from './aiLiteProfile.js';
+
 const NOW = '2026-07-29T12:00:00.000Z';
 
 function grant(overrides: Partial<GrantShape>): GrantShape {
@@ -259,6 +263,111 @@ test('observe-only limits never become enforceable', () => {
   assert.equal(enforceableLimit(resolved, 'projects'), null);
   assert.equal(enforceableLimit(resolved, 'aiDailyStarts'), 9);
   for (const key of OBSERVE_ONLY_LIMITS) assert.ok(isLimitKey(key));
+});
+
+test('the render tier still resolves to today\'s answer when no plan names one', () => {
+  assert.equal(resolveTier(false), 'anonymous');
+  assert.equal(resolveTier(true), 'free');
+  assert.equal(resolveTier(false, undefined), 'anonymous');
+  assert.equal(resolveTier(true, undefined), 'free');
+  // What the resolver returns with nothing configured, fed straight back in.
+  assert.equal(resolveTier(true, resolveEntitlement(bare('user-1')).renderTier.value), 'free');
+  assert.equal(resolveTier(false, resolveEntitlement(bare(null)).renderTier.value), 'anonymous');
+});
+
+test('a plan can move the render tier, but only to one that exists', () => {
+  assert.equal(resolveTier(true, 'paid'), 'paid');
+  assert.equal(resolveTier(true, 'anonymous'), 'anonymous');
+  // A plan naming a tier the code does not have must not fail the request and must not be
+  // read as the most generous one.
+  for (const bogus of ['enterprise', 'PAID', '', 'free ']) {
+    assert.equal(resolveTier(true, bogus), 'free', bogus);
+  }
+  // An anonymous caller has no plan to honour, whatever gets passed.
+  assert.equal(resolveTier(false, 'paid'), 'anonymous');
+});
+
+test('a suspended account drops to the anonymous render tier', () => {
+  const resolved = resolveEntitlement({
+    ...bare('user-1'),
+    accountState: 'suspended',
+    plan: { key: 'p', name: 'P', features: {}, limits: {}, renderTier: 'paid', renderFormats: null },
+  });
+  assert.equal(resolveTier(true, resolved.renderTier.value), 'anonymous');
+  assert.equal(allows(resolved, 'render.cloud'), false);
+});
+
+test('with no plan configured the Lite profile comes back untouched', () => {
+  const base = liteProfile();
+  const applied = applyEntitlementToLiteProfile(base, resolveEntitlement(bare('user-1')));
+  assert.deepEqual(applied, base, 'inheriting must be a no-op, not a rewrite with equal values');
+});
+
+test('a plan moves only the five AI allowances, never the routing', () => {
+  const base = liteProfile();
+  const plan: PlanShape = {
+    key: 'studio',
+    name: 'Studio',
+    features: {},
+    limits: {
+      aiDailyStarts: 40,
+      aiMonthlyStarts: 400,
+      aiDailySuccesses: 20,
+      aiMonthlySuccesses: 200,
+      aiUserConcurrency: 3,
+    },
+    renderTier: 'paid',
+    renderFormats: null,
+  };
+  const applied = applyEntitlementToLiteProfile(base, resolveEntitlement({ ...bare('user-1'), plan }));
+
+  assert.equal(applied.dailyStarts, 40);
+  assert.equal(applied.monthlyStarts, 400);
+  assert.equal(applied.dailySuccesses, 20);
+  assert.equal(applied.monthlySuccesses, 200);
+  assert.equal(applied.maxConcurrentPerUser, 3);
+
+  // A plan is not a way around the audited model catalog or the deployment's cost ceilings.
+  assert.deepEqual(applied.primary, base.primary);
+  assert.deepEqual(applied.fallback, base.fallback);
+  assert.equal(applied.promptVersion, base.promptVersion);
+  assert.equal(applied.maxProviderCostUsd, base.maxProviderCostUsd);
+  assert.equal(applied.dailyFleetSpendUsd, base.dailyFleetSpendUsd);
+  assert.equal(applied.maxConcurrentFleet, base.maxConcurrentFleet);
+  assert.equal(applied.outputTokens, base.outputTokens);
+});
+
+test('a plan cannot set per-user concurrency to zero and silently break every reservation', () => {
+  const plan: PlanShape = {
+    key: 'p',
+    name: 'P',
+    features: {},
+    limits: { aiUserConcurrency: 0 },
+    renderTier: 'free',
+    renderFormats: null,
+  };
+  const applied = applyEntitlementToLiteProfile(liteProfile(), resolveEntitlement({ ...bare('user-1'), plan }));
+  assert.equal(applied.maxConcurrentPerUser, 1);
+});
+
+test('a quota grant reaches the Lite profile with the plan overridden', () => {
+  const plan: PlanShape = {
+    key: 'p',
+    name: 'P',
+    features: {},
+    limits: { aiDailySuccesses: 2 },
+    renderTier: 'free',
+    renderFormats: null,
+  };
+  const applied = applyEntitlementToLiteProfile(
+    liteProfile(),
+    resolveEntitlement({
+      ...bare('user-1'),
+      plan,
+      grants: [grant({ kind: 'quota', key: 'aiDailySuccesses', value: 25, reason: 'support case' })],
+    }),
+  );
+  assert.equal(applied.dailySuccesses, 25);
 });
 
 test('the key guards reject unknown strings', () => {

@@ -12,6 +12,8 @@ import { getJobStore, type JobRecord } from '../_lib/jobStore.js';
 import { getExecutor } from '../_lib/executor.js';
 import { admitGlobally } from '../_lib/admission.js';
 import { checkStartRateLimit } from '../_lib/rateLimit.js';
+import { resolveUserEntitlement } from '../_lib/entitlements.js';
+import { allows } from '../../src/entitlements/contract.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {
@@ -87,8 +89,18 @@ export default {
     }
 
     // Tier + authoritative limit re-check (client-side checks are UX only).
+    //
+    // The tier now comes from the ONE entitlement resolver rather than from "is there a user":
+    // a plan, a temporary grant or a manual override can move it, and a suspended account
+    // drops to the anonymous tier. With no plans configured the resolver returns exactly what
+    // resolveTier(signedIn) always returned, so this is behaviour-neutral until someone
+    // assigns a plan (docs/ADMIN.md, the neutrality rule).
     const user = await verifyUser(bearerToken(req));
-    const tier = resolveTier(Boolean(user));
+    const entitlement = await resolveUserEntitlement(user?.userId ?? null);
+    if (!allows(entitlement, 'render.cloud')) {
+      return apiError('unauthorized', 'Cloud rendering is not available for this account.', 403);
+    }
+    const tier = resolveTier(Boolean(user), entitlement.renderTier.value);
     const issues = validateRenderRequest(manifest, tier);
     if (issues.length > 0) {
       const signin = issues.find((i) => i.code === 'format-signin');
