@@ -381,6 +381,18 @@ Alpha/compositing note: on the Lite track the model authors no CSS, so an alpha 
 compositing failure is a **catalog** bug - route it to the platform regression suite (the
 reflow/ticker/alpha probes belong there), never into a model score.
 
+**Semantic exhaustion is not a provider error, and the distinction decides comparisons.**
+`generation_failed` means the MODEL could not reach a usable decision even after its repair
+round - that is the quality signal, and it classifies as `REPAIR_FAILED`. A gateway code
+(`provider_rejected`, `malformed_response`) means the PROVIDER broke, which is no verdict on
+the model at all. The report classified every failed row as `PROVIDER_ERROR` until
+2026-07-29, so a flaky endpoint read exactly like a weak model: the first real comparison
+scored phi-4 at 67% machine-usable when all eight of its misses were transport. The eval now
+records the API's machine code rather than only its human message - classifying by matching
+English sentences breaks on the first reword - and `bench:report` prints an explicit warning
+beside any candidate whose failures are majority transport, because a rate like that is not
+a verdict and should not be ranked as one.
+
 ## 10. Promotion
 
 Policy and thresholds: `docs/AI_LITE_PROMOTION.md` (thresholds are owner-set TODOs until

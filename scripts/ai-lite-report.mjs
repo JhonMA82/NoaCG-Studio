@@ -31,6 +31,12 @@ async function findFiles(dir, predicate, relative = '') {
   return found;
 }
 
+// The model exhausted its repair round without a usable decision. Matched on the API's
+// machine code; runs recorded before the eval carried that code stored only the human
+// message, so those are recognized too rather than silently counting as provider errors.
+const semanticExhaustion = (row) => row.status === 'failed'
+  && /^generation_failed$|could not produce a usable design decision/i.test(row.errorCode ?? '');
+
 const groups = new Map(); // candidate/arm -> rows
 const rowsByKey = new Map(); // blind-key key -> row, for the judge-vs-reviewer join below
 const addRow = (group, row) => {
@@ -58,11 +64,19 @@ for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json')
       skinFinal: row.skinFinal ?? null,
       failureCode: classifyFailure({
         // Fixture-bank briefs are all supported lower thirds - an unsupported answer is
-        // a category miss; a failed call carries its provider code.
+        // a category miss.
         expect: { decision: 'ready', aiCategory: 'lower-third' },
         decision: row.status === 'unsupported' ? { status: 'unsupported' } : { status: 'ready' },
         aiCategory: row.status === 'unsupported' ? null : 'lower-third',
-        providerErrorCode: row.status === 'failed' ? (row.errorCode ?? 'provider') : null,
+        // A failed row is one of two very different things and a model comparison lives on
+        // the difference. `generation_failed` means the MODEL could not reach a usable
+        // decision even after its repair round - that is the quality signal. A gateway code
+        // means the PROVIDER broke, which is no verdict on the model at all. Calling both
+        // PROVIDER_ERROR made a flaky endpoint read as a weak model.
+        repairFailed: semanticExhaustion(row),
+        providerErrorCode: row.status === 'failed' && !semanticExhaustion(row)
+          ? (row.errorCode || 'provider')
+          : null,
         validationRuleCodes: row.ruleCodes ?? [],
       }),
     });
@@ -255,6 +269,16 @@ for (const r of report) {
   );
   const failures = Object.entries(r.failureTaxonomy);
   if (failures.length) console.log(`  failures: ${failures.map(([code, count]) => `${code}×${count}`).join(', ')}`);
+  // A candidate whose misses are mostly the provider breaking has not been measured on the
+  // task at all, and its machine-valid rate reads as a quality verdict it did not earn.
+  // Say so where the number is, not in a footnote someone skips.
+  const transport = (r.failureTaxonomy.PROVIDER_ERROR ?? 0) + (r.failureTaxonomy.RATE_LIMITED ?? 0)
+    + (r.failureTaxonomy.TIMEOUT ?? 0);
+  const failedTotal = failures.reduce((sum, [, count]) => sum + count, 0);
+  if (failedTotal && transport / failedTotal >= 0.5) {
+    console.log(`  ^ ${transport}/${failedTotal} failures are TRANSPORT, not model quality - this`);
+    console.log('    rate is not a verdict on the model. Re-run or re-pin the endpoint before ranking it.');
+  }
   if (r.skinJudge) {
     const means = Object.entries(r.skinJudge.meanScores)
       .map(([axis, mean]) => `${axis} ${mean === null ? 'n/a' : mean.toFixed(1)}`).join(', ');
