@@ -29,6 +29,16 @@ procedures. The build fails when their adapters drift.
 Codex project skills use `.agents/skills`, not the legacy `.codex/skills` location. The
 repository's `.codex/config.toml` is still used for trusted project configuration.
 
+## Short aliases
+
+A workflow may have a short invocation alias - `/n` and `$n` for `next`. An alias is nothing but
+a second pair of adapters (`.claude/commands/<alias>.md` and `.agents/skills/<alias>/SKILL.md`)
+pointing at the target's canonical workflow, so a shortcut can never grow its own copy of the
+procedure. `WORKFLOW_ALIASES` in `scripts/check-shared-instructions.mjs` is the registry; the
+check fails if either adapter is missing, thick, or points somewhere else. A destructive
+(explicit-only) workflow must never be aliased - a one-keystroke command must not be able to
+land anything.
+
 ## Tool-specific exceptions
 
 `/rescue` is intentionally Claude-only. It delegates a long-running task from Claude Code to
@@ -50,6 +60,8 @@ fails if one exceeds the configured limit.
 3. Add or update the thin Codex adapter and valid `name` / `description` frontmatter.
 4. For a destructive workflow, configure explicit-only invocation in both adapters.
 5. Add any repository-owned skill name to the `.gitignore` exceptions.
-6. Run `npm run check:shared-instructions`, the relevant focused tests, and `npm run build`.
+6. For a short alias, register it in `WORKFLOW_ALIASES` and add both thin adapters - never a
+   second copy of the procedure.
+7. Run `npm run check:shared-instructions`, the relevant focused tests, and `npm run build`.
 
 Never put a second copy of the procedure in a tool adapter.

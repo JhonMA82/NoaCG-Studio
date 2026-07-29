@@ -64,6 +64,7 @@ shots-*/
 .agents/skills/*
 !.agents/skills/cleanup-worktrees/
 !.agents/skills/handoff/
+!.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-task/
 !.agents/skills/ograf-expert/
