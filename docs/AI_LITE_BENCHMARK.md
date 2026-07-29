@@ -181,10 +181,15 @@ Build them when a frozen suite survives more than a few weeks.
 Phase 2 of the skin uniqueness strategy (the paid spike's verdict: capability exists,
 CONSISTENCY is the fight). A skin that compiles and benches clean can still be a bad
 broadcast graphic - a squat box, a wrapped name, decoration burying the text. The judge
-is one server-owned, cost-capped vision call over the rendered HOLD frame, scoring four
-integer axes 1-5: `legibility`, `hierarchy`, `briefFit`, `strapShape`. A pass requires
-EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the caller reverts to the
-house chassis, so a weak skin costs a judgement call, never an on-air graphic.
+is one server-owned, cost-capped vision call over the rendered HOLD frame, scoring five
+integer axes 1-5: `legibility`, `textIntegrity`, `hierarchy`, `briefFit`, `strapShape`. A
+pass requires EVERY axis at or above `AI_LITE_JUDGE_THRESHOLD`; below it the caller reverts
+to the house chassis, so a weak skin costs a judgement call, never an on-air graphic.
+
+The judge prompt carries its OWN version (`LITE_JUDGE_PROMPT_VERSION`, currently
+`lite-skin-judge-v2`) beside the generation prompt version. Scores from two judge versions
+are not comparable and calibration is a comparison, so the version is stated in the prompt
+rather than inferred from which round produced the number.
 
 Boundaries, same posture as the generation route: the browser/rig supplies only the frame
 (downscaled PNG), the brief, and the skin's claimed treatment - never a model, route,
@@ -206,7 +211,9 @@ screenshots).
 ## 6c. Measured: the skin prompt has a load ceiling
 
 Four paid rounds isolated the skin teaching, one variable at a time. Among JUDGED skins
-(the per-brief figure moves with transport failures; this one does not):
+(the per-brief figure moves with transport failures; this one does not). **These are
+`lite-skin-judge-v1` numbers** - four axes, no `textIntegrity` - so a v2 round's pass rate
+is not comparable to this table without rejudging:
 
 | prompt | pass rate | briefFit | legibility | what changed |
 | --- | --- | --- | --- | --- |
@@ -231,13 +238,54 @@ briefFit stays the weak axis (2.60 at best). The next mechanism to try is worked
 one or two high-scoring skins shown rather than described, or the curated skins the nightly
 factory is meant to produce - not more sentences.
 
+## 6d. Measured: the first blind review, and the defect nothing could see
+
+The 2026-07-29 blind review (one reviewer, 9 items of the v3 skin spike) was not
+impressed - "boring and chunky", "not premium". Two findings are engineering, one is an
+owner decision:
+
+**1. A clipped edge sliced a word, and every gate passed it.** Two `skin-brutalist-poster`
+items cut the last letter of the secondary line with an angled `clip-path` on the panel.
+The reviewer caught it twice ("cuts of", "looks like its cut of"); the runtime bench did
+not, because **clip-path clips PAINT and the bench measures LAYOUT** - the element box is
+exactly where it should be. `runtimeBench.ts` has no clip-path handling at all; this is the
+same trap `src/templates/AGENTS.md` documents for scoreboards. The fix is upstream of the
+bench: `liteSkinPatchErrors` now rejects `clip-path` in skin CSS and in `skin.html` style
+attributes (`skin_css_clip_path` / `skin_html_clip_path`), so the model gets a repair round
+naming the replacement - shape a skewed or rotated layer BEHIND the text - and a skin that
+insists reverts to the house chassis. `background-clip: text` stays legal. The rule also
+removes a collision nobody had hit yet: `line-reveal` and `mask-wipe` animate `clipPath` on
+`.lower-third-box` and clear it on settle, so a skin's own clip would vanish for the
+entrance and snap back.
+
+**2. The vision judge scored that same frame `legibility` 5 and passed it.** The pixel-level
+backstop missed a sliced word - so the answer is not a higher `AI_LITE_JUDGE_THRESHOLD`,
+which would only reject good skins for a defect it still cannot see. The judge gained a
+fifth axis, `textIntegrity`, phrased as INSPECTION rather than reading ("trace the
+letterforms you can actually see rather than reading the word you expect"): asked to read,
+a vision model completes the word. **Unmeasured** - no paid round has scored a known-sliced
+frame with the v2 judge, so treat the axis as a hypothesis until one does.
+
+**3. OWNER DECISION, open: are hairlines and dots broadcast-safe?** The reviewer rejected
+two items for thin left-border lines and a small dot - "not broadcast safe" for key and
+fill. This is not a Lite question: `docs/DESIGN_LANGUAGE.md` prescribes hairlines for
+minimal/editorial/cinematic and "dots, rings" for glass, `accentForm:'hairline'` is offered
+to the model, and lt02/lt25/lt32 are built on them. Deciding it reaches the whole 54-design
+catalog, so it waits for the product owner.
+
+Also open from the same review: motion smoothness is **unverified** - the review clips are
+~25 fps screencasts of a 50 fps graphic, so judge motion live, never from the gallery clip.
+
 ## 7. Human review
 
 One reviewer; fatigue is the binding constraint. `bench:gallery` builds a blind gallery:
 neutral item codes, seeded shuffle, candidate/cost/arm invisible, ~20-item sessions with
 resume, one planted unmarked repeat per session (test-retest consistency), and per item
 exactly two inputs - the broadcast decision (yes / yes-after-minor-edits / no) and one
-1-5 score. Judgements download as JSONL; `bench:report` joins them through `blind-key.json`
+1-5 score. **Both** answers are required for an item to count as judged - the first pass
+returned 7 of 9 items scoreless because the card dimmed the moment the decision landed, so
+an unscored card now stays lit and says the score is still needed. Judgements download as
+JSONL; `bench:report` joins them through `blind-key.json`
 and reports machine validity, human acceptance, and visual score **separately**, plus
 reviewer self-consistency (low agreement → widen promotion thresholds). The full-rubric
 confirmation pass (top two candidates, blind pairwise) stays manual until Phase 7+.

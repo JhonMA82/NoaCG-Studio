@@ -89,11 +89,19 @@ house chassis: a skin can decline to land, never cost the user a working result.
 flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behavior are byte-identical to before
 the skin existed, and a skin a model emits anyway is stripped server-side.
 
+**A skin may not use `clip-path`, because our checks measure LAYOUT and it changes PAINT.**
+The blind review found two skins whose secondary line lost its last letter to an angled cut;
+the runtime bench read a perfectly placed box and passed, and so did the vision judge
+(docs/AI_LITE_BENCHMARK.md §6d). The patch gate rejects it in CSS and in `skin.html` style
+attributes; `background-clip: text` stays legal. Generalize the lesson before adding any
+visual construct to a model's allowlist: **a deterministic gate cannot catch a defect in a
+dimension it does not measure**, so either measure that dimension or forbid the construct.
+
 **The skin VISION JUDGE (server-flagged, `AI_LITE_JUDGE_ENABLED`, off by default):** one
 server-owned, cost-capped vision call (`POST /api/ai/lite/judge`) scoring the rendered HOLD
-frame on legibility/hierarchy/briefFit/strapShape (contract + prompt in `liteContract.ts`,
-`LITE_JUDGE_*`); every axis must reach the server threshold or the caller reverts to the
-house chassis. It fails closed like the generation routes and stores nothing. Today only the
+frame on legibility/textIntegrity/hierarchy/briefFit/strapShape (contract + prompt in
+`liteContract.ts`, `LITE_JUDGE_*`, versioned independently as `LITE_JUDGE_PROMPT_VERSION`);
+every axis must reach the server threshold or the caller reverts to the house chassis. It fails closed like the generation routes and stores nothing. Today only the
 eval rig calls it (Playwright captures the hold frame); production wiring waits on
 judge-vs-blind-review calibration AND an in-app capture path - see
 docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
