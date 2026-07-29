@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assignSlugs, pageSlug, sitemap, templatePage } from './prerender.mjs';
+import { assignSlugs, pageSlug, setStyleLabels, sitemap, templatePage } from './prerender.mjs';
 
 const variant = (over = {}) => ({
   id: 'lt01',
@@ -89,4 +89,18 @@ test('a data-driven design says so instead of claiming zero text lines', () => {
     variant: variant({ maxLines: 0, suggestedLines: [], logo: 'none' }),
   });
   assert.match(html, /Data-driven - no free text lines\./);
+});
+
+test('the public page prints the display label for a style family, never the stored id', () => {
+  // `noacg` is an internal tag; a marketing page showing it leaks the data model at exactly
+  // the moment a stranger is deciding whether this looks professional.
+  setStyleLabels({ noacg: 'Bold & on-air' });
+  const html = templatePage({ slug: 'house-strap', variant: variant({ styleTag: 'noacg' }) });
+  assert.match(html, /Bold &amp; on-air/);
+  assert.doesNotMatch(html, /<dd>noacg<\/dd>/);
+
+  // A family with no label yet still reads sanely rather than rendering "undefined".
+  setStyleLabels({});
+  const bare = templatePage({ slug: 'x', variant: variant({ styleTag: 'brand-new' }) });
+  assert.match(bare, /<dd>brand new<\/dd>/);
 });

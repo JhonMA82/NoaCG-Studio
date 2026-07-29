@@ -68,7 +68,19 @@ function assignSlugs(variants) {
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
+/** The app's own display labels, loaded at run time - a public page must never print a
+ *  stored id like `noacg`. Populated in main(); the fallback only matters if a family is
+ *  added to the catalog without a label, which the humanised id at least reads sanely. */
+let styleLabels = {};
+
+/** Injected by main() from the app, and by the tests - so the label path is exercised
+ *  rather than only its fallback. */
+export function setStyleLabels(labels) {
+  styleLabels = labels ?? {};
+}
+
 const LABEL = (id) => String(id).replace(/-/g, ' ');
+const styleLabel = (tag) => styleLabels[tag] ?? LABEL(tag);
 
 /** Declared line capacity, not a built schema - see the header note on why. */
 function fieldSummary(variant) {
@@ -139,7 +151,7 @@ function templatePage(entry) {
     <dl>
       <dt>Category</dt><dd>${escape(LABEL(meta.category))}</dd>
       <dt>Content</dt><dd>${escape(fieldSummary(variant))}</dd>
-      <dt>Style</dt><dd>${escape(LABEL(meta.styleFamily ?? 'n/a'))}</dd>
+      <dt>Style</dt><dd>${escape(meta.styleFamily ? styleLabel(meta.styleFamily) : 'n/a')}</dd>
       ${meta.motion ? `<dt>Default motion</dt><dd>${escape(LABEL(meta.motion))}</dd>` : ''}
       <dt>Reveal</dt><dd>${escape(meta.steps)}</dd>
     </dl>
@@ -197,6 +209,8 @@ async function main() {
   });
 
   try {
+    const taxonomy = await server.ssrLoadModule('/src/model/taxonomy.ts');
+    setStyleLabels(taxonomy.STYLE_FAMILY_LABELS);
     const catalog = await server.ssrLoadModule('/src/templates/catalog.ts');
     const wizard = await server.ssrLoadModule('/src/model/wizard.ts');
     const variants = wizard.CATEGORIES.filter((category) => category.group !== 'imported').flatMap(

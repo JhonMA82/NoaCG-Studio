@@ -43,12 +43,17 @@ W0: `noacg.studio`) - it is the only place the origin appears.
 
 ## Known gaps
 
+- **No picture of the graphic.** The page describes a broadcast design in words only. For a
+  visual product that is the biggest weakness of the surface, not a nicety - it is the same
+  work as the OG images below, and both wait on rendering previews in CI.
+
 - **No per-design deep link.** Every page's call to action opens `/app`, because the app has
   no `?design=<id>` route today - `App.tsx` handles only `?chat=` and `?control=`. Adding one
   is the single highest-value follow-up: it turns these pages from descriptions into
   entrances.
 - **No per-template OG image.** Every page shares the landing screenshot. Real per-design
-  images mean rendering 386 previews in CI - a separate slice with its own cost.
+  images mean rendering 386 previews in CI - a separate slice with its own cost, and the
+  same job as the missing on-page preview above.
 - **The gallery is still signed-in only** (growth backlog item 3). These pages describe
   catalog designs, which need no account; community-published templates are not prerendered.
 
