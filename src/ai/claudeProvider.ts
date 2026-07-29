@@ -17,6 +17,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import { type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
 import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { parseDataUrl } from '../assets/assetUtils';
+import type { ReferencePurpose } from '../model/imagePurpose';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { lt01 } from '../templates/lowerThirds/lt01';
 import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, type DesignSpec } from './designSpec';
@@ -457,6 +458,91 @@ async function recorded(kind: AiRunKind, work: (run: AiRunRecorder) => Promise<A
 
 // ── Prompt assembly ───────────────────────────────────────────────────────────
 
+/** The short tag each reference carries in the manifest (model/imagePurpose.ts's words). */
+const REFERENCE_TAG: Record<ReferencePurpose, string> = {
+  layout: 'MAKE ONE LIKE THIS',
+  mood: 'TAKE THE LOOK AND FEEL',
+  plate: 'MAKE IT WORK OVER THIS',
+};
+
+/**
+ * The attachment manifest plus one instruction block per purpose actually present.
+ *
+ * A picture's PURPOSE is the user's, not something to infer: a crest, a rival's strap, a
+ * mood board and a studio plate are four different instructions, and two of them are
+ * indistinguishable from pixels alone. So every attachment is numbered ONCE, in the exact
+ * order imageBlocks sends them, and the blocks below explain what each tag means. The old
+ * "the last N attachments are references" phrasing broke the moment a third kind existed.
+ */
+function attachmentSections(ctx: GenerateContext): string[] {
+  const refs = ctx.references ?? [];
+  if (!ctx.images.length && !refs.length) return [];
+  const out: string[] = [];
+
+  const manifest = [
+    ...ctx.images.map((a, i) => {
+      const fixed = ctx.fixedAssetPaths?.includes(a.path);
+      return `  ${i + 1}. ${a.path} — USE AS IS${fixed ? ' (fixed, no operator field)' : ''}`;
+    }),
+    ...refs.map((r, i) => `  ${ctx.images.length + i + 1}. ${REFERENCE_TAG[r.use]}`),
+  ];
+  out.push(
+    `The user attached ${manifest.length} picture(s), in this order, each with what it is FOR:\n` +
+      manifest.join('\n'),
+  );
+
+  if (ctx.images.length) {
+    const fixed = ctx.images.filter((a) => ctx.fixedAssetPaths?.includes(a.path));
+    out.push(
+      `USE AS IS — these are already bundled at the relative paths above; reference them exactly. ` +
+        `Place them the way the brief implies (a mark → a logo slot with an <img id="fN"> image ` +
+        `field; a full-frame still → background or featured media). They must appear EXACTLY as ` +
+        `uploaded: no recolouring, tinting, CSS filter, crop, rounded corners, or non-uniform ` +
+        `scale — a brand mark that has been "improved" is a broken brand mark. Scale them ` +
+        `proportionally and position them freely. Their colours may still inform the palette.` +
+        (fixed.length
+          ? `\nMarked "fixed": ${fixed.map((a) => a.path).join(', ')} — this is permanent brand ` +
+            `furniture, NOT content. Place it with a plain <img> and give it NO data field: the ` +
+            `operator must not be offered a control that swaps it.`
+          : ''),
+    );
+  }
+
+  const has = (use: ReferencePurpose) => refs.some((r) => r.use === use);
+
+  if (has('layout')) {
+    out.push(
+      `MAKE ONE LIKE THIS — read these for the COMPOSITION to follow: placement and zone, ` +
+        `reading order and hierarchy, how many lines carry what, density, proportion rhythm, ` +
+        `shape language, how motion enters. Follow those decisions closely. Never reproduce the ` +
+        `artwork itself — not its wordmark, photography, illustration, exact colours or exact ` +
+        `proportions; take the structure, leave the skin. The brief's words win wherever the two ` +
+        `disagree. If one is a SKETCH or wireframe, read it as a DIAGRAM of what to build: its ` +
+        `boxes and scrawls describe placement and nothing else, and its hand-drawn look is not a ` +
+        `style to imitate.`,
+    );
+  }
+  if (has('mood')) {
+    out.push(
+      `TAKE THE LOOK AND FEEL — read these for colour, mood, texture, weight and motion energy ` +
+        `ONLY. Ignore their layout and composition entirely; they are not designs to follow and ` +
+        `may not even be graphics. Never place them in the graphic.`,
+    );
+  }
+  if (has('plate')) {
+    out.push(
+      `MAKE IT WORK OVER THIS — this is the REAL background the graphic will be shown over (a ` +
+        `studio shot, a camera framing, a desk). It is never placed and never imitated: it is ` +
+        `evidence about the picture underneath. Read where it is bright, busy or dark, and where ` +
+        `faces and burned-in furniture sit, then make the graphic hold up over it — contrast, ` +
+        `panel opacity, an edge or shadow that separates text from a restless background, and ` +
+        `placement that does not cover what matters. Assume the plate is representative, not ` +
+        `fixed: the shot will move, so do not rely on a gap that happens to be empty in it.`,
+    );
+  }
+  return out;
+}
+
 function contextText(prompt: string, ctx?: GenerateContext): string {
   const parts = [`Create a broadcast graphics template.\n\nUser brief: ${prompt}`];
   if (ctx) {
@@ -467,25 +553,7 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
           `--text-color: ${ctx.palette.text}; --text-dim: ${ctx.palette.textDim}; --panel-bg: ${ctx.palette.panel}.`,
       );
     }
-    if (ctx.images.length > 0) {
-      parts.push(
-        `The user uploaded ${ctx.images.length} image(s) to APPEAR IN the graphic, attached above ` +
-          `first (in order). They are available at these relative paths (already bundled — reference ` +
-          `them exactly):\n` +
-          ctx.images.map((a, i) => `  ${i + 1}. ${a.path}`).join('\n') +
-          `\nUse them the way the brief implies (logo → a logo slot with an <img id="fN"> image field; ` +
-          `a full-frame still → background or featured media). Match the design's colors and mood to the images.`,
-      );
-    }
-    if (ctx.references?.length) {
-      parts.push(
-        `The user also attached ${ctx.references.length} STYLE REFERENCE image(s) (the last ` +
-          `${ctx.references.length} attachment(s)). They are design guidance ONLY: read the SYSTEM ` +
-          `behind them — grid, hierarchy, spacing rhythm, proportions, shape language, colour balance, ` +
-          `density, motion cues — and let it drive your decisions. Never place them in the graphic, ` +
-          `never reproduce their layout or artwork literally.`,
-      );
-    }
+    parts.push(...attachmentSections(ctx));
     if (ctx.conversation?.length) {
       // The brief is the WHOLE conversation, not its last line. The caller bounds this.
       parts.push(
@@ -513,8 +581,8 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
 function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
   if (!ctx) return [];
   const blocks: ContentBlock[] = [];
-  // Assets first, references after — contextText numbers them in exactly this order.
-  for (const asset of [...ctx.images, ...(ctx.references ?? [])]) {
+  // Assets first, references after — the manifest numbers them in exactly this order.
+  for (const asset of [...ctx.images, ...(ctx.references ?? []).map((r) => r.asset)]) {
     if (typeof asset.data !== 'string') continue;
     const parsed = parseDataUrl(asset.data);
     if (parsed && parsed.mime.startsWith('image/') && parsed.mime !== 'image/svg+xml') {
@@ -535,15 +603,12 @@ function modifyContent(prompt: string, template: SpxTemplate, ctx?: GenerateCont
     ? `\n\nThe conversation this refinement belongs to (oldest first):\n` +
       ctx.conversation.map((m) => `  ${m.role === 'user' ? 'User' : 'You'}: ${m.text}`).join('\n')
     : '';
-  const images = ctx?.images?.length
-    ? `\n\nThe user's ${ctx.images.length} image(s) are attached above as pictures and bundled ` +
-      `with the template at these relative paths — reference them exactly:\n` +
-      ctx.images.map((a, i) => `  ${i + 1}. ${a.path}`).join('\n') +
-      `\nIf the request asks for one of them and the template does not use it yet, add it.`
-    : '';
-  const references = ctx?.references?.length
-    ? `\n\nThe last ${ctx.references.length} attachment(s) are STYLE REFERENCES: design guidance ` +
-      `only. Read the system behind them; never place them in the graphic.`
+  // The same manifest + per-purpose blocks a fresh generation gets: a picture attached
+  // mid-conversation means exactly what it would have meant at the start.
+  const sections = ctx ? attachmentSections(ctx) : [];
+  const attachments = sections.length ? `\n\n${sections.join('\n\n')}` : '';
+  const adopt = ctx?.images?.length
+    ? `\nIf the request asks for one of them and the template does not use it yet, add it.`
     : '';
   return [
     ...attached,
@@ -552,7 +617,7 @@ function modifyContent(prompt: string, template: SpxTemplate, ctx?: GenerateCont
       text: `Modify the template below. Change ONLY what the request needs — keep everything else
 (byte-identical where possible), including the user's own edits and comments.
 
-Request: ${prompt}${conversation}${images}${references}
+Request: ${prompt}${conversation}${attachments}${adopt}
 
 === index.html ===
 ${template.html}

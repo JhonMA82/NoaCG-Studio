@@ -27,8 +27,13 @@ import {
   registerAppFont,
   type CustomFont,
 } from '../../../../model/fonts';
-import { extOf, fileToDataUrl, uniqueAssetPath } from '../../../../assets/assetUtils';
-import type { AssetFile } from '../../../../model/types';
+import { extOf, fileToDataUrl } from '../../../../assets/assetUtils';
+import {
+  IMAGE_PURPOSES,
+  PURPOSE_LABEL,
+  isReferencePurpose,
+  type PurposedImage,
+} from '../../../../model/imagePurpose';
 import type { FieldKind } from '../../../../model/fieldModel';
 import FontPicker from '../../FontPicker';
 import { pickerHex } from '../StyleStep';
@@ -44,12 +49,19 @@ const COLOR_KEYS: { key: 'accent' | 'text' | 'textDim' | 'panel'; label: string 
 interface Props {
   spec: GenerationSpec;
   onSpec: (spec: GenerationSpec) => void;
-  /** Style-reference images (vision-only) — owned by the AI step beside its asset images. */
-  references: AssetFile[];
-  onReferences: (refs: AssetFile[]) => void;
+  /**
+   * Everything attached in the step's ONE drop zone, read-only here.
+   *
+   * This panel used to own a second uploader for style references, which is how the same
+   * gesture ended up with two homes: pictures that influence the design were hidden behind an
+   * optional accordion while pictures that appear in it were front and centre. Uploading
+   * happens once, above; the panel reports what is attached so the summary chip stays honest.
+   */
+  uploads: PurposedImage[];
   disabled: boolean;
+  /** False in Lite, which takes no picture at all — the section must not invite one. */
+  allowUploads?: boolean;
   allowedCategories?: readonly GenerationSpec['category'][];
-  allowReferences?: boolean;
   maxFields?: number;
 }
 
@@ -241,24 +253,7 @@ function FieldsSection({
   );
 }
 
-function LookSection({
-  spec,
-  onSpec,
-  references,
-  onReferences,
-  disabled,
-  allowReferences = true,
-}: Props) {
-  const refInput = useRef<HTMLInputElement>(null);
-  const addRefs = async (files: FileList | null) => {
-    if (!files) return;
-    const next = [...references];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue;
-      next.push({ path: uniqueAssetPath(file.name, next), data: await fileToDataUrl(file) });
-    }
-    onReferences(next);
-  };
+function LookSection({ spec, onSpec, uploads, disabled, allowUploads = true }: Props) {
   const colors = spec.brandColors;
   const setColor = (key: 'accent' | 'text' | 'textDim' | 'panel', value: string) =>
     onSpec({
@@ -331,48 +326,37 @@ function LookSection({
         </div>
       )}
 
-      {allowReferences ? (
-        <>
-          <label style={{ marginTop: 10 }}>Style references</label>
-          <p className="hint" style={{ marginTop: 2 }}>
-            Mood boards, screenshots, frames you like. These INFLUENCE the design only - they are
-            never placed in the graphic and never copied. (Logos and images that should APPEAR in
-            the graphic go in the main drop zone above.)
-          </p>
-          <div className="row wrap" style={{ alignItems: 'center', gap: 6 }}>
-            {references.map((r) => (
-              <span key={r.path} className="wz-file-chip" title={r.path}>
-                {r.path.replace(/^images\//, '')}
-                <button
-                  type="button"
-                  style={{ marginLeft: 6, padding: '0 6px' }}
-                  onClick={() => onReferences(references.filter((x) => x.path !== r.path))}
-                  title="Remove reference"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-            <input
-              ref={refInput}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => { void addRefs(e.target.files); e.target.value = ''; }}
-            />
-            <button type="button" onClick={() => refInput.current?.click()} disabled={disabled}>
-              + Add reference images
-            </button>
-          </div>
-        </>
-      ) : (
+      {!allowUploads ? (
         <p className="hint" style={{ marginTop: 10 }}>
           Image and logo input is paused while NoaCG Lite concentrates on lower-third quality.
         </p>
+      ) : (
+        <>
+          <label style={{ marginTop: 10 }}>Pictures attached</label>
+          {uploads.length ? (
+            <p className="hint" style={{ marginTop: 2 }} data-testid="mc-uploads">
+              {uploadSummary(uploads)}. Change what any of them is for in the drop zone above.
+            </p>
+          ) : (
+            <p className="hint" style={{ marginTop: 2 }}>
+              None yet. Drop a logo, a design to follow, a mood board or a shot of your real
+              background above, then say what each one is for.
+            </p>
+          )}
+        </>
       )}
     </>
   );
+}
+
+/** "1 used as it is · 2 references" — the same words the cards use, counted. */
+function uploadSummary(uploads: PurposedImage[]): string {
+  return IMAGE_PURPOSES.filter((purpose) => uploads.some((u) => u.purpose === purpose))
+    .map((purpose) => {
+      const n = uploads.filter((u) => u.purpose === purpose).length;
+      return `${n} × ${PURPOSE_LABEL[purpose].toLowerCase()}`;
+    })
+    .join(' · ');
 }
 
 /** A slim uploaded-font control for the secondary/numeric slots (the primary slot gets the
@@ -593,7 +577,7 @@ const presetName = (id: AnimPresetId | undefined): string | null =>
   id ? ALL_PRESETS.find((p) => p.id === id)?.name ?? id : null;
 
 export default function MoreControlPanel(props: Props) {
-  const { spec, references } = props;
+  const { spec, uploads } = props;
   const [open, setOpen] = useState<string | null>('category');
   const toggle = (id: string) => setOpen((o) => (o === id ? null : id));
 
@@ -613,7 +597,10 @@ export default function MoreControlPanel(props: Props) {
     spec.styleNotes?.trim() && 'style',
     spec.mood?.trim() && 'mood',
     spec.brandColors && 'brand colours',
-    references.length ? `${references.length} reference${references.length > 1 ? 's' : ''}` : null,
+    (() => {
+      const refs = uploads.filter((u) => isReferencePurpose(u.purpose)).length;
+      return refs ? `${refs} reference${refs > 1 ? 's' : ''}` : null;
+    })(),
   ].filter(Boolean);
 
   return (

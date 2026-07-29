@@ -8,6 +8,9 @@
 //   - Claude Code: .claude/commands/<name>.md or .claude/skills/<name>/SKILL.md
 //   - Codex: .agents/skills/<name>/SKILL.md
 //
+// A short alias (see WORKFLOW_ALIASES) is just a second pair of adapters pointing at an
+// existing workflow - never a second copy of the procedure.
+//
 // See docs/AGENT_WORKFLOWS.md. This runs first in `npm run build`.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -19,6 +22,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
+// Short invocation aliases: <alias> => <canonical workflow>. An alias owns adapters in BOTH
+// tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
+// so a shortcut can never grow a second copy of the procedure. Never alias a destructive
+// (explicit-only) workflow: a one-keystroke command must not be able to land anything.
+const WORKFLOW_ALIASES = new Map([['n', 'next']]);
 const CLAUDE_ONLY_EXCEPTIONS = new Map([
   [
     'rescue',
@@ -31,6 +39,8 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     [
       'Never invent work to have something to offer.',
       'git status --porcelain=v1 --branch',
+      'node scripts/worktree-activity.mjs',
+      'Never act on a collision.',
       'Verify before you list.',
       "Read, don't write.",
     ],
@@ -348,6 +358,33 @@ for (const name of workflowNames) {
   }
 }
 
+// 2b. Every alias resolves to a real workflow and has one thin adapter per tool.
+for (const [alias, target] of WORKFLOW_ALIASES) {
+  const canonical = `.agent-workflows/${target}.md`;
+  if (!workflowNames.includes(target)) {
+    failures.push(`alias ${alias}: no canonical workflow ${canonical} to alias`);
+    continue;
+  }
+  if (workflowNames.includes(alias)) {
+    failures.push(`alias ${alias}: shadows the canonical workflow .agent-workflows/${alias}.md`);
+  }
+  if (EXPLICIT_ONLY_WORKFLOWS.has(target)) {
+    failures.push(`alias ${alias}: ${target} is destructive and must stay explicit-only, not aliased`);
+  }
+
+  const claudeCommand = absolute(`.claude/commands/${alias}.md`);
+  checkRepositoryFile(claudeCommand, `alias ${alias}: Claude command adapter`);
+  checkThinWrapper(claudeCommand, canonical, `alias ${alias}: Claude command adapter`);
+  if (existsSync(claudeCommand) && !parseFrontmatter(claudeCommand)?.description) {
+    failures.push(`alias ${alias}: ${rel(claudeCommand)} needs a description`);
+  }
+
+  const codexSkill = absolute(`.agents/skills/${alias}/SKILL.md`);
+  checkRepositoryFile(codexSkill, `alias ${alias}: Codex skill adapter`);
+  checkThinWrapper(codexSkill, canonical, `alias ${alias}: Codex skill adapter`);
+  if (existsSync(codexSkill)) checkSkillMetadata(codexSkill, alias, `alias ${alias}: Codex skill adapter`);
+}
+
 // 3. Reverse mapping: no repository-owned adapter silently escapes the canonical workflow.
 const claudeCommands = files
   .filter((file) => /^\.claude\/commands\/[^/]+\.md$/.test(file))
@@ -359,6 +396,7 @@ const codexSkills = directChildrenWithFile(path.join(ROOT, '.agents', 'skills'),
 
 for (const name of new Set([...claudeCommands, ...claudeSkills])) {
   if (workflowNames.includes(name)) continue;
+  if (WORKFLOW_ALIASES.has(name)) continue;
   if (CLAUDE_ONLY_EXCEPTIONS.has(name)) continue;
   failures.push(
     `Claude adapter ${name} has no .agent-workflows/${name}.md and is not an explicit exception`,
@@ -370,6 +408,7 @@ for (const [name, reason] of CLAUDE_ONLY_EXCEPTIONS) {
   }
 }
 for (const name of codexSkills) {
+  if (WORKFLOW_ALIASES.has(name)) continue;
   if (!workflowNames.includes(name)) {
     failures.push(
       `.agents/skills/${name}/SKILL.md has no matching .agent-workflows/${name}.md`,
@@ -396,6 +435,6 @@ if (failures.length > 0) {
 
 console.log(
   `Shared instructions OK: ${agentsFiles.length} AGENTS.md/CLAUDE.md pair(s), ` +
-    `${workflowNames.length} Claude/Codex workflow pair(s), ${CLAUDE_ONLY_EXCEPTIONS.size} ` +
-    'documented tool-specific exception(s).',
+    `${workflowNames.length} Claude/Codex workflow pair(s), ${WORKFLOW_ALIASES.size} alias(es), ` +
+    `${CLAUDE_ONLY_EXCEPTIONS.size} documented tool-specific exception(s).`,
 );

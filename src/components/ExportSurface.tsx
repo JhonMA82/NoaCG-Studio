@@ -7,6 +7,7 @@ import { loadPrefs, savePrefs } from '../model/prefs';
 import { isRenderConfigured } from '../render/config';
 import RenderPanel from './render/RenderPanel';
 import { graphicById } from '../model/library';
+import { trackEvent } from '../backend/events';
 import type { SpxTemplate } from '../model/types';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 
@@ -89,6 +90,9 @@ export default function ExportSurface({
       const zip = await target.build(template, { sampleData, entries, graphicUsage });
       const blob = await zip.generateAsync({ type: 'blob' });
       saveAs(blob, `${slug(template.name)}_${target.id}.zip`);
+      // The funnel's last step, counted only once the file actually reached the disk - a
+      // failed build below is not an export. The target id is the whole payload.
+      trackEvent('export', target.id);
       // Each target carries its own success line, so its deploy workflow reads correctly.
       setMessage(target.successMessage);
     } catch (err) {

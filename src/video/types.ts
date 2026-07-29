@@ -3,6 +3,7 @@
 
 import type { ValidationIssue } from '../validation/validateTemplate';
 import type { AssetFile } from '../model/types';
+import type { ReferencePurpose } from '../model/imagePurpose';
 import { uniqueAssetPath } from '../assets/assetUtils';
 
 /** The composition settings the player and renderer need (a VideoProject subset). */
@@ -99,4 +100,39 @@ export function describeAssets(assets: AssetFile[]): VideoAssetInfo[] {
     seen.add(name);
     return { name, path: a.path, mime: assetMime(a) };
   });
+}
+
+/**
+ * The assets the COMPOSITION may use - everything the user uploaded, minus the pictures they
+ * tagged as reference material (model/imagePurpose.ts, persisted as VideoProject.assetUses).
+ *
+ * Filtering the LIST rather than the described names is deliberate: an untagged asset is
+ * reachable four ways - `assets.<name>` in the code, the Content panel's image picker, the
+ * player's data-URL map, and the render manifest's upload - and a mood board belongs in none
+ * of them. It informs the design through vision blocks instead, so shipping it to the render
+ * service would cost the user upload budget for a picture that is never drawn. An absent map
+ * returns the list unchanged, which is every project saved before this existed.
+ *
+ * The Assets panel deliberately does NOT use this: it manages every upload, including the
+ * ones it must let you re-tag or delete.
+ */
+export function compositionAssets(project: {
+  assets: AssetFile[];
+  assetUses?: Record<string, ReferencePurpose>;
+}): AssetFile[] {
+  const uses = project.assetUses;
+  if (!uses) return project.assets;
+  return project.assets.filter((a) => !uses[a.path]);
+}
+
+/** The reference-tagged uploads, as the video providers receive them (vision only). */
+export function referenceAssets(project: {
+  assets: AssetFile[];
+  assetUses?: Record<string, ReferencePurpose>;
+}): { name: string; data: string; use: ReferencePurpose }[] {
+  const uses = project.assetUses;
+  if (!uses) return [];
+  return project.assets
+    .filter((a) => uses[a.path] && typeof a.data === 'string')
+    .map((a) => ({ name: assetLogicalName(a.path), data: a.data as string, use: uses[a.path] }));
 }

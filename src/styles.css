@@ -1117,7 +1117,12 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  width: 264px;
+  /* 240, not 264, so FIVE cards sit on ONE row at 1366px - the Entry step's height budget
+     (see .wz-hero) is spent by a second row, not by a card being wide. Measured: at 264 the
+     fifth card wraps and the step overflows by 30px; at 240 the row holds and the block is
+     196px instead of 340. Going narrower is counter-productive - 232 wraps the text enough
+     to grow the cards back. e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 240px;
   padding: 16px 18px;
   text-align: left;
   display: flex;
@@ -1132,6 +1137,59 @@ kbd {
 .wz-entry-card .wz-entry-icon { font-size: 20px; color: var(--accent); }
 .wz-entry-card strong { font-size: 15px; font-weight: 600; }
 .wz-entry-card:disabled { opacity: 0.55; cursor: default; }
+
+/* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
+   The grid is the whole decision, so cards stay scannable rather than pretty: name,
+   who it is for, and how many graphics land. The detail panel below only appears once
+   a kit is picked - an empty panel would imply a step that is not there. */
+.wz-kit { display: flex; flex-direction: column; gap: 14px; }
+.wz-kit-lede { color: var(--text-dim); margin: 0; }
+.wz-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wz-kit-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.wz-kit-card:hover { border-color: var(--accent); background: var(--bg-2); transform: translateY(-1px); }
+.wz-kit-card.is-active { border-color: var(--accent); background: var(--bg-2); }
+.wz-kit-card strong { font-size: 14px; font-weight: 600; }
+.wz-kit-card .hint { font-size: 12px; }
+.wz-kit-count { font-size: 11px; color: var(--accent); }
+.wz-kit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wz-kit-detail h3 { margin: 0; font-size: 16px; }
+.wz-kit-family { display: flex; align-items: center; gap: 8px; }
+.wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
+.wz-kit-contents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wz-kit-contents li {
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
 
 /* Step 1 (import mode): drop zone */
 .wz-drop {
@@ -1342,6 +1400,57 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Uploaded pictures + what each one is FOR (model/imagePurpose.ts). One card per picture:
+   the purpose is a property of the picture, so it lives on the picture. */
+.wz-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  /* Cards fill the column; the catalog escape button beside them must not stretch with them. */
+  align-items: stretch;
+}
+.wz-uploads > button { align-self: flex-start; }
+.wz-upload {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.wz-upload-head { display: flex; align-items: center; gap: 8px; }
+.wz-upload-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 4px;
+  /* A chequerboard, so a transparent logo reads as transparent rather than as a black box. */
+  background:
+    conic-gradient(from 90deg, rgba(255, 255, 255, 0.07) 25%, transparent 0 50%, rgba(255, 255, 255, 0.07) 0 75%, transparent 0)
+    0 0 / 10px 10px;
+}
+.wz-upload-name {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-upload-x { flex: none; padding: 0 6px; }
+.wz-purpose { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.wz-purpose button { font-size: 11px; padding: 4px 8px; }
+.wz-purpose button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(246, 166, 35, 0.1);
+}
+.wz-upload-hint { margin: 6px 0 0; }
+/* The binding is a sub-choice OF "use it as it is", so it reads as subordinate to it. */
+.wz-binding { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line); }
 
 /* Step 4: style pickers */
 .wz-palettes { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3381,6 +3490,10 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .video-asset-list, .video-saved-list { list-style: none; margin: 0; padding: 0; }
 .video-asset-list li, .video-saved-list li { border-bottom: 1px solid var(--border); padding: 6px 0; }
 .video-asset-list li:last-child, .video-saved-list li:last-child { border-bottom: none; }
+/* An asset row carries its purpose picker under the file line, so it stacks rather than
+   sitting on the flex row (model/imagePurpose.ts). */
+.video-asset-row { padding-bottom: 8px; }
+.video-asset-row .wz-purpose { margin-top: 6px; }
 
 /* The player-host iframe is the output frame itself: sized to the native composition
    resolution and scaled to fit by PreviewFrame's .preview-frame rules (absolute-centred,
