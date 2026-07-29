@@ -446,6 +446,7 @@ export function createDefaultVideoProject(
       | 'transparent'
       | 'aiModel'
       | 'assets'
+      | 'assetUses'
     >
   > = {},
 ): VideoProject {
@@ -476,6 +477,9 @@ export function createDefaultVideoProject(
     transparent,
     aiModel: init.aiModel ?? '',
     assets: init.assets ?? [],
+    // Only when something is actually tagged: an absent map IS "every asset is composition
+    // material", so writing an empty one would persist a difference that means nothing.
+    ...(init.assetUses && Object.keys(init.assetUses).length ? { assetUses: init.assetUses } : {}),
     inputs: STARTER_INPUTS.map((i) => ({ ...i })),
     // The starter derives everything from the settings it was built with (Remotion via
     // useVideoConfig, HyperFrames baked in at creation), so it fits them by construction.

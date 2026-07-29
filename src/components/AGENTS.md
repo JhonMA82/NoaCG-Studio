@@ -601,7 +601,17 @@ a provider key),
 go through video/types.ts uniqueVideoAssetPath so an asset's LOGICAL NAME is settled once, into
 the immutable path - adding or deleting another asset must never rename one, because the code and
 image-input values point at that name. A few big assets can still exhaust localStorage: the save
-fails LOUDLY (the shell's `video-autosave-failed` flag), never silently),
+fails LOUDLY (the shell's `video-autosave-failed` flag), never silently. It also sets each
+upload's PURPOSE (model/imagePurpose.ts) via store `setAssetUse` -> the additive-optional
+`VideoProject.assetUses`; it is the ONE video surface that must NOT filter by it, since it is
+where a reference is re-tagged or deleted. Everything else reads `video/types.ts`
+`compositionAssets`, which is what keeps reference material out of all four routes an asset can
+otherwise reach - `assets.<name>` in the code, the Content picker, the player's data-URL map,
+and the render manifest. Two traps live here: a zustand selector that BUILDS the filtered array
+returns a new reference every store write (memo the two stable parts instead), and
+`createDefaultVideoProject` constructs the project field by field, so a new field must be added
+to its `Pick` or the wizard's choice is silently dropped - which it was, until
+e2e/image-purpose.spec.ts caught it),
 **VideoExportPanel** (mounts **VideoRenderPanel** when isRenderConfigured() - the engine's
 manifest kind ('remotion' compiledJs+inputProps, or 'hyperframes' composed documentHtml)
 through the shared render service, with an upload-budget meter; plus the engine's source
@@ -734,10 +744,20 @@ One drop zone accepts images AND an existing .html/.zip template. A dropped temp
 deterministically (model/importTemplate.ts) into a card with two actions: **"Open as code (no
 AI)"** — the byte-faithful import (applyTemplate + Export panel, exactly the old Import entry;
 it renders OUTSIDE the `needsSignIn` gate and must stay there — only the AI actions are an
-account feature) — or **Convert** (provider.convertImport, guided by the prompt). Dropped
-images become `GenerateContext.images` chips with a "Design around these with a catalog
-template" escape that patches the draft and continues into the mode-'import' images ->
-category -> TemplateStep flow (ImportStep is now that slim continuation only). The step
+account feature) — or **Convert** (provider.convertImport, guided by the prompt). Each dropped
+image becomes an **UploadCard** (steps/ai/UploadCard.tsx) carrying WHAT IT IS FOR - use it as
+it is / make one like this / take the look and feel / make it work over this
+(model/imagePurpose.ts, split into `images` + `references` by `splitByPurpose`). The purpose is
+a property of the PICTURE, not of the gesture, which is why it lives on the card rather than
+behind separate drop zones: a user does not know the vocabulary before dropping, and one drop
+can carry three intents. `guessPurpose` preselects (visibly, one click to correct) and only
+ever guesses mark-or-not. An as-is card adds the fixed/swappable choice; VIDEO passes
+`showBinding={false}`, since a composition reaches a picture through a declared image input and
+"operators can swap it" would name a control it does not have. The as-is paths are handed to
+`productionSpxValidator` so the as-is screen rides the injected validator. The "Design around
+these with a catalog template" escape takes only the as-is assets and continues into the
+mode-'import' images -> category -> TemplateStep flow (ImportStep is now that slim continuation
+only). The step
 injects the harness's validator (`validateTemplate` + `benchTemplateRuntime` merged) into
 every provider call, streams `onProgress` stages into the busy line, shows the route badge
 (catalog design system / +flourish / custom) on the result card, and passes a grounded
@@ -748,9 +768,10 @@ result's `spec` back on refine so spec-level refinement re-assembles determinist
 the prompt: an accordion editing ONE `GenerationSpec` (model/generationSpec.ts) - category
 (the 20-entry registry in src/ai/spec/categories.ts, or "Let AI decide" with the inferred
 pick surfaced editable on the result card), data fields (suggested per category from the
-GraphicType's own declarations, reorderable), look & references (style/mood/avoid, exact
-brand colours, style-reference images - vision-only, kept apart from the drop zone's placed
-assets), fonts (primary through the shared FontPicker, secondary/numeric uploads), and
+GraphicType's own declarations, reorderable), look (style/mood/avoid, exact brand colours,
+plus a READ-ONLY count of what is attached - it used to own a second reference uploader, which
+is how one gesture ended up with two homes; uploading happens once, in the drop zone), fonts
+(primary through the shared FontPicker, secondary/numeric uploads), and
 animation (presets filtered to the category, intensity cards, transition style, speed/
 easing/steps). Collapsed sections show summary chips and keep their values; the spec
 persists as a cross-session draft and, on Create, lands on the store's `aiSpec` (saved with
