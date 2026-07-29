@@ -203,6 +203,21 @@ measured, the judge runs in the eval rig only - production wiring additionally n
 in-app hold-frame capture path, which does not exist yet (rig captures are Playwright
 screenshots).
 
+`bench:report` now **computes** that correlation rather than leaving it to the eye. For
+every item carrying both a judge verdict and a blind decision it reports raw agreement,
+**Cohen's kappa**, and the two error cells. Raw agreement alone flatters a lopsided judge -
+one that passes nearly everything scores well against reviewers who also accept most
+things - so kappa is the number that counts, and below 0.4 the report states plainly that
+the judge has not earned a threshold. With no paired items the report says agreement is
+UNMEASURED, so no judge-based threshold can be claimed by omission.
+
+The cell to read first is **waved through** (judge passed, human rejected): each one is a
+defect class the judge cannot see. The rule that follows is *prefer a deterministic gate
+to a wider judge remit* - the 2026-07-29 review rejected two skins for clipped text
+("cuts of", "looks like its cut of") that the judge passed, and the answer was a bench
+detector for `clip-path` clipping (`bench-overflow`, measured at the text's own height so
+a sheared bar cannot hide behind its bounding box), not a stricter judge prompt.
+
 ## 6c. Measured: the skin prompt has a load ceiling
 
 Four paid rounds isolated the skin teaching, one variable at a time. Among JUDGED skins

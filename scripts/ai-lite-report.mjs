@@ -171,6 +171,52 @@ const consistency = repeats.length
     }
   : null;
 
+// Judge-vs-human agreement - the measurement docs/AI_LITE_BENCHMARK.md §6b names as what
+// EARNS the judge its threshold. Pass rate beside acceptance rate is not that: two numbers
+// can match in aggregate while disagreeing on every individual item.
+//
+// Raw agreement alone flatters a lopsided judge (one that passes nearly everything scores
+// high against reviewers who also accept most things), so kappa chance-corrects it. The
+// cell that matters most is wavedThrough - judge passed, human rejected - because that is
+// the failure mode that put a clipped-text graphic through both gates.
+const paired = [];
+for (const [group, rows] of groups) {
+  for (const r of rows) {
+    if (r.judgeVerdict !== 'pass' && r.judgeVerdict !== 'fail') continue;
+    for (const j of judgements.get(r.key) ?? []) {
+      if (!j.decision) continue;
+      paired.push({
+        group,
+        key: r.key,
+        judgePass: r.judgeVerdict === 'pass',
+        humanAccept: j.decision === 'yes' || j.decision === 'minor',
+        reviewer: j.reviewer ?? 'anonymous',
+      });
+    }
+  }
+}
+let judgeAgreement = null;
+if (paired.length) {
+  const n = paired.length;
+  const both = paired.filter((p) => p.judgePass && p.humanAccept).length;
+  const neither = paired.filter((p) => !p.judgePass && !p.humanAccept).length;
+  const wavedThrough = paired.filter((p) => p.judgePass && !p.humanAccept).length;
+  const overRejected = paired.filter((p) => !p.judgePass && p.humanAccept).length;
+  const observed = (both + neither) / n;
+  // Cohen's kappa against the marginal distributions of the two raters.
+  const pJudge = (both + wavedThrough) / n;
+  const pHuman = (both + overRejected) / n;
+  const expected = pJudge * pHuman + (1 - pJudge) * (1 - pHuman);
+  judgeAgreement = {
+    paired: n,
+    observedAgreement: observed,
+    kappa: expected < 1 ? (observed - expected) / (1 - expected) : null,
+    wavedThrough,
+    overRejected,
+    wavedThroughItems: paired.filter((p) => p.judgePass && !p.humanAccept).map((p) => p.key),
+  };
+}
+
 const pct = (x) => (x === null || x === undefined ? '-' : `${Math.round(x * 100)}%`);
 const usd = (x) => (x === null || x === undefined ? '-' : `$${x.toFixed(4)}`);
 console.log('\ngroup | runs | machine-valid | judged | accepted | mean score | cost/call | cost/valid | cost/accepted');
@@ -204,6 +250,35 @@ if (consistency) {
     console.log('Self-agreement is LOW: widen the promotion threshold - small deltas cannot discriminate.');
   }
 }
+if (judgeAgreement) {
+  const { paired: n, observedAgreement, kappa, wavedThrough, overRejected } = judgeAgreement;
+  console.log(`\nJudge vs blind review: ${pct(observedAgreement)} raw agreement over ${n} paired item(s)` +
+    `${kappa === null ? '' : `, kappa ${kappa.toFixed(2)}`}.`);
+  console.log(`  judge passed / human rejected: ${wavedThrough}   judge failed / human accepted: ${overRejected}`);
+  if (wavedThrough) {
+    console.log(`  WAVED THROUGH: ${judgeAgreement.wavedThroughItems.join(', ')}`);
+    console.log('  Each of these is a defect class the judge cannot see - check whether the');
+    console.log('  deterministic bench can catch it instead before widening the judge\'s remit.');
+  }
+  // A weak kappa condemns the judge on its own - it does not depend on having planted
+  // repeats. Reviewer self-consistency, when measured, is the CEILING the judge is read
+  // against: it can never be more trustworthy than the humans that calibrate it.
+  if (kappa !== null && kappa < 0.4) {
+    console.log('  Judge agreement is WEAK after chance correction: it has NOT earned a promotion');
+    console.log('  threshold. Keep it in the eval rig and rank candidates on machine gates + blind review.');
+  }
+  if (consistency) {
+    const ceiling = consistency.decisionAgreement;
+    console.log(`  reviewer self-agreement (the ceiling): ${pct(ceiling)}`);
+    if (kappa !== null && kappa >= 0.4 && observedAgreement < ceiling - 0.1) {
+      console.log('  Judge agrees with reviewers materially less than reviewers agree with themselves:');
+      console.log('  not yet threshold-worthy.');
+    }
+  }
+} else {
+  console.log('\nNo judge/human pairs yet - judge agreement is UNMEASURED, so no judge-based');
+  console.log('promotion threshold may be claimed (docs/AI_LITE_BENCHMARK.md §6b).');
+}
 console.log('\nGold is the catalog ceiling and floor the zero-model baseline: read every candidate as a position between them.');
 
 // The sameness metric (bench:sameness) folds in when it has been computed for this dir.
@@ -224,5 +299,5 @@ try {
   console.log('\nNo sameness.json yet (run bench:sameness over this dir to measure visual diversity).');
 }
 
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, notes: noted, sameness }, null, 2), 'utf8');
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, judgeAgreement, notes: noted, sameness }, null, 2), 'utf8');
 console.log(`Wrote ${path.join(OUT, 'report.json')}`);
