@@ -104,6 +104,38 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+// Provider SLUGS, resolved from OpenRouter rather than guessed from the display name: the
+// endpoints API reports "Google", whose slug is `google-vertex`, so slugifying the label
+// would silently produce an allowlist that matches nothing and every call would be
+// rejected. A route with no allowlist is not configured at all (taskConfigured), so this
+// has to be right before anything is spent.
+const providerSlugs = new Map();
+try {
+  const listing = await (await fetch('https://openrouter.ai/api/v1/providers', {
+    signal: AbortSignal.timeout(20_000),
+  })).json();
+  for (const provider of listing.data ?? []) {
+    if (provider.name && provider.slug) providerSlugs.set(provider.name.toLowerCase(), provider.slug);
+  }
+} catch {
+  console.error('Could not read the OpenRouter provider list - cannot pin endpoints safely.');
+  process.exit(1);
+}
+
+// The incumbent is not in the shortlist (it is proprietary, so the open-weight preference
+// ranks it last), and its Google route serves from two endpoints.
+const INCUMBENT_PROVIDERS = 'google-vertex,google-ai-studio';
+
+function allowlistFor(item) {
+  if (!item?.pinned?.provider) return INCUMBENT_PROVIDERS;
+  const slug = providerSlugs.get(item.pinned.provider.toLowerCase());
+  if (!slug) {
+    console.error(`No OpenRouter slug for provider "${item.pinned.provider}" - refusing to guess.`);
+    process.exit(1);
+  }
+  return slug;
+}
+
 async function waitForReady(budgetMs = 90_000) {
   const deadline = Date.now() + budgetMs;
   let lastReason = 'no response';
@@ -124,7 +156,7 @@ async function waitForReady(budgetMs = 90_000) {
   throw new Error(`dev server never became available (${lastReason})`);
 }
 
-function startServer(model, pinnedProvider) {
+function startServer(model, providerAllowlist) {
   // Fallback is disabled for the whole comparison: docs/AI_LITE_PROMOTION.md requires it,
   // and for good reason - a candidate silently rescued by another model would be credited
   // with results it did not produce.
@@ -135,7 +167,7 @@ function startServer(model, pinnedProvider) {
     AI_LITE_PRIMARY_MODEL: model,
     AI_LITE_FALLBACK_PROVIDER: '',
     AI_LITE_FALLBACK_MODEL: '',
-    ...(pinnedProvider ? { AI_LITE_OPENROUTER_PROVIDERS: pinnedProvider } : {}),
+    AI_LITE_OPENROUTER_PROVIDERS: providerAllowlist,
   };
   const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore' });
   return child;
@@ -148,11 +180,9 @@ for (const model of plan) {
   const item = byModel.get(model);
   const label = model.replace(/[^a-z0-9]+/gi, '-').slice(0, 40);
   const runDir = path.join(OUT, label);
-  // OpenRouter's provider allowlist takes slugs; the endpoints API reports display names,
-  // so pin only when the two coincide safely - otherwise let the ZDR policy route it and
-  // record that the endpoint was NOT pinned for this run.
-  const pinnedProvider = item?.pinned?.provider?.toLowerCase().replace(/\s+/g, '-') ?? null;
+  const pinnedProvider = allowlistFor(item);
   console.log(`\n=== ${model} -> ${runDir}`);
+  console.log(`  provider allowlist: ${pinnedProvider}`);
   const server = startServer(model, pinnedProvider);
   try {
     const status = await waitForReady();

@@ -76,6 +76,47 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     zdrAvailable: true,
     notes: 'Open-weight text/structured candidate for the Lite discovery funnel.',
   },
+
+  // ── Benchmark candidates (bench:qualify 2026-07-29) ──────────────────────────
+  // Listed so the comparison can RUN, not because anything is promoted: a free-tier
+  // route must be catalog-approved before taskConfigured() will serve it at all, so a
+  // candidate cannot be measured from outside this list. Prices are the audited pinned-
+  // endpoint figures from that qualification pass; each cleared ZDR, structured output,
+  // the funded-route ceiling and endpoint stability. Promotion remains the owner's, via
+  // docs/AI_LITE_PROMOTION.md - drop any candidate that loses its bench round.
+  {
+    route: { provider: 'openrouter', model: 'google/gemma-3-12b-it' },
+    openWeights: true,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.05, outputPerMillion: 0.15 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Also a vision-suite candidate.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'openai/gpt-oss-20b' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.03, outputPerMillion: 0.14 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'qwen/qwen3-30b-a3b-instruct-2507' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned StreamLake (quantization unreported - a '
+      + 'different endpoint is a different candidate identity, so re-pin before trusting a result).',
+  },
+  {
+    route: { provider: 'openrouter', model: 'microsoft/phi-4' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 16_384 },
+    price: { inputPerMillion: 0.07, outputPerMillion: 0.14 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Smallest context of the set.',
+  },
 ];
 
 export function modelRouteKey(route: ModelRoute): string {
