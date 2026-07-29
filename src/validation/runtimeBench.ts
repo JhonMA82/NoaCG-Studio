@@ -179,7 +179,7 @@ function intersection(a: DOMRect, b: DOMRect): number {
  *  Shapes that can't be resolved cheaply (`path()`, `url()`, keyword radii like
  *  `closest-side`) return null: the bench reports nothing rather than guessing, because a
  *  false clip error would block a valid export. */
-function clipBoxFor(el: Element, cs: CSSStyleDeclaration): DOMRect | null {
+function clipBoxFor(el: Element, cs: CSSStyleDeclaration, target: DOMRect): DOMRect | null {
   const raw = (cs.clipPath || '').trim();
   if (!raw || raw === 'none') return null;
   // Strip the optional trailing geometry-box keyword (`inset(...) border-box`).
@@ -231,20 +231,42 @@ function clipBoxFor(el: Element, cs: CSSStyleDeclaration): DOMRect | null {
   }
 
   if (fn === 'polygon') {
-    // Optional leading fill-rule, then `x y` pairs. The bounding box of the points is a
-    // sound over-approximation: anything outside it is definitely clipped away.
-    const pts = args.replace(/^(nonzero|evenodd)\s*,\s*/i, '').split(',');
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const pt of pts) {
+    // Optional leading fill-rule, then `x y` pairs.
+    const pts: Array<[number, number]> = [];
+    for (const pt of args.replace(/^(nonzero|evenodd)\s*,\s*/i, '').split(',')) {
       const [xt, yt] = pt.trim().split(/\s+/);
       const x = len(xt ?? '', box.width);
       const y = len(yt ?? '', box.height);
       if (x === null || y === null) return null;
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      pts.push([x, y]);
     }
-    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
-    return new DOMRect(box.left + minX, box.top + minY, maxX - minX, maxY - minY);
+    if (pts.length < 3) return null;
+    const ys = pts.map((p) => p[1]);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // A SHEARED bar (the skewed-accent idiom) is far narrower than its bounding box at
+    // any given height, so the bbox would wave through text that visibly loses glyphs.
+    // Measure the shape's horizontal extent across the BAND the text actually occupies:
+    // every vertex inside the band, plus every edge crossing its boundaries.
+    const top = Math.max(minY, target.top - box.top);
+    const bottom = Math.min(maxY, target.bottom - box.top);
+    if (!(bottom > top)) return new DOMRect(box.left, box.top + minY, box.width, maxY - minY);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    const note = (x: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); };
+    for (let i = 0; i < pts.length; i += 1) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[(i + 1) % pts.length];
+      if (y1 >= top && y1 <= bottom) note(x1);
+      for (const edge of [top, bottom]) {
+        if ((y1 < edge && y2 > edge) || (y1 > edge && y2 < edge)) {
+          note(x1 + ((edge - y1) / (y2 - y1)) * (x2 - x1));
+        }
+      }
+    }
+    if (!Number.isFinite(minX)) return null;
+    return new DOMRect(box.left + minX, box.top + top, maxX - minX, bottom - top);
   }
 
   if (fn === 'circle' || fn === 'ellipse') {
@@ -357,7 +379,7 @@ function overflowIssues(
       const ar = anc.getBoundingClientRect();
       // A clip-path cuts on BOTH axes and applies to the element carrying it; overflow
       // only clips descendants, on the axes it hides.
-      const clip = clipBoxFor(anc, cs);
+      const clip = clipBoxFor(anc, cs, rect);
       const overflows = anc !== el;
       const clipsX = overflows && (cs.overflowX === 'hidden' || cs.overflowX === 'clip');
       const clipsY = overflows && (cs.overflowY === 'hidden' || cs.overflowY === 'clip');

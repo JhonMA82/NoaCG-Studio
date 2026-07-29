@@ -114,6 +114,17 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules((res as { errors: { rule: string }[] }).errors)).not.toContain('bench-overflow');
   });
 
+  test('text inside a sheared bar\'s bbox but outside the shear trips bench-overflow', async ({ page }) => {
+    await toApp(page);
+    // The skewed-accent idiom from the spike review ("cuts of"): the bar's BOUNDING BOX is
+    // 600px and the name fits it, but at the text's own height the sheared shape is far
+    // narrower, so glyphs are sliced at both ends. A bbox-only check waves this through.
+    const res = await page.evaluate(
+      clipFixture('polygon(20% 0, 100% 0, 80% 100%, 0 100%)', 'PLAY-BY-PLAY COMMENTARY'),
+    );
+    expect(rules((res as { errors: { rule: string }[] }).errors)).toContain('bench-overflow');
+  });
+
   test('an angled polygon clip that cuts text trips bench-overflow', async ({ page }) => {
     await toApp(page);
     // The chevron idiom - a polygon bbox is an over-approximation, so firing here means
