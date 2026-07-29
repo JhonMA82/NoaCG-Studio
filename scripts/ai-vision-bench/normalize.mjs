@@ -14,13 +14,17 @@ export function rgbToHex(value) {
 
 export function normalized(region, toHex = rgbToHex) {
   const font = fontFromFamily(region.fontFamily);
+  // An authored case DECLARES its role, so it is known rather than inferred. The catalog
+  // half has to fall back to the field title, which is why the two are distinguished on
+  // the record instead of both being called "role" and quietly meaning different things.
+  const authored = typeof region.role === 'string' && region.role;
   return {
-    kind: 'text',
+    kind: region.kind ?? 'text',
     bbox: region.bbox,
     // Null when the field title is too generic to map - scoring skips those rather than
     // guessing a role the catalog never declared.
-    role: roleFromTitle(region.fieldTitle),
-    roleSource: 'derived-from-title',
+    role: authored ? region.role : roleFromTitle(region.fieldTitle),
+    roleSource: authored ? 'authored' : 'derived-from-title',
     /** Kept so an unmapped title can be audited and the map improved deliberately, rather
      *  than role coverage quietly staying low because nobody could see what was missed. */
     sourceTitle: region.fieldTitle,
