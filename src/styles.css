@@ -1178,7 +1178,12 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  width: 264px;
+  /* 240, not 264, so FIVE cards sit on ONE row at 1366px - the Entry step's height budget
+     (see .wz-hero) is spent by a second row, not by a card being wide. Measured: at 264 the
+     fifth card wraps and the step overflows by 30px; at 240 the row holds and the block is
+     196px instead of 340. Going narrower is counter-productive - 232 wraps the text enough
+     to grow the cards back. e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 240px;
   padding: 16px 18px;
   text-align: left;
   display: flex;
@@ -1193,6 +1198,59 @@ kbd {
 .wz-entry-card .wz-entry-icon { font-size: 20px; color: var(--accent); }
 .wz-entry-card strong { font-size: 15px; font-weight: 600; }
 .wz-entry-card:disabled { opacity: 0.55; cursor: default; }
+
+/* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
+   The grid is the whole decision, so cards stay scannable rather than pretty: name,
+   who it is for, and how many graphics land. The detail panel below only appears once
+   a kit is picked - an empty panel would imply a step that is not there. */
+.wz-kit { display: flex; flex-direction: column; gap: 14px; }
+.wz-kit-lede { color: var(--text-dim); margin: 0; }
+.wz-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wz-kit-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.wz-kit-card:hover { border-color: var(--accent); background: var(--bg-2); transform: translateY(-1px); }
+.wz-kit-card.is-active { border-color: var(--accent); background: var(--bg-2); }
+.wz-kit-card strong { font-size: 14px; font-weight: 600; }
+.wz-kit-card .hint { font-size: 12px; }
+.wz-kit-count { font-size: 11px; color: var(--accent); }
+.wz-kit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wz-kit-detail h3 { margin: 0; font-size: 16px; }
+.wz-kit-family { display: flex; align-items: center; gap: 8px; }
+.wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
+.wz-kit-contents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wz-kit-contents li {
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
 
 /* Step 1 (import mode): drop zone */
 .wz-drop {

@@ -12,6 +12,7 @@
 // stays in blind-key.json beside the gallery (gitignored with the rest of the out dir);
 // do not open it before reviewing.
 
+import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { seededRandom } from './ai-lite-bench/suites.mjs';
@@ -106,6 +107,17 @@ await writeFile(path.join(OUT, 'blind-key.json'), JSON.stringify(
   null, 2,
 ), 'utf8');
 
+// Every gallery numbers its items item-001 upward, so two DIFFERENT rounds reuse the same
+// codes. With one localStorage bucket per origin that silently pre-fills a new round with
+// the previous round's answers - verified: a 3-item test gallery's verdicts turned up in
+// the 102-item spike gallery, attached to graphics the reviewer had never seen. The bucket
+// is therefore keyed by WHAT IS IN the gallery: same items -> same key (a rebuild still
+// resumes), different items -> a clean bucket, with no reliance on anyone pressing
+// "Start new pass".
+const galleryId = createHash('sha256')
+  .update(withRepeats.map(({ code, key }) => `${code}:${key}`).join('\n'))
+  .digest('hex').slice(0, 12);
+
 // Opening a still at native resolution must not reveal its arm or candidate in the URL.
 // Give every displayed asset a neutral filename, including planted repeats, and keep the
 // identity mapping exclusively in blind-key.json.
@@ -146,6 +158,9 @@ const html = `<!doctype html>
   .judge{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .judge button.sel{border-color:#ffb000;color:#ffb000}
   .done{opacity:.55}
+  .needs-score{border-color:#ffb000}
+  .needs-score .score-label{color:#ffb000;font-weight:600}
+  .needs-score .score-label::after{content:' still needed'}
   .brief{color:#aeb7c3;font-size:14px;margin:0 0 10px}
 </style>
 <body>
@@ -160,25 +175,38 @@ const html = `<!doctype html>
 <div id="items"></div>
 <script>
 const ITEMS = ${JSON.stringify(gallery)};
-const KEY = 'noacg-lite-review-v1';
+const KEY = 'noacg-lite-review-v1-${galleryId}';
 const state = JSON.parse(localStorage.getItem(KEY) || '{}');
 const save = () => { localStorage.setItem(KEY, JSON.stringify(state)); paint(); };
 const container = document.getElementById('items');
 const SESSION = 20;
+// An item is finished only with BOTH answers. Measured the hard way on 2026-07-29: 'done'
+// counted the decision alone and .done dims the card, so the reviewer answered "on air?",
+// watched the card fade, and moved on - 7 of 9 judgements came back with no score at all.
+// Completeness now follows the doc's contract, and an unscored card stays lit and says so.
+const complete = (code) => Boolean(state[code]?.decision) && Number.isFinite(state[code]?.score);
 function paint() {
-  const judged = ITEMS.filter(i => state[i.code]?.decision).length;
+  const judged = ITEMS.filter(i => complete(i.code)).length;
   document.getElementById('progress').textContent =
     judged + ' / ' + ITEMS.length + ' judged' + (judged && judged % SESSION === 0 && judged < ITEMS.length ? ' - session done, take a break' : '');
   for (const item of ITEMS) {
+    // Only the current session's items are rendered (see the resume cap below), so most of
+    // ITEMS has no card. Without this guard paint() threw a TypeError on the first
+    // unrendered item - silently, because it runs from an event listener - on EVERY click.
+    // It looked harmless only because the missing items happen to sort after the rendered
+    // ones, so the visible cards were painted before the throw; anything added after this
+    // loop would simply never have run.
     const el = document.getElementById(item.code);
-    el.classList.toggle('done', Boolean(state[item.code]?.decision));
+    if (!el) continue;
+    el.classList.toggle('done', complete(item.code));
+    el.classList.toggle('needs-score', Boolean(state[item.code]?.decision) && !complete(item.code));
     for (const b of el.querySelectorAll('[data-dec]')) b.classList.toggle('sel', state[item.code]?.decision === b.dataset.dec);
     for (const b of el.querySelectorAll('[data-score]')) b.classList.toggle('sel', String(state[item.code]?.score) === b.dataset.score);
   }
 }
 // Resume model: render up to one session past the already-judged items; reload after a
 // break to open the next session.
-const judgedCount = ITEMS.filter(i => state[i.code]?.decision).length;
+const judgedCount = ITEMS.filter(i => complete(i.code)).length;
 const cap = Math.min(ITEMS.length, (Math.floor(judgedCount / SESSION) + 1) * SESSION);
 for (const item of ITEMS.slice(0, cap)) {
   const card = document.createElement('section');
@@ -189,7 +217,7 @@ for (const item of ITEMS.slice(0, cap)) {
     '<a href="' + item.screenshot + '" target="_blank"><img loading="lazy" src="' + item.screenshot + '"></a>' +
     '<div class="judge">On air? ' +
     ['yes','minor','no'].map(d => '<button data-dec="' + d + '">' + ({yes:'Yes',minor:'Yes, after minor edits',no:'No'})[d] + '</button>').join('') +
-    ' Score ' + [1,2,3,4,5].map(s => '<button data-score="' + s + '">' + s + '</button>').join('') +
+    ' <span class="score-label">Score</span> ' + [1,2,3,4,5].map(s => '<button data-score="' + s + '">' + s + '</button>').join('') +
     ' <input class="note" size="42" maxlength="240" placeholder="What is wrong / notes (optional)">' +
     '</div>';
   card.addEventListener('click', (event) => {

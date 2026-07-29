@@ -39,8 +39,13 @@ The launch route is settled by the vision benchmark (plan §8) before the flag t
 
 `taskConfigured(task)` is the fail-closed gate the Lite endpoints now call (generalizing
 `liteProfileConfigured()`): every OpenRouter route needs a current price and a provider
-endpoint allowlist, and every free/anonymous-tier route must be a catalog-approved entry.
-A misconfigured route refuses with `profile_not_configured` - never a silent fallback.
+endpoint allowlist, and every free/anonymous-tier route must be a catalog-approved entry
+that is also **funded-eligible** (below). A misconfigured route refuses with
+`profile_not_configured` - never a silent fallback.
+
+Free and anonymous tiers are exactly the tiers NoaCG pays for, which is why they carry
+both constraints; `byo` and `paid` spend the caller's own money on routes they chose, so
+neither the catalog nor the price ceiling applies to them.
 
 ## The approved-route catalog (`api/_lib/aiModelCatalog.ts`)
 
@@ -54,6 +59,22 @@ may adjust a price but cannot approve a route.
 (ratified decision, plan §15.1): at benchmark parity the open-weight candidate wins the
 route, but a superior proprietary model is never excluded for closed weights alone.
 
+**The funded-route rule IS a gate** (ratified decision, plan §15.5 - *who pays decides the
+route*). A route NoaCG funds must go through `FUNDED_ROUTE_PROVIDER` (`openrouter`) and
+price at or under `FUNDED_ROUTE_PRICE_CEILING` (1.00 in / 5.00 out per million). OpenAI
+and Anthropic models are reachable only through a user's own sealed key, so they never
+enter this catalog. Two layers enforce it:
+
+- `fundedModelRoute(route, price?)` prices against the caller's **effective** table, not
+  the audited snapshot, so an `AI_LITE_PRICING_JSON` override cannot move the free tier
+  onto a route the project would not pay for.
+- A catalog test refuses any entry that could never serve a funded route, so a
+  non-OpenRouter or over-ceiling addition fails the build rather than only failing later
+  at request time.
+
+Raise the ceiling deliberately (it is one constant plus its test), not to admit a single
+model that just missed. Revisit the whole rule when there is revenue.
+
 Live provider listings (current prices, context windows, availability) come from the
 discovery module `api/_lib/aiModelDiscovery.ts` (`GET /api/ai/models`) - discovery is a
 listing, not an approval.
@@ -62,6 +83,8 @@ listing, not an approval.
 
 1. Register the task id and its `TaskProfile` derivation in `aiTaskRegistry.ts`.
 2. Approve its routes in the catalog (benchmark first; open-weight preference at parity).
+   A task with a free or anonymous tier can only be approved onto a funded-eligible
+   route - cheap and OpenRouter-reachable.
 3. If it writes `ai_generations` with a new `profile` value, ship the CHECK-constraint
    migration in the same commit (root AGENTS.md non-negotiable 6) - and keep older
    deployments working: Lite deliberately stays on its 0010-era RPC names so the code

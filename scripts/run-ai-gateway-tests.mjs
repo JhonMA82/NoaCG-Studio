@@ -12,6 +12,7 @@ const runtime = await buildApiRuntime([
   'api/_lib/aiModelDiscovery.test.ts',
   'api/_lib/aiTaskRegistry.test.ts',
   'api/_lib/aiLite.test.ts',
+  'api/_lib/funnelEvents.test.ts',
 ]);
 
 try {
@@ -21,6 +22,7 @@ try {
     path.join(runtime.outputDir, 'api/_lib/aiModelDiscovery.test.js'),
     path.join(runtime.outputDir, 'api/_lib/aiTaskRegistry.test.js'),
     path.join(runtime.outputDir, 'api/_lib/aiLite.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/funnelEvents.test.js'),
   ];
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,

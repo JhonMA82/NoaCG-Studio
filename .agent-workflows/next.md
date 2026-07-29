@@ -39,6 +39,11 @@ quick scan, not an audit.
 - **Repo state.** `git branch --show-current`, `git status --porcelain=v1 --branch`,
   `git log --oneline -5`, untracked files worth keeping. Uncommitted verified work is always a
   candidate option; unverified work makes verification the option.
+- **What the other worktrees are already doing.** Run `node scripts/worktree-activity.mjs` - a
+  LIVE scan (the session-start snapshot is stale by now) listing every other worktree with work
+  in flight: its branch, its last commit and how long ago, and the files it has uncommitted or
+  committed-but-not-yet-merged. This is what tells you an option is already someone else's job,
+  and which files an option would collide on. Several worktrees are normally active at once.
 - **Verification gap.** Was `npm run build` run after the last code change? Is there observable
   behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
   alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
@@ -89,6 +94,21 @@ convenient. Every option must fit the product pillars and the governing nested
 When the session's work is committed and verified, **"merge and push via the safe-merge
 workflow" is a first-class option** - often the recommended one. Offering it here is fine; the
 user picking it is what makes it user-initiated. Never run it yourself off this workflow.
+
+**Run every candidate option past the worktree scan before listing it:**
+
+- **Already under way elsewhere** (another worktree's branch and files plainly cover that job) -
+  do NOT offer it. Say so instead in one line below the options: what, which branch, how recent.
+- **Overlaps files in flight elsewhere without being the same job** - still offerable, but the
+  option must name the collision (`files X, Y also in flight on <branch>`) and say what to do
+  about it: land that branch first, take the slice that misses those files, or do it in that
+  worktree instead. Pick one and recommend it - never just flag the clash.
+- **Stale overlap** (that worktree's last commit is old and nothing is uncommitted) - name it as
+  a caution, not a blocker.
+- **Landing this branch** while another worktree is in flight on the same files - still a fine
+  option, but say in one line which branch will have to take main afterwards.
+- The scan is evidence, not permission: two worktrees touching one file is often fine. Never
+  suppress a genuinely good option over an incidental overlap - flag it and move on.
 
 **Optionally add ONE wildcard**: a creative improvement just outside the current scope, clearly
 labelled **(speculative)** and pitched as a maybe, not a need - grounded options never get this
@@ -147,6 +167,8 @@ recommended one") - only then begin, and do only the picked option.
   repo/workspace cleanup (leftover worktrees, stale branches, node_modules pruning, etc.) - the
   user handles those deliberately elsewhere. Same for other worktrees' business or work that
   plainly belongs in a fresh session - name that separately in one line if it exists.
+- **Never act on a collision.** Reporting one is the whole job here: do not merge, rebase, pull,
+  stash, or edit anything in another worktree, and never suggest doing it for them silently.
 - **Respect the user's focus argument** - filter options through it; if it filters everything
   out, say so rather than stretching.
 - **Be fast and cheap.** Grounding is a couple of minutes of reads. Never run the full e2e suite

@@ -9,6 +9,8 @@ interface Props {
   onImportGraphic: () => void;
   onAi: () => void;
   onVideo: () => void;
+  /** Start from a KIT: a curated set of graphics for one kind of show. */
+  onKit: () => void;
   onBlank: () => void;
   /** Go to Home (all saved work: graphics, packages, control panels, videos). */
   onHome: () => void;
@@ -28,7 +30,7 @@ interface Props {
  * (fields, animation, export), not to regenerate it. Existing .html / SPX templates (and
  * logos to design around) go through Create with AI instead.
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onBlank, onHome, onOpenGraphic }: Props) {
+export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome, onOpenGraphic }: Props) {
   const recent = useMemo(
     () => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
     [],
@@ -106,6 +108,11 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           <span className="wz-entry-icon">▦</span>
           <strong>Import graphic</strong>
           <span className="hint">Already designed it? Bring the finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece.</span>
+        </button>
+        <button className="wz-entry-card" onClick={onKit} data-entry="kit">
+          <span className="wz-entry-icon">▥</span>
+          <strong>Start from a kit</strong>
+          <span className="hint">Running a match, a service, an election night? Get the whole set of graphics that show needs, created together into one package.</span>
         </button>
         <button className="wz-entry-card" onClick={onBlank} data-entry="blank">
           <span className="wz-entry-icon">‹›</span>
