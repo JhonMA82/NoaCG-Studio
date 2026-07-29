@@ -32,9 +32,11 @@ async function findFiles(dir, predicate, relative = '') {
 }
 
 const groups = new Map(); // candidate/arm -> rows
+const rowsByKey = new Map(); // blind-key key -> row, for the judge-vs-reviewer join below
 const addRow = (group, row) => {
   if (!groups.has(group)) groups.set(group, []);
   groups.get(group).push(row);
+  rowsByKey.set(row.key, row);
 };
 
 for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json'))) {
@@ -52,6 +54,7 @@ for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json')
       repairs: row.repairs ?? 0,
       judgeVerdict: row.judgeVerdict ?? null,
       judgeScores: row.judgeScores ?? null,
+      judgeReason: row.judgeReason ?? null,
       skinFinal: row.skinFinal ?? null,
       failureCode: classifyFailure({
         // Fixture-bank briefs are all supported lower thirds - an unsupported answer is
@@ -190,6 +193,47 @@ const consistency = repeats.length
     }
   : null;
 
+// Judge-vs-reviewer agreement. The threshold decides whether a skin airs or reverts, so the
+// only thing that can justify a threshold is the judge agreeing with a human on the SAME
+// item - never the group means above, which average two populations that never meet.
+// Decisions only: reviewer yes/minor = accept, no = reject; judge pass = accept. The 1-5
+// scores are deliberately excluded, they need far more items than blind review has produced.
+const agreementItems = [];
+for (const [key, list] of judgements) {
+  const row = rowsByKey.get(key);
+  if (!row || (row.judgeVerdict !== 'pass' && row.judgeVerdict !== 'fail')) continue;
+  for (const j of list) {
+    if (j.decision !== 'yes' && j.decision !== 'minor' && j.decision !== 'no') continue;
+    agreementItems.push({
+      key,
+      reviewer: j.reviewer ?? 'anonymous',
+      reviewerAccepts: j.decision !== 'no',
+      decision: j.decision,
+      note: j.note ?? null,
+      judgeAccepts: row.judgeVerdict === 'pass',
+      judgeScores: row.judgeScores,
+      judgeReason: row.judgeReason,
+    });
+  }
+}
+let agreement = null;
+if (agreementItems.length) {
+  const cell = (rev, jud) => agreementItems.filter((i) => i.reviewerAccepts === rev && i.judgeAccepts === jud).length;
+  // A false accept is the expensive cell: the judge cleared something a human rejected, so
+  // it would have aired. A false revert only costs a skin.
+  const falseAccepts = agreementItems.filter((i) => !i.reviewerAccepts && i.judgeAccepts);
+  const falseReverts = agreementItems.filter((i) => i.reviewerAccepts && !i.judgeAccepts);
+  agreement = {
+    items: agreementItems.length,
+    agreed: cell(true, true) + cell(false, false),
+    matrix: {
+      bothAccept: cell(true, true), reviewerAcceptJudgeReject: cell(true, false),
+      reviewerRejectJudgeAccept: cell(false, true), bothReject: cell(false, false),
+    },
+    falseAccepts, falseReverts, detail: agreementItems,
+  };
+}
+
 const pct = (x) => (x === null || x === undefined ? '-' : `${Math.round(x * 100)}%`);
 const usd = (x) => (x === null || x === undefined ? '-' : `$${x.toFixed(4)}`);
 console.log('\ngroup | runs | machine-valid | judged | accepted | mean score | cost/call | cost/valid | cost/accepted');
@@ -216,6 +260,28 @@ const noted = [...judgements.entries()]
 if (noted.length) {
   console.log('\nReviewer notes:');
   for (const { key, reviewer, note } of noted) console.log(`- ${key} [${reviewer}]: ${note}`);
+}
+if (agreement) {
+  const m = agreement.matrix;
+  console.log(`\nJudge vs reviewer, per item (${agreement.items} item(s) carry both verdicts):`);
+  console.log('                    judge accept   judge revert');
+  console.log(`  reviewer accept   ${String(m.bothAccept).padStart(8)}   ${String(m.reviewerAcceptJudgeReject).padStart(12)}`);
+  console.log(`  reviewer reject   ${String(m.reviewerRejectJudgeAccept).padStart(8)}   ${String(m.bothReject).padStart(12)}`);
+  console.log(`  agreement ${agreement.agreed}/${agreement.items}`);
+  for (const i of agreement.falseAccepts) {
+    console.log(`  FALSE ACCEPT (would have aired): ${i.key}`);
+    console.log(`    reviewer "${i.note ?? i.decision}" vs judge ${JSON.stringify(i.judgeScores)}`);
+  }
+  for (const i of agreement.falseReverts) {
+    console.log(`  false revert (cost a skin): ${i.key} - reviewer ${i.decision}, judge ${JSON.stringify(i.judgeScores)}`);
+  }
+  // Coin-flip agreement is the norm at these sample sizes; say so rather than letting a
+  // reader treat a small majority as calibration.
+  if (agreement.items < 20) {
+    console.log(`  Too few items to set AI_LITE_JUDGE_THRESHOLD - blind-review more of the gallery first.`);
+  }
+} else {
+  console.log('\nNo item carries both a reviewer decision and a judge verdict - the threshold is uncalibrated.');
 }
 if (consistency) {
   console.log(`\nReviewer self-consistency: ${pct(consistency.decisionAgreement)} decision agreement, ` +
@@ -245,5 +311,5 @@ try {
   console.log('\nNo sameness.json yet (run bench:sameness over this dir to measure visual diversity).');
 }
 
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, notes: noted, sameness }, null, 2), 'utf8');
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ generatedAt: new Date().toISOString(), report, consistency, agreement, notes: noted, sameness }, null, 2), 'utf8');
 console.log(`Wrote ${path.join(OUT, 'report.json')}`);

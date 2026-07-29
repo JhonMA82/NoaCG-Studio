@@ -202,11 +202,12 @@ recorded as `judge: error`, never hidden.
 
 **Calibration before trust.** The gallery stays blind - judge scores never appear in it,
 or they would bias the reviewer. `bench:report` prints per-candidate judge pass rates and
-mean per-axis scores next to (separate) human acceptance; agreement between the judge's
-verdicts and blind review is what earns the threshold. Until that correlation is
-measured, the judge runs in the eval rig only - production wiring additionally needs an
-in-app hold-frame capture path, which does not exist yet (rig captures are Playwright
-screenshots).
+mean per-axis scores next to (separate) human acceptance, and - since those group means
+average two populations that never meet - a per-ITEM `Judge vs reviewer` matrix joining
+each blind-review decision to that same item's judge verdict. That join is what earns the
+threshold. Until it does, the judge runs in the eval rig only - production wiring
+additionally needs an in-app hold-frame capture path, which does not exist yet (rig
+captures are Playwright screenshots). First measurement: §6e.
 
 ## 6c. Measured: the skin prompt has a load ceiling
 
@@ -275,6 +276,43 @@ catalog, so it waits for the product owner.
 
 Also open from the same review: motion smoothness is **unverified** - the review clips are
 ~25 fps screencasts of a 50 fps graphic, so judge motion live, never from the gallery clip.
+## 6e. Measured: the judge does not yet agree with a human
+
+The group means in `bench:report` average two populations that never meet, so none of them
+can say whether the judge and a human agreed about the SAME graphic - the only thing that
+can justify a threshold. `bench:report` now joins them per ITEM through `blind-key.json`
+and prints a `Judge vs reviewer` matrix, naming FALSE ACCEPTS (the judge cleared what a
+human rejected, so it would have AIRED) apart from false reverts (which only cost a skin).
+It refuses to imply a threshold below 20 joined items, and writes `agreement` to
+`report.json`.
+
+First join: 9 reviewed items across rounds a-j, 6 carrying both verdicts. Decisions only -
+at this N the 1-5 scores are noise. **These are `lite-skin-judge-v1` scores** (four axes,
+no `textIntegrity`), so a v2 round restarts this table rather than extending it:
+
+|  | judge accept | judge revert |
+| --- | --- | --- |
+| **reviewer accept** | 2 | 2 |
+| **reviewer reject** | 1 | 1 |
+
+**3/6 is chance**, and no threshold should be read off it. What is not noise is the SHAPE of
+the disagreement - it is the quantitative backing for §6d's conclusion that the answer was
+never a higher threshold:
+
+- **A second blind axis, beyond the sliced word.** `strapShape` scored **5** on a graphic
+  with no strap at all - bare text over the background with a stray ~4px dot floating
+  above it (round j run2, luxury-runway). The axis added specifically to catch squat or
+  missing straps rated its absence perfect, so `textIntegrity` fixes the §6d defect but
+  leaves this one open.
+- **Broadcast safety is unmodelled.** The two items behind §6d's open owner decision
+  (hairline rules, a 4px dot) drew 5s on the axes that would have to catch them. Whatever
+  the owner decides, the judge has never been told what key and fill do to thin marks.
+- **Both false reverts were taste, not defect** - reviewer "minor" against `briefFit 1` and
+  `strapShape 2`. That is the cheap direction to be wrong in, and it is part of why round
+  f's skin trigger rate dipped.
+
+So the axis DESCRIPTIONS remain the lever, as §6d found. Raising N before they are right
+just measures the wrong instrument more precisely.
 
 ## 7. Human review
 
