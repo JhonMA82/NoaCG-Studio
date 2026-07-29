@@ -12,6 +12,7 @@ import { aiConfigured, loadAiSettings, saveAiSettings } from '../../ai/settings'
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import AiProviderSettings from '../AiProviderSettings';
+import { useAiConsent } from '../AiConsentDialog';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { describeAssets } from '../../video/types';
 import { validateVideoModule } from '../../video/validate';
@@ -81,6 +82,10 @@ export default function VideoAiChatPanel() {
   // next request (and by failures, which show their own state).
   const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Disclosure gate for the REMOTE path only - the offline sample generator sends nothing
+  // anywhere, so it never shows the notice. This also covers the auto-first generation:
+  // the run waits on the dialog rather than firing silently.
+  const { ensureAiConsent, consentDialog } = useAiConsent();
 
   const saveSetting = (patch: Parameters<typeof saveAiSettings>[0]) => {
     saveAiSettings(patch);
@@ -128,6 +133,12 @@ export default function VideoAiChatPanel() {
   const onProgress = (stage: string) => setBusy(stage);
 
   const runGenerate = async (prompt: string) => {
+    if (aiConfigured() && !(await ensureAiConsent())) {
+      // Declining leaves the brief as the unanswered turn; the retry affordance below
+      // (the error state) is how the user comes back to it.
+      setError('Generating sends your brief to an external AI provider. Accept the notice to continue.');
+      return;
+    }
     setBusy('Designing your animation… (this can take a minute)');
     setError(null);
     setDone(false);
@@ -144,6 +155,10 @@ export default function VideoAiChatPanel() {
 
   /** One refinement, whoever asked for it: the chat box, or another panel via requestAi. */
   const runRefine = async (text: string) => {
+    if (aiConfigured() && !(await ensureAiConsent())) {
+      setInput(text); // the declined turn goes back into the box, like a failed one
+      return;
+    }
     setError(null);
     setDone(false);
     appendChat({ role: 'user', text, at: new Date().toISOString() });
@@ -325,6 +340,8 @@ export default function VideoAiChatPanel() {
           <AiProviderSettings settings={settings} onChange={saveSetting} />
         </div>
       )}
+
+      {consentDialog}
     </div>
   );
 }

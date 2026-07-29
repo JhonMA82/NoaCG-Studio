@@ -8,7 +8,9 @@ import {
   modelRouteKey,
 } from './aiModelCatalog.js';
 import {
+  IMPORT_ANALYSIS_TASK_ID,
   LITE_TASK_ID,
+  importAnalysisTaskProfile,
   liteTaskProfile,
   taskConfigured,
   taskProfile,
@@ -26,6 +28,11 @@ const ENV = [
   'AI_LITE_PRICING_JSON',
   'AI_LITE_PROMPT_VERSION',
   'AI_LITE_SKIN_ENABLED',
+  'AI_LITE_REQUIRE_ZDR',
+  'AI_TASK_IMPORT_ANALYSIS_ENABLED',
+  'AI_IMPORT_ANALYSIS_PROVIDER',
+  'AI_IMPORT_ANALYSIS_MODEL',
+  'AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -102,6 +109,41 @@ test('BYO/paid tiers are not catalog-gated; free and anonymous are', () => {
   assert.equal(taskConfigured(withTiers(['anonymous'])), false);
   // A mixed tier set still carries managed free spend, so the catalog still gates it.
   assert.equal(taskConfigured(withTiers(['free', 'byo'])), false);
+});
+
+test('free-tier route policy defaults to zero-data-retention routing', () => {
+  // Stage 2 doctrine (plan §9): ZDR is the DEFAULT for every free task route. Turning
+  // it off is an explicit, audited, per-task server decision - never a default.
+  const task = liteTaskProfile();
+  assert.ok(task.tiers.includes('free'));
+  assert.equal(task.routePolicy.requireZdr, true);
+  process.env.AI_LITE_REQUIRE_ZDR = '0';
+  assert.equal(liteTaskProfile().routePolicy.requireZdr, false); // explicit opt-out honored
+});
+
+test('the imported-graphic-analysis task is off by default and fails closed', () => {
+  const task = taskProfile(IMPORT_ANALYSIS_TASK_ID);
+  assert.equal(task.taskId, 'imported-graphic-analysis');
+  assert.equal(task.enabled, false); // AI_TASK_IMPORT_ANALYSIS_ENABLED defaults off.
+  assert.deepEqual(task.tiers, ['free']);
+  assert.equal(task.routePolicy.requireZdr, true);
+  // The ratified decision 3 quota surface: one image, downscaled to at most 1920x1080.
+  assert.equal(task.limits.maxImages, 1);
+  assert.deepEqual(task.limits.maxImageResolution, { width: 1920, height: 1080 });
+  assert.deepEqual(task.ledger, { kind: 'ai_generations', profile: 'import-analysis' });
+  // No OpenRouter endpoint allowlist configured: closed.
+  assert.equal(taskConfigured(task), false);
+
+  process.env.AI_TASK_IMPORT_ANALYSIS_ENABLED = '1';
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider'; // the shared fallback list
+  const configured = taskProfile(IMPORT_ANALYSIS_TASK_ID);
+  assert.equal(configured.enabled, true);
+  assert.equal(taskConfigured(configured), true); // default route is a catalog vision entry
+
+  // A route outside the approved catalog fails closed - no env can whitelist it.
+  process.env.AI_IMPORT_ANALYSIS_PROVIDER = 'openrouter';
+  process.env.AI_IMPORT_ANALYSIS_MODEL = 'vendor/unapproved-vision-model';
+  assert.equal(taskConfigured(importAnalysisTaskProfile()), false);
 });
 
 test('openWeights is preference metadata, never an approval gate', () => {

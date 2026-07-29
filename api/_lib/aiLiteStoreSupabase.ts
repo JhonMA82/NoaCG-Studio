@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseSecretKey } from './jobStore.js';
 import type {
+  AiLedgerProfile,
   LiteGenerationRecord,
   LiteGenerationStore,
   LiteJudgeReservation,
@@ -17,7 +18,7 @@ interface GenerationRow {
   user_id: string;
   ip_hash: string;
   idempotency_key: string;
-  profile: 'lite';
+  profile: AiLedgerProfile;
   status: LiteGenerationRecord['status'];
   prompt_version: string;
   requested_category: string | null;
@@ -110,11 +111,19 @@ async function sb(): Promise<SupabaseClient> {
 }
 
 export class SupabaseLiteGenerationStore implements LiteGenerationStore {
-  async usage(userId: string, now: number): Promise<LiteUsageSnapshot> {
-    const { data, error } = await (await sb()).rpc('ai_lite_usage', {
-      p_user_id: userId,
-      p_now: new Date(now).toISOString(),
-    });
+  async usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot> {
+    // Lite keeps its 0010-era RPC so a deployment that has not applied migration 0015
+    // yet keeps working; non-lite profiles exist only behind flags that require 0015.
+    const { data, error } = profileId === 'lite'
+      ? await (await sb()).rpc('ai_lite_usage', {
+          p_user_id: userId,
+          p_now: new Date(now).toISOString(),
+        })
+      : await (await sb()).rpc('ai_task_usage', {
+          p_profile: profileId,
+          p_user_id: userId,
+          p_now: new Date(now).toISOString(),
+        });
     if (error) throw new Error('Lite usage lookup failed: ' + error.message);
     const row = Array.isArray(data) ? data[0] : data;
     return {
@@ -129,7 +138,7 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
   }
 
   async reserve(input: Parameters<LiteGenerationStore['reserve']>[0]): Promise<LiteReservation> {
-    const { data, error } = await (await sb()).rpc('reserve_ai_lite_generation', {
+    const args = {
       p_user_id: input.userId,
       p_ip_hash: input.ipHash,
       p_idempotency_key: input.idempotencyKey,
@@ -144,7 +153,13 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
       p_fleet_concurrency: input.profile.maxConcurrentFleet,
       p_fleet_daily_spend_usd: input.profile.dailyFleetSpendUsd,
       p_session_cost_ceiling_usd: input.profile.maxProviderCostUsd,
-    });
+    };
+    // Lite keeps its 0010-era RPC (works before AND after migration 0015); other
+    // profiles need 0015's profile-parameterized reserver and are flag-gated until
+    // the migration is applied.
+    const { data, error } = input.profile.id === 'lite'
+      ? await (await sb()).rpc('reserve_ai_lite_generation', args)
+      : await (await sb()).rpc('reserve_ai_task_generation', { p_profile: input.profile.id, ...args });
     if (error) throw new Error('Lite reservation failed: ' + error.message);
     const result = Array.isArray(data) ? data[0] : data;
     const status = result?.reservation_status as LiteReservation['status'];

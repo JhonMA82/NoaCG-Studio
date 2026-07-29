@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+import { acceptAiNotice } from './_ai-notice';
 
 // AI mode (Create with AI): the normalized gateway endpoint is mocked at the network level, so these
 // specs verify the full app flow — settings gate, generation, the harness's validation +
@@ -182,6 +183,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
+  await acceptAiNotice(page);
 });
 
 test('harness off (the toggle): one raw model call, no design stage', async ({ page }) => {

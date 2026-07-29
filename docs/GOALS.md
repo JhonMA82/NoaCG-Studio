@@ -732,13 +732,29 @@ The stages, in order (details in the plan):
       re-expressed as task `lite-design-spec` with `/api/ai/lite/*` URLs and behavior
       unchanged (proven by `bench:regress` + the gateway test suite); free-tier routes now
       fail closed outside the catalog (`docs/AI_TASK_REGISTRY.md`)
-- [ ] Stage 2 - external-provider disclosure/consent notice (per the ratified decision);
-      ZDR-by-default on free routes; run the Lite model benchmark and settle the primary
-      per the benchmark-first policy
-- [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
-      a server flag; vision benchmark (>=3 open-weight candidates plus proprietary
-      baselines) picks the launch route per the benchmark-first policy
-- [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
+- [x] **Stage 2 build (2026-07-29)** - first-use disclosure notice on every external-provider
+      AI action (wording/version in `src/ai/consentNotice.ts`; acceptance client-side for
+      anonymous + server-side for signed-in via `ai_consents`, migration 0014; the offline
+      stub never shows it - pinned by `e2e/ai-consent.spec.ts`); ZDR-by-default pinned for
+      free task routes. STILL OPEN from Stage 2: run the Lite model benchmark (spends real
+      tokens) and settle the primary per the benchmark-first policy
+- [x] **Stage 3 build (2026-07-29)** - `imported-graphic-analysis` task behind
+      `AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off): endpoints + profile-scoped ledger
+      (migration 0015), `src/ai/importAnalysis/` contract/client/normalizer (font honesty,
+      client-side downscale), proposal-only panel on the Import Graphic Text step applying
+      via `DesignFieldSpec`; stub-first `e2e/import-analysis.spec.ts`. STILL OPEN from
+      Stage 3: the hand-labelled vision dataset + benchmark (>=3 open-weight candidates)
+      picks the launch route before the flag turns on
+- [x] **Stage 4 build (2026-07-29)** - the bounded errors-back repair loop extracted to
+      `src/ai/shared/repairLoop.ts` and driven by BOTH coders (blocking-findings policy stays
+      per-caller: SPX editability demotion, video soft-finding demotion); the video harness
+      now records through the shared telemetry ring (`video-generate`/`video-refine` kinds -
+      it recorded nothing before). The audit's video-internal dedup items were found already
+      resolved on main (dead-input checks exist on both engines; the per-engine canonical
+      examples are deliberate). STILL OPEN from Stage 4: the paid `ai-compare.mjs` regression
+      run the plan names as the refactor's token-spending proof (the free proofs - build,
+      `bench:regress`, the mocked repair-round e2e specs - are green); open-model candidates
+      in the code benches ride the Stage 2 bench decision
 
 ### Export & platform
 - [x] SPX Starter + Advanced/Pack export with validation gate
