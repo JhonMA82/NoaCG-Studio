@@ -84,6 +84,46 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules(errs)).not.toContain('bench-binding');
   });
 
+  // A clip-path cuts painted output with NO overflow property anywhere, so the
+  // overflow-ancestor walk never saw it - text could lose most of its glyphs and every
+  // geometry check still passed.
+  const clipFixture = (clipPath: string, value: string) => `(async () => { ${HELPERS}
+      const tpl = fixture({
+        html: doc('<div class="fx">' +
+          '<div style="position:absolute;left:200px;top:800px;width:600px;height:80px;' +
+          'clip-path:${clipPath};background:#123;">' +
+          '<span id="f0" style="font-size:40px;color:#fff;white-space:nowrap;">${value}</span>' +
+          '</div></div>'),
+        js: FIXTURE_JS,
+        fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: '${value}' }],
+      });
+      return bench(tpl, { houseContract: false });
+    })()`;
+
+  test('a clip-path that cuts text mid-line trips bench-overflow', async ({ page }) => {
+    await toApp(page);
+    // The panel paints only its left 40% (240px); the name needs far more.
+    const res = await page.evaluate(clipFixture('inset(0 60% 0 0)', 'Amina Okafor, East Africa Correspondent'));
+    expect(rules((res as { errors: { rule: string }[] }).errors)).toContain('bench-overflow');
+  });
+
+  test('a clip-path the text fits inside does not trip bench-overflow', async ({ page }) => {
+    await toApp(page);
+    // Same 240px clip, a 232px name - a near miss, so the detector must not fire.
+    const res = await page.evaluate(clipFixture('inset(0 60% 0 0)', 'Amina Okafor'));
+    expect(rules((res as { errors: { rule: string }[] }).errors)).not.toContain('bench-overflow');
+  });
+
+  test('an angled polygon clip that cuts text trips bench-overflow', async ({ page }) => {
+    await toApp(page);
+    // The chevron idiom - a polygon bbox is an over-approximation, so firing here means
+    // the text escaped even the most generous reading of the shape.
+    const res = await page.evaluate(
+      clipFixture('polygon(0 0, 30% 0, 30% 100%, 0 100%)', 'Amina Okafor, East Africa Correspondent'),
+    );
+    expect(rules((res as { errors: { rule: string }[] }).errors)).toContain('bench-overflow');
+  });
+
   test('a graphic that never hides on stop trips bench-hidden', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => { ${HELPERS}
