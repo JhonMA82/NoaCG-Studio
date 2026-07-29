@@ -11,14 +11,14 @@
 // areas + rule-of-thirds grid) - so a Remotion project reads as the same canvas as the rest
 // of the editor and it's obvious where the real frame begins, ends, and whether motion fills it.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { compileTsx, staticValidate, WARNING_RULES } from '../../video/compile';
 import { PlayerBridge, type LoadResult } from '../../video/playerBridge';
 import { HyperframesBridge } from '../../video/hyperframes/bridge';
 import { staticValidateHyperframes, HF_WARNING_RULES } from '../../video/hyperframes/validate';
 import { setActiveBridge, type VideoBridge } from '../../video/bridgeRegistry';
-import { describeAssets } from '../../video/types';
+import { compositionAssets, describeAssets } from '../../video/types';
 import { videoFieldValues } from '../../model/videoTypes';
 import CanvasGuides from '../CanvasGuides';
 
@@ -83,7 +83,16 @@ export default function VideoPlayerFrame() {
   //
   // HyperFrames: image-variable values substitute a src URL at compose time, so they are
   // a reload dependency (imageValuesJson); scalar values stay live via set-vars below.
-  const { tsx, html, assets, width, height, fps, durationInFrames, transparent } = project;
+  const { tsx, html, width, height, fps, durationInFrames, transparent, assetUses } = project;
+  const allAssets = project.assets;
+  // Reference material is never loaded into the player: it is not drawable, and shipping it
+  // into the sandbox as a data URL would cost memory for a picture nothing can show. Memoized
+  // so `assets` stays reference-stable — it is a dependency of the debounced reload effect
+  // below, and a fresh array every render would reload the composition continuously.
+  const assets = useMemo(
+    () => compositionAssets({ assets: allAssets, assetUses }),
+    [allAssets, assetUses],
+  );
   const source = engine === 'hyperframes' ? html : tsx;
   const imageValuesJson = JSON.stringify(
     engine === 'hyperframes'

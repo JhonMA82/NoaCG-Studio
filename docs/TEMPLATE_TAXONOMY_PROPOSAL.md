@@ -1004,7 +1004,13 @@ none needs revisiting unless that evidence changes.
 - **The pack ("kit") surface is its own Entry card, not a third Browse mode.** Browse
   produces ONE graphic; a kit produces several. A "Kits" tab inside Browse would promise a
   single pick and deliver a different outcome, so the surface follows the outcome. (Closes
-  the question `PACK_TAXONOMY.md` left open; still unbuilt, but the shape is settled.)
+  the question `PACK_TAXONOMY.md` left open.) **BUILT 2026-07-29**: the "Start from a kit"
+  Entry card → `wizard/steps/KitStep.tsx`, which creates every graphic in the pack into one
+  new package and lands there, never in the editor. Pinned by `e2e/wizard-kit.spec.ts`.
+  **Measured while building it: the (type × family) matrix is NOT full** - no pack resolves
+  in all six families, and `editorial`/`cinematic` resolve for none - so the step offers only
+  the looks a given kit can actually be built in. `src/templates/packs.ts` still describes the
+  matrix as full; that comment is now wrong and the gap is real catalog work, not a doc fix.
 - **`title` and `topic` keep separate browse tiles.** They answer different producer
   questions - what the SHOW is versus what is being discussed NOW - and the workbook demands
   both heavily (23 and 29 formats). Today's 4 + 4 designs look thin, but the pending pack

@@ -722,7 +722,6 @@ test('judge scores validate strictly and one weak axis sinks the verdict', () =>
 test('the judge prompt and schema cover exactly the scored axes', () => {
   const prompt = liteJudgeSystemPrompt('test-v1');
   for (const axis of LITE_JUDGE_AXES) assert.ok(prompt.includes(axis), `prompt names ${axis}`);
-  assert.match(prompt, /squat box/);
   // The judge's own version is in the prompt: scores from two judge versions are not
   // comparable, and calibration (docs/AI_LITE_BENCHMARK.md §6b) is a comparison.
   assert.ok(prompt.includes(LITE_JUDGE_PROMPT_VERSION), 'the judge prompt states its own version');
@@ -730,6 +729,32 @@ test('the judge prompt and schema cover exactly the scored axes', () => {
   // textIntegrity exists because reading is not looking: the v1 judge scored two skins
   // with a sliced last letter legibility 5. The axis must ask for INSPECTION.
   assert.match(prompt, /Trace the letterforms/);
+  // strapShape must name ABSENCE first. v1 listed only wrong-shaped panels, so a frame
+  // with no form at all matched nothing on the list and scored 5 (§6e). A future edit that
+  // drops back to a pure shape taxonomy reintroduces exactly that blind spot.
+  assert.match(prompt, /no panel, bar, rule, or scrim/);
+  assert.match(prompt, /stranded across a gap/);
+  assert.match(prompt, /low in the frame does not by itself make a lower third/);
+  // strapShape must also carry a SCALE anchor. The generation prompt sizes a strap by "the
+  // text plus steady padding", so a text-hugging band is CORRECT; without this clause the
+  // judge reverted two of them as "a small box" - our own two prompts contradicting.
+  assert.match(prompt, /OWN proportions, not by how much of the frame it fills/);
+  assert.match(prompt, /must NOT be marked down/);
+  // The 1-2 band must stay near SQUARE. Measured over all 59 judged frames
+  // (scripts/ai-lite-strap-geometry.mjs): median 2.9:1, only 2% below 2:1 - so an earlier
+  // "under 3:1 scores 1-2" would have condemned 54% of the generator's own output.
+  assert.match(prompt, /approaching square or taller than wide/);
+  assert.doesNotMatch(prompt, /three times wider/, 'the 3:1 floor was measured wrong; do not restore it');
+  // briefFit must score CHARACTER at strap scale, not the brief's noun list. Scored as a
+  // checklist it demanded a scene element ("eighties horizon") no strap can hold, and every
+  // one of the 12 neon rows landed at 1-3 - the model could only lose this or strapShape.
+  assert.match(prompt, /STRAP SCALE/);
+  assert.match(prompt, /never mark a graphic down for lacking a scene element/);
+  // The other half of this contract - that the fixture briefs really do name scene-scale
+  // motifs - is pinned in scripts/ai-lite-bench.test.mjs, which can read the repo tree.
+  // The generation prompt is the other half of that contract - if it ever stops sizing the
+  // strap by its text, this axis is measuring against a rule that no longer exists.
+  assert.match(liteSystemPrompt('test-v1', [], { skin: true }), /width set by the text plus steady padding/);
   const schema = LITE_JUDGE_OUTPUT.schema as {
     required?: string[];
     additionalProperties?: boolean;

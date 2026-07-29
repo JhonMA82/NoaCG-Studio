@@ -74,6 +74,15 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   can't show and would be quota-heavy to persist. `normalizeThread` is the migrate-on-read guard
   (unknown version -> "no thread", never a crash). Shown read-only in the editor's AI panel
   (components/AIPromptPanel.tsx).
+- **imagePurpose.ts** - what an uploaded picture is FOR, in ONE place so the SPX card, the video
+  card and both prompt builders cannot drift: `asset` (use it as it is - the only purpose that
+  BUNDLES, plus the fixed/swappable `AssetBinding`), `layout` (make one like this), `mood` (take
+  the look and feel), `plate` (make it work over this). Labels and hints live here too, because
+  they are the words the user reads on every surface. `guessPurpose` is the deterministic
+  preselect (probeAsset - alpha + a small footprint is a mark) and deliberately guesses ONLY
+  between `asset` and `mood`: the other two are intents no pixel reveals. Lives in the model
+  layer for the same reason generationSpec.ts does - VideoProject PERSISTS it as `assetUses`,
+  and model imports nothing above layer 0.
 - **generationSpec.ts** - the AI "More control" panel's user-authored GenerationSpec (category
   id union, SpecFieldDef on FieldKind, fonts as CustomFont choices, animation intent incl. the
   intensity->speed x easing map) + the cross-session draft ('spx-gfx-ai-spec-draft'). Lives HERE
@@ -123,7 +132,11 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   sync.
 - **videoTypes.ts** - VideoProject, the canonical unit of the AI VIDEO editor ("Video or
   animation with AI"): ONE composition source + duration/fps/size/transparency + assets (the
-  exact AssetFile shape, sync-ready) + `inputs` (editable inputs, below) + AI chat history and
+  exact AssetFile shape, sync-ready) + `assetUses` (what each upload is FOR - imagePurpose.ts;
+  ADDITIVE OPTIONAL, so no version bump and no migration, and an absent map means every asset is
+  composition material. It lives on the PROJECT rather than in the wizard because a video project
+  is created instantly and its first generation runs later, in the shell - a reference kept in
+  wizard state would never be read) + `inputs` (editable inputs, below) + AI chat history and
   motion plan. Parallel to SpxTemplate - the two worlds never mix; `kind: 'video'` is the
   serialized discriminant. **`engine: 'remotion' | 'hyperframes'`** (VIDEO_ENGINES carries the
   wizard-card metadata) picks which source field is live - `tsx` (a single-file React/Remotion

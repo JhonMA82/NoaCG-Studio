@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { fileToDataUrl } from '../../assets/assetUtils';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { describeAssets, uniqueVideoAssetPath } from '../../video/types';
+import { PURPOSE_HINT, PURPOSE_LABEL, type ReferencePurpose } from '../../model/imagePurpose';
 
 /** Hard per-asset cap (data-URL bytes) - keeps the render manifest under its 4 MB budget. */
 const MAX_ASSET_BYTES = 3_000_000;
@@ -24,10 +25,25 @@ function fmtBytes(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} MB` : `${Math.round(n / 1000)} kB`;
 }
 
+/**
+ * What an upload can be, in the words the SPX wizard uses. `undefined` is the composition
+ * asset — the only one the code can reach, and the default every upload starts as.
+ */
+const ASSET_USES: { value: ReferencePurpose | undefined; label: string; hint: string }[] = [
+  { value: undefined, label: PURPOSE_LABEL.asset, hint: PURPOSE_HINT.asset },
+  { value: 'layout', label: PURPOSE_LABEL.layout, hint: PURPOSE_HINT.layout },
+  { value: 'mood', label: PURPOSE_LABEL.mood, hint: PURPOSE_HINT.mood },
+  { value: 'plate', label: PURPOSE_LABEL.plate, hint: PURPOSE_HINT.plate },
+];
+
 export default function VideoAssetsPanel() {
+  // Every upload, including reference material: this panel is where it is re-tagged or
+  // deleted, so it is the one surface that must NOT filter (video/types.ts compositionAssets).
   const assets = useVideoProjectStore((s) => s.project.assets);
+  const assetUses = useVideoProjectStore((s) => s.project.assetUses);
   const addAsset = useVideoProjectStore((s) => s.addAsset);
   const removeAsset = useVideoProjectStore((s) => s.removeAsset);
+  const setAssetUse = useVideoProjectStore((s) => s.setAssetUse);
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +75,8 @@ export default function VideoAssetsPanel() {
         <p className="hint">
           Logos, images, SVGs, or a short video clip. The AI uses them by name - e.g. "use my
           logo in the corner" - and your code reads them from the <code>assets</code> prop.
+          Mark one as reference material instead and it is only ever looked at: it informs the
+          design, but nothing can draw it and it never ships with the render.
         </p>
         <input
           ref={fileInput}
@@ -83,19 +101,39 @@ export default function VideoAssetsPanel() {
             {assets.map((a) => {
               const info = infos.find((i) => i.path === a.path);
               const size = dataSize(a.data);
+              const use = assetUses?.[a.path];
               return (
-                <li key={a.path} className="row" style={{ gap: 8, alignItems: 'center' }}>
-                  {typeof a.data === 'string' && info?.mime.startsWith('image/') && (
-                    <img src={a.data} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-                  )}
-                  <span className="grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <code>{info?.name ?? a.path}</code>
-                    <span className="hint" style={{ marginLeft: 8, color: size > WARN_ASSET_BYTES ? 'var(--warn)' : undefined }}>
-                      {fmtBytes(size)}
-                      {size > WARN_ASSET_BYTES ? ' - large; watch the render budget' : ''}
+                <li key={a.path} className="video-asset-row">
+                  <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                    {typeof a.data === 'string' && info?.mime.startsWith('image/') && (
+                      <img src={a.data} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                    )}
+                    <span className="grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {/* A reference has no logical name to show — nothing can address it. */}
+                      <code>{use ? a.path.replace(/^(images|assets)\//, '') : info?.name ?? a.path}</code>
+                      <span className="hint" style={{ marginLeft: 8, color: size > WARN_ASSET_BYTES ? 'var(--warn)' : undefined }}>
+                        {fmtBytes(size)}
+                        {size > WARN_ASSET_BYTES && !use ? ' - large; watch the render budget' : ''}
+                      </span>
                     </span>
-                  </span>
-                  <button onClick={() => removeAsset(a.path)} title="Remove">✕</button>
+                    <button onClick={() => removeAsset(a.path)} title="Remove">✕</button>
+                  </div>
+                  {info?.mime.startsWith('image/') && (
+                    <div className="wz-purpose" role="group" aria-label={`What ${info.name} is for`}>
+                      {ASSET_USES.map(({ value, label, hint }) => (
+                        <button
+                          key={label}
+                          data-testid={`video-use-${value ?? 'asset'}`}
+                          className={value === use ? 'active' : ''}
+                          aria-pressed={value === use}
+                          title={hint}
+                          onClick={() => setAssetUse(a.path, value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </li>
               );
             })}

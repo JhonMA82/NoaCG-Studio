@@ -118,6 +118,20 @@ test('the system prompt teaches the skin only when the profile enables it', () =
   assert.match(contract.liteSystemPrompt('v', [], { skin: true }), /Skin Canvas/);
 });
 
+test('the judge tolerates the scene-scale motifs the frozen briefs actually ask for', () => {
+  // The skin briefs name things no lower third can hold. Scored as a checklist, briefFit
+  // demanded them: 7 of 12 neon rows were marked down for a missing "eighties horizon" and
+  // all 12 landed at 1-3, while the generation prompt was ordering the model to stay a
+  // strap (docs/AI_LITE_BENCHMARK.md §6e). The briefs are drift-pinned fixtures, so the
+  // JUDGE is the side that has to give - this pins both halves so neither drifts alone.
+  const briefs = read('scripts/ai-lite-lower-third-fixtures.mjs');
+  assert.match(briefs, /eighties horizon/, 'the neon brief still names a scene element');
+  assert.match(briefs, /vast negative space/, 'the luxury brief names one too');
+  const judge = contract.liteJudgeSystemPrompt('v');
+  assert.match(judge, /STRAP SCALE/);
+  assert.match(judge, /never mark a graphic down for lacking a scene element/);
+});
+
 const GOLD_SKIN = {
   summary: 'A brutalist concrete slab with stencil type.',
   css: '.lower-third-box { background: var(--panel-bg); border: calc(3px * var(--scale)) solid var(--accent); }',

@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import type { AssetFile } from '../model/types';
+import type { ReferencePurpose } from '../model/imagePurpose';
 import type { VideoChatMessage, VideoInput, VideoProject } from '../model/videoTypes';
 import { createDefaultVideoProject, withVideoSource } from '../model/videoTypes';
 import { loadCurrentVideoProject, saveCurrentVideoProject } from '../model/videoProject';
@@ -65,6 +66,8 @@ interface VideoProjectState {
   dropLastChat: () => void;
   addAsset: (asset: AssetFile) => void;
   removeAsset: (path: string) => void;
+  /** What an upload is FOR (model/imagePurpose.ts). Undefined = composition material. */
+  setAssetUse: (path: string, use: ReferencePurpose | undefined) => void;
   undo: () => void;
   redo: () => void;
   setActivePanel: (tab: VideoPanelTab) => void;
@@ -179,11 +182,38 @@ export const useVideoProjectStore = create<VideoProjectState>((set) => ({
 
   removeAsset: (path) => {
     resetCoalesce();
-    set((s) => ({
-      project: { ...s.project, assets: s.project.assets.filter((a) => a.path !== path) },
-      history: [...s.history, s.project].slice(-30),
-      future: [],
-    }));
+    set((s) => {
+      // The tag goes with the file. A stale entry would re-tag the next upload that happened
+      // to reuse the path, turning someone's logo into a mood board.
+      const { [path]: _dropped, ...assetUses } = s.project.assetUses ?? {};
+      return {
+        project: {
+          ...s.project,
+          assets: s.project.assets.filter((a) => a.path !== path),
+          ...(Object.keys(assetUses).length ? { assetUses } : { assetUses: undefined }),
+        },
+        history: [...s.history, s.project].slice(-30),
+        future: [],
+      };
+    });
+  },
+
+  setAssetUse: (path, use) => {
+    resetCoalesce();
+    set((s) => {
+      const { [path]: _previous, ...rest } = s.project.assetUses ?? {};
+      const assetUses = use ? { ...rest, [path]: use } : rest;
+      return {
+        project: {
+          ...s.project,
+          // Absent rather than empty: an absent map IS "every asset is composition material",
+          // and writing `{}` would persist a difference that means nothing.
+          assetUses: Object.keys(assetUses).length ? assetUses : undefined,
+        },
+        history: [...s.history, s.project].slice(-30),
+        future: [],
+      };
+    });
   },
 
   undo: () => {

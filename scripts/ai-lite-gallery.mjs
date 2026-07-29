@@ -12,6 +12,7 @@
 // stays in blind-key.json beside the gallery (gitignored with the rest of the out dir);
 // do not open it before reviewing.
 
+import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { seededRandom } from './ai-lite-bench/suites.mjs';
@@ -106,6 +107,17 @@ await writeFile(path.join(OUT, 'blind-key.json'), JSON.stringify(
   null, 2,
 ), 'utf8');
 
+// Every gallery numbers its items item-001 upward, so two DIFFERENT rounds reuse the same
+// codes. With one localStorage bucket per origin that silently pre-fills a new round with
+// the previous round's answers - verified: a 3-item test gallery's verdicts turned up in
+// the 102-item spike gallery, attached to graphics the reviewer had never seen. The bucket
+// is therefore keyed by WHAT IS IN the gallery: same items -> same key (a rebuild still
+// resumes), different items -> a clean bucket, with no reliance on anyone pressing
+// "Start new pass".
+const galleryId = createHash('sha256')
+  .update(withRepeats.map(({ code, key }) => `${code}:${key}`).join('\n'))
+  .digest('hex').slice(0, 12);
+
 // Opening a still at native resolution must not reveal its arm or candidate in the URL.
 // Give every displayed asset a neutral filename, including planted repeats, and keep the
 // identity mapping exclusively in blind-key.json.
@@ -163,7 +175,7 @@ const html = `<!doctype html>
 <div id="items"></div>
 <script>
 const ITEMS = ${JSON.stringify(gallery)};
-const KEY = 'noacg-lite-review-v1';
+const KEY = 'noacg-lite-review-v1-${galleryId}';
 const state = JSON.parse(localStorage.getItem(KEY) || '{}');
 const save = () => { localStorage.setItem(KEY, JSON.stringify(state)); paint(); };
 const container = document.getElementById('items');
@@ -178,7 +190,14 @@ function paint() {
   document.getElementById('progress').textContent =
     judged + ' / ' + ITEMS.length + ' judged' + (judged && judged % SESSION === 0 && judged < ITEMS.length ? ' - session done, take a break' : '');
   for (const item of ITEMS) {
+    // Only the current session's items are rendered (see the resume cap below), so most of
+    // ITEMS has no card. Without this guard paint() threw a TypeError on the first
+    // unrendered item - silently, because it runs from an event listener - on EVERY click.
+    // It looked harmless only because the missing items happen to sort after the rendered
+    // ones, so the visible cards were painted before the throw; anything added after this
+    // loop would simply never have run.
     const el = document.getElementById(item.code);
+    if (!el) continue;
     el.classList.toggle('done', complete(item.code));
     el.classList.toggle('needs-score', Boolean(state[item.code]?.decision) && !complete(item.code));
     for (const b of el.querySelectorAll('[data-dec]')) b.classList.toggle('sel', state[item.code]?.decision === b.dataset.dec);

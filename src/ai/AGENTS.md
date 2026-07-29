@@ -106,6 +106,15 @@ eval rig calls it (Playwright captures the hold frame); production wiring waits 
 judge-vs-blind-review calibration AND an in-app capture path - see
 docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
 
+**Write every judge axis as INSPECTION, and let ABSENCE be its first failure.** Both blind
+spots the human review found were the same mistake in different clothes. `legibility` asked
+the model to read, and reading completes a word whose last letter is sliced off.
+`strapShape` listed the wrong shapes a panel can take - squat box, badge, tall stack - so a
+frame with no panel at all matched nothing on the list and scored 5. An axis phrased as a
+taxonomy of variants can only find the variants; an axis phrased as "locate the elements,
+then ask what binds them" can find nothing-is-there. A new axis states what to look at,
+what counts as absent, and what earns a 5 - never a list of named failures.
+
 **The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a
 generation is admitted once, for one generation, so a second paid call cannot ride that
 admission indefinitely. Ownership, liveness (`expiresAt`), the per-generation cap
@@ -291,9 +300,39 @@ An empty spec injects nothing - the prompt-only flow is byte-identical to before
   (warning = the honest fallback report), and `ensureSpecFonts` (uploaded fonts ALWAYS land
   as embedded assets + a visible @font-face, model or no model).
 
-References-vs-assets: `GenerateContext.references` are vision-only style guidance (never
-bundled, never placed); `images` appear in the graphic. Both ride `imageBlocks` in that
-order and `contextText` labels them.
+## What an uploaded picture is FOR (model/imagePurpose.ts)
+
+A dropped image used to mean one thing: bundle it and place it. It carries FOUR unrelated
+intents, and they want opposite treatment - so the user says which, and the vocabulary lives
+in the MODEL layer (like GenerationSpec, because VideoProject persists it):
+
+- **`asset`** - "use it as it is". The ONLY purpose that bundles: it becomes a real file,
+  referenced by path, exported. Rides `GenerateContext.images`. Its sub-choice
+  `fixedAssetPaths` says the operator gets NO field for it - permanent brand furniture rather
+  than content, which was impossible to say before (a logo slot always emitted its `filelist`).
+- **`layout`** - "make one like this". Follow the composition, hierarchy, density, shape
+  language; never reproduce the artwork. A SKETCH is read as a diagram of what to build, not a
+  look to imitate.
+- **`mood`** - "take the look and feel". Colour, texture, weight, motion energy; layout
+  explicitly ignored.
+- **`plate`** - "make it work over this". The REAL background the graphic will sit on: never
+  placed, never imitated, read for legibility and safe placement.
+
+The last three ride `GenerateContext.references` as `{asset, use}` and are vision-only - never
+bundled, never placed. `attachmentSections` builds ONE numbered manifest plus a block per
+purpose present, and `imageBlocks` sends the pictures in exactly that order, so "attachment 3"
+means the same picture in the text and in the vision blocks. `modifyContent` reuses the same
+function, so a picture attached mid-conversation means what it would have meant at the start.
+
+**The as-is screen (`assetIntegrity.ts`)** is the protection "use it as it is" promises: a
+design that puts a filter, crop, mask, `object-fit: cover`, rounded corners or an uneven scale
+on a protected picture is REJECTED. It reports through the injected validator (composed in
+`productionSpxValidator`, beside the safety screen), so a violation reaches the repair loop
+rather than only the result card. Same honest limit as safety.ts: it reads CSS text, not the
+resolved cascade - the obvious case, not the determined one.
+
+The preselect only ever guesses `asset` vs `mood`; `layout` and `plate` are intents no pixel
+reveals, and guessing them would present a coin flip as a decision.
 
 ## The conversation is part of the brief
 

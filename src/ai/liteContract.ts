@@ -361,9 +361,19 @@ export const LITE_JUDGE_AXES = ['legibility', 'textIntegrity', 'hierarchy', 'bri
  * docs/AI_LITE_BENCHMARK.md §6b is a comparison - so the version rides in the prompt (and
  * therefore into any record of what was asked) rather than being inferred from the round.
  * v2 added `textIntegrity` after the v1 judge passed two skins whose secondary line was
- * sliced mid-letter by a clipped edge.
+ * sliced mid-letter by a clipped edge. v3 rewrote `strapShape` as inspection after the
+ * first judge-vs-reviewer join caught it scoring a strapless frame 5. v4 gave that same
+ * axis a scale anchor, after the join's two false reverts turned out to be text-hugging
+ * straps marked down as "a small box". v5 CORRECTED that anchor: v4 guessed "at least 3:1"
+ * from a single 4.5:1 example, and measuring all 59 judged frames
+ * (`scripts/ai-lite-strap-geometry.mjs`) put the median at 2.9:1 - so the guess would have
+ * marked down 54% of everything the generator produces. Only 2% fall below 2:1.
+ * v6 stopped `briefFit` scoring the brief's noun list: it was demanding scene elements a
+ * strap cannot hold, which is why every neon-synthwave row landed at 1-3.
+ * **None of v2-v6 has been run** - every one of these changes is unmeasured, and the first
+ * paid round measures them together as v6.
  */
-export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v2';
+export const LITE_JUDGE_PROMPT_VERSION = 'lite-skin-judge-v6';
 
 export const LITE_JUDGE_LIMITS = {
   briefChars: 2000,
@@ -412,8 +422,25 @@ export function liteJudgeSystemPrompt(promptVersion: string): string {
     // instead - a separate question, phrased as inspection rather than reading.
     '- textIntegrity: every rendered word is whole. Inspect the last letter of each line and every point where text meets a panel edge, an angled or rounded cut, a bar, or a decorative shape: a letter sliced part-way through, a word continuing past the panel it sits on, an ellipsis, or a line hidden behind decoration scores 1. Trace the letterforms you can actually see rather than reading the word you expect - a half-cut letter still reads as the whole word. Score 5 only when no glyph is touched.',
     '- hierarchy: one clear primary element, intentional secondary weight, decoration never competing with the text.',
-    '- briefFit: the visual treatment actually delivers the requested style, committed rather than generic.',
-    '- strapShape: the graphic remains a wide horizontal lower-third strap in the lower frame. A squat box, card, badge, tall stack, centered plate, or full-frame takeover scores 1-2.',
+    // Scored as a literal checklist over the brief's nouns, this axis demanded things no
+    // strap can hold: 7 of 12 neon rows were marked down for a missing "eighties horizon",
+    // and ALL 12 landed at briefFit 1-3 (§6e). A horizon is a scene element, and the
+    // generation prompt orders the model to stay a strap - so the model could only lose
+    // this axis or strapShape. Score the CHARACTER at strap scale, never the noun list.
+    '- briefFit: does the treatment deliver the requested style at STRAP SCALE? A brief describes a mood in whatever words suit it, and some of those name things a lower third cannot hold - a horizon, a landscape, a poster, a full scene, vast negative space. Read those as direction for colour, type, texture, and edge, and score whether the strap carries that character; never mark a graphic down for lacking a scene element that could not fit on a strap in the first place. A committed treatment shows a palette and typeface chosen for the style rather than defaults, shape and edge treatment belonging to it, and decoration that reads as intentional. Score 1-2 for a plain default panel that could have served any brief. Score 5 when the strap would still be recognisable as that style with its text removed.',
+    // v1 enumerated WRONG SHAPES - squat box, card, badge, tall stack, centered plate,
+    // full-frame - and a graphic with no form at all matches none of them, so the checklist
+    // returned "no failure found" and scored a strapless frame 5 (§6e, round j run2). The
+    // rewrite asks for the same inspection textIntegrity does: find the elements first, ask
+    // what binds them, and let absence be the FIRST failure rather than an unlisted one.
+    //
+    // The SCALE clause is the second correction, and it settles a contradiction between two
+    // of our own prompts: the generation prompt tells the model a strap's "width [is] set by
+    // the text plus steady padding" (and the catalog sizes with fit-content), then this axis
+    // scored two text-hugging straps 2 for being "a small box rather than a lower-third
+    // strap" - punishing exactly the rule the generator was given. Judge the band's OWN
+    // proportions, never its share of the frame.
+    '- strapShape: judge the graphic as SHAPE before you read it. Locate every painted element - panel, bar, rule, scrim, text block, mark - and ask what holds them together. Score 1 when nothing does: text sitting on bare video with no panel, bar, rule, or scrim behind or beneath it, or any element stranded across a gap of empty video from the rest of the composition. Sitting low in the frame does not by itself make a lower third. Judge the band by its OWN proportions, not by how much of the frame it fills: a lower third is sized by its text plus padding, so one spanning only a quarter or a third of the frame width is normal broadcast practice and must NOT be marked down for it. A two-line strap over short text is naturally only about two and a half times wider than tall - that is a strap, not a box. Score 1-2 only for a form approaching square or taller than wide, a tall stack, a centered plate, or one covering most of the frame. Score 5 for a single low, horizontal band, clearly wider than tall, whose parts visibly belong together - whatever its width on screen.',
     'Be strict: these graphics go on air. Reason is ONE short sentence naming the decisive observation.',
   ].join('\n');
 }
