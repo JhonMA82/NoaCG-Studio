@@ -24,6 +24,17 @@ supabase link --project-ref <your-ref>
 supabase db push        # applies migrations/ (schema + RLS + auth hook)
 ```
 
+**`supabase db push` is the only supported way to apply these.** The remote ledger
+(`supabase_migrations.schema_migrations`) keys every applied migration by the four-digit `version`
+taken from the filename, and `db push` decides what is pending by comparing that column against
+`migrations/`. Applying a file by any other route — pasting it into the SQL editor, or an agent
+calling a Supabase MCP `apply_migration` tool — records it under a *generated timestamp* version
+instead. The schema change lands, but the ledger no longer matches the filenames, so the next
+`db push` treats those files as pending and re-runs them; `create policy` and `create trigger` have
+no `if not exists`, so it fails partway through against a live database. This drifted once already
+(0012–0019, repaired 2026-07-30) and the symptom is silent until someone pushes. If it happens
+again, repair the ledger's `version`/`name` columns to match the filenames — never re-run the SQL.
+
 Then point the app at it via `.env` (see `../.env.example`):
 
 ```

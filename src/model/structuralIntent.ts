@@ -95,12 +95,26 @@ export const INTENT_ZONES: Zone9[] = [
 
 const asArray = <T>(v: unknown, max: number): T[] => (Array.isArray(v) ? (v as T[]).slice(0, max) : []);
 
+const INTENT_KINDS = ['type', 'family', 'hybrid', 'novel'];
+
+/**
+ * Did this payload actually answer the intent question? A forced-tool call can still come
+ * back carrying some other tool's output (a provider quirk, a misrouted mock), and
+ * normalizing that would launder garbage into an honest-looking low-confidence 'novel' -
+ * which auto would then route to create. `kind` is the one required field no other tool
+ * emits, so its absence means the question was never answered and the caller must treat
+ * the stage as failed (fall back to the pre-routing flow), not route on it.
+ */
+export function isIntentAnswer(raw: unknown): boolean {
+  return !!raw && typeof raw === 'object' && INTENT_KINDS.includes((raw as { kind?: unknown }).kind as string);
+}
+
 /** Clamp a raw tool emit into a well-formed intent. Unknown words survive (they route
  *  conservatively); malformed shapes clamp instead of failing - the platform owns
  *  correctness, the emit owns meaning. */
 export function normalizeIntent(raw: unknown): StructuralIntent {
   const r = (raw ?? {}) as Record<string, unknown>;
-  const kind = ['type', 'family', 'hybrid', 'novel'].includes(r.kind as string)
+  const kind = INTENT_KINDS.includes(r.kind as string)
     ? (r.kind as StructuralIntent['kind'])
     : 'novel';
   const confidence = ['high', 'medium', 'low'].includes(r.confidence as string)
