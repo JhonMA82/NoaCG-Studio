@@ -93,8 +93,16 @@ function fieldSummary(variant) {
   return parts.length ? `${parts.join(', ')}.` : 'Data-driven - no free text lines.';
 }
 
+/** The wizard deep link (docs/PRERENDER.md, src/app/router.ts): `#/new/<variantId>` opens the
+ *  creation wizard with this design preselected, dropped straight on Fields — never creating a
+ *  project until the user finishes the wizard. Encoded like every other router segment. */
+function appLink(variant) {
+  return `/app#/new/${encodeURIComponent(variant.id)}`;
+}
+
 function templatePage(entry) {
   const { variant, slug } = entry;
+  const cta = appLink(variant);
   const meta = {
     name: variant.name,
     description: variant.description,
@@ -145,7 +153,7 @@ function templatePage(entry) {
   <p class="kicker">${escape(LABEL(meta.category))}</p>
   <h1>${escape(meta.name)}</h1>
   <p class="lede">${escape(meta.description)}</p>
-  <p><a class="cta" href="/app">Open NoaCG Studio</a></p>
+  <p><a class="cta" href="${escape(cta)}">Open in NoaCG Studio</a></p>
 
   <div class="facts">
     <dl>
@@ -167,7 +175,7 @@ function templatePage(entry) {
   <footer>
     <p><strong>NoaCG Studio</strong> - premium broadcast graphics, built by choosing.
     Free, open source (AGPL-3.0), no account needed to create, preview or export.</p>
-    <p><a href="/">Home</a> &middot; <a href="/app">Open the editor</a> &middot;
+    <p><a href="/">Home</a> &middot; <a href="${escape(cta)}">Open the editor</a> &middot;
        <a href="https://github.com/miwco/NoaCG-Studio">Source</a></p>
   </footer>
 </main>
@@ -235,6 +243,6 @@ async function main() {
   }
 }
 
-export { assignSlugs, pageSlug, sitemap, templatePage };
+export { appLink, assignSlugs, pageSlug, sitemap, templatePage };
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();

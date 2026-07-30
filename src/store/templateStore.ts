@@ -97,6 +97,10 @@ interface TemplateState {
   guides: { safeAreas: boolean; grid: boolean };
   /** Whether the template gallery / new-project screen is open. */
   galleryOpen: boolean;
+  /** A catalog variant id the wizard should preselect on this open (a `#/new/<id>` deep
+   *  link, docs/PRERENDER.md) — consumed by CreationWizard's open effect, then cleared by
+   *  the next openGallery() call (every other call site passes none). */
+  pendingDesignId: string | null;
   /** Snapshots taken before each panel / AI / gallery apply, for one-click undo. */
   history: SpxTemplate[];
   /** Undone snapshots, for redo. Any NEW edit clears it (the classic undo-tree cut). */
@@ -266,7 +270,10 @@ interface TemplateState {
   setEditorContext: (ctx: EditorContext | null) => void;
   setGuide: (key: 'safeAreas' | 'grid', value: boolean) => void;
 
-  openGallery: () => void;
+  /** Open the wizard. `designId` (a `#/new/<id>` deep link) is preselected by CreationWizard's
+   *  open effect if it resolves to a catalog variant; omitted (or invalid) opens at Entry as
+   *  always. */
+  openGallery: (designId?: string | null) => void;
   closeGallery: () => void;
 }
 
@@ -317,6 +324,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   // straight in the restored project - SPX or video, whichever shell owns the reload.
   // "+ New project" and the #/new route still open it on demand.
   galleryOpen: !initialProject && !hasCurrentVideoProject(),
+  pendingDesignId: null,
   history: [],
   future: [],
   lastChange: null,
@@ -539,7 +547,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   setEditorContext: (editorContext) => set({ editorContext }),
   setGuide: (key, value) => set((s) => ({ guides: { ...s.guides, [key]: value } })),
 
-  openGallery: () => set({ galleryOpen: true }),
+  openGallery: (designId) => set({ galleryOpen: true, pendingDesignId: designId ?? null }),
   closeGallery: () => set({ galleryOpen: false }),
 }));
 

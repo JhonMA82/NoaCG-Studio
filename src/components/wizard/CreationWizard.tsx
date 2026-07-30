@@ -177,6 +177,42 @@ export default function CreationWizard() {
     }
   }, [open]);
 
+  // A `#/new/<designId>` deep link (docs/PRERENDER.md's template-page CTA) preselects that
+  // catalog design and drops straight to Fields — the same patch BrowseStep's onPickVariant
+  // applies — WITHOUT creating a project; Finish is still the only door that does. A
+  // subscribed selector (not a getState() read in the effect above) because a first-ever
+  // visit already opens the wizard by default, before the router's `openGallery(designId)`
+  // call reaches the store — `open` never flips false→true in that race, so only a change in
+  // `pendingDesignId` itself can trigger this. It clears `pendingDesignId` itself the moment
+  // it runs, so it fires exactly once per deep link and never re-applies after the user has
+  // moved on.
+  const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
+  useEffect(() => {
+    if (!open || !pendingDesignId) return;
+    const pending = variantById(pendingDesignId);
+    useTemplateStore.setState({ pendingDesignId: null });
+    // Imported-design designs create BARE through a dedicated setup flow (mode 'design'),
+    // never through the Browse pick path — excluded here for the same reason Browse never
+    // lists it. An id that fails to resolve at all (missing, retired, or a manually edited
+    // URL) leaves the wizard exactly where the reset effect above put it: Entry.
+    if (!pending || pending.category === 'imported-design') return;
+    setMode('template');
+    setDraft(
+      mergeDraft(initialDraft(), {
+        category: pending.category,
+        variantId: pending.id,
+        lines: pending.suggestedLines.map((l) => ({ ...l })),
+        zone: null,
+        logoEnabled: null,
+        animation: { presetId: null, outPresetId: null },
+        paletteId: null,
+        customPalette: null,
+        fontId: null,
+      }),
+    );
+    setStep(2);
+  }, [open, pendingDesignId]);
+
   useEffect(() => {
     if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
     void recordLiteOutcome({
