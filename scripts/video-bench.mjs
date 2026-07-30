@@ -48,15 +48,18 @@ const RUNS = Math.max(1, Number(POS[2]) || 1);
 const STUB = ARGS.includes('--stub');
 const RENDER = ARGS.includes('--render');
 const ENGINE = flag('engine') ?? 'remotion';
-const PROVIDER = flag('provider') ?? 'anthropic';
-const MODEL = flag('model') ?? (PROVIDER === 'anthropic' ? 'claude-sonnet-5' : '');
+// A paid run names its route EXPLICITLY, both halves - no silent default. Expensive
+// proprietary routes (Claude, GPT) are a deliberate choice for comparison/judge roles,
+// never what a missing flag resolves to.
+const PROVIDER = flag('provider') ?? '';
+const MODEL = flag('model') ?? '';
 const TEMPERATURE = flag('temperature') === undefined ? null : Number(flag('temperature'));
 const SEED = flag('seed') === undefined ? null : Number(flag('seed'));
 const MODEL_REVISION = flag('model-revision') ?? null;
 const BENCHMARK_VERSION = flag('benchmark-version') ?? null;
 const PROMPT_VERSION = flag('prompt-version') ?? null;
-if (!STUB && !MODEL) {
-  console.error('A real run requires --model=<provider model id>.');
+if (!STUB && (!PROVIDER || !MODEL)) {
+  console.error('A real run requires an explicit route: --provider=<provider id> --model=<model id>.');
   process.exit(1);
 }
 if (!['remotion', 'hyperframes'].includes(ENGINE)) {

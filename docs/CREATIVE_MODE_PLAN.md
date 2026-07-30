@@ -530,6 +530,76 @@ exact thresholds are owner numbers [owner]]. The go/no-go sheet must set criteri
 7. cost per accepted result and p50/p90 latency (§12's methodology) within owner budgets;
 8. critique: improves-rate exceeding damages-rate by a stated margin.
 
+### The proposed go/no-go sheet [owner - PROPOSED values, awaiting ratification]
+
+Drafted against the v1 bank (`benchmarks/creative/v1/briefs.json`: 29 briefs - 8 lower
+third / 13 versus / 8 bracket; 5 'either' cases are never scored, leaving 24 scored: 6/11/7
+per category). Small-n honesty: per-category thresholds are stated as "at most one miss",
+not percentages pretending precision the sample cannot carry. Scoring is valid only after
+the free anchor re-verification (`e2e/creative-routing.spec.ts`) is green against the
+catalog the run used - the §1.3 decay rule.
+
+1. **Routing** - four tiers, all required:
+   - the 5 explicit-mode briefs (lt-plain-create, lt-explicit-adapt, vs-editorial-create,
+     vs-transform-ref, br-8team-create): **5/5**. An explicit mode is honoured
+     deterministically, so any miss is a code defect - automatic no-go, not a model score.
+   - the three MUST-route-ADAPT guards (lt-plain, vs-sports-classic, br-4team-plain):
+     **each correct**. A catalog-fit brief leaking to CREATE is the §15 routing regression.
+   - the OUT-OF-SCOPE guards: a brief whose graphic type is recognized but whose required
+     structure or variant lies outside the matched structure's declared scope
+     (`GraphicType.structuralScope`) must **never route ADAPT** - that is the
+     silently-wrong-tree failure §10.3 names, and it is a defect, not an acceptable miss.
+     br-double-elim is the first named guard; each such brief is individually required,
+     like the MUST-route-ADAPT tier. (Mechanism: the registry declares the scope, the
+     intent stage judges the brief against it with evidence, `routeIntent` decides
+     deterministically - the 2026-07-30 first paid run measured exactly this hole.)
+   - overall scored routing **>= 22/24 (92%)**, per category at most one miss (lower third
+     >= 5/6, versus >= 10/11, bracket >= 6/7). 'either' decisions are reported with
+     reasons, never scored; an 'either' brief resolving the same way across at least two
+     suitable open models (plus any reference model) is a candidate for tightening into a
+     real expectation at the next bank revision.
+2. **Structural satisfaction** - arms C/D: **>= 90%** of CREATE results carry every
+   required intent part in the rendered DOM after repair; arm B reported (it measures the
+   coder, not the scaffold). Additionally no single part kind (repeating groups, states,
+   placement) below **80%** across categories - a systematic hole in one requirement class
+   blocks GO even when the average clears.
+3. **Engineering validity** - reported per arm, never ranked (the two-scorecard rule).
+   Regression alarms only: an arm more than 10 points below control arm A, or ADAPT-path
+   validity below 100%, is investigated before the pairwise review is trusted.
+4. **Human preference** - pairwise, ties excluded, >= 20 joined items per comparison
+   (§6e): arm C over arm A **>= 60% per category**. For lower thirds, C vs the ADAPT
+   result is additionally reported as product-value context (the §10.1 question), no
+   threshold. Arm D's future is criterion 8's alone.
+5. **Concept diversity** - **>= 90%** of CREATE briefs yield at least 2 of 3 concept
+   directions differing in BOTH composition family and hierarchy order (palette or motion
+   variation alone does not count). Cross-brief sameness tripwire: no single composition
+   family in more than **50%** of picked concepts within a category.
+6. **Nearest-catalog similarity** - calibrated, not absolute: measure every catalog
+   design's hold-frame RGB distance to its own nearest catalog neighbour (the
+   bench:sameness machinery); a CREATE result closer to any catalog design than the
+   catalog's median nearest-neighbour distance counts as a **copy**. Copy rate **<= 10%**
+   of CREATE results per category; brackets additionally report distance to br01/br02
+   individually.
+7. **Cost and latency** - measured per §12; cheap-route (qwen3-30b-class) budgets: cost
+   per human-ACCEPTED result **<= $0.02 p50**, at the funded-route ceiling <= $0.10;
+   wall-clock **p50 <= 30 s / p90 <= 90 s** per CREATE attempt (ADAPT stays seconds).
+   Blowing a budget on a winning arm is a discussion, not an automatic no-go - these are
+   the numbers the free-tier decision (§15.3) is made on.
+8. **Critique (arm D)** - improves-rate **>= 2x** damages-rate AND damages-rate **<= 10%**
+   absolute, per category, on the §9 three-rate report. Passing graduates critique toward
+   production consideration only, still gated on the in-app capture decision (§15.7).
+
+**Arm budget (§8) [owner - PROPOSED]: keep all four arms.** Arm B is the only direct
+measurement of the de-anchoring claim (F3) - the plan's central diagnosis - and its
+marginal cost is one arm x ~28 briefs at cheap-route prices (cents to low dollars). If the
+spend cap forces the cut anyway: A/C/D per §8, with the attribution caveat stated in the
+report rather than implied away.
+
+**GO** = criteria 1, 2, 4, 5, 6 pass, 7 within budget or explicitly excepted, 3 clean.
+**NO-GO** = criterion 1 or 4 fails - a router that misroutes, or a CREATE that loses the
+pairwise review, has no production story regardless of the rest. Partial outcomes (versus
+passes, brackets fail) promote per category, per the reporting rule below.
+
 Results are reported separately for lower thirds, versus cards, and brackets - each
 category answers its own §10 question, and a promotion argument must say which categories
 carried it. A model or architecture that passes every technical gate while losing the
@@ -626,7 +696,8 @@ cases); brief-bank decay against the growing catalog (§1.3 - re-verify expected
 before every run).
 
 Owner decisions for Mirko [owner]:
-1. §11 thresholds and the go/no-go sheet, before the paid run.
+1. §11 thresholds and the go/no-go sheet, before the paid run (PROPOSED values now in
+   §11, awaiting ratification).
 2. Pilot spend approval - order of magnitude at real candidate prices: ~28 briefs x 4
    models x 3-4 arms ≈ $1-4 generation + $1-3 critique/vision; a firmed estimate from
    measured stage sizes is presented before any spend, per the standing rule.

@@ -25,6 +25,7 @@ bench-*/
 video-bench-out*/
 video-benchmark-out/
 compare-out*/
+creative-route-out*/
 # NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
 # blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)
 lite-bench-out*/
