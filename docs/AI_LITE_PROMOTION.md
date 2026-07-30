@@ -8,6 +8,29 @@ is ever applied automatically.
 Threshold values marked TODO are the owner's to set; until they are set, no promotion
 recommendation may be issued (a gate with an unset threshold counts as NOT met).
 
+## Before spending: the free preflight (required)
+
+```bash
+npm run bench:preflight -- <model,model,...>
+```
+
+A round is only worth paying for if each arm serves the model it is reported as. Run this
+first, every time. It is free, reaches no network, and refuses a plan whose arms are
+overridden by a saved route, missing from the approved-route catalog, unconfigured
+(no provider allowlist, no price, not funded-eligible), or **not pairwise distinct**.
+
+That last one is why this exists rather than being left to care at run time. `/api/ai/lite/
+status` does not expose the model id - deliberately - so the paid runner cannot ask the
+server which candidate it is serving; the injected env IS the evidence. A failed injection
+therefore looks exactly like a real run, and a comparison whose arms all resolve to one
+model still produces DIFFERENT numbers, because sampling noise between identical models
+reads as model character. The result set looks like findings and means nothing. Every
+failure the preflight checks for consumed a real round at least once
+(`api/_lib/aiBenchPreflight.ts` carries the catalogue).
+
+A green preflight says the comparison is well-formed and attributable. It says nothing about
+model QUALITY - that is what the paid round measures, and what the gates below judge.
+
 ## Eligibility gates (all must hold, measured on core + hidden holdout)
 
 | Gate | Threshold |
