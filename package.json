@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "dev:bench": "node scripts/dev-bench.mjs",
-    "build": "node scripts/check-shared-instructions.mjs && node --test scripts/worktree-safety.test.mjs scripts/hooks/stop-next.test.mjs && node scripts/run-ai-gateway-tests.mjs && node --test scripts/ai-serverless-runtime.test.mjs scripts/ai-lite-migration.test.mjs scripts/ai-lite-bench.test.mjs scripts/video-benchmark-scoring.test.mjs scripts/ai-vision-scoring.test.mjs scripts/prerender.test.mjs && node scripts/check-client-secrets.mjs && node scripts/build-player-host.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/check-client-secrets.mjs dist",
+    "build": "node scripts/check-shared-instructions.mjs && node --test scripts/worktree-safety.test.mjs scripts/hooks/stop-next.test.mjs && node scripts/run-ai-gateway-tests.mjs && node --test scripts/ai-serverless-runtime.test.mjs scripts/ai-lite-migration.test.mjs scripts/admin-security-migration.test.mjs scripts/ai-lite-bench.test.mjs scripts/video-benchmark-scoring.test.mjs scripts/ai-vision-scoring.test.mjs scripts/prerender.test.mjs && node scripts/check-client-secrets.mjs && node scripts/build-player-host.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/check-client-secrets.mjs dist",
     "build:player-host": "node scripts/build-player-host.mjs --force",
     "check:shared-instructions": "node scripts/check-shared-instructions.mjs",
     "lint": "eslint . --max-warnings 0",
@@ -22,6 +22,7 @@
     "test:worktree-safety": "node --test scripts/worktree-safety.test.mjs",
     "test:stop-next-hook": "node --test scripts/hooks/stop-next.test.mjs",
     "test:prerender": "node --test scripts/prerender.test.mjs",
+    "test:admin-security": "node --test scripts/admin-security-migration.test.mjs",
     "test:ai-gateway": "node scripts/run-ai-gateway-tests.mjs",
     "test:ai-serverless-runtime": "node --test scripts/ai-serverless-runtime.test.mjs",
     "eval:ai-lite": "node scripts/ai-lite-eval.mjs",
