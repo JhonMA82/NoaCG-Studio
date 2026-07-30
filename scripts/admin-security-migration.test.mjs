@@ -109,5 +109,23 @@ test('0020 refuses to apply unless the lockdown demonstrably holds', () => {
       `0020 lost its self-check ${check}`,
     );
   }
-  assert.match(selfScoped, /set local role authenticated/i, 'the self-check must impersonate a caller');
+  // It must read the real ACL, not just re-read its own SQL.
+  assert.match(selfScoped, /has_function_privilege\('authenticated', 'public\.is_suspended\(\)'/i);
+  assert.match(selfScoped, /has_function_privilege\('authenticated', 'public\.is_admin\(text\)'/i);
+  assert.match(selfScoped, /to_regprocedure\('public\.is_suspended\(uuid\)'\)/i);
+});
+
+test('no migration changes the session role', () => {
+  // `supabase db push` connects as an unprivileged cli_login_postgres and elevates with
+  // SET SESSION ROLE postgres. A RESET ROLE (or a bare SET ROLE) inside a migration drops the
+  // session back down, and the CLI then fails to write supabase_migrations.schema_migrations -
+  // rolling the whole migration back on an error that looks unrelated. Cost one failed apply.
+  // Comments are stripped first: 0020 documents this trap at length, and the write-up naming
+  // RESET ROLE must not read as the statement itself.
+  const stripComments = (sql) => sql.replace(/--[^\n]*/g, '');
+  for (const [name, sql] of [['0018', entitlements], ['0020', selfScoped]]) {
+    const code = stripComments(sql);
+    assert.doesNotMatch(code, /\breset\s+role\b/i, `${name} resets the session role`);
+    assert.doesNotMatch(code, /\bset\s+(local\s+|session\s+)?role\b/i, `${name} sets the session role`);
+  }
 });

@@ -145,57 +145,61 @@ grant execute on function public.is_admin(text) to service_role;
 
 -- ── 5. prove it, or refuse to apply ──────────────────────────────────────────────────────────
 -- Static review cannot show that a grant actually denies anything, so the migration demonstrates
--- it against the database it is being applied to. Impersonates an ordinary authenticated caller
--- with a synthetic subject (auth.uid() reads the request claim; no such user need exist) and
--- asserts each property. Any failure raises, which rolls the whole migration back.
+-- it against the database it is being applied to. Any failure raises, which rolls the whole
+-- migration back.
+--
+-- A MIGRATION MUST NEVER CHANGE THE SESSION ROLE, and this block learned it the expensive way.
+-- The first version impersonated the caller with `set local role authenticated` and restored with
+-- `RESET ROLE`. Every assertion passed and the migration still failed to apply: `supabase db push`
+-- connects as an unprivileged `cli_login_postgres` login role and elevates with
+-- `SET SESSION ROLE postgres`, so `RESET ROLE` dropped the session back to the login role and the
+-- CLI could no longer write its own row in `supabase_migrations.schema_migrations`. The whole
+-- transaction rolled back on a permission error that had nothing to do with the change.
+--
+-- So the grants are asserted against the catalog with `has_function_privilege`, which reads the
+-- real ACL rather than the SQL text, and the one behavioural check swaps only the JWT claim -
+-- `is_admin` resolves the caller from `auth.uid()`, not from the database role, so the guard can
+-- be exercised for real without touching the role at all.
 do $$
 declare
   probe_target constant uuid := gen_random_uuid();
-  ok boolean;
+  prev_claims  constant text := current_setting('request.jwt.claims', true);
+  answer boolean;
 begin
-  set local role authenticated;
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
-
-  -- (a) The self-check the nine policies depend on must still WORK. If this regresses, every
-  --     signed-in user loses the ability to write anything.
-  begin
-    select public.is_suspended() into ok;
-  exception when others then
-    raise exception '0020 self-check (a) FAILED: authenticated cannot evaluate is_suspended() '
-      '(%: %) - the suspension policies would deny every write', SQLSTATE, SQLERRM;
-  end;
-  if ok is not false then
-    raise exception '0020 self-check (a) FAILED: is_suspended() returned % for a user with no '
-      'account row; expected false', coalesce(ok::text, 'null');
+  -- (a) The grant the nine policies depend on must SURVIVE. If this regresses, every signed-in
+  --     user loses the ability to write anything, because a policy expression is evaluated with
+  --     the querying role's privileges.
+  if not has_function_privilege('authenticated', 'public.is_suspended()', 'execute') then
+    raise exception '0020 self-check (a) FAILED: authenticated cannot execute is_suspended() - '
+      'the suspension policies would deny every write';
+  end if;
+  if has_function_privilege('anon', 'public.is_suspended()', 'execute') then
+    raise exception '0020 self-check (a) FAILED: anon can execute is_suspended()';
   end if;
 
-  -- (b) The old probe must be GONE. Dropped, so the failure is undefined_function.
-  begin
-    execute 'select public.is_suspended($1)' using probe_target;
-    raise exception '0020 self-check (b) FAILED: is_suspended(uuid) is still callable by an '
-      'ordinary authenticated user - arbitrary-user probing is still open';
-  exception
-    when undefined_function then null;   -- expected
-    when insufficient_privilege then null;
-  end;
+  -- (b) The old probe must be GONE - dropped, not merely ungranted.
+  if to_regprocedure('public.is_suspended(uuid)') is not null then
+    raise exception '0020 self-check (b) FAILED: is_suspended(uuid) still exists - '
+      'arbitrary-user probing is still open';
+  end if;
 
-  -- (c) The admin-only replacement must REFUSE a non-admin, before returning anything.
+  -- (c) The admin-only replacement must REFUSE a non-admin, before returning anything. Exercised
+  --     for real against a synthetic subject; no such user need exist, auth.uid() reads the claim.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
   begin
-    execute 'select public.admin_user_suspended($1)' using probe_target;
-    raise exception '0020 self-check (c) FAILED: admin_user_suspended answered a non-admin';
+    select public.admin_user_suspended(probe_target) into answer;
+    raise exception '0020 self-check (c) FAILED: admin_user_suspended answered a non-admin (%)',
+      coalesce(answer::text, 'null');
   exception
     when insufficient_privilege then null;   -- expected
   end;
+  perform set_config('request.jwt.claims', prev_claims, true);
 
   -- (d) is_admin must no longer be reachable over REST by an ordinary signed-in user.
-  begin
-    execute 'select public.is_admin(''support'')';
+  if has_function_privilege('authenticated', 'public.is_admin(text)', 'execute') then
     raise exception '0020 self-check (d) FAILED: is_admin is still executable by authenticated';
-  exception
-    when insufficient_privilege then null;   -- expected
-  end;
+  end if;
 
-  reset role;
   raise notice '0020 self-check passed: self-scoped predicate intact, probes closed.';
 end $$;
