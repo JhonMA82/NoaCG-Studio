@@ -13,6 +13,11 @@ export function aiApiPlugin() {
   };
 }
 
+// The allowlist is the dev server's whole route table: a handler that exists under api/
+// but is missing here is simply unreachable in development, however correct it is. The
+// imported-graphic-analysis task shipped without its entries, so it 404'd locally while
+// its e2e spec passed - that spec mocks at the network level and never touches a handler.
+// A new api/ai route adds its entry HERE in the same change.
 const ROUTES = new Set([
   'generate',
   'models',
@@ -22,6 +27,9 @@ const ROUTES = new Set([
   'lite/generations',
   'lite/outcome',
   'lite/judge',
+  'tasks/import-analysis',
+  'tasks/import-analysis/status',
+  'tasks/import-analysis/outcome',
 ]);
 
 async function handle(server, req, res) {

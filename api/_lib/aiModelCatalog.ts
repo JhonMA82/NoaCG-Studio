@@ -76,6 +76,52 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     zdrAvailable: true,
     notes: 'Open-weight text/structured candidate for the Lite discovery funnel.',
   },
+
+  // ── Benchmark candidates (bench:qualify 2026-07-29) ──────────────────────────
+  // Listed so the comparison can RUN, not because anything is promoted: a free-tier
+  // route must be catalog-approved before taskConfigured() will serve it at all, so a
+  // candidate cannot be measured from outside this list. Prices are the audited pinned-
+  // endpoint figures from that qualification pass; each cleared ZDR, structured output,
+  // the funded-route ceiling and endpoint stability. Promotion remains the owner's, via
+  // docs/AI_LITE_PROMOTION.md - drop any candidate that loses its bench round.
+  {
+    route: { provider: 'openrouter', model: 'google/gemma-3-12b-it' },
+    openWeights: true,
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.05, outputPerMillion: 0.15 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Also a vision-suite candidate.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'openai/gpt-oss-20b' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.03, outputPerMillion: 0.14 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16.',
+  },
+  {
+    route: { provider: 'openrouter', model: 'qwen/qwen3-30b-a3b-instruct-2507' },
+    openWeights: true,
+    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
+    zdrAvailable: true,
+    notes: 'Lite discovery-funnel candidate and the LEADER of the 2026-07-29 round - the only '
+      + '24/24 machine-usable result, against 22/24 for the incumbent. Pinned StreamLake, which '
+      + 'does not report quantization: that weakens how much the result PROVES, not the model, '
+      + 'so re-pin to a declared-precision endpoint before any promotion rests on it.',
+  },
+  // No vision-suite candidates are listed. `meta-llama/llama-4-scout` and `qwen/qwen3.5-9b`
+  // were approved for the 2026-07-29 import-analysis run and REMOVED again after it, because
+  // the run did not support them: it was not a valid comparison (a per-axis size cap rejected
+  // every portrait case, and two candidates failed all 35 images for reasons never isolated),
+  // no candidate came close to usable (best region precision 23% against a gold ceiling of
+  // 100% and a floor of 0%), and llama-4-scout invented regions on artwork with no editable
+  // text - the failure that puts nonsense fields in front of a user.
+  //
+  // A vision route has to be listed here before it can be benched at all, so re-add the
+  // candidates in the SAME change as the run that justifies them, rather than leaving
+  // approvals standing on a result nobody trusts.
 ];
 
 export function modelRouteKey(route: ModelRoute): string {
