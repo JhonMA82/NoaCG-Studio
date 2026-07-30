@@ -79,7 +79,14 @@ export default defineConfig({
     // stub providers deterministically. Gateway-backed specs mock /api/ai/generate.
     // NOTE: none of this applies when reuseExistingServer adopts a server someone else
     // already started - that path is guarded by globalSetup above, not by this env block.
+    // The preview's rebuild debounce is 350 ms for authoring (it stops a rebuild per keystroke
+    // in the code editor) and 50 ms here. Every spec waits on the iframe's `data-doc-rev`
+    // stamp rather than sleeping, so this shortens the WAIT without changing what any spec
+    // observes - and 300 ms per rebuild across 591 tests is minutes of wall clock. Kept above
+    // zero so a genuine burst of changes still coalesces into one rebuild the way it does in
+    // the product.
     env: {
+      VITE_PREVIEW_DEBOUNCE_MS: '50',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
       VITE_RENDER_API: '1',

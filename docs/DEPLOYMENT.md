@@ -116,8 +116,12 @@ Vercel build for every non-`main` branch unless the head commit message contains
 - Vercel deploys `main` without waiting for CI: a bad merge can be live for the minutes
   until the gate reddens. The repo-side fix would be deploy-on-workflow-success (CI-driven
   `vercel deploy --prebuilt` or Vercel's "only deploy when checks pass" project setting);
-  adopt it if a red-but-deployed `main` ever causes real damage. Today the safe-merge flow
-  runs the full gate before anything lands, so `main` is red only when a merge race slips
-  through - and both alarm classes above catch it within minutes.
+  adopt it if a red-but-deployed `main` ever causes real damage. The safe-merge flow now runs
+  `npm run build` **and** `npm run test:e2e:affected` before anything lands, so `main` should
+  be red only when a merge race slips through - and both alarm classes above catch it within
+  minutes. That second command is new for a reason: until 2026-07-30 the flow gated on `build`
+  alone, which runs no e2e spec at all, and four template packs landed in a row that each
+  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. A gate that
+  cannot fail the way production fails is not a gate.
 - The drift check trusts `version.json`; if the endpoint is unreachable the check alerts
   rather than guessing.

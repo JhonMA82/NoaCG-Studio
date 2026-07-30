@@ -11,7 +11,24 @@ interface Props {
   iframeRef: RefObject<HTMLIFrameElement | null>;
 }
 
-const RELOAD_DEBOUNCE_MS = 350;
+/**
+ * How long a code change settles before the preview rebuilds. 350 ms is the AUTHORING value and
+ * the only one a user ever sees: it is what stops a rebuild per keystroke in the code editor.
+ *
+ * The offline E2E suite overrides it (`VITE_PREVIEW_DEBOUNCE_MS` in playwright.config.ts's
+ * `webServer.env`), because 350 ms is paid on every rebuild in a 591-test suite and adds up to
+ * minutes of wall clock. That is safe to shorten precisely because no spec sleeps for it - they
+ * wait on the `data-doc-rev` stamp below, which lands when the rebuild has actually LOADED. So
+ * the override changes how long a spec waits, never what it observes.
+ *
+ * An empty value is not zero: the suite pins several env vars to '' deliberately, and
+ * `Number('')` is 0, which would mean "rebuild on every keystroke" rather than "use the default".
+ */
+const RELOAD_DEBOUNCE_MS = ((): number => {
+  const raw = import.meta.env.VITE_PREVIEW_DEBOUNCE_MS;
+  const parsed = raw ? Number(raw) : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 350;
+})();
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 8;
 
@@ -223,6 +240,12 @@ export default function PreviewFrame({ iframeRef }: Props) {
 
   // Rebuild the iframe document when code or resolution changes (debounced).
   useEffect(() => {
+    // A rebuild is OWED from this moment — set synchronously, before the debounce even starts.
+    // `data-doc-rev` alone says only that some rebuild FINISHED, which cannot tell "has not
+    // started yet" apart from "already done"; a waiter that reads it at the wrong moment either
+    // returns too early or waits for a rebuild nothing is going to schedule. This flag is the
+    // missing half, and it is what lets e2e/_preview.ts wait correctly at ANY debounce length.
+    iframeRef.current?.setAttribute('data-doc-pending', '1');
     const handle = setTimeout(() => {
       const iframe = iframeRef.current;
       if (!iframe) return;
@@ -231,8 +254,13 @@ export default function PreviewFrame({ iframeRef }: Props) {
       iframe.addEventListener(
         'load',
         () => {
-          // Only the newest commit may stamp — a slow older document must not look current.
-          if (rev === docRevRef.current) iframe.dataset.docRev = String(rev);
+          // Only the newest commit may stamp — a slow older document must not look current,
+          // and only the newest may clear the flag, or a superseded load would report the
+          // graphic settled while the current document is still on its way.
+          if (rev === docRevRef.current) {
+            iframe.dataset.docRev = String(rev);
+            iframe.removeAttribute('data-doc-pending');
+          }
         },
         { once: true },
       );
