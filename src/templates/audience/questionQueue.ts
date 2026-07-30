@@ -33,10 +33,10 @@ function queueHtml(family: StyleTag, o: ResolvedOptions): string {
            One row per line the moderator typed; the live one carries .audience-queue-live. -->
       <div id="audience-queue"></div>
       <!-- The position readout. The two numbers are written by the runtime; the word between
-           them stays here in the markup so it can be translated like any other text. -->
+           them is a FIELD (f2), so it translates like every other string in the graphic. -->
       <div class="audience-queue-count">
         <span class="audience-queue-at">1</span>
-        <span class="audience-queue-word">of</span>
+        <span id="f2" class="audience-queue-word">${o.lines[2]?.sample ?? S[2].sample}</span>
         <span class="audience-queue-of">4</span>
       </div>
     </div>`;

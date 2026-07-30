@@ -32,7 +32,7 @@
 // (model/structure.ts), each level state owns a real editable opacity track, and the timeline
 // and node editor show exactly what the machine does.
 
-import type { Resolution } from '../../model/types';
+import type { Resolution, SpxField } from '../../model/types';
 import type { AnimData, AnimLayerTracks } from '../../blocks/animData';
 import type { ResolvedOptions, TemplateVariant, WizardOptions } from '../../model/wizard';
 import { resolveTokens } from '../../model/themeTokens';
@@ -40,6 +40,7 @@ import { resolveOptions } from '../../model/wizard';
 import {
   assembleStandard,
   composeRefine,
+  designFieldId,
   lineClassFor,
   lineMasksFor,
   type CategorySpec,
@@ -110,17 +111,41 @@ export function alertLevelSelector(index: number): string {
   return `.alert-level-${index + 1}`;
 }
 
-/** The severity flag's markup: every level, stacked, with the lowest one showing. */
-export function alertLevelStackHtml(indent = '      '): string {
+/**
+ * The severity flag's markup: every level, stacked, with the lowest one showing.
+ *
+ * Each level's WORD is an operator field (`alertLevelFields` declares them, in this order).
+ * The machine owns which level is showing; the broadcaster owns what that level is called —
+ * a Norwegian service says Varsel, a met office may prefer Yellow / Amber / Red, and a
+ * hospital's ladder is not a weather service's. Baking the four English words in would make
+ * every alert design in the catalog unusable outside English, which is exactly the kind of
+ * thing a public-warning graphic must not do.
+ *
+ * The colours stay fixed: they are the severity ramp itself, contrast-checked in pairs.
+ */
+export function alertLevelStackHtml(o: ResolvedOptions, indent = '      '): string {
   const blocks = ALERT_LEVELS.map(
     (level, i) =>
-      `${indent}  <div class="alert-level-${i + 1}" data-level="${level.id}">${level.word}</div>`,
+      `${indent}  <div class="alert-level-${i + 1}" id="${designFieldId(o, i)}" data-level="${level.id}">${level.word}</div>`,
   ).join('\n');
-  return `${indent}<!-- The severity flag. Every level is a real element; the level state machine
-${indent}     cross-cuts them, so the word and the colour can never disagree. -->
+  return `${indent}<!-- The severity flag. Every level is a real element carrying its own text
+${indent}     field; the level state machine cross-cuts them, so the word and the colour can
+${indent}     never disagree. -->
 ${indent}<div class="alert-flag">
 ${blocks}
 ${indent}</div>`;
+}
+
+/** The four level words as SPX fields. A design emitting the flag declares exactly these as
+ *  its `extraFields`, so the ids agree with `alertLevelStackHtml` by construction — both read
+ *  the same `designFieldId(o, i)`. */
+export function alertLevelFields(o: ResolvedOptions): SpxField[] {
+  return ALERT_LEVELS.map((level, i) => ({
+    field: designFieldId(o, i),
+    ftype: 'textfield' as const,
+    title: `${level.word} word`,
+    value: level.word,
+  }));
 }
 
 /**

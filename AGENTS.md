@@ -294,6 +294,17 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI runs it on
   that flag, and the NIGHTLY sweep runs all three unconditionally - so an unrun catalog gate is
   now caught by morning rather than never.
+  The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
+  meaningful visible string an operator cannot reach through a data field. It does not read the
+  markup for `id="fN"` - a standings row, a ticker item and a credits line are all BUILT by a
+  runtime from ONE `lines` field, so an id check would either miss them or need a special case
+  per category. Instead it renders the graphic, drives EVERY data field to a sentinel through
+  `update()`, and re-reads the screen: anything that did not move is not operator-reachable.
+  Two kinds of thing are excused IN THE SCRIPT, each with its reason written down - an
+  empty-slot placeholder for an image (`filelist`) field, which IS a field and is replaced by
+  the picked file, and a value the runtime computes rather than anyone types (a wall clock).
+  A `filelist` cannot be driven (there is no image to point at), so the run reports those
+  variants as NOT DRIVEN rather than counting them as passes.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

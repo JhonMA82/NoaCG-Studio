@@ -141,6 +141,18 @@ export const alertLevelType: GraphicType = {
     { key: 'headline', label: 'Headline', kind: 'text', value: 'Severe weather warning for coastal districts', role: 'line' },
     { key: 'detail', label: 'Detail', kind: 'text', value: 'High winds and flooding expected from 18:00 until midnight', role: 'line' },
     { key: 'source', label: 'Source', kind: 'text', value: 'National Weather Service', role: 'line' },
+    // The four severity WORDS, in ALERT_LEVELS order. The machine owns which level is
+    // showing; the broadcaster owns what it is called (templates/alerts/shared.ts
+    // alertLevelStackHtml). Declared from the same constant the designs emit from, so the
+    // type's declaration and the emitted fields cannot drift — which is exactly what the
+    // factory's fields gate checks.
+    ...ALERT_LEVELS.map((level) => ({
+      key: `word${level.id}`,
+      label: `${level.word} word`,
+      kind: 'text' as const,
+      value: level.word,
+      role: 'data' as const,
+    })),
   ],
   machine: {
     parallel: [

@@ -61,6 +61,11 @@ export const livePollType: GraphicType = {
     // multi-line editor, so an operator retypes the running counts in one box.
     { key: 'options', label: 'Options', kind: 'lines', value: POLL_CONTENT.options, role: 'line' },
     { key: 'footnote', label: 'Vote count', kind: 'text', value: POLL_CONTENT.footnote, role: 'line' },
+    // The badge's words. The board's STATE says voting is open; what the badge prints while
+    // it is open belongs to the broadcaster — an SMS poll says "TEXT TO VOTE", a room count
+    // says "HANDS UP", and neither is English everywhere. Only the badge LEAVING is
+    // choreography (a keyframe on .poll-cue), and that is untouched by the wording.
+    { key: 'cue', label: 'Vote badge', kind: 'text', value: POLL_CONTENT.cue, role: 'line' },
   ],
   machine: {
     main: {
@@ -120,7 +125,7 @@ export const livePollType: GraphicType = {
     { event: 'call', label: 'Call the winner', section: 'Vote', order: 3 },
   ],
   capabilities: {
-    maxLines: 3,
+    maxLines: 4,
     logo: 'none',
     // Only the one preset: the board's other three moments are state timelines, and a preset
     // that re-choreographed the entrance would still leave them exactly as they are.
