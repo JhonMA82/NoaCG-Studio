@@ -4,7 +4,7 @@ import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
-import { resolveUserEntitlement } from '../_lib/entitlements.js';
+import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
 import { routeDisabled, systemSettings } from '../_lib/systemSettings.js';
 import type { AiGatewayErrorBody, AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
@@ -62,16 +62,14 @@ export default {
       return resolveUserEntitlement(auth.user?.userId ?? null);
     };
 
-    /** A VIDEO call is gated on `ai.video`: it is the one product surface on this endpoint
-     *  that has a feature key of its own, which is why the browser tags it
-     *  (src/ai/video/videoGateway.ts stamps every video call).
+    /** A tagged surface is gated on its own feature key - today only video, on `ai.video`
+     *  (src/ai/video/videoGateway.ts stamps every video call). The DECISION lives in
+     *  api/_lib/entitlements.ts as two pure functions, because reaching this branch needs a
+     *  verified Supabase token and an untestable refusal is how a gate rots.
      *
-     *  It binds callers the server RECOGNISED, never anonymous ones - the same shape as the
-     *  BYO branch below and for a stronger version of the same reason. An anonymous caller
-     *  resolves the ANONYMOUS defaults, which carry no account feature at all, so refusing on
-     *  that answer would take video away from account-free BYO and from a self-hosted instance
-     *  with no auth configured. Both work today, and entitlements are not allowed to quietly
-     *  restrict anybody. Managed video still needs an account: `keyFor` already answers 401.
+     *  Only the ordering is here: resolve nothing until a gated surface is actually named and
+     *  a token was actually presented, so an anonymous BYO caller never pays for a
+     *  verification round trip they cannot be refused by.
      *
      *  HONEST LIMIT: the tag is client-supplied, and this endpoint is a general model proxy -
      *  so the check binds the product's own traffic, not a hand-rolled request that omits the
@@ -79,9 +77,10 @@ export default {
      *  the answer is used for), and it is still what makes suspension and the instance-wide
      *  kill switch reach the video harness instead of changing a row nothing reads. */
     const guardSurface = async (): Promise<void> => {
-      if (body.surface !== 'video' || !bearerToken(req)) return;
+      const feature = gatedFeature(body.surface);
+      if (!feature || !bearerToken(req)) return;
       const entitlement = await entitlementFor(); // verifies the token on the way through
-      if (auth.user && !allows(entitlement, 'ai.video')) {
+      if (surfaceRefused(feature, Boolean(auth.user), entitlement)) {
         throw new GatewayError(
           'authentication_required',
           'AI video generation is not available for this account.',
