@@ -218,6 +218,38 @@ passes the result's `spec` back via `GenerateOptions.spec`); anything else refin
 level. `convertImport` = deterministic import first (model/importTemplate.ts), then the
 validated conversion - the AI only ever sees parsed code, never raw bytes.
 
+## Phase-A routing (docs/CREATIVE_MODE_PLAN.md §2, §8 - the mode + intent stage)
+
+`GenerateOptions.mode` (`adapt` | `create` | `auto`, default auto) plus `structuralIntent.ts`
+run BEFORE the design call in `generate` and `generateAlternatives` (never for Lite, raw, or
+modify): one small forced `emit_structural_intent` call -> `normalizeIntent` ->
+`routeIntent` (deterministic; `structuralFit` checks the type registry + catalog LIVE, so
+catalog growth updates routing by itself). The rules: an explicit mode is never overridden;
+auto routes create only on originality words in the brief, no structural fit, or a
+low-confidence/novel/hybrid classification - a catalog-fit brief under auto runs the
+pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
+adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
+catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
+mechanism). Decision + intent land on `AiTemplateChange.routing`/`.intent` and the telemetry
+record (`AiRoutingRecord`) - the routing benchmark (`scripts/creative-route-bench.mjs`,
+SPENDS TOKENS; bank + expected routes in `benchmarks/creative/v1/briefs.json`) reads them,
+never reconstructs.
+
+**THE CUSTOM CODER IS THE FROZEN BENCHMARK CONTROL (plan §8): its system prompt, catalog
+example, `designNotes`, and repair policy stay byte-identical. Routing changes WHICH briefs
+reach it, never what it is shown. Do not "improve" it before the Creative Mode comparison
+has run** - the comparison's control arm is exactly this code.
+
+The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) verifies the
+intent's required parts against the template - list data as a textarea, field capacity,
+states vs machine/steps statically, plus repeating groups and zone placement measured in a
+rendered iframe. Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep +
+AIPromptPanel pass `benchStructuralIntent`); the provider runs it AFTER the repair loop on
+CREATE-routed results and appends findings (rule `structural-intent`) as WARNINGS - it
+measures presence, not quality, and it must not change the frozen control's repair rounds.
+Free coverage: e2e/creative-routing.spec.ts (mutation-pinned, incl. the brief-bank
+catalog-anchor re-verification - the decay rule).
+
 ## The quality gate (injected, not owned)
 
 The provider is UI-free: callers inject `GenerateOptions.validate` (an `SpxValidator`) -

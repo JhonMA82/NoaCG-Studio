@@ -36,6 +36,16 @@ import { applySpecLocks, applySpecOutPreset, narrowedSpecTool } from './spec/spe
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { generateLiteDesign, LiteRequestError, recordLiteOutcome } from './liteClient';
 import { findingsList, repairLoop } from './shared/repairLoop';
+import {
+  INTENT_TOOL,
+  intentSystemPrompt,
+  narrowFitTool,
+  normalizeIntent,
+  routeIntent,
+  type GenerationMode,
+  type RouteDecision,
+  type StructuralIntent,
+} from './structuralIntent';
 
 // ── Structured output: the model must return the template via this tool ─────
 
@@ -880,6 +890,93 @@ function contextFrom(template: SpxTemplate, outer?: GenerateContext): GenerateCo
   };
 }
 
+// ── Phase-A routing (docs/CREATIVE_MODE_PLAN.md §2, §8) ──────────────────────
+//
+// The intent stage runs BEFORE the catalog-anchored design call, so an off-catalog brief
+// can route to the custom path honestly instead of being forced into the nearest chassis
+// (the F1/F2 failure). The custom CODER itself is the frozen benchmark control: its
+// prompts, its catalog example, and designNotes() below stay byte-identical - routing
+// changes WHICH briefs reach it, never what it is given.
+
+interface RoutedIntent {
+  intent: StructuralIntent | null;
+  route: RouteDecision | null;
+}
+
+/**
+ * The intent stage + deterministic route decision. Explicit adapt skips the model call
+ * entirely (a catalog customization keeps today's one-call economy); explicit create is
+ * honoured even when the intent call fails; auto falls back to today's flow (route null)
+ * on any failure - a routing stage must never kill a generation.
+ */
+async function intentAndRoute(
+  userContent: ContentBlock[],
+  mode: GenerationMode,
+  run: AiRunRecorder,
+  options?: GenerateOptions,
+): Promise<RoutedIntent> {
+  if (mode === 'adapt') {
+    return { intent: null, route: { mode, route: 'adapt', reason: 'Explicit adapt request.' } };
+  }
+  let intent: StructuralIntent;
+  try {
+    options?.onProgress?.('Reading the brief…');
+    const t0 = Date.now();
+    const result = await callModelDetailed({
+      system: intentSystemPrompt(),
+      messages: [{ role: 'user', content: userContent }],
+      tool: INTENT_TOOL,
+      maxTokens: 2000,
+    });
+    run.stage('intent', t0, result.model, result.usage);
+    intent = normalizeIntent(result.output);
+  } catch {
+    // No intent. Explicit create still routes create; auto falls through to today's flow.
+    return { intent: null, route: mode === 'create' ? { mode, route: 'create', reason: 'Explicit create request.' } : null };
+  }
+  const route = routeIntent(intent, mode);
+  run.routing({
+    mode,
+    route: route.route,
+    reason: route.reason,
+    intentKind: intent.kind + (intent.typeId ? `:${intent.typeId}` : intent.families?.length ? `:${intent.families[0]}` : ''),
+    confidence: intent.confidence,
+    originalityRequested: intent.originalityRequested,
+  });
+  return { intent, route };
+}
+
+/** The routed fit narrowing: only an explicit adapt or a CREATE decision collapses the
+ *  design tool's fit enum; an auto->adapt decision leaves the tool untouched so catalog
+ *  briefs run today's flow byte-identically. */
+function routedSpecTool(base: ModelTool, route: RouteDecision | null): ModelTool {
+  if (route?.route === 'create') return narrowFitTool(base, 'custom');
+  if (route?.route === 'adapt' && route.mode === 'adapt') return narrowFitTool(base, 'catalog');
+  return base;
+}
+
+/** Append the injected structural-satisfaction check's findings as WARNINGS on the final
+ *  validation (non-blocking - plan §8: they never enter the frozen control's repair
+ *  rounds; rigs and future arms read them). */
+async function withStructuralFindings(
+  change: AiTemplateChange,
+  intent: StructuralIntent | null,
+  options: GenerateOptions | undefined,
+  run: AiRunRecorder,
+): Promise<AiTemplateChange> {
+  if (!intent || !options?.structuralCheck) return change;
+  try {
+    const t0 = Date.now();
+    const findings = await options.structuralCheck(change.template, intent);
+    run.stage('structural-check', t0);
+    if (!findings.length) return change;
+    const validation = change.validation ?? { ok: true, errors: [], warnings: [] };
+    return { ...change, validation: { ...validation, warnings: [...validation.warnings, ...findings] } };
+  } catch {
+    return change; // the check is advisory - a check failure never costs the result
+  }
+}
+
 /** The design stage's decisions, carried into the free-form coder as plain direction. */
 function designNotes(spec: DesignSpec): string {
   return [
@@ -905,8 +1002,16 @@ export const claudeProvider: AIProvider = {
         { type: 'text', text: contextText(prompt, context) },
       ];
 
-      // Stage 1 — the design spec (also the router). A stage failure must never kill the
-      // generation: fall through to the free-form path with no spec.
+      // Stage 0 — the request mode + intent routing (plan §2). Auto with a catalog-fit
+      // brief leaves everything below byte-identical to the pre-routing flow; the stage
+      // exists so an off-catalog brief (or an explicit create) reaches the custom path
+      // without the catalog-anchored design call deciding against it.
+      const mode: GenerationMode = options?.mode ?? 'auto';
+      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+
+      // Stage 1 — the design spec (the design decision; also the router when routing
+      // above was advisory). A stage failure must never kill the generation: fall through
+      // to the free-form path with no spec.
       options?.onProgress?.('Designing…');
       let spec: DesignSpec | null = null;
       try {
@@ -915,8 +1020,8 @@ export const claudeProvider: AIProvider = {
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
           // A pinned user category narrows the tool schema itself — the model can only
-          // route within the decision.
-          tool: narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec),
+          // route within the decision. The routed fit narrows the same way (plan §2).
+          tool: routedSpecTool(narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec), route),
           maxTokens: 4000,
         });
         run.stage('design-spec', t0, result.model, result.usage);
@@ -928,19 +1033,25 @@ export const claudeProvider: AIProvider = {
         // No spec — the free-form path below still serves the brief.
       }
 
-      if (spec && spec.fit === 'catalog') {
+      const forceCustom = route?.route === 'create';
+      if (spec && spec.fit === 'catalog' && !forceCustom) {
         // Stage 2 — deterministic assembly through the real catalog assemblers: correct
         // by construction, panel- and timeline-editable like any wizard output.
-        return groundedResult(spec, context, options, run);
+        const grounded = await groundedResult(spec, context, options, run);
+        return { ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
       }
 
       // Custom route — the free-form coder, studying the NEAREST catalog design as its
-      // canonical example and carrying the design stage's direction.
+      // canonical example and carrying the design stage's direction. THE FROZEN CONTROL
+      // (plan §8): its inputs are exactly the pre-routing ones — routing decides which
+      // briefs arrive here, never what the coder is shown.
       const exampleVariant = spec ? variantsFor(spec.category)[0] : undefined;
       const content: ContentBlock[] = spec
         ? [...userContent, { type: 'text', text: designNotes(spec) }]
         : userContent;
-      return generateValidated(content, context, undefined, options, run, exampleVariant);
+      const change = await generateValidated(content, context, undefined, options, run, exampleVariant);
+      const annotated = { ...change, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+      return withStructuralFindings(annotated, intent, options, run);
     });
   },
 
@@ -976,6 +1087,11 @@ export const claudeProvider: AIProvider = {
         { type: 'text', text: contextText(prompt, context) },
       ];
 
+      // Stage 0 — the same mode + intent routing as generate() (plan §2): the alternatives
+      // call is the product's default path, so honest routing has to live here too.
+      const mode: GenerationMode = options?.mode ?? 'auto';
+      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+
       // ONE design-stage call returns three distinct directions; each assembles like a
       // single harness generation (grounded deterministically, or the validated custom path).
       options?.onProgress?.('Designing three directions…');
@@ -985,7 +1101,7 @@ export const claudeProvider: AIProvider = {
         const result = await callModelDetailed({
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
-          tool: narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec),
+          tool: routedSpecTool(narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec), route),
           maxTokens: 8000,
         });
         run.stage('design-alternatives', t0, result.model, result.usage);
@@ -998,10 +1114,12 @@ export const claudeProvider: AIProvider = {
       }
 
       const results: AiTemplateChange[] = [];
+      const forceCustom = route?.route === 'create';
       for (const [i, spec] of specs.entries()) {
         options?.onProgress?.(`Building option ${i + 1} of ${specs.length}…`);
-        if (spec.fit === 'catalog') {
-          results.push(await groundedResult(spec, context, options, run));
+        if (spec.fit === 'catalog' && !forceCustom) {
+          const grounded = await groundedResult(spec, context, options, run);
+          results.push({ ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) });
         } else {
           const change = await generateValidated(
             [...userContent, { type: 'text', text: designNotes(spec) }],
@@ -1011,7 +1129,8 @@ export const claudeProvider: AIProvider = {
             run,
             variantsFor(spec.category)[0],
           );
-          results.push({ ...change, spec });
+          const annotated = { ...change, spec, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+          results.push(await withStructuralFindings(annotated, intent, options, run));
         }
       }
       // The design stage failing (or returning nothing) must not kill the generation:

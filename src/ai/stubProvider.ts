@@ -6,7 +6,14 @@ import { BUILDING_BLOCKS } from '../blocks/registry';
 import { addFieldToDefinition, insertGraphicHtml, nextFieldId } from '../blocks/edit';
 import { parseDefinition, replaceDefinitionInHtml } from '../model/spxDefinition';
 import type { SpxTemplate, TemplateChange } from '../model/types';
-import type { AIProvider, AiTemplateChange, GenerateContext } from './provider';
+import type { AIProvider, AiTemplateChange, GenerateContext, GenerateOptions } from './provider';
+import {
+  normalizeIntent,
+  routeIntent,
+  type GenerationMode,
+  type RouteDecision,
+  type StructuralIntent,
+} from './structuralIntent';
 import { blankTemplate } from './presets';
 import { specToTemplate, type DesignSpec } from './designSpec';
 import type { TemplateCategory } from '../model/wizard';
@@ -115,10 +122,45 @@ function groundSpecPasses(template: SpxTemplate, ctx?: GenerateContext): SpxTemp
   return applySpecOutPreset(ensureSpecFonts(template, ctx?.spec), ctx?.spec);
 }
 
+// ── Phase-A routing, offline (docs/CREATIVE_MODE_PLAN.md §2) ─────────────────
+// The stub mirrors the live provider's mode + intent routing DETERMINISTICALLY (keywords in,
+// decision out), which is what keeps the whole routing contract e2e-testable without tokens.
+// The stub cannot free-form code, so a CREATE decision still returns a deterministic catalog
+// assembly - the ROUTING RECORD is the honest part the specs assert on.
+
+/** The brief's own words asking for originality - the offline stand-in for what the live
+ *  intent stage reads from the brief. */
+const ORIGINALITY = /original|unlike anything|nothing like|never seen|our own look|from scratch|completely new|unique look/;
+
+/** A deterministic StructuralIntent from keywords: a matched catalog category classifies as
+ *  a known structure; anything else is honestly novel. */
+function stubIntent(prompt: string): StructuralIntent {
+  const p = prompt.toLowerCase();
+  const hit = CATEGORY_KEYWORDS.find((k) => k.test.test(p));
+  return normalizeIntent({
+    kind: hit ? 'type' : 'novel',
+    ...(hit ? { typeId: hit.category } : { novelDescription: prompt.slice(0, 120) }),
+    confidence: hit ? 'high' : 'low',
+    summary: hit ? `A ${hit.label}.` : 'An unclassified structure.',
+    parts: [{ id: 'content', role: 'content' }],
+    fields: [],
+    originalityRequested: ORIGINALITY.test(p),
+    ...(ORIGINALITY.test(p) ? { originalityEvidence: p.match(ORIGINALITY)?.[0] } : {}),
+  });
+}
+
+/** Mode + intent -> the same deterministic routeIntent decision the live provider makes. */
+function stubRouting(prompt: string, options?: GenerateOptions): { intent: StructuralIntent; route: RouteDecision } {
+  const mode: GenerationMode = options?.mode ?? 'auto';
+  const intent = stubIntent(prompt);
+  return { intent, route: routeIntent(intent, mode) };
+}
+
 export class StubAIProvider implements AIProvider {
-  async generate(prompt: string, context?: GenerateContext): Promise<AiTemplateChange> {
+  async generate(prompt: string, context?: GenerateContext, options?: GenerateOptions): Promise<AiTemplateChange> {
     await wait();
     const p = prompt.toLowerCase();
+    const { intent, route } = stubRouting(prompt, options);
 
     const grounded = keywordSpec(prompt, context);
     if (grounded) {
@@ -130,17 +172,21 @@ export class StubAIProvider implements AIProvider {
         template: groundSpecPasses(template, context),
         path: 'stub',
         spec: grounded.spec,
+        intent,
+        routing: route,
       };
     }
     if (/full ?screen|title card|headline/.test(p)) {
       const t = block('fullscreen').apply(blankTemplate('Fullscreen title', 'Fullscreen title'));
-      return { summary: 'Generated a fullscreen title template.', template: t, path: 'stub' };
+      return { summary: 'Generated a fullscreen title template.', template: t, path: 'stub', intent, routing: route };
     }
     if (/coming ?up|line ?up|next up|schedule/.test(p)) {
       return {
         summary: 'Generated a "coming up" template with a heading and two items.',
         template: comingUpTemplate(),
         path: 'stub',
+        intent,
+        routing: route,
       };
     }
     // Default: a lower third from the catalog (the most-wanted graphic).
@@ -162,6 +208,8 @@ export class StubAIProvider implements AIProvider {
         context,
       ).template,
       path: 'stub',
+      intent,
+      routing: route,
     };
   }
 
@@ -170,8 +218,9 @@ export class StubAIProvider implements AIProvider {
     return this.generate(prompt, context);
   }
 
-  async generateAlternatives(prompt: string, context?: GenerateContext): Promise<AiTemplateChange[]> {
+  async generateAlternatives(prompt: string, context?: GenerateContext, options?: GenerateOptions): Promise<AiTemplateChange[]> {
     await wait();
+    const { intent, route } = stubRouting(prompt, options);
     const grounded = keywordSpec(prompt, context);
     if (grounded) {
       // Up to three DIFFERENT chassis from the matched category — real alternatives.
@@ -184,10 +233,12 @@ export class StubAIProvider implements AIProvider {
           template: groundSpecPasses(template, context),
           path: 'stub' as const,
           spec,
+          intent,
+          routing: route,
         };
       });
     }
-    return [await this.generate(prompt, context)];
+    return [await this.generate(prompt, context, options)];
   }
 
   async modify(prompt: string, template: SpxTemplate): Promise<TemplateChange> {

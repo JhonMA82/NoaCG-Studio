@@ -9,6 +9,7 @@ import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/pref
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
 import { mergeSafety } from '../../../ai/safety';
 import { productionSpxValidator } from '../../../ai/litePipeline';
+import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import {
   emptyGenerationSpec,
@@ -447,6 +448,9 @@ export default function AiStep({
     try {
       const change = await fn({
         validate,
+        // The structural-satisfaction check (docs/CREATIVE_MODE_PLAN.md §8): browser-only,
+        // so it is injected like the bench; the provider runs it on CREATE-routed results.
+        structuralCheck: benchStructuralIntent,
         onProgress: (stage) => setBusy(stage),
         ...(liteActive ? { profile: 'lite' as const } : {}),
       });
@@ -581,6 +585,7 @@ export default function AiStep({
       try {
         const list = await getAiProvider().generateAlternatives(brief, context, {
           validate,
+          structuralCheck: benchStructuralIntent,
           onProgress: (stage) => setBusy(stage),
         });
         if (!list.length) return;

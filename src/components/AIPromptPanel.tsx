@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAiProvider } from '../ai';
 import { productionSpxValidator } from '../ai/litePipeline';
+import { benchStructuralIntent } from '../validation/structuralIntentCheck';
 import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
 import { useAiConsent } from './AiConsentDialog';
@@ -154,7 +155,16 @@ export default function AIPromptPanel() {
       <div className="row wrap" style={{ marginTop: 8 }}>
         <button
           disabled={busy || !prompt.trim()}
-          onClick={() => runChange(() => getAiProvider().generate(prompt, undefined, { validate: productionSpxValidator() }), true)}
+          onClick={() =>
+            runChange(
+              () =>
+                getAiProvider().generate(prompt, undefined, {
+                  validate: productionSpxValidator(),
+                  structuralCheck: benchStructuralIntent,
+                }),
+              true,
+            )
+          }
         >
           Generate
         </button>
