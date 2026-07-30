@@ -86,17 +86,37 @@ export default function PreviewFrame({ iframeRef }: Props) {
 
   // Scale the padded document (canvas + pasteboard) to fit the stage pane.
   // Re-runs when the stage is resized OR when the padded document size changes.
+  //
+  // A NON-POSITIVE measurement is never committed. `fit` is the only thing standing between
+  // the graphic and an invisible canvas, and the stage can legitimately measure 0 before it
+  // has been laid out — a dock still sizing on the first paint, a stage inside a pane the
+  // browser is not rendering yet. Committing that 0 scales the iframe to nothing, and since
+  // the recovery path is a ResizeObserver notification that a page which is not being
+  // rendered never delivers, the canvas would stay blank with no way back. So a bad
+  // measurement re-asks on the next animation frame instead: rAF resumes exactly when the
+  // page starts painting again, which is the moment the answer becomes meaningful.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
+    let retry = 0;
     const fitNow = () => {
       const { width, height } = stage.getBoundingClientRect();
-      setFit(Math.min(width / docW, height / docH));
+      const next = Math.min(width / docW, height / docH);
+      if (!Number.isFinite(next) || next <= 0) {
+        cancelAnimationFrame(retry);
+        retry = requestAnimationFrame(fitNow);
+        return;
+      }
+      cancelAnimationFrame(retry);
+      setFit(next);
     };
     fitNow();
     const ro = new ResizeObserver(fitNow);
     ro.observe(stage);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(retry);
+      ro.disconnect();
+    };
   }, [docW, docH]);
 
   // A new graphic (resolution change) starts framed to fit.
