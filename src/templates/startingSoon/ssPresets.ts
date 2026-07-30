@@ -47,12 +47,30 @@ function buildInTimeline() {
   var tl = gsap.timeline();
   activeTl = tl;
   tl.set('.starting-soon', { opacity: 1 });               // reveal the (CSS-hidden) graphic
+  tl.fromTo('.starting-soon-background',
+    { opacity: 0, scale: 1.012 },              // begin as a soft, slightly enlarged field
+    { opacity: 1, scale: 1, duration: 0.8 / animSpeed, ease: easeIn }
+  );
   tl.fromTo('.starting-soon-box',
     { opacity: 0, y: 24 },                     // start slightly low and invisible
-    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn }
+    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn },
+    '-=0.62'                                   // content resolves while the background settles
   );
   tl.call(startClock);                         // the countdown begins as the panel settles
-  // The ambient hold: a subtle breath on the pulse element, looping until stop().
+  // Background idle motion: a few percent of drift over several seconds.
+  tl.fromTo('.starting-soon-ambient',
+    { xPercent: -1.5, yPercent: -1 },
+    {
+      xPercent: 1.5,
+      yPercent: 1,
+      duration: 6.8 / animSpeed,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    },
+    0.7                                         // explicit: both idle loops start together
+  );
+  // Content idle motion: a subtle breath on the design's pulse element.
   tl.fromTo('.starting-soon-pulse',
     { scale: 1 },
     {
@@ -61,7 +79,8 @@ function buildInTimeline() {
       ease: 'sine.inOut',                      // the softest curve for a loop
       yoyo: true,                              // back down as smoothly as up
       repeat: -1,                              // loop until stop()
-    }
+    },
+    0.7                                         // explicit: never queues behind the endless drift
   );
   return tl;
 }
@@ -73,6 +92,7 @@ function buildOutTimeline() {
   activeTl = tl;
   tl.call(stopClock);                          // freeze the clock before it fades
   tl.to('.starting-soon-box', { opacity: 0, duration: 0.5 / animSpeed, ease: easeOut });
+  tl.to('.starting-soon-background', { opacity: 0, duration: 0.42 / animSpeed, ease: easeOut }, '-=0.42');
   tl.set('.starting-soon', { opacity: 0 });               // fully hidden; ready to play again
   return tl;
 }
@@ -102,11 +122,29 @@ function buildInTimeline() {
   var tl = gsap.timeline();
   activeTl = tl;
   tl.set('.starting-soon', { opacity: 1 });               // reveal the (CSS-hidden) graphic
+  tl.fromTo('.starting-soon-background',
+    { opacity: 0, scale: 1.012 },              // begin as a soft, slightly enlarged field
+    { opacity: 1, scale: 1, duration: 0.8 / animSpeed, ease: easeIn }
+  );
   tl.fromTo('.starting-soon-box',
     { opacity: 0, y: 24 },                     // start slightly low and invisible
-    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn }
+    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn },
+    '-=0.62'                                   // content resolves while the background settles
   );
-  // The ambient hold: a subtle breath on the pulse element, looping until stop().
+  // Background idle motion: a few percent of drift over several seconds.
+  tl.fromTo('.starting-soon-ambient',
+    { xPercent: -1.5, yPercent: -1 },
+    {
+      xPercent: 1.5,
+      yPercent: 1,
+      duration: 6.8 / animSpeed,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    },
+    0.7                                         // explicit: both idle loops start together
+  );
+  // Content idle motion: a subtle breath on the design's pulse element.
   tl.fromTo('.starting-soon-pulse',
     { scale: 1 },
     {
@@ -115,7 +153,8 @@ function buildInTimeline() {
       ease: 'sine.inOut',                      // the softest curve for a loop
       yoyo: true,                              // back down as smoothly as up
       repeat: -1,                              // loop until stop()
-    }
+    },
+    0.7                                         // explicit: never queues behind the endless drift
   );
   return tl;
 }
@@ -126,6 +165,7 @@ function buildOutTimeline() {
   var tl = gsap.timeline();
   activeTl = tl;
   tl.to('.starting-soon-box', { opacity: 0, duration: 0.5 / animSpeed, ease: easeOut });
+  tl.to('.starting-soon-background', { opacity: 0, duration: 0.42 / animSpeed, ease: easeOut }, '-=0.42');
   tl.set('.starting-soon', { opacity: 0 });               // fully hidden; ready to play again
   return tl;
 }

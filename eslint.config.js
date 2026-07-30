@@ -23,6 +23,16 @@ const componentsRestriction = {
   message:
     'Nothing imports src/components/ — the UI is the top of the graph (docs/ARCHITECTURE.md §3, invariant 4).',
 };
+// The video harness reaches the model gateway ONLY through src/ai/video/videoGateway.ts, which
+// stamps `surface: 'video'` on every call — the tag api/ai/generate.ts needs to apply the
+// ai.video entitlement (docs/ADMIN.md, "Gating a surface on a shared endpoint"). A direct
+// ../modelGateway import compiles and works; it just silently leaves the ungated path, and no
+// test can catch a call site that was never written. Hence a build-time boundary.
+const videoGatewayRestriction = {
+  group: ['**/modelGateway'],
+  message:
+    "src/ai/video calls the gateway through ./videoGateway, which stamps surface: 'video' — a direct ../modelGateway import silently drops the ai.video entitlement tag (docs/ADMIN.md).",
+};
 
 export default tseslint.config(
   {
@@ -86,6 +96,7 @@ export default tseslint.config(
       'src/App.tsx',
       'src/main.tsx',
       'src/blocks/registry.ts',
+      'src/ai/video/**',
     ],
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', {
@@ -117,6 +128,28 @@ export default tseslint.config(
       '@typescript-eslint/no-restricted-imports': ['error', {
         paths: [supabaseRestriction],
         patterns: [componentsRestriction],
+      }],
+    },
+  },
+  {
+    // The video harness: the default region's set PLUS the one-door gateway boundary. Repeated
+    // in full because these options replace rather than merge (see the gotcha above).
+    files: ['src/ai/video/**/*.{ts,tsx}'],
+    ignores: ['src/ai/video/videoGateway.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        paths: [supabaseRestriction],
+        patterns: [storeRestriction, componentsRestriction, videoGatewayRestriction],
+      }],
+    },
+  },
+  {
+    // videoGateway.ts IS the door, so it alone may import the gateway.
+    files: ['src/ai/video/videoGateway.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        paths: [supabaseRestriction],
+        patterns: [storeRestriction, componentsRestriction],
       }],
     },
   },

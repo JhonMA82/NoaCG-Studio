@@ -336,6 +336,20 @@ export interface GraphicType {
   id: string;
   name: string;
   description: string;
+  /**
+   * The structural coverage this type promises, stated where the NAME promises more — the
+   * AI router's scope note (src/ai/structuralIntent.ts). A "Bracket" is single-elimination
+   * only, so a double-elimination brief must not be adapted onto it; without this note the
+   * router has no way to know, because nothing mechanical in the declaration encodes it
+   * (the rounds parse from one textarea at any depth — the limit is semantic).
+   *
+   * Same doctrine as the machine: declare one only when the name's implied scope is wrong.
+   * A lower third's name promises exactly what the type carries, so it declares nothing.
+   * Phrase it as what IS covered followed by what is NOT ("One single-elimination tree …
+   * No losers bracket, no double elimination") — the router's intent stage quotes it
+   * verbatim to the model.
+   */
+  structuralScope?: string;
   /** How many of the 60 reference formats need this graphic — Phase 3's pack input. */
   frequency?: number;
   structure: TypeStructure;

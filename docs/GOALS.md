@@ -1133,6 +1133,25 @@ control-page export absorbed, not duplicated.
       shows with hosted-page links, community submissions; sync kinds grew 'show' and
       'video' (video tombstones strip payloads to readable stubs).
 
+### Editorial and cinematic information systems (2026-07-30)
+
+- [x] **Editorial is a usable information system** - lt25 Masthead now has exact-token siblings
+      for session and segment titles, topic and coming-up, fact-check, explainer, news ticker,
+      breaking strap, public notice, source attribution, agenda/results, sponsor reads and
+      prepared captions. Printed rules, hierarchy, flat surfaces and whitespace remain the
+      family grammar across every shape.
+- [x] **Cinematic is a usable information system** - lt32 Scrim, lt34 Title Strap and lt35
+      Letterbox now have exact-token siblings for chapter titles, now-playing, documentary
+      quotes, locations, prepared captions or lyrics and restrained alerts. Soft scrims, light
+      wide type, 1 px hairlines and sine-led motion remain the family grammar.
+- [x] **Types stay semantic** - existing title, now/next, headline, notice, statement, ticker and
+      alert types compile the matching designs. Agenda/results, sponsor, location, source and
+      prepared-caption shapes remain hand-authored because their one-off field contracts do not
+      justify a new state flow or reusable type.
+- [x] **Catalog quality is gated** - the factory and taxonomy matrix, affected category sweeps,
+      type floor, overflow baseline, capacity bench and reviewed contact sheets cover the
+      information-system packages as coherent families.
+
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate
 - [x] Playwright E2E for core UI flows

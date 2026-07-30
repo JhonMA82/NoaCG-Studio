@@ -22,6 +22,7 @@ import { tk17 } from './tk17';
 import { tk18 } from './tk18';
 import { tk19 } from './tk19';
 import { tk20 } from './tk20';
+import { tk21 } from './tk21';
 
 export const TICKERS: TemplateVariant[] = [
   tk05, // House Wire — noacg news wire with a live clock cap (sibling lt11)
@@ -44,6 +45,7 @@ export const TICKERS: TemplateVariant[] = [
   tk08, // Frost Rotator — glass rotator (ticker type, glass)
   tk09, // Volt Rotator — sport rotator (ticker type, sport)
   tk10, // Wire Rotator — minimal rotator (ticker type, minimal)
+  tk21, // Editorial Desk - editorial timed news rotator (sibling lt25)
 ];
 
 export function tickerById(id: string): TemplateVariant | undefined {

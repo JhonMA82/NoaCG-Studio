@@ -8,7 +8,13 @@
 // real example, errors-back repair) for the video world. Stages a and b are engine-
 // independent - the same brief, plan, skills, assets, and settings feed both coders.
 
-import { callModel, callModelDetailed, type ContentBlock } from '../modelGateway';
+// Through videoGateway, never ../modelGateway directly: it stamps surface: 'video' on every
+// call, which is what makes the ai.video entitlement reach this harness (docs/ADMIN.md).
+import {
+  callVideoModel as callModel,
+  callVideoModelDetailed as callModelDetailed,
+  type ContentBlock,
+} from './videoGateway';
 import { startAiRun, type AiRunRecorder } from '../telemetry';
 import { findingsList, repairLoop } from '../shared/repairLoop';
 import { parseDataUrl } from '../../assets/assetUtils';

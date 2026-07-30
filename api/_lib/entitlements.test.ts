@@ -20,12 +20,13 @@ import {
   isFeatureKey,
   isLimitKey,
   resolveEntitlement,
+  type Entitlement,
   type GrantShape,
   type PlanShape,
 } from '../../src/entitlements/contract.js';
 
 import { RENDER_LIMITS, allowedFormats, resolveTier, validateRenderRequest } from '../../src/render/limits.js';
-import { applyEntitlementToLiteProfile } from './entitlements.js';
+import { applyEntitlementToLiteProfile, gatedFeature, surfaceRefused } from './entitlements.js';
 import { liteProfile } from './aiLiteProfile.js';
 
 const NOW = '2026-07-29T12:00:00.000Z';
@@ -493,4 +494,87 @@ test('every key carries a label and a default in both built-in plans', () => {
     assert.ok(LIMIT_LABELS[key], `${key} needs a label for the admin UI`);
     assert.ok(key in DEFAULT_SIGNED_IN_PLAN.limits, `${key} needs a signed-in default`);
   }
+});
+
+// ── the gateway surface gate ───────────────────────────────────────────────────────────
+//
+// The refusal itself, which until now nothing executed. The handler path needs a verified
+// Supabase token to reach, so only its no-op half (an unrecognised caller is NOT refused)
+// was covered; these drive the decision directly.
+
+/** A recognised signed-in caller whose plan withholds one feature. */
+function withheld(feature: 'ai.video'): Entitlement {
+  return resolveEntitlement({
+    userId: 'user-1',
+    accountState: 'active',
+    plan: { key: 'p', name: 'No video', features: { [feature]: false }, limits: {}, renderTier: 'free', renderFormats: null },
+    grants: [],
+    now: NOW,
+  });
+}
+
+test('a gateway surface maps to exactly one feature key, and no surface gates nothing', () => {
+  assert.equal(gatedFeature('video'), 'ai.video');
+  // The general harness - the SPX coder, brainstorm, a bare prompt - is deliberately ungated.
+  assert.equal(gatedFeature(undefined), null);
+});
+
+test('a recognised account whose plan withholds ai.video is refused', () => {
+  assert.equal(surfaceRefused('ai.video', true, withheld('ai.video')), true);
+});
+
+test('a recognised account with the default plan is not refused', () => {
+  const resolved = resolveEntitlement(bare('user-1'));
+  assert.equal(allows(resolved, 'ai.video'), true, 'the signed-in default must still allow video');
+  assert.equal(surfaceRefused('ai.video', true, resolved), false);
+});
+
+test('suspension and the instance-wide kill switch both reach the surface gate', () => {
+  const suspended = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended' });
+  assert.equal(surfaceRefused('ai.video', true, suspended), true);
+
+  // The kill switch must win even over a permanent manual override - that is the whole point
+  // of a switch reached for during an incident.
+  const overridden = resolveEntitlement({
+    ...bare('user-1'),
+    grants: [grant({ key: 'ai.video', value: true, reason: 'override' })],
+    disabledFeatures: ['ai.video'],
+  });
+  assert.equal(surfaceRefused('ai.video', true, overridden), true);
+});
+
+test('an UNRECOGNISED caller is never refused, whatever the resolved answer says', () => {
+  // THE NEUTRALITY PIN. An anonymous caller resolves ANONYMOUS_PLAN, which sets ai.video
+  // false - so a gate keyed on the resolved answer alone would take video away from
+  // account-free BYO and from every self-hosted instance with no auth configured. Both work
+  // today; entitlements may not quietly restrict anybody.
+  const anonymous = resolveEntitlement(bare(null));
+  assert.equal(allows(anonymous, 'ai.video'), false, 'the anonymous default carries no account feature');
+  assert.equal(surfaceRefused('ai.video', false, anonymous), false);
+
+  // Not even a suspended account's own resolved entitlement refuses when the caller was not
+  // recognised - "recognised" is the gate, not a shortcut for "presented a token".
+  const suspended = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended' });
+  assert.equal(surfaceRefused('ai.video', false, suspended), false);
+});
+
+test('same-rank grants are last-wins, so the loader must hand them over ordered', () => {
+  // The coupling this pins: `resolveEntitlement` sorts only by RANK (temporary before
+  // permanent) and Array.sort is stable, so two grants of equal rank naming one key resolve by
+  // ARRIVAL ORDER. That makes the loader's `ORDER BY created_at` part of the access rule rather
+  // than a tidiness detail - unordered, Postgres may return the pair either way round and the
+  // same account resolves differently on two consecutive requests.
+  //
+  // 0021 makes the pair unreachable for new rows; this stays because a database that has not
+  // had it applied yet must still answer the same way twice.
+  const older = grant({ id: 'g-old', key: 'community.publish', value: false, reason: 'abuse' });
+  const newer = grant({ id: 'g-new', key: 'community.publish', value: true, reason: 'appeal upheld' });
+
+  const ascending = resolveEntitlement({ ...bare('user-1'), grants: [older, newer] });
+  assert.equal(allows(ascending, 'community.publish'), true, 'the most recent decision must win');
+  assert.match(ascending.features['community.publish'].sourceLabel, /appeal upheld/);
+
+  // Reversed input reverses the answer - which is precisely why the order is not optional.
+  const descending = resolveEntitlement({ ...bare('user-1'), grants: [newer, older] });
+  assert.equal(allows(descending, 'community.publish'), false);
 });

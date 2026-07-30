@@ -275,6 +275,12 @@ export function scoreStructureCss(opts: ScoreMarkupOptions): string {
   flex: 1;                         /* the name gives up width before the chip does */
 }
 
+.${P}-team {
+  display: block;                  /* fill the mask instead of keeping intrinsic text width */
+  max-width: 100%;                 /* the name never enters the fixed score chip */
+  white-space: nowrap;             /* ordinary team names stay on the strip's baseline */
+}
+
 .${P}-chip {
   display: flex;                   /* centers the figure… */
   align-items: center;             /* …vertically… */

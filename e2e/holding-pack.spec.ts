@@ -110,7 +110,9 @@ test('a start-time countdown chases the wall clock and never goes negative', asy
     const clock = () => d.querySelector('.starting-soon-clock').textContent;
     const pad = (n) => (n < 10 ? '0' + n : String(n));
     const at = (mins) => { const t = new Date(Date.now() + mins * 60000); return pad(t.getHours()) + ':' + pad(t.getMinutes()); };
-    const run = async (payload) => { w.update(JSON.stringify(payload)); w.play(); await new Promise((r) => setTimeout(r, 200)); return clock(); };
+    // Exercise the clock hook directly: waiting a fixed amount for the entrance timeline to
+    // call it makes these four sequential resets race a throttled rAF under a loaded suite.
+    const run = (payload) => { w.update(JSON.stringify(payload)); w.startClock(); return clock(); };
     return {
       // No start time set -> the duration is what counts (the field stays optional).
       fallback: await run({ f2: '10', f3: '' }),

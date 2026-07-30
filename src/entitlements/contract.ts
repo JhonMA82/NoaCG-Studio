@@ -82,12 +82,22 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
   'ai.lite',
   'ai.import-analysis',
   'ai.byo-key',
+  'ai.video',
   'render.cloud',
   // Template visibility is enforced through the hidden-template list rather than by a direct
   // allows() call, but it is enforced (api/_lib/templateVisibility.ts).
   'templates.beta',
   'templates.internal',
 ]);
+
+/** Where an enforced key does not reach EVERY caller, in the words the admin page shows.
+ *
+ *  The System page's promise is "off means off for everyone", and a switch believed in during
+ *  an incident that turns out to leave traffic running is the failure this whole file exists to
+ *  prevent. A key with a caveat states it here rather than in a comment nobody reads at 9pm. */
+export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
+  'ai.video': 'reaches recognised accounts; an account-free caller on their own provider key is not stopped',
+};
 
 // ── limits ─────────────────────────────────────────────────────────────────────────────
 
