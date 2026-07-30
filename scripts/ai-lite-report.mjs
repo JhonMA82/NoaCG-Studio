@@ -31,6 +31,12 @@ async function findFiles(dir, predicate, relative = '') {
   return found;
 }
 
+// The model exhausted its repair round without a usable decision. Matched on the API's
+// machine code; runs recorded before the eval carried that code stored only the human
+// message, so those are recognized too rather than silently counting as provider errors.
+const semanticExhaustion = (row) => row.status === 'failed'
+  && /^generation_failed$|could not produce a usable design decision/i.test(row.errorCode ?? '');
+
 const groups = new Map(); // candidate/arm -> rows
 const rowsByKey = new Map(); // blind-key key -> row, for the judge-vs-reviewer join below
 const addRow = (group, row) => {
@@ -58,11 +64,19 @@ for (const file of await findFiles(OUT, (name) => name.endsWith('-metrics.json')
       skinFinal: row.skinFinal ?? null,
       failureCode: classifyFailure({
         // Fixture-bank briefs are all supported lower thirds - an unsupported answer is
-        // a category miss; a failed call carries its provider code.
+        // a category miss.
         expect: { decision: 'ready', aiCategory: 'lower-third' },
         decision: row.status === 'unsupported' ? { status: 'unsupported' } : { status: 'ready' },
         aiCategory: row.status === 'unsupported' ? null : 'lower-third',
-        providerErrorCode: row.status === 'failed' ? (row.errorCode ?? 'provider') : null,
+        // A failed row is one of two very different things and a model comparison lives on
+        // the difference. `generation_failed` means the MODEL could not reach a usable
+        // decision even after its repair round - that is the quality signal. A gateway code
+        // means the PROVIDER broke, which is no verdict on the model at all. Calling both
+        // PROVIDER_ERROR made a flaky endpoint read as a weak model.
+        repairFailed: semanticExhaustion(row),
+        providerErrorCode: row.status === 'failed' && !semanticExhaustion(row)
+          ? (row.errorCode || 'provider')
+          : null,
         validationRuleCodes: row.ruleCodes ?? [],
       }),
     });
@@ -223,9 +237,20 @@ if (agreementItems.length) {
   // it would have aired. A false revert only costs a skin.
   const falseAccepts = agreementItems.filter((i) => !i.reviewerAccepts && i.judgeAccepts);
   const falseReverts = agreementItems.filter((i) => i.reviewerAccepts && !i.judgeAccepts);
+  // Raw agreement flatters a LOPSIDED judge: one that passes nearly everything scores well
+  // against reviewers who also accept most things, purely by chance. Cohen's kappa corrects
+  // for that, and it is the number to read when the two sides have very different accept
+  // rates - which is exactly the regime a permissive judge creates.
+  const n = agreementItems.length;
+  const observed = (cell(true, true) + cell(false, false)) / n;
+  const pJudge = (cell(true, true) + cell(false, true)) / n;
+  const pReviewer = (cell(true, true) + cell(true, false)) / n;
+  const expected = pJudge * pReviewer + (1 - pJudge) * (1 - pReviewer);
   agreement = {
-    items: agreementItems.length,
+    items: n,
     agreed: cell(true, true) + cell(false, false),
+    observedAgreement: observed,
+    kappa: expected < 1 ? (observed - expected) / (1 - expected) : null,
     matrix: {
       bothAccept: cell(true, true), reviewerAcceptJudgeReject: cell(true, false),
       reviewerRejectJudgeAccept: cell(false, true), bothReject: cell(false, false),
@@ -244,6 +269,16 @@ for (const r of report) {
   );
   const failures = Object.entries(r.failureTaxonomy);
   if (failures.length) console.log(`  failures: ${failures.map(([code, count]) => `${code}×${count}`).join(', ')}`);
+  // A candidate whose misses are mostly the provider breaking has not been measured on the
+  // task at all, and its machine-valid rate reads as a quality verdict it did not earn.
+  // Say so where the number is, not in a footnote someone skips.
+  const transport = (r.failureTaxonomy.PROVIDER_ERROR ?? 0) + (r.failureTaxonomy.RATE_LIMITED ?? 0)
+    + (r.failureTaxonomy.TIMEOUT ?? 0);
+  const failedTotal = failures.reduce((sum, [, count]) => sum + count, 0);
+  if (failedTotal && transport / failedTotal >= 0.5) {
+    console.log(`  ^ ${transport}/${failedTotal} failures are TRANSPORT, not model quality - this`);
+    console.log('    rate is not a verdict on the model. Re-run or re-pin the endpoint before ranking it.');
+  }
   if (r.skinJudge) {
     const means = Object.entries(r.skinJudge.meanScores)
       .map(([axis, mean]) => `${axis} ${mean === null ? 'n/a' : mean.toFixed(1)}`).join(', ');
@@ -267,7 +302,11 @@ if (agreement) {
   console.log('                    judge accept   judge revert');
   console.log(`  reviewer accept   ${String(m.bothAccept).padStart(8)}   ${String(m.reviewerAcceptJudgeReject).padStart(12)}`);
   console.log(`  reviewer reject   ${String(m.reviewerRejectJudgeAccept).padStart(8)}   ${String(m.bothReject).padStart(12)}`);
-  console.log(`  agreement ${agreement.agreed}/${agreement.items}`);
+  console.log(`  agreement ${agreement.agreed}/${agreement.items}`
+    + (agreement.kappa === null ? '' : ` (kappa ${agreement.kappa.toFixed(2)} after chance correction)`));
+  if (agreement.kappa !== null && agreement.kappa < 0.4) {
+    console.log('  Kappa is WEAK: the raw count above is mostly chance, not agreement.');
+  }
   for (const i of agreement.falseAccepts) {
     console.log(`  FALSE ACCEPT (would have aired): ${i.key}`);
     console.log(`    reviewer "${i.note ?? i.decision}" vs judge ${JSON.stringify(i.judgeScores)}`);

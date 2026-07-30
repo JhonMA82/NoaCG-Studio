@@ -17,9 +17,15 @@ function player(page: Page) {
  * exists in the chat. Matching on summary text is fragile: the offline hint and the example
  * prompts can contain the same words, so a text wait can pass before the result is applied.
  * The assistant bubble only appears once a result lands.
+ *
+ * 30 s, because a first generation is not a render: it runs the whole harness and then a LIVE
+ * validation probe that waits on the sandboxed player host - a 460 kB self-contained page that
+ * four workers may all be mounting at once. Measured at 0.1-2.6 s idle, but the probe has no
+ * timeout of its own, so the old 10 s here was a guess about someone else's clock rather than a
+ * bound on anything. A generation that never lands is still caught, by the test budget.
  */
 async function waitForGeneration(page: Page) {
-  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 }
 
 async function createCountdownProject(page: Page): Promise<void> {
@@ -298,6 +304,13 @@ test('chat refinement applies an undoable change', async ({ page }) => {
 });
 
 test('reload restores the project; save/reopen and the SPX switch work', async ({ page }) => {
+  // Genuinely slow, not flaky-slow: this one test waits out TWO video generations (each an
+  // unbounded validation probe against the player host) and then a blank SPX create, which
+  // cold-loads Prettier and its four plugins before the doc-kind switch flips. Under the
+  // suite's default 30 s it was failing on the clock with no assertion message at all, which
+  // reads like a broken app. test.slow() triples the budget for this test alone rather than
+  // loosening the global one, so a real regression elsewhere still trips at 30 s.
+  test.slow();
   await createCountdownProject(page);
   await waitForGeneration(page);
 

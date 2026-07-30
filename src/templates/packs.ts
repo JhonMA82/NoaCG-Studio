@@ -170,9 +170,12 @@ export const PACKS: TemplatePack[] = [
   {
     id: 'motorsport',
     name: 'Motorsport',
-    description: 'The timing tower as a table, the championship standings, session results and a countdown.',
+    description: 'The live timing tower, the championship standings, session results and a countdown.',
     family: 'sport',
     types: [
+      // The tower leads: it is the graphic a session is actually covered with, and until it
+      // existed this pack was standing in for it with a fixtures board.
+      'timing-tower',
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'sponsor-bug', 'ticker', 'holding-screen',
@@ -182,9 +185,11 @@ export const PACKS: TemplatePack[] = [
   {
     id: 'athletics',
     name: 'Athletics',
-    description: 'Start lists, heat results, the medal table and a field-event countdown.',
+    description: 'Start lists, live splits, heat results, the medal table and a field-event countdown.',
     family: 'glass',
     types: [
+      // A heat in progress is a timing tower with the times measured at a split.
+      'timing-tower',
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'agenda', 'sponsor-bug',

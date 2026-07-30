@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
+import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows from
@@ -30,7 +30,7 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   // Reload → the working template is restored, and the user lands STRAIGHT in it: no wizard
   // over a returning user's work (the wizard auto-opens only when there is no project).
   await page.reload();
-  await awaitPreviewRebuild(page);
+  await awaitPreviewAfterReload(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   const restored = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

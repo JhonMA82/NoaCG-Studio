@@ -22,7 +22,12 @@ async function createBareDesign(page: Page) {
   });
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
+    // 20 s: Create fires applyGenerated, which formats the new template through Prettier -
+    // five lazy dynamic imports (standalone + the html/postcss/babel/estree plugins), cold on
+    // this page's first create. The modal only closes once that resolves, so the default 7 s
+    // expect budget was timing a cold module load as if it were a render. Same cost, same
+    // fix, as video-project.spec.ts's blank-create wait.
+    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
 

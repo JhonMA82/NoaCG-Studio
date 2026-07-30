@@ -18,7 +18,9 @@ async function createFromCurrentStep(page: Page) {
   // assertion (or Play) racing the debounced rebuild would run against the old document.
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
+    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
+    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
+    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
 
@@ -51,7 +53,9 @@ test('wizard: blank project escape hatch', async ({ page }) => {
   await expect(page.getByTestId('blank-step')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.getByTestId('blank-create').click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  // 20 s, same reason as createFromCurrentStep above: blank-create runs the same cold-Prettier
+  // applyGenerated path (AGENTS.md's own documented gotcha for this exact create call).
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Blank');
 });
 

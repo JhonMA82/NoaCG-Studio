@@ -211,6 +211,20 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     category: 'transition', subtype: 'stinger', structures: ['full-panel'], coverage: 'full',
     semantics: { label: 'headline' },
   },
+  // ── The timing tower (templates/types/competitionBoards.ts) ────────────────
+  //
+  // The one results-board type with a declaration of its own. The others take the category
+  // fallback ('leaderboard'), which is right for them and wrong for this: a tower is a live
+  // session, not a settled table, and 'timing-tower' is the subtype an operator — or a search
+  // that has to ground a brief — actually reaches for.
+  'timing-tower': {
+    category: 'results', subtype: 'timing-tower', structures: ['rows', 'side-panel'],
+    semantics: { title: 'headline', subtitle: 'description', order: 'items' },
+    // The focus moves and the flag falls while the graphic is on air, and the running order
+    // is retyped underneath both.
+    extraCapabilities: ['repeating', 'operator-states', 'live-data'],
+  },
+
   // ── The public-service pack (templates/alerts, templates/publicInfo) ────────
   // Neither type gets a graphic category of its own. An alert IS the `alert` category — the
   // same tile pack4's notice-card already browses under, which is the point: two designs of
