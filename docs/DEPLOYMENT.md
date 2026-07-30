@@ -5,8 +5,9 @@ that path. Binding: keep it updated when the pipeline changes.
 
 ## The pipeline
 
-1. **CI (`.github/workflows/ci.yml`)** runs on every push and PR: Build (typecheck + lint +
-   bundle), the offline E2E suite in four shards, the factory gates, and a final **CI gate**
+1. **CI (`.github/workflows/ci.yml`)** runs on every push to `main` and every PR (a branch
+   pushed without an open PR runs nothing): Build (typecheck + lint +
+   bundle), the offline E2E suite in eight shards, the factory gates, and a final **CI gate**
    job that requires all of them. On `main`, in-progress runs are never cancelled by a newer
    push (branches/PRs still cancel), so every `main` HEAD ends with a real verdict. A red
    gate names the failing job in an error annotation; Playwright's `github` reporter

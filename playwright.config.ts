@@ -39,8 +39,11 @@ export default defineConfig({
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across
   // workers instead of leaving the largest file as the serial critical path.
   // 4 workers is the measured sweet spot on a 16-core dev box. GitHub's smaller runners use
-  // one worker each and scale across four independent shards instead: the same aggregate
-  // concurrency, without four browsers and one Vite server fighting over a single runner.
+  // one worker each and scale across eight independent shards instead: more than the same
+  // aggregate concurrency, without four browsers and one Vite server fighting over a single
+  // runner. Sharding is per-TEST, not per-file (verified against run 30539377062: of 97 spec
+  // files, exactly the 3 sitting on a shard boundary were split), so no single fat spec file
+  // can become the critical path however high the shard count goes.
   fullyParallel: true,
   workers: isCi ? 1 : 4,
   retries: 0,

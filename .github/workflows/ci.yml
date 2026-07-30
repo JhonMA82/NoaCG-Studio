@@ -49,8 +49,21 @@ jobs:
       # the combined report.
       fail-fast: false
       matrix:
-        shardIndex: [1, 2, 3, 4]
-        shardTotal: [4]
+        # Eight shards, not four. Wall time is fixed-cost + test-time/shards, and the fixed
+        # cost is small: measured on run 30539377062, a shard spent 52 s on setup (checkout,
+        # npm ci, the browser, and a 7 s dev-server boot) and 12.8 min running tests. Four
+        # shards therefore put ~94% of the wall clock in tests, which is the part sharding
+        # divides - 13.6 min becomes ~7 min here.
+        #
+        # Eight rather than twelve or sixteen, even though the arithmetic keeps improving:
+        # every shard is an independent runner doing its own checkout and install, so the
+        # chance that ONE of them hits an infrastructure hiccup grows with the count, and
+        # with retries: 0 and fail-fast: false a single hiccup reds the whole gate. Eight
+        # takes most of the win for half the added surface of twelve. It also leaves room
+        # under the 20-concurrent-job ceiling for an overlapping PR run: 8 + build + factory
+        # is 10, so two runs still fit.
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+        shardTotal: [8]
     steps:
       - uses: actions/checkout@v5
 
@@ -62,8 +75,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Cache the browser binary rather than pulling ~170 MB from the Playwright CDN once
+      # per shard. Keyed on Playwright's own version (read after install, so it is the
+      # resolved one) instead of the lockfile hash: an unrelated dependency bump must not
+      # throw away a browser that did not change.
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      # The cache holds the browser, never the runner's system libraries - those come with
+      # the image and must still be reconciled on a cache hit.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: E2E shard
         run: npm run test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
