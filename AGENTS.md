@@ -317,9 +317,11 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 ## Git
 
 - Most work happens on a **feature branch**, usually in a worktree - several are typically active
-  at once, so `node scripts/worktree-activity.mjs` prints what each of the OTHERS currently has
-  in flight (uncommitted, or committed but not yet merged into `main`) before you start something
-  that collides. If a session starts on `main` with work to do, branch first. The rhythm: **commit
+  at once, so `node scripts/worktree-activity.mjs` prints what is in flight elsewhere before you
+  start something that collides: every OTHER worktree's uncommitted and not-yet-merged files,
+  then every branch ahead of `main` that no worktree has checked out (a closed session leaves its
+  work there, so it still collides even though nobody is in it). If a session starts on `main`
+  with work to do, branch first. The rhythm: **commit
   each completed, verified phase/step** to the FEATURE BRANCH with a descriptive message. **Never add a
   `Co-Authored-By` trailer or any agent co-author.** Don't commit `dist/` in feature work.
 - **`main` is only ever touched when the user asks for it, in that message - from ANY checkout.**
