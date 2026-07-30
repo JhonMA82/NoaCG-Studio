@@ -24,6 +24,7 @@ const allMigrations = new Map(
 const entitlements = await read('0018_entitlements.sql');
 const selfScoped = await read('0020_self_scoped_predicates.sql');
 const oneActiveGrant = await read('0021_one_active_grant.sql');
+const absolutes = await read('0022_entitlement_absolutes.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -163,6 +164,118 @@ test('existing duplicates are resolved before the index is created, newest kept'
   assert.match(repair, /order by created_at desc/i, 'the newest active grant must be the one kept');
   assert.match(repair, /set revoked_at = now\(\)/i, 'losers must be revoked, matching the API');
   assert.doesNotMatch(repair, /delete\s+from\s+public\.user_grants/i, 'history is stamped, never deleted');
+});
+
+test('0022 gates are RESTRICTIVE, never permissive', () => {
+  // A permissive policy of the same name would be worse than no policy at all: permissive
+  // policies are ORed together, so it would WIDEN access rather than narrow it.
+  const policies = [...absolutes.matchAll(/create policy "[^"]+"[\s\S]*?;/gi)].map((m) => m[0]);
+  assert.equal(policies.length, 8, `expected 8 gates, found ${policies.length}`);
+  for (const policy of policies) {
+    const name = policy.match(/create policy "([^"]+)"/i)[1];
+    assert.match(policy, /as restrictive/i, `${name} is not restrictive`);
+    assert.match(policy, /for (insert|update) to authenticated/i, `${name} gates the wrong command`);
+    assert.match(policy, /public\.feature_denied\('/i, `${name} does not consult the predicate`);
+  }
+});
+
+test('0022 leaves reads and deletes alone', () => {
+  // Stated in 0018 and repeated here because it is the difference between an entitlement and a
+  // confiscation: a denied account keeps reading and exporting its own work, and unpublishing or
+  // closing a show down must never be the thing that gets blocked.
+  const policies = absolutes.match(/create policy "[^"]+"[\s\S]*?;/gi)?.join('\n') ?? '';
+  assert.doesNotMatch(policies, /\bfor select\b/i, '0022 gates a read path');
+  assert.doesNotMatch(policies, /\bfor delete\b/i, '0022 blocks a delete');
+  assert.doesNotMatch(policies, /\bfor all\b/i, '0022 gates every command at once');
+});
+
+test('no policy passes a user id into the entitlement predicate', () => {
+  // The same rule 0020 established for is_suspended: a policy must call the SELF-SCOPED form.
+  // The cross-user form exists for the capability RPCs, where the subject is the show's owner
+  // rather than the caller - a policy naming it would be a probe with a user id in it.
+  const policies = [...absolutes.matchAll(/create policy "[^"]+"[\s\S]*?;/gi)].map((m) => m[0]);
+  for (const policy of policies) {
+    const name = policy.match(/create policy "([^"]+)"/i)[1];
+    assert.doesNotMatch(policy, /feature_denied_for\(/i, `${name} names the cross-user predicate`);
+  }
+});
+
+test('the cross-user predicate is off the REST surface, the self-scoped one is granted', () => {
+  // PostgREST publishes every function a client role may execute. feature_denied_for takes a user
+  // id, so granting it would recreate exactly the probe 0020 spent a migration removing - while
+  // feature_denied MUST stay granted, or every policy above fails 42501 instead of allowing.
+  assert.match(
+    absolutes,
+    /revoke execute on function public\.feature_denied_for\(uuid, text\) from public, anon, authenticated/i,
+  );
+  assert.doesNotMatch(
+    absolutes,
+    /grant execute on function public\.feature_denied_for\(uuid, text\)/i,
+    'the cross-user predicate is granted to something - it should be reachable only from definer functions',
+  );
+  assert.match(absolutes, /grant execute on function public\.feature_denied\(text\) to authenticated/i);
+  assert.match(absolutes, /revoke execute on function public\.feature_denied\(text\) from public, anon/i);
+});
+
+test('the predicate mirrors the contract instead of re-deciding precedence', () => {
+  const body = absolutes.match(
+    /create or replace function public\.feature_denied_for\(p_user uuid, p_key text\)[\s\S]*?\$\$;/i,
+  );
+  assert.ok(body, 'expected a feature_denied_for(uuid, text) function');
+  const source = body[0];
+  assert.match(source, /security definer/i);
+  assert.match(source, /set search_path = ''/i);
+  // The three absolutes, and only them.
+  assert.match(source, /state = 'suspended'/i, 'suspension is not one of the absolutes');
+  assert.match(source, /key = 'disabled_features'/i, 'the kill switch is not one of the absolutes');
+  assert.match(source, /g\.expires_at is null/i, 'a temporary grant would be read as an override');
+  // grantActive(): revoked beats everything, a future start has not begun.
+  assert.match(source, /g\.revoked_at is null/i);
+  assert.match(source, /g\.starts_at is null or g\.starts_at <= now\(\)/i);
+  // toGrant() drops a malformed payload rather than guessing, so a malformed row must not deny.
+  assert.match(source, /jsonb_typeof\(g\.value -> 'value'\) = 'boolean'/i);
+  // Precedence must NOT appear: no plan, no assignment, no ranking of one row against another.
+  assert.doesNotMatch(source, /public\.plans|public\.user_plans/i, 'the predicate reads plan rows');
+});
+
+test('the capability RPCs refuse before they write', () => {
+  // These are the paths an anonymous holder of the slug reaches, so they are where showchat and
+  // control.hosted actually cost something. A check after the INSERT would log the command it
+  // was meant to refuse.
+  for (const fn of ['control_send', 'control_stage', 'control_report']) {
+    const body = absolutes.match(new RegExp(`create or replace function public\\.${fn}\\([\\s\\S]*?\\$\\$;`, 'i'));
+    assert.ok(body, `0022 no longer redefines ${fn}`);
+    const source = body[0];
+    const guardAt = source.search(/feature_denied_for\(v_owner, 'control\.hosted'\)/i);
+    const writeAt = source.search(/insert into public\.control_events|update public\.control_shows/i);
+    assert.notEqual(guardAt, -1, `${fn} does not check the show owner's entitlement`);
+    assert.notEqual(writeAt, -1);
+    assert.ok(guardAt < writeAt, `${fn} checks the entitlement only after writing`);
+  }
+  // The audience door: a denied owner's show must read as not accepting submissions, which is
+  // what the anonymous insert policy from 0003 already gates on.
+  const accepts = absolutes.match(/create or replace function public\.show_accepts\(p_show uuid\)[\s\S]*?\$\$;/i);
+  assert.ok(accepts, 'show_accepts is no longer gated');
+  assert.match(accepts[0], /s\.is_open/i, 'show_accepts lost its is_open check');
+  assert.match(accepts[0], /feature_denied_for\(s\.owner_id, 'showchat'\)/i);
+  // The page must be told the same thing the insert policy will enforce, or it renders an open
+  // form and the visitor meets a raw row-level security error instead of "submissions are closed".
+  const bySlug = absolutes.match(/create or replace function public\.show_by_slug\(p_slug text\)[\s\S]*?\$\$;/i);
+  assert.ok(bySlug, 'show_by_slug still reports is_open without the owner gate');
+  assert.match(bySlug[0], /feature_denied_for\(s\.owner_id, 'showchat'\)/i);
+});
+
+test('0022 refuses to apply unless the gates demonstrably hold', () => {
+  for (const check of ['(a)', '(b)', '(c)', '(d)']) {
+    assert.ok(absolutes.includes(`0022 self-check ${check} FAILED`), `0022 lost its self-check ${check}`);
+  }
+  // Read the real ACL and the real catalog, not the migration's own text.
+  assert.match(absolutes, /has_function_privilege\('authenticated', 'public\.feature_denied\(text\)'/i);
+  assert.match(absolutes, /has_function_privilege\('anon', 'public\.feature_denied_for\(uuid, text\)'/i);
+  assert.match(absolutes, /from pg_policies/i, 'the gates are not verified against the catalog');
+  assert.match(absolutes, /permissive = 'RESTRICTIVE'/i, 'restrictiveness is not verified');
+  // And prove the predicate actually denies, rather than only that it exists.
+  assert.match(absolutes, /public\.feature_denied\('showchat'\) into denied/i);
 });
 
 test('0021 refuses to apply unless the constraint demonstrably holds', () => {

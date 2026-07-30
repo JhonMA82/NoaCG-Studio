@@ -117,7 +117,10 @@ routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path
 | `ai.byo-key` | `api/ai/generate.ts`, on the BYO branch only, and only when a token was presented - account-free BYO must keep working |
 | `ai.video` | `api/ai/generate.ts`, on the `surface: 'video'` discriminator the video harness sets; the decision itself is `gatedFeature()` + `surfaceRefused()` in `api/_lib/entitlements.ts`, so it is testable without a verified token. It binds only a caller the server RECOGNISED - anonymous resolves defaults that carry no account feature, and account-free BYO video works today. See "Gating a surface on a shared endpoint" below for what the check can and cannot do |
 | `render.cloud` | `api/render/start.ts` |
-| `sync.cloud`, `community.publish`, `control.hosted`, `showchat` | **nothing yet** - all four are RLS-shaped rather than endpoint-shaped. Their System-page switches therefore do not bite yet; `ENFORCED_FEATURE_KEYS` is what stops the page presenting them as if they do |
+| `community.publish` | RLS: the two `community_templates_publish_*` gates + `community_assets_publish_insert` on the bucket (`0022`). Moderators are exempt on UPDATE, so a takedown still works while the switch is off |
+| `control.hosted` | RLS: the two `control_shows_hosted_*` gates, plus the owner check inside `control_send`, `control_stage` and `control_report` (`0022`) - the RPCs are where an existing page actually costs something |
+| `showchat` | RLS: the two `shows_showchat_*` gates and `chat_submissions_showchat_update`, plus the owner check inside `show_accepts` (what the anonymous send-in policy from `0003` already tests) and `show_by_slug`, so the page agrees with the policy (`0022`) |
+| `sync.cloud` | **nothing, deliberately** - it would gate a user from saving their OWN work, there is no paid tier, and suspension already covers the real need. `ENFORCED_FEATURE_KEYS` keeps the System page honest about it |
 | disabled model routes | `api/_lib/lite/generations.ts`, `judge.ts`, `importAnalysis/analyze.ts`, and the MANAGED branch of `api/ai/generate.ts`. Deliberately not the BYO branch: the switch exists to stop the platform's own spend, and a BYO caller spends their own money on a model they chose |
 | AI allowances | `applyEntitlementToLiteProfile()` before the reservation RPC |
 | render tier | `resolveTier(signedIn, entitlement.renderTier.value)` |
@@ -192,9 +195,9 @@ grant expires or a kill switch flips, and both fail modes are wrong: fail-closed
 out when a cache write fails, against the neutrality rule and the fail-open posture of
 `api/_lib/entitlements.ts`; fail-open makes the gate decorative.
 
-**The recommendation: enforce only the PRECEDENCE-FREE ABSOLUTES in SQL, and say plainly that
-plan-level gating of these four does not bite.** Three inputs win outright in the contract, so
-a policy testing them can only ever deny what the resolver also denies:
+**What shipped (`0022`): only the PRECEDENCE-FREE ABSOLUTES are in SQL, and plan-level gating of
+these keys plainly does not bite.** Three inputs win outright in the contract, so a policy testing
+them can only ever deny what the resolver also denies:
 
 1. suspension - already enforced, `is_suspended()`;
 2. the instance-wide kill switch - `system_settings.disabled_features` contains the key;
@@ -217,13 +220,50 @@ exists" and "the resolver denies" are the same statement again. **Note that `002
 applied before any policy relies on it** - the index is the guarantee; the API check is only the
 better error message.
 
-**Scope, honestly.** Only two of the four have a reason to bite today. `community.publish` and
-`showchat` are moderation instruments - stopping an abusive account from publishing or
-collecting send-ins while it keeps its own work, which is the surgical version of suspension.
-`control.hosted` costs server resources and is cheap to wire beside them. `sync.cloud` gates a
-user from saving their OWN work; there is no paid tier, the free core stays free
-(`docs/GOALS.md`), and the only real need is already covered by suspension - so it stays
-deliberately unenforced rather than being wired because the key exists.
+**Scope, honestly.** Only three of the four are wired. `community.publish` and `showchat` are
+moderation instruments - stopping an abusive account from publishing or collecting send-ins while
+it keeps its own work, which is the surgical version of suspension. `control.hosted` costs server
+resources and was cheap to wire beside them. `sync.cloud` gates a user from saving their OWN work;
+there is no paid tier, the free core stays free (`docs/GOALS.md`), and the only real need is
+already covered by suspension - so it stays deliberately unenforced rather than being wired
+because the key exists.
+
+**Each key has TWO doors, and gating only the first would have been decorative.** The browser's
+own writes are RESTRICTIVE policies, in the additive shape `0018` established - the live ownership
+rules are never edited, so a mistake can only deny too much and reverting is a `DROP POLICY`. But
+the paths that actually cost something on an EXISTING show are the capability RPCs, which are
+SECURITY DEFINER (so no policy applies to them) and are reached by anonymous callers holding an
+unguessable slug (so the account being gated is the SHOW'S OWNER, not the caller). Those carry the
+check inside the function instead: `show_accepts` - already the anonymous send-in policy's gate -
+now also reads false for a denied owner (and `show_by_slug` reports the same, so the send-in page
+renders its existing "submissions are closed" state instead of an open form that fails), and
+`control_send` / `control_stage` / `control_report` refuse with 42501 before writing. Neither change exposes anything new: same signatures, same
+grants, and both questions were already answerable by anyone holding the capability. The answers
+only ever become more restrictive.
+
+**Two exemptions and one non-effect, all deliberate.** MODERATORS are exempt from the
+`community.publish` UPDATE gate, because otherwise flipping that switch off during an incident
+would also freeze the takedowns that are the reason to reach for it. READS and DELETES are
+untouched everywhere: a denied account still opens and exports its own work, an already-published
+template stays up (a takedown is moderation, not an entitlement), and unpublishing or closing a
+show down must never be the thing that gets blocked.
+
+**The function split, and the disclosure it carries.** `feature_denied_for(uuid, text)` answers
+about an arbitrary account, so it is revoked from every client role and never granted back - it is
+reachable only from inside a SECURITY DEFINER function, where the definer's privileges apply. The
+policies call the self-scoped `feature_denied(text)`, which must be granted to `authenticated`
+(§7's constraint: a policy expression runs with the querying role's privileges). That grant means
+a signed-in caller can ask about their OWN account and learn a denial is absolute rather than
+plan-level. Two of the three branches are already public - `is_suspended()` is granted to
+`authenticated`, `public_system_notice()` publishes the disabled list to everyone - so the only
+new bit is "there is a denying override on my account", about a feature the caller can already
+observe they do not have.
+
+**A follow-up that `0021` has already made safe:** a TEMPORARY denying grant could join the three
+absolutes. It was excluded as precedence-bearing, but with one active grant per key guaranteed, a
+single active temporary deny outranks the plan and nothing else can be present to outrank it - so
+it lands in the same strict subset. "Suspend publishing for a week" is a natural moderation action
+and is currently the one shape an operator can express that the database will not honour.
 
 ### The browser's own entitlement
 
@@ -339,6 +379,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0019_system_and_templates` | `system_settings`, `public_system_notice()`, `template_admin` |
 | `0020_self_scoped_predicates` | `is_suspended()` loses its argument, the nine policies are repointed, `is_suspended(uuid)` is dropped, `admin_user_suspended()` replaces it for admins, `is_admin`/`admin_role_rank` come off the REST surface |
 | `0021_one_active_grant` | pre-existing duplicate active grants are revoked (newest kept), then a PARTIAL UNIQUE index makes one active grant per `(user_id, kind, key)` unreachable |
+| `0022_entitlement_absolutes` | `feature_denied_for(uuid, text)` (internal) + the self-scoped `feature_denied(text)`, eight RESTRICTIVE gates for `community.publish`, `showchat` and `control.hosted`, and the owner check inside `show_accepts`, `show_by_slug` and the three control write RPCs |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -351,6 +392,14 @@ returns null when there is nothing to say, no backend, or a failed lookup.
 `0018` is the risky one: it edits live RLS policies on `documents` and `assets`. The change is
 additive (`and not is_suspended(...)`), read access is untouched so a suspended user can still
 export their own work, and a regression test covers the unaffected normal user.
+
+`0022` is the second risky one, for the same reason and with the same answer: it adds live write
+gates to four more tables, one storage bucket and four SECURITY DEFINER functions. Its `DO` block
+asserts the grant every gate depends on, that the cross-user predicate is off the REST surface,
+that all eight gates exist AND are restrictive (a permissive policy of the same name would widen
+access, since permissive policies are ORed), and then actually flips the kill switch against a
+synthetic caller to prove the predicate denies - restoring the setting on the way out, and rolling
+the whole transaction back if any assertion fires.
 
 `0020` touches those same live policies, so it carries its own proof rather than asking to be
 trusted: a `DO` block impersonates an ordinary authenticated caller and asserts that the
