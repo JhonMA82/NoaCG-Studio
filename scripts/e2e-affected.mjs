@@ -58,6 +58,9 @@ const MAP = [
   // The entitlement contract is what the render and AI paths gate on, so a change there can
   // move behaviour in either - and in the admin surface that explains it.
   [/^src\/entitlements\//, ['admin.spec.ts', 'render.spec.ts', 'ai.spec.ts']],
+  // These files are assertions over catalog output, not shared application foundations.
+  // Refreshing them should verify the catalog baseline without expanding to every UI flow.
+  [/^e2e\/catalog(?:-render)?-baseline\.json$/, ['catalog-baseline.spec.ts']],
 ];
 
 // Anything matching these runs the FULL suite - shared foundations with fan-out everywhere.

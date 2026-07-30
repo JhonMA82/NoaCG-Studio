@@ -17,9 +17,9 @@ const port = execSync('node scripts/dev-port.mjs').toString().trim();
 const base = `http://localhost:${port}`;
 
 const IDS = [
-  'tk11', 'tk12', 'tk13', 'tk14', 'tk15', 'tk16', 'tk17', 'tk18', 'tk19', 'tk20',
-  'al01', 'al02', 'al03', 'al04', 'al05', 'al06', 'al07', 'al08', 'al09', 'al10',
-  'pi01', 'pi02', 'pi03', 'pi04', 'pi05', 'pi06', 'pi07', 'pi08', 'pi09',
+  'tk11', 'tk12', 'tk13', 'tk14', 'tk15', 'tk16', 'tk17', 'tk18', 'tk19', 'tk20', 'tk21',
+  'al01', 'al02', 'al03', 'al04', 'al05', 'al06', 'al07', 'al08', 'al09', 'al10', 'al11', 'al12',
+  'pi01', 'pi02', 'pi03', 'pi04', 'pi05', 'pi06', 'pi07', 'pi08', 'pi09', 'pi10',
 ];
 
 const browser = await chromium.launch();

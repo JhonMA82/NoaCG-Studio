@@ -43,6 +43,7 @@ import { al01 } from '../alerts/al01';
 import { al02 } from '../alerts/al02';
 import { al03 } from '../alerts/al03';
 import { al04 } from '../alerts/al04';
+import { al12 } from '../alerts/al12';
 import { al05 } from '../alerts/al05';
 import { al06 } from '../alerts/al06';
 import { ALERT_LEVELS, alertLevelSelector } from '../alerts/shared';
@@ -220,6 +221,22 @@ export const alertLevelType: GraphicType = {
       },
       animationPresets: ['snap-stinger', 'slide-left', 'slide-up', 'fade'],
       create: (_type, options) => al04.create(options),
+    },
+    {
+      id: 'al12',
+      name: 'Quiet Warning',
+      description: 'A restrained cinematic warning on a soft scrim with a single hairline.',
+      styleTag: 'cinematic',
+      palette: paletteById('noir'),
+      fontId: 'inter',
+      samples: {
+        headline: 'Strong winds expected along the western coast',
+        detail: 'Conditions deteriorate after 21:00 · Avoid exposed routes',
+        source: 'Coastal Safety Service',
+      },
+      animationPresets: ['fade', 'line-reveal', 'slide-up'],
+      defaultZone: 'bottom-left',
+      create: (_type, options) => al12.create(options),
     },
     {
       // A second minimal design, and deliberately so: the met-office CAP layout is a different

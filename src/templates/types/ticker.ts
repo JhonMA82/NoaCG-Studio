@@ -22,6 +22,7 @@ import { tk09 } from '../tickers/tk09';
 import { tk10 } from '../tickers/tk10';
 import { tk18 } from '../tickers/tk18';
 import { tk19 } from '../tickers/tk19';
+import { tk21, TK21_ITEMS_SAMPLE } from '../tickers/tk21';
 import type { GraphicType } from './graphicType';
 
 const ITEMS_SAMPLE = [
@@ -194,6 +195,21 @@ export const tickerType: GraphicType = {
         label: 'NEWS',
       },
       create: (_type, options) => tk10.create(options),
+    },
+    {
+      id: 'tk21',
+      name: 'Editorial Desk',
+      description: 'A printed news strip that holds one story at a time beside a fine rule.',
+      styleTag: 'editorial',
+      palette: paletteById('vermilion'),
+      fontId: 'archivo',
+      samples: {
+        items: TK21_ITEMS_SAMPLE,
+        label: 'THE EVENING DESK',
+      },
+      animationPresets: ['ticker-rotate'],
+      defaultZone: 'bottom-center',
+      create: (_type, options) => tk21.create(options),
     },
     {
       // A SECOND noacg rotator, and a deliberate one. tk07 rotates a newsroom's stories;

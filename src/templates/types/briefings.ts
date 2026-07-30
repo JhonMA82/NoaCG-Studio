@@ -35,6 +35,22 @@ import { card35 } from '../infoCards/card35';
 import { card36 } from '../infoCards/card36';
 import { card37 } from '../infoCards/card37';
 import {
+  card60,
+  card61,
+  card62,
+  card63,
+  EDITORIAL_EXPLAINER_SAMPLES,
+  EDITORIAL_FACT_CHECK_SAMPLES,
+  EDITORIAL_NOTICE_SAMPLES,
+  EDITORIAL_NOW_NEXT_SAMPLES,
+} from '../infoCards/infoSystems/editorial';
+import {
+  card68,
+  card69,
+  CINEMATIC_NOW_PLAYING_SAMPLES,
+  CINEMATIC_QUOTE_SAMPLES,
+} from '../infoCards/infoSystems/cinematic';
+import {
   CARD18_SAMPLES,
   CARD19_SAMPLES,
   CARD20_SAMPLES,
@@ -62,6 +78,7 @@ import {
   STATEMENT_FIELDS,
 } from '../pack4/content';
 import { CLEAN, FROST, HOUSE, VOLT } from '../pack4/skin';
+import { paletteById } from '../../model/wizard';
 import { optionalLine } from './graphicType';
 import type { GraphicType, TypeTimeline } from './graphicType';
 
@@ -148,6 +165,30 @@ export const nowNextType: GraphicType = {
       defaultZone: 'bottom-right',
       create: (_type, options) => card21.create(options),
     },
+    {
+      id: 'card60',
+      name: 'Rundown Column',
+      description: 'Editorial topic and coming-up hierarchy organised by a printed column rule.',
+      styleTag: 'editorial',
+      palette: paletteById('vermilion'),
+      fontId: 'archivo',
+      samples: EDITORIAL_NOW_NEXT_SAMPLES,
+      animationPresets: ['line-reveal', 'fade', 'slide-up', 'mask-wipe'],
+      defaultZone: 'mid-left',
+      create: (_type, options) => card60.create(options),
+    },
+    {
+      id: 'card68',
+      name: 'Now Playing Scrim',
+      description: 'Cinematic current and next cue on a low letterbox scrim with one hairline.',
+      styleTag: 'cinematic',
+      palette: paletteById('ember'),
+      fontId: 'manrope',
+      samples: CINEMATIC_NOW_PLAYING_SAMPLES,
+      animationPresets: ['fade', 'line-reveal', 'slide-up'],
+      defaultZone: 'bottom-left',
+      create: (_type, options) => card68.create(options),
+    },
   ],
 };
 
@@ -224,6 +265,30 @@ export const headlineCardType: GraphicType = {
       animationPresets: [...MOTION.house],
       defaultZone: 'mid-right',
       create: (_type, options) => card25.create(options),
+    },
+    {
+      id: 'card61',
+      name: 'Fact Check Desk',
+      description: 'Editorial claim, finding, context and source on a flat printed fact-check sheet.',
+      styleTag: 'editorial',
+      palette: paletteById('broadsheet'),
+      fontId: 'archivo',
+      samples: EDITORIAL_FACT_CHECK_SAMPLES,
+      animationPresets: ['line-reveal', 'fade', 'slide-up', 'mask-wipe'],
+      defaultZone: 'mid-left',
+      create: (_type, options) => card61.create(options),
+    },
+    {
+      id: 'card62',
+      name: 'Explainer Folio',
+      description: 'Editorial headline and readable explanation set beside a printed column rule.',
+      styleTag: 'editorial',
+      palette: paletteById('vermilion'),
+      fontId: 'archivo',
+      samples: EDITORIAL_EXPLAINER_SAMPLES,
+      animationPresets: ['line-reveal', 'fade', 'slide-up', 'mask-wipe'],
+      defaultZone: 'mid-right',
+      create: (_type, options) => card62.create(options),
     },
   ],
 };
@@ -455,6 +520,18 @@ export const noticeCardType: GraphicType = {
       defaultZone: 'mid-center',
       create: (_type, options) => card33.create(options),
     },
+    {
+      id: 'card63',
+      name: 'Public Notice Sheet',
+      description: 'Editorial official notice with a printed authority header, action line and contact.',
+      styleTag: 'editorial',
+      palette: paletteById('broadsheet'),
+      fontId: 'archivo',
+      samples: EDITORIAL_NOTICE_SAMPLES,
+      animationPresets: ['line-reveal', 'fade', 'slide-up', 'mask-wipe'],
+      defaultZone: 'mid-center',
+      create: (_type, options) => card63.create(options),
+    },
   ],
 };
 
@@ -531,6 +608,18 @@ export const statementCardType: GraphicType = {
       animationPresets: [...MOTION.house],
       defaultZone: 'mid-left',
       create: (_type, options) => card37.create(options),
+    },
+    {
+      id: 'card69',
+      name: 'Documentary Quote',
+      description: 'Cinematic quotation with a field-note label and attribution on a soft scrim.',
+      styleTag: 'cinematic',
+      palette: paletteById('noir'),
+      fontId: 'inter',
+      samples: CINEMATIC_QUOTE_SAMPLES,
+      animationPresets: ['fade', 'line-reveal', 'slide-up'],
+      defaultZone: 'mid-left',
+      create: (_type, options) => card69.create(options),
     },
   ],
 };
