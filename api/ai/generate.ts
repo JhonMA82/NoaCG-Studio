@@ -62,6 +62,35 @@ export default {
       return resolveUserEntitlement(auth.user?.userId ?? null);
     };
 
+    /** A VIDEO call is gated on `ai.video`: it is the one product surface on this endpoint
+     *  that has a feature key of its own, which is why the browser tags it
+     *  (src/ai/video/videoGateway.ts stamps every video call).
+     *
+     *  It binds callers the server RECOGNISED, never anonymous ones - the same shape as the
+     *  BYO branch below and for a stronger version of the same reason. An anonymous caller
+     *  resolves the ANONYMOUS defaults, which carry no account feature at all, so refusing on
+     *  that answer would take video away from account-free BYO and from a self-hosted instance
+     *  with no auth configured. Both work today, and entitlements are not allowed to quietly
+     *  restrict anybody. Managed video still needs an account: `keyFor` already answers 401.
+     *
+     *  HONEST LIMIT: the tag is client-supplied, and this endpoint is a general model proxy -
+     *  so the check binds the product's own traffic, not a hand-rolled request that omits the
+     *  tag. Nothing stronger exists here (a proxy that will run any prompt cannot know what
+     *  the answer is used for), and it is still what makes suspension and the instance-wide
+     *  kill switch reach the video harness instead of changing a row nothing reads. */
+    const guardSurface = async (): Promise<void> => {
+      if (body.surface !== 'video' || !bearerToken(req)) return;
+      const entitlement = await entitlementFor(); // verifies the token on the way through
+      if (auth.user && !allows(entitlement, 'ai.video')) {
+        throw new GatewayError(
+          'authentication_required',
+          'AI video generation is not available for this account.',
+          403,
+          false,
+        );
+      }
+    };
+
     const keyFor = async (provider: AiProviderId): Promise<string> => {
       const userKey = userKeys[provider];
       if (userKey) {
@@ -115,6 +144,9 @@ export default {
     let result: ModelResult | null = null;
     let failure: GatewayError | null = null;
     try {
+      // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
+      // refusal is an outcome worth counting, not a hole in the accounting.
+      await guardSurface();
       result = await executeGatewayRequest(body, { keyFor });
     } catch (error) {
       failure = error instanceof GatewayError

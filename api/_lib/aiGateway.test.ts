@@ -455,6 +455,28 @@ test('rejects invalid provider selection and malformed request bodies', () => {
   );
 });
 
+test('the surface discriminator is allowlisted, preserved, and optional', () => {
+  const base = {
+    route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+    request: { system: 'x', messages: [{ role: 'user', content: 'x' }] },
+  };
+
+  // Absent = the general harness, which no feature key gates.
+  assert.equal(validateGatewayBody(base).surface, undefined);
+  assert.equal(validateGatewayBody({ ...base, surface: 'video' }).surface, 'video');
+
+  // An unknown surface is REFUSED, never dropped: dropping it would turn a call that meant
+  // to name a gated surface into an ungated one (docs/ADMIN.md, "Gating a surface on a
+  // shared endpoint").
+  for (const surface of ['spx', '', 'VIDEO', 1, null]) {
+    assert.throws(
+      () => validateGatewayBody({ ...base, surface }),
+      (error: unknown) => error instanceof GatewayError && error.code === 'invalid_request',
+      `surface ${JSON.stringify(surface)} should be refused`,
+    );
+  }
+});
+
 test('seals user keys in a tamper-evident HttpOnly cookie', () => {
   const secret = 'sk-user-secret-never-browser-readable';
   process.env.AI_KEY_ENCRYPTION_SECRET = 'test-only-encryption-secret-with-more-than-32-characters';

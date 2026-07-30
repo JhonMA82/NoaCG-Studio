@@ -5,7 +5,12 @@
 // they are switching it off for everyone, including the account they just granted it to.
 
 import { useEffect, useState } from 'react';
-import { ENFORCED_FEATURE_KEYS, FEATURE_KEYS, FEATURE_LABELS } from '../../entitlements/contract';
+import {
+  ENFORCED_FEATURE_KEYS,
+  FEATURE_ENFORCEMENT_NOTES,
+  FEATURE_KEYS,
+  FEATURE_LABELS,
+} from '../../entitlements/contract';
 import type { FeatureKey } from '../../entitlements/contract';
 import type { AdminSessionResponse, AdminSystemState } from '../types';
 import { adminPost } from '../client';
@@ -71,9 +76,11 @@ export function SystemSection({ session }: { session: AdminSessionResponse }) {
             hint={
               !ENFORCED_FEATURE_KEYS.has(key)
                 ? ' not enforced yet - this records the setting but does not stop the feature'
-                : disabled.has(key)
-                  ? ' currently off for everyone'
-                  : undefined
+                : FEATURE_ENFORCEMENT_NOTES[key]
+                  ? ` ${FEATURE_ENFORCEMENT_NOTES[key]}${disabled.has(key) ? ' - currently off' : ''}`
+                  : disabled.has(key)
+                    ? ' currently off for everyone'
+                    : undefined
             }
             checked={!disabled.has(key)}
             onChange={(enabled) => {

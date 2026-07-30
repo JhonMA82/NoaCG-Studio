@@ -104,16 +104,21 @@ malformed-timestamp grant does not apply - a bad date must never widen access.
 ### What actually enforces each dimension
 
 A control that writes a row and changes nothing is worse than no control, so this is the map
-from a plan/admin dimension to the code that reads it.
+from a plan/admin dimension to the code that reads it. **Handler paths are the FILES, not the
+URLs:** the Vercel Hobby plan caps a deployment at twelve serverless functions, so each area
+routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path].ts`,
+`api/admin/[...path].ts`, `api/render/[...path].ts`) and the handlers themselves live under
+`api/_lib/`, where they cost no function slot. The URLs are unchanged.
 
 | Dimension | Enforced by |
 |---|---|
-| `ai.lite` | `api/ai/lite/generations.ts`, `judge.ts`, and `status.ts` (so the panel cannot offer what the endpoint would refuse) |
-| `ai.import-analysis` | `api/ai/tasks/import-analysis.ts` + its `status.ts` |
+| `ai.lite` | `api/_lib/lite/generations.ts`, `judge.ts`, and `status.ts` (so the panel cannot offer what the endpoint would refuse) |
+| `ai.import-analysis` | `api/_lib/importAnalysis/analyze.ts` + its `status.ts` |
 | `ai.byo-key` | `api/ai/generate.ts`, on the BYO branch only, and only when a token was presented - account-free BYO must keep working |
+| `ai.video` | `api/ai/generate.ts`, on the `surface: 'video'` discriminator the video harness sets, and only for a caller the server RECOGNISED - anonymous resolves defaults that carry no account feature, and account-free BYO video works today. See "Gating a surface on a shared endpoint" below for what the check can and cannot do |
 | `render.cloud` | `api/render/start.ts` |
-| `ai.video`, `sync.cloud`, `community.publish`, `control.hosted`, `showchat` | **nothing yet.** `ai.video` shares the gateway endpoint with BYO and needs a task discriminator to separate; the other four are RLS-shaped rather than endpoint-shaped. Their System-page switches therefore do not bite yet - do not present them as if they do |
-| disabled model routes | `api/ai/lite/generations.ts`, `judge.ts`, `tasks/import-analysis.ts`, and the MANAGED branch of `api/ai/generate.ts`. Deliberately not the BYO branch: the switch exists to stop the platform's own spend, and a BYO caller spends their own money on a model they chose |
+| `sync.cloud`, `community.publish`, `control.hosted`, `showchat` | **nothing yet** - all four are RLS-shaped rather than endpoint-shaped. Their System-page switches therefore do not bite yet; `ENFORCED_FEATURE_KEYS` is what stops the page presenting them as if they do |
+| disabled model routes | `api/_lib/lite/generations.ts`, `judge.ts`, `importAnalysis/analyze.ts`, and the MANAGED branch of `api/ai/generate.ts`. Deliberately not the BYO branch: the switch exists to stop the platform's own spend, and a BYO caller spends their own money on a model they chose |
 | AI allowances | `applyEntitlementToLiteProfile()` before the reservation RPC |
 | render tier | `resolveTier(signedIn, entitlement.renderTier.value)` |
 | render formats | `validateRenderRequest(m, tier, entitlement.renderFormats.value)` |
@@ -127,6 +132,34 @@ export formats" is a plan dimension in its own right, so a plan must be able to 
 its tier does not carry. The other caps stay orthogonal - granting ProRes does not also grant 4K
 or five minutes. A plan naming only formats the build does not have falls back to the tier
 instead of emptying the list, so a stale row costs one format rather than the feature.
+
+### Gating a surface on a shared endpoint
+
+`POST /api/ai/generate` is a general model proxy. The SPX harness, the brainstorm call, the
+video harness and a bare prompt all arrive as the same shape, so "is this video" is not
+something the server can read off the request - it has to be told. `AiGatewaySurface`
+(`src/ai/modelTypes.ts`) is that telling: an optional, allowlisted `surface` field, stamped
+onto every video call by `src/ai/video/videoGateway.ts` - the harness's one door to the
+gateway, existing so a new video model call cannot forget the tag and silently stop being
+gateable. An unrecognised value is REFUSED rather than dropped, because a dropped label reads
+as "the general harness, which nothing gates".
+
+That one-door rule is machine-enforced, in two kinds because neither guard covers the other's
+ground. An eslint boundary (`eslint.config.js`, the `src/ai/video` regions) refuses a direct
+`../modelGateway` import anywhere in the harness but `videoGateway.ts` itself - it binds call
+sites nobody has written yet, which no test can. And the shared video mock (`e2e/_video.ts`)
+asserts the tag on every gateway call it answers, with `e2e/video-surface-tag.spec.ts` naming
+the contract and pinning the SPX side as untagged - which lint cannot, since the request
+builder could drop the field with every import still legal. The failure mode both exist for is
+silent: an untagged video call works perfectly and simply escapes the entitlement.
+
+State the limit plainly rather than discovering it later: **the tag is client-supplied.** A
+caller who omits it gets the ungated path, and no server-side signal can fix that - a proxy
+that will run any prompt cannot know what the answer will be used for. What the check does
+buy is real: suspension, a plan that withdraws video, and the instance-wide kill switch all
+reach the product's actual video traffic, which is the difference between a switch and a row
+nothing reads. A surface that needs enforcement stronger than this needs its own endpoint
+with its own profile, the way `ai.lite` and `ai.import-analysis` have one.
 
 ### The browser's own entitlement
 
