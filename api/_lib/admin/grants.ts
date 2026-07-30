@@ -97,6 +97,33 @@ export default {
 
     const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) : '';
 
+    // ONE ACTIVE GRANT PER (user, kind, key) - refused here, and enforced by a partial unique
+    // index in 0021 so a second writer cannot race past this check.
+    //
+    // It is refused rather than auto-replaced. Two active grants for one key used to resolve
+    // NON-DETERMINISTICALLY: the merge is last-wins within a rank and the loader read them
+    // unordered, so an "appeal upheld" override could silently lose to the deny it was meant to
+    // reverse. Replacing the old row automatically would fix the ambiguity and introduce a worse
+    // one - a permanent restriction discarded as a side effect of granting a trial, with only
+    // the create in the audit log to show for it. Revoke, then grant: two deliberate actions,
+    // two audit rows, and no restriction can evaporate by accident.
+    const { data: clash, error: clashError } = await db
+      .from('user_grants')
+      .select('id, expires_at')
+      .eq('user_id', userId)
+      .eq('kind', kind)
+      .eq('key', key)
+      .is('revoked_at', null)
+      .maybeSingle();
+    if (clashError) return apiError('internal', 'The grant could not be created.', 500);
+    if (clash) {
+      return apiError(
+        'invalid',
+        `This user already has an active ${clash.expires_at ? 'grant' : 'override'} for that key. Revoke it first.`,
+        400,
+      );
+    }
+
     const { error } = await db.from('user_grants').insert({
       user_id: userId,
       kind,

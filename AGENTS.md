@@ -262,9 +262,13 @@ workflow files, so a new nested area or shared command needs no separate registr
 correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
-  real dev server): `npm run test:e2e`, and add a spec for any new flow. For the inner loop,
-  `npm run test:e2e:affected` maps changed files to covering specs (`scripts/e2e-affected.mjs`) -
-  the FULL suite is the merge gate. Bootstrap non-wizard specs with `createProject` (`e2e/_create.ts`).
+  real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
+  (docs/DEPLOYMENT.md): `npm run test:e2e:affected` maps changed files to covering specs
+  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
+  suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
+  gate, and the mapper escalates to everything whenever it is unsure. When you add a spec, add
+  its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
+  with `createProject` (`e2e/_create.ts`).
 - **Logic checks without UI (fast path):** Vite serves source modules, so in a browser context you
   can `await import('/src/blocks/registry.ts?t=' + Date.now())`, apply blocks to
   `createBlankTemplate(...)`, run `validateTemplate`, and load `composeDocument(tpl)` into a hidden
@@ -283,11 +287,13 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
   change). Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
   `e2e/catalog/catalog-bench.spec.ts`) is the ONLY gate that catches a design growing past its
-  width budget (it doubles every text value), so run it too. It is intentionally excluded from
-  the default `npm run test:e2e` merge-gate suite - benching every catalog variant across every
-  category is the single heaviest thing in the suite, and (like the other two gates above) it
-  only needs to run when the catalog or `src/validation/runtimeBench.ts` actually changed;
-  `npm run test:e2e:affected` already knows this and runs it automatically when relevant.
+  width budget (it doubles every text value), so run it too. It is excluded from the default
+  `npm run test:e2e` suite - benching every catalog variant across every category is the single
+  heaviest thing here, and (like the other two gates above) it only needs to run when the
+  catalog or `src/validation/runtimeBench.ts` actually changed. **All three now run in CI too:**
+  `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI runs it on
+  that flag, and the NIGHTLY sweep runs all three unconditionally - so an unrun catalog gate is
+  now caught by morning rather than never.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

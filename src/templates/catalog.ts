@@ -23,6 +23,7 @@ import { RESULTS_BOARDS } from './competition/results';
 import { REVEALS } from './competition/reveal';
 import { POLLS } from './poll';
 import { AUDIENCE } from './audience';
+import { STREAM_NOTIFICATIONS } from './streamNotifications';
 import { IMPORTED_DESIGNS } from './importedDesign/shared';
 import { mergeCatalog, typeVariants } from './types/registry';
 
@@ -57,6 +58,7 @@ export const HAND_WRITTEN: Partial<Record<TemplateCategory, TemplateVariant[]>> 
   'reveal': REVEALS,
   'poll': POLLS,
   'audience': AUDIENCE,
+  'stream-notification': STREAM_NOTIFICATIONS,
   // Not browsable in the category grid — the Import Graphic entry is its only way in.
   'imported-design': IMPORTED_DESIGNS,
 };

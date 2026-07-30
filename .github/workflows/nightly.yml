@@ -1,0 +1,283 @@
+# NIGHTLY FULL SWEEP — the exhaustive tier.
+#
+# ci.yml answers "did THIS change break something" in minutes, by running only the specs that
+# cover the change. That trade is only honest if something still runs everything, regularly,
+# and says so loudly when it goes red. This is that something.
+#
+# It also runs the three catalog-wide gates that no automation has ever run: the calibration
+# tripwire and the type-floor and overflow sweeps were documented as "run them by hand after a
+# catalog change", which in practice meant they ran when somebody remembered. A gate nobody is
+# scheduled to run is not a gate.
+#
+# Timed for the morning rather than the night's end: 02:00 UTC is 04:00-05:00 in Helsinki, so a
+# red result is already filed, attributed and waiting by the start of the day.
+
+name: nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+# One nightly at a time. A manual run while the scheduled one is in flight should queue behind
+# it, not race it for the dev-server ports.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write # the verdict job files/closes the rolling issue
+
+jobs:
+  e2e:
+    name: Nightly E2E ${{ matrix.shardIndex }}/8
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # No spec filter: this tier is the whole suite, by definition.
+      - name: E2E shard
+        run: npm run test:e2e -- --shard=${{ matrix.shardIndex }}/8
+
+      - name: Upload shard report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: nightly-blob-report-${{ matrix.shardIndex }}
+          path: blob-report/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nightly-test-results-${{ matrix.shardIndex }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  catalog:
+    name: Catalog calibration tripwire
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Catalog calibration tripwire
+        run: npm run test:e2e:catalog
+
+  catalog-gates:
+    name: Type floor and overflow sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Both sweeps render every catalog variant against a live dev server, so they need one -
+      # the same shape as ci.yml's factory job, trap and readiness poll included.
+      - name: Catalog quality gates
+        run: |
+          npm run dev &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          PORT="$(node scripts/dev-port.mjs)"
+          READY=0
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/app" > /dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Dev server did not become ready on port ${PORT}" >&2
+            exit 1
+          fi
+          # Run both even if the first fails, so one night reports every catalog fault rather
+          # than only the earliest one.
+          status=0
+          node scripts/type-floor.mjs || status=1
+          node scripts/overflow-sweep.mjs --baseline || status=1
+          exit "$status"
+
+  report:
+    name: Combined nightly report
+    if: ${{ !cancelled() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download shard reports
+        uses: actions/download-artifact@v5
+        with:
+          path: all-blob-reports
+          pattern: nightly-blob-report-*
+          merge-multiple: true
+
+      - name: Merge shard reports
+        run: npx playwright merge-reports --reporter=html ./all-blob-reports
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-playwright-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: error
+
+  verdict:
+    name: Nightly verdict
+    if: ${{ !cancelled() }}
+    needs: [e2e, catalog, catalog-gates, report]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The issue body names the commits in the window; that needs real history.
+          fetch-depth: 0
+
+      - name: Collect the verdict
+        id: verdict
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+          CATALOG_RESULT: ${{ needs.catalog.result }}
+          GATES_RESULT: ${{ needs.catalog-gates.result }}
+          REPORT_RESULT: ${{ needs.report.result }}
+        run: |
+          failed=""
+          [ "$E2E_RESULT" = "success" ] || failed="${failed}- Full E2E suite: ${E2E_RESULT}\n"
+          [ "$CATALOG_RESULT" = "success" ] || failed="${failed}- Catalog calibration tripwire: ${CATALOG_RESULT}\n"
+          [ "$GATES_RESULT" = "success" ] || failed="${failed}- Type floor / overflow sweep: ${GATES_RESULT}\n"
+          [ "$REPORT_RESULT" = "success" ] || failed="${failed}- Combined report: ${REPORT_RESULT}\n"
+          if [ -z "$failed" ]; then
+            echo "green=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "green=false" >> "$GITHUB_OUTPUT"
+            printf 'failed<<EOF\n%b\nEOF\n' "$failed" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The window between the last green nightly and this one IS the suspect list. Without it
+      # a red nightly says only "one of today's merges", which is the bisect cost that makes
+      # people distrust a nightly tier in the first place.
+      - name: Name the commits in the window
+        id: window
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          LAST_GREEN="$(gh run list --workflow=nightly.yml --status=success --limit 1 --json headSha,databaseId \
+            --jq "[.[] | select(.databaseId != ${RUN_ID})][0].headSha")"
+          if [ -n "$LAST_GREEN" ] && git cat-file -e "${LAST_GREEN}^{commit}" 2>/dev/null; then
+            LOG="$(git log --oneline "${LAST_GREEN}..HEAD" | head -50)"
+            [ -n "$LOG" ] || LOG="(no new commits since the last green nightly)"
+          else
+            LOG="(no previous green nightly to compare against - suspect list unavailable)"
+          fi
+          printf 'commits<<EOF\n%s\nEOF\n' "$LOG" >> "$GITHUB_OUTPUT"
+
+      # The rolling-issue pattern every alarm here follows (docs/DEPLOYMENT.md): one open issue,
+      # one comment per newly red night, closed by the next green.
+      - name: File / update the nightly issue
+        if: ${{ steps.verdict.outputs.green == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ steps.verdict.outputs.failed }}
+          COMMITS: ${{ steps.window.outputs.commits }}
+        run: |
+          TITLE="Nightly full test suite is red"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="$(printf 'Nightly at %s failed.\n\n**What failed**\n%s\n**Commits since the last green nightly**\n```\n%s\n```\n\nRun: %s' \
+            "${{ github.sha }}" "$FAILED" "$COMMITS" "$RUN_URL")"
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          else
+            gh issue comment "$EXISTING" --body "Still red. $BODY"
+          fi
+
+      - name: Close the nightly issue
+        if: ${{ steps.verdict.outputs.green == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TITLE="Nightly full test suite is red"
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Nightly green again at ${{ github.sha }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+      - name: Fail the run when the sweep was red
+        if: ${{ steps.verdict.outputs.green == 'false' }}
+        run: |
+          echo "::error title=Nightly::The nightly sweep failed - see the rolling issue for the suspect commits."
+          exit 1

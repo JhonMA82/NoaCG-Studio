@@ -51,6 +51,7 @@ export type TemplateCategory =
   | 'reveal'
   | 'poll'
   | 'audience'
+  | 'stream-notification'
   | 'imported-design';
 
 export const CATEGORIES: CategoryInfo[] = [
@@ -79,6 +80,7 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'quiz',          name: 'Quiz graphics',           plannedCount: 12, available: true , description: 'Game-show questions with two, three or four answers.', group: 'specials' },
   { id: 'poll',          name: 'Live votes',              plannedCount: 4,  available: true , description: 'Audience polls and votes — open, close, result, winner.', group: 'specials' },
   { id: 'audience',      name: 'Audience & questions',    plannedCount: 20, available: true , description: 'Viewer questions, Q&A, chat highlights, queues, requests.', group: 'specials' },
+  { id: 'stream-notification', name: 'Stream notifications', plannedCount: 4, available: true, description: 'Followers, members, donations, gifts and raids in one queued event format.', group: 'specials' },
   // The public-service pack (docs/PUBLIC_SERVICE_PACK.md).
   { id: 'alert',         name: 'Alerts & warnings',       plannedCount: 10, available: true , description: 'Breaking news, weather warnings, emergency and status notices.', group: 'specials' },
   { id: 'public-info',   name: 'Public information',      plannedCount: 9,  available: true , description: 'Official notices, instructions, disclaimers — in one or two languages.', group: 'specials' },

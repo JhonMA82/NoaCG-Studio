@@ -16,13 +16,16 @@
 // pass null for an anonymous request and the anonymous defaults come back.
 
 import {
+  allows,
   enforceableLimit,
   resolveEntitlement,
   type AccountState,
   type Entitlement,
+  type FeatureKey,
   type GrantShape,
   type PlanShape,
 } from '../../src/entitlements/contract.js';
+import type { AiGatewaySurface } from '../../src/ai/modelTypes.js';
 import { adminDb, adminConfigured } from './adminAuth.js';
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
 import { systemSettings } from './systemSettings.js';
@@ -116,11 +119,20 @@ export async function loadEntitlementRows(userId: string): Promise<EntitlementRo
         .select('expires_at, plans!inner(key, name, features, limits, render_tier, render_formats)')
         .eq('user_id', userId)
         .maybeSingle(),
+      // ORDERED, and load-bearing: the contract's merge is LAST-WINS within a precedence rank,
+      // and its sort is stable, so the order rows arrive in decides the answer whenever two of
+      // equal rank name one key. Unordered, Postgres may return them either way round and the
+      // same account resolves differently on two consecutive requests. `0021` makes that state
+      // unreachable for new rows, but determinism must not depend on a migration having been
+      // applied - a database still carrying a legacy pair has to answer the same way twice.
+      // Ascending, so the most recent decision is the one that wins.
       db
         .from('user_grants')
         .select('id, kind, key, value, reason, starts_at, expires_at, revoked_at')
         .eq('user_id', userId)
-        .is('revoked_at', null),
+        .is('revoked_at', null)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
     ]);
 
     const state = account.data?.state === 'suspended' ? 'suspended' : 'active';
@@ -167,6 +179,42 @@ export async function resolveUserEntitlement(userId: string | null): Promise<Ent
     // rather than as invisible behaviour. Removed one release after plans ship (docs/ADMIN.md).
     envOverride: liteProfile().overrideUserIds.includes(userId),
   });
+}
+
+// ── the gateway surface gate ───────────────────────────────────────────────────────────
+//
+// POST /api/ai/generate is a general model proxy, so it cannot tell what a request is FOR -
+// the caller says, with the `surface` discriminator (docs/ADMIN.md, "Gating a surface on a
+// shared endpoint"). The two functions below are the whole decision, pulled out of the
+// handler because the handler's own path needs a verified Supabase token to reach: that is
+// how the refusal shipped untested, with only its no-op half covered.
+
+/** Which feature key a gateway surface is gated on; null for the general harness, which no
+ *  feature key gates. One map, so adding a gated surface is one line and cannot disagree with
+ *  the enforcement table in docs/ADMIN.md. */
+const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = { video: 'ai.video' };
+
+export function gatedFeature(surface: AiGatewaySurface | undefined): FeatureKey | null {
+  return surface ? SURFACE_FEATURES[surface] : null;
+}
+
+/**
+ * Is this surface call refused?
+ *
+ * `recognised` is the load-bearing half, and it is not a shortcut for "has a token": it means
+ * the server resolved that token to an actual account. An UNRECOGNISED caller resolves the
+ * ANONYMOUS defaults, which carry no account feature at all - so refusing on that answer would
+ * take video away from account-free bring-your-own-key use and from every self-hosted instance
+ * with no auth configured. Both work today, and entitlements may not quietly restrict anybody
+ * (the neutrality rule, docs/ADMIN.md §2). Managed access still needs an account; the key
+ * lookup answers that with a 401 of its own.
+ */
+export function surfaceRefused(
+  feature: FeatureKey,
+  recognised: boolean,
+  entitlement: Entitlement,
+): boolean {
+  return recognised && !allows(entitlement, feature);
 }
 
 /**

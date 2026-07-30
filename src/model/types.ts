@@ -43,6 +43,7 @@ export type TemplateType =
   | 'poll'
   /** An audience message on screen — question, Q&A, chat, queue, request (templates/audience). */
   | 'audience'
+  | 'stream-notification'
   /** A design the user made elsewhere (a flat image) with text fields placed on top. */
   | 'imported-design'
   | 'blank';

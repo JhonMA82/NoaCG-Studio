@@ -1666,6 +1666,31 @@
    ".audience-queue-text:y"
   ]
  },
+ "sn01": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
+  ]
+ },
+ "sn02": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
+  ]
+ },
+ "sn03": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y",
+   ".stream-notification-message:y"
+  ]
+ },
+ "sn04": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
+  ]
+ },
  "al02": {
   "off": [],
   "clip": [
