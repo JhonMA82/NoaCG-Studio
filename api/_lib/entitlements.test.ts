@@ -557,3 +557,24 @@ test('an UNRECOGNISED caller is never refused, whatever the resolved answer says
   const suspended = resolveEntitlement({ ...bare('user-1'), accountState: 'suspended' });
   assert.equal(surfaceRefused('ai.video', false, suspended), false);
 });
+
+test('same-rank grants are last-wins, so the loader must hand them over ordered', () => {
+  // The coupling this pins: `resolveEntitlement` sorts only by RANK (temporary before
+  // permanent) and Array.sort is stable, so two grants of equal rank naming one key resolve by
+  // ARRIVAL ORDER. That makes the loader's `ORDER BY created_at` part of the access rule rather
+  // than a tidiness detail - unordered, Postgres may return the pair either way round and the
+  // same account resolves differently on two consecutive requests.
+  //
+  // 0021 makes the pair unreachable for new rows; this stays because a database that has not
+  // had it applied yet must still answer the same way twice.
+  const older = grant({ id: 'g-old', key: 'community.publish', value: false, reason: 'abuse' });
+  const newer = grant({ id: 'g-new', key: 'community.publish', value: true, reason: 'appeal upheld' });
+
+  const ascending = resolveEntitlement({ ...bare('user-1'), grants: [older, newer] });
+  assert.equal(allows(ascending, 'community.publish'), true, 'the most recent decision must win');
+  assert.match(ascending.features['community.publish'].sourceLabel, /appeal upheld/);
+
+  // Reversed input reverses the answer - which is precisely why the order is not optional.
+  const descending = resolveEntitlement({ ...bare('user-1'), grants: [newer, older] });
+  assert.equal(allows(descending, 'community.publish'), false);
+});

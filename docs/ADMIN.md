@@ -207,12 +207,15 @@ of the three is a single row test. The property that makes it sound is one-direc
 SQL denial set is a strict subset of the contract's - so the two can never disagree in the
 direction that matters, which is denying something the resolver allows.
 
-**That subset property does not hold yet, and fixing it is the precondition.** Two active
-permanent grants for one key currently resolve non-deterministically: `POST /api/admin/grants`
-inserts without revoking an existing one, `user_grants` has no uniqueness constraint, and
-`loadEntitlementRows` reads them with no `ORDER BY` while the merge is last-wins within a rank.
-Until one active grant per `(user_id, kind, key)` is guaranteed, "a denying override exists"
-and "the resolver denies" are not the same statement.
+**That subset property needed a precondition, and `0021` is it.** Two active grants for one key
+used to resolve non-deterministically - the API inserted without checking, `user_grants` had no
+uniqueness constraint, and `loadEntitlementRows` read the rows with no `ORDER BY` while the merge
+is last-wins within a rank. Now the API refuses the clash with an actionable message, a partial
+unique index makes the state unreachable, and the loader orders by `created_at` anyway so a
+database that has not had `0021` applied still answers the same way twice. "A denying override
+exists" and "the resolver denies" are the same statement again. **Note that `0021` must be
+applied before any policy relies on it** - the index is the guarantee; the API check is only the
+better error message.
 
 **Scope, honestly.** Only two of the four have a reason to bite today. `community.publish` and
 `showchat` are moderation instruments - stopping an abusive account from publishing or
@@ -335,6 +338,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0018_entitlements` | `user_accounts`, `is_suspended()`, suspension added to existing write policies, `plans`, `user_plans`, `user_grants` |
 | `0019_system_and_templates` | `system_settings`, `public_system_notice()`, `template_admin` |
 | `0020_self_scoped_predicates` | `is_suspended()` loses its argument, the nine policies are repointed, `is_suspended(uuid)` is dropped, `admin_user_suspended()` replaces it for admins, `is_admin`/`admin_role_rank` come off the REST surface |
+| `0021_one_active_grant` | pre-existing duplicate active grants are revoked (newest kept), then a PARTIAL UNIQUE index makes one active grant per `(user_id, kind, key)` unreachable |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
