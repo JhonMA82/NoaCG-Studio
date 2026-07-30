@@ -258,6 +258,32 @@ measures presence, not quality, and it must not change the frozen control's repa
 Free coverage: e2e/creative-routing.spec.ts (mutation-pinned, incl. the brief-bank
 catalog-anchor re-verification - the decay rule).
 
+## Phase-C pilot (`creative/`, docs/CREATIVE_MODE_PLAN.md §3.2, §8, §10) - BENCH ONLY
+
+`creative/` is the pilot's CREATE pipeline. **Nothing in the product reaches it**: there is no
+UI, no route from `claudeProvider` into it, and its only caller is
+`scripts/creative-pilot-bench.mjs`. `runCreativeArm(arm, input)` runs one of four ablation arms
+per brief - **A** the frozen control (literally `claudeProvider.generate(..., mode:'create')`),
+**B** the same coder with a NEUTRAL skeleton example and the whole intent carried, **C** the
+staged pipeline, **D** C plus one rendered-frame critique and one focused repair. A-vs-B
+isolates the catalog example, B-vs-C the staging, C-vs-D the critique - so the arms must differ
+in ONE thing each, which is why arm B reuses `coderSystemPrompt` rather than owning a prompt.
+
+The staged path is `contracts.ts` (ConceptDirection + CreativeSpec, both normalize-don't-reject)
+-> `knowledgeCards.ts` (family anatomy + DESIGN_LANGUAGE numbers, keyword-selected, max 2, a
+card REPLACES generic language) -> `stages.ts` (the stage 4/5 tools and prompts) ->
+`scaffold.ts` (DETERMINISTIC: fields + SPX definition + runtime + list rebuild + the marked
+region + safe-area geometry) -> `style.ts` (the model's CSS and bounded region HTML through an
+applyPolish-class gate). **The scaffold is the floor**: a style patch the gate refuses leaves a
+plain but valid graphic, e2e-pinned against the full production validator. The anti-anchoring
+rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, and
+`neutralSkeleton.ts` is what the coder arm studies instead.
+
+Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
+expensive rig in the repo, explicit route, priced, ceilinged), `bench:creative:refs` (free
+catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
+e2e/creative-pilot.spec.ts.
+
 ## The quality gate (injected, not owned)
 
 The provider is UI-free: callers inject `GenerateOptions.validate` (an `SpxValidator`) -

@@ -682,7 +682,13 @@ never mixed at training time.
 - **Phase B - this plan revised and approved** [owner]: Mirko ratifies the §11 thresholds,
   the arm budget, and the pilot spend before any paid run.
 - **Phase C - the three-category pilot (separate worktree).** Stages 1-10, the scaffold
-  hypothesis + rivals per §3.3, brief banks per §10, arms per §8.
+  hypothesis + rivals per §3.3, brief banks per §10, arms per §8. **BUILT 2026-07-30**
+  (`src/ai/creative/`, `scripts/creative-pilot-bench.mjs`, free coverage in
+  `e2e/creative-pilot.spec.ts`): the leading hypothesis is implemented as
+  `scaffold.ts` + `style.ts`, and the two sanctioned rivals sit in the comparison rather than
+  in the code - (b) coder-with-contracts IS arm B, and (a) the bounded layout IR is the change
+  to `scaffold.ts` that phase E makes only if the diversity criteria say the scaffold
+  under-composes. Not yet run: every arm spends real tokens and waits on approval.
 - **Phase D - the comparison.** Frozen control vs staged CREATE vs critique arm; pairwise
   review; the §11 sheet filled in; decision.
 - **Phase E - evidence-driven widening** [owner, informed by D]: generalize or replace the

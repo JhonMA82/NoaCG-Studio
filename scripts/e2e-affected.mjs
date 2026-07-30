@@ -16,7 +16,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
   [/^src\/ai\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts']],
   // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
   // needs that spec and nothing else.
   [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
