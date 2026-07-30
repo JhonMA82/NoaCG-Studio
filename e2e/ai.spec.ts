@@ -348,6 +348,59 @@ test('harness on: the directions are live previews that name their design decisi
   await expect(page.locator('[data-alt="2"]')).toContainText('compact');
 });
 
+// A well-formed intent answer for these briefs: a catalog family carries a lower third,
+// confidently, with no originality demand - the auto route must decide adapt.
+const CATALOG_INTENT = {
+  kind: 'family',
+  families: ['strap'],
+  confidence: 'high',
+  summary: 'A lower third strap.',
+  parts: [{ id: 'panel', role: 'content' }],
+  fields: [],
+  originalityRequested: false,
+};
+
+test('harness on: the intent stage runs first, and a catalog fit routes to adapt', async ({ page }) => {
+  const tools: string[] = [];
+  await page.route('/api/ai/generate', (route: Route) => {
+    const tool = requestedTool(route);
+    tools.push(tool);
+    if (tool === 'emit_structural_intent') return route.fulfill(toolUse(tool, CATALOG_INTENT));
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  // Intent first, then the one design call - and an adapt decision sends nothing to the coder.
+  expect(tools).toEqual(['emit_structural_intent', 'emit_design_alternatives']);
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded One');
+});
+
+test('harness on: an intent answer from the wrong tool routes nothing - the flow falls back whole', async ({ page }) => {
+  // The mutation twin of the adapt test above, and a real production hazard: the forced
+  // intent call answered with emit_template's payload. Normalizing that garbage would read
+  // as a low-confidence 'novel' and route every catalog brief to the coder at triple cost;
+  // the stage must instead fail honestly and fall back to the pre-routing flow.
+  let templateCalls = 0;
+  await page.route('/api/ai/generate', (route: Route) => {
+    const tool = requestedTool(route);
+    if (tool === 'emit_template') templateCalls += 1;
+    if (tool === 'emit_structural_intent') return route.fulfill(toolUse(tool, VALID_TEMPLATE));
+    if (tool === 'emit_design_alternatives')
+      return route.fulfill(toolUse(tool, { alternatives: THREE_ALTS }));
+    return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
+  expect(templateCalls).toBe(0); // grounded assembly, not a forced-create coder run
+  await expect(page.locator('.change-preview strong')).toHaveText('Grounded One');
+});
+
 test('harness on: refining a direction keeps the others, and the pick still trains preferences', async ({ page }) => {
   await page.route('/api/ai/generate', (route: Route) => {
     const tool = requestedTool(route);

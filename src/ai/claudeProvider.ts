@@ -39,6 +39,7 @@ import { findingsList, repairLoop } from './shared/repairLoop';
 import {
   INTENT_TOOL,
   intentSystemPrompt,
+  isIntentAnswer,
   narrowFitTool,
   normalizeIntent,
   routeIntent,
@@ -929,6 +930,9 @@ async function intentAndRoute(
       maxTokens: 2000,
     });
     run.stage('intent', t0, result.model, result.usage);
+    // An answer that never addressed the intent tool must not be normalized: it would read
+    // as low-confidence 'novel' and silently route a catalog brief to the coder.
+    if (!isIntentAnswer(result.output)) throw new Error('The intent call answered with the wrong tool.');
     intent = normalizeIntent(result.output);
   } catch {
     // No intent. Explicit create still routes create; auto falls through to today's flow.
