@@ -15,6 +15,9 @@ import {
   routePrice,
 } from '../../_lib/aiLiteProfile.js';
 import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
+import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../../_lib/entitlements.js';
+import { allows } from '../../../src/entitlements/contract.js';
+import { routeDisabled, systemSettings } from '../../_lib/systemSettings.js';
 import { LITE_TASK_ID, liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
 import {
   getLiteGenerationStore,
@@ -269,7 +272,22 @@ export default {
     }
     const user = await verifyUser(bearerToken(req));
     if (!user) return liteError('authentication_required', 'Sign in to use NoaCG Lite.', 401);
+    // Legacy env list first, then the entitlement: an explicit plan number or a per-user
+    // override is a deliberate decision and outranks the blanket development bump.
     profile = liteProfileForUser(profile, user.userId);
+    const entitlement = await resolveUserEntitlement(user.userId);
+    if (!allows(entitlement, 'ai.lite')) {
+      return liteError('profile_disabled', 'NoaCG Lite is not available for this account.', 403);
+    }
+    profile = applyEntitlementToLiteProfile(profile, entitlement);
+
+    // A route switched off from the admin surface stays off. Unlike every other control this
+    // one fails CLOSED, because the reason to disable a route is that its output is wrong or
+    // its cost has spiked - serving it anyway is exactly the outcome the switch prevents.
+    const system = await systemSettings();
+    if (routeDisabled(system, profile.primary) && routeDisabled(system, profile.fallback)) {
+      return liteError('profile_not_configured', 'NoaCG Lite has no available model route.', 503, true);
+    }
 
     let request: LiteGenerationRequest;
     try {

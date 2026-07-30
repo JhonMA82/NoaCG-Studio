@@ -13,6 +13,9 @@ const runtime = await buildApiRuntime([
   'api/_lib/aiTaskRegistry.test.ts',
   'api/_lib/aiLite.test.ts',
   'api/_lib/funnelEvents.test.ts',
+  'api/_lib/entitlements.test.ts',
+  'api/_lib/adminAuth.test.ts',
+  'api/_lib/templateVisibility.test.ts',
 ]);
 
 try {
@@ -23,6 +26,9 @@ try {
     path.join(runtime.outputDir, 'api/_lib/aiTaskRegistry.test.js'),
     path.join(runtime.outputDir, 'api/_lib/aiLite.test.js'),
     path.join(runtime.outputDir, 'api/_lib/funnelEvents.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/entitlements.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/adminAuth.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/templateVisibility.test.js'),
   ];
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,
