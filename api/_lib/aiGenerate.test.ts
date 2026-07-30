@@ -84,6 +84,35 @@ test('the gateway refuses a hammering client with 429 + Retry-After before readi
   assert.equal(other.status, 412);
 });
 
+test('a video-tagged call from a caller the server cannot recognise is NOT refused', async () => {
+  // The ai.video gate binds recognised accounts only. With no backend configured every
+  // caller resolves the ANONYMOUS defaults - which set ai.video false - so a gate keyed on
+  // the resolved answer alone would take account-free BYO video away from every self-hosted
+  // instance. 412 (no key configured) is the pre-existing answer and must stay it.
+  const request = new Request('https://noacg.test/api/ai/generate', {
+    method: 'POST',
+    headers: { 'x-forwarded-for': uniqueIp(), authorization: 'Bearer stale-or-unverifiable' },
+    body: JSON.stringify({
+      route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+      request: { system: 'You are a test.', messages: [{ role: 'user', content: 'hi' }] },
+      surface: 'video',
+    }),
+  });
+  const response = await generate.fetch(request);
+  assert.equal(response.status, 412);
+});
+
+test('an unknown surface is refused outright rather than downgraded to the ungated path', async () => {
+  const response = await generate.fetch(gatewayRequest(uniqueIp(), {
+    route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+    request: { system: 'You are a test.', messages: [{ role: 'user', content: 'hi' }] },
+    surface: 'not-a-surface',
+  }));
+  assert.equal(response.status, 400);
+  const body = await response.json() as { error: { code: string } };
+  assert.equal(body.error.code, 'invalid_request');
+});
+
 const LEDGER_BODY: AiGatewayRequestBody = {
   route: { provider: 'anthropic', model: 'claude-sonnet-5' },
   request: { system: 'You are a test.', messages: [{ role: 'user', content: 'secret prompt text' }] },

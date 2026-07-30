@@ -225,8 +225,13 @@ run BEFORE the design call in `generate` and `generateAlternatives` (never for L
 modify): one small forced `emit_structural_intent` call -> `normalizeIntent` ->
 `routeIntent` (deterministic; `structuralFit` checks the type registry + catalog LIVE, so
 catalog growth updates routing by itself). The rules: an explicit mode is never overridden;
-auto routes create only on originality words in the brief, no structural fit, or a
-low-confidence/novel/hybrid classification - a catalog-fit brief under auto runs the
+auto routes create only on originality words in the brief, no structural fit, a
+low-confidence/novel/hybrid classification, or a BEYOND-SCOPE match
+(`intent.beyondScope`: the brief matches a listed structure but requires structure its
+`GraphicType.structuralScope` note excludes - a double-elimination brief on the
+single-elim bracket type. The REGISTRY declares the scope, the intent stage judges the
+brief against it with evidence, `routeIntent` decides deterministically - the
+originalityRequested pattern) - a catalog-fit brief under auto runs the
 pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
 adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
 catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
