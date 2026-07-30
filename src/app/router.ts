@@ -11,7 +11,9 @@
 //   #/graphic/<id>         open that library graphic in the SPX editor (refresh restores it)
 //   #/control/<graphicId>  the graphic's control panel
 //   #/video                the video editor shell
-//   #/new                  the creation wizard (Back closes it)
+//   #/new[/<designId>]     the creation wizard (Back closes it); an optional trailing catalog
+//                          variant id preselects that design (docs/PRERENDER.md's template-page
+//                          deep link) — an id that fails to resolve just opens at Entry
 
 import { create } from 'zustand';
 
@@ -22,7 +24,7 @@ export type Route =
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
   | { view: 'video' }
-  | { view: 'new' };
+  | { view: 'new'; design?: string | null };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
@@ -38,7 +40,7 @@ export function parseRoute(hash: string): Route {
     case 'video':
       return { view: 'video' };
     case 'new':
-      return { view: 'new' };
+      return { view: 'new', design: parts[1] ?? null };
     default:
       return { view: 'editor' };
   }
@@ -59,7 +61,7 @@ export function routeHash(route: Route): string {
     case 'video':
       return '#/video';
     case 'new':
-      return '#/new';
+      return route.design ? `#/new/${encodeURIComponent(route.design)}` : '#/new';
   }
 }
 

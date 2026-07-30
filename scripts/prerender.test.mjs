@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assignSlugs, pageSlug, setStyleLabels, sitemap, templatePage } from './prerender.mjs';
+import { appLink, assignSlugs, pageSlug, setStyleLabels, sitemap, templatePage } from './prerender.mjs';
 
 const variant = (over = {}) => ({
   id: 'lt01',
@@ -74,13 +74,25 @@ test('every page carries the metadata a crawler and a share card need', () => {
     'property="og:title"',
     'property="og:description"',
     'property="og:image"',
-    'href="/app"',
+    'href="/app#/new/lt01"',
   ]) {
     assert.ok(html.includes(needle), `missing ${needle}`);
   }
   // The page must say something true about the design, not just boilerplate.
   assert.match(html, /A clean two-line name strap\./);
   assert.match(html, /up to 2 text lines/);
+});
+
+test('the CTA and footer link both open the wizard with this design preselected', () => {
+  // #/new/<variantId> (src/app/router.ts) opens the creation wizard straight onto this
+  // design's Fields step - never the generic /app entry a visitor would have to re-search
+  // the catalog from (docs/PRERENDER.md).
+  assert.equal(appLink(variant()), '/app#/new/lt01');
+  // A variant id shaped like a URL-hostile string still round-trips through one segment.
+  assert.equal(appLink(variant({ id: 'score/bug lt02' })), '/app#/new/score%2Fbug%20lt02');
+
+  const html = templatePage({ slug: 'name-strap', variant: variant() });
+  assert.equal((html.match(/href="\/app#\/new\/lt01"/g) ?? []).length, 2);
 });
 
 test('a data-driven design says so instead of claiming zero text lines', () => {
