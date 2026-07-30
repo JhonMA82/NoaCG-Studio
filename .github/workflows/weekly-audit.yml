@@ -58,3 +58,16 @@ jobs:
           else
             gh issue create --title "$TITLE" --body "$BODY"
           fi
+
+      # …and self-closing, like every rolling issue here (docs/DEPLOYMENT.md): a green run
+      # means the advisories are cleared, so the alarm must not stay latched.
+      - name: Close the failure issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Weekly dependency audit is red"
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Audit green again at ${{ github.sha }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi

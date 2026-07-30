@@ -13,6 +13,7 @@ import type { ModelTool } from './modelGateway';
 import { CATEGORIES, type TemplateCategory } from '../model/wizard';
 import {
   INTENT_ZONES,
+  isIntentAnswer,
   normalizeIntent,
   type GenerationMode,
   type RouteDecision,
@@ -22,7 +23,7 @@ import { typeById, TYPES } from '../templates/types/registry';
 import { variantsFor } from '../templates/catalog';
 
 // Re-exported so harness consumers (provider, stub, rigs, specs) keep one import path.
-export { normalizeIntent };
+export { isIntentAnswer, normalizeIntent };
 export type { GenerationMode, RouteDecision, StructuralIntent };
 
 // ── The forced tool ───────────────────────────────────────────────────────────
