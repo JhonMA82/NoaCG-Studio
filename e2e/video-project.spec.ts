@@ -298,13 +298,6 @@ test('chat refinement applies an undoable change', async ({ page }) => {
 });
 
 test('reload restores the project; save/reopen and the SPX switch work', async ({ page }) => {
-  // Genuinely slow, not flaky-slow: this one test waits out TWO video generations (each an
-  // unbounded validation probe against the player host) and then a blank SPX create, which
-  // cold-loads Prettier and its four plugins before the doc-kind switch flips. Under the
-  // suite's default 30 s it was failing on the clock with no assertion message at all, which
-  // reads like a broken app. test.slow() triples the budget for this test alone rather than
-  // loosening the global one, so a real regression elsewhere still trips at 30 s.
-  test.slow();
   await createCountdownProject(page);
   await waitForGeneration(page);
 

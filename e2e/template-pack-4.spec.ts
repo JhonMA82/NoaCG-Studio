@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { createProject } from './_create';
-import { awaitPreviewAfterReload } from './_preview';
+import { awaitPreviewRebuild } from './_preview';
 
 // THE TITLE / TOPIC / INFORMATION PACK (src/templates/pack4/).
 //
@@ -310,7 +310,7 @@ test('a pack graphic survives save, reload and reopen unchanged', async ({ page 
 
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
-  await awaitPreviewAfterReload(page);
+  await awaitPreviewRebuild(page);
 
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
