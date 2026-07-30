@@ -1,18 +1,25 @@
 # Creative Mode - a custom creation path for affordable open models
 
-Status: PLAN (no implementation in this document's branch). Companion to
+Status: PLAN, revision 2 (no implementation on this branch). Companion to
 `docs/AI_PLATFORM_PLAN.md` (the task-registry architecture this slots into) and
 `docs/AI_LITE_BENCHMARK.md` (the evidence base). Read `src/ai/AGENTS.md` first - the harness
 doctrine there stays binding; this plan changes how the CUSTOM route works, not the doctrine.
 
-The goal: off-catalog briefs should produce original, usable broadcast graphics from cheap
-open-weight models, because NoaCG - not the model - supplies the broadcast knowledge, the
-structured creative process, the compiler, and the feedback loop. Catalog-grounded generation
-(the adapt path) already works and is not touched.
+The goal: users should be able to get genuinely original, usable broadcast graphics from
+cheap open-weight models, because NoaCG - not the model - supplies the broadcast knowledge,
+the structured creative process, the compiler, the validation, and the feedback loop.
+Catalog-grounded generation (the adapt path) already works and its compile path is not
+touched.
+
+Every claim in this document is tagged one of: **[finding]** (supported by code or a
+measured run), **[architecture]** (proposed, to be built as described), **[hypothesis]**
+(to be validated by the pilot before it becomes architecture), or **[owner]** (a product
+decision Mirko must make). The pilot exists to convert hypotheses into findings before
+NoaCG commits to a production architecture.
 
 ---
 
-## 1. The current request flow, and where it fails
+## 1. The current request flow, and where it fails [finding]
 
 ### 1.1 Catalog-fit trace (works - keep)
 
@@ -26,8 +33,7 @@ brief + images/references + conversation + GenerationSpec
    `applyDesignAdjustments` -> `ensureSpecFonts` -> `applySpecOutPreset`), every value clamped
 -> injected validator (validateTemplate + runtimeBench) -> optional bounded polish.
 
-One model call, deterministic everything else, correct by construction. This is the adapt
-path and its contract does not change.
+One model call, deterministic everything else, correct by construction.
 
 ### 1.2 Off-catalog trace (the broken half)
 
@@ -76,6 +82,12 @@ existing gates would promote the worst model and eliminate the best. The same bl
 Lite scale: the vision judge scored strapShape 5 on a frame with no strap (AI_LITE_BENCHMARK
 §6d) - a gate cannot catch a defect in a dimension it does not measure.
 
+**F6 - "the user asked for something new" is not an input anywhere.** Nothing in
+`GenerateOptions` or the spec schema distinguishes "make me a lower third" from "make me a
+lower third that looks like nothing in your catalog". Structural fit is the ONLY routing
+signal, so an explicit request for originality is structurally overridden - a catalog-shaped
+brief can never reach the creative path today, however clearly the user asks.
+
 **Why the harness encourages catalog copying (the one-paragraph answer):** the routing
 schema forces every brief into catalog vocabulary, the prompt spends its whole budget
 describing the catalog, the custom route's only design example is catalog code, and every
@@ -83,387 +95,583 @@ gate downstream measures engineering conformance rather than brief satisfaction 
 cheapest way for any model to "succeed" is to pick a chassis, and nothing ever penalizes
 the pick being wrong.
 
+**A decay dynamic worth naming [finding]:** "off-catalog" is a moving target. The
+2026-07-17 compare rig found 4 of its 5 off-catalog briefs silently absorbed by catalog
+growth (they routed grounded after the July promotions), the bracket brief now has real
+catalog neighbours (br01/br02, below), and timing-tower designs are in flight in another
+worktree as this revision is written. Every routing benchmark must re-verify its expected
+routes against the CURRENT catalog before each run - a stale expected-route table measures
+the catalog's growth, not the router.
+
 ---
 
-## 2. Target architecture
+## 2. Request modes: adapt, create, auto [architecture]
 
-### 2.1 The two routes and their contracts
+Structural catalog fit is necessary but NOT sufficient for the adapt path (F6). The
+generation request gains an explicit mode, a first-class user input alongside the brief:
+
+- **`adapt`** - find and customize an existing catalog design. Today's grounded path,
+  contract unchanged: chassis + parameters, deterministic assembly, clamps, no repair loop.
+- **`create`** - produce a genuinely new visual concept. Catalog compositions are excluded
+  as design input by contract (§4); catalog knowledge participates only as machine-readable
+  constraints (type structures, preset banks, the :root contract, numeric guardrails).
+- **`auto`** (default) - the router chooses. Inputs to the decision: structural fit against
+  the type registry and catalog metadata, routing confidence (§6), originality signals in
+  the brief ("unlike anything", "our own look", a mood board attached), asset demands the
+  catalog cannot place, references and their declared purposes, and cost/latency (adapt is
+  one small call; create is several). A catalog design having the right structure plus no
+  originality signal -> ADAPT. The right structure plus an explicit originality request ->
+  CREATE. No structural match -> CREATE, or an honest unsupported answer.
+
+The desired production behaviour is explicitly NOT "create always wins": for well-covered
+categories the catalog is often the better product (the Lite calibration verdict - within
+the audited chassis, the catalog is the ceiling). AUTO earns its keep by choosing ADAPT for
+ordinary briefs and CREATE where a new direction is justified - and the pilot benchmarks
+**routing quality** (mode decisions against per-brief expected routes) **independently of
+creative-generation quality** (what CREATE produces once chosen). A router that is right
+for the wrong reasons or a generator that is good behind a bad router must be visible as
+two facts, not one blurred score.
+
+UI note [owner]: where the mode surfaces (an explicit toggle in the AI step vs inferred
+phrasing plus an "original design" checkbox) is a product decision; the architecture only
+requires that the mode exists in `GenerateOptions` and is honoured.
+
+---
+
+## 3. Target architecture [architecture], creation mechanism [hypothesis]
+
+### 3.1 The two routes and their contracts
 
 | | ADAPT (exists, unchanged) | CREATE (new) |
 |---|---|---|
-| When | a catalog design family carries the brief's STRUCTURE | no family does |
-| Model's job | pick chassis + parameters | design within a compiled structural scaffold |
-| Platform's job | assemble, clamp, validate | analyse intent, compile scaffold, validate structure + engineering |
-| Catalog's role | the design | engineering contracts only - never a compositional example |
-| Cost | 1 small call | 3-5 small calls + 1 medium call |
+| When | mode=adapt, or auto + fit + no originality demand | mode=create, or auto + (no fit \| originality demand) |
+| Model's job | pick chassis + parameters | design within NoaCG-supplied constraints |
+| Platform's job | assemble, clamp, validate | analyse intent, compile/verify structure + engineering |
+| Catalog's role | the design | engineering contracts + constraints only - never a compositional example |
+| Cost | 1 small call | 3-5 small calls + 1-2 medium calls |
 
-**The routing contract.** The router's output stops being "a catalog category" and becomes a
-**StructuralIntent**: what kind of graphic this is (graphic-type id when one matches, else a
-composition family), the required structural elements (repeating rows? two mirrored sides? a
-chart? full-frame?), the data fields (including LIST data via the house one-textarea
-convention), required states/events, placement, and tone. Routing then becomes an honest,
-testable question: *does a catalog family / graphic type declare this structure?* - answered
-against the type registry (62 types, `src/templates/types/`) and taxonomy metadata, with the
-model proposing and the platform checking, instead of the model absorbing an 18k-token
-listing and free-associating. `fit` gains the escape the schema currently lacks: an intent
-that matches nothing routes CREATE without having to lie about its category.
+### 3.2 The staged pipeline
 
-**Anti-anchoring rule (binding):** the CREATE path never sees catalog design code. Its
-engineering example is a neutral structural skeleton (the Lite skin canvas generalized - see
-2.3); its design input is the brief, the reference analysis, and per-brief design-knowledge
-cards (§5). Catalog knowledge reaches CREATE only as *machine-readable constraints* (type
-structures, motion preset banks, the :root contract), never as finished compositions.
-
-### 2.2 The staged pipeline (the hypothesis, adjusted to the repo)
-
-The prompt's staged hypothesis survives contact with the repo with two amendments: (a) the
-"deterministic compilation" stage cannot be a universal layout compiler - that would be the
-second scene model the non-negotiables forbid - so it becomes *scaffold compilation* plus
-bounded model styling, the Lite skin architecture generalized and already measured to work
-(rounds d-h); (b) "rendered-frame review" is split into a deterministic structural check
-(cheap, reliable, ships in v1) and a vision critique (blocked on in-app capture + the judge
-axes rewrite, ships later).
+The stages and their boundaries are architecture; **how stage 6-7 turns a CreativeSpec into
+code is the pilot's central hypothesis, not a settled decision** (§3.3).
 
 ```
-1. INTENT      1 small structured call: brief + conversation -> StructuralIntent
-               (graphic kind, required parts, fields incl. list data, states, placement, tone)
-2. ROUTE       deterministic: StructuralIntent vs type registry / catalog metadata
-               -> ADAPT (existing grounded path, unchanged) or CREATE
-3. REFERENCES  only when uploads exist: 1 vision call -> structured ReferenceAnalysis
-               (principles per imagePurpose - never geometry, never literal copying; §7)
+1. INTENT      1 small structured call: brief + conversation -> StructuralIntent (§6)
+2. ROUTE       deterministic + mode-aware (§2): ADAPT | CREATE | honest unsupported
+3. REFERENCES  only when uploads exist: structured analysis per declared purpose (§7)
 4. CONCEPTS    1 small structured call -> 3 genuinely different concept directions
                (composition family, hierarchy order, palette character, motion character -
                NO code, ~200 tokens each). User picks via the existing alternatives picker,
                or auto-pick by stated criteria when the caller wants one result.
-5. DESIGN SPEC 1 structured call -> CreativeSpec (the DesignSpec extension, §6): the chosen
-               concept made concrete - regions/rows/components with roles, per-region type
-               scale, palette, motion plan naming preset-bank/measured-builder vocabulary
-6. COMPILE     deterministic: scaffold from shared assembler pieces (base.ts :root/zone/
-               auto-fit/runtime scaffold, setFieldValue, definition emit, textarea list
-               runtime, animRuntime interpreter, machine attach when states were declared)
-7. STYLE       1 medium call: CSS (+ bounded structural HTML inside the scaffold's marked
-               slots) - the skin pattern with structure, through the applyPolish-style gate
-8. VERIFY      deterministic: full injected validator + the NEW structural-requirements
-               check (StructuralIntent parts vs the rendered DOM, runtimeBench-style)
+5. DESIGN SPEC 1 structured call -> CreativeSpec (§6): the chosen concept made concrete
+6. COMPILE     deterministic: engineering scaffold from existing assembler pieces
+7. STYLE       1 medium call: the model's design authoring, bounded by the compile contract
+8. VERIFY      deterministic: full injected validator + the structural-requirements check
+               (StructuralIntent parts vs the rendered DOM, runtimeBench-style)
 9. REPAIR      the existing shared/repairLoop, findings from 8 fed back, <=2 rounds
-10. (later)    vision critique on the HOLD frame - inspection-phrased axes only (§9)
+10. CRITIQUE   rendered-frame visual critique + one focused repair - BENCH-ONLY in v1 (§9)
 ```
 
-Stages 1, 4, 5 are small structured outputs (hundreds of tokens) - exactly the call shape
-the Lite comparison proved cheap open models handle at 100% (qwen3-30b 24/24). Stage 7 is
-the only medium call, and it is bounded because the scaffold already carries the fields,
-runtime, and animation region.
+Stages 1, 4, 5 are small structured outputs (hundreds of tokens) - the call shape the Lite
+comparison proved cheap open models handle at 100% (qwen3-30b 24/24) [finding]. Stage 7 is
+the main quality risk and the pilot's subject.
 
-### 2.3 What each stage may and may not decide (model vs platform)
+### 3.3 The creation mechanism is the leading hypothesis, with rivals
+
+**Leading hypothesis - scaffold + style:** the platform compiles a structural scaffold
+(fields, SPX definition, runtime JS, list-data runtime, animation region, machine when
+declared) from `shared/base.ts` / `shared/standard.ts` pieces, and the model authors the
+design - CSS plus bounded structural HTML inside marked slots - through an
+`applyPolish`-class gate. Why it leads: the Lite skin experiment measured that
+model-CSS-over-deterministic-skeleton produces genuinely non-catalog looks that pass the
+bench (round h: 15/18 usable) [finding], and it keeps every engineering contract
+deterministic.
+
+**Known risk:** a skin restyles ONE fixed chassis. Nothing yet shows the approach scales to
+composing STRUCTURE - different region relationships, repeating rows, a tree. If the
+scaffold pre-decides too much, Creative Mode reproduces the catalog-anchor problem one
+level up: every CREATE result becomes a reskin of the scaffold's one skeleton.
+
+**The pilot must therefore test, explicitly** (these are the §11 diversity/similarity
+criteria): meaningfully different compositions from the same scaffold family; different
+hierarchy and region relationships; results that are more than cosmetic reskins; at least
+one structure the scaffold family did not anticipate; originality (nearest-catalog and
+nearest-scaffold-sibling distance) without losing NoaCG compatibility.
+
+**Sanctioned rivals the implementation agent may recommend when evidence supports them:**
+(a) a **bounded layout IR** - CreativeSpec's layout section compiled to markup by a small
+deterministic composer (rows/columns/stacks/split, nothing more), model owns CSS only;
+(b) **coder-with-contracts** - the model writes markup + CSS freely (today's custom route)
+but against the full CreativeSpec, the structure spine, and the structural verify gate,
+with no catalog example. The ablation arms (§10) put (b) in the comparison by construction.
+
+**Hard boundary, whichever wins [architecture]:** no parallel scene, field, timeline,
+state, runtime, renderer, validation, or export architecture. A layout/composition IR is
+acceptable only while it compiles through existing NoaCG systems into ordinary
+code-as-truth templates and stays a generation-time input - the moment it wants to be
+edited after creation, it has become a second scene model and is out.
+
+### 3.4 Model vs platform responsibilities [architecture]
 
 Model decides: intent interpretation, concept directions, composition, hierarchy,
 typography, palette character, shape language, motion character, CSS, bounded HTML.
 
-Platform decides (deterministic, never a model): field ids + SPX definition, the runtime JS
-scaffold (update/play/stop/next, escaping, DOM-ready guards), the animation interpreter and
-data conversion, machine compilation, clamps (palette contrast, type floor, size), zones and
-safe areas, validation, structural verification, export packaging, frame capture.
+Platform decides (deterministic, never a model): field ids + SPX definition, runtime JS
+scaffolding (update/play/stop/next, escaping, DOM-ready guards), the animation interpreter
+and data conversion, machine compilation, clamps (palette contrast, type floor, size),
+zones and safe areas, validation, structural verification, export packaging, frame capture.
 
-The load-bearing precedents: the skin experiment proved model-CSS-over-deterministic-skeleton
-produces genuinely non-catalog looks that pass the bench (round h: 15/18 usable, retro-
-festival clamps); the repair-loop lesson says clamp instead of failing wherever a value is
-merely out of range; the framing lesson says teach geometry, not prohibitions; the
-prompt-load ceiling says every stage's prompt REPLACES language rather than adding it.
+Load-bearing precedents [finding]: clamp instead of failing wherever a value is merely out
+of range (the round-h clamps); teach geometry, not prohibitions (the framing finding);
+every stage's prompt REPLACES language rather than adding it (the load-ceiling finding,
+§6c); a stage keeps its place only if it shows clear improvement for its cost (the
+ai-compare doctrine).
 
 ---
 
-## 3. Boundaries and contracts between stages
+## 4. Boundaries and contracts between stages [architecture]
 
 Every inter-stage artifact is a versioned typed contract (the GenerationSpec/LiteSpec
 pattern), so stages can be benched, cached, and swapped independently:
 
-- **StructuralIntent v1** - new. Graphic kind (type id | composition family | 'novel'),
-  required parts (id, role, repeating?, dataBinding), fields (reusing the TypeField role
-  vocabulary from `types/graphicType.ts`), states/events (TypeMachine vocabulary), placement,
-  tone words. This is deliberately the same vocabulary the graphic-type registry declares -
-  the router compares like with like, and a CREATE result that later earns catalog promotion
-  already speaks the registry's language.
-- **ReferenceAnalysis v1** - new, per-asset, cacheable. Structured principles per
-  imagePurpose (§7). Replaces the single free-text `referenceSystem` string on the CREATE
-  path; ADAPT keeps `referenceSystem` unchanged.
-- **ConceptDirection v1** - new, tiny. Composition family, hierarchy order, palette
-  character, motion character, one-line rationale. Never code, never a chassis id.
-- **CreativeSpec v1** - the DesignSpec extension (§6). Carries the WHOLE design decision
-  forward - fixing F4 by construction: the style stage receives every decision, not four
-  sentences.
-- **Scaffold contract** - the compiled template with marked writable slots. The style
-  stage's patch goes through an `applyPolish`-class gate: :root/@font-face/scripts
+- **StructuralIntent v1** (§6) - what must EXIST. New.
+- **ReferenceAnalysis v1** (§7) - per-asset, cacheable, purpose-tagged. New.
+- **ConceptDirection v1** - tiny: composition family, hierarchy order, palette character,
+  motion character, one-line rationale. Never code, never a chassis id. New.
+- **CreativeSpec v1** (§6) - how the requirements are EXPRESSED visually. Carries the whole
+  design decision into stage 7, fixing F4 by construction. New, extends DesignSpec.
+- **Scaffold contract** - the compiled template with marked writable slots; the style
+  stage's patch goes through an `applyPolish`-class gate (:root/@font-face/scripts
   untouchable, field ids and anim-data selectors preserved, `clip-path` forbidden until the
-  bench's paint-region work is merged, everything else revertable.
-- **StructuralFindings** - the verify stage's output, same shape as validator findings so
-  `repairLoop` consumes them unchanged; `blocking` policy stays the caller's, per the
-  existing seam.
+  bench's paint-region detector is merged, everything revertable).
+- **StructuralFindings** - the verify stage's output, shaped like validator findings so
+  `repairLoop` consumes them unchanged; `blocking` stays the caller's policy.
 
-Server side, each model-bound stage is a **task profile** in `api/_lib/aiTaskRegistry.ts`
+**Anti-anchoring rule (binding) [architecture]:** the CREATE path never sees catalog design
+code. Its engineering example is a neutral structural skeleton; its design input is the
+brief, the reference analysis, and per-brief design-knowledge cards (§5). Catalog knowledge
+reaches CREATE only as machine-readable constraints.
+
+Server side, each model-bound stage is a task profile in `api/_lib/aiTaskRegistry.ts`
 (`creative-intent`, `creative-concepts`, `creative-spec`, `creative-style`,
-`creative-reference-analysis`) - route policy, quota, ledger and ZDR come from the existing
-registry/catalog/policy layers; no new gateway, no new endpoints beyond the task pattern.
-Funded routes stay inside `fundedModelRoute()`'s price gate.
+`creative-reference-analysis`, `creative-critique`) - route policy, quota, ledger and ZDR
+come from the existing registry/catalog/policy layers; no new gateway. Funded routes stay
+inside `fundedModelRoute()`'s price gate. Different stages may bind different model classes
+(structured-output models for 1/4/5, a coding model for 7, a VLM for 3/10).
 
----
-
-## 4. Systems reused (and explicitly NOT rebuilt)
+### Systems reused (and explicitly NOT rebuilt)
 
 Reused as-is: the model gateway + adapters, task registry + policy/budget/ledger,
 `shared/repairLoop`, the injected-validator seam, `validateTemplate` + `runtimeBench`,
 safety + asset-integrity screens, `convertToDataRegion` + the preset banks + measured-motion
-builders, the graphic-type registry vocabulary, `imagePurpose`, the taxonomy, telemetry,
-preferences, the wizard's alternatives picker, the bench/gallery/blind-review rigs, the
-repeating-data textarea convention, `base.ts` assembler pieces, and the export registry.
+builders, the graphic-type registry vocabulary, `imagePurpose` + the Import Graphic
+pipeline (`importAnalysis/`, draft.ts), the taxonomy, telemetry, preferences, the wizard's
+alternatives picker, the bench/gallery/blind-review rigs, the repeating-data textarea
+convention, `base.ts` assembler pieces, and the export registry.
 
 Not built: no second router, no parallel schema family outside the versioned-contract
 pattern, no new renderer or capture stack, no new timeline/field/export models, no
-expression language, no universal layout engine. The scaffold compiler is assembled from
-`shared/base.ts` + `shared/standard.ts` pieces the way self-assembled categories
-(scoreboards, versus, competition) already are - a new *composition* of existing parts, not
-a new mechanism.
+expression language, no universal layout engine.
 
 ---
 
-## 5. Design knowledge without templates to copy
+## 5. Design knowledge without templates to copy [architecture]
 
-What exists machine-readable today: DESIGN_LANGUAGE.md's numeric rules and the §8
+What exists machine-readable today [finding]: DESIGN_LANGUAGE.md's numeric rules and the §8
 cross-family token table, the Lite chassis fit metadata (positive AND negative fit), the
 taxonomy facets, TYPE_META, and the video harness's reference cards (pool of 14 with
 orthogonality axes - including the measured lessons: keyword-anchored selection, no
 contrast selection, cards must actually reach the prompt that writes output).
 
 Proposal: **design-knowledge cards for the SPX side** - one card per composition family
-(strap, tower/stack, board/table, split/versus, card, ring/meter, full-frame reveal, strip),
-each carrying: the hierarchy this family reads in, its structural anatomy in StructuralIntent
-vocabulary, its numeric guardrails (from DESIGN_LANGUAGE), its motion grammar (which preset
-bank / measured builders fit), its named failure modes, and positive/negative fit (the Lite
-chassis metadata pattern). Selected deterministically per StructuralIntent (the
-referenceSelect precedent), 1-2 cards per generation, injected into stages 4-5-7.
+(strap, tower/stack, board/table, split/versus, bracket/tree, card, ring/meter, full-frame
+reveal, strip), each carrying: the hierarchy this family reads in, its structural anatomy
+in StructuralIntent vocabulary, its numeric guardrails (from DESIGN_LANGUAGE), its motion
+grammar (which preset bank / measured builders fit), its named failure modes, and
+positive/negative fit. Selected deterministically per StructuralIntent, 1-2 cards per
+generation, injected into stages 4-5-7.
 
-Cards teach *anatomy and principles*, never a finished implementation - the anti-copy line
-is that a card contains no CSS values beyond DESIGN_LANGUAGE's published ranges and no
-complete markup. And per the load-ceiling finding, a card REPLACES generic prompt language
-for its family rather than stacking on top of it.
-
----
-
-## 6. The design contract: extend DesignSpec, do not replace it
-
-The existing DesignSpec stays byte-identical for ADAPT (Lite and grounded generation are
-pinned to it). CREATE adds a versioned extension - `CreativeSpec v1` - whose new sections
-are exactly what F2 showed to be inexpressible:
-
-- **layout**: ordered regions with roles; a region may be `repeating` with an item shape
-  (parts per item) bound to a LIST field - the timing tower's five rows, the schedule
-  board's entries - compiled onto the house one-textarea convention and a
-  `rebuildInfographic()`-class runtime, never onto twenty fields;
-- **fields**: the TypeField vocabulary (logical keys, roles, line/list/logo/number), lifted
-  from the <=3-lines cap;
-- **per-region typography** (the existing SpecTypography, per region instead of global);
-- **motion plan**: entrance order + which preset-bank choreography or measured builder each
-  region uses (names from the existing banks - new motion is expressed in the authoring
-  grammar and converted, exactly like the custom route today);
-- **states** (optional): TypeMachine-vocabulary declarations when the intent required them.
-
-Everything else - palette, fonts, zone, sizeScale, shape - reuses the existing spec fields
-and their clamps. Fields, timelines, state compilation, responsiveness (auto-fit), and
-exports remain entirely existing-system territory.
+Cards teach *anatomy and principles*, never a finished implementation: no CSS values beyond
+DESIGN_LANGUAGE's published ranges, no complete markup. Per the load-ceiling finding, a
+card REPLACES generic prompt language for its family rather than stacking on top of it.
+And cards are advisory taste input, never routing law - the family list must not become a
+second enum a brief is forced into (§6's flexibility rules apply to cards too: a hybrid or
+novel intent simply gets the nearest card or none).
 
 ---
 
-## 7. References as principles, not pixels
+## 6. StructuralIntent and CreativeSpec - two contracts, one flexibility rule [architecture]
 
-Keep the four-purpose vocabulary (`model/imagePurpose.ts`) - it already encodes the right
-user intents. Change what CREATE extracts:
+The one non-negotiable lesson of F2: do not replace a forced catalog taxonomy with a forced
+Creative Mode taxonomy.
 
-- **layout** -> structured composition analysis: anchor/zone, hierarchy order, density,
-  proportion rhythm, shape language - in CreativeSpec vocabulary so it flows into stage 5
-  directly. Never coordinates: the vision benchmark's clearest signal is that cheap VLMs
-  transcribe text perfectly and place boxes badly, so geometry is the one thing not to ask
-  them for.
-- **mood** -> palette character, texture, weight, motion energy tokens.
-- **plate** -> legibility constraints (bright/busy zones to avoid, needed panel opacity).
-- **asset** -> unchanged: bundled, placed, protected by the as-is screen.
+**StructuralIntent v1 describes what must EXIST** - information, relationships, repetition,
+states, interaction, behaviour. Its `kind` is a union, not an enum wall:
 
-One vision call per generation at most (all references analysed together, as
-`attachmentSections` already batches them), producing ReferenceAnalysis; cache per asset
-hash so a refinement never pays twice. Brand material (logos, fonts) keeps its existing
-deterministic path (ensureSpecFonts, logo slots). The consent notice already covers image
-upload; the vision quota decision (§15 of the platform plan) applies.
+- a known graphic type (`type:'bracket'` - the registry's vocabulary);
+- a known composition family (`family:'split'`);
+- a **hybrid** (`families:['board','ring']` - a schedule board with a countdown ring);
+- **novel** (`novel: <one-sentence structural description>`);
+- always with a **confidence** the router reads (a low-confidence classification with high
+  structural detail routes CREATE rather than guessing ADAPT).
 
----
+Independent of `kind`, the intent carries the requirements that matter regardless of label:
+required parts (id, role, `repeating?` with item shape, dataBinding), fields (TypeField
+role vocabulary, list data via the house one-textarea convention), states/events
+(TypeMachine vocabulary), placement, tone words, and originality signals detected in the
+brief. Requirements, not the label, drive verification (§8) - a mislabelled intent with
+correct parts still verifies correctly.
 
-## 8. The pilot: Creative Mode v1 on versus cards
+**CreativeSpec v1 describes how those requirements are EXPRESSED** - visually and through
+motion: ordered regions with roles mapped onto the intent's parts (a region may be
+`repeating`, compiled onto the textarea convention and a `rebuildInfographic()`-class
+runtime, never onto twenty fields); per-region typography (SpecTypography, per region
+instead of global); motion plan (entrance order + which preset-bank choreography or
+measured builder each region uses; new motion in the authoring grammar, converted as
+today); palette/fonts/zone/sizeScale/shape reusing the existing spec fields and clamps;
+optional states expressed with declared timelines.
 
-Versus is the right first category: vs01/vs02 exist as adapt-path ground truth (themselves
-born from AI benchmark winners), the matchup graphic type carries a real machine
-(select/lock winner) for the states dimension, full-frame composition gives creativity room,
-logo assets exercise references, and the harness sweep showed it is the one brief where both
-paths already produce sane output - so improvement is attributable to the pipeline, not to
-the category being impossible.
-
-Scope: the CREATE pipeline (stages 1-9, no vision critique), flag-gated, category-limited to
-versus-shaped intents. Bench-rig only - no production UI beyond the existing flow.
-
-Brief bank (~12, committed with the rig): canonical team-vs-team; long/unusual names
-(60-char stress); 3-way and 5-way multi-competitor (forces the repeating-row muscle);
-non-sport versus (debate night, cook-off, chess); brand-referenced (mood board + logos);
-plate-constrained (busy arena shot); countdown-to-faceoff (timer state); winner-reveal
-required (machine); minimalist editorial tone; kids-show tone; one deliberately
-catalog-fit brief (MUST route ADAPT - the routing regression case); one deliberately
-unfulfillable brief (the honest-refusal case).
-
-Arms: current custom path vs the staged pipeline, same models - qwen3-30b, gemma-3-12b,
-qwen3-coder-next, plus the incumbent gemini-2.5-flash-lite as reference. This is the
-smallest experiment that answers the actual question: *does decomposition (not model choice)
-improve affordable-model design quality?*
+**The separation rule:** StructuralIntent never carries visual decisions (no palette, no
+typography, no shape); CreativeSpec never re-declares functional requirements (it
+references the intent's part ids; the verify stage checks the INTENT, so a spec that
+quietly dropped a required part fails stage 8, not code review). Both are versioned;
+ADAPT's DesignSpec stays byte-identical (Lite and grounded generation are pinned to it).
 
 ---
 
-## 9. Evaluation: engineering validity and design quality never share a scorecard
+## 7. References: three purposes, one existing pipeline each [architecture]
 
-**Objective regression gates (free, every run):** routing correctness against per-brief
-expected routes; the structural-requirements check (intent parts present in the rendered
-DOM); the full existing validator + bench; export validity; graphic-type/machine
-correctness where declared. These gate merges and repair rounds. They are NEVER a quality
-ranking - the sweep's inversion is the standing proof.
+The user declares what a reference is FOR - extending the measured `imagePurpose` lesson
+(two purposes are indistinguishable from pixels alone) rather than replacing its
+vocabulary:
 
-**Human design evaluation (the ranking that counts):** pairwise blind comparison - same
-brief, two arms side by side, "which would you air?" plus per-item what-is-wrong notes -
-using the existing blind-gallery + judgements.jsonl + bench:report agreement machinery.
-Pairwise-per-brief replaces absolute scores because the calibration rounds showed score
-deltas are noise while yes/no decisions are reliable. Axes for notes: hierarchy,
-composition, broadcast suitability, originality (vs the catalog - the sameness metric's
-nearest-house distance is the free proxy), typography, motion, overall. Reviewers: Mirko +
-the student pool he wants to recruit; ~20+ joined items before any threshold talk, per §6e.
+- **`inspiration`** (today's `layout` + `mood`, kept as its sub-kinds): extract hierarchy,
+  visual rhythm, typography character, shape language, palette relationships, texture,
+  motion energy - as a structured ReferenceAnalysis in CreativeSpec vocabulary, never
+  geometry. The no-coordinates rule applies HERE, for two reasons: copying geometry is
+  copying, and the vision benchmark showed cheap VLMs transcribe text perfectly while
+  placing boxes badly [finding] - principles are what they can actually deliver.
+- **`reconstruction`**: the user wants THIS graphic, editable. That is the existing Import
+  Graphic architecture - `importAnalysis/` (regions, nearest bundled fonts, animation
+  proposal), erase/scale, placed lines, `DraftPatch`/`addPlacedLine` - and Creative Mode
+  routes to it rather than duplicating a millimetre of it. Deliberate measurement of
+  regions, anchors, masks and backgrounds is that pipeline's job; the no-coordinates rule
+  does NOT apply to it. Creative Mode must not weaken or replace this workflow.
+- **`transform`**: preserve explicitly selected characteristics of a source (its palette,
+  its type voice, its shape language - each a named toggle, not a vibe) while composing a
+  NEW graphic. Runs the CREATE pipeline with the preserved characteristics entering
+  CreativeSpec as locked values (the `applySpecLocks` pattern) and the rest free.
 
-**The vision judge is not part of v1.** Its axes are documented broken (strapShape 5 on no
-strap); production wiring needs in-app capture. When it returns, every axis is written as
-inspection ("locate the elements, then ask what binds them") with absence as its first
-failure, and it must earn agreement against the pairwise reviews before gating anything.
+`asset` (use-as-is, bundled, protected by the as-is screen) and `plate` (legibility
+constraints) keep their existing meaning and deterministic handling unchanged. At most one
+vision call per generation (references analysed together, as `attachmentSections` already
+batches); ReferenceAnalysis cached per asset hash so refinements never pay twice. The
+consent notice and vision quota decisions (AI_PLATFORM_PLAN §15) apply.
 
 ---
 
-## 10. Cost and operation
+## 8. The frozen control, and what the pre-work may touch [architecture]
 
-Per CREATE generation at funded routes (<=$1.0/M in, $5.0/M out, the `fundedRoutePrice`
-gate; measured Lite call ~1.3k in / 224 out ~= $0.0001):
+**The current custom generator is the benchmark control and is FROZEN until the comparison
+has run.** Redesigning it first would destroy the only clean baseline the experiment has.
+Concretely: the coder's system prompt, the catalog example, `designNotes`, and the repair
+policy stay byte-identical on the control arm; the pilot rig invokes them exactly as
+production does today.
 
-| stage | shape | est. cost |
-|---|---|---|
-| intent | ~1.5k in / 300 out | ~$0.0002 |
-| concepts | ~2k in / 700 out | ~$0.0003 |
-| spec | ~2.5k in / 800 out | ~$0.0004 |
-| style | ~4k in / 2-4k out | ~$0.002-0.004 |
-| reference vision (only with uploads) | 1 call | ~$0.001 |
-| repair (<=2, usually 0-1) | style-shaped | ~$0.002 |
+The pre-work (phase A, §12) is limited to what creates a fair experiment WITHOUT changing
+what the control generates:
 
-Total ~$0.003-0.008 - versus the current custom path's single ~16k-token emit plus repairs,
-and far under the harness's ~18.3k-token digest *per design call* (staged retrieval finally
-removes that: the intent stage needs the type/category summary, not the whole listing).
-Cheap-model affordability holds; different stages can bind different model classes through
-task-profile route policy (structured-output models for 1/4/5, a coding model for 7, a VLM
-only for references). Latency: stages are sequential but small; the medium call dominates,
-so wall-clock stays comparable to today's custom path.
+- honest off-catalog ROUTING (mode input + the intent-based route decision + removing the
+  forced catalog-category classification) - so CREATE-eligible briefs actually reach the
+  arms being compared;
+- preserving the original brief, structural requirements, references, assets, states and
+  fields at the CREATE boundary (the StructuralIntent contract) - available to NEW arms,
+  while the control arm keeps receiving what it receives today;
+- the objective brief-satisfaction check (intent parts vs rendered DOM inside the
+  runtime-bench iframe) and free regression coverage - measurement, not generation;
+- a stable contract for later Creative Mode stages.
 
-Free-tier note: the platform plan classed code generation as BYO/paid at launch. Creative
-Mode's staged shape brings the cost into the free envelope, but *whether* free users get it,
-at what quota, is an owner decision (§12).
+**Ablation arms** - so improvement is attributable, never one merged before/after:
 
-## 11. The learning loop
+| arm | example | intent carried | staged concepts+spec | compile | critique |
+|---|---|---|---|---|---|
+| A control | catalog code | designNotes (4 strings) | no | none (free code) | no |
+| B de-anchored coder | neutral skeleton | full StructuralIntent | no | none (free code) | no |
+| C staged CREATE | neutral skeleton | full | yes | scaffold [hypothesis §3.3] | no |
+| D staged + critique | neutral skeleton | full | yes | scaffold | 1 round |
+
+A-vs-B isolates the catalog example + intent carriage; B-vs-C isolates staging + scaffold
+compilation; C-vs-D isolates the rendered critique. If budget forces a cut [owner], keep
+A/C/D and accept that B's two variables merge - but say so in the report rather than
+implying attribution the design no longer supports.
+
+---
+
+## 9. The rendered visual critique arm - bench-only [hypothesis]
+
+The central hypothesis includes "render, look, fix". The pilot tests it as arm D:
+capture the settled HOLD frame (Playwright rig - the same capture the Lite eval uses;
+production in-app capture stays out of scope), one vision call, at most one focused repair.
+
+The critic asks concrete inspection questions, never a generic score - each phrased as
+inspection with absence as its first failure (the §6d axis lesson): are the intent's
+required elements visible; is the reading order the spec's hierarchy; is the graphic type
+recognizable as itself (a bracket reads as a tree, a versus as a confrontation); is every
+text fully readable (nothing clipped mid-letter, nothing under 20px-at-1080p); is the
+composition balanced within its zone; does it look broadcast-appropriate over its plate.
+Findings feed the ordinary repair loop as teaching messages.
+
+Constraints: benchmark-only, non-gating, disabled in production, paid only with explicit
+approval [owner]. The measured outcome that decides its future: across pairwise reviews,
+how often did critique+repair IMPROVE the human verdict vs DAMAGE it vs leave it unchanged
+- reported as those three rates, per category. It graduates toward production only if
+improves clearly exceeds damages at acceptable cost, and only after the in-app capture
+investment [owner].
+
+---
+
+## 10. The pilot: three categories, three distinct questions [architecture]
+
+Scope: the CREATE pipeline stages 1-9 (+10 as arm D), flag-gated, bench-rig only - no
+production UI beyond what the existing flow already has. Run in its own worktree against
+the frozen control. Models: qwen3-30b, gemma-3-12b, qwen3-coder-next, plus incumbent
+gemini-2.5-flash-lite as reference.
+
+### 10.1 Lower third - "does CREATE add value where the catalog is strong?"
+
+The everyday graphic; 89 catalog designs. Tests: AUTO correctly picks ADAPT for ordinary
+briefs; explicit CREATE produces a genuinely new but RESTRAINED, usable design (novelty
+without unnecessary novelty); legibility over busy and quiet plates; long names, roles,
+logos, portraits, left/right placement, 2-3 line content; cost and latency relative to
+catalog adaptation (the product question: what does creating buy over adapting, at what
+multiple of the cost). Brief bank (~8) must include: one brief closely matched by the
+catalog (expected: AUTO->ADAPT); the same brief with an explicit originality request
+(expected: AUTO->CREATE, and mode=create as a separate case); a busy-plate brief; a
+long-name + portrait brief; one mood-board inspiration brief.
+
+### 10.2 Versus card - "is the creative range real?"
+
+The main creativity test - full-frame composition freedom on a structure models already
+handle [finding: the sweep's one good brief]. vs01/vs02 and the matchup type (winner
+select/lock machine) are the adapt-path ground truth. Evaluates: diversity of the three
+concept directions (are they genuinely different, per brief and across briefs); hierarchy
+and competitive tension; typography; asset/logo treatment incl. the missing-logo state;
+motion personality; reference interpretation (inspiration and transform cases);
+nearest-catalog similarity (is CREATE actually creating); timer / lock-in / winner-reveal
+states where the brief asks. Brief bank (~12): sports, non-sport (debate, cook-off,
+chess), editorial-restrained, entertainment-loud, branded (logos + mood board), long-name
+stress, missing-asset, multi-competitor (3-way and 5-way - forces the repeating muscle),
+one plate-constrained, one transform-reference, one deliberately catalog-fit (MUST route
+ADAPT under auto).
+
+### 10.3 Playoff bracket - "does structural generalization hold?"
+
+**Conflict with the request, resolved from repository evidence [finding]:** brackets are
+not off-catalog. `br01`/`br02` "Playoff Bracket" exist (competition pack, results-board
+category) with a full `bracket` GraphicType - round columns derived from one textarea, an
+accent cursor on the live round, winner advancement, and a one-way `crowned` state. That
+does not weaken the bracket as the structural-generalization test - it strengthens it:
+CREATE must compose a repeating, RELATIONAL structure (rounds, ties, advancement) that the
+scaffold family did not anticipate, and for once the similarity and quality comparison has
+a first-class catalog ground truth (nearest-catalog distance to br01/br02 is a direct
+is-it-copying measure, and br01 via ADAPT is the product baseline CREATE must justify
+itself against). AUTO on a plain bracket brief has a real right answer: ADAPT.
+
+Bounded scope: four- and eight-competitor single elimination only - no arbitrary
+tournament systems. The result must communicate: rounds and progression; repeating
+competitors and matches; completed vs active vs upcoming matches; winner advancement;
+optional scores and logos; current-match highlighting; the championship outcome; a
+winner-reveal state. Brief bank (~8): 4-team, 8-team, long names, missing logos,
+incomplete results (tournament in progress), one explicit-create bracket ("nothing like
+your catalog"), one ambiguous/unsupported request (double elimination / 6-team - must be
+handled honestly: a typed unsupported answer or an honest simplification offer, never a
+silently wrong tree), one plain brief (AUTO->ADAPT to br01 expected).
+
+**Infographics are deliberately NOT a pilot category.** "Infographic" is a grab-bag, not a
+structure; it enters later as narrow families (statistic comparison, poll result, ranked
+list, timeline, key-numbers board) once repeating and relational structures are proven
+here (§12 phase E).
+
+---
+
+## 11. Evaluation and predeclared success criteria [architecture]
+
+**The two-scorecard rule:** engineering validity and visual quality are never combined
+into one number, never one promotion score. The sweep's inversion [finding] is the
+standing proof that a merged score promotes the wrong model.
+
+**Objective gates (free, every run):** routing decisions vs the per-brief expected-route
+table (re-verified against the current catalog before each run - the §1.3 decay rule);
+structural brief satisfaction (intent parts vs rendered DOM); the full existing validator +
+bench; export validity; machine correctness where states were declared. Gates drive repair
+rounds and regression alarms - never rankings.
+
+**Human evaluation (the ranking that counts):** pairwise blind comparison - same brief,
+two arms side by side, "which would you air?" plus per-item what-is-wrong notes - on the
+existing blind-gallery + judgements.jsonl + agreement machinery. Pairwise because the
+calibration rounds showed absolute score deltas are noise while yes/no decisions are
+reliable [finding]. Note axes: hierarchy, composition, broadcast suitability, originality,
+typography, motion, overall. Reviewers: Mirko + recruited students; >=20 joined items per
+comparison before any threshold conclusion (§6e).
+
+**Predeclared decision framework - written down BEFORE any paid run** [architecture; the
+exact thresholds are owner numbers [owner]]. The go/no-go sheet must set criteria for:
+
+1. routing: % correct ADAPT/CREATE/AUTO decisions against expected routes, per category;
+2. structural satisfaction: % of CREATE results whose rendered DOM carries every required
+   intent part;
+3. engineering validity: % passing the full injected validator (reported, never ranked on);
+4. human preference: pairwise win rate of arm C (and D) over arm A, per category;
+5. concept diversity: distinct concept directions per brief (and the cross-brief sameness
+   tripwire - the top-chassis counter's Creative Mode equivalent);
+6. nearest-catalog similarity: CREATE results' distance to their nearest catalog design
+   (bench:sameness's RGB-distance machinery over hold frames as the free proxy; brackets
+   additionally vs br01/br02) - a floor below which a "creation" is called a copy;
+7. cost per accepted result and p50/p90 latency (§12's methodology) within owner budgets;
+8. critique: improves-rate exceeding damages-rate by a stated margin.
+
+Results are reported separately for lower thirds, versus cards, and brackets - each
+category answers its own §10 question, and a promotion argument must say which categories
+carried it. A model or architecture that passes every technical gate while losing the
+pairwise review is a failed candidate, full stop.
+
+---
+
+## 12. Cost and latency - methodology first, numbers second [architecture]
+
+The previous revision priced stages at a blended guess; wrong method. Costs are computed
+per candidate model from its REAL prices (`scripts/ai-bench-prices.json`, refreshed by
+bench:discover; e.g. qwen3-30b $0.05/M in / $0.20/M out; gemma-3-12b $0.05/$0.15;
+qwen3-coder-next $0.11/$0.80; incumbent flash-lite $0.10/$0.40) and from MEASURED prompt
+and completion sizes once the prompts exist - the estimates below use today's known
+analogues (Lite call ~1.3k in / 224 out; custom-route emits 2-6k out; skin patches
+0.2-0.6k out) and must be replaced by measured p50/p90 from the pilot's own telemetry
+(tokens are already recorded per stage).
+
+Illustrative per-attempt arithmetic, stages 1+4+5 (~6k in / 1.8k out total) + style (~5k
+in / 3k out) + p50 0.5 repairs (~8k in / 3k out each):
+
+- qwen3-30b: ~$0.0007 + ~$0.0009 + ~$0.001 ≈ **$0.002-0.003 p50**, ~$0.005 p90 (2 repairs);
+- qwen3-coder-next (style/repair only, cheap model for 1/4/5): ≈ **$0.006 p50 / $0.012 p90**;
+- at the funded-route CEILING ($1/$5/M - the worst legal route): style alone is ~$0.02,
+  p90 with repairs ~**$0.06** - an order of magnitude above the cheap-route figure, which
+  is why per-model pricing, not the ceiling, must drive the free-tier decision;
+- vision: reference analysis ~$0.001-0.002/generation at flash-lite-class prices; the
+  critique arm ~$0.002-0.006/graphic incl. capture-side cost (judge-measured ~$0.0016/
+  capture at flash prices [finding]).
+
+Reported from the pilot (the numbers decisions are made on): cost per generation ATTEMPT;
+cost per technically VALID result; cost per HUMAN-ACCEPTED result (the honest one - a
+cheap pipeline with a 20% acceptance rate is expensive); p50/p90 wall-clock latency per
+arm; and the marginal effect of each stage on acceptance rate (the ablation arms exist to
+price stages in acceptance points, the ai-compare doctrine in experiment form). Free-tier
+exposure [owner] is decided on these measured numbers, never on this section's estimates.
+
+---
+
+## 13. The learning loop and the catalog-data rule [architecture]
 
 Two tiers, matching the existing privacy split:
 
-- **Content-free (server ledger, always on):** per stage - task id, prompt/schema versions,
-  route, tokens/cost, outcome, structural-check pass/fail codes, route taken
-  (adapt/create), concept index picked, discard reason. Extends the `ai_generations` ledger
-  the Lite pattern already defined; feeds routing and stage-value statistics (each stage
-  must EARN its place, per the doctrine - a stage that never changes outcomes gets cut).
+- **Content-free (server ledger, always on):** per stage - task id, prompt/schema
+  versions, route, tokens/cost, outcome, structural-check pass/fail codes, mode + route
+  taken, concept index picked, discard reason. Extends the ai_generations ledger pattern;
+  feeds routing statistics and the stage-value accounting.
 - **Content-full (local-first, explicit opt-in to share):** brief -> StructuralIntent ->
-  concepts (+ which was picked) -> CreativeSpec -> final code -> user verdict (kept /
-  discarded / edited, plus edits diff), and pairwise review judgements. This is the future
-  preference/repair/fine-tune dataset. Two rules: never collect grounded/catalog outputs as
-  training material (they are NoaCG's own designs - training on them teaches copying, the
-  exact failure this plan removes), and nothing content-full leaves the machine without the
-  consent flow. The local telemetry ring + preferences.ts pattern is the storage shape.
+  concepts (+ pick) -> CreativeSpec -> final code -> user verdict (kept / discarded /
+  edited + diff), and the pairwise judgements. The future preference/repair dataset.
 
-## 12. Migration - incremental, grounded path untouched
+**The catalog-data rule, refined:** complete catalog designs are never positive VISUAL
+targets for original-creation training - that trains the copying this plan exists to
+remove. But catalog-derived data remains legitimate for: broadcast-design grammar and
+numeric guardrails (the knowledge cards ARE catalog-derived); structural and field
+behaviour; engineering-contract learning (the scaffold/spine); ADAPT-path training and
+routing examples (catalog-fit briefs SHOULD route adapt - that is a correct label);
+validation and repair examples; and negative similarity analysis (nearest-catalog distance
+- catalog renders as the thing CREATE output must NOT resemble). Datasets are stored with
+their provenance class - `original-creation`, `adaptation`, `engineering-repair` - and
+never mixed at training time.
 
-- **Phase 0 - routing honesty (small, immediate product value, no new architecture).** Give
-  the spec schema its escape (structural-intent fields + a fit that does not require a
-  catalog category), rebalance the routing prompt, and pass the FULL spec into the coder
-  instead of `designNotes`'s four strings. Re-run bench:harness (the rig is repaired and
-  records `change.path`): the 12 off-catalog briefs should route custom at high rate.
-  Cheap, reversible, and it de-risks the pilot's routing stage.
-- **Phase 1 - the structural-requirements gate.** StructuralIntent v1 + the DOM check
-  riding runtimeBench's iframe; wire into the repair loop on the custom route. This is the
-  brief-satisfaction proxy that today does not exist anywhere, and it improves the CURRENT
-  custom path before Creative Mode lands.
-- **Phase 2 - the versus pilot.** Scaffold compiler for the versus/split family +
-  CreativeSpec v1 + concepts stage + the bench arms and pairwise gallery (§8-9). Decision
-  gate: pairwise human preference over the current custom path.
-- **Phase 3 - widen.** More composition families (tower/board/strip are the sweep's proven
-  gaps), reference analysis, concept picker in the wizard UI, learning-loop persistence.
-- **Phase 4 - judged.** In-app hold-frame capture, the rewritten inspection-axis vision
-  critique, promotion of Creative Mode routes/thresholds via the benchmark-first policy.
+## 14. Implementation sequence [architecture]
 
-Each phase lands behind the task-registry flags; ADAPT and Lite behavior stay pinned by the
-existing regress/bench identity tests throughout.
+- **Phase A - benchmark repair + routing honesty (own worktree, no Creative Mode).** The
+  §8 pre-work: mode input, intent-based routing with the schema escape, StructuralIntent
+  v1 + full-context preservation at the CREATE boundary, the structural-satisfaction
+  check, free regression coverage, expected-route tables. The current custom generator's
+  prompts and stages stay byte-identical (the frozen control). Deliverable: a fair,
+  instrumented experiment bed; re-run bench:harness routing on the 12 off-catalog briefs
+  as the free acceptance test.
+- **Phase B - this plan revised and approved** [owner]: Mirko ratifies the §11 thresholds,
+  the arm budget, and the pilot spend before any paid run.
+- **Phase C - the three-category pilot (separate worktree).** Stages 1-10, the scaffold
+  hypothesis + rivals per §3.3, brief banks per §10, arms per §8.
+- **Phase D - the comparison.** Frozen control vs staged CREATE vs critique arm; pairwise
+  review; the §11 sheet filled in; decision.
+- **Phase E - evidence-driven widening** [owner, informed by D]: generalize or replace the
+  scaffold/compiler per what won; more design-knowledge families; free-tier exposure;
+  production concept selection UX; the in-app capture investment for a production
+  critique; narrow infographic families (statistic comparison, poll result, ranked list,
+  timeline, key-numbers board) only after repeating and relational structures are proven.
 
-## 13. Risks and open owner decisions
+## 15. Risks and open owner decisions
 
-Risks: scaffold expressiveness (a too-rigid scaffold reproduces the catalog-anchor problem
-one level up - mitigated by the style stage owning bounded HTML, and by measuring
-nearest-house distance); stage-count creep (the doctrine's answer: ai-compare-style
-ablation, every stage earns its cost); cheap-VLM reference analysis quality (proposal-only
-principles limit blast radius); structural-check false confidence (it measures presence,
-not quality - the pairwise review stays the quality instrument); routing regressions on
-catalog-fit briefs (the pilot bank's MUST-route-ADAPT case pins it).
+Risks: scaffold under-expressiveness (mitigated: it is a hypothesis with rivals in the
+comparison, §3.3); stage-count creep (the ablation arms price each stage in acceptance
+points); StructuralIntent ossifying into taxonomy #2 (mitigated by the §6 union + the
+requirements-not-labels verification rule - and the pilot's novel/hybrid briefs test it);
+cheap-VLM reference analysis quality (principles-only limits blast radius); structural
+checks breeding false confidence (presence, not quality - pairwise review stays the
+authority); routing regressions on catalog-fit briefs (every bank carries MUST-route-ADAPT
+cases); brief-bank decay against the growing catalog (§1.3 - re-verify expected routes
+before every run).
 
-Owner decisions for Mirko:
-1. **Catalog gaps vs Creative Mode** - the timing tower he explicitly wants can be a new
-   catalog type (days, guaranteed quality) independent of this plan; Creative Mode is for
-   the unbounded tail. Recommend both; decide sequencing.
-2. **Free-tier exposure** - does Creative Mode launch free-quota'd (the staged costs allow
-   it) or BYO-first per the platform plan's class-C stance?
-3. **Concept selection UX** - a real mid-flow pick (one more step, better data for the
-   learning loop) vs auto-pick (frictionless). Recommend: pick when the alternatives
-   checkbox is on, auto otherwise - mirrors the existing harness toggle.
-4. **Paid pilot approval** - the Phase 2 bench round spends real tokens (rough order: 13
-   briefs x 4 models x 2 arms ~ $1-3 at funded routes; estimate to be confirmed against
-   measured usage before any run, per the standing spend rule).
-5. **In-app capture investment** (Phase 4 dependency) - priority call.
-6. The hairline/key-and-fill question stays DEFERRED per his 2026-07-29 ruling; the
-   knowledge cards take no position until he rules.
+Owner decisions for Mirko [owner]:
+1. §11 thresholds and the go/no-go sheet, before the paid run.
+2. Pilot spend approval - order of magnitude at real candidate prices: ~28 briefs x 4
+   models x 3-4 arms ≈ $1-4 generation + $1-3 critique/vision; a firmed estimate from
+   measured stage sizes is presented before any spend, per the standing rule.
+3. Free-tier exposure of Creative Mode (decided on §12's measured numbers).
+4. Concept selection UX (mid-flow pick vs auto; recommendation: pick when the alternatives
+   checkbox is on, auto otherwise).
+5. Mode surfacing in the UI (§2).
+6. Arm budget: keep all four ablation arms or the A/C/D cut (§8).
+7. In-app capture investment (gates any production critique - phase E).
+8. The hairline/key-and-fill question stays DEFERRED per his 2026-07-29 ruling; knowledge
+   cards take no position until he rules.
 
-## 14. Recommended follow-up implementation prompt
+## 16. Follow-up implementation prompt (phase A worktree)
 
-> NoaCG Studio - Creative Mode Phase 0+1 (routing honesty + the structural gate).
-> Read docs/CREATIVE_MODE_PLAN.md §1-3 and §12, src/ai/AGENTS.md, and the harness-sweep
-> findings in the lite-eval memory/docs first.
-> Implement, in this order, each phase committed and verified separately:
-> 1. Extend the design-spec schema so an off-catalog brief can be described honestly:
->    structural-intent fields (graphic kind, required parts incl. repeating rows bound to
->    list data, fields beyond 3 lines, needed states) and a fit/category shape that does not
->    force a catalog category on a custom route. Rebalance the routing prompt to ask the
->    structural question; keep the ADAPT path byte-identical (bench:regress and the Lite
->    identity tests must stay green).
-> 2. Carry the full spec into the custom coder (replace designNotes) and stop inlining a
->    catalog design as the compositional example on the CREATE route - teach the structure
->    spine and engineering contracts with a neutral skeleton instead.
-> 3. Add the structural-requirements check: verify the intent's required parts against the
->    rendered DOM inside the runtime-bench iframe, surface findings through the injected
->    validator so the shared repair loop consumes them.
-> Verification: npm run build; the free bench rigs (no paid calls without explicit OK) -
-> and prepare, but do not run, a bench:harness comparison of old-vs-new routing over the
-> 12 off-catalog briefs with an expected-route table.
-> Do not touch litePipeline compile behavior, the grounded assembly, or provider policy.
+> NoaCG Studio - Creative Mode phase A: benchmark repair + routing honesty, with the
+> current custom generator FROZEN as the experiment's control.
+> Read docs/CREATIVE_MODE_PLAN.md §1-2, §6, §8, §14, and src/ai/AGENTS.md first.
+> Implement, committed and verified per step:
+> 1. Add the generation mode (`adapt` | `create` | `auto`) to GenerateOptions and honour
+>    it in routing. Auto = structural fit + confidence + originality signals; an explicit
+>    mode is never overridden.
+> 2. StructuralIntent v1 (versioned, §6: known type | family | hybrid | novel, confidence,
+>    requirements independent of the label) + an intent stage, and an intent-based route
+>    decision that no longer forces a catalog category on off-catalog briefs. The ADAPT
+>    path and Lite stay byte-identical (bench:regress + identity tests green).
+> 3. Preserve the full brief/intent/references/assets/states/fields contract at the CREATE
+>    boundary for FUTURE arms - while the existing custom coder (prompts, example,
+>    designNotes, repair policy) continues to receive exactly what it receives today. Do
+>    not de-anchor or otherwise "improve" it: it is the frozen control.
+> 4. The structural-satisfaction check: intent's required parts verified against the
+>    rendered DOM inside the runtime-bench iframe, surfaced through the injected validator
+>    as findings the shared repair loop can consume (non-blocking by default).
+> 5. Expected-route tables for the three pilot brief banks (§10), with a re-verification
+>    step against the current catalog, and free regression coverage for routing + the
+>    structural check (stub provider + mutation-pinned specs, the house pattern).
+> Verification: npm run build; free rigs only - no paid calls without explicit approval.
+> Prepare, but do not run, the bench:harness routing comparison over the off-catalog
+> briefs. Do not touch litePipeline compile behavior, grounded assembly, provider policy,
+> or the custom coder's generation behavior.
 
 ---
 
 *Evidence basis: the 2026-07-29 full-harness sweep and Mirko's blind verdict (routing 6/48
 custom; validity-vs-satisfaction inversion), the Lite benchmark rounds a-j and §6b-6e
-(skins, framing, load ceiling, judge axes), the 2026-07-29 model comparison (three
-open-weight models at parity with the incumbent on structured design calls), and the code
-traces in §1 of this document.*
+(skins, framing, load ceiling, judge axes, calibration), the 2026-07-29 model comparison
+(three open-weight models at parity with the incumbent on structured design calls), the
+2026-07-17 compare-rig absorption finding, current-code traces in §1, br01/br02 + the
+bracket graphic type, and scripts/ai-bench-prices.json.*
