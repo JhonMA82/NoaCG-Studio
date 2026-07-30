@@ -6,12 +6,32 @@ that path. Binding: keep it updated when the pipeline changes.
 ## The pipeline
 
 1. **CI (`.github/workflows/ci.yml`)** runs on every push to `main` and every PR (a branch
-   pushed without an open PR runs nothing): Build (typecheck + lint +
-   bundle), the offline E2E suite in eight shards, the factory gates, and a final **CI gate**
-   job that requires all of them. On `main`, in-progress runs are never cancelled by a newer
-   push (branches/PRs still cancel), so every `main` HEAD ends with a real verdict. A red
-   gate names the failing job in an error annotation; Playwright's `github` reporter
-   annotates the exact failing tests.
+   pushed without an open PR runs nothing). It is the **per-change tier**: Build (typecheck +
+   lint + bundle) and the factory gates always run, while the E2E job runs only **the specs
+   that cover the change**.
+
+   An `E2E plan` job answers that first, by running `scripts/e2e-affected.mjs --json` against
+   the diff base (the PR base, or the previous `main` tip on a push). Its output decides both
+   which specs run and how many runners they get - eight shards for a full run, one per ~4
+   spec files (max four) for a subset. It also raises the **catalog calibration gate** for
+   changes that can move catalog output or the bench.
+
+   **Scoping is only safe because the mapper fails toward running more:** an unmapped file, a
+   shared-core file (`src/store`, `src/model`, `src/preview`, `src/validation`, the shell), or
+   a diff base that cannot be resolved all escalate to the full suite. When the plan skips the
+   E2E job entirely, the gate counts that skip as a pass - but the plan job itself is
+   *required*, so a crashed planner can never be mistaken for "nothing to test".
+
+   On `main`, in-progress runs are never cancelled by a newer push (branches/PRs still
+   cancel), so every `main` HEAD ends with a real verdict. A red gate names the failing job in
+   an error annotation; Playwright's `github` reporter annotates the exact failing tests.
+
+1. **`nightly` (`.github/workflows/nightly.yml`)** is the **exhaustive tier**, at 02:00 UTC
+   (04:00-05:00 Helsinki, so a red result is filed before the day starts): the **whole** E2E
+   suite in eight shards, plus the three catalog-wide gates that nothing else schedules - the
+   calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. Its rolling
+   issue names **the commits since the last green nightly**, which is what keeps a red night
+   from turning into a bisect.
 2. **Vercel** builds production from **`main` only** (project `noacg-studio`,
    team `miwcos-projects`, production URL <https://noacg-studio.vercel.app>). Every push to
    `main` triggers a production deployment via the Git integration; CI and Vercel run in
@@ -26,7 +46,7 @@ that path. Binding: keep it updated when the pipeline changes.
 
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
-Three self-closing rolling issues, all following the weekly-audit pattern (one open issue,
+Four self-closing rolling issues, all following the weekly-audit pattern (one open issue,
 one comment per newly failing commit, the same commit never alerts twice, auto-closed by
 the next healthy state):
 
@@ -34,6 +54,7 @@ the next healthy state):
 |---|---|
 | `CI is red on main` | the CI gate, on a red `main` run |
 | `Production is not running the latest main commit` | deploy-verify: failed deploy, failed live verification, or drift |
+| `Nightly full test suite is red` | nightly: the full suite or a catalog gate failed - the body lists the suspect commits |
 | `Weekly dependency audit is red` | weekly-audit (Mondays): a new high/critical advisory |
 
 GitHub also emails the pusher on any failed run of their push (account notification

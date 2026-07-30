@@ -1,6 +1,16 @@
-# The same gates developers run locally, on every push: build, the full offline E2E suite,
-# and the template factory checks. Playwright pins offline mode itself, so no secrets belong
-# in this workflow. Live and authenticated flows remain maintainer-only.
+# The per-change tier of the test pyramid: build, the factory checks, and the offline E2E specs
+# that COVER THIS CHANGE - not the whole suite. The full suite runs nightly (nightly.yml), which
+# is where exhaustive sweeps belong; here the question is "did this change break something", and
+# the answer arrives in minutes on the commit that caused it.
+#
+# The cheap gates never tier. Build (typecheck + lint + bundle) runs on every change at ~70 s and
+# is what catches the class of fault that once broke production for a week, so it is not
+# something the plan is allowed to skip.
+#
+# Scoping is only ever safe because scripts/e2e-affected.mjs fails TOWARD running more: an
+# unmapped file, a shared-core file, or an unusable diff base all escalate to the full suite.
+# Playwright pins offline mode itself, so no secrets belong in this workflow. Live and
+# authenticated flows remain maintainer-only.
 name: CI
 
 on:
@@ -40,30 +50,90 @@ jobs:
       - name: Build (typecheck + lint + bundle)
         run: npm run build
 
+  # What can this change actually have broken? The answer decides both which specs run and how
+  # many runners they are worth. It needs no dependencies - scripts/e2e-affected.mjs is node
+  # builtins and git - so this job costs seconds, and every other E2E job waits on it.
+  plan:
+    name: E2E plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      specs: ${{ steps.plan.outputs.specs }}
+      catalog: ${{ steps.plan.outputs.catalog }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The plan IS a diff, so the default shallow clone has nothing to diff against.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Work out what this change can affect
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
+          # An absent, all-zero (first push of a branch) or garbage-collected base means we
+          # cannot know what changed. Then we do not guess: the fallback is the whole suite,
+          # because the one thing a fallback must never do is run LESS than the truth.
+          if [ -z "$BASE" ] \
+            || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::notice title=E2E plan::No usable diff base ('${BASE}') - running the FULL suite."
+            PLAN='{"mode":"full","specs":[],"catalog":true}'
+          else
+            PLAN="$(node scripts/e2e-affected.mjs --json "$BASE")"
+          fi
+          echo "plan: $PLAN"
+          # Shard count follows the size of the plan. Full runs get the measured eight; a subset
+          # gets one runner per ~4 spec files, capped at four - beyond that the 52 s of per-shard
+          # setup costs more than it saves. The floor of 1 also keeps every shard non-empty:
+          # a shard with no tests writes no blob report, and the upload below treats a missing
+          # report as an error rather than silently reporting on less than was run.
+          node -e '
+            const plan = JSON.parse(process.argv[1]);
+            const shards = plan.mode === "full" ? 8 : Math.min(4, Math.max(1, Math.floor(plan.specs.length / 4)));
+            console.log([
+              `mode=${plan.mode}`,
+              `specs=${plan.specs.join(" ")}`,
+              `catalog=${plan.catalog}`,
+              `matrix=${JSON.stringify({ shardIndex: Array.from({ length: shards }, (_, i) => i + 1), shardTotal: [shards] })}`,
+            ].join("\n"));
+          ' "$PLAN" >> "$GITHUB_OUTPUT"
+
   e2e:
-    name: E2E shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+    name: E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})
+    needs: plan
+    # 'none' means the change cannot reach the offline E2E surface at all (docs, a workflow's
+    # own prose, a script the app never loads). Skipping is the plan being believed, not the
+    # gate being weakened - anything it is unsure about became 'full' upstream.
+    if: ${{ needs.plan.outputs.mode != 'none' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       # Let every shard finish so one failure cannot hide another and all evidence reaches
       # the combined report.
       fail-fast: false
-      matrix:
-        # Eight shards, not four. Wall time is fixed-cost + test-time/shards, and the fixed
-        # cost is small: measured on run 30539377062, a shard spent 52 s on setup (checkout,
-        # npm ci, the browser, and a 7 s dev-server boot) and 12.8 min running tests. Four
-        # shards therefore put ~94% of the wall clock in tests, which is the part sharding
-        # divides - 13.6 min becomes ~7 min here.
-        #
-        # Eight rather than twelve or sixteen, even though the arithmetic keeps improving:
-        # every shard is an independent runner doing its own checkout and install, so the
-        # chance that ONE of them hits an infrastructure hiccup grows with the count, and
-        # with retries: 0 and fail-fast: false a single hiccup reds the whole gate. Eight
-        # takes most of the win for half the added surface of twelve. It also leaves room
-        # under the 20-concurrent-job ceiling for an overlapping PR run: 8 + build + factory
-        # is 10, so two runs still fit.
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
-        shardTotal: [8]
+      # Sized by the plan job, not fixed here. A full run gets eight shards: wall time is
+      # fixed-cost + test-time/shards, and on run 30539377062 a shard spent 52 s on setup
+      # (checkout, npm ci, the browser, and a 7 s dev-server boot) against 12.8 min of tests -
+      # so ~94% of the clock is the part sharding divides, and 13.6 min becomes ~7.
+      #
+      # Eight and not twelve, even though the arithmetic keeps improving: every shard is an
+      # independent runner doing its own checkout and install, so the chance that ONE of them
+      # hits an infrastructure hiccup grows with the count, and with retries: 0 and
+      # fail-fast: false a single hiccup reds the whole gate. Eight takes most of the win for
+      # half the added surface, and leaves room under the 20-concurrent-job ceiling for an
+      # overlapping PR run.
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -101,7 +171,14 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: E2E shard
-        run: npm run test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          SPECS: ${{ needs.plan.outputs.specs }}
+        # $SPECS is deliberately unquoted: it is a space-separated list of spec filenames from
+        # the curated map, and word splitting is what turns it into separate Playwright
+        # filters. An EMPTY list means no filter, i.e. the whole suite - which is precisely
+        # what mode 'full' asks for, and why mode 'none' must skip this job rather than reach
+        # it with nothing to run.
+        run: npm run test:e2e -- $SPECS --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Upload shard report
         uses: actions/upload-artifact@v4
@@ -120,6 +197,33 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # The catalog calibration tripwire benches every variant, so it is far too heavy to run on
+  # every change - but a pack merge is exactly when it earns its cost, and waiting for the
+  # nightly would let a broken variant sit in main all day. The plan raises this flag only for
+  # changes that can move catalog output or the bench itself, so most merges never see it.
+  e2e-catalog:
+    name: Catalog calibration gate
+    needs: plan
+    if: ${{ needs.plan.outputs.catalog == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Catalog calibration tripwire
+        run: npm run test:e2e:catalog
 
   factory:
     name: Factory gates
@@ -172,8 +276,10 @@ jobs:
 
   e2e-report:
     name: Combined E2E report
-    if: ${{ !cancelled() }}
-    needs: e2e
+    # Nothing to merge when the plan ran no specs: there are no blob reports, and the merge
+    # would fail on an empty input rather than say "there was nothing to report".
+    if: ${{ !cancelled() && needs.plan.outputs.mode != 'none' }}
+    needs: [plan, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -208,34 +314,50 @@ jobs:
   gate:
     name: CI gate
     if: ${{ !cancelled() }}
-    needs: [build, e2e, factory, e2e-report]
+    needs: [build, plan, e2e, e2e-catalog, factory, e2e-report]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       issues: write # the main-branch failure steps file/close a rolling issue
     steps:
-      # A stable final check is easier to protect than four generated matrix-job names.
+      # A stable final check is easier to protect than a set of generated matrix-job names.
       # Each failed gate is named as an error annotation, so a red run says WHICH job to
       # open instead of only being red.
       - name: Require every gate
         env:
           BUILD_RESULT: ${{ needs.build.result }}
+          PLAN_RESULT: ${{ needs.plan.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
+          CATALOG_RESULT: ${{ needs.e2e-catalog.result }}
           FACTORY_RESULT: ${{ needs.factory.result }}
           REPORT_RESULT: ${{ needs.e2e-report.result }}
         run: |
           status=0
-          check() {
-            if [ "$2" != "success" ]; then
-              echo "::error title=CI gate::$1 finished '$2' - open that job's log; the failing command and test names are annotated there."
-              status=1
-            fi
+          fail() {
+            echo "::error title=CI gate::$1 finished '$2' - open that job's log; the failing command and test names are annotated there."
+            status=1
           }
-          check "Build (typecheck + lint + bundle)" "$BUILD_RESULT"
-          check "E2E shards" "$E2E_RESULT"
-          check "Factory gates" "$FACTORY_RESULT"
-          check "Combined E2E report" "$REPORT_RESULT"
+          # Always runs, so anything but success is a fault. The plan belongs here: if it
+          # cannot decide what to test, no downstream skip may be read as approval.
+          require() {
+            [ "$2" = "success" ] || fail "$1" "$2"
+          }
+          # Runs only when the plan asked for it. 'skipped' here is the plan being believed -
+          # and the plan is itself required above, so a skip can never be covering for a
+          # crashed planner.
+          optional() {
+            case "$2" in
+              success|skipped) ;;
+              *) fail "$1" "$2" ;;
+            esac
+          }
+          require "Build (typecheck + lint + bundle)" "$BUILD_RESULT"
+          require "E2E plan" "$PLAN_RESULT"
+          require "Factory gates" "$FACTORY_RESULT"
+          optional "E2E shards" "$E2E_RESULT"
+          optional "Catalog calibration gate" "$CATALOG_RESULT"
+          optional "Combined E2E report" "$REPORT_RESULT"
           exit "$status"
 
       # Fail-loud on main, the weekly-audit pattern: ONE rolling issue, one comment per
