@@ -45,8 +45,9 @@ export default defineConfig({
   workers: isCi ? 1 : 4,
   retries: 0,
   // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
-  // failure is readable in the live Actions log without downloading the combined report.
-  reporter: isCi ? [['line'], ['blob']] : [['list']],
+  // failure is readable in the live Actions log without downloading the combined report,
+  // and the github reporter so each failing test lands as an annotation on the commit/PR.
+  reporter: isCi ? [['line'], ['github'], ['blob']] : [['list']],
   // Refuses to run against an already-running dev server that is not offline-pinned. The
   // webServer.env below only applies when Playwright STARTS the server; reuseExistingServer
   // adopts an existing one as-is, silently skipping every pin. See e2e/_offline-guard.ts.

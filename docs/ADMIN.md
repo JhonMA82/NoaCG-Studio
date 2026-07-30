@@ -173,6 +173,24 @@ server-side.
 `public.is_admin(min_role)` is the SECURITY DEFINER predicate for RLS; the API gate uses a
 service-key lookup instead, so an RLS mistake cannot open an endpoint.
 
+**Every predicate here is self-scoped: it answers about the caller, never about a named account.**
+`is_admin` takes a minimum ROLE and resolves the subject from `auth.uid()`, and since `0020` so
+does `is_suspended()`. Asking about someone else is a privileged question and lives in
+`public.admin_user_suspended(user_id)`, which verifies `is_admin('support')` *before* it reads
+anything and raises `42501` otherwise - the authorization is inside the function, so a future
+mis-grant still cannot leak. `is_admin` and `admin_role_rank` are no longer executable by
+`authenticated` at all: nothing called them, and PostgREST publishes every function a role may
+execute as `/rest/v1/rpc/<name>`, so an unused one is standing surface that also confirms an
+admin system exists.
+
+**Before adding an admin-read policy, read this.** A policy expression is evaluated with the
+privileges of the *querying* role, so a policy naming `public.is_admin(...)` requires that role to
+hold EXECUTE on it - verified directly against a live database, where the failure is
+`42501 permission denied for function`, not a quiet "no rows". Such a migration must re-grant
+EXECUTE to `authenticated` in the same change. This is the same constraint that made `0020`
+reshape `is_suspended` rather than simply revoke it: the nine suspension policies call it on
+every write, so revoking it would have denied writes to every signed-in user.
+
 The table is RLS-on with **no policies**, the pattern proven by `public.moderators` in migration
 `0004`: invisible to `anon` and `authenticated` alike. The existing community `moderators` role
 is left alone - it is a different job (gallery takedowns) with its own live-verified policies.
@@ -246,6 +264,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0017_admin_roles` | `admin_users`, `is_admin()`, `admin_audit_log` |
 | `0018_entitlements` | `user_accounts`, `is_suspended()`, suspension added to existing write policies, `plans`, `user_plans`, `user_grants` |
 | `0019_system_and_templates` | `system_settings`, `public_system_notice()`, `template_admin` |
+| `0020_self_scoped_predicates` | `is_suspended()` loses its argument, the nine policies are repointed, `is_suspended(uuid)` is dropped, `admin_user_suspended()` replaces it for admins, `is_admin`/`admin_role_rank` come off the REST surface |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -258,3 +277,11 @@ returns null when there is nothing to say, no backend, or a failed lookup.
 `0018` is the risky one: it edits live RLS policies on `documents` and `assets`. The change is
 additive (`and not is_suspended(...)`), read access is untouched so a suspended user can still
 export their own work, and a regression test covers the unaffected normal user.
+
+`0020` touches those same live policies, so it carries its own proof rather than asking to be
+trusted: a `DO` block impersonates an ordinary authenticated caller and asserts that the
+self-check still evaluates (the grant the policies depend on is intact), that `is_suspended(uuid)`
+is gone, that `admin_user_suspended` refuses a non-admin, and that `is_admin` is unreachable. Any
+failure aborts the migration, so an instance cannot end up half-locked-down. The source side is
+pinned offline by `scripts/admin-security-migration.test.mjs` in the build gate; both halves were
+mutation-tested (removing a statement makes the matching check fire).

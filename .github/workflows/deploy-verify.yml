@@ -1,0 +1,175 @@
+# PRODUCTION DEPLOYMENT VERIFICATION - the missing half of "green means shipped".
+#
+# CI proves a commit is good; nothing proved it actually REACHED production. Twenty
+# consecutive Vercel production builds once failed while the repo stayed green, and nobody
+# was told (docs/DEPLOYMENT.md has the full story). This workflow closes that gap three ways:
+#
+#   1. Vercel reports a production deployment FAILED  -> a red run on that commit + the
+#      rolling issue below.
+#   2. Vercel reports a production deployment READY   -> fetch https://noacg-studio.vercel.app/
+#      version.json (written by scripts/write-version.mjs during the build) and verify the
+#      live commit IS this deployment's commit (or a newer main commit that overtook it),
+#      and that the landing page and editor answer. A deploy that "succeeded" but did not
+#      take effect is a red run, not a silent nothing.
+#   3. A scheduled drift check compares the live commit against main independently of any
+#      event - the belt against the failure mode where no deployment (and so no event) is
+#      created at all.
+#
+# Alerting is the weekly-audit pattern: ONE rolling issue ("Production is not running the
+# latest main commit"), one comment per newly failing commit - the same commit never alerts
+# twice - closed automatically by the next verified-healthy state.
+
+name: deploy-verify
+
+on:
+  deployment_status: {}
+  schedule:
+    - cron: '43 5,11,17,23 * * *' # the drift belt, four times a day
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PRODUCTION_URL: https://noacg-studio.vercel.app
+  ISSUE_TITLE: Production is not running the latest main commit
+
+jobs:
+  verify:
+    name: Verify production deployment
+    # Vercel raises statuses for previews too; only production can page anyone.
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.environment == 'Production' &&
+      contains(fromJSON('["success", "failure", "error"]'), github.event.deployment_status.state)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # ancestry checks below need real history
+
+      - name: Report a failed production deployment
+        if: ${{ github.event.deployment_status.state != 'success' }}
+        run: |
+          echo "::error title=Production deployment failed::Vercel reported '${{ github.event.deployment_status.state }}' for ${{ github.event.deployment.sha }}. Build logs: ${{ github.event.deployment_status.target_url }}"
+          exit 1
+
+      - name: Verify the live site serves this commit
+        if: ${{ github.event.deployment_status.state == 'success' }}
+        run: |
+          DEPLOY_SHA="${{ github.event.deployment.sha }}"
+          echo "Deployment ready for $DEPLOY_SHA - verifying $PRODUCTION_URL"
+          for i in $(seq 1 12); do
+            LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
+            if [ "$LIVE_SHA" = "$DEPLOY_SHA" ]; then
+              echo "Live commit matches the deployment."
+              break
+            fi
+            # Rapid successive merges: production may already serve a NEWER main commit
+            # that contains this one. That is healthy, not a mismatch.
+            if [ -n "$LIVE_SHA" ] && git cat-file -e "$LIVE_SHA" 2>/dev/null \
+               && git merge-base --is-ancestor "$DEPLOY_SHA" "$LIVE_SHA"; then
+              echo "Live commit $LIVE_SHA is a newer main commit containing $DEPLOY_SHA."
+              break
+            fi
+            if [ "$i" = 12 ]; then
+              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LIVE_SHA:-nothing}', expected $DEPLOY_SHA (or a descendant). The deployment reported success but production did not take it."
+              exit 1
+            fi
+            sleep 10
+          done
+          # The pages people actually load must answer, not just the version marker.
+          curl -sf -o /dev/null "$PRODUCTION_URL/" || { echo "::error::The landing page does not answer."; exit 1; }
+          curl -sf -o /dev/null "$PRODUCTION_URL/app" || { echo "::error::The editor page does not answer."; exit 1; }
+          echo "Production verified: $DEPLOY_SHA is live and reachable."
+
+      - name: File / update the production issue
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          SHA="${{ github.event.deployment.sha }}"
+          BODY="Commit ${SHA}: production deployment '${{ github.event.deployment_status.state }}' - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}, Vercel logs ${{ github.event.deployment_status.target_url }}"
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
+          elif gh issue view "$EXISTING" --json body,comments --jq '[.body] + [.comments[].body] | join("\n")' | grep -qF "$SHA"; then
+            echo "Commit $SHA already reported on issue #$EXISTING."
+          else
+            gh issue comment "$EXISTING" --body "Still failing. $BODY"
+          fi
+
+      - name: Close the production issue
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Production verified healthy at ${{ github.event.deployment.sha }}."
+          fi
+
+  drift:
+    name: Drift check (live vs main)
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compare the live commit against matured main
+        run: |
+          # "Matured" = the newest main commit older than 90 minutes, so a deploy still in
+          # flight is never called drift.
+          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main || git rev-list -1 --before='90 minutes ago' HEAD)"
+          if [ -z "$MATURED" ]; then echo "No matured commit yet."; exit 0; fi
+          # Only meaningful once the version marker exists on that commit.
+          if ! git cat-file -e "$MATURED:scripts/write-version.mjs" 2>/dev/null; then
+            echo "Matured main predates the version marker - nothing to compare yet."
+            exit 0
+          fi
+          LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
+          if [ -z "$LIVE_SHA" ]; then
+            echo "::error title=Production drift::$PRODUCTION_URL/version.json does not answer, so the live version is unknown while main has deployable commits."
+            exit 1
+          fi
+          if git cat-file -e "$LIVE_SHA" 2>/dev/null && git merge-base --is-ancestor "$MATURED" "$LIVE_SHA"; then
+            echo "Production serves $LIVE_SHA, which contains matured main ($MATURED). No drift."
+            exit 0
+          fi
+          echo "::error title=Production drift::Production serves ${LIVE_SHA}, but main reached ${MATURED} over 90 minutes ago and no deployment carried it live. Check Vercel: https://vercel.com/miwcos-projects/noacg-studio"
+          exit 1
+
+      - name: File / update the production issue
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          SHA="$(git rev-list -1 --before='90 minutes ago' origin/main)"
+          BODY="Drift: production has not picked up main commit ${SHA} - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
+          elif gh issue view "$EXISTING" --json body,comments --jq '[.body] + [.comments[].body] | join("\n")' | grep -qF "$SHA"; then
+            echo "Commit $SHA already reported on issue #$EXISTING."
+          else
+            gh issue comment "$EXISTING" --body "Still drifting. $BODY"
+          fi
+
+      - name: Close the production issue
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Drift check clean - production is current with main again."
+          fi

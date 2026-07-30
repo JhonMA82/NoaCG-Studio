@@ -99,3 +99,6 @@ render-worker/remotion/*.generated.ts
 /*.JPG
 /*.JPEG
 /*.PNG
+
+# Supabase CLI version-check cache - rewritten whenever a new CLI ships
+supabase/.temp/cli-latest
