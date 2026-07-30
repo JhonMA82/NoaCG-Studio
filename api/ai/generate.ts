@@ -4,7 +4,7 @@ import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
-import { resolveUserEntitlement } from '../_lib/entitlements.js';
+import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
 import { routeDisabled, systemSettings } from '../_lib/systemSettings.js';
 import type { AiGatewayErrorBody, AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
@@ -62,6 +62,34 @@ export default {
       return resolveUserEntitlement(auth.user?.userId ?? null);
     };
 
+    /** A tagged surface is gated on its own feature key - today only video, on `ai.video`
+     *  (src/ai/video/videoGateway.ts stamps every video call). The DECISION lives in
+     *  api/_lib/entitlements.ts as two pure functions, because reaching this branch needs a
+     *  verified Supabase token and an untestable refusal is how a gate rots.
+     *
+     *  Only the ordering is here: resolve nothing until a gated surface is actually named and
+     *  a token was actually presented, so an anonymous BYO caller never pays for a
+     *  verification round trip they cannot be refused by.
+     *
+     *  HONEST LIMIT: the tag is client-supplied, and this endpoint is a general model proxy -
+     *  so the check binds the product's own traffic, not a hand-rolled request that omits the
+     *  tag. Nothing stronger exists here (a proxy that will run any prompt cannot know what
+     *  the answer is used for), and it is still what makes suspension and the instance-wide
+     *  kill switch reach the video harness instead of changing a row nothing reads. */
+    const guardSurface = async (): Promise<void> => {
+      const feature = gatedFeature(body.surface);
+      if (!feature || !bearerToken(req)) return;
+      const entitlement = await entitlementFor(); // verifies the token on the way through
+      if (surfaceRefused(feature, Boolean(auth.user), entitlement)) {
+        throw new GatewayError(
+          'authentication_required',
+          'AI video generation is not available for this account.',
+          403,
+          false,
+        );
+      }
+    };
+
     const keyFor = async (provider: AiProviderId): Promise<string> => {
       const userKey = userKeys[provider];
       if (userKey) {
@@ -115,6 +143,9 @@ export default {
     let result: ModelResult | null = null;
     let failure: GatewayError | null = null;
     try {
+      // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
+      // refusal is an outcome worth counting, not a hole in the accounting.
+      await guardSurface();
       result = await executeGatewayRequest(body, { keyFor });
     } catch (error) {
       failure = error instanceof GatewayError

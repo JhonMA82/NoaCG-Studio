@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Run the e2e specs that cover the files you changed - the inner-loop companion to the full
-// suite (`npm run test:e2e`, which remains the merge gate).
+// Run the e2e specs that cover the files you changed - the inner loop locally, and the per-merge
+// tier in CI (docs/DEPLOYMENT.md; the nightly still runs the whole suite).
 //
 //   npm run test:e2e:affected            # diff against the merge-base with main + working tree
 //   npm run test:e2e:affected -- <ref>   # diff against an explicit base ref
 //   npm run test:e2e:affected -- --list  # print the plan without running Playwright
+//   npm run test:e2e:affected -- --json  # print the plan as JSON, for CI to branch on
 //
 // The mapping below is CURATED, not traced: it errs toward running more. Anything touching the
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
@@ -29,7 +30,7 @@ const MAP = [
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'template-pack-10.spec.ts']],
   [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts']],
   [/^src\/blocks\//, ['anim-engine.spec.ts', 'timeline-v2.spec.ts', 'inspector.spec.ts', 'canvas-keyframe.spec.ts', 'legacy-timeline.spec.ts', 'multi-select.spec.ts', 'pasteboard.spec.ts', 'ux.spec.ts', 'bench.spec.ts', 'import-graphic.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts']],
+  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts']],
   [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts']],
   [/^src\/components\/Canvas/, ['canvas-selection.spec.ts', 'canvas-keyframe.spec.ts', 'multi-select.spec.ts', 'wysiwyg.spec.ts', 'inline-edit.spec.ts', 'pasteboard.spec.ts', 'import-graphic.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/(StepTimeline|TimelineDock|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts']],
@@ -89,11 +90,23 @@ const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin
 const CATALOG_TRIGGERS = [/^src\/templates\//, /^src\/blocks\//, /^src\/assets\//, /^src\/validation\/runtimeBench\.ts$/];
 
 const args = process.argv.slice(2);
-const listOnly = args.includes('--list');
+// --json prints the plan as one machine-readable object and runs nothing, which is how CI
+// decides between "skip the suite", "run these specs" and "run everything". It implies
+// --list, and it silences the human commentary: in this mode stdout is a data channel and a
+// stray progress line would corrupt it.
+const asJson = args.includes('--json');
+const listOnly = asJson || args.includes('--list');
 const baseArg = args.find((a) => !a.startsWith('--'));
+const log = asJson ? () => {} : console.log;
 
 function git(...cmd) {
   return execFileSync('git', cmd, { encoding: 'utf8' }).trim();
+}
+
+/** The plan, as CI consumes it. `mode` covers the specs to run; `catalog` is independent of it,
+ *  because a catalog change can need the calibration gate while needing no feature spec. */
+function emitJson({ mode, specs, catalog, base, changed }) {
+  process.stdout.write(`${JSON.stringify({ mode, specs, catalog, base, changed })}\n`);
 }
 
 const base = baseArg ?? git('merge-base', 'HEAD', 'main');
@@ -106,7 +119,8 @@ const working = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8
 const changed = [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
 
 if (changed.length === 0) {
-  console.log('e2e-affected: no changes vs', base, '- nothing to run.');
+  if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: 0 });
+  log('e2e-affected: no changes vs', base, '- nothing to run.');
   process.exit(0);
 }
 
@@ -139,22 +153,39 @@ for (const file of changed) {
 if (full) catalogAffected = true;
 
 if (unmapped.length > 0) {
-  console.log('e2e-affected: no mapping for these files (falling back to the full suite):');
-  for (const f of unmapped) console.log('  -', f);
+  log('e2e-affected: no mapping for these files (falling back to the full suite):');
+  for (const f of unmapped) log('  -', f);
 }
 
 const plan = full ? [] : [...specs].sort();
 if (full) {
-  console.log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
+  log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
 } else if (plan.length === 0 && !catalogAffected) {
-  console.log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
+  if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: changed.length });
+  log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
   process.exit(0);
 } else if (plan.length > 0) {
-  console.log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
-  for (const s of plan) console.log('  -', s);
+  log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
+  for (const s of plan) log('  -', s);
 }
 if (catalogAffected) {
-  console.log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
+  log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
+}
+
+if (asJson) {
+  // `mode` is only ever none/subset/full; the catalog gate rides alongside as its own flag,
+  // because a catalog-only change needs that gate and no feature spec at all - and that case
+  // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
+  // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
+  // quietly run the whole suite.
+  emitJson({
+    mode: full ? 'full' : plan.length > 0 ? 'subset' : 'none',
+    specs: plan,
+    catalog: catalogAffected,
+    base,
+    changed: changed.length,
+  });
+  process.exit(0);
 }
 
 if (listOnly) process.exit(0);

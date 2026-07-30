@@ -1,6 +1,6 @@
 // The harness value proof — same brief, same model, four arms side by side.
 //
-//   node scripts/ai-compare.mjs [out-dir] [count | id,id,…]
+//   node scripts/ai-compare.mjs --provider=<id> --model=<model id> [out-dir] [count | id,id,…]
 //
 // The product's central claim is that the NoaCG harness beats "just asking Claude/Codex to
 // make the same graphic" — and each harness stage must EARN its cost. Arms:
@@ -32,7 +32,8 @@
 // The neutral cross-arm scores are the runtime bench, the overlap count, and the screenshots.
 //
 // Requirements: the dev server (this checkout's port - scripts/dev-port.mjs) started with
-// server-only ANTHROPIC_API_KEY. The key never enters this browser process or its storage.
+// the server-only key for the chosen --provider. Keys never enter this browser process or
+// its storage.
 // SPENDS REAL TOKENS - roughly
 // count × (1 raw + ROUNDS_B + pre-harness 1-3 + harness 1-4) calls. Third arg limits to the
 // first N briefs or a comma-separated id list.
@@ -42,8 +43,19 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const OUT = process.argv[2] || './compare-out';
-const FILTER = process.argv[3] ?? '';
+const ARGS = process.argv.slice(2);
+const flag = (name) => ARGS.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
+const POS = ARGS.filter((a) => !a.startsWith('--'));
+const OUT = POS[0] || './compare-out';
+const FILTER = POS[1] ?? '';
+// A paid run names its route EXPLICITLY - no silent default onto an expensive proprietary
+// model. Same-model-all-arms stays the rig's rule; only WHICH model is the runner's call.
+const PROVIDER = flag('provider') ?? '';
+const MODEL = flag('model') ?? '';
+if (!PROVIDER || !MODEL) {
+  console.error('ai-compare SPENDS TOKENS and requires an explicit route: --provider=<provider id> --model=<model id>.');
+  process.exit(1);
+}
 const ROUNDS_B = 2; // arm B: 1 generation + this many self-critique improvement rounds
 mkdirSync(OUT, { recursive: true });
 
@@ -76,17 +88,18 @@ const BRIEFS = [
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 0.5 });
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-const configured = await page.evaluate(async () => {
+const configured = await page.evaluate(async ({ provider, model }) => {
   const { refreshAiConfiguration, saveAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
   await refreshAiConfiguration();
-  saveAiSettings({ provider: 'anthropic', model: 'claude-sonnet-5', fallbacks: [] });
+  saveAiSettings({ provider, model, fallbacks: [] });
   return aiConfigured();
-});
+}, { provider: PROVIDER, model: MODEL });
 if (!configured) {
-  console.error('No server-managed Anthropic route is available. Start the dev server with server-only ANTHROPIC_API_KEY.');
+  console.error(`No server-managed ${PROVIDER} route is available. Start the dev server with the matching server-only key.`);
   await browser.close();
   process.exit(1);
 }
+console.log(`Route: ${PROVIDER}:${MODEL} (all four arms).`);
 await page.waitForTimeout(800);
 
 const selected = /^[a-z-]+(,[a-z-]+)*$/.test(FILTER)

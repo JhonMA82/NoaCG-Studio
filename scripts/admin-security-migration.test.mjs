@@ -8,13 +8,22 @@
 // is sufficient alone - text can drift from behaviour, and a self-check nobody reads can be
 // deleted in a diff that looks like cleanup.
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const read = (file) => readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8');
+const dir = new URL('../supabase/migrations/', import.meta.url);
+const read = (file) => readFile(new URL(file, dir), 'utf8');
+
+// Every migration, discovered rather than listed - the session-role rule below applies to all of
+// them, including the one that has not been written yet.
+const migrationFiles = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+const allMigrations = new Map(
+  await Promise.all(migrationFiles.map(async (f) => [f, await read(f)])),
+);
 
 const entitlements = await read('0018_entitlements.sql');
 const selfScoped = await read('0020_self_scoped_predicates.sql');
+const oneActiveGrant = await read('0021_one_active_grant.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -123,9 +132,46 @@ test('no migration changes the session role', () => {
   // Comments are stripped first: 0020 documents this trap at length, and the write-up naming
   // RESET ROLE must not read as the statement itself.
   const stripComments = (sql) => sql.replace(/--[^\n]*/g, '');
-  for (const [name, sql] of [['0018', entitlements], ['0020', selfScoped]]) {
-    const code = stripComments(sql);
+  // SELF-DISCOVERING, and that is the point: this trap belongs to every migration, not to the
+  // two that happened to exist when it was found. A hardcoded list silently stops covering the
+  // next file somebody adds, which is exactly when the lesson has been forgotten.
+  assert.ok(migrationFiles.length >= 21, `expected the full migration set, found ${migrationFiles.length}`);
+  for (const name of migrationFiles) {
+    const code = stripComments(allMigrations.get(name));
     assert.doesNotMatch(code, /\breset\s+role\b/i, `${name} resets the session role`);
     assert.doesNotMatch(code, /\bset\s+(local\s+|session\s+)?role\b/i, `${name} sets the session role`);
   }
+});
+
+// ── 0021: one active grant per (user, kind, key) ─────────────────────────────────────────────
+
+test('the ambiguous grant state is made unreachable, not merely discouraged', () => {
+  // UNIQUE, or two active rows can still name one key. PARTIAL, or revoked history - which the
+  // revoke-by-stamp design depends on - becomes impossible to accumulate.
+  assert.match(
+    oneActiveGrant,
+    /create unique index if not exists user_grants_one_active_idx\s*\n\s*on public\.user_grants \(user_id, kind, key\)\s*\n\s*where revoked_at is null/i,
+    'expected a PARTIAL UNIQUE index over the active rows',
+  );
+});
+
+test('existing duplicates are resolved before the index is created, newest kept', () => {
+  // A unique index cannot be built over data that already violates it, so a database that
+  // already carries a pair must be repaired in the same migration or the apply just fails.
+  const repair = oneActiveGrant.slice(0, oneActiveGrant.indexOf('create unique index'));
+  assert.match(repair, /update public\.user_grants/i, 'nothing repairs pre-existing duplicates');
+  assert.match(repair, /order by created_at desc/i, 'the newest active grant must be the one kept');
+  assert.match(repair, /set revoked_at = now\(\)/i, 'losers must be revoked, matching the API');
+  assert.doesNotMatch(repair, /delete\s+from\s+public\.user_grants/i, 'history is stamped, never deleted');
+});
+
+test('0021 refuses to apply unless the constraint demonstrably holds', () => {
+  // Same posture as 0020: assert against the live catalog, raise on failure so the whole
+  // migration rolls back. Reading pg_index rather than trusting the CREATE's own text.
+  assert.match(oneActiveGrant, /do \$\$/i, 'no self-check block');
+  assert.match(oneActiveGrant, /from pg_index i/i, 'the index is not verified against the catalog');
+  assert.match(oneActiveGrant, /i\.indisunique/i, 'uniqueness is not verified');
+  assert.match(oneActiveGrant, /i\.indpred is not null/i, 'partialness is not verified');
+  assert.match(oneActiveGrant, /raise exception '0021 self-check \(a\)/i);
+  assert.match(oneActiveGrant, /raise exception '0021 self-check \(b\)/i);
 });

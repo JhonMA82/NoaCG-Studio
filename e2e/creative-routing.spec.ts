@@ -48,17 +48,48 @@ test.describe('creative routing (phase A)', () => {
         // The mutation twins: ONE property flips each decision.
         fitButOriginal: route({ ...intent, originalityRequested: true }),
         fitButLowConfidence: route({ ...intent, confidence: 'low' }),
+        fitButBeyondScope: route({ ...intent, beyondScope: true, scopeEvidence: 'double elimination' }),
         novel: route({ ...intent, kind: 'novel', typeId: undefined, novelDescription: 'a timing tower' }),
         hybrid: route({ ...intent, kind: 'hybrid', typeId: undefined, families: ['board', 'ring-meter'] }),
         unknownType: route({ ...intent, typeId: 'no-such-structure' }),
+        // Slot drift, measured on the open-model runs: a declared match whose id landed in
+        // the wrong slot still fits. The unknownType twin above stays create - tolerance is
+        // for slots, never for names nothing resolves.
+        typeIdInFamilies: route({ ...intent, typeId: undefined, families: ['bracket'] }),
+        familyWordInTypeId: route({ ...intent, typeId: 'strap', families: [] }),
       };
     }, baseIntent);
-    expect(routes.fitHigh).toBe('adapt');
+    expect(routes.fitHigh).toBe('adapt'); // also the scope twin: same intent WITHOUT beyondScope adapts
     expect(routes.fitButOriginal).toBe('create');
     expect(routes.fitButLowConfidence).toBe('create');
+    expect(routes.fitButBeyondScope).toBe('create');
     expect(routes.novel).toBe('create');
     expect(routes.hybrid).toBe('create');
     expect(routes.unknownType).toBe('create');
+    expect(routes.typeIdInFamilies).toBe('adapt');
+    expect(routes.familyWordInTypeId).toBe('adapt');
+  });
+
+  test('the scope guard is honoured end to end: registry note -> prompt, decision stays explicit-mode safe', async ({ page }) => {
+    await open(page);
+    const scope = await page.evaluate(async (intent) => {
+      const { intentSystemPrompt, normalizeIntent, routeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { typeById } = await import('/src/templates/types/registry.ts');
+      const beyond = normalizeIntent({ ...(intent as object), beyondScope: true, scopeEvidence: 'a losers bracket' });
+      return {
+        bracketNote: typeById('bracket')?.structuralScope ?? null,
+        promptCarriesNote: intentSystemPrompt().includes('double elimination'),
+        // Explicit adapt still wins over the scope signal - the mode is never overridden.
+        explicitAdapt: routeIntent(beyond, 'adapt').route,
+        autoReason: routeIntent(beyond, 'auto').reason,
+      };
+    }, baseIntent);
+    // The registry declares the scope and the prompt teaches it; losing either half would
+    // leave the tool field emitting blind.
+    expect(scope.bracketNote).toContain('single-elimination');
+    expect(scope.promptCarriesNote).toBe(true);
+    expect(scope.explicitAdapt).toBe('adapt');
+    expect(scope.autoReason).toContain('losers bracket');
   });
 
   test('every adapt expectation in the pilot bank still has its catalog anchor', async ({ page }) => {

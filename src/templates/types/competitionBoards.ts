@@ -271,6 +271,10 @@ export const bracketType: GraphicType = {
   id: 'bracket',
   name: 'Bracket',
   description: 'A knockout tree in round columns, with a live round and a champion.',
+  structuralScope:
+    'One single-elimination knockout tree: rounds in columns from one list, winners ' +
+    'advancing to a single final. No losers bracket, no double elimination, no grand-final ' +
+    'reset, no group stage or round robin.',
   structure: {
     prefix: 'results-board',
     category: 'results-board',

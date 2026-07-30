@@ -116,11 +116,23 @@ export interface AiGatewayErrorBody {
   };
 }
 
+/** Which PRODUCT SURFACE issued a gateway call, when the answer changes what the server is
+ *  allowed to do. The gateway is otherwise surface-agnostic on purpose - the SPX harness, the
+ *  brainstorm call and a bare prompt all look alike to it - so this stays a small, closed set
+ *  that only grows when a surface has its own entitlement.
+ *
+ *  Today that is video: `ai.video` is a feature a plan, a grant or an instance-wide kill switch
+ *  can withdraw, and without a discriminator the video harness is indistinguishable from every
+ *  other call on the same endpoint (docs/ADMIN.md, the enforcement table). */
+export type AiGatewaySurface = 'video';
+
 export interface AiGatewayRequestBody {
   request: ModelRequest;
   route: ModelRoute;
   /** Fallback is opt-in and ordered. An empty list means never change provider/model. */
   fallbacks?: ModelRoute[];
+  /** Absent means the general harness, which no feature key gates. */
+  surface?: AiGatewaySurface;
 }
 
 export type AiGatewayResponseBody = ModelResult;

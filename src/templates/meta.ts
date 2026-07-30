@@ -47,6 +47,18 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     category: 'bug', subtype: 'social-handle', structures: ['corner-chip', 'single-line'],
     semantics: { handle: 'social-handle', platform: 'source' },
   },
+  'event-notification': {
+    category: 'notification', subtype: 'event-notification', structures: ['image-text', 'multi-line'],
+    coverage: 'overlay',
+    semantics: {
+      eventLabel: 'headline',
+      actor: 'name',
+      amount: 'amount',
+      message: 'description',
+      avatar: 'image',
+    },
+    extraCapabilities: ['operator-states', 'image-upload', 'pause-resume'],
+  },
 
   // ── The identity family (templates/types/identityBugs.ts) ──────────────────
   // All eight are `bug` graphics; the subtype is what an operator would call each one.
@@ -486,6 +498,12 @@ export const CATEGORY_DEFAULT_META: Record<TemplateCategory, DeclaredTemplateMet
   'audience': {
     category: 'question', subtype: 'viewer-question', structures: ['multi-line'],
     positionalSemantics: ['question', 'name', 'source'],
+  },
+  'stream-notification': {
+    category: 'notification', subtype: 'event-notification', structures: ['image-text', 'multi-line'],
+    coverage: 'overlay',
+    positionalSemantics: ['headline', 'name', 'amount', 'description', 'image'],
+    extraCapabilities: ['operator-states', 'image-upload', 'pause-resume'],
   },
   'imported-design': null, // user content — never browsable
 };
