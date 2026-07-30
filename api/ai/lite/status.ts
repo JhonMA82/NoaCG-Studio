@@ -5,6 +5,8 @@ import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteS
 import { liteJudgeConfigured, liteProfile, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
 import { liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
 import { approvedModelRoute } from '../../_lib/aiModelCatalog.js';
+import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../../_lib/entitlements.js';
+import { allows } from '../../../src/entitlements/contract.js';
 import type { LiteStatusResponse } from '../../../src/ai/liteTypes.js';
 
 export default {
@@ -20,7 +22,11 @@ export default {
       && taskConfigured(liteTaskProfile(profile))
       && liteLedgerConfigured()
       && routesConfigured;
-    const available = profile.enabled && configured && Boolean(user);
+    // The entitlement is resolved ONCE and used for both the availability answer and the
+    // allowance below, so the panel can never say "available" while the reservation refuses.
+    const entitlement = user ? await resolveUserEntitlement(user.userId) : null;
+    const entitled = entitlement ? allows(entitlement, 'ai.lite') : false;
+    const available = profile.enabled && configured && Boolean(user) && entitled;
     const response: LiteStatusResponse = {
       profile: 'lite',
       enabled: profile.enabled,
@@ -32,7 +38,11 @@ export default {
           ? { reason: 'not-configured' as const }
           : !user
             ? { reason: 'sign-in' as const }
-            : {}),
+            : !entitled
+              // An account whose plan does not include Lite reads the same as the feature
+              // being off. There is no upgrade prompt to show - there is nothing to buy.
+              ? { reason: 'disabled' as const }
+              : {}),
       supportedCategories: profile.supportedCategories,
       skinEnabled: profile.skinEnabled,
       // Only claim the judge when it would actually run: enabled, priced, allowlisted,
@@ -42,8 +52,13 @@ export default {
         && Boolean(managedAiKey(profile.judgeRoute.provider)),
       limits: profile.limits,
     };
-    if (available && user) {
-      const effectiveProfile = liteProfileForUser(profile, user.userId);
+    if (available && user && entitlement) {
+      // The SAME two steps the generation endpoint applies, in the same order. If this
+      // drifts, the panel promises an allowance the reservation will not honour.
+      const effectiveProfile = applyEntitlementToLiteProfile(
+        liteProfileForUser(profile, user.userId),
+        entitlement,
+      );
       const usage = await (await getLiteGenerationStore()).usage('lite', user.userId, Date.now());
       response.allowance = {
         dailyStartsRemaining: Math.max(0, effectiveProfile.dailyStarts - usage.dailyStarts),

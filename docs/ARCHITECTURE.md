@@ -29,13 +29,14 @@ thin `CLAUDE.md` import.
 |---|---|---|---|
 | 0 kernel | `model/` * | SpxTemplate, parse/serialize, persisted formats + migrations, library/shows/packets, field + structure contracts | the module named for the concern (`types`, `spxDefinition`, `library`, `structure`, `fieldModel`, ...) |
 | 0 kernel | `assets/` | data-URL helpers, vendored gsap/lottie, OFL.txt | `assetUtils`, the vendored files |
+| 0 kernel | `entitlements/` | the PURE entitlement contract: feature/limit keys, plan + grant shapes, the precedence merge and its per-value source (docs/ADMIN.md) | `contract` |
 | 1 transforms | `blocks/` * | deterministic `(template) => template` patchers, Timeline v2 engine, `NOACG_ANIM` literal, state-machine graph + mutators | `registry`, `animData`, `animMachine`, `machineEdit`, named patcher modules |
 | 1 transforms | `templates/` * | wizard catalog, assemblers, graphic types, `:root` style contract | `catalog`, `variant.create(options)`, `types/` registry |
 | 1 transforms | `validation/` | the export + AI gate, runtime bench | `validateTemplate`, `runtimeBench` |
 | 1 transforms | `preview/` | srcdoc composition | `composeDocument` |
 | 1 transforms | `editor/` | Monaco view-only helpers (comment visibility) | `commentVisibility` |
 | 1 transforms | `format/` | code formatting (docs/FORMATTING.md) | `formatCode` |
-| 2 services | `backend/` | THE Supabase client, auth, sync engine, asset externalization | `config` (`isBackendConfigured`, `loadBackendConfig`), `supabase` (`getSupabase`), `auth`, `syncController` |
+| 2 services | `backend/` | THE Supabase client, auth, sync engine, asset externalization, the caller's own entitlement (`myEntitlement`) | `config` (`isBackendConfigured`, `loadBackendConfig`), `supabase` (`getSupabase`), `auth`, `syncController`, `myEntitlement` |
 | 2 services | `ai/` * + `ai/video/` | generation harnesses, providers, settings/preferences | `getAiProvider()`, `getVideoAiProvider()`, `settings`, `preferences` |
 | 2 services | `export/` * | 6 targets + packet/show packaging | `registry`, `common` |
 | 2 services | `render/` * | RenderManifest, schedule, tiers, job client | `manifest`, `schedule`, `limits` (the PURE trio), `client` |
@@ -45,13 +46,14 @@ thin `CLAUDE.md` import.
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
 | 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
+| 3 app | `admin/` | the PRIVATE admin page: its own MPA entry (`admin.html` -> `/admin`), the wire types, the authorized fetch client (docs/ADMIN.md) | (top of the graph - nothing imports these) |
 
 ## 3. Allowed edges (the ratchet)
 
 The current, curated import graph. **Adding a new domain-to-domain edge requires editing this
 table in the same PR, with one sentence of justification in the commit.** Everything may import
-`model/` and `assets/`; those two are omitted from the lists. Edges not listed here and not in §6
-are wrong - fix the code, not the table.
+`model/`, `assets/` and `entitlements/`; those three are omitted from the lists. Edges not listed
+here and not in §6 are wrong - fix the code, not the table.
 
 - `templates` -> blocks (`animData`, `animMachine`, shared runtime)
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
@@ -65,6 +67,8 @@ are wrong - fix the code, not the table.
   `export/targets/ograf.ts` -> `render/runtimeScript.ts` (the shared deterministic virtual clock)
 - `control` -> blocks, backend
 - `community` -> backend, validation
+- `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
+  from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control
 - `app` -> (nothing)
 - `components` -> any lower domain, **through its seam column in §2**
@@ -98,6 +102,7 @@ dependency-cruiser; §7):
 | prompt, harness, provider, or AI settings work | `ai/` (SPX) or `ai/video/` |
 | manifest, schedule, tier, or render-job work | `render/` (respect the purity trio) |
 | a cloud table, sync kind, or auth change | `backend/` + `supabase/migrations/` (RLS in the same migration) |
+| a new gateable feature, plan dimension, or access rule | `entitlements/contract.ts` - one resolver, one precedence order (docs/ADMIN.md); the server loader and the admin surface consume it, never re-decide it |
 | video compile/validate/bridge work | `video/` |
 | editor UI state, undo, save/guard flow | `store/` |
 | a panel, dialog, or canvas interaction | `components/` - thin, per §5 |

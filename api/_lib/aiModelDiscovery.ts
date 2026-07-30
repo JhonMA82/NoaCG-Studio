@@ -105,10 +105,16 @@ export function normalizedHuggingFace(value: unknown): AiDiscoveredModel | null 
   const contexts = capable
     .map((provider) => finite(provider.context_length))
     .filter((context): context is number => context !== null);
+  // Index arithmetic rather than `.at(-1)`, and it has to stay that way: VERCEL COMPILES THE
+  // api/ FUNCTIONS WITH THE ROOT tsconfig.json, whose lib is ES2020 - not tsconfig.api.json,
+  // whose ES2022 lib is what `npm run build` typechecks against. So `.at()` passes every local
+  // gate and then fails the production build with TS2550, which is exactly what happened here:
+  // every deployment from d512f6e onward errored while the repo stayed green.
+  const segments = id.split('/');
   return {
     provider: 'huggingface',
     id,
-    name: id.split('/').at(-1) || id,
+    name: segments[segments.length - 1] || id,
     description: '',
     contextLength: contexts.length ? Math.max(...contexts) : null,
     maxOutputTokens: null,

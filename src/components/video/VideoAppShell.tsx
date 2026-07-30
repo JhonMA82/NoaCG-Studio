@@ -195,7 +195,7 @@ export default function VideoAppShell() {
         <button onClick={() => setSavedOpen(true)} title="Your saved video projects" data-testid="video-my-videos">
           📁 My videos
         </button>
-        <button onClick={openGallery} title="Start a new project">
+        <button onClick={() => openGallery()} title="Start a new project">
           + New project
         </button>
         <button

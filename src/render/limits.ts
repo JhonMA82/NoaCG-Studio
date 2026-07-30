@@ -140,8 +140,23 @@ export const RENDER_CONFIG = {
   },
 } as const;
 
-export function resolveTier(signedIn: boolean): RenderTier {
-  return signedIn ? 'free' : 'anonymous';
+export function isRenderTier(value: string): value is RenderTier {
+  return value === 'anonymous' || value === 'free' || value === 'paid';
+}
+
+/** The tier a resolved entitlement renders at.
+ *
+ *  Plans name their tier as free text (`plans.render_tier`), because the tier TABLE above is
+ *  code and a plan row must not be able to break the render path by naming something that is
+ *  not in it. An unrecognised name therefore falls back to what the caller would have got
+ *  anyway - signed in or not - rather than failing the request or silently granting 'paid'.
+ *
+ *  This module stays PURE (see the header): it takes the already-resolved tier name, it does
+ *  not load entitlements. api/_lib/entitlements.ts does that. */
+export function resolveTier(signedIn: boolean, entitledTier?: string): RenderTier {
+  const fallback: RenderTier = signedIn ? 'free' : 'anonymous';
+  if (!signedIn) return fallback; // an anonymous caller has no plan to honour
+  return entitledTier && isRenderTier(entitledTier) ? entitledTier : fallback;
 }
 
 export interface LimitIssue {
@@ -167,13 +182,40 @@ function summaryDurationSec(m: ManifestSummary): number {
   return m.kind === 'html' ? m.timing.totalDurationMs / 1000 : m.durationInFrames / m.fps;
 }
 
-/** Validate a render request against a tier. Empty result = allowed. */
-export function validateRenderRequest(m: ManifestSummary, tier: RenderTier): LimitIssue[] {
+/** The output formats this request may use.
+ *
+ *  A plan's `render_formats` REPLACES the tier's list rather than intersecting it - "available
+ *  export formats" is a plan dimension in its own right, so a plan must be able to grant a
+ *  format its tier does not carry. The other caps are orthogonal and still apply: granting
+ *  ProRes does not also grant 4K or five minutes.
+ *
+ *  A plan that names formats the build does not have contributes nothing rather than emptying
+ *  the list - an unknown format id is a stale plan row, not an instruction to refuse every
+ *  render. Falling back to the tier there is the difference between a typo costing one format
+ *  and a typo costing the feature. */
+export function allowedFormats(tier: RenderTier, planFormats?: readonly string[] | null): readonly RenderFormatId[] {
   const caps = RENDER_LIMITS[tier];
+  if (!planFormats?.length) return caps.formats;
+  const known = planFormats.filter((id): id is RenderFormatId => id in RENDER_FORMATS);
+  return known.length ? known : caps.formats;
+}
+
+/** Validate a render request against a tier. Empty result = allowed.
+ *
+ *  `planFormats` comes from the resolved entitlement (api/_lib/entitlements.ts); omitting it
+ *  keeps exactly the pre-entitlement behaviour, which is what every caller that has no user
+ *  wants. This module stays PURE - it takes the already-resolved list, it never loads one. */
+export function validateRenderRequest(
+  m: ManifestSummary,
+  tier: RenderTier,
+  planFormats?: readonly string[] | null,
+): LimitIssue[] {
+  const caps = RENDER_LIMITS[tier];
+  const formats = allowedFormats(tier, planFormats);
   const issues: LimitIssue[] = [];
   const format = m.output.format;
 
-  if (!caps.formats.includes(format)) {
+  if (!formats.includes(format)) {
     issues.push(
       tier === 'anonymous' && formatNeedsSignIn(format)
         ? { code: 'format-signin', message: `${RENDER_FORMATS[format].label} requires signing in.` }

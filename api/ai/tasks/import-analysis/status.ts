@@ -8,6 +8,8 @@ import { managedAiKey } from '../../../_lib/aiCredentials.js';
 import { importAnalysisProfile } from '../../../_lib/aiImportAnalysisProfile.js';
 import { importAnalysisTaskProfile, taskConfigured } from '../../../_lib/aiTaskRegistry.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../../../_lib/aiLiteStore.js';
+import { resolveUserEntitlement } from '../../../_lib/entitlements.js';
+import { allows } from '../../../../src/entitlements/contract.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
   type ImportAnalysisStatusResponse,
@@ -25,7 +27,11 @@ export default {
       && taskConfigured(importAnalysisTaskProfile(profile))
       && liteLedgerConfigured()
       && Boolean(managedAiKey(profile.route.provider));
-    const available = profile.enabled && configured && Boolean(user);
+    // Resolved once and used for availability, so the panel can never offer a button the
+    // generation endpoint will refuse. Mirrors the Lite status endpoint exactly.
+    const entitlement = user ? await resolveUserEntitlement(user.userId) : null;
+    const entitled = entitlement ? allows(entitlement, 'ai.import-analysis') : false;
+    const available = profile.enabled && configured && Boolean(user) && entitled;
     const response: ImportAnalysisStatusResponse = {
       task: 'imported-graphic-analysis',
       enabled: profile.enabled,
@@ -37,7 +43,11 @@ export default {
           ? { reason: 'not-configured' as const }
           : !user
             ? { reason: 'sign-in' as const }
-            : {}),
+            : !entitled
+              // An account whose plan excludes analysis reads the same as the feature being
+              // off. There is no upgrade prompt to show, because there is nothing to buy.
+              ? { reason: 'disabled' as const }
+              : {}),
       limits: {
         maxImages: IMPORT_ANALYSIS_LIMITS.maxImages,
         maxWidth: IMPORT_ANALYSIS_LIMITS.maxWidth,
