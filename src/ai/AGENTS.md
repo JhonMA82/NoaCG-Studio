@@ -245,15 +245,41 @@ example, `designNotes`, and repair policy stay byte-identical. Routing changes W
 reach it, never what it is shown. Do not "improve" it before the Creative Mode comparison
 has run** - the comparison's control arm is exactly this code.
 
-The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) verifies the
-intent's required parts against the template - list data as a textarea, field capacity,
-states vs machine/steps statically, plus repeating groups and zone placement measured in a
-rendered iframe. Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep +
-AIPromptPanel pass `benchStructuralIntent`); the provider runs it AFTER the repair loop on
-CREATE-routed results and appends findings (rule `structural-intent`) as WARNINGS - it
-measures presence, not quality, and it must not change the frozen control's repair rounds.
+**The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
+`resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather
+than here because the router and the satisfaction check both need the same answer and
+`validation` may not import `ai`. A second copy is how the two come to disagree - the router
+sending a brief down the catalog path while the check has no idea what was promised. Everything
+resolves LIVE against the registry and catalog, so catalog growth updates routing AND
+satisfaction by itself.
+
+The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) asks whether the
+result is the graphic that was asked for, in two parts:
+
+- **Kind** (`structuralKindFindings`) - does the assembled variant carry the anchor the intent
+  promised? Answered by IDENTITY against `spec.variantId`. This is the defect the benchmark hit
+  most and every other gate was blind to: a stinger brief routes to the catalog path CORRECTLY
+  (the catalog does carry transitions), the design stage returns a lower third, and static
+  validation, the runtime bench and the parts checks all pass - a lower third really does have a
+  headline and really does sit bottom-left. Every measurement agreed and the user got the wrong
+  graphic. It reports only when BOTH sides are known: an unresolvable variant or an intent that
+  anchored to nothing is a measurement that failed, not evidence of a mismatch.
+- **Parts** - list data as a textarea, field capacity, states vs machine/steps statically, plus
+  repeating groups and zone placement measured in a rendered iframe.
+
+Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep + AIPromptPanel pass
+`benchStructuralIntent`); findings land as WARNINGS (rule `structural-intent`) - it measures
+presence and identity, not quality, and it must not change the frozen control's repair rounds.
+**It runs on BOTH routed paths.** It first shipped CREATE-only, which left the grounded path -
+where the wrong-graphic defect actually happens - unmeasured: assembly being correct by
+construction says nothing about whether the right thing was constructed. `groundedResult`
+therefore reports the RESOLVED chassis (`pickVariant` clamps an unknown or unusable one, so the
+model's requested `variantId` can name a design that was never built), which is also what makes
+a spec-level `modify` refine the graphic the user is looking at.
+
 Free coverage: e2e/creative-routing.spec.ts (mutation-pinned, incl. the brief-bank
-catalog-anchor re-verification - the decay rule).
+catalog-anchor re-verification - the decay rule - and fixtures named after the wrong outcomes
+the paid round produced: a lower third for a stinger, a lower third for a timing tower).
 
 ## The quality gate (injected, not owned)
 
@@ -310,6 +336,17 @@ The standing proof:
 - `scripts/ai-bench.mjs` - the single-arm brief bank + review gallery for prompt iteration.
 
 Both need the dev server + a real key and SPEND TOKENS - never CI.
+
+**Run `npm run bench:preflight -- <models>` before any paid round.** It is free, reaches no
+network, and answers the question the paid runner structurally cannot: given this `.env` and
+these candidates, what would each arm ACTUALLY serve? `api/_lib/aiBenchPreflight.ts` resolves
+every arm through the REAL `liteProfile` + task registry (never a model of their rules - a
+preflight that reimplements the server drifts from it and then certifies runs the server will
+refuse), and refuses a plan whose arms are overridden, unapproved, unconfigured, or not
+pairwise distinct. Each of those wasted a real round: they are invisible in the OUTPUT, because
+a comparison whose arms resolve to one model still produces differences - sampling noise reads
+as model character - so the numbers look like findings. `--env=<path>` checks another
+environment file. Regression suite: `api/_lib/aiBenchPreflight.test.ts` (in the build gate).
 
 ## The structured setup (spec/ - the "More control" panel's harness grip)
 

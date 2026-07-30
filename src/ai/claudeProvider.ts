@@ -808,7 +808,12 @@ async function groundedResult(
     template,
     path,
     validation,
-    spec,
+    // The spec describes what was BUILT, not what was asked for: `pickVariant` clamps an
+    // out-of-range or unknown chassis to the nearest legal one, so the model's `variantId`
+    // can name a design that was never assembled. Reporting the resolved id is what lets the
+    // satisfaction check ask an honest question, and it means a spec-level `modify` refines
+    // the graphic the user is actually looking at.
+    spec: { ...spec, variantId: assembled.diversity.variantId },
   };
 }
 
@@ -961,7 +966,13 @@ function routedSpecTool(base: ModelTool, route: RouteDecision | null): ModelTool
 
 /** Append the injected structural-satisfaction check's findings as WARNINGS on the final
  *  validation (non-blocking - plan §8: they never enter the frozen control's repair
- *  rounds; rigs and future arms read them). */
+ *  rounds; rigs and future arms read them).
+ *
+ *  Runs on BOTH routed paths. It first shipped on the custom path alone, which left the
+ *  benchmark's most common defect unmeasured: a catalog-routed brief that comes back as the
+ *  wrong catalog member (a stinger assembled as a lower third) was never asked whether it
+ *  was the graphic requested. `change.spec.variantId` is what makes that answerable, so the
+ *  grounded path passes it; the custom path has no variant and is measured by parts. */
 async function withStructuralFindings(
   change: AiTemplateChange,
   intent: StructuralIntent | null,
@@ -971,7 +982,7 @@ async function withStructuralFindings(
   if (!intent || !options?.structuralCheck) return change;
   try {
     const t0 = Date.now();
-    const findings = await options.structuralCheck(change.template, intent);
+    const findings = await options.structuralCheck(change.template, intent, change.spec?.variantId);
     run.stage('structural-check', t0);
     if (!findings.length) return change;
     const validation = change.validation ?? { ok: true, errors: [], warnings: [] };
@@ -1042,7 +1053,14 @@ export const claudeProvider: AIProvider = {
         // Stage 2 — deterministic assembly through the real catalog assemblers: correct
         // by construction, panel- and timeline-editable like any wizard output.
         const grounded = await groundedResult(spec, context, options, run);
-        return { ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+        const annotatedGrounded = {
+          ...grounded,
+          ...(intent ? { intent } : {}),
+          ...(route ? { routing: route } : {}),
+        };
+        // The catalog path is checked too: assembly is correct BY CONSTRUCTION, which says
+        // nothing about whether the right thing was constructed.
+        return withStructuralFindings(annotatedGrounded, intent, options, run);
       }
 
       // Custom route — the free-form coder, studying the NEAREST catalog design as its
@@ -1123,7 +1141,12 @@ export const claudeProvider: AIProvider = {
         options?.onProgress?.(`Building option ${i + 1} of ${specs.length}…`);
         if (spec.fit === 'catalog' && !forceCustom) {
           const grounded = await groundedResult(spec, context, options, run);
-          results.push({ ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) });
+          const annotatedGrounded = {
+            ...grounded,
+            ...(intent ? { intent } : {}),
+            ...(route ? { routing: route } : {}),
+          };
+          results.push(await withStructuralFindings(annotatedGrounded, intent, options, run));
         } else {
           const change = await generateValidated(
             [...userContent, { type: 'text', text: designNotes(spec) }],

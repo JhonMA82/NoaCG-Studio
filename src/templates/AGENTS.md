@@ -6,6 +6,16 @@ catalog sweep for the affected category (root AGENTS.md, "Verifying changes").
 
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
+**structuralAnchor.ts** - the one table answering "does a catalog structure carry this intent,
+and which one": the family words, `resolveAnchor`, `structuralFit`, and `anchorsSatisfiedBy` /
+`variantSatisfiesAnchor` (what a VARIANT is, for the satisfaction check). It lives here, not in
+src/ai, because TWO layers need the same answer and neither may import the other - the AI's
+ROUTER asks before the design call (adapt vs create) and `validation/structuralIntentCheck.ts`
+asks afterwards (is this the graphic that was asked for). A second copy is how those two come to
+disagree. Everything resolves LIVE against the registry and catalog, so catalog growth updates
+routing and satisfaction by itself: adding a design can CHANGE a route, which is why
+e2e/creative-routing.spec.ts runs on changes here.
+
 **kit.ts** - what a kit CONTAINS, resolved once for every consumer: the pack's types through
 the (type x family) matrix PLUS its `extras`. Both halves are the kit - a caller reading only
 `resolvePack` builds a kit missing its extras while still counting them, which is exactly the

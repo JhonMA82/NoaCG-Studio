@@ -62,10 +62,15 @@ export type SpxValidator = (template: SpxTemplate) => Promise<ValidationResult>;
  * it needs a live DOM, so the provider never imports it - and non-blocking by default: in
  * phase A its findings land as warnings on the final validation, never entering the frozen
  * control's repair rounds (docs/CREATIVE_MODE_PLAN.md §8).
+ *
+ * `variantId` is the grounded design stage's chosen chassis, and is what lets the check ask
+ * whether the assembly is the KIND of graphic the brief asked for (a stinger brief that came
+ * back as a lower third). A free-form result has no catalog variant and passes undefined.
  */
 export type StructuralIntentChecker = (
   template: SpxTemplate,
   intent: StructuralIntent,
+  variantId?: string,
 ) => Promise<ValidationIssue[]>;
 
 /** Options every template-producing provider method accepts. */
