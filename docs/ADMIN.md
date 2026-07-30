@@ -161,6 +161,67 @@ reach the product's actual video traffic, which is the difference between a swit
 nothing reads. A surface that needs enforcement stronger than this needs its own endpoint
 with its own profile, the way `ai.lite` and `ai.import-analysis` have one.
 
+### The four RLS-shaped keys: what SQL can and cannot enforce
+
+`sync.cloud`, `community.publish`, `control.hosted` and `showchat` have no endpoint to gate.
+Every one of them writes STRAIGHT FROM THE BROWSER through the Supabase client -
+`backend/supabaseProvider.ts` (documents, assets), `community/communityData.ts`,
+`control/hostedControl.ts`, `showchat/chatData.ts` - so RLS is the only thing in the path.
+This section is the design decision for them, written before any migration exists.
+
+**The rejected option is a resolver in SQL.** A `entitlement_allows(feature)` predicate reading
+`user_accounts`, `user_plans`, `plans`, `user_grants` and `system_settings` is entirely
+buildable - `0018` and `0020` prove the mechanics. It is rejected because it would be a SECOND
+AUTHORITY on the one question this whole document exists to keep single: precedence, the
+neutrality rule, both built-in plans, temporary-versus-permanent ranking and the
+"a malformed date must never widen access" rule would all live twice, in two languages. And on
+THIS project the drift could not be caught: the guard would be a differential test running the
+SQL and `resolveEntitlement()` over the same matrix, which needs a live database, and there is
+no database in CI - migrations are applied by hand with `supabase db push`. Unverifiable
+duplication of an access rule is not a tradeoff, it is a defect with a schedule.
+
+**Routing those writes through `api/` is rejected too**, and not on effort. Server code holds
+the service key, which BYPASSES RLS - so it would replace a per-row guarantee the database
+enforces with an application check that has to be right every time. It would also make every
+document upsert a serverless round trip, rewriting the offline-first sync path for the sake of
+a gate, and spend from the two remaining function slots.
+
+**A cached resolved answer** - the server writing `(user, feature, allowed)` rows that RLS
+reads - keeps one resolver but is a cache in front of access control. Nothing writes it when a
+grant expires or a kill switch flips, and both fail modes are wrong: fail-closed locks people
+out when a cache write fails, against the neutrality rule and the fail-open posture of
+`api/_lib/entitlements.ts`; fail-open makes the gate decorative.
+
+**The recommendation: enforce only the PRECEDENCE-FREE ABSOLUTES in SQL, and say plainly that
+plan-level gating of these four does not bite.** Three inputs win outright in the contract, so
+a policy testing them can only ever deny what the resolver also denies:
+
+1. suspension - already enforced, `is_suspended()`;
+2. the instance-wide kill switch - `system_settings.disabled_features` contains the key;
+3. a permanent manual override that DENIES - a `user_grants` row, `value` false, no `expires_at`,
+   not revoked.
+
+Plans, temporary grants, defaults and expiry stay in TypeScript. That is the whole trick: the
+part of an entitlement RLS can carry is the part with NO precedence to re-implement, and each
+of the three is a single row test. The property that makes it sound is one-directional - the
+SQL denial set is a strict subset of the contract's - so the two can never disagree in the
+direction that matters, which is denying something the resolver allows.
+
+**That subset property does not hold yet, and fixing it is the precondition.** Two active
+permanent grants for one key currently resolve non-deterministically: `POST /api/admin/grants`
+inserts without revoking an existing one, `user_grants` has no uniqueness constraint, and
+`loadEntitlementRows` reads them with no `ORDER BY` while the merge is last-wins within a rank.
+Until one active grant per `(user_id, kind, key)` is guaranteed, "a denying override exists"
+and "the resolver denies" are not the same statement.
+
+**Scope, honestly.** Only two of the four have a reason to bite today. `community.publish` and
+`showchat` are moderation instruments - stopping an abusive account from publishing or
+collecting send-ins while it keeps its own work, which is the surgical version of suspension.
+`control.hosted` costs server resources and is cheap to wire beside them. `sync.cloud` gates a
+user from saving their OWN work; there is no paid tier, the free core stays free
+(`docs/GOALS.md`), and the only real need is already covered by suspension - so it stays
+deliberately unenforced rather than being wired because the key exists.
+
 ### The browser's own entitlement
 
 `GET /api/me/entitlement` returns the caller's resolved answer, so the UI stops guessing from
