@@ -136,7 +136,15 @@ function toolUse(_name: string, input: unknown) {
 
 /** Which forced tool the request asked for — the mock dispatches on it. */
 function requestedTool(route: Route): string {
-  const body = route.request().postDataJSON() as { request?: { structuredOutput?: { name?: string } } };
+  const body = route.request().postDataJSON() as {
+    surface?: string;
+    request?: { structuredOutput?: { name?: string } };
+  };
+  // The other half of the surface-tag contract (e2e/_video.ts asserts the video half): SPX
+  // generation is the GENERAL harness and must send no surface, because a surface is only for
+  // a product area with a feature key of its own. Tagging SPX traffic 'video' would make the
+  // ai.video kill switch stop graphics generation - so pin the absence, not just the presence.
+  expect(body.surface, 'an SPX harness call must reach the gateway untagged').toBeUndefined();
   return body.request?.structuredOutput?.name ?? '';
 }
 

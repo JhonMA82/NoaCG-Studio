@@ -144,6 +144,15 @@ gateway, existing so a new video model call cannot forget the tag and silently s
 gateable. An unrecognised value is REFUSED rather than dropped, because a dropped label reads
 as "the general harness, which nothing gates".
 
+That one-door rule is machine-enforced, in two kinds because neither guard covers the other's
+ground. An eslint boundary (`eslint.config.js`, the `src/ai/video` regions) refuses a direct
+`../modelGateway` import anywhere in the harness but `videoGateway.ts` itself - it binds call
+sites nobody has written yet, which no test can. And the shared video mock (`e2e/_video.ts`)
+asserts the tag on every gateway call it answers, with `e2e/video-surface-tag.spec.ts` naming
+the contract and pinning the SPX side as untagged - which lint cannot, since the request
+builder could drop the field with every import still legal. The failure mode both exist for is
+silent: an untagged video call works perfectly and simply escapes the entitlement.
+
 State the limit plainly rather than discovering it later: **the tag is client-supplied.** A
 caller who omits it gets the ungated path, and no server-side signal can fix that - a proxy
 that will run any prompt cannot know what the answer will be used for. What the check does

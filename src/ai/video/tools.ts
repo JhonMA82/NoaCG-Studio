@@ -2,7 +2,7 @@
 // the SPX provider's emit_template): the Motion Director's plan, the coder's module, and
 // the cheap skill classifier.
 
-import type { ModelTool } from '../modelGateway';
+import type { ModelTool } from './videoGateway';
 import type { VideoInputType } from '../../model/videoTypes';
 import { SKILLS } from './skills';
 

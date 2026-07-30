@@ -9,6 +9,11 @@
 // forgets, and the failure is silent - the request succeeds, it just stops being gateable.
 // So the video provider imports these two functions instead of `../modelGateway`, and the
 // surface is filled in here where it cannot be omitted.
+//
+// This is the ONE file in src/ai/video allowed to import ../modelGateway, pinned by eslint
+// (see the `src/ai/video` regions in eslint.config.js) - which is why it re-exports the two
+// gateway TYPES the harness needs. A rule with an exception a reviewer has to remember is
+// not a rule; making the door the only path makes the boundary mechanical.
 
 import {
   callModel as callModelUntagged,
@@ -16,6 +21,8 @@ import {
   type GatewayModelRequest,
 } from '../modelGateway';
 import type { ModelResult } from '../modelTypes';
+
+export type { ContentBlock, ModelTool } from '../modelGateway';
 
 /** The video harness's request shape: the gateway's, minus the surface it does not choose. */
 export type VideoModelRequest = Omit<GatewayModelRequest, 'surface'>;

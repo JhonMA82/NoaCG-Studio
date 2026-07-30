@@ -10,8 +10,11 @@
 
 // Through videoGateway, never ../modelGateway directly: it stamps surface: 'video' on every
 // call, which is what makes the ai.video entitlement reach this harness (docs/ADMIN.md).
-import { callVideoModel as callModel, callVideoModelDetailed as callModelDetailed } from './videoGateway';
-import type { ContentBlock } from '../modelGateway';
+import {
+  callVideoModel as callModel,
+  callVideoModelDetailed as callModelDetailed,
+  type ContentBlock,
+} from './videoGateway';
 import { startAiRun, type AiRunRecorder } from '../telemetry';
 import { findingsList, repairLoop } from '../shared/repairLoop';
 import { parseDataUrl } from '../../assets/assetUtils';
