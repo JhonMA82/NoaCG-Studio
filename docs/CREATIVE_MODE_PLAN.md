@@ -539,16 +539,25 @@ not percentages pretending precision the sample cannot carry. Scoring is valid o
 the free anchor re-verification (`e2e/creative-routing.spec.ts`) is green against the
 catalog the run used - the §1.3 decay rule.
 
-1. **Routing** - three tiers, all required:
+1. **Routing** - four tiers, all required:
    - the 5 explicit-mode briefs (lt-plain-create, lt-explicit-adapt, vs-editorial-create,
      vs-transform-ref, br-8team-create): **5/5**. An explicit mode is honoured
      deterministically, so any miss is a code defect - automatic no-go, not a model score.
    - the three MUST-route-ADAPT guards (lt-plain, vs-sports-classic, br-4team-plain):
      **each correct**. A catalog-fit brief leaking to CREATE is the §15 routing regression.
+   - the OUT-OF-SCOPE guards: a brief whose graphic type is recognized but whose required
+     structure or variant lies outside the matched structure's declared scope
+     (`GraphicType.structuralScope`) must **never route ADAPT** - that is the
+     silently-wrong-tree failure §10.3 names, and it is a defect, not an acceptable miss.
+     br-double-elim is the first named guard; each such brief is individually required,
+     like the MUST-route-ADAPT tier. (Mechanism: the registry declares the scope, the
+     intent stage judges the brief against it with evidence, `routeIntent` decides
+     deterministically - the 2026-07-30 first paid run measured exactly this hole.)
    - overall scored routing **>= 22/24 (92%)**, per category at most one miss (lower third
      >= 5/6, versus >= 10/11, bracket >= 6/7). 'either' decisions are reported with
-     reasons, never scored; an 'either' brief resolving the same way across every model is
-     a candidate for tightening into a real expectation at the next bank revision.
+     reasons, never scored; an 'either' brief resolving the same way across at least two
+     suitable open models (plus any reference model) is a candidate for tightening into a
+     real expectation at the next bank revision.
 2. **Structural satisfaction** - arms C/D: **>= 90%** of CREATE results carry every
    required intent part in the rendered DOM after repair; arm B reported (it measures the
    coder, not the scaffold). Additionally no single part kind (repeating groups, states,

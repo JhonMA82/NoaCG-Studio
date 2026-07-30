@@ -69,6 +69,14 @@ export interface StructuralIntent extends IntentKind {
    *  brief's own words, never inferred from the graphic kind. */
   originalityRequested: boolean;
   originalityEvidence?: string;
+  /** A listed structure matches the brief's KIND, but the brief requires structure the
+   *  matched entry's declared scope excludes (a double-elimination brief against the
+   *  single-elimination bracket type). Judged against the registry's scope notes
+   *  (GraphicType.structuralScope), consumed deterministically by routing - the same
+   *  proposes/decides split as originalityRequested. Additive optional: version stays 1. */
+  beyondScope?: boolean;
+  /** The unsupported structural requirement, in the brief's words. */
+  scopeEvidence?: string;
 }
 
 /** The routing decision, surfaced on the result and in telemetry so the routing benchmark
@@ -113,5 +121,7 @@ export function normalizeIntent(raw: unknown): StructuralIntent {
     tone: asArray<string>(r.tone, 5).filter((t) => typeof t === 'string'),
     originalityRequested: r.originalityRequested === true,
     ...(typeof r.originalityEvidence === 'string' ? { originalityEvidence: r.originalityEvidence } : {}),
+    ...(r.beyondScope === true ? { beyondScope: true } : {}),
+    ...(typeof r.scopeEvidence === 'string' ? { scopeEvidence: r.scopeEvidence } : {}),
   };
 }

@@ -34,7 +34,7 @@ export const INTENT_TOOL: ModelTool = {
     'must exist in it. No visual design decisions here - structure, data, and behaviour only.',
   input_schema: {
     type: 'object',
-    required: ['kind', 'confidence', 'summary', 'parts', 'fields', 'originalityRequested'],
+    required: ['kind', 'confidence', 'summary', 'parts', 'fields', 'originalityRequested', 'beyondScope'],
     additionalProperties: false,
     properties: {
       kind: {
@@ -113,6 +113,16 @@ export const INTENT_TOOL: ModelTool = {
           'inferred from the graphic kind being unusual.',
       },
       originalityEvidence: { type: 'string', description: 'The brief words that asked for originality.' },
+      beyondScope: {
+        type: 'boolean',
+        description:
+          'True ONLY when a listed type or family matches the brief AND the brief requires ' +
+          'structure that entry\'s scope note excludes (a different tournament system, an ' +
+          'extra repeating structure, more sides than the structure holds). False when no ' +
+          'scope note is listed for the match, or the requirement fits it. Never true for ' +
+          'styling, tone, or content demands.',
+      },
+      scopeEvidence: { type: 'string', description: 'The unsupported structural requirement, in the brief\'s words.' },
     },
   },
 };
@@ -144,10 +154,22 @@ export function intentVocabulary(): string {
   const types = TYPES.map((t) => `${t.id} (${t.name})`).join(', ');
   const categories = CATEGORIES.map((c) => c.id).join(', ');
   const families = Object.keys(FAMILY_ANCHORS).join(', ');
+  // Scope notes come from the registry itself (GraphicType.structuralScope), so the router's
+  // idea of a type's coverage cannot drift from the type - the day the bracket learns double
+  // elimination, its note changes here in the same commit.
+  const scoped = TYPES.filter((t) => t.structuralScope);
+  const scopeNotes = scoped.length
+    ? [
+        'Scope notes - what a listed structure actually covers. A brief that matches a noted',
+        'entry but needs structure its note excludes is beyondScope, not a plain match:',
+        ...scoped.map((t) => `- ${t.id}: ${t.structuralScope}`),
+      ].join('\n')
+    : '';
   return [
     `Known graphic types: ${types}.`,
     `Known catalog categories: ${categories}.`,
     `Known composition families: ${families}.`,
+    ...(scopeNotes ? [scopeNotes] : []),
   ].join('\n');
 }
 
@@ -167,6 +189,11 @@ Rules:
 - States are only what the brief needs beyond in/out: a winner reveal, a lock-in, a timed
   clear. Most graphics have none.
 - originalityRequested is true ONLY when the brief's own words ask for an original look.
+- beyondScope is a structural judgement, separate from confidence: classify the kind
+  honestly (a double-elimination bracket IS a bracket, confidence high), then check the
+  match's scope note. If the brief requires structure the note excludes, set beyondScope
+  true and quote the requirement in scopeEvidence. No note listed, or the requirement fits:
+  beyondScope false.
 
 ${intentVocabulary()}
 
@@ -224,6 +251,17 @@ export function routeIntent(intent: StructuralIntent, mode: GenerationMode): Rou
     };
   }
   const { fit, anchor } = structuralFit(intent);
+  // The scope guard: a recognized structure whose declared scope the brief exceeds must
+  // never be adapted onto - that is how a double-elimination brief becomes a silently
+  // wrong single-elimination tree. The model judged the brief against the registry's
+  // scope note (beyondScope, with evidence); the decision here stays deterministic.
+  if (fit && intent.beyondScope) {
+    return {
+      mode,
+      route: 'create',
+      reason: `The brief needs structure outside ${anchor}'s scope${intent.scopeEvidence ? ` ("${intent.scopeEvidence}")` : ''}.`,
+    };
+  }
   if (fit && intent.confidence !== 'low') {
     return { mode, route: 'adapt', reason: `A catalog structure carries the brief (${anchor}).` };
   }
