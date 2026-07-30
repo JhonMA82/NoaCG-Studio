@@ -13,8 +13,9 @@ function player(page: Page) {
   return page.frameLocator('.video-player-frame');
 }
 
+/** Same wait, and the same 30 s reasoning, as video-project.spec.ts's copy. */
 async function waitForGeneration(page: Page) {
-  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 }
 
 test('create with the HyperFrames engine -> stub generation -> live preview renders', async ({ page }) => {

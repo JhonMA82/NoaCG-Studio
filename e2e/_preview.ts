@@ -44,3 +44,20 @@ export async function awaitPreviewRebuild(
     await expect(frame).not.toHaveAttribute('data-doc-rev', before, REBUILT);
   }
 }
+
+/**
+ * Wait for the preview after a `page.reload()`.
+ *
+ * NOT the same wait, and using awaitPreviewRebuild here is a RACE the suite lost regularly.
+ * That helper waits for the revision to CHANGE from whatever it reads first - which after a
+ * reload is a coin toss: read before the fresh document stamps and you correctly wait for the
+ * initial build; read after (a fast machine, a warm module graph) and you wait forever for a
+ * second build that nothing is going to trigger. The test then dies on its own timeout with
+ * "expected not 1, received 1", which reads like a broken app rather than a broken wait.
+ *
+ * After a reload there is exactly ONE build to wait for, so wait for the frame to exist and
+ * carry any revision at all.
+ */
+export async function awaitPreviewAfterReload(page: Page): Promise<void> {
+  await expect(page.locator(FRAME)).toHaveAttribute('data-doc-rev', /\d/, REBUILT);
+}
