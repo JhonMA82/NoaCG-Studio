@@ -28,9 +28,9 @@ export interface AiProviderOption {
 }
 
 export const AI_PROVIDERS: AiProviderOption[] = [
+  { id: 'openrouter', label: 'OpenRouter', blurb: 'Open-weight models through OpenRouter’s OpenAI-compatible API - the NoaCG default.' },
   { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models through the existing NoaCG harness.' },
   { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models through the Responses API.' },
-  { id: 'openrouter', label: 'OpenRouter', blurb: 'Hosted models through OpenRouter’s OpenAI-compatible API.' },
   {
     id: 'huggingface',
     label: 'Hugging Face',
@@ -69,10 +69,23 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'openrouter',
+    id: 'qwen/qwen3-coder-next',
+    label: 'Qwen3 Coder Next',
+    blurb: 'Open-weight default route for design and code.',
+    role: 'default',
+  },
+  {
+    provider: 'openrouter',
+    id: 'qwen/qwen3-30b-a3b-instruct-2507',
+    label: 'Qwen3 30B A3B',
+    blurb: 'Fast, cheap open-weight route for structured planning stages.',
+    role: 'fast',
+  },
+  {
+    provider: 'openrouter',
     id: 'openai/gpt-5.6',
     label: 'GPT-5.6 via OpenRouter',
-    blurb: 'A default OpenRouter route; any supported model id can be entered.',
-    role: 'default',
+    blurb: 'Proprietary route; any supported model id can be entered.',
   },
   {
     provider: 'huggingface',
@@ -114,8 +127,11 @@ export interface AiConfiguration {
   providers: AiProviderStatus[];
 }
 
-export const DEFAULT_PROVIDER: AiProviderId = 'anthropic';
-export const DEFAULT_MODEL = 'claude-sonnet-5';
+// The silent default - what an unset VITE_AI_PROVIDER resolves to - is an OPEN model via
+// OpenRouter, by policy: expensive proprietary routes (Claude, GPT) are chosen deliberately
+// (saved settings, env, or the picker), never because an environment variable is missing.
+export const DEFAULT_PROVIDER: AiProviderId = 'openrouter';
+export const DEFAULT_MODEL = 'qwen/qwen3-coder-next';
 
 function env(name: string): string {
   return String((import.meta.env as Record<string, unknown>)[name] ?? '');
