@@ -173,7 +173,12 @@ export const GRAPHIC_CATEGORIES: GraphicCategory[] = [
   { id: 'question',    name: 'Questions & chat',        subtypes: ['viewer-question', 'qa-card', 'chat-highlight', 'queue'], coverage: 'panel' },
   { id: 'quote',       name: 'Quotes & statements',     subtypes: ['quote', 'scripture', 'excerpt', 'headline', 'fact-check'], coverage: 'panel' },
   { id: 'scoreboard',  name: 'Scoreboards',             subtypes: ['match-score', 'simple-score', 'round-indicator'], coverage: 'overlay' },
-  { id: 'results',     name: 'Results & standings',     subtypes: ['results-table', 'leaderboard', 'bracket', 'seat-count', 'vote-result', 'final-score'], coverage: 'panel' },
+  // 'timing-tower' is its own subtype rather than one more leaderboard: a leaderboard is a
+  // claim about a finished set of results and a tower is the session happening, which is a
+  // different graphic in shape, in placement and in how long it stays on air. Filing it under
+  // 'leaderboard' is what a July 2026 AI bench discovered the hard way — with nothing in the
+  // catalog resembling a tower, every model asked for one produced a lower third.
+  { id: 'results',     name: 'Results & standings',     subtypes: ['results-table', 'leaderboard', 'timing-tower', 'bracket', 'seat-count', 'vote-result', 'final-score'], coverage: 'panel' },
   { id: 'stats',       name: 'Statistics & data',       subtypes: ['stat-panel', 'kpi', 'chart', 'heatmap', 'trend'], coverage: 'panel' },
   { id: 'timer',       name: 'Timers & clocks',         subtypes: ['countdown', 'count-up', 'clock', 'interval', 'speaking-timer', 'deal-timer'], coverage: 'overlay', relevance: 'all' },
   { id: 'ticker',      name: 'Tickers & crawls',        subtypes: ['news-ticker', 'market-ticker', 'crawl', 'rotator'], coverage: 'strip' },
@@ -482,6 +487,16 @@ export const ALIASES: Record<string, AliasTargets> = {
   'standings': { categories: ['results'] },
   'league table': { categories: ['results'] },
   'leaderboard': { categories: ['results'] },
+  // Live-timing vocabulary. Every one of these is a producer's word for the same graphic, and
+  // none of them used to reach anything: "timing tower" matched no template in the catalog and
+  // the search fell through to whatever else the words touched.
+  'timing tower': { categories: ['results'], subtypes: ['timing-tower'] },
+  'timing screen': { categories: ['results'], subtypes: ['timing-tower'] },
+  'live timing': { categories: ['results'], subtypes: ['timing-tower'] },
+  'lap times': { categories: ['results'], subtypes: ['timing-tower'] },
+  'split times': { categories: ['results'], subtypes: ['timing-tower'] },
+  'race positions': { categories: ['results'], subtypes: ['timing-tower'] },
+  'start list': { categories: ['results'], subtypes: ['timing-tower'] },
   'bracket': { categories: ['results'] },
   'clock': { categories: ['timer'] },
   'stopwatch': { categories: ['timer'] },
@@ -560,6 +575,11 @@ export const ALIASES: Record<string, AliasTargets> = {
   'sermon': { formats: ['church-service'] },
   'football': { families: ['sports'] },
   'soccer': { families: ['sports'] },
+  'motorsport': { families: ['sports'] },
+  'racing': { families: ['sports'] },
+  'cycling': { families: ['sports'] },
+  'swimming': { families: ['sports'] },
+  'athletics': { families: ['sports'] },
   'basketball': { families: ['sports'] },
   'hockey': { families: ['sports'] },
   'handball': { families: ['sports'] },

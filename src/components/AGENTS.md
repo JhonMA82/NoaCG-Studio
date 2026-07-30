@@ -628,6 +628,14 @@ preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.
 which generates the complete, commented template. FIVE entry cards: template, Create with AI,
 video, Import graphic, blank.
 
+**Deep-linked open** (`#/new/<variantId>`, docs/PRERENDER.md - a prerendered template page's
+CTA): the router's `design` param rides through `openGallery(designId)` into templateStore's
+`pendingDesignId`, which the wizard's open effect resolves via `variantById` and, on a hit,
+applies the SAME patch `BrowseStep`'s card click does before jumping straight to Fields (mode
+`'template'`, step 2) - never creating a project, since Finish is still the only door that does.
+An id that does not resolve (unknown, retired, or `imported-design` - which has its own setup
+flow and is never Browse-reachable) falls through to the ordinary Entry-step open.
+
 **Finish** (steps/FinishStep.tsx - the last step of every catalog-shaped mode, design included)
 is the wizard's ONE branch. It carries the graphic's NAME (`draft.name`, applied inside
 `buildDraftTemplate` so it reaches the topbar, the Save prefill and the export slug through one

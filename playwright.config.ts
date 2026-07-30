@@ -15,8 +15,25 @@ export default defineConfig({
   // catalog-wide quality gate, not a feature-flow test, so it stays out of the default merge-gate
   // suite the same way the authed flows do.
   testIgnore: ['**/configured/**', '**/catalog/**'],
-  timeout: 30_000,
+  // 60 s, not Playwright's 30 s default, because this suite's tests are much fatter than that
+  // default assumes. Measured over a full run on an otherwise idle box (569 tests, 4 workers):
+  // 47 tests take 18 s or more, and nine of them sit between 24 s and 38 s - a wizard walk, a
+  // video generation with its live probe, or a Monaco mount is seconds of real work, and the
+  // heaviest legitimate test (three complete wizard walks) needs 38 s all by itself. At a 30 s
+  // budget that whole band was a coin toss, which is exactly what "a different test in the same
+  // file fails each run" looked like. The budget was the false deadline, not the app.
+  //
+  // This is not a retry in disguise: a test still gets exactly one attempt, and the failure it
+  // reports is still the first one. What changed is that the deadline now sits above the work
+  // rather than through the middle of it. `expect` stays at 7 s - that one bounds a RENDER, and
+  // a wrong assertion should still report in seconds; the few waits that bound a download or a
+  // generation instead say so at the call site.
+  timeout: 60_000,
   expect: { timeout: 7_000 },
+  // The looser budget must not become a place for tests to quietly get slower. Anything past
+  // 45 s is named in the report, so growth shows up as a listed slow test rather than as a
+  // random red six months later.
+  reportSlowTests: { max: 10, threshold: 45_000 },
   // The suite is parallel-safe: every test gets a fresh browser context (isolated storage),
   // the dev server is stateless in the pinned offline mode, and the render specs stub their
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across

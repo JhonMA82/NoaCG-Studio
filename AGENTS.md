@@ -51,10 +51,12 @@ troubleshooting a stuck server). `.claude/launch.json` and `.claude/dev-port.jso
 from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
 everything. `npm run test:ports` covers the allocator.
 
-**Two pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
+**Three pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
 shim so old root `?chat=`/`?template=` share links land on `/app` with their query); `app.html` is
 the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
-in production). E2E specs navigate to `/app`.
+in production); `admin.html` is the PRIVATE admin surface at `/admin` - unlinked from everything,
+`noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**).
+E2E specs navigate to `/app`.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
 Verify product changes with `npm run build` plus in-browser checks (below); never mark work done
@@ -187,6 +189,10 @@ src/
                feature-detection point (unset env = pure offline mode); auth, sync, assets
   community/   shared templates (signed-in only), validated + benched at publish AND import;
                showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
+  entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence
+               default < plan < temporary grant < manual override, every value carrying WHY
+  admin/       the PRIVATE admin page (its own MPA entry at /admin) - unlinked, noindex,
+               a plain 404 for anyone api/admin/* does not recognise. Never a security boundary
   components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
                timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
                (SaveControls + the save/guard dialogs), home/ (the routed HomePage +
@@ -200,7 +206,8 @@ scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATI
                quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
                render-smoke*.mjs, hooks/ (guard hooks wired in .claude/settings.json)
   api/         server-only Vercel functions: the render service plus the Creative AI model
-               gateway, NoaCG Lite profile/allowance endpoints, and sealed user-key endpoints;
+               gateway, NoaCG Lite profile/allowance endpoints, sealed user-key endpoints, and
+               api/admin/* behind _lib/adminAuth.ts (404 for every refusal - docs/ADMIN.md);
                typechecked by tsconfig.api.json
 render-worker/ the Remotion renderer and player-host/ the preview host - own exact-pinned packages
 player-host/   so the non-OSI license never enters the AGPL bundle. The player host is built into
@@ -317,9 +324,11 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 ## Git
 
 - Most work happens on a **feature branch**, usually in a worktree - several are typically active
-  at once, so `node scripts/worktree-activity.mjs` prints what each of the OTHERS currently has
-  in flight (uncommitted, or committed but not yet merged into `main`) before you start something
-  that collides. If a session starts on `main` with work to do, branch first. The rhythm: **commit
+  at once, so `node scripts/worktree-activity.mjs` prints what is in flight elsewhere before you
+  start something that collides: every OTHER worktree's uncommitted and not-yet-merged files,
+  then every branch ahead of `main` that no worktree has checked out (a closed session leaves its
+  work there, so it still collides even though nobody is in it). If a session starts on `main`
+  with work to do, branch first. The rhythm: **commit
   each completed, verified phase/step** to the FEATURE BRANCH with a descriptive message. **Never add a
   `Co-Authored-By` trailer or any agent co-author.** Don't commit `dist/` in feature work.
 - **`main` is only ever touched when the user asks for it, in that message - from ANY checkout.**

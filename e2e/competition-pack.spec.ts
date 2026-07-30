@@ -67,10 +67,11 @@ test('the pack ships its four categories, and every design creates and validates
   expect(report.missingCategory).toEqual([]);
   expect(report.counts['esports-score']).toBe(7);
   expect(report.counts['matchup']).toBe(10);
-  expect(report.counts['results-board']).toBe(9);
+  // 9 boards (roster/standings/bracket) + the four timing-tower designs.
+  expect(report.counts['results-board']).toBe(13);
   expect(report.counts['reveal']).toBe(12);
   const total = Object.values(report.counts).reduce((a, b) => a + b, 0);
-  expect(total).toBe(38);
+  expect(total).toBe(42);
 });
 
 test('the match-up walks neutral -> selected -> locked, and the lock is structural', async ({ page }) => {
@@ -404,7 +405,7 @@ test('every design exports to all six targets with its runtime intact', async ({
   })()`) as { problems: string[]; packages: number };
 
   expect(report.problems).toEqual([]);
-  expect(report.packages).toBe(38 * 6);
+  expect(report.packages).toBe(42 * 6);
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {

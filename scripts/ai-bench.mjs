@@ -5,7 +5,8 @@
 //   node scripts/ai-bench.mjs [out-dir] [count | id,id,…]
 //
 // Requirements: the dev server (this checkout's port - scripts/dev-port.mjs) started with
-// server-only ANTHROPIC_API_KEY. The key never enters this browser process or its storage.
+// the server-only key for whichever provider VITE_AI_PROVIDER names. The run pins that
+// route and reports it; the key never enters this browser process or its storage.
 // SPENDS REAL TOKENS - roughly a few cents per brief with
 // the default model; the third arg limits the run to the first N briefs, or to a
 // comma-separated list of brief ids (e.g. "karaoke-line,weather-now").
@@ -41,17 +42,55 @@ const BRIEFS = [
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 0.5 });
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-const configured = await page.evaluate(async () => {
-  const { refreshAiConfiguration, saveAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
+// Pin the route the SERVER was configured with (VITE_AI_PROVIDER / VITE_AI_MODEL) rather
+// than a hardcoded one. This used to save provider:'anthropic', model:'claude-sonnet-5' -
+// and because saved settings outrank env, that silently forced every run onto Anthropic
+// whatever the server was started with, which would have made a model comparison compare
+// one model with itself. Fallbacks are cleared so a failing route cannot be rescued by
+// another and credited with the result.
+// A managed key only counts as available to a SIGNED-IN caller once a backend is
+// configured (api/ai/config.ts), and a fresh Playwright context has no session - so this
+// bench refused to start with a perfectly good key. Sign in the same way the configured
+// e2e suite does when credentials are present; without them the run fails with the honest
+// message below rather than silently having no route.
+const CREDS = {
+  email: (process.env.E2E_EMAIL ?? '').trim(),
+  password: (process.env.E2E_PASSWORD ?? '').trim(),
+};
+if (CREDS.email && CREDS.password) {
+  try {
+    await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+    // WAIT for the creation wizard before dismissing it. Pressing Escape on load raced the
+    // modal: it mounted afterwards and then swallowed the click on the topbar's Sign in.
+    await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 });
+    await page.keyboard.press('Escape');
+    await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 });
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click({ timeout: 10_000 });
+    await page.locator('#auth-email').fill(CREDS.email);
+    await page.locator('#auth-pass').fill(CREDS.password);
+    await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('.auth-status').waitFor({ state: 'visible', timeout: 20_000 });
+    console.log('Signed in for the managed route.');
+  } catch (error) {
+    console.error(`Sign-in failed (${error.message?.split('\n')[0]}) - continuing signed out.`);
+  }
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+}
+
+const route = await page.evaluate(async () => {
+  const { refreshAiConfiguration, saveAiSettings, loadAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
   await refreshAiConfiguration();
-  saveAiSettings({ provider: 'anthropic', model: 'claude-sonnet-5', fallbacks: [] });
-  return aiConfigured();
+  const env = loadAiSettings(); // a fresh context has no saved settings, so this is the env route
+  saveAiSettings({ provider: env.provider, model: env.model, fallbacks: [] });
+  return { ok: aiConfigured(), provider: env.provider, model: env.model };
 });
-if (!configured) {
-  console.error('No server-managed Anthropic route is available. Start the dev server with server-only ANTHROPIC_API_KEY.');
+if (!route.ok) {
+  console.error(`No server-managed route is available for ${route.provider}:${route.model}.`);
+  console.error('Start the dev server with the matching server-only provider key.');
   await browser.close();
   process.exit(1);
 }
+console.log(`Route: ${route.provider}:${route.model}`);
 await page.waitForTimeout(800);
 
 const selected = /^[a-z-]+(,[a-z-]+)*$/.test(FILTER)
@@ -155,7 +194,9 @@ for (const [id, brief] of selected) {
   }
 }
 
-writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 2));
+// The route rides the results file: a wrapper comparing candidates must be able to check
+// what the run ACTUALLY used, not what it resolved in a different browser beforehand.
+writeFileSync(`${OUT}/results.json`, JSON.stringify({ route, results }, null, 2));
 
 // ── The review gallery ──
 const rows = results

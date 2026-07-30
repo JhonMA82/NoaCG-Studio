@@ -33,7 +33,7 @@ import {
 import { countdownType, holdingScreenType } from './clocks';
 import { esportsScoreType, mapRoundType } from './esports';
 import { headToHeadType, matchupType, playerCardType } from './matchups';
-import { bracketType, rosterType, standingsType } from './competitionBoards';
+import { bracketType, rosterType, standingsType, timingTowerType } from './competitionBoards';
 import { awardRevealType, nomineeRevealType, verdictCardType, winnerCardType } from './reveals';
 import { quizBoardType } from './quizBoard';
 import { threeAnswerBoardType, twoAnswerBoardType } from './answerBoard';
@@ -106,6 +106,12 @@ export const TYPES: GraphicType[] = [
   rosterType,
   standingsType,
   bracketType,
+  // The live half of the same question the standings board answers after the fact: what the
+  // order IS while the session is still running. It earns its place by what no other type
+  // could stand in for — a full-harness AI bench asked four models for a motorsport timing
+  // tower and every one of them produced a lower third, because the nearest catalog match to
+  // "a narrow column of positions" was a strap.
+  timingTowerType,
   nomineeRevealType,
   verdictCardType,
   winnerCardType,

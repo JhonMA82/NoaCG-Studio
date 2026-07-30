@@ -1,65 +1,4 @@
-/* ============================================================================
-   NoaCG Studio — app theme.
-   Dark control-room ground, a single amber "on-air" accent, restrained glow.
-   Brand Manual §3 tokens: Void / Panel / Amber / Glow / Rec / Paper.
-   ============================================================================ */
-
-/* Brand typefaces, bundled locally (offline-first — no CDN at runtime).
-   Space Grotesk = display / UI / wordmark (variable 400-700).
-   JetBrains Mono = technical labels, data, timecode. */
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/fonts/space-grotesk.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("/fonts/jetbrains-mono.woff2") format("woff2"); /* variable 400-700 (also in the
-     bundled template-font set, model/fonts.ts — one file serves the app AND the graphics) */
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-:root {
-  /* Brand palette (Brand Manual §3) */
-  --void: #0a0c10;   /* base canvas   */
-  --panel: #141922;  /* surfaces      */
-  --amber: #f6a623;  /* primary accent */
-  --glow: #ffc65c;   /* glow / hover   */
-  --rec: #e5484d;    /* live / record only */
-  --paper: #e8edf2;  /* text / knockout */
-
-  /* App tokens — names kept stable so existing consumers don't change; only the
-     values move to the brand palette. */
-  --bg: var(--void);       /* base canvas */
-  --bg-2: var(--panel);    /* topbar + panels */
-  --bg-3: #1b2230;         /* raised surfaces: buttons, inputs */
-  --border: #262f3c;       /* hairlines */
-  --text: var(--paper);
-  --text-dim: #8b98a8;     /* muted grey (the wordmark's "CG" grey) */
-  --accent: var(--amber);  /* the on-air accent (was blue) */
-  --accent-2: var(--glow); /* hover / live glow */
-  --danger: #e06c75;       /* error/validation red — kept distinct from --rec, which the
-                              brand manual (§3) reserves for live/record status only */
-  --warn: #f2b84b;
-  --ok: #43c59e;
-  --radius: 8px;
-
-  /* Type */
-  --font-ui: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  /* Signature amber glow (Brand Manual §5) — amber only, on dark, restrained. */
-  --amber-glow: 0 0 24px rgba(246, 166, 35, 0.35);
-
-  font-family: var(--font-ui);
-  /* Tell the browser the app IS dark, so native controls (select popups, scrollbars,
-     pickers) render dark too — without this, Windows Chrome paints option popups light
-     while the options inherit our near-white text (unreadable white-on-white).
-     The preview srcdoc declares the same scheme (composeDocument.ts) — Chromium disables
-     iframe transparency when embedder and iframe color-schemes disagree. */
-  color-scheme: dark;
-}
+@import "./brandTokens.css";
 
 * { box-sizing: border-box; }
 
@@ -4292,3 +4231,34 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 /* Wide enough for the LONGEST slot name, so the upload buttons share one left edge — a
    per-row width lets a renamed label silently knock the column out of alignment. */
 .mc-font-slot { min-width: 130px; }
+
+/* ── The maintenance notice (docs/ADMIN.md §7) ──────────────────────────────
+   Published from the admin surface, shown to every visitor. A single hairline
+   band above the topbar: information, not an interruption. Amber for a warning
+   because that is the product's one accent; info stays neutral so a routine
+   notice never looks like an incident. */
+.system-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  font-size: 13px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.system-notice span { flex: 1; min-width: 0; }
+.system-notice-warning {
+  color: var(--text);
+  border-bottom-color: rgba(246, 166, 35, 0.45);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.system-notice button {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.system-notice button:hover { color: var(--text); background: transparent; }

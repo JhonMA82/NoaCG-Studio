@@ -1525,6 +1525,18 @@
    ".results-board-mask:y"
   ]
  },
+ "tt01": {
+  "off": [],
+  "clip": [
+   ".results-board-mask:y"
+  ]
+ },
+ "tt03": {
+  "off": [],
+  "clip": [
+   ".results-board-mask:y"
+  ]
+ },
  "br01": {
   "off": [],
   "clip": [
