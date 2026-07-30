@@ -222,7 +222,10 @@ validated conversion - the AI only ever sees parsed code, never raw bytes.
 
 `GenerateOptions.mode` (`adapt` | `create` | `auto`, default auto) plus `structuralIntent.ts`
 run BEFORE the design call in `generate` and `generateAlternatives` (never for Lite, raw, or
-modify): one small forced `emit_structural_intent` call -> `normalizeIntent` ->
+modify): one small forced `emit_structural_intent` call on the provider's `role:'fast'`
+model (`modelRole: 'fast'` - the per-stage binding of plan §4; every later stage keeps the
+session route, and the routing bench pins a NAMED model instead because measuring one is its
+job) -> `normalizeIntent` ->
 `routeIntent` (deterministic; `structuralFit` checks the type registry + catalog LIVE, so
 catalog growth updates routing by itself). The rules: an explicit mode is never overridden;
 auto routes create only on originality words in the brief, no structural fit, a

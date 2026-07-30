@@ -257,7 +257,12 @@ Server side, each model-bound stage is a task profile in `api/_lib/aiTaskRegistr
 `creative-reference-analysis`, `creative-critique`) - route policy, quota, ledger and ZDR
 come from the existing registry/catalog/policy layers; no new gateway. Funded routes stay
 inside `fundedModelRoute()`'s price gate. Different stages may bind different model classes
-(structured-output models for 1/4/5, a coding model for 7, a VLM for 3/10).
+(structured-output models for 1/4/5, a coding model for 7, a VLM for 3/10). The INTENT
+stage is the first such binding in the app (ratified 2026-07-30): it calls with
+`modelRole: 'fast'`, so it runs on the provider's `role:'fast'` model (qwen3-30b class on
+the OpenRouter default, which the routing bench measured at 23/24) while every later stage
+keeps the session's design/code model. `scripts/creative-route-bench.mjs` deliberately pins
+its own model instead - measuring a NAMED candidate for that role is the bench's whole job.
 
 ### Systems reused (and explicitly NOT rebuilt)
 
@@ -533,8 +538,10 @@ exact thresholds are owner numbers [owner]]. The go/no-go sheet must set criteri
 ### The proposed go/no-go sheet [owner - PROPOSED values, awaiting ratification]
 
 Drafted against the v1 bank (`benchmarks/creative/v1/briefs.json`: 29 briefs - 8 lower
-third / 13 versus / 8 bracket; 5 'either' cases are never scored, leaving 24 scored: 6/11/7
-per category). Small-n honesty: per-category thresholds are stated as "at most one miss",
+third / 13 versus / 8 bracket). 'either' cases are never scored; after the 2026-07-30
+tightening (lt-long-name-portrait, lt-mood-board, br-logos resolved 'adapt' on all four
+benched models, so each became a real expectation) 2 remain, leaving **27 scored: 8/11/8**
+per category. Small-n honesty: per-category thresholds are stated as "at most one miss",
 not percentages pretending precision the sample cannot carry. Scoring is valid only after
 the free anchor re-verification (`e2e/creative-routing.spec.ts`) is green against the
 catalog the run used - the §1.3 decay rule.
@@ -553,11 +560,12 @@ catalog the run used - the §1.3 decay rule.
      like the MUST-route-ADAPT tier. (Mechanism: the registry declares the scope, the
      intent stage judges the brief against it with evidence, `routeIntent` decides
      deterministically - the 2026-07-30 first paid run measured exactly this hole.)
-   - overall scored routing **>= 22/24 (92%)**, per category at most one miss (lower third
-     >= 5/6, versus >= 10/11, bracket >= 6/7). 'either' decisions are reported with
+   - overall scored routing **>= 25/27 (93%)**, per category at most one miss (lower third
+     >= 7/8, versus >= 10/11, bracket >= 7/8). 'either' decisions are reported with
      reasons, never scored; an 'either' brief resolving the same way across at least two
      suitable open models (plus any reference model) is a candidate for tightening into a
-     real expectation at the next bank revision.
+     real expectation at the next bank revision - the 2026-07-30 tightening is that rule
+     applied, and a tightened brief carries its evidence in the bank's `notes`.
 2. **Structural satisfaction** - arms C/D: **>= 90%** of CREATE results carry every
    required intent part in the rendered DOM after repair; arm B reported (it measures the
    coder, not the scaffold). Additionally no single part kind (repeating groups, states,

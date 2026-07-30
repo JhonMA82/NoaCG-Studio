@@ -928,6 +928,12 @@ async function intentAndRoute(
       messages: [{ role: 'user', content: userContent }],
       tool: INTENT_TOOL,
       maxTokens: 2000,
+      // Per-stage model binding (plan §4): the intent stage is a small forced structured
+      // call, the shape cheap open models answer at parity — so it runs on the provider's
+      // `role:'fast'` model rather than the session's design/code model. Every stage after
+      // it keeps the session route. The routing bench pins its model explicitly instead,
+      // because its whole job is to measure a NAMED candidate in this role.
+      modelRole: 'fast',
     });
     run.stage('intent', t0, result.model, result.usage);
     // An answer that never addressed the intent tool must not be normalized: it would read
