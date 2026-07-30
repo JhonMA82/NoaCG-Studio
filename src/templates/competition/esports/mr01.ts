@@ -3,7 +3,8 @@
 // played carries the cursor (an accent block down its left edge); maps still to come stay
 // open. When the series is decided the unplayed maps drop away.
 
-import { paletteById, type TemplateVariant } from '../../../model/wizard';
+import { paletteById, type ResolvedOptions, type TemplateVariant } from '../../../model/wizard';
+import type { TypeField } from '../../types/graphicType';
 import { compFieldsFor } from '../shared';
 import {
   MAP_FIELDS,
@@ -37,11 +38,20 @@ export const mr01: TemplateVariant = defineEsportsVariant(
       'from a source field, so the cascade is measured from the data.',
     uicolor: '5',
   },
-  (o) => ({
-    html: mapMarkup(o),
-    fields: compFieldsFor(MAP_FIELDS, o),
+  (o) => sportMapDesign(o),
+);
+
+/** The sport ladder look also carries veto actions when the type's field shape stays the same. */
+export function sportMapDesign(
+  o: ResolvedOptions,
+  fields: TypeField[] = MAP_FIELDS,
+  runtimeExtraJs = MAP_RUNTIME_JS,
+) {
+  return {
+    html: mapMarkup(o, fields),
+    fields: compFieldsFor(fields, o),
     hasAccent: true,
-    runtimeExtraJs: MAP_RUNTIME_JS,
+    runtimeExtraJs,
     css: `${mapStructureCss()}
 
 /* The card — a square-cut sport panel on its hard shadow. */
@@ -144,5 +154,5 @@ export const mr01: TemplateVariant = defineEsportsVariant(
 .${P}-decided .${P}-current::before {
   background: var(--text-color);   /* the cursor stops meaning "in progress" */
 }`,
-  }),
-);
+  };
+}

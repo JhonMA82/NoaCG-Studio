@@ -1507,6 +1507,12 @@
    ".results-board-mask:y"
   ]
  },
+ "rs04": {
+  "off": [],
+  "clip": [
+   ".results-board-mask:y"
+  ]
+ },
  "st01": {
   "off": [],
   "clip": [

@@ -2,7 +2,8 @@
 // down a hairline column with their roles set small beside them, and the spotlight is an accent
 // rule rather than a block. Reads as a caption over a wide shot instead of a board on top of it.
 
-import { paletteById, type TemplateVariant } from '../../../model/wizard';
+import { paletteById, type ResolvedOptions, type TemplateVariant } from '../../../model/wizard';
+import type { TypeField } from '../../types/graphicType';
 import { compFieldsFor } from '../shared';
 import {
   P,
@@ -38,9 +39,14 @@ export const rs03: TemplateVariant = defineResultsVariant(
       'caps, and a spotlight said with an accent rule rather than a filled block.',
     uicolor: '7',
   },
-  (o) => ({
-    html: rosterMarkup(o),
-    fields: compFieldsFor(ROSTER_FIELDS, o),
+  (o) => cleanRosterDesign(o),
+);
+
+/** The minimal roster look is also useful for tabletop order, whose field shape is identical. */
+export function cleanRosterDesign(o: ResolvedOptions, fields: TypeField[] = ROSTER_FIELDS) {
+  return {
+    html: rosterMarkup(o, fields),
+    fields: compFieldsFor(fields, o),
     hasAccent: true,
     runtimeExtraJs: ROSTER_RUNTIME_JS,
     css: `${boardStructureCss()}
@@ -131,5 +137,5 @@ export const rs03: TemplateVariant = defineResultsVariant(
 .${P}-spotlit .${P}-row-on .${P}-row-note {
   color: var(--accent);
 }`,
-  }),
-);
+  };
+}

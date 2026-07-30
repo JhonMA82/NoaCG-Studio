@@ -72,9 +72,9 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'frame',         name: 'Camera frames',           plannedCount: 4,  available: true , description: 'Surrounds for webcams, interviews, split screens and screen shares.', group: 'specials' },
   { id: 'transition',    name: 'Transitions',             plannedCount: 4,  available: true , description: 'Full-frame stingers and wipes that cover a cut, then clear.', group: 'specials' },
   // The competition pack — esports, competition, result and reveal graphics.
-  { id: 'esports-score', name: 'Esports scoreboards',     plannedCount: 7,  available: true , description: 'Series scorebugs and map / round indicators.', group: 'specials' },
+  { id: 'esports-score', name: 'Esports scoreboards',     plannedCount: 8,  available: true , description: 'Series scorebugs, map / round indicators and veto boards.', group: 'specials' },
   { id: 'matchup',       name: 'Match-ups & competitors', plannedCount: 10, available: true , description: 'Match-ups with a winner pick, head-to-heads, player cards.', group: 'specials' },
-  { id: 'results-board', name: 'Results & standings',     plannedCount: 9,  available: true , description: 'Rosters, standings, result tables and brackets.', group: 'specials' },
+  { id: 'results-board', name: 'Results & standings',     plannedCount: 14, available: true , description: 'Rosters, turn orders, standings, timing, results and brackets.', group: 'specials' },
   { id: 'reveal',        name: 'Reveals',                 plannedCount: 12, available: true , description: 'Nominees and winners, verdicts, award and launch reveals.', group: 'specials' },
   { id: 'quiz',          name: 'Quiz graphics',           plannedCount: 12, available: true , description: 'Game-show questions with two, three or four answers.', group: 'specials' },
   { id: 'poll',          name: 'Live votes',              plannedCount: 4,  available: true , description: 'Audience polls and votes — open, close, result, winner.', group: 'specials' },

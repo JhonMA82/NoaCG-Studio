@@ -24,6 +24,7 @@ import { br02 } from '../competition/results/br02';
 import { rs01 } from '../competition/results/rs01';
 import { rs02 } from '../competition/results/rs02';
 import { rs03 } from '../competition/results/rs03';
+import { rs04 } from '../competition/results/rs04';
 import { st01 } from '../competition/results/st01';
 import { st02 } from '../competition/results/st02';
 import { st03 } from '../competition/results/st03';
@@ -42,8 +43,8 @@ import type { GraphicType } from './graphicType';
 
 export const rosterType: GraphicType = {
   id: 'roster',
-  name: 'Roster / line-up',
-  description: 'A team line-up, one player per row, with a spotlight the caster moves.',
+  name: 'Roster / ordered list',
+  description: 'An ordered list with an operator-controlled focus row.',
   structure: {
     prefix: 'results-board',
     category: 'results-board',
@@ -96,8 +97,8 @@ export const rosterType: GraphicType = {
     },
   },
   controls: [
-    { event: 'spotlight', label: 'Spotlight player', section: 'Line-up', order: 1, payload: ['spotlight'] },
-    { event: 'clear', label: 'Whole line-up', section: 'Line-up', order: 2 },
+    { event: 'spotlight', label: 'Focus row', section: 'Order', order: 1, payload: ['spotlight'] },
+    { event: 'clear', label: 'Show all rows', section: 'Order', order: 2 },
   ],
   capabilities: {
     maxLines: 2,
@@ -134,6 +135,30 @@ export const rosterType: GraphicType = {
       fontId: 'inter',
       animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
       create: (_type, options) => rs03.create(options),
+    },
+    {
+      id: 'rs04',
+      name: 'Initiative Order',
+      description: 'A tabletop turn order with status notes and an operator-controlled current turn.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      samples: {
+        title: 'INITIATIVE ORDER',
+        team: 'THE SUNKEN CITADEL - LOWER VAULT',
+        players:
+          'SERAPHINA MOONWHISPER | 18 HP\n' +
+          'CAPTAIN ALDRIC VON STURM | CONCENTRATING\n' +
+          'ANCIENT CRIMSON OWLBEAR | BLOODIED\n' +
+          'THANE IRONHEART | DODGING',
+        spotlight: '2',
+        crest: '',
+      },
+      animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
+      semantics:
+        'Combatants use the roster\'s ordered rows, editable notes and one parameterized focus ' +
+        'event. Calling that focus the current turn does not change its structure or behavior.',
+      create: (_type, options) => rs04.create(options),
     },
   ],
 };
