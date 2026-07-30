@@ -1,7 +1,9 @@
 # Catalog lazy loading - taking 520 design modules off the boot path
 
-Status: **design note, nothing built.** Written 2026-07-30 from a measured E2E investigation.
-Read `src/templates/AGENTS.md` before acting on any of it.
+Status: **design note, nothing built - but stage 1 has now run.** Written 2026-07-30 from a
+measured E2E investigation; the "Stage 1 result" section below (2026-07-31) answers the question
+the recommendation was waiting on and settles Option A over Option B. Read
+`src/templates/AGENTS.md` before acting on any of it.
 
 ## What was measured
 
@@ -123,7 +125,58 @@ variants, A is large and B's ergonomics start to look better despite the third a
 
 Nobody should pick between A and B without that number.
 
-## Migration order (if A survives the first stage)
+## Stage 1 result - the audit is done, and Option A is SMALL
+
+Run 2026-07-31 against `search.ts`, `templateMeta.ts` and `meta.ts`. The question was how many
+Browse facets need the derived half. The answer is **two**, and each needs far less than a facet.
+
+| Facet | Resolves from | Needs `create()`? |
+|---|---|---|
+| `query` | token index over name/description/category + capability names | only via capabilities |
+| `family`, `format` | `deriveFormats(variant, category)` - type registry + declared category | **no** |
+| `category` | `meta.ts` declaration (`VARIANT_META → TYPE_META → CATEGORY_DEFAULT_META`) | **no** |
+| `style` | `variant.styleTag` | **no** |
+| `structures` | `meta.ts` declaration | **no** |
+| `placement` | `declared.coverage ?? graphicCategoryById(category).coverage` | **no** |
+| `intensity` | `variant.animationPresets` → the motion table in `model/taxonomy.ts` | **no** |
+| **`capabilities`** | declared extras ∪ variant-derived ∪ **one field check** | **yes, once** |
+| **`fieldBucket`** | `visibleRange`, whose ends come from `variant.suggestedLines`/`maxLines` around a **field count** | **yes, once** |
+
+Reading the two derivations closely is what shrinks the problem:
+
+- **`deriveCapabilities`** has five sources and only ONE touches `fields`:
+  `fields.some(f => f.ftype === 'filelist' && !isLogoField(f))` → `image-upload`. Everything else
+  is `declared.extraCapabilities`, `variant.logo`, `variant.category` + `variant.maxLines`, and
+  `variant.animationPresets`.
+- **`deriveFieldCounts`** returns nine numbers, but the FILTER only reads `visibleRange` (and
+  `repeating`, which comes from `declared.extraCapabilities`, not from fields). Both ends of that
+  range are `visible ± shrink/growth`, and shrink/growth are already computed from
+  `variant.suggestedLines.length` and `variant.maxLines`. So the only unknown is **`visible`**.
+
+**So the whole blocker is two declared values per variant:** the count of visible content fields,
+and whether the design has a non-logo image field. Not a wholesale metadata migration.
+
+`complexity` follows from `visible` (`visible > 3`) and needs nothing new. The per-ftype counts
+(`text`/`number`/`image`/`choice`/`total`) are used by the card's field summary, not by any
+filter - so they can stay derived and simply be resolved lazily for the handful of cards on
+screen, or be declared alongside `visible` if that proves simpler.
+
+### What this changes
+
+- **Option A is the answer.** It was written as "the biggest change"; it is two fields.
+- **Option B's third generated artifact is not worth it** for two values that a design author can
+  state where they already author, and that the existing capabilities gate shape can verify.
+- Open question 2 ("if the audit says A is large, is B acceptable?") is **answered: not needed.**
+
+### What the audit did NOT establish
+
+Whether `visible` is cheap to declare correctly for all ~430 variants, or whether some
+fixed-contract categories (scoreboards, versus, quiz, the competition boards - where the DESIGN
+owns its fields) make it fiddly. That is a counting exercise against the compiled schema, and it
+needs a browser, so it belongs in step 2's gate rather than in another reading pass. The gate
+should therefore land BEFORE any declaration, and be allowed to report the mismatch it finds.
+
+## Migration order (Option A, now that stage 1 has run)
 
 1. **Audit** - for each facet in `search.ts`, record whether it resolves from declaration or
    derivation, and how many variants would need a new declared value. Output is a table, not code.
