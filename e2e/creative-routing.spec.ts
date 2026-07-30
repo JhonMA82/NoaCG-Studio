@@ -52,6 +52,11 @@ test.describe('creative routing (phase A)', () => {
         novel: route({ ...intent, kind: 'novel', typeId: undefined, novelDescription: 'a timing tower' }),
         hybrid: route({ ...intent, kind: 'hybrid', typeId: undefined, families: ['board', 'ring-meter'] }),
         unknownType: route({ ...intent, typeId: 'no-such-structure' }),
+        // Slot drift, measured on the open-model runs: a declared match whose id landed in
+        // the wrong slot still fits. The unknownType twin above stays create - tolerance is
+        // for slots, never for names nothing resolves.
+        typeIdInFamilies: route({ ...intent, typeId: undefined, families: ['bracket'] }),
+        familyWordInTypeId: route({ ...intent, typeId: 'strap', families: [] }),
       };
     }, baseIntent);
     expect(routes.fitHigh).toBe('adapt'); // also the scope twin: same intent WITHOUT beyondScope adapts
@@ -61,6 +66,8 @@ test.describe('creative routing (phase A)', () => {
     expect(routes.novel).toBe('create');
     expect(routes.hybrid).toBe('create');
     expect(routes.unknownType).toBe('create');
+    expect(routes.typeIdInFamilies).toBe('adapt');
+    expect(routes.familyWordInTypeId).toBe('adapt');
   });
 
   test('the scope guard is honoured end to end: registry note -> prompt, decision stays explicit-mode safe', async ({ page }) => {
