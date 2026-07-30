@@ -275,6 +275,12 @@ export function scoreStructureCss(opts: ScoreMarkupOptions): string {
   flex: 1;                         /* the name gives up width before the chip does */
 }
 
+.${P}-team {
+  display: block;                  /* fill the mask instead of keeping intrinsic text width */
+  max-width: 100%;                 /* the name never enters the fixed score chip */
+  white-space: nowrap;             /* ordinary team names stay on the strip's baseline */
+}
+
 .${P}-chip {
   display: flex;                   /* centers the figure… */
   align-items: center;             /* …vertically… */
@@ -348,21 +354,21 @@ export const MAP_FIELDS: TypeField[] = [
 ];
 
 /** The indicator's markup — the rows are rebuilt from the source, so the body starts empty. */
-export function mapMarkup(o: ResolvedOptions): string {
+export function mapMarkup(o: ResolvedOptions, fields: TypeField[] = MAP_FIELDS): string {
   return `    <div class="${P}-box">
       <!-- The head: the series title. -->
       <div class="${P}-head">
-        <div class="${P}-mask"><span id="f0" class="${P}-title">${o.lines[0]?.sample ?? MAP_FIELDS[0].value}</span></div>
+        <div class="${P}-mask"><span id="f0" class="${P}-title">${o.lines[0]?.sample ?? fields[0].value}</span></div>
       </div>
       <!-- The accent rule between the title and the maps. -->
       <div class="${P}-accent"></div>
       <!-- The body: one row per map, rendered from the source field below. -->
       <div class="${P}-body" id="${P}-rows"></div>
     </div>
-${hiddenSource('f1', MAP_FIELDS[1].value, 'Map source (f1) — one "Map | A / B / -" per line.')}
-${hiddenSource('f2', MAP_FIELDS[2].value, 'The map being played (f2) — 1-based; the cursor sits on it.')}
-${hiddenSource('f3', MAP_FIELDS[3].value, 'Side A short name (f3) — the mark a won map shows.')}
-${hiddenSource('f4', MAP_FIELDS[4].value, 'Side B short name (f4).')}`;
+${hiddenSource('f1', fields[1].value, 'Map sequence source (f1) — one "Map | status" per line.')}
+${hiddenSource('f2', fields[2].value, 'The current map or decision (f2) — 1-based; the cursor sits on it.')}
+${hiddenSource('f3', fields[3].value, 'Side A short name (f3).')}
+${hiddenSource('f4', fields[4].value, 'Side B short name (f4).')}`;
 }
 
 /**

@@ -119,11 +119,20 @@ export async function loadEntitlementRows(userId: string): Promise<EntitlementRo
         .select('expires_at, plans!inner(key, name, features, limits, render_tier, render_formats)')
         .eq('user_id', userId)
         .maybeSingle(),
+      // ORDERED, and load-bearing: the contract's merge is LAST-WINS within a precedence rank,
+      // and its sort is stable, so the order rows arrive in decides the answer whenever two of
+      // equal rank name one key. Unordered, Postgres may return them either way round and the
+      // same account resolves differently on two consecutive requests. `0021` makes that state
+      // unreachable for new rows, but determinism must not depend on a migration having been
+      // applied - a database still carrying a legacy pair has to answer the same way twice.
+      // Ascending, so the most recent decision is the one that wins.
       db
         .from('user_grants')
         .select('id, kind, key, value, reason, starts_at, expires_at, revoked_at')
         .eq('user_id', userId)
-        .is('revoked_at', null),
+        .is('revoked_at', null)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
     ]);
 
     const state = account.data?.state === 'suspended' ? 'suspended' : 'active';

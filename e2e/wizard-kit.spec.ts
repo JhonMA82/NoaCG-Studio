@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import JSZip from 'jszip';
+import { readFileSync } from 'node:fs';
 
 // "Start from a kit" — the pack Entry card (ratified in docs/TEMPLATE_TAXONOMY_PROPOSAL.md
 // §18: its own card, NOT a third Browse mode, because Browse produces one graphic and a kit
@@ -122,4 +124,73 @@ test('picking another kit brings back its own default look', async ({ page }) =>
 
   await page.locator('[data-kit="newsroom"]').click();
   await expect(family).toHaveValue('minimal'); // newsroom's own, not the carried pick
+});
+
+test('the Esports kit builds and downloads as one complete Volt tournament package', async ({ page }) => {
+  await page.goto('/app');
+  await page.locator('[data-entry="kit"]').click();
+
+  const card = page.locator('[data-kit="esports"]');
+  await expect(card).toContainText('36 graphics');
+  await card.click();
+
+  const detail = page.getByTestId('kit-detail');
+  await expect(page.getByTestId('kit-family')).toHaveValue('sport');
+  const contents = detail.locator('.wz-kit-contents');
+  for (const name of [
+    'Volt Stinger',
+    'Map Ladder',
+    'Map Veto',
+    'Team Tag',
+    'Commentary Booth',
+    'Desk Duo',
+    'Results Rail',
+    'Sponsor Crawl',
+  ]) {
+    await expect(contents.getByText(name, { exact: true })).toBeVisible();
+  }
+
+  await page.getByTestId('kit-create').click();
+  await expect(page).toHaveURL(/#\/package\//);
+
+  const packageReport = await page.evaluate(() => {
+    const packageId = location.hash.split('/').pop();
+    const graphics = JSON.parse(localStorage.getItem('spx-gfx-graphics') ?? '[]') as {
+      name: string;
+      packageId: string | null;
+      template: { css: string };
+    }[];
+    const inPackage = graphics.filter((graphic) => graphic.packageId === packageId);
+    const voltSpecialists = new Set([
+      'Map Veto',
+      'Team Tag',
+      'Commentary Booth',
+      'Desk Duo',
+      'Results Rail',
+      'Sponsor Crawl',
+    ]);
+    return {
+      count: inPackage.length,
+      names: inPackage.map((graphic) => graphic.name),
+      specialistLookMatches: inPackage
+        .filter((graphic) => voltSpecialists.has(graphic.name))
+        .every((graphic) => graphic.template.css.includes('#c8f31d') && graphic.template.css.includes('Oswald')),
+    };
+  });
+
+  expect(packageReport.count).toBe(36);
+  expect(new Set(packageReport.names).size).toBe(36);
+  expect(packageReport.specialistLookMatches).toBe(true);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-package').click(),
+  ]);
+  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+  const entries = Object.keys(zip.files);
+  expect(entries.filter((name) => name.endsWith('/index.html'))).toHaveLength(36);
+  expect(entries).toContain('esports/map_veto/index.html');
+  expect(entries).toContain('esports/series_scorebug/index.html');
+  expect(entries).toContain('esports/volt_stinger/index.html');
+  expect(entries).toContain('esports/README.md');
 });

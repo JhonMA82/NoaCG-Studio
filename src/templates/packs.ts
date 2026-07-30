@@ -224,26 +224,29 @@ export const PACKS: TemplatePack[] = [
   {
     id: 'esports',
     name: 'Esports',
-    description: 'Series score, maps, match-ups, brackets and the champion card for tournament nights.',
+    description: 'A complete Volt tournament package: pre-show, desk, match, replay, results and sponsors.',
     family: 'sport',
     types: [
-      'scoreboard', 'lower-third', 'countdown', 'agenda', 'social-bug', 'sponsor-bug', 'holding-screen', 'title-card',
-      'now-next',
-      // Tournament nights run long: a station ident, the live/replay status, and a sponsor
-      // rotation that cycles the tournament's partners without an operator touching it.
-      'station-bug', 'live-bug', 'sponsor-rotator',
-      // The competition pack leads here: a tournament night is a series, not a single match
-      // (docs/COMPETITION_PACK.md).
-      'esports-score', 'map-round', 'matchup', 'head-to-head', 'player-card', 'bracket', 'standings', 'winner-card',
+      // Open and hold the show before the first server is live, then keep the running order
+      // readable between series.
+      'title-card', 'holding-screen', 'countdown', 'now-next', 'agenda', 'notice-card',
+      // Persistent tournament furniture: identity, playout state and commercial marks.
+      'station-bug', 'live-bug', 'event-bug', 'status-chip',
+      'lower-third', 'social-bug', 'sponsor-bug', 'sponsor-strip', 'sponsor-rotator',
+      // A self-clearing cut cover whose editable label serves MATCH, REPLAY and HIGHLIGHTS.
+      'transition',
+      // Competition flow from match announcement through live operation.
+      'matchup', 'head-to-head', 'player-card', 'roster',
+      'esports-score', 'map-round', 'match-event', 'match-status', 'fixtures',
+      // Desk and post-match coverage.
+      'standings', 'bracket', 'ticker', 'scoreboard', 'winner-card',
     ],
     extras: [
-      // An esports player is named tag-then-handle, not name-then-club, and the desk is
-      // named by handle too — three straps a sports kit has no shape for.
-      'ls11', 'ls12', 'ls13',
-      // The rest of the bracket's results crawling under the current game, and the notice a
-      // tournament day actually needs most: the pause nobody planned.
-      'tk13', 'al07',
-      'vs02', 'ss13', 'cr12',
+      // Pre-match drafting needs the new operator-driven veto board as well as the live map
+      // ladder. The three straps identify players, the commentary pair and the analysis desk.
+      'mr04', 'ls11', 'ls06', 'ls13',
+      // Tournament-wide score and sponsor rails remain readable while play stays visible.
+      'tk13', 'cr12',
     ],
     formats: ['Esports tournament'],
   },

@@ -47,6 +47,8 @@ import {
 import {
   baseSettings,
   computeScale,
+  DATA_SOURCE_CLASS,
+  dataSourceCss,
   documentHtml,
   maxTextWidthCss,
   resetCanvasCss,
@@ -287,6 +289,8 @@ ${font.face}
 
 ${resetCanvasCss(o.resolution)}
 
+${dataSourceCss}
+
 ${geometry}
 
 /* ── Text masks: a line can slide in from behind its own edge. ── */
@@ -404,7 +408,7 @@ export function compFieldsFor(typeFields: TypeField[], o: ResolvedOptions): SpxF
  * rather than only after the first update().)
  */
 export function hiddenSource(id: string, value: string, comment: string): string {
-  return `    <!-- ${comment} -->\n    <div id="${id}" style="display: none">${value}</div>`;
+  return `    <!-- ${comment} -->\n    <div id="${id}" class="${DATA_SOURCE_CLASS}">${value}</div>`;
 }
 
 /** The escapeHtml helper every rebuild runtime needs (rows are built with innerHTML).

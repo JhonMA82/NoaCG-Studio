@@ -33,7 +33,7 @@ export const ls11: TemplateVariant = defineVariant(
     // transition package rather than as a considered introduction.
     animationPresets: ['snap-stinger', 'slide-left', 'mask-wipe', 'pop-spring', 'fade', 'slide-up'],
     defaultPalette: paletteById('volt'),
-    defaultFontId: 'archivo',
+    defaultFontId: 'oswald',
     defaultZone: 'bottom-left',
   },
   {
@@ -99,6 +99,13 @@ ${slot(o, 3, 'lower-third-extra', '        ')}
 .lower-third-idrow > .lower-third-mask {
   display: flex;                    /* each value hugs its own text… */
   min-width: 0;                     /* …and may shrink */
+}
+
+/* Oswald's capitals paint beyond their nominal line box. Widen the handle's reveal mask
+   vertically without changing its measured layout, so the snap never shaves the glyphs. */
+.lower-third-idrow > .lower-third-mask:not(.lower-third-tagwrap) {
+  padding-block: calc(10px * var(--scale));
+  margin-block: calc(-10px * var(--scale));
 }
 
 /* The tag chip — filled, tight, and never wrapped: a bracket tag is an atom. */

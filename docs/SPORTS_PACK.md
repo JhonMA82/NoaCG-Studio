@@ -31,7 +31,7 @@ this pack was in flight, main shipped the **competition pack**, which already co
 
 | dropped | main already ships | main's carries |
 |---|---|---|
-| `lineup` | **`roster`** (rs01–rs03) | a spotlight the caster moves |
+| `lineup` | **`roster`** (rs01–rs04) | a spotlight or current-turn focus the operator moves |
 | `standings` | **`standings`** (st01–st04) | a highlighted row and a final state |
 | `stat-compare` | **`head-to-head`** (h201–h203) | a side the operator can highlight |
 
@@ -58,11 +58,29 @@ have **no glass design** (rs01–rs03 and h201–h203 cover sport, noacg and min
 | Final scores | The same type's `final` state — a result is a status, not a separate graphic |
 | Substitutions and penalties | **Match event** (sb17–sb20) |
 | Player / team stats | Main's **`head-to-head`** (h201–h203) — see the dropped-types note above |
-| Lineups and rosters | Main's **`roster`** (rs01–rs03) |
+| Lineups and rosters | Main's **`roster`** (rs01–rs04) |
 | Standings | Main's **`standings`** (st01–st04) |
 | Results | **Fixtures & results** (ig26–ig29) |
 | Upcoming match | Fixtures with no score typed; a single row reads as a next-match board |
 | Match centre | Assembled as a RUNDOWN, not one graphic — see §6 |
+
+### Follow-up operator-coverage audit
+
+The sports, esports and tabletop follow-up rechecked the requested operator jobs before adding
+catalog entries. Most are already structures rather than missing categories:
+
+| Operator job | Existing structure or addition |
+|---|---|
+| Discipline-aware score and period states | `scorebug` / `match-board`: period is editable data; clock, play and result are parallel state groups |
+| Penalty, timeout and substitution cards | `match-event` covers penalties and substitutions; the independent pause group covers a timeout or technical break |
+| Player comparison and possession / shot board | `head-to-head` accepts any editable `Stat \| A \| B` rows, including possession and shots, with one parameterized side highlight |
+| Sponsored replay plate | `sponsor-bug` already has the exact caption + logo field shape; `transition` supplies the self-clearing replay cover when a full-frame bumper is needed |
+| Objective / round status | `match-status` and `map-round` already carry the operator-controlled state or cursor |
+| Esports pick-ban | **mr04 Map Veto** adds the absent pick-and-ban vocabulary while reusing the `map-round` cursor and completed state |
+| Tabletop initiative | **rs04 Initiative Order** adds the absent combatant/status vocabulary while reusing the `roster` focus state |
+
+The last two are designs on existing types, not new types. Their field order and operator flow
+are unchanged; only the editable programme data and labels differ.
 
 ---
 

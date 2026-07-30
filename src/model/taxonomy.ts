@@ -137,7 +137,7 @@ export type GraphicCategoryId =
   | 'lower-third' | 'bug' | 'title' | 'topic' | 'info' | 'question' | 'quote'
   | 'scoreboard' | 'results' | 'stats' | 'timer' | 'ticker' | 'alert' | 'list'
   | 'poll-quiz' | 'progress' | 'product' | 'cta' | 'sponsor' | 'frame' | 'holding'
-  | 'credits' | 'caption' | 'reveal' | 'map' | 'transition';
+  | 'credits' | 'caption' | 'reveal' | 'map' | 'transition' | 'notification';
 
 /** Where a category's graphics sit on the canvas, as a DEFAULT — a design overrides it the
  *  same way it overrides defaultZone (proposal §8). */
@@ -196,6 +196,7 @@ export const GRAPHIC_CATEGORIES: GraphicCategory[] = [
   { id: 'reveal',      name: 'Reveals & matchups',      subtypes: ['versus', 'winner', 'nominee', 'before-after', 'sold'], coverage: 'full' },
   { id: 'map',         name: 'Maps & location',         subtypes: ['map', 'map-pin', 'route', 'weather-map', 'zone-map'], coverage: 'panel' },
   { id: 'transition',  name: 'Stingers & wipes',        subtypes: ['stinger', 'replay-wipe'], coverage: 'full' },
+  { id: 'notification', name: 'Stream notifications',   subtypes: ['event-notification'], coverage: 'overlay' },
 ];
 
 export function graphicCategoryById(id: GraphicCategoryId): GraphicCategory {
@@ -233,6 +234,7 @@ export const OLD_CATEGORY_FALLBACK: Record<TemplateCategory, GraphicCategoryId |
   'reveal': 'reveal',
   'poll': 'poll-quiz',
   'audience': 'question',
+  'stream-notification': 'notification',
   'imported-design': null, // user content — never browsable
 };
 

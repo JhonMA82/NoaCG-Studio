@@ -1507,6 +1507,12 @@
    ".results-board-mask:y"
   ]
  },
+ "rs04": {
+  "off": [],
+  "clip": [
+   ".results-board-mask:y"
+  ]
+ },
  "st01": {
   "off": [],
   "clip": [
@@ -1664,6 +1670,31 @@
    ".audience-queue-text:y",
    ".audience-queue-text:y",
    ".audience-queue-text:y"
+  ]
+ },
+ "sn01": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
+  ]
+ },
+ "sn02": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
+  ]
+ },
+ "sn03": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y",
+   ".stream-notification-message:y"
+  ]
+ },
+ "sn04": {
+  "off": [],
+  "clip": [
+   ".stream-notification-mask:y"
   ]
  },
  "al02": {

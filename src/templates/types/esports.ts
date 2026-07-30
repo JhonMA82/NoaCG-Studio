@@ -23,6 +23,7 @@ import { es04 } from '../competition/esports/es04';
 import { mr01 } from '../competition/esports/mr01';
 import { mr02 } from '../competition/esports/mr02';
 import { mr03 } from '../competition/esports/mr03';
+import { mr04 } from '../competition/esports/mr04';
 import { MAP_FIELDS, SCORE_FIELDS } from '../competition/esports/shared';
 import type { GraphicType } from './graphicType';
 
@@ -187,8 +188,8 @@ export const esportsScoreType: GraphicType = {
 
 export const mapRoundType: GraphicType = {
   id: 'map-round',
-  name: 'Map / round indicator',
-  description: 'The series card: every map, who took it, and which one is being played.',
+  name: 'Map / round / veto indicator',
+  description: 'A map sequence with an operator-controlled current row and a completed state.',
   structure: {
     prefix: 'esports-score',
     category: 'esports-score',
@@ -249,8 +250,8 @@ export const mapRoundType: GraphicType = {
     },
   },
   controls: [
-    { event: 'advance', label: 'Advance map', section: 'Series', order: 1, payload: ['current'] },
-    { event: 'seriesFinal', label: 'Series decided', section: 'Series', order: 2 },
+    { event: 'advance', label: 'Advance map / decision', section: 'Map sequence', order: 1, payload: ['current'] },
+    { event: 'seriesFinal', label: 'Series / veto complete', section: 'Map sequence', order: 2 },
   ],
   capabilities: {
     maxLines: 1,
@@ -289,6 +290,26 @@ export const mapRoundType: GraphicType = {
       // A strip of game chips belongs across the top of the frame, not down its side.
       defaultZone: 'top-center',
       create: (_type, options) => mr03.create(options),
+    },
+    {
+      id: 'mr04',
+      name: 'Map Veto',
+      description: 'A pick-and-ban ladder with the current decision moved atomically by the operator.',
+      styleTag: 'sport',
+      palette: paletteById('volt'),
+      fontId: 'oswald',
+      samples: {
+        title: 'MAP VETO - GRAND FINAL',
+        maps: 'ANCIENT | BAN A\nDUST II | BAN B\nMIRAGE | PICK A\nNUKE | PICK B\nINFERNO | -',
+        current: '5',
+        teamA: 'TEAM LIQUID',
+        teamB: 'NATUS VINCERE',
+      },
+      semantics:
+        'The cursor, completion state, field ordering and operator flow are the map-round ' +
+        'structure. Only each row\'s editable status changes from a played-map winner to a ' +
+        'draft action.',
+      create: (_type, options) => mr04.create(options),
     },
   ],
 };

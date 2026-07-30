@@ -61,7 +61,7 @@ export const ROSTER_FIELDS: TypeField[] = [
 ];
 
 /** The roster's markup — the rows are rebuilt from the source, so the body starts empty. */
-export function rosterMarkup(o: ResolvedOptions): string {
+export function rosterMarkup(o: ResolvedOptions, fields: TypeField[] = ROSTER_FIELDS): string {
   const value = (i: number, fallback: string) => o.lines[i]?.sample ?? fallback;
   return `    <div class="${P}-box">
       <!-- The head: the crest, the title, and the team it belongs to. -->
@@ -77,8 +77,8 @@ export function rosterMarkup(o: ResolvedOptions): string {
       <!-- The body: one row per player, rendered from the source field below. -->
       <div class="${P}-body" id="${P}-rows"></div>
     </div>
-${hiddenSource('f2', ROSTER_FIELDS[2].value, 'Player source (f2) — one "Name | role" per line.')}
-${hiddenSource('f3', '0', 'The spotlit player (f3) — DATA. One "spotlight" state carries any row.')}`;
+${hiddenSource('f2', fields[2].value, 'Ordered row source (f2) — one "Name | note" per line.')}
+${hiddenSource('f3', fields[3].value, 'The focused row (f3) — DATA. One "spotlight" state carries any row.')}`;
 }
 
 /**
