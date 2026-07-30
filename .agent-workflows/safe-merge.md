@@ -23,8 +23,13 @@ review, or discuss a merge.
   every run.
 - Feature worktrees commonly live under `.claude/worktrees/<name>` on `claude/*` or `codex/*`
   branches, but paths and prefixes are never safety signals.
-- The verification gate is `npm run build` (typecheck + build). UI-facing changes should
-  also get an e2e pass (`npm run test:e2e`) or at least an in-browser check.
+- The verification gate is `npm run build` (typecheck + lint + build) **and**
+  `npm run test:e2e:affected` - both, every time. `build` alone is not enough: it does not
+  run a single e2e spec, and on 2026-07-30 four template packs landed in a row that each
+  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. The
+  affected run maps the branch's own diff to the specs that cover it (and raises the catalog
+  calibration gate when the catalog moved), so it costs minutes on a normal branch rather
+  than the whole suite - which is what made "just run build" tempting in the first place.
 - Standing permission exists to push verified work to `origin/main`.
 
 ## Hard safety rules (never break these, even if asked mid-flow)
@@ -157,10 +162,25 @@ branch - it is never where conflicts get resolved.
    continuing; never verify a half-finished merge.
 2. Pin the commit under test: `VERIFIED_SHA = git rev-parse <branch>` and state it. The exact
    commit that passes verification must be the exact commit that becomes `main`.
-3. Verify on the integrated branch: run `npm run build` in the worktree. If the work is
-   user-facing, also run the relevant e2e specs or check the affected flow in the browser
-   per the root `AGENTS.md` "Verifying changes" contract. A red build means fix-or-abort -
-   do not proceed to main. (Any fix creates a new commit; re-record `VERIFIED_SHA` and rebuild.)
+3. Verify on the integrated branch, in the worktree, BOTH of:
+   - `npm run build` - typecheck, lint, bundle.
+   - `npm run test:e2e:affected` - the specs covering this branch's diff, plus the catalog
+     calibration gate when the catalog moved. Run it even when the change looks harmless:
+     "it's only templates" is exactly the branch that went red, and the script decides what
+     "affected" means, not the person merging. It escalates to the full suite by itself on a
+     shared-core or unmapped change, so a wide change is not a reason to skip it - it is the
+     reason it takes longer. It reports and skips cleanly when a diff touches nothing the
+     suite covers, so a docs-only branch costs seconds.
+
+   Anything red means fix-or-abort - do not proceed to main. (Any fix creates a new commit;
+   re-record `VERIFIED_SHA` and re-run BOTH.) Playwright starts its own offline-pinned dev
+   server; a server already running on this checkout's port makes the guard hook refuse, so
+   stop that one first rather than letting the specs reuse it.
+
+   If the branch has an open PR whose CI is green on exactly `VERIFIED_SHA`, that CI run is
+   stronger evidence than the local pair (it runs the same gates plus the full sharded suite
+   on a clean checkout) - say so and let it stand in for the affected run. It does NOT
+   substitute for anything if the commit moved afterwards.
 4. Confirm the source worktree is clean with `git status --porcelain`. The checked filesystem
    must exactly match the commit being promoted; generated or uncommitted changes make the
    verification invalid.
