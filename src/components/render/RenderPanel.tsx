@@ -16,6 +16,7 @@ import { measureRenderDocument } from '../../render/measure';
 import { buildRenderManifest } from '../../render/buildManifest';
 import { computeSchedule, defaultStillTimeMs } from '../../render/schedule';
 import { formatNeedsSignIn, resolveTier, validateRenderRequest, RENDER_LIMITS } from '../../render/limits';
+import { useMyEntitlement } from '../useMyEntitlement';
 import { RENDER_FORMATS, type MeasuredDurations, type RenderFormatId } from '../../render/manifest';
 import { useRenderJob } from '../../render/renderJobStore';
 import RenderFormatPicker, { FORMAT_ORDER } from './RenderFormatPicker';
@@ -94,14 +95,19 @@ export default function RenderPanel({ template, sampleData, validation }: Props)
     () => (measured ? computeSchedule(measured, timing, fps, '{}') : null),
     [measured, timing, fps],
   );
-  const tier = resolveTier(signedIn && backendConfigured);
+  // The tier and the format list come from the caller's own entitlement, so a plan that
+  // grants a format is not greyed out here while the server would accept it. UX only - the
+  // server re-resolves and re-checks on every start.
+  const entitlement = useMyEntitlement();
+  const tier = resolveTier(signedIn && backendConfigured, entitlement.renderTier);
   const limitIssues = useMemo(
     () =>
       validateRenderRequest(
         { kind: 'html', width: template.resolution.width, height: template.resolution.height, fps, scale, timing, output: { format } },
         tier,
+        entitlement.renderFormats,
       ),
-    [template.resolution, fps, scale, timing, format, tier],
+    [template.resolution, fps, scale, timing, format, tier, entitlement.renderFormats],
   );
 
   const locked = (f: RenderFormatId) => formatNeedsSignIn(f) && needsSignIn;

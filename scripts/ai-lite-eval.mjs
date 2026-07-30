@@ -65,7 +65,15 @@ const headers = {
 
 async function json(response) {
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(value?.error?.message ?? `HTTP ${response.status}`);
+  if (!response.ok) {
+    // Carry the MACHINE code, not just the prose. The two failure classes a model
+    // comparison must separate - the model exhausting its repair round versus the
+    // provider breaking - are indistinguishable once only the message survives, and
+    // classifying by matching English sentences would break on the first reword.
+    const error = new Error(value?.error?.message ?? `HTTP ${response.status}`);
+    error.code = value?.error?.code ?? `http_${response.status}`;
+    throw error;
+  }
   return value;
 }
 
@@ -547,7 +555,8 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       candidate: LABEL,
       status: 'failed',
       latencyMs: Date.now() - started,
-      errorCode: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+      errorCode: error?.code ?? 'unknown',
+      errorMessage: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
     });
     console.log('failed');
   }

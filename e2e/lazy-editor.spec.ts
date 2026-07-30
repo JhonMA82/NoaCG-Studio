@@ -66,7 +66,12 @@ test('mobile: Monaco is not fetched until "Show code"', async ({ browser }) => {
 
   // Opening the code view fetches the bundle on demand and mounts the editor.
   await page.locator('.mobile-code-toggle').click();
-  await expect(page.locator('.monaco-editor').first()).toBeVisible();
+  // 20 s for the same reason showCode uses it (e2e/_code.ts): this waits on a lazy chunk the
+  // dev server transforms on demand, so it bounds a DOWNLOAD, not a render. The default expect
+  // budget is tuned for renders, and at 7 s this was losing to a cold Monaco fetch under four
+  // workers - the element resolved and was still `hidden` when the clock ran out. The desktop
+  // case next door has always had the wider budget; only this mobile path went without.
+  await expect(page.locator('.monaco-editor').first()).toBeVisible({ timeout: 20_000 });
   expect(requested.some(isEditorModule)).toBe(true);
   await context.close();
 });

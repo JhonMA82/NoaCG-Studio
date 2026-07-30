@@ -13,6 +13,7 @@ import {
 import { publishGate } from '../community/gate';
 import type { SpxTemplate } from '../model/types';
 import { useModalGate } from './spaceKey';
+import { useMyEntitlement } from './useMyEntitlement';
 
 interface Props {
   onClose: () => void;
@@ -42,21 +43,27 @@ export default function CommunityGallery({ onClose, initialSlug }: Props) {
   // Only close on a backdrop click whose press began there, so a drag-select never dismisses.
   // See save/SaveDialogs.tsx.
   const pressedOnBackdrop = useRef(false);
+  const hiddenTemplates = useMyEntitlement().hiddenTemplates;
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       setLoading(true);
       const list = await listCommunity(filter === 'all' ? undefined : filter);
+      // A published template an admin marked beta, internal or hidden is dropped for a
+      // visitor who is not entitled to it (docs/ADMIN.md §7). The browse RPC already hides
+      // anything not 'approved'; this is the second, admin-driven axis on top of moderation.
+      const hidden = new Set(hiddenTemplates);
+      const visible = hidden.size ? list.filter((card) => !hidden.has(card.slug)) : list;
       if (alive) {
-        setCards(list);
+        setCards(visible);
         setLoading(false);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [filter]);
+  }, [filter, hiddenTemplates]);
 
   useEffect(() => {
     if (!initialSlug) return;

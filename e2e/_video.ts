@@ -140,5 +140,7 @@ export async function createVideoProject(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Countdown', exact: true }).click();
   await page.getByTestId('video-create').click();
   await expect(page.getByTestId('video-shell')).toBeVisible();
-  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 20_000 });
+  // 30 s: a first generation runs the harness plus an untimed live probe against the player
+  // host. Same budget and same reasoning as the specs' own waitForGeneration helpers.
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 }

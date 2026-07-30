@@ -10,15 +10,23 @@ import {
   projectRoot,
 } from './api-runtime-build.mjs';
 
+// The handler MODULES, which now live under api/_lib/ so they cost nothing against the
+// deployment's 12-function cap, plus the three ROUTED dispatchers that actually ship. Both
+// halves matter: the handlers carry the behaviour these assertions check, and the dispatchers
+// are the artifacts Vercel deploys - if one of those failed to load, every route behind it
+// would be dead however healthy its handler was.
 const ENTRYPOINTS = [
-  'api/ai/config.ts',
-  'api/ai/credentials.ts',
+  'api/_lib/aiRoutes/config.ts',
+  'api/_lib/aiRoutes/credentials.ts',
   'api/ai/generate.ts',
-  'api/ai/models.ts',
-  'api/ai/lite/status.ts',
-  'api/ai/lite/generations.ts',
-  'api/ai/lite/outcome.ts',
-  'api/ai/lite/judge.ts',
+  'api/_lib/aiRoutes/models.ts',
+  'api/_lib/lite/status.ts',
+  'api/_lib/lite/generations.ts',
+  'api/_lib/lite/outcome.ts',
+  'api/_lib/lite/judge.ts',
+  'api/ai/[...path].ts',
+  'api/ai/lite/[...path].ts',
+  'api/ai/tasks/[...path].ts',
 ];
 
 async function artifactFiles(directory) {
@@ -149,6 +157,20 @@ const smokeSource = String.raw`
   );
   assert.equal(judgeDisabled.status, 503);
   assert.equal((await judgeDisabled.json()).error.code, 'profile_not_configured');
+
+  // The three dispatchers Vercel actually deploys. Each must LOAD - which transitively loads
+  // every handler behind it, so a broken import anywhere in the group fails here - and must
+  // refuse an unknown path rather than throwing.
+  const [aiDispatchUrl, liteDispatchUrl, tasksDispatchUrl] = process.argv.slice(9);
+  for (const [url, prefix] of [
+    [aiDispatchUrl, '/api/ai'],
+    [liteDispatchUrl, '/api/ai/lite'],
+    [tasksDispatchUrl, '/api/ai/tasks'],
+  ]) {
+    const { default: dispatcher } = await import(url);
+    const missing = await dispatcher.fetch(new Request('https://noacg.test' + prefix + '/definitely-not-a-route'));
+    assert.equal(missing.status, 404, prefix + ' dispatcher must 404 an unknown path');
+  }
 `;
 
 test('Vercel-style JavaScript artifacts load and execute every Creative AI function', async (t) => {

@@ -170,6 +170,124 @@ function intersection(a: DOMRect, b: DOMRect): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
+/** Resolve a computed `clip-path` to the region it actually paints, in viewport
+ *  coordinates. `clip-path` cuts painted output WITHOUT any `overflow` property, so the
+ *  overflow-ancestor walk alone never sees it — a panel clipped to `inset(0 60% 0 0)`
+ *  silently loses 60% of its text and every geometry check still passes.
+ *
+ *  Percentages resolve against the border box (the `border-box` default reference).
+ *  Shapes that can't be resolved cheaply (`path()`, `url()`, keyword radii like
+ *  `closest-side`) return null: the bench reports nothing rather than guessing, because a
+ *  false clip error would block a valid export. */
+function clipBoxFor(el: Element, cs: CSSStyleDeclaration, target: DOMRect): DOMRect | null {
+  const raw = (cs.clipPath || '').trim();
+  if (!raw || raw === 'none') return null;
+  // Strip the optional trailing geometry-box keyword (`inset(...) border-box`).
+  const shape = raw.replace(/\s+(border|padding|content|margin|fill|stroke|view)-box\s*$/, '').trim();
+  const open = shape.indexOf('(');
+  if (open < 0 || !shape.endsWith(')')) return null;
+  const fn = shape.slice(0, open).toLowerCase();
+  const args = shape.slice(open + 1, -1).trim();
+  const box = el.getBoundingClientRect();
+
+  // A length token against the relevant extent. Computed clip-path keeps percentages and
+  // resolves other lengths to px, so those two units are the whole vocabulary.
+  const len = (tok: string, extent: number): number | null => {
+    const n = parseFloat(tok);
+    if (!Number.isFinite(n)) return null;
+    if (tok.endsWith('%')) return (n / 100) * extent;
+    if (tok.endsWith('px')) return n;
+    return null;
+  };
+
+  if (fn === 'inset' || fn === 'rect' || fn === 'xywh') {
+    // `round <radius>` only rounds the corners - it never moves the edges.
+    const parts = args.split(/\s+round\s+/i)[0].trim().split(/\s+/);
+    const nums = parts.map((p, i) => len(p, i % 2 === 0 ? box.height : box.width));
+    if (nums.some((n) => n === null)) return null;
+    const v = nums as number[];
+    if (fn === 'xywh') {
+      if (v.length < 4) return null;
+      // x y w h - x/w are horizontal, so re-resolve against the correct extents.
+      const x = len(parts[0], box.width);
+      const w = len(parts[2], box.width);
+      const y = len(parts[1], box.height);
+      const h = len(parts[3], box.height);
+      if (x === null || y === null || w === null || h === null) return null;
+      return new DOMRect(box.left + x, box.top + y, w, h);
+    }
+    // inset/rect take top right bottom left, with the usual 1-4 value shorthand.
+    const [t, r = t, b = t, l = r] = v;
+    if (fn === 'rect') {
+      // rect() edges are offsets from the top/left, not insets from each side.
+      return new DOMRect(box.left + l, box.top + t, Math.max(0, r - l), Math.max(0, b - t));
+    }
+    return new DOMRect(
+      box.left + l,
+      box.top + t,
+      Math.max(0, box.width - l - r),
+      Math.max(0, box.height - t - b),
+    );
+  }
+
+  if (fn === 'polygon') {
+    // Optional leading fill-rule, then `x y` pairs.
+    const pts: Array<[number, number]> = [];
+    for (const pt of args.replace(/^(nonzero|evenodd)\s*,\s*/i, '').split(',')) {
+      const [xt, yt] = pt.trim().split(/\s+/);
+      const x = len(xt ?? '', box.width);
+      const y = len(yt ?? '', box.height);
+      if (x === null || y === null) return null;
+      pts.push([x, y]);
+    }
+    if (pts.length < 3) return null;
+    const ys = pts.map((p) => p[1]);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // A SHEARED bar (the skewed-accent idiom) is far narrower than its bounding box at
+    // any given height, so the bbox would wave through text that visibly loses glyphs.
+    // Measure the shape's horizontal extent across the BAND the text actually occupies:
+    // every vertex inside the band, plus every edge crossing its boundaries.
+    const top = Math.max(minY, target.top - box.top);
+    const bottom = Math.min(maxY, target.bottom - box.top);
+    if (!(bottom > top)) return new DOMRect(box.left, box.top + minY, box.width, maxY - minY);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    const note = (x: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); };
+    for (let i = 0; i < pts.length; i += 1) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[(i + 1) % pts.length];
+      if (y1 >= top && y1 <= bottom) note(x1);
+      for (const edge of [top, bottom]) {
+        if ((y1 < edge && y2 > edge) || (y1 > edge && y2 < edge)) {
+          note(x1 + ((edge - y1) / (y2 - y1)) * (x2 - x1));
+        }
+      }
+    }
+    if (!Number.isFinite(minX)) return null;
+    return new DOMRect(box.left + minX, box.top + top, maxX - minX, bottom - top);
+  }
+
+  if (fn === 'circle' || fn === 'ellipse') {
+    const [radii, center] = args.split(/\s+at\s+/i);
+    const rt = radii.trim().split(/\s+/);
+    // The reference for a circle radius is the diagonal-derived extent; percentages on an
+    // ellipse resolve per axis. Keyword radii (closest-side, …) are not resolvable here.
+    const diag = Math.sqrt(box.width ** 2 + box.height ** 2) / Math.sqrt(2);
+    const rx = fn === 'circle' ? len(rt[0], diag) : len(rt[0], box.width);
+    const ry = fn === 'circle' ? rx : len(rt[1] ?? rt[0], box.height);
+    if (rx === null || ry === null) return null;
+    const ct = (center ?? '50% 50%').trim().split(/\s+/);
+    const cx = len(ct[0], box.width);
+    const cy = len(ct[1] ?? ct[0], box.height);
+    if (cx === null || cy === null) return null;
+    return new DOMRect(box.left + cx - rx, box.top + cy - ry, rx * 2, ry * 2);
+  }
+
+  return null;
+}
+
 /** Two copies of the SAME text stacked near-coincidentally are deliberate layering — a
  *  karaoke wipe's accent fill over its base line, a glow copy. An OFFSET duplicate is a
  *  misaligned wipe, which is a real bug (the same rule the compare rig's sampler uses). */
@@ -249,25 +367,36 @@ function overflowIssues(
     const area = rect.width * rect.height;
     if (area <= 0) continue;
 
-    // (a) Clipped mid-line by an overflow-hidden ancestor that is NOT a reveal mask.
-    // Reveal masks (`*-mask`) clip on purpose during the entrance; at the settled state the
-    // text must still fit - but the mask is sized by the text, so a real clip shows up
-    // against a FIXED-size ancestor (a panel with overflow hidden).
-    for (let anc = el.parentElement; anc && anc !== win.document.body; anc = anc.parentElement) {
+    // (a) Clipped mid-line by an overflow-hidden or clip-path'd ancestor that is NOT a
+    // reveal mask. Reveal masks (`*-mask`) clip on purpose during the entrance; at the
+    // settled state the text must still fit - but the mask is sized by the text, so a real
+    // clip shows up against a FIXED-size ancestor (a panel with overflow hidden).
+    // The element ITSELF is checked too: `clip-path` on the text node cuts its own glyphs.
+    for (let anc: Element | null = el; anc && anc !== win.document.body; anc = anc.parentElement) {
       const cls = anc.getAttribute('class') ?? '';
       if (/-mask\b/.test(cls)) continue;
       const cs = win.getComputedStyle(anc);
-      const clipsX = cs.overflowX === 'hidden' || cs.overflowX === 'clip';
-      const clipsY = cs.overflowY === 'hidden' || cs.overflowY === 'clip';
-      if (!clipsX && !clipsY) continue;
       const ar = anc.getBoundingClientRect();
-      const cutX = clipsX && (rect.left < ar.left - 2 || rect.right > ar.right + 2);
-      const cutY = clipsY && (rect.top < ar.top - 2 || rect.bottom > ar.bottom + 2);
+      // A clip-path cuts on BOTH axes and applies to the element carrying it; overflow
+      // only clips descendants, on the axes it hides.
+      const clip = clipBoxFor(anc, cs, rect);
+      const overflows = anc !== el;
+      const clipsX = overflows && (cs.overflowX === 'hidden' || cs.overflowX === 'clip');
+      const clipsY = overflows && (cs.overflowY === 'hidden' || cs.overflowY === 'clip');
+      const cutX =
+        (clipsX && (rect.left < ar.left - 2 || rect.right > ar.right + 2)) ||
+        (!!clip && (rect.left < clip.left - 2 || rect.right > clip.right + 2));
+      const cutY =
+        (clipsY && (rect.top < ar.top - 2 || rect.bottom > ar.bottom + 2)) ||
+        (!!clip && (rect.top < clip.top - 2 || rect.bottom > clip.bottom + 2));
       if (cutX || cutY) {
+        const how = clip
+          ? `its clip-path paints only part of it`
+          : `the text is cut mid-line`;
         errors.push(
           issue(
             'bench-overflow',
-            `${labelFor(el)} is clipped by ${labelFor(anc)} ${phase} - the text is cut mid-line. ` +
+            `${labelFor(el)} is clipped by ${labelFor(anc)} ${phase} - ${how}. ` +
               `Use the auto-fit pattern: width: fit-content with a max-width cap and overflow-wrap so long values wrap instead of clipping.`,
           ),
         );

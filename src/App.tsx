@@ -63,21 +63,34 @@ export default function App() {
   // autosaved project exists) must not be closed by the plain '' route on boot.
   const galleryOpen = useTemplateStore((s) => s.galleryOpen);
   const routedWizard = useRef(false);
+  // Which design id this route has already pushed into the store — a first-ever visit opens
+  // the wizard by DEFAULT (galleryOpen's initial value), before this effect ever runs, so the
+  // `if (galleryOpen)` branch below must still hand a `#/new/<id>` route's design off to
+  // openGallery rather than assuming a prior call already did.
+  const consumedDesign = useRef<string | null>(null);
   useEffect(() => {
     if (route.view === 'new') {
+      const design = route.design ?? null;
       if (galleryOpen) {
         routedWizard.current = true;
+        if (design && consumedDesign.current !== design) {
+          consumedDesign.current = design;
+          useTemplateStore.getState().openGallery(design);
+        }
       } else if (routedWizard.current) {
         // Closed from inside the app while the route still says wizard: rewind the URL.
         routedWizard.current = false;
+        consumedDesign.current = null;
         useRouter.getState().replace({ view: 'editor' });
       } else {
         routedWizard.current = true;
-        useTemplateStore.getState().openGallery();
+        consumedDesign.current = design;
+        useTemplateStore.getState().openGallery(design);
       }
     } else {
       if (galleryOpen && routedWizard.current) useTemplateStore.getState().closeGallery();
       routedWizard.current = false;
+      consumedDesign.current = null;
     }
   }, [route, galleryOpen]);
 

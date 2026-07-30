@@ -242,6 +242,12 @@ export interface BrowseContext {
    *  is on: the package's siblings lead (proposal §13.3). A small boost, deliberately
    *  weaker than a programme match — it must never outrank what the user asked for. */
   brandFamily?: StyleTag | null;
+  /** Variant ids this visitor may not see — a design an admin marked beta, internal or
+   *  hidden and this visitor is not entitled to (docs/ADMIN.md §7, resolved server-side by
+   *  GET /api/me/entitlement). They are REMOVED before scoring, never greyed: a card the
+   *  visitor cannot use is noise, and an empty-state count that includes it would lie.
+   *  Empty offline and whenever the lookup fails, so the free catalog stays whole. */
+  hiddenIds?: readonly string[];
 }
 
 const BRAND_BOOST = 8;
@@ -251,7 +257,10 @@ export function browseTemplates(filters: BrowseFilters, context: BrowseContext =
   const hasQuery = filters.query.trim().length > 0;
   const results: BrowseResult[] = [];
 
+  const hidden = context.hiddenIds?.length ? new Set(context.hiddenIds) : null;
+
   allTemplateMeta().forEach(({ variant, meta }, catalogIndex) => {
+    if (hidden?.has(variant.id)) return;
     if (!passesStrictFilters(meta, filters)) return;
 
     let score = 0;

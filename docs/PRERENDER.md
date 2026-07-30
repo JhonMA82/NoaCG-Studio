@@ -41,16 +41,31 @@ Absolute URLs (canonical, `og:url`, sitemap) use `SITE_ORIGIN`, defaulting to
 `https://noacg-studio.vercel.app`. Set the env var when the real domain lands (growth plan
 W0: `noacg.studio`) - it is the only place the origin appears.
 
+## The per-design deep link
+
+Every page's call to action (and the footer's "Open the editor") links to
+`/app#/new/<variantId>` rather than the bare `/app` - `appLink()` builds it from the same
+variant the page describes. `#/new` is the app's existing hash route for the creation wizard
+(`src/app/router.ts`); the optional trailing segment is the variant id, read by
+`CreationWizard`'s open effect and resolved through `variantById` (`src/templates/catalog.ts`).
+A resolving id preselects that design and drops the wizard straight onto its Fields step - the
+same patch `BrowseStep`'s card click applies - so the visitor still walks Fields, Style and
+Animation before anything is created; the link only saves them from re-finding the design in
+Browse. **No project is created by following the link** - Finish (Open in the editor / Export)
+is still the one place that happens.
+
+An id that fails to resolve - missing, retired from the catalog, or a hand-edited URL - is not
+treated as an error: the wizard just opens at Entry, exactly as a bare `#/new` always has. Since
+a slug's variant id is appended only on a name collision (see above), an id embedded in an old
+page's link stays valid for as long as that variant exists in the catalog; removing a variant
+degrades its old deep links to Entry rather than a crash.
+
 ## Known gaps
 
 - **No picture of the graphic.** The page describes a broadcast design in words only. For a
   visual product that is the biggest weakness of the surface, not a nicety - it is the same
   work as the OG images below, and both wait on rendering previews in CI.
 
-- **No per-design deep link.** Every page's call to action opens `/app`, because the app has
-  no `?design=<id>` route today - `App.tsx` handles only `?chat=` and `?control=`. Adding one
-  is the single highest-value follow-up: it turns these pages from descriptions into
-  entrances.
 - **No per-template OG image.** Every page shares the landing screenshot. Real per-design
   images mean rendering 386 previews in CI - a separate slice with its own cost, and the
   same job as the missing on-page preview above.

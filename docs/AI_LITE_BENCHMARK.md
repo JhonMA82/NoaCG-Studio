@@ -213,6 +213,17 @@ threshold. Until it does, the judge runs in the eval rig only - production wirin
 additionally needs an in-app hold-frame capture path, which does not exist yet (rig
 captures are Playwright screenshots). First measurement: §6e.
 
+Beside that raw count `bench:report` also reports **Cohen's kappa**, because raw agreement
+flatters a lopsided judge: one that passes nearly everything scores well against reviewers
+who also accept most things, purely by chance. Below 0.4 the report says outright that the
+raw count is mostly chance, which is the reading §6e's numbers need.
+
+The cell to read first is a **false accept** (judge passed, human rejected): each one is a
+defect class the judge cannot see. The rule that follows is *prefer a deterministic gate to
+a wider judge remit* - the 2026-07-29 review rejected two skins for clipped text that the
+judge scored legibility 5, and the durable answer was a bench detector (§6d), not a
+stricter judge prompt.
+
 ## 6c. Measured: the skin prompt has a load ceiling
 
 Four paid rounds isolated the skin teaching, one variable at a time. Among JUDGED skins
@@ -262,15 +273,31 @@ owner decision:
 items cut the last letter of the secondary line with an angled `clip-path` on the panel.
 The reviewer caught it twice ("cuts of", "looks like its cut of"); the runtime bench did
 not, because **clip-path clips PAINT and the bench measures LAYOUT** - the element box is
-exactly where it should be. `runtimeBench.ts` has no clip-path handling at all; this is the
-same trap `src/templates/AGENTS.md` documents for scoreboards. The fix is upstream of the
-bench: `liteSkinPatchErrors` now rejects `clip-path` in skin CSS and in `skin.html` style
+exactly where it should be. `runtimeBench.ts` had no clip-path handling at all; this is the
+same trap `src/templates/AGENTS.md` documents for scoreboards. The first fix is upstream of
+the bench: `liteSkinPatchErrors` now rejects `clip-path` in skin CSS and in `skin.html` style
 attributes (`skin_css_clip_path` / `skin_html_clip_path`), so the model gets a repair round
 naming the replacement - shape a skewed or rotated layer BEHIND the text - and a skin that
 insists reverts to the house chassis. `background-clip: text` stays legal. The rule also
 removes a collision nobody had hit yet: `line-reveal` and `mask-wipe` animate `clipPath` on
 `.lower-third-box` and clear it on settle, so a skin's own clip would vanish for the
 entrance and snap back.
+
+**The bench now catches the defect class itself**, which the skin ban does not: a ban only
+protects Lite skins, while `clip-path` reaches the graphic from the catalog, an imported
+graphic, the full harness and hand-written code alike. `runtimeBench.ts` resolves a computed
+clip-path to the region it PAINTS (`inset`/`rect`/`xywh`/`polygon`/`circle`/`ellipse`) and
+trips `bench-overflow` when text escapes it; the element carrying the clip is checked too,
+and shapes it cannot resolve cheaply (`path()`, `url()`, keyword radii) report nothing
+rather than guess, so no valid export is blocked on a shape the bench cannot read.
+
+The non-obvious part is the **skewed bar**, which is what these two items actually used: a
+shear spans the full width in BOUNDING-BOX terms, so comparing text against the bbox can
+never fire on it. The check measures the polygon's horizontal extent across the band the
+text occupies instead. Its regression fixture is deliberately marginal - the name fits the
+600px bounding box and escapes only the shear - so the test cannot pass on bbox logic alone.
+The whole catalog stays green, including the Chevron lower third and the versus and
+scoreboard variants built on polygon clips.
 
 **2. The vision judge scored that same frame `legibility` 5 and passed it.** The pixel-level
 backstop missed a sliced word - so the answer is not a higher `AI_LITE_JUDGE_THRESHOLD`,
@@ -511,6 +538,18 @@ One primary code per failure; secondary findings ride the row.
 Alpha/compositing note: on the Lite track the model authors no CSS, so an alpha or
 compositing failure is a **catalog** bug - route it to the platform regression suite (the
 reflow/ticker/alpha probes belong there), never into a model score.
+
+**Semantic exhaustion is not a provider error, and the distinction decides comparisons.**
+`generation_failed` means the MODEL could not reach a usable decision even after its repair
+round - that is the quality signal, and it classifies as `REPAIR_FAILED`. A gateway code
+(`provider_rejected`, `malformed_response`) means the PROVIDER broke, which is no verdict on
+the model at all. The report classified every failed row as `PROVIDER_ERROR` until
+2026-07-29, so a flaky endpoint read exactly like a weak model: the first real comparison
+scored phi-4 at 67% machine-usable when all eight of its misses were transport. The eval now
+records the API's machine code rather than only its human message - classifying by matching
+English sentences breaks on the first reword - and `bench:report` prints an explicit warning
+beside any candidate whose failures are majority transport, because a rate like that is not
+a verdict and should not be ranked as one.
 
 ## 10. Promotion
 
