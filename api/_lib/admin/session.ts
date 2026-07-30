@@ -10,9 +10,9 @@
 // ordering: the gate runs BEFORE the method check, because a 405 would confirm the route is
 // real to a caller who is not allowed to know that.
 
-import { json, methodGuard } from '../_lib/http.js';
-import { requireAdmin } from '../_lib/adminAuth.js';
-import type { AdminSessionResponse } from '../../src/admin/types.js';
+import { json, methodGuard } from '../http.js';
+import { requireAdmin } from '../adminAuth.js';
+import type { AdminSessionResponse } from '../../../src/admin/types.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

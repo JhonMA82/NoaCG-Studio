@@ -1,7 +1,7 @@
-import { bearerToken, json, methodGuard, readJson } from '../../_lib/http.js';
-import { verifyUser } from '../../_lib/auth.js';
-import { liteError } from '../../_lib/aiLiteHttp.js';
-import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
+import { bearerToken, json, methodGuard, readJson } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { liteError } from '../aiLiteHttp.js';
+import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
 import type { LiteOutcomeRequest, LiteOutcomeResponse } from '../../../src/ai/liteTypes.js';
 
 const ID = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i;

@@ -57,7 +57,16 @@ async function handle(server, req, res) {
       body: ['GET', 'HEAD'].includes(req.method ?? 'GET') ? undefined : body,
     });
 
-    const mod = await server.ssrLoadModule(`/api/ai/${route}.ts`);
+    // Mirrors production's function split: generate is its own, lite/* and tasks/* have
+    // their own catch-alls, and the light routes share the /api/ai one.
+    const target = route === 'generate'
+      ? '/api/ai/generate.ts'
+      : route.startsWith('lite/')
+        ? '/api/ai/lite/[...path].ts'
+        : route.startsWith('tasks/')
+          ? '/api/ai/tasks/[...path].ts'
+          : '/api/ai/[...path].ts';
+    const mod = await server.ssrLoadModule(target);
     const response = await mod.default.fetch(request);
     res.statusCode = response.status;
     response.headers.forEach((value, key) => res.setHeader(key, value));

@@ -1,11 +1,11 @@
-import { bearerToken, json, methodGuard } from '../../_lib/http.js';
-import { serverAuthConfigured, verifyUser } from '../../_lib/auth.js';
-import { managedAiKey } from '../../_lib/aiCredentials.js';
-import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
-import { liteJudgeConfigured, liteProfile, liteProfileForUser } from '../../_lib/aiLiteProfile.js';
-import { liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
-import { approvedModelRoute } from '../../_lib/aiModelCatalog.js';
-import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../../_lib/entitlements.js';
+import { bearerToken, json, methodGuard } from '../http.js';
+import { serverAuthConfigured, verifyUser } from '../auth.js';
+import { managedAiKey } from '../aiCredentials.js';
+import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
+import { liteJudgeConfigured, liteProfile, liteProfileForUser } from '../aiLiteProfile.js';
+import { liteTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
+import { approvedModelRoute } from '../aiModelCatalog.js';
+import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
 import type { LiteStatusResponse } from '../../../src/ai/liteTypes.js';
 

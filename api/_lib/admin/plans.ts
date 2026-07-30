@@ -11,12 +11,12 @@
 // and unknown ones are dropped on save rather than stored, because a plan holding a key no
 // resolver reads is a plan that lies about what it grants.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../_lib/adminAuth.js';
-import { isFeatureKey, isLimitKey } from '../../src/entitlements/contract.js';
-import { RENDER_LIMITS } from '../../src/render/limits.js';
-import { RENDER_FORMATS } from '../../src/render/manifest.js';
-import type { AdminPlan, AdminPlanListResponse } from '../../src/admin/types.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
+import { isFeatureKey, isLimitKey } from '../../../src/entitlements/contract.js';
+import { RENDER_LIMITS } from '../../../src/render/limits.js';
+import { RENDER_FORMATS } from '../../../src/render/manifest.js';
+import type { AdminPlan, AdminPlanListResponse } from '../../../src/admin/types.js';
 
 const MAX_BODY_BYTES = 32_000;
 

@@ -9,10 +9,10 @@
 // user list - the client library cannot express GROUP BY, and at this instance's volume the
 // slice is small. `truncated` is the tripwire for when that stops being true.
 
-import { apiError, json, methodGuard } from '../_lib/http.js';
-import { requireAdmin, adminDb } from '../_lib/adminAuth.js';
-import { liteProfile } from '../_lib/aiLiteProfile.js';
-import type { AdminUsageDay, AdminUsageOverview } from '../../src/admin/types.js';
+import { apiError, json, methodGuard } from '../http.js';
+import { requireAdmin, adminDb } from '../adminAuth.js';
+import { liteProfile } from '../aiLiteProfile.js';
+import type { AdminUsageDay, AdminUsageOverview } from '../../../src/admin/types.js';
 
 /** Rows read per window. Well above a month of this instance's traffic; a window that would
  *  exceed it is reported short rather than silently trimmed. */

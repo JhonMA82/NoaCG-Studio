@@ -2,18 +2,18 @@
 // allowance for the imported-graphic-analysis task. Mirrors /api/ai/lite/status: never
 // routes, providers, models, prices, or endpoint slugs.
 
-import { bearerToken, json, methodGuard } from '../../../_lib/http.js';
-import { serverAuthConfigured, verifyUser } from '../../../_lib/auth.js';
-import { managedAiKey } from '../../../_lib/aiCredentials.js';
-import { importAnalysisProfile } from '../../../_lib/aiImportAnalysisProfile.js';
-import { importAnalysisTaskProfile, taskConfigured } from '../../../_lib/aiTaskRegistry.js';
-import { getLiteGenerationStore, liteLedgerConfigured } from '../../../_lib/aiLiteStore.js';
-import { resolveUserEntitlement } from '../../../_lib/entitlements.js';
-import { allows } from '../../../../src/entitlements/contract.js';
+import { bearerToken, json, methodGuard } from '../http.js';
+import { serverAuthConfigured, verifyUser } from '../auth.js';
+import { managedAiKey } from '../aiCredentials.js';
+import { importAnalysisProfile } from '../aiImportAnalysisProfile.js';
+import { importAnalysisTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
+import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
+import { resolveUserEntitlement } from '../entitlements.js';
+import { allows } from '../../../src/entitlements/contract.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
   type ImportAnalysisStatusResponse,
-} from '../../../../src/ai/importAnalysis/contract.js';
+} from '../../../src/ai/importAnalysis/contract.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

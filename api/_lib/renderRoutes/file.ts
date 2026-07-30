@@ -4,11 +4,11 @@
 // param because this URL is opened as a browser navigation (download), not a fetch.
 
 import { readFileSync } from 'node:fs';
-import { apiError, methodGuard, secretMatches } from '../_lib/http.js';
-import { getJobStore } from '../_lib/jobStore.js';
-import { localOutputPath } from '../_lib/executor.js';
-import { RENDER_FORMATS } from '../../src/render/manifest.js';
-import { slug } from '../../src/export/slug.js';
+import { apiError, methodGuard, secretMatches } from '../http.js';
+import { getJobStore } from '../jobStore.js';
+import { localOutputPath } from '../executor.js';
+import { RENDER_FORMATS } from '../../../src/render/manifest.js';
+import { slug } from '../../../src/export/slug.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

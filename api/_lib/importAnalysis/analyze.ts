@@ -10,29 +10,29 @@
 // (catalog-approved route, fail closed) -> durable ledger -> managed key -> per-IP burst
 // -> sign-in -> validated body -> cost ceiling -> atomic quota reservation -> the call.
 
-import { bearerToken, ipHash, json, methodGuard, readJson } from '../../_lib/http.js';
-import { verifyUser } from '../../_lib/auth.js';
-import { managedAiKey } from '../../_lib/aiCredentials.js';
-import { estimateModelCost, executeGatewayRequest, GatewayError } from '../../_lib/aiGateway.js';
-import { liteError } from '../../_lib/aiLiteHttp.js';
+import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { managedAiKey } from '../aiCredentials.js';
+import { estimateModelCost, executeGatewayRequest, GatewayError } from '../aiGateway.js';
+import { liteError } from '../aiLiteHttp.js';
 import {
   importAnalysisPolicy,
   importAnalysisPrice,
   importAnalysisProfile,
   type ImportAnalysisProfile,
-} from '../../_lib/aiImportAnalysisProfile.js';
-import { IMPORT_ANALYSIS_TASK_ID, importAnalysisTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
-import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
-import { resolveUserEntitlement } from '../../_lib/entitlements.js';
+} from '../aiImportAnalysisProfile.js';
+import { IMPORT_ANALYSIS_TASK_ID, importAnalysisTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
+import { admitTaskIp } from '../aiLiteRateLimit.js';
+import { resolveUserEntitlement } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../../_lib/systemSettings.js';
+import { routeDisabled, systemSettings } from '../systemSettings.js';
 import {
   getLiteGenerationStore,
   liteLedgerConfigured,
   modelResultPatch,
   type LiteGenerationRecord,
   type LiteReservation,
-} from '../../_lib/aiLiteStore.js';
+} from '../aiLiteStore.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
   IMPORT_ANALYSIS_OUTPUT,

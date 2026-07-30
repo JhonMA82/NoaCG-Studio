@@ -10,9 +10,9 @@
 // The list is not here - a user's grants come back with their detail view, because a grant
 // only ever makes sense next to the access it modifies.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../_lib/adminAuth.js';
-import { FEATURE_LABELS, LIMIT_LABELS, isFeatureKey, isLimitKey } from '../../src/entitlements/contract.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
+import { FEATURE_LABELS, LIMIT_LABELS, isFeatureKey, isLimitKey } from '../../../src/entitlements/contract.js';
 
 const MAX_BODY_BYTES = 4_000;
 

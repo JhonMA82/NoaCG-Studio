@@ -8,10 +8,10 @@
 // in with a plan already attached, not a gate. Re-closing signup would be a product change,
 // and it is not one this endpoint makes quietly.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../_lib/adminAuth.js';
-import { listUsers } from '../_lib/adminUsers.js';
-import type { AdminUserListResponse } from '../../src/admin/types.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
+import { listUsers } from '../adminUsers.js';
+import type { AdminUserListResponse } from '../../../src/admin/types.js';
 
 const MAX_BODY_BYTES = 4_000;
 

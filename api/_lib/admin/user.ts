@@ -6,9 +6,9 @@
 // Every action here changes what someone else can do, so every action needs 'admin' and
 // every action writes an audit row before returning. The read is 'support'.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit, type AdminActor } from '../_lib/adminAuth.js';
-import { getUserDetail } from '../_lib/adminUsers.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit, type AdminActor } from '../adminAuth.js';
+import { getUserDetail } from '../adminUsers.js';
 
 const MAX_BODY_BYTES = 4_000;
 

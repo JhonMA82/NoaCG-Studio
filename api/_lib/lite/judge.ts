@@ -6,25 +6,25 @@
 // Nothing is stored: the screenshot is judged and dropped; only the judge's provider
 // cost is added to the generation's ledger row so the fleet spend ceiling stays honest.
 
-import { bearerToken, ipHash, json, methodGuard, readJson } from '../../_lib/http.js';
-import { verifyUser } from '../../_lib/auth.js';
-import { managedAiKey } from '../../_lib/aiCredentials.js';
-import { estimateModelCost, executeGatewayRequest, GatewayError } from '../../_lib/aiGateway.js';
-import { liteError } from '../../_lib/aiLiteHttp.js';
+import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { managedAiKey } from '../aiCredentials.js';
+import { estimateModelCost, executeGatewayRequest, GatewayError } from '../aiGateway.js';
+import { liteError } from '../aiLiteHttp.js';
 import {
   liteJudgeConfigured,
   liteJudgePolicy,
   liteProfile,
   routePrice,
-} from '../../_lib/aiLiteProfile.js';
-import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
-import { resolveUserEntitlement } from '../../_lib/entitlements.js';
+} from '../aiLiteProfile.js';
+import { admitTaskIp } from '../aiLiteRateLimit.js';
+import { resolveUserEntitlement } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../../_lib/systemSettings.js';
-import { LITE_TASK_ID } from '../../_lib/aiTaskRegistry.js';
-import { approvedModelRoute } from '../../_lib/aiModelCatalog.js';
-import { getLiteGenerationStore, liteLedgerConfigured } from '../../_lib/aiLiteStore.js';
-import type { LiteJudgeReservation } from '../../_lib/aiLiteStore.js';
+import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { LITE_TASK_ID } from '../aiTaskRegistry.js';
+import { approvedModelRoute } from '../aiModelCatalog.js';
+import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
+import type { LiteJudgeReservation } from '../aiLiteStore.js';
 import {
   LITE_JUDGE_LIMITS,
   LITE_JUDGE_OUTPUT,

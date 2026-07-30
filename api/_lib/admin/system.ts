@@ -11,12 +11,12 @@
 // audited and benchmarked at promotion time (docs/AI_TASK_REGISTRY.md), and a database row
 // that could add a route would send paid traffic to an unreviewed model.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../_lib/adminAuth.js';
-import { resetSystemSettingsCache, systemSettings } from '../_lib/systemSettings.js';
-import { APPROVED_MODEL_CATALOG } from '../_lib/aiModelCatalog.js';
-import { FEATURE_LABELS, isFeatureKey } from '../../src/entitlements/contract.js';
-import type { AdminSystemState } from '../../src/admin/types.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
+import { resetSystemSettingsCache, systemSettings } from '../systemSettings.js';
+import { APPROVED_MODEL_CATALOG } from '../aiModelCatalog.js';
+import { FEATURE_LABELS, isFeatureKey } from '../../../src/entitlements/contract.js';
+import type { AdminSystemState } from '../../../src/admin/types.js';
 
 const MAX_BODY_BYTES = 16_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

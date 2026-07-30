@@ -1,31 +1,31 @@
-import { bearerToken, ipHash, json, methodGuard, readJson } from '../../_lib/http.js';
-import { verifyUser } from '../../_lib/auth.js';
-import { managedAiKey } from '../../_lib/aiCredentials.js';
+import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { managedAiKey } from '../aiCredentials.js';
 import {
   executeGatewayRequest,
   estimateModelCost,
   GatewayError,
   type GatewayExecutionPolicy,
-} from '../../_lib/aiGateway.js';
-import { liteError } from '../../_lib/aiLiteHttp.js';
+} from '../aiGateway.js';
+import { liteError } from '../aiLiteHttp.js';
 import {
   liteOpenRouterPolicy,
   liteProfile,
   liteProfileForUser,
   routePrice,
-} from '../../_lib/aiLiteProfile.js';
-import { admitTaskIp } from '../../_lib/aiLiteRateLimit.js';
-import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../../_lib/entitlements.js';
+} from '../aiLiteProfile.js';
+import { admitTaskIp } from '../aiLiteRateLimit.js';
+import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../../_lib/systemSettings.js';
-import { LITE_TASK_ID, liteTaskProfile, taskConfigured } from '../../_lib/aiTaskRegistry.js';
+import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { LITE_TASK_ID, liteTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
 import {
   getLiteGenerationStore,
   liteLedgerConfigured,
   modelResultPatch,
   type LiteGenerationRecord,
   type LiteReservation,
-} from '../../_lib/aiLiteStore.js';
+} from '../aiLiteStore.js';
 import {
   LITE_AI_CATEGORIES,
   LITE_READY_OUTPUT,

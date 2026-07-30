@@ -5,10 +5,10 @@
 // Signed-in only: anonymous acceptance is recorded client-side and never sent here.
 // The endpoint stores nothing but the version and timestamp - content-free.
 
-import { bearerToken, json, readJson } from '../_lib/http.js';
-import { serverAuthConfigured, verifyUser } from '../_lib/auth.js';
-import { consentStoreConfigured, readAiConsent, recordAiConsent } from '../_lib/aiConsentStore.js';
-import { AI_NOTICE_VERSION } from '../../src/ai/consentNotice.js';
+import { bearerToken, json, readJson } from '../http.js';
+import { serverAuthConfigured, verifyUser } from '../auth.js';
+import { consentStoreConfigured, readAiConsent, recordAiConsent } from '../aiConsentStore.js';
+import { AI_NOTICE_VERSION } from '../../../src/ai/consentNotice.js';
 
 const MAX_BODY_BYTES = 1000;
 

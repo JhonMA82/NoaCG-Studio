@@ -2,14 +2,14 @@
 // analysis (the Lite outcome pattern): applied at least one suggestion, or dismissed the
 // proposal (with an enumerated reason). Never the suggestions themselves.
 
-import { bearerToken, json, methodGuard, readJson } from '../../../_lib/http.js';
-import { verifyUser } from '../../../_lib/auth.js';
-import { liteError } from '../../../_lib/aiLiteHttp.js';
-import { getLiteGenerationStore, liteLedgerConfigured } from '../../../_lib/aiLiteStore.js';
+import { bearerToken, json, methodGuard, readJson } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { liteError } from '../aiLiteHttp.js';
+import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
 import {
   IMPORT_ANALYSIS_DISMISS_REASONS,
   type ImportAnalysisOutcomeRequest,
-} from '../../../../src/ai/importAnalysis/contract.js';
+} from '../../../src/ai/importAnalysis/contract.js';
 
 const ID = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i;
 const REASONS = new Set<string>(IMPORT_ANALYSIS_DISMISS_REASONS);

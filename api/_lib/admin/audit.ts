@@ -7,9 +7,9 @@
 // Keyset paging on created_at rather than an offset: an append-only log grows at the head,
 // and an offset would shift every row under the reader between pages.
 
-import { apiError, json, methodGuard } from '../_lib/http.js';
-import { requireAdmin, adminDb } from '../_lib/adminAuth.js';
-import type { AdminAuditEntry, AdminAuditResponse } from '../../src/admin/types.js';
+import { apiError, json, methodGuard } from '../http.js';
+import { requireAdmin, adminDb } from '../adminAuth.js';
+import type { AdminAuditEntry, AdminAuditResponse } from '../../../src/admin/types.js';
 
 const PAGE = 100;
 

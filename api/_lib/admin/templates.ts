@@ -14,9 +14,9 @@
 // unenforceable and a contradiction of docs/GOALS.md. Visibility answers "is this ready for
 // everyone yet", which is a different question.
 
-import { apiError, json, readJson } from '../_lib/http.js';
-import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../_lib/adminAuth.js';
-import type { AdminTemplateEntry, AdminTemplateListResponse, TemplateVisibility } from '../../src/admin/types.js';
+import { apiError, json, readJson } from '../http.js';
+import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
+import type { AdminTemplateEntry, AdminTemplateListResponse, TemplateVisibility } from '../../../src/admin/types.js';
 
 const MAX_BODY_BYTES = 8_000;
 const VISIBILITIES: TemplateVisibility[] = ['public', 'beta', 'internal', 'hidden'];

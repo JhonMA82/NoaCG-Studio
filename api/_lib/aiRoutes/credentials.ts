@@ -1,12 +1,12 @@
-import { json, methodGuard, readJson } from '../_lib/http.js';
+import { json, methodGuard, readJson } from '../http.js';
 import {
   canStoreUserAiKeys,
   clearUserAiKeysCookie,
   readUserAiKeys,
   sameOrigin,
   userAiKeysCookie,
-} from '../_lib/aiCredentials.js';
-import { isAiProviderId } from '../../src/ai/modelTypes.js';
+} from '../aiCredentials.js';
+import { isAiProviderId } from '../../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 1024;
 

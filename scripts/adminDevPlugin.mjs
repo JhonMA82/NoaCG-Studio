@@ -19,7 +19,10 @@ export function adminApiPlugin() {
   };
 }
 
-const ROUTES = new Set(['session', 'users', 'user', 'plans', 'grants', 'usage', 'system', 'templates', 'audit']);
+// There is deliberately NO route list here any more. The catch-all owns the closed dispatch
+// table, and a second copy in the dev server would be a second thing to keep in step - which
+// is how a route ends up reachable in one environment and 404 in the other. Everything under
+// /api/admin goes to the dispatcher and IT decides.
 
 function notFound(res) {
   res.statusCode = 404;
@@ -32,10 +35,6 @@ async function handle(server, req, res) {
   try {
     const [pathPart, query] = (req.url ?? '/').split('?');
     const route = pathPart.replace(/^\/+|\/+$/g, '');
-    if (!ROUTES.has(route)) {
-      notFound(res);
-      return;
-    }
 
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -52,7 +51,9 @@ async function handle(server, req, res) {
       body: ['GET', 'HEAD'].includes(req.method ?? 'GET') ? undefined : body,
     });
 
-    const mod = await server.ssrLoadModule(`/api/admin/${route}.ts`);
+    // The catch-all, exactly as production routes it - so the dev server exercises the real
+    // dispatcher rather than reaching past it into a handler module.
+    const mod = await server.ssrLoadModule('/api/admin/[...path].ts');
     const response = await mod.default.fetch(request);
     res.statusCode = response.status;
     response.headers.forEach((value, key) => res.setHeader(key, value));

@@ -1,7 +1,7 @@
-import { json, methodGuard } from '../_lib/http.js';
-import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
-import { discoverProviderModels } from '../_lib/aiModelDiscovery.js';
-import { isAiProviderId } from '../../src/ai/modelTypes.js';
+import { json, methodGuard } from '../http.js';
+import { managedAiKey, readUserAiKeys } from '../aiCredentials.js';
+import { discoverProviderModels } from '../aiModelDiscovery.js';
+import { isAiProviderId } from '../../../src/ai/modelTypes.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {
