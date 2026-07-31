@@ -50,9 +50,17 @@ references + copy-line calibration in `creative-pilot-out/catalog-refs-ltvs/`.
 5. **Critique (blocker 4) unchanged:** findings on 20/20 D runs, repair landed 1/20. The
    acceptance rule still makes landing near-impossible on invalid bases.
 6. **A new dominant failure signature for staged arms:** `bench-entrance` + `bench-replay`
-   pairs on most invalid C/D rows (style patches that leave content off-screen at the
-   entrance's end, or break replay determinism). Worth one focused diagnostic before a
-   full pass - it is the difference between C/D validity ~40% and ~80%.
+   pairs on most invalid C/D rows. DIAGNOSED AND FIXED after this report: the style stage
+   re-implements the lifecycle as CSS state classes (`.visible`, `.reset`) nothing ever
+   toggles, sets `visibility: hidden` on the box (nothing writes inline visibility, so the
+   entrance can never reveal it) and `opacity: 0` on never-animated inner elements (cells,
+   spans - GSAP animates only the box and regions). The repair loop made it worse: the
+   model answered the bench findings with more of the same classes. Fixed the clamp way in
+   `applyCreativeStyle` (`stripHidingDeclarations`: visibility/display poison stripped from
+   scaffold selectors, opacity-0 stripped where the rule's subject is never animated, a
+   patch's own classes untouched) plus a lifecycle-ownership paragraph in the style prompt;
+   pinned end-to-end in e2e/creative-pilot.spec.ts (a poisoned patch passes the full
+   production bench with no entrance/replay findings).
 
 ## Costs and latency (criterion 7, this round)
 
