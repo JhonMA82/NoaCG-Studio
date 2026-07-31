@@ -57,6 +57,7 @@ const ZOOM_MAX = 8;
 export default function PreviewFrame({ iframeRef }: Props) {
   const template = useTemplateStore((s) => s.template);
   const previewBg = useTemplateStore((s) => s.previewBg);
+  const previewError = useTemplateStore((s) => s.previewError);
   const setPreviewBg = useTemplateStore((s) => s.setPreviewBg);
   const setPreviewError = useTemplateStore((s) => s.setPreviewError);
   const guides = useTemplateStore((s) => s.guides);
@@ -348,6 +349,16 @@ export default function PreviewFrame({ iframeRef }: Props) {
           padY={padY}
         />
       </div>
+
+      {/* A runtime error in the template document must not fail silently on the canvas: the
+          store already records it for the Export gate, but the person watching the stage saw
+          nothing. Worn where the failure is, like the video shell's .video-preview-error;
+          cleared automatically because every rebuild starts by resetting previewError. */}
+      {previewError && (
+        <div className="preview-runtime-error" data-testid="preview-runtime-error" title={previewError}>
+          ✗ {previewError}
+        </div>
+      )}
 
       <div className="preview-toolbar">
         <span
