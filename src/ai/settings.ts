@@ -112,6 +112,9 @@ export interface AiSettings {
   /** Optional provider sampling controls, primarily used by the versioned benchmark. */
   temperature: number | null;
   seed: number | null;
+  /** The NoaCG Pro concept-image model (an OpenRouter image-output model id). Non-secret,
+   *  like every route preference here; null = not chosen yet. */
+  proImageModel: string | null;
 }
 
 export interface AiProviderStatus {
@@ -216,6 +219,9 @@ export function loadAiSettings(): AiSettings {
       typeof saved.seed === 'number' && Number.isSafeInteger(saved.seed)
         ? saved.seed
         : null,
+    proImageModel: typeof saved.proImageModel === 'string' && saved.proImageModel.trim()
+      ? saved.proImageModel.trim().slice(0, 160)
+      : null,
   };
 }
 

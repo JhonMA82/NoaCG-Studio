@@ -32,6 +32,8 @@ import FieldsStep from './steps/FieldsStep';
 import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
+import ProStep from './steps/ProStep';
+import type { ProResult } from '../../ai/pro/pipeline';
 import VideoStep from './steps/VideoStep';
 import BlankStep from './steps/BlankStep';
 import FinishStep, { aiSummaryRows, catalogSummaryRows } from './steps/FinishStep';
@@ -64,6 +66,8 @@ import type { StyleTag } from '../../model/fonts';
 const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
+// NoaCG Pro shares the AI shape: one working step whose result IS the configuration.
+const STEP_TITLES_PRO = ['Start', 'Pro', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
 const STEP_TITLES_BLANK = ['Start', 'Blank project'];
 // A kit is ONE decision - which show am I running - so it has no chain of steps.
@@ -93,7 +97,7 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank' | 'kit'>('template');
+  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'pro' | 'video' | 'blank' | 'kit'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   // Browse-step facet state lives here (not in the step) so Back returns with the
   // filters intact for the wizard session; a fresh open starts clean.
@@ -110,6 +114,8 @@ export default function CreationWizard() {
   // The Create-with-AI conversation as it stands (talk turns only), reported by AiStep on every
   // change — committed to the created project so the graphic carries the reasoning that made it.
   const [aiThread, setAiThread] = useState<AiThread | null>(null);
+  // NoaCG Pro: the compiled result (template + editability report + concept), previewed live.
+  const [proResult, setProResult] = useState<ProResult | null>(null);
   const acceptedAiGeneration = useRef<string | null>(null);
   // The saved project brand (the "Use current project's colors & font" toggle keeps new
   // graphics in the same package).
@@ -166,6 +172,7 @@ export default function CreationWizard() {
       setDraft(initialDraft());
       setBrowseFilters(NO_BROWSE_FILTERS);
       setAiResult(null);
+      setProResult(null);
       acceptedAiGeneration.current = null;
       setAiThread(null);
       setStretchDemo(null);
@@ -248,12 +255,13 @@ export default function CreationWizard() {
   // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
   // continuation keeps the old six-step shape. Finish always follows it.
   const animStep = mode === 'import' ? 5 : 4;
-  // AI has no configuring steps of its own — the result IS the configuration — so its Finish
-  // sits right after Create (index 2), not after an animation step it never shows.
-  const finishStep = mode === 'ai' ? 2 : animStep + 1;
+  // AI and Pro have no configuring steps of their own — the result IS the configuration — so
+  // their Finish sits right after the working step (index 2), not after an animation step
+  // they never show.
+  const finishStep = mode === 'ai' || mode === 'pro' ? 2 : animStep + 1;
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
-  const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
+  const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'pro' && mode !== 'video';
   const demoOut =
     onAnimationStep &&
     !!variant &&
@@ -397,6 +405,39 @@ export default function CreationWizard() {
     });
   };
 
+  // The Pro graphic's name: the Finish field, else the compiled template's own name.
+  const proName = (): string => draft.name.trim() || (proResult?.template.name ?? '');
+
+  /** Build the Pro result as the working project - the AI door's shape without the
+   *  spec/thread/Lite bookkeeping Pro does not have. Both Finish doors go through here. */
+  const applyProProject = async (): Promise<SpxTemplate | null> => {
+    if (!proResult || (proResult.validation !== null && !proResult.validation.ok)) return null;
+    const name = proName();
+    const template = proResult.template.name === name ? proResult.template : { ...proResult.template, name };
+    await applyGenerated(template);
+    trackEvent('activation', 'pro');
+    return useTemplateStore.getState().template;
+  };
+
+  const createFromPro = () => {
+    void applyProProject();
+  };
+
+  const createFromProAndExport = () => {
+    void applyProProject().then((template) => {
+      if (!template) return;
+      const saved = saveGraphicAs(proName(), { kind: 'standalone' });
+      const s = useTemplateStore.getState();
+      closeGallery();
+      if (saved.ok) useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+      useExportUi.getState().openExport({
+        template: s.template,
+        sampleData: s.sampleData,
+        graphicId: s.saved.graphicId,
+      });
+    });
+  };
+
   /**
    * Build the drafted graphic and make it the working project. BOTH Finish doors go through
    * here — including the export one, which is what keeps the two endings byte-identical: the
@@ -482,6 +523,7 @@ export default function CreationWizard() {
   // the step's own read-back says what was built, so the actions win the room here.
   const showPreview =
     (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
+    : mode === 'pro' ? (step === 1 || step === finishStep) && !!proResult
     : mode === 'video' ? false
     : mode === 'kit' ? false
     : mode === 'blank' ? step === 1
@@ -490,6 +532,7 @@ export default function CreationWizard() {
     : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
+    : mode === 'pro' ? STEP_TITLES_PRO
     : mode === 'video' ? STEP_TITLES_VIDEO
     : mode === 'kit' ? STEP_TITLES_KIT
     : mode === 'blank' ? STEP_TITLES_BLANK
@@ -533,6 +576,7 @@ export default function CreationWizard() {
             <span className="wz-title-sep">·</span>
             <span className="wz-title-step">
               {mode === 'ai' ? 'Create with AI'
+                : mode === 'pro' ? 'Create with AI Pro'
                 : mode === 'video' ? 'Video with AI'
                 : mode === 'kit' ? 'Start from a kit'
                 : mode === 'design' ? 'Import graphic'
@@ -577,6 +621,7 @@ export default function CreationWizard() {
                 onTemplates={() => { setMode('template'); setStep(1); }}
                 onImportGraphic={() => { setMode('design'); setStep(1); }}
                 onAi={() => { setMode('ai'); setStep(1); }}
+                onPro={() => { setMode('pro'); setStep(1); }}
                 onVideo={() => {
                   if (!draft.formatTouched) patch(DEFAULT_VIDEO_FORMAT);
                   setMode('video');
@@ -646,6 +691,18 @@ export default function CreationWizard() {
                     patch({ importedImages: images, logoAssetPath: images[0]?.path ?? null });
                     setMode('import');
                   }}
+                />
+              </div>
+            )}
+            {/* ProStep stays MOUNTED across the Pro → Finish move (hidden on Finish), the
+                AiStep pattern: stepping to the doors and back never discards the concept. */}
+            {mode === 'pro' && (step === 1 || step === finishStep) && (
+              <div hidden={step === finishStep}>
+                <ProStep
+                  format={draftFormatSelection(draft)}
+                  onFormat={(selection) => patch(formatDraftPatch(selection))}
+                  result={proResult}
+                  onResult={setProResult}
                 />
               </div>
             )}
@@ -804,8 +861,21 @@ export default function CreationWizard() {
                 onReplay={() => setReplayKey((k) => k + 1)}
               />
             )}
+            {/* Finish — NoaCG Pro: summarised off the compiled template, doors through
+                applyProProject. */}
+            {step === finishStep && mode === 'pro' && proResult && (
+              <FinishStep
+                name={draft.name}
+                namePlaceholder={proResult.template.name}
+                onName={(name) => patch({ name })}
+                summary={aiSummaryRows(proResult.template, proResult.validation?.ok ?? true)}
+                onOpenEditor={createFromPro}
+                onExport={createFromProAndExport}
+                busy={proResult.validation !== null && !proResult.validation.ok}
+              />
+            )}
             {/* Finish — shared by every catalog-shaped mode, design included. */}
-            {step === finishStep && mode !== 'ai' && mode !== 'video' && variant && (
+            {step === finishStep && mode !== 'ai' && mode !== 'pro' && mode !== 'video' && variant && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={variant.name}
@@ -833,15 +903,17 @@ export default function CreationWizard() {
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
 
-          {showPreview && (mode === 'ai' ? aiResult : mode === 'blank' ? blankPreview : previewTemplate) && (
+          {showPreview && (mode === 'ai' ? aiResult : mode === 'pro' ? proResult : mode === 'blank' ? blankPreview : previewTemplate) && (
             <aside className="wz-side">
               <WizardPreview
                 template={
                   mode === 'ai'
                     ? aiResult!.template
-                    : mode === 'blank'
-                      ? blankPreview!
-                      : previewTemplate!
+                    : mode === 'pro'
+                      ? proResult!.template
+                      : mode === 'blank'
+                        ? blankPreview!
+                        : previewTemplate!
                 }
                 replayKey={replayKey}
                 demoOut={demoOut}
@@ -855,7 +927,7 @@ export default function CreationWizard() {
         <div className="wz-footer">
           <div className="row" style={{ gap: 14, alignItems: 'center' }}>
             {step > 0 && <button onClick={() => goToStep(-1)}>‹ Back</button>}
-            {brand && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
+            {brand && mode !== 'pro' && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
               <label className="wz-match" title="Reuse this project's palette and font so the new graphic belongs to the same package">
                 <input
                   type="checkbox"
@@ -887,6 +959,20 @@ export default function CreationWizard() {
                 Next ›
               </button>
             )}
+            {/* Pro advances to Finish once a compiled result stands and its validation (when
+                it ran) passed - the same two-door ending as AI. */}
+            {mode === 'pro' && step === 1 && (
+              <button
+                className="primary wz-next"
+                disabled={!proResult || (proResult.validation !== null && !proResult.validation.ok)}
+                onClick={() => goToStep(1)}
+                title={proResult && proResult.validation && !proResult.validation.ok
+                  ? 'The compiled graphic has validation errors — regenerate or recompile first'
+                  : undefined}
+              >
+                Next ›
+              </button>
+            )}
             {/* "Create project" is the quiet shortcut out of any configuring step — create
                 now, remaining steps keep their defaults. It stands down entirely on FINISH,
                 whose two door cards ARE the actions: a third button saying almost the same
@@ -896,7 +982,7 @@ export default function CreationWizard() {
                 step that does not exist.
                 Design mode: Create is available from the Design step on (a design that
                 needs no erase, fields, or animation choice creates immediately). */}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {mode !== 'ai' && mode !== 'pro' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
                 disabled={!previewTemplate}
                 onClick={create}
@@ -909,7 +995,7 @@ export default function CreationWizard() {
                 Create project
               </button>
             )}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
+            {mode !== 'ai' && mode !== 'pro' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
               <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
                 Next ›
               </button>

@@ -19,7 +19,8 @@ const MAP = [
   // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts']],
+  [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts']],
   // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
   // needs that spec and nothing else.
   [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
@@ -40,7 +41,7 @@ const MAP = [
   // catalog and the type registry (src/templates/structuralAnchor.ts): a structure the
   // catalog gains or loses moves a route, which is the decay rule the spec enforces.
   [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts']],
-  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts']],
+  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts']],
   [/^src\/components\/Canvas/, ['canvas-selection.spec.ts', 'canvas-keyframe.spec.ts', 'multi-select.spec.ts', 'wysiwyg.spec.ts', 'inline-edit.spec.ts', 'pasteboard.spec.ts', 'import-graphic.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/(StepTimeline|TimelineDock|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
