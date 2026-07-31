@@ -11,7 +11,9 @@ import type { AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/
 import { supabaseSecretKey } from './jobStore.js';
 
 export interface GatewayLedgerEntry {
-  task: 'byo-generate';
+  /** 'pro-generate' when the caller tagged the NoaCG Pro surface; 'byo-generate' otherwise.
+   *  The task CHECK constraint pins these values (migrations 0012 + 0025). */
+  task: 'byo-generate' | 'pro-generate';
   userId: string | null;
   ipHash: string;
   keySource: 'byo' | 'managed';
@@ -40,7 +42,7 @@ export function gatewayLedgerEntry(input: {
   const provider = input.result?.provider ?? input.body.route.provider;
   const usage = input.result?.usage;
   return {
-    task: 'byo-generate',
+    task: input.body.surface === 'pro' ? 'pro-generate' : 'byo-generate',
     userId: input.userId,
     ipHash: input.ipHash,
     keySource: input.userKeys[provider] ? 'byo' : 'managed',

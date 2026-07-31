@@ -464,6 +464,7 @@ test('the surface discriminator is allowlisted, preserved, and optional', () => 
   // Absent = the general harness, which no feature key gates.
   assert.equal(validateGatewayBody(base).surface, undefined);
   assert.equal(validateGatewayBody({ ...base, surface: 'video' }).surface, 'video');
+  assert.equal(validateGatewayBody({ ...base, surface: 'pro' }).surface, 'pro');
 
   // An unknown surface is REFUSED, never dropped: dropping it would turn a call that meant
   // to name a gated surface into an ungated one (docs/ADMIN.md, "Gating a surface on a
@@ -475,6 +476,114 @@ test('the surface discriminator is allowlisted, preserved, and optional', () => 
       `surface ${JSON.stringify(surface)} should be refused`,
     );
   }
+});
+
+test('an OpenRouter image request asks for the image modality and normalizes the answer', async () => {
+  let sent: Record<string, unknown> = {};
+  const imageBody: AiGatewayRequestBody = {
+    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    request: {
+      system: 'Render a broadcast lower third concept.',
+      messages: [{ role: 'user', content: 'A calm news strap' }],
+      expect: 'image',
+    },
+  };
+  const result = await executeGatewayRequest(imageBody, {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{
+          message: {
+            content: '',
+            images: [
+              { type: 'image_url', image_url: { url: 'data:image/png;base64,aGVsbG8=' } },
+              // A hosted URL is not a self-contained asset; it must not count as an image.
+              { type: 'image_url', image_url: { url: 'https://cdn.example/image.png' } },
+            ],
+          },
+        }],
+        usage: { prompt_tokens: 40, completion_tokens: 1200, cost: 0.03 },
+      }));
+    },
+  });
+
+  assert.deepEqual(sent.modalities, ['image', 'text']);
+  assert.deepEqual(result.images, [{ mediaType: 'image/png', base64: 'aGVsbG8=' }]);
+  assert.equal(result.usage.estimatedCost?.amount, 0.03);
+});
+
+test('an image request answered without an image is a retryable malformed response', async () => {
+  const imageBody: AiGatewayRequestBody = {
+    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    request: {
+      system: 'Render.',
+      messages: [{ role: 'user', content: 'brief' }],
+      expect: 'image',
+    },
+  };
+  await assert.rejects(
+    executeGatewayRequest(imageBody, {
+      keyFor,
+      fetchImpl: async () => new Response(JSON.stringify({
+        choices: [{ message: { content: 'Sorry, here is a description instead.' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 20 },
+      })),
+    }),
+    (error: unknown) => error instanceof GatewayError
+      && error.code === 'malformed_response'
+      && error.retryable === true,
+  );
+});
+
+test('providers without an image API refuse expect:image instead of answering in text', async () => {
+  const imageBody: AiGatewayRequestBody = {
+    route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+    request: {
+      system: 'Render.',
+      messages: [{ role: 'user', content: 'brief' }],
+      expect: 'image',
+    },
+  };
+  await assert.rejects(
+    executeGatewayRequest(imageBody, {
+      keyFor,
+      fetchImpl: async () => {
+        throw new Error('the provider must never be reached');
+      },
+    }),
+    (error: unknown) => error instanceof GatewayError && error.code === 'invalid_request',
+  );
+});
+
+test('the body validator holds the image-request contract', () => {
+  const base = {
+    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    request: { system: 's', messages: [{ role: 'user', content: 'hi' }] },
+  };
+  const withExpect = {
+    ...base,
+    request: { ...base.request, expect: 'image' },
+  };
+  assert.equal(validateGatewayBody(withExpect).request.expect, 'image');
+
+  // Only 'image' is a valid expectation - anything else is refused, not dropped.
+  assert.throws(
+    () => validateGatewayBody({ ...base, request: { ...base.request, expect: 'audio' } }),
+    (error: unknown) => error instanceof GatewayError && error.code === 'invalid_request',
+  );
+  // Image output and forced structured output are mutually exclusive by contract.
+  assert.throws(
+    () => validateGatewayBody({
+      ...base,
+      request: {
+        ...base.request,
+        expect: 'image',
+        structuredOutput: { name: 'emit', description: 'd', schema: { type: 'object' } },
+      },
+    }),
+    (error: unknown) => error instanceof GatewayError && error.code === 'invalid_request',
+  );
 });
 
 test('seals user keys in a tamper-evident HttpOnly cookie', () => {

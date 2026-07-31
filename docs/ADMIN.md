@@ -79,8 +79,9 @@ server path can act on one by accident. Enforcement is its own later, deliberate
 
 ### Feature keys
 
-`ai.lite`, `ai.import-analysis`, `ai.video`, `ai.byo-key`, `render.cloud`, `sync.cloud`,
-`community.publish`, `control.hosted`, `showchat`, `templates.beta`, `templates.internal`.
+`ai.lite`, `ai.import-analysis`, `ai.pro`, `ai.video`, `ai.byo-key`, `render.cloud`,
+`sync.cloud`, `community.publish`, `control.hosted`, `showchat`, `templates.beta`,
+`templates.internal`.
 
 Adding one means adding it to `FEATURE_KEYS`, `FEATURE_LABELS`, and both built-in plans - the
 test fails otherwise, which is how an unlabelled or default-less key is kept out.
@@ -115,6 +116,7 @@ routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path
 | `ai.lite` | `api/_lib/lite/generations.ts`, `judge.ts`, and `status.ts` (so the panel cannot offer what the endpoint would refuse) |
 | `ai.import-analysis` | `api/_lib/importAnalysis/analyze.ts` + its `status.ts` |
 | `ai.byo-key` | `api/ai/generate.ts`, on the BYO branch only, and only when a token was presented - account-free BYO must keep working |
+| `ai.pro` | `api/ai/generate.ts`, on the `surface: 'pro'` discriminator the NoaCG Pro pipeline sets - the same mechanism, honest limit, and testability as `ai.video` below |
 | `ai.video` | `api/ai/generate.ts`, on the `surface: 'video'` discriminator the video harness sets; the decision itself is `gatedFeature()` + `surfaceRefused()` in `api/_lib/entitlements.ts`, so it is testable without a verified token. It binds only a caller the server RECOGNISED - anonymous resolves defaults that carry no account feature, and account-free BYO video works today. See "Gating a surface on a shared endpoint" below for what the check can and cannot do |
 | `render.cloud` | `api/render/start.ts` |
 | `community.publish` | RLS: the two `community_templates_publish_*` gates + `community_assets_publish_insert` on the bucket (`0022`). Moderators are exempt on UPDATE, so a takedown still works while the switch is off |
