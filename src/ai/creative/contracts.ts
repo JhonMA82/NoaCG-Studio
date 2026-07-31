@@ -227,7 +227,18 @@ export function normalizeCreativeSpec(raw: unknown, intent: StructuralIntent): C
         typography: { caseStyle: 'as-typed', weight: 'semibold', tracking: 'normal' },
       }];
 
-  const finalRegions = regions.length ? regions : fallbackRegions;
+  // ONE repeating region per graphic: repeating data rides one textarea (the house list
+  // convention), the compiled runtime rebuilds one rows container, and the scaffold gives
+  // that container a fixed id - a second repeating region would duplicate the DOM id and
+  // stay empty forever (the bracket smoke's br-in-progress C compiled exactly that:
+  // benchmarks/creative/v1/SMOKE-2026-07-31.md item 6). Later repeating flags demote to
+  // plain regions; their itemParts survive as ordinary content the verify stage measures.
+  const finalRegions = (regions.length ? regions : fallbackRegions).map((g, i, all) => {
+    const firstRepeating = all.findIndex((o) => o.repeating);
+    if (!g.repeating || i === firstRepeating) return g;
+    const { repeating: _dropped, ...plain } = g;
+    return plain;
+  });
   const known = new Set(finalRegions.map((g) => g.id));
 
   const states = (Array.isArray(r.states) ? r.states : [])

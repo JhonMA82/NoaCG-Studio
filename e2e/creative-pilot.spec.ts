@@ -180,6 +180,45 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.stateFindings).toBe(0);
   });
 
+  test('a second repeating region demotes to plain - one rows container, one DOM id', async ({ page }) => {
+    await open(page);
+    // Repeating data rides ONE textarea (the house list convention), and the scaffold's
+    // rows container has a fixed id. The bracket smoke compiled a spec with TWO repeating
+    // regions into duplicate `creative-rows` ids - the list runtime fed the first and the
+    // second stayed empty forever (SMOKE-2026-07-31.md item 6). Normalization now keeps
+    // the FIRST repeating region and demotes the rest.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const i = normalizeIntent(intent);
+      const doubled = {
+        ...(spec as Record<string, unknown>),
+        regions: [
+          { id: 'header', role: 'title', emphasis: 'secondary', fieldKeys: ['title'] },
+          { id: 'rounds', role: 'tie', emphasis: 'primary', repeating: true, itemParts: ['round', 'home', 'away'] },
+          { id: 'ties', role: 'match', emphasis: 'primary', repeating: true, itemParts: ['home', 'away'] },
+        ],
+      };
+      const normalized = normalizeCreativeSpec(doubled, i);
+      const { scaffold, validation } = compileScaffoldOnly(normalized, i);
+      const single = normalizeCreativeSpec(spec, i); // the mutation twin: one repeating region
+      return {
+        errors: validation.errors.map((e) => e.rule),
+        repeatingIds: normalized.regions.filter((g) => g.repeating).map((g) => g.id),
+        rowsContainers: (scaffold.template.html.match(/id="creative-rows"/g) ?? []).length,
+        demotedStillPresent: normalized.regions.some((g) => g.id === 'ties'),
+        twinRepeating: single.regions.filter((g) => g.repeating).map((g) => g.id),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.errors).toEqual([]);
+    expect(report.repeatingIds).toEqual(['rounds']); // first wins, second demoted
+    expect(report.rowsContainers).toBe(1); // exactly one rows container, one DOM id
+    expect(report.demotedStillPresent).toBe(true); // demoted, never dropped
+    expect(report.twinRepeating).toEqual(['rounds']); // the twin: a single flag survives
+  });
+
   test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);
