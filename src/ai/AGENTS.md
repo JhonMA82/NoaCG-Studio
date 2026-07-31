@@ -312,9 +312,20 @@ rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, 
 `neutralSkeleton.ts` is what the coder arm studies instead.
 
 Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
-expensive rig in the repo, explicit route, priced, ceilinged), `bench:creative:refs` (free
+expensive rig in the repo, explicit routes, priced, ceilinged), `bench:creative:refs` (free
 catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
 e2e/creative-pilot.spec.ts.
+
+**The pilot rig's routes are PER ARM CLASS** (the 2026-07-31 bracket smoke, blocker 1:
+qwen3-30b completed 0/8 coder-arm runs on `malformed_response` over ~10k-token emits while
+going 8/8 on the staged arm - one route for every arm measures emit-size reliability, not
+the arms): `--route` is the candidate under test (arms C/D + the shared intent stage),
+`--coder-route` is REQUIRED for arms A/B and may equal `--route` to restore single-model
+attribution. The rig pins each arm's route through saved settings - the same mechanism
+that picks production's session model - so the frozen control's code is untouched; each
+stage's serving model is in the ledger, `pilot.json` records `armRoutes`, and per-stage
+cost is priced by the RECORDED model first. With split routes, A-vs-B and C-vs-A stay
+single-variable; B-vs-C differs in model class AND staging, and the report says so.
 
 ## The quality gate (injected, not owned)
 

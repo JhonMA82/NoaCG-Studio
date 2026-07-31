@@ -6,13 +6,30 @@
 // latency.
 //
 //   node scripts/creative-pilot-bench.mjs --route=<provider>:<model> \
-//     [--arms=A,B,C,D] [--only=id,id,…|count] [--category=lower-third|versus|bracket] \
-//     [--critique-route=<provider>:<model>] [--out=dir] [--max-cost=usd] [--label=name]
+//     --coder-route=<provider>:<model> [--arms=A,B,C,D] [--only=id,id,…|count] \
+//     [--category=lower-third|versus|bracket] [--critique-route=<provider>:<model>] \
+//     [--out=dir] [--max-cost=usd] [--label=name]
+//
+// ROUTES ARE PER ARM CLASS. `--route` is the CANDIDATE under test: it serves the staged
+// arms C/D (concepts, spec, style, repairs) and the rig's shared intent stage - the small
+// structured calls the Lite comparison proved cheap models handle. `--coder-route` serves
+// the CODER-shaped arms A/B, whose single ~10-16k-token template emits are a different
+// call class: the bracket smoke (benchmarks/creative/v1/SMOKE-2026-07-31.md, blocker 1)
+// measured qwen3-30b completing 0/8 arm-A and 3/8 arm-B runs on gateway malformed_response
+// while going 8/8 on arm C - one route for every arm measures emit-size reliability, not
+// the arms. Required whenever the arms include A or B; pass the same route as --route to
+// run the old single-model design (the right call when the candidate IS a coder-class
+// model). Arm A stays the frozen control either way: the rig pins the route through saved
+// settings - the same mechanism that picks production's session model - and the provider
+// code is untouched. Attribution caveat, stated where the numbers land: with split routes,
+// B-vs-C differs in model class AND staging; A-vs-B (same coder route) and C-vs-A (the
+// product question) stay single-variable. pilot.json records the route per arm and the
+// stage ledgers record the model per call.
 //
 // SPENDS REAL TOKENS - more than any other rig here, because it runs a whole generation per
-// arm. The route is EXPLICIT and fails closed (no env, no saved settings), the model must be
-// priced in scripts/ai-bench-prices.json, and the run prints its worst legal spend BEFORE the
-// first call and stops at --max-cost (default $1.00) mid-run.
+// arm. Every route is EXPLICIT and fails closed (no env, no saved settings), every model
+// must be priced in scripts/ai-bench-prices.json, and the run prints its worst legal spend
+// BEFORE the first call and stops at --max-cost (default $1.00) mid-run.
 //
 // Run the FREE gates first, so a paid run measures the pipeline and not a stale expectation:
 //   npx playwright test e2e/creative-pilot.spec.ts e2e/creative-routing.spec.ts
@@ -30,6 +47,7 @@ const ARGS = process.argv.slice(2);
 const flag = (name) => ARGS.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 
 const ROUTE = flag('route') ?? '';
+const CODER_ROUTE = flag('coder-route') ?? '';
 const CRITIQUE_ROUTE = flag('critique-route') ?? '';
 const OUT = path.resolve(flag('out') || './creative-pilot-out');
 const FILTER = flag('only') ?? '';
@@ -57,21 +75,49 @@ if (ARMS.includes('D') && !critiqueModel) {
   console.error('Arm D looks at a rendered frame, so it needs a vision model: --critique-route=<provider>:<model id>.');
   process.exit(1);
 }
+const [coderProvider, ...coderModelParts] = CODER_ROUTE.split(':');
+const coderModel = coderModelParts.join(':');
+if ((ARMS.includes('A') || ARMS.includes('B')) && (!coderProvider || !coderModel)) {
+  console.error(
+    'Arms A/B emit whole templates (a coder-class call the smoke showed planning models cannot '
+    + 'carry - SMOKE-2026-07-31.md blocker 1): name their route explicitly with '
+    + '--coder-route=<provider>:<model id>. Pass the same route as --route to run every arm '
+    + 'on one model.',
+  );
+  process.exit(1);
+}
 
 const prices = JSON.parse(readFileSync(new URL('./ai-bench-prices.json', import.meta.url), 'utf8'));
-const price = prices[model];
-if (!price || typeof price.in !== 'number' || typeof price.out !== 'number') {
-  console.error(`No price entry for "${model}" in scripts/ai-bench-prices.json - add it (bench:discover) before spending.`);
-  process.exit(1);
-}
-const critiquePrice = critiqueModel ? prices[critiqueModel] : null;
-if (critiqueModel && !critiquePrice) {
-  console.error(`No price entry for the critique model "${critiqueModel}" - add it (bench:discover) before spending.`);
-  process.exit(1);
-}
+const priced = (id, label) => {
+  const entry = prices[id];
+  if (!entry || typeof entry.in !== 'number' || typeof entry.out !== 'number') {
+    console.error(`No price entry for the ${label} "${id}" in scripts/ai-bench-prices.json - add it (bench:discover) before spending.`);
+    process.exit(1);
+  }
+  return entry;
+};
+const price = priced(model, 'candidate model');
+const coderPrice = coderModel ? priced(coderModel, 'coder model') : null;
+const critiquePrice = critiqueModel ? priced(critiqueModel, 'critique model') : null;
 
 const costOf = (usage, p = price) =>
   ((usage?.inputTokens ?? 0) * p.in + (usage?.outputTokens ?? 0) * p.out) / 1e6;
+
+/** Price one recorded stage. The ledger names the model that actually served the call
+ *  (arm A's intent stage runs on the provider's fast model, the critique on the vision
+ *  route), so a known model prices exactly and only an unnamed stage falls back to the
+ *  arm's base price. */
+const stageCost = (s, armBasePrice) => {
+  const exact = s.model ? prices[s.model] : null;
+  if (exact) return costOf(s.usage, exact);
+  if (s.stage === 'critique' && critiquePrice) return costOf(s.usage, critiquePrice);
+  return costOf(s.usage, armBasePrice);
+};
+
+/** The route a given arm runs on: A/B are the coder-class arms, C/D the candidate's. */
+const armRoute = (arm) => ('AB'.includes(arm)
+  ? { provider: coderProvider, model: coderModel, price: coderPrice }
+  : { provider, model, price });
 
 // The WORST legal spend per arm, per brief. Arm A carries the ~18.3k-token catalog digest
 // plus the coder's example, which is why its input bound dwarfs the others'.
@@ -94,14 +140,22 @@ if (!selected.length) {
   process.exit(1);
 }
 
+// Each arm's worst case is priced at ITS route's price - a coder route usually costs more
+// per token than a planning candidate, and an estimate at the cheap price would understate
+// exactly the arms the split exists for.
 const perBriefMax =
   (INTENT_MAX.in * price.in + INTENT_MAX.out * price.out) / 1e6 +
-  ARMS.reduce((sum, arm) => sum + (ARM_MAX[arm].in * price.in + ARM_MAX[arm].out * price.out) / 1e6, 0);
+  ARMS.reduce((sum, arm) => {
+    const p = armRoute(arm).price;
+    return sum + (ARM_MAX[arm].in * p.in + ARM_MAX[arm].out * p.out) / 1e6;
+  }, 0);
 const estMax = perBriefMax * selected.length;
-console.log(`Route: ${provider}:${model} — arms ${ARMS.join('')} × ${selected.length} brief(s)${CATEGORY ? ` (${CATEGORY})` : ''}`);
+console.log(`Candidate route (arms C/D + intent): ${provider}:${model} — arms ${ARMS.join('')} × ${selected.length} brief(s)${CATEGORY ? ` (${CATEGORY})` : ''}`);
+if (coderModel) console.log(`Coder route (arms A/B): ${CODER_ROUTE}${coderModel === model ? '  (same as candidate - single-model attribution)' : ''}`);
 if (critiqueModel) console.log(`Critique (arm D) route: ${CRITIQUE_ROUTE}`);
 console.log(
-  `Estimated MAXIMUM cost: $${estMax.toFixed(4)} (price $${price.in}/$${price.out} per M). ` +
+  `Estimated MAXIMUM cost: $${estMax.toFixed(4)} (candidate $${price.in}/$${price.out}` +
+  `${coderPrice ? `, coder $${coderPrice.in}/$${coderPrice.out}` : ''} per M). ` +
   `Ceiling: $${MAX_COST.toFixed(2)}. Typical runs land well below the maximum.`,
 );
 if (estMax > MAX_COST) {
@@ -126,17 +180,28 @@ try {
   process.exit(1);
 }
 
-const pinned = await page.evaluate(async ({ provider, model }) => {
+// Pin a route through saved settings - the SAME mechanism that picks production's session
+// model, which is what lets arm A change route while claudeProvider stays byte-identical
+// (the frozen control). Verified once per distinct route before anything is spent.
+const pinRoute = (routeProvider, routeModel) => page.evaluate(async ({ provider, model }) => {
   const { refreshAiConfiguration, saveAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
   await refreshAiConfiguration();
   saveAiSettings({ provider, model, fallbacks: [] });
   return aiConfigured();
-}, { provider, model });
-if (!pinned) {
-  console.error(`No server-managed route available for ${provider}:${model}. Start the dev-bench server with the matching key.`);
-  await browser.close();
-  process.exit(1);
+}, { provider: routeProvider, model: routeModel });
+
+const distinctRoutes = [
+  { provider, model },
+  ...(coderModel && coderModel !== model ? [{ provider: coderProvider, model: coderModel }] : []),
+];
+for (const route of distinctRoutes) {
+  if (!(await pinRoute(route.provider, route.model))) {
+    console.error(`No server-managed route available for ${route.provider}:${route.model}. Start the dev-bench server with the matching key.`);
+    await browser.close();
+    process.exit(1);
+  }
 }
+await pinRoute(provider, model); // the candidate serves the shared intent stage
 
 let spent = 0;
 let stoppedAtCeiling = false;
@@ -151,6 +216,9 @@ for (const brief of selected) {
   console.log(`\n▸ ${brief.id} (${brief.category})`);
 
   // Stage 1 once per brief: the arms compare GENERATION, so they share one classification.
+  // Pinned back to the candidate each time - the previous brief's last arm may have left
+  // the coder route in saved settings.
+  await pinRoute(provider, model);
   let intent;
   try {
     const intentRun = await page.evaluate(async (text) => {
@@ -174,6 +242,10 @@ for (const brief of selected) {
 
   for (const arm of ARMS) {
     process.stdout.write(`  arm ${arm} … `);
+    // The arm's route rides saved settings (see pinRoute above): coder route for the
+    // coder-shaped arms A/B, the candidate for the staged arms C/D.
+    const route = armRoute(arm);
+    await pinRoute(route.provider, route.model);
     const started = Date.now();
     let row;
     try {
@@ -253,10 +325,7 @@ for (const brief of selected) {
       continue;
     }
 
-    const armCost = row.stages.reduce(
-      (sum, s) => sum + costOf(s.usage, s.stage === 'critique' && critiquePrice ? critiquePrice : price),
-      0,
-    );
+    const armCost = row.stages.reduce((sum, s) => sum + stageCost(s, route.price), 0);
     spent += armCost;
 
     const dir = path.join(OUT, arm);
@@ -353,18 +422,25 @@ for (const arm of ARMS) {
 const report = {
   label: LABEL,
   route: { provider, model },
+  coderRoute: CODER_ROUTE || null,
   critiqueRoute: CRITIQUE_ROUTE || null,
+  /** Which route served which arm - what makes a split-route report readable on its own. */
+  armRoutes: Object.fromEntries(ARMS.map((arm) => [arm, `${armRoute(arm).provider}:${armRoute(arm).model}`])),
   when: new Date().toISOString(),
   arms: ARMS,
   briefs: selected.map((b) => b.id),
   summary,
-  cost: { spentUsd: Number(spent.toFixed(6)), ceilingUsd: MAX_COST, stoppedAtCeiling, pricePerM: price },
+  cost: { spentUsd: Number(spent.toFixed(6)), ceilingUsd: MAX_COST, stoppedAtCeiling, pricePerM: price, coderPricePerM: coderPrice },
   results,
   note:
     'Engineering validity is REPORTED, never ranked on (plan §11, the two-scorecard rule). ' +
     'The ranking that decides the pilot is the pairwise human review over the hold frames in ' +
     'this directory; nearest-catalog similarity (criterion 6) is `npm run bench:sameness -- ' +
-    '<out> --house=<catalog refs>` over the same frames.',
+    '<out> --house=<catalog refs>` over the same frames.' +
+    (coderModel && coderModel !== model
+      ? ' ROUTES ARE SPLIT: arms A/B ran the coder route, C/D the candidate - A-vs-B and '
+        + 'C-vs-A stay single-variable, B-vs-C differs in model class AND staging.'
+      : ''),
 };
 writeFileSync(path.join(OUT, 'pilot.json'), JSON.stringify(report, null, 2));
 
