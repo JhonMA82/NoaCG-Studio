@@ -6,94 +6,82 @@
     {
       "kind": "panel",
       "bbox": {
-        "x": 0,
-        "y": 0.655,
-        "w": 0.648,
-        "h": 0.133
+        "x": 0.17604166666666668,
+        "y": 0.6972222222222222,
+        "w": 0.6552083333333333,
+        "h": 0.12685185185185185
       },
       "confidence": 0.9,
       "treatment": "rebuild-shape",
-      "align": "left",
       "panel": {
         "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#1F232B"
+          "color": "#F0F0F0"
         },
         "opacity": 1,
         "radiusNorm": 0
-      }
+      },
+      "role": "other"
     },
     {
       "kind": "decorative",
       "bbox": {
-        "x": 0,
-        "y": 0.655,
-        "w": 0.05,
-        "h": 0.133
+        "x": 0.19895833333333335,
+        "y": 0.7222222222222222,
+        "w": 0.046875,
+        "h": 0.07685185185185185
       },
-      "confidence": 0.9,
-      "treatment": "rebuild-shape",
-      "align": "left",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "gradient",
-          "angleDeg": 90,
-          "from": "#9E2F5E",
-          "to": "#308092"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
+      "confidence": 0.8,
+      "treatment": "keep-asset"
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.071,
-        "y": 0.681,
-        "w": 0.297,
-        "h": 0.046
+        "x": 0.26458333333333334,
+        "y": 0.7203703703703703,
+        "w": 0.3697916666666667,
+        "h": 0.046296296296296294
       },
       "confidence": 0.9,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
-      "sampleText": "Ingrid Bakker",
+      "sampleText": "Dr. Amara Nwosu",
       "suggestedTitle": "Name",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 700,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.046,
-        "letterSpacing": "normal",
+        "color": "#1A1A1A",
+        "fontSizeNorm": 0.6,
+        "letterSpacing": "tight",
         "lineHeightRatio": 1.2
       }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.071,
-        "y": 0.732,
-        "w": 0.207,
-        "h": 0.033
+        "x": 0.26458333333333334,
+        "y": 0.7675925925925926,
+        "w": 0.3427083333333333,
+        "h": 0.027777777777777776
       },
       "confidence": 0.9,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
-      "sampleText": "Polling Analyst",
+      "sampleText": "Chief Executive Officer",
       "suggestedTitle": "Title",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#B4B7BC",
-        "fontSizeNorm": 0.033,
-        "letterSpacing": "normal",
+        "color": "#4D4D4D",
+        "fontSizeNorm": 0.36,
+        "letterSpacing": "tight",
         "lineHeightRatio": 1.2
       }
     }
@@ -101,6 +89,6 @@
   "warnings": [],
   "animation": {
     "presetId": "design-slide",
-    "speed": 0.3
+    "speed": 0.5
   }
 }

@@ -57,7 +57,9 @@ export interface ProRegionTypography {
   classification: 'serif' | 'sans' | 'slab' | 'condensed' | 'mono' | 'display' | 'script';
   /** NEVER 'exact' - a raster cannot prove a font. */
   matchQuality: 'similar-available' | 'general-classification';
-  suggestedFontId: (typeof PRO_FONT_IDS)[number] | null;
+  /** A bundled font id by the prompt's teaching; the wire schema leaves it a plain string
+   *  (state economy) and the normalizer resolves it against the real registry. */
+  suggestedFontId?: string | null;
   approxWeight?: number;
   /** Cap height / image height. */
   fontSizeNorm?: number;
@@ -66,12 +68,19 @@ export interface ProRegionTypography {
   color?: string;
 }
 
-/** Geometry a panel region carries when the model believes it is reconstructable as CSS. */
+/** Geometry a panel region carries when the model believes it is reconstructable as CSS.
+ *  The fill is ONE flat object on the wire (state economy, see the schema note): `kind`
+ *  says which colour fields count, and the normalizer demotes a fill whose required
+ *  colours are missing or non-hex. */
 export interface ProPanelGeometry {
   shape: 'panel' | 'accent-bar';
-  fill:
-    | { kind: 'solid'; color: string }
-    | { kind: 'gradient'; from: string; to: string; angleDeg: number };
+  fill: {
+    kind: 'solid' | 'gradient';
+    color?: string;
+    from?: string;
+    to?: string;
+    angleDeg?: number;
+  };
   /** Corner radius / region height, 0..0.5. */
   radiusNorm?: number;
   opacity?: number;
@@ -98,16 +107,28 @@ export interface ProInterpretationV1 {
   regions: ProRegion[];
   animation?: {
     presetId: 'design-fade' | 'design-slide' | 'design-pop' | 'design-blur';
-    speed?: 0.75 | 1 | 1.5;
+    /** Schema-bounded 0.75..1.5; the normalizer snaps to the three real speeds. */
+    speed?: number;
   };
   warnings: string[];
 }
 
-const norm = { type: 'number', minimum: 0, maximum: 1 };
-const color = { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' };
+// DELIBERATELY LOOSE VALUE SCHEMAS. Google's constrained decoding compiles the whole
+// schema into an automaton, and number minimum/maximum bounds, string patterns, string
+// maxLength, array maxItems and oneOf branches all multiply its states - the
+// full-precision schema was refused outright with "produces a constraint that has too
+// many states for serving" (measured 2026-07-31, Google AI Studio via OpenRouter, and
+// still refused with only the length caps left). So the WIRE schema carries only shape -
+// types, required fields, closed objects, STRING enums - and the meaning stays enforced
+// where it always was: normalize.ts clamps every number, validates every colour and font
+// id, and caps every count and string length; the compiler refuses what remains
+// unusable. Do not re-add bounds, patterns, caps or oneOf here without re-running the
+// paid round against a Google route.
+const norm = { type: 'number' };
+const color = { type: 'string' };
 
 /** The forced structured output for the interpretation call - revalidated server-side by
- *  the gateway on every attempt. */
+ *  the gateway on every attempt (shape only; the normalizer owns the meaning). */
 export const PRO_INTERPRET_TOOL: ProModelTool = {
   name: 'emit_pro_interpretation',
   description: 'Report the analyzed broadcast-graphic concept: type, regions with reconstruction treatments, and warnings.',
@@ -116,12 +137,11 @@ export const PRO_INTERPRET_TOOL: ProModelTool = {
     additionalProperties: false,
     required: ['version', 'graphicType', 'graphicTypeConfidence', 'regions', 'warnings'],
     properties: {
-      version: { type: 'integer', minimum: 1, maximum: 1 },
+      version: { type: 'integer' },
       graphicType: { type: 'string', enum: [...PRO_GRAPHIC_TYPES] },
       graphicTypeConfidence: norm,
       regions: {
         type: 'array',
-        maxItems: PRO_LIMITS.maxRegions,
         items: {
           type: 'object',
           additionalProperties: false,
@@ -137,8 +157,8 @@ export const PRO_INTERPRET_TOOL: ProModelTool = {
             confidence: norm,
             treatment: { type: 'string', enum: [...PRO_TREATMENTS] },
             role: { type: 'string', enum: [...PRO_REGION_ROLES] },
-            suggestedTitle: { type: 'string', maxLength: 80 },
-            sampleText: { type: 'string', maxLength: 200 },
+            suggestedTitle: { type: 'string' },
+            sampleText: { type: 'string' },
             align: { type: 'string', enum: ['left', 'center', 'right'] },
             typography: {
               type: 'object',
@@ -150,13 +170,14 @@ export const PRO_INTERPRET_TOOL: ProModelTool = {
                   enum: ['serif', 'sans', 'slab', 'condensed', 'mono', 'display', 'script'],
                 },
                 matchQuality: { type: 'string', enum: ['similar-available', 'general-classification'] },
-                suggestedFontId: {
-                  oneOf: [{ type: 'string', enum: [...PRO_FONT_IDS] }, { type: 'null' }],
-                },
-                approxWeight: { type: 'integer', minimum: 300, maximum: 900 },
-                fontSizeNorm: { type: 'number', minimum: 0.005, maximum: 1 },
+                // Plain string, not an enum-or-null oneOf: the normalizer resolves it
+                // against the real font registry and degrades anything else to "the
+                // design's default font" - the enum lives in the PROMPT's teaching.
+                suggestedFontId: { type: 'string' },
+                approxWeight: { type: 'integer' },
+                fontSizeNorm: { type: 'number' },
                 letterSpacing: { type: 'string', enum: ['tight', 'normal', 'wide'] },
-                lineHeightRatio: { type: 'number', minimum: 0.7, maximum: 3 },
+                lineHeightRatio: { type: 'number' },
                 color,
               },
             },
@@ -166,28 +187,22 @@ export const PRO_INTERPRET_TOOL: ProModelTool = {
               required: ['shape', 'fill'],
               properties: {
                 shape: { type: 'string', enum: ['panel', 'accent-bar'] },
+                // ONE flat object instead of a solid/gradient oneOf (state economy):
+                // kind picks which colour fields count, and the normalizer demotes a
+                // fill whose required colours are missing or non-hex to keep-asset.
                 fill: {
-                  oneOf: [
-                    {
-                      type: 'object',
-                      additionalProperties: false,
-                      required: ['kind', 'color'],
-                      properties: { kind: { type: 'string', enum: ['solid'] }, color },
-                    },
-                    {
-                      type: 'object',
-                      additionalProperties: false,
-                      required: ['kind', 'from', 'to', 'angleDeg'],
-                      properties: {
-                        kind: { type: 'string', enum: ['gradient'] },
-                        from: color,
-                        to: color,
-                        angleDeg: { type: 'number', minimum: 0, maximum: 360 },
-                      },
-                    },
-                  ],
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['kind'],
+                  properties: {
+                    kind: { type: 'string', enum: ['solid', 'gradient'] },
+                    color,
+                    from: color,
+                    to: color,
+                    angleDeg: { type: 'number' },
+                  },
                 },
-                radiusNorm: { type: 'number', minimum: 0, maximum: 0.5 },
+                radiusNorm: { type: 'number' },
                 opacity: norm,
               },
             },
@@ -200,10 +215,13 @@ export const PRO_INTERPRET_TOOL: ProModelTool = {
         required: ['presetId'],
         properties: {
           presetId: { type: 'string', enum: ['design-fade', 'design-slide', 'design-pop', 'design-blur'] },
-          speed: { type: 'number', enum: [0.75, 1, 1.5] },
+          // A plain number, deliberately neither a number enum (Google rejects those
+          // outright) nor a bounded range (bounds feed the state explosion above); the
+          // normalizer snaps to the three real speeds.
+          speed: { type: 'number' },
         },
       },
-      warnings: { type: 'array', maxItems: 8, items: { type: 'string', maxLength: 300 } },
+      warnings: { type: 'array', items: { type: 'string' } },
     },
   },
 };

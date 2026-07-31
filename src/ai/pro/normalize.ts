@@ -5,8 +5,8 @@
 // fitting, weight snapping and slot margins mean exactly one thing in this codebase.
 
 import { normalizeAnalysis, type FieldProposal } from '../importAnalysis/normalize';
-import type { ImportedGraphicAnalysisV1 } from '../importAnalysis/contract';
-import type { ProInterpretationV1, ProRegion, ProTreatment } from './contract';
+import type { ImportAnalysisRegion, ImportedGraphicAnalysisV1 } from '../importAnalysis/contract';
+import { PRO_FONT_IDS, PRO_LIMITS, type ProInterpretationV1, type ProRegion, type ProTreatment } from './contract';
 
 /** Below this a region is noise, not a plan input (the import-analysis floor). */
 const CONFIDENCE_FLOOR = 0.35;
@@ -69,15 +69,17 @@ function pxRect(region: ProRegion, frame: { width: number; height: number }) {
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-/** The clamped treatment - what the compiler will do, whatever the model proposed. */
+/** The clamped treatment - what the compiler will do, whatever the model proposed. The
+ *  wire schema deliberately does not constrain the fill's colours (contract.ts state
+ *  economy), so missing or non-hex colours demote the panel here. */
 function resolveTreatment(region: ProRegion): ProTreatment {
   if (region.kind === 'text') return 'rebuild-text';
   if (region.kind === 'panel') {
     const fill = region.panel?.fill;
     const fillOk = fill
       && (fill.kind === 'solid'
-        ? HEX.test(fill.color)
-        : HEX.test(fill.from) && HEX.test(fill.to));
+        ? HEX.test(fill.color ?? '')
+        : HEX.test(fill.from ?? '') && HEX.test(fill.to ?? ''));
     return region.treatment === 'rebuild-shape' && fillOk && region.confidence >= CONFIDENCE_FLOOR
       ? 'rebuild-shape'
       : region.treatment === 'flattened' ? 'flattened' : 'keep-asset';
@@ -96,7 +98,7 @@ function outcomeNote(kind: ProRegion['kind'], treatment: ProTreatment): string {
 }
 
 function outcomeLabel(region: ProRegion, index: number): string {
-  const title = region.suggestedTitle?.trim();
+  const title = region.suggestedTitle?.trim().slice(0, 80);
   if (title) return title;
   const names: Record<ProRegion['kind'], string> = {
     text: 'Text', logo: 'Logo', image: 'Image', panel: 'Panel', decorative: 'Decoration',
@@ -119,20 +121,41 @@ function analysisView(interpretation: ProInterpretationV1): ImportedGraphicAnaly
         bbox: region.bbox,
         confidence: region.confidence,
         role: region.role,
-        suggestedTitle: region.suggestedTitle,
-        sampleText: region.sampleText,
+        suggestedTitle: region.suggestedTitle?.slice(0, 80),
+        sampleText: region.sampleText?.slice(0, 200),
         align: region.align,
-        typography: region.typography,
+        // The wire leaves the font id a plain string (contract.ts state economy);
+        // resolve it against the real id set here, degrading to "the design's default".
+        // fontSizeNorm is DROPPED deliberately: the 2026-07-31 paid round showed models
+        // free-associate its meaning (bbox height as an image fraction in one answer,
+        // 0.6 "of the region" in the next), and a wrong size stacks the name into the
+        // title. The measured bbox height IS the deterministic size source - exactly the
+        // erase-seed rule the shared field normalizer applies when no claim is carried.
+        typography: region.typography
+          ? {
+              ...region.typography,
+              fontSizeNorm: undefined,
+              suggestedFontId: (PRO_FONT_IDS as readonly string[]).includes(region.typography.suggestedFontId ?? '')
+                ? (region.typography.suggestedFontId as (typeof PRO_FONT_IDS)[number])
+                : null,
+            } as ImportAnalysisRegion['typography']
+          : undefined,
       })),
     warnings: [],
   };
 }
 
 export function normalizeProInterpretation(
-  interpretation: ProInterpretationV1,
+  raw: ProInterpretationV1,
   frame: { width: number; height: number },
   mintId: () => string,
 ): ProPlan {
+  // The caps the wire schema no longer carries (contract.ts state economy) land here.
+  const interpretation: ProInterpretationV1 = {
+    ...raw,
+    regions: raw.regions.slice(0, PRO_LIMITS.maxRegions),
+    warnings: raw.warnings.map((warning) => warning.slice(0, 300)),
+  };
   const analyzed = normalizeAnalysis(
     analysisView(interpretation),
     { path: '', width: frame.width, height: frame.height },
@@ -171,9 +194,15 @@ export function normalizeProInterpretation(
     if (region.kind === 'text') textRects.push(rect);
     if (treatment === 'rebuild-shape' && region.kind === 'panel' && region.panel) {
       const geometry = region.panel;
+      // The wire schema deliberately carries no number bounds (contract.ts), so the angle
+      // is folded into 0..360 here like every other value is clamped here. resolveTreatment
+      // already proved the colours the kind requires are present and hex.
+      const angle = geometry.fill.kind === 'gradient'
+        ? ((Math.round(geometry.fill.angleDeg ?? 90) % 360) + 360) % 360
+        : 0;
       const fillCss = geometry.fill.kind === 'solid'
-        ? geometry.fill.color.toLowerCase()
-        : `linear-gradient(${Math.round(geometry.fill.angleDeg)}deg, ${geometry.fill.from.toLowerCase()}, ${geometry.fill.to.toLowerCase()})`;
+        ? (geometry.fill.color ?? '#000000').toLowerCase()
+        : `linear-gradient(${angle}deg, ${(geometry.fill.from ?? '#000000').toLowerCase()}, ${(geometry.fill.to ?? '#000000').toLowerCase()})`;
       panels.push({
         ...rect,
         shape: geometry.shape,
@@ -213,7 +242,12 @@ export function normalizeProInterpretation(
     logo: logoRegion ? pxRect(logoRegion, frame) : null,
     animation: {
       presetId: interpretation.animation?.presetId ?? 'design-slide',
-      speed: interpretation.animation?.speed ?? 1,
+      // Snap to the three real speeds: the schema bounds a RANGE (Google's structured
+      // output rejects number enums), and the preset system knows exactly these values.
+      speed: ([0.75, 1, 1.5] as const).reduce((best, candidate) =>
+        Math.abs(candidate - (interpretation.animation?.speed ?? 1)) < Math.abs(best - (interpretation.animation?.speed ?? 1))
+          ? candidate
+          : best, 1 as 0.75 | 1 | 1.5),
     },
     warnings,
     outcomes,

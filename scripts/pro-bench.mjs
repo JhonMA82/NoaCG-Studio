@@ -24,6 +24,7 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
+import { readEnvFile } from './ai-bench-server.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve('pro-bench-out');
@@ -39,17 +40,24 @@ const paid = flag('generate');
 const saveFixtures = flag('save-fixtures');
 const maxCost = Number(value('max-cost') ?? (paid ? Number.NaN : 0));
 const imageRoute = value('image-route');
+// The interpretation call rides the SESSION model, so paid mode must pin a VISION-capable
+// route - the default session model is a text coder and would be handed an image.
+const interpretRoute = value('interpret-route');
 
 if (paid) {
   if (!imageRoute?.startsWith('openrouter:')) {
     console.error('PAID mode needs an explicit --image-route=openrouter:<model> (the gateway\'s image adapter).');
     process.exit(1);
   }
+  if (!interpretRoute?.includes(':')) {
+    console.error('PAID mode needs an explicit --interpret-route=<provider>:<vision model> for the interpretation call.');
+    process.exit(1);
+  }
   if (!Number.isFinite(maxCost) || maxCost <= 0) {
     console.error('PAID mode needs an explicit --max-cost=<usd> ceiling. This run spends real money.');
     process.exit(1);
   }
-  console.log(`PAID run: image route ${imageRoute}, ceiling $${maxCost.toFixed(2)}. This spends real tokens.`);
+  console.log(`PAID run: image ${imageRoute}, interpretation ${interpretRoute}, ceiling $${maxCost.toFixed(2)}. This spends real tokens.`);
 }
 
 const bank = JSON.parse(await readFile(BANK, 'utf8'));
@@ -73,6 +81,48 @@ const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
 page.on('pageerror', (error) => console.log('  pageerror:', error.message));
 await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
 await page.locator('.topbar').waitFor();
+
+if (paid) {
+  // A managed key only counts for a SIGNED-IN caller once a backend is configured, and a
+  // fresh Playwright context has no session - the ai-bench.mjs lesson. Credentials come
+  // from the environment or .env (the dedicated e2e test account).
+  const fileEnv = await readEnvFile();
+  const creds = {
+    email: (process.env.E2E_EMAIL ?? fileEnv.E2E_EMAIL ?? '').trim(),
+    password: (process.env.E2E_PASSWORD ?? fileEnv.E2E_PASSWORD ?? '').trim(),
+  };
+  if (creds.email && creds.password) {
+    try {
+      await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 });
+      await page.keyboard.press('Escape');
+      await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 });
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click({ timeout: 10_000 });
+      await page.locator('#auth-email').fill(creds.email);
+      await page.locator('#auth-pass').fill(creds.password);
+      await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.locator('.auth-status').waitFor({ state: 'visible', timeout: 20_000 });
+      console.log('Signed in for the managed route.');
+    } catch (error) {
+      console.error(`Sign-in failed (${error.message?.split('\n')[0]}) - continuing signed out.`);
+    }
+  } else {
+    console.log('No E2E credentials found - continuing signed out (BYO cookie or open self-host only).');
+  }
+  // Pin the interpretation route as the session model, fallbacks cleared so a failing
+  // route can never be rescued by another and credited with the result.
+  const pinned = await page.evaluate(async (route) => {
+    const { refreshAiConfiguration, saveAiSettings, aiConfigured } = await import('/src/ai/settings.ts');
+    await refreshAiConfiguration();
+    const [provider, ...model] = route.split(':');
+    saveAiSettings({ provider, model: model.join(':'), fallbacks: [] });
+    return aiConfigured();
+  }, interpretRoute);
+  if (!pinned) {
+    console.error(`No server key is available for the ${interpretRoute.split(':')[0]} provider - refusing to start a paid run.`);
+    await browser.close();
+    process.exit(1);
+  }
+}
 
 /** Fixture for one brief: { concept: dataUrl, interpretation } or null. */
 async function fixtureFor(id) {
@@ -121,11 +171,25 @@ for (const entry of briefs) {
       const validate = productionSpxValidator();
       let result;
       let conceptCost = null;
+      let interpretCost = null;
       if (input.paid) {
         const [provider, ...modelParts] = input.imageRoute.split(':');
         const concept = await generateProConcept(input.brief, { provider, model: modelParts.join(':') });
         conceptCost = concept.costUsd;
-        result = await compileProConcept(input.brief, concept, { validate });
+        // A failed interpretation must not lose the concept's PAID cost with the throw -
+        // the first paid round spent ~$0.80 on twelve concepts and reported $0.000,
+        // because the whole evaluate threw before the cost was returned.
+        try {
+          result = await compileProConcept(input.brief, concept, { validate });
+        } catch (error) {
+          return { failedAfterConcept: String(error).slice(0, 300), conceptCost };
+        }
+        // The interpretation's provider-reported cost lands on the telemetry ring's stage
+        // record; read it back so the ceiling counts the whole brief, not just the image.
+        const { exportAiRuns } = await import(`/src/ai/telemetry.ts${bust}`);
+        const runs = JSON.parse(exportAiRuns());
+        const last = runs.filter((run) => run.kind === 'pro-generate').at(-1);
+        interpretCost = last?.stages?.find((stage) => stage.name === 'interpret')?.usage?.estimatedCost?.amount ?? null;
       } else if (input.fixture) {
         const size = await measure(input.fixture.concept);
         const concept = { dataUrl: input.fixture.concept, mediaType: 'image/png', ...size, model: 'fixture', costUsd: 0 };
@@ -183,6 +247,7 @@ for (const entry of briefs) {
       return {
         checks,
         conceptCost,
+        interpretCost,
         conceptDataUrl: input.paid || input.saveFixtures ? result.concept.dataUrl : null,
         interpretation: result.interpretation ?? null,
       };
@@ -198,6 +263,18 @@ for (const entry of briefs) {
     console.log(`  FAILED: ${error.message.split('\n')[0]}`);
     results.push({ id: entry.id, error: error.message.slice(0, 400), ms: Date.now() - started });
     await page.evaluate(() => document.getElementById('pro-bench-frame')?.remove()).catch(() => undefined);
+    continue;
+  }
+  if (outcome.failedAfterConcept) {
+    if (typeof outcome.conceptCost === 'number') spentUsd += outcome.conceptCost;
+    console.log(`  FAILED after the paid concept ($${(outcome.conceptCost ?? 0).toFixed(3)}): ${outcome.failedAfterConcept.split('\n')[0]}`);
+    results.push({
+      id: entry.id,
+      error: outcome.failedAfterConcept,
+      conceptCostUsd: outcome.conceptCost,
+      ms: Date.now() - started,
+    });
+    await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, spentUsd, results }, null, 2));
     continue;
   }
 
@@ -220,12 +297,14 @@ for (const entry of briefs) {
     }
   }
   if (typeof outcome.conceptCost === 'number') spentUsd += outcome.conceptCost;
+  if (typeof outcome.interpretCost === 'number') spentUsd += outcome.interpretCost;
 
   const record = {
     id: entry.id,
     source: paid ? 'generated' : fixture ? 'fixture' : 'stub',
     ...outcome.checks,
     conceptCostUsd: outcome.conceptCost,
+    interpretCostUsd: outcome.interpretCost,
     ms: Date.now() - started,
   };
   results.push(record);

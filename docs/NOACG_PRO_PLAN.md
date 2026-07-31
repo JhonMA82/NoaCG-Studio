@@ -211,6 +211,26 @@ Lite; the Lite path is untouched). One step surface with explicit machine states
 - **Baked text outside reconstructed panels** stays in the artwork and is reported, not
   erased - the deterministic erase integration is the next slice.
 
+Findings from the first PAID round (2026-07-31, gemini-3.1-flash-image concepts +
+gemini-2.5-flash interpretation, ~$2 total including debugging):
+
+- **Google's constrained decoding has a schema state budget.** Number enums are rejected
+  outright, and min/max bounds, string patterns, length caps and oneOf branches together
+  blew the "too many states for serving" limit. The wire schema now carries SHAPE only
+  (types, required, closed objects, string enums); every bound, cap and colour check
+  lives in the normalizer - which is where the platform doctrine wanted the meaning
+  enforced anyway. Do not re-add constraints without re-running a paid round.
+- **`fontSizeNorm` is not a measurement.** Models free-associate its meaning (the bbox
+  height as an image fraction in one answer, "0.6 of the region" in the next), so the
+  normalizer now ignores the claim and derives type size from the measured bbox height -
+  the erase-seed rule. This took the round's bank from 1/5 to 4/5 passing.
+- **Logo classification misses.** A requested logo area came back as `decorative`, so no
+  replaceable slot was placed (the one remaining bank failure). Interpretation-prompt
+  teaching, next round.
+- **Raster misregistration** - a rebuilt panel sits a percent or two off the baked one,
+  so crop pixels peek out beside it. Strengthens the case for the clean-plate slice and
+  for dropping the art more aggressively when everything meaningful was rebuilt.
+
 ## 11. What v1 deliberately does not do
 
 - No generated video or motion assets (architecture leaves room: a video background
