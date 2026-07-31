@@ -68,9 +68,13 @@ the user has invoked it, and the adapter is only a pointer to this file anyway.
   decide how to preserve that work outside this workflow.
 - If a merge hits conflicts you are not confident resolving, `git merge --abort` and
   report the conflicting files rather than guessing.
-- Never remove a worktree or delete a branch. Cleanup is out of scope for this workflow -
-  the cleanup-worktrees workflow owns it and runs from the primary `main` checkout, where
-  removal actually works.
+- Never delete a branch, and never remove a worktree you did not create in this run. Cleanup
+  is out of scope for this workflow - the cleanup-worktrees workflow owns it and runs from the
+  primary `main` checkout, where removal actually works. The single exception is the TEMPORARY
+  worktree this flow may create for a branch that has none (Phase 1, "If the source branch has
+  no worktree"): the run that created it removes it in Phase 5, and it may never remove any
+  other. It is identified by the `safe-merge-` name prefix AND by having been created in this
+  run - a pre-existing folder with that prefix belongs to someone else and is left alone.
 - Never touch other worktrees' work. Merge only the ONE requested branch; its merge brings
   in only that branch's commits and must never overwrite or discard work living on other
   worktrees' branches. Do not `git checkout`/`switch`/`restore` files across worktrees, and
@@ -97,8 +101,14 @@ Run and summarize:
    merge if it isn't obvious. Validate the chosen name with `git check-ref-format --branch
    <branch>`, reject `main` and any leading `-`, then require `git show-ref --verify
    refs/heads/<branch>` to succeed. Locate the one worktree whose porcelain branch line is
-   exactly `refs/heads/<branch>`; if none or more than one can be resolved, stop.
-6. In that exact source worktree, run `git status --porcelain`. Stop if it is dirty.
+   exactly `refs/heads/<branch>`. **More than one resolves: stop.** **None resolves: the branch
+   has no worktree** - that is a normal state here, not an error (a closed session leaves its
+   branch behind and the client parks the freed worktree on a detached HEAD, which is the very
+   case `worktree-activity.mjs` exists to surface). Follow "If the source branch has no
+   worktree" below rather than stopping.
+6. If the branch HAS a worktree, run `git status --porcelain` in that exact one. Stop if it is
+   dirty. A branch with no worktree has no working tree at all, so there is nothing uncommitted
+   to check and nothing to preserve - it clears this step by construction.
 7. Preview the merge: `git log --oneline main..<branch>` (what comes in) and
    `git log --oneline <branch>..main` (what the branch is missing), plus
    `git merge-base main <branch>` followed by
@@ -128,6 +138,36 @@ Run and summarize:
    This never overrides the user: a `hold` that the user waves through proceeds normally. It is
    advice with a stop attached, not a gate - and it is advisory only about ORDER. It never
    substitutes for any Hard safety rule or for Phase 3 verification.
+
+### If the source branch has no worktree
+
+Verification is the whole point of this workflow, and it needs a working tree: `main` has to be
+merged INTO the branch (Phase 2) and the result built and tested (Phase 3) before anything
+reaches `main`. A worktree-less branch has nowhere for that to happen - so this flow creates a
+TEMPORARY worktree for it, uses it, and removes it again in Phase 5.
+
+Never borrow another worktree for this. A parked worktree already has dependencies installed and
+is tempting, but checking a branch out inside someone else's checkout is exactly what the Hard
+safety rules forbid; a fresh one costs an `npm install` and risks nothing.
+
+Report the plan in Phase 1 and create it as the first action of Phase 2:
+
+    git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>
+
+where `<branch-slug>` is the branch name with `/` replaced by `-`. Then, inside it:
+
+    npm install
+
+A new worktree shares the object store but NOT `node_modules`, so the install is required before
+either gate will run. It is the real cost of this path - state it up front rather than letting it
+surprise anyone, and expect a couple of minutes even for a one-file docs branch.
+
+From there the flow is unchanged: that temporary worktree IS "the source worktree" for Phase 2
+step 5, all of Phase 3, and every cleanliness re-check in Phase 4.
+
+**Stop instead of creating one** if the target path already exists (it is someone else's, whatever
+its name), if `git worktree add` fails for any reason, or if the branch turns out to be checked
+out somewhere after all. Never use `--force`.
 
 ### If `main` is not checked out anywhere
 
@@ -182,8 +222,12 @@ branch - it is never where conflicts get resolved.
 
 1. If Phase 1 found `main` checked out nowhere and the gate reported SAFE, reattach now:
    `node scripts/reattach-main.mjs <root>` (it re-verifies safety, then switches).
+   If Phase 1 found the SOURCE branch has no worktree, create the temporary one now
+   (`git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>`, then `npm install`
+   inside it). Everything below means that worktree wherever it says "source worktree".
 2. Recheck the actual `main` and source worktrees with `git status --porcelain`. Stop if either
-   became dirty after assessment.
+   became dirty after assessment. A freshly created worktree reports clean because
+   `node_modules/` is gitignored; if it reports anything else, stop - something is wrong.
 3. In the actual `main` worktree, update main from the remote:
    `git pull --ff-only origin main`.
 4. Record `INTEGRATED_MAIN_SHA = git rev-parse main` - the exact main integrated into the
@@ -253,7 +297,19 @@ Do this immediately before merging - main may have moved on the remote while you
 ## Phase 5 - Finish
 
 1. Confirm the branch is contained: `git branch --merged main` includes `<branch>`.
-2. Final report: merged commits, verified SHA now on `main`, build result, push result.
-3. Do NOT remove the worktree or delete the branch, and do not offer to. Just note that
+2. If THIS run created a temporary worktree in Phase 2, remove it now - it exists only to have
+   made verification possible, and leaving it behind turns a merge into litter that the next
+   session mistakes for live work:
+
+       git worktree remove .claude/worktrees/safe-merge-<branch-slug>
+       node scripts/dev-port.mjs --prune
+
+   The prune releases the dev-port ticket the e2e run reserved for that path. Never use
+   `--force`: if the removal refuses, say so and leave it for the cleanup-worktrees workflow
+   rather than overriding a refusal you did not diagnose. Remove ONLY the worktree this run
+   created, and never the branch.
+3. Do NOT remove any other worktree or delete the branch, and do not offer to. Just note that
    the cleanup-worktrees workflow (run from the primary `main` checkout) sweeps merged
    branches and their worktrees when the user wants them gone.
+4. Final report: merged commits, verified SHA now on `main`, build result, push result, and
+   whether a temporary worktree was created and removed.
