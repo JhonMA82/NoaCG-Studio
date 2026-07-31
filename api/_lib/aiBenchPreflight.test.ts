@@ -7,7 +7,13 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { benchCredentialFindings, benchPreflight, defaultIncumbentModel } from './aiBenchPreflight.js';
+import {
+  benchCredentialFindings,
+  benchPreflight,
+  defaultImportAnalysisModel,
+  defaultIncumbentModel,
+  importAnalysisPreflightTask,
+} from './aiBenchPreflight.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
   importAnalysisImageSizeOk,
@@ -153,6 +159,156 @@ test('credential and flag mistakes are reported together, not one per run', () =
       { requireEvalIdentity: true },
     ),
     [],
+  );
+});
+
+// ── The import-analysis preflight (the vision task's separate model profile) ──
+// The 2026-07-29 vision round ran with NO preflight: two of five candidates failed all 35
+// images identically and the reasons were never isolated (AI_PLATFORM_PLAN §16.1). These
+// bind the same free checks the Lite benches have to the profile that round resolved
+// routes through - each with its mutation twin.
+
+/** The vision incumbent and an approved open-weight vision candidate - real catalog
+ *  entries, so the tests measure the actual catalog. */
+const VISION_INCUMBENT = 'google/gemini-2.5-flash';
+const VISION_CANDIDATE = 'mistralai/mistral-small-2603';
+
+/** What ai-vision-run.mjs actually injects per candidate (minus the network-resolved
+ *  allowlist, which the runner adds as armEnvExtra). Mirroring that injection is the
+ *  point: the preflight certifies THE run, not a model of it. */
+const visionArm = (candidate: string, env: Record<string, string | undefined> = {}) => ({
+  candidate,
+  env: {
+    AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
+    AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',
+    AI_IMPORT_ANALYSIS_MODEL: candidate,
+    ...env,
+  },
+});
+
+const VISION_AMBIENT: Record<string, string> = {
+  OPENROUTER_API_KEY: 'sk-test',
+  AI_LITE_OPENROUTER_PROVIDERS: 'deepinfra',
+};
+
+test('import-analysis: correctly configured vision arms pass', () => {
+  const report = benchPreflight(
+    [visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)],
+    VISION_AMBIENT,
+    importAnalysisPreflightTask,
+  );
+  assert.equal(report.ok, true, `unexpected findings: ${JSON.stringify(report.findings, null, 2)}`);
+  assert.deepEqual(report.arms.map((a) => a.resolved.model), [VISION_INCUMBENT, VISION_CANDIDATE]);
+});
+
+test('import-analysis: a withdrawn vision candidate is refused before the spend', () => {
+  // THE regression this preflight exists for: the exact candidates the 2026-07-29 round
+  // paid for (llama-4-scout, qwen3.5-9b) were withdrawn from the catalog afterwards.
+  // Re-running them without re-approval must fail the free check, not the paid round.
+  const report = benchPreflight(
+    [visionArm(VISION_INCUMBENT), visionArm('meta-llama/llama-4-scout')],
+    VISION_AMBIENT,
+    importAnalysisPreflightTask,
+  );
+  assert.equal(report.ok, false);
+  assert.ok(codes(report).includes('route-not-approved'));
+
+  // The mutation twin: the same shape with a listed vision model.
+  assert.equal(
+    benchPreflight([visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)], VISION_AMBIENT, importAnalysisPreflightTask).ok,
+    true,
+  );
+});
+
+test('import-analysis: an arm whose environment leaves the kill switch off is named', () => {
+  // The flag is injected per arm by the runner; losing the injection (a typo, a refactor)
+  // produces a uniform wall of refusals that reads like a bad model.
+  const noFlag = {
+    candidate: VISION_CANDIDATE,
+    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter', AI_IMPORT_ANALYSIS_MODEL: VISION_CANDIDATE },
+  };
+  const report = benchPreflight([visionArm(VISION_INCUMBENT), noFlag], VISION_AMBIENT, importAnalysisPreflightTask);
+  assert.equal(report.ok, false);
+  const flagFindings = report.findings.filter((f) => f.code === 'feature-disabled');
+  assert.deepEqual(flagFindings.map((f) => f.arm), [VISION_CANDIDATE], 'named per arm, not globally');
+
+  // The mutation twin: the same arm with the flag injected.
+  assert.equal(
+    benchPreflight([visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)], VISION_AMBIENT, importAnalysisPreflightTask).ok,
+    true,
+  );
+});
+
+test('import-analysis: a saved route in .env cannot silently override a candidate', () => {
+  const notInjected = { candidate: VISION_CANDIDATE, env: { AI_TASK_IMPORT_ANALYSIS_ENABLED: '1' } };
+  const report = benchPreflight(
+    [visionArm(VISION_INCUMBENT), notInjected],
+    { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter' },
+    importAnalysisPreflightTask,
+  );
+  assert.equal(report.ok, false);
+  assert.ok(codes(report).includes('candidate-overridden'));
+  assert.ok(codes(report).includes('arms-not-distinct'));
+
+  // The mutation twin: proper injection outranks the saved route.
+  assert.equal(
+    benchPreflight(
+      [visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)],
+      { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter' },
+      importAnalysisPreflightTask,
+    ).ok,
+    true,
+  );
+});
+
+test('import-analysis: the allowlist falls back to Lite\'s, and the runner\'s own injection wins', () => {
+  // No allowlist anywhere: refused, and the diagnosis names the task's own variable.
+  const bare = { OPENROUTER_API_KEY: 'sk-test' };
+  const noAllowlist = benchPreflight([visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)], bare, importAnalysisPreflightTask);
+  assert.equal(noAllowlist.ok, false);
+  assert.match(
+    noAllowlist.findings.find((f) => f.code === 'route-not-configured')?.message ?? '',
+    /AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS/,
+  );
+
+  // The runner injects a resolved allowlist per arm (armEnvExtra) - that alone suffices.
+  const injected = benchPreflight(
+    [
+      visionArm(VISION_INCUMBENT, { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: 'deepinfra' }),
+      visionArm(VISION_CANDIDATE, { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: 'mistral' }),
+    ],
+    bare,
+    importAnalysisPreflightTask,
+  );
+  assert.equal(injected.ok, true, `unexpected findings: ${JSON.stringify(injected.findings, null, 2)}`);
+});
+
+test('import-analysis: an arm wrong in two ways gets both findings in one dry run', () => {
+  const brokenTwice = {
+    candidate: 'meta-llama/llama-4-scout',
+    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter', AI_IMPORT_ANALYSIS_MODEL: 'meta-llama/llama-4-scout' },
+  };
+  const report = benchPreflight([brokenTwice], VISION_AMBIENT, importAnalysisPreflightTask);
+  assert.ok(codes(report).includes('feature-disabled'));
+  assert.ok(codes(report).includes('route-not-approved'));
+});
+
+test('the import-analysis incumbent is derived from the profile default, not copied', () => {
+  assert.equal(defaultImportAnalysisModel(), VISION_INCUMBENT);
+  process.env.AI_IMPORT_ANALYSIS_MODEL = VISION_CANDIDATE;
+  try {
+    assert.equal(defaultImportAnalysisModel(), VISION_INCUMBENT);
+  } finally {
+    delete process.env.AI_IMPORT_ANALYSIS_MODEL;
+  }
+});
+
+test('credential findings: a task that injects its own flag can skip the ambient flag check', () => {
+  const findings = benchCredentialFindings({ OPENROUTER_API_KEY: 'sk-test' }, { enabledFlag: null });
+  assert.deepEqual(findings, []);
+  // The mutation twin: the default still demands Lite's flag.
+  assert.ok(
+    benchCredentialFindings({ OPENROUTER_API_KEY: 'sk-test' }).some((f) => f.code === 'feature-disabled'),
   );
 });
 
