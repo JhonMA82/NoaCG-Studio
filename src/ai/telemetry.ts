@@ -20,7 +20,9 @@ export type AiRunKind =
   | 'generate' | 'modify' | 'convert' | 'fix' | 'make-ready'
   // The video harness records through the same ring (plan §5 - it recorded nothing
   // before). Consumers filter by kind, so the SPX statistics never mix with these.
-  | 'video-generate' | 'video-refine';
+  | 'video-generate' | 'video-refine'
+  // The NoaCG Pro image-guided pipeline (docs/NOACG_PRO_PLAN.md §8).
+  | 'pro-generate';
 
 export interface AiStageRecord {
   /** Stage name ('design-spec', 'assemble', 'coder', 'repair-1', 'bench', …). */

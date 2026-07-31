@@ -10,7 +10,8 @@ import {
   type ProjectFormatSelection,
   type Resolution,
 } from '../../model/projectFormat';
-import { addPlacedLine, setLineFit, setLineTextStyle } from '../../blocks/designLayout';
+import { addPlacedLine } from '../../blocks/designLayout';
+import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { anyPresetById, type AnimPhase } from '../../blocks/presetRegistry';
 import { parseAnimData } from '../../blocks/animData';
 import { writeAnimData } from '../../templates/shared/animRuntime';
@@ -406,33 +407,9 @@ function withStretchDemoLine(template: SpxTemplate, draft: WizardDraft): SpxTemp
  */
 function withDesignFieldSpecs(template: SpxTemplate, draft: WizardDraft): SpxTemplate {
   if (draft.designFields.length === 0) return template;
-  let next = template;
-  for (const spec of draft.designFields) {
-    const added = addPlacedLine(next, {
-      title: spec.title,
-      ftype: 'textfield',
-      text: spec.text,
-      at: { x: Math.round(spec.x), y: Math.round(spec.y) },
-      fontSize: Math.round(spec.fontSize),
-      color: spec.color,
-      align: spec.align,
-      lineHeight: spec.lineHeight ?? undefined,
-      maxWidth: spec.kind === 'area' && spec.width ? Math.round(spec.width) : undefined,
-    });
-    if (!added) continue;
-    next = added.template;
-    const styled = setLineTextStyle(next, added.fieldId, {
-      ...(spec.fontId !== null ? { fontId: spec.fontId } : {}),
-      ...(spec.weight !== null ? { weight: spec.weight } : {}),
-      ...(spec.letterSpacing !== null ? { letterSpacing: spec.letterSpacing } : {}),
-    });
-    if (styled) next = styled;
-    if (spec.kind === 'area' && spec.width) {
-      const fitted = setLineFit(next, added.fieldId, { mode: 'wrap', maxWidth: Math.round(spec.width) });
-      if (fitted) next = fitted;
-    }
-  }
-  return next;
+  // The shared applier (blocks/designFields.ts) - the same sequence the Pro reconstruction
+  // compiler runs, so a placed spec means one thing everywhere.
+  return applyPlacedFieldSpecs(template, draft.designFields);
 }
 
 /** The graphic's name: what the Finish step was given, else the design's own catalog name
