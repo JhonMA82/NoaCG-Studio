@@ -2,32 +2,32 @@
   "$comment": "Emitted-code fingerprints for every catalog variant at its own defaults. Re-record with UPDATE_CATALOG_BASELINE=1 and let the diff be the review. See e2e/catalog-baseline.spec.ts.",
   "variants": {
     "al01": {
-      "html": "77050e3a425afe91",
+      "html": "034577ebe01357b8",
       "css": "cc9d5c8e7290c247",
       "js": "f9986afa6b43b9c8"
     },
     "al02": {
-      "html": "8225b7f5d2687442",
+      "html": "17c35ca91543b60b",
       "css": "223abd748d288150",
       "js": "1e29dbd867f4f1e2"
     },
     "al03": {
-      "html": "f20a8bb3ad77e757",
+      "html": "963748b6cd7ad74b",
       "css": "a07e1044c5ca531a",
       "js": "16fbd34788390e4f"
     },
     "al04": {
-      "html": "ad93120a4cf59471",
+      "html": "31eb14d23474074f",
       "css": "d7e2c75499388933",
       "js": "689286b574a25daa"
     },
     "al05": {
-      "html": "0b132455940310e4",
+      "html": "f2f7a32125aefdde",
       "css": "ae4682925f0766a0",
       "js": "47a90f0c9a51131b"
     },
     "al06": {
-      "html": "8c3163e6a003dbe4",
+      "html": "632920c669307dc0",
       "css": "5b04f2cd1945e8f6",
       "js": "e95d03f38f8f4120"
     },
@@ -57,7 +57,7 @@
       "js": "09fc97b5a1f08457"
     },
     "al12": {
-      "html": "83afc2a7fcd0fa18",
+      "html": "fe26d7445a5911ee",
       "css": "1965ad04a0f52e0b",
       "js": "9ad56967584b8cac"
     },
@@ -722,24 +722,24 @@
       "js": "783df055d671a174"
     },
     "es01": {
-      "html": "fb510f493031e36d",
+      "html": "c61320fe2af3a282",
       "css": "be97cd06395d11c2",
-      "js": "dee7691efd4a040b"
+      "js": "ece8ca36756c0d1f"
     },
     "es02": {
-      "html": "c9af7b627a1d1c40",
+      "html": "c4853145d07369ff",
       "css": "ab483d45f4652547",
-      "js": "91be1f5bc617f521"
+      "js": "2b2e13183765c9e3"
     },
     "es03": {
-      "html": "c7e7eaed640c4bc6",
+      "html": "91195f177cccf9e9",
       "css": "f26c92b978a0e703",
-      "js": "22be63aeb0837f17"
+      "js": "2ab3a8a2369fc311"
     },
     "es04": {
-      "html": "7c4bc2578cdbd8cc",
+      "html": "421cee4f24055f6c",
       "css": "d8e961e1e16dc2fc",
-      "js": "cc648e2a59e8cb21"
+      "js": "9e13b4aa6033e939"
     },
     "fr01": {
       "html": "f67e0f245b0fda10",
@@ -802,9 +802,9 @@
       "js": "227d9f76e07314b1"
     },
     "fr13": {
-      "html": "ba63db44c69b24d0",
+      "html": "6ede06dc4c84416a",
       "css": "7eb6d6376258ed90",
-      "js": "6558bdd489be0c78"
+      "js": "107d2dc61f222021"
     },
     "fr14": {
       "html": "7dec50940649d33b",
@@ -887,7 +887,7 @@
       "js": "e5f39194fd28fd3c"
     },
     "ig07": {
-      "html": "f855b9153ebdd901",
+      "html": "a48321323e7684fd",
       "css": "5d389758b09240b5",
       "js": "997dfa453925ee96"
     },
@@ -1572,22 +1572,22 @@
       "js": "cf9d1fc0d74f6505"
     },
     "pl01": {
-      "html": "87a717cc90890496",
+      "html": "35d909a2422b30c5",
       "css": "114e28322cead70c",
       "js": "55eafab6bc6ec52f"
     },
     "pl02": {
-      "html": "f4b9e251ea53f816",
+      "html": "11ea501963185d66",
       "css": "5b1729950ed5b9d2",
       "js": "1674ce15cb7df709"
     },
     "pl03": {
-      "html": "dbbfd6952fc7db98",
+      "html": "92ecc570aa89cc33",
       "css": "6e9142c6cdabbb2e",
       "js": "938fbb1364e79d19"
     },
     "pl04": {
-      "html": "2f702d704ca83fa3",
+      "html": "7e976ec47d988cd0",
       "css": "cb2a1920b22e69ef",
       "js": "ab10f20a43e44bf1"
     },
@@ -1612,22 +1612,22 @@
       "js": "7a6f56a229a79ebd"
     },
     "qq01": {
-      "html": "0cf816219c97e9b5",
+      "html": "5e85cc9afc112ff9",
       "css": "33f735b479780587",
       "js": "d0aa3cee005491ce"
     },
     "qq02": {
-      "html": "956921745fc76ba4",
+      "html": "b236a5342ba9aad4",
       "css": "54412954129e5026",
       "js": "dd6de62626ae8746"
     },
     "qq03": {
-      "html": "f1bc9bd0b19731bc",
+      "html": "341aa9baf207038c",
       "css": "e556483db9093966",
       "js": "0d06e23041e2b556"
     },
     "qq04": {
-      "html": "7e84c89f72077ed4",
+      "html": "b1938d4cf634351a",
       "css": "9030a3dd14b2bdd4",
       "js": "adf9964bd55a730e"
     },
@@ -1877,9 +1877,9 @@
       "js": "2c43cbff8789256d"
     },
     "ss06": {
-      "html": "f623e64ade0e692e",
+      "html": "f3665785b13087db",
       "css": "0cf52e50597e35da",
-      "js": "06706ab67e2eed79"
+      "js": "0e363a63c7d261ea"
     },
     "ss07": {
       "html": "dbfbe34efe395c87",
@@ -1897,9 +1897,9 @@
       "js": "71828ad1d6284728"
     },
     "ss10": {
-      "html": "e8cdf287c7b6c49b",
+      "html": "80423d01cec64274",
       "css": "0f3569fc7b407cdc",
-      "js": "56c209861ae5b2b7"
+      "js": "04437fb4db7bb82b"
     },
     "ss11": {
       "html": "bf23b4348bd8f871",
@@ -1912,9 +1912,9 @@
       "js": "cf57cbe3b36b7669"
     },
     "ss13": {
-      "html": "891d69b6b8fc03e3",
+      "html": "bfdadee6b847849d",
       "css": "8ff25917d7a6e170",
-      "js": "1a2cce0885cab375"
+      "js": "d18c081d995919c6"
     },
     "st01": {
       "html": "69ac0fe30f65b880",

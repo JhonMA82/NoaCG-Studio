@@ -13,11 +13,12 @@ export const pl04: TemplateVariant = definePollVariant(
     name: 'Clean Vote',
     styleTag: 'minimal',
     description: 'A quiet live-vote board: an accent VOTE NOW label, a keyline, and slim growing bars.',
-    maxLines: 3,
+    maxLines: 4,
     suggestedLines: [
       { title: 'Question', sample: POLL_CONTENT.question },
       { title: 'Options', sample: POLL_CONTENT.options },
       { title: 'Vote count', sample: POLL_CONTENT.footnote },
+      { title: 'Vote badge', sample: POLL_CONTENT.cue },
     ],
     logo: 'none',
     animationPresets: ['poll-open'],
@@ -40,7 +41,7 @@ export const pl04: TemplateVariant = definePollVariant(
     html: `    <!-- Clean Vote: quiet card — VOTE NOW label, question, keyline, slim bars, count line. -->
     <div class="poll-box">
       <!-- The vote label — it LEAVES when voting closes (a keyframed opacity, not a class). -->
-      <div class="poll-cue"><span class="poll-cue-text">VOTE NOW</span></div>
+      <div class="poll-cue"><span id="f3" class="poll-cue-text">${o.lines[3]?.sample || POLL_CONTENT.cue}</span></div>
       <!-- The question — slides up from behind this overflow mask on entrance. -->
       <div class="poll-mask"><span id="f0">${o.lines[0]?.sample || POLL_CONTENT.question}</span></div>
       <!-- The keyline — a dim rule closing the question block. -->

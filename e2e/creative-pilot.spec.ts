@@ -1,0 +1,414 @@
+// Creative Mode phase C (docs/CREATIVE_MODE_PLAN.md §3.2, §8, §10): the pilot's FREE half -
+// the deterministic compile, the style gate, the concept-diversity measure, the knowledge-card
+// selection, and the anti-anchoring rule. No tokens: every model-bound stage is exercised
+// through its normalizer, never through a call.
+//
+// The house pattern applies throughout: every positive assertion has its mutation twin, so a
+// gate that stops gating fails here rather than passing vacuously.
+
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+const open = async (page: Page) => {
+  await page.goto('/app', { waitUntil: 'domcontentloaded' });
+};
+
+/** A repeating-structure brief: the case the scaffold hypothesis is least obviously good at
+ *  (plan §3.3's known risk), so it is the one the free coverage compiles. */
+const BRACKET_INTENT = {
+  kind: 'type',
+  typeId: 'bracket',
+  confidence: 'high',
+  summary: 'An eight-team knockout bracket.',
+  parts: [
+    { id: 'header', role: 'title' },
+    { id: 'rounds', role: 'tie', repeating: true, itemParts: ['round', 'home', 'away', 'score'] },
+    { id: 'champion', role: 'winner' },
+  ],
+  fields: [
+    { key: 'title', role: 'line', label: 'Tournament', sample: 'Summer Cup' },
+    { key: 'ties', role: 'list', label: 'Ties', sample: '' },
+    { key: 'champion', role: 'line', label: 'Champion', sample: 'TBD' },
+  ],
+  states: [{ id: 'crowned', trigger: 'operator' }],
+  originalityRequested: true,
+};
+
+const BRACKET_SPEC = {
+  conceptId: 'c1',
+  name: 'Summer Cup Bracket',
+  summary: 'An eight-team knockout tree with the champion revealed last.',
+  layout: { family: 'bracket', arrangement: 'stack', fullFrame: true, zone: 'mid-center', sizeScale: 1 },
+  regions: [
+    { id: 'header', role: 'title', emphasis: 'secondary', fieldKeys: ['title'] },
+    { id: 'rounds', role: 'tie', emphasis: 'primary', repeating: true, itemParts: ['round', 'home', 'away', 'score'] },
+    { id: 'champion', role: 'winner', emphasis: 'primary', fieldKeys: ['champion'] },
+  ],
+  palette: { accent: '#f6a623', text: '#ffffff', textDim: '#b7bcc4', panel: 'rgba(10,12,16,0.86)' },
+  fontId: 'inter',
+  motion: { entranceOrder: ['header', 'rounds'], character: 'rise', seconds: 0.9 },
+  states: [{ id: 'crowned', trigger: 'operator', revealRegions: ['champion'] }],
+  designNote: 'The tree must read as a tree before any name is read.',
+};
+
+test.describe('creative pilot (phase C)', () => {
+  test('the scaffold compiles a valid template, and its animation targets really exist', async ({ page }) => {
+    await open(page);
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold, validation } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const anim = parseAnimData(scaffold.template.js);
+      const targets = [...new Set((anim?.steps ?? []).flatMap((s) => Object.keys(s.layers)))];
+      return {
+        errors: validation.errors.map((e) => `${e.rule}: ${e.message}`),
+        warnings: validation.warnings.map((w) => w.rule),
+        fieldCount: scaffold.template.fields.length,
+        textareas: scaffold.template.fields.filter((f) => f.ftype === 'textarea').length,
+        steps: anim?.steps.map((s) => s.name) ?? [],
+        declaredSteps: scaffold.template.settings.steps,
+        // Every animated selector must resolve in the markup, or the timeline addresses air.
+        unresolved: targets.filter((sel) => !scaffold.template.html.includes(sel.replace('.', 'class="')) && !scaffold.template.html.includes(sel.slice(1))),
+        regionIds: scaffold.regions.map((r) => r.id),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.errors).toEqual([]);
+    expect(report.unresolved).toEqual([]);
+    // The repeating region rides ONE textarea - the house list convention, not eight fields.
+    expect(report.textareas).toBe(1);
+    expect(report.fieldCount).toBe(3);
+    // The declared state is a real middle step, and SPX's steps count is derived from it.
+    expect(report.steps).toEqual(['In', 'crowned', 'Out']);
+    expect(report.declaredSteps).toBe('2');
+    expect(report.regionIds).toEqual(['header', 'rounds', 'champion']);
+  });
+
+  test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    const bench = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      // The SAME validator the arms inject: static validation + the live runtime bench +
+      // the safety screen. A scaffold that cannot pass it is not a floor, it is a hole.
+      const verdict = await productionSpxValidator()(scaffold.template);
+      return { errors: verdict.errors.map((e) => `${e.rule}: ${e.message}`) };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(bench.errors).toEqual([]);
+  });
+
+  test('the compiled scaffold satisfies the structural check it will be measured by', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // Stage 6 exists to make stage 8 pass by construction (plan §3.4). If a fresh scaffold
+    // cannot satisfy its own intent, no amount of styling will.
+    const findings = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const own = await benchStructuralIntent(scaffold.template, i);
+      // The mutation twin: the SAME scaffold against an intent demanding a part it does not
+      // carry must still report - a check that passes everything proves nothing.
+      const harder = await benchStructuralIntent(
+        scaffold.template,
+        normalizeIntent({ ...intent, fields: Array.from({ length: 9 }, (_, n) => ({ key: `k${n}`, role: 'line', label: `L${n}` })) }),
+      );
+      return { own: own.map((f) => f.message), harder: harder.length };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(findings.own).toEqual([]);
+    expect(findings.harder).toBeGreaterThan(0);
+  });
+
+  test('the style gate: a legal patch lands, and every wall refuses its own violation', async ({ page }) => {
+    await open(page);
+    const gate = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffold } = await import('/src/ai/creative/scaffold.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const i = normalizeIntent(intent);
+      const scaffold = compileScaffold(normalizeCreativeSpec(spec, i), i);
+      const legal = { summary: 'x', css: '.creative-box { display: grid; gap: calc(20px * var(--scale)); }' };
+      const landed = applyCreativeStyle(scaffold, legal);
+      const headerInner = /data-region="header"[^>]*>([\s\S]*?)<\/div>\s*<!--/.exec(scaffold.template.html);
+      return {
+        legal: Boolean(landed),
+        cssLanded: landed?.css.includes('display: grid') ?? false,
+        // The scaffold CSS is kept and the patch appended - the design wins by cascade, it
+        // does not replace the contracts above it.
+        keptScaffoldCss: landed?.css.includes(':root') ?? false,
+        rootRedeclared: applyCreativeStyle(scaffold, { summary: 'x', css: ':root { --accent: red; }' }) === null,
+        fontFace: applyCreativeStyle(scaffold, { summary: 'x', css: '@font-face { font-family: x; }' }) === null,
+        markupInCss: applyCreativeStyle(scaffold, { summary: 'x', css: '.a{} <script>alert(1)</script>' }) === null,
+        remoteUrl: applyCreativeStyle(scaffold, { summary: 'x', css: '.a { background: url("https://x/y.png"); }' }) === null,
+        emptyCss: applyCreativeStyle(scaffold, { summary: 'x', css: '   ' }) === null,
+        unknownRegion: applyCreativeStyle(scaffold, {
+          summary: 'x', css: '.a{color:red}', regions: [{ id: 'nope', html: '<b>x</b>' }],
+        }) === null,
+        droppedFieldId: applyCreativeStyle(scaffold, {
+          summary: 'x', css: '.a{color:red}', regions: [{ id: 'header', html: '<div>gone</div>' }],
+        }) === null,
+        droppedRows: applyCreativeStyle(scaffold, {
+          summary: 'x', css: '.a{color:red}', regions: [{ id: 'rounds', html: '<div class="x"></div>' }],
+        }) === null,
+        scriptInRegion: applyCreativeStyle(scaffold, {
+          summary: 'x', css: '.a{color:red}', regions: [{ id: 'header', html: '<span id="f0"></span><script>x()</script>' }],
+        }) === null,
+        // …and the twin of the two region walls: a re-composition that KEEPS the contracts is
+        // accepted, which is where the composition freedom actually lives.
+        legalRegion: applyCreativeStyle(scaffold, {
+          summary: 'x',
+          css: '.a{color:red}',
+          regions: [{ id: 'header', html: '<div class="creative-frame"><div class="creative-mask"><span id="f0">t</span></div></div>' }],
+        }) !== null,
+        headerHadField: (headerInner?.[1] ?? '').includes('id="f0"'),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(gate.legal).toBe(true);
+    expect(gate.cssLanded).toBe(true);
+    expect(gate.keptScaffoldCss).toBe(true);
+    expect(gate.legalRegion).toBe(true);
+    expect(gate.headerHadField).toBe(true); // the dropped-id twin is testing a real id
+    expect({
+      rootRedeclared: gate.rootRedeclared,
+      fontFace: gate.fontFace,
+      markupInCss: gate.markupInCss,
+      remoteUrl: gate.remoteUrl,
+      emptyCss: gate.emptyCss,
+      unknownRegion: gate.unknownRegion,
+      droppedFieldId: gate.droppedFieldId,
+      droppedRows: gate.droppedRows,
+      scriptInRegion: gate.scriptInRegion,
+    }).toEqual({
+      rootRedeclared: true, fontFace: true, markupInCss: true, remoteUrl: true, emptyCss: true,
+      unknownRegion: true, droppedFieldId: true, droppedRows: true, scriptInRegion: true,
+    });
+  });
+
+  test('a normalized spec never loses a required part, however off-shape the emit', async ({ page }) => {
+    await open(page);
+    const report = await page.evaluate(async ({ intent }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const i = normalizeIntent(intent);
+      // The emit said nothing usable at all - the platform still has to compile something
+      // that carries the brief, because the verify stage measures the BRIEF, not the emit.
+      const empty = normalizeCreativeSpec({}, i);
+      const garbage = normalizeCreativeSpec(
+        { layout: { zone: 'nowhere', sizeScale: 99 }, palette: { accent: 'chartreuse' }, motion: { seconds: 40, character: 'explode' }, regions: 'nope' },
+        i,
+      );
+      return {
+        emptyRegions: empty.regions.map((r) => r.id),
+        emptyRepeats: empty.regions.filter((r) => r.repeating).map((r) => r.id),
+        zone: garbage.layout.zone,
+        sizeScale: garbage.layout.sizeScale,
+        accent: garbage.palette.accent,
+        seconds: garbage.motion.seconds,
+        character: garbage.motion.character,
+        entranceOrder: garbage.motion.entranceOrder,
+      };
+    }, { intent: BRACKET_INTENT });
+
+    expect(report.emptyRegions).toEqual(['header', 'rounds', 'champion']);
+    expect(report.emptyRepeats).toEqual(['rounds']); // the intent's repeating part stays repeating
+    expect(report.zone).toBe('bottom-left'); // no placement on the intent -> the honest default
+    expect(report.sizeScale).toBe(1.2);
+    expect(report.accent).toBe('#ffb020'); // a colour word is not a colour value
+    expect(report.seconds).toBe(2);
+    expect(report.character).toBe('rise');
+    expect(report.entranceOrder).toEqual(['header', 'rounds', 'champion']);
+  });
+
+  test('concept diversity is measured on composition AND reading order, not on colour', async ({ page }) => {
+    await open(page);
+    const counts = await page.evaluate(async () => {
+      const { normalizeConcepts, distinctConceptCount } = await import('/src/ai/creative/contracts.ts');
+      const base = { name: 'a', compositionFamily: 'split', hierarchyOrder: ['x', 'y'], paletteCharacter: 'p', motionCharacter: 'm', rationale: 'r' };
+      const reskins = normalizeConcepts({ concepts: [
+        base,
+        { ...base, name: 'b', paletteCharacter: 'different', motionCharacter: 'different' },
+        { ...base, name: 'c', paletteCharacter: 'other' },
+      ] });
+      const real = normalizeConcepts({ concepts: [
+        base,
+        { ...base, name: 'b', compositionFamily: 'tower', hierarchyOrder: ['y', 'x'] },
+        { ...base, name: 'c', compositionFamily: 'board', hierarchyOrder: ['y'] },
+      ] });
+      // Half-different: a new family but the SAME reading order does not count.
+      const half = normalizeConcepts({ concepts: [
+        base,
+        { ...base, name: 'b', compositionFamily: 'tower' },
+        { ...base, name: 'c', compositionFamily: 'board' },
+      ] });
+      return { reskins: distinctConceptCount(reskins), real: distinctConceptCount(real), half: distinctConceptCount(half), ids: real.map((c) => c.id) };
+    });
+
+    expect(counts.reskins).toBe(0);
+    expect(counts.real).toBe(3);
+    expect(counts.half).toBe(0);
+    expect(counts.ids).toEqual(['c1', 'c2', 'c3']); // the platform assigns the ids, not the emit
+  });
+
+  test('knowledge cards are keyword-anchored, capped at two, and honestly absent', async ({ page }) => {
+    await open(page);
+    const picks = await page.evaluate(async () => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { cardsForIntent, cardsForFamily } = await import('/src/ai/creative/knowledgeCards.ts');
+      const intent = (over: Record<string, unknown>) => normalizeIntent({
+        kind: 'novel', novelDescription: '', confidence: 'high', summary: '',
+        parts: [], fields: [], originalityRequested: false, ...over,
+      });
+      return {
+        bracket: cardsForIntent(intent({ kind: 'type', typeId: 'bracket', summary: 'a knockout bracket' })).map((c) => c.family),
+        strap: cardsForIntent(intent({ summary: 'a lower third naming the guest' })).map((c) => c.family),
+        // A genuinely novel structure gets NO card rather than the nearest wrong one.
+        novel: cardsForIntent(intent({ novelDescription: 'a rotating polyhedron of sentiment' })).map((c) => c.family),
+        capped: cardsForIntent(intent({ summary: 'a bracket tower board split card ring ticker strip' })).length,
+        byFamily: cardsForFamily('split').map((c) => c.family),
+        unknownFamily: cardsForFamily('quantum').length,
+      };
+    });
+
+    expect(picks.bracket).toEqual(['bracket']);
+    expect(picks.strap).toEqual(['strap']);
+    expect(picks.novel).toEqual([]);
+    expect(picks.capped).toBe(2);
+    expect(picks.byFamily).toEqual(['split']);
+    expect(picks.unknownFamily).toBe(0);
+  });
+
+  test('arms C and D run end to end against a stubbed gateway - stages, gate, verify, critique repair', async ({ page }) => {
+    await open(page);
+    test.setTimeout(90_000);
+    // Every model call is answered locally, so the whole staged pipeline is exercised for
+    // free: the wiring between the stages is what breaks silently, and a paid run is a bad
+    // place to discover it.
+    const calls: string[] = [];
+    const CONCEPTS = {
+      concepts: [
+        { name: 'Ledger', compositionFamily: 'bracket', hierarchyOrder: ['rounds', 'header', 'champion'], paletteCharacter: 'ink on paper', motionCharacter: 'settling', rationale: 'The tree is the story.' },
+        { name: 'Floodlit', compositionFamily: 'board', hierarchyOrder: ['header', 'rounds'], paletteCharacter: 'stadium dark', motionCharacter: 'snap', rationale: 'Arena energy.' },
+        { name: 'Column', compositionFamily: 'tower', hierarchyOrder: ['champion', 'rounds'], paletteCharacter: 'mono', motionCharacter: 'cascade', rationale: 'Progression as a list.' },
+      ],
+    };
+    const STYLE = { summary: 'ink on paper', css: '.creative-box { display: grid; gap: calc(24px * var(--scale)); }\n.creative-row { border-bottom: calc(2px * var(--scale)) solid var(--accent); }' };
+    const REPAIRED = { summary: 'fixed', css: '.creative-box { display: grid; gap: calc(28px * var(--scale)); }\n.creative-champion-fix { color: var(--accent); }' };
+    let critiqueRound = 0;
+
+    await page.route('**/api/ai/generate', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}') as { request?: { structuredOutput?: { name?: string } } };
+      const tool = body.request?.structuredOutput?.name ?? '';
+      calls.push(tool);
+      const answer = (output: unknown) => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ output, usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 }, provider: 'openrouter', model: 'stub', attempts: [] }),
+      });
+      if (tool === 'emit_concept_directions') return answer(CONCEPTS);
+      if (tool === 'emit_creative_spec') return answer(BRACKET_SPEC);
+      if (tool === 'emit_frame_critique') {
+        critiqueRound += 1;
+        return answer({ airworthy: false, findings: [{ question: 'Is the composition balanced?', problem: 'The champion sits in a hole.', severity: 'weak' }] });
+      }
+      if (tool === 'emit_creative_style') return answer(critiqueRound ? REPAIRED : STYLE);
+      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'x', message: 'unexpected stage' } }) });
+    });
+
+    const runs = await page.evaluate(async ({ intent }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const i = normalizeIntent(intent);
+      const input = {
+        brief: 'An eight-team knockout bracket for a summer cup.',
+        intent: i,
+        context: { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 },
+        validate: productionSpxValidator(),
+        structuralCheck: benchStructuralIntent,
+      };
+      const pick = (r: Awaited<ReturnType<typeof runCreativeArm>>) => ({
+        ok: r.ok,
+        error: r.error ?? null,
+        styleApplied: r.styleApplied,
+        structural: r.structural.map((f) => f.message),
+        concepts: r.concepts.length,
+        specName: r.spec?.name ?? null,
+        stages: r.stages.map((s) => s.stage),
+        css: r.template?.css ?? '',
+        critiqueFindings: r.critique?.findings.length ?? null,
+        critiqueRepairApplied: r.critiqueRepairApplied ?? null,
+      });
+      const c = pick(await runCreativeArm('C', input));
+      const d = pick(await runCreativeArm('D', {
+        ...input,
+        // A 1x1 PNG stands in for the rig's real screenshot: the critique's plumbing is what
+        // this proves, and the vision model is stubbed anyway.
+        capture: async () => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      }));
+      return { c, d };
+    }, { intent: BRACKET_INTENT });
+
+    // Arm C: three stages, the style patch through the gate, a valid and complete result.
+    expect(runs.c.error).toBeNull();
+    expect(runs.c.stages).toEqual(['concepts', 'creative-spec', 'scaffold', 'style']);
+    expect(runs.c.concepts).toBe(3);
+    expect(runs.c.specName).toBe('Summer Cup Bracket');
+    expect(runs.c.styleApplied).toBe(true);
+    expect(runs.c.css).toContain('.creative-row { border-bottom');
+    expect(runs.c.ok).toBe(true);
+    expect(runs.c.structural).toEqual([]);
+
+    // Arm D: the critique ran, found something, and its ONE focused repair replaced the
+    // design rather than stacking a second one on top of it.
+    expect(runs.d.stages).toContain('critique');
+    expect(runs.d.stages).toContain('critique-repair');
+    expect(runs.d.critiqueFindings).toBe(1);
+    expect(runs.d.critiqueRepairApplied).toBe(true);
+    expect(runs.d.css).toContain('creative-champion-fix');
+    expect(runs.d.css).not.toContain('.creative-row { border-bottom'); // the first patch is gone
+    expect(calls.filter((c) => c === 'emit_frame_critique')).toHaveLength(1);
+  });
+
+  test('the anti-anchoring rule: the de-anchored arm studies a skeleton, the control a catalog design', async ({ page }) => {
+    await open(page);
+    const prompts = await page.evaluate(async () => {
+      const { coderSystemPrompt } = await import('/src/ai/claudeProvider.ts');
+      const { neutralSkeletonTemplate } = await import('/src/ai/creative/neutralSkeleton.ts');
+      const { lt01 } = await import('/src/templates/lowerThirds/lt01.ts');
+      const control = coderSystemPrompt(lt01.create());
+      const deAnchored = coderSystemPrompt(neutralSkeletonTemplate());
+      // A line of the catalog design's OWN stylesheet - the design decisions, not the word
+      // "lower-third", which the contracts section names as an example prefix either way.
+      const catalogCss = lt01.create().css.split('\n').find((l) => l.includes('.lower-third-box')) ?? 'lower-third-box';
+      return {
+        controlCarriesCatalog: control.includes(catalogCss),
+        deAnchoredCarriesCatalog: deAnchored.includes(catalogCss),
+        deAnchoredCarriesSkeleton: deAnchored.includes('graphic-box'),
+        // The contracts half is IDENTICAL either way - that is what makes A-vs-B attributable
+        // to the example rather than to two different prompts.
+        sameContracts: control.replace(/[\s\S]*?## The SPX contract/, '').slice(0, 400)
+          === deAnchored.replace(/[\s\S]*?## The SPX contract/, '').slice(0, 400),
+      };
+    });
+
+    expect(prompts.controlCarriesCatalog).toBe(true);
+    expect(prompts.deAnchoredCarriesCatalog).toBe(false);
+    expect(prompts.deAnchoredCarriesSkeleton).toBe(true);
+    expect(prompts.sameContracts).toBe(true);
+  });
+});

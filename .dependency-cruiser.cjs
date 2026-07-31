@@ -23,6 +23,19 @@ module.exports = {
       from: {},
       to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
     },
+    {
+      name: 'creative-pilot-is-bench-only',
+      severity: 'error',
+      comment:
+        'The Creative Mode pilot (src/ai/creative/, docs/CREATIVE_MODE_PLAN.md §10) is a ' +
+        'BENCH RIG: its only callers are scripts/creative-pilot-bench.mjs and its e2e ' +
+        'coverage, both outside this graph. No app module may import it - a production edge ' +
+        'would put an unratified pipeline behind a user-facing button, and arm A would stop ' +
+        'being the frozen control the whole comparison rests on (§8). When phase E promotes ' +
+        'something out of the pilot, delete this rule together with the promotion.',
+      from: { path: '^src/', pathNot: '^src/ai/creative/' },
+      to: { path: '^src/ai/creative/' },
+    },
   ],
 
   allowed: [

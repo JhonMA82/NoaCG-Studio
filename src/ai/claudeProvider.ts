@@ -50,7 +50,7 @@ import {
 
 // ── Structured output: the model must return the template via this tool ─────
 
-const TEMPLATE_TOOL: ModelTool = {
+export const TEMPLATE_TOOL: ModelTool = {
   name: 'emit_template',
   description: 'Return the complete SPX template as its three code files.',
   input_schema: {
@@ -72,7 +72,7 @@ const TEMPLATE_TOOL: ModelTool = {
   },
 };
 
-interface EmittedTemplate {
+export interface EmittedTemplate {
   name: string;
   type: TemplateType;
   summary: string;
@@ -121,7 +121,17 @@ function systemPrompt(exampleVariant: TemplateVariant = lt01, examplePresetId?: 
   // The canonical example is REAL generated code — the same contracts the wizard writes.
   // The caller picks the nearest catalog design so a scoreboard brief studies a real
   // scoreboard's contracts, not always a lower third.
-  const example = exampleWithAuthoringRegion(exampleVariant, examplePresetId);
+  return coderSystemPrompt(exampleWithAuthoringRegion(exampleVariant, examplePresetId));
+}
+
+/**
+ * The coder's system prompt around ONE worked example. Split out of `systemPrompt` above so
+ * the Creative Mode pilot's de-anchored arm can pass a NEUTRAL structural skeleton in the
+ * example slot (plan §4, §8 arm B) — the A-vs-B comparison isolates the catalog example, so
+ * the two arms must differ in the example and in nothing else. Pure extraction: the control
+ * path still calls it with exactly the example it always built.
+ */
+export function coderSystemPrompt(example: SpxTemplate): string {
   return `You are the template generator inside NoaCG Studio — a tool that creates
 broadcast graphics templates for SPX Graphics / CasparCG playout. You write COMPLETE, working,
 marketplace-quality templates. The user is learning to code from what you write.
@@ -291,7 +301,7 @@ Return ONLY via the emit_template tool.`;
 
 // ── Building an SpxTemplate from the model's output ──────────────────────────
 
-function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
+export function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
   const parsed = parseDefinition(emitted.html);
   return {
     name: emitted.name || base?.name || 'AI template',
@@ -554,7 +564,7 @@ function attachmentSections(ctx: GenerateContext): string[] {
   return out;
 }
 
-function contextText(prompt: string, ctx?: GenerateContext): string {
+export function contextText(prompt: string, ctx?: GenerateContext): string {
   const parts = [`Create a broadcast graphics template.\n\nUser brief: ${prompt}`];
   if (ctx) {
     parts.push(`Canvas: ${ctx.resolution.width}×${ctx.resolution.height} @ ${ctx.fps} fps.`);
@@ -589,7 +599,7 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
   return parts.join('\n\n');
 }
 
-function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
+export function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
   if (!ctx) return [];
   const blocks: ContentBlock[] = [];
   // Assets first, references after — the manifest numbers them in exactly this order.
@@ -928,6 +938,12 @@ async function intentAndRoute(
       messages: [{ role: 'user', content: userContent }],
       tool: INTENT_TOOL,
       maxTokens: 2000,
+      // Per-stage model binding (plan §4): the intent stage is a small forced structured
+      // call, the shape cheap open models answer at parity — so it runs on the provider's
+      // `role:'fast'` model rather than the session's design/code model. Every stage after
+      // it keeps the session route. The routing bench pins its model explicitly instead,
+      // because its whole job is to measure a NAMED candidate in this role.
+      modelRole: 'fast',
     });
     run.stage('intent', t0, result.model, result.usage);
     // An answer that never addressed the intent tool must not be normalized: it would read

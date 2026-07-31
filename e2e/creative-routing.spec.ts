@@ -154,6 +154,58 @@ test.describe('creative routing (phase A)', () => {
     expect(runs.alternatives).toMatchObject({ route: 'create', mode: 'create', hasIntent: true });
   });
 
+  test('the intent stage runs on the provider fast model; every later stage keeps the session route', async ({ page }) => {
+    await open(page);
+    // Per-stage model binding (plan §4). The gateway request body is the seam, so this
+    // costs nothing: every /api/ai/generate call is intercepted and answered locally.
+    // The mutation twin is built in - the SAME run's design and coder calls must go out
+    // on the session model, so a binding applied to every stage fails here too.
+    const calls: { tool: string; model: string }[] = [];
+    await page.route('**/api/ai/generate', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        request?: { structuredOutput?: { name?: string } };
+        route?: { model?: string };
+      };
+      const tool = body.request?.structuredOutput?.name ?? '(text)';
+      const model = body.route?.model ?? '';
+      calls.push({ tool, model });
+      if (tool !== 'emit_structural_intent') {
+        // Every stage after the intent call is answered with a failure: the routing under
+        // test has already been recorded, and the generation unwinds without a second run.
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'x', message: 'bench stop' } }) });
+        return;
+      }
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          output: {
+            kind: 'type', typeId: 'bracket', confidence: 'high', summary: 'A playoff bracket.',
+            parts: [{ id: 'tree', role: 'bracket' }], fields: [], originalityRequested: false, beyondScope: false,
+          },
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+          provider: 'openrouter', model, attempts: [],
+        }),
+      });
+    });
+    const session = await page.evaluate(async () => {
+      const { saveAiSettings, defaultModelForProvider } = await import('/src/ai/settings.ts');
+      const sessionModel = 'qwen/qwen3-coder-next';
+      saveAiSettings({ provider: 'openrouter', model: sessionModel, fallbacks: [] });
+      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
+      // The run unwinds on the stopped design/coder calls; only the routing matters here.
+      await claudeProvider.generate('A four-team playoff bracket.', ctx as never).catch(() => null);
+      return { sessionModel, fastModel: defaultModelForProvider('openrouter', 'fast') };
+    });
+    expect(session.fastModel).not.toBe(session.sessionModel); // the two roles are really distinct
+    const intentCalls = calls.filter((c) => c.tool === 'emit_structural_intent');
+    expect(intentCalls.map((c) => c.model)).toEqual([session.fastModel]);
+    // …and the rest of the pipeline is untouched by the binding.
+    const laterCalls = calls.filter((c) => c.tool !== 'emit_structural_intent');
+    expect(laterCalls.length).toBeGreaterThan(0);
+    expect(laterCalls.every((c) => c.model === session.sessionModel)).toBe(true);
+  });
+
   test('structural check: list data, field capacity, and states - with mutation twins', async ({ page }) => {
     await open(page);
     const results = await page.evaluate(async () => {
