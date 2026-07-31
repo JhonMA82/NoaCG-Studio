@@ -85,9 +85,10 @@ const ANONYMOUS: MetricRow[] = [
 const AI: MetricRow[] = [
   { key: 'aiGenerations', label: 'Lite generations started', unit: 'events', ledger: 'lite' },
   { key: 'aiSuccesses', label: 'Lite generations usable', unit: 'events', ledger: 'lite' },
-  { key: 'aiFailures', label: 'Lite generations failed', unit: 'events', ledger: 'lite', hint: 'Started, usable and failed do not sum: one still running is neither.' },
+  { key: 'aiFailures', label: 'Lite generations failed', unit: 'events', ledger: 'lite', hint: 'Broke. Started, usable, failed and declined do not sum: one still running is none of them.' },
+  { key: 'aiDeclined', label: 'Lite briefs declined as out of scope', unit: 'events', ledger: 'lite', hint: 'The guardrail firing, not failing — multi-graphic, advanced state machine, too complex. A rising number means people want something Lite cannot do yet.' },
   { key: 'aiUsers', label: 'Accounts using Lite', unit: 'accounts', ledger: 'lite' },
-  { key: 'aiCostUsd', label: 'Lite spend (ours)', unit: 'usd', ledger: 'lite' },
+  { key: 'aiCostUsd', label: 'Lite spend (ours)', unit: 'usd', ledger: 'lite', hint: 'Only generations that reached a provider: one that never chose a route still carries the reservation ceiling, not a real charge.' },
   { key: 'gatewayManaged', label: 'Gateway calls on our key', unit: 'events', ledger: 'gateway' },
   { key: 'gatewayManagedCostUsd', label: 'Gateway spend (ours)', unit: 'usd', ledger: 'gateway' },
   { key: 'gatewayByo', label: 'Gateway calls on a user key', unit: 'events', ledger: 'gateway', hint: "The user's own money. Never added to the figures above." },
@@ -96,9 +97,9 @@ const AI: MetricRow[] = [
 
 const RENDERS: MetricRow[] = [
   { key: 'rendersStarted', label: 'Cloud renders submitted', unit: 'events', ledger: 'render' },
-  { key: 'rendersCompleted', label: 'Cloud renders completed', unit: 'events', ledger: 'render', hint: 'Counted by submission time, so one finishing after the window is not here.' },
-  { key: 'rendersFailed', label: 'Cloud renders failed', unit: 'events', ledger: 'render' },
-  { key: 'renderMedianMs', label: 'Render time', unit: 'duration', ledger: 'render' },
+  { key: 'rendersDelivered', label: 'Cloud renders delivered', unit: 'events', ledger: 'render', hint: 'Reached completion, whether or not the file still exists. Counted by submission time, so one finishing after the window is not here.' },
+  { key: 'rendersFailed', label: 'Cloud renders failed', unit: 'events', ledger: 'render', hint: 'Actually failed — not cancelled, and not an expired output from a render that worked.' },
+  { key: 'renderMedianMs', label: 'Render time', unit: 'duration', ledger: 'render', hint: 'Only renders whose output is still live: expiring a job overwrites the timestamp this is measured from.' },
 ];
 
 const MIX_TITLES: Record<string, string> = {

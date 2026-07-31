@@ -230,14 +230,23 @@ export interface AdminOverviewMetrics {
   /** Exports completed with no account - the free core delivering its whole value to someone
    *  the product will never see again, which is the point rather than a leak. */
   anonymousExports: number;
-  /** The NoaCG-funded Lite ledger: attempts, and their resolved outcomes. Successes and
-   *  failures do not sum to attempts - a generation still running is neither. */
+  /** The NoaCG-funded Lite ledger: attempts, and their resolved outcomes. Successes, failures
+   *  and declines do not sum to attempts - a generation still running is none of them. */
   aiGenerations: number;
   aiSuccesses: number;
+  /** Broke. Not a brief Lite declined - that is the next field - and not an abandoned
+   *  reservation. */
   aiFailures: number;
+  /** Briefs Lite refused as outside its scope: multi-graphic, advanced state machine, too
+   *  complex. The guardrail FIRING, so it is never counted as a failure - but worth watching,
+   *  because a rising number is people asking for something Lite cannot do yet. */
+  aiDeclined: number;
   /** Distinct accounts that started a Lite generation. */
   aiUsers: number;
-  /** Provider cost of those generations, in USD. Money NoaCG spent. */
+  /** Provider cost, in USD, over generations that actually reached a provider. A generation
+   *  that never chose a route still carries the reservation's cost CEILING rather than a real
+   *  charge (the fleet-budget check books it up front on purpose), so including those
+   *  overstated spend more than sixfold on this instance. */
   aiCostUsd: number;
   /** Model-gateway traffic, split by whose key paid. Only the managed half is NoaCG's money. */
   gatewayManaged: number;
@@ -250,12 +259,19 @@ export interface AdminOverviewMetrics {
   gatewayManagedCostUsd: number;
   gatewayFailures: number;
   /** Cloud render jobs by submission time. A job submitted inside the window and finished
-   *  after it counts as started here and completed nowhere. */
+   *  after it counts as started here and delivered nowhere. */
   rendersStarted: number;
-  rendersCompleted: number;
+  /** Reached completion, whether or not the output file still exists. `expired` is reachable
+   *  only from `complete` (the TTL cron deletes the blob and keeps the row), so counting
+   *  `complete` alone would decay this toward zero on a perfectly healthy instance. */
+  rendersDelivered: number;
+  /** Actually failed. Not `cancelled` - somebody changing their mind - and emphatically not
+   *  `expired`, which is a delivered render whose file has since aged out. */
   rendersFailed: number;
-  /** Median wall-clock time from submission to the last status write, over completed jobs.
-   *  Null when nothing completed in the window. */
+  /** Median wall-clock time from submission to the last status write, over jobs whose output
+   *  is STILL LIVE. It cannot widen to the delivered set: expiring a job overwrites the row's
+   *  timestamp with the deletion time, so an aged-out render would report the age of its file
+   *  rather than how long it took. Null when no live output falls in the window. */
   renderMedianMs: number | null;
 }
 

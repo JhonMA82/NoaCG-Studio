@@ -253,6 +253,7 @@ const OVERVIEW_METRICS = {
   aiGenerations: 22,
   aiSuccesses: 17,
   aiFailures: 3,
+  aiDeclined: 2,
   aiUsers: 5,
   aiCostUsd: 0.4123,
   gatewayManaged: 8,
@@ -261,7 +262,7 @@ const OVERVIEW_METRICS = {
   gatewayManagedCostUsd: 0.09,
   gatewayFailures: 2,
   rendersStarted: 5,
-  rendersCompleted: 4,
+  rendersDelivered: 4,
   rendersFailed: 1,
   renderMedianMs: 42_000,
 };
@@ -353,6 +354,49 @@ test('the overview states its reporting boundaries, and every number says what i
 
   // The user's own AI spend is present and NOT folded into ours.
   await expect(page.locator('tr[data-metric="gatewayByo"] th')).toContainText('user key');
+});
+
+test('a render that finished is reported as delivered, and an aged-out file is not a failure', async ({ page }) => {
+  // The defect this pins: an `expired` render is one that WORKED and whose output has since been
+  // deleted by the TTL cron. Counting it as failed reported four delivered renders as failures
+  // on this instance, and building "completed" on the transient `complete` state made that
+  // column decay to zero. The row must say delivered, and it must say why.
+  await stubOverview(page, overviewBody());
+  await page.goto('/admin');
+
+  const row = page.locator('tr[data-metric="rendersDelivered"]');
+  await expect(row.locator('th')).toContainText('delivered');
+  await expect(row.locator('th .admin-muted')).toContainText('whether or not the file still exists');
+  await expect(row.locator('td').first()).toContainText('4');
+
+  // The word "completed" is gone from the render table - it was the transient state.
+  await expect(page.locator('tr[data-metric="rendersCompleted"]')).toHaveCount(0);
+
+  // Failed says what it excludes, so nobody reads an expired output back into it.
+  await expect(page.locator('tr[data-metric="rendersFailed"] th .admin-muted')).toContainText('not an expired output');
+
+  // And the median admits its narrower scope rather than looking like the whole picture.
+  await expect(page.locator('tr[data-metric="renderMedianMs"] th .admin-muted')).toContainText('still live');
+});
+
+test('a brief Lite refuses is reported as declined, not as a failure', async ({ page }) => {
+  // The same shape as the render row above, on the AI side: `unsupported` is Lite correctly
+  // refusing a brief outside its scope - the guardrail firing. Counting it as a failure turned
+  // 19 real failures into 26 on production.
+  await stubOverview(page, overviewBody());
+  await page.goto('/admin');
+
+  const declined = page.locator('tr[data-metric="aiDeclined"]');
+  await expect(declined.locator('th')).toContainText('declined as out of scope');
+  await expect(declined.locator('th .admin-muted')).toContainText('guardrail firing, not failing');
+  await expect(declined.locator('td').first()).toContainText('2');
+
+  // The failure row must not silently absorb it, and must say so.
+  await expect(page.locator('tr[data-metric="aiFailures"] td').first()).toContainText('3');
+  await expect(page.locator('tr[data-metric="aiFailures"] th .admin-muted')).toContainText('declined');
+
+  // Spend names its own scope, because a reservation ceiling is not a charge.
+  await expect(page.locator('tr[data-metric="aiCostUsd"] th .admin-muted')).toContainText('reservation ceiling');
 });
 
 test('what gets made without an account is a first-class figure, not a footnote', async ({ page }) => {
