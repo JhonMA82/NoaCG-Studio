@@ -180,6 +180,12 @@ export interface AdminUsageOverview {
 
 export type AdminPeriodId = 'day' | 'week' | 'month';
 
+/** Which ledger a metric is counted from. It exists so a comparison can be withheld for the
+ *  metrics whose history is too short WITHOUT withholding it for the ones whose history is
+ *  fine - these ledgers were switched on months apart, and treating them as one would hide a
+ *  registration trend because the funnel is young. */
+export type AdminLedgerId = 'accounts' | 'funnel' | 'lite' | 'gateway' | 'render';
+
 /** Everything countable inside one window. Every field is defined in docs/ADMIN.md §8 -
  *  if a name here does not obviously say what it counts, the definition is the doc, not a
  *  guess from the identifier. */
@@ -211,10 +217,19 @@ export interface AdminOverviewMetrics {
   /** Creates made while signed out, and while signed in. They sum to graphics + videos. */
   anonymousCreates: number;
   signedInCreates: number;
+  /** Graphics made with NO ACCOUNT. The editor has no login wall, so this is the free core's
+   *  promise measured rather than assumed. Graphics only, matching the split above. */
+  anonymousGraphics: number;
+  /** Distinct browsers that created something while signed out - so one enthusiastic
+   *  anonymous visitor cannot read as adoption. */
+  anonymousCreators: number;
   /** Export packages that reached the disk. Every row is a success; there is no failure
    *  counterpart, so no rate is computed from this. */
   exports: number;
   exportingVisitors: number;
+  /** Exports completed with no account - the free core delivering its whole value to someone
+   *  the product will never see again, which is the point rather than a leak. */
+  anonymousExports: number;
   /** The NoaCG-funded Lite ledger: attempts, and their resolved outcomes. Successes and
    *  failures do not sum to attempts - a generation still running is neither. */
   aiGenerations: number;
@@ -227,6 +242,11 @@ export interface AdminOverviewMetrics {
   /** Model-gateway traffic, split by whose key paid. Only the managed half is NoaCG's money. */
   gatewayManaged: number;
   gatewayByo: number;
+  /** AI calls with NO ACCOUNT AT ALL. Independent of the byo/managed split above - anonymity
+   *  and whose key paid are separate facts, and an anonymous caller can be on ours. The Lite
+   *  ledger cannot answer this either (hosted generation always has an account behind it), so
+   *  it is the only place account-free AI is counted. */
+  anonymousGatewayCalls: number;
   gatewayManagedCostUsd: number;
   gatewayFailures: number;
   /** Cloud render jobs by submission time. A job submitted inside the window and finished
@@ -252,10 +272,13 @@ export interface AdminOverviewWindow {
   metrics: AdminOverviewMetrics;
   /** Null when the comparison span could not be read. Never silently zero. */
   previous: AdminOverviewMetrics | null;
-  /** True when the comparison span starts before the activity ledger does, so "last period"
-   *  is partly a stretch of time nothing was recording. The change would render as growth
-   *  when what actually changed is that counting began, so the page withholds it. */
-  previousPartial: boolean;
+  /** The ledgers whose history does not cover this comparison span, so "last period" is partly
+   *  a stretch of time they were not recording. A change measured against one of those would
+   *  render as growth when what actually changed is that counting began, so the page withholds
+   *  it - but ONLY for the metrics counted from those ledgers. The rest keep their comparison,
+   *  because the ledgers were switched on months apart and a single flag would hide a
+   *  registration trend on the grounds that the funnel is young. */
+  previousPartialLedgers: AdminLedgerId[];
 }
 
 /** The standing picture, not a window. */
@@ -271,10 +294,13 @@ export interface AdminOverviewState {
   rendersInFlight: number;
   /** Past their own deadline and still not terminal - the sweep has not caught them. */
   rendersOverdue: number;
-  /** The oldest row in each ledger. A window reaching back further than one of these is short
-   *  for a reason nothing else on the page would show. */
+  /** The oldest row in each ledger, ONE PER LEDGER. A window reaching back further than one of
+   *  these is short for a reason nothing else on the page would show. They differ by months on
+   *  this instance, which is exactly why they are not collapsed into one number. */
+  accountsSince: string | null;
   funnelSince: string | null;
   generationsSince: string | null;
+  gatewaySince: string | null;
   rendersSince: string | null;
 }
 

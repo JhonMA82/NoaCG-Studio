@@ -472,12 +472,19 @@ and `periods.test.ts` pins it, including both Helsinki DST changes.
 - **Changes are absolute differences, not percentages.** At this instance's volume 2 to 3 is a
   50% rise, and a page that says so cries wolf every morning.
 - A window with no comparable span reports "no comparison" rather than a zero.
-- **A comparison span older than the activity ledger is withheld entirely** ("partial history").
-  On an instance whose funnel is days old, last month is mostly a stretch of time nothing was
+- **A comparison span older than a metric's own ledger is withheld** ("partial history"). On an
+  instance whose funnel is days old, last month is mostly a stretch of time nothing was
   recording, so the difference would render as growth when what changed is that counting began.
-  The value is still shown; only the change is suppressed. The flag is computed against the
-  funnel floor, which is the youngest ledger, so a still-valid AI comparison is suppressed
-  alongside it - the safe direction to be wrong in.
+  The value is still shown; only the change is suppressed.
+
+  **It is withheld PER LEDGER, not per window**, and that distinction is the whole point: these
+  ledgers were switched on months apart (on this instance, accounts 6 July, renders 12 July,
+  generations 27 July, funnel and gateway 29 July). A single flag would have to be driven by the
+  youngest, so a young funnel would suppress a registration trend that the account directory
+  evidences perfectly well. Every metric therefore declares its `AdminLedgerId` - a REQUIRED
+  field, so a new metric cannot quietly inherit somebody else's history - and only the rows
+  counted from a short ledger lose their comparison. A ledger with no rows at all is left alone:
+  it reports zero on both sides, and zero against zero is a true "no change".
 
 ### The metrics, and the exact definition of each
 
@@ -495,6 +502,10 @@ distinct browsers, a count of accounts, and an amount of money. The unit rides e
 | Visitors who created something | browsers | `funnel_events` | Distinct `visitor_id` with an `activation` in the window |
 | First-time creators | browsers | `funnel_events` | Of those, the ones with NO `activation` anywhere before the window. Returning creators is the remainder, so the two always sum to the whole |
 | Created while signed out / in | events | `funnel_events` | `activation` rows split on `user_id is null`. They sum to graphics + videos |
+| Graphics created without an account | events | `funnel_events` | `activation`, not `video`, `user_id is null`. A SUBSET of "graphics created", never an addition to it |
+| People creating without an account | browsers | `funnel_events` | Distinct `visitor_id` among those - so one prolific anonymous visitor is not read as adoption |
+| Exports completed without an account | events | `funnel_events` | `export` rows with `user_id is null` |
+| AI calls with no account at all | events | `ai_gateway_requests` | `user_id is null`. **Independent of the byo/managed split** - anonymity and whose key paid are separate facts, and prod already has an anonymous call on the managed key. Hosted Lite generation can never appear here (`ai_generations.user_id` is `NOT NULL`) |
 | Exports completed | events | `funnel_events` | `export` rows, written after the package reaches the disk. **Every row is a success and there is no failure counterpart**, so no export success RATE exists |
 | Lite generations started / usable / failed | events | `ai_generations` | Reservations, then `status in ('usable','accepted')` and `status in ('failed','unsupported','expired')`. The three do not sum: one still running is neither |
 | Accounts using Lite | accounts | `ai_generations` | Distinct `user_id` in the window |
@@ -503,9 +514,14 @@ distinct browsers, a count of accounts, and an amount of money. The unit rides e
 | Cloud renders submitted / completed / failed | events | `render_jobs` | All three counted by SUBMISSION time, so a job submitted inside a window and finished after it is started here and completed nowhere. That is why they are shown as counts and not as a rate |
 | Render time | duration | `render_jobs` | Median of `updated_at - created_at` over jobs that completed. Null - not zero - when nothing completed |
 
+**"Made without an account" is its own table**, because the editor has no login wall (root
+`AGENTS.md`, "Auth posture") and how much of the product's value reaches people who never sign up
+is a product answer rather than a footnote. Every row in it is a SUBSET of the tables above, which
+the page states so nobody adds the two together.
+
 Standing figures, not windowed: total accounts, suspended accounts, active grants, grants
 expiring within seven days, renders in flight, renders overdue (past their own deadline and still
-not terminal - the sweep missed them), and the first row date of each ledger.
+not terminal - the sweep missed them), and the first row date of each ledger, one per ledger.
 
 ### The honest caveats, stated on the page as well as here
 

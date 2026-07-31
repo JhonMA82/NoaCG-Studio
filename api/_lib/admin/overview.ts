@@ -28,6 +28,7 @@ import { requireAdmin, adminDb } from '../adminAuth.js';
 import { liteProfile } from '../aiLiteProfile.js';
 import { reportTimezone, reportingPeriods, type Period } from './periods.js';
 import type {
+  AdminLedgerId,
   AdminOverviewMetrics,
   AdminOverviewMixEntry,
   AdminOverviewResponse,
@@ -61,8 +62,11 @@ interface WindowRow {
   first_time_creators: number | string;
   anonymous_creates: number | string;
   signed_in_creates: number | string;
+  anonymous_graphics: number | string;
+  anonymous_creators: number | string;
   exports: number | string;
   exporting_visitors: number | string;
+  anonymous_exports: number | string;
   ai_generations: number | string;
   ai_successes: number | string;
   ai_failures: number | string;
@@ -70,6 +74,7 @@ interface WindowRow {
   ai_cost_usd: number | string;
   gateway_managed: number | string;
   gateway_byo: number | string;
+  anonymous_gateway_calls: number | string;
   gateway_managed_cost_usd: number | string;
   gateway_failures: number | string;
   renders_started: number | string;
@@ -104,8 +109,11 @@ function metrics(row: WindowRow): AdminOverviewMetrics {
     firstTimeCreators: count(row.first_time_creators),
     anonymousCreates: count(row.anonymous_creates),
     signedInCreates: count(row.signed_in_creates),
+    anonymousGraphics: count(row.anonymous_graphics),
+    anonymousCreators: count(row.anonymous_creators),
     exports: count(row.exports),
     exportingVisitors: count(row.exporting_visitors),
+    anonymousExports: count(row.anonymous_exports),
     aiGenerations: count(row.ai_generations),
     aiSuccesses: count(row.ai_successes),
     aiFailures: count(row.ai_failures),
@@ -113,6 +121,7 @@ function metrics(row: WindowRow): AdminOverviewMetrics {
     aiCostUsd: money(row.ai_cost_usd),
     gatewayManaged: count(row.gateway_managed),
     gatewayByo: count(row.gateway_byo),
+    anonymousGatewayCalls: count(row.anonymous_gateway_calls),
     gatewayManagedCostUsd: money(row.gateway_managed_cost_usd),
     gatewayFailures: count(row.gateway_failures),
     rendersStarted: count(row.renders_started),
@@ -193,17 +202,42 @@ export default {
           grantsExpiringSoon: count(stateRow.grants_expiring_soon),
           rendersInFlight: count(stateRow.renders_in_flight),
           rendersOverdue: count(stateRow.renders_overdue),
+          accountsSince: (stateRow.accounts_since as string | null) ?? null,
           funnelSince: (stateRow.funnel_since as string | null) ?? null,
           generationsSince: (stateRow.generations_since as string | null) ?? null,
+          gatewaySince: (stateRow.gateway_since as string | null) ?? null,
           rendersSince: (stateRow.renders_since as string | null) ?? null,
         };
 
-    // A comparison span that starts before the activity ledger does is not a comparison - it is
-    // this period measured against a stretch of time nothing was recording, and it renders as
-    // growth when what actually changed is that counting began. The flag is computed against the
-    // FUNNEL floor because that ledger is the youngest and feeds most of the page; suppressing a
-    // still-valid AI delta alongside it is the safe direction to be wrong in.
-    const funnelFloor = state?.funnelSince ? Date.parse(state.funnelSince) : Number.NaN;
+    // A comparison span that starts before a ledger does is not a comparison - it is this period
+    // measured against a stretch of time that ledger was not recording, and the difference
+    // renders as growth when what actually changed is that counting began.
+    //
+    // PER LEDGER, not per window. These were switched on months apart - accounts since the
+    // project started, the funnel days ago - so one flag for the whole window would have to be
+    // driven by the youngest, and would then withhold a registration trend that is perfectly
+    // well evidenced. Each metric declares its ledger on the page, and only the ones counted
+    // from a short ledger lose their comparison.
+    const floors: [AdminLedgerId, string | null][] = [
+      ['accounts', state?.accountsSince ?? null],
+      ['funnel', state?.funnelSince ?? null],
+      ['lite', state?.generationsSince ?? null],
+      ['gateway', state?.gatewaySince ?? null],
+      ['render', state?.rendersSince ?? null],
+    ];
+
+    /** The ledgers whose first row lands INSIDE the comparison span, so part of that span
+     *  predates them. A ledger with no rows at all has no floor to compare against and is left
+     *  alone - it reports zero in both spans, and zero against zero is a true "no change". */
+    function partialLedgers(previousFrom: Date): AdminLedgerId[] {
+      const partial: AdminLedgerId[] = [];
+      for (const [id, since] of floors) {
+        if (!since) continue;
+        const floor = Date.parse(since);
+        if (Number.isFinite(floor) && previousFrom.getTime() < floor) partial.push(id);
+      }
+      return partial;
+    }
 
     const windows: AdminOverviewWindow[] = windowReads
       .filter((entry) => entry.current !== null)
@@ -215,7 +249,7 @@ export default {
         previousTo: entry.period.previousTo.toISOString(),
         metrics: entry.current as AdminOverviewMetrics,
         previous: entry.previous,
-        previousPartial: Number.isFinite(funnelFloor) && entry.period.previousFrom.getTime() < funnelFloor,
+        previousPartialLedgers: partialLedgers(entry.period.previousFrom),
       }));
 
     const mix: AdminOverviewMixEntry[] = mixResult.error

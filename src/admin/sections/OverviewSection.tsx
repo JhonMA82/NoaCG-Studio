@@ -16,6 +16,7 @@
 
 import { useMemo } from 'react';
 import type {
+  AdminLedgerId,
   AdminOverviewMetrics,
   AdminOverviewResponse,
   AdminOverviewWindow,
@@ -41,6 +42,10 @@ interface MetricRow {
    *  between an event count and a unique-user count is the difference between two readings
    *  of the same dashboard. */
   unit: Unit;
+  /** Which ledger it is counted from. REQUIRED, so a new metric cannot quietly inherit
+   *  somebody else's history: it decides whether this row's comparison is trustworthy over a
+   *  given span, and the ledgers here were switched on months apart. */
+  ledger: AdminLedgerId;
   hint?: string;
 }
 
@@ -53,38 +58,47 @@ const UNIT_WORD: Record<Unit, string> = {
 };
 
 const HEADLINE: MetricRow[] = [
-  { key: 'newAccounts', label: 'New accounts', unit: 'accounts', hint: 'Registered in the period. Includes invitations, at the moment they were sent.' },
-  { key: 'activeVisitors', label: 'Active visitors', unit: 'browsers', hint: 'One person on a phone and a laptop is two.' },
-  { key: 'activeAccounts', label: 'Active signed-in accounts', unit: 'accounts', hint: 'The subset that carried a signed-in session.' },
-  { key: 'visits', label: 'Page loads', unit: 'events' },
+  { key: 'newAccounts', label: 'New accounts', unit: 'accounts', ledger: 'accounts', hint: 'Registered in the period. Includes invitations, at the moment they were sent.' },
+  { key: 'activeVisitors', label: 'Active visitors', unit: 'browsers', ledger: 'funnel', hint: 'One person on a phone and a laptop is two.' },
+  { key: 'activeAccounts', label: 'Active signed-in accounts', unit: 'accounts', ledger: 'funnel', hint: 'The subset that carried a signed-in session.' },
+  { key: 'visits', label: 'Page loads', unit: 'events', ledger: 'funnel' },
 ];
 
 const CREATION: MetricRow[] = [
-  { key: 'graphicsCreated', label: 'Graphics created', unit: 'events', hint: 'One per create, through any door.' },
-  { key: 'videosCreated', label: 'Video projects created', unit: 'events', hint: 'Only counted from the release that added the event.' },
-  { key: 'creatingVisitors', label: 'Visitors who created something', unit: 'browsers' },
-  { key: 'firstTimeCreators', label: 'First-time creators', unit: 'browsers', hint: 'No earlier create anywhere in the ledger.' },
-  { key: 'exports', label: 'Exports completed', unit: 'events', hint: 'Recorded after the package reaches the disk, so every row is a success.' },
-  { key: 'exportingVisitors', label: 'Visitors who exported', unit: 'browsers' },
+  { key: 'graphicsCreated', label: 'Graphics created', unit: 'events', ledger: 'funnel', hint: 'One per create, through any door.' },
+  { key: 'videosCreated', label: 'Video projects created', unit: 'events', ledger: 'funnel', hint: 'Only counted from the release that added the event.' },
+  { key: 'creatingVisitors', label: 'Visitors who created something', unit: 'browsers', ledger: 'funnel' },
+  { key: 'firstTimeCreators', label: 'First-time creators', unit: 'browsers', ledger: 'funnel', hint: 'No earlier create anywhere in the ledger.' },
+  { key: 'exports', label: 'Exports completed', unit: 'events', ledger: 'funnel', hint: 'Recorded after the package reaches the disk, so every row is a success.' },
+  { key: 'exportingVisitors', label: 'Visitors who exported', unit: 'browsers', ledger: 'funnel' },
+];
+
+/** The free core, measured. The editor has no login wall, so what gets made WITHOUT an account
+ *  is a product answer in its own right rather than a footnote on the creation table. */
+const ANONYMOUS: MetricRow[] = [
+  { key: 'anonymousGraphics', label: 'Graphics created without an account', unit: 'events', ledger: 'funnel', hint: 'Made while signed out. Graphics only, matching the split above.' },
+  { key: 'anonymousCreators', label: 'People creating without an account', unit: 'browsers', ledger: 'funnel', hint: 'Distinct browsers, so one prolific visitor is not read as adoption.' },
+  { key: 'anonymousExports', label: 'Exports completed without an account', unit: 'events', ledger: 'funnel' },
+  { key: 'anonymousGatewayCalls', label: 'AI calls with no account at all', unit: 'events', ledger: 'gateway', hint: 'Independent of whose key paid — an anonymous caller can be on ours. Hosted generation always has an account behind it, so it never appears here.' },
 ];
 
 const AI: MetricRow[] = [
-  { key: 'aiGenerations', label: 'Lite generations started', unit: 'events' },
-  { key: 'aiSuccesses', label: 'Lite generations usable', unit: 'events' },
-  { key: 'aiFailures', label: 'Lite generations failed', unit: 'events', hint: 'Started, usable and failed do not sum: one still running is neither.' },
-  { key: 'aiUsers', label: 'Accounts using Lite', unit: 'accounts' },
-  { key: 'aiCostUsd', label: 'Lite spend (ours)', unit: 'usd' },
-  { key: 'gatewayManaged', label: 'Gateway calls on our key', unit: 'events' },
-  { key: 'gatewayManagedCostUsd', label: 'Gateway spend (ours)', unit: 'usd' },
-  { key: 'gatewayByo', label: 'Gateway calls on a user key', unit: 'events', hint: "The user's own money. Never added to the figures above." },
-  { key: 'gatewayFailures', label: 'Gateway calls that failed', unit: 'events' },
+  { key: 'aiGenerations', label: 'Lite generations started', unit: 'events', ledger: 'lite' },
+  { key: 'aiSuccesses', label: 'Lite generations usable', unit: 'events', ledger: 'lite' },
+  { key: 'aiFailures', label: 'Lite generations failed', unit: 'events', ledger: 'lite', hint: 'Started, usable and failed do not sum: one still running is neither.' },
+  { key: 'aiUsers', label: 'Accounts using Lite', unit: 'accounts', ledger: 'lite' },
+  { key: 'aiCostUsd', label: 'Lite spend (ours)', unit: 'usd', ledger: 'lite' },
+  { key: 'gatewayManaged', label: 'Gateway calls on our key', unit: 'events', ledger: 'gateway' },
+  { key: 'gatewayManagedCostUsd', label: 'Gateway spend (ours)', unit: 'usd', ledger: 'gateway' },
+  { key: 'gatewayByo', label: 'Gateway calls on a user key', unit: 'events', ledger: 'gateway', hint: "The user's own money. Never added to the figures above." },
+  { key: 'gatewayFailures', label: 'Gateway calls that failed', unit: 'events', ledger: 'gateway' },
 ];
 
 const RENDERS: MetricRow[] = [
-  { key: 'rendersStarted', label: 'Cloud renders submitted', unit: 'events' },
-  { key: 'rendersCompleted', label: 'Cloud renders completed', unit: 'events', hint: 'Counted by submission time, so one finishing after the window is not here.' },
-  { key: 'rendersFailed', label: 'Cloud renders failed', unit: 'events' },
-  { key: 'renderMedianMs', label: 'Render time', unit: 'duration' },
+  { key: 'rendersStarted', label: 'Cloud renders submitted', unit: 'events', ledger: 'render' },
+  { key: 'rendersCompleted', label: 'Cloud renders completed', unit: 'events', ledger: 'render', hint: 'Counted by submission time, so one finishing after the window is not here.' },
+  { key: 'rendersFailed', label: 'Cloud renders failed', unit: 'events', ledger: 'render' },
+  { key: 'renderMedianMs', label: 'Render time', unit: 'duration', ledger: 'render' },
 ];
 
 const MIX_TITLES: Record<string, string> = {
@@ -151,9 +165,9 @@ function Delta({
   unit: Unit;
   partial: boolean;
 }) {
-  // The comparison span predates the ledger, so "last period" is partly a stretch of time
-  // nothing was recording. Reporting the difference would show growth that is really just the
-  // start of counting.
+  // The comparison span predates THIS METRIC'S ledger, so "last period" is partly a stretch of
+  // time it was not recording. Reporting the difference would show growth that is really just
+  // the start of counting. Other rows in the same column keep their comparison.
   if (partial) return <span className="admin-delta admin-delta-none">partial history</span>;
   if (current === null || previous === null) return <span className="admin-delta admin-delta-none">no comparison</span>;
   const change = current - previous;
@@ -214,7 +228,7 @@ function MetricTable({
                       current={value}
                       previous={previous}
                       unit={row.unit}
-                      partial={window.previousPartial}
+                      partial={window.previousPartialLedgers.indexOf(row.ledger) !== -1}
                     />
                   </td>
                 );
@@ -359,6 +373,12 @@ export function OverviewSection({
 
           <MetricTable title="People" rows={HEADLINE} windows={windows} />
           <MetricTable title="What people made" rows={CREATION} windows={windows} />
+          <MetricTable
+            title="Made without an account"
+            rows={ANONYMOUS}
+            windows={windows}
+            note="The editor has no login wall, so this is a subset of the table above rather than a separate audience: how much of the product's value reaches people who never sign up. A zero here alongside real creates means everyone who made something was signed in."
+          />
 
           {state ? (
             <section className="admin-block">
@@ -479,11 +499,15 @@ export function OverviewSection({
 
           {state ? (
             <p className="admin-note">
-              History starts where each ledger does: activity{' '}
+              History starts where each ledger does, and they were switched on months apart: accounts{' '}
+              {state.accountsSince ? localDate(state.accountsSince, data.timezone) : 'never recorded'}, activity{' '}
               {state.funnelSince ? localDate(state.funnelSince, data.timezone) : 'never recorded'}, AI generations{' '}
-              {state.generationsSince ? localDate(state.generationsSince, data.timezone) : 'never recorded'}, cloud
-              renders {state.rendersSince ? localDate(state.rendersSince, data.timezone) : 'never recorded'}. A period
-              reaching back further than one of those reads as zero because nothing was counting yet.
+              {state.generationsSince ? localDate(state.generationsSince, data.timezone) : 'never recorded'}, AI gateway{' '}
+              {state.gatewaySince ? localDate(state.gatewaySince, data.timezone) : 'never recorded'}, cloud renders{' '}
+              {state.rendersSince ? localDate(state.rendersSince, data.timezone) : 'never recorded'}. A period reaching
+              back further than one of those reads as zero because nothing was counting yet, which is why a row whose
+              own ledger is too young shows “partial history” instead of a change — and why the rows either side of it
+              keep theirs.
             </p>
           ) : null}
 

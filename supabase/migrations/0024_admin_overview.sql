@@ -60,8 +60,11 @@ returns table (
   first_time_creators bigint,
   anonymous_creates bigint,
   signed_in_creates bigint,
+  anonymous_graphics bigint,
+  anonymous_creators bigint,
   exports bigint,
   exporting_visitors bigint,
+  anonymous_exports bigint,
   ai_generations bigint,
   ai_successes bigint,
   ai_failures bigint,
@@ -69,6 +72,7 @@ returns table (
   ai_cost_usd numeric,
   gateway_managed bigint,
   gateway_byo bigint,
+  anonymous_gateway_calls bigint,
   gateway_managed_cost_usd numeric,
   gateway_failures bigint,
   renders_started bigint,
@@ -132,6 +136,18 @@ as $$
       where f.event = 'activation' and f.user_id is not null
         and f.created_at >= p_from and f.created_at < p_to),
 
+    -- WITHOUT AN ACCOUNT. The editor has no login wall (root AGENTS.md, "Auth posture"), so how
+    -- much gets MADE by people who never sign up is a first-class product question rather than a
+    -- footnote - it is the free core's whole promise, measured. Graphics only, matching the
+    -- graphics/videos split above, and the creator count beside it so one enthusiastic anonymous
+    -- visitor cannot read as adoption.
+    (select count(*) from public.funnel_events f
+      where f.event = 'activation' and f.detail is distinct from 'video' and f.user_id is null
+        and f.created_at >= p_from and f.created_at < p_to),
+    (select count(distinct f.visitor_id) from public.funnel_events f
+      where f.event = 'activation' and f.user_id is null
+        and f.created_at >= p_from and f.created_at < p_to),
+
     -- EXPORTS. The event fires after the zip reaches the disk, so every row is a SUCCESS.
     -- There is no failure counterpart, which is stated on the page rather than implied by a
     -- success rate the ledger cannot compute.
@@ -139,6 +155,11 @@ as $$
       where f.event = 'export' and f.created_at >= p_from and f.created_at < p_to),
     (select count(distinct f.visitor_id) from public.funnel_events f
       where f.event = 'export' and f.created_at >= p_from and f.created_at < p_to),
+    -- An export with no account is the free core delivering its whole value to someone the
+    -- product will never see again, which is the point rather than a leak.
+    (select count(*) from public.funnel_events f
+      where f.event = 'export' and f.user_id is null
+        and f.created_at >= p_from and f.created_at < p_to),
 
     -- AI, the NoaCG-funded half: the Lite ledger. A row per reservation, so the count is
     -- attempts and the success/failure pair below it does not sum to it - a generation still
@@ -162,6 +183,13 @@ as $$
       where r.key_source = 'managed' and r.created_at >= p_from and r.created_at < p_to),
     (select count(*) from public.ai_gateway_requests r
       where r.key_source = 'byo' and r.created_at >= p_from and r.created_at < p_to),
+    -- AI with NO ACCOUNT AT ALL. Deliberately NOT the same question as the `byo` split above -
+    -- anonymity and whose key paid are independent, and prod already has an anonymous call on
+    -- the MANAGED key, so reading this as "account-free BYO" would be wrong. The Lite ledger
+    -- cannot answer it either (ai_generations.user_id is NOT NULL, so hosted generation always
+    -- has an account behind it), which makes this the only place account-free AI is counted.
+    (select count(*) from public.ai_gateway_requests r
+      where r.user_id is null and r.created_at >= p_from and r.created_at < p_to),
     (select coalesce(sum(r.provider_cost_usd), 0) from public.ai_gateway_requests r
       where r.key_source = 'managed' and r.created_at >= p_from and r.created_at < p_to),
     (select count(*) from public.ai_gateway_requests r
@@ -195,8 +223,10 @@ returns table (
   grants_expiring_soon bigint,
   renders_in_flight bigint,
   renders_overdue bigint,
+  accounts_since timestamptz,
   funnel_since timestamptz,
   generations_since timestamptz,
+  gateway_since timestamptz,
   renders_since timestamptz
 )
 language sql
@@ -237,11 +267,17 @@ as $$
       where j.status not in ('complete', 'failed', 'cancelled', 'expired')
         and j.deadline_at <= pg_catalog.now()),
 
-    -- How far back each ledger goes. A "this month" that predates one of these is short for a
-    -- reason the operator cannot otherwise see, and a missing floor is what turns partial
-    -- history into a wrong conclusion.
+    -- How far back each ledger goes, ONE FLOOR PER LEDGER. A window reaching back further than
+    -- one of these is short for a reason the operator cannot otherwise see, and a missing floor
+    -- is what turns partial history into a wrong conclusion.
+    --
+    -- They are reported SEPARATELY because they differ by months: this project has had accounts
+    -- since it started and a funnel for days. A single floor would have to be the youngest, and
+    -- would then withhold a registration trend that is perfectly well evidenced.
+    (select min(u.created_at) from auth.users u),
     (select min(f.created_at) from public.funnel_events f),
     (select min(g.created_at) from public.ai_generations g),
+    (select min(r.created_at) from public.ai_gateway_requests r),
     (select min(j.created_at) from public.render_jobs j)
 $$;
 

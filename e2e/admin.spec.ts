@@ -245,8 +245,11 @@ const OVERVIEW_METRICS = {
   firstTimeCreators: 4,
   anonymousCreates: 12,
   signedInCreates: 9,
+  anonymousGraphics: 10,
+  anonymousCreators: 6,
   exports: 6,
   exportingVisitors: 5,
+  anonymousExports: 4,
   aiGenerations: 22,
   aiSuccesses: 17,
   aiFailures: 3,
@@ -254,6 +257,7 @@ const OVERVIEW_METRICS = {
   aiCostUsd: 0.4123,
   gatewayManaged: 8,
   gatewayByo: 30,
+  anonymousGatewayCalls: 7,
   gatewayManagedCostUsd: 0.09,
   gatewayFailures: 2,
   rendersStarted: 5,
@@ -271,7 +275,7 @@ function overviewWindow(id: string, overrides: Record<string, unknown> = {}) {
     previousTo: '2026-07-30T09:15:00+03:00',
     metrics: OVERVIEW_METRICS,
     previous: { ...OVERVIEW_METRICS, graphicsCreated: 11, exports: 6, aiFailures: 9 },
-    previousPartial: false,
+    previousPartialLedgers: [],
     ...overrides,
   };
 }
@@ -289,8 +293,10 @@ function overviewBody(overrides: Record<string, unknown> = {}) {
       grantsExpiringSoon: 2,
       rendersInFlight: 1,
       rendersOverdue: 0,
+      accountsSince: '2026-01-06T00:00:00Z',
       funnelSince: '2026-06-01T00:00:00Z',
       generationsSince: '2026-05-02T00:00:00Z',
+      gatewaySince: '2026-05-02T00:00:00Z',
       rendersSince: '2026-04-03T00:00:00Z',
     },
     mix: [
@@ -349,6 +355,25 @@ test('the overview states its reporting boundaries, and every number says what i
   await expect(page.locator('tr[data-metric="gatewayByo"] th')).toContainText('user key');
 });
 
+test('what gets made without an account is a first-class figure, not a footnote', async ({ page }) => {
+  await stubOverview(page, overviewBody());
+  await page.goto('/admin');
+
+  const block = page.locator('.admin-block').filter({ hasText: 'Made without an account' });
+  // Events and people are separate rows: 10 graphics from 6 browsers is a different story from
+  // 10 graphics from 1, and a single number cannot tell them apart.
+  await expect(block.locator('tr[data-metric="anonymousGraphics"] td').first()).toContainText('10');
+  await expect(block.locator('tr[data-metric="anonymousCreators"] th .admin-muted')).toContainText('distinct browsers');
+  await expect(block.locator('tr[data-metric="anonymousExports"] td').first()).toContainText('4');
+
+  // Account-free AI is the OTHER reading of "without an account" and comes from a different
+  // ledger, so it is labelled rather than silently merged with the funnel rows.
+  await expect(block.locator('tr[data-metric="anonymousGatewayCalls"] th')).toContainText('no account at all');
+
+  // Stated as a subset, so nobody adds it to the creation table above.
+  await expect(block).toContainText('subset of the table above');
+});
+
 test('a change is an absolute difference, and the direction is not assumed to be good', async ({ page }) => {
   await stubOverview(page, overviewBody());
   await page.goto('/admin');
@@ -376,19 +401,50 @@ test('with no comparable span the overview says so instead of showing a zero', a
   await expect(page.locator('.admin-delta-down')).toHaveCount(0);
 });
 
-test('a comparison span older than the ledger is withheld, not reported as growth', async ({ page }) => {
+test('a comparison span older than a ledger is withheld ONLY for that ledger', async ({ page }) => {
   // The real failure this prevents: the activity ledger is younger than the window. Last month
   // is then mostly a stretch of time nothing was recording, so 18 against 0 renders as "+18"
   // and reads as growth when what changed is that counting began.
+  //
+  // And the second failure, which the first fix caused: withholding the whole COLUMN. These
+  // ledgers were switched on months apart, so a young funnel must not cost the registration
+  // trend, which comes from the account directory and is evidenced all the way back.
   await stubOverview(page, overviewBody({
-    windows: [overviewWindow('month', { previousPartial: true, previous: { ...OVERVIEW_METRICS, graphicsCreated: 0 } })],
+    windows: [
+      overviewWindow('month', {
+        previousPartialLedgers: ['funnel'],
+        previous: { ...OVERVIEW_METRICS, graphicsCreated: 0, newAccounts: 1, aiFailures: 9 },
+      }),
+    ],
   }));
   await page.goto('/admin');
 
+  // Funnel-backed: withheld, and the value itself is still shown.
   await expect(page.locator('tr[data-metric="graphicsCreated"] .admin-delta').first()).toHaveText('partial history');
-  // Not one green up-arrow anywhere: the value is still shown, the CHANGE is not.
-  await expect(page.locator('.admin-delta-up')).toHaveCount(0);
   await expect(page.locator('tr[data-metric="graphicsCreated"] td').first()).toContainText('18');
+  await expect(page.locator('tr[data-metric="activeVisitors"] .admin-delta').first()).toHaveText('partial history');
+
+  // Account-backed and Lite-backed: their ledgers cover the span, so they KEEP their change.
+  await expect(page.locator('tr[data-metric="newAccounts"] .admin-delta').first()).toHaveText('+1');
+  await expect(page.locator('tr[data-metric="aiFailures"] .admin-delta').first()).toHaveText('−6');
+});
+
+test('every metric declares a ledger, so none inherits another one\'s history', async ({ page }) => {
+  // Mark EVERY ledger partial: if a row's ledger were missing or wrong, its delta would survive
+  // this and the row would be comparing against history it does not have.
+  await stubOverview(page, overviewBody({
+    windows: [
+      overviewWindow('month', {
+        previousPartialLedgers: ['accounts', 'funnel', 'lite', 'gateway', 'render'],
+      }),
+    ],
+  }));
+  await page.goto('/admin');
+
+  await expect(page.locator('.admin-metrics tbody tr')).not.toHaveCount(0);
+  await expect(page.locator('.admin-delta-up')).toHaveCount(0);
+  await expect(page.locator('.admin-delta-down')).toHaveCount(0);
+  await expect(page.locator('.admin-delta-flat')).toHaveCount(0);
 });
 
 test('an uninstalled aggregation reads as an absence, never as an instance nobody uses', async ({ page }) => {
