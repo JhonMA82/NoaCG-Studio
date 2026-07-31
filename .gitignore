@@ -72,6 +72,7 @@ shots-*/
 !.agents/skills/noacg-task/
 !.agents/skills/ograf-expert/
 !.agents/skills/safe-merge/
+!.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
 !.agents/skills/video-quality-round/
 skills-lock.json
