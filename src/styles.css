@@ -429,6 +429,26 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
    positioned children (iframe + overlays) centre within it, then scale by fit × zoom. */
 .canvas-world { position: absolute; inset: 0; }
 
+/* A template runtime error, worn on the stage itself. Non-interactive on purpose: it names
+   the failure without taking any gesture from the canvas under it. */
+.preview-runtime-error {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  max-width: min(560px, calc(100% - 16px));
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--danger);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Preview toolbar (guides + background switches), top-right of the stage. */
 .preview-toolbar {
   position: absolute;
