@@ -589,3 +589,42 @@ sections 6, 7, and 9 above; GOALS.md carries the same wording):
    decision 1 rather than replacing it - benchmark whatever is worth benchmarking, but a
    candidate cannot be promoted to a NoaCG-funded route unless it is cheap and reachable
    through the gateway's OpenRouter adapter. Revisit when there is income.
+
+## 16. Open owner decisions (raised 2026-07-31, harness routing + evaluation work)
+
+Implemented in that change: honest routing already shipped, so this added the **kind**
+half of brief satisfaction (`templates/structuralAnchor.ts` +
+`validation/structuralIntentCheck.ts` `structuralKindFindings`), ran the satisfaction check
+on the **grounded** path where the wrong-graphic defect actually happens, and added the free
+**benchmark preflight** (`npm run bench:preflight`). Nothing below was decided unilaterally.
+
+1. **Re-run the import-analysis vision round?** SPENDS MONEY. The 2026-07-29 run was not a
+   valid comparison, and one of its stated causes is now fixed: the per-axis size cap
+   rejected every portrait case. The cap is now a pixel budget plus a longest-edge ceiling
+   (`IMPORT_ANALYSIS_LIMITS.maxPixels` / `maxEdge`), so portrait artwork is admitted at the
+   same budget as landscape instead of being squeezed onto the short axis - which also
+   returns roughly 3x the pixels to a task whose whole job is reading small text.
+   The other stated causes were NOT addressed and are not addressable for free: two
+   candidates failed all 35 images for reasons never isolated, and the best region precision
+   was 23% against a gold ceiling of 100%. **A re-run is therefore a real bet, not a
+   formality** - the cap fix removes one confound; it does not promise a usable model. If it
+   runs, the candidates must be re-added to the approved catalog in the SAME change as the
+   run (they were removed deliberately - `api/_lib/aiModelCatalog.ts`).
+
+2. **Does the pixel-budget cap need re-ratifying?** Ratified decision 3 says images are
+   "downscaled to at most 1920x1080". The change keeps that pixel budget exactly and only
+   stops it being orientation-locked, so it is read as an INTERPRETATION of decision 3 (bound
+   what leaves the machine and what the call costs - both scale with pixel count, not with
+   orientation) rather than a new policy. Say if you want it treated as an amendment.
+
+3. **Should a kind mismatch be an ERROR rather than a warning?** Today
+   `structural-intent` findings are warnings on both paths, so a stinger that came back as a
+   lower third is surfaced but still offered. Making it blocking on the GROUNDED path is
+   cheap and has no repair loop to disturb (a grounded assembly does not repair), but it
+   changes what a user gets: today a wrong-kind result, afterwards an honest failure or a
+   re-pick. Left as a warning because that is a product call, not a correctness one.
+
+4. **Model promotion remains untouched.** No default model changed and none is proposed:
+   the machine scores anti-correlated with human satisfaction, so they do not support a
+   promotion. `docs/AI_LITE_PROMOTION.md` still governs, and its thresholds are still
+   owner-TODO.
