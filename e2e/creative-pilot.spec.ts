@@ -141,6 +141,45 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.regionIds).toEqual(['header', 'rounds', 'champion']);
   });
 
+  test('a state without resolvable revealRegions still compiles to a real step', async ({ page }) => {
+    await open(page);
+    // The first smoke run's dominant defect: the spec schema does not force revealRegions,
+    // cheap models declare states without them, and the compile silently dropped every such
+    // state - 12/15 completed staged results lost their operator states and the structural
+    // check flagged each one (benchmarks/creative/v1/SMOKE-2026-07-31.md, blocker 3). A
+    // declared state now clamps to a degraded-but-present emphasis step. The twin above
+    // (revealRegions present) pins that real reveals still compile as reveals.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { structuralIntentStaticFindings } = await import('/src/validation/structuralIntentCheck.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const i = normalizeIntent(intent);
+      const bare = {
+        ...(spec as Record<string, unknown>),
+        states: [
+          { id: 'crowned', trigger: 'operator' }, // no revealRegions at all
+          { id: 'lock-in', trigger: 'operator', revealRegions: ['no-such-region'] }, // unresolvable
+        ],
+      };
+      const { scaffold, validation } = compileScaffoldOnly(normalizeCreativeSpec(bare, i), i);
+      const anim = parseAnimData(scaffold.template.js);
+      return {
+        errors: validation.errors.map((e) => e.rule),
+        steps: anim?.steps.map((s) => s.name) ?? [],
+        stateFindings: structuralIntentStaticFindings(scaffold.template, i)
+          .filter((f) => f.message.includes('state')).length,
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.errors).toEqual([]);
+    // Both states survive as middle steps, so the operator can fire them with Continue.
+    expect(report.steps).toEqual(['In', 'crowned', 'lock-in', 'Out']);
+    // And the brief-satisfaction check agrees the declared states exist.
+    expect(report.stateFindings).toBe(0);
+  });
+
   test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);
