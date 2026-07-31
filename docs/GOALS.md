@@ -167,6 +167,21 @@ with its lower-third siblings (§8), swept per category, and covered by an E2E s
 - [x] **CasparCG export** — one self-contained .html (CG ADD loads it directly) with a data shim
       accepting both JSON and CasparCG XML templateData payloads
 
+### NoaCG Pro — the image-guided pipeline (docs/NOACG_PRO_PLAN.md)
+- [x] **Gateway image output + ai.pro surface** — expect:'image' on the OpenRouter adapter,
+      image-model discovery, the pro ledger discriminator (migration 0025)
+- [x] **The lower-third vertical slice** — concept → interpretation contract → deterministic
+      reconstruction through the imported-design funnel (live fields, rebuilt panel shapes,
+      honest editability report) → the production validator → the ordinary editor and exports
+- [x] **Create with AI Pro wizard flow** — brief, concept review with cost, compile, per-region
+      report, the shared Finish doors; offline stub keeps it e2e-testable (e2e/pro.spec.ts)
+- [x] **Fixture-first benchmark** — benchmarks/pro/v1 + scripts/pro-bench.mjs (free regression
+      by default; paid generation explicit and cost-ceilinged)
+- [ ] **Clean-plate / erase integration** — remove baked text outside reconstructed panels
+- [ ] **Paid quality round** — a real image+vision model pass over the bank, fixtures saved,
+      routes picked from the gallery
+- [ ] **Managed funded tier** — task-registry profile, quotas, credit weighting, an Auto route
+
 ## The pipeline (road ahead — user-defined eras, analyzed 2026-07-05)
 
 Order matters: each era is independently shippable, and nothing in an earlier era gets

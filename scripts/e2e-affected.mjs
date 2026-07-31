@@ -24,6 +24,10 @@ const MAP = [
   // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
   // needs that spec and nothing else.
   [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
+  // The Pro brief bank + fixtures feed scripts/pro-bench.mjs; the offline product flow they
+  // relate to is pinned by pro.spec.ts.
+  [/^benchmarks\/pro\//, ['pro.spec.ts']],
+  [/^scripts\/pro-bench\.mjs$/, ['pro.spec.ts']],
   [/^src\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^src\/components\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^player-host\//, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
