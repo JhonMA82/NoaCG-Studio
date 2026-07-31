@@ -4,10 +4,10 @@
 # cover the change. That trade is only honest if something still runs everything, regularly,
 # and says so loudly when it goes red. This is that something.
 #
-# It also runs the three catalog-wide gates that no automation has ever run: the calibration
-# tripwire and the type-floor and overflow sweeps were documented as "run them by hand after a
-# catalog change", which in practice meant they ran when somebody remembered. A gate nobody is
-# scheduled to run is not a gate.
+# It also runs the four catalog-wide gates that no automation has ever run: the calibration
+# tripwire, the type-floor and overflow sweeps, and the field-coverage gate. All of them were
+# documented as "run them by hand after a catalog change", which in practice meant they ran
+# when somebody remembered. A gate nobody is scheduled to run is not a gate.
 #
 # Timed for the morning rather than the night's end: 02:00 UTC is 04:00-05:00 in Helsinki, so a
 # red result is already filed, attributed and waiting by the start of the day.
@@ -112,9 +112,9 @@ jobs:
         run: npm run test:e2e:catalog
 
   catalog-gates:
-    name: Type floor and overflow sweep
+    name: Type floor, overflow sweep and field coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
@@ -129,7 +129,7 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      # Both sweeps render every catalog variant against a live dev server, so they need one -
+      # All three gates render every catalog variant against a live dev server, so they need one -
       # the same shape as ci.yml's factory job, trap and readiness poll included.
       - name: Catalog quality gates
         run: |
@@ -149,11 +149,14 @@ jobs:
             echo "Dev server did not become ready on port ${PORT}" >&2
             exit 1
           fi
-          # Run both even if the first fails, so one night reports every catalog fault rather
-          # than only the earliest one.
+          # Run all of them even if an earlier one fails, so one night reports every catalog fault
+          # rather than only the earliest one. They answer different questions: type-floor is
+          # about SIZE, overflow-sweep about the BOX, field-coverage about whether an operator
+          # can reach the words at all.
           status=0
           node scripts/type-floor.mjs || status=1
           node scripts/overflow-sweep.mjs --baseline || status=1
+          node scripts/field-coverage.mjs || status=1
           exit "$status"
 
   report:

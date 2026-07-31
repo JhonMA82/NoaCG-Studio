@@ -7,7 +7,8 @@ import { expect, type Page } from '@playwright/test';
 
 const FRAME = 'iframe.preview-frame';
 
-// A rebuild is a 350 ms debounce plus composing the document and loading the iframe, so it is
+// A rebuild is the debounce (50 ms under this suite, 350 ms when authoring - PreviewFrame's
+// RELOAD_DEBOUNCE_MS) plus composing the document and loading the iframe, so it is
 // normally well under a second - but under heavy worker contention it has been measured past
 // the suite's 7 s default expect budget, which turned this "wait exactly as long as it takes"
 // primitive into the flake it exists to prevent. A rebuild that never lands is still caught,
@@ -19,9 +20,10 @@ const REBUILT = { timeout: 20_000 };
  *
  * - `awaitPreviewRebuild(page, () => doTheChange())` — snapshots the revision BEFORE the
  *   action, so even an instant rebuild can't slip past the check. Prefer this form.
- * - `awaitPreviewRebuild(page)` — right after a change was made. Safe as long as it is called
- *   within the 350 ms debounce window of the change (i.e. immediately after the action, with
- *   no long awaits in between).
+ * - `awaitPreviewRebuild(page)` — right after a change was made. It waits on the PENDING flag
+ *   rather than on the revision moving, so it no longer has to be reached inside the debounce
+ *   window: a rebuild that already finished is reported settled instead of hanging. That used
+ *   to be a real trap, and shortening the debounce for the suite made it a likelier one.
  */
 export async function awaitPreviewRebuild(
   page: Page,
@@ -37,12 +39,13 @@ export async function awaitPreviewRebuild(
     await expect(frame).not.toHaveAttribute('data-doc-rev', before!, REBUILT);
     return;
   }
-  const before = await frame.getAttribute('data-doc-rev');
-  if (before === null) {
-    await expect(frame).toHaveAttribute('data-doc-rev', /\d/, REBUILT);
-  } else {
-    await expect(frame).not.toHaveAttribute('data-doc-rev', before, REBUILT);
-  }
+  // No action to bracket, so the change has already been made and the "did the revision move"
+  // trick cannot work: read it after the rebuild landed and it waits forever for a second one.
+  // PreviewFrame sets `data-doc-pending` SYNCHRONOUSLY when the template changes and clears it
+  // when the newest document has loaded, so waiting for it to clear is correct whether the
+  // rebuild is still debouncing, in flight, or already finished - at any debounce length.
+  await expect(frame).not.toHaveAttribute('data-doc-pending', '1', REBUILT);
+  await expect(frame).toHaveAttribute('data-doc-rev', /\d/, REBUILT);
 }
 
 /**

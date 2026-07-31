@@ -2766,7 +2766,7 @@
       "body>script[2]": "a09c79f61a84b019"
     },
     "es01": {
-      "#count": "34",
+      "#count": "38",
       "body": "eb7734706eb8ee01",
       "body>div.esports-score[1]": "dfe4168b06416094",
       "body>div.esports-score[1]>div.esports-score-box[1]": "eb723b4f3f227601",
@@ -2799,11 +2799,15 @@
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]": "086727b809089227",
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]>span.esports-score-figure[1]": "16453595f4f7729f",
       "body>div.esports-score[1]>div.noacg-data-source[1]": "a09c79f61a84b019",
+      "body>div.esports-score[1]>div.noacg-data-source[2]": "a09c79f61a84b019",
+      "body>div.esports-score[1]>div.noacg-data-source[3]": "a09c79f61a84b019",
+      "body>div.esports-score[1]>div.noacg-data-source[4]": "a09c79f61a84b019",
+      "body>div.esports-score[1]>div.noacg-data-source[5]": "a09c79f61a84b019",
       "body>script[1]": "a09c79f61a84b019",
       "body>script[2]": "a09c79f61a84b019"
     },
     "es02": {
-      "#count": "34",
+      "#count": "38",
       "body": "7656d82cb777eea8",
       "body>div.esports-score[1]": "089066f41c19ab2c",
       "body>div.esports-score[1]>div.esports-score-box[1]": "642372ffe11a787d",
@@ -2836,11 +2840,15 @@
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]": "92d98e2e29e03e69",
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]>span.esports-score-figure[1]": "ffbf89e527671549",
       "body>div.esports-score[1]>div.noacg-data-source[1]": "c41646ce27b0f36d",
+      "body>div.esports-score[1]>div.noacg-data-source[2]": "c41646ce27b0f36d",
+      "body>div.esports-score[1]>div.noacg-data-source[3]": "c41646ce27b0f36d",
+      "body>div.esports-score[1]>div.noacg-data-source[4]": "c41646ce27b0f36d",
+      "body>div.esports-score[1]>div.noacg-data-source[5]": "c41646ce27b0f36d",
       "body>script[1]": "c41646ce27b0f36d",
       "body>script[2]": "c41646ce27b0f36d"
     },
     "es03": {
-      "#count": "34",
+      "#count": "38",
       "body": "e9384811efda3b35",
       "body>div.esports-score[1]": "bc47741864538886",
       "body>div.esports-score[1]>div.esports-score-box[1]": "1e93a011527d88cb",
@@ -2873,11 +2881,15 @@
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]": "159472516b30199b",
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]>span.esports-score-figure[1]": "38163b6252ca6aa2",
       "body>div.esports-score[1]>div.noacg-data-source[1]": "82d7438e5a12ea26",
+      "body>div.esports-score[1]>div.noacg-data-source[2]": "82d7438e5a12ea26",
+      "body>div.esports-score[1]>div.noacg-data-source[3]": "82d7438e5a12ea26",
+      "body>div.esports-score[1]>div.noacg-data-source[4]": "82d7438e5a12ea26",
+      "body>div.esports-score[1]>div.noacg-data-source[5]": "82d7438e5a12ea26",
       "body>script[1]": "82d7438e5a12ea26",
       "body>script[2]": "82d7438e5a12ea26"
     },
     "es04": {
-      "#count": "28",
+      "#count": "32",
       "body": "8d64b94dad61c592",
       "body>div.esports-score[1]": "e7b133be473a280e",
       "body>div.esports-score[1]>div.esports-score-box[1]": "7f8088b28ba396f5",
@@ -2904,6 +2916,10 @@
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]": "7670367e04af970a",
       "body>div.esports-score[1]>div.esports-score-box[1]>div.esports-score-body[1]>div.esports-score-side.esports-score-side-b[1]>div.esports-score-chip[1]>span.esports-score-figure[1]": "6fd08c2ef29128fb",
       "body>div.esports-score[1]>div.noacg-data-source[1]": "931a670cd9f9a032",
+      "body>div.esports-score[1]>div.noacg-data-source[2]": "931a670cd9f9a032",
+      "body>div.esports-score[1]>div.noacg-data-source[3]": "931a670cd9f9a032",
+      "body>div.esports-score[1]>div.noacg-data-source[4]": "931a670cd9f9a032",
+      "body>div.esports-score[1]>div.noacg-data-source[5]": "931a670cd9f9a032",
       "body>script[1]": "931a670cd9f9a032",
       "body>script[2]": "931a670cd9f9a032"
     },

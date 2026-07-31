@@ -268,7 +268,9 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   ig03: { category: 'results', subtype: 'leaderboard', structures: ['rows'], positionalSemantics: ['headline', 'items'], extraCapabilities: ['repeating'] },
   ig04: { category: 'poll-quiz', subtype: 'poll-result', structures: ['bars'], positionalSemantics: ['percentage', 'answer', 'question'], extraCapabilities: ['poll-states'] },
   ig05: { category: 'progress', subtype: 'donation-goal', structures: ['bars'], positionalSemantics: ['amount', 'amount', 'topic'], extraCapabilities: ['progress'] },
-  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage'], extraCapabilities: ['poll-states'] },
+  // The nine candidate fields, then the board's own two headings (its title and the status
+  // flag beside it) — both operator fields, so the same board serves any count night.
+  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'headline', 'topic'], extraCapabilities: ['poll-states'] },
   // info-card split (§4): card04 turned out to be a QUOTE card (Quote + Name + Role) — the
   // quote category's first catalog content, found by the factory's schema-length assertion.
   card04: { category: 'quote', subtype: 'quote', structures: ['multi-line', 'name-role'], positionalSemantics: ['description', 'name', 'role'] },

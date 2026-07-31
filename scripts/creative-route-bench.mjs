@@ -8,6 +8,10 @@
 //
 // SPENDS REAL TOKENS. The route is EXPLICIT and fails closed: there is no fallback to env
 // or saved settings, so an expensive proprietary model is only ever a deliberate choice.
+// That pinned model is also why this rig calls the intent stage itself rather than through
+// claudeProvider: production binds the stage to the provider's `role:'fast'` model (plan
+// §4), while the bench exists to measure a NAMED candidate FOR that role - and a fast-role
+// binding here would answer every --route with the same model.
 // The model must have a price entry in scripts/ai-bench-prices.json (refreshed by
 // bench:discover) - the script prints the resolved route and the estimated maximum cost
 // BEFORE spending, and stops at the --max-cost ceiling (default $1.00) mid-run.
