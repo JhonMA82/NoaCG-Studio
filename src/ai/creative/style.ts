@@ -77,6 +77,76 @@ const CSS_FORBIDDEN = /:root\s*\{|@font-face|== ANIMATION|<[a-z!/]|@import|url\s
 export const CREATIVE_STYLE_MARKER =
   '/* ── The design (AI-authored — same contracts as the scaffold CSS above) ── */';
 
+/**
+ * Strip declarations that would hide scaffold STRUCTURE beyond the animation's reach.
+ *
+ * The compiled entrance reveals elements by writing INLINE opacity/transform (GSAP), which
+ * beats any stylesheet opacity - so a patch may freely start things at `opacity: 0`. But
+ * nothing ever writes inline `visibility` or `display`, so a stylesheet
+ * `visibility: hidden` / `display: none` on a scaffold element hides it FOREVER: the
+ * entrance plays, the element stays invisible, and the bench reports the
+ * bench-entrance + bench-replay pair. The versus/lower-third smoke measured exactly this
+ * as the dominant staged-arm failure - models re-implement the lifecycle as state classes
+ * (`.visible`, `.reset`) nothing will ever toggle, then "fix" the resulting bench findings
+ * with more of the same (benchmarks/creative/v1/SMOKE-2026-07-31-vs-lt.md item 6).
+ *
+ * Clamp, don't reject (the round-h precedent), in two strengths:
+ *
+ * - `visibility: hidden|collapse` and `display: none` are stripped from any rule whose
+ *   selector mentions a `.{prefix}*` class or a field id - NOTHING can override them.
+ * - `opacity: 0` is stripped only where the rule's SUBJECT (the rightmost compound) is a
+ *   scaffold element the animation never touches (cells, masks, text spans, rows, images):
+ *   the smoke's patches started those at opacity 0 expecting a `.visible` class to arrive,
+ *   and no one ever sends it. On the box and the region elements a stylesheet opacity 0 is
+ *   legitimate - the entrance writes inline opacity over it - so there it stays.
+ *
+ * A rule on a patch-invented, un-prefixed class keeps everything: losing a decorative hide
+ * is cosmetic while a hidden name strap is a broken graphic, so the clamp errs toward
+ * visibility. Flat walk with @media/@supports recursion - model CSS is flat.
+ */
+export function stripHidingDeclarations(css: string, prefix: string, animated: string[]): string {
+  const scaffoldSelector = new RegExp(`\\.${prefix}\\b|\\.${prefix}-|#f\\d+`, 'i');
+  const hidePoison = /(^|;)\s*(visibility\s*:\s*(hidden|collapse)|display\s*:\s*none)\s*(?=;|$)/gi;
+  const opacityPoison = /(^|;)\s*opacity\s*:\s*0(\.0+)?\s*(?=;|$)/gi;
+  /** True when every comma-group's subject is an animated element (box/region/root).
+   *  Exact class match - `.creative` must not claim `.creative-cell-1` by prefix. */
+  const subjectsAnimated = (selector: string): boolean =>
+    selector.split(',').every((group) => {
+      const subject = group.trim().split(/[\s>+~]+/).pop() ?? '';
+      return animated.some((cls) => new RegExp(`\\.${cls}(?![a-zA-Z0-9_-])`).test(subject));
+    });
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open === -1) { out += css.slice(i); break; }
+    const selector = css.slice(i, open);
+    // An at-rule with a block (@media, @supports) recurses; its body is rules again.
+    if (/@\s*(media|supports)/i.test(selector)) {
+      let depth = 1;
+      let j = open + 1;
+      while (j < css.length && depth > 0) {
+        if (css[j] === '{') depth += 1;
+        else if (css[j] === '}') depth -= 1;
+        j += 1;
+      }
+      out += selector + '{' + stripHidingDeclarations(css.slice(open + 1, j - 1), prefix, animated) + '}';
+      i = j;
+      continue;
+    }
+    const close = css.indexOf('}', open);
+    if (close === -1) { out += css.slice(i); break; }
+    let body = css.slice(open + 1, close);
+    if (scaffoldSelector.test(selector)) {
+      body = body.replace(hidePoison, '$1');
+      if (!subjectsAnimated(selector)) body = body.replace(opacityPoison, '$1');
+    }
+    out += selector + '{' + body + '}';
+    i = close + 1;
+  }
+  return out;
+}
+
 /** Inner-HTML range of the element carrying `data-region="<id>"`, by <div> nesting. */
 function regionInnerRange(html: string, id: string): { start: number; end: number } | null {
   const open = html.match(new RegExp(`<div[^>]*data-region="${id.replace(/[^a-z0-9-]/gi, '')}"[^>]*>`));
@@ -135,7 +205,12 @@ export function applyCreativeStyle(
     html = html.slice(0, range.start) + entry.html + html.slice(range.end);
   }
 
-  return { ...template, html, css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${patch.css.trim()}\n` };
+  // The elements the compiled animation actually reveals (inline opacity/transform): the
+  // root, the box, and the region elements. Everything else scaffold-classed is styling
+  // surface only, and a stylesheet opacity 0 there can never be lifted.
+  const animated = [prefix, `${prefix}-box`, ...scaffold.regions.map((r) => r.selector)];
+  const css = stripHidingDeclarations(patch.css.trim(), prefix, animated);
+  return { ...template, html, css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n` };
 }
 
 // ── The prompt ───────────────────────────────────────────────────────────────
@@ -186,6 +261,13 @@ ${cardsBlock(cards)}
   placement) — that is how the composition becomes yours rather than the scaffold's.
 - Region inner HTML is optional and bounded: keep every id="fN" exactly once, keep an <img>
   an <img>, keep a rows container. Use it for wrappers and decorative elements.
+- The LIFECYCLE is already built: the compiled animation reveals the box and the region
+  elements with inline opacity/transform on play(), steps them on next(), and hides them
+  on stop(). Style the resting look and let it run — stylesheet \`opacity: 0\` on the box
+  or a region is fine (the entrance overrides it inline), but on anything deeper (cells,
+  masks, text spans) it stays forever, \`visibility: hidden\` / \`display: none\` on any
+  scaffold element stays forever, and state classes like \`.visible\` are never added by
+  anything. The platform strips such declarations rather than discard the patch.
 
 ## What good looks like here
 One thing read first. Deliberate contrast, not decoration. Air where the content is serious,
