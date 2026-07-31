@@ -304,7 +304,10 @@ Do this immediately before merging - main may have moved on the remote while you
        git worktree remove .claude/worktrees/safe-merge-<branch-slug>
        node scripts/dev-port.mjs --prune
 
-   The prune releases the dev-port ticket the e2e run reserved for that path. Never use
+   The prune releases the dev-port ticket if the e2e run reserved one for that path - it only
+   ever clears tickets whose worktree is gone, so it is safe to run unconditionally, and on a
+   docs-only branch (where the affected run skips without starting a server) it simply finds
+   nothing of ours to release. Never use
    `--force`: if the removal refuses, say so and leave it for the cleanup-worktrees workflow
    rather than overriding a refusal you did not diagnose. Remove ONLY the worktree this run
    created, and never the branch.
