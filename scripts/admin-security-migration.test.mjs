@@ -25,6 +25,7 @@ const entitlements = await read('0018_entitlements.sql');
 const selfScoped = await read('0020_self_scoped_predicates.sql');
 const oneActiveGrant = await read('0021_one_active_grant.sql');
 const absolutes = await read('0022_entitlement_absolutes.sql');
+const temporaryDeny = await read('0023_temporary_deny_absolute.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -276,6 +277,65 @@ test('0022 refuses to apply unless the gates demonstrably hold', () => {
   assert.match(absolutes, /permissive = 'RESTRICTIVE'/i, 'restrictiveness is not verified');
   // And prove the predicate actually denies, rather than only that it exists.
   assert.match(absolutes, /public\.feature_denied\('showchat'\) into denied/i);
+});
+
+// ── 0023: a temporary denying grant joins the absolutes ──────────────────────────────────────
+
+test('the grant test covers both shapes and keeps every date rule', () => {
+  const body = temporaryDeny.match(
+    /create or replace function public\.feature_denied_for\(p_user uuid, p_key text\)[\s\S]*?\$\$;/i,
+  );
+  assert.ok(body, '0023 no longer redefines the predicate');
+  const source = body[0];
+  // The two shapes in one condition: null expiry is the permanent override, a live expiry is the
+  // temporary grant that 0021's uniqueness makes decisive.
+  assert.match(source, /g\.expires_at is null or g\.expires_at > now\(\)/i);
+  // The other three rules from grantActive() must survive the rewrite - each of them is what
+  // stops a stale or malformed row from taking access away.
+  assert.match(source, /g\.revoked_at is null/i, 'a revoked grant would still deny');
+  assert.match(source, /g\.starts_at is null or g\.starts_at <= now\(\)/i, 'a future grant would deny early');
+  assert.match(source, /jsonb_typeof\(g\.value -> 'value'\) = 'boolean'/i, 'a malformed payload could deny');
+  assert.match(source, /\(g\.value ->> 'value'\) = 'false'/i, 'an ALLOW grant would read as a denial');
+  // And the other two absolutes must still be there - this migration only widens the grant test.
+  assert.match(source, /state = 'suspended'/i);
+  assert.match(source, /key = 'disabled_features'/i);
+  // Still no precedence: no plan, no assignment, no ranking of one row against another.
+  assert.doesNotMatch(source, /public\.plans|public\.user_plans/i);
+});
+
+test('no gate is pointed at an ai.* key, where the subset property does not hold', () => {
+  // AI_LITE_OVERRIDE_USER_IDS widens a false back to true for `ai.` keys only (contract.ts,
+  // the envOverride branch), so on such a key the contract can ALLOW where this predicate denies
+  // - the one direction the whole design forbids. The AI keys are gated at their endpoints and
+  // no policy names one; this test is what keeps that a deliberate decision.
+  for (const [name, sql] of [['0022', absolutes], ['0023', temporaryDeny]]) {
+    for (const call of sql.matchAll(/feature_denied(?:_for)?\((?:[^,)]+,\s*)?'([^']+)'\)/gi)) {
+      assert.doesNotMatch(
+        call[1],
+        /^ai\./,
+        `${name} gates ${call[1]}, an ai.* key the env override can widen back`,
+      );
+    }
+  }
+});
+
+test('0023 proves the branch it adds, on a real row, and cleans up after itself', () => {
+  for (const check of ['(a)', '(b)', '(c)', '(d)']) {
+    assert.ok(temporaryDeny.includes(`0023 self-check ${check} FAILED`), `0023 lost its self-check ${check}`);
+  }
+  // The point of this self-check is that it can do what 0022's could not: exercise the grant
+  // branch against a real user_grants row, since the column references auth.users.
+  assert.match(temporaryDeny, /insert into public\.user_grants/i, 'the grant branch is never exercised');
+  assert.match(temporaryDeny, /'__selfcheck__'/, 'the probe key must not be a real FeatureKey');
+  assert.match(temporaryDeny, /delete from public\.user_grants where user_id = v_user and key = '__selfcheck__'/i,
+    'the scaffolding row is left behind');
+  // An instance with no accounts must still apply.
+  assert.match(temporaryDeny, /from auth\.users order by created_at limit 1/i);
+  assert.match(temporaryDeny, /skipping the behavioural half/i, 'an empty auth.users would fail the apply');
+  // And the ACL must be re-asserted: CREATE OR REPLACE preserving it is the assumption this
+  // migration rests on, so it is checked rather than trusted.
+  assert.match(temporaryDeny, /has_function_privilege\('authenticated', 'public\.feature_denied_for\(uuid, text\)'/i);
+  assert.match(temporaryDeny, /has_function_privilege\('authenticated', 'public\.feature_denied\(text\)'/i);
 });
 
 test('0021 refuses to apply unless the constraint demonstrably holds', () => {

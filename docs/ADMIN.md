@@ -196,17 +196,22 @@ out when a cache write fails, against the neutrality rule and the fail-open post
 `api/_lib/entitlements.ts`; fail-open makes the gate decorative.
 
 **What shipped (`0022`): only the PRECEDENCE-FREE ABSOLUTES are in SQL, and plan-level gating of
-these keys plainly does not bite.** Three inputs win outright in the contract, so a policy testing
+these keys plainly does not bite.** Four inputs win outright in the contract, so a policy testing
 them can only ever deny what the resolver also denies:
 
 1. suspension - already enforced, `is_suspended()`;
 2. the instance-wide kill switch - `system_settings.disabled_features` contains the key;
 3. a permanent manual override that DENIES - a `user_grants` row, `value` false, no `expires_at`,
-   not revoked.
+   not revoked;
+4. a TEMPORARY grant that denies, while it is in force (`0023`) - the same row shape with a live
+   `expires_at`. It was excluded at first as precedence-bearing, since a temporary grant sits
+   below a permanent override; `0021` is what made it safe, because with one active grant per key
+   there can be no override sitting above it. Different reasoning from (3), the same conclusion,
+   which is why one condition now expresses both.
 
-Plans, temporary grants, defaults and expiry stay in TypeScript. That is the whole trick: the
+Plans, defaults and every other use of expiry stay in TypeScript. That is the whole trick: the
 part of an entitlement RLS can carry is the part with NO precedence to re-implement, and each
-of the three is a single row test. The property that makes it sound is one-directional - the
+of the four is a single row test. The property that makes it sound is one-directional - the
 SQL denial set is a strict subset of the contract's - so the two can never disagree in the
 direction that matters, which is denying something the resolver allows.
 
@@ -259,11 +264,14 @@ plan-level. Two of the three branches are already public - `is_suspended()` is g
 new bit is "there is a denying override on my account", about a feature the caller can already
 observe they do not have.
 
-**A follow-up that `0021` has already made safe:** a TEMPORARY denying grant could join the three
-absolutes. It was excluded as precedence-bearing, but with one active grant per key guaranteed, a
-single active temporary deny outranks the plan and nothing else can be present to outrank it - so
-it lands in the same strict subset. "Suspend publishing for a week" is a natural moderation action
-and is currently the one shape an operator can express that the database will not honour.
+**The one edge where the subset property does NOT hold, stated rather than left to be found.** It
+holds for every key these gates are pointed at, and would fail for an `ai.*` one: the legacy
+`AI_LITE_OVERRIDE_USER_IDS` list widens a false back to true for `ai.` keys only (`contract.ts`,
+the `envOverride` branch), so on such a key the contract could ALLOW where the predicate denies -
+the single direction this design forbids. It costs nothing today, because the AI keys are gated at
+their endpoints and no policy names one; `scripts/admin-security-migration.test.mjs` fails the
+build if any gate is ever pointed at an `ai.*` key, so doing it would be a deliberate act rather
+than an accident.
 
 ### The browser's own entitlement
 
@@ -380,6 +388,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0020_self_scoped_predicates` | `is_suspended()` loses its argument, the nine policies are repointed, `is_suspended(uuid)` is dropped, `admin_user_suspended()` replaces it for admins, `is_admin`/`admin_role_rank` come off the REST surface |
 | `0021_one_active_grant` | pre-existing duplicate active grants are revoked (newest kept), then a PARTIAL UNIQUE index makes one active grant per `(user_id, kind, key)` unreachable |
 | `0022_entitlement_absolutes` | `feature_denied_for(uuid, text)` (internal) + the self-scoped `feature_denied(text)`, eight RESTRICTIVE gates for `community.publish`, `showchat` and `control.hosted`, and the owner check inside `show_accepts`, `show_by_slug` and the three control write RPCs |
+| `0023_temporary_deny_absolute` | the grant branch of `feature_denied_for` widens to cover a TEMPORARY denying grant while it is in force - safe only because `0021` guarantees no override can sit above it |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
