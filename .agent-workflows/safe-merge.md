@@ -154,13 +154,17 @@ Report the plan in Phase 1 and create it as the first action of Phase 2:
 
     git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>
 
-where `<branch-slug>` is the branch name with `/` replaced by `-`. Then, inside it:
+where `<branch-slug>` is the branch name with `/` replaced by `-`.
 
-    npm install
+**Install AFTER `main` has been merged into the branch, not before** (Phase 2 step 6). A new
+worktree shares the object store but NOT `node_modules`, so an install is required before either
+gate will run - but a worktree-less branch is usually an OLD one, and the `git merge main` in
+step 5 replaces its `package.json` with a much newer dependency set. Installing first means
+installing twice: the first run was measured against a lockfile the branch no longer has. Get
+`main` in, then install once, against the exact manifest the gates will run under.
 
-A new worktree shares the object store but NOT `node_modules`, so the install is required before
-either gate will run. It is the real cost of this path - state it up front rather than letting it
-surprise anyone, and expect a couple of minutes even for a one-file docs branch.
+The install is the real cost of this path - state it up front rather than letting it surprise
+anyone, and expect a couple of minutes even for a one-file docs branch.
 
 From there the flow is unchanged: that temporary worktree IS "the source worktree" for Phase 2
 step 5, all of Phase 3, and every cleanliness re-check in Phase 4.
@@ -222,9 +226,10 @@ branch - it is never where conflicts get resolved.
 
 1. If Phase 1 found `main` checked out nowhere and the gate reported SAFE, reattach now:
    `node scripts/reattach-main.mjs <root>` (it re-verifies safety, then switches).
-   If Phase 1 found the SOURCE branch has no worktree, create the temporary one now
-   (`git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>`, then `npm install`
-   inside it). Everything below means that worktree wherever it says "source worktree".
+   If Phase 1 found the SOURCE branch has no worktree, create the temporary one now:
+   `git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>`. Do NOT install into
+   it yet - that happens in step 6, once the branch holds the manifest the gates will use.
+   Everything below means that worktree wherever it says "source worktree".
 2. Recheck the actual `main` and source worktrees with `git status --porcelain`. Stop if either
    became dirty after assessment. A freshly created worktree reports clean because
    `node_modules/` is gitignored; if it reports anything else, stop - something is wrong.
@@ -233,6 +238,10 @@ branch - it is never where conflicts get resolved.
 4. Record `INTEGRATED_MAIN_SHA = git rev-parse main` - the exact main integrated into the
    branch, re-checked in Phase 4.
 5. In the SOURCE branch's worktree, integrate that main into the branch: `git merge main`.
+6. If step 1 created a temporary worktree, install into it NOW - after the merge, so the install
+   matches the manifest the gates will run under: `npm install` inside that worktree. Conflicts
+   from step 5 are resolved first (Phase 3 step 1) when there are any; installing against a
+   half-merged `package.json` proves nothing.
 
 ## Phase 3 - Resolve & verify (on the branch, main untouched)
 
