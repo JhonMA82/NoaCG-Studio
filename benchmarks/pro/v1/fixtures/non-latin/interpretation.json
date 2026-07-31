@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.9,
+  "regions": [
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.176,
+        "y": 0.654,
+        "w": 0.648,
+        "h": 0.134
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#2c3e50"
+        },
+        "opacity": 1,
+        "radiusNorm": 0.01
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.176,
+        "y": 0.654,
+        "w": 0.648,
+        "h": 0.04
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "gradient",
+          "angleDeg": 90,
+          "from": "#4c7eaf",
+          "to": "#3c6e9f"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.176,
+        "y": 0.654,
+        "w": 0.12,
+        "h": 0.134
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#7f8c8d"
+        },
+        "opacity": 0.5,
+        "radiusNorm": 0.01
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.185,
+        "y": 0.686,
+        "w": 0.098,
+        "h": 0.07
+      },
+      "confidence": 0.8,
+      "treatment": "flattened"
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.309,
+        "y": 0.706,
+        "w": 0.49,
+        "h": 0.038
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "sampleText": "Παναγιώτης Οικονομόπουλος",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "general-classification",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#ffffff",
+        "fontSizeNorm": 0.038,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.309,
+        "y": 0.748,
+        "w": 0.49,
+        "h": 0.024
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "sampleText": "特派員 · 東京支局",
+      "suggestedTitle": "Title",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "general-classification",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#ffffff",
+        "fontSizeNorm": 0.024,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.812,
+        "y": 0.654,
+        "w": 0.013,
+        "h": 0.134
+      },
+      "confidence": 0.85,
+      "treatment": "flattened"
+    }
+  ],
+  "warnings": [
+    "The diagonal cut on the right side of the main panel is too complex for a simple 'rebuild-shape' and is flattened.",
+    "The globe-and-person icon on the left is complex and is flattened."
+  ],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.4
+  }
+}

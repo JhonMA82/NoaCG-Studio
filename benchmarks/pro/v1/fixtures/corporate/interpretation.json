@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.9,
+  "regions": [
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.0881,
+        "y": 0.5898,
+        "w": 0.8177,
+        "h": 0.1602
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#F0F0F0"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.0881,
+        "y": 0.5898,
+        "w": 0.8177,
+        "h": 0.1602
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#9E9E9E"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "logo",
+      "bbox": {
+        "x": 0.125,
+        "y": 0.6435,
+        "w": 0.0469,
+        "h": 0.0574
+      },
+      "confidence": 0.9,
+      "treatment": "keep-asset"
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.1979,
+        "y": 0.6352,
+        "w": 0.0016,
+        "h": 0.0713
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#CCCCCC"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.2203,
+        "y": 0.6333,
+        "w": 0.2828,
+        "h": 0.0444
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-name",
+      "sampleText": "Dr. Amara Nwosu",
+      "suggestedTitle": "Name Line",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 600,
+        "color": "#333333",
+        "fontSizeNorm": 0.038,
+        "letterSpacing": "tight",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.2203,
+        "y": 0.6815,
+        "w": 0.2828,
+        "h": 0.0241
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-role",
+      "sampleText": "Chief Executive Officer",
+      "suggestedTitle": "Title Line",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#666666",
+        "fontSizeNorm": 0.02,
+        "letterSpacing": "tight",
+        "lineHeightRatio": 1.2
+      }
+    }
+  ],
+  "warnings": [],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.5
+  }
+}

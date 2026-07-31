@@ -144,11 +144,14 @@ async function fetchJson(url: string, key?: string): Promise<unknown> {
   return response.json();
 }
 
-async function openRouterModels(key?: string): Promise<AiDiscoveredModel[]> {
-  const raw = object(await fetchJson(
-    'https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=structured_outputs',
-    key,
-  ));
+async function openRouterModels(key: string | undefined, output: DiscoveryOutput): Promise<AiDiscoveredModel[]> {
+  // The text listing keeps its structured-output requirement (the harness forces schemas);
+  // the image listing asks only for image output - image models rarely declare
+  // structured_outputs and never need it.
+  const url = output === 'image'
+    ? 'https://openrouter.ai/api/v1/models?output_modalities=image'
+    : 'https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=structured_outputs';
+  const raw = object(await fetchJson(url, key));
   return list(raw.data)
     .map(normalizedOpenRouter)
     .filter((model): model is AiDiscoveredModel => model !== null);
@@ -161,18 +164,26 @@ async function huggingFaceModels(key?: string): Promise<AiDiscoveredModel[]> {
     .filter((model): model is AiDiscoveredModel => model !== null);
 }
 
+export type DiscoveryOutput = 'text' | 'image';
+
 export async function discoverProviderModels(
   provider: AiProviderId,
   key?: string,
+  output: DiscoveryOutput = 'text',
 ): Promise<AiModelCatalogResponse> {
-  const cacheKey = `${provider}:${Boolean(key)}`;
+  const cacheKey = `${provider}:${Boolean(key)}:${output}`;
   const found = cache.get(cacheKey);
   if (found && Date.now() - found.at < CACHE_MS) return found.value;
+  // Image-output discovery exists only where the gateway's image adapter does (OpenRouter);
+  // an empty list is the honest answer for every other provider.
   if (provider !== 'openrouter' && provider !== 'huggingface') {
     return { provider, syncedAt: new Date().toISOString(), models: [] };
   }
+  if (output === 'image' && provider !== 'openrouter') {
+    return { provider, syncedAt: new Date().toISOString(), models: [] };
+  }
   const models = provider === 'openrouter'
-    ? await openRouterModels(key)
+    ? await openRouterModels(key, output)
     : await huggingFaceModels(key);
   const value = {
     provider,

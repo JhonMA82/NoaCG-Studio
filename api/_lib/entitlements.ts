@@ -192,7 +192,7 @@ export async function resolveUserEntitlement(userId: string | null): Promise<Ent
 /** Which feature key a gateway surface is gated on; null for the general harness, which no
  *  feature key gates. One map, so adding a gated surface is one line and cannot disagree with
  *  the enforcement table in docs/ADMIN.md. */
-const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = { video: 'ai.video' };
+const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = { video: 'ai.video', pro: 'ai.pro' };
 
 export function gatedFeature(surface: AiGatewaySurface | undefined): FeatureKey | null {
   return surface ? SURFACE_FEATURES[surface] : null;

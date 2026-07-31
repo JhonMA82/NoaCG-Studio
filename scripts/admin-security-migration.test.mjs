@@ -27,6 +27,7 @@ const oneActiveGrant = await read('0021_one_active_grant.sql');
 const absolutes = await read('0022_entitlement_absolutes.sql');
 const temporaryDeny = await read('0023_temporary_deny_absolute.sql');
 const overview = await read('0024_admin_overview.sql');
+const renderMetrics = await read('0026_overview_outcome_metrics.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -394,6 +395,87 @@ test('the overview aggregation is unreachable from a client role', () => {
   // And it proves the lockdown rather than asserting it in a comment.
   assert.match(overview, /do \$\$/i, 'no self-check block');
   assert.match(overview, /must not be executable by a client role/i);
+});
+
+test('every migration that (re)defines an overview function re-locks it, not just 0024', () => {
+  // The rule generalizes because the risk does. A DROP discards the function's ACL, and a
+  // recreated function is PUBLIC-executable by default - so a later migration that reshapes one
+  // of these and forgets the revoke would silently publish the instance's whole activity ledger
+  // at /rest/v1/rpc/<name>. 0026 is the first such migration; this discovers any future one
+  // rather than naming them, so the guard cannot go stale by omission.
+  let checked = 0;
+  for (const [name, sql] of allMigrations) {
+    for (const match of sql.matchAll(/create or replace function public\.(admin_overview_\w+)\s*\(([^)]*)\)/gi)) {
+      const fn = match[1];
+      // The signature as the GRANT statements have to spell it: parameter types only.
+      const types = match[2]
+        .split(',')
+        .map((part) => part.trim().split(/\s+/).slice(1).join(' ').trim())
+        .filter(Boolean)
+        .join(', ');
+      const signature = `public.${fn}(${types})`;
+      assert.match(
+        sql,
+        new RegExp(`revoke all on function ${escapeForRegExp(signature)} from public, anon, authenticated`, 'i'),
+        `${name} defines ${fn} without revoking it from the client roles`,
+      );
+      assert.match(
+        sql,
+        new RegExp(`grant execute on function ${escapeForRegExp(signature)} to service_role`, 'i'),
+        `${name} defines ${fn} without granting it to service_role`,
+      );
+      checked++;
+    }
+  }
+  // Vacuous-guard tripwire: 0024 alone defines three, so anything under four means the matcher
+  // stopped finding what it is supposed to be checking.
+  assert.ok(checked >= 4, `expected at least 4 overview function definitions, found ${checked}`);
+});
+
+test('0026 stops counting a working guardrail as a failure, and a reservation as spend', () => {
+  // The AI half of the same shape the render columns had: `unsupported` is Lite REFUSING a brief
+  // outside its scope, which is the product behaving as designed. Folding it into the failure
+  // count is what made 26 "failures" out of 19 real ones.
+  const code = renderMetrics.replace(/--[^\n]*/g, '');
+  assert.match(code, /ai_declined bigint/i, 'the declined column is missing');
+  assert.match(code, /g\.status = 'unsupported'/i, 'declined is not counted from unsupported');
+  assert.doesNotMatch(
+    code,
+    /status in \('failed', 'unsupported', 'expired'\)/i,
+    'unsupported is still being counted as an AI failure',
+  );
+  assert.match(code, /g\.status = 'failed'\s*\n?\s*and g\.created_at/i, 'ai_failures is not narrowed to failed');
+
+  // And spend must exclude rows that never reached a provider - those still carry the
+  // reservation's ceiling, which is booked up front for the fleet-budget check.
+  const spend = code.match(/select coalesce\(sum\(g\.provider_cost_usd\), 0\)[\s\S]{0,200}?\)/i);
+  assert.ok(spend, 'the Lite spend aggregate is missing');
+  assert.match(spend[0], /g\.model is not null/i, 'spend still counts generations that never ran');
+});
+
+test('0026 corrects the render states rather than re-stating the bug', () => {
+  // The whole point of the migration: `expired` is a DELIVERED render whose file aged out, so it
+  // must not appear in the failed count, and the delivered count must include it - otherwise the
+  // figure decays to zero as outputs expire. Asserted on the SQL because there is no database in
+  // CI; the behavioural half is the migration's own DO block, which compares the function's
+  // answer against render_jobs directly and aborts the apply on a mismatch.
+  const code = renderMetrics.replace(/--[^\n]*/g, '');
+  assert.match(code, /renders_delivered bigint/i, 'the delivered column is missing');
+  assert.doesNotMatch(code, /renders_completed/i, 'the transient `complete` column is still there');
+
+  const failed = code.match(/j\.status = 'failed' and j\.created_at/i);
+  assert.ok(failed, 'the failed count is not narrowed to status = failed');
+  assert.doesNotMatch(
+    code,
+    /status in \('failed', 'expired'\)/i,
+    'expired is still being counted as a failure',
+  );
+  assert.match(code, /status in \('complete', 'expired'\)/i, 'delivered does not include expired');
+
+  // A DROP discards the ACL, so this migration must re-assert it - the generic test above
+  // enforces that, and this one pins that the drop is actually what it does.
+  assert.match(code, /drop function if exists public\.admin_overview_window\(timestamptz, timestamptz\)/i);
+  assert.match(renderMetrics, /do \$\$/i, 'no self-check block');
 });
 
 function escapeForRegExp(value) {

@@ -11,6 +11,7 @@ import type {
   ModelContentBlock,
   ModelRequest,
   ModelResult,
+  ModelRoute,
   StructuredOutput,
 } from './modelTypes';
 
@@ -26,9 +27,14 @@ export interface GatewayModelRequest extends Omit<ModelRequest, 'structuredOutpu
   /** Compatibility shape used by the established harness's forced structured calls. */
   tool?: ModelTool;
   /** The product surface this call belongs to, when the server gates that surface. Callers
-   *  never set it by hand: `src/ai/video/videoGateway.ts` is the one place it is filled in,
-   *  so a new video model call cannot forget it. */
+   *  never set it by hand: `src/ai/video/videoGateway.ts` and `src/ai/pro/proGateway.ts`
+   *  are the only places it is filled in, so a new gated call cannot forget it. */
   surface?: AiGatewaySurface;
+  /** Pin the FULL route for this call, bypassing the session's provider/model AND its
+   *  fallbacks. For calls whose modality the session route cannot serve (an image
+   *  generation on a text session model), where a settings fallback would be a silent
+   *  route change into the wrong capability. */
+  route?: ModelRoute;
 }
 
 export async function callModelDetailed(request: GatewayModelRequest): Promise<ModelResult> {
@@ -48,27 +54,31 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     model: _model,
     modelRole: _modelRole,
     surface,
+    route: pinnedRoute,
     ...providerNeutralRequest
   } = request;
+  const route = pinnedRoute ?? { provider: settings.provider, model };
   const body: AiGatewayRequestBody = {
     request: {
       ...providerNeutralRequest,
-      ...(settings.temperature !== null && settings.provider === 'openrouter'
+      ...(settings.temperature !== null && route.provider === 'openrouter'
         ? { temperature: settings.temperature }
         : {}),
-      ...(settings.seed !== null && settings.provider === 'openrouter'
+      ...(settings.seed !== null && route.provider === 'openrouter'
         ? { seed: settings.seed }
         : {}),
-      ...(settings.temperature !== null && settings.provider === 'huggingface'
+      ...(settings.temperature !== null && route.provider === 'huggingface'
         ? { temperature: settings.temperature }
         : {}),
-      ...(settings.seed !== null && settings.provider === 'huggingface'
+      ...(settings.seed !== null && route.provider === 'huggingface'
         ? { seed: settings.seed }
         : {}),
       ...(structuredOutput ? { structuredOutput } : {}),
     },
-    route: { provider: settings.provider, model },
-    ...(settings.fallbacks.length ? { fallbacks: settings.fallbacks } : {}),
+    route,
+    // A pinned route means exactly that route: the session's fallbacks belong to the
+    // session model, not to a call that pinned a different capability.
+    ...(!pinnedRoute && settings.fallbacks.length ? { fallbacks: settings.fallbacks } : {}),
     ...(surface ? { surface } : {}),
   };
   const token = await getAccessToken();

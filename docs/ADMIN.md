@@ -79,8 +79,9 @@ server path can act on one by accident. Enforcement is its own later, deliberate
 
 ### Feature keys
 
-`ai.lite`, `ai.import-analysis`, `ai.video`, `ai.byo-key`, `render.cloud`, `sync.cloud`,
-`community.publish`, `control.hosted`, `showchat`, `templates.beta`, `templates.internal`.
+`ai.lite`, `ai.import-analysis`, `ai.pro`, `ai.video`, `ai.byo-key`, `render.cloud`,
+`sync.cloud`, `community.publish`, `control.hosted`, `showchat`, `templates.beta`,
+`templates.internal`.
 
 Adding one means adding it to `FEATURE_KEYS`, `FEATURE_LABELS`, and both built-in plans - the
 test fails otherwise, which is how an unlabelled or default-less key is kept out.
@@ -115,6 +116,7 @@ routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path
 | `ai.lite` | `api/_lib/lite/generations.ts`, `judge.ts`, and `status.ts` (so the panel cannot offer what the endpoint would refuse) |
 | `ai.import-analysis` | `api/_lib/importAnalysis/analyze.ts` + its `status.ts` |
 | `ai.byo-key` | `api/ai/generate.ts`, on the BYO branch only, and only when a token was presented - account-free BYO must keep working |
+| `ai.pro` | `api/ai/generate.ts`, on the `surface: 'pro'` discriminator the NoaCG Pro pipeline sets - the same mechanism, honest limit, and testability as `ai.video` below |
 | `ai.video` | `api/ai/generate.ts`, on the `surface: 'video'` discriminator the video harness sets; the decision itself is `gatedFeature()` + `surfaceRefused()` in `api/_lib/entitlements.ts`, so it is testable without a verified token. It binds only a caller the server RECOGNISED - anonymous resolves defaults that carry no account feature, and account-free BYO video works today. See "Gating a surface on a shared endpoint" below for what the check can and cannot do |
 | `render.cloud` | `api/render/start.ts` |
 | `community.publish` | RLS: the two `community_templates_publish_*` gates + `community_assets_publish_insert` on the bucket (`0022`). Moderators are exempt on UPDATE, so a takedown still works while the switch is off |
@@ -402,6 +404,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0022_entitlement_absolutes` | `feature_denied_for(uuid, text)` (internal) + the self-scoped `feature_denied(text)`, eight RESTRICTIVE gates for `community.publish`, `showchat` and `control.hosted`, and the owner check inside `show_accepts`, `show_by_slug` and the three control write RPCs |
 | `0023_temporary_deny_absolute` | the grant branch of `feature_denied_for` widens to cover a TEMPORARY denying grant while it is in force - safe only because `0021` guarantees no override can sit above it |
 | `0024_admin_overview` | `admin_overview_window(from, to)`, `admin_overview_state()`, `admin_overview_mix(from, to)` - read-only aggregation for §8, off the REST surface; plus the two indexes they need (`funnel_events (user_id, event)`, `render_jobs (created_at)`) |
+| `0026_overview_outcome_metrics` | corrects the three outcome/cost aggregates `0024` got wrong: `renders_failed` stops counting `expired`, `renders_completed` becomes `renders_delivered` (`complete` OR `expired`, since `complete` is transient), `ai_failures` narrows to `failed` with the refusals split out into `ai_declined`, and `ai_cost_usd` sums only rows that recorded a model so a reservation ceiling is never reported as spend. DROP-and-CREATE, since the column set changes - so it re-asserts the revokes and the grant the DROP discarded |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -507,12 +510,13 @@ distinct browsers, a count of accounts, and an amount of money. The unit rides e
 | Exports completed without an account | events | `funnel_events` | `export` rows with `user_id is null` |
 | AI calls with no account at all | events | `ai_gateway_requests` | `user_id is null`. **Independent of the byo/managed split** - anonymity and whose key paid are separate facts, and prod already has an anonymous call on the managed key. Hosted Lite generation can never appear here (`ai_generations.user_id` is `NOT NULL`) |
 | Exports completed | events | `funnel_events` | `export` rows, written after the package reaches the disk. **Every row is a success and there is no failure counterpart**, so no export success RATE exists |
-| Lite generations started / usable / failed | events | `ai_generations` | Reservations, then `status in ('usable','accepted')` and `status in ('failed','unsupported','expired')`. The three do not sum: one still running is neither |
+| Lite generations started / usable / failed | events | `ai_generations` | Reservations, then `status in ('usable','accepted')` and **`status = 'failed'` only**. They do not sum: one still running is none of them |
+| Lite briefs declined as out of scope | events | `ai_generations` | `status = 'unsupported'` - Lite refusing a multi-graphic, advanced-state-machine or too-complex brief. **The guardrail firing, so never counted as a failure**; worth watching as demand for what Lite cannot do yet |
 | Accounts using Lite | accounts | `ai_generations` | Distinct `user_id` in the window |
-| Lite spend (ours) | USD | `ai_generations.provider_cost_usd` | Money this project spent |
+| Lite spend (ours) | USD | `ai_generations.provider_cost_usd` | Summed **only over rows that recorded a model**. A generation that never reached a provider still carries the reservation's cost CEILING, which the fleet-budget check books up front on purpose - counting it overstated spend 6.5× on this instance |
 | Gateway calls on our key / on a user key | events | `ai_gateway_requests.key_source` | `managed` versus `byo`. **The BYO half is the user's own money and is never added to a spend figure** - the two tables are separate for exactly this reason (`0012`) |
-| Cloud renders submitted / completed / failed | events | `render_jobs` | All three counted by SUBMISSION time, so a job submitted inside a window and finished after it is started here and completed nowhere. That is why they are shown as counts and not as a rate |
-| Render time | duration | `render_jobs` | Median of `updated_at - created_at` over jobs that completed. Null - not zero - when nothing completed |
+| Cloud renders submitted / delivered / failed | events | `render_jobs` | All three by SUBMISSION time, so a job submitted inside a window and finished after it is started here and delivered nowhere. That is why they are counts and not a rate. **Delivered = `complete` OR `expired`**; **failed = `failed` only** - see the `expired` note below |
+| Render time | duration | `render_jobs` | Median of `updated_at - created_at` over jobs whose output is STILL LIVE (`complete`). It cannot widen to the delivered set: expiring a job overwrites `updated_at` with the deletion time, so an aged-out render would report the age of its file rather than how long it took. Null - not zero - when no live output falls in the window |
 
 **"Made without an account" is its own table**, because the editor has no login wall (root
 `AGENTS.md`, "Auth posture") and how much of the product's value reaches people who never sign up
@@ -545,6 +549,30 @@ not terminal - the sweep missed them), and the first row date of each ledger, on
   browser reported twice WOULD be two rows; the funnel has no dedup and none is invented here.
 - **Deleted projects are not subtracted.** These are event ledgers: a graphic that was made and
   later deleted was still made. Nothing here counts what currently exists.
+- **A terminal state meaning "the system did its job" must never be counted as one meaning "the
+  system broke."** `0024` made this mistake three times and it is worth stating as a shape
+  rather than as three bugs, because the next metric added here can make it again. A render's
+  `expired` is a delivered render whose file aged out. A generation's `unsupported` is Lite
+  *correctly refusing* an out-of-scope brief. Both were folded into failure counts, and both
+  produced exactly what this page exists to prevent: a number sending an operator to investigate
+  a subsystem that is working. Production read "0 completed, 6 failed" about rendering that had
+  delivered four of six, and 26 AI "failures" of which seven were refusals the product is
+  designed to make. All corrected in `0026`. **When adding an outcome metric, enumerate every
+  value the status column can hold and say which of them mean failure - do not pattern-match a
+  set that looks terminal.**
+- **A reserved cost is not a spent cost.** `reserve_ai_lite_generation` books the session cost
+  ceiling into `provider_cost_usd` up front so the fleet-budget admission check is conservative.
+  That is right for admission and wrong for "what did this cost us": a generation that dies
+  before reaching a provider keeps the ceiling forever. Spend is therefore summed only over rows
+  that recorded a model. `0024` did not, and overstated by 6.5×.
+- **A render's `expired` state is a SUCCESS, not a failure.** `expired` is written in
+  exactly one place - `api/render/cleanup.ts`, in the branch guarded by
+  `job.state === 'complete'` - so it is unreachable except from completion, and means "finished,
+  was downloadable, and the TTL cron has since deleted the blob and kept the row for
+  accounting". Counting it beside a genuine `failed` reported four delivered renders as
+  failures. The mirror-image half of the same mistake: `complete` is TRANSIENT, so a "completed"
+  count built on it decays toward zero on a healthy instance - which is why the honest question
+  is "did it ever finish" and the column is `renders_delivered`.
 
 ### The daily AI budget bar
 

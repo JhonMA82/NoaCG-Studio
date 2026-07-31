@@ -70,6 +70,7 @@ interface WindowRow {
   ai_generations: number | string;
   ai_successes: number | string;
   ai_failures: number | string;
+  ai_declined: number | string;
   ai_users: number | string;
   ai_cost_usd: number | string;
   gateway_managed: number | string;
@@ -78,7 +79,7 @@ interface WindowRow {
   gateway_managed_cost_usd: number | string;
   gateway_failures: number | string;
   renders_started: number | string;
-  renders_completed: number | string;
+  renders_delivered: number | string;
   renders_failed: number | string;
   render_median_ms: number | string | null;
 }
@@ -117,6 +118,7 @@ function metrics(row: WindowRow): AdminOverviewMetrics {
     aiGenerations: count(row.ai_generations),
     aiSuccesses: count(row.ai_successes),
     aiFailures: count(row.ai_failures),
+    aiDeclined: count(row.ai_declined),
     aiUsers: count(row.ai_users),
     aiCostUsd: money(row.ai_cost_usd),
     gatewayManaged: count(row.gateway_managed),
@@ -125,7 +127,7 @@ function metrics(row: WindowRow): AdminOverviewMetrics {
     gatewayManagedCostUsd: money(row.gateway_managed_cost_usd),
     gatewayFailures: count(row.gateway_failures),
     rendersStarted: count(row.renders_started),
-    rendersCompleted: count(row.renders_completed),
+    rendersDelivered: count(row.renders_delivered),
     rendersFailed: count(row.renders_failed),
     // Null, not zero: "nothing completed" and "every render was instant" are different
     // answers and only one of them is good news.

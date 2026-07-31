@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.9,
+  "regions": [
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.0933,
+        "y": 0.5833,
+        "w": 0.7625,
+        "h": 0.0815
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#1F3465"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.1133,
+        "y": 0.598,
+        "w": 0.7225,
+        "h": 0.0528
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "role": "person-name",
+      "sampleText": "Alexandra Konstantopoulos-Vandermeulen",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 700,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.04,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.0933,
+        "y": 0.6722,
+        "w": 0.6975,
+        "h": 0.0657
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#283C6C"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.1133,
+        "y": 0.6861,
+        "w": 0.66,
+        "h": 0.038
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-text",
+      "role": "person-role",
+      "sampleText": "Senior European Economics Correspondent",
+      "suggestedTitle": "Role",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.027,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.0933,
+        "y": 0.6657,
+        "w": 0.7625,
+        "h": 0.0046
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#A1B4D2"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    }
+  ],
+  "warnings": [],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.5
+  }
+}

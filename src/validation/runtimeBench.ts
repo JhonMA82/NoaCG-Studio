@@ -611,7 +611,16 @@ export async function benchTemplateRuntime(
     // ── Entrance + settled measurement with the field defaults ──────────────────────
     phase = 'play';
 
-    const exempt = dynamicsRoots(template, win);
+    // The design-unit ARTWORK (`.{prefix}-art`, the imported-design contract) is exempt
+    // from the layout checks alongside the dynamics roots: placed text sits ON the artwork
+    // by construction - it is the design's canvas, not a sibling that can collide. It still
+    // counts for onAir() above, so an art-only design keeps a measurable entrance. Field
+    // images (a logo slot's <img id="fN">) are NOT exempt - those are content.
+    const prefix = detectPrefix(template.html);
+    const artElements = prefix
+      ? Array.from(win.document.querySelectorAll(`.${prefix}-art`))
+      : [];
+    const exempt = [...dynamicsRoots(template, win), ...artElements];
     const parsedData = parseAnimData(template.js);
 
     // "On air" is measured by what a viewer can see: at least one visible text/image leaf

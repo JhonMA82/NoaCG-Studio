@@ -8,6 +8,8 @@ interface Props {
   onTemplates: () => void;
   onImportGraphic: () => void;
   onAi: () => void;
+  /** NoaCG Pro: an image model draws the design, NoaCG rebuilds it editable. */
+  onPro: () => void;
   onVideo: () => void;
   /** Start from a KIT: a curated set of graphics for one kind of show. */
   onKit: () => void;
@@ -30,7 +32,7 @@ interface Props {
  * (fields, animation, export), not to regenerate it. Existing .html / SPX templates (and
  * logos to design around) go through Create with AI instead.
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome, onOpenGraphic }: Props) {
+export default function EntryStep({ onTemplates, onImportGraphic, onAi, onPro, onVideo, onKit, onBlank, onHome, onOpenGraphic }: Props) {
   const recent = useMemo(
     () => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
     [],
@@ -103,6 +105,13 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           <span className="wz-entry-icon">✦</span>
           <strong>Create with AI</strong>
           <span className="hint">Describe what you need — drop in a logo, brand stills, or an existing .html / SPX template to convert. Every result is live-tested and lands as clean, editable code.</span>
+        </button>
+        <button className="wz-entry-card" onClick={onPro} data-entry="pro">
+          <span className="wz-entry-icon">✧</span>
+          <strong>
+            Create with AI Pro <span className="wz-beta-tag">Beta</span>
+          </strong>
+          <span className="hint">An image model draws the visual direction; NoaCG rebuilds it as an editable graphic — live text fields, real shapes, deterministic motion, every export.</span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
           <span className="wz-entry-icon">▦</span>

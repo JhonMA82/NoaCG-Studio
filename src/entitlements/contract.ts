@@ -36,6 +36,7 @@
 export const FEATURE_KEYS = [
   'ai.lite',
   'ai.import-analysis',
+  'ai.pro',
   'ai.video',
   'ai.byo-key',
   'render.cloud',
@@ -53,6 +54,7 @@ export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
   'ai.lite': 'Managed AI graphic generation',
   'ai.import-analysis': 'AI analysis of imported graphics',
+  'ai.pro': 'NoaCG Pro image-guided generation',
   'ai.video': 'AI video and animation generation',
   'ai.byo-key': 'Bring-your-own AI provider key',
   'render.cloud': 'Cloud video rendering',
@@ -82,6 +84,7 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
   'ai.lite',
   'ai.import-analysis',
   'ai.byo-key',
+  'ai.pro',
   'ai.video',
   'render.cloud',
   // Template visibility is enforced through the hidden-template list rather than by a direct
@@ -102,6 +105,7 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
  *  an incident that turns out to leave traffic running is the failure this whole file exists to
  *  prevent. A key with a caveat states it here rather than in a comment nobody reads at 9pm. */
 export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
+  'ai.pro': 'reaches recognised accounts; an account-free caller on their own provider key is not stopped',
   'ai.video': 'reaches recognised accounts; an account-free caller on their own provider key is not stopped',
   // The three RLS-enforced keys. Two caveats are true of all of them and are worth the repetition
   // on a page an operator reads during an incident: only the ABSOLUTES reach the database (a plan
@@ -260,6 +264,7 @@ export const ANONYMOUS_PLAN: PlanShape = {
   features: {
     'ai.lite': false,
     'ai.import-analysis': false,
+    'ai.pro': false,
     'ai.video': false,
     'ai.byo-key': true,
     'render.cloud': true,
@@ -292,6 +297,7 @@ export const DEFAULT_SIGNED_IN_PLAN: PlanShape = {
   features: {
     'ai.lite': true,
     'ai.import-analysis': true,
+    'ai.pro': true,
     'ai.video': true,
     'ai.byo-key': true,
     'render.cloud': true,
