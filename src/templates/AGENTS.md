@@ -6,6 +6,16 @@ catalog sweep for the affected category (root AGENTS.md, "Verifying changes").
 
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
+**structuralAnchor.ts** - the one table answering "does a catalog structure carry this intent,
+and which one": the family words, `resolveAnchor`, `structuralFit`, and `anchorsSatisfiedBy` /
+`variantSatisfiesAnchor` (what a VARIANT is, for the satisfaction check). It lives here, not in
+src/ai, because TWO layers need the same answer and neither may import the other - the AI's
+ROUTER asks before the design call (adapt vs create) and `validation/structuralIntentCheck.ts`
+asks afterwards (is this the graphic that was asked for). A second copy is how those two come to
+disagree. Everything resolves LIVE against the registry and catalog, so catalog growth updates
+routing and satisfaction by itself: adding a design can CHANGE a route, which is why
+e2e/creative-routing.spec.ts runs on changes here.
+
 **kit.ts** - what a kit CONTAINS, resolved once for every consumer: the pack's types through
 the (type x family) matrix PLUS its `extras`. Both halves are the kit - a caller reading only
 `resolvePack` builds a kit missing its extras while still counting them, which is exactly the
@@ -627,6 +637,29 @@ category that builds rows with `innerHTML` inherits this rule; `e2e/template-esc
 drives every catalog variant with a markup payload and fails if any of it executes.
 
 ## Fields & images (the broadcast field policy)
+
+**EVERY meaningful visible string is a field.** A template exists to be re-used by people who
+never open the code, so a word baked into the markup is a word nobody downstream can change -
+and in practice the ones that get baked in are exactly the ones a second broadcaster needs
+different: a countdown's "BEGINS IN", a poll's "VOTE NOW", a phase chip's "LIVE", a severity
+flag's "Warning", a sponsor rail's "PARTNERS". Language is the obvious case, but house style
+is the common one. `node scripts/field-coverage.mjs` is the gate (root AGENTS.md); it drives
+every field and reports whatever did not move.
+
+Three rules keep this from fighting the rest of the model:
+- **A repeated structure stays ONE `lines` field**, never `f7`…`f26` (see the repeating-data
+  system below). "Every value is editable" is about REACH, not about field count.
+- **A state's WORD is a field; the state is not.** An operator event carries state, not copy -
+  the machine says the graphic is live, the broadcaster says what "live" is called. The pattern
+  is hidden word sources the runtime reads (`cornerBug/statusParts.ts`, the esports phase chip,
+  the alert severity flag), so nothing about the wording lives in the machine.
+- **A word source the operator can edit must repaint on `update()`**, not only when its state
+  is next entered. An operator who retypes a word, sees nothing happen, and concludes the field
+  is dead is the failure this costs one line to avoid (`paintPhase()` in the esports runtime).
+
+The deliberate exceptions are small and argued in the gate: the versus mark (it IS the graphic),
+and an image field's empty-slot placeholder (that text is the field's own empty state and the
+picked file replaces it).
 
 - Field types offered to users are the ones live graphics actually use: `textfield`, `textarea`,
   `number`, and **`filelist` = the image field** (SPX lists files from

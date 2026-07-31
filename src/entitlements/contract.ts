@@ -88,6 +88,12 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
   // allows() call, but it is enforced (api/_lib/templateVisibility.ts).
   'templates.beta',
   'templates.internal',
+  // These three have no endpoint - they write straight from the browser - so their enforcement
+  // is RLS rather than an allows() call: supabase/migrations/0022_entitlement_absolutes.sql.
+  // Only the precedence-free absolutes reach them; see the note beside each one below.
+  'community.publish',
+  'control.hosted',
+  'showchat',
 ]);
 
 /** Where an enforced key does not reach EVERY caller, in the words the admin page shows.
@@ -97,6 +103,15 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
  *  prevent. A key with a caveat states it here rather than in a comment nobody reads at 9pm. */
 export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
   'ai.video': 'reaches recognised accounts; an account-free caller on their own provider key is not stopped',
+  // The three RLS-enforced keys. Two caveats are true of all of them and are worth the repetition
+  // on a page an operator reads during an incident: only the ABSOLUTES reach the database (a plan
+  // that withholds one of these does not bite), and nothing already published or already saved is
+  // withdrawn - reads stay open by design, so a takedown remains a moderation action.
+  'community.publish':
+    'stops new and edited publishes in the database; already-published templates stay up, and moderators can still act',
+  'control.hosted':
+    'stops creating pages and stops every operator command on existing ones; the pages stay readable',
+  showchat: 'stops new send-ins and moderation; messages already on air stay on air',
 };
 
 // ── limits ─────────────────────────────────────────────────────────────────────────────

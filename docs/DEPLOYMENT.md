@@ -32,6 +32,14 @@ that path. Binding: keep it updated when the pipeline changes.
    calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. Its rolling
    issue names **the commits since the last green nightly**, which is what keeps a red night
    from turning into a bisect.
+
+   **`nightly-drift` (`.github/workflows/nightly-drift.yml`)** is its belt, twice a day: it
+   alarms when NO nightly has run in 26 hours. A red nightly files an issue; an absent one
+   looks exactly like a healthy night, which is the same shape as the outage this runbook
+   exists for. The window is generous because GitHub delays scheduled runs under load - a
+   23:43 cron here was observed running at 01:11 - and can drop them; two check slots mean one
+   dropped slot cannot hide a missing nightly. It lives in its own workflow deliberately: a
+   check inside `nightly.yml` could not fire when the nightly did not.
 2. **Vercel** builds production from **`main` only** (project `noacg-studio`,
    team `miwcos-projects`, production URL <https://noacg-studio.vercel.app>). Every push to
    `main` triggers a production deployment via the Git integration; CI and Vercel run in
@@ -46,7 +54,7 @@ that path. Binding: keep it updated when the pipeline changes.
 
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
-Four self-closing rolling issues, all following the weekly-audit pattern (one open issue,
+Five self-closing rolling issues, all following the weekly-audit pattern (one open issue,
 one comment per newly failing commit, the same commit never alerts twice, auto-closed by
 the next healthy state):
 
@@ -55,6 +63,7 @@ the next healthy state):
 | `CI is red on main` | the CI gate, on a red `main` run |
 | `Production is not running the latest main commit` | deploy-verify: failed deploy, failed live verification, or drift |
 | `Nightly full test suite is red` | nightly: the full suite or a catalog gate failed - the body lists the suspect commits |
+| `Nightly sweep has not run` | nightly-drift (twice a day): no nightly at all in 26 h - the belt against a schedule that silently stops firing |
 | `Weekly dependency audit is red` | weekly-audit (Mondays): a new high/critical advisory |
 
 GitHub also emails the pusher on any failed run of their push (account notification

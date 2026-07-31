@@ -95,14 +95,19 @@ export const POLL_CONTENT = {
   question: 'How are you watching tonight?',
   options: 'On the stream | 1840\nOn TV | 1215\nCatching up later | 640',
   footnote: '3,695 votes · voting open',
+  cue: 'VOTE NOW',
 };
 
-/** The complete field set — three fields, and every board emits exactly these. */
+/** The complete field set — four fields, and every board emits exactly these. */
 function pollFields(o: ResolvedOptions): SpxField[] {
   return [
     { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Question', value: o.lines[0]?.sample || POLL_CONTENT.question },
     { field: 'f1', ftype: 'textarea', title: o.lines[1]?.title || 'Options', value: o.lines[1]?.sample || POLL_CONTENT.options },
     { field: 'f2', ftype: 'textfield', title: o.lines[2]?.title || 'Vote count', value: o.lines[2]?.sample || POLL_CONTENT.footnote },
+    // The badge's WORDS are operator content, not design furniture: the same board runs a
+    // Finnish vote, an SMS poll ("TEXT TO VOTE") and a floor count ("HANDS UP"). Only its
+    // LEAVING is choreography — that stays a keyframe on .poll-cue.
+    { field: 'f3', ftype: 'textfield', title: o.lines[3]?.title || 'Vote badge', value: o.lines[3]?.sample || POLL_CONTENT.cue },
   ];
 }
 
