@@ -53,6 +53,10 @@ export interface CompiledScaffold {
   template: SpxTemplate;
   regions: ScaffoldRegion[];
   prefix: string;
+  /** The spec's own answer to "does this graphic own the canvas?". Carried onto the compiled
+   *  scaffold because the STYLE GATE needs it: an overlay that paints the whole frame opaque
+   *  has stopped being an overlay, while a board legitimately covers (see style.ts). */
+  fullFrame: boolean;
 }
 
 // ── The type ladder ──────────────────────────────────────────────────────────
@@ -436,7 +440,7 @@ ${holders.join('\n')}
       .map((f) => ({ id: f.field, type: 'text' as const, label: f.title, fieldId: f.field, text: f.value, styles: {} })),
   };
 
-  return { template, regions, prefix };
+  return { template, regions, prefix, fullFrame: spec.layout.fullFrame };
 }
 
 // ── The stylesheet ───────────────────────────────────────────────────────────

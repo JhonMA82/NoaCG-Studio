@@ -313,8 +313,35 @@ rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, 
 
 Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
 expensive rig in the repo, explicit routes, priced, ceilinged), `bench:creative:refs` (free
-catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
+catalog hold frames, so `bench:sameness` can calibrate the copy line), and
+`scripts/creative-plate-visibility.mjs` (free, reads PNGs already on disk). Free coverage:
 e2e/creative-pilot.spec.ts.
+
+**The BACKDROP rule is split by what the spec declares** (owner ruling 2026-07-31,
+benchmarks/creative/v1/RULINGS-2026-07-31.md; the defect: a style patch shadows `--panel-bg`
+to black on the root - legal, `:root` is untouched - and makes the box `100vw x 100vh` painted
+with it, so a "valid" overlay floods the frame). An OVERLAY (`fullFrame: false`) may not paint
+an opaque full-frame backdrop: `style.ts stripFrameFlood` strips the FILL and keeps the PAINT
+from any rule carrying both, which leaves the panel at content size in its zone instead of an
+invisible box with the content sprayed across the canvas. A full-frame BOARD may cover, and is
+measured instead - `creative-plate-visibility.mjs` composites against the known plate
+(`creative-plate.mjs`, shared with the rig so reference and capture cannot drift) and
+calibrates the floor against the catalog's own designs **per category**: pooled over lower
+thirds and versus the catalog minimum is 0.0%, because vs02 legitimately covers every pixel,
+and one number over two placement classes excuses every flood there is. The same measurement
+reads the opposite end exactly - a frame pixel-identical to the bare plate painted NOTHING.
+
+**`spec.layout.fullFrame` is load-bearing and was measured UNRELIABLE**: 14 of 16 lower-third
+specs claimed full frame for graphics whose own family word was "strap". It decides both the
+scaffold's anchoring (a full-frame graphic is centred, not zoned) and whether the gate above
+applies, so the stage-5 schema now asks which of two concrete broadcast objects is being made
+rather than whether the graphic "owns the frame". Treat its rate on the next paid round as a
+reading, not a given.
+
+**The critique repair lands when it is NO WORSE than its base** (`pipeline.ts noWorseThan`,
+same ruling): no new error rule and no more errors than the base, or clean. The old
+`validation.ok` rule could not land on an invalid base at all - 1/20 across both smoke rounds -
+which made §11 criterion 8 unmeasurable rather than negative.
 
 **The pilot rig's routes are PER ARM CLASS** (the 2026-07-31 bracket smoke, blocker 1:
 qwen3-30b completed 0/8 coder-arm runs on `malformed_response` over ~10k-token emits while

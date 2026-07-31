@@ -338,7 +338,7 @@ async function runStagedArm(arm: 'C' | 'D', input: CreativeRunInput): Promise<Cr
         ledger.record('critique', t10, critiqueCall.model, critiqueCall.usage);
         critique = normalizeCritique(critiqueCall.output);
         if (critique.findings.length) {
-          const fixed = await styleRepairFromCritique(scaffold, spec, styled.patch, critique, input, ledger);
+          const fixed = await styleRepairFromCritique(scaffold, spec, styled.patch, critique, input, ledger, validation);
           critiqueRepairApplied = Boolean(fixed);
           if (fixed) {
             template = fixed.template;
@@ -447,9 +447,33 @@ async function styleWithRepair(
   };
 }
 
+/**
+ * True when `next` is no worse than `base` - the critique repair's acceptance rule.
+ *
+ * Owner ruling, 2026-07-31 (benchmarks/creative/v1/SMOKE-2026-07-31.md blocker 4). The rule
+ * used to be `validation.ok`: a repair landed only when the repaired template passed FULL
+ * validation. On an already-invalid base that is structurally impossible - the critique is
+ * answering a rendered frame, not the validator - so repairs landed 1 out of 20 across both
+ * smoke rounds and §11 criterion 8 (improves-rate vs damages-rate) could not be measured at
+ * all. Arm D was paying for a critique that could not act on its own findings.
+ *
+ * Comparing against the base keeps the property that mattered - "a critique may improve a
+ * result, never break one" - while letting a repair land where the population actually is. A
+ * repair that fixes what the eye saw and leaves the validator exactly as unhappy is a real
+ * improvement to measure; one that introduces a NEW failure kind, or more failures than it
+ * started with, is the damage the rule exists to refuse.
+ */
+export function noWorseThan(base: ValidationResult | null, next: ValidationResult): boolean {
+  if (next.ok) return true;
+  if (!base) return false;
+  const baseRules = new Set(base.errors.map((e) => e.rule));
+  if (next.errors.some((e) => !baseRules.has(e.rule))) return false;
+  return next.errors.length <= base.errors.length;
+}
+
 /** The critique's ONE focused repair (plan §9): the findings go back to the style stage, the
- *  new patch is validated like any other, and a patch that fails or is refused by the gate
- *  changes nothing - a critique may improve a result, never break one. */
+ *  new patch is validated like any other, and a patch refused by the gate or WORSE than the
+ *  base (see noWorseThan) changes nothing - a critique may improve a result, never break one. */
 async function styleRepairFromCritique(
   scaffold: CompiledScaffold,
   spec: CreativeSpec,
@@ -457,6 +481,7 @@ async function styleRepairFromCritique(
   critique: CritiqueVerdict,
   input: CreativeRunInput,
   ledger: Ledger,
+  base: ValidationResult | null,
 ): Promise<{ template: SpxTemplate; validation: ValidationResult } | null> {
   if (!patch) return null;
   const system = creativeStyleSystemPrompt(spec, scaffold, cardsForFamily(spec.layout.family));
@@ -477,7 +502,7 @@ async function styleRepairFromCritique(
   const applied = applyCreativeStyle(scaffold, repair.output as CreativeStylePatch);
   if (!applied) return null;
   const validation = await input.validate(applied);
-  return validation.ok ? { template: applied, validation } : null;
+  return noWorseThan(base, validation) ? { template: applied, validation } : null;
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────

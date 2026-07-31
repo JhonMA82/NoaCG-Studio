@@ -41,6 +41,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { devPort } from './dev-port.mjs';
+import { PLATE_CSS } from './creative-plate.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const ARGS = process.argv.slice(2);
@@ -249,7 +250,7 @@ for (const brief of selected) {
     const started = Date.now();
     let row;
     try {
-      row = await page.evaluate(async ({ brief, intent, arm, critiqueModel }) => {
+      row = await page.evaluate(async ({ brief, intent, arm, critiqueModel, plateCss }) => {
         const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
         const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
         const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
@@ -259,9 +260,11 @@ for (const brief of selected) {
         // The injected frame capture: mount, fill, play, settle, and let Node take the shot.
         const capture = async (template) => {
           document.body.innerHTML = '';
+          // The plate the graphic composites over - the SHARED definition (scripts/
+          // creative-plate.mjs), because the plate-visibility measurement re-renders the same
+          // gradient as its reference and the two must match pixel for pixel.
           document.body.style.cssText =
-            'margin:0;width:1920px;height:1080px;overflow:hidden;' +
-            'background:radial-gradient(circle at 35% 20%,#334155,#111827 58%,#05070a)';
+            'margin:0;width:1920px;height:1080px;overflow:hidden;background:' + plateCss;
           const frame = document.createElement('iframe');
           frame.id = 'pilot-frame';
           frame.style.cssText = 'position:absolute;inset:0;width:1920px;height:1080px;border:0;background:transparent';
@@ -318,7 +321,7 @@ for (const brief of selected) {
             : null,
           hold,
         };
-      }, { brief: brief.brief, intent, arm, critiqueModel });
+      }, { brief: brief.brief, intent, arm, critiqueModel, plateCss: PLATE_CSS });
     } catch (e) {
       console.log(`ERROR ${String(e?.message ?? e).split('\n')[0]}`);
       results.push({ brief: brief.id, category: brief.category, arm, error: String(e?.message ?? e), latencyMs: Date.now() - started });

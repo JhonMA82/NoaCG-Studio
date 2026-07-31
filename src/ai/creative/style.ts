@@ -147,6 +147,109 @@ export function stripHidingDeclarations(css: string, prefix: string, animated: s
   return out;
 }
 
+/**
+ * Strip FRAME-FILLING geometry from any rule that also paints an opaque background - on an
+ * OVERLAY spec only (owner ruling, 2026-07-31; benchmarks/creative/v1/SMOKE-2026-07-31.md
+ * item 5 and -vs-lt.md item 4).
+ *
+ * The defect both smoke rounds hit, and the staged arms' dominant visual blocker: the style
+ * stage shadows the contract tokens on the root (`--panel-bg: #000000` on `.creative` - legal,
+ * `:root` is untouched) and makes `.creative-box` a `100vw x 100vh` box painted with it. The
+ * graphic floods the frame opaque black. Every gate passed it: a broadcast overlay that covers
+ * the video is valid HTML, valid SPX, and nothing anywhere measured frame coverage. It is the
+ * clip-path lesson again (src/ai/AGENTS.md) - a deterministic gate cannot catch a defect in a
+ * dimension it does not measure, so either measure the dimension or forbid the construct.
+ *
+ * The ruling splits it by what the SPEC already declares:
+ *
+ * - `fullFrame: false` (a lower third, a corner card, a side panel) - covering the canvas is
+ *   never what was asked for, so the construct is FORBIDDEN here and clamped away.
+ * - `fullFrame: true` (a versus card, a results board) - covering is legitimate, so nothing is
+ *   stripped and the bench MEASURES it instead: `scripts/creative-plate-visibility.mjs`
+ *   reports how much of the known plate each hold frame leaves visible, calibrated against the
+ *   catalog's own full-frame designs.
+ *
+ * Clamp, don't reject (the stripHidingDeclarations precedent), and clamp the GEOMETRY rather
+ * than the paint - which half survives decides whether the design does. Dropping the paint
+ * leaves an invisible full-frame box with the content sprayed across the canvas: the flood is
+ * gone and so is the graphic. Dropping the fill leaves the panel painted at content size in
+ * its zone, which is the design the model meant minus the flood. Only the COMBINATION is
+ * touched: a full-bleed positioning helper that paints nothing, and an opaque panel that does
+ * not fill the frame, are both ordinary design and stay exactly as written.
+ *
+ * Honest limit, the same one safety.ts and assetIntegrity.ts state: this reads CSS TEXT, not
+ * the resolved cascade. It refuses the obvious construct, not a determined one assembled
+ * across three rules.
+ */
+export function stripFrameFlood(css: string): string {
+  // Fills the frame: viewport units, or an absolute/fixed box pinned to every edge.
+  const fillDecl =
+    /(^|;)\s*(width\s*:\s*100vw|height\s*:\s*100vh|min-height\s*:\s*100vh|min-width\s*:\s*100vw|inset\s*:\s*0(px|%)?(\s+0(px|%)?){0,3})\s*(?=;|$)/gi;
+  const pinnedToEdges = (body: string): boolean =>
+    ['top', 'right', 'bottom', 'left'].every((side) =>
+      new RegExp(`(^|;)\\s*${side}\\s*:\\s*0(px|%)?\\s*(?=;|$)`, 'i').test(body));
+  const edgeDecl = /(^|;)\s*(top|right|bottom|left)\s*:\s*0(px|%)?\s*(?=;|$)/gi;
+  const sizeDecl = /(^|;)\s*(width|height)\s*:\s*100%\s*(?=;|$)/gi;
+
+  /** An opaque paint: a background naming a colour with no alpha < 1 anywhere in it.
+   *  `transparent`, `none`, rgba/hsla below 1, an 8- or 4-digit hex, and any gradient that
+   *  fades to one of those are all legitimate scrims - broadcast design is full of them. */
+  const opaquePaint = (body: string): boolean => {
+    const decls = body.split(';').filter((d) => /^\s*background(-color|-image)?\s*:/i.test(d));
+    return decls.some((d) => {
+      const value = d.slice(d.indexOf(':') + 1).trim();
+      if (!value || /^(none|transparent|inherit|initial|unset)$/i.test(value)) return false;
+      if (/\btransparent\b/i.test(value)) return false;
+      if (/\b(rgba|hsla)\s*\([^)]*?[,/]\s*(0?\.\d+|0)\s*\)/i.test(value)) return false;
+      if (/#[0-9a-f]{8}\b|#[0-9a-f]{4}\b/i.test(value)) return false;
+      // A colour, a var() holding one, or a gradient of them - all of it paints.
+      return /#[0-9a-f]{3,6}\b|\brgb\s*\(|\bhsl\s*\(|\bvar\s*\(|gradient\s*\(|\b(black|white|red|blue|green|gray|grey|navy|maroon|silver|teal|olive|purple|fuchsia|lime|aqua|yellow|orange)\b/i.test(value);
+    });
+  };
+
+  return eachRule(css, (selector, body) => {
+    if (/@\s*(media|supports)/i.test(selector)) return body;   // handled by the walker
+    if (!opaquePaint(body)) return body;
+    const fills = fillDecl.test(body) || (/position\s*:\s*(absolute|fixed)/i.test(body) && pinnedToEdges(body))
+      || (sizeDecl.test(body) && /position\s*:\s*(absolute|fixed)/i.test(body) && /(^|;)\s*(top|left)\s*:\s*0/i.test(body));
+    fillDecl.lastIndex = 0;
+    sizeDecl.lastIndex = 0;
+    if (!fills) return body;
+    let out = body.replace(fillDecl, '$1');
+    if (pinnedToEdges(out)) out = out.replace(edgeDecl, '$1');
+    return out.replace(sizeDecl, '$1');
+  });
+}
+
+/** Walk top-level rules, letting `visit` rewrite each body; @media/@supports recurse.
+ *  Shared by both clamps - model CSS is flat, and one walker is one place to be wrong. */
+function eachRule(css: string, visit: (selector: string, body: string) => string): string {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open === -1) { out += css.slice(i); break; }
+    const selector = css.slice(i, open);
+    if (/@\s*(media|supports)/i.test(selector)) {
+      let depth = 1;
+      let j = open + 1;
+      while (j < css.length && depth > 0) {
+        if (css[j] === '{') depth += 1;
+        else if (css[j] === '}') depth -= 1;
+        j += 1;
+      }
+      out += selector + '{' + eachRule(css.slice(open + 1, j - 1), visit) + '}';
+      i = j;
+      continue;
+    }
+    const close = css.indexOf('}', open);
+    if (close === -1) { out += css.slice(i); break; }
+    out += selector + '{' + visit(selector, css.slice(open + 1, close)) + '}';
+    i = close + 1;
+  }
+  return out;
+}
+
 /** Inner-HTML range of the element carrying `data-region="<id>"`, by <div> nesting. */
 function regionInnerRange(html: string, id: string): { start: number; end: number } | null {
   const open = html.match(new RegExp(`<div[^>]*data-region="${id.replace(/[^a-z0-9-]/gi, '')}"[^>]*>`));
@@ -209,7 +312,10 @@ export function applyCreativeStyle(
   // root, the box, and the region elements. Everything else scaffold-classed is styling
   // surface only, and a stylesheet opacity 0 there can never be lifted.
   const animated = [prefix, `${prefix}-box`, ...scaffold.regions.map((r) => r.selector)];
-  const css = stripHidingDeclarations(patch.css.trim(), prefix, animated);
+  let css = stripHidingDeclarations(patch.css.trim(), prefix, animated);
+  // An OVERLAY may not paint the whole frame opaque; a full-frame board may (and is measured
+  // instead). The spec decided which this graphic is, at stage 5.
+  if (!scaffold.fullFrame) css = stripFrameFlood(css);
   return { ...template, html, css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n` };
 }
 
@@ -261,6 +367,14 @@ ${cardsBlock(cards)}
   placement) — that is how the composition becomes yours rather than the scaffold's.
 - Region inner HTML is optional and bounded: keep every id="fN" exactly once, keep an <img>
   an <img>, keep a rows container. Use it for wrappers and decorative elements.
+${scaffold.fullFrame
+    ? `- This graphic OWNS the frame: it may cover the video, and the reading surface behind the
+  words is yours to design. Coverage is measured, not forbidden - a board that earns the whole
+  canvas is the point, a wash that merely hides the picture is not.`
+    : `- This graphic sits OVER live video, and the picture around it is half the composition.
+  Paint the panel the words need - opaque, glassy, a gradient scrim, whatever the design wants -
+  at the SIZE the content occupies. The canvas outside it belongs to the video. (A rule that
+  both fills the frame and paints it opaque has its fill stripped; the paint is kept.)`}
 - The LIFECYCLE is already built: the compiled animation reveals the box and the region
   elements with inline opacity/transform on play(), steps them on next(), and hides them
   on stop(). Style the resting look and let it run — stylesheet \`opacity: 0\` on the box
