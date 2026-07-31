@@ -219,6 +219,65 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.twinRepeating).toEqual(['rounds']); // the twin: a single flag survives
   });
 
+  test('a patch cannot hide scaffold structure beyond the animation\'s reach', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The versus/lower-third smoke's dominant staged failure: models re-implement the
+    // lifecycle as CSS state classes and set `visibility: hidden` / `display: none` on
+    // scaffold elements - nothing writes those inline, so the compiled entrance (inline
+    // opacity/transform) can never reveal them and the bench reports bench-entrance +
+    // bench-replay (SMOKE-2026-07-31-vs-lt.md item 6). The gate now strips the two poison
+    // declarations from scaffold selectors; stylesheet opacity stays (the entrance
+    // overrides it inline), and a patch's own un-prefixed classes keep their hides.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const poisoned = applyCreativeStyle(scaffold, {
+        summary: 'poison',
+        css: [
+          '.creative-box { visibility: hidden; display: none; opacity: 0; background: var(--panel-bg); }',
+          '.creative-r-rounds .creative-cell-1 { opacity: 0; color: var(--text-color); }',
+          '.my-flourish { display: none; opacity: 0; }',
+          '@media (min-width: 1920px) { .creative-region { visibility: hidden; padding: calc(8px * var(--scale)); } }',
+        ].join('\n'),
+      });
+      if (!poisoned) return { applied: false };
+      const marker = poisoned.css.indexOf('AI-authored');
+      const patchCss = poisoned.css.slice(marker);
+      // The full production gate over the poisoned-styled template: with the hides
+      // stripped, the entrance must reveal it and the replay must bring it back.
+      const verdict = await productionSpxValidator()(poisoned);
+      return {
+        applied: true,
+        boxHidden: /creative-box[^}]*visibility\s*:\s*hidden/.test(patchCss) || /creative-box[^}]*display\s*:\s*none/.test(patchCss),
+        boxOpacityKept: /creative-box[^}]*opacity\s*:\s*0/.test(patchCss),
+        cellOpacityStripped: !/creative-cell-1[^}]*opacity\s*:\s*0/.test(patchCss),
+        cellColorKept: /creative-cell-1[^}]*color/.test(patchCss),
+        mediaHidden: /creative-region[^}]*visibility\s*:\s*hidden/.test(patchCss),
+        mediaPaddingKept: /creative-region[^}]*padding/.test(patchCss),
+        ownClassKept: /my-flourish[^}]*display\s*:\s*none[^}]*opacity\s*:\s*0/.test(patchCss),
+        benchRules: verdict.errors.map((e) => e.rule),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.applied).toBe(true);
+    expect(report.boxHidden).toBe(false); // visibility/display stripped from the box…
+    expect(report.boxOpacityKept).toBe(true); // …while opacity stays on an ANIMATED element
+    expect(report.cellOpacityStripped).toBe(true); // opacity 0 on a never-animated cell goes
+    expect(report.cellColorKept).toBe(true); // …and only that declaration goes
+    expect(report.mediaHidden).toBe(false); // stripped inside @media too
+    expect(report.mediaPaddingKept).toBe(true);
+    expect(report.ownClassKept).toBe(true); // the patch's own class keeps everything
+    // The end-to-end proof: the poisoned patch no longer produces the smoke's signature.
+    expect(report.benchRules).not.toContain('bench-entrance');
+    expect(report.benchRules).not.toContain('bench-replay');
+  });
+
   test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);
