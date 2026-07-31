@@ -5,20 +5,27 @@
 import type { AssetFile, Resolution, SpxTemplate, TemplateChange } from '../model/types';
 import type { CustomFont } from '../model/fonts';
 import type { Palette } from '../model/wizard';
-import type { ValidationResult } from '../validation/validateTemplate';
+import type { ValidationIssue, ValidationResult } from '../validation/validateTemplate';
 import type { DesignSpec } from './designSpec';
 import type { ChatMessage } from './brainstorm';
 import type { GenerationSpec } from '../model/generationSpec';
 import type { CreativeAiProfileId } from './liteTypes';
+import type { StyleReference } from '../model/imagePurpose';
+import type { GenerationMode, RouteDecision, StructuralIntent } from '../model/structuralIntent';
 
 /** Extra inputs for generation: uploaded images (logo / still), brand colors, canvas. */
 export interface GenerateContext {
   /** Uploaded images that APPEAR IN the graphic (logo, stills) — data-URL assets
    *  (paths like images/logo.png), bundled into the result. */
   images: AssetFile[];
-  /** Style references: images that only INFLUENCE the design (mood boards, screenshots).
-   *  Sent to the model as vision input, never bundled, never placed, never copied. */
-  references?: AssetFile[];
+  /** Images that only INFLUENCE the design, each carrying WHAT it influences (model/
+   *  imagePurpose.ts): its composition, its colour and mood, or the real background the
+   *  graphic must stay legible over. Vision input only — never bundled, never placed. */
+  references?: StyleReference[];
+  /** Subset of `images` the operator must get NO control for: fixed brand furniture rather
+   *  than content. Every uploaded image used to become a swappable field, which put a
+   *  channel bug in the control panel beside the guest's name. */
+  fixedAssetPaths?: string[];
   /** Brand colors to honor (the project brand or a custom palette), if any. */
   palette: Palette | null;
   /** The user's uploaded primary font — embedded like a wizard font import. */
@@ -49,12 +56,38 @@ export interface GenerateContext {
  */
 export type SpxValidator = (template: SpxTemplate) => Promise<ValidationResult>;
 
+/**
+ * The injected structural-satisfaction check (validation/structuralIntentCheck.ts): verify
+ * the intent's required parts against the RENDERED template. Injected like SpxValidator -
+ * it needs a live DOM, so the provider never imports it - and non-blocking by default: in
+ * phase A its findings land as warnings on the final validation, never entering the frozen
+ * control's repair rounds (docs/CREATIVE_MODE_PLAN.md §8).
+ *
+ * `variantId` is the grounded design stage's chosen chassis, and is what lets the check ask
+ * whether the assembly is the KIND of graphic the brief asked for (a stinger brief that came
+ * back as a lower third). A free-form result has no catalog variant and passes undefined.
+ */
+export type StructuralIntentChecker = (
+  template: SpxTemplate,
+  intent: StructuralIntent,
+  variantId?: string,
+) => Promise<ValidationIssue[]>;
+
 /** Options every template-producing provider method accepts. */
 export interface GenerateOptions {
   /** A server-owned product profile. Omitted preserves the existing BYO/provider flow. */
   profile?: CreativeAiProfileId;
+  /**
+   * How to generate (docs/CREATIVE_MODE_PLAN.md §2): 'adapt' = customize a catalog design,
+   * 'create' = an original build, 'auto' (the default) = route on structural fit +
+   * originality signals. An explicit mode is never overridden by routing.
+   */
+  mode?: GenerationMode;
   /** Validate candidates (and drive the repair loop). Falls back to static validation. */
   validate?: SpxValidator;
+  /** Verify the routed intent's required parts against the rendered result (injected,
+   *  browser-only, non-blocking - see StructuralIntentChecker). */
+  structuralCheck?: StructuralIntentChecker;
   /** Stage announcements for the UI's busy line ("Designing…", "Testing it live…"). */
   onProgress?: (stage: string) => void;
   /**
@@ -80,6 +113,11 @@ export interface AiTemplateChange extends TemplateChange {
   spec?: DesignSpec;
   /** Server ledger id for a managed generation. It is transient and never enters SpxTemplate. */
   generationId?: string;
+  /** The structural analysis that routed this generation (the CREATE-boundary contract,
+   *  docs/CREATIVE_MODE_PLAN.md §6) - recorded for rigs and future pipeline stages. */
+  intent?: StructuralIntent;
+  /** What the router decided and why - the routing benchmark reads this, never reconstructs it. */
+  routing?: RouteDecision;
 }
 
 export interface AIProvider {

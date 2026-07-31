@@ -1,8 +1,10 @@
 # AI platform plan - one workflow for all AI assistance
 
-**Status: PROPOSED PLAN (2026-07-28). Nothing in sections 4-15 is built.** Sections 1-3 and 5
-are a verified audit of the current tree; everything after is recommendation. Review before
-implementation. Binding neighbours: `docs/AI_PROVIDER_GATEWAY.md` (the gateway contract),
+**Status: PLAN RATIFIED (2026-07-28).** Sections 1-3 and 5 are a verified audit of the tree
+at audit time; sections 4-14 are the reviewed design. The owner decisions in section 15 were
+ratified 2026-07-28 and supersede the corresponding proposals earlier in the document (marked
+in place). Build progress is tracked in `docs/GOALS.md` ("The AI platform"). Binding
+neighbours: `docs/AI_PROVIDER_GATEWAY.md` (the gateway contract),
 `src/ai/AGENTS.md` (the SPX harness doctrine), `docs/AI_LITE_BENCHMARK.md` (the Lite bench),
 `docs/IMPORT_MVP.md` (the manual import contract this plan extends, never replaces).
 
@@ -109,6 +111,14 @@ Vision input: up to 3 project images to Director and coder (no downscaling, no s
   (`limits.logos = 0` hardcoded), `LiteDesignSpec` category members beyond lower-third,
   `resetLiteGenerationStoreForTests`, `configuredProviders`, stale HyperFrames parity
   comment in `playerBridge.ts`, stale Anthropic-only copy in `AIPromptPanel`.
+  **Stage 0 cleanup (2026-07-28)**: `resetLiteGenerationStoreForTests`, the unused
+  `configuredProviders`/`providerConfigured` gateway exports, the stale `playerBridge.ts`
+  comment, and the `AIPromptPanel` copy are gone. Deliberately KEPT: the `referenceSelect.ts`
+  machinery (doc-pinned experiment infrastructure - `BROADCAST_DESIGN_SYSTEM_RESEARCH.md`
+  §8.3f keeps every arm compilable, and the recency ledger is read by
+  `referenceCards.ts`), `modelRole:'fast'` (the video provider uses it), and the Lite
+  logo/category members (removing them changes the Lite schema/prompt - Stage 1
+  behavior-identity territory, not hygiene).
 - **No consent/disclosure UI exists anywhere.** `.env.example` references a "Lite
   first-use retention notice" that is not in the repo.
 - **No paid tier exists in the codebase.** Tiers today: anonymous / signed-in / BYO-key.
@@ -170,7 +180,7 @@ Per-category answer to the Phase 2 question:
 quota'd), a *pipeline restriction* (catalog-only structured spec, no code paths, typed
 `LiteRequestError` on every disallowed op), a *server-owned model policy* (routes, prices,
 ZDR, prompt version - config, not code), and a *prompt contract* (6 audited chassis,
-semantic line roles, versioned `lite-lower-third-v2`). It is **not a separate harness**:
+semantic line roles, versioned `lite-lower-third-v3`). It is **not a separate harness**:
 a ready decision rejoins the identical `groundedResult` / `litePipeline.ts` compile path
 the main harness uses, pinned by `ai-lite-bench.test.mjs`.
 
@@ -238,10 +248,12 @@ Layer notes (all generalizations of code that exists):
    versions, allowed tiers (`anonymous | free | byo | paid`), token/image/resolution
    limits, timeout/retry, `routePolicy`, ledger kind. Browser mirror exposes only what
    `/api/ai/lite/status` exposes today: availability, limits, allowance - never routes.
-2. **Shared model gateway**: unchanged (`aiGateway.ts`). Add `openWeightsOnly` to the
-   route policy: a server-side allowlist of `provider:model` ids flagged open-weight;
-   free-tier tasks fail closed (`profile_not_configured`) rather than fall back to a
-   proprietary route - the exact fail-closed pattern `liteProfileConfigured()` has.
+2. **Shared model gateway**: unchanged (`aiGateway.ts`). Free-tier tasks route only
+   through catalog-approved entries and fail closed (`profile_not_configured`) rather than
+   fall back to an unapproved route - the exact fail-closed pattern
+   `liteProfileConfigured()` has. Per the ratified section-15 decision, `openWeights` is
+   catalog metadata the benchmark-first promotion policy reads (prefer open at parity),
+   not a hard per-request gate.
 3. **Task harnesses**: Lite design-spec (exists), imported-graphic-analysis (new,
    section 6), SPX coder (exists), repair (exists inside both coders; extract the seam),
    video (exists). Each owns its prompt + schema + version; none owns routes or quotas.
@@ -290,9 +302,10 @@ proposal-only action.
    **"Analyze graphic with AI"**, with the standing disclosure line and a first-use consent
    notice (section 9). Invisible/disabled in offline builds and when signed out (same
    `needsSignIn` pattern as Lite); the manual path never regresses.
-2. **Run**: the artwork is downscaled client-side for analysis (longest side <=1280 px,
-   JPEG/PNG re-encode; the original is never uploaded at full size), sent with optional
-   user instructions to `POST /api/ai/tasks/imported-graphic-analysis`.
+2. **Run**: the artwork is downscaled client-side for analysis (at most 1920x1080, per
+   the ratified section-15 quota decision; JPEG/PNG re-encode; the original is never
+   uploaded at full size), sent with optional user instructions to
+   `POST /api/ai/tasks/imported-graphic-analysis`.
 3. **Proposal review**: a panel lists suggestions grouped (type, text regions, fonts,
    colors, logo/image regions, animation), each with a confidence badge and a checkbox;
    region suggestions draw as outlined overlays on the placement canvas. Warnings render
@@ -376,8 +389,11 @@ prose, clearly labelled unverified.
 - **Allowlist** (`api/_lib/aiModelCatalog.ts`, NEW, server-only): entries
   `{ route, openWeights: boolean, capabilities: {vision, coding, structuredOutput,
   contextWindow}, price, zdrAvailable, notes }`. Free-tier task profiles may only
-  reference `openWeights: true` entries; the registry fails closed otherwise. The
-  browser never sees this file's content.
+  reference catalog-approved entries; the registry fails closed otherwise. Per the
+  ratified section-15 decision, `openWeights` drives the benchmark-first promotion
+  preference (open wins at parity; a superior proprietary model is never excluded for
+  closed weights alone) rather than acting as a hard gate. The browser never sees this
+  file's content.
 - **Routing is capability-based per task**, configured not coded: A-tasks -> small text
   model; B-tasks -> open VLM; C-tasks -> coding model; a stronger *allowlisted* fallback
   only after validation failure (the Lite primary/fallback + 2-attempt ceiling pattern,
@@ -391,9 +407,10 @@ prose, clearly labelled unverified.
   Hugging Face serves as the discovery/metadata/license source feeding the allowlist,
   and optionally as an inference provider through a future `ProviderAdapter` - never a
   direct dependency of product code.
-- **Policy change required**: Lite's default primary (Gemini 2.5 Flash Lite) is
-  proprietary. Under the open-weight mandate the primary must move to a benchmark-verified
-  open model (env change + bench run, no code change). Owner decision - section 15.
+- **Lite's primary under the ratified policy**: the current default (Gemini 2.5 Flash
+  Lite, proprietary) stands until the bench runs; it is replaced by an open-weight model
+  only if one matches or beats it on NoaCG's benchmarks (env change + bench run, no code
+  change). Section 15, decision 1.
 
 ## 8. Benchmark design
 
@@ -403,7 +420,8 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 - **Lite structured suite**: exists (`lite-spec-v1`). Add fixtures for long names (partly
   present in the holdout), CJK and RTL scripts, contrast-hostile custom palettes, and
   sparse briefs. Run the deferred discovery funnel (`bench:discover/qualify/confirm/
-  compare`) against open-weight candidates only.
+  compare`) with open-weight candidates plus the incumbent proprietary baseline, and
+  promote per the benchmark-first policy (section 15, decision 1).
 - **Vision suite** (`import-analysis-v1`, NEW): a hand-labelled dataset of 40-60 images -
   lower thirds, name straps, full-screen infographics, scoreboards, title cards, quote
   cards, logo-bearing, light/dark, transparent/flattened, odd aspect ratios, multi-region,
@@ -440,8 +458,9 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
   IP burst gate. Vision tasks add max images (1) and max resolution to the profile.
 - **Hardening `/api/ai/generate`** (managed-key path): add a modest rate limit and a
   ledger row (task `'byo-generate'`, content-free). BYO-key traffic spends the user's own
-  key but still gets the rate limit. Also worth closing: the credentials endpoint's
-  missing sign-in requirement on shared browsers (flag for owner).
+  key but still gets the rate limit. The credentials endpoint's missing sign-in
+  requirement is decided (section 15, decision 4): hosted requires sign-in; self-host
+  keeps account-free BYO keys behind an explicit flag, off by default.
 - AI stays optional everywhere a manual workflow exists (import stays manual-first;
   "Open as code (no AI)" stays one click).
 
@@ -457,7 +476,8 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
    refactoring, each step proven by `ai-compare.mjs` regression mode + the free Lite
    regression suite (`bench:regress` pipeline-identity hashes).
 5. Provider-specific paths: none need removing - Anthropic/OpenAI stay for BYO and future
-   paid routes; the open-weight allowlist constrains only free-tier task profiles.
+   paid routes; the model catalog constrains only free-tier task profiles, with the
+   benchmark-first open-weight preference applied at promotion time.
 6. W10 fix and stale-copy cleanup land independently of the platform work.
 
 ## 11. Testing strategy
@@ -481,8 +501,9 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 2. **Stage 1 - platform**: task registry + model catalog/allowlist + generalized policy
    layer; Lite re-expressed as the first task profile (behavior-identical, proven by
    `bench:regress`).
-3. **Stage 2 - disclosure**: consent notice + recording; ZDR-by-default for free routes;
-   open-weight primary decision executed for Lite (env + bench).
+3. **Stage 2 - disclosure**: consent notice + recording (per the ratified decision 2);
+   ZDR-by-default for free routes; run the Lite bench and settle the primary per the
+   benchmark-first policy.
 4. **Stage 3 - Import analysis**: harness + proposal UI behind a server flag
    (`AI_TASK_IMPORT_ANALYSIS_ENABLED`, default off), stub-first e2e, then the vision
    benchmark (>=3 open VLMs) picks the launch route; enable for override users, then free.
@@ -502,8 +523,7 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
   `LiteProfile`; resist adding capability negotiation until a third harness needs it.
 - **Consent UX friction** vs legal safety - one-time notice per account, not per call.
 - Open: where does the analysis button live exactly (Design vs Prepare vs Text step);
-  should post-create re-analysis exist at v1 (recommend: no); does the credentials
-  endpoint gain a sign-in requirement (separate decision); when do paid tiers exist at
+  should post-create re-analysis exist at v1 (recommend: no); when do paid tiers exist at
   all (out of scope here).
 
 ## 14. Files likely added / modified
@@ -528,19 +548,83 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 
 **First slice** (matches the suggested sensible slice):
 1. Land this audit/plan for review (this document).
-2. Introduce `aiTaskRegistry` + `aiModelCatalog` (open-weight allowlist), re-express Lite
-   as the first task profile with `bench:regress` proving byte-identical behavior.
+2. Introduce `aiTaskRegistry` + `aiModelCatalog` (the approved-route catalog with
+   `openWeights` metadata), re-express Lite as the first task profile with `bench:regress`
+   proving byte-identical behavior.
 3. Ship the consent/disclosure notice (gates everything free).
 4. Build the `imported-graphic-analysis` harness v1 + proposal-only UI behind its flag,
    applying only through `DraftPatch`/`addPlacedLine`.
 5. Benchmark >=3 vision-capable open models on the labelled dataset; pick the launch route
    by scorecard; enable for override users.
 
-**Owner decisions required**:
-- **The open-weight mandate for free routes** (the most important one): confirming it
-  means replacing Lite's current Gemini Flash Lite primary with a benchmark-verified
-  open-weight model and accepting whatever quality/cost position the bench measures.
-  Infrastructure enforces the policy either way; the tradeoff is the owner's.
-- Consent notice wording and whether consent is recorded server-side.
-- Free-tier quota levels for the vision task (image count, daily runs).
-- Whether `/api/ai/credentials` gains a sign-in requirement.
+**Owner decisions — RATIFIED 2026-07-28** (these supersede the corresponding proposals in
+sections 6, 7, and 9 above; GOALS.md carries the same wording):
+
+1. **Model policy: benchmark-first with an open-weight preference, not a hard mandate.**
+   An open-weight model is used whenever it performs as well as or better than the
+   proprietary alternatives on NoaCG's own benchmarks; a superior proprietary model is
+   never excluded merely for closed weights. Route selection remains explicit server
+   configuration - never a silent fallback - so section 7's `openWeightsOnly` fail-closed
+   flag becomes a *preference rule applied at benchmark promotion time*, and the model
+   catalog keeps `openWeights` as metadata the promotion policy reads, not a hard gate.
+2. **Consent notice**: prompts and uploaded images may be sent to an external AI provider;
+   users must not upload sensitive or confidential material; NoaCG prefers ZDR-capable
+   routes where available but cannot guarantee identical retention across providers.
+   Acceptance is stored server-side for signed-in users (timestamp + notice version) and
+   client-side for anonymous users, with renewed acceptance when the version changes.
+3. **Free Import Graphic vision quota**: 1 image per analysis, 10 successful analyses per
+   day, 100 per month; images downscaled to at most 1920x1080 before sending (supersedes
+   section 6.1's 1280 px suggestion). Only successes count against the quota; abuse-oriented
+   rate limiting is separate; actual per-run provider costs are recorded so the numbers can
+   be tuned from real usage.
+4. **BYO credentials require sign-in on the hosted service**, associating keys with the
+   user rather than a browser cookie. Account-free BYO-key use survives for private
+   self-hosted installs behind an explicit configuration flag, disabled by default in the
+   hosted product.
+5. **Who pays decides the route.** NoaCG Lite and every other free hosted surface are paid
+   for by the project, not the user, and there is no revenue yet - so a route NoaCG pays for
+   must be a **cheap OpenRouter model**. OpenAI and Anthropic models are reachable **only
+   through the user's own sealed key** (decision 4); no managed NoaCG key is wired into a
+   hosted path for them. This is a cost constraint, not a quality judgement: it composes with
+   decision 1 rather than replacing it - benchmark whatever is worth benchmarking, but a
+   candidate cannot be promoted to a NoaCG-funded route unless it is cheap and reachable
+   through the gateway's OpenRouter adapter. Revisit when there is income.
+
+## 16. Open owner decisions (raised 2026-07-31, harness routing + evaluation work)
+
+Implemented in that change: honest routing already shipped, so this added the **kind**
+half of brief satisfaction (`templates/structuralAnchor.ts` +
+`validation/structuralIntentCheck.ts` `structuralKindFindings`), ran the satisfaction check
+on the **grounded** path where the wrong-graphic defect actually happens, and added the free
+**benchmark preflight** (`npm run bench:preflight`). Nothing below was decided unilaterally.
+
+1. **Re-run the import-analysis vision round?** SPENDS MONEY. The 2026-07-29 run was not a
+   valid comparison, and one of its stated causes is now fixed: the per-axis size cap
+   rejected every portrait case. The cap is now a pixel budget plus a longest-edge ceiling
+   (`IMPORT_ANALYSIS_LIMITS.maxPixels` / `maxEdge`), so portrait artwork is admitted at the
+   same budget as landscape instead of being squeezed onto the short axis - which also
+   returns roughly 3x the pixels to a task whose whole job is reading small text.
+   The other stated causes were NOT addressed and are not addressable for free: two
+   candidates failed all 35 images for reasons never isolated, and the best region precision
+   was 23% against a gold ceiling of 100%. **A re-run is therefore a real bet, not a
+   formality** - the cap fix removes one confound; it does not promise a usable model. If it
+   runs, the candidates must be re-added to the approved catalog in the SAME change as the
+   run (they were removed deliberately - `api/_lib/aiModelCatalog.ts`).
+
+2. **Does the pixel-budget cap need re-ratifying?** Ratified decision 3 says images are
+   "downscaled to at most 1920x1080". The change keeps that pixel budget exactly and only
+   stops it being orientation-locked, so it is read as an INTERPRETATION of decision 3 (bound
+   what leaves the machine and what the call costs - both scale with pixel count, not with
+   orientation) rather than a new policy. Say if you want it treated as an amendment.
+
+3. **Should a kind mismatch be an ERROR rather than a warning?** Today
+   `structural-intent` findings are warnings on both paths, so a stinger that came back as a
+   lower third is surfaced but still offered. Making it blocking on the GROUNDED path is
+   cheap and has no repair loop to disturb (a grounded assembly does not repair), but it
+   changes what a user gets: today a wrong-kind result, afterwards an honest failure or a
+   re-pick. Left as a warning because that is a product call, not a correctness one.
+
+4. **Model promotion remains untouched.** No default model changed and none is proposed:
+   the machine scores anti-correlated with human satisfaction, so they do not support a
+   promotion. `docs/AI_LITE_PROMOTION.md` still governs, and its thresholds are still
+   owner-TODO.

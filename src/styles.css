@@ -1,65 +1,4 @@
-/* ============================================================================
-   NoaCG Studio — app theme.
-   Dark control-room ground, a single amber "on-air" accent, restrained glow.
-   Brand Manual §3 tokens: Void / Panel / Amber / Glow / Rec / Paper.
-   ============================================================================ */
-
-/* Brand typefaces, bundled locally (offline-first — no CDN at runtime).
-   Space Grotesk = display / UI / wordmark (variable 400-700).
-   JetBrains Mono = technical labels, data, timecode. */
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/fonts/space-grotesk.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("/fonts/jetbrains-mono.woff2") format("woff2"); /* variable 400-700 (also in the
-     bundled template-font set, model/fonts.ts — one file serves the app AND the graphics) */
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-:root {
-  /* Brand palette (Brand Manual §3) */
-  --void: #0a0c10;   /* base canvas   */
-  --panel: #141922;  /* surfaces      */
-  --amber: #f6a623;  /* primary accent */
-  --glow: #ffc65c;   /* glow / hover   */
-  --rec: #e5484d;    /* live / record only */
-  --paper: #e8edf2;  /* text / knockout */
-
-  /* App tokens — names kept stable so existing consumers don't change; only the
-     values move to the brand palette. */
-  --bg: var(--void);       /* base canvas */
-  --bg-2: var(--panel);    /* topbar + panels */
-  --bg-3: #1b2230;         /* raised surfaces: buttons, inputs */
-  --border: #262f3c;       /* hairlines */
-  --text: var(--paper);
-  --text-dim: #8b98a8;     /* muted grey (the wordmark's "CG" grey) */
-  --accent: var(--amber);  /* the on-air accent (was blue) */
-  --accent-2: var(--glow); /* hover / live glow */
-  --danger: #e06c75;       /* error/validation red — kept distinct from --rec, which the
-                              brand manual (§3) reserves for live/record status only */
-  --warn: #f2b84b;
-  --ok: #43c59e;
-  --radius: 8px;
-
-  /* Type */
-  --font-ui: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  /* Signature amber glow (Brand Manual §5) — amber only, on dark, restrained. */
-  --amber-glow: 0 0 24px rgba(246, 166, 35, 0.35);
-
-  font-family: var(--font-ui);
-  /* Tell the browser the app IS dark, so native controls (select popups, scrollbars,
-     pickers) render dark too — without this, Windows Chrome paints option popups light
-     while the options inherit our near-white text (unreadable white-on-white).
-     The preview srcdoc declares the same scheme (composeDocument.ts) — Chromium disables
-     iframe transparency when embedder and iframe color-schemes disagree. */
-  color-scheme: dark;
-}
+@import "./brandTokens.css";
 
 * { box-sizing: border-box; }
 
@@ -1178,7 +1117,12 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  width: 264px;
+  /* 240, not 264, so FIVE cards sit on ONE row at 1366px - the Entry step's height budget
+     (see .wz-hero) is spent by a second row, not by a card being wide. Measured: at 264 the
+     fifth card wraps and the step overflows by 30px; at 240 the row holds and the block is
+     196px instead of 340. Going narrower is counter-productive - 232 wraps the text enough
+     to grow the cards back. e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 240px;
   padding: 16px 18px;
   text-align: left;
   display: flex;
@@ -1193,6 +1137,59 @@ kbd {
 .wz-entry-card .wz-entry-icon { font-size: 20px; color: var(--accent); }
 .wz-entry-card strong { font-size: 15px; font-weight: 600; }
 .wz-entry-card:disabled { opacity: 0.55; cursor: default; }
+
+/* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
+   The grid is the whole decision, so cards stay scannable rather than pretty: name,
+   who it is for, and how many graphics land. The detail panel below only appears once
+   a kit is picked - an empty panel would imply a step that is not there. */
+.wz-kit { display: flex; flex-direction: column; gap: 14px; }
+.wz-kit-lede { color: var(--text-dim); margin: 0; }
+.wz-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wz-kit-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.wz-kit-card:hover { border-color: var(--accent); background: var(--bg-2); transform: translateY(-1px); }
+.wz-kit-card.is-active { border-color: var(--accent); background: var(--bg-2); }
+.wz-kit-card strong { font-size: 14px; font-weight: 600; }
+.wz-kit-card .hint { font-size: 12px; }
+.wz-kit-count { font-size: 11px; color: var(--accent); }
+.wz-kit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wz-kit-detail h3 { margin: 0; font-size: 16px; }
+.wz-kit-family { display: flex; align-items: center; gap: 8px; }
+.wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
+.wz-kit-contents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wz-kit-contents li {
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
 
 /* Step 1 (import mode): drop zone */
 .wz-drop {
@@ -1403,6 +1400,57 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Uploaded pictures + what each one is FOR (model/imagePurpose.ts). One card per picture:
+   the purpose is a property of the picture, so it lives on the picture. */
+.wz-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  /* Cards fill the column; the catalog escape button beside them must not stretch with them. */
+  align-items: stretch;
+}
+.wz-uploads > button { align-self: flex-start; }
+.wz-upload {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.wz-upload-head { display: flex; align-items: center; gap: 8px; }
+.wz-upload-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 4px;
+  /* A chequerboard, so a transparent logo reads as transparent rather than as a black box. */
+  background:
+    conic-gradient(from 90deg, rgba(255, 255, 255, 0.07) 25%, transparent 0 50%, rgba(255, 255, 255, 0.07) 0 75%, transparent 0)
+    0 0 / 10px 10px;
+}
+.wz-upload-name {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-upload-x { flex: none; padding: 0 6px; }
+.wz-purpose { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.wz-purpose button { font-size: 11px; padding: 4px 8px; }
+.wz-purpose button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(246, 166, 35, 0.1);
+}
+.wz-upload-hint { margin: 6px 0 0; }
+/* The binding is a sub-choice OF "use it as it is", so it reads as subordinate to it. */
+.wz-binding { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line); }
 
 /* Step 4: style pickers */
 .wz-palettes { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3236,8 +3284,7 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   .wz-entry { padding: 16px 4px; }
   .wz-entry-card { width: 100%; }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */
-  .wz-continue-card,
-  .wz-video-strip .wz-entry-card--video { flex-direction: column; align-items: flex-start; }
+  .wz-continue-card { flex-direction: column; align-items: flex-start; }
   .pk-body { padding: 12px 14px; }
   .gallery-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
 }
@@ -3443,6 +3490,10 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .video-asset-list, .video-saved-list { list-style: none; margin: 0; padding: 0; }
 .video-asset-list li, .video-saved-list li { border-bottom: 1px solid var(--border); padding: 6px 0; }
 .video-asset-list li:last-child, .video-saved-list li:last-child { border-bottom: none; }
+/* An asset row carries its purpose picker under the file line, so it stacks rather than
+   sitting on the flex row (model/imagePurpose.ts). */
+.video-asset-row { padding-bottom: 8px; }
+.video-asset-row .wz-purpose { margin-top: 6px; }
 
 /* The player-host iframe is the output frame itself: sized to the native composition
    resolution and scaled to fit by PreviewFrame's .preview-frame rules (absolute-centred,
@@ -3566,6 +3617,48 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   color: var(--text-dim);
 }
 .save-field input, .save-field select { width: 100%; }
+
+/* The first-use AI disclosure notice — same borrowed `.wz-modal`, sized to its short text.
+   It appears the moment an action would send content to an external AI provider (never for
+   the offline stub), so it must read as a calm disclosure, not an error. */
+.consent-dialog { max-width: 480px; width: min(480px, 92vw); height: auto; max-height: 92vh; }
+.consent-dialog .wz-header h2 { font-size: 16px; margin: 0; }
+.consent-body { padding: 14px 18px 18px; }
+.consent-lines { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
+.consent-lines li { font-size: 13px; line-height: 1.5; color: var(--text); }
+
+/* The Import Graphic flow's optional AI analysis (proposal-only). Compact by design: it
+   sits above the placement canvas and must never crowd the manual tools it assists. */
+.ana-panel { margin: 0 0 8px; }
+.ana-error { color: var(--danger); font-size: 12px; margin: 6px 0 0; }
+.ana-result {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+}
+.ana-head { margin: 0 0 8px; font-size: 13px; }
+.ana-conf {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.ana-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ana-field-main { flex: 1; min-width: 0; }
+.ana-warnings { margin: 8px 0 0; padding-left: 18px; }
+.ana-warnings li { font-size: 12px; color: var(--text-dim); }
+.ana-instructions { flex: 1; min-width: 140px; }
 
 /* The standalone export window — same borrowed `.wz-modal`, same reason to resize it. Narrow
    on purpose: the surface inside is the dock panel's single column of target cards, and
@@ -3839,6 +3932,26 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   padding: 12px 18px;
 }
 .wz-video-strip .wz-entry-card--video .hint { flex: 1; min-width: 0; }
+
+@media (max-width: 768px) {
+  /* Keep the video option compact on phones. The desktop flex row leaves the long description
+     with only a sliver beside the title, making every word wrap and turning the card into a
+     screen-tall column. This media-object grid gives the copy the full remaining width. */
+  .wz-video-strip .wz-entry-card--video {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 6px;
+  }
+  .wz-video-strip .wz-entry-card--video .wz-entry-icon {
+    grid-row: 1 / span 2;
+  }
+  .wz-video-strip .wz-entry-card--video .hint {
+    grid-column: 2;
+    width: 100%;
+  }
+}
 
 /* The video shell's workspace badge — the constant reminder this is the OTHER workspace. */
 .video-workspace-badge {
@@ -4118,3 +4231,34 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 /* Wide enough for the LONGEST slot name, so the upload buttons share one left edge — a
    per-row width lets a renamed label silently knock the column out of alignment. */
 .mc-font-slot { min-width: 130px; }
+
+/* ── The maintenance notice (docs/ADMIN.md §7) ──────────────────────────────
+   Published from the admin surface, shown to every visitor. A single hairline
+   band above the topbar: information, not an interruption. Amber for a warning
+   because that is the product's one accent; info stays neutral so a routine
+   notice never looks like an incident. */
+.system-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  font-size: 13px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.system-notice span { flex: 1; min-width: 0; }
+.system-notice-warning {
+  color: var(--text);
+  border-bottom-color: rgba(246, 166, 35, 0.45);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.system-notice button {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.system-notice button:hover { color: var(--text); background: transparent; }

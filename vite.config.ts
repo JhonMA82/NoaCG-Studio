@@ -3,11 +3,18 @@ import react from '@vitejs/plugin-react';
 import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
+import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
+import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
+import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
-// Two pages: index.html is the static public landing at "/", app.html is the editor at
-// "/app". Vercel serves /app via cleanUrls (vercel.json); this tiny plugin gives the dev
-// and preview servers the same clean URL. `?raw` imports bundle GSAP + template snippets.
+// Three pages: index.html is the static public landing at "/", app.html is the editor at
+// "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
+// a 404 for everyone the server does not recognise, see docs/ADMIN.md). Vercel serves the
+// clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev and preview servers
+// the same ones. `?raw` imports bundle GSAP + template snippets.
+const CLEAN_PAGES = ['/app', '/admin'] as const;
+
 function appCleanUrl(): Plugin {
   const prepare = (
     req: { url?: string },
@@ -17,8 +24,11 @@ function appCleanUrl(): Plugin {
     // is opaque. Bundled OFL fonts are public static assets and need an explicit CORS response
     // to render there. Keep the allowance scoped to /fonts rather than every app response.
     if (req.url?.startsWith('/fonts/')) res.setHeader('Access-Control-Allow-Origin', '*');
-    if (req.url === '/app' || req.url?.startsWith('/app?')) {
-      req.url = '/app.html' + (req.url.slice('/app'.length) || '');
+    for (const page of CLEAN_PAGES) {
+      if (req.url === page || req.url?.startsWith(page + '?')) {
+        req.url = `${page}.html` + (req.url.slice(page.length) || '');
+        break;
+      }
     }
   };
   return {
@@ -56,7 +66,15 @@ export default defineConfig(({ command, mode }) => {
   return {
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
-    plugins: [react(), appCleanUrl(), renderApiPlugin(), aiApiPlugin()],
+    plugins: [
+      react(),
+      appCleanUrl(),
+      renderApiPlugin(),
+      aiApiPlugin(),
+      eventsApiPlugin(),
+      adminApiPlugin(),
+      meApiPlugin(),
+    ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port.
     // open: skipped on CI runners — there is no browser to open, only Playwright's.
@@ -65,7 +83,7 @@ export default defineConfig(({ command, mode }) => {
       target: 'es2020',
       outDir: 'dist',
       rollupOptions: {
-        input: { landing: 'index.html', app: 'app.html' },
+        input: { landing: 'index.html', app: 'app.html', admin: 'admin.html' },
       },
     },
   };

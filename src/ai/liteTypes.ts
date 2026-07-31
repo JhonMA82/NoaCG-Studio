@@ -100,6 +100,33 @@ export interface LiteSkinPatch {
   html?: string;
 }
 
+/** The vision judge's four axes, each an integer 1-5 (5 = excellent). */
+export interface LiteSkinJudgeScores {
+  legibility: number;
+  hierarchy: number;
+  briefFit: number;
+  strapShape: number;
+}
+
+export interface LiteSkinJudgeRequest {
+  /** The generation being judged - the server verifies ownership before spending. */
+  generationId: string;
+  brief: string;
+  skinSummary: string;
+  /** Base64 PNG of the settled HOLD frame, downscaled by the caller (the server caps size). */
+  imageBase64: string;
+}
+
+export interface LiteSkinJudgeResult {
+  verdict: 'pass' | 'fail';
+  scores: LiteSkinJudgeScores;
+  /** One short judge sentence - eval tooling context only, never stored server-side. */
+  reason: string;
+  /** The server-configured minimum every axis must reach for a pass. */
+  threshold: number;
+  usage: ModelUsage;
+}
+
 export type LiteDecision =
   | { status: 'ready'; spec: LiteDesignSpec; skin?: LiteSkinPatch }
   | {
@@ -161,6 +188,8 @@ export interface LiteStatusResponse {
   supportedCategories: string[];
   /** The skin experiment's server flag - additive, so older servers simply omit it. */
   skinEnabled?: boolean;
+  /** The skin vision judge's server flag - additive; the eval rig gates its judge calls on it. */
+  skinJudgeEnabled?: boolean;
   limits: LitePublicLimits;
   allowance?: LiteAllowance;
 }

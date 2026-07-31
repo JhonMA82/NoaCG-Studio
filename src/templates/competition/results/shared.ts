@@ -1,4 +1,4 @@
-// The RESULTS & STANDINGS category — the three boards that render a LIST the operator typed
+// The RESULTS & STANDINGS category — the four boards that render a LIST the operator typed
 // (docs/COMPETITION_PACK.md):
 //
 //   the ROSTER (type 'roster')          a team's line-up, one player per row, with a spotlight
@@ -7,8 +7,11 @@
 //                                       highlighted row, and a FINAL state for a result table.
 //   the BRACKET (type 'bracket')        the knockout tree as columns of ties, with a cursor on
 //                                       the round being played and a champion at the end.
+//   the TIMING TOWER (type 'timing-tower') the narrow live order of a timed session: position,
+//                                       competitor, time. It stays on air WHILE the session
+//                                       runs, so its data changes under it constantly.
 //
-// All three are DATA BOARDS in the sense docs/DYNAMIC_MOTION_SCOPE.md means: how many rows
+// All four are DATA BOARDS in the sense docs/DYNAMIC_MOTION_SCOPE.md means: how many rows
 // there are is the operator's typing, so the rebuild is a runtime function and the entrance
 // cascade is MEASURED (compMotion.ts compCascade) rather than written down as keyframes. What
 // the machine adds is the part that is NOT data: which row is being talked about right now,
@@ -58,7 +61,7 @@ export const ROSTER_FIELDS: TypeField[] = [
 ];
 
 /** The roster's markup — the rows are rebuilt from the source, so the body starts empty. */
-export function rosterMarkup(o: ResolvedOptions): string {
+export function rosterMarkup(o: ResolvedOptions, fields: TypeField[] = ROSTER_FIELDS): string {
   const value = (i: number, fallback: string) => o.lines[i]?.sample ?? fallback;
   return `    <div class="${P}-box">
       <!-- The head: the crest, the title, and the team it belongs to. -->
@@ -74,8 +77,8 @@ export function rosterMarkup(o: ResolvedOptions): string {
       <!-- The body: one row per player, rendered from the source field below. -->
       <div class="${P}-body" id="${P}-rows"></div>
     </div>
-${hiddenSource('f2', ROSTER_FIELDS[2].value, 'Player source (f2) — one "Name | role" per line.')}
-${hiddenSource('f3', '0', 'The spotlit player (f3) — DATA. One "spotlight" state carries any row.')}`;
+${hiddenSource('f2', fields[2].value, 'Ordered row source (f2) — one "Name | note" per line.')}
+${hiddenSource('f3', fields[3].value, 'The focused row (f3) — DATA. One "spotlight" state carries any row.')}`;
 }
 
 /**
@@ -422,6 +425,197 @@ function compClearMarks() {
 
 ${READY_GUARD_JS}`;
 
+// ── The timing tower ─────────────────────────────────────────────────────────
+
+export const TIMING_FIELDS: TypeField[] = [
+  { key: 'title', label: 'Session', kind: 'text', value: 'RACE · LAP 24 / 58', role: 'line' },
+  { key: 'subtitle', label: 'What the times mean', kind: 'text', value: 'GAP TO LEADER', role: 'line' },
+  {
+    key: 'order',
+    label: 'Running order (one per line: "VER +0.000", or "VER | +0.000 | PIT")',
+    kind: 'lines',
+    value: 'VER | +0.000\nNOR | +1.284\nLEC | +3.902\nHAM | +5.117\nRUS | +8.640 | PIT',
+    role: 'data',
+  },
+  { key: 'focus', label: 'Competitor in focus (1-based, 0 = none)', kind: 'number', value: '0', role: 'data' },
+];
+
+/**
+ * The type's field list carrying ONE design's own running order.
+ *
+ * `TypeDesign.samples` lets a design keep the LINES it was written around; a tower's rows are
+ * the same kind of thing and cannot go through that map, because only line fields ride the
+ * wizard's Fields step. So a design passes its own order here instead — which is what makes
+ * "one type, many sports" a real claim rather than a caption: a swimming split board, a
+ * qualifying sheet and a cycling gap board are the same graphic showing different content, and
+ * they browse as three recognisable designs instead of three motorsport towers.
+ */
+export function timingFields(order: string): TypeField[] {
+  return TIMING_FIELDS.map((field) => (field.key === 'order' ? { ...field, value: order } : field));
+}
+
+/** The tower's markup — the rows are rebuilt from the source, so the body starts empty. */
+export function timingMarkup(o: ResolvedOptions, order: string): string {
+  const value = (i: number, fallback: string) => o.lines[i]?.sample ?? fallback;
+  return `    <div class="${P}-box">
+      <!-- The head: which session this is, and what the time column is measuring. -->
+      <div class="${P}-head">
+        <div class="${P}-heading">
+          <div class="${P}-mask"><span id="f0" class="${P}-title">${value(0, 'RACE · LAP 24 / 58')}</span></div>
+          <div class="${P}-mask"><span id="f1" class="${P}-kicker">${value(1, 'GAP TO LEADER')}</span></div>
+        </div>
+      </div>
+      <!-- The accent rule between the heading and the order. -->
+      <div class="${P}-accent"></div>
+      <!-- The body: one row per competitor, rendered from the source field below. -->
+      <div class="${P}-body" id="${P}-rows"></div>
+    </div>
+${hiddenSource('f2', order, 'Running order (f2) — one competitor per line, in position order.')}
+${hiddenSource('f3', '0', 'The competitor in focus (f3) — DATA. One "focused" state carries any row.')}`;
+}
+
+/**
+ * The timing-tower runtime.
+ *
+ * The tower is the one board in this category that stays on air WHILE its data moves: an
+ * operator retypes the order every few seconds during a session. Two consequences are written
+ * into the code below and are not decoration:
+ *
+ *  - the rebuild throws the rows away and makes them again, so `compRepaint` puts the machine's
+ *    focus mark BACK afterwards (the bracket's cursor precedent) — otherwise the caster's
+ *    highlight would vanish on the next timing update, which no operator would ever trust;
+ *  - nothing here reorders anything. The order on screen is the order in the field, in the
+ *    operator's typing order, because the timing feed is the authority on who is where and a
+ *    graphic that sorted would disagree with it the moment a lap time was mis-keyed.
+ */
+export const TIMING_RUNTIME_JS = `${ESCAPE_HTML_JS}
+
+// The tags that mean a competitor is no longer running. A tower dims those rows rather than
+// dropping them: "who retired" is information, and a row that silently disappears reads as a
+// bug to the person watching the order.
+var TIMING_GONE = ' OUT DNF DNS DSQ RET RETIRED ';
+
+// timingParts(line): one competitor row, split the two ways an operator actually types one.
+//
+//   "VER | +0.000 | PIT"  the canonical pipe form — competitor, time, and an optional tag
+//   "VER +0.000"          the shorthand, because a tower gets typed at speed mid-session: the
+//                         LAST run of whitespace splits it, and a time never contains a space
+//
+// A line with neither a pipe nor a space is all competitor — someone with no time yet.
+function timingParts(line) {
+  var pipe = line.indexOf('|');
+  if (pipe !== -1) {
+    var rest = line.slice(pipe + 1);
+    var second = rest.indexOf('|');
+    return {
+      name: line.slice(0, pipe).trim(),
+      time: (second === -1 ? rest : rest.slice(0, second)).trim(),
+      tag: second === -1 ? '' : rest.slice(second + 1).trim()
+    };
+  }
+  var split = /^(.*\\S)\\s+(\\S+)$/.exec(line);
+  if (!split) return { name: line, time: '', tag: '' };
+  return { name: split[1].trim(), time: split[2].trim(), tag: '' };
+}
+
+// compRebuild(): rebuild the running order from the hidden #f2 source. The POSITION is the
+// line's place in the field — an operator types the order, never the numbers, so the tower and
+// the timing feed cannot disagree about who is third.
+function compRebuild() {
+  var host = document.getElementById('${P}-rows');
+  if (!host) return;
+  var source = (document.getElementById('f2') || { textContent: '' }).textContent;
+  var html = '';
+  var n = 0;
+  var anyTag = false;
+  source.split('\\n').forEach(function (raw) {
+    var line = raw.trim();
+    if (line === '') return;                       // skip blank lines
+    var parts = timingParts(line);
+    if (parts.name === '') return;
+    if (parts.tag !== '') anyTag = true;
+    n++;
+    var gone = parts.tag !== '' && TIMING_GONE.indexOf(' ' + parts.tag.toUpperCase() + ' ') !== -1;
+    var cls = '${P}-row'
+      + (n === 1 ? ' ${P}-row-lead' : '')          // the leader is a look, not a state
+      + (gone ? ' ${P}-row-gone' : '');
+    html += '<div class="' + cls + '" data-row="' + n + '">'
+          +   '<span class="${P}-row-index">' + n + '</span>'
+          +   '<span class="${P}-row-name">' + escapeHtml(parts.name) + '</span>'
+          +   '<span class="${P}-row-time">' + escapeHtml(parts.time) + '</span>'
+          +   '<span class="${P}-row-tag">' + escapeHtml(parts.tag) + '</span>'
+          + '</div>';
+  });
+  host.innerHTML = html;
+  // The status column is reserved only while somebody is using it — see the CSS note on
+  // .${P}-has-tags. This is DATA, so the rebuild owns it in both directions.
+  var root = document.querySelector('.${P}');
+  if (!root) return;
+  if (anyTag) root.classList.add('${P}-has-tags');
+  else root.classList.remove('${P}-has-tags');
+}
+
+// rowAt(fieldId): the row a 1-based number field points at, or null when it names none.
+function rowAt(fieldId) {
+  var host = document.getElementById('${P}-rows');
+  var at = parseInt((document.getElementById(fieldId) || { textContent: '' }).textContent, 10);
+  if (!host || isNaN(at) || at < 1) return null;
+  return host.querySelector('[data-row="' + at + '"]');
+}
+
+// clearFocus(): the whole field back at one level.
+function clearFocus() {
+  var root = document.querySelector('.${P}');
+  if (root) root.classList.remove('${P}-spotlit');
+  var rows = document.querySelectorAll('.${P}-row');
+  for (var i = 0; i < rows.length; i++) rows[i].classList.remove('${P}-row-on');
+}
+
+// applyFocus(): lift the row the event's payload named — the competitor being talked about.
+// One state carries any row, so a twenty-car field needs no twenty states.
+function applyFocus() {
+  clearFocus();
+  var row = rowAt('f3');
+  if (!row) return;                // 0, blank or out of range: the field stays level
+  var root = document.querySelector('.${P}');
+  if (root) root.classList.add('${P}-spotlit');
+  row.classList.add('${P}-row-on');
+  gsap.fromTo(row, { x: -10 }, { x: 0, duration: 0.34 / motionSpeed(), ease: 'back.out(1.6)' });
+}
+
+// markFinal(): the session is over and the order stops being live — the same claim the
+// standings board's FINAL makes, at the moment a chequered flag makes it.
+function markFinal() {
+  var root = document.querySelector('.${P}');
+  if (!root) return;
+  root.classList.add('${P}-final');
+  gsap.fromTo('.${P}-box', { scale: 1.015 }, { scale: 1, duration: 0.4 / motionSpeed(), ease: 'back.out(1.5)' });
+}
+
+// clearFinal(): back to a running session (a red flag, or a result declared too early).
+function clearFinal() {
+  var root = document.querySelector('.${P}');
+  if (root) root.classList.remove('${P}-final');
+}
+
+// compRepaint(): a rebuild destroyed the rows the machine had marked, so put the mark back —
+// without animating it again. This is what lets the timing data keep moving underneath a
+// focus the caster set two laps ago.
+function compRepaint() {
+  var root = document.querySelector('.${P}');
+  if (!root || !root.classList.contains('${P}-spotlit')) return;
+  var row = rowAt('f3');
+  if (row) row.classList.add('${P}-row-on');
+}
+
+// compClearMarks(): play()'s visual reset — a level, running session on every replay.
+function compClearMarks() {
+  clearFocus();
+  clearFinal();
+}
+
+${READY_GUARD_JS}`;
+
 // ── Shared layout ────────────────────────────────────────────────────────────
 
 /** The board layout every results design has in common (rows, heading, columns). */
@@ -535,6 +729,80 @@ export function boardStructureCss(): string {
 /* The champion banner is empty until the bracket is won, so it takes no room before that. */
 .${P}-champion:empty {
   display: none;
+}`;
+}
+
+/**
+ * The timing tower's shape, on top of the board layout — the four timing designs share it.
+ *
+ * The board designs give themselves a 1000px footprint floor so a table reads as data at a
+ * glance. A tower makes the OPPOSITE decision for the opposite graphic: it is a narrow column
+ * parked against one edge for a whole session, so the picture behind it stays the shot. Width,
+ * not min-width, is the point.
+ */
+export function towerStructureCss(): string {
+  return `/* ── The tower's shape (shared by every timing design). ── */
+
+.${P}-box {
+  width: calc(520px * var(--scale));
+}
+
+/* One timing row: position · competitor · time · an optional tag. */
+.${P}-row {
+  gap: calc(14px * var(--scale));
+}
+
+/* The position sits in its own fixed cell, so the competitors below it line up whether the
+   field runs to five or to twenty. */
+.${P}-row-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* The competitor — a three-letter code, a surname, a lane. ALWAYS one line, and the bound is
+   on the span: overflow on the ROW would clip the paint and leave the layout box wide enough
+   to shove the time out of the tower (src/templates/AGENTS.md, the clip rule). overflow-X
+   only — the shorthand 'overflow: hidden' clips BOTH axes, and some fonts' glyphs sit a few
+   px taller than their own line-height, which clipped the tops of ascenders here. */
+.${P}-row-name {
+  white-space: nowrap;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The time column — tabular, so the decimal points stack straight down the tower. */
+.${P}-row-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The status tag (PIT · OUT · DNF · a team name). Most rows carry none most of the time. */
+.${P}-row-tag {
+  flex-shrink: 0;
+}
+
+.${P}-row-time:empty,
+.${P}-row-tag:empty {
+  display: none;
+}
+
+/* THE RESERVED STATUS COLUMN. The moment ANY competitor carries a status, the tag becomes a
+   real column on every row — including the rows that have none, which draw nothing in it.
+   Without that, one car pitting steps the whole time column sideways, and a graphic whose
+   entire job is a column of times must never move its own numbers. The runtime only sets
+   this class when there IS a status, so a clean order still spends no width on it. */
+.${P}-has-tags .${P}-row-tag {
+  width: calc(58px * var(--scale));
+  text-align: center;
+}
+
+.${P}-has-tags .${P}-row-tag:empty {
+  display: inline-block;           /* keep the column… */
+  background: none;                /* …and draw nothing in it */
+  box-shadow: none;
 }`;
 }
 

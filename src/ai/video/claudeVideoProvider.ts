@@ -8,8 +8,17 @@
 // real example, errors-back repair) for the video world. Stages a and b are engine-
 // independent - the same brief, plan, skills, assets, and settings feed both coders.
 
-import { callModel, type ContentBlock } from '../modelGateway';
+// Through videoGateway, never ../modelGateway directly: it stamps surface: 'video' on every
+// call, which is what makes the ai.video entitlement reach this harness (docs/ADMIN.md).
+import {
+  callVideoModel as callModel,
+  callVideoModelDetailed as callModelDetailed,
+  type ContentBlock,
+} from './videoGateway';
+import { startAiRun, type AiRunRecorder } from '../telemetry';
+import { findingsList, repairLoop } from '../shared/repairLoop';
 import { parseDataUrl } from '../../assets/assetUtils';
+import type { ReferencePurpose } from '../../model/imagePurpose';
 import type { MotionPlan, VideoChatMessage, VideoEngine, VideoInput } from '../../model/videoTypes';
 import { hyperframesInputs } from '../../video/hyperframes/parse';
 import type {
@@ -35,7 +44,8 @@ import {
   type EmittedMotionPlan,
 } from './tools';
 
-/** Bounded automatic repair: the initial emit plus up to two errors-back rounds. */
+/** Bounded automatic repair: the initial emit plus up to two errors-back rounds
+ *  (src/ai/shared/repairLoop.ts MAX_REPAIR_ROUNDS - named here only for the progress line). */
 const MAX_REPAIR_ROUNDS = 2;
 
 // ── Context formatting ───────────────────────────────────────────────────────
@@ -49,15 +59,21 @@ function settingsText(ctx: VideoGenerateContext): string {
 }
 
 function assetsText(ctx: VideoGenerateContext): string {
-  if (ctx.assets.length === 0) return 'Assets: none uploaded.';
   const hf = ctx.engine === 'hyperframes';
   const lines = ctx.assets.map((a) => {
     const dims = a.width && a.height ? `, ${a.width}x${a.height}` : '';
     return `- ${hf ? `asset:${a.name}` : `assets['${a.name}']`} (${a.mime}${dims})`;
   });
-  return hf
-    ? `Assets available as asset: URLs (use these EXACT names, nothing else):\n${lines.join('\n')}`
-    : `Assets available via the assets prop (use these EXACT names, nothing else):\n${lines.join('\n')}`;
+  const assets = ctx.assets.length
+    ? hf
+      ? `Assets available as asset: URLs (use these EXACT names, nothing else):\n${lines.join('\n')}`
+      : `Assets available via the assets prop (use these EXACT names, nothing else):\n${lines.join('\n')}`
+    : 'Assets: none uploaded.';
+  // The reference brief rides HERE rather than at each call site: the Motion Director, the
+  // coder and the refinement all compose their prompt from this one function, and a picture
+  // the director never saw explained would have shaped nothing.
+  const brief = attachmentBrief(ctx);
+  return brief ? `${assets}\n\n${brief}` : assets;
 }
 
 /**
@@ -78,19 +94,78 @@ function currentInputsText(inputs: VideoInput[], engine: VideoEngine): string {
   return `Editable inputs the composition already declares - re-declare ALL of them with the SAME keys and types, and ${keep}. Only add, remove, or rename a key when the request actually changes what content is editable; a key that silently changes loses the value the user typed into it:\n${lines.join('\n')}`;
 }
 
-/** Uploaded raster images as vision blocks so the model designs around what it sees. */
+/**
+ * Uploaded raster images as vision blocks so the model designs around what it sees.
+ *
+ * Composition assets first, then reference material, matching the order `attachmentBrief`
+ * numbers them in - the text and the pictures have to agree on which is which.
+ */
 function imageBlocks(ctx: VideoGenerateContext, assetData: Map<string, string>): ContentBlock[] {
   const blocks: ContentBlock[] = [];
-  for (const a of ctx.assets) {
-    if (!a.mime.startsWith('image/') || a.mime === 'image/svg+xml') continue;
-    const data = assetData.get(a.name);
-    if (!data) continue;
+  const push = (mime: string, data: string | undefined): boolean => {
+    if (!mime.startsWith('image/') || mime === 'image/svg+xml' || !data) return false;
     const parsed = parseDataUrl(data);
-    if (!parsed) continue;
+    if (!parsed) return false;
     blocks.push({ type: 'image', source: { type: 'base64', media_type: parsed.mime, data: parsed.base64 } });
-    if (blocks.length >= 3) break; // enough visual context; keep the request light
+    return true;
+  };
+  for (const a of ctx.assets) {
+    push(a.mime, assetData.get(a.name));
+    if (blocks.length >= 3) return blocks; // enough visual context; keep the request light
+  }
+  for (const r of ctx.references ?? []) {
+    push(parseDataUrl(r.data)?.mime ?? '', r.data);
+    if (blocks.length >= 5) break; // references earn a little more room; they ARE the guidance
   }
   return blocks;
+}
+
+/** The short tag each reference carries (model/imagePurpose.ts's words). */
+const REFERENCE_TAG: Record<ReferencePurpose, string> = {
+  layout: 'MAKE ONE LIKE THIS',
+  mood: 'TAKE THE LOOK AND FEEL',
+  plate: 'MAKE IT WORK OVER THIS',
+};
+
+/**
+ * What the attached pictures are FOR. Composition assets are named and drawable; references
+ * are looked at and never reachable from the code - the same four purposes the SPX harness
+ * reads, because a user who learned them in one wizard should not meet new words in the other.
+ */
+function attachmentBrief(ctx: VideoGenerateContext): string {
+  const refs = ctx.references ?? [];
+  if (!refs.length) return '';
+  const lines = refs.map((r, i) => `  ${ctx.assets.length + i + 1}. ${REFERENCE_TAG[r.use]}`);
+  const has = (use: ReferencePurpose) => refs.some((r) => r.use === use);
+  const blocks = [
+    `The last ${refs.length} attached picture(s) are REFERENCE MATERIAL, not assets. They are ` +
+      `NOT in the assets prop, have no logical name, and can never be drawn - do not reference ` +
+      `them in code. They are there to be read:\n${lines.join('\n')}`,
+  ];
+  if (has('layout')) {
+    blocks.push(
+      `MAKE ONE LIKE THIS - follow the composition: placement, reading order, hierarchy, ` +
+        `density, proportion rhythm, shape language, how motion enters and leaves. Never ` +
+        `reproduce the artwork, wordmark or photography itself. If one is a sketch or ` +
+        `wireframe, read it as a DIAGRAM of what to build - its rough lines describe placement, ` +
+        `and its hand-drawn look is not a style to imitate.`,
+    );
+  }
+  if (has('mood')) {
+    blocks.push(
+      `TAKE THE LOOK AND FEEL - colour, mood, texture, weight and motion energy ONLY. Ignore ` +
+        `their layout entirely; they may not even be graphics.`,
+    );
+  }
+  if (has('plate')) {
+    blocks.push(
+      `MAKE IT WORK OVER THIS - the real background this will be shown over. Never drawn, ` +
+        `never imitated: read where it is bright, busy or dark and make the piece hold up over ` +
+        `it - contrast, panel opacity, separation, placement clear of faces. Assume the shot ` +
+        `moves, so do not rely on a gap that is only empty in this frame.`,
+    );
+  }
+  return blocks.join('\n\n');
 }
 
 // ── Stage a: skill detection ─────────────────────────────────────────────────
@@ -286,26 +361,35 @@ async function generateValidated(
   validate: VideoValidator | undefined,
   model: string | undefined,
   onProgress?: VideoProgress,
+  run?: AiRunRecorder,
 ): Promise<{ emitted: EmittedSource; validation: Awaited<ReturnType<VideoValidator>> | null }> {
   const cfg = emitConfig(engine);
   // cacheSystem: the coder system prompt (contract + skills + the canonical example) is
   // large and IDENTICAL across the first call and every repair round - one cache breakpoint
   // turns those re-sends into cache reads. Cost only; the prompt itself is untouched.
-  let emitted = cfg.toEmitted(
-    await callModel({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true }),
-  );
+  let t0 = Date.now();
+  const first = await callModelDetailed({ system, messages: baseMessages, tool: cfg.tool, model, cacheSystem: true });
+  run?.stage('coder', t0, first.model, first.usage);
+  const firstEmitted = cfg.toEmitted(first.output);
 
-  if (!validate) return { emitted, validation: null };
+  if (!validate) return { emitted: firstEmitted, validation: null };
 
-  onProgress?.('Checking the result in the player…');
-  let validation = await validate(emitted.source, emitted.inputs);
-  for (let round = 0; round < MAX_REPAIR_ROUNDS && !validation.ok; round++) {
-    onProgress?.(`Fixing issues the checks found (round ${round + 1} of ${MAX_REPAIR_ROUNDS})…`);
-    // Hand the EXACT validator findings back with the full source - same doctrine as the
-    // SPX repair round. Runtime findings carry frame numbers.
-    const errorList = validation.errors.map((e) => `- ${e.rule}: ${e.message}`).join('\n');
-    emitted = cfg.toEmitted(
-      await callModel({
+  const { emitted, validation } = await repairLoop<EmittedSource, Awaited<ReturnType<VideoValidator>>>({
+    emitted: firstEmitted,
+    validate: async (current) => {
+      onProgress?.('Checking the result in the player…');
+      const v0 = Date.now();
+      const verdict = await validate(current.source, current.inputs);
+      run?.stage('validate', v0);
+      return verdict;
+    },
+    reEmit: async (findings, current, round) => {
+      onProgress?.(`Fixing issues the checks found (round ${round} of ${MAX_REPAIR_ROUNDS})…`);
+      run?.repair();
+      // Hand the EXACT validator findings back with the full source - same doctrine as the
+      // SPX repair round. Runtime findings carry frame numbers.
+      t0 = Date.now();
+      const repair = await callModelDetailed({
         system,
         messages: [
           ...baseMessages,
@@ -316,16 +400,17 @@ async function generateValidated(
             // validate.ts). Saying so explicitly is load-bearing: a banned window.* access
             // once survived both repair rounds because the finding read as a general rule
             // rather than an instruction about one specific line of the model's own code.
-            content: `Your composition failed validation. Fix ALL of these and re-emit the COMPLETE source (${cfg.repairNote}):\n${errorList}\n\nWhere a finding quotes an offending line, that EXACT line must not survive your fix - delete or rewrite it, do not merely work around it. Re-read your own source for every other place the same mistake appears.\n\n=== ${cfg.fileLabel} ===\n${emitted.source}`,
+            content: `Your composition failed validation. Fix ALL of these and re-emit the COMPLETE source (${cfg.repairNote}):\n${findingsList(findings)}\n\nWhere a finding quotes an offending line, that EXACT line must not survive your fix - delete or rewrite it, do not merely work around it. Re-read your own source for every other place the same mistake appears.\n\n=== ${cfg.fileLabel} ===\n${current.source}`,
           },
         ],
         tool: cfg.tool,
         model,
         cacheSystem: true,
-      }),
-    );
-    validation = await validate(emitted.source, emitted.inputs);
-  }
+      });
+      run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
+      return cfg.toEmitted(repair.output);
+    },
+  });
   return { emitted, validation: noteUnprobed(demoteSoftFindings(validation)) };
 }
 
@@ -416,13 +501,38 @@ class ClaudeVideoProvider implements VideoAIProvider {
     validate?: VideoValidator,
     onProgress?: VideoProgress,
   ): Promise<VideoGenerateResult> {
+    // The video harness records through the same local telemetry ring the SPX harness
+    // uses (stages, tokens, repair rounds) - it recorded nothing before, which made its
+    // cost and repair behaviour invisible to the compare tooling.
+    const run = startAiRun('video-generate');
+    try {
+      const result = await this.generateRecorded(prompt, ctx, validate, onProgress, run);
+      run.finish(result.validation?.ok ?? true, result.validation?.errors.map((e) => e.rule));
+      return result;
+    } catch (e) {
+      run.finish(false, ['exception']);
+      throw e;
+    }
+  }
+
+  private async generateRecorded(
+    prompt: string,
+    ctx: VideoGenerateContext,
+    validate: VideoValidator | undefined,
+    onProgress: VideoProgress | undefined,
+    run: AiRunRecorder,
+  ): Promise<VideoGenerateResult> {
     const model = ctx.model;
     onProgress?.('Reading the brief…');
+    let t0 = Date.now();
     const skills = await detectSkills(prompt, undefined);
+    run.stage('skills', t0);
     const vision = imageBlocks(ctx, ctx.assetData ?? new Map());
 
     onProgress?.('Designing the motion plan…');
+    t0 = Date.now();
     const plan = await directMotion(prompt, ctx, skills, vision, model);
+    run.stage('motion-plan', t0);
 
     onProgress?.(ctx.engine === 'hyperframes' ? 'Writing the HyperFrames composition…' : 'Writing the Remotion code…');
     const coderText = `${settingsText(ctx)}\n${assetsText(ctx)}\n\nThe motion plan to implement:\n${planText(plan)}\n\nThe original brief:\n${prompt}`;
@@ -433,6 +543,7 @@ class ClaudeVideoProvider implements VideoAIProvider {
       validate,
       model,
       onProgress,
+      run,
     );
 
     return {
@@ -459,6 +570,25 @@ class ClaudeVideoProvider implements VideoAIProvider {
     validate?: VideoValidator,
     onProgress?: VideoProgress,
   ): Promise<VideoGenerateResult> {
+    const run = startAiRun('video-refine');
+    try {
+      const result = await this.refineRecorded(request, current, ctx, validate, onProgress, run);
+      run.finish(result.validation?.ok ?? true, result.validation?.errors.map((e) => e.rule));
+      return result;
+    } catch (e) {
+      run.finish(false, ['exception']);
+      throw e;
+    }
+  }
+
+  private async refineRecorded(
+    request: string,
+    current: { source: string; chat: VideoChatMessage[]; inputs: VideoInput[] },
+    ctx: VideoGenerateContext,
+    validate: VideoValidator | undefined,
+    onProgress: VideoProgress | undefined,
+    run: AiRunRecorder,
+  ): Promise<VideoGenerateResult> {
     const model = ctx.model;
     onProgress?.('Writing the change…');
     // Skills: the refinement request plus recent context (a "make the countdown pulse"
@@ -481,6 +611,7 @@ class ClaudeVideoProvider implements VideoAIProvider {
       validate,
       model,
       onProgress,
+      run,
     );
 
     // A refinement re-emits the COMPLETE source, so it re-declares its inputs, and merging

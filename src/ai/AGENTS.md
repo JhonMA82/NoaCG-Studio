@@ -70,7 +70,11 @@ that no second copy exists.
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider
 configuration, quota, price, privacy, and endpoint policy live only in `api/_lib/
-aiLiteProfile.ts`. The generated template carries no profile marker or generation ledger id.
+aiLiteProfile.ts`; the server task registry (`api/_lib/aiTaskRegistry.ts`,
+docs/AI_TASK_REGISTRY.md) re-expresses that profile as task `lite-design-spec` and fails
+closed unless every managed route is in the approved-route catalog
+(`api/_lib/aiModelCatalog.ts`). The generated template carries no profile marker or
+generation ledger id.
 
 **The SKIN experiment (server-flagged, `AI_LITE_SKIN_ENABLED`, off by default):** when the
 profile enables it, the same single model call may ALSO return `skin:{summary,css,html?}` -
@@ -85,6 +89,54 @@ house chassis: a skin can decline to land, never cost the user a working result.
 flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behavior are byte-identical to before
 the skin existed, and a skin a model emits anyway is stripped server-side.
 
+**A skin may not use `clip-path`, because our checks measure LAYOUT and it changes PAINT.**
+The blind review found two skins whose secondary line lost its last letter to an angled cut;
+the runtime bench read a perfectly placed box and passed, and so did the vision judge
+(docs/AI_LITE_BENCHMARK.md §6d). The patch gate rejects it in CSS and in `skin.html` style
+attributes; `background-clip: text` stays legal. Generalize the lesson before adding any
+visual construct to a model's allowlist: **a deterministic gate cannot catch a defect in a
+dimension it does not measure**, so either measure that dimension or forbid the construct.
+
+**The skin VISION JUDGE (server-flagged, `AI_LITE_JUDGE_ENABLED`, off by default):** one
+server-owned, cost-capped vision call (`POST /api/ai/lite/judge`) scoring the rendered HOLD
+frame on legibility/textIntegrity/hierarchy/briefFit/strapShape (contract + prompt in
+`liteContract.ts`, `LITE_JUDGE_*`, versioned independently as `LITE_JUDGE_PROMPT_VERSION`);
+every axis must reach the server threshold or the caller reverts to the house chassis. It fails closed like the generation routes and stores nothing. Today only the
+eval rig calls it (Playwright captures the hold frame); production wiring waits on
+judge-vs-blind-review calibration AND an in-app capture path - see
+docs/AI_LITE_BENCHMARK.md §6b before touching thresholds.
+
+**Write every judge axis as INSPECTION, and let ABSENCE be its first failure.** Both blind
+spots the human review found were the same mistake in different clothes. `legibility` asked
+the model to read, and reading completes a word whose last letter is sliced off.
+`strapShape` listed the wrong shapes a panel can take - squat box, badge, tall stack - so a
+frame with no panel at all matched nothing on the list and scored 5. An axis phrased as a
+taxonomy of variants can only find the variants; an axis phrased as "locate the elements,
+then ask what binds them" can find nothing-is-there. A new axis states what to look at,
+what counts as absent, and what earns a 5 - never a list of named failures.
+
+**The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a
+generation is admitted once, for one generation, so a second paid call cannot ride that
+admission indefinitely. Ownership, liveness (`expiresAt`), the per-generation cap
+(`AI_LITE_JUDGE_MAX_PER_GENERATION`, attempts not successes) and the daily fleet spend
+ceiling are decided ATOMICALLY in one RPC under the same advisory locks
+`reserve_ai_lite_generation` takes, and the worst-case cost is BOOKED there before the
+call - `settleJudgeCost` reconciles it to the provider's number afterwards. Booking first
+is not bookkeeping neatness: adding the cost afterwards from a value read before the call
+loses one of two overlapping judgements. A missing record and someone else's answer
+identically, so the endpoint is not a generation-id oracle. **A new paid Lite route
+repeats this shape** - the per-IP burst limiter is pre-body protection, never an
+entitlement.
+
+**A constraint stated as a prohibition suppresses the behaviour it constrains.** The strap
+rules first shipped as "STRAP SHAPE IS NON-NEGOTIABLE" and "a wrapped name is a failed
+skin", and the next paid round emitted skins at HALF the previous rate: given a way to fail
+and a documented way out (`omit skin`), the model took the way out. The same geometry now
+reads as the shape being painted, and the escape hatch names omission as the likelier
+mistake. Measured, not theorised - prompt version `lite-lower-third-v3`, and the pin in
+`aiLite.test.ts` fails if failure language returns. When a teaching change moves a rate,
+suspect the FRAMING before the rule.
+
 The first quality release is LOWER-THIRD-ONLY. `liteContract.ts` exposes six audited chassis
 with positive and negative fit metadata, a broad intent facet, and an explicit semantic role
 for each of the one or two lines. Server semantic validation enforces requested roles and
@@ -97,6 +149,20 @@ discard reason. Aggregate per-intent chassis outcomes enter the trusted prompt o
 server-configured sample threshold and only as a subtle tie-breaker. They never override the
 brief, semantic fit, or the diversity doctrine. Prompts, templates, screenshots, generated
 code, and full DesignSpecs never enter the ledger.
+
+## Import analysis - the proposal-only vision task (`importAnalysis/`)
+
+`imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import
+Graphic flow and never replaces it: one server-owned vision call
+(`POST /api/ai/tasks/import-analysis`, flag `AI_TASK_IMPORT_ANALYSIS_ENABLED`, off by
+default) proposes text regions, nearest BUNDLED fonts, and an animation preset.
+`contract.ts` is the schema (font honesty: `matchQuality` cannot say 'exact', font ids
+enum-locked to the seven bundled faces; rendered words are content, never instructions);
+`client.ts` downscales the artwork to ≤1920x1080 BEFORE anything leaves the machine;
+`normalize.ts` deterministically clamps and converts into `DesignFieldSpec`s - accepted
+suggestions apply through the exact transforms manual placement uses (draft.ts
+`withDesignFieldSpecs` -> addPlacedLine). No second representation, no auto-apply, no
+code generation. E2E: e2e/import-analysis.spec.ts (flag-off absence is mutation-pinned).
 
 ## The pipeline (claudeProvider.generate — one harness run; generateAlternatives runs it ×3)
 
@@ -119,7 +185,9 @@ code, and full DesignSpecs never enter the ledger.
 5. **Custom path** - briefs whose STRUCTURE no catalog family carries go to the free-form
    coder: house contracts + the NEAREST catalog variant's real create() output as the
    canonical example + the design stage's direction, then the validated repair loop
-   (`MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed back).
+   (`shared/repairLoop.ts` - THE one bounded errors-back loop both the SPX and video
+   coders drive: `MAX_REPAIR_ROUNDS = 2`, RE-VALIDATED every round, exact findings fed
+   back; what counts as BLOCKING stays each caller's policy, injected as a filter).
    **The region contract is authored, not emitted:** the example's ANIMATION region is shown
    in its AUTHORING shape (the legacy GSAP builders, via `emitPresetRegion`) and the prompt
    teaches that grammar - natural GSAP the model is reliably good at, instead of the bespoke
@@ -149,6 +217,98 @@ code, and full DesignSpecs never enter the ledger.
 passes the result's `spec` back via `GenerateOptions.spec`); anything else refines at code
 level. `convertImport` = deterministic import first (model/importTemplate.ts), then the
 validated conversion - the AI only ever sees parsed code, never raw bytes.
+
+## Phase-A routing (docs/CREATIVE_MODE_PLAN.md §2, §8 - the mode + intent stage)
+
+`GenerateOptions.mode` (`adapt` | `create` | `auto`, default auto) plus `structuralIntent.ts`
+run BEFORE the design call in `generate` and `generateAlternatives` (never for Lite, raw, or
+modify): one small forced `emit_structural_intent` call on the provider's `role:'fast'`
+model (`modelRole: 'fast'` - the per-stage binding of plan §4; every later stage keeps the
+session route, and the routing bench pins a NAMED model instead because measuring one is its
+job) -> `normalizeIntent` ->
+`routeIntent` (deterministic; `structuralFit` checks the type registry + catalog LIVE, so
+catalog growth updates routing by itself). The rules: an explicit mode is never overridden;
+auto routes create only on originality words in the brief, no structural fit, a
+low-confidence/novel/hybrid classification, or a BEYOND-SCOPE match
+(`intent.beyondScope`: the brief matches a listed structure but requires structure its
+`GraphicType.structuralScope` note excludes - a double-elimination brief on the
+single-elim bracket type. The REGISTRY declares the scope, the intent stage judges the
+brief against it with evidence, `routeIntent` decides deterministically - the
+originalityRequested pattern) - a catalog-fit brief under auto runs the
+pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
+adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
+catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
+mechanism). Decision + intent land on `AiTemplateChange.routing`/`.intent` and the telemetry
+record (`AiRoutingRecord`) - the routing benchmark (`scripts/creative-route-bench.mjs`,
+SPENDS TOKENS; bank + expected routes in `benchmarks/creative/v1/briefs.json`) reads them,
+never reconstructs.
+
+**THE CUSTOM CODER IS THE FROZEN BENCHMARK CONTROL (plan §8): its system prompt, catalog
+example, `designNotes`, and repair policy stay byte-identical. Routing changes WHICH briefs
+reach it, never what it is shown. Do not "improve" it before the Creative Mode comparison
+has run** - the comparison's control arm is exactly this code.
+
+**The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
+`resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather
+than here because the router and the satisfaction check both need the same answer and
+`validation` may not import `ai`. A second copy is how the two come to disagree - the router
+sending a brief down the catalog path while the check has no idea what was promised. Everything
+resolves LIVE against the registry and catalog, so catalog growth updates routing AND
+satisfaction by itself.
+
+The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) asks whether the
+result is the graphic that was asked for, in two parts:
+
+- **Kind** (`structuralKindFindings`) - does the assembled variant carry the anchor the intent
+  promised? Answered by IDENTITY against `spec.variantId`. This is the defect the benchmark hit
+  most and every other gate was blind to: a stinger brief routes to the catalog path CORRECTLY
+  (the catalog does carry transitions), the design stage returns a lower third, and static
+  validation, the runtime bench and the parts checks all pass - a lower third really does have a
+  headline and really does sit bottom-left. Every measurement agreed and the user got the wrong
+  graphic. It reports only when BOTH sides are known: an unresolvable variant or an intent that
+  anchored to nothing is a measurement that failed, not evidence of a mismatch.
+- **Parts** - list data as a textarea, field capacity, states vs machine/steps statically, plus
+  repeating groups and zone placement measured in a rendered iframe.
+
+Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep + AIPromptPanel pass
+`benchStructuralIntent`); findings land as WARNINGS (rule `structural-intent`) - it measures
+presence and identity, not quality, and it must not change the frozen control's repair rounds.
+**It runs on BOTH routed paths.** It first shipped CREATE-only, which left the grounded path -
+where the wrong-graphic defect actually happens - unmeasured: assembly being correct by
+construction says nothing about whether the right thing was constructed. `groundedResult`
+therefore reports the RESOLVED chassis (`pickVariant` clamps an unknown or unusable one, so the
+model's requested `variantId` can name a design that was never built), which is also what makes
+a spec-level `modify` refine the graphic the user is looking at.
+
+Free coverage: e2e/creative-routing.spec.ts (mutation-pinned, incl. the brief-bank
+catalog-anchor re-verification - the decay rule - and fixtures named after the wrong outcomes
+the paid round produced: a lower third for a stinger, a lower third for a timing tower).
+
+## Phase-C pilot (`creative/`, docs/CREATIVE_MODE_PLAN.md §3.2, §8, §10) - BENCH ONLY
+
+`creative/` is the pilot's CREATE pipeline. **Nothing in the product reaches it**: there is no
+UI, no route from `claudeProvider` into it, and its only caller is
+`scripts/creative-pilot-bench.mjs`. `runCreativeArm(arm, input)` runs one of four ablation arms
+per brief - **A** the frozen control (literally `claudeProvider.generate(..., mode:'create')`),
+**B** the same coder with a NEUTRAL skeleton example and the whole intent carried, **C** the
+staged pipeline, **D** C plus one rendered-frame critique and one focused repair. A-vs-B
+isolates the catalog example, B-vs-C the staging, C-vs-D the critique - so the arms must differ
+in ONE thing each, which is why arm B reuses `coderSystemPrompt` rather than owning a prompt.
+
+The staged path is `contracts.ts` (ConceptDirection + CreativeSpec, both normalize-don't-reject)
+-> `knowledgeCards.ts` (family anatomy + DESIGN_LANGUAGE numbers, keyword-selected, max 2, a
+card REPLACES generic language) -> `stages.ts` (the stage 4/5 tools and prompts) ->
+`scaffold.ts` (DETERMINISTIC: fields + SPX definition + runtime + list rebuild + the marked
+region + safe-area geometry) -> `style.ts` (the model's CSS and bounded region HTML through an
+applyPolish-class gate). **The scaffold is the floor**: a style patch the gate refuses leaves a
+plain but valid graphic, e2e-pinned against the full production validator. The anti-anchoring
+rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, and
+`neutralSkeleton.ts` is what the coder arm studies instead.
+
+Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
+expensive rig in the repo, explicit route, priced, ceilinged), `bench:creative:refs` (free
+catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
+e2e/creative-pilot.spec.ts.
 
 ## The quality gate (injected, not owned)
 
@@ -193,7 +353,10 @@ containment that would actually hold is denying the preview iframe the app's ori
 ## Telemetry & the value proof
 
 `telemetry.ts` records every run locally (stages, tokens from the API usage block, repair
-rounds, route, diversity fields; localStorage ring, JSON-exportable). The standing proof:
+rounds, route, diversity fields; localStorage ring, JSON-exportable). The VIDEO harness
+records through the same ring (kinds `video-generate`/`video-refine` - it recorded
+nothing before); consumers filter by kind, so SPX statistics never mix with video runs.
+The standing proof:
 
 - `scripts/ai-compare.mjs` - same brief, same model, four arms (raw / raw+self-critique /
   pre-harness / the harness), neutral scoring (runtime bench + motion-sampled overlaps +
@@ -202,6 +365,17 @@ rounds, route, diversity fields; localStorage ring, JSON-exportable). The standi
 - `scripts/ai-bench.mjs` - the single-arm brief bank + review gallery for prompt iteration.
 
 Both need the dev server + a real key and SPEND TOKENS - never CI.
+
+**Run `npm run bench:preflight -- <models>` before any paid round.** It is free, reaches no
+network, and answers the question the paid runner structurally cannot: given this `.env` and
+these candidates, what would each arm ACTUALLY serve? `api/_lib/aiBenchPreflight.ts` resolves
+every arm through the REAL `liteProfile` + task registry (never a model of their rules - a
+preflight that reimplements the server drifts from it and then certifies runs the server will
+refuse), and refuses a plan whose arms are overridden, unapproved, unconfigured, or not
+pairwise distinct. Each of those wasted a real round: they are invisible in the OUTPUT, because
+a comparison whose arms resolve to one model still produces differences - sampling noise reads
+as model character - so the numbers look like findings. `--env=<path>` checks another
+environment file. Regression suite: `api/_lib/aiBenchPreflight.test.ts` (in the build gate).
 
 ## The structured setup (spec/ - the "More control" panel's harness grip)
 
@@ -229,9 +403,39 @@ An empty spec injects nothing - the prompt-only flow is byte-identical to before
   (warning = the honest fallback report), and `ensureSpecFonts` (uploaded fonts ALWAYS land
   as embedded assets + a visible @font-face, model or no model).
 
-References-vs-assets: `GenerateContext.references` are vision-only style guidance (never
-bundled, never placed); `images` appear in the graphic. Both ride `imageBlocks` in that
-order and `contextText` labels them.
+## What an uploaded picture is FOR (model/imagePurpose.ts)
+
+A dropped image used to mean one thing: bundle it and place it. It carries FOUR unrelated
+intents, and they want opposite treatment - so the user says which, and the vocabulary lives
+in the MODEL layer (like GenerationSpec, because VideoProject persists it):
+
+- **`asset`** - "use it as it is". The ONLY purpose that bundles: it becomes a real file,
+  referenced by path, exported. Rides `GenerateContext.images`. Its sub-choice
+  `fixedAssetPaths` says the operator gets NO field for it - permanent brand furniture rather
+  than content, which was impossible to say before (a logo slot always emitted its `filelist`).
+- **`layout`** - "make one like this". Follow the composition, hierarchy, density, shape
+  language; never reproduce the artwork. A SKETCH is read as a diagram of what to build, not a
+  look to imitate.
+- **`mood`** - "take the look and feel". Colour, texture, weight, motion energy; layout
+  explicitly ignored.
+- **`plate`** - "make it work over this". The REAL background the graphic will sit on: never
+  placed, never imitated, read for legibility and safe placement.
+
+The last three ride `GenerateContext.references` as `{asset, use}` and are vision-only - never
+bundled, never placed. `attachmentSections` builds ONE numbered manifest plus a block per
+purpose present, and `imageBlocks` sends the pictures in exactly that order, so "attachment 3"
+means the same picture in the text and in the vision blocks. `modifyContent` reuses the same
+function, so a picture attached mid-conversation means what it would have meant at the start.
+
+**The as-is screen (`assetIntegrity.ts`)** is the protection "use it as it is" promises: a
+design that puts a filter, crop, mask, `object-fit: cover`, rounded corners or an uneven scale
+on a protected picture is REJECTED. It reports through the injected validator (composed in
+`productionSpxValidator`, beside the safety screen), so a violation reaches the repair loop
+rather than only the result card. Same honest limit as safety.ts: it reads CSS text, not the
+resolved cascade - the obvious case, not the determined one.
+
+The preselect only ever guesses `asset` vs `mood`; `layout` and `plate` are intents no pixel
+reveals, and guessing them would present a coin flip as a decision.
 
 ## The conversation is part of the brief
 
@@ -264,7 +468,7 @@ put it (a logo slot takes a mark; a full-frame still does not).
   client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
   OpenRouter, and compatible Hugging Face Inference Providers without branching the harness.
   `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
-  normalization stays in `api/_lib/aiModelCatalog.ts`. Structured output, usage, costs, errors,
+  normalization stays in `api/_lib/aiModelDiscovery.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;
   other adapters ignore it.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME specToTemplate

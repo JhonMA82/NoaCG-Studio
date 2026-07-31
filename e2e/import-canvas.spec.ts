@@ -24,7 +24,9 @@ async function dropDesign(page: Page, file = { name: 'lower-third.png', mimeType
 async function createBare(page: Page) {
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
+    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
+    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
+    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
 

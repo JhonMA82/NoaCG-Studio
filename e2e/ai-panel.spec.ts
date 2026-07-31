@@ -1,5 +1,6 @@
 import { test, expect, type Route } from '@playwright/test';
 import { createProject } from './_create';
+import { acceptAiNotice } from './_ai-notice';
 
 // The editor's AI assistant panel (AIPromptPanel). Its provider calls inject the production
 // validator (static + live runtime bench + the safety screen — the same composition the
@@ -104,6 +105,7 @@ test.beforeEach(async ({ page }) => {
       JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true }),
     ),
   );
+  await acceptAiNotice(page);
 });
 
 test('a bench-failing modify burns real repair rounds and the card reports the failure', async ({ page }) => {

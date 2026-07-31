@@ -41,7 +41,12 @@ async function handle(server, req, res) {
       body: ['GET', 'HEAD'].includes(req.method ?? 'GET') ? undefined : body,
     });
 
-    const mod = await server.ssrLoadModule(`/api/render/${route}.ts`);
+    // start and cleanup are their own functions in production; the rest share one
+    // catch-all. Resolve the SAME way here so dev exercises the real dispatcher.
+    const standalone = route === 'start' || route === 'cleanup';
+    const mod = await server.ssrLoadModule(
+      standalone ? `/api/render/${route}.ts` : '/api/render/[...path].ts',
+    );
     const response = await mod.default.fetch(request);
 
     res.statusCode = response.status;

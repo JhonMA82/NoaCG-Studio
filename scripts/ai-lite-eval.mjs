@@ -65,7 +65,15 @@ const headers = {
 
 async function json(response) {
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(value?.error?.message ?? `HTTP ${response.status}`);
+  if (!response.ok) {
+    // Carry the MACHINE code, not just the prose. The two failure classes a model
+    // comparison must separate - the model exhausting its repair round versus the
+    // provider breaking - are indistinguishable once only the message survives, and
+    // classifying by matching English sentences would break on the first reword.
+    const error = new Error(value?.error?.message ?? `HTTP ${response.status}`);
+    error.code = value?.error?.code ?? `http_${response.status}`;
+    throw error;
+  }
   return value;
 }
 
@@ -74,6 +82,10 @@ if (!status.available) {
   console.error(`NoaCG Lite is not available for the evaluation identity (${status.reason ?? 'unknown'}).`);
   process.exit(1);
 }
+// The vision judge is optional: when the server enables it, every SKINNED result's hold
+// frame gets one scored judge call and a failed verdict is recorded as the production
+// funnel's revert. Its cost counts against this run's ceiling like any other call.
+const JUDGE = Boolean(status.skinJudgeEnabled);
 
 await mkdir(OUT, { recursive: true });
 await mkdir(RAW_VIDEO_DIR, { recursive: true });
@@ -112,6 +124,10 @@ async function trimMotionVideo(rawPath, finalPath, startSeconds) {
   }
 }
 
+/** True when motion settled; false after the 5s budget. Never throws: a skin with an
+ *  idle loop (a blinking cursor, a pulse) NEVER settles, and discarding a paid,
+ *  machine-usable result over that is worse than capturing the animation mid-flight -
+ *  the still is honest either way, and the row records motionSettled for the reviewer. */
 async function waitForMotionToSettle(page) {
   let previous = '';
   let stableSamples = 0;
@@ -131,11 +147,11 @@ async function waitForMotionToSettle(page) {
     });
     if (signature && signature === previous) stableSamples += 1;
     else stableSamples = 0;
-    if (stableSamples >= 4) return;
+    if (stableSamples >= 4) return true;
     previous = signature;
     await page.waitForTimeout(100);
   }
-  throw new Error('Rendered motion did not settle within 5 seconds.');
+  return false;
 }
 
 async function measureAndCapture(spec, fixtureId, skin = null) {
@@ -233,7 +249,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
     const entranceFile = `${LABEL}-${fixtureId}-entrance.png`;
     await page.screenshot({ path: path.join(OUT, entranceFile) });
     await page.waitForTimeout(Math.max(0, measured.entranceDurationMs + 250 - (Date.now() - motionStarted)));
-    await waitForMotionToSettle(page);
+    const motionSettled = await waitForMotionToSettle(page);
     await page.waitForTimeout(80);
     const holdFile = `${LABEL}-${fixtureId}-hold.png`;
     await page.screenshot({ path: path.join(OUT, holdFile) });
@@ -266,6 +282,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       ruleCodes: measured.ruleCodes,
       category: measured.category,
       variantId: measured.variantId,
+      motionSettled,
       skinApplied: measured.skinApplied,
       skinOutcome: measured.skinOutcome,
       skinRejectionRules: measured.skinRejectionRules,
@@ -281,6 +298,43 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
     if (!page.isClosed()) await page.close().catch(() => {});
     await context.close().catch(() => {});
   }
+}
+
+/** Downscale the hold frame in-browser (no native image dependency) - vision tokens are
+ *  tile-priced, and 960x540 is plenty for judging gross legibility and shape failures. */
+async function judgeImageBase64(holdPath) {
+  const buffer = await readFile(holdPath);
+  const page = await browser.newPage();
+  try {
+    return await page.evaluate(async (dataUrl) => {
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('hold frame failed to decode'));
+        image.src = dataUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = 960;
+      canvas.height = 540;
+      canvas.getContext('2d').drawImage(image, 0, 0, 960, 540);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }, `data:image/png;base64,${buffer.toString('base64')}`);
+  } finally {
+    await page.close();
+  }
+}
+
+async function judgeSkin(generated, prompt, holdPath) {
+  return json(await fetch(`${BASE}/api/ai/lite/judge`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      generationId: generated.generationId,
+      brief: prompt,
+      skinSummary: generated.decision.skin.summary,
+      imageBase64: await judgeImageBase64(holdPath),
+    }),
+  }));
 }
 
 function escapeHtml(value) {
@@ -361,10 +415,11 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
   process.stdout.write(`- ${fixtureId}: `);
   let sent = false;
   let attemptAccounted = false;
+  let generated = null;
   try {
     sessions += 1;
     sent = true;
-    const generated = await json(await fetch(`${BASE}/api/ai/lite/generations`, {
+    generated = await json(await fetch(`${BASE}/api/ai/lite/generations`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -396,6 +451,21 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
     }
 
     const measured = await measureAndCapture(generated.decision.spec, fixtureId, generated.decision.skin ?? null);
+
+    // The vision judge - the production-shaped tail of the skin funnel: a skin that
+    // compiled and benched clean still reverts to the house chassis on a failed verdict.
+    // A judge TRANSPORT failure fails open (the deterministic gates already passed);
+    // it is recorded, never hidden.
+    let judge = null;
+    if (JUDGE && measured.ok && measured.skinApplied && generated.decision.skin) {
+      try {
+        judge = await judgeSkin(generated, prompt, path.join(OUT, measured.phaseFiles.hold));
+        totalCostUsd += Number(judge.usage?.estimatedCost?.amount ?? 0);
+      } catch (error) {
+        judge = { verdict: 'error', error: error instanceof Error ? error.message.slice(0, 120) : 'unknown' };
+      }
+    }
+
     await fetch(`${BASE}/api/ai/lite/outcome`, {
       method: 'POST',
       headers,
@@ -403,7 +473,9 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
         generationId: generated.generationId,
         action: measured.ok ? 'usable' : 'validation-failed',
         resolvedCategory: measured.category,
-        validationRuleCodes: measured.ruleCodes,
+        validationRuleCodes: judge?.verdict === 'fail'
+          ? [...measured.ruleCodes, 'skin-judge-fail']
+          : measured.ruleCodes,
         runtimeMs: Date.now() - started,
       }),
     });
@@ -414,6 +486,23 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       category: measured.category,
       variantId: measured.variantId,
       skinApplied: measured.skinApplied ?? false,
+      motionSettled: measured.motionSettled ?? true,
+      // The funnel's FINAL state for a skinned result: 'skinned' survived the judge (or
+      // ran unjudged / judge-errored open); 'judge-reverted' means production would show
+      // the house chassis. The skinned stills stay on disk so the verdict is reviewable.
+      ...(measured.skinApplied
+        ? { skinFinal: judge?.verdict === 'fail' ? 'judge-reverted' : 'skinned' }
+        : {}),
+      ...(judge
+        ? {
+            judgeVerdict: judge.verdict,
+            ...(judge.scores
+              ? { judgeScores: judge.scores, judgeReason: judge.reason, judgeThreshold: judge.threshold }
+              : {}),
+            ...(judge.error ? { judgeError: judge.error } : {}),
+            judgeCostUsd: Number(judge.usage?.estimatedCost?.amount ?? 0),
+          }
+        : {}),
       intentKind: generated.decision.spec.intent?.kind,
       fieldCount: measured.fieldCount,
       zone: measured.zone,
@@ -434,16 +523,40 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
     });
     console.log(
       `${measured.ok ? 'machine-usable' : `invalid (${measured.ruleCodes.join(', ')})`}`
-      + ` [skin: ${measured.skinOutcome}${measured.skinRejectionRules?.length ? ` ${measured.skinRejectionRules.join('|')}` : ''}]`,
+      + (measured.motionSettled === false ? ' [motion: never settled - idle loop?]' : '')
+      + ` [skin: ${measured.skinOutcome}${measured.skinRejectionRules?.length ? ` ${measured.skinRejectionRules.join('|')}` : ''}]`
+      + (judge
+        ? judge.scores
+          ? ` [judge: ${judge.verdict} L${judge.scores.legibility}/H${judge.scores.hierarchy}/B${judge.scores.briefFit}/S${judge.scores.strapShape}]`
+          : ` [judge: ${judge.verdict}]`
+        : ''),
     );
   } catch (error) {
     if (sent && !attemptAccounted) providerCalls += 1;
+    // A rig failure after a READY decision leaves the generation ACTIVE on the ledger
+    // ('spec_ready' holds a concurrency slot for 15 minutes) - measured 2026-07-28: two
+    // stranded actives hit the eval user's concurrency cap and refused the entire rest
+    // of a spike. Close the record so the slot frees; best-effort, the row is failed
+    // either way.
+    if (generated?.decision?.status === 'ready') {
+      await fetch(`${BASE}/api/ai/lite/outcome`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          generationId: generated.generationId,
+          action: 'validation-failed',
+          validationRuleCodes: ['rig-error'],
+          runtimeMs: Date.now() - started,
+        }),
+      }).catch(() => {});
+    }
     rows.push({
       fixtureId,
       candidate: LABEL,
       status: 'failed',
       latencyMs: Date.now() - started,
-      errorCode: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+      errorCode: error?.code ?? 'unknown',
+      errorMessage: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
     });
     console.log('failed');
   }
@@ -463,6 +576,12 @@ const summary = {
   // How many results landed as the SKINNED canvas (vs reverting to a house chassis) -
   // the skin spike's primary count; always 0 on a skin-disabled route.
   skinApplied: rows.filter((row) => row.skinApplied).length,
+  // The vision-judge funnel over the skinned results (all 0 when the judge is off).
+  judgeCalls: rows.filter((row) => row.judgeVerdict).length,
+  judgePassed: rows.filter((row) => row.judgeVerdict === 'pass').length,
+  judgeReverted: rows.filter((row) => row.skinFinal === 'judge-reverted').length,
+  judgeErrors: rows.filter((row) => row.judgeVerdict === 'error').length,
+  judgeCostUsd: rows.reduce((sum, row) => sum + (row.judgeCostUsd ?? 0), 0),
   rows,
 };
 await writeFile(path.join(OUT, `${LABEL}-metrics.json`), JSON.stringify(summary, null, 2), 'utf8');

@@ -65,12 +65,13 @@ test('the pack ships its four categories, and every design creates and validates
 
   expect(report.problems).toEqual([]);
   expect(report.missingCategory).toEqual([]);
-  expect(report.counts['esports-score']).toBe(7);
+  expect(report.counts['esports-score']).toBe(8);
   expect(report.counts['matchup']).toBe(10);
-  expect(report.counts['results-board']).toBe(9);
+  // 10 boards (roster/initiative/standings/bracket) + the four timing-tower designs.
+  expect(report.counts['results-board']).toBe(14);
   expect(report.counts['reveal']).toBe(12);
   const total = Object.values(report.counts).reduce((a, b) => a + b, 0);
-  expect(total).toBe(38);
+  expect(total).toBe(44);
 });
 
 test('the match-up walks neutral -> selected -> locked, and the lock is structural', async ({ page }) => {
@@ -187,6 +188,105 @@ test('the scorebug runs pre-match -> live -> final, and the pause group is indep
   expect(run.afterSnap).toMatchObject({ phase: 'pre', score: '2' });
   expect(run.afterReplay).toMatchObject({ phase: 'pre', status: 'PRE-MATCH' });
   expect(String(run.afterReplay.cls)).not.toContain('esports-score-final');
+});
+
+test('map veto and tabletop initiative reuse parameterized machines with snap recovery', async ({ page }) => {
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const veto = await boot('mr04');
+    veto.win.play();
+    await settle();
+    const vetoMarks = () => [...veto.doc.querySelectorAll('.esports-score-row-mark')]
+      .map((el) => el.textContent);
+    const vetoCurrent = () => veto.doc.querySelector('.esports-score-current')?.getAttribute('data-map') || null;
+    const out = {
+      vetoDefaults: {
+        title: veto.doc.getElementById('f0').textContent,
+        rows: vetoMarks(),
+      },
+    };
+
+    veto.win.noacgDispatch('advance', { f2: '3' });
+    await settle();
+    out.vetoAdvanced = {
+      state: veto.win.noacgMachineState().groups.main,
+      row: vetoCurrent(),
+    };
+    veto.win.noacgDispatch('seriesFinal');
+    await settle();
+    out.vetoComplete = {
+      state: veto.win.noacgMachineState().groups.main,
+      cls: veto.doc.querySelector('.esports-score').classList.contains('esports-score-decided'),
+    };
+
+    // Recovery is instant: the cursor state repaints from the operator's current-row field.
+    veto.win.update(JSON.stringify({ f2: '2' }));
+    veto.win.noacgSnap({ main: 'advanced' }, { timers: false });
+    out.vetoSnap = {
+      state: veto.win.noacgMachineState().groups.main,
+      row: vetoCurrent(),
+    };
+
+    const turn = await boot('rs04');
+    turn.win.play();
+    await settle();
+    const focused = () => turn.doc.querySelector('.results-board-row-on')?.getAttribute('data-row') || null;
+    out.turnDefaults = {
+      title: turn.doc.getElementById('f0').textContent,
+      encounter: turn.doc.getElementById('f1').textContent,
+      names: [...turn.doc.querySelectorAll('.results-board-row-name')].map((el) => el.textContent),
+      notes: [...turn.doc.querySelectorAll('.results-board-row-note')].map((el) => el.textContent),
+    };
+
+    turn.win.noacgDispatch('spotlight', { f3: '3' });
+    await settle();
+    out.turnMoved = {
+      state: turn.win.noacgMachineState().groups.main,
+      row: focused(),
+    };
+    turn.win.update(JSON.stringify({ f3: '4' }));
+    turn.win.noacgSnap({ main: 'spotlight' }, { timers: false });
+    out.turnSnap = {
+      state: turn.win.noacgMachineState().groups.main,
+      row: focused(),
+    };
+    turn.win.noacgDispatch('clear');
+    await settle();
+    out.turnCleared = {
+      state: turn.win.noacgMachineState().groups.main,
+      row: focused(),
+    };
+    return out;
+  })()`) as Record<string, Record<string, unknown>>;
+
+  expect(run.vetoDefaults).toMatchObject({
+    title: 'MAP VETO - GRAND FINAL',
+    rows: [
+      'BAN - TEAM LIQUID',
+      'BAN - NATUS VINCERE',
+      'PICK - TEAM LIQUID',
+      'PICK - NATUS VINCERE',
+      'PENDING',
+    ],
+  });
+  expect(run.vetoAdvanced).toMatchObject({ state: 'advanced', row: '3' });
+  expect(run.vetoComplete).toMatchObject({ state: 'decided', cls: true });
+  expect(run.vetoSnap).toMatchObject({ state: 'advanced', row: '2' });
+  expect(run.turnDefaults).toMatchObject({
+    title: 'INITIATIVE ORDER',
+    encounter: 'THE SUNKEN CITADEL - LOWER VAULT',
+    names: [
+      'SERAPHINA MOONWHISPER',
+      'CAPTAIN ALDRIC VON STURM',
+      'ANCIENT CRIMSON OWLBEAR',
+      'THANE IRONHEART',
+    ],
+    notes: ['18 HP', 'CONCENTRATING', 'BLOODIED', 'DODGING'],
+  });
+  expect(run.turnMoved).toMatchObject({ state: 'spotlight', row: '3' });
+  expect(run.turnSnap).toMatchObject({ state: 'spotlight', row: '4' });
+  expect(run.turnCleared).toMatchObject({ state: 'level', row: null });
 });
 
 test('the verdict card is ONE judged state carrying either ruling', async ({ page }) => {
@@ -404,7 +504,7 @@ test('every design exports to all six targets with its runtime intact', async ({
   })()`) as { problems: string[]; packages: number };
 
   expect(report.problems).toEqual([]);
-  expect(report.packages).toBe(38 * 6);
+  expect(report.packages).toBe(44 * 6);
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {

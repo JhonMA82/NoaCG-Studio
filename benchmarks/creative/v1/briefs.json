@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "note": "The Creative Mode pilot brief banks (docs/CREATIVE_MODE_PLAN.md §10) with the EXPECTED-ROUTE table (§11). expectedRoute is what a correct router decides under the given mode: 'adapt' | 'create' | 'either' (genuinely defensible both ways - never counted as a routing failure). catalogAnchor names the catalog structure an 'adapt' expectation rests on; e2e/creative-routing.spec.ts re-verifies every anchor against the CURRENT catalog before the table is trusted (the brief-bank decay rule, plan §1.3). Routing runs are scripts/creative-route-bench.mjs (SPENDS TOKENS). An 'either' brief that resolves the same way across every benched model is a candidate for tightening into a real expectation at the next bank revision (§11 criterion 1); three were tightened to 'adapt' on 2026-07-30, leaving 27 scored briefs (8 lower third / 11 versus / 8 bracket) and 2 'either'.",
+  "briefs": [
+    {
+      "id": "lt-plain",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A clean news lower third: guest name with their role underneath, bottom-left, understated and broadcast-safe.",
+      "notes": "The MUST-route-ADAPT guard for the strongest catalog category."
+    },
+    {
+      "id": "lt-plain-create",
+      "category": "lower-third",
+      "mode": "create",
+      "expectedRoute": "create",
+      "brief": "A clean news lower third: guest name with their role underneath, bottom-left, understated and broadcast-safe.",
+      "notes": "Explicit create on a catalog-shaped brief - the mode is never overridden."
+    },
+    {
+      "id": "lt-original-auto",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A lower third for our tech show that looks unlike anything in your templates - our own look, surprising but still restrained and readable. Guest name and role.",
+      "notes": "Originality words in the brief must route create under auto (plan §2)."
+    },
+    {
+      "id": "lt-explicit-adapt",
+      "category": "lower-third",
+      "mode": "adapt",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A lower third that looks unlike anything in your templates. Guest name and role.",
+      "notes": "Explicit adapt beats the brief's originality words - the mode is never overridden."
+    },
+    {
+      "id": "lt-busy-plate",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A lower third for a concert broadcast that stays readable over a bright, busy stage: artist name and song title, strong separation from the background.",
+      "notes": "Legibility-over-plate is a styling demand, not a structural one."
+    },
+    {
+      "id": "lt-long-name-portrait",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A lower third with a small circular guest portrait beside the text: a very long academic name and a two-line title. Portrait is swapped per guest.",
+      "notes": "Tightened from 'either' after the 2026-07-30 routing runs: all four benched models (sonnet, qwen3-30b, gemma-3-12b, qwen3-coder-next) resolved it adapt. The structure is a strap; a portrait slot is a field demand, not a new structure."
+    },
+    {
+      "id": "lt-mood-board",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A lower third following the attached mood board's feel: warm, editorial, papery. Name and role.",
+      "notes": "Tightened from 'either' after the 2026-07-30 routing runs (all four benched models adapt): an inspiration reference is a styling demand over a carried structure, and the brief carries no originality request."
+    },
+    {
+      "id": "lt-three-line",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A three-line lower third: kicker (LIVE), name, and location line, left-aligned, newsroom-clean.",
+      "notes": "Well inside catalog capability."
+    },
+
+    {
+      "id": "vs-sports-classic",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "A fullscreen match-up card for a football derby: two team names and crests around a big VS, kickoff time underneath, dark arena mood.",
+      "notes": "The MUST-route-ADAPT guard for versus (vs01/vs02)."
+    },
+    {
+      "id": "vs-debate",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "An election debate head-to-head board: two candidates facing off tonight at 20:00, names and party tags, serious and balanced.",
+      "notes": "Non-sport skin over the carried two-side structure."
+    },
+    {
+      "id": "vs-cookoff-original",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A cook-off duel card for our streaming show - make it completely new, nothing like your existing designs: two chefs, their signature dishes, playful but premium.",
+      "notes": "Originality words route create under auto."
+    },
+    {
+      "id": "vs-editorial-create",
+      "category": "versus",
+      "mode": "create",
+      "expectedRoute": "create",
+      "brief": "A restrained, editorial chess match-up card: two grandmasters, ratings, round number. Quiet typography, print-like rules, no slabs.",
+      "notes": "Explicit create; the restrained end of the creative range."
+    },
+    {
+      "id": "vs-entertainment-loud",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "either",
+      "brief": "A Saturday-night entertainment face-off: two celebrity dance pairs, glitter and energy, audience votes coming later. Names, pair numbers.",
+      "notes": "Structure carried; energy may justify either route."
+    },
+    {
+      "id": "vs-branded",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "either",
+      "brief": "A match-up card in our club's brand (logos and mood board attached): two teams, league round, sponsor strip along the bottom.",
+      "notes": "Brand references; the sponsor strip stretches the catalog contract."
+    },
+    {
+      "id": "vs-long-names",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "A university debating final card: 'Universidad Nacional Autónoma de México' versus 'Eidgenössische Technische Hochschule Zürich', with faculty names underneath.",
+      "notes": "The long-name stress case."
+    },
+    {
+      "id": "vs-missing-asset",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "A qualifier match-up card where the away team has no crest available yet: show a clean placeholder on that side, names and date as usual.",
+      "notes": "The missing-asset state; catalog placeholders carry it."
+    },
+    {
+      "id": "vs-3way",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A three-way season finale card: three esports teams entering the grand final triangle, each with name, tag and seed number, equal visual weight.",
+      "notes": "Multi-competitor: no catalog two-side structure carries three equal sides."
+    },
+    {
+      "id": "vs-5way",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A five-contestant showdown board for a cooking knockout night: five names with portrait slots, arranged as one confrontation, not a list.",
+      "notes": "Multi-competitor, stronger."
+    },
+    {
+      "id": "vs-plate",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "A match-up card shown over a busy arena wide shot (plate attached): keep both names readable over crowd and lights.",
+      "notes": "Plate constraint is styling, not structure."
+    },
+    {
+      "id": "vs-transform-ref",
+      "category": "versus",
+      "mode": "create",
+      "expectedRoute": "create",
+      "brief": "Take the palette and typography voice of the attached poster, and build a completely new match-up composition from them: two fighters, tale-of-the-tape numbers.",
+      "notes": "The transform-reference case (plan §7)."
+    },
+    {
+      "id": "vs-winner-states",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:matchup",
+      "brief": "A match-up board where the operator picks the winner live and locks it in: two players, a select-winner moment, then a locked state.",
+      "notes": "The matchup graphic type carries exactly this machine."
+    },
+
+    {
+      "id": "br-4team-plain",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "type:bracket",
+      "brief": "A four-team single-elimination playoff bracket: semifinals and the final, team names, the current round highlighted.",
+      "notes": "The MUST-route-ADAPT guard for brackets (br01/br02 + the bracket type)."
+    },
+    {
+      "id": "br-8team",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "type:bracket",
+      "brief": "An eight-team knockout bracket for a summer cup: quarterfinals through the final, scores where played, the champion crowned at the end.",
+      "notes": "br01 groups rounds from one textarea at any depth."
+    },
+    {
+      "id": "br-8team-create",
+      "category": "bracket",
+      "mode": "create",
+      "expectedRoute": "create",
+      "brief": "An eight-team knockout bracket for a summer cup: quarterfinals through the final, scores where played, the champion crowned at the end.",
+      "notes": "The same brief under explicit create - the structural-generalization arm."
+    },
+    {
+      "id": "br-long-names",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "type:bracket",
+      "brief": "A four-team university esports bracket with long institution names on every tie, kept readable without shrinking below broadcast size.",
+      "notes": "Long-name stress inside the tree."
+    },
+    {
+      "id": "br-logos",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "type:bracket",
+      "brief": "An eight-team bracket with each club's crest beside its name, some crests missing until clubs deliver them.",
+      "notes": "Tightened from 'either' after the 2026-07-30 routing runs (all four benched models adapt): the tree is the bracket type's own structure and crests are a field demand inside it - not the beyond-scope case br-double-elim guards."
+    },
+    {
+      "id": "br-in-progress",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "type:bracket",
+      "brief": "A live tournament bracket mid-event: quarterfinals finished with scores, semifinals upcoming without, the active match highlighted.",
+      "notes": "Completed/active/upcoming is the type's own model."
+    },
+    {
+      "id": "br-original",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A playoff bracket that looks nothing like a standard tree - our own take for a youth gaming channel, still clearly showing who plays whom and who advanced.",
+      "notes": "Originality words route create; the structure requirements stay full."
+    },
+    {
+      "id": "br-double-elim",
+      "category": "bracket",
+      "mode": "auto",
+      "expectedRoute": "create",
+      "brief": "A double-elimination bracket with a losers' route and a grand final reset, six teams.",
+      "notes": "Outside the bounded single-elimination scope: the honest outcome is a create attempt or a typed simplification offer - NEVER a silently wrong single-elim tree (plan §10.3)."
+    }
+  ]
+}

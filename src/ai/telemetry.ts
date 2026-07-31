@@ -16,7 +16,11 @@ import type { CreativeAiProfileId } from './liteTypes';
 export type AiUsage = Pick<ModelUsage, 'inputTokens' | 'outputTokens'>
   & Partial<Pick<ModelUsage, 'totalTokens' | 'cachedInputTokens' | 'reasoningTokens' | 'estimatedCost'>>;
 
-export type AiRunKind = 'generate' | 'modify' | 'convert' | 'fix' | 'make-ready';
+export type AiRunKind =
+  | 'generate' | 'modify' | 'convert' | 'fix' | 'make-ready'
+  // The video harness records through the same ring (plan §5 - it recorded nothing
+  // before). Consumers filter by kind, so the SPX statistics never mix with these.
+  | 'video-generate' | 'video-refine';
 
 export interface AiStageRecord {
   /** Stage name ('design-spec', 'assemble', 'coder', 'repair-1', 'bench', …). */
@@ -52,6 +56,20 @@ export interface AiRunRecord {
   /** Validation rules still failing at the end (empty when ok). */
   errorRules?: string[];
   diversity?: AiDiversity;
+  /** The phase-A routing record (docs/CREATIVE_MODE_PLAN.md §2): the request mode, the
+   *  adapt/create decision, and the intent classification behind it - what the routing
+   *  benchmark aggregates. Additive optional, absent on pre-routing records. */
+  routing?: AiRoutingRecord;
+}
+
+export interface AiRoutingRecord {
+  mode: 'adapt' | 'create' | 'auto';
+  route: 'adapt' | 'create';
+  reason?: string;
+  /** The intent's classification: kind plus its identifier (type id / first family). */
+  intentKind?: string;
+  confidence?: 'high' | 'medium' | 'low';
+  originalityRequested?: boolean;
 }
 
 const STORAGE_KEY = 'spx-gfx-ai-telemetry';
@@ -95,6 +113,7 @@ export interface AiRunRecorder {
   stage(name: string, startedMs: number, model?: string, usage?: AiUsage): void;
   repair(): void;
   route(route: AiPath): void;
+  routing(r: AiRoutingRecord): void;
   managed(profile: CreativeAiProfileId, generationId: string): void;
   diversity(d: AiDiversity): void;
   finish(ok: boolean, errorRules?: string[]): AiRunRecord;
@@ -121,6 +140,9 @@ export function startAiRun(kind: AiRunKind): AiRunRecorder {
     },
     route(route) {
       record.route = route;
+    },
+    routing(r) {
+      record.routing = r;
     },
     managed(profile, generationId) {
       record.profile = profile;

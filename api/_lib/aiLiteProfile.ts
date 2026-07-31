@@ -1,25 +1,29 @@
 import type { ModelPrice, OpenRouterRoutingPolicy } from './aiGateway.js';
+import { approvedModelPrices } from './aiModelCatalog.js';
 import type { AiProviderId, ModelRoute } from '../../src/ai/modelTypes.js';
 import { LITE_AI_CATEGORIES } from '../../src/ai/liteContract.js';
 import type { LitePublicLimits } from '../../src/ai/liteTypes.js';
 
-const intEnv = (name: string, fallback: number, min: number, max: number): number => {
+// Shared AI-profile env readers: exported because every managed task profile
+// (aiImportAnalysisProfile.ts is the second) parses its knobs the same clamped,
+// typo-tolerant way - a malformed value falls back rather than removing a guard.
+export const intEnv = (name: string, fallback: number, min: number, max: number): number => {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.round(parsed))) : fallback;
 };
 
-const numberEnv = (name: string, fallback: number, min: number, max: number): number => {
+export const numberEnv = (name: string, fallback: number, min: number, max: number): number => {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 };
 
-const boolEnv = (name: string, fallback = false): boolean => {
+export const boolEnv = (name: string, fallback = false): boolean => {
   const value = process.env[name]?.trim().toLowerCase();
   if (!value) return fallback;
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 };
 
-function route(providerName: string | undefined, modelName: string | undefined, fallback: ModelRoute): ModelRoute {
+export function envRoute(providerName: string | undefined, modelName: string | undefined, fallback: ModelRoute): ModelRoute {
   const provider = providerName?.trim() as AiProviderId | undefined;
   const model = modelName?.trim();
   return provider && ['anthropic', 'openai', 'openrouter'].includes(provider) && model
@@ -90,31 +94,53 @@ export interface LiteProfile {
    *  CSS. Off by default — turning it on widens the schema, teaches it in the prompt, and
    *  needs the larger output budget below. The browser reverts a failing skin on its own. */
   skinEnabled: boolean;
+  /** The skin VISION JUDGE: one server-owned vision call scoring the rendered hold frame.
+   *  Off by default; independent of skinEnabled so the judge can be staged separately. */
+  judgeEnabled: boolean;
+  judgeRoute: ModelRoute;
+  judgeMaxCostUsd: number;
+  /** How many judgements ONE generation may book. The judge spends real money against a
+   *  record the caller already owns, so without a cap a single old generation id is an
+   *  unbounded spend handle - the per-IP burst limiter is not an entitlement. */
+  judgeMaxPerGeneration: number;
+  judgeOutputTokens: number;
+  judgeEstimatedInputTokens: number;
+  /** Minimum every judge axis must reach for a pass (1-5). Calibrate against blind review
+   *  before trusting it in production - see docs/AI_LITE_BENCHMARK.md. */
+  judgeThreshold: number;
 }
 
 export function liteProfile(): LiteProfile {
   const skinEnabled = boolEnv('AI_LITE_SKIN_ENABLED');
-  const primary = route(
+  const primary = envRoute(
     process.env.AI_LITE_PRIMARY_PROVIDER,
     process.env.AI_LITE_PRIMARY_MODEL,
     { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
   );
-  const fallback = route(
+  const fallback = envRoute(
     process.env.AI_LITE_FALLBACK_PROVIDER,
     process.env.AI_LITE_FALLBACK_MODEL,
     { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
   );
+  const judgeRoute = envRoute(
+    process.env.AI_LITE_JUDGE_PROVIDER,
+    process.env.AI_LITE_JUDGE_MODEL,
+    { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+  );
+  // The base table IS the approved-route catalog's audited price snapshot. Env
+  // overrides may adjust a price, but they cannot approve a route - approval is the
+  // task registry's catalog gate (aiTaskRegistry.taskConfigured).
   const prices: Record<string, ModelPrice> = {
-    'openrouter:google/gemini-2.5-flash-lite': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-    'openrouter:qwen/qwen3-coder-next': { inputPerMillion: 0.11, outputPerMillion: 0.80 },
-    'openrouter:mistralai/mistral-small-2603': { inputPerMillion: 0.15, outputPerMillion: 0.60 },
-    'openrouter:mistralai/mistral-small-24b-instruct-2501': { inputPerMillion: 0.05, outputPerMillion: 0.08 },
+    ...approvedModelPrices(),
     ...priceOverrides(),
   };
   return {
     id: 'lite',
     enabled: boolEnv('AI_LITE_ENABLED'),
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v2').trim().slice(0, 64) || 'lite-lower-third-v2',
+    // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
+    // The ledger records this per generation, so outcomes stay attributable to the prompt
+    // that produced them - bump it whenever the teaching changes, never silently.
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v3').trim().slice(0, 64) || 'lite-lower-third-v3',
     primary,
     fallback,
     prices,
@@ -150,6 +176,16 @@ export function liteProfile(): LiteProfile {
     },
     supportedCategories: [...LITE_AI_CATEGORIES],
     skinEnabled,
+    judgeEnabled: boolEnv('AI_LITE_JUDGE_ENABLED'),
+    judgeRoute,
+    judgeMaxCostUsd: numberEnv('AI_LITE_JUDGE_MAX_COST_USD', 0.004, 0.0001, 0.1),
+    // Three: one judgement plus room for two transient provider retries. Attempts count,
+    // not successes - a retry loop must not be able to spin the spend up.
+    judgeMaxPerGeneration: intEnv('AI_LITE_JUDGE_MAX_PER_GENERATION', 3, 1, 20),
+    judgeOutputTokens: intEnv('AI_LITE_JUDGE_OUTPUT_TOKENS', 400, 100, 2000),
+    // One downscaled PNG plus the brief; vision tiles dominate, so keep the estimate fat.
+    judgeEstimatedInputTokens: intEnv('AI_LITE_JUDGE_INPUT_TOKENS', 4000, 1000, 20_000),
+    judgeThreshold: intEnv('AI_LITE_JUDGE_THRESHOLD', 3, 1, 5),
     overrideUserIds: (process.env.AI_LITE_OVERRIDE_USER_IDS ?? '')
       .split(',')
       .map((value) => value.trim())
@@ -200,4 +236,30 @@ export function liteProfileConfigured(profile: LiteProfile): boolean {
     if (item.provider !== 'openrouter') return true;
     return Boolean(routePrice(profile, item)) && profile.openRouterProviders.length > 0;
   });
+}
+
+/** The judge fails closed exactly like the generation routes: enabled + priced + (for
+ *  OpenRouter) allowlisted, or it does not run at all. */
+export function liteJudgeConfigured(profile: LiteProfile): boolean {
+  if (!profile.judgeEnabled) return false;
+  if (profile.judgeRoute.provider !== 'openrouter') return true;
+  return Boolean(routePrice(profile, profile.judgeRoute)) && profile.openRouterProviders.length > 0;
+}
+
+/** The judge route's OpenRouter policy. Its price caps come from the judge route's OWN
+ *  price entry - the generation routes' caps would refuse a costlier vision model. */
+export function liteJudgePolicy(profile: LiteProfile): OpenRouterRoutingPolicy | undefined {
+  if (profile.judgeRoute.provider !== 'openrouter') return undefined;
+  const price = routePrice(profile, profile.judgeRoute);
+  if (!price || profile.openRouterProviders.length === 0) return undefined;
+  return {
+    zdr: profile.requireZdr,
+    dataCollection: 'deny',
+    requireParameters: true,
+    allowProviderFallbacks: false,
+    only: profile.openRouterProviders,
+    maxInputPerMillion: price.inputPerMillion,
+    maxOutputPerMillion: price.outputPerMillion,
+    structuredOutputMode: profile.openRouterStructuredMode,
+  };
 }

@@ -118,6 +118,20 @@ test('the system prompt teaches the skin only when the profile enables it', () =
   assert.match(contract.liteSystemPrompt('v', [], { skin: true }), /Skin Canvas/);
 });
 
+test('the judge tolerates the scene-scale motifs the frozen briefs actually ask for', () => {
+  // The skin briefs name things no lower third can hold. Scored as a checklist, briefFit
+  // demanded them: 7 of 12 neon rows were marked down for a missing "eighties horizon" and
+  // all 12 landed at 1-3, while the generation prompt was ordering the model to stay a
+  // strap (docs/AI_LITE_BENCHMARK.md §6e). The briefs are drift-pinned fixtures, so the
+  // JUDGE is the side that has to give - this pins both halves so neither drifts alone.
+  const briefs = read('scripts/ai-lite-lower-third-fixtures.mjs');
+  assert.match(briefs, /eighties horizon/, 'the neon brief still names a scene element');
+  assert.match(briefs, /vast negative space/, 'the luxury brief names one too');
+  const judge = contract.liteJudgeSystemPrompt('v');
+  assert.match(judge, /STRAP SCALE/);
+  assert.match(judge, /never mark a graphic down for lacking a scene element/);
+});
+
 const GOLD_SKIN = {
   summary: 'A brutalist concrete slab with stencil type.',
   css: '.lower-third-box { background: var(--panel-bg); border: calc(3px * var(--scale)) solid var(--accent); }',
@@ -138,6 +152,19 @@ test('liteSkinPatchErrors: a legal patch passes, every forbidden construct is na
   assert.ok(errorsFor({ html: '<script>alert(1)</script>' }).includes('skin_html_script'));
   assert.ok(errorsFor({ html: '<img src="https://cdn.example/x.png">' })
     .includes('skin_html_external_reference'));
+  // clip-path clips PAINT while every deterministic check we own measures LAYOUT, so a
+  // sliced letter passes the bench silently (docs/AI_LITE_BENCHMARK.md §6d).
+  assert.ok(errorsFor({ css: '.lower-third-box { clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%); }' })
+    .includes('skin_css_clip_path'));
+  assert.ok(errorsFor({ css: '.lower-third-box { -webkit-clip-path: inset(0 4% 0 0); }' })
+    .includes('skin_css_clip_path'));
+  assert.ok(errorsFor({ html: '<div style="clip-path:inset(0 10% 0 0)"></div>' })
+    .includes('skin_html_clip_path'));
+  // The check must not swallow background-clip, which is how gradient text is done.
+  assert.deepEqual(
+    errorsFor({ css: '.lower-third-name { -webkit-background-clip: text; background-clip: text; }' }),
+    [],
+  );
   assert.deepEqual(contract.liteSkinPatchErrors('nope'), ['skin_shape_invalid']);
 });
 
@@ -230,6 +257,25 @@ test('the repair suite expectations match validateLiteDecision exactly', () => {
   for (const item of REPAIR_SUITE) {
     const result = contract.validateLiteDecision(item.decision, item.request);
     assert.deepEqual([...result.errors].sort(), [...item.expectErrors].sort(), item.id);
+  }
+});
+
+test('every rule the repair suite can trigger carries an actionable instruction', () => {
+  // The repair round is only worth its call if the model is told what to CHANGE - handed
+  // bare codes it re-emits the same decision (measured). This pins coverage against REAL
+  // failing decisions, so a new rule code cannot ship without guidance behind it.
+  const codes = new Set(REPAIR_SUITE.flatMap((item) =>
+    contract.validateLiteDecision(item.decision, item.request).errors));
+  assert.ok(codes.size > 0, 'the repair suite must still produce failures to cover');
+  for (const code of codes) {
+    const [instruction] = contract.liteRepairInstructions([code]);
+    assert.ok(instruction, `${code} has an instruction`);
+    // The generic fallback echoes the code; a real instruction never does.
+    assert.doesNotMatch(
+      instruction,
+      new RegExp(code.split(':')[0]),
+      `${code} still falls back to echoing itself - add guidance to REPAIR_GUIDANCE`,
+    );
   }
 });
 

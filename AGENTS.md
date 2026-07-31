@@ -51,10 +51,12 @@ troubleshooting a stuck server). `.claude/launch.json` and `.claude/dev-port.jso
 from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
 everything. `npm run test:ports` covers the allocator.
 
-**Two pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
+**Three pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
 shim so old root `?chat=`/`?template=` share links land on `/app` with their query); `app.html` is
 the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
-in production). E2E specs navigate to `/app`.
+in production); `admin.html` is the PRIVATE admin surface at `/admin` - unlinked from everything,
+`noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**).
+E2E specs navigate to `/app`.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
 Verify product changes with `npm run build` plus in-browser checks (below); never mark work done
@@ -187,6 +189,10 @@ src/
                feature-detection point (unset env = pure offline mode); auth, sync, assets
   community/   shared templates (signed-in only), validated + benched at publish AND import;
                showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
+  entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence
+               default < plan < temporary grant < manual override, every value carrying WHY
+  admin/       the PRIVATE admin page (its own MPA entry at /admin) - unlinked, noindex,
+               a plain 404 for anyone api/admin/* does not recognise. Never a security boundary
   components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
                timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
                (SaveControls + the save/guard dialogs), home/ (the routed HomePage +
@@ -198,9 +204,12 @@ public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports)
 scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATION - docs/
                DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, type-floor.mjs + overflow-sweep.mjs (catalog
                quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
-               render-smoke*.mjs, hooks/ (guard hooks wired in .claude/settings.json)
+               render-smoke*.mjs, worktree-activity.mjs (who else is in flight) +
+               merge-order.mjs (which branch should land FIRST - see Git below),
+               hooks/ (guard hooks wired in .claude/settings.json)
   api/         server-only Vercel functions: the render service plus the Creative AI model
-               gateway, NoaCG Lite profile/allowance endpoints, and sealed user-key endpoints;
+               gateway, NoaCG Lite profile/allowance endpoints, sealed user-key endpoints, and
+               api/admin/* behind _lib/adminAuth.ts (404 for every refusal - docs/ADMIN.md);
                typechecked by tsconfig.api.json
 render-worker/ the Remotion renderer and player-host/ the preview host - own exact-pinned packages
 player-host/   so the non-OSI license never enters the AGPL bundle. The player host is built into
@@ -255,9 +264,13 @@ workflow files, so a new nested area or shared command needs no separate registr
 correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
-  real dev server): `npm run test:e2e`, and add a spec for any new flow. For the inner loop,
-  `npm run test:e2e:affected` maps changed files to covering specs (`scripts/e2e-affected.mjs`) -
-  the FULL suite is the merge gate. Bootstrap non-wizard specs with `createProject` (`e2e/_create.ts`).
+  real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
+  (docs/DEPLOYMENT.md): `npm run test:e2e:affected` maps changed files to covering specs
+  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
+  suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
+  gate, and the mapper escalates to everything whenever it is unsure. When you add a spec, add
+  its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
+  with `createProject` (`e2e/_create.ts`).
 - **Logic checks without UI (fast path):** Vite serves source modules, so in a browser context you
   can `await import('/src/blocks/registry.ts?t=' + Date.now())`, apply blocks to
   `createBlankTemplate(...)`, run `validateTemplate`, and load `composeDocument(tpl)` into a hidden
@@ -276,11 +289,24 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
   change). Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
   `e2e/catalog/catalog-bench.spec.ts`) is the ONLY gate that catches a design growing past its
-  width budget (it doubles every text value), so run it too. It is intentionally excluded from
-  the default `npm run test:e2e` merge-gate suite - benching every catalog variant across every
-  category is the single heaviest thing in the suite, and (like the other two gates above) it
-  only needs to run when the catalog or `src/validation/runtimeBench.ts` actually changed;
-  `npm run test:e2e:affected` already knows this and runs it automatically when relevant.
+  width budget (it doubles every text value), so run it too. It is excluded from the default
+  `npm run test:e2e` suite - benching every catalog variant across every category is the single
+  heaviest thing here, and (like the other two gates above) it only needs to run when the
+  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the four is left to
+  memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
+  runs it on that flag, and the NIGHTLY sweep runs all four unconditionally - so an unrun
+  catalog gate is now caught by morning rather than never.
+  The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
+  meaningful visible string an operator cannot reach through a data field. It does not read the
+  markup for `id="fN"` - a standings row, a ticker item and a credits line are all BUILT by a
+  runtime from ONE `lines` field, so an id check would either miss them or need a special case
+  per category. Instead it renders the graphic, drives EVERY data field to a sentinel through
+  `update()`, and re-reads the screen: anything that did not move is not operator-reachable.
+  Two kinds of thing are excused IN THE SCRIPT, each with its reason written down - an
+  empty-slot placeholder for an image (`filelist`) field, which IS a field and is replaced by
+  the picked file, and a value the runtime computes rather than anyone types (a wall clock).
+  A `filelist` cannot be driven (there is no image to point at), so the run reports those
+  variants as NOT DRIVEN rather than counting them as passes.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the
@@ -298,7 +324,9 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 - In Playwright specs, **never clear localStorage via `addInitScript`** - it also runs in the
   same-origin srcdoc preview iframe, so every rebuild wipes the key (this silently deleted the
   project brand). Fresh browser contexts already isolate storage per test.
-- The preview rebuilds on a ~350 ms debounce after `applyTemplate` - never sleep it out. Use
+- The preview rebuilds on a debounce after `applyTemplate` - 350 ms when authoring, **50 ms under
+  the e2e suite** (`VITE_PREVIEW_DEBOUNCE_MS`, pinned in playwright.config.ts). Never sleep out
+  either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
@@ -317,21 +345,34 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 ## Git
 
 - Most work happens on a **feature branch**, usually in a worktree - several are typically active
-  at once. If a session starts on `main` with work to do, branch first. The rhythm: **commit each
-  completed, verified phase/step** to the FEATURE BRANCH with a descriptive message. **Never add a
+  at once, so `node scripts/worktree-activity.mjs` prints what is in flight elsewhere before you
+  start something that collides: every OTHER worktree's uncommitted and not-yet-merged files,
+  then every branch ahead of `main` that no worktree has checked out (a closed session leaves its
+  work there, so it still collides even though nobody is in it). If a session starts on `main`
+  with work to do, branch first. The rhythm: **commit
+  each completed, verified phase/step** to the FEATURE BRANCH with a descriptive message. **Never add a
   `Co-Authored-By` trailer or any agent co-author.** Don't commit `dist/` in feature work.
 - **`main` is only ever touched when the user asks for it, in that message - from ANY checkout.**
   Nothing lands on your own initiative: no commit made while sitting on `main`, no `git merge` into
   main, no `git push origin main`. Being in the primary checkout on `main` is not
   permission to land - the user decides when work lands, *after* they know the change is safe.
   Commit verified work to the feature branch, report what you did and verified, and STOP.
-- **The one exception is invoking the repo's merge-to-main flow by name** (`/safe-merge` in
+- **The one exception is the user invoking the repo's merge-to-main flow** (`/safe-merge` in
   Claude Code or `$safe-merge` in Codex). Invoking it IS the ask: run that flow to completion for
   the named branch - preflight, merge into `main`, and push - without asking again for the merge
-  or push. It does not authorize branch or worktree cleanup. The permission is scoped to that
-  invocation and that branch; it never carries to another branch, a later turn, or any other route
-  onto `main`. If the flow's checks fail, stop and report - permission to run the flow is not
-  permission to land something broken.
+  or push. **Selecting the safe-merge option from a pick the `next` workflow offered counts as
+  invoking it** - the user chose that branch deliberately, so run the flow rather than telling
+  them to type the command; see `.agent-workflows/next.md` §2c. It does not authorize branch or
+  worktree cleanup. The permission is scoped to that invocation and that branch; it never carries
+  to another branch, a later turn, or any other route onto `main`. If the flow's checks fail,
+  stop and report - permission to run the flow is not permission to land something broken.
+- **Merge ORDER is checked, not guessed.** `node scripts/merge-order.mjs` ranks every branch
+  ahead of `main` by what landing it FIRST costs the other worktrees, measuring real conflicts
+  with `git merge-tree` (read-only - no working tree, no ref) and naming the collisions git
+  merges cleanly and still gets wrong: a rename over another branch's edits, two branches minting
+  the same migration number, a stacked branch jumping its ancestor. `next` uses it to avoid
+  recommending an expensive landing; `safe-merge` runs it in Phase 1 and stops for a go-ahead
+  only on a `hold`. It is advisory about order alone and never overrides a Hard safety rule.
 - **Commit messages:** clear and human-readable, explaining the actual change - understandable to an
   outside developer reading the history cold. No chat/session language, internal planning names, or
   AI-sounding phrases ("as requested", "starting era 5", "continued work"). Never mention Claude,

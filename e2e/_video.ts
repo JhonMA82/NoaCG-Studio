@@ -4,6 +4,7 @@
 // the repair loop, the apply - runs exactly as in production, on emits we choose.
 
 import { expect, type Page, type Route } from '@playwright/test';
+import { acceptAiNotice } from './_ai-notice';
 
 /** The player host iframe's content (Playwright reaches into sandboxed frames). */
 export function player(page: Page) {
@@ -54,11 +55,26 @@ export async function mockClaude(
   page: Page,
   modules: EmittedModule[],
   { delayMs = 0 }: { delayMs?: number } = {},
-): Promise<{ emits: () => number }> {
+): Promise<{ emits: () => number; surfaces: () => (string | undefined)[] }> {
   let emits = 0;
+  const surfaces: (string | undefined)[] = [];
   await page.route('/api/ai/generate', async (route: Route) => {
-    const body = route.request().postDataJSON() as { request?: { structuredOutput?: { name?: string } } };
+    const body = route.request().postDataJSON() as {
+      surface?: string;
+      request?: { structuredOutput?: { name?: string } };
+    };
     const tool = body.request?.structuredOutput?.name ?? '';
+    surfaces.push(body.surface);
+    // Asserted HERE, in the shared mock, rather than in one spec: every video model call must
+    // carry the surface tag api/ai/generate.ts gates ai.video on (docs/ADMIN.md), and a call
+    // site that forgot it still works - it just stops being gateable, silently. Checking the
+    // wire in the one place all video traffic passes through means any spec that drives a new
+    // video call enforces the tag for free. Named explicitly in video-surface-tag.spec.ts.
+    expect(
+      body.surface,
+      `a video model call (${tool || 'coder'}) reached the gateway WITHOUT surface: 'video' - ` +
+        'it bypassed src/ai/video/videoGateway.ts and would escape the ai.video entitlement',
+    ).toBe('video');
     if (tool === 'emit_motion_plan') return route.fulfill(toolResponse(tool, MOTION_PLAN));
     if (tool === 'detect_skills') return route.fulfill(toolResponse(tool, { skills: [] }));
     const module = modules[Math.min(emits, modules.length - 1)];
@@ -66,7 +82,7 @@ export async function mockClaude(
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     return route.fulfill(toolResponse('emit_remotion_module', module));
   });
-  return { emits: () => emits };
+  return { emits: () => emits, surfaces: () => [...surfaces] };
 }
 
 /**
@@ -102,6 +118,9 @@ export async function useFakeAiKey(page: Page): Promise<void> {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
+  // A configured provider makes the remote path live, so the disclosure gate would open
+  // before the first generation - these specs test generation, not the notice.
+  await acceptAiNotice(page);
 }
 
 /**
@@ -136,5 +155,7 @@ export async function createVideoProject(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Countdown', exact: true }).click();
   await page.getByTestId('video-create').click();
   await expect(page.getByTestId('video-shell')).toBeVisible();
-  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 20_000 });
+  // 30 s: a first generation runs the harness plus an untimed live probe against the player
+  // host. Same budget and same reasoning as the specs' own waitForGeneration helpers.
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 }

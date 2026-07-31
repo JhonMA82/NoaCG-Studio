@@ -17,12 +17,35 @@ export type LiteGenerationStatus =
   | 'failed'
   | 'expired';
 
+/** The ledger row discriminators migration 0015's CHECK constraint admits. The task
+ *  registry maps task ids onto these ('lite-design-spec' -> 'lite'); a new value ships
+ *  its constraint migration in the same commit. */
+export type AiLedgerProfile = 'lite' | 'import-analysis';
+
+/** The quota subset a reservation needs - LiteProfile and ImportAnalysisProfile both
+ *  satisfy it structurally, which is what lets one store admit every task's ledger
+ *  traffic with per-profile counting (ai_task_usage). */
+export interface LedgerQuotaProfile {
+  id: AiLedgerProfile;
+  promptVersion: string;
+  maxProviderCostUsd: number;
+  dailyStarts: number;
+  monthlyStarts: number;
+  dailySuccesses: number;
+  monthlySuccesses: number;
+  maxConcurrentPerUser: number;
+  maxConcurrentFleet: number;
+  dailyFleetSpendUsd: number;
+  expiryMs: number;
+}
+
 export interface LiteGenerationRecord {
   id: string;
   userId: string;
   ipHash: string;
   idempotencyKey: string;
-  profile: 'lite';
+  /** The ledger row discriminator (see AiLedgerProfile). */
+  profile: AiLedgerProfile;
   status: LiteGenerationStatus;
   promptVersion: string;
   requestedCategory: string | null;
@@ -42,6 +65,8 @@ export interface LiteGenerationRecord {
   runtimeMs: number | null;
   rejectionReason: string | null;
   feedbackReason: string | null;
+  /** Skin vision judgements booked against this generation (the per-generation cap). */
+  judgeCount: number;
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
@@ -62,18 +87,40 @@ export type LiteReservation =
   | { status: 'duplicate'; record: LiteGenerationRecord }
   | { status: 'daily-start-limit' | 'monthly-start-limit' | 'daily-success-limit' | 'monthly-success-limit' | 'user-concurrency' | 'fleet-concurrency' | 'fleet-spend' };
 
+/** The judge's own admission verdict. 'not-found' covers both a missing record and one
+ *  owned by somebody else, so the endpoint cannot become a generation-id oracle. */
+export type LiteJudgeReservation =
+  | { status: 'created'; judgeCount: number }
+  | { status: 'not-found' | 'expired' | 'judge-limit' | 'fleet-spend' };
+
 export interface LiteGenerationStore {
-  usage(userId: string, now: number): Promise<LiteUsageSnapshot>;
+  /** Per-profile counting: one task's traffic never consumes another's allowance. */
+  usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot>;
   reserve(input: {
     userId: string;
     ipHash: string;
     idempotencyKey: string;
     requestedCategory: string | null;
     now: number;
-    profile: LiteProfile;
+    profile: LedgerQuotaProfile;
   }): Promise<LiteReservation>;
   get(id: string): Promise<LiteGenerationRecord | null>;
   update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null>;
+  /**
+   * Admit ONE skin judgement against a generation the user owns, atomically: ownership,
+   * liveness, the per-generation cap, and the daily fleet spend ceiling are decided
+   * together, and the judge's worst-case cost is BOOKED before the call. Booking first is
+   * what makes concurrent judgements safe - adding the cost afterwards from a value read
+   * before the call loses one of two overlapping judgements.
+   */
+  reserveJudge(input: {
+    generationId: string;
+    userId: string;
+    now: number;
+    profile: LiteProfile;
+  }): Promise<LiteJudgeReservation>;
+  /** Reconcile a booked worst case to the provider's real number (never below zero). */
+  settleJudgeCost(id: string, deltaUsd: number): Promise<void>;
   qualityPriors(input: {
     now: number;
     windowDays: number;
@@ -90,7 +137,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     userId: input.userId,
     ipHash: input.ipHash,
     idempotencyKey: input.idempotencyKey,
-    profile: 'lite',
+    profile: input.profile.id,
     status: 'reserved',
     promptVersion: input.profile.promptVersion,
     requestedCategory: input.requestedCategory,
@@ -111,6 +158,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     runtimeMs: null,
     rejectionReason: null,
     feedbackReason: null,
+    judgeCount: 0,
     createdAt: input.now,
     updatedAt: input.now,
     expiresAt: input.now + input.profile.expiryMs,
@@ -136,8 +184,8 @@ const MONTH = 30 * DAY;
 export class MemoryLiteGenerationStore implements LiteGenerationStore {
   private readonly records = new Map<string, LiteGenerationRecord>();
 
-  async usage(userId: string, now: number): Promise<LiteUsageSnapshot> {
-    const records = [...this.records.values()];
+  async usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot> {
+    const records = [...this.records.values()].filter((record) => record.profile === profileId);
     const userRecords = records.filter((record) => record.userId === userId);
     return {
       dailyStarts: userRecords.filter((record) => record.createdAt >= now - DAY).length,
@@ -157,7 +205,7 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
       record.userId === input.userId && record.idempotencyKey === input.idempotencyKey,
     );
     if (duplicate) return { status: 'duplicate', record: duplicate };
-    const usage = await this.usage(input.userId, input.now);
+    const usage = await this.usage(input.profile.id, input.userId, input.now);
     if (usage.dailyStarts >= input.profile.dailyStarts) return { status: 'daily-start-limit' };
     if (usage.monthlyStarts >= input.profile.monthlyStarts) return { status: 'monthly-start-limit' };
     if (usage.dailySuccesses >= input.profile.dailySuccesses) return { status: 'daily-success-limit' };
@@ -174,6 +222,35 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
 
   async get(id: string): Promise<LiteGenerationRecord | null> {
     return this.records.get(id) ?? null;
+  }
+
+  async reserveJudge(input: Parameters<LiteGenerationStore['reserveJudge']>[0]): Promise<LiteJudgeReservation> {
+    const record = this.records.get(input.generationId);
+    if (!record || record.userId !== input.userId) return { status: 'not-found' };
+    if (record.expiresAt <= input.now) return { status: 'expired' };
+    if (record.judgeCount >= input.profile.judgeMaxPerGeneration) return { status: 'judge-limit' };
+    const usage = await this.usage('lite', input.userId, input.now);
+    if (usage.dailyFleetSpendUsd + input.profile.judgeMaxCostUsd > input.profile.dailyFleetSpendUsd) {
+      return { status: 'fleet-spend' };
+    }
+    const next: LiteGenerationRecord = {
+      ...record,
+      judgeCount: record.judgeCount + 1,
+      providerCostUsd: record.providerCostUsd + input.profile.judgeMaxCostUsd,
+      updatedAt: input.now,
+    };
+    this.records.set(record.id, next);
+    return { status: 'created', judgeCount: next.judgeCount };
+  }
+
+  async settleJudgeCost(id: string, deltaUsd: number): Promise<void> {
+    const current = this.records.get(id);
+    if (!current) return;
+    this.records.set(id, {
+      ...current,
+      providerCostUsd: Math.max(0, current.providerCostUsd + deltaUsd),
+      updatedAt: Date.now(),
+    });
   }
 
   async update(id: string, patch: Partial<LiteGenerationRecord>): Promise<LiteGenerationRecord | null> {
@@ -223,11 +300,6 @@ function evaluationMemoryLedgerEnabled(): boolean {
   return process.env.AI_LITE_EVAL_MEMORY_LEDGER === '1'
     && process.env.NODE_ENV !== 'production'
     && process.env.VERCEL !== '1';
-}
-
-export function resetLiteGenerationStoreForTests(): void {
-  memoryStore = null;
-  storePromise = null;
 }
 
 /** Managed Lite must never depend on an ephemeral function instance for quotas or IP hashing. */

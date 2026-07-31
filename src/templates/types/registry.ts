@@ -33,7 +33,7 @@ import {
 import { countdownType, holdingScreenType } from './clocks';
 import { esportsScoreType, mapRoundType } from './esports';
 import { headToHeadType, matchupType, playerCardType } from './matchups';
-import { bracketType, rosterType, standingsType } from './competitionBoards';
+import { bracketType, rosterType, standingsType, timingTowerType } from './competitionBoards';
 import { awardRevealType, nomineeRevealType, verdictCardType, winnerCardType } from './reveals';
 import { quizBoardType } from './quizBoard';
 import { threeAnswerBoardType, twoAnswerBoardType } from './answerBoard';
@@ -45,6 +45,7 @@ import { IDENTITY_BUG_TYPES } from './identityBugs';
 import { transitionType } from './transitions';
 import { alertLevelType } from './alertLevel';
 import { publicNoticeType } from './publicNotice';
+import { eventNotificationType } from './eventNotification';
 
 /** Every registered type, in the reference data's frequency order (the count is how many of
  *  the 60 reference formats ask for that graphic). The last three of the original twelve earn
@@ -106,6 +107,12 @@ export const TYPES: GraphicType[] = [
   rosterType,
   standingsType,
   bracketType,
+  // The live half of the same question the standings board answers after the fact: what the
+  // order IS while the session is still running. It earns its place by what no other type
+  // could stand in for — a full-harness AI bench asked four models for a motorsport timing
+  // tower and every one of them produced a lower third, because the nearest catalog match to
+  // "a narrow column of positions" was a strap.
+  timingTowerType,
   nomineeRevealType,
   verdictCardType,
   winnerCardType,
@@ -129,6 +136,7 @@ export const TYPES: GraphicType[] = [
   // whose states are the LANGUAGE the message is currently in.
   alertLevelType,
   publicNoticeType,
+  eventNotificationType,
   // ── The SPORTS pack (docs/SPORTS_PACK.md). Five types covering what a live sports
   // broadcast keeps on air, from a district-league phone stream to a stadium show. They
   // earn their place by coverage rather than by the reference sheet's frequency: that sheet

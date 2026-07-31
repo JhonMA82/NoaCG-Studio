@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '../../backend/auth';
+import { trackEvent } from '../../backend/events';
 import { useAuthState } from './useAuthState';
 import { useAuthUi } from './authUi';
 import BrandLogo from '../BrandLogo';
@@ -73,7 +74,14 @@ export default function SignInDialog() {
       return;
     }
     // On sign-in, the auth subscription closes the dialog. On sign-up, confirm-email first.
-    if (mode === 'signup') setNote('Check your email to confirm your account, then sign in.');
+    if (mode === 'signup') {
+      // Counted here rather than in backend/auth so the funnel client keeps its one-way
+      // dependency on auth (it reads the access token) instead of forming a cycle. Only the
+      // email path can tell a NEW account from a returning one - an OAuth sign-in looks the
+      // same either way, so it is deliberately not counted rather than counted wrongly.
+      trackEvent('signup');
+      setNote('Check your email to confirm your account, then sign in.');
+    }
   };
 
   const toggle = () => {

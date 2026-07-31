@@ -1,14 +1,14 @@
 # The public-service pack — tickers, alerts and public information
 
-**Status: shipped.** 29 templates across three categories, built on the existing ticker
+**Status: shipped.** 33 templates across three categories, built on the existing ticker
 runtime, the shared preset bank, the state-machine model and the six export targets. Nothing
 here is a second engine.
 
-- **Tickers** (10 new, `tk11`–`tk20`) — news and headline crawls, market and results tickers,
-  upper and lower strips, a bilingual crawl, an emergency crawl, and two rotators.
-- **Alerts** (10, `al01`–`al10`) — a new category: breaking news, weather warnings, emergency
+- **Tickers** (11 new, `tk11`–`tk21`) - news and headline crawls, market and results tickers,
+  upper and lower strips, a bilingual crawl, an emergency crawl, and three rotators.
+- **Alerts** (12, `al01`–`al12`) - a new category: breaking news, weather warnings, emergency
   instructions, technical and status notices.
-- **Public information** (9, `pi01`–`pi09`) — a new category: official notices, numbered
+- **Public information** (10, `pi01`–`pi10`) - a new category: official notices, numbered
   instructions, municipal / health notices, source labels, disclaimers, and two-language panels.
 
 Contracts: `src/templates/alerts/shared.ts`, `src/templates/publicInfo/shared.ts`,
@@ -29,11 +29,11 @@ notice, the disclaimer band and the public-notice panel are. `e2e/public-service
 asserts the travel, its direction, its repeat, its ease and its response to the speed knob
 against the live graphic, so "it renders" cannot pass for "it moves".
 
-**An alert state must be genuine if claimed.** Six of the ten alerts carry a four-level
+**An alert state must be genuine if claimed.** Seven of the twelve alerts carry a four-level
 severity machine: real parallel-group states, real transitions, real control-page buttons,
-real keyframes. The other four carry no flag, no machine and no buttons, because a technical
-fault, a service note, a breaking strap and a standby card each have exactly one level. The
-spec checks both halves — that the six have states and buttons, and that the four have
+real keyframes. The other five carry no flag, no machine and no buttons, because a technical
+fault, a service note, either breaking strap and a standby card each have exactly one level. The
+spec checks both halves - that the seven have states and buttons, and that the five have
 neither.
 
 ---
@@ -58,6 +58,7 @@ answers to (all of them appear as control-page buttons, greyed by the structural
 | tk18 | Status Rotator | minimal | rotate (type `ticker`) | `pause` `resume` `skip` | statuses, label | bottom-center | `Service — status` split into a name column |
 | tk19 | Advisory Rotator | noacg | rotate (type `ticker`) | `pause` `resume` `skip` | advisories, label | bottom-center | Full-size type; a notice read in full |
 | tk20 | Split Deck | noacg | marquee | — | crawl items, label, top story | bottom-center | Fixed top deck over a travelling lower deck |
+| tk21 | Editorial Desk | editorial | rotate (type `ticker`) | `pause` `resume` `skip` | stories, desk label | bottom-center | Printed rules; sibling of lt25 Masthead |
 
 ### Alerts (category `alert`, prefix `alert`)
 
@@ -73,6 +74,8 @@ answers to (all of them appear as control-page buttons, greyed by the structural
 | al08 | Service Status | glass | preset | **none** | service, status | bottom-left | Live "as of HH:MM" stamp (30 s repaint) |
 | al09 | Breaking Banner | minimal | preset | **none** | kicker, headline, attribution | bottom-center | Kicker is an editable field, not a state |
 | al10 | Standby Notice | noacg | preset | **none** | status, statement, when | mid-center | `logo: optional` |
+| al11 | Breaking Edition | editorial | preset | **none** | kicker, headline, attribution | bottom-center | Flat printed strap; sibling of lt25 Masthead |
+| al12 | Quiet Warning | cinematic | preset | same four | headline, detail, source | bottom-left | Edge-free scrim; sibling of lt32 Scrim |
 
 **The severity ramp** (fixed, palette-independent, every pair ≥ 5:1 contrast, always spelled
 out as well as coloured):
@@ -101,6 +104,7 @@ acknowledgement dip (a double dip at Emergency); see §4 for why it cannot be a 
 | pi07 | Bilingual Panel | minimal | preset | — | 2 × (heading + notice), issuer | bottom-center | Side by side, equal weight, neutral keyline |
 | pi08 | Language Rotator | noacg | preset + machine | `lang1` `lang2` `hold` `resume` | 2 × (heading + notice), issuer | bottom-center | Type `public-notice`; 7 s auto-swap |
 | pi09 | Notice Rotator | minimal | preset + machine | same four | same | bottom-center | Type `public-notice` |
+| pi10 | Source Folio | editorial | preset | — | source, qualifier | bottom-right | Flat source attribution; sibling of lt31 Standfirst |
 
 ---
 
@@ -115,15 +119,15 @@ Every claim below is an assertion in `e2e/public-service.spec.ts` unless stated 
 | **Item lengths** | A 230-character single notice and a 40-item list through a crawl: the box stays inside the frame, the track is wider than its window, and the viewport clips. The same long notice through a ROTATOR does the opposite on purpose: it wraps, the strip grows, and the item stays inside the box. |
 | **Multilingual text** | The bilingual crawl splits two translated items and passes an untranslated one through whole; Japanese text survives intact; the item ink is the primary colour, not the dimmed one. |
 | **Alert states** | The four levels walked up, down, and two steps at a time. After each event the machine pointer AND the picture agree; exactly one slab is ever painted; the visible level is spelled out and its fill is the expected value. A `stop()`/`play()` replay and a `noacgSnap(null)` visual reset both return to the resting level. |
-| **State honesty** | All ten alerts: the six with a flag have four level states and four control buttons; the four without have no machine and no buttons. |
+| **State honesty** | All twelve alerts: the seven with a flag have four level states and four control buttons; the five without have no machine and no buttons. |
 | **Language machine** | Auto-swap with no input; `hold` freezes for longer than a whole cycle; `resume` moves to the OTHER language; the operator can pick directly; `lang1` is structurally illegal exactly while language 1 is up (the same `eventLegality` a control page greys from). |
 | **Save / load** | Three machine-bearing graphics saved to the library, the page RELOADED, then read back from storage: still valid, still carrying their groups, their state counts and their control events. |
 | **Exports** | All six targets × three graphics = 18 packages. Each builds, carries a code file, loads nothing off the network, and every relative reference it makes resolves to a file inside the package (the dangling-reference class). The severity blocks, the language columns and the ticker track all survive packaging. |
-| **Canonical validation** | `validateTemplate` clean (0 errors, 0 warnings) on all 29 — including `validateMachine`, which would error on a timer armed against a timeline that never ends. |
-| **Runtime bench** | `e2e/catalog/catalog-bench.spec.ts`'s calibration tripwire now runs `alert` and `public-info` too: all 29 pass overlap, overflow, stress, hidden-on-stop, binding and the house editability contract. |
-| **Category sweeps** | `node scripts/l3-sweep.mjs <dir> alert` (10/10 clean), `public-info` (9/9), `ticker` (20/20, twice). |
+| **Canonical validation** | `validateTemplate` clean (0 errors, 0 warnings) on all 33 - including `validateMachine`, which would error on a timer armed against a timeline that never ends. |
+| **Runtime bench** | `e2e/catalog/catalog-bench.spec.ts`'s calibration tripwire now runs `alert` and `public-info` too: all 33 pass overlap, overflow, stress, hidden-on-stop, binding and the house editability contract. |
+| **Category sweeps** | `node scripts/l3-sweep.mjs <dir> alert` (12/12 clean), `public-info` (10/10), `ticker` (21/21). |
 | **Baselines** | Source + render baselines re-recorded. No PRE-EXISTING entry moved — the diff is additions only, which is what proves the shared assembler changes were additive. |
-| **Look** | `node scripts/pack8-shots.mjs <dir>` renders all 29 settled over a video-like backdrop, plus the severity ramp and the rotator's second language. |
+| **Look** | `node scripts/pack8-shots.mjs <dir>` renders all 33 settled over a video-like backdrop, plus the severity ramp and the rotator's second language. |
 
 Four real defects were found this way and fixed — two by the spec, two by looking at the
 frames:
@@ -198,7 +202,7 @@ is read in one glance.
 is about. Discovery is a separate registry (docs/TEMPLATE_TAXONOMY_PROPOSAL.md), and neither
 category earns a tile of its own there:
 
-- The ten alerts browse under **Alerts & status**, which already exists and already holds
+- The twelve alerts browse under **Alerts & status**, which already exists and already holds
   pack4's notice card. Subtypes: `warning` (al01–al05), `emergency` (al06), `status`
   (al07/al08), `breaking` (al09), `notice` (al10).
 - The nine public-information panels SCATTER, and that is the point. pi01/pi05 are official
@@ -277,7 +281,7 @@ listed because the honest answer to "can it do X" is sometimes no.
 
 11. ~~**Packs are not extended.**~~ **DONE** - the follow-up landed (docs/PACK_TAXONOMY.md).
     `alert-level` joined Newsroom and `public-notice` joined Newsroom and Election as TYPES;
-    the crawls, the four machine-less alerts and the seven public-information panels joined
+    the crawls, the five machine-less alerts and the eight public-information panels joined
     eight kits as extras. No format's mapping moved, so `validatePacks` still claims each of
     the 60 exactly once. Two constraints the wiring surfaced, worth keeping in view: a type
     can only join a pack whose family it has a design for, and `public-notice` ships only

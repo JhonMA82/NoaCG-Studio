@@ -25,6 +25,7 @@ bench-*/
 video-bench-out*/
 video-benchmark-out/
 compare-out*/
+creative-route-out*/
 # NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
 # blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)
 lite-bench-out*/
@@ -37,6 +38,7 @@ dev-bench.log
 # Catalog sweep taste screenshots (scripts/l3-sweep.mjs <shots-dir> <category>; multi-MB
 # PNGs, regenerated on demand - review them on disk, never commit them)
 l3-shots/
+shots/
 shots-*/
 
 # Local render outputs + manifest fixtures (multi-MB, regenerated on demand by
@@ -63,6 +65,7 @@ shots-*/
 .agents/skills/*
 !.agents/skills/cleanup-worktrees/
 !.agents/skills/handoff/
+!.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-task/
 !.agents/skills/ograf-expert/
@@ -97,3 +100,11 @@ render-worker/remotion/*.generated.ts
 /*.JPG
 /*.JPEG
 /*.PNG
+
+# Supabase CLI version-check cache - rewritten whenever a new CLI ships
+supabase/.temp/cli-latest
+
+# The compiled API runtime the node test runners and bench:preflight build. Cleaned up in a
+# finally, but a killed run leaks one, and a leaked directory reads as an unmapped source
+# change to scripts/e2e-affected.mjs (which then escalates to the full suite).
+/.tmp-api-runtime-*/

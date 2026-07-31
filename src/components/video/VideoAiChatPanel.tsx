@@ -12,8 +12,9 @@ import { aiConfigured, loadAiSettings, saveAiSettings } from '../../ai/settings'
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import AiProviderSettings from '../AiProviderSettings';
+import { useAiConsent } from '../AiConsentDialog';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
-import { describeAssets } from '../../video/types';
+import { compositionAssets, describeAssets, referenceAssets } from '../../video/types';
 import { validateVideoModule } from '../../video/validate';
 import { validateHyperframesComposition } from '../../video/hyperframes/validate';
 import { getActivePlayerBridge, getActiveHyperframesBridge } from '../../video/bridgeRegistry';
@@ -36,17 +37,22 @@ function settingsOf(project: VideoProject) {
 }
 
 function contextFor(project: VideoProject) {
-  const infos = describeAssets(project.assets);
+  // Composition assets and reference material part company here: the first is what the code
+  // may reach by name, the second is only ever looked at (model/imagePurpose.ts).
+  const usable = compositionAssets(project);
+  const infos = describeAssets(usable);
   const assetData = new Map<string, string>();
   for (const info of infos) {
-    const asset = project.assets.find((a) => a.path === info.path);
+    const asset = usable.find((a) => a.path === info.path);
     if (asset && typeof asset.data === 'string') assetData.set(info.name, asset.data);
   }
+  const references = referenceAssets(project);
   return {
     engine: project.engine,
     settings: settingsOf(project),
     assets: infos,
     assetData,
+    ...(references.length ? { references } : {}),
     model: project.aiModel || undefined,
   };
 }
@@ -56,8 +62,8 @@ function contextFor(project: VideoProject) {
 const validate: VideoValidator = (source, declaredInputs = []) => {
   const p = useVideoProjectStore.getState().project;
   return p.engine === 'hyperframes'
-    ? validateHyperframesComposition(source, settingsOf(p), p.assets, getActiveHyperframesBridge())
-    : validateVideoModule(source, settingsOf(p), p.assets, getActivePlayerBridge(), declaredInputs);
+    ? validateHyperframesComposition(source, settingsOf(p), compositionAssets(p), getActiveHyperframesBridge())
+    : validateVideoModule(source, settingsOf(p), compositionAssets(p), getActivePlayerBridge(), declaredInputs);
 };
 
 export default function VideoAiChatPanel() {
@@ -81,6 +87,10 @@ export default function VideoAiChatPanel() {
   // next request (and by failures, which show their own state).
   const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Disclosure gate for the REMOTE path only - the offline sample generator sends nothing
+  // anywhere, so it never shows the notice. This also covers the auto-first generation:
+  // the run waits on the dialog rather than firing silently.
+  const { ensureAiConsent, consentDialog } = useAiConsent();
 
   const saveSetting = (patch: Parameters<typeof saveAiSettings>[0]) => {
     saveAiSettings(patch);
@@ -128,6 +138,12 @@ export default function VideoAiChatPanel() {
   const onProgress = (stage: string) => setBusy(stage);
 
   const runGenerate = async (prompt: string) => {
+    if (aiConfigured() && !(await ensureAiConsent())) {
+      // Declining leaves the brief as the unanswered turn; the retry affordance below
+      // (the error state) is how the user comes back to it.
+      setError('Generating sends your brief to an external AI provider. Accept the notice to continue.');
+      return;
+    }
     setBusy('Designing your animation… (this can take a minute)');
     setError(null);
     setDone(false);
@@ -144,6 +160,10 @@ export default function VideoAiChatPanel() {
 
   /** One refinement, whoever asked for it: the chat box, or another panel via requestAi. */
   const runRefine = async (text: string) => {
+    if (aiConfigured() && !(await ensureAiConsent())) {
+      setInput(text); // the declined turn goes back into the box, like a failed one
+      return;
+    }
     setError(null);
     setDone(false);
     appendChat({ role: 'user', text, at: new Date().toISOString() });
@@ -325,6 +345,8 @@ export default function VideoAiChatPanel() {
           <AiProviderSettings settings={settings} onChange={saveSetting} />
         </div>
       )}
+
+      {consentDialog}
     </div>
   );
 }

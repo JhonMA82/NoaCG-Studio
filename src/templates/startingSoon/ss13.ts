@@ -18,11 +18,12 @@ export const ss13: TemplateVariant = defineStartingSoonVariant(
     name: 'Up Next',
     styleTag: 'noacg',
     description: 'The between-items schedule hold — what is next, who brings it, and the slot time it starts.',
-    maxLines: 3,
+    maxLines: 4,
     suggestedLines: [
       { title: 'Kicker', sample: 'UP NEXT' },
       { title: 'Item', sample: 'Designing for Live Broadcast' },
       { title: 'Presenter', sample: 'Dr. Ada Fenwick · Main Stage' },
+      { title: 'Countdown label', sample: 'STARTS IN' },
     ],
     logo: 'none',
     animationPresets: ['hold-loop'],
@@ -39,13 +40,15 @@ export const ss13: TemplateVariant = defineStartingSoonVariant(
     uicolor: '4',
   },
   (o) => ({
-    lineCount: 3,
+    lineCount: 4,
     clock: 'start-time',
     clockMinutes: '10',
     lineDefaults: [
       { title: 'Kicker', sample: 'UP NEXT' },
       { title: 'Item', sample: 'Designing for Live Broadcast' },
       { title: 'Presenter', sample: 'Dr. Ada Fenwick · Main Stage' },
+      // The countdown label is a FIELD — see ss10. The word beside the clock is content.
+      { title: 'Countdown label', sample: 'STARTS IN' },
     ],
     // The rail is a vertical accent stroke down the left of the text block — the house's
     // left-edge grammar, turned upright. It is the breath target, so the card lives without
@@ -64,7 +67,7 @@ export const ss13: TemplateVariant = defineStartingSoonVariant(
         <div class="starting-soon-mask"><span id="f2" class="starting-soon-note">${o.lines[2]?.sample || 'Dr. Ada Fenwick · Main Stage'}</span></div>
         <!-- The countdown row — label plus the time the clock runtime paints. -->
         <div class="starting-soon-wait">
-          <span class="starting-soon-label">STARTS IN</span>
+          <span id="f3" class="starting-soon-label">${o.lines[3]?.sample || 'STARTS IN'}</span>
           <span class="starting-soon-clock">10:00</span>
         </div>
       </div>

@@ -8,15 +8,29 @@ import {
 
 const runtime = await buildApiRuntime([
   'api/_lib/aiGateway.test.ts',
-  'api/_lib/aiModelCatalog.test.ts',
+  'api/_lib/aiGenerate.test.ts',
+  'api/_lib/aiModelDiscovery.test.ts',
+  'api/_lib/aiTaskRegistry.test.ts',
+  'api/_lib/aiBenchPreflight.test.ts',
   'api/_lib/aiLite.test.ts',
+  'api/_lib/funnelEvents.test.ts',
+  'api/_lib/entitlements.test.ts',
+  'api/_lib/adminAuth.test.ts',
+  'api/_lib/templateVisibility.test.ts',
 ]);
 
 try {
   const testFiles = [
     path.join(runtime.outputDir, 'api/_lib/aiGateway.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiModelCatalog.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/aiGenerate.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/aiModelDiscovery.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/aiTaskRegistry.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/aiBenchPreflight.test.js'),
     path.join(runtime.outputDir, 'api/_lib/aiLite.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/funnelEvents.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/entitlements.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/adminAuth.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/templateVisibility.test.js'),
   ];
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,

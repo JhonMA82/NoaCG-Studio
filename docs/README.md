@@ -36,9 +36,11 @@ Layers of documentation, top to bottom:
 | `TIMELINE_INTERACTION_MODEL.md` | The editing surfaces' interaction contract (selection, keyframes, playhead, what NoaCG deliberately does not copy from NLEs). |
 | `IMPORT_MVP.md` | The Import Graphic flow: the structure contract, fit modes, Prepare/erase, 9-slice stretch. Shipped; doubles as the domain record. |
 | `RENDER.md` | The render service: manifest kinds, virtual clock, tiers, security posture, deploy checklist. |
+| `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, migrations 0017+. |
 | `EXPORT_TARGETS_RESEARCH.md` | Where exports run: shipped targets + the doctrine for adding one. |
 | `FORMATTING.md` | What Prettier may and may not touch, and why. |
 | `DEV_PORTS.md` | Per-worktree dev-port reservation. |
+| `DEPLOYMENT.md` | CI + Vercel production runbook: the pipeline, the 12-function budget, deploy verification (`deploy-verify.yml`, `version.json`), opt-in previews, rolling-issue alerts, and where to look when production stops updating. |
 | `AI_LITE_BENCHMARK.md` | The NoaCG Lite model-evaluation benchmark: the context-assembly trace, the shared compile pipeline (`src/ai/litePipeline.ts`), suites, calibration, regression vs model comparison, blind review, storage boundaries. |
 | `AI_LITE_PROMOTION.md` | Lite route promotion policy: eligibility gates (thresholds owner-TODO), ranking, the proposed-route output, and the manual broadcast verification checklist. |
 | `ACCEPTANCE_SPX_CASPARCG.md` | OPEN manual checklist: the parts of acceptance only a real SPX/CasparCG stack can prove. Not yet run. |
@@ -51,6 +53,7 @@ Layers of documentation, top to bottom:
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |
 | `VIDEO_DESIGN_QUALITY_PLAN.md` | Video AI quality. Most of it landed (arm B, fonts, readability gates); still open: the experiment-gated vision critic (§3.5) and the chip-set palette decision (§3.6). |
 | `AI_WIZARD_PLAN.md` | Create-with-AI review + six-phase plan (2026-07-24). **Phases 1, 2, 4 and 6 built** — every offline-provable phase is done (visual alternatives + non-destructive refine; one thread with conversation-as-context, mid-thread attachments and "3 more like this"; brand colours from an uploaded logo + saved looks; the on-air readiness report + cost expectation). Only **phases 3 and 5 remain, and both spend real API money**. One open question: whether the thread should persist (§6.2). |
+| `CATALOG_LAZY_LOADING_PLAN.md` | **Design note only, nothing built.** The catalog is eagerly loaded for every visitor: `/app` boots 802 script modules in dev, 520 of them `src/templates`. **Production measured 2026-07-31: 1 171 KB transferred, 1 612 ms to a usable editor** — the "4.16 MB" in the first draft was the DECODED chunk, not the wire, and the note now says so. The stage-1 audit found the blocker is two declared values per variant, so the fix is small; the measurement says it is also **not urgent**, and the one reading that could change that (real mobile hardware) has never been taken. Two questions open for the owner: when, and category-vs-pack. |
 
 ## Rationale / historical (do not read as current behaviour)
 

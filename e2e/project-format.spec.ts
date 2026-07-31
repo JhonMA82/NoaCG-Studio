@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
 import { startNewProject } from './_create';
+import { acceptAiNotice } from './_ai-notice';
 
 async function pickFormat(
   page: Page,
@@ -132,9 +133,17 @@ test('video AI uses the shared selected project format', async ({ page }) => {
   await page.getByTestId('video-prompt').fill('A simple title animation');
   await page.getByTestId('video-create').click();
   await expect(page.getByTestId('video-shell')).toBeVisible();
+  // Wait for the auto-first generation before reading the store. A wizard-created video project
+  // fires one the moment the shell mounts, and it lands as its own snapshot - so reading "the
+  // project" without waiting reads whichever side of that write the box happened to be on. The
+  // assertion below used to be `authoredFor === null` ("no generation has run yet"), which is
+  // not a fact about the format picker at all; it just happened to hold while the generation was
+  // still in flight, and failed the moment it wasn't.
+  await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 
   const project = await page.evaluate(async () => {
     const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { settingsDrift } = await import('/src/model/videoTypes.ts');
     const value = useVideoProjectStore.getState().project;
     return {
       width: value.width,
@@ -142,12 +151,17 @@ test('video AI uses the shared selected project format', async ({ page }) => {
       fps: value.fps,
       durationInFrames: value.durationInFrames,
       authoredFor: value.authoredFor,
+      drift: settingsDrift(value),
     };
   });
   expect(project).toMatchObject({ width: 3840, height: 2160, fps: 60 });
   expect(project.durationInFrames / project.fps).toBe(6);
-  // null is the truthful "the starter was built from these current settings" sentinel.
-  expect(project.authoredFor).toBeNull();
+  // The point of the test, stated so it holds at any moment: the generation recorded what it
+  // was written for, and that is what the picker chose - nothing for the drift warning to say.
+  // Both halves matter: settingsDrift is empty for an unrecorded project too, so asserting it
+  // alone would pass vacuously if the generation had failed validation instead of applying.
+  expect(project.authoredFor).toMatchObject({ width: 3840, height: 2160, fps: 60 });
+  expect(project.drift).toEqual([]);
 });
 
 const LITE_STATUS = {
@@ -204,6 +218,9 @@ const LITE_READY = {
 };
 
 test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page }) => {
+  // This spec tests format plumbing, not the disclosure notice - pre-accept it so the
+  // generation proceeds (e2e/ai-consent.spec.ts owns the dialog's own behavior).
+  await acceptAiNotice(page);
   let requestFormat: unknown = null;
   await page.route('/api/ai/lite/status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(LITE_STATUS) }),

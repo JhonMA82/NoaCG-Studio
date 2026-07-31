@@ -17,6 +17,7 @@ import {
   assessmentRisks,
 } from './cleanup-worktrees.mjs';
 import { assessReattach } from './reattach-main.mjs';
+import { overlapping, scanActivity } from './worktree-activity.mjs';
 import {
   inspectLeftoverFolders,
   normalize,
@@ -212,6 +213,98 @@ test('leftover-folder dry run reports empty and non-empty folders without deleti
   assert.deepEqual(sweep.removed, [normalize(empty)]);
   assert.equal(existsSync(empty), false);
   assert.equal(existsSync(nonEmpty), true);
+});
+
+test('activity scan reports other worktrees committed and uncommitted work, never its own', async (t) => {
+  const { primary } = makeRepo(t);
+  const busy = addWorktree(primary, 'busy');
+  commitInWorktree(busy.path, 'Committed but unmerged');
+  writeFileSync(join(busy.path, 'src with space.ts'), 'draft\n');
+  const idle = addWorktree(primary, 'idle'); // branched off main, nothing done
+  writeFileSync(join(primary, 'own-work.txt'), 'own\n');
+
+  const { worktrees, branches } = await scanActivity(primary);
+
+  assert.deepEqual(
+    worktrees.map((entry) => entry.branch),
+    [busy.branch],
+    'only the worktree with work in flight is reported',
+  );
+  const [entry] = worktrees;
+  // Untracked, uncommitted and committed-but-unmerged all count as in flight; the scanning
+  // checkout's own files never do, and a path with a space survives intact.
+  assert.deepEqual(entry.files, ['feature.txt', 'src with space.ts']);
+  assert.equal(entry.uncommitted, 1);
+  assert.equal(entry.ahead, 1);
+  assert.equal(entry.lastCommit.subject, 'Committed but unmerged');
+  assert.equal(existsSync(idle.path), true);
+  // Both busy and idle have a worktree, so neither belongs in the worktree-less list.
+  assert.deepEqual(branches, []);
+
+  // Scanned from the busy worktree itself, its own work is what must NOT be listed - the
+  // primary checkout sits on main, so it cannot prove the self-exclusion on its own.
+  assert.deepEqual((await scanActivity(busy.path)).worktrees, []);
+});
+
+test('activity scan still sees unmerged work after its worktree is gone', async (t) => {
+  const { primary } = makeRepo(t);
+  const abandoned = addWorktree(primary, 'abandoned');
+  commitInWorktree(abandoned.path, 'Work left behind');
+  assert.equal((await scanActivity(primary)).worktrees.length, 1);
+
+  // A closed session leaves the branch behind and frees its worktree - the exact case a
+  // worktree-only scan goes blind to.
+  runGit(primary, 'worktree', 'remove', abandoned.path);
+
+  const { worktrees, branches } = await scanActivity(primary);
+  assert.deepEqual(worktrees, [], 'the worktree is gone, so it reports no worktree activity');
+  assert.deepEqual(
+    branches.map((entry) => ({ branch: entry.branch, ahead: entry.ahead, files: entry.files })),
+    [{ branch: abandoned.branch, ahead: 1, files: ['feature.txt'] }],
+    'the unmerged work is still reported, now as a worktree-less branch',
+  );
+  assert.equal(branches[0].lastCommit.subject, 'Work left behind');
+
+  // Once it lands in main it is not in flight any more, by either route.
+  runGit(primary, 'merge', '--ff-only', abandoned.branch);
+  assert.deepEqual((await scanActivity(primary)).branches, []);
+});
+
+test('a branch checked out in a worktree is never double-reported as worktree-less', async (t) => {
+  const { primary } = makeRepo(t);
+  const busy = addWorktree(primary, 'attached');
+  commitInWorktree(busy.path, 'Attached work');
+
+  const { worktrees, branches } = await scanActivity(primary);
+
+  assert.deepEqual(worktrees.map((entry) => entry.branch), [busy.branch]);
+  assert.deepEqual(branches, []);
+});
+
+test('activity scan drops a branch once its work is merged into main', async (t) => {
+  const { primary } = makeRepo(t);
+  const landed = addWorktree(primary, 'landed');
+  commitInWorktree(landed.path, 'Work that lands');
+  assert.equal((await scanActivity(primary)).worktrees.length, 1);
+
+  runGit(primary, 'merge', '--ff-only', landed.branch);
+
+  const { worktrees, branches } = await scanActivity(primary);
+  assert.deepEqual(worktrees, []);
+  assert.deepEqual(branches, []);
+});
+
+test('overlap detection matches only worktrees touching the given files', async (t) => {
+  const { primary } = makeRepo(t);
+  const busy = addWorktree(primary, 'overlap');
+  commitInWorktree(busy.path, 'Touch feature.txt');
+
+  const { worktrees: activity } = await scanActivity(primary);
+
+  const hit = overlapping(activity, ['src/other.ts', 'feature.txt']);
+  assert.deepEqual(hit.map((h) => h.entry.branch), [busy.branch]);
+  assert.deepEqual(hit[0].files, ['feature.txt']);
+  assert.deepEqual(overlapping(activity, ['src/other.ts']), []);
 });
 
 test('reattach gate accepts only clean, reachable detached HEAD state', (t) => {

@@ -1,5 +1,4 @@
 import {
-  AI_PROVIDER_IDS,
   isAiProviderId,
   type AiGatewayErrorCode,
   type AiGatewayRequestBody,
@@ -131,13 +130,17 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
     }
     return true;
   }
-  if (schema.type === 'number') {
+  // Integers honour minimum/maximum exactly like numbers do. They used to check only
+  // integer-ness, so a schema declaring a range got none: an out-of-range value passed
+  // the gateway and failed later in the caller's own check, which spends the call and
+  // cannot retry. Here it is a retryable malformed response instead.
+  if (schema.type === 'number' || schema.type === 'integer') {
     if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (schema.type === 'integer' && !Number.isInteger(value)) return false;
     if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
     if (typeof schema.maximum === 'number' && value > schema.maximum) return false;
     return true;
   }
-  if (schema.type === 'integer') return Number.isInteger(value);
   if (schema.type === 'boolean') return typeof value === 'boolean';
   if (schema.type === 'null') return value === null;
   return schema.type === undefined;
@@ -552,10 +555,17 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
   }
   const fallbacks = body.fallbacks === undefined ? [] : array(body.fallbacks).map(validateRoute);
   if (fallbacks.length > 3) throw new GatewayError('invalid_request', 'Too many AI fallback routes.', 400, false);
+  // The surface discriminator is an ALLOWLIST, not a passthrough: an unknown value is refused
+  // rather than dropped, so a client that means to name a gated surface can never have its
+  // label silently discarded into "the general harness, which nothing gates".
+  if (body.surface !== undefined && body.surface !== 'video') {
+    throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
+  }
   return {
     request: request as unknown as ModelRequest,
     route: validateRoute(body.route),
     ...(fallbacks.length ? { fallbacks } : {}),
+    ...(body.surface ? { surface: body.surface } : {}),
   };
 }
 
@@ -734,20 +744,3 @@ export async function executeGatewayRequest(
   throw lastError ?? new GatewayError('unavailable', 'No AI route was available.', 503, false);
 }
 
-export function providerConfigured(provider: AiProviderId, userKeys: Partial<Record<AiProviderId, string>>): boolean {
-  const envNames: Record<AiProviderId, string> = {
-    anthropic: 'ANTHROPIC_API_KEY',
-    openai: 'OPENAI_API_KEY',
-    openrouter: 'OPENROUTER_API_KEY',
-    huggingface: 'HUGGINGFACE_API_KEY',
-  };
-  return Boolean(
-    userKeys[provider]
-    || process.env[envNames[provider]]
-    || (provider === 'huggingface' && process.env.HF_TOKEN),
-  );
-}
-
-export function configuredProviders(userKeys: Partial<Record<AiProviderId, string>>): AiProviderId[] {
-  return AI_PROVIDER_IDS.filter((provider) => providerConfigured(provider, userKeys));
-}

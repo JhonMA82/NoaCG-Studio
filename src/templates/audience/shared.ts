@@ -173,6 +173,11 @@ export const QUEUE_FORM: AudienceForm = {
       ].join('\n'),
     },
     { title: 'Heading', sample: 'QUESTIONS UP NEXT' },
+    // The word BETWEEN the two numbers of the position readout ("3 of 12"). It is one word,
+    // and it is the only English left in a graphic whose every other string an operator
+    // types — which is exactly the kind of thing that strands a template at a broadcaster
+    // who works in another language. The numbers stay the runtime's.
+    { title: 'Position word', sample: 'of' },
   ],
 };
 

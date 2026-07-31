@@ -6,9 +6,17 @@ curated subset of graphic types in a fitting style family. The machine-readable 
 document is **`src/templates/packs.ts`**; `scripts/factory.mjs` validates the two against the
 live registry on every run, so this mapping cannot silently rot.
 
-**A pack is pure config.** Because the type × family matrix is full (docs/GRAPHIC_TYPES.md §6),
-every `(type, family)` cell already names a shipped, gate-checked design — so declaring a pack
-is one entry in `PACKS`, no new template work. That is the "catalog growth is a config change"
+**A pack is pure config.** Across the four PRODUCTION families the type × family matrix is full
+(docs/GRAPHIC_TYPES.md §6), so every `(type, family)` cell a pack reaches for already names a
+shipped, gate-checked design — declaring a pack is one entry in `PACKS`, no new template work.
+
+**Four families, not six** (measured 2026-07-29): `noacg` covers 61 of 62 types, `sport` 56,
+`minimal` 53, `glass` 53 — while `editorial` and `cinematic` cover 1 each. Both are real style
+families with their own designs, tokens and Browse chips, but they are BROWSE families rather
+than KIT ones: no pack resolves into either, and filling them would mean ~122 new designs. A
+surface that re-resolves a pack in another look must therefore MEASURE which families work
+rather than assume all six (`familiesFor`, `src/components/wizard/steps/KitStep.tsx`); the
+`validatePacks` cell gate only tests a pack's own declared family, so it cannot catch this. That is the "catalog growth is a config change"
 half of Phase 3's done-when, made true for the axis it is true on:
 
 - **A new pack = config.** Add the entry; the factory proves it resolves and that the format
@@ -32,7 +40,7 @@ config are ready for it; only the surface is unbuilt.
 | Pack | Family | Types (curated order) | Extras |
 |---|---|---|---|
 | Match Day | sport | scorebug, match-board, match-status, match-event, fixtures, scoreboard, countdown, lower-third, ticker, sponsor-bug, title-card, holding-screen, now-next, notice-card, event-bug, live-bug, sponsor-strip, status-chip, roster, standings, winner-card | ls06, ls07, ls08, ls09, ls10, tk13, al10, vs01, cr03, ss11, cr12 |
-| Esports | sport | esports-score, map-round, matchup, head-to-head, player-card, bracket, standings, winner-card, scoreboard, lower-third, countdown, agenda, social-bug, sponsor-bug, holding-screen, title-card, now-next, station-bug, live-bug, sponsor-rotator | ls11, ls12, ls13, tk13, al07, vs02, ss13, cr12 |
+| Esports | sport | title-card, holding-screen, countdown, now-next, agenda, notice-card, station-bug, live-bug, event-bug, status-chip, lower-third, social-bug, sponsor-bug, sponsor-strip, sponsor-rotator, transition, matchup, head-to-head, player-card, roster, esports-score, map-round, match-event, match-status, fixtures, standings, bracket, ticker, scoreboard, winner-card | mr04, ls11, ls06, ls13, tk13, cr12 |
 | Creator | noacg | holding-screen, lower-third, topic-card, social-bug, sponsor-bug, countdown, poll, now-next, process-steps, station-bug, live-bug, logo-bug, chat-highlight, live-poll, viewer-question | ls03, ls31, ls32, al07, al10, ss06, ss08, ss09, ss12 |
 | Newsroom | minimal | lower-third, ticker, topic-card, title-card, agenda, sponsor-bug, headline-card, key-facts, notice-card, station-bug, live-bug, status-chip, **alert-level**, **public-notice** | ls01, ls23, ls24, ls28, ls29, ls30, tk11, tk12, tk14, tk15, tk16, tk17, tk20, al09, pi02, pi03, ss08, card52 |
 | Election | minimal | poll, lower-third, ticker, title-card, agenda, countdown, headline-card, key-facts, status-chip, live-bug, live-poll, **public-notice** | ls20, ls21, ls22, ls23, tk15, pi01, pi05, pi07, card52, cr05 |
@@ -43,6 +51,21 @@ config are ready for it; only the surface is unbuilt.
 | Stage & Music | glass | title-card, lower-third, holding-screen, countdown, social-bug, agenda, ticker, now-next, statement-card, notice-card, award-bug, event-bug | ls04, ls25, ls26, ls27, al10, cr02, cr09, cr12, ss07, ss11, card56 |
 | Shopping | noacg | topic-card, countdown, lower-third, ticker, title-card, sponsor-bug, key-facts, sponsor-strip, sponsor-rotator | pi04, ss06, ss12, cr12 |
 | Wellness | minimal | countdown, holding-screen, topic-card, lower-third, social-bug, process-steps, logo-bug | pi04, pi06, ss08, ss09, card52 |
+
+### The complete Esports tournament package
+
+The Esports kit is intentionally larger than a competition-only collection. Its 36 graphics
+cover the whole tournament rundown in one Volt look: opener and holds, running order, persistent
+identity and status marks, player and caster straps, sponsor placements, a self-clearing cut
+transition, pre-match comparison and map veto, live series and map operation, match events,
+fixtures, standings, bracket, results rail, score board and champion reveal.
+
+`map-round` still resolves to `mr01` Map Ladder for live coverage. `mr04` Map Veto is an extra,
+because a production needs both jobs and they share the same cursor-driven operator structure
+without duplicating it. The specialist lower thirds are likewise extras because tag-before-handle,
+two-person commentary and a two-person analysis desk are genuinely different field shapes from the
+ordinary lower third. Their defaults, plus the results and sponsor rails, use Volt and Oswald so
+the one-click default kit reads as a single package before a user applies their own project brand.
 
 The title/topic/information pack's seven types, the identity family's eight and the competition
 pack's twelve (docs/GRAPHIC_TYPES.md §6) all joined the kits that were standing in for them: the
@@ -78,7 +101,8 @@ all nine.
 
 This is also the first time the taxonomy has had two AXES: a pack can refine a format's kit
 without owning the format. If more disciplines follow (cricket, rugby, cycling), they go here
-the same way — config only, no new template work, because the type × family matrix is full.
+the same way — config only, no new template work, because the matrix is full across the four
+production families a pack can actually be declared in (above).
 
 **Extras** are catalog variants outside the type registry that belong in the kit: the versus
 card (vs01/vs02) for match-up reveals — also the sports pack's upcoming-match hero — and the

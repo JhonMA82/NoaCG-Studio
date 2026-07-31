@@ -137,7 +137,7 @@ export type GraphicCategoryId =
   | 'lower-third' | 'bug' | 'title' | 'topic' | 'info' | 'question' | 'quote'
   | 'scoreboard' | 'results' | 'stats' | 'timer' | 'ticker' | 'alert' | 'list'
   | 'poll-quiz' | 'progress' | 'product' | 'cta' | 'sponsor' | 'frame' | 'holding'
-  | 'credits' | 'caption' | 'reveal' | 'map' | 'transition';
+  | 'credits' | 'caption' | 'reveal' | 'map' | 'transition' | 'notification';
 
 /** Where a category's graphics sit on the canvas, as a DEFAULT — a design overrides it the
  *  same way it overrides defaultZone (proposal §8). */
@@ -173,7 +173,12 @@ export const GRAPHIC_CATEGORIES: GraphicCategory[] = [
   { id: 'question',    name: 'Questions & chat',        subtypes: ['viewer-question', 'qa-card', 'chat-highlight', 'queue'], coverage: 'panel' },
   { id: 'quote',       name: 'Quotes & statements',     subtypes: ['quote', 'scripture', 'excerpt', 'headline', 'fact-check'], coverage: 'panel' },
   { id: 'scoreboard',  name: 'Scoreboards',             subtypes: ['match-score', 'simple-score', 'round-indicator'], coverage: 'overlay' },
-  { id: 'results',     name: 'Results & standings',     subtypes: ['results-table', 'leaderboard', 'bracket', 'seat-count', 'vote-result', 'final-score'], coverage: 'panel' },
+  // 'timing-tower' is its own subtype rather than one more leaderboard: a leaderboard is a
+  // claim about a finished set of results and a tower is the session happening, which is a
+  // different graphic in shape, in placement and in how long it stays on air. Filing it under
+  // 'leaderboard' is what a July 2026 AI bench discovered the hard way — with nothing in the
+  // catalog resembling a tower, every model asked for one produced a lower third.
+  { id: 'results',     name: 'Results & standings',     subtypes: ['results-table', 'leaderboard', 'timing-tower', 'bracket', 'seat-count', 'vote-result', 'final-score'], coverage: 'panel' },
   { id: 'stats',       name: 'Statistics & data',       subtypes: ['stat-panel', 'kpi', 'chart', 'heatmap', 'trend'], coverage: 'panel' },
   { id: 'timer',       name: 'Timers & clocks',         subtypes: ['countdown', 'count-up', 'clock', 'interval', 'speaking-timer', 'deal-timer'], coverage: 'overlay', relevance: 'all' },
   { id: 'ticker',      name: 'Tickers & crawls',        subtypes: ['news-ticker', 'market-ticker', 'crawl', 'rotator'], coverage: 'strip' },
@@ -191,6 +196,7 @@ export const GRAPHIC_CATEGORIES: GraphicCategory[] = [
   { id: 'reveal',      name: 'Reveals & matchups',      subtypes: ['versus', 'winner', 'nominee', 'before-after', 'sold'], coverage: 'full' },
   { id: 'map',         name: 'Maps & location',         subtypes: ['map', 'map-pin', 'route', 'weather-map', 'zone-map'], coverage: 'panel' },
   { id: 'transition',  name: 'Stingers & wipes',        subtypes: ['stinger', 'replay-wipe'], coverage: 'full' },
+  { id: 'notification', name: 'Stream notifications',   subtypes: ['event-notification'], coverage: 'overlay' },
 ];
 
 export function graphicCategoryById(id: GraphicCategoryId): GraphicCategory {
@@ -228,6 +234,7 @@ export const OLD_CATEGORY_FALLBACK: Record<TemplateCategory, GraphicCategoryId |
   'reveal': 'reveal',
   'poll': 'poll-quiz',
   'audience': 'question',
+  'stream-notification': 'notification',
   'imported-design': null, // user content — never browsable
 };
 
@@ -482,6 +489,16 @@ export const ALIASES: Record<string, AliasTargets> = {
   'standings': { categories: ['results'] },
   'league table': { categories: ['results'] },
   'leaderboard': { categories: ['results'] },
+  // Live-timing vocabulary. Every one of these is a producer's word for the same graphic, and
+  // none of them used to reach anything: "timing tower" matched no template in the catalog and
+  // the search fell through to whatever else the words touched.
+  'timing tower': { categories: ['results'], subtypes: ['timing-tower'] },
+  'timing screen': { categories: ['results'], subtypes: ['timing-tower'] },
+  'live timing': { categories: ['results'], subtypes: ['timing-tower'] },
+  'lap times': { categories: ['results'], subtypes: ['timing-tower'] },
+  'split times': { categories: ['results'], subtypes: ['timing-tower'] },
+  'race positions': { categories: ['results'], subtypes: ['timing-tower'] },
+  'start list': { categories: ['results'], subtypes: ['timing-tower'] },
   'bracket': { categories: ['results'] },
   'clock': { categories: ['timer'] },
   'stopwatch': { categories: ['timer'] },
@@ -560,6 +577,11 @@ export const ALIASES: Record<string, AliasTargets> = {
   'sermon': { formats: ['church-service'] },
   'football': { families: ['sports'] },
   'soccer': { families: ['sports'] },
+  'motorsport': { families: ['sports'] },
+  'racing': { families: ['sports'] },
+  'cycling': { families: ['sports'] },
+  'swimming': { families: ['sports'] },
+  'athletics': { families: ['sports'] },
   'basketball': { families: ['sports'] },
   'hockey': { families: ['sports'] },
   'handball': { families: ['sports'] },

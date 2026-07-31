@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { acceptAiNotice } from './_ai-notice';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
 // data fields, animation intensity, draft persistence, and the untouched prompt-only
@@ -71,6 +72,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
+  await acceptAiNotice(page);
 });
 
 test('structured setup: pinned category + user fields + intensity land in the created project', async ({ page }) => {

@@ -698,26 +698,71 @@ read-only scheduled cloud agent. Job A (the health/CI gates) is built (push CI +
       production validator (static + runtime bench + safety screen) so its repair loop works
       against real findings, pinned by a mutation-tested spec (`e2e/ai-panel.spec.ts`)
 
-### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15, awaiting owner review)
+### The AI platform (2026-07-28 — decided in `docs/AI_PLATFORM_PLAN.md` §15)
 
-Owner decisions blocking the build stages:
-- [ ] **Open-weight mandate for free routes** - confirming it replaces Lite's proprietary
-      Gemini Flash Lite primary with a benchmark-verified open-weight model (env change; the
-      quality/cost position is what the decision accepts)
-- [ ] Consent notice wording, and whether consent is recorded server-side
-- [ ] Free-tier quota levels for the vision task (image count, daily runs)
-- [ ] Whether `/api/ai/credentials` gains a sign-in requirement (shared-browser exposure)
+Owner decisions — RATIFIED 2026-07-28:
+- [x] **Model policy: benchmark-first with an open-weight preference** (not a hard mandate) -
+      an open-weight model is used whenever it performs as well as or better than the
+      proprietary alternatives on NoaCG's own benchmarks; a superior proprietary model is
+      never excluded merely for closed weights. Route selection stays explicit server
+      configuration - never a silent fallback.
+- [x] **Consent notice** - discloses that prompts and uploaded images may be sent to an
+      external AI provider, that sensitive/confidential material must not be uploaded, and
+      that NoaCG prefers ZDR-capable routes where available but cannot guarantee identical
+      retention across providers. Acceptance stored server-side for signed-in users
+      (timestamp + notice version); client-side for anonymous users, with renewed acceptance
+      whenever the notice version changes.
+- [x] **Free Import Graphic vision quota** - 1 image per analysis, 10 successful analyses
+      per day, 100 per month; images downscaled to at most 1920x1080 before sending. Only
+      successes count against the quota; abuse-oriented rate limiting is separate; actual
+      per-run provider costs are recorded so the numbers can be tuned from real usage.
+- [x] **BYO credentials require sign-in on the hosted service** - keys associate with the
+      user, not just a browser cookie. Account-free BYO-key use survives for private
+      self-hosted installs behind an explicit configuration flag, disabled by default in
+      the hosted product.
+- [x] **Who pays decides the route** - NoaCG Lite and every other free hosted surface are paid
+      for by the project, and there is no revenue yet, so a route NoaCG funds must be a cheap
+      OpenRouter model. OpenAI and Anthropic models are reachable only through the user's own
+      sealed key; no managed NoaCG key is wired into a hosted path for them. A cost constraint
+      that composes with the benchmark-first policy rather than replacing it: a candidate can
+      only be promoted to a NoaCG-funded route if it is cheap and OpenRouter-reachable.
+      Revisit when there is income.
 
 The stages, in order (details in the plan):
-- [ ] Stage 0 remainder - `/api/ai/generate` rate limit + content-free ledger row; dead-code
-      removals from the audit
-- [ ] Stage 1 - AI task registry + model catalog/allowlist; Lite re-expressed as the first
-      task profile, behavior-identical (proven by `bench:regress`)
-- [ ] Stage 2 - external-provider disclosure/consent notice; ZDR-by-default on free routes;
-      execute the open-weight primary decision for Lite
-- [ ] Stage 3 - `imported-graphic-analysis` harness + proposal-only Import Graphic UI behind
-      a server flag; vision benchmark of >=3 open VLMs picks the launch route
-- [ ] Stage 4 - shared repair-loop seam (SPX + video), video telemetry, video-internal dedup
+- [x] **Stage 0 remainder (2026-07-28)** - `/api/ai/generate` per-IP burst gate + content-free
+      `ai_gateway_requests` ledger row (migration 0012, task `byo-generate`); audited dead-code
+      removals (kept: `referenceSelect.ts` experiment machinery, `modelRole:'fast'`, Lite
+      schema members - see the plan's §1.5 annotation)
+- [x] **Stage 1 (2026-07-28)** - AI task registry (`api/_lib/aiTaskRegistry.ts`) + approved-route
+      model catalog (`api/_lib/aiModelCatalog.ts`, `openWeights` as promotion metadata per
+      decision 1; the prior live-discovery module moved to `aiModelDiscovery.ts`); Lite
+      re-expressed as task `lite-design-spec` with `/api/ai/lite/*` URLs and behavior
+      unchanged (proven by `bench:regress` + the gateway test suite); free-tier routes now
+      fail closed outside the catalog (`docs/AI_TASK_REGISTRY.md`)
+- [x] **Stage 2 build (2026-07-29)** - first-use disclosure notice on every external-provider
+      AI action (wording/version in `src/ai/consentNotice.ts`; acceptance client-side for
+      anonymous + server-side for signed-in via `ai_consents`, migration 0014; the offline
+      stub never shows it - pinned by `e2e/ai-consent.spec.ts`); ZDR-by-default pinned for
+      free task routes. STILL OPEN from Stage 2: run the Lite model benchmark (spends real
+      tokens) and settle the primary per the benchmark-first policy, within the funded-route
+      cost constraint (cheap and OpenRouter-reachable - ratified decision 5)
+- [x] **Stage 3 build (2026-07-29)** - `imported-graphic-analysis` task behind
+      `AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off): endpoints + profile-scoped ledger
+      (migration 0015), `src/ai/importAnalysis/` contract/client/normalizer (font honesty,
+      client-side downscale), proposal-only panel on the Import Graphic Text step applying
+      via `DesignFieldSpec`; stub-first `e2e/import-analysis.spec.ts`. STILL OPEN from
+      Stage 3: the hand-labelled vision dataset + benchmark (>=3 open-weight candidates)
+      picks the launch route before the flag turns on
+- [x] **Stage 4 build (2026-07-29)** - the bounded errors-back repair loop extracted to
+      `src/ai/shared/repairLoop.ts` and driven by BOTH coders (blocking-findings policy stays
+      per-caller: SPX editability demotion, video soft-finding demotion); the video harness
+      now records through the shared telemetry ring (`video-generate`/`video-refine` kinds -
+      it recorded nothing before). The audit's video-internal dedup items were found already
+      resolved on main (dead-input checks exist on both engines; the per-engine canonical
+      examples are deliberate). STILL OPEN from Stage 4: the paid `ai-compare.mjs` regression
+      run the plan names as the refactor's token-spending proof (the free proofs - build,
+      `bench:regress`, the mocked repair-round e2e specs - are green); open-model candidates
+      in the code benches ride the Stage 2 bench decision
 
 ### Export & platform
 - [x] SPX Starter + Advanced/Pack export with validation gate
@@ -1087,6 +1132,25 @@ control-page export absorbed, not duplicated.
 - [x] **Profiles** — the homebase is the one place: graphics across packets, video projects,
       shows with hosted-page links, community submissions; sync kinds grew 'show' and
       'video' (video tombstones strip payloads to readable stubs).
+
+### Editorial and cinematic information systems (2026-07-30)
+
+- [x] **Editorial is a usable information system** - lt25 Masthead now has exact-token siblings
+      for session and segment titles, topic and coming-up, fact-check, explainer, news ticker,
+      breaking strap, public notice, source attribution, agenda/results, sponsor reads and
+      prepared captions. Printed rules, hierarchy, flat surfaces and whitespace remain the
+      family grammar across every shape.
+- [x] **Cinematic is a usable information system** - lt32 Scrim, lt34 Title Strap and lt35
+      Letterbox now have exact-token siblings for chapter titles, now-playing, documentary
+      quotes, locations, prepared captions or lyrics and restrained alerts. Soft scrims, light
+      wide type, 1 px hairlines and sine-led motion remain the family grammar.
+- [x] **Types stay semantic** - existing title, now/next, headline, notice, statement, ticker and
+      alert types compile the matching designs. Agenda/results, sponsor, location, source and
+      prepared-caption shapes remain hand-authored because their one-off field contracts do not
+      justify a new state flow or reusable type.
+- [x] **Catalog quality is gated** - the factory and taxonomy matrix, affected category sweeps,
+      type floor, overflow baseline, capacity bench and reviewed contact sheets cover the
+      information-system packages as coherent families.
 
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate

@@ -12,9 +12,23 @@ disagrees with the happy path.
 Branch to merge: the argument given at invocation, if any (if empty, detect it in Phase 1 and
 confirm with the user before merging).
 
-This workflow carries standing permission to update and push `main`, so it runs **only when the
-user explicitly invokes it by name**. Never infer invocation from a general request to inspect,
-review, or discuss a merge.
+This workflow carries standing permission to update and push `main`, so it runs **only on an
+explicit user invocation**. There are exactly two of those:
+
+- the user typed the command themselves (`/safe-merge` in Claude Code, `$safe-merge` in Codex);
+- **the user SELECTED this workflow from a pick the next workflow offered** for a named branch.
+  A pick is a decision the user made about a specific branch, not an inference - so it is a real
+  invocation and must be honoured by running this procedure, not answered with "type the command
+  yourself". It authorizes exactly the branch named in that option, for that turn only.
+
+Everything else is still forbidden: never infer invocation from a general request to inspect,
+review, or discuss a merge, from work merely looking finished, or from a pick that was about
+something else.
+
+Note for Claude Code: the `/safe-merge` adapter sets `disable-model-invocation: true` on
+purpose, so the model can never invoke this workflow as a tool of its own accord. That flag stays.
+Acting on a user's pick means reading `.agent-workflows/safe-merge.md` and following it directly -
+the user has invoked it, and the adapter is only a pointer to this file anyway.
 
 ## Repo layout (this project)
 
@@ -23,8 +37,13 @@ review, or discuss a merge.
   every run.
 - Feature worktrees commonly live under `.claude/worktrees/<name>` on `claude/*` or `codex/*`
   branches, but paths and prefixes are never safety signals.
-- The verification gate is `npm run build` (typecheck + build). UI-facing changes should
-  also get an e2e pass (`npm run test:e2e`) or at least an in-browser check.
+- The verification gate is `npm run build` (typecheck + lint + build) **and**
+  `npm run test:e2e:affected` - both, every time. `build` alone is not enough: it does not
+  run a single e2e spec, and on 2026-07-30 four template packs landed in a row that each
+  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. The
+  affected run maps the branch's own diff to the specs that cover it (and raises the catalog
+  calibration gate when the catalog moved), so it costs minutes on a normal branch rather
+  than the whole suite - which is what made "just run build" tempting in the first place.
 - Standing permission exists to push verified work to `origin/main`.
 
 ## Hard safety rules (never break these, even if asked mid-flow)
@@ -87,6 +106,28 @@ Run and summarize:
    PowerShell, also intersect `git diff --name-only <base> <branch>` with
    `git diff --name-only <base> main` and report overlapping paths conservatively. **Never use
    `git merge --no-commit` as a preview**; it changes the index and working tree.
+8. **Merge ORDER - what landing this branch costs the other worktrees.** Several branches are
+   normally in flight, and this workflow merges `main` into the branch before fast-forwarding,
+   so whatever lands first is absorbed by everyone else afterwards. Run:
+
+       node scripts/merge-order.mjs --branch <branch>
+
+   It is read-only (a `git merge-tree` three-way merge in the object store - no working tree, no
+   ref) and prints the ranked landing order plus a verdict for this branch. Report its one-line
+   verdict every run, whatever it says:
+
+   - **`clear`** - landing this now costs nothing in flight. Say so in one line and continue.
+   - **`caution`** - there is a cost but no cheaper branch is waiting, or the cost is small.
+     Report the number and continue; someone has to go first.
+   - **`hold`** - a cheaper branch is ready AND this one is expensive: it renames or deletes
+     paths another branch edits, collides on a sequence number (two migrations minting `0024`
+     merge CLEANLY and are still wrong), is stacked on a branch that must land first, or leaves
+     five or more conflicted files for others. STOP and get an explicit go-ahead, naming the
+     branch it recommends landing first.
+
+   This never overrides the user: a `hold` that the user waves through proceeds normally. It is
+   advice with a stop attached, not a gate - and it is advisory only about ORDER. It never
+   substitutes for any Hard safety rule or for Phase 3 verification.
 
 ### If `main` is not checked out anywhere
 
@@ -125,7 +166,8 @@ real risk, meaning any of:
 - the source worktree has uncommitted changes;
 - the merge is predicted to conflict;
 - `main` is checked out nowhere and `reattach-main.mjs --check` does not report SAFE;
-- the source branch is ambiguous or was not clearly identified.
+- the source branch is ambiguous or was not clearly identified;
+- `merge-order.mjs` returned a `hold` verdict (step 8).
 
 In any of those cases, report the specific risk and wait. Absent them, do not pause - the
 later phases still enforce every Hard safety rule and abort on their own if reality
@@ -157,10 +199,25 @@ branch - it is never where conflicts get resolved.
    continuing; never verify a half-finished merge.
 2. Pin the commit under test: `VERIFIED_SHA = git rev-parse <branch>` and state it. The exact
    commit that passes verification must be the exact commit that becomes `main`.
-3. Verify on the integrated branch: run `npm run build` in the worktree. If the work is
-   user-facing, also run the relevant e2e specs or check the affected flow in the browser
-   per the root `AGENTS.md` "Verifying changes" contract. A red build means fix-or-abort -
-   do not proceed to main. (Any fix creates a new commit; re-record `VERIFIED_SHA` and rebuild.)
+3. Verify on the integrated branch, in the worktree, BOTH of:
+   - `npm run build` - typecheck, lint, bundle.
+   - `npm run test:e2e:affected` - the specs covering this branch's diff, plus the catalog
+     calibration gate when the catalog moved. Run it even when the change looks harmless:
+     "it's only templates" is exactly the branch that went red, and the script decides what
+     "affected" means, not the person merging. It escalates to the full suite by itself on a
+     shared-core or unmapped change, so a wide change is not a reason to skip it - it is the
+     reason it takes longer. It reports and skips cleanly when a diff touches nothing the
+     suite covers, so a docs-only branch costs seconds.
+
+   Anything red means fix-or-abort - do not proceed to main. (Any fix creates a new commit;
+   re-record `VERIFIED_SHA` and re-run BOTH.) Playwright starts its own offline-pinned dev
+   server; a server already running on this checkout's port makes the guard hook refuse, so
+   stop that one first rather than letting the specs reuse it.
+
+   If the branch has an open PR whose CI is green on exactly `VERIFIED_SHA`, that CI run is
+   stronger evidence than the local pair (it runs the same gates plus the full sharded suite
+   on a clean checkout) - say so and let it stand in for the affected run. It does NOT
+   substitute for anything if the commit moved afterwards.
 4. Confirm the source worktree is clean with `git status --porcelain`. The checked filesystem
    must exactly match the commit being promoted; generated or uncommitted changes make the
    verification invalid.

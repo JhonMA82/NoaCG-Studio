@@ -39,6 +39,19 @@ quick scan, not an audit.
 - **Repo state.** `git branch --show-current`, `git status --porcelain=v1 --branch`,
   `git log --oneline -5`, untracked files worth keeping. Uncommitted verified work is always a
   candidate option; unverified work makes verification the option.
+- **What the rest of the checkout is already doing.** Run `node scripts/worktree-activity.mjs` -
+  a LIVE scan (the session-start snapshot is stale by now) in two parts: every other WORKTREE
+  with work in flight (its branch, its last commit and how long ago, the files it has
+  uncommitted or committed-but-not-yet-merged), then every BRANCH ahead of `main` that no
+  worktree has checked out - unmerged work from a closed session, still a collision even though
+  nobody is in it. This is what tells you an option is already someone else's job, and which
+  files an option would collide on. Several worktrees are normally active at once.
+- **Merge ORDER, whenever landing this branch is a plausible option.** Run
+  `node scripts/merge-order.mjs --branch <this branch>` - read-only, a couple of seconds. The
+  worktree scan says who ELSE is in flight; this says who should go FIRST, measured with a real
+  three-way merge rather than a guess. It answers the one question that costs real time: does
+  landing this branch now force another branch into a large or dangerous re-merge? See section 2
+  for what to do with each verdict.
 - **Verification gap.** Was `npm run build` run after the last code change? Is there observable
   behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
   alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
@@ -88,7 +101,38 @@ convenient. Every option must fit the product pillars and the governing nested
 
 When the session's work is committed and verified, **"merge and push via the safe-merge
 workflow" is a first-class option** - often the recommended one. Offering it here is fine; the
-user picking it is what makes it user-initiated. Never run it yourself off this workflow.
+user picking it is what makes it user-initiated. Never START it yourself off this workflow -
+but once the user PICKS it, run it (section 2c).
+
+**Order the merge option by what `merge-order.mjs --branch <this branch>` said**, so this
+workflow never recommends a landing that makes another branch's landing much worse:
+
+- **`clear`** - offer it normally, no caveat.
+- **`caution`** - still offerable and still recommendable; append the cost in a fragment
+  (`costs <branch> N conflicted files`).
+- **`hold`** - do NOT recommend landing this branch. Keep it in the list (the user may have a
+  reason) but say in the same line which branch should land first and why - the rename, the
+  duplicated migration number, the conflict count. Recommend a different option instead.
+
+Never turn this into an option to go merge the OTHER branch: that is another worktree's
+business, and this workflow reports collisions rather than acting on them. Name it, and stop.
+
+**Run every candidate option past the worktree scan before listing it:**
+
+- **Already under way elsewhere** (another worktree's branch and files plainly cover that job) -
+  do NOT offer it. Say so instead in one line below the options: what, which branch, how recent.
+- **Overlaps files in flight elsewhere without being the same job** - still offerable, but the
+  option must name the collision (`files X, Y also in flight on <branch>`) and say what to do
+  about it: land that branch first, take the slice that misses those files, or do it in that
+  worktree instead. Pick one and recommend it - never just flag the clash.
+- **Stale overlap** (that worktree's last commit is old and nothing is uncommitted) - name it as
+  a caution, not a blocker.
+- **Overlaps a worktree-less branch** - the same rules apply; nobody is in that branch right
+  now, so the usual answer is to land it (or say it must be landed) before touching those files.
+- **Landing this branch** while another worktree is in flight on the same files - still a fine
+  option, but say in one line which branch will have to take main afterwards.
+- The scan is evidence, not permission: two worktrees touching one file is often fine. Never
+  suppress a genuinely good option over an incidental overlap - flag it and move on.
 
 **Optionally add ONE wildcard**: a creative improvement just outside the current scope, clearly
 labelled **(speculative)** and pitched as a maybe, not a need - grounded options never get this
@@ -114,6 +158,24 @@ run.
 - Never skip this because the answer feels obvious, because there is only one real option, or
   because there is no work left. Those cases still get a pick - see section 3.
 
+### 2c. A picked option is an invocation - including the safe-merge one
+
+**When the user picks the safe-merge option, RUN it.** Do not answer the pick by asking them to
+type `/safe-merge` themselves. The option named a branch, this workflow offered it, and the user
+chose it - that is a user decision about a specific branch, which is exactly what "explicitly
+invoked" means. Refusing a pick you just offered is a bug, not caution.
+
+Mechanically: read `.agent-workflows/safe-merge.md` and follow it in full for the branch named in
+the option. In Claude Code do NOT try to call the `/safe-merge` command as a tool - its adapter
+sets `disable-model-invocation: true` so the model can never invoke it on its own initiative, and
+that flag stays. Following the shared file directly is the same procedure with the same standing
+permissions, entered the one way that requires a human to have chosen it.
+
+The authorization is exactly as narrow as the option was: that branch, that turn. It does not
+extend to a second branch, to cleanup, or to a later turn - each needs its own invocation.
+
+The same holds for every other option: the pick is the go-ahead for THAT option only.
+
 ### 3. If the answer is "nothing"
 
 Skip the numbered list. 1-2 lines: session complete, the evidence (build/e2e/commit state), and
@@ -123,7 +185,8 @@ the natural close. No consolation backlog list.
 genuinely available, recommended one first:
 
 - **The safe-merge workflow** - only when this session's branch is committed, verified, and
-  actually mergeable. Picking it is what makes it user-initiated; still never run it unasked.
+  actually mergeable, and `merge-order.mjs` did not return `hold`. Picking it is what makes it
+  user-initiated; never run it unasked, and always run it once picked (section 2c).
 - **The handoff workflow** - write the handoff note and close out.
 - **Stop here** - nothing further, leave the session as is.
 - **Start something new** - open the backlog (`docs/GOALS.md`)
@@ -136,17 +199,20 @@ honest floor when nothing else applies.
 
 Present the options, offer the pick, and END THE TURN. Do not start any option, "get a head
 start", or stage changes. The user approves with the button/number (or a title, "do the
-recommended one") - only then begin, and do only the picked option.
+recommended one") - only then begin, and do only the picked option (section 2c).
 
 ## Rules
 
 - **Read, don't write.** The planning turn changes nothing. No commits, fixes, file creation, or
   memory writes.
+  The one thing a PICK may then do is start the option the user chose - including safe-merge.
 - **Options must be about THIS session's line of work.** Suggesting the safe-merge workflow /
   push for this session's branch is in scope; never execute it unasked. Never offer
   repo/workspace cleanup (leftover worktrees, stale branches, node_modules pruning, etc.) - the
   user handles those deliberately elsewhere. Same for other worktrees' business or work that
   plainly belongs in a fresh session - name that separately in one line if it exists.
+- **Never act on a collision.** Reporting one is the whole job here: do not merge, rebase, pull,
+  stash, or edit anything in another worktree, and never suggest doing it for them silently.
 - **Respect the user's focus argument** - filter options through it; if it filters everything
   out, say so rather than stretching.
 - **Be fast and cheap.** Grounding is a couple of minutes of reads. Never run the full e2e suite

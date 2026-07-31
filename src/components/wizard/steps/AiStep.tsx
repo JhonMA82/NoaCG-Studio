@@ -9,6 +9,7 @@ import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/pref
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
 import { mergeSafety } from '../../../ai/safety';
 import { productionSpxValidator } from '../../../ai/litePipeline';
+import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import {
   emptyGenerationSpec,
@@ -21,6 +22,7 @@ import {
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
+import { useAiConsent } from '../../AiConsentDialog';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
 import {
@@ -29,6 +31,13 @@ import {
   type AuthoredFormatDetection,
 } from '../../../model/importTemplate';
 import { loadLooks } from '../../../model/packets';
+import {
+  guessPurpose,
+  isReferencePurpose,
+  splitByPurpose,
+  type PurposedImage,
+} from '../../../model/imagePurpose';
+import { UploadCard } from './ai/UploadCard';
 import type { AssetFile, SpxTemplate } from '../../../model/types';
 import {
   resolutionForSelection,
@@ -174,22 +183,36 @@ export default function AiStep({
   const liteActive = Boolean(liteStatus?.available);
   const [settings, setSettings] = useState(loadAiSettings);
   const aiReady = liteMode ? liteActive : aiConfigured(settings);
+  // Every action on this step runs against a remote route when it runs at all (aiReady
+  // gates the buttons; the stub is unreachable here), so the disclosure gate applies to
+  // generate, refine, and talk alike.
+  const { ensureAiConsent, consentDialog } = useAiConsent();
   const [showSettings, setShowSettings] = useState(!aiConfigured());
   const [prompt, setPrompt] = useState('');
-  const [images, setImages] = useState<AssetFile[]>([]);
+  // ONE list of uploads, each carrying what it is FOR (model/imagePurpose.ts). The step used
+  // to keep two: everything dropped here became a bundled asset, and the only way to say
+  // "this is a reference" was a second uploader buried in the More-control accordion. Two
+  // uploaders for one gesture is what made the whole thing feel narrow.
+  const [uploads, setUploads] = useState<PurposedImage[]>([]);
+  const { assets: images, references, fixedPaths } = useMemo(() => splitByPurpose(uploads), [uploads]);
   // The structured setup ("More control"): persisted as a cross-session draft so closing
   // the wizard never loses it; an empty spec injects nothing anywhere.
   const [spec, setSpec] = useState<GenerationSpec>(() => loadSpecDraft() ?? emptyGenerationSpec());
   const [moreOpen, setMoreOpen] = useState(() => !specIsEmpty(loadSpecDraft()));
-  const [references, setReferences] = useState<AssetFile[]>([]);
   useEffect(() => saveSpecDraft(spec), [spec]);
   useEffect(() => {
     if (!liteMode) return;
     if (spec.category !== 'auto' && !LITE_AI_CATEGORIES.some((category) => category === spec.category)) {
       setSpec((current) => ({ ...current, category: 'auto', categoryInferred: false }));
     }
-    if (references.length) setReferences([]);
-  }, [liteMode, references.length, spec.category]);
+    // Lite takes no reference material at all, so a purpose it cannot honour is dropped
+    // rather than silently ignored.
+    setUploads((current) =>
+      current.some((u) => isReferencePurpose(u.purpose))
+        ? current.filter((u) => !isReferencePurpose(u.purpose))
+        : current,
+    );
+  }, [liteMode, spec.category]);
   const activeSpec = specIsEmpty(spec) ? null : spec;
   const [imported, setImported] = useState<{
     fileName: string;
@@ -227,9 +250,10 @@ export default function AiStep({
   const [extracted, setExtracted] = useState<BrandColor[]>([]);
   const looks = useMemo(() => loadLooks(), []);
   useEffect(() => {
-    // The FIRST image is the one a logo slot receives, so it is the one whose colours are
-    // being offered as the brand.
-    const first = images[0];
+    // The first upload of ANY purpose. Colour is the one thing every purpose can give: a
+    // mood board exists to be read for its palette, and reading only the bundled assets meant
+    // the picture chosen precisely for its colours was the one the brand strip ignored.
+    const first = uploads[0]?.asset;
     if (!first || typeof first.data !== 'string') {
       setExtracted([]);
       return;
@@ -241,7 +265,7 @@ export default function AiStep({
     return () => {
       alive = false;
     };
-  }, [images]);
+  }, [uploads]);
   const fileInput = useRef<HTMLInputElement>(null);
   // THE THREAD: talk and generations in one transcript. The brainstorm used to be a separate
   // panel producing a string the user copied into the prompt box — two chat-shaped surfaces
@@ -286,6 +310,8 @@ export default function AiStep({
   const sendChat = async () => {
     const text = prompt.trim();
     if (!text || chatBusy || busy) return;
+    // The talk turn goes to the model gateway, so it is disclosure-gated like a generation.
+    if (!(await ensureAiConsent())) return;
     const history: ChatMessage[] = [...conversation(), { role: 'user', text }];
     say({ kind: 'you', text, attached: 0 });
     setPrompt('');
@@ -329,7 +355,8 @@ export default function AiStep({
         setError(e instanceof Error ? e.message : String(e));
       }
     }
-    const next = [...images];
+    const next = [...uploads];
+    const paths = () => next.map((u) => u.asset);
     for (const file of list) {
       if (!file.type.startsWith('image/')) continue;
       if (liteMode && (liteStatus?.limits.logos ?? 0) < 1) {
@@ -344,9 +371,13 @@ export default function AiStep({
         setError('The NoaCG Lite logo limit is 2 MB.');
         continue;
       }
-      next.push({ path: uniqueAssetPath(file.name, next), data: await fileToDataUrl(file) });
+      const asset = { path: uniqueAssetPath(file.name, paths()), data: await fileToDataUrl(file) };
+      // The guess is a PRESELECT, not a decision: it is shown on the card and one click
+      // changes it. Lite has only one legal purpose, so nothing is guessed there.
+      const purpose = liteMode ? 'asset' : await guessPurpose(asset);
+      next.push({ asset, purpose, ...(purpose === 'asset' ? { binding: 'swappable' as const } : {}) });
     }
-    if (next.length !== images.length) setImages(next);
+    if (next.length !== uploads.length) setUploads(next);
   };
 
   // The harness's injected validation pipeline (static rules + the live runtime bench,
@@ -357,7 +388,12 @@ export default function AiStep({
   // already run past. `imported` is the source for a convert, so a template that already
   // called fetch() before the AI touched it is not reported as something the AI introduced.
   // The structured setup adds its own checks on top (requested fields present, fonts used).
-  const safeValidate: SpxValidator = productionSpxValidator(imported?.template ?? null);
+  // Every "use it as it is" upload is protected: the as-is screen rides inside the injected
+  // validator so a tinted or cropped mark reaches the repair loop, not just the result card.
+  const safeValidate: SpxValidator = productionSpxValidator(
+    imported?.template ?? null,
+    images.map((a) => a.path),
+  );
   const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
 
   const showChange = (change: AiTemplateChange) => {
@@ -412,6 +448,9 @@ export default function AiStep({
     try {
       const change = await fn({
         validate,
+        // The structural-satisfaction check (docs/CREATIVE_MODE_PLAN.md §8): browser-only,
+        // so it is injected like the bench; the provider runs it on CREATE-routed results.
+        structuralCheck: benchStructuralIntent,
         onProgress: (stage) => setBusy(stage),
         ...(liteActive ? { profile: 'lite' as const } : {}),
       });
@@ -456,6 +495,7 @@ export default function AiStep({
     return {
       images: liteActive ? images.slice(0, 1) : images,
       references: !liteActive && references.length ? references : undefined,
+      ...(fixedPaths.length && !liteActive ? { fixedAssetPaths: fixedPaths } : {}),
       palette: specPalette ?? brandPalette,
       customFont: spec.fonts?.primary?.customFont,
       spec: activeSpec,
@@ -489,7 +529,10 @@ export default function AiStep({
     });
   };
 
-  const generate = (seed?: DesignSpec) => {
+  const generate = async (seed?: DesignSpec) => {
+    // Gate BEFORE any transcript or prompt-box state changes, so a decline leaves the
+    // step exactly as it was - nothing archived, nothing cleared, nothing recorded.
+    if (!(await ensureAiConsent())) return;
     const brief = briefNow();
     // ARCHIVE FIRST, then record the request. The transcript is chronological: the result
     // standing now happened BEFORE the thing that replaces it, and appending the new turn
@@ -498,7 +541,7 @@ export default function AiStep({
     // Say what was asked for even when the box was empty and the brief came out of the
     // talk — otherwise a generation leaves no trace of what it was asked to make.
     const asked = prompt.trim() || (seed ? 'More directions like the one I picked.' : brief);
-    if (asked) say({ kind: 'you', text: asked, attached: images.length });
+    if (asked) say({ kind: 'you', text: asked, attached: uploads.length });
     setPrompt('');
     setArmedExample(null);
     const context = contextFor(seed);
@@ -542,6 +585,7 @@ export default function AiStep({
       try {
         const list = await getAiProvider().generateAlternatives(brief, context, {
           validate,
+          structuralCheck: benchStructuralIntent,
           onProgress: (stage) => setBusy(stage),
         });
         if (!list.length) return;
@@ -586,6 +630,7 @@ export default function AiStep({
   const applyRefinement = (instruction: string, useSpec: boolean, label: string) => {
     if (!result) return;
     void (async () => {
+      if (!(await ensureAiConsent())) return;
       setBusy(label);
       setError(null);
       try {
@@ -610,7 +655,7 @@ export default function AiStep({
   const refineNow = () => {
     const p = prompt.trim();
     if (!p) return;
-    say({ kind: 'you', text: p, attached: images.length });
+    say({ kind: 'you', text: p, attached: uploads.length });
     setPrompt('');
     setArmedExample(null);
     applyRefinement(p, true, 'Refining…');
@@ -687,12 +732,13 @@ export default function AiStep({
           style={{ display: 'none' }}
           onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }}
         />
-        <strong>{liteMode ? 'Drop an existing template to open as code' : 'Drop a logo, images, or an existing template here'}</strong>
+        <strong>{liteMode ? 'Drop an existing template to open as code' : 'Drop pictures or an existing template here'}</strong>
         <span className="hint">
           {liteMode ? (
             <>Image input is paused while Lite concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
           ) : (
-            <>Images feed the design (logos work best as PNG with transparency). An{' '}
+            <>A logo to place, a design to follow, a mood board, or a shot of the real background —
+              you say what each one is for after dropping it. An{' '}
               <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
               can be opened as code unchanged, or converted to house standards with AI.</>
           )}
@@ -755,23 +801,32 @@ export default function AiStep({
         </div>
       )}
 
-      {images.length > 0 && (
-        <div className="row wrap" style={{ marginTop: 8, alignItems: 'center' }}>
-          {images.map((img) => (
-            <span key={img.path} className="wz-file-chip" title={img.path}>
-              {img.path.replace(/^images\//, '')}
-              <button
-                style={{ marginLeft: 6, padding: '0 6px' }}
-                onClick={() => setImages(images.filter((i) => i.path !== img.path))}
-                title="Remove"
-              >
-                ✕
-              </button>
-            </span>
+      {uploads.length > 0 && (
+        <div className="wz-uploads" data-testid="ai-uploads">
+          {uploads.map((item) => (
+            <UploadCard
+              key={item.asset.path}
+              item={item}
+              // Lite has exactly one legal purpose, so offering four would be a lie.
+              choosable={!liteMode}
+              onChange={(patch) =>
+                setUploads((current) =>
+                  current.map((u) => (u.asset.path === item.asset.path ? { ...u, ...patch } : u)),
+                )
+              }
+              onRemove={() =>
+                setUploads((current) => current.filter((u) => u.asset.path !== item.asset.path))
+              }
+            />
           ))}
-          <button onClick={() => onUseTemplates(images)} title="Skip the AI: pick a catalog design with a logo slot and your first image pre-placed">
-            ▤ Design around these with a catalog template ›
-          </button>
+          {images.length > 0 && (
+            <button
+              onClick={() => onUseTemplates(images)}
+              title="Skip the AI: pick a catalog design with a logo slot and your first image pre-placed"
+            >
+              ▤ Design around these with a catalog template ›
+            </button>
+          )}
         </div>
       )}
 
@@ -986,7 +1041,7 @@ export default function AiStep({
                   || (liteMode && Boolean(imported))
                   || (Boolean(imported) && !imported?.confirmed)
                 }
-                onClick={() => generate()}
+                onClick={() => void generate()}
               >
                 {imported && !liteMode ? '⚡ Convert with AI' : liteMode ? '✦ Create one Lite graphic' : '✦ Generate'}
               </button>
@@ -1012,7 +1067,7 @@ export default function AiStep({
               </button>
             )}
             {result && !imported && (
-              <button disabled={!!busy || !aiReady || !briefNow()} onClick={() => generate()}>
+              <button disabled={!!busy || !aiReady || !briefNow()} onClick={() => void generate()}>
                 ↻ Start over
               </button>
             )}
@@ -1020,7 +1075,7 @@ export default function AiStep({
               <button
                 disabled={!!busy || !aiConfigured(settings)}
                 data-testid="ai-more-like"
-                onClick={() => generate(alternatives[selected].spec)}
+                onClick={() => void generate(alternatives[selected].spec)}
                 title="Three new directions in the spirit of the one you picked."
               >
                 ✦ 3 more like this
@@ -1076,11 +1131,12 @@ export default function AiStep({
             <MoreControlPanel
               spec={spec}
               onSpec={setSpec}
-              references={references}
-              onReferences={setReferences}
+              // Reference images are uploaded ONCE, in the drop zone above, where every other
+              // picture arrives. This panel only reports what is attached.
+              uploads={uploads}
               disabled={!!busy}
+              allowUploads={!liteMode}
               allowedCategories={liteMode ? LITE_AI_CATEGORIES : undefined}
-              allowReferences={!liteMode}
               maxFields={liteMode ? liteStatus?.limits.fields ?? 8 : undefined}
             />
           )}
@@ -1246,6 +1302,8 @@ export default function AiStep({
           )}
         </>
       )}
+
+      {consentDialog}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import { type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
 import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { parseDataUrl } from '../assets/assetUtils';
+import type { ReferencePurpose } from '../model/imagePurpose';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { lt01 } from '../templates/lowerThirds/lt01';
 import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, type DesignSpec } from './designSpec';
@@ -34,10 +35,22 @@ import { specSections } from './spec/specPrompt';
 import { applySpecLocks, applySpecOutPreset, narrowedSpecTool } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { generateLiteDesign, LiteRequestError, recordLiteOutcome } from './liteClient';
+import { findingsList, repairLoop } from './shared/repairLoop';
+import {
+  INTENT_TOOL,
+  intentSystemPrompt,
+  isIntentAnswer,
+  narrowFitTool,
+  normalizeIntent,
+  routeIntent,
+  type GenerationMode,
+  type RouteDecision,
+  type StructuralIntent,
+} from './structuralIntent';
 
 // ── Structured output: the model must return the template via this tool ─────
 
-const TEMPLATE_TOOL: ModelTool = {
+export const TEMPLATE_TOOL: ModelTool = {
   name: 'emit_template',
   description: 'Return the complete SPX template as its three code files.',
   input_schema: {
@@ -59,7 +72,7 @@ const TEMPLATE_TOOL: ModelTool = {
   },
 };
 
-interface EmittedTemplate {
+export interface EmittedTemplate {
   name: string;
   type: TemplateType;
   summary: string;
@@ -108,7 +121,17 @@ function systemPrompt(exampleVariant: TemplateVariant = lt01, examplePresetId?: 
   // The canonical example is REAL generated code — the same contracts the wizard writes.
   // The caller picks the nearest catalog design so a scoreboard brief studies a real
   // scoreboard's contracts, not always a lower third.
-  const example = exampleWithAuthoringRegion(exampleVariant, examplePresetId);
+  return coderSystemPrompt(exampleWithAuthoringRegion(exampleVariant, examplePresetId));
+}
+
+/**
+ * The coder's system prompt around ONE worked example. Split out of `systemPrompt` above so
+ * the Creative Mode pilot's de-anchored arm can pass a NEUTRAL structural skeleton in the
+ * example slot (plan §4, §8 arm B) — the A-vs-B comparison isolates the catalog example, so
+ * the two arms must differ in the example and in nothing else. Pure extraction: the control
+ * path still calls it with exactly the example it always built.
+ */
+export function coderSystemPrompt(example: SpxTemplate): string {
   return `You are the template generator inside NoaCG Studio — a tool that creates
 broadcast graphics templates for SPX Graphics / CasparCG playout. You write COMPLETE, working,
 marketplace-quality templates. The user is learning to code from what you write.
@@ -278,7 +301,7 @@ Return ONLY via the emit_template tool.`;
 
 // ── Building an SpxTemplate from the model's output ──────────────────────────
 
-function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
+export function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
   const parsed = parseDefinition(emitted.html);
   return {
     name: emitted.name || base?.name || 'AI template',
@@ -296,9 +319,6 @@ function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxT
     layers: [],
   };
 }
-
-/** How many errors-back repair rounds the free-form path gets (video-harness parity). */
-const MAX_REPAIR_ROUNDS = 2;
 
 /** The runtime bench's house-editability rule (src/validation/runtimeBench.ts). */
 const EDITABILITY_RULE = 'bench-editability';
@@ -381,65 +401,66 @@ async function generateValidated(
   const ground = (e: EmittedTemplate): SpxTemplate =>
     applySpecOutPreset(ensureSpecFonts(convertEmittedRegion(toTemplate(e, ctx, base)), ctx?.spec), ctx?.spec);
 
-  let emitted = first.output as EmittedTemplate;
-  let template = ground(emitted);
-  let summary = emitted.summary;
-  options?.onProgress?.('Testing it…');
-  let validation = await validateWith(template, options, run);
-
   // Editability stays a hard error only when the template being MODIFIED already carried a
   // readable data block — silently losing it would be a real regression the repair loop
   // must fight. Everywhere else (fresh custom builds, foreign imports, hand-written code)
   // a region the converter above couldn't read demotes to a warning at the end instead of
   // burning repair rounds on the one finding the model reliably fails; the findings still
-  // ride along in a round a FUNCTIONAL error triggers.
+  // ride along in a round a FUNCTIONAL error triggers (the shared loop hands reEmit the
+  // FULL error list while `blocking` decides what forces a round).
   const editabilityBlocks = !!base && !!parseAnimData(base.js);
-  const blocking = (v: ValidationResult) =>
-    editabilityBlocks ? v.errors : v.errors.filter((e) => e.rule !== EDITABILITY_RULE);
 
-  for (let round = 1; round <= MAX_REPAIR_ROUNDS && blocking(validation).length > 0; round++) {
-    // Errors-back repair: the exact findings (validator rules + bench measurements) with
-    // the full current code, forced back through the same tool.
-    options?.onProgress?.(`Repairing (round ${round})…`);
-    run?.repair();
-    t0 = Date.now();
-    const repair = await callModelDetailed({
-      system,
-      messages: [
-        { role: 'user', content: userContent },
-        { role: 'assistant', content: `I generated a template but it failed the platform's checks.` },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Your template failed these checks. Fix ALL of them and re-emit the complete template:
-${validation.errors.map((e) => `- ${e.rule}: ${e.message}`).join('\n')}
+  const { emitted: result, validation: finalValidation } = await repairLoop<
+    { emitted: EmittedTemplate; template: SpxTemplate },
+    ValidationResult
+  >({
+    emitted: { emitted: first.output as EmittedTemplate, template: ground(first.output as EmittedTemplate) },
+    validate: async (current) => {
+      options?.onProgress?.('Testing it…');
+      return validateWith(current.template, options, run);
+    },
+    blocking: (v) =>
+      editabilityBlocks ? v.errors : v.errors.filter((e) => e.rule !== EDITABILITY_RULE),
+    reEmit: async (findings, current, round) => {
+      // Errors-back repair: the exact findings (validator rules + bench measurements) with
+      // the full current code, forced back through the same tool.
+      options?.onProgress?.(`Repairing (round ${round})…`);
+      run?.repair();
+      t0 = Date.now();
+      const repair = await callModelDetailed({
+        system,
+        messages: [
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: `I generated a template but it failed the platform's checks.` },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Your template failed these checks. Fix ALL of them and re-emit the complete template:
+${findingsList(findings)}
 
 === index.html ===
-${template.html}
+${current.template.html}
 === template.css ===
-${template.css}
+${current.template.css}
 === template.js ===
-${template.js}`,
-            },
-          ],
-        },
-      ],
-      tool: TEMPLATE_TOOL,
-      cacheSystem: true,
-    });
-    run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
-    emitted = repair.output as EmittedTemplate;
-    template = ground(emitted);
-    summary = emitted.summary;
-    options?.onProgress?.('Testing it…');
-    validation = await validateWith(template, options, run);
-  }
+${current.template.js}`,
+              },
+            ],
+          },
+        ],
+        tool: TEMPLATE_TOOL,
+        cacheSystem: true,
+      });
+      run?.stage(`repair-${round}`, t0, repair.model, repair.usage);
+      const next = repair.output as EmittedTemplate;
+      return { emitted: next, template: ground(next) };
+    },
+  });
 
-  if (!editabilityBlocks) validation = demoteEditability(validation);
-
-  return { summary, template, path: 'custom', validation };
+  const validation = editabilityBlocks ? finalValidation : demoteEditability(finalValidation);
+  return { summary: result.emitted.summary, template: result.template, path: 'custom', validation };
 }
 
 /** Telemetry wrapper: record the run whether it returns or throws. */
@@ -458,7 +479,92 @@ async function recorded(kind: AiRunKind, work: (run: AiRunRecorder) => Promise<A
 
 // ── Prompt assembly ───────────────────────────────────────────────────────────
 
-function contextText(prompt: string, ctx?: GenerateContext): string {
+/** The short tag each reference carries in the manifest (model/imagePurpose.ts's words). */
+const REFERENCE_TAG: Record<ReferencePurpose, string> = {
+  layout: 'MAKE ONE LIKE THIS',
+  mood: 'TAKE THE LOOK AND FEEL',
+  plate: 'MAKE IT WORK OVER THIS',
+};
+
+/**
+ * The attachment manifest plus one instruction block per purpose actually present.
+ *
+ * A picture's PURPOSE is the user's, not something to infer: a crest, a rival's strap, a
+ * mood board and a studio plate are four different instructions, and two of them are
+ * indistinguishable from pixels alone. So every attachment is numbered ONCE, in the exact
+ * order imageBlocks sends them, and the blocks below explain what each tag means. The old
+ * "the last N attachments are references" phrasing broke the moment a third kind existed.
+ */
+function attachmentSections(ctx: GenerateContext): string[] {
+  const refs = ctx.references ?? [];
+  if (!ctx.images.length && !refs.length) return [];
+  const out: string[] = [];
+
+  const manifest = [
+    ...ctx.images.map((a, i) => {
+      const fixed = ctx.fixedAssetPaths?.includes(a.path);
+      return `  ${i + 1}. ${a.path} — USE AS IS${fixed ? ' (fixed, no operator field)' : ''}`;
+    }),
+    ...refs.map((r, i) => `  ${ctx.images.length + i + 1}. ${REFERENCE_TAG[r.use]}`),
+  ];
+  out.push(
+    `The user attached ${manifest.length} picture(s), in this order, each with what it is FOR:\n` +
+      manifest.join('\n'),
+  );
+
+  if (ctx.images.length) {
+    const fixed = ctx.images.filter((a) => ctx.fixedAssetPaths?.includes(a.path));
+    out.push(
+      `USE AS IS — these are already bundled at the relative paths above; reference them exactly. ` +
+        `Place them the way the brief implies (a mark → a logo slot with an <img id="fN"> image ` +
+        `field; a full-frame still → background or featured media). They must appear EXACTLY as ` +
+        `uploaded: no recolouring, tinting, CSS filter, crop, rounded corners, or non-uniform ` +
+        `scale — a brand mark that has been "improved" is a broken brand mark. Scale them ` +
+        `proportionally and position them freely. Their colours may still inform the palette.` +
+        (fixed.length
+          ? `\nMarked "fixed": ${fixed.map((a) => a.path).join(', ')} — this is permanent brand ` +
+            `furniture, NOT content. Place it with a plain <img> and give it NO data field: the ` +
+            `operator must not be offered a control that swaps it.`
+          : ''),
+    );
+  }
+
+  const has = (use: ReferencePurpose) => refs.some((r) => r.use === use);
+
+  if (has('layout')) {
+    out.push(
+      `MAKE ONE LIKE THIS — read these for the COMPOSITION to follow: placement and zone, ` +
+        `reading order and hierarchy, how many lines carry what, density, proportion rhythm, ` +
+        `shape language, how motion enters. Follow those decisions closely. Never reproduce the ` +
+        `artwork itself — not its wordmark, photography, illustration, exact colours or exact ` +
+        `proportions; take the structure, leave the skin. The brief's words win wherever the two ` +
+        `disagree. If one is a SKETCH or wireframe, read it as a DIAGRAM of what to build: its ` +
+        `boxes and scrawls describe placement and nothing else, and its hand-drawn look is not a ` +
+        `style to imitate.`,
+    );
+  }
+  if (has('mood')) {
+    out.push(
+      `TAKE THE LOOK AND FEEL — read these for colour, mood, texture, weight and motion energy ` +
+        `ONLY. Ignore their layout and composition entirely; they are not designs to follow and ` +
+        `may not even be graphics. Never place them in the graphic.`,
+    );
+  }
+  if (has('plate')) {
+    out.push(
+      `MAKE IT WORK OVER THIS — this is the REAL background the graphic will be shown over (a ` +
+        `studio shot, a camera framing, a desk). It is never placed and never imitated: it is ` +
+        `evidence about the picture underneath. Read where it is bright, busy or dark, and where ` +
+        `faces and burned-in furniture sit, then make the graphic hold up over it — contrast, ` +
+        `panel opacity, an edge or shadow that separates text from a restless background, and ` +
+        `placement that does not cover what matters. Assume the plate is representative, not ` +
+        `fixed: the shot will move, so do not rely on a gap that happens to be empty in it.`,
+    );
+  }
+  return out;
+}
+
+export function contextText(prompt: string, ctx?: GenerateContext): string {
   const parts = [`Create a broadcast graphics template.\n\nUser brief: ${prompt}`];
   if (ctx) {
     parts.push(`Canvas: ${ctx.resolution.width}×${ctx.resolution.height} @ ${ctx.fps} fps.`);
@@ -468,25 +574,7 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
           `--text-color: ${ctx.palette.text}; --text-dim: ${ctx.palette.textDim}; --panel-bg: ${ctx.palette.panel}.`,
       );
     }
-    if (ctx.images.length > 0) {
-      parts.push(
-        `The user uploaded ${ctx.images.length} image(s) to APPEAR IN the graphic, attached above ` +
-          `first (in order). They are available at these relative paths (already bundled — reference ` +
-          `them exactly):\n` +
-          ctx.images.map((a, i) => `  ${i + 1}. ${a.path}`).join('\n') +
-          `\nUse them the way the brief implies (logo → a logo slot with an <img id="fN"> image field; ` +
-          `a full-frame still → background or featured media). Match the design's colors and mood to the images.`,
-      );
-    }
-    if (ctx.references?.length) {
-      parts.push(
-        `The user also attached ${ctx.references.length} STYLE REFERENCE image(s) (the last ` +
-          `${ctx.references.length} attachment(s)). They are design guidance ONLY: read the SYSTEM ` +
-          `behind them — grid, hierarchy, spacing rhythm, proportions, shape language, colour balance, ` +
-          `density, motion cues — and let it drive your decisions. Never place them in the graphic, ` +
-          `never reproduce their layout or artwork literally.`,
-      );
-    }
+    parts.push(...attachmentSections(ctx));
     if (ctx.conversation?.length) {
       // The brief is the WHOLE conversation, not its last line. The caller bounds this.
       parts.push(
@@ -511,11 +599,11 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
   return parts.join('\n\n');
 }
 
-function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
+export function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
   if (!ctx) return [];
   const blocks: ContentBlock[] = [];
-  // Assets first, references after — contextText numbers them in exactly this order.
-  for (const asset of [...ctx.images, ...(ctx.references ?? [])]) {
+  // Assets first, references after — the manifest numbers them in exactly this order.
+  for (const asset of [...ctx.images, ...(ctx.references ?? []).map((r) => r.asset)]) {
     if (typeof asset.data !== 'string') continue;
     const parsed = parseDataUrl(asset.data);
     if (parsed && parsed.mime.startsWith('image/') && parsed.mime !== 'image/svg+xml') {
@@ -536,15 +624,12 @@ function modifyContent(prompt: string, template: SpxTemplate, ctx?: GenerateCont
     ? `\n\nThe conversation this refinement belongs to (oldest first):\n` +
       ctx.conversation.map((m) => `  ${m.role === 'user' ? 'User' : 'You'}: ${m.text}`).join('\n')
     : '';
-  const images = ctx?.images?.length
-    ? `\n\nThe user's ${ctx.images.length} image(s) are attached above as pictures and bundled ` +
-      `with the template at these relative paths — reference them exactly:\n` +
-      ctx.images.map((a, i) => `  ${i + 1}. ${a.path}`).join('\n') +
-      `\nIf the request asks for one of them and the template does not use it yet, add it.`
-    : '';
-  const references = ctx?.references?.length
-    ? `\n\nThe last ${ctx.references.length} attachment(s) are STYLE REFERENCES: design guidance ` +
-      `only. Read the system behind them; never place them in the graphic.`
+  // The same manifest + per-purpose blocks a fresh generation gets: a picture attached
+  // mid-conversation means exactly what it would have meant at the start.
+  const sections = ctx ? attachmentSections(ctx) : [];
+  const attachments = sections.length ? `\n\n${sections.join('\n\n')}` : '';
+  const adopt = ctx?.images?.length
+    ? `\nIf the request asks for one of them and the template does not use it yet, add it.`
     : '';
   return [
     ...attached,
@@ -553,7 +638,7 @@ function modifyContent(prompt: string, template: SpxTemplate, ctx?: GenerateCont
       text: `Modify the template below. Change ONLY what the request needs — keep everything else
 (byte-identical where possible), including the user's own edits and comments.
 
-Request: ${prompt}${conversation}${images}${references}
+Request: ${prompt}${conversation}${attachments}${adopt}
 
 === index.html ===
 ${template.html}
@@ -733,7 +818,12 @@ async function groundedResult(
     template,
     path,
     validation,
-    spec,
+    // The spec describes what was BUILT, not what was asked for: `pickVariant` clamps an
+    // out-of-range or unknown chassis to the nearest legal one, so the model's `variantId`
+    // can name a design that was never assembled. Reporting the resolved id is what lets the
+    // satisfaction check ask an honest question, and it means a spec-level `modify` refines
+    // the graphic the user is actually looking at.
+    spec: { ...spec, variantId: assembled.diversity.variantId },
   };
 }
 
@@ -816,6 +906,108 @@ function contextFrom(template: SpxTemplate, outer?: GenerateContext): GenerateCo
   };
 }
 
+// ── Phase-A routing (docs/CREATIVE_MODE_PLAN.md §2, §8) ──────────────────────
+//
+// The intent stage runs BEFORE the catalog-anchored design call, so an off-catalog brief
+// can route to the custom path honestly instead of being forced into the nearest chassis
+// (the F1/F2 failure). The custom CODER itself is the frozen benchmark control: its
+// prompts, its catalog example, and designNotes() below stay byte-identical - routing
+// changes WHICH briefs reach it, never what it is given.
+
+interface RoutedIntent {
+  intent: StructuralIntent | null;
+  route: RouteDecision | null;
+}
+
+/**
+ * The intent stage + deterministic route decision. Explicit adapt skips the model call
+ * entirely (a catalog customization keeps today's one-call economy); explicit create is
+ * honoured even when the intent call fails; auto falls back to today's flow (route null)
+ * on any failure - a routing stage must never kill a generation.
+ */
+async function intentAndRoute(
+  userContent: ContentBlock[],
+  mode: GenerationMode,
+  run: AiRunRecorder,
+  options?: GenerateOptions,
+): Promise<RoutedIntent> {
+  if (mode === 'adapt') {
+    return { intent: null, route: { mode, route: 'adapt', reason: 'Explicit adapt request.' } };
+  }
+  let intent: StructuralIntent;
+  try {
+    options?.onProgress?.('Reading the brief…');
+    const t0 = Date.now();
+    const result = await callModelDetailed({
+      system: intentSystemPrompt(),
+      messages: [{ role: 'user', content: userContent }],
+      tool: INTENT_TOOL,
+      maxTokens: 2000,
+      // Per-stage model binding (plan §4): the intent stage is a small forced structured
+      // call, the shape cheap open models answer at parity — so it runs on the provider's
+      // `role:'fast'` model rather than the session's design/code model. Every stage after
+      // it keeps the session route. The routing bench pins its model explicitly instead,
+      // because its whole job is to measure a NAMED candidate in this role.
+      modelRole: 'fast',
+    });
+    run.stage('intent', t0, result.model, result.usage);
+    // An answer that never addressed the intent tool must not be normalized: it would read
+    // as low-confidence 'novel' and silently route a catalog brief to the coder.
+    if (!isIntentAnswer(result.output)) throw new Error('The intent call answered with the wrong tool.');
+    intent = normalizeIntent(result.output);
+  } catch {
+    // No intent. Explicit create still routes create; auto falls through to today's flow.
+    return { intent: null, route: mode === 'create' ? { mode, route: 'create', reason: 'Explicit create request.' } : null };
+  }
+  const route = routeIntent(intent, mode);
+  run.routing({
+    mode,
+    route: route.route,
+    reason: route.reason,
+    intentKind: intent.kind + (intent.typeId ? `:${intent.typeId}` : intent.families?.length ? `:${intent.families[0]}` : ''),
+    confidence: intent.confidence,
+    originalityRequested: intent.originalityRequested,
+  });
+  return { intent, route };
+}
+
+/** The routed fit narrowing: only an explicit adapt or a CREATE decision collapses the
+ *  design tool's fit enum; an auto->adapt decision leaves the tool untouched so catalog
+ *  briefs run today's flow byte-identically. */
+function routedSpecTool(base: ModelTool, route: RouteDecision | null): ModelTool {
+  if (route?.route === 'create') return narrowFitTool(base, 'custom');
+  if (route?.route === 'adapt' && route.mode === 'adapt') return narrowFitTool(base, 'catalog');
+  return base;
+}
+
+/** Append the injected structural-satisfaction check's findings as WARNINGS on the final
+ *  validation (non-blocking - plan §8: they never enter the frozen control's repair
+ *  rounds; rigs and future arms read them).
+ *
+ *  Runs on BOTH routed paths. It first shipped on the custom path alone, which left the
+ *  benchmark's most common defect unmeasured: a catalog-routed brief that comes back as the
+ *  wrong catalog member (a stinger assembled as a lower third) was never asked whether it
+ *  was the graphic requested. `change.spec.variantId` is what makes that answerable, so the
+ *  grounded path passes it; the custom path has no variant and is measured by parts. */
+async function withStructuralFindings(
+  change: AiTemplateChange,
+  intent: StructuralIntent | null,
+  options: GenerateOptions | undefined,
+  run: AiRunRecorder,
+): Promise<AiTemplateChange> {
+  if (!intent || !options?.structuralCheck) return change;
+  try {
+    const t0 = Date.now();
+    const findings = await options.structuralCheck(change.template, intent, change.spec?.variantId);
+    run.stage('structural-check', t0);
+    if (!findings.length) return change;
+    const validation = change.validation ?? { ok: true, errors: [], warnings: [] };
+    return { ...change, validation: { ...validation, warnings: [...validation.warnings, ...findings] } };
+  } catch {
+    return change; // the check is advisory - a check failure never costs the result
+  }
+}
+
 /** The design stage's decisions, carried into the free-form coder as plain direction. */
 function designNotes(spec: DesignSpec): string {
   return [
@@ -841,8 +1033,16 @@ export const claudeProvider: AIProvider = {
         { type: 'text', text: contextText(prompt, context) },
       ];
 
-      // Stage 1 — the design spec (also the router). A stage failure must never kill the
-      // generation: fall through to the free-form path with no spec.
+      // Stage 0 — the request mode + intent routing (plan §2). Auto with a catalog-fit
+      // brief leaves everything below byte-identical to the pre-routing flow; the stage
+      // exists so an off-catalog brief (or an explicit create) reaches the custom path
+      // without the catalog-anchored design call deciding against it.
+      const mode: GenerationMode = options?.mode ?? 'auto';
+      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+
+      // Stage 1 — the design spec (the design decision; also the router when routing
+      // above was advisory). A stage failure must never kill the generation: fall through
+      // to the free-form path with no spec.
       options?.onProgress?.('Designing…');
       let spec: DesignSpec | null = null;
       try {
@@ -851,8 +1051,8 @@ export const claudeProvider: AIProvider = {
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
           // A pinned user category narrows the tool schema itself — the model can only
-          // route within the decision.
-          tool: narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec),
+          // route within the decision. The routed fit narrows the same way (plan §2).
+          tool: routedSpecTool(narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec), route),
           maxTokens: 4000,
         });
         run.stage('design-spec', t0, result.model, result.usage);
@@ -864,19 +1064,32 @@ export const claudeProvider: AIProvider = {
         // No spec — the free-form path below still serves the brief.
       }
 
-      if (spec && spec.fit === 'catalog') {
+      const forceCustom = route?.route === 'create';
+      if (spec && spec.fit === 'catalog' && !forceCustom) {
         // Stage 2 — deterministic assembly through the real catalog assemblers: correct
         // by construction, panel- and timeline-editable like any wizard output.
-        return groundedResult(spec, context, options, run);
+        const grounded = await groundedResult(spec, context, options, run);
+        const annotatedGrounded = {
+          ...grounded,
+          ...(intent ? { intent } : {}),
+          ...(route ? { routing: route } : {}),
+        };
+        // The catalog path is checked too: assembly is correct BY CONSTRUCTION, which says
+        // nothing about whether the right thing was constructed.
+        return withStructuralFindings(annotatedGrounded, intent, options, run);
       }
 
       // Custom route — the free-form coder, studying the NEAREST catalog design as its
-      // canonical example and carrying the design stage's direction.
+      // canonical example and carrying the design stage's direction. THE FROZEN CONTROL
+      // (plan §8): its inputs are exactly the pre-routing ones — routing decides which
+      // briefs arrive here, never what the coder is shown.
       const exampleVariant = spec ? variantsFor(spec.category)[0] : undefined;
       const content: ContentBlock[] = spec
         ? [...userContent, { type: 'text', text: designNotes(spec) }]
         : userContent;
-      return generateValidated(content, context, undefined, options, run, exampleVariant);
+      const change = await generateValidated(content, context, undefined, options, run, exampleVariant);
+      const annotated = { ...change, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+      return withStructuralFindings(annotated, intent, options, run);
     });
   },
 
@@ -912,6 +1125,11 @@ export const claudeProvider: AIProvider = {
         { type: 'text', text: contextText(prompt, context) },
       ];
 
+      // Stage 0 — the same mode + intent routing as generate() (plan §2): the alternatives
+      // call is the product's default path, so honest routing has to live here too.
+      const mode: GenerationMode = options?.mode ?? 'auto';
+      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+
       // ONE design-stage call returns three distinct directions; each assembles like a
       // single harness generation (grounded deterministically, or the validated custom path).
       options?.onProgress?.('Designing three directions…');
@@ -921,7 +1139,7 @@ export const claudeProvider: AIProvider = {
         const result = await callModelDetailed({
           system: specSystemPrompt(),
           messages: [{ role: 'user', content: userContent }],
-          tool: narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec),
+          tool: routedSpecTool(narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec), route),
           maxTokens: 8000,
         });
         run.stage('design-alternatives', t0, result.model, result.usage);
@@ -934,10 +1152,17 @@ export const claudeProvider: AIProvider = {
       }
 
       const results: AiTemplateChange[] = [];
+      const forceCustom = route?.route === 'create';
       for (const [i, spec] of specs.entries()) {
         options?.onProgress?.(`Building option ${i + 1} of ${specs.length}…`);
-        if (spec.fit === 'catalog') {
-          results.push(await groundedResult(spec, context, options, run));
+        if (spec.fit === 'catalog' && !forceCustom) {
+          const grounded = await groundedResult(spec, context, options, run);
+          const annotatedGrounded = {
+            ...grounded,
+            ...(intent ? { intent } : {}),
+            ...(route ? { routing: route } : {}),
+          };
+          results.push(await withStructuralFindings(annotatedGrounded, intent, options, run));
         } else {
           const change = await generateValidated(
             [...userContent, { type: 'text', text: designNotes(spec) }],
@@ -947,7 +1172,8 @@ export const claudeProvider: AIProvider = {
             run,
             variantsFor(spec.category)[0],
           );
-          results.push({ ...change, spec });
+          const annotated = { ...change, spec, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+          results.push(await withStructuralFindings(annotated, intent, options, run));
         }
       }
       // The design stage failing (or returning nothing) must not kill the generation:

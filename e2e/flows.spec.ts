@@ -18,7 +18,9 @@ async function createFromCurrentStep(page: Page) {
   // assertion (or Play) racing the debounced rebuild would run against the old document.
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
+    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
+    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
+    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
 
@@ -51,7 +53,9 @@ test('wizard: blank project escape hatch', async ({ page }) => {
   await expect(page.getByTestId('blank-step')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.getByTestId('blank-create').click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  // 20 s, same reason as createFromCurrentStep above: blank-create runs the same cold-Prettier
+  // applyGenerated path (AGENTS.md's own documented gotcha for this exact create call).
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Blank');
 });
 
@@ -132,7 +136,11 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
       'base64',
     ),
   });
-  await expect(page.locator('.wz-file-chip')).toHaveCount(1);
+  // A dropped picture is now a CARD carrying what it is for (src/model/imagePurpose.ts). This
+  // 1×1 PNG is OPAQUE and tiny, so size - not transparency - is what makes it a mark; that is
+  // the catalog escape's input below, which only ever takes as-is assets.
+  await expect(page.getByTestId('ai-upload')).toHaveCount(1);
+  await expect(page.getByTestId('ai-upload')).toHaveAttribute('data-purpose', 'asset');
   await page.getByRole('button', { name: /Design around these with a catalog template/ }).click();
   await expect(page.locator('.asset-card')).toHaveCount(1);
   await page.getByRole('button', { name: /Continue with 1 image/ }).click();

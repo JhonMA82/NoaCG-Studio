@@ -18,7 +18,7 @@ import { videoInputDescriptor, type VideoInput } from '../../model/videoTypes';
 import { contentInputs } from '../../model/videoInputInfer';
 import { hyperframesContentInputs } from '../../video/hyperframes/parse';
 import { FieldRow, type FieldImage } from '../fields/FieldControl';
-import { describeAssets } from '../../video/types';
+import { compositionAssets, describeAssets } from '../../video/types';
 
 function InputRow({ input, images, fromCode }: { input: VideoInput; images: FieldImage[]; fromCode: boolean }) {
   const setInputValue = useVideoProjectStore((s) => s.setInputValue);
@@ -40,7 +40,16 @@ export default function VideoContentPanel() {
   const engine = useVideoProjectStore((s) => s.project.engine);
   const tsx = useVideoProjectStore((s) => s.project.tsx);
   const html = useVideoProjectStore((s) => s.project.html);
-  const assets = useVideoProjectStore((s) => s.project.assets);
+  // Only composition assets: a mood board is not something to point an image input at.
+  // Selected as its two stable parts and filtered in a memo — a selector that built the
+  // filtered array itself would return a new reference on every store write and re-render
+  // the panel continuously.
+  const allAssets = useVideoProjectStore((s) => s.project.assets);
+  const assetUses = useVideoProjectStore((s) => s.project.assetUses);
+  const assets = useMemo(
+    () => compositionAssets({ assets: allAssets, assetUses }),
+    [allAssets, assetUses],
+  );
   const resetInputs = useVideoProjectStore((s) => s.resetInputs);
 
   // What the panel edits is what the CODE reads: the inputs the AI declared, plus any a human

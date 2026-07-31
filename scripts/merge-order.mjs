@@ -1,0 +1,502 @@
+// Which branch should land on main FIRST, and what does landing this one cost everyone else?
+//
+// Several worktrees are normally in flight at once (see AGENTS.md), and the safe-merge workflow
+// integrates `main` INTO the branch before fast-forwarding. So the order work lands in is not
+// cosmetic: landing branch B first means every OTHER unmerged branch must afterwards absorb B.
+// The total textual conflict for a pair is the same whichever goes first - what changes is WHO
+// resolves it, how many times, and whether they understand the change they are absorbing.
+//
+// Three asymmetries are worth real money, and this script measures exactly those:
+//
+//   - FAN-OUT. A branch that conflicts with four others taxes four separate resolutions if it
+//     lands first, or absorbs all four itself - once, in one worktree, by its own author - if it
+//     lands last. Narrow branches first, wide branches last.
+//   - STRUCTURE. A rename or delete is the expensive kind. If B moves a file that X edits,
+//     B-first makes X's author relocate their work into a file they never moved; X-first makes
+//     B's author fold an edit into a file they DID move, which is the side that knows where it
+//     goes. A structural collision sinks a branch to the back of the queue regardless of counts.
+//   - SILENT COLLISIONS. Two branches that both mint the next `NNNN_*.sql` migration number, or
+//     that both append to a shared registry file, merge with ZERO textual conflict and are still
+//     wrong. Nothing about ordering fixes those - they have to be named out loud.
+//
+// The conflict measurement is real, not a guess: `git merge-tree --write-tree` performs a true
+// three-way merge in the object store (using the pair's own merge base, which is exactly the
+// base the loser of the race will face) and reports the conflicted paths. It touches no working
+// tree and no ref, so this whole script is safe to run from any worktree at any time.
+//
+// This is ADVISORY. It never blocks and never acts: sometimes the expensive branch is the one
+// that has to land, and someone always has to go first.
+//
+// CLI:
+//   node scripts/merge-order.mjs                     # ranked landing order for the checkout
+//   node scripts/merge-order.mjs --branch <name>     # verdict for one branch (exit 3 = hold)
+//   node scripts/merge-order.mjs --json              # machine-readable, with or without --branch
+
+import { execFile } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+
+import { normalize, worktreeEntries } from './worktree-cleanup-lib.mjs';
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Conflicted files imposed on the rest of the checkout before landing this branch first is
+ * called expensive rather than merely untidy. Below it, a couple of hunks in one file is the
+ * normal cost of parallel work and warning about it would only train the warning away.
+ */
+const HOLD_CONFLICT_FILES = 5;
+
+/**
+ * Files where a clean textual merge is known to produce a WRONG result, so two branches
+ * touching one is a collision even though git reports none. Kept short and specific on
+ * purpose - a long list of "shared-ish" files would make every run noisy and mean nothing.
+ */
+const SILENT_MERGE_FILES = [
+  // Append-union baselines: git unions the two branches' entries and the duplicate is invisible.
+  'scripts/overflow-baseline.json',
+  // Two branches adding spec mappings both "win", and the loser's mapping silently never runs.
+  'scripts/e2e-affected.mjs',
+];
+
+/**
+ * Directories whose file names carry a SEQUENCE NUMBER that must be unique across the repo.
+ * Two branches independently minting the same number merge cleanly and then collide at apply
+ * time - the one trap this repo has actually been bitten by (migration numbering, twice).
+ */
+const SEQUENCE_DIRS = ['supabase/migrations'];
+
+/**
+ * Full read-only assessment of everything ahead of `target` in the checkout containing `cwd`.
+ *
+ * Returns `{ target, self, branches, order, notReady }` where `branches` is one entry per local
+ * branch ahead of the target:
+ *   { branch, worktree, dirty, uncommitted, ahead, files, structural, lastCommit,
+ *     conflicts: Map<otherBranch, string[]>, imposed, silent: [...], stacked: [...] }
+ * `order` is the recommended landing sequence (ready branches only, cheapest first) and
+ * `notReady` lists branches that safe-merge would refuse today, with the reason.
+ */
+export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } = {}) {
+  const entries = worktreeEntries(cwd);
+  if (entries.length === 0) return empty(target);
+  const primary = entries[0].root;
+
+  const hasTarget = (await git(['rev-parse', '--verify', '--quiet', target], primary)).ok;
+  if (!hasTarget) return empty(target);
+
+  const self = entries.filter((entry) => isUnder(normalize(cwd), entry.root)).sort((a, b) => b.root.length - a.root.length)[0];
+  const names = await candidateBranches(primary, target);
+  if (names.length === 0) return { ...empty(target), self: self?.branch ?? null };
+
+  const byBranch = new Map(entries.filter((entry) => entry.branch).map((entry) => [entry.branch, entry]));
+
+  const branches = await Promise.all(
+    names.map(async (branch) => {
+      const worktree = byBranch.get(branch) ?? null;
+      const [ahead, status, uncommitted, tip] = await Promise.all([
+        git(['rev-list', '--count', `${target}..${branch}`], primary).then((r) => count(r.stdout)),
+        git(['diff', '--name-status', '--find-renames', `${target}...${branch}`], primary),
+        worktree ? uncommittedPaths(worktree.root) : Promise.resolve([]),
+        git(['log', '-1', '--format=%s%x00%cr', branch], primary).then((r) => {
+          const [subject, relative] = r.stdout.trim().split('\0');
+          return subject ? { subject, relative: relative ?? 'unknown' } : null;
+        }),
+      ]);
+      const { files, structural } = parseNameStatus(status.stdout);
+      return {
+        branch,
+        worktree: worktree?.root ?? null,
+        dirty: uncommitted.length > 0,
+        uncommitted,
+        ahead,
+        files,
+        structural,
+        lastCommit: tip,
+        conflicts: new Map(),
+        imposed: 0,
+        silent: [],
+        stacked: [],
+      };
+    }),
+  );
+
+  await measurePairs(primary, branches);
+  await markStacked(primary, branches);
+
+  return {
+    target,
+    self: self?.branch ?? null,
+    branches,
+    order: rank(branches.filter((b) => readiness(b) === null)),
+    notReady: branches
+      .map((b) => ({ branch: b.branch, reason: readiness(b) }))
+      .filter((entry) => entry.reason !== null),
+  };
+}
+
+/**
+ * Every pair measured once. The three-way merge is symmetric, so `conflicts` is filled in both
+ * directions from one call - which halves the git spawns, the only slow part of a run.
+ */
+async function measurePairs(primary, branches) {
+  const pairs = [];
+  for (let i = 0; i < branches.length; i += 1) {
+    for (let j = i + 1; j < branches.length; j += 1) pairs.push([branches[i], branches[j]]);
+  }
+
+  await Promise.all(
+    pairs.map(async ([a, b]) => {
+      const conflicted = await mergeTreeConflicts(primary, a.branch, b.branch);
+      if (conflicted.length > 0) {
+        a.conflicts.set(b.branch, conflicted);
+        b.conflicts.set(a.branch, conflicted);
+      }
+      for (const note of silentCollisions(a, b)) {
+        a.silent.push({ with: b.branch, ...note });
+        b.silent.push({ with: a.branch, ...note });
+      }
+      // A structural change is only expensive against a branch that touches what moved, and
+      // the cost lands on whoever goes SECOND - so it is recorded per direction, not shared.
+      recordStructural(a, b);
+      recordStructural(b, a);
+    }),
+  );
+
+  for (const branch of branches) {
+    branch.imposed = [...branch.conflicts.values()].reduce((sum, files) => sum + files.length, 0);
+  }
+}
+
+/**
+ * The conflicted paths of a real three-way merge of the two branches, from their own merge
+ * base. `--write-tree` writes only objects (no ref, no index, no working tree); exit 1 means
+ * conflicts and the first output line is the resulting tree, which is not a file name.
+ */
+async function mergeTreeConflicts(primary, a, b) {
+  const res = await git(['merge-tree', '--write-tree', '--name-only', '--no-messages', a, b], primary);
+  if (res.ok) return []; // exit 0 - merges cleanly
+  const [, ...rest] = res.stdout.split('\n');
+  const conflicted = [];
+  for (const line of rest) {
+    const file = line.trim();
+    if (!file) break; // blank line ends the conflicted-file section
+    conflicted.push(file);
+  }
+  // An unrelated-histories or bad-ref failure prints nothing usable; report it as no conflict
+  // rather than inventing one - this is advice, and a wrong "blocked" is worse than a miss.
+  return conflicted;
+}
+
+/** Collisions that merge CLEANLY and are still wrong - the ones git will never warn about. */
+function silentCollisions(a, b) {
+  const notes = [];
+
+  const shared = SILENT_MERGE_FILES.filter((file) => touches(a, file) && touches(b, file));
+  for (const file of shared) {
+    notes.push({ kind: 'shared-registry', detail: `both edit ${file} - a clean merge here unions entries rather than reconciling them` });
+  }
+
+  for (const dir of SEQUENCE_DIRS) {
+    const mine = sequenceNumbers(a, dir);
+    const theirs = sequenceNumbers(b, dir);
+    for (const [number, file] of mine) {
+      const clash = theirs.get(number);
+      if (clash && clash !== file) {
+        notes.push({ kind: 'sequence', detail: `both mint ${dir}/${number}_* (${file} vs ${clash}) - git merges both in and the number is taken twice` });
+      }
+    }
+  }
+
+  return notes;
+}
+
+/** `structural` entries of `mover` whose old path `other` also touches - `other` pays if it goes second. */
+function recordStructural(mover, other) {
+  const hits = mover.structural.filter((change) => touches(other, change.from));
+  if (hits.length === 0) return;
+  mover.structuralHits ??= [];
+  mover.structuralHits.push({ with: other.branch, changes: hits });
+}
+
+/**
+ * Branches whose tip is an ancestor of another branch are STACKED: the ancestor must land
+ * first, and that is a hard constraint rather than a preference.
+ */
+async function markStacked(primary, branches) {
+  await Promise.all(
+    branches.flatMap((a) =>
+      branches
+        .filter((b) => b !== a)
+        .map(async (b) => {
+          const res = await git(['merge-base', '--is-ancestor', a.branch, b.branch], primary);
+          if (res.ok) b.stacked.push(a.branch); // b contains a - a must land first
+        }),
+    ),
+  );
+}
+
+/**
+ * The recommended landing order: cheapest first, structural movers last, ancestors always
+ * before the branches stacked on them.
+ *
+ * The sort key is deliberately blunt - this exists to catch the expensive mistake, not to
+ * find the theoretically optimal permutation of six branches.
+ */
+function rank(ready) {
+  const ordered = [...ready].sort((a, b) => {
+    const structural = movedPathCount(a) - movedPathCount(b); // movers sink
+    if (structural !== 0) return structural;
+    if (a.silent.length !== b.silent.length) return a.silent.length - b.silent.length;
+    if (a.imposed !== b.imposed) return a.imposed - b.imposed;
+    if (a.files.length !== b.files.length) return a.files.length - b.files.length; // narrow first
+    return a.branch.localeCompare(b.branch);
+  });
+
+  // One stable pass is enough to honour ancestry: a stacked branch only ever has to move behind
+  // branches it literally contains, and those are already in the list. Two branch names on the
+  // SAME commit are each other's ancestor, so no candidate is ever satisfiable - the -1 fallback
+  // takes the next branch anyway rather than looping forever over a tie that has no wrong answer.
+  const placed = [];
+  const remaining = [...ordered];
+  while (remaining.length > 0) {
+    const index = remaining.findIndex((entry) =>
+      entry.stacked.every((needed) => placed.some((done) => done.branch === needed) || !remaining.some((r) => r.branch === needed)),
+    );
+    placed.push(...remaining.splice(index === -1 ? 0 : index, 1));
+  }
+  return placed;
+}
+
+/** Why safe-merge would refuse this branch today, or null when it is landable. */
+function readiness(branch) {
+  if (branch.ahead === 0) return 'nothing committed ahead of the target';
+  if (branch.dirty) return `${branch.uncommitted.length} uncommitted file(s) in ${branch.worktree ?? 'its worktree'}`;
+  return null;
+}
+
+/**
+ * The verdict for ONE branch: `clear`, `caution`, or `hold`.
+ *
+ * `hold` is reserved for the case the user actually gets hurt by - this branch is expensive for
+ * the others AND a cheaper one is sitting right there, ready. Expensive with no alternative is
+ * only a `caution`: someone has to go first, and saying "hold" when there is nothing to wait for
+ * is how a check earns itself ignored.
+ */
+export function verdictFor(assessment, branchName) {
+  const branch = assessment.branches.find((entry) => entry.branch === branchName);
+  if (!branch) return { severity: 'clear', branch: branchName, reasons: [], landFirst: null, blockedBy: [] };
+
+  const blockedBy = branch.stacked.filter((needed) => assessment.branches.some((entry) => entry.branch === needed));
+  const cheaper = assessment.order.filter((entry) => entry.branch !== branchName && cost(entry) < cost(branch));
+  const landFirst = blockedBy[0] ?? cheaper[0]?.branch ?? null;
+
+  const reasons = [];
+  const structuralHits = branch.structuralHits ?? [];
+  for (const hit of structuralHits) {
+    const paths = hit.changes.map((change) => change.from).slice(0, 3).join(', ');
+    reasons.push({
+      kind: 'structural',
+      severity: 'hold',
+      text: `renames or deletes ${hit.changes.length} path(s) that ${hit.with} also edits (${paths}) - landing this first makes ${hit.with} relocate work into files it never moved`,
+    });
+  }
+  for (const note of branch.silent) {
+    reasons.push({ kind: note.kind, severity: 'hold', text: `${note.detail} (with ${note.with})` });
+  }
+  if (branch.imposed > 0) {
+    const spread = [...branch.conflicts.entries()].map(([other, files]) => `${other}: ${files.length}`).join(', ');
+    reasons.push({
+      kind: 'conflict',
+      severity: branch.imposed >= HOLD_CONFLICT_FILES ? 'hold' : 'caution',
+      text: `landing it first leaves ${branch.imposed} conflicted file(s) for other branches to resolve (${spread})`,
+    });
+  }
+  if (blockedBy.length > 0) {
+    reasons.push({ kind: 'stacked', severity: 'hold', text: `contains ${blockedBy.join(', ')}, which must land first` });
+  }
+
+  const worst = reasons.some((reason) => reason.severity === 'hold') ? 'hold' : reasons.length > 0 ? 'caution' : 'clear';
+  // Nothing cheaper to wait for demotes a hold: the queue has to start somewhere. Ancestry is
+  // the exception - a stacked branch is wrong in itself, not merely early.
+  const severity = worst === 'hold' && !landFirst && blockedBy.length === 0 ? 'caution' : worst;
+
+  return { severity, branch: branchName, reasons, landFirst, blockedBy };
+}
+
+/** Sort/compare cost for "is something cheaper ready?" - structure dominates raw file counts. */
+function cost(branch) {
+  return movedPathCount(branch) * 100 + branch.silent.length * 50 + branch.imposed;
+}
+
+function movedPathCount(branch) {
+  return (branch.structuralHits ?? []).reduce((sum, hit) => sum + hit.changes.length, 0);
+}
+
+function touches(branch, path) {
+  const wanted = path.toLowerCase();
+  return (
+    branch.files.some((file) => file.toLowerCase() === wanted) ||
+    branch.uncommitted.some((file) => file.replaceAll('\\', '/').toLowerCase() === wanted)
+  );
+}
+
+/** `Map<number, file>` of sequence-numbered files this branch ADDS under `dir`. */
+function sequenceNumbers(branch, dir) {
+  const found = new Map();
+  for (const file of [...branch.files, ...branch.uncommitted.map((f) => f.replaceAll('\\', '/'))]) {
+    if (!file.toLowerCase().startsWith(`${dir.toLowerCase()}/`)) continue;
+    const match = /\/(\d+)[_-]/.exec(file);
+    if (match) found.set(match[1], file);
+  }
+  return found;
+}
+
+/** `{ files, structural }` from `--name-status --find-renames`; structural = renames and deletes. */
+function parseNameStatus(stdout) {
+  const files = new Set();
+  const structural = [];
+  for (const line of stdout.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const [code, ...paths] = line.split('\t');
+    if (code.startsWith('R') && paths.length === 2) {
+      structural.push({ kind: 'rename', from: paths[0], to: paths[1] });
+      files.add(paths[0]);
+      files.add(paths[1]);
+    } else if (code.startsWith('D')) {
+      structural.push({ kind: 'delete', from: paths[0], to: null });
+      files.add(paths[0]);
+    } else {
+      for (const path of paths) files.add(path);
+    }
+  }
+  return { files: [...files].sort(), structural };
+}
+
+async function candidateBranches(primary, target) {
+  const res = await git(['branch', '--no-merged', target, '--format=%(refname:short)'], primary);
+  return res.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((branch) => branch && branch !== target && !branch.startsWith('('));
+}
+
+async function uncommittedPaths(cwd) {
+  const res = await git(['status', '--porcelain', '-z'], cwd, { raw: true });
+  return res.stdout
+    .split('\0')
+    .filter(Boolean)
+    .map((record) => (/^[ MADRCU?!][ MADRCU?!] /.test(record) ? record.slice(3) : record))
+    .filter(Boolean);
+}
+
+/**
+ * Run git in `cwd` as `{ ok, stdout }`. Never rejects: `merge-tree` exits non-zero to REPORT
+ * conflicts, which is information, not failure - so the exit code is carried, not thrown.
+ */
+async function git(args, cwd, { raw = false } = {}) {
+  try {
+    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024 });
+    return { ok: true, stdout: raw ? stdout : stdout.trim() };
+  } catch (error) {
+    return { ok: false, stdout: typeof error?.stdout === 'string' ? (raw ? error.stdout : error.stdout.trim()) : '' };
+  }
+}
+
+function empty(target) {
+  return { target, self: null, branches: [], order: [], notReady: [] };
+}
+
+function count(stdout) {
+  const value = Number.parseInt(stdout.trim(), 10);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function isUnder(path, root) {
+  const [a, b] = [path.toLowerCase(), root.toLowerCase()];
+  return a === b || a.startsWith(`${b}/`);
+}
+
+/** The ranked order as human-readable lines. */
+export function formatOrder(assessment) {
+  const { branches, order, notReady, target } = assessment;
+  if (branches.length === 0) return [`Nothing is ahead of ${target} - no ordering question to answer.`];
+
+  const out = [`Landing order for the ${branches.length} branch(es) ahead of ${target}, cheapest first:`];
+  order.forEach((branch, index) => {
+    const why = describe(branch);
+    const self = branch.branch === assessment.self ? ' <- this session' : '';
+    out.push(`  ${index + 1}. ${branch.branch}${self} - ${why}`);
+  });
+  for (const entry of notReady) {
+    out.push(`  - ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
+  }
+  if (order.length > 1) {
+    out.push('');
+    out.push(`Land first: ${order[0].branch}`);
+  }
+  return out;
+}
+
+function describe(branch) {
+  const parts = [];
+  const moved = movedPathCount(branch);
+  if (moved > 0) {
+    const withWhom = (branch.structuralHits ?? []).map((hit) => hit.with).join(', ');
+    parts.push(`moves/deletes ${moved} path(s) ${withWhom} also edits - land it LAST so its own author absorbs the rest`);
+  }
+  for (const note of branch.silent) parts.push(`${note.kind} collision with ${note.with}`);
+  if (branch.imposed > 0) parts.push(`${branch.imposed} conflicted file(s) imposed on ${branch.conflicts.size} other branch(es)`);
+  if (parts.length === 0) parts.push(`free: conflicts with nothing in flight (${branch.ahead} commit(s), ${branch.files.length} file(s))`);
+  return parts.join('; ');
+}
+
+/** The single-branch verdict as human-readable lines. */
+export function formatVerdict(verdict) {
+  const out = [`VERDICT: ${verdict.severity} (${verdict.branch})`];
+  for (const reason of verdict.reasons) out.push(`  - ${reason.text}`);
+  if (verdict.reasons.length === 0) out.push('  - costs no other branch in flight anything');
+  if (verdict.landFirst) out.push(`  Land first instead: ${verdict.landFirst}`);
+  return out;
+}
+
+// CLI. Exit 3 on a `hold` verdict so a caller can branch on it; everything else is 0, because
+// this is advice and an advisory check that fails a build would be a gate in disguise.
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  const argv = process.argv.slice(2);
+  const wantsJson = argv.includes('--json');
+  const branchArg = argv.includes('--branch') ? argv[argv.indexOf('--branch') + 1] : null;
+  const targetArg = argv.includes('--target') ? argv[argv.indexOf('--target') + 1] : 'main';
+
+  const assessment = await assessMergeOrder(process.cwd(), { target: targetArg });
+  const verdict = branchArg ? verdictFor(assessment, branchArg) : null;
+
+  if (wantsJson) {
+    console.log(
+      JSON.stringify(
+        {
+          target: assessment.target,
+          order: assessment.order.map((b) => ({
+            branch: b.branch,
+            ahead: b.ahead,
+            files: b.files.length,
+            imposed: b.imposed,
+            conflictsWith: [...b.conflicts.keys()],
+            movedPaths: movedPathCount(b),
+            silent: b.silent,
+          })),
+          notReady: assessment.notReady,
+          verdict,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    for (const line of formatOrder(assessment)) console.log(line);
+    if (verdict) {
+      console.log('');
+      for (const line of formatVerdict(verdict)) console.log(line);
+    }
+  }
+
+  if (verdict?.severity === 'hold') process.exitCode = 3;
+}

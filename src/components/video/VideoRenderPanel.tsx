@@ -8,13 +8,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { useAuthState } from '../auth/useAuthState';
 import { compileTsx } from '../../video/compile';
-import { describeAssets } from '../../video/types';
+import { compositionAssets, describeAssets } from '../../video/types';
 import { composeHyperframesDocument } from '../../video/hyperframes/compose';
 import { loadHyperframesFontCss } from '../../video/hyperframes/fontCss';
 import { HF_WARNING_RULES, staticValidateHyperframes } from '../../video/hyperframes/validate';
 import { settingsDrift, videoFieldValues } from '../../model/videoTypes';
 import { buildHyperframesManifest, buildVideoManifest } from '../../render/buildVideoManifest';
 import { formatNeedsSignIn, resolveTier, validateRenderRequest, RENDER_CONFIG } from '../../render/limits';
+import { useMyEntitlement } from '../useMyEntitlement';
 import { RENDER_FORMATS, type RenderFormatId } from '../../render/manifest';
 import { useRenderJob } from '../../render/renderJobStore';
 import RenderFormatPicker from '../render/RenderFormatPicker';
@@ -65,6 +66,9 @@ export default function VideoRenderPanel() {
   // The manifest is cheap to build - do it for preflight so the size meter and the limit
   // checks run on the REAL payload.
   const preflight = useMemo(() => {
+    // Reference material never ships: it informs the AI, it is never drawn, and uploading it
+    // would spend the user's manifest budget on a picture the render cannot show.
+    const usable = compositionAssets(project);
     const options = {
       format,
       scale,
@@ -81,7 +85,7 @@ export default function VideoRenderPanel() {
         durationInFrames: project.durationInFrames,
         transparent: project.transparent,
       };
-      const blocking = staticValidateHyperframes(project.html, project.assets, settings).filter(
+      const blocking = staticValidateHyperframes(project.html, usable, settings).filter(
         (i) => !HF_WARNING_RULES.has(i.rule),
       );
       if (blocking.length > 0) {
@@ -94,7 +98,7 @@ export default function VideoRenderPanel() {
       try {
         documentHtml = composeHyperframesDocument(project.html, {
           settings,
-          assets: project.assets,
+          assets: usable,
           values: videoFieldValues(project.inputs),
           mode: 'render',
           fontCss,
@@ -119,8 +123,8 @@ export default function VideoRenderPanel() {
     const compiled = compileTsx(project.tsx);
     if (!compiled.ok) return { error: `The composition does not compile: ${compiled.error}`, manifest: null, bytes: 0 };
     const assetProps: Record<string, string> = {};
-    for (const info of describeAssets(project.assets)) {
-      const a = project.assets.find((x) => x.path === info.path);
+    for (const info of describeAssets(usable)) {
+      const a = usable.find((x) => x.path === info.path);
       if (a && typeof a.data === 'string') assetProps[info.name] = a.data;
     }
     const manifest = buildVideoManifest(
@@ -142,7 +146,10 @@ export default function VideoRenderPanel() {
   }, [project, format, scale, bgColor, stillMode, stillFrame, fontCss]);
 
   const drift = settingsDrift(project);
-  const tier = resolveTier(signedIn && backendConfigured);
+  // Same source of truth as the SPX render panel: the caller's own entitlement, not "is
+  // there a user". UX only - the server re-resolves on every start.
+  const entitlement = useMyEntitlement();
+  const tier = resolveTier(signedIn && backendConfigured, entitlement.renderTier);
   const limitIssues = useMemo(
     () =>
       validateRenderRequest(
@@ -156,8 +163,9 @@ export default function VideoRenderPanel() {
           output: { format },
         },
         tier,
+        entitlement.renderFormats,
       ),
-    [project.engine, project.width, project.height, project.fps, project.durationInFrames, scale, format, tier],
+    [project.engine, project.width, project.height, project.fps, project.durationInFrames, scale, format, tier, entitlement.renderFormats],
   );
 
   const overBudget = preflight.bytes > RENDER_CONFIG.manifestMaxBytes;
@@ -165,8 +173,10 @@ export default function VideoRenderPanel() {
   const canRender =
     !!preflight.manifest && !preflight.error && !overBudget && limitIssues.length === 0 && !locked && !busy && !job;
 
-  // The largest assets, for the over-budget message.
-  const largestAssets = [...project.assets]
+  // The largest assets, for the over-budget message — the ones that actually ship, since
+  // naming a reference image as the thing to compress would send the user after a picture
+  // that costs the payload nothing.
+  const largestAssets = [...compositionAssets(project)]
     .map((a) => ({ path: a.path, bytes: typeof a.data === 'string' ? a.data.length : 0 }))
     .sort((a, b) => b.bytes - a.bytes)
     .slice(0, 3);

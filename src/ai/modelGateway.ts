@@ -7,6 +7,7 @@ import type {
   AiGatewayErrorBody,
   AiGatewayRequestBody,
   AiGatewayResponseBody,
+  AiGatewaySurface,
   ModelContentBlock,
   ModelRequest,
   ModelResult,
@@ -24,6 +25,10 @@ export interface ModelTool {
 export interface GatewayModelRequest extends Omit<ModelRequest, 'structuredOutput'> {
   /** Compatibility shape used by the established harness's forced structured calls. */
   tool?: ModelTool;
+  /** The product surface this call belongs to, when the server gates that surface. Callers
+   *  never set it by hand: `src/ai/video/videoGateway.ts` is the one place it is filled in,
+   *  so a new video model call cannot forget it. */
+  surface?: AiGatewaySurface;
 }
 
 export async function callModelDetailed(request: GatewayModelRequest): Promise<ModelResult> {
@@ -42,6 +47,7 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     tool: _tool,
     model: _model,
     modelRole: _modelRole,
+    surface,
     ...providerNeutralRequest
   } = request;
   const body: AiGatewayRequestBody = {
@@ -63,6 +69,7 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     },
     route: { provider: settings.provider, model },
     ...(settings.fallbacks.length ? { fallbacks: settings.fallbacks } : {}),
+    ...(surface ? { surface } : {}),
   };
   const token = await getAccessToken();
   const response = await fetch('/api/ai/generate', {

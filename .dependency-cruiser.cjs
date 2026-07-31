@@ -23,6 +23,19 @@ module.exports = {
       from: {},
       to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
     },
+    {
+      name: 'creative-pilot-is-bench-only',
+      severity: 'error',
+      comment:
+        'The Creative Mode pilot (src/ai/creative/, docs/CREATIVE_MODE_PLAN.md §10) is a ' +
+        'BENCH RIG: its only callers are scripts/creative-pilot-bench.mjs and its e2e ' +
+        'coverage, both outside this graph. No app module may import it - a production edge ' +
+        'would put an unratified pipeline behind a user-facing button, and arm A would stop ' +
+        'being the frozen control the whole comparison rests on (§8). When phase E promotes ' +
+        'something out of the pilot, delete this rule together with the promotion.',
+      from: { path: '^src/', pathNot: '^src/ai/creative/' },
+      to: { path: '^src/ai/creative/' },
+    },
   ],
 
   allowed: [
@@ -36,6 +49,15 @@ module.exports = {
       comment: 'A domain may import itself freely',
       from: { path: '^src/([^/]+)/' },
       to: { path: '^src/$1/' },
+    },
+    {
+      comment:
+        'Everything may import entitlements/ - a layer-0 PURE contract that imports nothing ' +
+        'in return (§2). It is the one answer to "what may this user do", shared by the ' +
+        'browser, api/ and the admin page; a second copy of that answer is the bug it exists ' +
+        'to prevent. Its own outgoing edges are absent from this table on purpose.',
+      from: { path: '^src/' },
+      to: { path: '^src/entitlements/' },
     },
     {
       comment: 'The entry files at the src root (App.tsx, main.tsx, styles.css) wire the app',
@@ -114,6 +136,14 @@ module.exports = {
       comment: '§3: community -> backend, validation',
       from: { path: '^src/community/' },
       to: { path: '^src/(backend|validation)/' },
+    },
+    {
+      comment:
+        '§3: admin -> backend (getAccessToken + isBackendConfigured only). The admin page is ' +
+        'its own MPA entry, so it needs the session token to authorize its API calls; it ' +
+        'reads no other domain, because every fact it shows comes from api/admin/*.',
+      from: { path: '^src/admin/' },
+      to: { path: '^src/backend/' },
     },
     {
       comment: '§3: showchat -> backend, control',

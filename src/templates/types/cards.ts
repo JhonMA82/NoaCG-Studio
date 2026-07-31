@@ -32,6 +32,14 @@ import { card14 } from '../infoCards/card14';
 import { card15 } from '../infoCards/card15';
 import { card16 } from '../infoCards/card16';
 import { card17 } from '../infoCards/card17';
+import {
+  card59,
+  EDITORIAL_TITLE_SAMPLES,
+} from '../infoCards/infoSystems/editorial';
+import {
+  card67,
+  CINEMATIC_CHAPTER_SAMPLES,
+} from '../infoCards/infoSystems/cinematic';
 import type { GraphicType } from './graphicType';
 
 /** TITLE / OPENER CARD — 23 of the 60 formats open with one (episode title, session title,
@@ -166,6 +174,30 @@ export const titleCardType: GraphicType = {
       animationPresets: ['line-reveal', 'slide-up', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
       defaultZone: 'mid-center',
       create: (_type, options) => card13.create(options),
+    },
+    {
+      id: 'card59',
+      name: 'Edition Title',
+      description: 'Printed editorial session or segment title with a masthead rule and generous spacing.',
+      styleTag: 'editorial',
+      palette: paletteById('broadsheet'),
+      fontId: 'archivo',
+      samples: EDITORIAL_TITLE_SAMPLES,
+      animationPresets: ['line-reveal', 'fade', 'slide-up', 'mask-wipe'],
+      defaultZone: 'mid-left',
+      create: (_type, options) => card59.create(options),
+    },
+    {
+      id: 'card67',
+      name: 'Chapter Scrim',
+      description: 'Cinematic chapter title on a directional scrim with one hairline and wide light type.',
+      styleTag: 'cinematic',
+      palette: paletteById('noir'),
+      fontId: 'inter',
+      samples: CINEMATIC_CHAPTER_SAMPLES,
+      animationPresets: ['fade', 'line-reveal', 'slide-up'],
+      defaultZone: 'mid-left',
+      create: (_type, options) => card67.create(options),
     },
     // card04 is NOT promotable here: it supports three lines and this type declares five, and a
     // compiled variant takes the TYPE's capabilities. Promotion would offer two more lines than

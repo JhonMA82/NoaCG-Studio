@@ -1,6 +1,6 @@
 # The competition pack
 
-Esports, competition, result and reveal graphics: **38 designs across 4 categories and 12
+Esports, competition, result and reveal graphics: **44 designs across 4 categories and 13
 graphic types**, all built on the existing contracts — the state machine
 (`STATE_MACHINE_SCHEMA.md`), the graphic-type registry (`GRAPHIC_TYPES.md`), the Timeline v2
 data block (`TIMELINE_V2_PLAN.md`) and measured motion (`DYNAMIC_MOTION_SCOPE.md`).
@@ -13,23 +13,29 @@ Behaviour is pinned by `e2e/competition-pack.spec.ts`; conformance by `e2e/graph
 
 ## 1. What the pack is for
 
+Two programme-specific designs reuse existing types rather than duplicating their machines:
+`mr04` Map Veto uses the map-round cursor for an esports pick-and-ban sequence, and `rs04`
+Initiative Order uses the roster spotlight for a tabletop turn order. Their picks, bans,
+characters, statuses, and current row remain operator data.
+
 | Ask | Type | Designs |
 |---|---|---|
 | Esports scoreboards | `esports-score` | es01 Series Scorebug · es02 House Series · es03 Frost Series · es04 Clean Series |
-| Map / round / game indicators | `map-round` | mr01 Map Ladder · mr02 House Maps · mr03 Round Strip |
+| Map / round / game indicators | `map-round` | mr01 Map Ladder · mr02 House Maps · mr03 Round Strip · mr04 Map Veto |
 | Versus / match-ups (with a winner pick) | `matchup` | mu01 Match-up Slam · mu02 House Match-up · mu03 Frost Match-up · mu04 Clean Match-up |
 | Head-to-head comparisons | `head-to-head` | h201 Head to Head · h202 House Compare · h203 Clean Compare |
 | Player / team cards | `player-card` | pc01 Player Card · pc02 House Player · pc03 Frost Player |
-| Rosters and line-ups | `roster` | rs01 Starting Line-up · rs02 House Roster · rs03 Clean Line-up |
+| Rosters and line-ups | `roster` | rs01 Starting Line-up · rs02 House Roster · rs03 Clean Line-up · rs04 Initiative Order |
 | Standings, leaderboards, result tables | `standings` | st01 League Table · st02 House Standings · st03 Frost Leaderboard · st04 Clean Results |
+| Live timing towers | `timing-tower` | tt01 Timing Tower · tt02 House Timing · tt03 Frost Splits · tt04 Clean Timing |
 | Brackets | `bracket` | br01 Playoff Bracket · br02 House Bracket |
 | Nominee / finalist reveals | `nominee-reveal` | nm01 House Nominees · nm02 Frost Nominees · nm03 Clean Nominees |
 | Correct / incorrect reveals | `verdict-card` | vd01 Call Verdict · vd02 House Verdict · vd03 Clean Verdict |
 | Final result and winner | `winner-card` | wn01 Champion Card · wn02 House Champion · wn03 Frost Champion |
 | Award and launch reveals | `award-reveal` | aw01 House Award · aw02 Frost Award · aw03 Launch Reveal |
 
-Four wizard categories group them: **Esports scoreboards** (`esports-score`, 7),
-**Match-ups & competitors** (`matchup`, 10), **Results & standings** (`results-board`, 9),
+Four wizard categories group them: **Esports scoreboards** (`esports-score`, 8),
+**Match-ups & competitors** (`matchup`, 10), **Results & standings** (`results-board`, 14),
 **Reveals** (`reveal`, 12). Every type ships across the style families — sport, noacg house,
 glass, minimal — so the pack is premium and analytical, not only neon.
 
@@ -91,7 +97,7 @@ main:  [entrance] --advance--> advanced ⟳ advance
 
 `advance` carries the map number (`current`); `applyMapCursor` moves the cursor and pops the
 row. `markSeriesFinal` dims the maps that were never needed.
-Controls: **Advance map** (payload `current`) · **Series decided**.
+Controls: **Advance map / decision** (payload `current`) · **Series / veto complete**.
 
 ### Match-up (`matchup`) — neutral matchup → selected winner
 
@@ -164,6 +170,23 @@ Controls: **Highlight row** (payload `highlight`) · **Whole table** · **Declar
 Ties are grouped into round columns in the order the rounds first appear, so the operator types
 ties and the board finds the structure. `crown` carries the champion's name.
 Controls: **Advance round** (payload `round`) · **Crown champion** (payload `champion`).
+
+### Timing tower (`timing-tower`)
+
+```
+main:     [entrance] --focus--> focused ⟳ focus --clear--> level --focus--> focused
+          focused --next--> [exit]
+session:  running --final--> final --provisional--> running
+```
+
+Two small graphs, like the esports scorebug: the running order is the walk (main), and whether
+the session is still live is independent of it (a parallel `session` group), so a chequered flag
+never disturbs where the caster's focus had got to. The order itself is one hidden textarea —
+one competitor per line, position taken from the line's place in the field, never sorted by the
+graphic — so a twenty-car grid is not twenty fields and nothing here ever disagrees with the
+timing feed over who is third. `focus` carries the competitor's 1-based row number.
+Controls: **Focus competitor** (payload `focus`) · **Whole field** · **Session final** ·
+**Back to running**.
 
 ### Nominee reveal (`nominee-reveal`) — nominees → winner
 
@@ -260,7 +283,7 @@ fixed these four move back onto `var(--accent-ink)`.
 
 `e2e/competition-pack.spec.ts`:
 
-- all four categories present and available; 38 designs create, validate and carry a machine;
+- all four categories present and available; 44 designs create, validate and carry a machine;
 - the match-up walk including the **structural lock** (a late `select` moves neither the
   pointer nor the field it carried);
 - the scorebug's phase walk, the independence of the pause group, a score write moving nothing,
@@ -271,10 +294,10 @@ fixed these four move back onto `var(--accent-ink)`.
 - the standings highlight moving by payload, `final`, and a clean replay;
 - an EMPTY rows source (0 rows, no spotlight, no page error) and an image field with no file
   (hidden `<img>`, no `.has-image`) — then the same field with a file;
-- **all six export targets** for all 38 designs (228 packages);
+- **all six export targets** for all 44 designs (264 packages);
 - save to the library → reload → the machine and its runtime still drive the reloaded template;
 - creation through the wizard path, with the control page's events coming off the machine.
 
 `e2e/graphic-types.spec.ts` covers conformance for the 12 new types alongside the existing ones,
-and `e2e/catalog-baseline.json` / `catalog-render-baseline.json` gained the 38 designs as pure
+and `e2e/catalog-baseline.json` / `catalog-render-baseline.json` gained the original 42 designs as pure
 additions — no existing variant's emitted code or rendered fingerprint moved.

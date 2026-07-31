@@ -35,8 +35,8 @@ export interface ProbeTextIssue {
 export interface ProbeResult {
   ok: boolean;
   errors: { frame: number; message: string }[];
-  /** Optional: the HyperFrames bridge shares this result shape and has no readability
-   *  checks of its own yet (its driver would need the same pass - see src/video/hyperframes). */
+  /** Optional: the HyperFrames bridge shares this result shape and runs the same inlined
+   *  textChecks pass in its driver (src/video/hyperframes/driver.ts, probe checkFrames). */
   textIssues?: ProbeTextIssue[];
 }
 

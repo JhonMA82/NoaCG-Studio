@@ -17,10 +17,11 @@ export const ss10: TemplateVariant = defineStartingSoonVariant(
     name: 'Service Begins Soon',
     styleTag: 'minimal',
     description: 'A quiet ceremony hold — the occasion in serif-weight display type, the countdown deliberately small.',
-    maxLines: 2,
+    maxLines: 3,
     suggestedLines: [
       { title: 'Occasion', sample: 'Sunday Morning Service' },
       { title: 'Note', sample: 'You are welcome to join us' },
+      { title: 'Countdown label', sample: 'BEGINS IN' },
     ],
     logo: 'none',
     animationPresets: ['hold-loop'],
@@ -39,12 +40,16 @@ export const ss10: TemplateVariant = defineStartingSoonVariant(
     uicolor: '1',
   },
   (o) => ({
-    lineCount: 2,
+    lineCount: 3,
     clock: 'start-time',
     clockMinutes: '15',
     lineDefaults: [
       { title: 'Occasion', sample: 'Sunday Morning Service' },
       { title: 'Note', sample: 'You are welcome to join us' },
+      // The countdown label is a FIELD, not a baked-in word: a service that says "BEGINS IN"
+      // in English says something else in every other language, and a congregation that
+      // prefers "STARTS AT" should not need the code editor to say so.
+      { title: 'Countdown label', sample: 'BEGINS IN' },
     ],
     // Occasion (f0) → note (f1) → rule → the small countdown row. The rule is the breath
     // target: on this card nothing else moves at all, which is the whole point.
@@ -58,7 +63,7 @@ export const ss10: TemplateVariant = defineStartingSoonVariant(
       <div class="starting-soon-rule starting-soon-pulse"></div>
       <!-- The countdown row — a label and the time, both at label scale on purpose. -->
       <div class="starting-soon-wait">
-        <span class="starting-soon-label">BEGINS IN</span>
+        <span id="f2" class="starting-soon-label">${o.lines[2]?.sample || 'BEGINS IN'}</span>
         <span class="starting-soon-clock">15:00</span>
       </div>
     </div>`,

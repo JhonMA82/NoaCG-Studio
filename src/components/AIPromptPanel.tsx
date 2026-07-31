@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getAiProvider } from '../ai';
 import { productionSpxValidator } from '../ai/litePipeline';
+import { benchStructuralIntent } from '../validation/structuralIntentCheck';
 import { mergeSafety } from '../ai/safety';
 import { aiConfigured } from '../ai/settings';
+import { useAiConsent } from './AiConsentDialog';
 import { useAuthState } from './auth/useAuthState';
 import SignInPrompt from './auth/SignInPrompt';
 import { useTemplateStore } from '../store/templateStore';
@@ -30,6 +32,9 @@ export default function AIPromptPanel() {
 
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
+  // The disclosure gate fires only on the REMOTE path - the offline stub sends nothing
+  // anywhere, so it must never show a notice (and the offline e2e doctrine pins that).
+  const { ensureAiConsent, consentDialog } = useAiConsent();
   const [pending, setPending] = useState<Pending>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [liteEnabled, setLiteEnabled] = useState(false);
@@ -72,6 +77,7 @@ export default function AIPromptPanel() {
   // bench and the safety findings); the static-plus-screen fallback covers the offline stub,
   // which attaches none. mergeSafety stays as the display-side belt either way.
   const runChange = async (fn: () => Promise<AiTemplateChange>, autoFormat = false) => {
+    if (aiConfigured() && !(await ensureAiConsent())) return;
     setBusy(true);
     setExplanation(null);
     try {
@@ -85,6 +91,7 @@ export default function AIPromptPanel() {
   };
 
   const onExplain = async () => {
+    if (aiConfigured() && !(await ensureAiConsent())) return;
     setBusy(true);
     setPending(null);
     try {
@@ -148,7 +155,16 @@ export default function AIPromptPanel() {
       <div className="row wrap" style={{ marginTop: 8 }}>
         <button
           disabled={busy || !prompt.trim()}
-          onClick={() => runChange(() => getAiProvider().generate(prompt, undefined, { validate: productionSpxValidator() }), true)}
+          onClick={() =>
+            runChange(
+              () =>
+                getAiProvider().generate(prompt, undefined, {
+                  validate: productionSpxValidator(),
+                  structuralCheck: benchStructuralIntent,
+                }),
+              true,
+            )
+          }
         >
           Generate
         </button>
@@ -209,6 +225,8 @@ export default function AIPromptPanel() {
           </div>
         </div>
       )}
+
+      {consentDialog}
     </div>
   );
 }

@@ -1,18 +1,13 @@
 {
   "cleanUrls": true,
   "buildCommand": "npm run build && npm --prefix render-worker ci && npm --prefix render-worker run typecheck && node render-worker/bundle.mjs",
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "functions": {
     "api/ai/generate.ts": { "maxDuration": 300 },
-    "api/ai/models.ts": { "maxDuration": 30 },
-    "api/ai/lite/generations.ts": { "maxDuration": 60 },
-    "api/ai/lite/status.ts": { "maxDuration": 30 },
-    "api/ai/lite/outcome.ts": { "maxDuration": 30 },
     "api/render/start.ts": {
       "maxDuration": 300,
       "includeFiles": "render-worker/{bundle/**,sandbox-job.mjs}"
     },
-    "api/render/status.ts": { "maxDuration": 60 },
-    "api/render/cancel.ts": { "maxDuration": 60 },
     "api/render/cleanup.ts": { "maxDuration": 300 }
   },
   "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
@@ -21,6 +16,12 @@
       "source": "/fonts/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/admin",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
       ]
     },
     {
