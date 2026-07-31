@@ -87,6 +87,16 @@ export interface RouteDecision {
   reason: string;
 }
 
+/** The structural-satisfaction check's finding vocabulary (validation/structuralIntentCheck
+ *  produces it, the ai provider applies severity to it). It lives HERE because validation may
+ *  not import ai and ai must not import the DOM-bearing check module - the model layer is the
+ *  shape both sides already share. */
+export const STRUCTURAL_INTENT_RULE = 'structural-intent';
+/** The KIND half - "is this the graphic that was asked for". BLOCKING on grounded results
+ *  (owner decision 2026-07-31): a technically valid lower third delivered for a stinger
+ *  brief is an error, not advice. Parts findings stay STRUCTURAL_INTENT_RULE warnings. */
+export const STRUCTURAL_KIND_RULE = 'structural-kind';
+
 export const INTENT_ZONES: Zone9[] = [
   'top-left', 'top-center', 'top-right',
   'mid-left', 'mid-center', 'mid-right',

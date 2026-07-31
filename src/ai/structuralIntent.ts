@@ -12,6 +12,7 @@
 import type { ModelTool } from './modelGateway';
 import {
   INTENT_ZONES,
+  STRUCTURAL_KIND_RULE,
   isIntentAnswer,
   normalizeIntent,
   type GenerationMode,
@@ -23,7 +24,7 @@ import {
 import { structuralFit, structuralVocabulary } from '../templates/structuralAnchor';
 
 // Re-exported so harness consumers (provider, stub, rigs, specs) keep one import path.
-export { isIntentAnswer, normalizeIntent };
+export { STRUCTURAL_KIND_RULE, isIntentAnswer, normalizeIntent };
 export type { GenerationMode, RouteDecision, StructuralIntent };
 
 // ── The forced tool ───────────────────────────────────────────────────────────

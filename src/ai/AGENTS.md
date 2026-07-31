@@ -271,8 +271,14 @@ result is the graphic that was asked for, in two parts:
   repeating groups and zone placement measured in a rendered iframe.
 
 Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep + AIPromptPanel pass
-`benchStructuralIntent`); findings land as WARNINGS (rule `structural-intent`) - it measures
-presence and identity, not quality, and it must not change the frozen control's repair rounds.
+`benchStructuralIntent`). PARTS findings land as WARNINGS (rule `structural-intent`) - they
+measure presence, not quality, and must not change the frozen control's repair rounds. KIND
+findings (rule `structural-kind`) land as blocking ERRORS on grounded results (owner decision
+2026-07-31, AI_PLATFORM_PLAN §16.3): a wrong-kind assembly - a valid lower third for a stinger
+brief - fails closed and is surfaced for refine/regenerate, never delivered as a success.
+Grounded assemblies have no repair loop, so blocking there changes no repair rounds; the
+provider passes `variantId` to the check only for grounded paths, so a free-form result can
+never be kind-checked against a chassis that was never assembled.
 **It runs on BOTH routed paths.** It first shipped CREATE-only, which left the grounded path -
 where the wrong-graphic defect actually happens - unmeasured: assembly being correct by
 construction says nothing about whether the right thing was constructed. `groundedResult`

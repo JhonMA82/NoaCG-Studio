@@ -141,7 +141,10 @@ async function runControlArm(input: CreativeRunInput): Promise<CreativeRunResult
       ok: change.validation?.ok ?? true,
       template: change.template,
       validation: change.validation ?? null,
-      structural: (change.validation?.warnings ?? []).filter((w) => w.rule === 'structural-intent'),
+      // Parts findings are warnings; kind findings are blocking errors on grounded results
+      // (owner decision 2026-07-31) - criterion 2 reads both, wherever they landed.
+      structural: [...(change.validation?.errors ?? []), ...(change.validation?.warnings ?? [])]
+        .filter((f) => f.rule === 'structural-intent' || f.rule === 'structural-kind'),
       concepts: [],
       spec: null,
       styleApplied: false,
