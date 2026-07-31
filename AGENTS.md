@@ -290,10 +290,10 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   width budget (it doubles every text value), so run it too. It is excluded from the default
   `npm run test:e2e` suite - benching every catalog variant across every category is the single
   heaviest thing here, and (like the other two gates above) it only needs to run when the
-  catalog or `src/validation/runtimeBench.ts` actually changed. **All three now run in CI too:**
-  `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI runs it on
-  that flag, and the NIGHTLY sweep runs all three unconditionally - so an unrun catalog gate is
-  now caught by morning rather than never.
+  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the four is left to
+  memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
+  runs it on that flag, and the NIGHTLY sweep runs all four unconditionally - so an unrun
+  catalog gate is now caught by morning rather than never.
   The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
   meaningful visible string an operator cannot reach through a data field. It does not read the
   markup for `id="fN"` - a standings row, a ticker item and a credits line are all BUILT by a
