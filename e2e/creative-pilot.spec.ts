@@ -278,6 +278,56 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.benchRules).not.toContain('bench-replay');
   });
 
+  test('a CSS transition on scaffold elements cannot steal the entrance from the timeline', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The SECOND cause of one signature, measured on the first candidate-pass brief
+    // (2026-07-31): this is the real arm-D patch. Nothing here is hidden - the box and both
+    // regions simply carry `transition: opacity/transform`, so every inline value GSAP
+    // writes re-animates on the browser's own clock, and the bench reports the same
+    // bench-entrance + bench-replay pair the hiding declarations used to produce.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const styled = applyCreativeStyle(scaffold, {
+        summary: 'transitions',
+        css: [
+          '.creative-box { display: flex; opacity: 0; transform: translateY(10px);',
+          '  transition: opacity 0.3s ease, transform 0.3s ease; }',
+          '.creative-r-header { opacity: 0; transition-property: opacity; transition-duration: 0.4s; }',
+          '.my-flourish { transition: opacity 0.3s ease; }',
+        ].join('\n'),
+      });
+      if (!styled) return { applied: false };
+      const patchCss = styled.css.slice(styled.css.indexOf('AI-authored'));
+      const verdict = await productionSpxValidator()(styled);
+      return {
+        applied: true,
+        boxTransition: /creative-box[^}]*transition/.test(patchCss),
+        regionTransition: /creative-r-header[^}]*transition/.test(patchCss),
+        boxLayoutKept: /creative-box[^}]*display\s*:\s*flex/.test(patchCss),
+        boxTransformKept: /creative-box[^}]*transform\s*:\s*translateY/.test(patchCss),
+        ownClassKept: /my-flourish[^}]*transition/.test(patchCss),
+        benchRules: verdict.errors.map((e) => e.rule),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.applied).toBe(true);
+    expect(report.boxTransition).toBe(false);      // stripped from the box…
+    expect(report.regionTransition).toBe(false);   // …and from a region, longhands included
+    expect(report.boxLayoutKept).toBe(true);       // only that declaration goes
+    expect(report.boxTransformKept).toBe(true);    // the resting pose is the design's own
+    expect(report.ownClassKept).toBe(true);        // a patch-invented class keeps everything
+    // The end-to-end proof, the same shape as the hiding-declarations pin.
+    expect(report.benchRules).not.toContain('bench-entrance');
+    expect(report.benchRules).not.toContain('bench-replay');
+  });
+
   test('an OVERLAY may not paint an opaque full frame; a full-frame board may', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);

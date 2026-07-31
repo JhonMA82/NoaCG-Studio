@@ -100,12 +100,22 @@ export const CREATIVE_STYLE_MARKER =
  *   and no one ever sends it. On the box and the region elements a stylesheet opacity 0 is
  *   legitimate - the entrance writes inline opacity over it - so there it stays.
  *
+ * - `transition` is stripped from scaffold selectors outright. The compiled entrance sets
+ *   inline opacity/transform through GSAP; a CSS transition on the same element makes every
+ *   one of those writes animate again on the BROWSER's clock, which the timeline does not
+ *   own, the control page cannot pause and the render clock cannot drive. Measured on the
+ *   first candidate-pass brief (2026-07-31): an arm-D patch put
+ *   `transition: opacity 0.3s ease, transform 0.3s ease` on the box and both regions and
+ *   produced the same bench-entrance + bench-replay pair as the hides did - a second cause of
+ *   one signature. Same house rule as the ticker's setTimeout: motion lives in the timeline.
+ *
  * A rule on a patch-invented, un-prefixed class keeps everything: losing a decorative hide
  * is cosmetic while a hidden name strap is a broken graphic, so the clamp errs toward
  * visibility. Flat walk with @media/@supports recursion - model CSS is flat.
  */
 export function stripHidingDeclarations(css: string, prefix: string, animated: string[]): string {
   const scaffoldSelector = new RegExp(`\\.${prefix}\\b|\\.${prefix}-|#f\\d+`, 'i');
+  const transitionPoison = /(^|;)\s*transition(-property|-duration|-timing-function|-delay)?\s*:[^;]*(?=;|$)/gi;
   const hidePoison = /(^|;)\s*(visibility\s*:\s*(hidden|collapse)|display\s*:\s*none)\s*(?=;|$)/gi;
   const opacityPoison = /(^|;)\s*opacity\s*:\s*0(\.0+)?\s*(?=;|$)/gi;
   /** True when every comma-group's subject is an animated element (box/region/root).
@@ -138,7 +148,7 @@ export function stripHidingDeclarations(css: string, prefix: string, animated: s
     if (close === -1) { out += css.slice(i); break; }
     let body = css.slice(open + 1, close);
     if (scaffoldSelector.test(selector)) {
-      body = body.replace(hidePoison, '$1');
+      body = body.replace(hidePoison, '$1').replace(transitionPoison, '$1');
       if (!subjectsAnimated(selector)) body = body.replace(opacityPoison, '$1');
     }
     out += selector + '{' + body + '}';
@@ -381,7 +391,9 @@ ${scaffold.fullFrame
   or a region is fine (the entrance overrides it inline), but on anything deeper (cells,
   masks, text spans) it stays forever, \`visibility: hidden\` / \`display: none\` on any
   scaffold element stays forever, and state classes like \`.visible\` are never added by
-  anything. The platform strips such declarations rather than discard the patch.
+  anything. Nor does the design need a \`transition\`: the timeline already owns the motion,
+  and a CSS transition would re-animate every value it writes on a clock the timeline cannot
+  drive. The platform strips such declarations rather than discard the patch.
 
 ## What good looks like here
 One thing read first. Deliberate contrast, not decoration. Air where the content is serious,
