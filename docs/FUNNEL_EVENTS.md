@@ -15,13 +15,20 @@ Backlog item 2 of the growth plan's build queue.
 | `visit` | a page load, once per load | - |
 | `return` | a page load 24 h or more after this browser's last one | - |
 | `signup` | an email sign-up succeeds | - |
-| `activation` | a graphic is created | the creation door (`template`, `design`, `ai`, `blank`, `import`) |
+| `activation` | a graphic or a video project is created | the creation door (`template`, `design`, `ai`, `blank`, `import`, `kit`, `video`) |
 | `export` | an export zip reaches the disk | the export target id (`spx`, `casparcg`, …) |
 
 `activation` is the one that matters: it is the difference between a visitor and a user.
 It is recorded per create rather than once per visitor, so the same table answers both
 "did they ever make something" and "how often" - take the first row per `visitor_id` for the
 first, count them for the second.
+
+**`video` is a door like any other, and was added late.** A video project is created through the
+same wizard and is the same signal - a visitor who made something - so it is a `detail` value
+rather than a sixth event; splitting graphics from videos is then one test on that column
+(`docs/ADMIN.md` §8). Until that door started reporting, video creation was invisible to the
+funnel entirely, which showed up as an honest-looking zero rather than as a gap. Periods before
+that release read zero for videos because nothing was counting, and the admin overview says so.
 
 `return` is derived in the browser rather than by querying history: a page load compares
 against a `lastSeen` stamp in the same first-party storage as the visitor id. A day, not a
@@ -104,7 +111,7 @@ reported it.
 |---|---|
 | `src/main.tsx` | `trackPageVisit()`, before React mounts |
 | `src/components/auth/SignInDialog.tsx` | `signup` |
-| `src/components/wizard/CreationWizard.tsx` | `activation` (both `applyDraftProject` and the AI path) |
+| `src/components/wizard/CreationWizard.tsx` | `activation` (`applyDraftProject`, the AI path, the kit path, and `createVideo`) |
 | `src/components/ExportSurface.tsx` | `export`, after the zip is saved |
 
 `signup` fires from the dialog rather than `backend/auth.ts` so the funnel client keeps its

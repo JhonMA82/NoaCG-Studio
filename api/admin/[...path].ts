@@ -14,6 +14,8 @@
 
 import { adminNotFound } from '../_lib/adminAuth.js';
 import session from '../_lib/admin/session.js';
+import overview from '../_lib/admin/overview.js';
+import models from '../_lib/admin/models.js';
 import users from '../_lib/admin/users.js';
 import user from '../_lib/admin/user.js';
 import plans from '../_lib/admin/plans.js';
@@ -30,6 +32,8 @@ interface Handler {
 
 const ROUTES: Record<string, Handler> = {
   session,
+  overview,
+  models,
   users,
   user,
   plans,

@@ -26,6 +26,7 @@ const selfScoped = await read('0020_self_scoped_predicates.sql');
 const oneActiveGrant = await read('0021_one_active_grant.sql');
 const absolutes = await read('0022_entitlement_absolutes.sql');
 const temporaryDeny = await read('0023_temporary_deny_absolute.sql');
+const overview = await read('0024_admin_overview.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -348,3 +349,53 @@ test('0021 refuses to apply unless the constraint demonstrably holds', () => {
   assert.match(oneActiveGrant, /raise exception '0021 self-check \(a\)/i);
   assert.match(oneActiveGrant, /raise exception '0021 self-check \(b\)/i);
 });
+
+test('the overview aggregation is unreachable from a client role', () => {
+  // These three read auth.users, the funnel ledger and every AI/render ledger, so they are the
+  // most disclosive functions in the schema. PostgREST publishes any function a client role may
+  // execute as /rest/v1/rpc/<name>, which would make them both a data leak and confirmation that
+  // an admin system exists - the two things docs/ADMIN.md §1 exists to prevent. They are reached
+  // only with the service key, from behind requireAdmin.
+  const signatures = [
+    'admin_overview_window(timestamptz, timestamptz)',
+    'admin_overview_state()',
+    'admin_overview_mix(timestamptz, timestamptz)',
+  ];
+  for (const signature of signatures) {
+    const name = signature.slice(0, signature.indexOf('('));
+    assert.match(
+      overview,
+      new RegExp(`create or replace function public\\.${name}\\b`, 'i'),
+      `${name} is not defined`,
+    );
+    assert.match(
+      overview,
+      new RegExp(`revoke all on function public\\.${escapeForRegExp(signature)} from public, anon, authenticated`, 'i'),
+      `${name} is not revoked from the client roles`,
+    );
+    assert.match(
+      overview,
+      new RegExp(`grant execute on function public\\.${escapeForRegExp(signature)} to service_role`, 'i'),
+      `${name} is not granted to service_role`,
+    );
+    // SECURITY DEFINER without a pinned search_path is the classic privilege-escalation shape.
+    assert.doesNotMatch(overview, new RegExp(`${name}[\\s\\S]{0,4000}?language sql\\s*\\n(?!security definer)`, 'i'));
+  }
+
+  // Three definer functions, three pinned search paths, and no writes anywhere: this migration
+  // may only ever read. Counted over the CODE, since the header explains both in prose.
+  const code = overview.replace(/--[^\n]*/g, '');
+  assert.equal((code.match(/security definer/gi) ?? []).length, 3);
+  assert.equal((code.match(/set search_path = ''/g) ?? []).length, 3);
+  for (const verb of ['insert into', 'update ', 'delete from', 'drop table', 'alter table']) {
+    assert.doesNotMatch(code, new RegExp(`\\b${verb}`, 'i'), `0024 must not ${verb.trim()}`);
+  }
+
+  // And it proves the lockdown rather than asserting it in a comment.
+  assert.match(overview, /do \$\$/i, 'no self-check block');
+  assert.match(overview, /must not be executable by a client role/i);
+});
+
+function escapeForRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
