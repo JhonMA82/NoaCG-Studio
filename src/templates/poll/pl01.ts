@@ -14,11 +14,12 @@ export const pl01: TemplateVariant = definePollVariant(
     name: 'House Vote',
     styleTag: 'noacg',
     description: 'The house live-vote board: a void panel, amber edge, a VOTE NOW badge and growing amber bars.',
-    maxLines: 3,
+    maxLines: 4,
     suggestedLines: [
       { title: 'Question', sample: POLL_CONTENT.question },
       { title: 'Options', sample: POLL_CONTENT.options },
       { title: 'Vote count', sample: POLL_CONTENT.footnote },
+      { title: 'Vote badge', sample: POLL_CONTENT.cue },
     ],
     logo: 'none',
     animationPresets: ['poll-open'],
@@ -42,7 +43,7 @@ export const pl01: TemplateVariant = definePollVariant(
       <!-- The accent edge — the house amber bar, fused to the panel's left side. -->
       <div class="poll-accent"></div>
       <!-- The vote badge — it LEAVES when voting closes (a keyframed opacity, not a class). -->
-      <div class="poll-cue"><span class="poll-cue-text">VOTE NOW</span></div>
+      <div class="poll-cue"><span id="f3" class="poll-cue-text">${o.lines[3]?.sample || POLL_CONTENT.cue}</span></div>
       <!-- The question — slides up from behind this overflow mask on entrance. -->
       <div class="poll-mask"><span id="f0">${o.lines[0]?.sample || POLL_CONTENT.question}</span></div>
       <!-- The option rows — rendered by pollRebuild() from the hidden source below the box. -->

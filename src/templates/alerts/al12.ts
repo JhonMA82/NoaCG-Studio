@@ -5,6 +5,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import {
   ALERT_LEVEL_CSS,
+  alertLevelFields,
   alertLevelStackHtml,
   alertLineMasks,
   defineAlertVariant,
@@ -39,7 +40,7 @@ export const al12: TemplateVariant = defineAlertVariant(
   (o) => ({
     html: `    <!-- Quiet Warning: severity flag, hairline, message and source on a soft scrim. -->
     <div class="alert-box">
-${alertLevelStackHtml('      ')}
+${alertLevelStackHtml(o, '      ')}
       <div class="alert-accent"></div>
       <div class="alert-lines">
 ${alertLineMasks(o)}
@@ -127,6 +128,8 @@ ${ALERT_LEVEL_CSS}
   color: var(--label-color);       /* dimmed, never accented */
 }`,
     hasLevels: true,
+    // The four severity words are operator fields — see alertLevelStackHtml.
+    extraFields: alertLevelFields(o),
     hasAccent: true,
   }),
 );

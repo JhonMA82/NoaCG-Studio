@@ -16,10 +16,11 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
     name: 'Short Break',
     styleTag: 'noacg',
     description: 'The house BRB card — big headline, a line of reassurance, and a countdown that restarts each take.',
-    maxLines: 2,
+    maxLines: 3,
     suggestedLines: [
       { title: 'Headline', sample: 'BE RIGHT BACK' },
       { title: 'Note', sample: 'Grab a coffee — we resume in a moment' },
+      { title: 'Countdown label', sample: 'BACK IN' },
     ],
     logo: 'none',
     animationPresets: ['hold-loop'],
@@ -36,12 +37,14 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
     uicolor: '4',
   },
   (o) => ({
-    lineCount: 2,
+    lineCount: 3,
     clock: 'minutes',
     clockMinutes: '5',
     lineDefaults: [
       { title: 'Headline', sample: 'BE RIGHT BACK' },
       { title: 'Note', sample: 'Grab a coffee — we resume in a moment' },
+      // The countdown label is a FIELD — see ss10. The word beside the clock is content.
+      { title: 'Countdown label', sample: 'BACK IN' },
     ],
     // Headline (f0) → note (f1) → the clock bar. The bar spans the panel, which is what
     // separates a break card from the front door: the wait is the whole message.
@@ -53,7 +56,7 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
       <div class="starting-soon-mask"><span id="f1" class="starting-soon-note">${o.lines[1]?.sample || 'Grab a coffee — we resume in a moment'}</span></div>
       <!-- The clock bar — starting-soon-pulse is the hold-loop's breath target. -->
       <div class="starting-soon-bar starting-soon-pulse">
-        <span class="starting-soon-label">BACK IN</span>
+        <span id="f2" class="starting-soon-label">${o.lines[2]?.sample || 'BACK IN'}</span>
         <span class="starting-soon-clock">5:00</span>
       </div>
     </div>`,

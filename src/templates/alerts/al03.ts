@@ -9,6 +9,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import {
   ALERT_LEVEL_CSS,
+  alertLevelFields,
   alertLevelStackHtml,
   alertLineMasks,
   defineAlertVariant,
@@ -43,9 +44,11 @@ export const al03: TemplateVariant = defineAlertVariant(
   },
   (o) => ({
     hasLevels: true,
+    // The four severity words are operator fields — see alertLevelStackHtml.
+    extraFields: alertLevelFields(o),
     html: `    <!-- Frost Alert: a contained panel — severity flag left, text stack right. -->
     <div class="alert-box">
-${alertLevelStackHtml('      ')}
+${alertLevelStackHtml(o, '      ')}
       <!-- The text column. Each line is a real SPX field inside its own reveal mask. -->
       <div class="alert-lines">
 ${alertLineMasks(o)}

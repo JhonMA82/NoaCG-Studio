@@ -131,11 +131,20 @@ function buildDesign(spec: LayoutSpec, o: ResolvedOptions): FrameDesign {
 
   const sponsorStart = textFields.length;
   const sponsorFields: SpxField[] = [];
+  // The rail's heading is a FIELD and leads the block. "PARTNERS" is one house's word for it —
+  // others say SPONSORS, SUPPORTED BY, IN ASSOCIATION WITH, or the same in another language —
+  // and a heading nobody can change makes the rail single-use. The slot PLACEHOLDERS below
+  // stay static on purpose: they are the empty state of an image field, replaced by the logo
+  // the moment one is picked.
+  const sponsorHeadingId = `f${sponsorStart}`;
+  if (g.sponsorRail) {
+    sponsorFields.push({ field: sponsorHeadingId, ftype: 'textfield', title: 'Sponsor rail heading', value: 'PARTNERS' });
+  }
   const sponsorMarkup = g.sponsorRail
     ? `      <div class="frame-sponsor-rail">
-        <div class="frame-sponsor-heading">PARTNERS</div>
+        <div class="frame-sponsor-heading" id="${sponsorHeadingId}">PARTNERS</div>
 ${Array.from({ length: g.sponsorRail.slots }, (_, index) => {
-    const field = `f${sponsorStart + index}`;
+    const field = `f${sponsorStart + 1 + index}`;
     sponsorFields.push({
       field,
       ftype: 'filelist',

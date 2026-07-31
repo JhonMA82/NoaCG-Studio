@@ -12,11 +12,12 @@ export const pl03: TemplateVariant = definePollVariant(
     name: 'Frost Vote',
     styleTag: 'glass',
     description: 'A frosted live-vote board: a soft VOTE NOW pill over rounded glass bars.',
-    maxLines: 3,
+    maxLines: 4,
     suggestedLines: [
       { title: 'Question', sample: POLL_CONTENT.question },
       { title: 'Options', sample: POLL_CONTENT.options },
       { title: 'Vote count', sample: POLL_CONTENT.footnote },
+      { title: 'Vote badge', sample: POLL_CONTENT.cue },
     ],
     logo: 'none',
     animationPresets: ['poll-open'],
@@ -39,7 +40,7 @@ export const pl03: TemplateVariant = definePollVariant(
     html: `    <!-- Frost Vote: frosted card — VOTE NOW pill, question, glass bars, count line. -->
     <div class="poll-box">
       <!-- The vote pill — it LEAVES when voting closes (a keyframed opacity, not a class). -->
-      <div class="poll-cue"><span class="poll-cue-text">VOTE NOW</span></div>
+      <div class="poll-cue"><span id="f3" class="poll-cue-text">${o.lines[3]?.sample || POLL_CONTENT.cue}</span></div>
       <!-- The question — slides up from behind this overflow mask on entrance. -->
       <div class="poll-mask"><span id="f0">${o.lines[0]?.sample || POLL_CONTENT.question}</span></div>
       <!-- The option rows — rendered by pollRebuild() from the hidden source below the box. -->

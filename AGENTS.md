@@ -290,10 +290,21 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   width budget (it doubles every text value), so run it too. It is excluded from the default
   `npm run test:e2e` suite - benching every catalog variant across every category is the single
   heaviest thing here, and (like the other two gates above) it only needs to run when the
-  catalog or `src/validation/runtimeBench.ts` actually changed. **All three now run in CI too:**
-  `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI runs it on
-  that flag, and the NIGHTLY sweep runs all three unconditionally - so an unrun catalog gate is
-  now caught by morning rather than never.
+  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the four is left to
+  memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
+  runs it on that flag, and the NIGHTLY sweep runs all four unconditionally - so an unrun
+  catalog gate is now caught by morning rather than never.
+  The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
+  meaningful visible string an operator cannot reach through a data field. It does not read the
+  markup for `id="fN"` - a standings row, a ticker item and a credits line are all BUILT by a
+  runtime from ONE `lines` field, so an id check would either miss them or need a special case
+  per category. Instead it renders the graphic, drives EVERY data field to a sentinel through
+  `update()`, and re-reads the screen: anything that did not move is not operator-reachable.
+  Two kinds of thing are excused IN THE SCRIPT, each with its reason written down - an
+  empty-slot placeholder for an image (`filelist`) field, which IS a field and is replaced by
+  the picked file, and a value the runtime computes rather than anyone types (a wall clock).
+  A `filelist` cannot be driven (there is no image to point at), so the run reports those
+  variants as NOT DRIVEN rather than counting them as passes.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the
@@ -311,7 +322,9 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 - In Playwright specs, **never clear localStorage via `addInitScript`** - it also runs in the
   same-origin srcdoc preview iframe, so every rebuild wipes the key (this silently deleted the
   project brand). Fresh browser contexts already isolate storage per test.
-- The preview rebuilds on a ~350 ms debounce after `applyTemplate` - never sleep it out. Use
+- The preview rebuilds on a debounce after `applyTemplate` - 350 ms when authoring, **50 ms under
+  the e2e suite** (`VITE_PREVIEW_DEBOUNCE_MS`, pinned in playwright.config.ts). Never sleep out
+  either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves

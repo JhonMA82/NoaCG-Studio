@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createProject } from './_create';
 
 // The public landing page lives at "/" (static, no React); the editor lives at "/app"
 // (dev/preview: the app-clean-url Vite plugin; production: Vercel cleanUrls). Old share
@@ -7,8 +8,16 @@ import { test, expect } from '@playwright/test';
 test('root shows the landing page, not the editor', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('h1')).toContainText('Broadcast graphics');
-  // The main call to action points at the editor.
-  await expect(page.locator('.hero a.btn-amber')).toHaveAttribute('href', '/app');
+  // Every "Open the editor" call to action lands on the CREATION WIZARD (`#/new`), not on
+  // whatever document happened to be open last. Arriving from the marketing page means
+  // "I want to make something"; dropping a returning visitor straight into an old project
+  // answers a question they did not ask. The wizard's own Entry step is where continuing
+  // existing work is offered, so nothing is lost by starting there.
+  const ctas = page.locator('a.btn-amber[href^="/app"]');
+  await expect(ctas).not.toHaveCount(0);
+  for (const cta of await ctas.all()) {
+    await expect(cta).toHaveAttribute('href', '/app#/new');
+  }
   // The editor itself did not mount here.
   await expect(page.locator('.wz-modal')).toHaveCount(0);
   await expect(page.locator('#root')).toHaveCount(0);
@@ -17,6 +26,22 @@ test('root shows the landing page, not the editor', async ({ page }) => {
 test('the editor lives at /app (clean URL, dev parity with production)', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
+});
+
+test('the landing CTA opens the wizard even for a visitor with work in progress', async ({ page }) => {
+  // A returning visitor: an autosaved project exists, so a bare /app would go straight to the
+  // editor. The CTA route must still open the wizard — that is the whole point of the change.
+  await createProject(page, 'Hairline');
+  await expect(page.locator('.wz-modal')).toHaveCount(0);
+
+  await page.goto('/app#/new');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+
+  // And their work is still there to go back to: closing the wizard returns to the project
+  // rather than discarding it.
+  await page.locator('.gallery-close').click();
+  await expect(page.locator('.wz-modal')).toHaveCount(0);
+  await expect(page.locator('iframe.preview-frame')).toBeVisible();
 });
 
 test('old root share links redirect into the app with their query intact', async ({ page }) => {

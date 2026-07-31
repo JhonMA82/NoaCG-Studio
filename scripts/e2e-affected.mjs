@@ -19,7 +19,10 @@ const MAP = [
   // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts']],
+  // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
+  // needs that spec and nothing else.
+  [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
   [/^src\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^src\/components\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^player-host\//, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
