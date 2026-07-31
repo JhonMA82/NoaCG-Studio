@@ -27,6 +27,8 @@
 //   - only delete managed claude/* or codex/* branches whose commits are fully contained in local
 //     main and origin/main, and even then let `git branch -d` refuse as a final backstop.
 
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
@@ -38,6 +40,35 @@ import {
   worktreeRoots,
   sweepEmptyLeftoverFolders,
 } from './worktree-cleanup-lib.mjs';
+
+/**
+ * Ignored paths that removal may destroy without asking, because the repo can rebuild every one
+ * of them from a command. EVERYTHING ELSE that git is ignoring is treated as possible work.
+ *
+ * This list exists because `git status --porcelain` - the clean-tree test every guard in this
+ * file relies on - does not mention ignored files at all, and `git worktree remove` deletes them
+ * anyway. Measured: a worktree holding `dist/precious.json` and `.env` reports zero porcelain
+ * lines, removes with exit 0 and no `--force`, and both files are gone. Bench output directories
+ * in this repo hold results that cost real money to produce, so "git said clean" is not evidence
+ * that a worktree is disposable.
+ */
+const REGENERABLE_IGNORED = [
+  'node_modules/',
+  'dist/',
+  'test-results/',
+  'playwright-report/',
+  'coverage/',
+  'public/player-host/',
+  'player-host/node_modules/',
+  'render-worker/node_modules/',
+  'render-worker/remotion/videoFontFaces.generated.ts',
+  'supabase/.temp/',
+  // Generated per checkout and documented as never-hand-edited (AGENTS.md, docs/DEV_PORTS.md).
+  '.claude/launch.json',
+  '.claude/dev-port.json',
+  // Permission choices, not work: losing it costs a few re-approvals, nothing unrecoverable.
+  '.claude/settings.local.json',
+];
 
 const MAIN = 'main';
 const REMOTE_MAIN = 'origin/main';
@@ -85,6 +116,209 @@ function worktreeBranches(cwd) {
     }
   }
   return map;
+}
+
+/**
+ * Split the worktree's IGNORED content into what the repo can rebuild and what it cannot.
+ *
+ * `--ignored=matching` reports whole ignored directories as one entry rather than walking into
+ * them, so this stays cheap even next to a 400MB bench directory. Sizes are measured only for
+ * the at-risk entries, since those are the ones a person has to make a decision about.
+ */
+export function classifyIgnored(worktreePath) {
+  const res = git(['status', '--porcelain', '--ignored=matching'], worktreePath);
+  const regenerable = [];
+  const atRisk = [];
+  if (!res.ok) return { regenerable, atRisk, unreadable: true };
+
+  for (const line of res.stdout.split('\n')) {
+    if (!line.startsWith('!! ')) continue;
+    const entry = line.slice(3).trim().replace(/^"|"$/g, '');
+    if (!entry) continue;
+    if (REGENERABLE_IGNORED.some((known) => entry === known || entry.startsWith(known))) {
+      regenerable.push(entry);
+    } else {
+      atRisk.push({ path: entry, bytes: sizeOf(join(worktreePath, entry)) });
+    }
+  }
+  return { regenerable, atRisk, unreadable: false };
+}
+
+/**
+ * Bytes under `target`, capped so a pathological tree cannot make cleanup hang. The cap is
+ * reported as a floor (`atLeast`) rather than silently pretending the walk was complete.
+ */
+function sizeOf(target, { maxEntries = 20000 } = {}) {
+  let bytes = 0;
+  let entries = 0;
+  const stack = [target];
+  while (stack.length > 0 && entries < maxEntries) {
+    const current = stack.pop();
+    let stat;
+    try {
+      stat = statSync(current);
+    } catch {
+      continue;
+    }
+    entries += 1;
+    if (stat.isDirectory()) {
+      try {
+        for (const child of readdirSync(current)) stack.push(join(current, child));
+      } catch {
+        // Unreadable directory - report what we could measure rather than failing the run.
+      }
+    } else {
+      bytes += stat.size;
+    }
+  }
+  return { bytes, atLeast: entries >= maxEntries };
+}
+
+/** Human-readable byte count for the confirmation list. */
+export function formatBytes({ bytes, atLeast }) {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${atLeast ? '>' : ''}${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)}${units[unit]}`;
+}
+
+/**
+ * SELF cleanup - the worktree the caller is sitting in, removing itself at the end of a session.
+ *
+ * The bulk `assess()` below deliberately refuses the current worktree and the current branch,
+ * because a sweep must never pull the floor out from under the session driving it. Handoff is
+ * the one moment where that is exactly the point: the work has landed, the chat is finished,
+ * and the folder is litter that the next session would otherwise mistake for live work.
+ *
+ * What Windows actually allows, measured rather than assumed: run from the PRIMARY checkout,
+ * `git worktree remove` on a worktree that still has a live process inside DEREGISTERS it and
+ * deletes every file, failing only on the now-empty directory ("Permission denied"). So the
+ * session can clear essentially all of itself; the empty husk unlocks the moment the session
+ * exits and `sweepEmptyLeftoverFolders` (already wired into the SessionStart hook) reaps it.
+ *
+ * Every deletion rule of this file still applies - no `--force`, no `-D`, never `main`, never
+ * another worktree, and containment in BOTH local `main` and `origin/main` before anything goes.
+ *
+ * Returns `{ ok, reasons, primaryRoot, path, branch, head }`; `reasons` lists every blocker
+ * found, so a refusal explains itself completely instead of one item at a time.
+ */
+export function assessSelf(cwd) {
+  const reasons = [];
+  const here = normalize(cwd);
+  const primaryRoot = primaryCheckout(here);
+  if (!primaryRoot) return { ok: false, reasons: ['could not locate the primary checkout'], primaryRoot: null, path: null, branch: null, head: null };
+
+  const worktrees = worktreeBranches(primaryRoot);
+  // The caller's cwd is usually the worktree root, but may be nested inside it; the longest
+  // registered path that contains it is the one that owns this session.
+  const path = [...worktrees.keys()]
+    .filter((root) => here.toLowerCase() === root.toLowerCase() || here.toLowerCase().startsWith(`${root.toLowerCase()}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (!path) return { ok: false, reasons: ['this directory is not a registered worktree'], primaryRoot, path: null, branch: null, head: null };
+
+  const self = worktrees.get(path);
+  const result = { ok: false, reasons, primaryRoot, path, branch: self.branch, head: self.head };
+
+  if (samePath(path, primaryRoot)) reasons.push('this is the primary checkout, which is never removed');
+  if (self.branch === MAIN) reasons.push(`this worktree is on ${MAIN}`);
+  if (!self.branch) reasons.push('this worktree is detached - it may hold work no branch names');
+
+  const status = git(['status', '--porcelain'], path);
+  if (!status.ok) reasons.push('could not read the working tree status');
+  else if (status.stdout !== '') reasons.push(`${status.stdout.split('\n').length} uncommitted file(s)`);
+
+  // A merge/rebase/cherry-pick in progress always leaves the tree dirty too, but naming it is
+  // clearer than reporting the symptom.
+  for (const marker of ['MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'BISECT_LOG']) {
+    if (git(['rev-parse', '--verify', '--quiet', marker], path).ok) reasons.push(`a ${marker} operation is in progress`);
+  }
+
+  // Stashes are NOT checked: they live in the shared common dir as refs, so they survive the
+  // worktree that made them. Removing this folder cannot lose one.
+
+  if (self.branch && self.branch !== MAIN && !safelyBackedUp(self.branch, primaryRoot)) {
+    reasons.push(
+      containedIn(self.branch, MAIN, primaryRoot)
+        ? `${self.branch} is in local ${MAIN} but not in ${REMOTE_MAIN} - it is not backed up off this machine`
+        : `${self.branch} has commits that are not in ${MAIN}`,
+    );
+  }
+
+  // Ignored content is NOT a refusal - it is a price. `.env` lives in almost every worktree, so
+  // blocking on it would mean this never runs; the caller is shown what dies and decides.
+  result.ignored = classifyIgnored(path);
+  if (result.ignored.unreadable) reasons.push('could not read the ignored-file list');
+
+  result.ok = reasons.length === 0;
+  return result;
+}
+
+/**
+ * Perform the self cleanup an `assessSelf` plan approved. Re-verifies from scratch first: the
+ * assessment may be seconds old, but this deletes things, and `main` moves under long sessions.
+ *
+ * `folderRemains` is the expected Windows outcome, not a failure - the worktree is deregistered
+ * and empty, and the husk goes when the session that holds it exits.
+ */
+export function applySelf(
+  plan,
+  {
+    prunePorts = pruneStalePorts,
+    refreshRemote = () => git(['fetch', 'origin', '--prune'], plan.primaryRoot),
+    acknowledgeData = false,
+  } = {},
+) {
+  const done = { removedWorktree: false, folderRemains: false, deletedBranch: null, releasedPorts: [], errors: [] };
+
+  // The one thing a clean tree does not prove. Removal destroys ignored content silently, so
+  // anything unrecognised must be acknowledged by a person who has seen the list.
+  const atRisk = plan.ignored?.atRisk ?? [];
+  if (atRisk.length > 0 && !acknowledgeData) {
+    done.errors.push(
+      `refusing: ${atRisk.length} ignored path(s) here are not regenerable and would be destroyed ` +
+        `(${atRisk.map((entry) => entry.path).join(', ')}) - acknowledge them explicitly to proceed`,
+    );
+    return done;
+  }
+
+  const refreshed = refreshRemote();
+  if (!refreshed?.ok) {
+    done.errors.push(`could not refresh origin before self cleanup: ${refreshed?.stderr || refreshed?.stdout || 'fetch failed'}`);
+    return done;
+  }
+
+  const recheck = assessSelf(plan.path);
+  if (!recheck.ok || recheck.branch !== plan.branch) {
+    done.errors.push(`state changed since assessment - ${recheck.reasons.join('; ') || 'branch moved'}`);
+    return done;
+  }
+
+  // Never --force: a refusal here is git protecting something this assessment did not see.
+  const removed = git(['worktree', 'remove', plan.path], plan.primaryRoot);
+  const stillRegistered = worktreeBranches(plan.primaryRoot).has(plan.path);
+  if (stillRegistered) {
+    done.errors.push(`could not remove the worktree: ${removed.stderr || removed.stdout || 'git worktree remove failed'}`);
+    return done;
+  }
+  done.removedWorktree = true;
+  done.folderRemains = existsSync(plan.path);
+
+  // Lowercase -d only, as everywhere else here: it refuses anything not fully merged.
+  const deleted = git(['branch', '-d', plan.branch], plan.primaryRoot);
+  if (deleted.ok) done.deletedBranch = plan.branch;
+  else done.errors.push(`worktree removed, but the branch was kept: ${deleted.stderr || deleted.stdout || 'git branch -d refused'}`);
+
+  try {
+    done.releasedPorts = prunePorts() ?? [];
+  } catch (error) {
+    done.errors.push(`could not release the dev port: ${error?.message ?? error}`);
+  }
+
+  return done;
 }
 
 export function assess(cwd) {
@@ -511,6 +745,53 @@ function report(plan, done) {
 
 // CLI: `node scripts/cleanup-worktrees.mjs [--apply] [--acknowledge-risks]`
 // Default is a dry run. Risk acknowledgement is valid only after the user approves the safe subset.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--self')) {
+  // Self mode: the handoff workflow's last action. Dry run by default, like the bulk mode.
+  const plan = assessSelf(normalize(process.cwd()));
+  if (!plan.ok) {
+    console.log('Self cleanup NOT safe - this worktree stays:');
+    for (const reason of plan.reasons) console.log(`  - ${reason}`);
+    process.exit(2);
+  }
+
+  console.log(`Self cleanup is safe: ${plan.path} (branch ${plan.branch}, contained in main and origin/main).`);
+
+  const atRisk = plan.ignored.atRisk;
+  if (atRisk.length > 0) {
+    console.log('\nThis will also DESTROY ignored content git never reports as changes:');
+    for (const entry of atRisk) console.log(`  - ${entry.path}  (${formatBytes(entry.bytes)})`);
+    console.log('  None of it is in git. Removing the worktree deletes it for good.');
+  }
+  if (plan.ignored.regenerable.length > 0) {
+    console.log(`\nAlso removed, but regenerable: ${plan.ignored.regenerable.join(', ')}`);
+  }
+
+  const acknowledgeData = process.argv.includes('--acknowledge-data');
+  if (!process.argv.includes('--apply')) {
+    console.log(
+      atRisk.length > 0
+        ? '\nDry run - if that list is acceptable, rerun with --self --apply --acknowledge-data.'
+        : '\nDry run - rerun with --self --apply to remove it.',
+    );
+    process.exit(0);
+  }
+  if (atRisk.length > 0 && !acknowledgeData) {
+    console.log('\nRefusing to apply: the content above is not regenerable and was not acknowledged.');
+    console.log('Show the list to the user; rerun with --acknowledge-data only after they agree.');
+    process.exit(2);
+  }
+
+  const done = applySelf(plan, { acknowledgeData });
+  if (done.removedWorktree) console.log(`Removed worktree ${plan.path}`);
+  if (done.deletedBranch) console.log(`Deleted branch ${done.deletedBranch}`);
+  if (done.releasedPorts.length > 0) console.log(`Released dev port(s): ${done.releasedPorts.join(', ')}`);
+  if (done.folderRemains) {
+    console.log('The now-empty folder is still on disk - this session holds it open. It is swept automatically once this session exits.');
+  }
+  for (const error of done.errors) console.log(`  ! ${error}`);
+  process.exit(done.errors.length > 0 ? 1 : 0);
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const doApply = process.argv.includes('--apply');
   const acknowledgedRisks = process.argv.includes('--acknowledge-risks');

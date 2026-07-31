@@ -19,12 +19,38 @@ The executable safety gates live in `scripts/cleanup-worktrees.mjs` (dry-run by 
 empty-folder inspection/removal helpers with the SessionStart hook. Your job is to run it,
 sanity-check its assessment, and apply only when the assessment is clean.
 
-## Why this runs from the primary checkout only
+## Why the BULK sweep runs from the primary checkout only
 
-A worktree cannot delete the folder it is running inside. This workflow must be run from a
+A worktree cannot delete the folder it is running inside. The bulk sweep must be run from a
 fresh session in the **primary `main` checkout** (`C:\claude\NoaCG-Studio`). The script
 enforces this and refuses to act from a linked worktree - if it reports that, stop and tell
 the user to rerun from the primary checkout. Never work around it.
+
+## Cleaning up THIS worktree (`--self`)
+
+Invoked from inside a linked worktree, this workflow cleans up that ONE worktree instead of
+sweeping. It is the honest version of "a worktree cannot delete itself": measured on Windows,
+`git worktree remove` driven from the primary deregisters the worktree and deletes every file,
+failing only on the now-empty directory, which unlocks when the session exits and is swept by
+the leftover-folder pass. So the session clears essentially all of itself.
+
+    node scripts/cleanup-worktrees.mjs --self                             # dry run, always first
+    node scripts/cleanup-worktrees.mjs --self --apply                     # nothing at risk
+    node scripts/cleanup-worktrees.mjs --self --apply --acknowledge-data  # only after the user agrees
+
+Same containment rules as the sweep, plus one the sweep never needed: **a clean working tree
+does not mean the folder is disposable.** `git status` says nothing about ignored files, and
+removal deletes them anyway - `.env`, bench output that cost real money, logs. The dry run lists
+every such path with its size, splitting what the repo can rebuild (`node_modules/`, `dist/`,
+generated config) from what it cannot. When anything unrecoverable is there, the script refuses
+`--apply` and only `--acknowledge-data` overrides it.
+
+**Show the user that list and get a real yes before passing `--acknowledge-data`.** Never add it
+because the run "looks routine" - it exists precisely for the case where a green assessment is
+about to destroy something no one remembered was there.
+
+Then say plainly that this chat's working directory no longer exists, so no further commands
+should run in it.
 
 ## What counts as safe (the script decides; these are the rules it applies)
 

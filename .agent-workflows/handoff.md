@@ -56,6 +56,33 @@ One or two lines, last. Lead with exactly one of these, verbatim, then why, in p
   unpushed, work that should have landed on `main` but didn't, a required migration/env step, or
   an unfinished task known only here. Say in one line exactly what to do first.
 
+### 4. Whether this worktree can be cleaned up - report only, NEVER act
+
+**Handoff deletes nothing.** The bottom line above is a judgement, and a judgement that has been
+wrong before must never be wired to an irreversible action. Removing the worktree is the
+cleanup-worktrees workflow's job, and it happens because the USER asked for it in that moment.
+
+When the bottom line is `SAFE TO ARCHIVE` or `SAFE TO ARCHIVE WITH NOTES`, run the read-only
+check and report what it says in one line:
+
+    node scripts/cleanup-worktrees.mjs --self
+
+It is a dry run: it never removes anything without `--apply`. It answers whether this worktree
+is removable (branch contained in BOTH local `main` and `origin/main`, clean, not detached, not
+the primary) and - the part git otherwise hides - lists ignored content that removal would
+destroy: `.env`, bench output, logs. `git status` never mentions those, and removal deletes them
+anyway.
+
+Say which it is, and stop there:
+
+- removable with nothing at risk - "this worktree can be removed with the cleanup-worktrees
+  workflow; nothing unrecoverable is in it";
+- removable but holding at-risk content - name the paths and sizes, because that is the part
+  the user cannot see from anywhere else;
+- not removable - give the reason it printed.
+
+Never pass `--apply`, and never offer to sweep other worktrees.
+
 ## How to ground it (read-only)
 
 Do this work for yourself - almost none of it reaches the response. Run the checks; don't print
@@ -78,7 +105,8 @@ remaining work. If the answer is the boring expected one, say nothing.
 ## Rules
 
 - **Read, don't write.** Never merge, push, commit, delete, clean, stash, reset, or rewrite
-  history, run builds, or execute tests. Report problems; never silently fix them.
+  history, run builds, or execute tests. Report problems; never silently fix them. This holds for
+  worktree cleanup too: section 4 reports, and the user runs the cleanup-worktrees workflow.
 - **Create or update no files** - no handoff file, session summary, timestamped note, project
   document, or tool-specific memory. Deliver all continuation context in the response so the same
   handoff works in Claude Code and Codex.

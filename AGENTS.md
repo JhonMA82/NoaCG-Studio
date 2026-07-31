@@ -369,6 +369,14 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   The permission is scoped to that invocation and that branch; it never carries
   to another branch, a later turn, or any other route onto `main`. If the flow's checks fail,
   stop and report - permission to run the flow is not permission to land something broken.
+- **A finished session can clean up its own worktree, but only the USER starts it.** The
+  cleanup-worktrees workflow run from inside a worktree (`cleanup-worktrees.mjs --self`) removes
+  that one, under the same rules as the bulk sweep. Handoff only REPORTS whether that is
+  available - a verdict written by a model must never trigger an irreversible action.
+  **A clean `git status` does not mean a worktree is disposable:** it says nothing about ignored
+  files, and removal deletes them regardless - `.env`, bench output that cost real money, logs.
+  The script lists every non-regenerable ignored path with its size and refuses to apply until
+  that loss is explicitly acknowledged.
 - **Merge ORDER is checked, not guessed.** `node scripts/merge-order.mjs` ranks every branch
   ahead of `main` by what landing it FIRST costs the other worktrees, measuring real conflicts
   with `git merge-tree` (read-only - no working tree, no ref) and naming the collisions git

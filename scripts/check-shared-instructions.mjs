@@ -21,6 +21,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
+// Membership means DESTRUCTIVE, not merely important - it is what earns the
+// disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
+// worktree; it only reports now, so it left again rather than diluting what this set means.
 const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
 // Short invocation aliases: <alias> => <canonical workflow>. An alias owns adapters in BOTH
 // tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
@@ -53,6 +56,10 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'last known verification command/result tied to that commit',
       'Do not run verification during handoff.',
       'Create or update no files',
+      // Handoff must stay read-only. Both halves pinned: it deletes nothing, and the cleanup
+      // check it runs is the dry run, never `--apply`.
+      '**Handoff deletes nothing.**',
+      'Never pass `--apply`',
     ],
   ],
   [
