@@ -322,7 +322,9 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
 - In Playwright specs, **never clear localStorage via `addInitScript`** - it also runs in the
   same-origin srcdoc preview iframe, so every rebuild wipes the key (this silently deleted the
   project brand). Fresh browser contexts already isolate storage per test.
-- The preview rebuilds on a ~350 ms debounce after `applyTemplate` - never sleep it out. Use
+- The preview rebuilds on a debounce after `applyTemplate` - 350 ms when authoring, **50 ms under
+  the e2e suite** (`VITE_PREVIEW_DEBOUNCE_MS`, pinned in playwright.config.ts). Never sleep out
+  either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
