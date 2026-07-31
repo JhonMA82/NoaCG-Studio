@@ -73,13 +73,19 @@ export async function downscaleForAnalysis(dataUrl: string): Promise<AnalysisIma
     el.onerror = () => reject(new Error('The artwork could not be decoded for analysis.'));
     el.src = dataUrl;
   });
+  // Fit to the PIXEL budget rather than to each axis, so a portrait keeps the same budget a
+  // landscape gets instead of being squeezed to the short side (contract.ts maxPixels).
+  const w = Math.max(1, image.naturalWidth);
+  const h = Math.max(1, image.naturalHeight);
   const k = Math.min(
     1,
-    IMPORT_ANALYSIS_LIMITS.maxWidth / Math.max(1, image.naturalWidth),
-    IMPORT_ANALYSIS_LIMITS.maxHeight / Math.max(1, image.naturalHeight),
+    Math.sqrt(IMPORT_ANALYSIS_LIMITS.maxPixels / (w * h)),
+    IMPORT_ANALYSIS_LIMITS.maxEdge / Math.max(w, h),
   );
-  const width = Math.max(16, Math.round(image.naturalWidth * k));
-  const height = Math.max(16, Math.round(image.naturalHeight * k));
+  // FLOOR, not round: rounding up on both axes can push the area a pixel over the budget the
+  // server enforces, which would refuse the browser's own correctly-scaled output.
+  const width = Math.max(16, Math.floor(w * k));
+  const height = Math.max(16, Math.floor(h * k));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

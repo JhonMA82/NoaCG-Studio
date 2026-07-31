@@ -39,8 +39,11 @@ export default defineConfig({
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across
   // workers instead of leaving the largest file as the serial critical path.
   // 4 workers is the measured sweet spot on a 16-core dev box. GitHub's smaller runners use
-  // one worker each and scale across four independent shards instead: the same aggregate
-  // concurrency, without four browsers and one Vite server fighting over a single runner.
+  // one worker each and scale across eight independent shards instead: more than the same
+  // aggregate concurrency, without four browsers and one Vite server fighting over a single
+  // runner. Sharding is per-TEST, not per-file (verified against run 30539377062: of 97 spec
+  // files, exactly the 3 sitting on a shard boundary were split), so no single fat spec file
+  // can become the critical path however high the shard count goes.
   fullyParallel: true,
   workers: isCi ? 1 : 4,
   retries: 0,
@@ -76,7 +79,14 @@ export default defineConfig({
     // stub providers deterministically. Gateway-backed specs mock /api/ai/generate.
     // NOTE: none of this applies when reuseExistingServer adopts a server someone else
     // already started - that path is guarded by globalSetup above, not by this env block.
+    // The preview's rebuild debounce is 350 ms for authoring (it stops a rebuild per keystroke
+    // in the code editor) and 50 ms here. Every spec waits on the iframe's `data-doc-rev`
+    // stamp rather than sleeping, so this shortens the WAIT without changing what any spec
+    // observes - and 300 ms per rebuild across 591 tests is minutes of wall clock. Kept above
+    // zero so a genuine burst of changes still coalesces into one rebuild the way it does in
+    // the product.
     env: {
+      VITE_PREVIEW_DEBOUNCE_MS: '50',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
       VITE_RENDER_API: '1',

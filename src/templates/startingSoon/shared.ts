@@ -110,6 +110,64 @@ export interface StartingSoonMeta {
   uicolor: string;
 }
 
+/**
+ * The full-frame programme background shared by every holding screen.
+ *
+ * The dark base is deliberately opaque. `--panel-bg` is often translucent because it was
+ * authored for a card over picture; using it as the only canvas paint would preserve the
+ * audit defect. Family classes change the light, grid, and shape language while the one
+ * accent remains the only chromatic voice.
+ */
+function holdingBackgroundCss(family: TemplateVariant['styleTag']): string {
+  const familyLight: Record<TemplateVariant['styleTag'], string> = {
+    minimal: `radial-gradient(circle at 72% 24%, color-mix(in srgb, var(--accent) 13%, transparent) 0%, transparent 38%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 44%)`,
+    editorial: `linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, var(--accent) 26%, transparent) 8% 8.12%, transparent 8.12%),
+    radial-gradient(circle at 76% 18%, rgba(255, 255, 255, 0.07), transparent 38%)`,
+    cinematic: `linear-gradient(180deg, rgba(0, 0, 0, 0.66), transparent 24% 72%, rgba(0, 0, 0, 0.78)),
+    radial-gradient(ellipse at 50% 44%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 52%)`,
+    sport: `linear-gradient(118deg, transparent 0 58%, color-mix(in srgb, var(--accent) 14%, transparent) 58% 72%, transparent 72%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), transparent 36%)`,
+    glass: `radial-gradient(circle at 28% 22%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    radial-gradient(circle at 78% 76%, rgba(255, 255, 255, 0.09), transparent 38%)`,
+    noacg: `radial-gradient(circle at 76% 28%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 34%),
+    linear-gradient(125deg, transparent 0 62%, rgba(246, 166, 35, 0.055) 62% 62.3%, transparent 62.3%)`,
+  };
+
+  return `/* Full-frame programme background. The solid base guarantees opaque output. */
+.starting-soon-background {
+  position: absolute;              /* fills the programme frame */
+  inset: 0;                        /* edge to edge */
+  overflow: hidden;                /* ambient light never escapes the canvas */
+  background-color: #080b10;       /* opaque neutral base - never a transparent card */
+  background-image: ${familyLight[family]};  /* family-specific light and structure */
+  pointer-events: none;            /* decorative only */
+  will-change: transform, opacity; /* the entrance and idle drift animate this layer */
+}
+
+/* A very soft pool of accent light. GSAP drifts it by only a few percent while the hold airs. */
+.starting-soon-ambient {
+  position: absolute;              /* free-floating inside the programme background */
+  inset: 3%;                       /* transform-safe inset keeps the idle field on canvas */
+  background: radial-gradient(circle at 92% 18%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 64%);
+  filter: blur(calc(36px * var(--scale)));  /* soft atmospheric light */
+  opacity: 0.72;                   /* restrained - content stays dominant */
+  will-change: transform;          /* the idle drift is transform-only */
+}
+
+/* A low-contrast technical grid gives large empty areas authored structure. */
+.starting-soon-grid {
+  position: absolute;              /* covers the same programme surface */
+  inset: 0;                        /* edge to edge */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.024) 1px, transparent 1px);
+  background-size: calc(96px * var(--scale)) calc(96px * var(--scale));  /* broad, quiet rhythm */
+  mask-image: linear-gradient(90deg, transparent, #000 34%, #000 100%);  /* keep the text side calm */
+  opacity: ${family === 'sport' || family === 'noacg' ? '0.72' : '0.36'};  /* stronger for control-room families */
+}`;
+}
+
 /** The two lines every holding screen had before designs could declare their own. */
 const DEFAULT_LINES: SsLineDefault[] = [
   { title: 'Title', sample: 'STARTING SOON' },
@@ -201,9 +259,12 @@ export function assembleStartingSoon(
    *  design. Absent = emit no token lines, which is what every template did before they
    *  existed. */
   tokens?: ThemeTokens,
+  /** The variant's family selects the programme background's shape language. */
+  family: TemplateVariant['styleTag'] = 'minimal',
 ): SpxTemplate {
   const font = resolveHeadingFont(o);
   const scale = computeScale(o);
+  const backgroundCss = holdingBackgroundCss(family);
   // Holding screens are the show's front door: wider cap than a strap (~70% of the canvas).
   const maxTextWidth = Math.round(o.resolution.width * 0.7);
 
@@ -254,14 +315,19 @@ export function assembleStartingSoon(
     title: meta.name,
     definitionBlock: definitionScriptBlock(settings, fields),
     body: `  <!-- ${meta.name}.${clock === 'none' ? '' : ' The clock is painted by JS from the hidden source below.'} -->
-  <div class="starting-soon">
+  <div class="starting-soon starting-soon--${family}">
+    <!-- Full-frame programme background. Only camera and screen frames stay transparent. -->
+    <div class="starting-soon-background" aria-hidden="true">
+      <div class="starting-soon-ambient"></div>
+      <div class="starting-soon-grid"></div>
+    </div>
 ${design.html}${clockSources}
   </div>`,
   });
 
   const css = `/* ${meta.name} — generated by NoaCG Studio. Edit freely: this file is yours. */
 
-${rootVarsCss(o, font.stack, scale, { tokens, consumerCss: design.css })}
+${rootVarsCss(o, font.stack, scale, { tokens, consumerCss: `${backgroundCss}\n${design.css}` })}
 
 ${font.face}
 
@@ -270,12 +336,18 @@ ${resetCanvasCss(o.resolution)}
 /* ── Root position (anchor zone) ── */
 .starting-soon {
   position: absolute;
-${zoneCssText(o.zone, o.nudge, o.resolution)}
+  left: 0;                         /* full-frame graphics ignore anchor zones */
+  top: 0;                          /* begin at the programme origin */
+  width: ${o.resolution.width}px;  /* paint every horizontal pixel */
+  height: ${o.resolution.height}px; /* paint every vertical pixel */
+  overflow: hidden;                /* nothing may leak outside the programme */
   opacity: 0;                      /* hidden until play() runs the entrance */
 }
 
 /* ── Auto-fit: the panel hugs its text and wraps instead of overflowing. ── */
 .starting-soon-box {
+  position: absolute;              /* content still honours the chosen safe-area zone */
+${zoneCssText(o.zone, o.nudge, o.resolution)}
   width: fit-content;              /* the panel hugs the text */
   max-width: ${maxTextWidthCss(o.resolution, maxTextWidth)};  /* the wrap cap — follows --scale, stops at the safe area */
   will-change: transform, opacity; /* hint the browser: this element animates */
@@ -290,6 +362,8 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 }
 
 /* ── Design ── */
+${backgroundCss}
+
 ${design.css}
 
 ${dataSourceCss}
@@ -351,7 +425,7 @@ export function defineStartingSoonVariant(
       // The family lives on the variant, the overrides on the design — resolved here
       // because this is the only place that holds both.
       const tokens = resolveTokens(spec.styleTag, design.tokens);
-      return assembleStartingSoon(meta, design, o, refine?.(o), tokens);
+      return assembleStartingSoon(meta, design, o, refine?.(o), tokens, spec.styleTag);
     },
   };
   return variant;

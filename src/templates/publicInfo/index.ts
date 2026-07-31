@@ -15,6 +15,7 @@ import { pi06 } from './pi06';
 import { pi07 } from './pi07';
 import { pi08 } from './pi08';
 import { pi09 } from './pi09';
+import { pi10 } from './pi10';
 
 export const PUBLIC_INFO: TemplateVariant[] = [
   pi01, // Public Notice — the category's reference design
@@ -26,6 +27,7 @@ export const PUBLIC_INFO: TemplateVariant[] = [
   pi09, // Notice Rotator — the minimal two-language machine
   pi03, // Source Label — the corner attribution chip
   pi04, // Disclaimer Strip — the full-width small-print band
+  pi10, // Source Folio - editorial source attribution (sibling lt31)
 ];
 
 export function publicInfoById(id: string): TemplateVariant | undefined {

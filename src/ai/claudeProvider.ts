@@ -50,7 +50,7 @@ import {
 
 // ── Structured output: the model must return the template via this tool ─────
 
-const TEMPLATE_TOOL: ModelTool = {
+export const TEMPLATE_TOOL: ModelTool = {
   name: 'emit_template',
   description: 'Return the complete SPX template as its three code files.',
   input_schema: {
@@ -72,7 +72,7 @@ const TEMPLATE_TOOL: ModelTool = {
   },
 };
 
-interface EmittedTemplate {
+export interface EmittedTemplate {
   name: string;
   type: TemplateType;
   summary: string;
@@ -121,7 +121,17 @@ function systemPrompt(exampleVariant: TemplateVariant = lt01, examplePresetId?: 
   // The canonical example is REAL generated code — the same contracts the wizard writes.
   // The caller picks the nearest catalog design so a scoreboard brief studies a real
   // scoreboard's contracts, not always a lower third.
-  const example = exampleWithAuthoringRegion(exampleVariant, examplePresetId);
+  return coderSystemPrompt(exampleWithAuthoringRegion(exampleVariant, examplePresetId));
+}
+
+/**
+ * The coder's system prompt around ONE worked example. Split out of `systemPrompt` above so
+ * the Creative Mode pilot's de-anchored arm can pass a NEUTRAL structural skeleton in the
+ * example slot (plan §4, §8 arm B) — the A-vs-B comparison isolates the catalog example, so
+ * the two arms must differ in the example and in nothing else. Pure extraction: the control
+ * path still calls it with exactly the example it always built.
+ */
+export function coderSystemPrompt(example: SpxTemplate): string {
   return `You are the template generator inside NoaCG Studio — a tool that creates
 broadcast graphics templates for SPX Graphics / CasparCG playout. You write COMPLETE, working,
 marketplace-quality templates. The user is learning to code from what you write.
@@ -291,7 +301,7 @@ Return ONLY via the emit_template tool.`;
 
 // ── Building an SpxTemplate from the model's output ──────────────────────────
 
-function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
+export function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base?: SpxTemplate): SpxTemplate {
   const parsed = parseDefinition(emitted.html);
   return {
     name: emitted.name || base?.name || 'AI template',
@@ -554,7 +564,7 @@ function attachmentSections(ctx: GenerateContext): string[] {
   return out;
 }
 
-function contextText(prompt: string, ctx?: GenerateContext): string {
+export function contextText(prompt: string, ctx?: GenerateContext): string {
   const parts = [`Create a broadcast graphics template.\n\nUser brief: ${prompt}`];
   if (ctx) {
     parts.push(`Canvas: ${ctx.resolution.width}×${ctx.resolution.height} @ ${ctx.fps} fps.`);
@@ -589,7 +599,7 @@ function contextText(prompt: string, ctx?: GenerateContext): string {
   return parts.join('\n\n');
 }
 
-function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
+export function imageBlocks(ctx?: GenerateContext): ContentBlock[] {
   if (!ctx) return [];
   const blocks: ContentBlock[] = [];
   // Assets first, references after — the manifest numbers them in exactly this order.
@@ -808,7 +818,12 @@ async function groundedResult(
     template,
     path,
     validation,
-    spec,
+    // The spec describes what was BUILT, not what was asked for: `pickVariant` clamps an
+    // out-of-range or unknown chassis to the nearest legal one, so the model's `variantId`
+    // can name a design that was never assembled. Reporting the resolved id is what lets the
+    // satisfaction check ask an honest question, and it means a spec-level `modify` refines
+    // the graphic the user is actually looking at.
+    spec: { ...spec, variantId: assembled.diversity.variantId },
   };
 }
 
@@ -928,6 +943,12 @@ async function intentAndRoute(
       messages: [{ role: 'user', content: userContent }],
       tool: INTENT_TOOL,
       maxTokens: 2000,
+      // Per-stage model binding (plan §4): the intent stage is a small forced structured
+      // call, the shape cheap open models answer at parity — so it runs on the provider's
+      // `role:'fast'` model rather than the session's design/code model. Every stage after
+      // it keeps the session route. The routing bench pins its model explicitly instead,
+      // because its whole job is to measure a NAMED candidate in this role.
+      modelRole: 'fast',
     });
     run.stage('intent', t0, result.model, result.usage);
     // An answer that never addressed the intent tool must not be normalized: it would read
@@ -961,7 +982,13 @@ function routedSpecTool(base: ModelTool, route: RouteDecision | null): ModelTool
 
 /** Append the injected structural-satisfaction check's findings as WARNINGS on the final
  *  validation (non-blocking - plan §8: they never enter the frozen control's repair
- *  rounds; rigs and future arms read them). */
+ *  rounds; rigs and future arms read them).
+ *
+ *  Runs on BOTH routed paths. It first shipped on the custom path alone, which left the
+ *  benchmark's most common defect unmeasured: a catalog-routed brief that comes back as the
+ *  wrong catalog member (a stinger assembled as a lower third) was never asked whether it
+ *  was the graphic requested. `change.spec.variantId` is what makes that answerable, so the
+ *  grounded path passes it; the custom path has no variant and is measured by parts. */
 async function withStructuralFindings(
   change: AiTemplateChange,
   intent: StructuralIntent | null,
@@ -971,7 +998,7 @@ async function withStructuralFindings(
   if (!intent || !options?.structuralCheck) return change;
   try {
     const t0 = Date.now();
-    const findings = await options.structuralCheck(change.template, intent);
+    const findings = await options.structuralCheck(change.template, intent, change.spec?.variantId);
     run.stage('structural-check', t0);
     if (!findings.length) return change;
     const validation = change.validation ?? { ok: true, errors: [], warnings: [] };
@@ -1042,7 +1069,14 @@ export const claudeProvider: AIProvider = {
         // Stage 2 — deterministic assembly through the real catalog assemblers: correct
         // by construction, panel- and timeline-editable like any wizard output.
         const grounded = await groundedResult(spec, context, options, run);
-        return { ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+        const annotatedGrounded = {
+          ...grounded,
+          ...(intent ? { intent } : {}),
+          ...(route ? { routing: route } : {}),
+        };
+        // The catalog path is checked too: assembly is correct BY CONSTRUCTION, which says
+        // nothing about whether the right thing was constructed.
+        return withStructuralFindings(annotatedGrounded, intent, options, run);
       }
 
       // Custom route — the free-form coder, studying the NEAREST catalog design as its
@@ -1123,7 +1157,12 @@ export const claudeProvider: AIProvider = {
         options?.onProgress?.(`Building option ${i + 1} of ${specs.length}…`);
         if (spec.fit === 'catalog' && !forceCustom) {
           const grounded = await groundedResult(spec, context, options, run);
-          results.push({ ...grounded, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) });
+          const annotatedGrounded = {
+            ...grounded,
+            ...(intent ? { intent } : {}),
+            ...(route ? { routing: route } : {}),
+          };
+          results.push(await withStructuralFindings(annotatedGrounded, intent, options, run));
         } else {
           const change = await generateValidated(
             [...userContent, { type: 'text', text: designNotes(spec) }],

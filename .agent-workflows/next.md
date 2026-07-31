@@ -46,6 +46,12 @@ quick scan, not an audit.
   worktree has checked out - unmerged work from a closed session, still a collision even though
   nobody is in it. This is what tells you an option is already someone else's job, and which
   files an option would collide on. Several worktrees are normally active at once.
+- **Merge ORDER, whenever landing this branch is a plausible option.** Run
+  `node scripts/merge-order.mjs --branch <this branch>` - read-only, a couple of seconds. The
+  worktree scan says who ELSE is in flight; this says who should go FIRST, measured with a real
+  three-way merge rather than a guess. It answers the one question that costs real time: does
+  landing this branch now force another branch into a large or dangerous re-merge? See section 2
+  for what to do with each verdict.
 - **Verification gap.** Was `npm run build` run after the last code change? Is there observable
   behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
   alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
@@ -95,7 +101,21 @@ convenient. Every option must fit the product pillars and the governing nested
 
 When the session's work is committed and verified, **"merge and push via the safe-merge
 workflow" is a first-class option** - often the recommended one. Offering it here is fine; the
-user picking it is what makes it user-initiated. Never run it yourself off this workflow.
+user picking it is what makes it user-initiated. Never START it yourself off this workflow -
+but once the user PICKS it, run it (section 2c).
+
+**Order the merge option by what `merge-order.mjs --branch <this branch>` said**, so this
+workflow never recommends a landing that makes another branch's landing much worse:
+
+- **`clear`** - offer it normally, no caveat.
+- **`caution`** - still offerable and still recommendable; append the cost in a fragment
+  (`costs <branch> N conflicted files`).
+- **`hold`** - do NOT recommend landing this branch. Keep it in the list (the user may have a
+  reason) but say in the same line which branch should land first and why - the rename, the
+  duplicated migration number, the conflict count. Recommend a different option instead.
+
+Never turn this into an option to go merge the OTHER branch: that is another worktree's
+business, and this workflow reports collisions rather than acting on them. Name it, and stop.
 
 **Run every candidate option past the worktree scan before listing it:**
 
@@ -138,6 +158,24 @@ run.
 - Never skip this because the answer feels obvious, because there is only one real option, or
   because there is no work left. Those cases still get a pick - see section 3.
 
+### 2c. A picked option is an invocation - including the safe-merge one
+
+**When the user picks the safe-merge option, RUN it.** Do not answer the pick by asking them to
+type `/safe-merge` themselves. The option named a branch, this workflow offered it, and the user
+chose it - that is a user decision about a specific branch, which is exactly what "explicitly
+invoked" means. Refusing a pick you just offered is a bug, not caution.
+
+Mechanically: read `.agent-workflows/safe-merge.md` and follow it in full for the branch named in
+the option. In Claude Code do NOT try to call the `/safe-merge` command as a tool - its adapter
+sets `disable-model-invocation: true` so the model can never invoke it on its own initiative, and
+that flag stays. Following the shared file directly is the same procedure with the same standing
+permissions, entered the one way that requires a human to have chosen it.
+
+The authorization is exactly as narrow as the option was: that branch, that turn. It does not
+extend to a second branch, to cleanup, or to a later turn - each needs its own invocation.
+
+The same holds for every other option: the pick is the go-ahead for THAT option only.
+
 ### 3. If the answer is "nothing"
 
 Skip the numbered list. 1-2 lines: session complete, the evidence (build/e2e/commit state), and
@@ -147,7 +185,8 @@ the natural close. No consolation backlog list.
 genuinely available, recommended one first:
 
 - **The safe-merge workflow** - only when this session's branch is committed, verified, and
-  actually mergeable. Picking it is what makes it user-initiated; still never run it unasked.
+  actually mergeable, and `merge-order.mjs` did not return `hold`. Picking it is what makes it
+  user-initiated; never run it unasked, and always run it once picked (section 2c).
 - **The handoff workflow** - write the handoff note and close out.
 - **Stop here** - nothing further, leave the session as is.
 - **Start something new** - open the backlog (`docs/GOALS.md`)
@@ -160,12 +199,13 @@ honest floor when nothing else applies.
 
 Present the options, offer the pick, and END THE TURN. Do not start any option, "get a head
 start", or stage changes. The user approves with the button/number (or a title, "do the
-recommended one") - only then begin, and do only the picked option.
+recommended one") - only then begin, and do only the picked option (section 2c).
 
 ## Rules
 
 - **Read, don't write.** The planning turn changes nothing. No commits, fixes, file creation, or
   memory writes.
+  The one thing a PICK may then do is start the option the user chose - including safe-merge.
 - **Options must be about THIS session's line of work.** Suggesting the safe-merge workflow /
   push for this session's branch is in scope; never execute it unasked. Never offer
   repo/workspace cleanup (leftover worktrees, stale branches, node_modules pruning, etc.) - the

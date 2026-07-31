@@ -65,6 +65,17 @@ import { card55 } from './card55';
 import { card56 } from './card56';
 import { card57 } from './card57';
 import { card58 } from './card58';
+import {
+  card59,
+  card60,
+  card61,
+  card62,
+  card63,
+  card64,
+  card65,
+  card66,
+} from './infoSystems/editorial';
+import { card67, card68, card69, card70, card71 } from './infoSystems/cinematic';
 
 export const INFO_CARDS: TemplateVariant[] = [
   // ── Information cards ──
@@ -129,6 +140,21 @@ export const INFO_CARDS: TemplateVariant[] = [
   card58, // Graduate — one name at a time for the walk (noacg)
   card54, // Wedding Card — the couple, the date, the place (minimal)
   card55, // In Memoriam — one name, the years, one line (minimal)
+  // Editorial information system - siblings of lt25-lt31.
+  card59, // Edition Title - session / segment opener
+  card60, // Rundown Column - topic / coming up
+  card61, // Fact Check Desk - quote / fact check
+  card62, // Explainer Folio - headline + readable explanation
+  card63, // Public Notice Sheet - official notice + action
+  card64, // Results Ledger - compact agenda / results board
+  card65, // Sponsor Read - disclosure-first prepared copy
+  card66, // Prepared Caption - prepared, not timed, caption band
+  // Cinematic information system - siblings of lt32-lt38.
+  card67, // Chapter Scrim - chapter title
+  card68, // Now Playing Scrim - current / next
+  card69, // Documentary Quote - long quotation + source
+  card70, // Location Scrim - place + context
+  card71, // Prepared Lyric - prepared caption / lyric
 ];
 
 export function infoCardById(id: string): TemplateVariant | undefined {

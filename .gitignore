@@ -25,6 +25,7 @@ bench-*/
 video-bench-out*/
 video-benchmark-out/
 compare-out*/
+creative-route-out*/
 # NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
 # blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)
 lite-bench-out*/
@@ -102,3 +103,8 @@ render-worker/remotion/*.generated.ts
 
 # Supabase CLI version-check cache - rewritten whenever a new CLI ships
 supabase/.temp/cli-latest
+
+# The compiled API runtime the node test runners and bench:preflight build. Cleaned up in a
+# finally, but a killed run leaks one, and a leaked directory reads as an unmapped source
+# change to scripts/e2e-affected.mjs (which then escalates to the full suite).
+/.tmp-api-runtime-*/

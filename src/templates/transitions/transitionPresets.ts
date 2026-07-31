@@ -71,6 +71,7 @@ function buildOutTimeline() {
     '-=0.1'
   );
   tl.set('.transition', { opacity: 0 });               // fully hidden; ready to play again
+  tl.call(resetTransitionPanels);                         // reset while the root is hidden
   return tl;
 }
 ${MARK_CLOSE}`,
@@ -109,6 +110,7 @@ function buildOutTimeline() {
   tl.to('.transition-mark', { opacity: 0, duration: 0.16 / animSpeed });
   tl.to('.transition-panel', { xPercent: 112, duration: 0.46 / animSpeed }, '-=0.12');
   tl.set('.transition', { opacity: 0 });               // fully hidden; ready to play again
+  tl.call(resetTransitionPanels);                         // reset while the root is hidden
   return tl;
 }
 ${MARK_CLOSE}`,
@@ -150,6 +152,7 @@ function buildOutTimeline() {
     '-=0.14'
   );
   tl.set('.transition', { opacity: 0 });               // fully hidden; ready to play again
+  tl.call(resetTransitionPanels);                         // reset while the root is hidden
   return tl;
 }
 ${MARK_CLOSE}`,

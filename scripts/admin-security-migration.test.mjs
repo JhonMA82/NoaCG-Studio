@@ -8,13 +8,24 @@
 // is sufficient alone - text can drift from behaviour, and a self-check nobody reads can be
 // deleted in a diff that looks like cleanup.
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const read = (file) => readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8');
+const dir = new URL('../supabase/migrations/', import.meta.url);
+const read = (file) => readFile(new URL(file, dir), 'utf8');
+
+// Every migration, discovered rather than listed - the session-role rule below applies to all of
+// them, including the one that has not been written yet.
+const migrationFiles = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+const allMigrations = new Map(
+  await Promise.all(migrationFiles.map(async (f) => [f, await read(f)])),
+);
 
 const entitlements = await read('0018_entitlements.sql');
 const selfScoped = await read('0020_self_scoped_predicates.sql');
+const oneActiveGrant = await read('0021_one_active_grant.sql');
+const absolutes = await read('0022_entitlement_absolutes.sql');
+const temporaryDeny = await read('0023_temporary_deny_absolute.sql');
 
 test('the suspension predicate takes no argument, so there is nothing to point at another user', () => {
   assert.match(
@@ -123,9 +134,217 @@ test('no migration changes the session role', () => {
   // Comments are stripped first: 0020 documents this trap at length, and the write-up naming
   // RESET ROLE must not read as the statement itself.
   const stripComments = (sql) => sql.replace(/--[^\n]*/g, '');
-  for (const [name, sql] of [['0018', entitlements], ['0020', selfScoped]]) {
-    const code = stripComments(sql);
+  // SELF-DISCOVERING, and that is the point: this trap belongs to every migration, not to the
+  // two that happened to exist when it was found. A hardcoded list silently stops covering the
+  // next file somebody adds, which is exactly when the lesson has been forgotten.
+  assert.ok(migrationFiles.length >= 21, `expected the full migration set, found ${migrationFiles.length}`);
+  for (const name of migrationFiles) {
+    const code = stripComments(allMigrations.get(name));
     assert.doesNotMatch(code, /\breset\s+role\b/i, `${name} resets the session role`);
     assert.doesNotMatch(code, /\bset\s+(local\s+|session\s+)?role\b/i, `${name} sets the session role`);
   }
+});
+
+// ── 0021: one active grant per (user, kind, key) ─────────────────────────────────────────────
+
+test('the ambiguous grant state is made unreachable, not merely discouraged', () => {
+  // UNIQUE, or two active rows can still name one key. PARTIAL, or revoked history - which the
+  // revoke-by-stamp design depends on - becomes impossible to accumulate.
+  assert.match(
+    oneActiveGrant,
+    /create unique index if not exists user_grants_one_active_idx\s*\n\s*on public\.user_grants \(user_id, kind, key\)\s*\n\s*where revoked_at is null/i,
+    'expected a PARTIAL UNIQUE index over the active rows',
+  );
+});
+
+test('existing duplicates are resolved before the index is created, newest kept', () => {
+  // A unique index cannot be built over data that already violates it, so a database that
+  // already carries a pair must be repaired in the same migration or the apply just fails.
+  const repair = oneActiveGrant.slice(0, oneActiveGrant.indexOf('create unique index'));
+  assert.match(repair, /update public\.user_grants/i, 'nothing repairs pre-existing duplicates');
+  assert.match(repair, /order by created_at desc/i, 'the newest active grant must be the one kept');
+  assert.match(repair, /set revoked_at = now\(\)/i, 'losers must be revoked, matching the API');
+  assert.doesNotMatch(repair, /delete\s+from\s+public\.user_grants/i, 'history is stamped, never deleted');
+});
+
+test('0022 gates are RESTRICTIVE, never permissive', () => {
+  // A permissive policy of the same name would be worse than no policy at all: permissive
+  // policies are ORed together, so it would WIDEN access rather than narrow it.
+  const policies = [...absolutes.matchAll(/create policy "[^"]+"[\s\S]*?;/gi)].map((m) => m[0]);
+  assert.equal(policies.length, 8, `expected 8 gates, found ${policies.length}`);
+  for (const policy of policies) {
+    const name = policy.match(/create policy "([^"]+)"/i)[1];
+    assert.match(policy, /as restrictive/i, `${name} is not restrictive`);
+    assert.match(policy, /for (insert|update) to authenticated/i, `${name} gates the wrong command`);
+    assert.match(policy, /public\.feature_denied\('/i, `${name} does not consult the predicate`);
+  }
+});
+
+test('0022 leaves reads and deletes alone', () => {
+  // Stated in 0018 and repeated here because it is the difference between an entitlement and a
+  // confiscation: a denied account keeps reading and exporting its own work, and unpublishing or
+  // closing a show down must never be the thing that gets blocked.
+  const policies = absolutes.match(/create policy "[^"]+"[\s\S]*?;/gi)?.join('\n') ?? '';
+  assert.doesNotMatch(policies, /\bfor select\b/i, '0022 gates a read path');
+  assert.doesNotMatch(policies, /\bfor delete\b/i, '0022 blocks a delete');
+  assert.doesNotMatch(policies, /\bfor all\b/i, '0022 gates every command at once');
+});
+
+test('no policy passes a user id into the entitlement predicate', () => {
+  // The same rule 0020 established for is_suspended: a policy must call the SELF-SCOPED form.
+  // The cross-user form exists for the capability RPCs, where the subject is the show's owner
+  // rather than the caller - a policy naming it would be a probe with a user id in it.
+  const policies = [...absolutes.matchAll(/create policy "[^"]+"[\s\S]*?;/gi)].map((m) => m[0]);
+  for (const policy of policies) {
+    const name = policy.match(/create policy "([^"]+)"/i)[1];
+    assert.doesNotMatch(policy, /feature_denied_for\(/i, `${name} names the cross-user predicate`);
+  }
+});
+
+test('the cross-user predicate is off the REST surface, the self-scoped one is granted', () => {
+  // PostgREST publishes every function a client role may execute. feature_denied_for takes a user
+  // id, so granting it would recreate exactly the probe 0020 spent a migration removing - while
+  // feature_denied MUST stay granted, or every policy above fails 42501 instead of allowing.
+  assert.match(
+    absolutes,
+    /revoke execute on function public\.feature_denied_for\(uuid, text\) from public, anon, authenticated/i,
+  );
+  assert.doesNotMatch(
+    absolutes,
+    /grant execute on function public\.feature_denied_for\(uuid, text\)/i,
+    'the cross-user predicate is granted to something - it should be reachable only from definer functions',
+  );
+  assert.match(absolutes, /grant execute on function public\.feature_denied\(text\) to authenticated/i);
+  assert.match(absolutes, /revoke execute on function public\.feature_denied\(text\) from public, anon/i);
+});
+
+test('the predicate mirrors the contract instead of re-deciding precedence', () => {
+  const body = absolutes.match(
+    /create or replace function public\.feature_denied_for\(p_user uuid, p_key text\)[\s\S]*?\$\$;/i,
+  );
+  assert.ok(body, 'expected a feature_denied_for(uuid, text) function');
+  const source = body[0];
+  assert.match(source, /security definer/i);
+  assert.match(source, /set search_path = ''/i);
+  // The three absolutes, and only them.
+  assert.match(source, /state = 'suspended'/i, 'suspension is not one of the absolutes');
+  assert.match(source, /key = 'disabled_features'/i, 'the kill switch is not one of the absolutes');
+  assert.match(source, /g\.expires_at is null/i, 'a temporary grant would be read as an override');
+  // grantActive(): revoked beats everything, a future start has not begun.
+  assert.match(source, /g\.revoked_at is null/i);
+  assert.match(source, /g\.starts_at is null or g\.starts_at <= now\(\)/i);
+  // toGrant() drops a malformed payload rather than guessing, so a malformed row must not deny.
+  assert.match(source, /jsonb_typeof\(g\.value -> 'value'\) = 'boolean'/i);
+  // Precedence must NOT appear: no plan, no assignment, no ranking of one row against another.
+  assert.doesNotMatch(source, /public\.plans|public\.user_plans/i, 'the predicate reads plan rows');
+});
+
+test('the capability RPCs refuse before they write', () => {
+  // These are the paths an anonymous holder of the slug reaches, so they are where showchat and
+  // control.hosted actually cost something. A check after the INSERT would log the command it
+  // was meant to refuse.
+  for (const fn of ['control_send', 'control_stage', 'control_report']) {
+    const body = absolutes.match(new RegExp(`create or replace function public\\.${fn}\\([\\s\\S]*?\\$\\$;`, 'i'));
+    assert.ok(body, `0022 no longer redefines ${fn}`);
+    const source = body[0];
+    const guardAt = source.search(/feature_denied_for\(v_owner, 'control\.hosted'\)/i);
+    const writeAt = source.search(/insert into public\.control_events|update public\.control_shows/i);
+    assert.notEqual(guardAt, -1, `${fn} does not check the show owner's entitlement`);
+    assert.notEqual(writeAt, -1);
+    assert.ok(guardAt < writeAt, `${fn} checks the entitlement only after writing`);
+  }
+  // The audience door: a denied owner's show must read as not accepting submissions, which is
+  // what the anonymous insert policy from 0003 already gates on.
+  const accepts = absolutes.match(/create or replace function public\.show_accepts\(p_show uuid\)[\s\S]*?\$\$;/i);
+  assert.ok(accepts, 'show_accepts is no longer gated');
+  assert.match(accepts[0], /s\.is_open/i, 'show_accepts lost its is_open check');
+  assert.match(accepts[0], /feature_denied_for\(s\.owner_id, 'showchat'\)/i);
+  // The page must be told the same thing the insert policy will enforce, or it renders an open
+  // form and the visitor meets a raw row-level security error instead of "submissions are closed".
+  const bySlug = absolutes.match(/create or replace function public\.show_by_slug\(p_slug text\)[\s\S]*?\$\$;/i);
+  assert.ok(bySlug, 'show_by_slug still reports is_open without the owner gate');
+  assert.match(bySlug[0], /feature_denied_for\(s\.owner_id, 'showchat'\)/i);
+});
+
+test('0022 refuses to apply unless the gates demonstrably hold', () => {
+  for (const check of ['(a)', '(b)', '(c)', '(d)']) {
+    assert.ok(absolutes.includes(`0022 self-check ${check} FAILED`), `0022 lost its self-check ${check}`);
+  }
+  // Read the real ACL and the real catalog, not the migration's own text.
+  assert.match(absolutes, /has_function_privilege\('authenticated', 'public\.feature_denied\(text\)'/i);
+  assert.match(absolutes, /has_function_privilege\('anon', 'public\.feature_denied_for\(uuid, text\)'/i);
+  assert.match(absolutes, /from pg_policies/i, 'the gates are not verified against the catalog');
+  assert.match(absolutes, /permissive = 'RESTRICTIVE'/i, 'restrictiveness is not verified');
+  // And prove the predicate actually denies, rather than only that it exists.
+  assert.match(absolutes, /public\.feature_denied\('showchat'\) into denied/i);
+});
+
+// ── 0023: a temporary denying grant joins the absolutes ──────────────────────────────────────
+
+test('the grant test covers both shapes and keeps every date rule', () => {
+  const body = temporaryDeny.match(
+    /create or replace function public\.feature_denied_for\(p_user uuid, p_key text\)[\s\S]*?\$\$;/i,
+  );
+  assert.ok(body, '0023 no longer redefines the predicate');
+  const source = body[0];
+  // The two shapes in one condition: null expiry is the permanent override, a live expiry is the
+  // temporary grant that 0021's uniqueness makes decisive.
+  assert.match(source, /g\.expires_at is null or g\.expires_at > now\(\)/i);
+  // The other three rules from grantActive() must survive the rewrite - each of them is what
+  // stops a stale or malformed row from taking access away.
+  assert.match(source, /g\.revoked_at is null/i, 'a revoked grant would still deny');
+  assert.match(source, /g\.starts_at is null or g\.starts_at <= now\(\)/i, 'a future grant would deny early');
+  assert.match(source, /jsonb_typeof\(g\.value -> 'value'\) = 'boolean'/i, 'a malformed payload could deny');
+  assert.match(source, /\(g\.value ->> 'value'\) = 'false'/i, 'an ALLOW grant would read as a denial');
+  // And the other two absolutes must still be there - this migration only widens the grant test.
+  assert.match(source, /state = 'suspended'/i);
+  assert.match(source, /key = 'disabled_features'/i);
+  // Still no precedence: no plan, no assignment, no ranking of one row against another.
+  assert.doesNotMatch(source, /public\.plans|public\.user_plans/i);
+});
+
+test('no gate is pointed at an ai.* key, where the subset property does not hold', () => {
+  // AI_LITE_OVERRIDE_USER_IDS widens a false back to true for `ai.` keys only (contract.ts,
+  // the envOverride branch), so on such a key the contract can ALLOW where this predicate denies
+  // - the one direction the whole design forbids. The AI keys are gated at their endpoints and
+  // no policy names one; this test is what keeps that a deliberate decision.
+  for (const [name, sql] of [['0022', absolutes], ['0023', temporaryDeny]]) {
+    for (const call of sql.matchAll(/feature_denied(?:_for)?\((?:[^,)]+,\s*)?'([^']+)'\)/gi)) {
+      assert.doesNotMatch(
+        call[1],
+        /^ai\./,
+        `${name} gates ${call[1]}, an ai.* key the env override can widen back`,
+      );
+    }
+  }
+});
+
+test('0023 proves the branch it adds, on a real row, and cleans up after itself', () => {
+  for (const check of ['(a)', '(b)', '(c)', '(d)']) {
+    assert.ok(temporaryDeny.includes(`0023 self-check ${check} FAILED`), `0023 lost its self-check ${check}`);
+  }
+  // The point of this self-check is that it can do what 0022's could not: exercise the grant
+  // branch against a real user_grants row, since the column references auth.users.
+  assert.match(temporaryDeny, /insert into public\.user_grants/i, 'the grant branch is never exercised');
+  assert.match(temporaryDeny, /'__selfcheck__'/, 'the probe key must not be a real FeatureKey');
+  assert.match(temporaryDeny, /delete from public\.user_grants where user_id = v_user and key = '__selfcheck__'/i,
+    'the scaffolding row is left behind');
+  // An instance with no accounts must still apply.
+  assert.match(temporaryDeny, /from auth\.users order by created_at limit 1/i);
+  assert.match(temporaryDeny, /skipping the behavioural half/i, 'an empty auth.users would fail the apply');
+  // And the ACL must be re-asserted: CREATE OR REPLACE preserving it is the assumption this
+  // migration rests on, so it is checked rather than trusted.
+  assert.match(temporaryDeny, /has_function_privilege\('authenticated', 'public\.feature_denied_for\(uuid, text\)'/i);
+  assert.match(temporaryDeny, /has_function_privilege\('authenticated', 'public\.feature_denied\(text\)'/i);
+});
+
+test('0021 refuses to apply unless the constraint demonstrably holds', () => {
+  // Same posture as 0020: assert against the live catalog, raise on failure so the whole
+  // migration rolls back. Reading pg_index rather than trusting the CREATE's own text.
+  assert.match(oneActiveGrant, /do \$\$/i, 'no self-check block');
+  assert.match(oneActiveGrant, /from pg_index i/i, 'the index is not verified against the catalog');
+  assert.match(oneActiveGrant, /i\.indisunique/i, 'uniqueness is not verified');
+  assert.match(oneActiveGrant, /i\.indpred is not null/i, 'partialness is not verified');
+  assert.match(oneActiveGrant, /raise exception '0021 self-check \(a\)/i);
+  assert.match(oneActiveGrant, /raise exception '0021 self-check \(b\)/i);
 });

@@ -222,11 +222,19 @@ validated conversion - the AI only ever sees parsed code, never raw bytes.
 
 `GenerateOptions.mode` (`adapt` | `create` | `auto`, default auto) plus `structuralIntent.ts`
 run BEFORE the design call in `generate` and `generateAlternatives` (never for Lite, raw, or
-modify): one small forced `emit_structural_intent` call -> `normalizeIntent` ->
+modify): one small forced `emit_structural_intent` call on the provider's `role:'fast'`
+model (`modelRole: 'fast'` - the per-stage binding of plan §4; every later stage keeps the
+session route, and the routing bench pins a NAMED model instead because measuring one is its
+job) -> `normalizeIntent` ->
 `routeIntent` (deterministic; `structuralFit` checks the type registry + catalog LIVE, so
 catalog growth updates routing by itself). The rules: an explicit mode is never overridden;
-auto routes create only on originality words in the brief, no structural fit, or a
-low-confidence/novel/hybrid classification - a catalog-fit brief under auto runs the
+auto routes create only on originality words in the brief, no structural fit, a
+low-confidence/novel/hybrid classification, or a BEYOND-SCOPE match
+(`intent.beyondScope`: the brief matches a listed structure but requires structure its
+`GraphicType.structuralScope` note excludes - a double-elimination brief on the
+single-elim bracket type. The REGISTRY declares the scope, the intent stage judges the
+brief against it with evidence, `routeIntent` decides deterministically - the
+originalityRequested pattern) - a catalog-fit brief under auto runs the
 pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
 adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
 catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
@@ -240,15 +248,67 @@ example, `designNotes`, and repair policy stay byte-identical. Routing changes W
 reach it, never what it is shown. Do not "improve" it before the Creative Mode comparison
 has run** - the comparison's control arm is exactly this code.
 
-The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) verifies the
-intent's required parts against the template - list data as a textarea, field capacity,
-states vs machine/steps statically, plus repeating groups and zone placement measured in a
-rendered iframe. Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep +
-AIPromptPanel pass `benchStructuralIntent`); the provider runs it AFTER the repair loop on
-CREATE-routed results and appends findings (rule `structural-intent`) as WARNINGS - it
-measures presence, not quality, and it must not change the frozen control's repair rounds.
+**The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
+`resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather
+than here because the router and the satisfaction check both need the same answer and
+`validation` may not import `ai`. A second copy is how the two come to disagree - the router
+sending a brief down the catalog path while the check has no idea what was promised. Everything
+resolves LIVE against the registry and catalog, so catalog growth updates routing AND
+satisfaction by itself.
+
+The **structural-satisfaction check** (`validation/structuralIntentCheck.ts`) asks whether the
+result is the graphic that was asked for, in two parts:
+
+- **Kind** (`structuralKindFindings`) - does the assembled variant carry the anchor the intent
+  promised? Answered by IDENTITY against `spec.variantId`. This is the defect the benchmark hit
+  most and every other gate was blind to: a stinger brief routes to the catalog path CORRECTLY
+  (the catalog does carry transitions), the design stage returns a lower third, and static
+  validation, the runtime bench and the parts checks all pass - a lower third really does have a
+  headline and really does sit bottom-left. Every measurement agreed and the user got the wrong
+  graphic. It reports only when BOTH sides are known: an unresolvable variant or an intent that
+  anchored to nothing is a measurement that failed, not evidence of a mismatch.
+- **Parts** - list data as a textarea, field capacity, states vs machine/steps statically, plus
+  repeating groups and zone placement measured in a rendered iframe.
+
+Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep + AIPromptPanel pass
+`benchStructuralIntent`); findings land as WARNINGS (rule `structural-intent`) - it measures
+presence and identity, not quality, and it must not change the frozen control's repair rounds.
+**It runs on BOTH routed paths.** It first shipped CREATE-only, which left the grounded path -
+where the wrong-graphic defect actually happens - unmeasured: assembly being correct by
+construction says nothing about whether the right thing was constructed. `groundedResult`
+therefore reports the RESOLVED chassis (`pickVariant` clamps an unknown or unusable one, so the
+model's requested `variantId` can name a design that was never built), which is also what makes
+a spec-level `modify` refine the graphic the user is looking at.
+
 Free coverage: e2e/creative-routing.spec.ts (mutation-pinned, incl. the brief-bank
-catalog-anchor re-verification - the decay rule).
+catalog-anchor re-verification - the decay rule - and fixtures named after the wrong outcomes
+the paid round produced: a lower third for a stinger, a lower third for a timing tower).
+
+## Phase-C pilot (`creative/`, docs/CREATIVE_MODE_PLAN.md §3.2, §8, §10) - BENCH ONLY
+
+`creative/` is the pilot's CREATE pipeline. **Nothing in the product reaches it**: there is no
+UI, no route from `claudeProvider` into it, and its only caller is
+`scripts/creative-pilot-bench.mjs`. `runCreativeArm(arm, input)` runs one of four ablation arms
+per brief - **A** the frozen control (literally `claudeProvider.generate(..., mode:'create')`),
+**B** the same coder with a NEUTRAL skeleton example and the whole intent carried, **C** the
+staged pipeline, **D** C plus one rendered-frame critique and one focused repair. A-vs-B
+isolates the catalog example, B-vs-C the staging, C-vs-D the critique - so the arms must differ
+in ONE thing each, which is why arm B reuses `coderSystemPrompt` rather than owning a prompt.
+
+The staged path is `contracts.ts` (ConceptDirection + CreativeSpec, both normalize-don't-reject)
+-> `knowledgeCards.ts` (family anatomy + DESIGN_LANGUAGE numbers, keyword-selected, max 2, a
+card REPLACES generic language) -> `stages.ts` (the stage 4/5 tools and prompts) ->
+`scaffold.ts` (DETERMINISTIC: fields + SPX definition + runtime + list rebuild + the marked
+region + safe-area geometry) -> `style.ts` (the model's CSS and bounded region HTML through an
+applyPolish-class gate). **The scaffold is the floor**: a style patch the gate refuses leaves a
+plain but valid graphic, e2e-pinned against the full production validator. The anti-anchoring
+rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, and
+`neutralSkeleton.ts` is what the coder arm studies instead.
+
+Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
+expensive rig in the repo, explicit route, priced, ceilinged), `bench:creative:refs` (free
+catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
+e2e/creative-pilot.spec.ts.
 
 ## The quality gate (injected, not owned)
 
@@ -305,6 +365,17 @@ The standing proof:
 - `scripts/ai-bench.mjs` - the single-arm brief bank + review gallery for prompt iteration.
 
 Both need the dev server + a real key and SPEND TOKENS - never CI.
+
+**Run `npm run bench:preflight -- <models>` before any paid round.** It is free, reaches no
+network, and answers the question the paid runner structurally cannot: given this `.env` and
+these candidates, what would each arm ACTUALLY serve? `api/_lib/aiBenchPreflight.ts` resolves
+every arm through the REAL `liteProfile` + task registry (never a model of their rules - a
+preflight that reimplements the server drifts from it and then certifies runs the server will
+refuse), and refuses a plan whose arms are overridden, unapproved, unconfigured, or not
+pairwise distinct. Each of those wasted a real round: they are invisible in the OUTPUT, because
+a comparison whose arms resolve to one model still produces differences - sampling noise reads
+as model character - so the numbers look like findings. `--env=<path>` checks another
+environment file. Regression suite: `api/_lib/aiBenchPreflight.test.ts` (in the build gate).
 
 ## The structured setup (spec/ - the "More control" panel's harness grip)
 

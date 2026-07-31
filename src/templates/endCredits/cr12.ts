@@ -39,7 +39,7 @@ export const cr12: TemplateVariant = defineCreditsVariant(
     logo: 'built-in',
     animationPresets: ['credits-crawl'],
     defaultPalette: paletteById('volt'),
-    defaultFontId: 'archivo',
+    defaultFontId: 'oswald',
     defaultZone: 'bottom-center',
   },
   {

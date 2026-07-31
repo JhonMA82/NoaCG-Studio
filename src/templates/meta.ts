@@ -47,6 +47,18 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     category: 'bug', subtype: 'social-handle', structures: ['corner-chip', 'single-line'],
     semantics: { handle: 'social-handle', platform: 'source' },
   },
+  'event-notification': {
+    category: 'notification', subtype: 'event-notification', structures: ['image-text', 'multi-line'],
+    coverage: 'overlay',
+    semantics: {
+      eventLabel: 'headline',
+      actor: 'name',
+      amount: 'amount',
+      message: 'description',
+      avatar: 'image',
+    },
+    extraCapabilities: ['operator-states', 'image-upload', 'pause-resume'],
+  },
 
   // ── The identity family (templates/types/identityBugs.ts) ──────────────────
   // All eight are `bug` graphics; the subtype is what an operator would call each one.
@@ -256,7 +268,9 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   ig03: { category: 'results', subtype: 'leaderboard', structures: ['rows'], positionalSemantics: ['headline', 'items'], extraCapabilities: ['repeating'] },
   ig04: { category: 'poll-quiz', subtype: 'poll-result', structures: ['bars'], positionalSemantics: ['percentage', 'answer', 'question'], extraCapabilities: ['poll-states'] },
   ig05: { category: 'progress', subtype: 'donation-goal', structures: ['bars'], positionalSemantics: ['amount', 'amount', 'topic'], extraCapabilities: ['progress'] },
-  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage'], extraCapabilities: ['poll-states'] },
+  // The nine candidate fields, then the board's own two headings (its title and the status
+  // flag beside it) — both operator fields, so the same board serves any count night.
+  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'headline', 'topic'], extraCapabilities: ['poll-states'] },
   // info-card split (§4): card04 turned out to be a QUOTE card (Quote + Name + Role) — the
   // quote category's first catalog content, found by the factory's schema-length assertion.
   card04: { category: 'quote', subtype: 'quote', structures: ['multi-line', 'name-role'], positionalSemantics: ['description', 'name', 'role'] },
@@ -272,6 +286,18 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // rotates (the ticker type is the one that cycles, and it earns it with a real machine).
   card48: { category: 'sponsor', subtype: 'logo-strip', structures: ['strip', 'logo-text'], positionalSemantics: ['headline', 'logo', 'logo', 'logo', 'logo'] },
   card49: { category: 'sponsor', subtype: 'panel', structures: ['grid', 'logo-text'], positionalSemantics: ['headline', 'description', 'logo', 'logo', 'logo', 'logo', 'logo', 'logo'] },
+  // Editorial and cinematic information systems. Typed variants are overridden only where the
+  // design's editorial job is more precise than its reusable field contract.
+  card59: { category: 'title', subtype: 'segment-title', structures: ['multi-line'], semantics: { title: 'headline', kicker: 'topic', subtitle: 'description' } },
+  card60: { category: 'topic', subtype: 'coming-up', structures: ['multi-line'], semantics: { nowLabel: 'headline', now: 'topic', nowMeta: 'description', nextLabel: 'headline', next: 'topic' } },
+  card61: { category: 'quote', subtype: 'fact-check', structures: ['multi-line'], semantics: { kicker: 'topic', headline: 'headline', body: 'description', source: 'source' } },
+  card62: { category: 'info', subtype: 'explainer', structures: ['multi-line'], semantics: { kicker: 'topic', headline: 'headline', body: 'description', source: 'source' } },
+  card64: { category: 'results', subtype: 'results-table', structures: ['table', 'rows'], positionalSemantics: ['headline', 'items', 'items', 'items', 'source'] },
+  card65: { category: 'sponsor', subtype: 'sponsor-read', structures: ['multi-line'], positionalSemantics: ['headline', 'description', 'description', 'source'] },
+  card66: { category: 'caption', subtype: 'caption', structures: ['strip', 'multi-line'], coverage: 'strip', positionalSemantics: ['name', 'description', 'source'] },
+  card67: { category: 'topic', subtype: 'chapter', structures: ['multi-line'], semantics: { title: 'headline', kicker: 'topic', subtitle: 'description' } },
+  card70: { category: 'bug', subtype: 'location', structures: ['multi-line'], coverage: 'overlay', positionalSemantics: ['location', 'location', 'description'] },
+  card71: { category: 'caption', subtype: 'lyrics', structures: ['strip', 'multi-line'], coverage: 'strip', positionalSemantics: ['description', 'description', 'source'] },
 
   // ── The SPECIALIST lower thirds (templates/lowerThirds/specialist, ls01…ls32) ──
   //
@@ -360,6 +386,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   al08: { category: 'alert', subtype: 'status', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description'], extraCapabilities: ['clock'] },
   al09: { category: 'alert', subtype: 'breaking', structures: ['strip', 'multi-line'], positionalSemantics: ['topic', 'headline', 'source'] },
   al10: { category: 'alert', subtype: 'notice', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'time'] },
+  al11: { category: 'alert', subtype: 'breaking', structures: ['strip', 'multi-line'], positionalSemantics: ['topic', 'headline', 'source'] },
 
   // ── The PUBLIC-SERVICE pack's public information (templates/publicInfo) ────
   //
@@ -375,6 +402,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   pi05: { category: 'alert', subtype: 'notice', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'description', 'organization'] },
   pi06: { category: 'info', subtype: 'explainer', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'description', 'organization'] },
   pi07: { category: 'caption', subtype: 'translation', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'headline', 'description', 'organization'] },
+  pi10: { category: 'bug', subtype: 'source', structures: ['corner-chip', 'multi-line'], coverage: 'overlay', positionalSemantics: ['source', 'description'] },
 };
 
 // ── Per-old-category fallback (single-valued, proposal §4) ──────────────────
@@ -472,6 +500,12 @@ export const CATEGORY_DEFAULT_META: Record<TemplateCategory, DeclaredTemplateMet
   'audience': {
     category: 'question', subtype: 'viewer-question', structures: ['multi-line'],
     positionalSemantics: ['question', 'name', 'source'],
+  },
+  'stream-notification': {
+    category: 'notification', subtype: 'event-notification', structures: ['image-text', 'multi-line'],
+    coverage: 'overlay',
+    positionalSemantics: ['headline', 'name', 'amount', 'description', 'image'],
+    extraCapabilities: ['operator-states', 'image-upload', 'pause-resume'],
   },
   'imported-design': null, // user content — never browsable
 };

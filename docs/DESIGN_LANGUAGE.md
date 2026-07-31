@@ -221,10 +221,14 @@ these family tokens carry the *shape and motion*:
 **editorial** and **cinematic** are the two newest families. They exist because the first four had
 no voice for the two commonest premium references outside sport and streaming: the magazine /
 newsroom strap (rules, kickers, printed hierarchy) and the documentary name super (a scrim, wide
-light caps, no panel at all). Today they are filled in the LOWER-THIRD category only — the type ×
-family matrix (`scripts/factory.mjs matrix`) shows their other cells empty, and a template pack
-(`src/templates/packs.ts`) cannot name either as its family until those cells are filled. An empty
-cell is work not yet done, not a defect.
+light caps, no panel at all). They now extend beyond lower thirds as focused information systems:
+editorial covers session titles, now/next, fact-checks, explainers, notices and news tickers;
+cinematic covers chapter titles, now-playing, documentary quotes and restrained alerts. Specialist
+siblings add editorial results, sponsor reads, prepared captions and source folios, plus cinematic
+locations and prepared lyrics. The type × family matrix (`scripts/factory.mjs matrix`) remains
+deliberately sparse outside those jobs, and a template pack (`src/templates/packs.ts`) still cannot
+name either as its family until its required cells are filled. An empty cell is work not yet done,
+not a defect.
 
 The **noacg** family is the product's own on-air look (BRAND-MANUAL §3: void `#0a0c10`, amber
 `#f6a623`, paper `#e8edf2`; markets up/down `#4ac47a`/`#e57a7d`), derived from the seven

@@ -30,8 +30,8 @@ export const ls13: TemplateVariant = defineVariant(
     ],
     logo: 'none',
     animationPresets: ['mask-wipe', 'snap-stinger', 'slide-up', 'fade', 'pop-spring', 'slide-left'],
-    defaultPalette: paletteById('royal'),
-    defaultFontId: 'archivo',
+    defaultPalette: paletteById('volt'),
+    defaultFontId: 'oswald',
     defaultZone: 'bottom-center',
   },
   {
@@ -90,6 +90,13 @@ ${duoGridCss({
   divider: true,
   container: '.lower-third-casters',
 })}
+
+/* Oswald's capitals paint beyond their nominal line box. Give each name's reveal mask a
+   little vertical bleed, cancelled by its margin so the desk's geometry does not move. */
+.lower-third-person > .lower-third-mask:first-child {
+  padding-block: calc(6px * var(--scale));
+  margin-block: calc(-6px * var(--scale));
+}
 
 /* Each caster's name — identical on both sides: on the desk neither one is the guest. */
 .lower-third-name {

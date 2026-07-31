@@ -30,6 +30,22 @@ export default defineConfig({
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,
-    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_RENDER_API: '1', VITE_AI_MODEL: '', VITE_AI_PROXY_URL: '' },
+    // The SAME offline pin as playwright.config.ts, including the managed AI keys - the
+    // offline guard reads the server's real env, so a checkout with a local .env fails the
+    // guard under any shorter list (found the day a worktree first carried one).
+    env: {
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_ANON_KEY: '',
+      VITE_RENDER_API: '1',
+      VITE_AI_PROVIDER: '',
+      VITE_AI_MODEL: '',
+      VITE_AI_PROXY_URL: '',
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: '',
+      OPENROUTER_API_KEY: '',
+      HUGGINGFACE_API_KEY: '',
+      HF_TOKEN: '',
+      AI_KEY_ENCRYPTION_SECRET: '',
+    },
   },
 });

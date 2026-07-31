@@ -28,11 +28,37 @@ var easeOut = '${cfg.easeOut}';   // exit ease (the fade-out)`;
 }
 
 /** The exit is the same clean fade for every credits preset — credits never roll back down. */
+/** Every ending scene brings in its programme background with the content. */
+function backgroundIn(): string {
+  return `  tl.fromTo('.credits-background',
+    { opacity: 0, scale: 1.01 },                 // begin as a soft, slightly enlarged field
+    { opacity: 1, scale: 1, duration: 0.65 / animSpeed, ease: easeIn },
+    0                                           // background and content enter together
+  );`;
+}
+
+/** A slow transform-only drift that remains subtle under long-form reading. */
+function backgroundIdle(): string {
+  return `  tl.fromTo('.credits-ambient',
+    { xPercent: -1.25, yPercent: -0.8 },
+    {
+      xPercent: 1.25,
+      yPercent: 0.8,
+      duration: 8.4 / animSpeed,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    },
+    0.6                                         // explicit: never queues behind measured travel
+  );`;
+}
+
 function outTimeline(seconds: number): string {
   return `// buildOutTimeline(): a clean fade — credits don't animate back down.
 function buildOutTimeline() {
   var tl = gsap.timeline();
   tl.to('.credits-box', { opacity: 0, duration: ${seconds} / animSpeed, ease: easeOut });
+  tl.to('.credits-background', { opacity: 0, duration: ${seconds} / animSpeed, ease: easeOut }, 0);
   tl.set('.credits', { opacity: 0 });          // fully hidden; ready to play again
   return tl;
 }`;
@@ -52,9 +78,11 @@ ${knobs(cfg)}
 function buildInTimeline() {
   var tl = gsap.timeline();
   tl.set('.credits', { opacity: 1 });          // reveal the (CSS-hidden) graphic
-  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.6 / animSpeed, ease: easeIn });
+${backgroundIn()}
+  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.6 / animSpeed, ease: easeIn }, 0);
   // The roll's distance is MEASURED from the rendered rows — see creditsRoll() above.
-  tl.add(creditsRoll('#credits-track'));
+  tl.add(creditsRoll('#credits-track'), 0.55);
+${backgroundIdle()}
   return tl;
 }
 
@@ -77,9 +105,11 @@ ${knobs(cfg)}
 function buildInTimeline() {
   var tl = gsap.timeline();
   tl.set('.credits', { opacity: 1 });          // reveal the (CSS-hidden) graphic
-  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.6 / animSpeed, ease: easeIn });
+${backgroundIn()}
+  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.6 / animSpeed, ease: easeIn }, 0);
   // The loop's distance is MEASURED from the rendered rows — see creditsLoop() above.
-  tl.add(creditsLoop('#credits-track'));
+  tl.add(creditsLoop('#credits-track'), 0.55);
+${backgroundIdle()}
   return tl;
 }
 
@@ -101,9 +131,11 @@ ${knobs(cfg)}
 function buildInTimeline() {
   var tl = gsap.timeline();
   tl.set('.credits', { opacity: 1 });          // reveal the (CSS-hidden) graphic
+${backgroundIn()}
   tl.set('.credits-box', { opacity: 1 });      // undo a previous stop()'s box fade — replays start visible
   // One segment PER PAGE, each holding as long as its own row count needs. See creditsPages().
-  tl.add(creditsPages('#credits-track'));
+  tl.add(creditsPages('#credits-track'), 0.35);
+${backgroundIdle()}
   return tl;
 }
 
@@ -129,10 +161,13 @@ ${knobs(cfg)}
 function buildInTimeline() {
   var tl = gsap.timeline();
   tl.set('.credits', { opacity: 1 });          // reveal the (CSS-hidden) graphic
+${backgroundIn()}
   tl.fromTo('.credits-box',
     { opacity: 0, y: 18 },                     // start slightly low and invisible
-    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn }
+    { opacity: 1, y: 0, duration: 0.7 / animSpeed, ease: easeIn },
+    0                                           // background and board enter together
   );
+${backgroundIdle()}
   return tl;
 }
 
@@ -154,9 +189,11 @@ ${knobs(cfg)}
 function buildInTimeline() {
   var tl = gsap.timeline();
   tl.set('.credits', { opacity: 1 });          // reveal the (CSS-hidden) graphic
-  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.4 / animSpeed, ease: easeIn });
+${backgroundIn()}
+  tl.fromTo('.credits-box', { opacity: 0 }, { opacity: 1, duration: 0.4 / animSpeed, ease: easeIn }, 0);
   // The crawl's distance is MEASURED from the rendered track — see creditsCrawl() above.
-  tl.add(creditsCrawl('#credits-track'));
+  tl.add(creditsCrawl('#credits-track'), 0.35);
+${backgroundIdle()}
   return tl;
 }
 

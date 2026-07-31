@@ -310,6 +310,10 @@ body {
   vertical-align: top;
 }
 .admin-table td .admin-muted { display: block; }
+/* `.admin-table th` sets text-align: left and outranks `.admin-num` on its own, so a numeric
+   column used to label right-aligned figures with a left-aligned header - the number sat under
+   the NEXT column's title. Restore the pairing rather than hand-aligning each table. */
+.admin-table th.admin-num { text-align: right; }
 /* A control inside a cell sizes to its content, not to the form width - a 420px select in a
    table column pushes every neighbouring column off the useful part of the screen. */
 .admin-table select, .admin-table input { max-width: 170px; }
@@ -387,6 +391,13 @@ body {
 }
 .admin-meter-fill { display: block; height: 100%; background: var(--accent); }
 .admin-meter-hot { background: var(--danger); }
+/* The block meter above fills its container, which is right for a single headline figure and
+   wrong inside a table row. This one sits on the text baseline next to its own percentage, so
+   a column of them reads as a comparison rather than as eight full-width bars. */
+.admin-meter-inline { display: inline-block; width: 96px; vertical-align: middle; }
+/* Its own class rather than `.admin-muted`, which a table cell forces to display:block (above)
+   - that dropped the percentage onto a second line and doubled every row's height. */
+.admin-meter-value { color: var(--text-dim); font-size: 12.5px; margin-left: 8px; }
 
 .admin-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
 .admin-bars li {

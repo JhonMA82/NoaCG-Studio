@@ -159,6 +159,8 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 .transition-mask {
   overflow: hidden;                /* the label can reveal from behind this mask */
   max-width: ${Math.round(o.resolution.width * 0.7)}px;  /* never reaches the frame edges */
+  padding-block: calc(4px * var(--scale));  /* protect display-face ascenders and descenders */
+  margin-block: calc(-4px * var(--scale));  /* preserve the authored lockup position */
 }
 .transition-mask > span {
   display: inline-block;           /* so the label can move inside its mask */
@@ -184,7 +186,19 @@ ${design.css}
     easeOut: ease.easeOut,
   };
 
-  const js = runtimeJs(meta.name, preset.emit(cfg));
+  const resetHelper = `// resetTransitionPanels(): once the root is hidden, return premium covers
+// to their authored cut-point geometry. This keeps replay deterministic and leaves no
+// off-canvas surface behind for browser-source bounds inspection.
+function resetTransitionPanels() {
+  gsap.set('.transition-premium-panel', {
+    xPercent: 0,
+    yPercent: 0,
+    filter: 'blur(0px)'
+  });
+}`;
+  const js = runtimeJs(meta.name, `${resetHelper}
+
+${preset.emit(cfg)}`);
 
   return convertToDataRegion(
     {

@@ -43,6 +43,7 @@ import { al01 } from '../alerts/al01';
 import { al02 } from '../alerts/al02';
 import { al03 } from '../alerts/al03';
 import { al04 } from '../alerts/al04';
+import { al12 } from '../alerts/al12';
 import { al05 } from '../alerts/al05';
 import { al06 } from '../alerts/al06';
 import { ALERT_LEVELS, alertLevelSelector } from '../alerts/shared';
@@ -140,6 +141,18 @@ export const alertLevelType: GraphicType = {
     { key: 'headline', label: 'Headline', kind: 'text', value: 'Severe weather warning for coastal districts', role: 'line' },
     { key: 'detail', label: 'Detail', kind: 'text', value: 'High winds and flooding expected from 18:00 until midnight', role: 'line' },
     { key: 'source', label: 'Source', kind: 'text', value: 'National Weather Service', role: 'line' },
+    // The four severity WORDS, in ALERT_LEVELS order. The machine owns which level is
+    // showing; the broadcaster owns what it is called (templates/alerts/shared.ts
+    // alertLevelStackHtml). Declared from the same constant the designs emit from, so the
+    // type's declaration and the emitted fields cannot drift — which is exactly what the
+    // factory's fields gate checks.
+    ...ALERT_LEVELS.map((level) => ({
+      key: `word${level.id}`,
+      label: `${level.word} word`,
+      kind: 'text' as const,
+      value: level.word,
+      role: 'data' as const,
+    })),
   ],
   machine: {
     parallel: [
@@ -220,6 +233,22 @@ export const alertLevelType: GraphicType = {
       },
       animationPresets: ['snap-stinger', 'slide-left', 'slide-up', 'fade'],
       create: (_type, options) => al04.create(options),
+    },
+    {
+      id: 'al12',
+      name: 'Quiet Warning',
+      description: 'A restrained cinematic warning on a soft scrim with a single hairline.',
+      styleTag: 'cinematic',
+      palette: paletteById('noir'),
+      fontId: 'inter',
+      samples: {
+        headline: 'Strong winds expected along the western coast',
+        detail: 'Conditions deteriorate after 21:00 · Avoid exposed routes',
+        source: 'Coastal Safety Service',
+      },
+      animationPresets: ['fade', 'line-reveal', 'slide-up'],
+      defaultZone: 'bottom-left',
+      create: (_type, options) => al12.create(options),
     },
     {
       // A second minimal design, and deliberately so: the met-office CAP layout is a different

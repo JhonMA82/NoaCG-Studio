@@ -1,0 +1,100 @@
+# NIGHTLY DRIFT - the belt against a nightly sweep that never runs.
+#
+# nightly.yml alarms when the sweep goes RED. Nothing alarmed when it did not happen at all,
+# and that is the more dangerous of the two: a red nightly files an issue, while an absent one
+# looks exactly like a healthy night. This repo has already paid for that shape once - twenty
+# production deploys failed while the repo stayed green, because nothing watched for the
+# ABSENCE of a thing (docs/DEPLOYMENT.md). deploy-verify grew the same belt for deployments;
+# this is the nightly's.
+#
+# It is a separate workflow on purpose. A check that lived inside nightly.yml could not fire
+# when the nightly did not, and one bolted onto deploy-verify would tie "did last night's
+# sweep happen" to a workflow about production deployments.
+#
+# GitHub's own scheduling is why the window is generous. Scheduled runs are delayed under load
+# - this repo has been observed running a 23:43 cron at 01:11 - and can be dropped entirely.
+# A 26-hour window therefore tolerates several hours of ordinary drift on a daily schedule and
+# only alarms when a whole night is genuinely missing. TWO check slots for the same reason:
+# one dropped slot must not be able to hide a missing nightly.
+
+name: nightly-drift
+
+on:
+  schedule:
+    - cron: '17 6,18 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write # the failure step files/updates the rolling issue
+
+env:
+  ISSUE_TITLE: Nightly sweep has not run
+  WINDOW_HOURS: '26'
+
+jobs:
+  drift:
+    name: Did a nightly run?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Look for a nightly inside the window
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          CUTOFF="$(date -u -d "${WINDOW_HOURS} hours ago" +%Y-%m-%dT%H:%M:%SZ)"
+          # Any run counts, whatever its conclusion: a RED nightly is the other alarm's job,
+          # and this one must never double-report it. The question here is only "did it
+          # happen". In-progress runs count too - a sweep that started IS a sweep.
+          LATEST="$(gh run list --workflow=nightly.yml --limit 30 --json createdAt \
+            --jq 'if length == 0 then "" else (max_by(.createdAt).createdAt) end')"
+          echo "cutoff=${CUTOFF}  latest=${LATEST:-<none>}"
+          # ISO-8601 UTC sorts lexicographically, so a string compare is a time compare.
+          if [ -n "$LATEST" ] && [ "$LATEST" \> "$CUTOFF" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "latest=${LATEST:-none}" >> "$GITHUB_OUTPUT"
+          echo "cutoff=${CUTOFF}" >> "$GITHUB_OUTPUT"
+
+      # The rolling-issue pattern every alarm here follows (docs/DEPLOYMENT.md): one open
+      # issue, one comment per newly failing check, closed by the next healthy state.
+      - name: File / update the missing-nightly issue
+        if: ${{ steps.check.outputs.ok == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LATEST: ${{ steps.check.outputs.latest }}
+          CUTOFF: ${{ steps.check.outputs.cutoff }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="$(printf 'No nightly sweep has run since %s (window: last %s hours, cutoff %s).\n\nThe nightly is scheduled at 02:00 UTC. GitHub delays scheduled runs under load and can drop them, so a single late night is expected to close itself; a persistent one means the schedule is not firing and the whole exhaustive tier is silently absent.\n\nWhat to check: Actions -> nightly -> whether the schedule is disabled (GitHub disables schedules on repos with 60 days of inactivity), and whether .github/workflows/nightly.yml is still on the default branch.\n\nRun: %s' \
+            "${LATEST}" "${WINDOW_HOURS}" "${CUTOFF}" "$RUN_URL")"
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
+          else
+            gh issue comment "$EXISTING" --body "Still missing. $BODY"
+          fi
+
+      - name: Close the missing-nightly issue
+        if: ${{ steps.check.outputs.ok == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "A nightly ran at ${LATEST}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+      - name: Fail the run when the nightly is missing
+        if: ${{ steps.check.outputs.ok == 'false' }}
+        run: |
+          echo "::error title=Nightly drift::No nightly sweep in the last ${WINDOW_HOURS} hours - see the rolling issue."
+          exit 1

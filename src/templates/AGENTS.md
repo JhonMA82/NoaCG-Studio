@@ -6,6 +6,16 @@ catalog sweep for the affected category (root AGENTS.md, "Verifying changes").
 
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
+**structuralAnchor.ts** - the one table answering "does a catalog structure carry this intent,
+and which one": the family words, `resolveAnchor`, `structuralFit`, and `anchorsSatisfiedBy` /
+`variantSatisfiesAnchor` (what a VARIANT is, for the satisfaction check). It lives here, not in
+src/ai, because TWO layers need the same answer and neither may import the other - the AI's
+ROUTER asks before the design call (adapt vs create) and `validation/structuralIntentCheck.ts`
+asks afterwards (is this the graphic that was asked for). A second copy is how those two come to
+disagree. Everything resolves LIVE against the registry and catalog, so catalog growth updates
+routing and satisfaction by itself: adding a design can CHANGE a route, which is why
+e2e/creative-routing.spec.ts runs on changes here.
+
 **kit.ts** - what a kit CONTAINS, resolved once for every consumer: the pack's types through
 the (type x family) matrix PLUS its `extras`. Both halves are the kit - a caller reading only
 `resolvePack` builds a kit missing its extras while still counting them, which is exactly the
@@ -16,12 +26,12 @@ module deliberately does not import the catalog it is a view over.
 default family, PURE CONFIG over the types x families matrix; the 60 reference formats each map
 to exactly one pack. `scripts/factory.mjs` validates the config on every run (cells resolve,
 extras exist, formats covered exactly once) - edit packs.ts and the doc together.
-**The matrix is full across FOUR families, not six** (measured 2026-07-29): noacg/sport/minimal/
-glass cover 53-61 of 62 types; editorial and cinematic cover 1 each. They are real style
-families with their own designs and Browse chips, but BROWSE families rather than KIT ones - no
-pack resolves into either. The cell gate only tests a pack's OWN declared family, so it cannot
-catch this: anything re-resolving a pack must MEASURE which families work (`familiesFor` in
-wizard/steps/KitStep.tsx), never assume all six.
+**The matrix is full across FOUR families, not six** (measured 2026-07-30): noacg/sport/minimal/
+glass cover 53-61 of 62 types; editorial covers 6 cells and cinematic covers 5. They are real
+style families with focused information systems and Browse chips, but BROWSE families rather
+than KIT ones - no pack resolves into either. The cell gate only tests a pack's OWN declared
+family, so it cannot catch this: anything re-resolving a pack must MEASURE which families work
+(`familiesFor` in wizard/steps/KitStep.tsx), never assume all six.
 
 ## Discovery metadata (the Browse step's facets — docs/TEMPLATE_TAXONOMY_PROPOSAL.md)
 
@@ -293,7 +303,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   ids adjacent + `SLIDE_FAMILY`/`isSlidePreset` so pickers group them: the wizard renders ONE
   Slide card with a direction picker, the Inspector one optgroup), then line-reveal, mask-wipe,
   pop-spring, snap-stinger, blur-in, fade, flip-3d.
-- **infoCards/** - card01…card58 (prefix 'info-card', `dataRegion: true`). The standard contract's
+- **infoCards/** - card01…card71 (prefix 'info-card', `dataRegion: true`). The standard contract's
   other line-based family: they use the same 9-preset bank as lower thirds and convert exactly like
   them, steps and all (a » press per body line becomes a middle step with its `reveals`).
   Four jobs in one category: card01…card09 are INFORMATION cards (a heading with lines under it);
@@ -305,7 +315,9 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   are a product name, a price and a struck-through was-price needs to name each one for what it
   is; and card50…card58 are SET-PIECE cards whose layout carries a convention older than
   television - a reading, a lyric (now + next), a quotation, a translation, an order of service,
-  and the ceremony cards. On the commerce cards, values that could vary by shop, currency or
+  and the ceremony cards; card59…card71 are the editorial/cinematic information-system siblings
+  (typed title, now/next, headline, notice and statement designs plus hand-authored results,
+  sponsor, caption and location shapes). On the commerce cards, values that could vary by shop, currency or
   format are FIELDS and vanish with `:empty` when blank (the savings chip, the promo code, the
   deadline, the status line, the unit mark) - no state, nothing for a replay to leak.
   **The grid trap:** `cardLineMasks` wraps every line in a `.info-card-mask` div, so on a design
@@ -338,7 +350,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   the track's content in one `.credits-loop-run`, appends as many `.credits-loop-clone` copies as
   the viewport needs, and travels exactly one run's height - a bare `repeat: -1` would snap the
   list back to the top, which everyone watching a wall of names is watching closely enough to see.
-- **tickers/** - tk01…tk20 (prefix 'ticker') + tickerPresets.ts (ticker-marquee / ticker-flip /
+- **tickers/** - tk01…tk21 (prefix 'ticker') + tickerPresets.ts (ticker-marquee / ticker-flip /
   ticker-rotate) + **tickerMotion.ts**; data-driven: #f0 lines -> #ticker-track items; marquee =
   items rendered twice, slide one set width, linear repeat:-1 (seamless loop). DATA BLOCKS via
   convertToDataRegion. f0 items + f1 label, plus an OPTIONAL f2 second cap (a topic, a source, a
@@ -346,15 +358,15 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   two-line ticker emits byte-identically to before it existed. **A strip that neither travels
   nor rotates does not belong here** (docs/PUBLIC_SERVICE_PACK.md §1): the static notices live
   in alerts/ and publicInfo/.
-- **alerts/** - al01…al10 (prefix 'alert', `TemplateType 'alert'`), a STANDARD-CONTRACT category:
+- **alerts/** - al01…al12 (prefix 'alert', `TemplateType 'alert'`), a STANDARD-CONTRACT category:
   assembleStandard + the shared preset bank + line masks + steps, nothing category-specific in the
   runtime. What it adds is the SEVERITY FLAG - four stacked `.alert-level-N` blocks
   (ALERT_LEVELS: advisory/watch/warning/emergency, fixed semantic colours, every pair ≥5:1) that
   the `alert-level` type's parallel group cross-cuts, plus `alertLevelRestRefine`, which writes
   the resting pose into step 0 because a parallel group resting at its initial state replays
-  nothing. Six designs carry the machine; four (al07-al10) carry no flag and claim no states.
+  nothing. Seven designs carry the machine; five (al07-al11) carry no flag and claim no states.
   Numbered like the quiz's answer rows, so each level is a real registry part.
-- **publicInfo/** - pi01…pi09 (prefix 'public-info', `TemplateType 'public-info'`), the other
+- **publicInfo/** - pi01…pi10 (prefix 'public-info', `TemplateType 'public-info'`), the other
   standard-contract addition: official notices, numbered instructions, source labels,
   disclaimers, municipal/health panels and two-language panels. `piMask`/`piMasks` let a design
   name its own line classes (the shared positional `-name`/`-title`/`-extra` means nothing for a
@@ -625,6 +637,29 @@ category that builds rows with `innerHTML` inherits this rule; `e2e/template-esc
 drives every catalog variant with a markup payload and fails if any of it executes.
 
 ## Fields & images (the broadcast field policy)
+
+**EVERY meaningful visible string is a field.** A template exists to be re-used by people who
+never open the code, so a word baked into the markup is a word nobody downstream can change -
+and in practice the ones that get baked in are exactly the ones a second broadcaster needs
+different: a countdown's "BEGINS IN", a poll's "VOTE NOW", a phase chip's "LIVE", a severity
+flag's "Warning", a sponsor rail's "PARTNERS". Language is the obvious case, but house style
+is the common one. `node scripts/field-coverage.mjs` is the gate (root AGENTS.md); it drives
+every field and reports whatever did not move.
+
+Three rules keep this from fighting the rest of the model:
+- **A repeated structure stays ONE `lines` field**, never `f7`…`f26` (see the repeating-data
+  system below). "Every value is editable" is about REACH, not about field count.
+- **A state's WORD is a field; the state is not.** An operator event carries state, not copy -
+  the machine says the graphic is live, the broadcaster says what "live" is called. The pattern
+  is hidden word sources the runtime reads (`cornerBug/statusParts.ts`, the esports phase chip,
+  the alert severity flag), so nothing about the wording lives in the machine.
+- **A word source the operator can edit must repaint on `update()`**, not only when its state
+  is next entered. An operator who retypes a word, sees nothing happen, and concludes the field
+  is dead is the failure this costs one line to avoid (`paintPhase()` in the esports runtime).
+
+The deliberate exceptions are small and argued in the gate: the versus mark (it IS the graphic),
+and an image field's empty-slot placeholder (that text is the field's own empty state and the
+picked file replaces it).
 
 - Field types offered to users are the ones live graphics actually use: `textfield`, `textarea`,
   `number`, and **`filelist` = the image field** (SPX lists files from

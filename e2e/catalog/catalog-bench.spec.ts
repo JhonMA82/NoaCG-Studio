@@ -26,6 +26,13 @@ const CATEGORIES = [
   'transition',
   'alert',
   'public-info',
+  'esports-score',
+  'matchup',
+  'results-board',
+  'reveal',
+  'poll',
+  'audience',
+  'stream-notification',
 ] as const;
 
 test.describe('catalog calibration tripwire', () => {
