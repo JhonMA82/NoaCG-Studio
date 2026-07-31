@@ -47,6 +47,20 @@ export default tseslint.config(
       'example_projects/', // vendored SPX reference packs, not ours to lint
       'playwright-report/',
       'test-results/',
+      // Bench output directories (same broad patterns as .gitignore): they hold
+      // MODEL-EMITTED code, including deliberately broken emits a failed arm wrote to
+      // disk for diagnosis - a generated artifact must never gate the repo build. Found
+      // the hard way: a syntax-broken coder emit from the versus smoke round failed
+      // `eslint .` while sitting in a gitignored directory.
+      'bench-*/',
+      'compare-out*/',
+      'creative-route-out*/',
+      'creative-pilot-out*/',
+      'lite-bench-out*/',
+      'lite-eval-out*/',
+      'pro-bench-out*/',
+      'video-bench-out*/',
+      'video-benchmark-out/',
     ],
   },
 
