@@ -17,6 +17,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { AdminUnavailable, adminFetch } from './client';
 import { NotFound } from './NotFound';
 import { AuditSection } from './sections/AuditSection';
+import { ModelsSection } from './sections/ModelsSection';
 import { OverviewSection } from './sections/OverviewSection';
 import { PlansSection } from './sections/PlansSection';
 import { QualitySection } from './sections/QualitySection';
@@ -29,15 +30,19 @@ import type { AdminSessionResponse } from './types';
 interface AdminSection {
   id: string;
   label: string;
-  render: (session: AdminSessionResponse) => ReactElement;
+  /** `go` moves to another section by id. The overview's attention cards use it so a problem
+   *  can be acted on where it is named, rather than describing a warning and then asking the
+   *  operator to find the page that fixes it. */
+  render: (session: AdminSessionResponse, go: (sectionId: string) => void) => ReactElement;
 }
 
 const SECTIONS: AdminSection[] = [
-  { id: 'overview', label: 'Overview', render: (session) => <OverviewSection session={session} /> },
+  { id: 'overview', label: 'Overview', render: (session, go) => <OverviewSection session={session} onNavigate={go} /> },
   { id: 'users', label: 'Users', render: (session) => <UsersSection session={session} /> },
   { id: 'plans', label: 'Plans', render: (session) => <PlansSection session={session} /> },
   { id: 'usage', label: 'Usage and cost', render: () => <UsageSection /> },
   { id: 'quality', label: 'Output quality', render: () => <QualitySection /> },
+  { id: 'models', label: 'Models', render: () => <ModelsSection /> },
   { id: 'system', label: 'System', render: (session) => <SystemSection session={session} /> },
   { id: 'templates', label: 'Templates', render: (session) => <TemplatesSection session={session} /> },
   { id: 'audit', label: 'Audit', render: () => <AuditSection /> },
@@ -104,7 +109,11 @@ export default function AdminApp() {
           ))}
         </nav>
 
-        <main className="admin-content">{section.render(gate.session)}</main>
+        <main className="admin-content">
+          {section.render(gate.session, (sectionId) => {
+            if (SECTIONS.some((entry) => entry.id === sectionId)) setActive(sectionId);
+          })}
+        </main>
       </div>
     </div>
   );
