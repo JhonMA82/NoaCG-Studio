@@ -61,6 +61,12 @@ export const ig07: TemplateVariant = defineInfographicVariant(
   (o) => {
     // The three candidates, parsed from the wizard lines (source-faithful defaults).
     const cands = [0, 1, 2].map((i) => parseCandidate(o.lines[i]?.sample, CAND_SAMPLES[i]));
+    // The board's own two headings. FIELDS, not furniture: the same board counts a mayoral
+    // race, a union ballot and a talent-show vote, and the flag beside the title is the one
+    // word that says whether the numbers are still moving ("LIVE COUNT" / "FINAL" / "97%
+    // COUNTED"). Baking either in would make the design single-use.
+    const headTitle = o.lines[3]?.sample || 'ELECTION RESULTS';
+    const headFlag = o.lines[4]?.sample || 'LIVE COUNT';
     // The DRAWN fill is clamped to the 0-100 track at create, exactly like the runtime does.
     const drawn = cands.map((c) => {
       const n = Number.parseFloat(c.pct);
@@ -95,8 +101,8 @@ export const ig07: TemplateVariant = defineInfographicVariant(
     <div class="infographic-box">
       <!-- The header — caps title left, the live flag right, closed by the accent rule. -->
       <div class="infographic-header">
-        <div class="infographic-title">ELECTION RESULTS</div>
-        <div class="infographic-flag">LIVE COUNT</div>
+        <div class="infographic-title" id="f9">${headTitle}</div>
+        <div class="infographic-flag" id="f10">${headFlag}</div>
       </div>
       <!-- The rows — one per candidate; rebuildInfographic() refreshes their bars. -->
       <div class="infographic-rows">
@@ -292,6 +298,8 @@ ${row(2)}
         { field: 'f6', ftype: 'textfield', title: `${o.lines[2]?.title || 'Candidate 3'} name`, value: cands[2].name },
         { field: 'f7', ftype: 'textfield', title: `${o.lines[2]?.title || 'Candidate 3'} party`, value: cands[2].party },
         { field: 'f8', ftype: 'number', title: `${o.lines[2]?.title || 'Candidate 3'} percent`, value: cands[2].pct },
+        { field: 'f9', ftype: 'textfield', title: o.lines[3]?.title || 'Board title', value: headTitle },
+        { field: 'f10', ftype: 'textfield', title: o.lines[4]?.title || 'Status flag', value: headFlag },
       ],
 
       // rebuildInfographic(): refresh each bar from its hidden percent source (f2/f5/f8).

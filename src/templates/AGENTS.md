@@ -628,6 +628,29 @@ drives every catalog variant with a markup payload and fails if any of it execut
 
 ## Fields & images (the broadcast field policy)
 
+**EVERY meaningful visible string is a field.** A template exists to be re-used by people who
+never open the code, so a word baked into the markup is a word nobody downstream can change -
+and in practice the ones that get baked in are exactly the ones a second broadcaster needs
+different: a countdown's "BEGINS IN", a poll's "VOTE NOW", a phase chip's "LIVE", a severity
+flag's "Warning", a sponsor rail's "PARTNERS". Language is the obvious case, but house style
+is the common one. `node scripts/field-coverage.mjs` is the gate (root AGENTS.md); it drives
+every field and reports whatever did not move.
+
+Three rules keep this from fighting the rest of the model:
+- **A repeated structure stays ONE `lines` field**, never `f7`…`f26` (see the repeating-data
+  system below). "Every value is editable" is about REACH, not about field count.
+- **A state's WORD is a field; the state is not.** An operator event carries state, not copy -
+  the machine says the graphic is live, the broadcaster says what "live" is called. The pattern
+  is hidden word sources the runtime reads (`cornerBug/statusParts.ts`, the esports phase chip,
+  the alert severity flag), so nothing about the wording lives in the machine.
+- **A word source the operator can edit must repaint on `update()`**, not only when its state
+  is next entered. An operator who retypes a word, sees nothing happen, and concludes the field
+  is dead is the failure this costs one line to avoid (`paintPhase()` in the esports runtime).
+
+The deliberate exceptions are small and argued in the gate: the versus mark (it IS the graphic),
+and an image field's empty-slot placeholder (that text is the field's own empty state and the
+picked file replaces it).
+
 - Field types offered to users are the ones live graphics actually use: `textfield`, `textarea`,
   `number`, and **`filelist` = the image field** (SPX lists files from
   `assetfolder: './images/'`). `dropdown`/`checkbox`/`color` exist in the SPX format but are

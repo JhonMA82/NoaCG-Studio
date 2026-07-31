@@ -4,7 +4,7 @@
 // the badge leaves when voting closes and the leader is CALLED, never merely drawn longest.
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
-import { definePollVariant } from './shared';
+import { definePollVariant, POLL_CONTENT } from './shared';
 
 export const pl02: TemplateVariant = definePollVariant(
   {
@@ -13,11 +13,12 @@ export const pl02: TemplateVariant = definePollVariant(
     name: 'Volt Vote',
     styleTag: 'sport',
     description: 'A results-night slab: condensed caps options, square accent bars, a called winner.',
-    maxLines: 3,
+    maxLines: 4,
     suggestedLines: [
       { title: 'Question', sample: 'WHO TAKES THE FINAL?' },
       { title: 'Options', sample: 'NORTH SIDE | 2140\nSOUTH SIDE | 1780' },
       { title: 'Vote count', sample: '3,920 VOTES · 74% REPORTING' },
+      { title: 'Vote badge', sample: 'VOTE NOW' },
     ],
     logo: 'none',
     animationPresets: ['poll-open'],
@@ -41,7 +42,7 @@ export const pl02: TemplateVariant = definePollVariant(
     html: `    <!-- Volt Vote: leaning sport slab — VOTE NOW tab, question, bars, reporting line. -->
     <div class="poll-box">
       <!-- The vote tab — it LEAVES when voting closes (a keyframed opacity, not a class). -->
-      <div class="poll-cue"><span class="poll-cue-text">VOTE NOW</span></div>
+      <div class="poll-cue"><span id="f3" class="poll-cue-text">${o.lines[3]?.sample || POLL_CONTENT.cue}</span></div>
       <!-- The question — slides up from behind this overflow mask on entrance. -->
       <div class="poll-mask"><span id="f0">${o.lines[0]?.sample || 'WHO TAKES THE FINAL?'}</span></div>
       <!-- The option rows — rendered by pollRebuild() from the hidden source below the box. -->

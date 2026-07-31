@@ -59,7 +59,19 @@ export const SCORE_FIELDS: TypeField[] = [
   { key: 'series', label: 'Series format', kind: 'text', value: 'BEST OF 5', role: 'data' },
   { key: 'logoA', label: 'Team A logo', kind: 'image', value: '', role: 'data' },
   { key: 'logoB', label: 'Team B logo', kind: 'image', value: '', role: 'data' },
+  // The four PHASE WORDS. Same doctrine as the live bug's status words
+  // (cornerBug/statusParts.ts): an operator event carries STATE, not copy. The machine says
+  // "this graphic is now live"; what the chip prints while it is live is the broadcaster's —
+  // DIREKTE, EN DIRECTO, or a tournament's own house wording. Hidden sources: SPX writes
+  // them, the runtime reads them, nothing renders them directly.
+  { key: 'wordPre', label: 'Pre-match word', kind: 'text', value: 'PRE-MATCH', role: 'data' },
+  { key: 'wordLive', label: 'Live word', kind: 'text', value: 'LIVE', role: 'data' },
+  { key: 'wordFinal', label: 'Final word', kind: 'text', value: 'FINAL', role: 'data' },
+  { key: 'wordPause', label: 'Pause word', kind: 'text', value: 'PAUSE', role: 'data' },
 ];
+
+/** The `fN` ids the four phase words compile to — SCORE_FIELDS' last four, in order. */
+const PHASE_IDS = { pre: 'f8', live: 'f9', final: 'f10', pause: 'f11' } as const;
 
 export interface ScoreMarkupOptions {
   /** Whether the two team logo slots are drawn beside the names. */
@@ -84,7 +96,10 @@ ${opts.logos ? `        <div class="${P}-logo"><img id="${logoId}" alt="" style=
       <!-- The head: the stage line and the phase chip the machine paints. -->
       <div class="${P}-head">
         <div class="${P}-mask"><span id="f4" class="${P}-stage">${value(4, 'MAP 3 · MIRAGE')}</span></div>
-        <span class="${P}-status">${opts.preLabel ?? 'PRE-MATCH'}</span>
+        <!-- The phase chip. Its word comes from whichever phase source the machine last
+             entered; the markup ships the pre-match one so the graphic reads correctly
+             before any event arrives. -->
+        <span class="${P}-status">${opts.preLabel ?? SCORE_FIELDS[8].value}</span>
       </div>
       <!-- The accent — the design's flourish, and what the phase marks tint. A design may
            draw it as an edge bar (absolute) or as a rule between the head and the scores;
@@ -105,7 +120,11 @@ ${
 ${side('b', 'f2', 'f3', 'f7', value(2, 'NAVI'), value(3, '1'))}
       </div>
     </div>
-${hiddenSource('f5', SCORE_FIELDS[5].value, 'Series format (f5) — how many pips the center row draws.')}`;
+${hiddenSource('f5', SCORE_FIELDS[5].value, 'Series format (f5) — how many pips the center row draws.')}
+${hiddenSource(PHASE_IDS.pre, SCORE_FIELDS[8].value, `Pre-match word (${PHASE_IDS.pre}) — what the phase chip says before the match starts.`)}
+${hiddenSource(PHASE_IDS.live, SCORE_FIELDS[9].value, `Live word (${PHASE_IDS.live}) — what the phase chip says while the match runs.`)}
+${hiddenSource(PHASE_IDS.final, SCORE_FIELDS[10].value, `Final word (${PHASE_IDS.final}) — what the phase chip says once the map is decided.`)}
+${hiddenSource(PHASE_IDS.pause, SCORE_FIELDS[11].value, `Pause word (${PHASE_IDS.pause}) — what the phase chip says during a technical pause.`)}`;
 }
 
 /**
@@ -153,6 +172,7 @@ function compRebuild() {
 // up and springs back — the classic broadcast pop, and the reason update() keeps the previous
 // value around.
 function compRepaint() {
+  paintPhase();                    // the phase words are fields — an edit shows at once
   for (var i = 0; i < scoreIds.length; i++) {
     var el = document.getElementById(scoreIds[i]);
     if (!el) continue;
@@ -176,13 +196,25 @@ function compClearMarks() {
   var root = document.querySelector('.${P}');
   if (!root) return;
   root.classList.remove('${P}-live', '${P}-final', '${P}-paused');
-  var status = root.querySelector('.${P}-status');
-  if (status) status.textContent = 'PRE-MATCH';
+  setStatus(phaseWord('${PHASE_IDS.pre}'));
   onAir = true;                    // play() calls this — from here a score change pops
 }
 
-// setStatus(): the one place the phase chip's word is written.
+// phaseWord(): read one phase's wording out of its hidden source. The words are OPERATOR
+// FIELDS, not literals in here — the machine decides which phase the graphic is in, the
+// broadcaster decides what that phase is called. A missing source (an older saved template
+// that predates the fields) falls back to the element's own text rather than blanking the
+// chip, so nothing regresses to an empty strip on air.
+function phaseWord(id) {
+  var el = document.getElementById(id);
+  var word = el ? el.textContent.trim() : '';
+  return word;
+}
+
+// setStatus(): the one place the phase chip's word is written. An empty word is ignored —
+// see phaseWord().
 function setStatus(word) {
+  if (!word) return;
   var status = document.querySelector('.${P}-status');
   if (status) status.textContent = word;
 }
@@ -192,7 +224,7 @@ function setStatus(word) {
 function markPreMatch() {
   var root = document.querySelector('.${P}');
   if (root) root.classList.remove('${P}-live', '${P}-final');
-  setStatus('PRE-MATCH');
+  setStatus(phaseWord('f8'));
 }
 
 // markLive(): the match is running. Called by the phase group's 'live' state — reached from
@@ -202,7 +234,7 @@ function markLive() {
   if (!root) return;
   root.classList.remove('${P}-final');
   root.classList.add('${P}-live');
-  setStatus('LIVE');
+  setStatus(phaseWord('f9'));
   gsap.fromTo('.${P}-status', { opacity: 0.2 }, { opacity: 1, duration: 0.35 / motionSpeed(), ease: 'power2.out' });
 }
 
@@ -213,7 +245,7 @@ function markFinal() {
   if (!root) return;
   root.classList.remove('${P}-live');
   root.classList.add('${P}-final');
-  setStatus('FINAL');
+  setStatus(phaseWord('f10'));
   gsap.fromTo('.${P}-box',
     { scale: 1.03 },
     { scale: 1, duration: 0.4 / motionSpeed(), ease: 'back.out(1.8)' }
@@ -226,7 +258,7 @@ function markPaused() {
   var root = document.querySelector('.${P}');
   if (!root) return;
   root.classList.add('${P}-paused');
-  setStatus('PAUSE');
+  setStatus(phaseWord('f11'));
 }
 
 function markRunning() {
@@ -234,7 +266,19 @@ function markRunning() {
   if (!root) return;
   root.classList.remove('${P}-paused');
   // Return the chip to whatever the phase group is showing — the pause never owned the phase.
-  setStatus(root.classList.contains('${P}-final') ? 'FINAL' : (root.classList.contains('${P}-live') ? 'LIVE' : 'PRE-MATCH'));
+  paintPhase();
+}
+
+// paintPhase(): write the chip from the phase the graphic is ALREADY in. Two callers, and
+// they need it for different reasons: markRunning() because the pause never owned the phase
+// it interrupted, and update() because editing a phase word has to show up on air straight
+// away — otherwise the operator retypes "LIVE" in their own language, sees nothing change,
+// and reasonably concludes the field does nothing.
+function paintPhase() {
+  var root = document.querySelector('.${P}');
+  if (!root) return;
+  if (root.classList.contains('${P}-paused')) { setStatus(phaseWord('f11')); return; }
+  setStatus(phaseWord(root.classList.contains('${P}-final') ? 'f10' : (root.classList.contains('${P}-live') ? 'f9' : 'f8')));
 }
 
 ${READY_GUARD_JS}`;
