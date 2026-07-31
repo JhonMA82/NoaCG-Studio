@@ -137,11 +137,12 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
 
   return {
     target,
+    primary,
     self: self?.branch ?? null,
     branches,
     order: rank(branches.filter((b) => readiness(b) === null)),
     notReady: branches
-      .map((b) => ({ branch: b.branch, reason: readiness(b) }))
+      .map((b) => ({ branch: b.branch, worktree: b.worktree, reason: readiness(b) }))
       .filter((entry) => entry.reason !== null),
   };
 }
@@ -350,7 +351,9 @@ function rank(ready) {
 /** Why safe-merge would refuse this branch today, or null when it is landable. */
 function readiness(branch) {
   if (branch.ahead === 0) return 'nothing committed ahead of the target';
-  if (branch.dirty) return `${branch.uncommitted.length} uncommitted file(s) in ${branch.worktree ?? 'its worktree'}`;
+  // The worktree is printed alongside this by the formatter, so naming it here too would
+  // print the same path twice on adjacent lines.
+  if (branch.dirty) return `${branch.uncommitted.length} uncommitted file(s)`;
   return null;
 }
 
@@ -401,7 +404,17 @@ export function verdictFor(assessment, branchName) {
   // the exception - a stacked branch is wrong in itself, not merely early.
   const severity = worst === 'hold' && !landFirst && blockedBy.length === 0 ? 'caution' : worst;
 
-  return { severity, branch: branchName, reasons, landFirst, blockedBy };
+  // The recommendation is only actionable with the place attached - "land X first" is a
+  // question ("where IS X?") until it says which folder to open.
+  const landFirstBranch = assessment.branches.find((entry) => entry.branch === landFirst) ?? null;
+  return {
+    severity,
+    branch: branchName,
+    reasons,
+    landFirst,
+    landFirstWhere: landFirstBranch ? where(landFirstBranch, assessment.primary) : null,
+    blockedBy,
+  };
 }
 
 /** Sort/compare cost for "is something cheaper ready?" - structure dominates raw file counts. */
@@ -497,7 +510,7 @@ async function git(args, cwd, { raw = false } = {}) {
 }
 
 function empty(target) {
-  return { target, self: null, branches: [], order: [], notReady: [] };
+  return { target, primary: null, self: null, branches: [], order: [], notReady: [] };
 }
 
 function count(stdout) {
@@ -510,25 +523,90 @@ function isUnder(path, root) {
   return a === b || a.startsWith(`${b}/`);
 }
 
-/** The ranked order as human-readable lines. */
+/**
+ * The ranked order as human-readable lines.
+ *
+ * A branch name alone is not enough to act on. The person reading this has several sessions
+ * open and has to know WHICH WINDOW to go to - so the recommendation leads with the worktree
+ * folder, then the branch, then whatever says whether somebody is still sitting in it. That
+ * block is the whole point of the output; the ranked list underneath is the supporting detail.
+ */
 export function formatOrder(assessment) {
-  const { branches, order, notReady, target } = assessment;
+  const { branches, order, notReady, target, primary } = assessment;
   if (branches.length === 0) return [`Nothing is ahead of ${target} - no ordering question to answer.`];
 
-  const out = [`Landing order for the ${branches.length} branch(es) ahead of ${target}, cheapest first:`];
+  const out = [];
+
+  if (order.length === 0) {
+    // Every candidate is mid-session. Saying so beats printing an empty ranked list and
+    // letting the reader work out that the absence of a recommendation WAS the answer.
+    out.push('LAND FIRST: nothing can land right now.');
+    out.push(`  All ${branches.length} branch(es) ahead of ${target} have uncommitted work - each is somebody's live session.`);
+    out.push('');
+  }
+
+  if (order.length > 0) {
+    const first = order[0];
+    out.push('LAND FIRST');
+    out.push(`  worktree  ${where(first, primary)}`);
+    out.push(`  branch    ${first.branch}`);
+    out.push(`  session   ${session(first)}`);
+    out.push(`  why       ${describe(first)}`);
+    for (const line of stuckBehind(first, assessment)) out.push(`  note      ${line}`);
+    if (order.length === 1) out.push('  (it is the only branch that can land right now)');
+    out.push('');
+  }
+
+  out.push(`Full order for the ${branches.length} branch(es) ahead of ${target}, cheapest first:`);
   order.forEach((branch, index) => {
-    const why = describe(branch);
-    const self = branch.branch === assessment.self ? ' <- this session' : '';
-    out.push(`  ${index + 1}. ${branch.branch}${self} - ${why}`);
+    const self = branch.branch === assessment.self ? ' <- you are here' : '';
+    out.push(`  ${index + 1}. ${branch.branch}${self}`);
+    out.push(`     in ${where(branch, primary)} - ${describe(branch)}`);
   });
   for (const entry of notReady) {
-    out.push(`  - ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
-  }
-  if (order.length > 1) {
-    out.push('');
-    out.push(`Land first: ${order[0].branch}`);
+    const branch = branches.find((candidate) => candidate.branch === entry.branch);
+    out.push(`  -  ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
+    out.push(`     in ${where(branch, primary)}`);
   }
   return out;
+}
+
+/**
+ * Lines for the case where the top recommendation carries a note pointing at a branch that
+ * cannot land yet - "follow 0024" is confusing advice when 0024's worktree is dirty. Saying so
+ * turns an apparent contradiction into a decision: go tidy that worktree, or accept the note.
+ */
+function stuckBehind(branch, assessment) {
+  const lines = [];
+  for (const note of branch.silent) {
+    const blocked = assessment.notReady.find((entry) => entry.branch === note.with);
+    if (!blocked) continue;
+    lines.push(`${note.with} is what it should follow, but that branch cannot land yet (${blocked.reason})`);
+  }
+  return lines;
+}
+
+/**
+ * Where to go to act on this branch. Paths are shown relative to the primary checkout because
+ * the absolute ones are long and identical up to the last segment - the folder name IS how the
+ * user tells their open sessions apart.
+ */
+function where(branch, primary) {
+  if (!branch?.worktree) return 'no worktree - safe-merge will make a temporary one';
+  if (primary && branch.worktree.toLowerCase() === primary.toLowerCase()) return `${primary} (the primary checkout)`;
+  if (primary && branch.worktree.toLowerCase().startsWith(`${primary.toLowerCase()}/`)) {
+    return branch.worktree.slice(primary.length + 1);
+  }
+  return branch.worktree;
+}
+
+/** Whether anyone still appears to be working in it - the difference between "go there" and "it is yours to take". */
+function session(branch) {
+  if (!branch.worktree) return 'closed - the branch outlived its session, nobody is in it';
+  const parts = [];
+  if (branch.lastCommit) parts.push(`last commit ${branch.lastCommit.relative}: "${branch.lastCommit.subject}"`);
+  if (branch.uncommitted.length > 0) parts.push(`${branch.uncommitted.length} uncommitted file(s) - someone is probably still in it`);
+  return parts.length > 0 ? parts.join('; ') : 'open, nothing uncommitted';
 }
 
 function describe(branch) {
@@ -552,7 +630,10 @@ export function formatVerdict(verdict) {
   const out = [`VERDICT: ${verdict.severity} (${verdict.branch})`];
   for (const reason of verdict.reasons) out.push(`  - ${reason.text}`);
   if (verdict.reasons.length === 0) out.push('  - costs no other branch in flight anything');
-  if (verdict.landFirst) out.push(`  Land first instead: ${verdict.landFirst}`);
+  if (verdict.landFirst) {
+    out.push(`  Land first instead: ${verdict.landFirst}`);
+    if (verdict.landFirstWhere) out.push(`                      in ${verdict.landFirstWhere}`);
+  }
   return out;
 }
 
@@ -574,6 +655,7 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
           target: assessment.target,
           order: assessment.order.map((b) => ({
             branch: b.branch,
+            worktree: b.worktree,
             ahead: b.ahead,
             files: b.files.length,
             imposed: b.imposed,

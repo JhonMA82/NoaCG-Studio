@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
-import { assessMergeOrder, verdictFor } from './merge-order.mjs';
+import { assessMergeOrder, formatOrder, verdictFor } from './merge-order.mjs';
 
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -35,6 +35,14 @@ function makeRepo(t) {
   runGit(root, 'commit', '-m', 'Initial commit');
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
+}
+
+/** Check an EXISTING branch out in a linked worktree, the way a live session holds one. */
+function addWorktree(root, name, branch) {
+  const path = join(root, '.claude', 'worktrees', name);
+  mkdirSync(join(root, '.claude', 'worktrees'), { recursive: true });
+  runGit(root, 'worktree', 'add', path, branch);
+  return { branch, path };
 }
 
 /** Commit `files` on a fresh branch off main, then return to main. */
@@ -241,6 +249,66 @@ test('a dirty branch is reported as not landable rather than ordered', async (t)
     `expected feature/dirty in notReady, got ${JSON.stringify(assessment.notReady)}`,
   );
   assert.ok(!assessment.order.some((entry) => entry.branch === 'feature/dirty'));
+});
+
+test('the report names the worktree and session, not just the branch', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/free', { 'docs/note.md': 'standalone\n' });
+  const { branch, path } = addWorktree(root, 'live-session', 'feature/free');
+  assert.equal(branch, 'feature/free');
+
+  const assessment = await assessMergeOrder(root);
+  const text = formatOrder(assessment).join('\n');
+
+  assert.match(text, /LAND FIRST/, 'the recommendation must be the headline');
+  assert.match(text, /worktree\s+\.claude[/\\]worktrees[/\\]live-session/, `no worktree path in:\n${text}`);
+  assert.match(text, /branch\s+feature\/free/, `no branch line in:\n${text}`);
+  assert.match(text, /session\s+last commit .*work on feature\/free/, `no session line in:\n${text}`);
+  assert.ok(path.length > 0);
+});
+
+test('a branch whose session closed says so instead of naming a worktree', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/orphan', { 'docs/orphan.md': 'left behind\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const text = formatOrder(assessment).join('\n');
+  assert.match(text, /no worktree - safe-merge will make a temporary one/, `expected the no-worktree wording in:\n${text}`);
+  assert.match(text, /session\s+closed - the branch outlived its session/, `expected the closed-session wording in:\n${text}`);
+});
+
+test('when every branch is mid-session the report says so rather than printing an empty list', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/busy', { 'busy.txt': 'committed\n' });
+  runGit(root, 'checkout', '-q', 'feature/busy');
+  write(root, 'busy.txt', 'uncommitted edit\n');
+
+  const assessment = await assessMergeOrder(root);
+  assert.deepEqual(assessment.order, []);
+  const text = formatOrder(assessment).join('\n');
+  assert.match(text, /LAND FIRST: nothing can land right now/, `expected the honest empty answer in:\n${text}`);
+});
+
+test('a recommendation that should follow an unlandable branch says why it cannot', async (t) => {
+  const root = makeRepo(t);
+  // The lower migration number is stuck behind uncommitted work, so the higher one leads
+  // the order while still carrying its out-of-sequence note. That combination must explain
+  // itself rather than telling the reader to land something that cannot move.
+  branchWith(root, 'feature/lower', { 'supabase/migrations/0024_lower.sql': 'select 1;\n' });
+  branchWith(root, 'feature/higher', { 'supabase/migrations/0025_higher.sql': 'select 2;\n' });
+  // Dirtiness is a property of a WORKTREE, not of a branch - an untracked file in the shared
+  // checkout would simply follow the next `git checkout` and dirty whatever is out.
+  const live = addWorktree(root, 'lower-session', 'feature/lower');
+  write(live.path, 'scratch.txt', 'work in progress\n');
+
+  const assessment = await assessMergeOrder(root);
+  assert.equal(assessment.order[0].branch, 'feature/higher', 'the lower one is not landable, so it cannot lead');
+  const text = formatOrder(assessment).join('\n');
+  assert.match(
+    text,
+    /feature\/lower is what it should follow, but that branch cannot land yet/,
+    `expected the stuck-behind note in:\n${text}`,
+  );
 });
 
 test('an empty checkout answers honestly instead of inventing an order', async (t) => {
