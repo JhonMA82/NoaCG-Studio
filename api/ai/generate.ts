@@ -83,7 +83,9 @@ export default {
       if (surfaceRefused(feature, Boolean(auth.user), entitlement)) {
         throw new GatewayError(
           'authentication_required',
-          'AI video generation is not available for this account.',
+          body.surface === 'pro'
+            ? 'NoaCG Pro generation is not available for this account.'
+            : 'AI video generation is not available for this account.',
           403,
           false,
         );

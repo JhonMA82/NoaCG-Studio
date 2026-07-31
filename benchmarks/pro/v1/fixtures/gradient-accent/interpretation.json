@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.9,
+  "regions": [
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0,
+        "y": 0.655,
+        "w": 0.648,
+        "h": 0.133
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "align": "left",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#1F232B"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0,
+        "y": 0.655,
+        "w": 0.05,
+        "h": 0.133
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "align": "left",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "gradient",
+          "angleDeg": 90,
+          "from": "#9E2F5E",
+          "to": "#308092"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.071,
+        "y": 0.681,
+        "w": 0.297,
+        "h": 0.046
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-name",
+      "sampleText": "Ingrid Bakker",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 700,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.046,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.071,
+        "y": 0.732,
+        "w": 0.207,
+        "h": 0.033
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-role",
+      "sampleText": "Polling Analyst",
+      "suggestedTitle": "Title",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#B4B7BC",
+        "fontSizeNorm": 0.033,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    }
+  ],
+  "warnings": [],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.3
+  }
+}

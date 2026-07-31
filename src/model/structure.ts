@@ -175,6 +175,24 @@ export function getTemplateParts(html: string, fields: SpxField[] = []): Templat
     }
   }
 
+  // RECONSTRUCTED PANELS (the NoaCG Pro reconstruction contract): sibling
+  // `.<prefix>-panel-N` shapes the Pro compiler rebuilds out of a concept image - the
+  // primary strap, an accent bar - each its own part so a rebuilt shape is selectable,
+  // styleable and animatable exactly like the design elements it stands in for. Numbered
+  // like the quiz's answer rows and the alert's levels, and for the same reason: each shape
+  // gets its own timeline tracks. No catalog template emits this class, so nothing else
+  // changes.
+  if (prefix) {
+    for (let n = 1; unique(`.${prefix}-panel-${n}`); n++) {
+      parts.push({
+        selector: `.${prefix}-panel-${n}`,
+        kind: 'block',
+        label: `Panel ${n}`,
+        channel: 'rise',
+      });
+    }
+  }
+
   // Building-block inserted elements (blocks tag them data-gfx and give them an id).
   for (const el of Array.from(doc.querySelectorAll('[data-gfx][id]'))) {
     if (/^f\d+$/.test(el.id) || !unique(`#${el.id}`)) continue; // field imgs handled above

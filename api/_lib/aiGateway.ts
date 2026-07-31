@@ -4,6 +4,7 @@ import {
   type AiGatewayRequestBody,
   type AiProviderId,
   type ModelContentBlock,
+  type ModelImage,
   type ModelRequest,
   type ModelResult,
   type ModelRoute,
@@ -16,7 +17,19 @@ export interface ProviderAdapter {
   id: AiProviderId;
   endpoint: string;
   createRequest(request: ModelRequest, route: ModelRoute, key: string, policy?: GatewayExecutionPolicy): RequestInit;
-  parseResponse(data: unknown, request: ModelRequest, route: ModelRoute): { output: unknown; usage: ModelUsage };
+  parseResponse(
+    data: unknown,
+    request: ModelRequest,
+    route: ModelRoute,
+  ): { output: unknown; usage: ModelUsage; images?: ModelImage[] };
+}
+
+/** Adapters whose provider has no image-output API refuse `expect: 'image'` up front -
+ *  a text answer to an image request is the wrong modality, not a degraded success. */
+function refuseImageOutput(request: ModelRequest, provider: AiProviderId): void {
+  if (request.expect === 'image') {
+    throw new GatewayError('invalid_request', `The ${provider} route does not support image output.`, 400, false);
+  }
 }
 
 export class GatewayError extends Error {
@@ -158,6 +171,14 @@ function dataUrl(block: Extract<ModelContentBlock, { type: 'image' }>): string {
   return `data:${block.source.media_type};base64,${block.source.data}`;
 }
 
+/** Providers return generated images as data URLs; normalize to base64 + media type.
+ *  Anything else (a hosted URL, a truncated payload) is not something the browser can be
+ *  handed as a self-contained asset, so it simply does not count as an image. */
+function parseImageDataUrl(url: string): ModelImage | null {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(url);
+  return match ? { mediaType: match[1].toLowerCase(), base64: match[2] } : null;
+}
+
 function openAiInput(messages: ModelRequest['messages']): unknown[] {
   return messages.map((message) => {
     if (typeof message.content === 'string') return { role: message.role, content: message.content };
@@ -193,6 +214,7 @@ export const anthropicAdapter: ProviderAdapter = {
   id: 'anthropic',
   endpoint: 'https://api.anthropic.com/v1/messages',
   createRequest(request, route, key) {
+    refuseImageOutput(request, 'anthropic');
     const body = {
       model: route.model,
       max_tokens: request.maxTokens ?? 16000,
@@ -263,6 +285,7 @@ export const openAiAdapter: ProviderAdapter = {
   id: 'openai',
   endpoint: 'https://api.openai.com/v1/responses',
   createRequest(request, route, key) {
+    refuseImageOutput(request, 'openai');
     const body = {
       model: route.model,
       instructions: request.system,
@@ -335,6 +358,9 @@ export const openRouterAdapter: ProviderAdapter = {
       model: route.model,
       messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
       max_tokens: request.maxTokens ?? 16000,
+      // Image generation rides the same chat-completions API: the modalities field asks
+      // an image-capable model to answer with an image (returned in message.images).
+      ...(request.expect === 'image' ? { modalities: ['image', 'text'] } : {}),
       ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
       ...(request.seed !== undefined ? { seed: request.seed } : {}),
       ...(request.structuredOutput
@@ -396,6 +422,28 @@ export const openRouterAdapter: ProviderAdapter = {
     const data = object(value);
     const choice = object(array(data.choices)[0]);
     const message = object(choice.message);
+    if (request.expect === 'image') {
+      const images = Array.isArray(message.images)
+        ? message.images.map(object).flatMap((item) => {
+            const url = item.image_url && typeof item.image_url === 'object'
+              ? object(item.image_url).url
+              : undefined;
+            const parsed = typeof url === 'string' ? parseImageDataUrl(url) : null;
+            return parsed ? [parsed] : [];
+          })
+        : [];
+      if (images.length === 0) {
+        // Retryable like other structured misses: image models occasionally answer with
+        // text only, and a fresh attempt within the bounded budget usually delivers.
+        throw new GatewayError('malformed_response', 'The model did not return an image.', 502, true);
+      }
+      const imageUsage = object(data.usage ?? {});
+      return {
+        output: '',
+        images,
+        usage: totalUsage(imageUsage.prompt_tokens, imageUsage.completion_tokens, providerCost(imageUsage.cost)),
+      };
+    }
     const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.map(object) : [];
     const expectedTool = request.structuredOutput
       ? toolCalls.find((item) => {
@@ -444,6 +492,7 @@ export const huggingFaceAdapter: ProviderAdapter = {
   id: 'huggingface',
   endpoint: 'https://router.huggingface.co/v1/chat/completions',
   createRequest(request, route, key) {
+    refuseImageOutput(request, 'huggingface');
     return {
       method: 'POST',
       headers: {
@@ -553,12 +602,18 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
       throw new GatewayError('invalid_request', 'The structured-output schema is invalid.', 400, false);
     }
   }
+  if (request.expect !== undefined && request.expect !== 'image') {
+    throw new GatewayError('invalid_request', 'The AI request output modality is invalid.', 400, false);
+  }
+  if (request.expect === 'image' && request.structuredOutput !== undefined) {
+    throw new GatewayError('invalid_request', 'An image request cannot also force structured output.', 400, false);
+  }
   const fallbacks = body.fallbacks === undefined ? [] : array(body.fallbacks).map(validateRoute);
   if (fallbacks.length > 3) throw new GatewayError('invalid_request', 'Too many AI fallback routes.', 400, false);
   // The surface discriminator is an ALLOWLIST, not a passthrough: an unknown value is refused
   // rather than dropped, so a client that means to name a gated surface can never have its
   // label silently discarded into "the general harness, which nothing gates".
-  if (body.surface !== undefined && body.surface !== 'video') {
+  if (body.surface !== undefined && body.surface !== 'video' && body.surface !== 'pro') {
     throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
   }
   return {
@@ -596,7 +651,7 @@ async function oneAttempt(
   key: string,
   fetchImpl: Fetch,
   policy?: GatewayExecutionPolicy,
-): Promise<{ output: unknown; usage: ModelUsage }> {
+): Promise<{ output: unknown; usage: ModelUsage; images?: ModelImage[] }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), policy?.timeoutMs ?? configuredTimeoutMs());
   try {
@@ -728,6 +783,7 @@ export async function executeGatewayRequest(
           provider: route.provider,
           model: route.model,
           attempts,
+          ...(result.images ? { images: result.images } : {}),
         };
       } catch (error) {
         lastError = error instanceof GatewayError

@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.9,
+  "regions": [
+    {
+      "kind": "image",
+      "bbox": {
+        "x": 0.0575,
+        "y": 0.655,
+        "w": 0.125,
+        "h": 0.2075
+      },
+      "confidence": 0.9,
+      "treatment": "keep-asset"
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.04625,
+        "y": 0.64375,
+        "w": 0.90625,
+        "h": 0.2175
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#002060"
+        }
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.155,
+        "y": 0.64375,
+        "w": 0.7975,
+        "h": 0.02
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#00B0F0"
+        }
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.155,
+        "y": 0.84125,
+        "w": 0.7975,
+        "h": 0.02
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#FFC000"
+        }
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.155,
+        "y": 0.7325,
+        "w": 0.6025,
+        "h": 0.09
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#C5E0B4"
+        }
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.20625,
+        "y": 0.67875,
+        "w": 0.355,
+        "h": 0.045
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-name",
+      "sampleText": "Helena Marsh",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 700,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.045,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.20625,
+        "y": 0.765,
+        "w": 0.35875,
+        "h": 0.035
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-role",
+      "sampleText": "Consumer Affairs",
+      "suggestedTitle": "Title",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#000000",
+        "fontSizeNorm": 0.035,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "logo",
+      "bbox": {
+        "x": 0.8125,
+        "y": 0.74125,
+        "w": 0.06125,
+        "h": 0.0825
+      },
+      "confidence": 0.9,
+      "treatment": "keep-asset"
+    }
+  ],
+  "warnings": [],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.5
+  }
+}

@@ -56,6 +56,11 @@ export interface ModelRequest {
   system: string;
   messages: { role: 'user' | 'assistant'; content: ModelContentBlock[] | string }[];
   maxTokens?: number;
+  /** Ask the route for a generated IMAGE instead of text. Only adapters whose provider
+   *  actually offers image output accept it (OpenRouter today); everything else refuses
+   *  with a normalized error rather than silently answering in the wrong modality.
+   *  Mutually exclusive with structuredOutput. */
+  expect?: 'image';
   /** Force a schema-validated object result. */
   structuredOutput?: StructuredOutput;
   /** Override the selected route's model for this call. */
@@ -90,12 +95,20 @@ export interface ModelAttempt {
   attempts: number;
 }
 
+/** One generated image, normalized out of whatever shape the provider returned it in. */
+export interface ModelImage {
+  base64: string;
+  mediaType: string;
+}
+
 export interface ModelResult {
   output: unknown;
   usage: ModelUsage;
   provider: AiProviderId;
   model: string;
   attempts: ModelAttempt[];
+  /** Present only for `expect: 'image'` requests. */
+  images?: ModelImage[];
 }
 
 export type AiGatewayErrorCode =
@@ -121,10 +134,11 @@ export interface AiGatewayErrorBody {
  *  brainstorm call and a bare prompt all look alike to it - so this stays a small, closed set
  *  that only grows when a surface has its own entitlement.
  *
- *  Today that is video: `ai.video` is a feature a plan, a grant or an instance-wide kill switch
- *  can withdraw, and without a discriminator the video harness is indistinguishable from every
- *  other call on the same endpoint (docs/ADMIN.md, the enforcement table). */
-export type AiGatewaySurface = 'video';
+ *  Today that is video (`ai.video`) and NoaCG Pro (`ai.pro`): each is a feature a plan, a
+ *  grant or an instance-wide kill switch can withdraw, and without a discriminator those
+ *  harnesses are indistinguishable from every other call on the same endpoint
+ *  (docs/ADMIN.md, the enforcement table). */
+export type AiGatewaySurface = 'video' | 'pro';
 
 export interface AiGatewayRequestBody {
   request: ModelRequest;

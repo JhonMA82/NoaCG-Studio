@@ -102,6 +102,22 @@ test('a video-tagged call from a caller the server cannot recognise is NOT refus
   assert.equal(response.status, 412);
 });
 
+test('a pro-tagged call follows the same recognised-account-only gate as video', async () => {
+  // Same posture as the video test above: with no backend configured the caller cannot be
+  // recognised, so the ai.pro gate must not fire - 412 (no key) is the pre-existing answer.
+  const request = new Request('https://noacg.test/api/ai/generate', {
+    method: 'POST',
+    headers: { 'x-forwarded-for': uniqueIp(), authorization: 'Bearer stale-or-unverifiable' },
+    body: JSON.stringify({
+      route: { provider: 'openrouter', model: 'vendor/image-model' },
+      request: { system: 'You are a test.', messages: [{ role: 'user', content: 'hi' }], expect: 'image' },
+      surface: 'pro',
+    }),
+  });
+  const response = await generate.fetch(request);
+  assert.equal(response.status, 412);
+});
+
 test('an unknown surface is refused outright rather than downgraded to the ungated path', async () => {
   const response = await generate.fetch(gatewayRequest(uniqueIp(), {
     route: { provider: 'anthropic', model: 'claude-sonnet-5' },
@@ -166,6 +182,17 @@ test('the ledger entry is content-free accounting: route, key source, usage, out
   const serialized = JSON.stringify(entry);
   assert.ok(!serialized.includes('secret prompt text'));
   assert.ok(!serialized.includes('secret generated output'));
+});
+
+test('a pro-tagged execution ledgers as pro-generate so gateway accounting can tell it apart', () => {
+  const entry = gatewayLedgerEntry({
+    userId: null,
+    ipHash: 'ip-hash-pro',
+    body: { ...LEDGER_BODY, surface: 'pro' },
+    userKeys: {},
+    errorCode: 'missing_key',
+  });
+  assert.equal(entry.task, 'pro-generate');
 });
 
 test('a failed execution ledgers the primary route with zero usage and the error code', () => {
