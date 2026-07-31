@@ -201,8 +201,13 @@ export async function compileProPlan(
     });
   }
 
-  // A requested logo becomes a real replaceable slot over the concept's logo area.
+  // A requested logo becomes a real replaceable slot over the concept's logo area. A
+  // request the interpretation found no logo area FOR is said out loud - silently
+  // omitting the slot is how the first paid round's miss went unexplained.
   let logoPlaced = false;
+  if (brief.includeLogo && !plan.logo) {
+    warnings.push('A logo slot was requested, but the interpretation found no logo area in the concept - add one from the Data tab, or regenerate.');
+  }
   if (brief.includeLogo && plan.logo) {
     const added = addPlacedImageSlot(template, { title: 'Logo' });
     if (added) {

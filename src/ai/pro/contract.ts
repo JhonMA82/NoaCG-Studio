@@ -19,7 +19,7 @@ interface ProModelTool {
   input_schema: Record<string, unknown>;
 }
 
-export const PRO_INTERPRET_VERSION = 'pro-interpret-v1';
+export const PRO_INTERPRET_VERSION = 'pro-interpret-v2';
 
 /** The seven bundled fonts (src/model/fonts.ts) - the ONLY faces the model may suggest.
  *  Enum-locked so "exact font identification" stays inexpressible (the import-analysis
@@ -270,7 +270,14 @@ export function proInterpretSystemPrompt(version: string): string {
     `You analyze ONE broadcast lower-third concept image for NoaCG Studio (contract ${version}).`,
     'The goal is RECONSTRUCTION: the platform will rebuild what you report as editable HTML',
     'layers, so report what is actually in the pixels, with tight normalized bounding boxes',
-    '(0..1 of the image, x/y = top-left), and classify each region with a treatment:',
+    '(0..1 of the image, x/y = top-left).',
+    'Each region has a KIND - what the element IS:',
+    '- "text": readable text. "logo": a channel mark, emblem, crest, monogram, or a',
+    '  placeholder logo area - any distinct identity mark. A logo is ALWAYS kind "logo",',
+    '  never "decorative", because the platform places a replaceable logo slot over it.',
+    '- "image": photographic or illustrative content. "panel": a strap, bar or geometric',
+    '  panel. "decorative": lines, dots and flourishes that are none of the above.',
+    'And a TREATMENT - what the platform should do with it:',
     '- "rebuild-text": every readable text element. Transcribe it (sampleText), name it the',
     '  way a control-room operator would (suggestedTitle), pick the semantic role, and',
     '  describe the typography.',
@@ -304,7 +311,9 @@ export function proInterpretContent(brief: ProBrief, image: { base64: string; me
         'Analyze this lower-third concept. It was generated for this brief:',
         `Name line: "${brief.name}"`,
         `Title line: "${brief.title}"`,
-        brief.includeLogo ? 'A placeholder logo area was requested.' : 'No logo was requested.',
+        brief.includeLogo
+          ? 'A placeholder logo area was requested - find it and report it as a kind "logo" region.'
+          : 'No logo was requested.',
         `Direction: ${brief.brief.trim().slice(0, PRO_LIMITS.briefChars)}`,
       ].join('\n'),
     },

@@ -6,12 +6,12 @@
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.17604166666666668,
-        "y": 0.6972222222222222,
-        "w": 0.6552083333333333,
-        "h": 0.12685185185185185
+        "x": 0.0881,
+        "y": 0.5898,
+        "w": 0.8177,
+        "h": 0.1602
       },
-      "confidence": 0.9,
+      "confidence": 0.95,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
@@ -21,41 +21,80 @@
         },
         "opacity": 1,
         "radiusNorm": 0
-      },
-      "role": "other"
+      }
     },
     {
       "kind": "decorative",
       "bbox": {
-        "x": 0.19895833333333335,
-        "y": 0.7222222222222222,
-        "w": 0.046875,
-        "h": 0.07685185185185185
+        "x": 0.0881,
+        "y": 0.5898,
+        "w": 0.8177,
+        "h": 0.1602
       },
-      "confidence": 0.8,
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#9E9E9E"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "logo",
+      "bbox": {
+        "x": 0.125,
+        "y": 0.6435,
+        "w": 0.0469,
+        "h": 0.0574
+      },
+      "confidence": 0.9,
       "treatment": "keep-asset"
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.1979,
+        "y": 0.6352,
+        "w": 0.0016,
+        "h": 0.0713
+      },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#CCCCCC"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.26458333333333334,
-        "y": 0.7203703703703703,
-        "w": 0.3697916666666667,
-        "h": 0.046296296296296294
+        "x": 0.2203,
+        "y": 0.6333,
+        "w": 0.2828,
+        "h": 0.0444
       },
-      "confidence": 0.9,
+      "confidence": 0.95,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
       "sampleText": "Dr. Amara Nwosu",
-      "suggestedTitle": "Name",
+      "suggestedTitle": "Name Line",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
-        "approxWeight": 700,
-        "color": "#1A1A1A",
-        "fontSizeNorm": 0.6,
+        "approxWeight": 600,
+        "color": "#333333",
+        "fontSizeNorm": 0.038,
         "letterSpacing": "tight",
         "lineHeightRatio": 1.2
       }
@@ -63,24 +102,24 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.26458333333333334,
-        "y": 0.7675925925925926,
-        "w": 0.3427083333333333,
-        "h": 0.027777777777777776
+        "x": 0.2203,
+        "y": 0.6815,
+        "w": 0.2828,
+        "h": 0.0241
       },
-      "confidence": 0.9,
+      "confidence": 0.95,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Chief Executive Officer",
-      "suggestedTitle": "Title",
+      "suggestedTitle": "Title Line",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#4D4D4D",
-        "fontSizeNorm": 0.36,
+        "color": "#666666",
+        "fontSizeNorm": 0.02,
         "letterSpacing": "tight",
         "lineHeightRatio": 1.2
       }
