@@ -331,16 +331,26 @@ self-promotion path and no first-run "claim this instance" flow.
 | `GET/POST /api/admin/plans` | create, update, archive |
 | `GET/POST /api/admin/grants` | grant, revoke |
 | `GET /api/admin/usage` | AI spend, failures, quota pressure |
+| `GET /api/admin/quality` | what people kept, what they threw away, and what the prompt is nudged by |
 | `GET/POST /api/admin/system` | model and feature toggles, maintenance notice |
 | `GET/POST /api/admin/templates` | visibility, beta/internal marking, usage |
 | `GET /api/admin/audit` | the log |
+
+**`/api/admin/quality` is the only surface that shows the OUTPUT side of the ledger.** The
+columns `0011_ai_lite_quality_feedback.sql` records - resolved chassis, intent facet, enumerated
+discard reason - were already being read: `ai_lite_variant_quality()` feeds the Lite system prompt
+as a tie-breaker (`api/_lib/lite/generations.ts`). So the signal was not unread, it was shaping
+output where no human could see it. The section shows the priors the prompt is actually fed and,
+separately, the same arithmetic *without* the sample floor, so signal that has not yet crossed
+the threshold is visible rather than silently withheld. It stays content-free: ids, counts and
+enumerated facets, never a brief or a generated graphic (`src/ai/AGENTS.md`).
 
 One route sits outside the admin gate on purpose: **`GET /api/me/entitlement`** is public
 (auth optional) and answers only about its own caller. It is what lets the editor stop guessing
 at access; see "The browser's own entitlement" above.
 
-The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, System,
-Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
+The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, Output
+quality, System, Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
 rather than present-and-disabled, because a button that cannot work is a worse answer than no
 button.
 

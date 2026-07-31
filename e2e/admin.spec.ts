@@ -118,9 +118,109 @@ test('each admin section renders behind a stubbed session', async ({ page }) => 
   await page.goto('/admin');
   await expect(page.locator('.admin-shell')).toBeVisible();
 
-  for (const label of ['Overview', 'Users', 'Plans', 'Usage and cost', 'System', 'Templates', 'Audit']) {
+  for (const label of [
+    'Overview',
+    'Users',
+    'Plans',
+    'Usage and cost',
+    'Output quality',
+    'System',
+    'Templates',
+    'Audit',
+  ]) {
     await page.getByRole('button', { name: label, exact: true }).click();
     await expect(page.locator('.admin-content h1')).toHaveText(label === 'Usage and cost' ? 'Usage and cost' : label);
     await expect(page.locator('.admin-notfound')).toHaveCount(0);
   }
+});
+
+// The quality section is the only surface that shows what the generator is being nudged by, so
+// a silently-empty one would be indistinguishable from "nobody has thrown anything away yet".
+// Stubbed rather than live: the authorized view with real data belongs to the live suite, but
+// the RENDERING of that data is ordinary front-end work and is pinned here.
+test('the quality section separates what the prompt is fed from what has not counted yet', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/quality*', (route) =>
+    route.fulfill({
+      json: {
+        days: 30,
+        // Worst keep rate first, as the endpoint sorts it: 1 of 5 kept, then 3 of 4.
+        emerging: [
+          { variantId: 'lt-ribbon', intentKind: 'person', accepted: 1, discarded: 4 },
+          { variantId: 'lt-stack', intentKind: 'event', accepted: 3, discarded: 1 },
+        ],
+        reasons: [
+          { reason: 'hard-to-read', count: 9 },
+          { reason: 'wrong-style', count: 4 },
+          { reason: 'brand-new-reason', count: 1 },
+        ],
+        priors: [{ variantId: 'lt-bar', intentKind: 'person', accepted: 18, discarded: 2 }],
+        priorWindowDays: 90,
+        priorMinSamples: 8,
+        totals: { generations: 120, withVariant: 96, withFeedback: 14 },
+        truncated: false,
+      },
+    }),
+  );
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Output quality', exact: true }).click();
+  await expect(page.locator('.admin-content h1')).toHaveText('Output quality');
+
+  // The two tables must stay distinguishable: one is acting on the generator right now, the
+  // other explicitly is not. Reading them as one list is the mistake this layout prevents.
+  const prompted = page.locator('.admin-block').filter({ hasText: 'What the generator is being nudged by' });
+  const emerging = page.locator('.admin-block').filter({ hasText: 'Emerging signal' });
+  await expect(prompted).toContainText('last 90 days, minimum 8 samples');
+  await expect(prompted.locator('tbody tr')).toHaveCount(1);
+  await expect(prompted.locator('tbody tr').first()).toContainText('lt-bar');
+  await expect(prompted.locator('tbody tr').first()).toContainText('90%');
+
+  // Worst first, and a sub-50% rate is marked hot rather than left as a bar to squint at.
+  await expect(emerging.locator('tbody tr')).toHaveCount(2);
+  await expect(emerging.locator('tbody tr').first()).toContainText('lt-ribbon');
+  await expect(emerging.locator('tbody tr').first()).toContainText('20%');
+  await expect(emerging.locator('tbody tr').first().locator('.admin-meter-hot')).toHaveCount(1);
+  await expect(emerging.locator('tbody tr').nth(1).locator('.admin-meter-hot')).toHaveCount(0);
+
+  // Enumerated reasons read as English; one the UI has no label for is shown raw and FLAGGED,
+  // because a reason nobody labelled must not become a reason nobody sees.
+  const reasons = page.locator('.admin-block').filter({ hasText: 'Why people threw one away' });
+  await expect(reasons).toContainText('Hard to read');
+  await expect(reasons).toContainText('Wrong style');
+  await expect(reasons.locator('tbody tr').last()).toContainText('brand-new-reason');
+  await expect(reasons.locator('tbody tr').last().locator('.admin-pill')).toHaveText('unlabelled');
+
+  await expect(page.locator('.admin-stats')).toContainText('96');
+  await expect(page.locator('.admin-problem')).toHaveCount(0);
+});
+
+// A window that hit the read cap must say so: the tables below it are a floor, not a total, and
+// an operator reading "3 discards" off a truncated window would draw the wrong conclusion.
+test('a truncated quality window says the numbers are a floor', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/quality*', (route) =>
+    route.fulfill({
+      json: {
+        days: 90,
+        emerging: [],
+        reasons: [],
+        priors: [],
+        priorWindowDays: 90,
+        priorMinSamples: 8,
+        totals: { generations: 20000, withVariant: 0, withFeedback: 0 },
+        truncated: true,
+      },
+    }),
+  );
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Output quality', exact: true }).click();
+  await expect(page.locator('.admin-problem')).toContainText('hit the read cap');
+  // And the empty tables must explain themselves rather than rendering as blank space.
+  await expect(page.locator('.admin-content')).toContainText('No design has reached 8 samples yet');
 });

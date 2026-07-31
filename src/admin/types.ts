@@ -170,6 +170,40 @@ export interface AdminUsageOverview {
   fleetSpendCeilingUsd: number;
 }
 
+// ── output quality ─────────────────────────────────────────────────────────────────────
+
+/** One deterministic chassis against one broad intent facet, and what happened to it. Ids and
+ *  counts only - the quality ledger is content-free by design (src/ai/AGENTS.md). */
+export interface AdminQualityVariant {
+  variantId: string;
+  intentKind: string;
+  /** Generations the user kept. */
+  accepted: number;
+  /** Generations the user explicitly threw away (`rejection_reason = 'user_discarded'`).
+   *  An abandoned tab is neither, and is counted in neither. */
+  discarded: number;
+}
+
+export interface AdminQualityOverview {
+  /** The operator's window, in days, after clamping. */
+  days: number;
+  /** Accept-versus-discard per chassis over that window, WITHOUT the sample floor, worst keep
+   *  rate first. This is the signal the generator does not act on yet. */
+  emerging: AdminQualityVariant[];
+  /** Enumerated discard reason -> count. The reason set is fixed by a CHECK constraint in
+   *  `0011_ai_lite_quality_feedback.sql`; free text is deliberately impossible. */
+  reasons: { reason: string; count: number }[];
+  /** EXACTLY the rows the generator is fed as a tie-breaker right now - same RPC, same window,
+   *  same floor as `api/_lib/lite/generations.ts` - so the page shows what is happening rather
+   *  than a recomputation that could drift from it. */
+  priors: AdminQualityVariant[];
+  priorWindowDays: number;
+  priorMinSamples: number;
+  totals: { generations: number; withVariant: number; withFeedback: number };
+  /** The window hit the row cap, so the numbers below it are a floor, not a total. */
+  truncated: boolean;
+}
+
 // ── system controls ────────────────────────────────────────────────────────────────────
 
 export interface AdminSystemState {

@@ -19,6 +19,7 @@ import { NotFound } from './NotFound';
 import { AuditSection } from './sections/AuditSection';
 import { OverviewSection } from './sections/OverviewSection';
 import { PlansSection } from './sections/PlansSection';
+import { QualitySection } from './sections/QualitySection';
 import { SystemSection } from './sections/SystemSection';
 import { TemplatesSection } from './sections/TemplatesSection';
 import { UsageSection } from './sections/UsageSection';
@@ -36,6 +37,7 @@ const SECTIONS: AdminSection[] = [
   { id: 'users', label: 'Users', render: (session) => <UsersSection session={session} /> },
   { id: 'plans', label: 'Plans', render: (session) => <PlansSection session={session} /> },
   { id: 'usage', label: 'Usage and cost', render: () => <UsageSection /> },
+  { id: 'quality', label: 'Output quality', render: () => <QualitySection /> },
   { id: 'system', label: 'System', render: (session) => <SystemSection session={session} /> },
   { id: 'templates', label: 'Templates', render: (session) => <TemplatesSection session={session} /> },
   { id: 'audit', label: 'Audit', render: () => <AuditSection /> },
