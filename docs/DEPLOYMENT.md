@@ -29,7 +29,12 @@ that path. Binding: keep it updated when the pipeline changes.
 1. **`nightly` (`.github/workflows/nightly.yml`)** is the **exhaustive tier**, at 02:00 UTC
    (04:00-05:00 Helsinki, so a red result is filed before the day starts): the **whole** E2E
    suite in eight shards, plus the three catalog-wide gates that nothing else schedules - the
-   calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. Its rolling
+   calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. It also carries
+   the **E2E time budget** (`scripts/e2e-budget.mjs`), because the nightly is the only run whose
+   aggregate is comparable night to night - everything else tests a subset. The budget enforces
+   the MEAN per test and only reports the total: shipping a spec with a new pack is healthy
+   growth and must not fail a gate, while tests getting slower is the regression worth catching.
+   Raising the ceiling is a deliberate act, argued in the commit that does it. Its rolling
    issue names **the commits since the last green nightly**, which is what keeps a red night
    from turning into a bisect.
 

@@ -1,8 +1,11 @@
 # Catalog lazy loading - taking 520 design modules off the boot path
 
-Status: **design note, nothing built - but stage 1 has now run.** Written 2026-07-30 from a
-measured E2E investigation; the "Stage 1 result" section below (2026-07-31) answers the question
-the recommendation was waiting on and settles Option A over Option B. Read
+Status: **design note, nothing built.** Written 2026-07-30 from a measured E2E investigation.
+Two things happened on 2026-07-31 and both matter more than the original argument: the stage-1
+audit found the fix is SMALL (two declared values per variant, settling Option A over Option B),
+and the production measurement found it is NOT URGENT (1.2 MB transferred, 1.6 s to a usable
+editor - the first draft's "4.16 MB" was the decoded chunk, not the wire). **Read "Measured on
+production" before quoting any megabyte figure from this note.** Then
 `src/templates/AGENTS.md` before acting on any of it.
 
 ## What was measured
@@ -35,13 +38,43 @@ The navigation is. `/app` issues **802 script requests**; the HTML document itse
 ## Why this is a product problem, not a test problem
 
 `src/templates` is **3.8 MB of the ~6 MB of application source** (components 1.1 MB, ai 0.5 MB,
-blocks 0.3 MB, model 0.25 MB), and it lands in the **4.16 MB main app chunk** - the one already
-tripping Vite's 500 kB warning on every build.
+blocks 0.3 MB, model 0.25 MB), and it lands in the main app chunk - the one already tripping
+Vite's 500 kB warning on every build.
 
-So every visitor downloads and parses the entire catalog before the editor renders, and **each
-pack added makes the product's first paint slower for everyone**, worst on the mobile layout the
-product supports. The E2E suite paying it 591 times is the symptom that made it visible; the
-first-load cost is the actual defect.
+### Measured on production, 2026-07-31 - read this before quoting a megabyte figure
+
+An earlier draft of this note said "every visitor downloads 4.16 MB". **That is wrong by about
+4x in the dimension a user feels.** 4.16 MB is the chunk's DECODED size; it is served compressed.
+Measured against `https://noacg-studio.vercel.app/app`:
+
+| | |
+|---|---|
+| Transferred, whole page | **1 171 KB** |
+| The app chunk | **945 KB over the wire**, 4 166 KB decoded |
+| Requests | 11 (against 802 in dev - production is bundled) |
+| TTFB | 71 ms |
+| DOM interactive | 504 ms |
+| Load, editor usable | **1 612 ms** |
+
+So the honest statement is: a visitor downloads ~1.2 MB and the browser then parses and compiles
+~4.2 MB of JavaScript. **1.6 s to a usable editor is unremarkable** for an app of this class -
+not good, not alarming, and nothing like the emergency the first draft implied.
+
+What survives the correction:
+
+- **The parse/compile cost is real and unmeasured on mobile.** 4.2 MB is cheap on a desktop CPU
+  and 3-5x slower on a mid-range phone, so mobile is plausibly 4-6 s. Nobody has measured that on
+  actual mobile hardware - a browser pane at a mobile VIEWPORT still runs on a desktop CPU, so
+  that reading does not exist yet.
+- **It still grows with every pack**, and the catalog is still eagerly loaded for everyone.
+- **But the prize is smaller than the source ratio suggests.** `src/templates` is 63% of source,
+  and template code is repetitive CSS/HTML strings that compress unusually well - so its share of
+  the compressed 945 KB is likely well under 63%. Realistically 400-600 KB off a 1 171 KB load.
+
+**What this does to the urgency:** it lowers it. The case for doing this during a heavy pack month
+was "4 MB before anything renders", and that case is gone. Adding a per-pack declaration
+obligation at peak pack throughput to save ~0.5 MB of a 1.2 MB load is a poor trade. The measurement
+that would revive urgency is a THROTTLED or real-device mobile run, not more analysis.
 
 The test win is real but secondary: taking the catalog off boot should move the floor from
 ~2.3 s toward ~1.7 s, roughly 5 min of aggregate suite time.
@@ -214,8 +247,11 @@ call working - most of those specs already `await` the import, so the likely sha
 ## Open questions for the owner
 
 1. Is the first-load cost worth a change of this size *now*, given the goal is adoption and the
-   catalog is still growing fast? A 4.16 MB first paint argues yes; "not while packs are landing
-   weekly" is a legitimate answer.
+   catalog is still growing fast? **The production measurement above argues NO for the moment**:
+   1.2 MB transferred and 1.6 s to a usable editor, against a fix that saves perhaps 0.5 MB and
+   adds a per-pack declaration obligation during the heaviest pack month. The open sub-question
+   is the only one that could change that: **what does this cost on real mobile hardware?**
+   Nobody has measured it, and 4.2 MB of parse/compile is where a phone would hurt.
 2. If the audit says A is large - is a third generated artifact (B) acceptable, knowing today's
    two-hour red `main` came from exactly that failure mode?
 3. Should the eager/lazy line be drawn at the category or the pack? Packs are the unit that grows.
