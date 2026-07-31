@@ -12,9 +12,23 @@ disagrees with the happy path.
 Branch to merge: the argument given at invocation, if any (if empty, detect it in Phase 1 and
 confirm with the user before merging).
 
-This workflow carries standing permission to update and push `main`, so it runs **only when the
-user explicitly invokes it by name**. Never infer invocation from a general request to inspect,
-review, or discuss a merge.
+This workflow carries standing permission to update and push `main`, so it runs **only on an
+explicit user invocation**. There are exactly two of those:
+
+- the user typed the command themselves (`/safe-merge` in Claude Code, `$safe-merge` in Codex);
+- **the user SELECTED this workflow from a pick the next workflow offered** for a named branch.
+  A pick is a decision the user made about a specific branch, not an inference - so it is a real
+  invocation and must be honoured by running this procedure, not answered with "type the command
+  yourself". It authorizes exactly the branch named in that option, for that turn only.
+
+Everything else is still forbidden: never infer invocation from a general request to inspect,
+review, or discuss a merge, from work merely looking finished, or from a pick that was about
+something else.
+
+Note for Claude Code: the `/safe-merge` adapter sets `disable-model-invocation: true` on
+purpose, so the model can never invoke this workflow as a tool of its own accord. That flag stays.
+Acting on a user's pick means reading `.agent-workflows/safe-merge.md` and following it directly -
+the user has invoked it, and the adapter is only a pointer to this file anyway.
 
 ## Repo layout (this project)
 
@@ -92,6 +106,28 @@ Run and summarize:
    PowerShell, also intersect `git diff --name-only <base> <branch>` with
    `git diff --name-only <base> main` and report overlapping paths conservatively. **Never use
    `git merge --no-commit` as a preview**; it changes the index and working tree.
+8. **Merge ORDER - what landing this branch costs the other worktrees.** Several branches are
+   normally in flight, and this workflow merges `main` into the branch before fast-forwarding,
+   so whatever lands first is absorbed by everyone else afterwards. Run:
+
+       node scripts/merge-order.mjs --branch <branch>
+
+   It is read-only (a `git merge-tree` three-way merge in the object store - no working tree, no
+   ref) and prints the ranked landing order plus a verdict for this branch. Report its one-line
+   verdict every run, whatever it says:
+
+   - **`clear`** - landing this now costs nothing in flight. Say so in one line and continue.
+   - **`caution`** - there is a cost but no cheaper branch is waiting, or the cost is small.
+     Report the number and continue; someone has to go first.
+   - **`hold`** - a cheaper branch is ready AND this one is expensive: it renames or deletes
+     paths another branch edits, collides on a sequence number (two migrations minting `0024`
+     merge CLEANLY and are still wrong), is stacked on a branch that must land first, or leaves
+     five or more conflicted files for others. STOP and get an explicit go-ahead, naming the
+     branch it recommends landing first.
+
+   This never overrides the user: a `hold` that the user waves through proceeds normally. It is
+   advice with a stop attached, not a gate - and it is advisory only about ORDER. It never
+   substitutes for any Hard safety rule or for Phase 3 verification.
 
 ### If `main` is not checked out anywhere
 
@@ -130,7 +166,8 @@ real risk, meaning any of:
 - the source worktree has uncommitted changes;
 - the merge is predicted to conflict;
 - `main` is checked out nowhere and `reattach-main.mjs --check` does not report SAFE;
-- the source branch is ambiguous or was not clearly identified.
+- the source branch is ambiguous or was not clearly identified;
+- `merge-order.mjs` returned a `hold` verdict (step 8).
 
 In any of those cases, report the specific risk and wait. Absent them, do not pause - the
 later phases still enforce every Hard safety rule and abort on their own if reality
