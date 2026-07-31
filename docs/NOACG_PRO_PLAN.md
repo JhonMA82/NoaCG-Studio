@@ -195,7 +195,23 @@ Lite; the Lite path is untouched). One step surface with explicit machine states
   pattern), keeping deterministic structural checks separate from subjective visual
   scoring.
 
-## 10. What v1 deliberately does not do
+## 10. Known limitations (v1, measured)
+
+- **The crop ring.** The design unit is padded ~1.5% before cropping so region edges are
+  never shaved, which means a kept raster crop carries a thin ring of the concept's own
+  backdrop around the strap. Over real video that ring is visible. The clean fix is the
+  deferred image-edit clean-plate capability (or alpha matting); until then the concept
+  prompt keeps backdrops dark and quiet, and a fully reconstructed unit drops the raster
+  entirely.
+- **Paint order is an unmeasured dimension.** The runtime bench measures rects, not paint,
+  so a reconstructed opaque panel covering the live text passed every deterministic gate;
+  only a rendered-frame screenshot caught it (fixed by insertion order, and the bench
+  gallery is the standing tripwire). A vision judge over the hold frame is the general
+  answer, deferred with the Lite judge's calibration doctrine.
+- **Baked text outside reconstructed panels** stays in the artwork and is reported, not
+  erased - the deterministic erase integration is the next slice.
+
+## 11. What v1 deliberately does not do
 
 - No generated video or motion assets (architecture leaves room: a video background
   would be one more capability + one more asset kind).

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 0.93,
+  "regions": [
+    {
+      "kind": "panel",
+      "bbox": { "x": 0.06, "y": 0.762, "w": 0.42, "h": 0.148 },
+      "confidence": 0.9,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": { "kind": "solid", "color": "#101828" },
+        "radiusNorm": 0.05,
+        "opacity": 1
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": { "x": 0.06, "y": 0.745, "w": 0.42, "h": 0.017 },
+      "confidence": 0.88,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": { "kind": "gradient", "from": "#f5a623", "to": "#e0245e", "angleDeg": 90 },
+        "opacity": 1
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": { "x": 0.083, "y": 0.792, "w": 0.2, "h": 0.037 },
+      "confidence": 0.92,
+      "treatment": "rebuild-text",
+      "role": "person-name",
+      "suggestedTitle": "Name",
+      "sampleText": "Ingrid Bakker",
+      "align": "left",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "archivo",
+        "approxWeight": 700,
+        "fontSizeNorm": 0.0266,
+        "color": "#f5f6f8"
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": { "x": 0.083, "y": 0.845, "w": 0.17, "h": 0.024 },
+      "confidence": 0.9,
+      "treatment": "rebuild-text",
+      "role": "person-role",
+      "suggestedTitle": "Title",
+      "sampleText": "Polling Analyst",
+      "align": "left",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "archivo",
+        "approxWeight": 400,
+        "fontSizeNorm": 0.0173,
+        "color": "#9aa0ab"
+      }
+    }
+  ],
+  "animation": { "presetId": "design-slide", "speed": 1 },
+  "warnings": []
+}

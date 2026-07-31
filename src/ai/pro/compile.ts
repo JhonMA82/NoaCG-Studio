@@ -84,8 +84,13 @@ function coveredByOpaquePanel(plan: ProPlan, rect: { x: number; y: number; w: nu
   return plan.panels.some((panel) => panel.opacity >= 0.95 && coverage(panel, rect) >= 0.85);
 }
 
-/** Insert the reconstructed panel elements after the artwork line, so they paint above the
- *  raster crop and below every placed text mask (DOM order = paint order here). */
+/** Insert the reconstructed panel elements DIRECTLY after the artwork line, so they paint
+ *  above the raster crop and below every placed text mask (absolutely-positioned siblings
+ *  paint in DOM order). This must run AFTER the fields are placed: addPlacedLine inserts a
+ *  mask after the last mask-or-art line, so panels already in the document would end up
+ *  BEFORE the masks' insertion point - i.e. painted over the text. That shipped once: the
+ *  runtime bench measures rects, not paint, so an opaque panel covering every line passed
+ *  every check and the gallery screenshot was the first thing that saw it. */
 function insertPanels(template: SpxTemplate, plan: ProPlan): SpxTemplate {
   if (plan.panels.length === 0) return template;
   const lines = template.html.split('\n');
@@ -153,7 +158,6 @@ export async function compileProPlan(
     animation: { presetId: plan.animation.presetId, speed: plan.animation.speed, easing: 'auto' },
   });
 
-  template = insertPanels(template, plan);
   if (artDropped) {
     // The bare-art placeholder block paints var(--panel-bg); with the panels carrying the
     // look it must stay invisible.
@@ -211,6 +215,10 @@ export async function compileProPlan(
       }
     }
   }
+
+  // The reconstructed shapes go in LAST, directly after the art line - between the raster
+  // crop and every mask placed above (see insertPanels).
+  template = insertPanels(template, plan);
 
   const textFields = plan.fields.length;
   const panelsRebuilt = plan.panels.length;

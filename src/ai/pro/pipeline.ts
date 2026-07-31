@@ -42,6 +42,9 @@ export interface ProConcept {
 export interface ProResult extends ProCompileResult {
   validation: ValidationResult | null;
   concept: ProConcept;
+  /** The raw interpretation the compile was built from - what the benchmark saves as a
+   *  fixture so regression runs replay it without paying for it again. */
+  interpretation?: ProInterpretationV1;
 }
 
 function conceptDataUrl(image: ModelImage): string {
@@ -150,7 +153,7 @@ export async function compileProConcept(
       run.stage('validate', t0);
     }
     run.finish(validation ? validation.ok : true, validation?.errors.map((finding) => finding.rule));
-    return { ...compiled, validation, concept };
+    return { ...compiled, validation, concept, interpretation: result.output };
   } catch (error) {
     run.finish(false);
     throw error;
