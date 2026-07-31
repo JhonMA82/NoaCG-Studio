@@ -127,30 +127,40 @@ async function runControlArm(input: CreativeRunInput): Promise<CreativeRunResult
   const started = now();
   const before = aiRunRecords().length;
   input.onProgress?.('Control arm…');
+  /** The provider records its stages through the telemetry ring whether or not the run
+   *  survives, so the arm reads them there EVEN ON FAILURE - the first smoke run lost a
+   *  failed control arm's whole spend and the identity of the stage that died, which is
+   *  exactly the attribution a paid run exists to produce. */
+  const recordedStages = () => {
+    const record = aiRunRecords().slice(before).pop();
+    return {
+      repairRounds: record?.repairRounds ?? 0,
+      stages: (record?.stages ?? []).map((s) => ({ stage: s.stage, ms: s.ms, ...(s.model ? { model: s.model } : {}), ...(s.usage ? { usage: s.usage } : {}) })),
+    };
+  };
   try {
     const change = await claudeProvider.generate(input.brief, input.context, {
       mode: 'create',
       validate: input.validate,
       structuralCheck: input.structuralCheck,
     });
-    // The provider records its own stages through the telemetry ring, so the arm reads them
-    // there rather than re-measuring what it cannot see inside.
-    const record = aiRunRecords().slice(before).pop();
     return {
       arm: 'A',
       ok: change.validation?.ok ?? true,
       template: change.template,
       validation: change.validation ?? null,
-      structural: (change.validation?.warnings ?? []).filter((w) => w.rule === 'structural-intent'),
+      // Parts findings are warnings; kind findings are blocking errors on grounded results
+      // (owner decision 2026-07-31) - criterion 2 reads both, wherever they landed.
+      structural: [...(change.validation?.errors ?? []), ...(change.validation?.warnings ?? [])]
+        .filter((f) => f.rule === 'structural-intent' || f.rule === 'structural-kind'),
       concepts: [],
       spec: null,
       styleApplied: false,
-      repairRounds: record?.repairRounds ?? 0,
-      stages: (record?.stages ?? []).map((s) => ({ stage: s.stage, ms: s.ms, ...(s.model ? { model: s.model } : {}), ...(s.usage ? { usage: s.usage } : {}) })),
+      ...recordedStages(),
       totalMs: now() - started,
     };
   } catch (e) {
-    return emptyResult('A', started, e);
+    return { ...emptyResult('A', started, e), ...recordedStages() };
   }
 }
 

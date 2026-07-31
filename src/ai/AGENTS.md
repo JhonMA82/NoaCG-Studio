@@ -271,8 +271,14 @@ result is the graphic that was asked for, in two parts:
   repeating groups and zone placement measured in a rendered iframe.
 
 Browser-only, injected as `GenerateOptions.structuralCheck` (AiStep + AIPromptPanel pass
-`benchStructuralIntent`); findings land as WARNINGS (rule `structural-intent`) - it measures
-presence and identity, not quality, and it must not change the frozen control's repair rounds.
+`benchStructuralIntent`). PARTS findings land as WARNINGS (rule `structural-intent`) - they
+measure presence, not quality, and must not change the frozen control's repair rounds. KIND
+findings (rule `structural-kind`) land as blocking ERRORS on grounded results (owner decision
+2026-07-31, AI_PLATFORM_PLAN §16.3): a wrong-kind assembly - a valid lower third for a stinger
+brief - fails closed and is surfaced for refine/regenerate, never delivered as a success.
+Grounded assemblies have no repair loop, so blocking there changes no repair rounds; the
+provider passes `variantId` to the check only for grounded paths, so a free-form result can
+never be kind-checked against a chassis that was never assembled.
 **It runs on BOTH routed paths.** It first shipped CREATE-only, which left the grounded path -
 where the wrong-graphic defect actually happens - unmeasured: assembly being correct by
 construction says nothing about whether the right thing was constructed. `groundedResult`
@@ -306,9 +312,20 @@ rule (§4) is absolute here - no catalog design code reaches any CREATE prompt, 
 `neutralSkeleton.ts` is what the coder arm studies instead.
 
 Rigs: `bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most
-expensive rig in the repo, explicit route, priced, ceilinged), `bench:creative:refs` (free
+expensive rig in the repo, explicit routes, priced, ceilinged), `bench:creative:refs` (free
 catalog hold frames, so `bench:sameness` can calibrate the copy line). Free coverage:
 e2e/creative-pilot.spec.ts.
+
+**The pilot rig's routes are PER ARM CLASS** (the 2026-07-31 bracket smoke, blocker 1:
+qwen3-30b completed 0/8 coder-arm runs on `malformed_response` over ~10k-token emits while
+going 8/8 on the staged arm - one route for every arm measures emit-size reliability, not
+the arms): `--route` is the candidate under test (arms C/D + the shared intent stage),
+`--coder-route` is REQUIRED for arms A/B and may equal `--route` to restore single-model
+attribution. The rig pins each arm's route through saved settings - the same mechanism
+that picks production's session model - so the frozen control's code is untouched; each
+stage's serving model is in the ledger, `pilot.json` records `armRoutes`, and per-stage
+cost is priced by the RECORDED model first. With split routes, A-vs-B and C-vs-A stay
+single-variable; B-vs-C differs in model class AND staging, and the report says so.
 
 ## The quality gate (injected, not owned)
 

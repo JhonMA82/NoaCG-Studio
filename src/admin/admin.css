@@ -417,6 +417,91 @@ body {
 .admin-idlist { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
 .admin-idlist li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 
+/* ── the overview ───────────────────────────────────────────────────────── */
+
+/* What is wrong, above what is big. Each row is one thing an operator can act on, with the
+   page that acts on it one click away - a warning that describes a problem and then makes you
+   find the section that fixes it is half a warning. */
+.admin-attention {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.admin-attention li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  font-size: 13px;
+  border-left: 3px solid var(--warn);
+}
+.admin-attention li.admin-attention-danger { border-left-color: var(--danger); }
+.admin-attention button { flex: none; padding: 4px 10px; font-size: 12px; }
+
+/* The reporting-boundary sentence is a definition the tables under it are read against, so it
+   gets a full measure rather than the 62ch a marginal note takes - broken across five short
+   lines it reads as an aside, which is exactly what it must not be. */
+.admin-boundary { margin-bottom: 22px; max-width: 96ch; }
+.admin-block-note { margin: -4px 0 8px; max-width: 74ch; }
+
+/* A ROW header is a label, not a column title. `.admin-table th` is styled for the latter -
+   small, uppercase, letter-spaced, nowrap - which turns a sentence-long metric definition into
+   an unreadable band of capitals that also refuses to wrap. Row headers get ordinary prose
+   treatment instead. */
+.admin-table th[scope="row"] {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--text);
+  white-space: normal;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(38, 47, 60, 0.6);
+  vertical-align: top;
+}
+.admin-table th[scope="row"] .admin-muted {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The headline tables. The measure column carries the label AND what one unit of it is, so
+   "380 page loads" and "41 browsers" can never be read as the same kind of number; the period
+   columns stay narrow and numeric so a row reads left to right as a trend. */
+.admin-metrics th[scope="row"] { width: 46%; }
+.admin-metrics td { white-space: nowrap; }
+
+.admin-delta { display: block; font-size: 11.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.admin-delta-up { color: var(--ok); }
+.admin-delta-down { color: var(--warn); }
+.admin-delta-flat,
+.admin-delta-none { color: var(--text-dim); }
+
+/* `.admin-bars` sizes its label column for the usage section's short day stamps. The overview
+   labels it with ledger slugs instead - `news.ycombinator.com`, `user_discarded`, `casparcg` -
+   which the 46px column truncated mid-word, turning a distribution into a row of riddles. */
+.admin-mix .admin-bars li { grid-template-columns: minmax(120px, 30%) 1fr 60px; }
+.admin-mix .admin-bar-label { overflow-wrap: anywhere; }
+
+/* `.admin-note` carries no bottom margin - it is normally the last thing in a section. On the
+   overview one is followed by another block, and the heading landed on its final line. */
+.admin-note + .admin-block { margin-top: 24px; }
+
+.admin-notracked { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 12.5px; }
+.admin-notracked li { color: var(--text-dim); max-width: 88ch; }
+.admin-notracked .admin-pill { margin-left: 0; margin-right: 6px; }
+
 .admin-legend { margin: 24px 0 0; display: grid; gap: 6px; font-size: 12.5px; }
 .admin-legend > div { display: flex; align-items: baseline; gap: 10px; }
 .admin-legend dt { flex: none; width: 90px; }

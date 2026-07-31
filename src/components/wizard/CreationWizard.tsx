@@ -279,6 +279,10 @@ export default function CreationWizard() {
   const createVideo = (project: VideoProject) => {
     useVideoProjectStore.getState().loadProject(project);
     useDocKindStore.getState().setKind('video');
+    // ACTIVATION, same as every SPX door: a visitor who made something. The video path used to
+    // report nothing at all, so a whole project kind was invisible to the funnel and to the
+    // admin overview - which showed as an honest-looking zero rather than as a gap.
+    trackEvent('activation', 'video');
     closeGallery();
   };
 

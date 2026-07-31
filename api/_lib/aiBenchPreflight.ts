@@ -27,7 +27,8 @@
 // SPENDS NOTHING and reaches NO network. Pure resolution over environments.
 
 import { liteProfile } from './aiLiteProfile.js';
-import { liteTaskProfile, taskConfigured } from './aiTaskRegistry.js';
+import { importAnalysisProfile } from './aiImportAnalysisProfile.js';
+import { importAnalysisTaskProfile, liteTaskProfile, taskConfigured } from './aiTaskRegistry.js';
 import { approvedModelEntry, fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 
@@ -97,16 +98,84 @@ function underEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
   }
 }
 
+/** What one arm's environment would actually produce, resolved through the REAL profile
+ *  and registry code for the task under test. */
+interface ArmResolution {
+  resolved: ModelRoute;
+  /** The ROUTE half only (taskConfigured): prices, allowlist, catalog approval. The kill
+   *  switch reports separately through `enabled`, so an arm that is wrong in both ways
+   *  gets both findings in one dry run. */
+  configured: boolean;
+  providers: string[];
+  priced: boolean;
+  /** The task's kill switch UNDER THE ARM'S ENVIRONMENT, when the task checks it - so the
+   *  diagnosis can name the flag instead of a generic refusal. */
+  enabled?: boolean;
+}
+
+/** A task's preflight surface: how to resolve an arm's environment, and the names the
+ *  diagnosis speaks in. Each task binds its own profile code - a resolver that MODELLED
+ *  the profile instead of calling it would drift, which is the failure this file exists
+ *  to prevent. */
+export interface PreflightTask {
+  /** Runs UNDER the arm's environment (underEnv) - reads process.env via the profile. */
+  resolve: () => ArmResolution;
+  /** The allowlist variable the diagnosis should name. */
+  allowlistVar: string;
+}
+
+/** Lite / lite-design-spec - the original preflight target. */
+export const litePreflightTask: PreflightTask = {
+  resolve: () => {
+    const profile = liteProfile();
+    const task = liteTaskProfile(profile);
+    return {
+      resolved: profile.primary,
+      configured: taskConfigured(task),
+      providers: profile.openRouterProviders,
+      priced: Boolean(task.routePolicy.prices[modelRouteKey(profile.primary)]),
+    };
+  },
+  allowlistVar: 'AI_LITE_OPENROUTER_PROVIDERS',
+};
+
+/** imported-graphic-analysis - the vision task's separate model profile (AI_PLATFORM_PLAN
+ *  §16.1). The 2026-07-29 vision round had NO preflight: two of five candidates failed all
+ *  35 images identically and the reasons were never isolated, because nothing free ever
+ *  asked "would this arm serve at all?". This binds the same checks to the profile that
+ *  round actually resolved routes through. `configured` includes the task's own kill
+ *  switch: the runner injects AI_TASK_IMPORT_ANALYSIS_ENABLED per arm, so an arm whose
+ *  environment leaves it off would fail every call while looking configured. */
+export const importAnalysisPreflightTask: PreflightTask = {
+  resolve: () => {
+    const profile = importAnalysisProfile();
+    const task = importAnalysisTaskProfile(profile);
+    return {
+      resolved: profile.route,
+      configured: taskConfigured(task),
+      providers: profile.openRouterProviders,
+      priced: Boolean(task.routePolicy.prices[modelRouteKey(profile.route)]),
+      enabled: profile.enabled,
+    };
+  },
+  allowlistVar: 'AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS (falling back to AI_LITE_OPENROUTER_PROVIDERS)',
+};
+
 /** Why a route would not serve - the diagnosis, not just the verdict. A run that fails
  *  closed correctly is still a wasted afternoon if nobody said which gate closed. */
-function routeDiagnosis(route: ModelRoute, providers: string[], priced: boolean): string | null {
+function routeDiagnosis(
+  route: ModelRoute,
+  providers: string[],
+  priced: boolean,
+  allowlistVar: string,
+): string | null {
   if (!approvedModelEntry(route)) {
     return `${modelRouteKey(route)} is not in the approved-route catalog (api/_lib/aiModelCatalog.ts). `
       + 'A free-tier route must be listed there before it can be served at all, so this arm '
       + 'would fail closed. Add the audited entry in the same change as the run that justifies it.';
   }
   if (!providers.length) {
-    return 'No OpenRouter provider allowlist (AI_LITE_OPENROUTER_PROVIDERS is empty), so every '
+    return `No OpenRouter provider allowlist (${allowlistVar} is empty), so every `
       + 'call would be rejected before it reached a model.';
   }
   if (!priced) {
@@ -131,6 +200,7 @@ function routeDiagnosis(route: ModelRoute, providers: string[], priced: boolean)
 export function benchPreflight(
   arms: PreflightArm[],
   ambient: Record<string, string | undefined> = {},
+  task: PreflightTask = litePreflightTask,
 ): PreflightReport {
   const findings: PreflightFinding[] = [];
   const results: PreflightArmResult[] = [];
@@ -138,17 +208,19 @@ export function benchPreflight(
   for (const arm of arms) {
     // The arm's own variables layered over the ambient environment - vite's precedence.
     const env = { ...ambient, ...arm.env };
-    const { resolved, configured, providers, priced } = underEnv(env, () => {
-      const profile = liteProfile();
-      const task = liteTaskProfile(profile);
-      return {
-        resolved: profile.primary,
-        configured: taskConfigured(task),
-        providers: profile.openRouterProviders,
-        priced: Boolean(task.routePolicy.prices[modelRouteKey(profile.primary)]),
-      };
-    });
-    results.push({ candidate: arm.candidate, resolved, configured });
+    const { resolved, configured, providers, priced, enabled } = underEnv(env, task.resolve);
+    results.push({ candidate: arm.candidate, resolved, configured: configured && enabled !== false });
+
+    // 0. A task whose kill switch is folded into `configured` names it explicitly: an
+    //    injected flag lost to a typo produces uniform failures that read like a bad model.
+    if (enabled === false) {
+      findings.push({
+        severity: 'error',
+        code: 'feature-disabled',
+        arm: arm.candidate,
+        message: 'The task is disabled under this arm\'s environment - its enable flag is not truthy there.',
+      });
+    }
 
     // 1. The candidate the arm claims to measure must be the one that would be served.
     if (resolved.model !== arm.candidate) {
@@ -159,14 +231,16 @@ export function benchPreflight(
         message:
           `This arm reports as "${arm.candidate}" but would serve "${resolved.model}". `
           + 'Something already in the environment outranks the injection (a saved '
-          + 'AI_LITE_PRIMARY_MODEL in .env, or the route injected under a name the profile '
+          + 'route in .env, or the route injected under a name the profile '
           + 'does not read). Every result would be attributed to the wrong model.',
       });
     }
 
-    // 2 + 3. The arm must actually be servable, with the reason when it is not.
+    // 2 + 3. The arm's route must actually be servable, with the reason when it is not.
+    //    Independent of the kill switch above, so an arm wrong in both ways gets both
+    //    findings in ONE dry run.
     if (!configured) {
-      const why = routeDiagnosis(resolved, providers, priced);
+      const why = routeDiagnosis(resolved, providers, priced, task.allowlistVar);
       findings.push({
         severity: 'error',
         code: approvedModelEntry(resolved) ? 'route-not-configured' : 'route-not-approved',
@@ -221,12 +295,27 @@ export function defaultIncumbentModel(): string {
   );
 }
 
+/** The import-analysis incumbent, derived the same way: whatever the task's profile serves
+ *  when nothing overrides it. */
+export function defaultImportAnalysisModel(): string {
+  return underEnv(
+    { AI_IMPORT_ANALYSIS_MODEL: undefined, AI_IMPORT_ANALYSIS_PROVIDER: undefined },
+    () => importAnalysisProfile().route.model,
+  );
+}
+
 /** Credential and flag checks for the paid runner, kept beside the route checks because
  *  they fail the same way: a uniform wall of generation errors that reads like a bad model.
  *  Reported as findings rather than thrown, so ONE dry run lists everything that is wrong. */
 export function benchCredentialFindings(
   ambient: Record<string, string | undefined>,
-  options: { requireEvalIdentity?: boolean } = {},
+  options: {
+    requireEvalIdentity?: boolean;
+    /** The kill-switch variable the AMBIENT environment must carry. Defaults to Lite's.
+     *  Pass null for a task whose runner injects its own flag per arm - there the arm
+     *  resolution (`configured`) is the honest check, not the ambient file. */
+    enabledFlag?: string | null;
+  } = {},
 ): PreflightFinding[] {
   const findings: PreflightFinding[] = [];
   const has = (key: string) => Boolean((ambient[key] ?? '').trim());
@@ -238,13 +327,14 @@ export function benchCredentialFindings(
       message: 'OPENROUTER_API_KEY is not set - every generation would fail identically.',
     });
   }
-  // The flag is read with boolEnv(..., false): absent means OFF, and an off Lite serves
+  // The flag is read with boolEnv(..., false): absent means OFF, and an off profile serves
   // nothing while looking configured.
-  if (!['1', 'true', 'yes', 'on'].includes((ambient.AI_LITE_ENABLED ?? '').trim().toLowerCase())) {
+  const enabledFlag = options.enabledFlag === undefined ? 'AI_LITE_ENABLED' : options.enabledFlag;
+  if (enabledFlag && !['1', 'true', 'yes', 'on'].includes((ambient[enabledFlag] ?? '').trim().toLowerCase())) {
     findings.push({
       severity: 'error',
       code: 'feature-disabled',
-      message: 'AI_LITE_ENABLED is not truthy - the profile would refuse every request.',
+      message: `${enabledFlag} is not truthy - the profile would refuse every request.`,
     });
   }
   if (options.requireEvalIdentity) {

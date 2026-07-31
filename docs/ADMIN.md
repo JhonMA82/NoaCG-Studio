@@ -332,7 +332,9 @@ self-promotion path and no first-run "claim this instance" flow.
 | `GET/POST /api/admin/user` | detail; state, plan and allowance changes |
 | `GET/POST /api/admin/plans` | create, update, archive |
 | `GET/POST /api/admin/grants` | grant, revoke |
+| `GET /api/admin/overview` | the landing dashboard: activity, adoption, AI cost, operational health (§8) |
 | `GET /api/admin/usage` | AI spend, failures, quota pressure |
+| `GET /api/admin/models` | live model ELIGIBILITY against the funded-route rules (§9) |
 | `GET /api/admin/quality` | what people kept, what they threw away, and what the prompt is nudged by |
 | `GET/POST /api/admin/system` | model and feature toggles, maintenance notice |
 | `GET/POST /api/admin/templates` | visibility, beta/internal marking, usage |
@@ -352,7 +354,7 @@ One route sits outside the admin gate on purpose: **`GET /api/me/entitlement`** 
 at access; see "The browser's own entitlement" above.
 
 The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, Output
-quality, System, Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
+quality, Models, System, Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
 rather than present-and-disabled, because a button that cannot work is a worse answer than no
 button.
 
@@ -401,6 +403,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0021_one_active_grant` | pre-existing duplicate active grants are revoked (newest kept), then a PARTIAL UNIQUE index makes one active grant per `(user_id, kind, key)` unreachable |
 | `0022_entitlement_absolutes` | `feature_denied_for(uuid, text)` (internal) + the self-scoped `feature_denied(text)`, eight RESTRICTIVE gates for `community.publish`, `showchat` and `control.hosted`, and the owner check inside `show_accepts`, `show_by_slug` and the three control write RPCs |
 | `0023_temporary_deny_absolute` | the grant branch of `feature_denied_for` widens to cover a TEMPORARY denying grant while it is in force - safe only because `0021` guarantees no override can sit above it |
+| `0024_admin_overview` | `admin_overview_window(from, to)`, `admin_overview_state()`, `admin_overview_mix(from, to)` - read-only aggregation for §8, off the REST surface; plus the two indexes they need (`funnel_events (user_id, event)`, `render_jobs (created_at)`) |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -429,3 +432,163 @@ is gone, that `admin_user_suspended` refuses a non-admin, and that `is_admin` is
 failure aborts the migration, so an instance cannot end up half-locked-down. The source side is
 pinned offline by `scripts/admin-security-migration.test.mjs` in the build gate; both halves were
 mutation-tested (removing a statement makes the matching check fire).
+
+## 8. The overview dashboard, and what every number on it means
+
+The landing section. It exists to answer four questions quickly - are people arriving, are they
+making something, is anything broken, and what is it costing - and the whole design follows from
+one refusal: **nothing on it is estimated**. Every figure is a count of rows the product already
+writes. Where a question cannot be answered from those rows it is not answered; the page names it
+under "Not tracked" instead, because an unexplained absence reads as a zero and a zero is
+something an operator acts on.
+
+### Where the counting happens, and why it is not the §6 pattern
+
+Every other admin read pages a bounded slice into JavaScript and sums it there. That trade does
+not survive `funnel_events`: it takes a row per PAGE LOAD, and the overview needs six windows of
+it at once. So the counting is in SQL - `admin_overview_window`, `admin_overview_state` and
+`admin_overview_mix` (`0024`), each a bounded indexed aggregate, all three SECURITY DEFINER,
+revoked from every client role and reached only with the service key behind `requireAdmin`. The
+handler issues a fixed number of small queries no matter how large the ledgers get.
+
+A database that has not had `0024` applied answers `available: false` and the page says the
+aggregation is not installed. It never renders a screen of zeroes, which would be
+indistinguishable from an instance nobody uses.
+
+### Time: the one thing two people could otherwise read differently
+
+**Boundaries are local midnight in the reporting timezone**, `ADMIN_REPORT_TIMEZONE` (default
+`Europe/Helsinki`). Postgres stores UTC and the function runs UTC, so a boundary picked
+implicitly by either would file 01:00 Helsinki activity under the previous day. `periods.ts`
+computes the instants and the SQL is told two of them - the timezone lives in exactly one place,
+and `periods.test.ts` pins it, including both Helsinki DST changes.
+
+- **Today** = from local 00:00. **This week** = from local Monday 00:00 (ISO). **This month** =
+  from the local 1st at 00:00.
+- **Every window ends at the moment the page was generated**, so nothing is ever counted over
+  time that has not happened.
+- **The comparison is the same ELAPSED span one period earlier.** Three days into a month is
+  compared with the first three days of the previous month, never with a whole one - otherwise
+  every month would show a collapse and then a recovery, both artefacts. The comparison span is
+  clamped so it can never run into the current window (31 March against February).
+- **Changes are absolute differences, not percentages.** At this instance's volume 2 to 3 is a
+  50% rise, and a page that says so cries wolf every morning.
+- A window with no comparable span reports "no comparison" rather than a zero.
+- **A comparison span older than a metric's own ledger is withheld** ("partial history"). On an
+  instance whose funnel is days old, last month is mostly a stretch of time nothing was
+  recording, so the difference would render as growth when what changed is that counting began.
+  The value is still shown; only the change is suppressed.
+
+  **It is withheld PER LEDGER, not per window**, and that distinction is the whole point: these
+  ledgers were switched on months apart (on this instance, accounts 6 July, renders 12 July,
+  generations 27 July, funnel and gateway 29 July). A single flag would have to be driven by the
+  youngest, so a young funnel would suppress a registration trend that the account directory
+  evidences perfectly well. Every metric therefore declares its `AdminLedgerId` - a REQUIRED
+  field, so a new metric cannot quietly inherit somebody else's history - and only the rows
+  counted from a short ledger lose their comparison. A ledger with no rows at all is left alone:
+  it reports zero on both sides, and zero against zero is a true "no change".
+
+### The metrics, and the exact definition of each
+
+Four SHAPES, never mixed and never rendered as the same kind of tile: an event count, a count of
+distinct browsers, a count of accounts, and an amount of money. The unit rides every row.
+
+| Metric | Shape | Source | Definition |
+|---|---|---|---|
+| New accounts | accounts | `auth.users.created_at` | An account row created in the window. An invitation counts when it is SENT, because that is when the row exists. Not the funnel's `signup`, which is email-path-only and would miss every OAuth account |
+| Active visitors | browsers | `funnel_events` | Distinct `visitor_id` with any event in the window. A browser, not a person: one human on a phone and a laptop is two |
+| Active signed-in accounts | accounts | `funnel_events` | Distinct non-null `user_id` in the window. The only unique-PERSON figure this ledger can honestly give |
+| Page loads | events | `funnel_events` | `visit` + `return` rows |
+| Graphics created | events | `funnel_events` | `activation` rows whose `detail` is not `video`. One per create, through any door. Not deduplicated per person - that is what "visitors who created something" is for |
+| Video projects created | events | `funnel_events` | `activation` rows with `detail = 'video'`. **Only recorded from the release that added the event**; earlier periods read zero because nothing was counting |
+| Visitors who created something | browsers | `funnel_events` | Distinct `visitor_id` with an `activation` in the window |
+| First-time creators | browsers | `funnel_events` | Of those, the ones with NO `activation` anywhere before the window. Returning creators is the remainder, so the two always sum to the whole |
+| Created while signed out / in | events | `funnel_events` | `activation` rows split on `user_id is null`. They sum to graphics + videos |
+| Graphics created without an account | events | `funnel_events` | `activation`, not `video`, `user_id is null`. A SUBSET of "graphics created", never an addition to it |
+| People creating without an account | browsers | `funnel_events` | Distinct `visitor_id` among those - so one prolific anonymous visitor is not read as adoption |
+| Exports completed without an account | events | `funnel_events` | `export` rows with `user_id is null` |
+| AI calls with no account at all | events | `ai_gateway_requests` | `user_id is null`. **Independent of the byo/managed split** - anonymity and whose key paid are separate facts, and prod already has an anonymous call on the managed key. Hosted Lite generation can never appear here (`ai_generations.user_id` is `NOT NULL`) |
+| Exports completed | events | `funnel_events` | `export` rows, written after the package reaches the disk. **Every row is a success and there is no failure counterpart**, so no export success RATE exists |
+| Lite generations started / usable / failed | events | `ai_generations` | Reservations, then `status in ('usable','accepted')` and `status in ('failed','unsupported','expired')`. The three do not sum: one still running is neither |
+| Accounts using Lite | accounts | `ai_generations` | Distinct `user_id` in the window |
+| Lite spend (ours) | USD | `ai_generations.provider_cost_usd` | Money this project spent |
+| Gateway calls on our key / on a user key | events | `ai_gateway_requests.key_source` | `managed` versus `byo`. **The BYO half is the user's own money and is never added to a spend figure** - the two tables are separate for exactly this reason (`0012`) |
+| Cloud renders submitted / completed / failed | events | `render_jobs` | All three counted by SUBMISSION time, so a job submitted inside a window and finished after it is started here and completed nowhere. That is why they are shown as counts and not as a rate |
+| Render time | duration | `render_jobs` | Median of `updated_at - created_at` over jobs that completed. Null - not zero - when nothing completed |
+
+**"Made without an account" is its own table**, because the editor has no login wall (root
+`AGENTS.md`, "Auth posture") and how much of the product's value reaches people who never sign up
+is a product answer rather than a footnote. Every row in it is a SUBSET of the tables above, which
+the page states so nobody adds the two together.
+
+Standing figures, not windowed: total accounts, suspended accounts, active grants, grants
+expiring within seven days, renders in flight, renders overdue (past their own deadline and still
+not terminal - the sweep missed them), and the first row date of each ledger, one per ledger.
+
+### The honest caveats, stated on the page as well as here
+
+- **"Never created anything" is an upper bound.** It counts creates ATTRIBUTED to an account, and
+  attribution only happens when the person was signed in at the time. The editor needs no
+  account, so somebody who built a graphic before registering is counted as never having created
+  one. Closing that gap would mean joining a browser id to an account, which is precisely the
+  cross-identifier link `docs/FUNNEL_EVENTS.md` refuses to build.
+- **The funnel is inert for anyone self-hosting, opted out, or sending Do Not Track**, so every
+  activity figure is a floor rather than a total.
+- **Partial history is visible.** Each ledger's first row date is on the page; a window reaching
+  back further than one of them reads as zero because nothing was counting yet.
+- **Per-template and per-category usage does not exist.** The creation event records the DOOR
+  (`template`, `design`, `ai`, `blank`, `import`, `kit`, `video`), never the variant. The
+  Templates section says so rather than showing a zero - it used to run a query against columns
+  `funnel_events` has never had, which errored on every request and reported every template as
+  unused.
+- **Retries, repairs and duplicates.** A Lite retry is the SAME `ai_generations` row (the
+  reservation is idempotent per `(user_id, idempotency_key)`, and `attempt_count`/`repair_count`
+  live on it), so retrying does not inflate the generation count. A create or an export that the
+  browser reported twice WOULD be two rows; the funnel has no dedup and none is invented here.
+- **Deleted projects are not subtracted.** These are event ledgers: a graphic that was made and
+  later deleted was still made. Nothing here counts what currently exists.
+
+### The daily AI budget bar
+
+Measured the way the RESERVATION function measures it - a **rolling 24 hours over the Lite ledger
+alone** (`ai_lite_usage`, `0010`) - and not as the calendar day the windows above use. The ceiling
+comes from the live profile rather than a number copied into the UI. A bar drawn against a
+differently-measured ceiling would mislead exactly when it matters.
+
+### Content-free, like everything else here
+
+Counts, ids, enumerated slugs and money. No prompt, brief, project name, template body, imported
+asset or free-text feedback can reach this response - the ledgers it reads deliberately cannot
+hold any (`docs/FUNNEL_EVENTS.md`, `src/ai/AGENTS.md`). The only strings rendered from a ledger
+are the enumerated distributions, whose keys are server-written slugs: a creation door, an export
+target id, a render format, a rejection code. `funnel_events.detail` additionally carries the
+`0016` CHECK constraint that makes free text impossible at the table.
+
+## 9. Model eligibility
+
+`GET /api/admin/models` joins the live provider listing (`aiModelDiscovery.ts`) with this
+repository's audited approved-route catalog (`aiModelCatalog.ts`), and answers one mechanical
+question: could a NoaCG-funded route point at this model at all?
+
+- **`approved`** - an audited entry in `APPROVED_MODEL_CATALOG`. **`eligible`** - the listing
+  clears every check but nothing here has audited or benched it. **`ineligible`** - at least one
+  check fails, and the row says which.
+- The checks are `FUNDED_ROUTE_PROVIDER`, current availability, structured-output support, and
+  the `FUNDED_ROUTE_PRICE_CEILING` applied to each side independently so a cheap input cannot
+  subsidize a dear output. An unpriced model is blocked rather than treated as free.
+- **Zero-data-retention is an AUDITED fact, never a discovered one.** The listing carries no
+  per-model retention flag - routing asks for ZDR per request, and whether a model can actually
+  be served that way is checked by hand at promotion. Anything outside the catalog reads "not
+  audited"; it never reads "no", which would be an equally unfounded claim in the other
+  direction.
+- An approved route the provider has stopped listing is reported as an outage, because the free
+  tier fails closed on a route it cannot reach.
+
+**None of the three verdicts is a statement about quality, and the section says so above the
+table.** A price table with capability ticks reads like a shortlist unless it is told not to.
+Nothing here has generated a token: discovery is a cached GET against a public listing, so
+opening the page can never cost money, and no benchmark can be triggered from it. Quality on this
+project is established by the NoaCG benchmarks and by nothing else
+(`docs/AI_LITE_PROMOTION.md`) - so there is no score column, no ordering by merit and no
+"recommended". A provider outage costs this section alone; the rest of `/admin` reads this
+instance's own data and is unaffected.

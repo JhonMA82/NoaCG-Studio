@@ -60,9 +60,16 @@ const SILENT_MERGE_FILES = [
 ];
 
 /**
- * Directories whose file names carry a SEQUENCE NUMBER that must be unique across the repo.
- * Two branches independently minting the same number merge cleanly and then collide at apply
- * time - the one trap this repo has actually been bitten by (migration numbering, twice).
+ * Directories whose file names carry a SEQUENCE NUMBER that must be unique AND applied in
+ * ascending order. Three distinct faults live here, none of which git ever reports, because
+ * two branches adding differently-named files never conflict textually:
+ *
+ *   - SAME number on two pending branches - one of them is simply wrong. `hold`.
+ *   - A number the TARGET already holds - that migration can never apply. `hold`.
+ *   - Ascending numbers landing in DESCENDING order: land `0025` before `0024` and `0024`
+ *     applies after it, leaving the ledger with a gap it fills out of sequence. Whether that
+ *     actually breaks depends on what the two migrations do, so this one is a `caution` - a
+ *     line worth reading, not a reason to stop.
  */
 const SEQUENCE_DIRS = ['supabase/migrations'];
 
@@ -120,16 +127,22 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
     }),
   );
 
+  // ONE call for the whole run, not one per pair: what the target already holds is the same
+  // answer for every branch, and it is the only thing the pairwise pass cannot work out alone.
+  const targetSequences = await targetSequenceNumbers(primary, target);
+  for (const branch of branches) recordTakenSequences(branch, targetSequences, target);
+
   await measurePairs(primary, branches);
   await markStacked(primary, branches);
 
   return {
     target,
+    primary,
     self: self?.branch ?? null,
     branches,
     order: rank(branches.filter((b) => readiness(b) === null)),
     notReady: branches
-      .map((b) => ({ branch: b.branch, reason: readiness(b) }))
+      .map((b) => ({ branch: b.branch, worktree: b.worktree, reason: readiness(b) }))
       .filter((entry) => entry.reason !== null),
   };
 }
@@ -155,6 +168,10 @@ async function measurePairs(primary, branches) {
         a.silent.push({ with: b.branch, ...note });
         b.silent.push({ with: a.branch, ...note });
       }
+      // Unlike the symmetric collisions above, being out of order is a fact about ONE side -
+      // only the higher-numbered branch causes it by going first, so each direction is asked.
+      recordOutOfOrder(a, b);
+      recordOutOfOrder(b, a);
       // A structural change is only expensive against a branch that touches what moved, and
       // the cost lands on whoever goes SECOND - so it is recorded per direction, not shared.
       recordStructural(a, b);
@@ -193,7 +210,11 @@ function silentCollisions(a, b) {
 
   const shared = SILENT_MERGE_FILES.filter((file) => touches(a, file) && touches(b, file));
   for (const file of shared) {
-    notes.push({ kind: 'shared-registry', detail: `both edit ${file} - a clean merge here unions entries rather than reconciling them` });
+    notes.push({
+      kind: 'shared-registry',
+      severity: 'hold',
+      detail: `both edit ${file} - a clean merge here unions entries rather than reconciling them`,
+    });
   }
 
   for (const dir of SEQUENCE_DIRS) {
@@ -202,12 +223,72 @@ function silentCollisions(a, b) {
     for (const [number, file] of mine) {
       const clash = theirs.get(number);
       if (clash && clash !== file) {
-        notes.push({ kind: 'sequence', detail: `both mint ${dir}/${number}_* (${file} vs ${clash}) - git merges both in and the number is taken twice` });
+        notes.push({
+          kind: 'sequence',
+          severity: 'hold',
+          detail: `both mint ${dir}/${number}_* (${file} vs ${clash}) - git merges both in and the number is taken twice`,
+        });
       }
     }
   }
 
   return notes;
+}
+
+/**
+ * Ascending numbers, descending landing order. Recorded on the HIGHER-numbered branch only:
+ * that is the one whose landing first causes the problem, and putting the note there also makes
+ * it sort behind its lower-numbered sibling, so the reported order fixes what the note warns
+ * about instead of merely describing it.
+ */
+function recordOutOfOrder(a, b) {
+  for (const dir of SEQUENCE_DIRS) {
+    const mine = highestSequence(a, dir);
+    const theirs = highestSequence(b, dir);
+    if (mine === null || theirs === null || mine.number <= theirs.number) continue;
+    a.silent.push({
+      with: b.branch,
+      kind: 'sequence-order',
+      severity: 'caution',
+      detail:
+        `mints ${dir}/${mine.padded}_* while ${b.branch} still holds ${theirs.padded}_* - ` +
+        `landing this first leaves ${theirs.padded} to apply after ${mine.padded}`,
+    });
+  }
+}
+
+/** Every sequence number the target branch already holds, per directory - one git call. */
+async function targetSequenceNumbers(primary, target) {
+  const held = new Map();
+  for (const dir of SEQUENCE_DIRS) {
+    const res = await git(['ls-tree', '--name-only', '-r', target, '--', dir], primary);
+    const numbers = new Map();
+    for (const file of res.stdout.split('\n').map((line) => line.trim()).filter(Boolean)) {
+      const match = /\/(\d+)[_-]/.exec(file);
+      if (match) numbers.set(match[1], file);
+    }
+    held.set(dir, numbers);
+  }
+  return held;
+}
+
+/** A number the target ALREADY holds cannot apply, whatever order anything lands in. */
+function recordTakenSequences(branch, targetSequences, target) {
+  for (const dir of SEQUENCE_DIRS) {
+    const taken = targetSequences.get(dir);
+    if (!taken) continue;
+    for (const [number, file] of sequenceNumbers(branch, dir)) {
+      const existing = taken.get(number);
+      if (existing && existing !== file) {
+        branch.silent.push({
+          with: target,
+          kind: 'sequence-taken',
+          severity: 'caution',
+          detail: `${file} takes number ${number}, which ${target} already holds as ${existing} - that number is spent`,
+        });
+      }
+    }
+  }
 }
 
 /** `structural` entries of `mover` whose old path `other` also touches - `other` pays if it goes second. */
@@ -270,7 +351,9 @@ function rank(ready) {
 /** Why safe-merge would refuse this branch today, or null when it is landable. */
 function readiness(branch) {
   if (branch.ahead === 0) return 'nothing committed ahead of the target';
-  if (branch.dirty) return `${branch.uncommitted.length} uncommitted file(s) in ${branch.worktree ?? 'its worktree'}`;
+  // The worktree is printed alongside this by the formatter, so naming it here too would
+  // print the same path twice on adjacent lines.
+  if (branch.dirty) return `${branch.uncommitted.length} uncommitted file(s)`;
   return null;
 }
 
@@ -301,7 +384,8 @@ export function verdictFor(assessment, branchName) {
     });
   }
   for (const note of branch.silent) {
-    reasons.push({ kind: note.kind, severity: 'hold', text: `${note.detail} (with ${note.with})` });
+    // A note without its own severity predates the per-note field and is a hold, as before.
+    reasons.push({ kind: note.kind, severity: note.severity ?? 'hold', text: `${note.detail} (with ${note.with})` });
   }
   if (branch.imposed > 0) {
     const spread = [...branch.conflicts.entries()].map(([other, files]) => `${other}: ${files.length}`).join(', ');
@@ -320,7 +404,17 @@ export function verdictFor(assessment, branchName) {
   // the exception - a stacked branch is wrong in itself, not merely early.
   const severity = worst === 'hold' && !landFirst && blockedBy.length === 0 ? 'caution' : worst;
 
-  return { severity, branch: branchName, reasons, landFirst, blockedBy };
+  // The recommendation is only actionable with the place attached - "land X first" is a
+  // question ("where IS X?") until it says which folder to open.
+  const landFirstBranch = assessment.branches.find((entry) => entry.branch === landFirst) ?? null;
+  return {
+    severity,
+    branch: branchName,
+    reasons,
+    landFirst,
+    landFirstWhere: landFirstBranch ? where(landFirstBranch, assessment.primary) : null,
+    blockedBy,
+  };
 }
 
 /** Sort/compare cost for "is something cheaper ready?" - structure dominates raw file counts. */
@@ -338,6 +432,20 @@ function touches(branch, path) {
     branch.files.some((file) => file.toLowerCase() === wanted) ||
     branch.uncommitted.some((file) => file.replaceAll('\\', '/').toLowerCase() === wanted)
   );
+}
+
+/**
+ * The highest sequence number this branch adds under `dir`, as `{ number, padded }`, or null.
+ * `padded` keeps the on-disk form (`0025`) so messages read like the filenames do; `number` is
+ * what gets compared, so `0009` vs `0010` orders numerically rather than as strings.
+ */
+function highestSequence(branch, dir) {
+  let best = null;
+  for (const padded of sequenceNumbers(branch, dir).keys()) {
+    const number = Number.parseInt(padded, 10);
+    if (Number.isFinite(number) && (best === null || number > best.number)) best = { number, padded };
+  }
+  return best;
 }
 
 /** `Map<number, file>` of sequence-numbered files this branch ADDS under `dir`. */
@@ -402,7 +510,7 @@ async function git(args, cwd, { raw = false } = {}) {
 }
 
 function empty(target) {
-  return { target, self: null, branches: [], order: [], notReady: [] };
+  return { target, primary: null, self: null, branches: [], order: [], notReady: [] };
 }
 
 function count(stdout) {
@@ -415,25 +523,90 @@ function isUnder(path, root) {
   return a === b || a.startsWith(`${b}/`);
 }
 
-/** The ranked order as human-readable lines. */
+/**
+ * The ranked order as human-readable lines.
+ *
+ * A branch name alone is not enough to act on. The person reading this has several sessions
+ * open and has to know WHICH WINDOW to go to - so the recommendation leads with the worktree
+ * folder, then the branch, then whatever says whether somebody is still sitting in it. That
+ * block is the whole point of the output; the ranked list underneath is the supporting detail.
+ */
 export function formatOrder(assessment) {
-  const { branches, order, notReady, target } = assessment;
+  const { branches, order, notReady, target, primary } = assessment;
   if (branches.length === 0) return [`Nothing is ahead of ${target} - no ordering question to answer.`];
 
-  const out = [`Landing order for the ${branches.length} branch(es) ahead of ${target}, cheapest first:`];
+  const out = [];
+
+  if (order.length === 0) {
+    // Every candidate is mid-session. Saying so beats printing an empty ranked list and
+    // letting the reader work out that the absence of a recommendation WAS the answer.
+    out.push('LAND FIRST: nothing can land right now.');
+    out.push(`  All ${branches.length} branch(es) ahead of ${target} have uncommitted work - each is somebody's live session.`);
+    out.push('');
+  }
+
+  if (order.length > 0) {
+    const first = order[0];
+    out.push('LAND FIRST');
+    out.push(`  worktree  ${where(first, primary)}`);
+    out.push(`  branch    ${first.branch}`);
+    out.push(`  session   ${session(first)}`);
+    out.push(`  why       ${describe(first)}`);
+    for (const line of stuckBehind(first, assessment)) out.push(`  note      ${line}`);
+    if (order.length === 1) out.push('  (it is the only branch that can land right now)');
+    out.push('');
+  }
+
+  out.push(`Full order for the ${branches.length} branch(es) ahead of ${target}, cheapest first:`);
   order.forEach((branch, index) => {
-    const why = describe(branch);
-    const self = branch.branch === assessment.self ? ' <- this session' : '';
-    out.push(`  ${index + 1}. ${branch.branch}${self} - ${why}`);
+    const self = branch.branch === assessment.self ? ' <- you are here' : '';
+    out.push(`  ${index + 1}. ${branch.branch}${self}`);
+    out.push(`     in ${where(branch, primary)} - ${describe(branch)}`);
   });
   for (const entry of notReady) {
-    out.push(`  - ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
-  }
-  if (order.length > 1) {
-    out.push('');
-    out.push(`Land first: ${order[0].branch}`);
+    const branch = branches.find((candidate) => candidate.branch === entry.branch);
+    out.push(`  -  ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
+    out.push(`     in ${where(branch, primary)}`);
   }
   return out;
+}
+
+/**
+ * Lines for the case where the top recommendation carries a note pointing at a branch that
+ * cannot land yet - "follow 0024" is confusing advice when 0024's worktree is dirty. Saying so
+ * turns an apparent contradiction into a decision: go tidy that worktree, or accept the note.
+ */
+function stuckBehind(branch, assessment) {
+  const lines = [];
+  for (const note of branch.silent) {
+    const blocked = assessment.notReady.find((entry) => entry.branch === note.with);
+    if (!blocked) continue;
+    lines.push(`${note.with} is what it should follow, but that branch cannot land yet (${blocked.reason})`);
+  }
+  return lines;
+}
+
+/**
+ * Where to go to act on this branch. Paths are shown relative to the primary checkout because
+ * the absolute ones are long and identical up to the last segment - the folder name IS how the
+ * user tells their open sessions apart.
+ */
+function where(branch, primary) {
+  if (!branch?.worktree) return 'no worktree - safe-merge will make a temporary one';
+  if (primary && branch.worktree.toLowerCase() === primary.toLowerCase()) return `${primary} (the primary checkout)`;
+  if (primary && branch.worktree.toLowerCase().startsWith(`${primary.toLowerCase()}/`)) {
+    return branch.worktree.slice(primary.length + 1);
+  }
+  return branch.worktree;
+}
+
+/** Whether anyone still appears to be working in it - the difference between "go there" and "it is yours to take". */
+function session(branch) {
+  if (!branch.worktree) return 'closed - the branch outlived its session, nobody is in it';
+  const parts = [];
+  if (branch.lastCommit) parts.push(`last commit ${branch.lastCommit.relative}: "${branch.lastCommit.subject}"`);
+  if (branch.uncommitted.length > 0) parts.push(`${branch.uncommitted.length} uncommitted file(s) - someone is probably still in it`);
+  return parts.length > 0 ? parts.join('; ') : 'open, nothing uncommitted';
 }
 
 function describe(branch) {
@@ -443,7 +616,10 @@ function describe(branch) {
     const withWhom = (branch.structuralHits ?? []).map((hit) => hit.with).join(', ');
     parts.push(`moves/deletes ${moved} path(s) ${withWhom} also edits - land it LAST so its own author absorbs the rest`);
   }
-  for (const note of branch.silent) parts.push(`${note.kind} collision with ${note.with}`);
+  for (const note of branch.silent) {
+    // "collision" is wrong for the ordering note - nothing collides, it just applies late.
+    parts.push(note.kind === 'sequence-order' ? `out of sequence vs ${note.with}` : `${note.kind} collision with ${note.with}`);
+  }
   if (branch.imposed > 0) parts.push(`${branch.imposed} conflicted file(s) imposed on ${branch.conflicts.size} other branch(es)`);
   if (parts.length === 0) parts.push(`free: conflicts with nothing in flight (${branch.ahead} commit(s), ${branch.files.length} file(s))`);
   return parts.join('; ');
@@ -454,7 +630,10 @@ export function formatVerdict(verdict) {
   const out = [`VERDICT: ${verdict.severity} (${verdict.branch})`];
   for (const reason of verdict.reasons) out.push(`  - ${reason.text}`);
   if (verdict.reasons.length === 0) out.push('  - costs no other branch in flight anything');
-  if (verdict.landFirst) out.push(`  Land first instead: ${verdict.landFirst}`);
+  if (verdict.landFirst) {
+    out.push(`  Land first instead: ${verdict.landFirst}`);
+    if (verdict.landFirstWhere) out.push(`                      in ${verdict.landFirstWhere}`);
+  }
   return out;
 }
 
@@ -476,6 +655,7 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
           target: assessment.target,
           order: assessment.order.map((b) => ({
             branch: b.branch,
+            worktree: b.worktree,
             ahead: b.ahead,
             files: b.files.length,
             imposed: b.imposed,

@@ -43,6 +43,7 @@ import {
   narrowFitTool,
   normalizeIntent,
   routeIntent,
+  STRUCTURAL_KIND_RULE,
   type GenerationMode,
   type RouteDecision,
   type StructuralIntent,
@@ -980,15 +981,22 @@ function routedSpecTool(base: ModelTool, route: RouteDecision | null): ModelTool
   return base;
 }
 
-/** Append the injected structural-satisfaction check's findings as WARNINGS on the final
- *  validation (non-blocking - plan §8: they never enter the frozen control's repair
- *  rounds; rigs and future arms read them).
+/** Append the injected structural-satisfaction check's findings to the final validation.
+ *  PARTS findings land as WARNINGS (plan §8: they never enter the frozen control's repair
+ *  rounds; rigs and future arms read them). KIND findings (rule 'structural-kind') land as
+ *  ERRORS (owner decision 2026-07-31, AI_PLATFORM_PLAN §16.3): a grounded assembly of the
+ *  wrong graphic - a technically valid lower third for a stinger brief - fails closed and
+ *  is surfaced as a failure the user can refine or regenerate, never delivered as a
+ *  success. Grounded assemblies have no repair loop, so blocking changes no repair rounds.
  *
  *  Runs on BOTH routed paths. It first shipped on the custom path alone, which left the
  *  benchmark's most common defect unmeasured: a catalog-routed brief that comes back as the
  *  wrong catalog member (a stinger assembled as a lower third) was never asked whether it
- *  was the graphic requested. `change.spec.variantId` is what makes that answerable, so the
- *  grounded path passes it; the custom path has no variant and is measured by parts. */
+ *  was the graphic requested. `change.spec.variantId` is what makes that answerable, and it
+ *  is passed ONLY for grounded results: a free-form result is not the variant its spec
+ *  names (the coder never ran variant.create()), so kind-checking it against that id would
+ *  be a confident finding on a measurement that never happened - the custom path is
+ *  measured by parts. */
 async function withStructuralFindings(
   change: AiTemplateChange,
   intent: StructuralIntent | null,
@@ -998,11 +1006,26 @@ async function withStructuralFindings(
   if (!intent || !options?.structuralCheck) return change;
   try {
     const t0 = Date.now();
-    const findings = await options.structuralCheck(change.template, intent, change.spec?.variantId);
+    const grounded = Boolean(change.path?.startsWith('grounded'));
+    const findings = await options.structuralCheck(
+      change.template,
+      intent,
+      grounded ? change.spec?.variantId : undefined,
+    );
     run.stage('structural-check', t0);
     if (!findings.length) return change;
+    const kind = findings.filter((f) => f.rule === STRUCTURAL_KIND_RULE);
+    const parts = findings.filter((f) => f.rule !== STRUCTURAL_KIND_RULE);
     const validation = change.validation ?? { ok: true, errors: [], warnings: [] };
-    return { ...change, validation: { ...validation, warnings: [...validation.warnings, ...findings] } };
+    return {
+      ...change,
+      validation: {
+        ...validation,
+        ok: validation.ok && kind.length === 0,
+        errors: [...validation.errors, ...kind],
+        warnings: [...validation.warnings, ...parts],
+      },
+    };
   } catch {
     return change; // the check is advisory - a check failure never costs the result
   }

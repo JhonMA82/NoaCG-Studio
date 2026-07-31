@@ -598,31 +598,72 @@ half of brief satisfaction (`templates/structuralAnchor.ts` +
 on the **grounded** path where the wrong-graphic defect actually happens, and added the free
 **benchmark preflight** (`npm run bench:preflight`). Nothing below was decided unilaterally.
 
-1. **Re-run the import-analysis vision round?** SPENDS MONEY. The 2026-07-29 run was not a
-   valid comparison, and one of its stated causes is now fixed: the per-axis size cap
-   rejected every portrait case. The cap is now a pixel budget plus a longest-edge ceiling
-   (`IMPORT_ANALYSIS_LIMITS.maxPixels` / `maxEdge`), so portrait artwork is admitted at the
-   same budget as landscape instead of being squeezed onto the short axis - which also
+1. **Re-run the import-analysis vision round?** RULED 2026-07-31: **not yet.** The 2026-07-29
+   run was not a valid comparison, and one of its stated causes is now fixed: the per-axis
+   size cap rejected every portrait case. The cap is now a pixel budget plus a longest-edge
+   ceiling (`IMPORT_ANALYSIS_LIMITS.maxPixels` / `maxEdge`), so portrait artwork is admitted
+   at the same budget as landscape instead of being squeezed onto the short axis - which also
    returns roughly 3x the pixels to a task whose whole job is reading small text.
    The other stated causes were NOT addressed and are not addressable for free: two
    candidates failed all 35 images for reasons never isolated, and the best region precision
-   was 23% against a gold ceiling of 100%. **A re-run is therefore a real bet, not a
-   formality** - the cap fix removes one confound; it does not promise a usable model. If it
-   runs, the candidates must be re-added to the approved catalog in the SAME change as the
-   run (they were removed deliberately - `api/_lib/aiModelCatalog.ts`).
+   was 23% against a gold ceiling of 100%. **Before any re-run**: the task's separate model
+   profile gets the same dry-run/preflight protection the Lite benches have, and the two
+   open questions above are investigated first. Paid vision candidates are NOT re-added to
+   the catalog merely to repeat the old experiment; if a re-run is eventually approved, the
+   candidates enter in the SAME change as the run that justifies them
+   (`api/_lib/aiModelCatalog.ts`).
 
-2. **Does the pixel-budget cap need re-ratifying?** Ratified decision 3 says images are
-   "downscaled to at most 1920x1080". The change keeps that pixel budget exactly and only
-   stops it being orientation-locked, so it is read as an INTERPRETATION of decision 3 (bound
-   what leaves the machine and what the call costs - both scale with pixel count, not with
-   orientation) rather than a new policy. Say if you want it treated as an amendment.
+   **Both preconditions are now met (2026-07-31).** The preflight:
+   `npm run bench:preflight -- --task=import-analysis <models>` resolves every arm through
+   the real `importAnalysisProfile` + task registry (route approval, pricing, allowlist,
+   kill switch, attribution, arm distinctness - free, no network), and `ai-vision-run.mjs`
+   runs the same preflight with each candidate's RESOLVED allowlist injected before any
+   call is paid for; its no-`--confirm-spend` dry run now includes it.
 
-3. **Should a kind mismatch be an ERROR rather than a warning?** Today
-   `structural-intent` findings are warnings on both paths, so a stinger that came back as a
-   lower third is surfaced but still offered. Making it blocking on the GROUNDED path is
-   cheap and has no repair loop to disturb (a grounded assembly does not repair), but it
-   changes what a user gets: today a wrong-kind result, afterwards an honest failure or a
-   re-pick. Left as a warning because that is a product call, not a correctness one.
+   **Investigation of the two all-35 failures (free evidence only):**
+   - The per-row error codes and predictions were written only to `vision-bench-out/` in a
+     since-deleted worktree; nothing was committed, so the uniform failures can no longer
+     be READ - only re-produced. (Lesson: a paid run's scorecards are part of the result;
+     keep them with the change that reports them.)
+   - The withdrawal commit (30d9946) narrows the suspects: llama-4-scout produced
+     predictions (it hallucinated regions on no-text art), so the two all-35 failures were
+     among gemini-2.5-flash, mistral-small-2603, gemma-3-12b-it and qwen3.5-9b.
+   - OpenRouter metadata TODAY shows both withdrawn models with multiple structured-output
+     endpoints inside their audited prices, so "no structured-output endpoint" was not the
+     mechanism. What free metadata CANNOT establish is ZDR/data-policy eligibility - the
+     profile requires `zdr` + `dataCollection: 'deny'` + `allowProviderFallbacks: false`,
+     and a candidate with zero ZDR-eligible endpoints fails every call identically. A
+     second candidate mechanism: qwen3.5-9b's endpoints expose `reasoning`, and a
+     reasoning-by-default model can burn the task's 2000-token output cap before emitting
+     the structured answer - also uniform across images.
+   - The two remaining hypotheses are only distinguishable by a paid call, so the re-run
+     protocol when approved: `--limit=2` per candidate FIRST (~cents), read the per-row
+     error codes (kept beside predictions since 99af44e), then decide the full pass.
+   - Region precision (23% best vs a 100% gold ceiling, 0% floor): with the predictions
+     gone this cannot be decomposed retrospectively. The instrumentation for next time
+     exists (predictions beside scores, `--limit` diagnosis, the pixel-budget fix restoring
+     ~3x pixels to portrait text); whether cheap VLMs can place boxes at all remains the
+     open product question - plan §6's no-coordinates lesson already assumes they cannot.
+
+2. **Does the pixel-budget cap need re-ratifying?** RULED 2026-07-31: recorded as an
+   **AMENDMENT to ratified decision 3**. Decision 3's "downscaled to at most 1920x1080" now
+   reads: downscaled to at most the 1920x1080 PIXEL BUDGET (`maxPixels` = 2,073,600) with a
+   1920px longest-edge ceiling (`maxEdge`), orientation-free. What leaves the machine and
+   what the call costs both scale with pixel count, not orientation, so the bound is
+   unchanged in substance; portrait artwork simply stops being squeezed onto its short axis.
+   Implemented in `src/ai/importAnalysis/contract.ts` (`IMPORT_ANALYSIS_LIMITS`) and
+   enforced client-side before anything leaves the machine (`client.ts`).
+
+3. **Should a kind mismatch be an ERROR rather than a warning?** RULED 2026-07-31: **an
+   error.** A structurally wrong-kind grounded result - a technically valid lower third for
+   a stinger brief - must not be delivered as a success. Implemented: kind findings carry
+   their own rule (`structural-kind`, `src/model/structuralIntent.ts`) and the provider
+   lands them as blocking ERRORS on grounded results (an honest failure the user refines or
+   regenerates); parts findings stay `structural-intent` warnings. Grounded assemblies have
+   no repair loop, so nothing about the frozen control's repair behaviour changes; the
+   custom path is never kind-checked (its spec's variantId names a chassis that was never
+   assembled). Regression: e2e/creative-routing.spec.ts drives the real provider with the
+   gateway intercepted and pins both directions.
 
 4. **Model promotion remains untouched.** No default model changed and none is proposed:
    the machine scores anti-correlated with human satisfaction, so they do not support a

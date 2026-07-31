@@ -54,8 +54,9 @@ export function TemplatesSection({ session }: { session: AdminSessionResponse })
 
       {list.data?.usageUnavailable ? (
         <p className="admin-problem">
-          Usage counts are unavailable on this deployment, so every count below reads zero. That is missing data,
-          not an unused template.
+          Per-template usage is not recorded. The creation event stores which <em>door</em> a graphic came through -
+          catalog, AI, import, blank, kit, video - and never which design was picked, so there is no count to show.
+          The column reads “-” rather than zero, because a zero here would say nobody used the template.
         </p>
       ) : null}
 

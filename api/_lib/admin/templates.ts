@@ -40,24 +40,27 @@ export default {
     const db = await adminDb();
 
     if (req.method === 'GET') {
-      const [overlay, community, funnel] = await Promise.all([
+      const [overlay, community] = await Promise.all([
         db.from('template_admin').select('template_key, source, visibility, note'),
         db.from('community_templates').select('id, slug, name, category, status').limit(500),
-        // Usage rides the funnel ledger the growth work already writes. When that table is not
-        // present (an instance that has not applied its migration), usage is reported as
-        // unavailable rather than as zero - a zero that means "no data" reads as "nobody used
-        // this", which is the kind of number an operator acts on wrongly.
-        db.from('funnel_events').select('properties').eq('name', 'graphic_created').limit(5000),
       ]);
       if (overlay.error) return apiError('internal', 'Could not read the template settings.', 500);
 
+      // PER-TEMPLATE USAGE IS NOT RECORDED, and this endpoint used to pretend otherwise: it
+      // read `funnel_events.properties` filtered on `name = 'graphic_created'`, and that table
+      // has neither column and no such event (migration 0016). The query therefore errored on
+      // every request, `usageUnavailable` came back true forever, and the counts were zero for
+      // a reason nobody could see.
+      //
+      // The honest position is the one the funnel actually supports: an activation records the
+      // DOOR a graphic came through (catalog, AI, import, blank, kit, video), never which
+      // variant was chosen, so there is no template id to count. Reporting that as unavailable
+      // is the correct answer rather than a stopgap - a zero that means "no data" reads as
+      // "nobody used this", which is the kind of number an operator acts on wrongly. Counting
+      // it would need a new field on the creation event, which is a deliberate change to make
+      // when somebody needs the number.
       const uses = new Map<string, number>();
-      const usageUnavailable = Boolean(funnel.error);
-      for (const row of (funnel.data ?? []) as { properties: unknown }[]) {
-        const props = row.properties && typeof row.properties === 'object' ? (row.properties as Record<string, unknown>) : {};
-        const key = typeof props.variantId === 'string' ? props.variantId : typeof props.templateId === 'string' ? props.templateId : '';
-        if (key) uses.set(key, (uses.get(key) ?? 0) + 1);
-      }
+      const usageUnavailable = true;
 
       const templates: AdminTemplateEntry[] = [];
       const seen = new Set<string>();

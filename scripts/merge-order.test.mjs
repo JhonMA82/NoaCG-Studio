@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
-import { assessMergeOrder, verdictFor } from './merge-order.mjs';
+import { assessMergeOrder, formatOrder, verdictFor } from './merge-order.mjs';
 
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -35,6 +35,14 @@ function makeRepo(t) {
   runGit(root, 'commit', '-m', 'Initial commit');
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
+}
+
+/** Check an EXISTING branch out in a linked worktree, the way a live session holds one. */
+function addWorktree(root, name, branch) {
+  const path = join(root, '.claude', 'worktrees', name);
+  mkdirSync(join(root, '.claude', 'worktrees'), { recursive: true });
+  runGit(root, 'worktree', 'add', path, branch);
+  return { branch, path };
 }
 
 /** Commit `files` on a fresh branch off main, then return to main. */
@@ -99,10 +107,83 @@ test('two branches minting the same migration number collide even though git mer
     `expected a sequence collision, got ${JSON.stringify(verdict.reasons)}`,
   );
 
-  // Different numbers are not a collision.
+  // A DIFFERENT number is never a duplicate. It can still be out of order, which is a separate
+  // and much milder finding - so assert on the kind rather than on "no notes at all".
   branchWith(root, 'feature/gamma', { 'supabase/migrations/0025_gamma.sql': 'select 3;\n' });
   const later = await assessMergeOrder(root);
-  assert.equal(later.branches.find((entry) => entry.branch === 'feature/gamma').silent.length, 0);
+  const gamma = later.branches.find((entry) => entry.branch === 'feature/gamma');
+  assert.ok(!gamma.silent.some((note) => note.kind === 'sequence'), 'a distinct number is not a duplicate');
+  assert.ok(gamma.silent.every((note) => note.severity === 'caution'), 'nothing about gamma is a hold');
+});
+
+test('a higher migration number is a caution against a lower one still pending, and sorts behind it', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/lower', { 'supabase/migrations/0024_lower.sql': 'select 1;\n' });
+  branchWith(root, 'feature/higher', { 'supabase/migrations/0025_higher.sql': 'select 2;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const higher = assessment.branches.find((entry) => entry.branch === 'feature/higher');
+  assert.equal(higher.imposed, 0, 'git reports no conflict - different file names never clash');
+
+  const verdict = verdictFor(assessment, 'feature/higher');
+  const note = verdict.reasons.find((reason) => reason.kind === 'sequence-order');
+  assert.ok(note, `expected a sequence-order reason, got ${JSON.stringify(verdict.reasons)}`);
+  assert.equal(note.severity, 'caution', 'out of order is a warning, not a stop');
+  assert.equal(verdict.severity, 'caution');
+
+  // The warning is only useful if the recommended order actually fixes it.
+  const order = assessment.order.map((entry) => entry.branch);
+  assert.ok(
+    order.indexOf('feature/lower') < order.indexOf('feature/higher'),
+    `lower number must land first, got ${order.join(' -> ')}`,
+  );
+
+  // The lower-numbered branch causes nothing and must stay clean.
+  assert.equal(verdictFor(assessment, 'feature/lower').severity, 'clear');
+});
+
+test('a migration number the target already holds is reported, though git merges it cleanly', async (t) => {
+  const root = makeRepo(t);
+  write(root, 'supabase/migrations/0023_already_on_main.sql', 'select 0;\n');
+  runGit(root, 'add', '-A');
+  runGit(root, 'commit', '-m', 'Add a migration to main');
+  branchWith(root, 'feature/reuses', { 'supabase/migrations/0023_reused.sql': 'select 1;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const branch = assessment.branches.find((entry) => entry.branch === 'feature/reuses');
+  assert.equal(branch.imposed, 0);
+
+  const verdict = verdictFor(assessment, 'feature/reuses');
+  assert.ok(
+    verdict.reasons.some((reason) => reason.kind === 'sequence-taken'),
+    `expected a sequence-taken reason, got ${JSON.stringify(verdict.reasons)}`,
+  );
+});
+
+test('a number above everything on the target is not flagged', async (t) => {
+  const root = makeRepo(t);
+  write(root, 'supabase/migrations/0023_already_on_main.sql', 'select 0;\n');
+  runGit(root, 'add', '-A');
+  runGit(root, 'commit', '-m', 'Add a migration to main');
+  branchWith(root, 'feature/next-number', { 'supabase/migrations/0024_next.sql': 'select 1;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  assert.deepEqual(assessment.branches.find((entry) => entry.branch === 'feature/next-number').silent, []);
+  assert.equal(verdictFor(assessment, 'feature/next-number').severity, 'clear');
+});
+
+test('sequence numbers compare numerically, not as strings', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/nine', { 'supabase/migrations/0009_nine.sql': 'select 9;\n' });
+  branchWith(root, 'feature/ten', { 'supabase/migrations/0010_ten.sql': 'select 10;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  // As strings "0010" < "0009" would be false and the note would land on the wrong branch.
+  assert.ok(
+    verdictFor(assessment, 'feature/ten').reasons.some((reason) => reason.kind === 'sequence-order'),
+    'the higher number (0010) is the one that lands out of order',
+  );
+  assert.equal(verdictFor(assessment, 'feature/nine').severity, 'clear');
 });
 
 test('a stacked branch is held behind the branch it contains', async (t) => {
@@ -168,6 +249,66 @@ test('a dirty branch is reported as not landable rather than ordered', async (t)
     `expected feature/dirty in notReady, got ${JSON.stringify(assessment.notReady)}`,
   );
   assert.ok(!assessment.order.some((entry) => entry.branch === 'feature/dirty'));
+});
+
+test('the report names the worktree and session, not just the branch', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/free', { 'docs/note.md': 'standalone\n' });
+  const { branch, path } = addWorktree(root, 'live-session', 'feature/free');
+  assert.equal(branch, 'feature/free');
+
+  const assessment = await assessMergeOrder(root);
+  const text = formatOrder(assessment).join('\n');
+
+  assert.match(text, /LAND FIRST/, 'the recommendation must be the headline');
+  assert.match(text, /worktree\s+\.claude[/\\]worktrees[/\\]live-session/, `no worktree path in:\n${text}`);
+  assert.match(text, /branch\s+feature\/free/, `no branch line in:\n${text}`);
+  assert.match(text, /session\s+last commit .*work on feature\/free/, `no session line in:\n${text}`);
+  assert.ok(path.length > 0);
+});
+
+test('a branch whose session closed says so instead of naming a worktree', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/orphan', { 'docs/orphan.md': 'left behind\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const text = formatOrder(assessment).join('\n');
+  assert.match(text, /no worktree - safe-merge will make a temporary one/, `expected the no-worktree wording in:\n${text}`);
+  assert.match(text, /session\s+closed - the branch outlived its session/, `expected the closed-session wording in:\n${text}`);
+});
+
+test('when every branch is mid-session the report says so rather than printing an empty list', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/busy', { 'busy.txt': 'committed\n' });
+  runGit(root, 'checkout', '-q', 'feature/busy');
+  write(root, 'busy.txt', 'uncommitted edit\n');
+
+  const assessment = await assessMergeOrder(root);
+  assert.deepEqual(assessment.order, []);
+  const text = formatOrder(assessment).join('\n');
+  assert.match(text, /LAND FIRST: nothing can land right now/, `expected the honest empty answer in:\n${text}`);
+});
+
+test('a recommendation that should follow an unlandable branch says why it cannot', async (t) => {
+  const root = makeRepo(t);
+  // The lower migration number is stuck behind uncommitted work, so the higher one leads
+  // the order while still carrying its out-of-sequence note. That combination must explain
+  // itself rather than telling the reader to land something that cannot move.
+  branchWith(root, 'feature/lower', { 'supabase/migrations/0024_lower.sql': 'select 1;\n' });
+  branchWith(root, 'feature/higher', { 'supabase/migrations/0025_higher.sql': 'select 2;\n' });
+  // Dirtiness is a property of a WORKTREE, not of a branch - an untracked file in the shared
+  // checkout would simply follow the next `git checkout` and dirty whatever is out.
+  const live = addWorktree(root, 'lower-session', 'feature/lower');
+  write(live.path, 'scratch.txt', 'work in progress\n');
+
+  const assessment = await assessMergeOrder(root);
+  assert.equal(assessment.order[0].branch, 'feature/higher', 'the lower one is not landable, so it cannot lead');
+  const text = formatOrder(assessment).join('\n');
+  assert.match(
+    text,
+    /feature\/lower is what it should follow, but that branch cannot land yet/,
+    `expected the stuck-behind note in:\n${text}`,
+  );
 });
 
 test('an empty checkout answers honestly instead of inventing an order', async (t) => {

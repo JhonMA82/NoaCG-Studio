@@ -170,6 +170,225 @@ export interface AdminUsageOverview {
   fleetSpendCeilingUsd: number;
 }
 
+// ── the overview dashboard ─────────────────────────────────────────────────────────────
+//
+// One rule governs every number below: the SHAPE of a measurement rides with it. An event
+// count, a count of distinct browsers, a count of accounts and an amount of money are four
+// different questions, and a dashboard that renders them as four identical tiles invites the
+// reader to add them together. The field names say which is which, and the section renders
+// each with its own unit rather than trusting the label alone.
+
+export type AdminPeriodId = 'day' | 'week' | 'month';
+
+/** Which ledger a metric is counted from. It exists so a comparison can be withheld for the
+ *  metrics whose history is too short WITHOUT withholding it for the ones whose history is
+ *  fine - these ledgers were switched on months apart, and treating them as one would hide a
+ *  registration trend because the funnel is young. */
+export type AdminLedgerId = 'accounts' | 'funnel' | 'lite' | 'gateway' | 'render';
+
+/** Everything countable inside one window. Every field is defined in docs/ADMIN.md §8 -
+ *  if a name here does not obviously say what it counts, the definition is the doc, not a
+ *  guess from the identifier. */
+export interface AdminOverviewMetrics {
+  /** Accounts whose registration timestamp falls in the window. An invitation counts when it
+   *  is sent, because that is when the account row exists. */
+  newAccounts: number;
+  /** Distinct BROWSERS that reported anything. Not people: one human on a phone and a laptop
+   *  is two, and a browser that opted out of the funnel is none. */
+  activeVisitors: number;
+  /** Distinct ACCOUNTS behind those browsers - the same window restricted to events that
+   *  carried a signed-in token. The only unique-person figure this ledger can honestly give. */
+  activeAccounts: number;
+  /** Page loads, first and returning. An event count. */
+  visits: number;
+  /** Email sign-ups reported by the browser. Deliberately excludes OAuth (docs/FUNNEL_EVENTS.md),
+   *  so it is always at or below `newAccounts` and is shown as a channel figure, never as
+   *  registrations. */
+  signups: number;
+  /** SPX graphics created, one per create. An event count, not a count of people. */
+  graphicsCreated: number;
+  /** Video projects created. Only recorded from the release that added the event - earlier
+   *  months read zero because nothing was counting, which the page states. */
+  videosCreated: number;
+  /** Distinct browsers that created at least one thing. */
+  creatingVisitors: number;
+  /** Of those, the ones with no earlier create anywhere in the ledger. */
+  firstTimeCreators: number;
+  /** Creates made while signed out, and while signed in. They sum to graphics + videos. */
+  anonymousCreates: number;
+  signedInCreates: number;
+  /** Graphics made with NO ACCOUNT. The editor has no login wall, so this is the free core's
+   *  promise measured rather than assumed. Graphics only, matching the split above. */
+  anonymousGraphics: number;
+  /** Distinct browsers that created something while signed out - so one enthusiastic
+   *  anonymous visitor cannot read as adoption. */
+  anonymousCreators: number;
+  /** Export packages that reached the disk. Every row is a success; there is no failure
+   *  counterpart, so no rate is computed from this. */
+  exports: number;
+  exportingVisitors: number;
+  /** Exports completed with no account - the free core delivering its whole value to someone
+   *  the product will never see again, which is the point rather than a leak. */
+  anonymousExports: number;
+  /** The NoaCG-funded Lite ledger: attempts, and their resolved outcomes. Successes and
+   *  failures do not sum to attempts - a generation still running is neither. */
+  aiGenerations: number;
+  aiSuccesses: number;
+  aiFailures: number;
+  /** Distinct accounts that started a Lite generation. */
+  aiUsers: number;
+  /** Provider cost of those generations, in USD. Money NoaCG spent. */
+  aiCostUsd: number;
+  /** Model-gateway traffic, split by whose key paid. Only the managed half is NoaCG's money. */
+  gatewayManaged: number;
+  gatewayByo: number;
+  /** AI calls with NO ACCOUNT AT ALL. Independent of the byo/managed split above - anonymity
+   *  and whose key paid are separate facts, and an anonymous caller can be on ours. The Lite
+   *  ledger cannot answer this either (hosted generation always has an account behind it), so
+   *  it is the only place account-free AI is counted. */
+  anonymousGatewayCalls: number;
+  gatewayManagedCostUsd: number;
+  gatewayFailures: number;
+  /** Cloud render jobs by submission time. A job submitted inside the window and finished
+   *  after it counts as started here and completed nowhere. */
+  rendersStarted: number;
+  rendersCompleted: number;
+  rendersFailed: number;
+  /** Median wall-clock time from submission to the last status write, over completed jobs.
+   *  Null when nothing completed in the window. */
+  renderMedianMs: number | null;
+}
+
+export interface AdminOverviewWindow {
+  id: AdminPeriodId;
+  /** ISO instants. Boundaries are local midnight in the reporting timezone, and every window
+   *  ends at `to` = the moment the page was generated. */
+  from: string;
+  to: string;
+  /** The same elapsed length, one period earlier - month-to-date against the same number of
+   *  days at the start of the previous month, never against a whole month. */
+  previousFrom: string;
+  previousTo: string;
+  metrics: AdminOverviewMetrics;
+  /** Null when the comparison span could not be read. Never silently zero. */
+  previous: AdminOverviewMetrics | null;
+  /** The ledgers whose history does not cover this comparison span, so "last period" is partly
+   *  a stretch of time they were not recording. A change measured against one of those would
+   *  render as growth when what actually changed is that counting began, so the page withholds
+   *  it - but ONLY for the metrics counted from those ledgers. The rest keep their comparison,
+   *  because the ledgers were switched on months apart and a single flag would hide a
+   *  registration trend on the grounds that the funnel is young. */
+  previousPartialLedgers: AdminLedgerId[];
+}
+
+/** The standing picture, not a window. */
+export interface AdminOverviewState {
+  totalAccounts: number;
+  suspendedAccounts: number;
+  /** Registered accounts with no create ATTRIBUTED to them. Attribution needs the person to
+   *  have been signed in at the time, so somebody who built a graphic before registering is
+   *  counted here - an upper bound on "never made anything", not an exact figure. */
+  accountsNeverCreated: number;
+  activeGrants: number;
+  grantsExpiringSoon: number;
+  rendersInFlight: number;
+  /** Past their own deadline and still not terminal - the sweep has not caught them. */
+  rendersOverdue: number;
+  /** The oldest row in each ledger, ONE PER LEDGER. A window reaching back further than one of
+   *  these is short for a reason nothing else on the page would show. They differ by months on
+   *  this instance, which is exactly why they are not collapsed into one number. */
+  accountsSince: string | null;
+  funnelSince: string | null;
+  generationsSince: string | null;
+  gatewaySince: string | null;
+  rendersSince: string | null;
+}
+
+/** An enumerated distribution: `bucket` names the question, `key` is a slug the product
+ *  itself writes (a creation door, an export target, a render format, a failure code). Never
+ *  user text - the underlying ledgers cannot hold any. */
+export interface AdminOverviewMixEntry {
+  bucket: string;
+  key: string;
+  count: number;
+}
+
+export interface AdminOverviewResponse {
+  /** The IANA zone every boundary above is expressed in. Stated because a dashboard whose
+   *  "today" is undefined is a dashboard two people read differently. */
+  timezone: string;
+  generatedAt: string;
+  windows: AdminOverviewWindow[];
+  state: AdminOverviewState | null;
+  /** Over the month-to-date window. */
+  mix: AdminOverviewMixEntry[];
+  /** False when the aggregation is not available on this database - a deployment whose
+   *  migrations are behind. The page says so rather than rendering an instance-wide zero. */
+  available: boolean;
+  /** NoaCG-funded Lite spend against the ceiling the reservation RPC actually enforces -
+   *  measured its way, a ROLLING 24 hours over the Lite ledger alone, not the calendar day
+   *  the windows above use. The two differ, and a bar drawn against a differently-measured
+   *  ceiling would mislead exactly when it matters. */
+  fleet: { spendLast24hUsd: number; ceilingUsd: number } | null;
+  /** Things an operator will look for and NOT find, named on the page. An absent metric that
+   *  is not explained reads as a zero. */
+  notTracked: string[];
+}
+
+// ── model eligibility ──────────────────────────────────────────────────────────────────
+
+/** `approved` = an audited entry in this repository's catalog. `eligible` = the live listing
+ *  clears every mechanical check but nothing has audited or benched it. `ineligible` = at
+ *  least one check fails. None of the three is a statement about quality. */
+export type AdminModelVerdict = 'approved' | 'eligible' | 'ineligible';
+
+export type ModelBlockCode =
+  | 'not-funded-provider'
+  | 'over-price-ceiling'
+  | 'price-unknown'
+  | 'no-structured-output'
+  | 'unavailable';
+
+export interface AdminModelRow {
+  key: string;
+  provider: string;
+  model: string;
+  name: string;
+  contextLength: number | null;
+  inputPerMillion: number | null;
+  outputPerMillion: number | null;
+  structuredOutput: boolean;
+  vision: boolean;
+  openWeight: boolean;
+  free: boolean;
+  available: boolean;
+  /** Zero-data-retention is an audited fact here, never a discovered one: the provider listing
+   *  carries no per-model flag, so anything outside the catalog is honestly unknown. */
+  zdr: 'audited' | 'unknown';
+  zdrAvailable: boolean | null;
+  approved: boolean;
+  verdict: AdminModelVerdict;
+  blocks: ModelBlockCode[];
+  createdAt: string | null;
+  isNew: boolean;
+}
+
+export interface AdminModelsResponse {
+  provider: string;
+  /** When the discovery cache was filled. */
+  syncedAt: string | null;
+  models: AdminModelRow[];
+  /** The rule the verdicts were measured against, so the page states it rather than leaving
+   *  the operator to infer it. */
+  rule: { provider: string; inputPerMillion: number; outputPerMillion: number; newModelDays: number };
+  /** Approved routes the provider stopped listing. The free tier fails closed on one of
+   *  these, so it is an outage, not a curiosity. */
+  missingApproved: string[];
+  /** True when the provider listing could not be read at all. The rest of /admin stays
+   *  usable; this section says why it is empty. */
+  discoveryFailed: boolean;
+}
+
 // ── output quality ─────────────────────────────────────────────────────────────────────
 
 /** One deterministic chassis against one broad intent facet, and what happened to it. Ids and

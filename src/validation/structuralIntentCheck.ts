@@ -4,9 +4,12 @@
 // gate; nothing asked "is this the graphic that was asked for").
 //
 // It measures PRESENCE and IDENTITY, not quality: pairwise human review stays the quality
-// instrument. Findings carry rule 'structural-intent' and are non-blocking by default - the
+// instrument. PARTS findings carry rule 'structural-intent' and stay non-blocking - the
 // provider appends them as warnings after the repair loop, so the frozen control's repair
-// rounds never change (plan §8). Future arms may wire them blocking through the same seam.
+// rounds never change (plan §8). KIND findings carry rule 'structural-kind' and BLOCK a
+// grounded result (owner decision 2026-07-31, AI_PLATFORM_PLAN §16.3): a wrong-kind graphic
+// is an honest failure, never delivered as a success. Grounded assemblies have no repair
+// loop, so blocking there disturbs nothing.
 //
 // It runs on BOTH routed paths. The check first shipped CREATE-only, which left the defect
 // the benchmark hit most often unmeasured: a brief that routes to the CATALOG path
@@ -21,11 +24,14 @@ import { composeDocument } from '../preview/composeDocument';
 import { parseAnimData } from '../blocks/animData';
 import { anchorsSatisfiedBy, structuralFit, variantSatisfiesAnchor } from '../templates/structuralAnchor';
 import type { SpxTemplate } from '../model/types';
-import type { StructuralIntent } from '../model/structuralIntent';
+import { STRUCTURAL_INTENT_RULE, STRUCTURAL_KIND_RULE, type StructuralIntent } from '../model/structuralIntent';
 import type { ValidationIssue } from './validateTemplate';
 
-const RULE = 'structural-intent';
-const issue = (message: string): ValidationIssue => ({ rule: RULE, message });
+const issue = (message: string): ValidationIssue => ({ rule: STRUCTURAL_INTENT_RULE, message });
+/** Kind findings carry their own rule because their SEVERITY differs: the provider blocks a
+ *  grounded result on them (owner decision 2026-07-31 - a wrong-kind graphic is an error),
+ *  while parts findings stay advisory warnings. */
+const kindIssue = (message: string): ValidationIssue => ({ rule: STRUCTURAL_KIND_RULE, message });
 
 /** How many same-classed siblings count as "a repeating group renders". Two is any pair of
  *  styled elements; three is a list. */
@@ -72,7 +78,7 @@ export function structuralKindFindings(
   if (!built.length) return [];
   if (variantSatisfiesAnchor(variantId, anchor)) return [];
   return [
-    issue(
+    kindIssue(
       `The brief asks for ${anchor} (${intent.summary}), but the assembled design ` +
         `"${variantId}" is ${built.join(' / ')}. That is a different graphic, not a ` +
         'different look.',

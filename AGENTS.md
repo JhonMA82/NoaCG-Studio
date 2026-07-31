@@ -363,7 +363,10 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   or push. **Selecting the safe-merge option from a pick the `next` workflow offered counts as
   invoking it** - the user chose that branch deliberately, so run the flow rather than telling
   them to type the command; see `.agent-workflows/next.md` §2c. It does not authorize branch or
-  worktree cleanup. The permission is scoped to that invocation and that branch; it never carries
+  worktree cleanup, with one carve-out: a branch with no worktree (a closed session leaves those
+  behind) has nowhere to integrate `main` and run the gate, so the flow creates a TEMPORARY
+  worktree for it and removes that same one at the end - never any other, never with `--force`.
+  The permission is scoped to that invocation and that branch; it never carries
   to another branch, a later turn, or any other route onto `main`. If the flow's checks fail,
   stop and report - permission to run the flow is not permission to land something broken.
 - **Merge ORDER is checked, not guessed.** `node scripts/merge-order.mjs` ranks every branch
