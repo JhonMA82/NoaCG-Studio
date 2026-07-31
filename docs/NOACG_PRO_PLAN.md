@@ -129,9 +129,21 @@ prompt-injection doctrine is restated in the Pro prompt).
   classifies them reconstructable. A reconstructed opaque panel *covers the baked
   original including its baked placeholder text* - which is what makes a clean result
   possible with a single image call and no clean-plate model.
-- **Baked text outside reconstructed panels**: attempt the existing deterministic
-  flat-fill erase (`DesignEraseState` machinery); a region the erase refuses stays in
-  the plate and is reported honestly as flattened.
+- **Baked text outside reconstructed panels**: the compile runs the existing deterministic
+  flat-fill erase (`assets/eraseRegion.ts`, the Import Graphic Prepare step's machinery)
+  over each such region of the crop. Only a flat verdict is applied - the Prepare step's
+  "use it anyway" has a human looking at a preview, the compiler runs unattended - so a
+  region the erase refuses stays in the plate with an honest warning naming the non-flat
+  background. `ProCompileReport.textErased` counts the clean removals.
+- **The crop's pad ring**: a side of the unit whose union edge is owned entirely by rebuilt
+  OPAQUE panels drops its pad - the CSS panel repaints that edge, so the tight crop loses
+  nothing and removes both the backdrop ring and the misregistered baked-panel peek (§10).
+  Sides that keep pad (text / logo / flattened raster at the edge) get a deterministic
+  matte pass (`matteRingTransparent`): a flat band is written as true transparency
+  (`ringMatted`), a non-flat one is reported, never guessed at. Dropping the raster
+  entirely (`artDropped`) additionally requires EVERY region to be rebuilt - a kept-raster
+  logo or flattened panel lives only in the crop, and dropping it would silently delete
+  them.
 - **Logos / portraits**: v1 keeps them in the plate and reports them (replaceable-asset
   slots are the next slice); an explicit `filelist` slot is only added when the brief
   asked for a logo field.
@@ -197,19 +209,26 @@ Lite; the Lite path is untouched). One step surface with explicit machine states
 
 ## 10. Known limitations (v1, measured)
 
-- **The crop ring.** The design unit is padded ~1.5% before cropping so region edges are
-  never shaved, which means a kept raster crop carries a thin ring of the concept's own
-  backdrop around the strap. Over real video that ring is visible. The clean fix is the
-  deferred image-edit clean-plate capability (or alpha matting); until then the concept
-  prompt keeps backdrops dark and quiet, and a fully reconstructed unit drops the raster
-  entirely.
+- **The crop ring** (narrowed by the erase slice, still real). The pad is now per side:
+  a union edge owned by rebuilt opaque panels crops tight (no ring, and the misregistered
+  baked-panel peek below goes with it), and a retained flat band mattes to transparency.
+  What remains is the honest residue: a NON-flat backdrop behind a retained-pad side stays
+  in the crop and is reported as a warning. Measured on the six checked-in fixtures, that
+  residue is the common case for model-generated concepts - their "dark and quiet"
+  backdrops spread 200+ counts per channel across the band, far past `FLAT_BG_TOLERANCE`,
+  and their accent bars come back as `kind: decorative` (kept raster in v1), which keeps
+  the pad on those edges. The clean fix for those remains the deferred image-edit
+  clean-plate capability (or alpha matting).
 - **Paint order is an unmeasured dimension.** The runtime bench measures rects, not paint,
   so a reconstructed opaque panel covering the live text passed every deterministic gate;
   only a rendered-frame screenshot caught it (fixed by insertion order, and the bench
   gallery is the standing tripwire). A vision judge over the hold frame is the general
   answer, deferred with the Lite judge's calibration doctrine.
-- **Baked text outside reconstructed panels** stays in the artwork and is reported, not
-  erased - the deterministic erase integration is the next slice.
+- **Baked text outside reconstructed panels** now runs the deterministic flat-fill erase
+  (§5); a non-flat background still refuses and is reported. Note the coverage honesty:
+  none of the six checked-in fixtures exercises the clean path (their text is panel-covered
+  and their backdrops non-flat), so the erase and matte behaviours are pinned by
+  e2e/pro.spec.ts with hand-built flat and gradient concepts instead.
 
 Findings from the first PAID round (2026-07-31, gemini-3.1-flash-image concepts +
 gemini-2.5-flash interpretation, ~$2 total including debugging):
@@ -228,8 +247,11 @@ gemini-2.5-flash interpretation, ~$2 total including debugging):
   replaceable slot was placed (the one remaining bank failure). Interpretation-prompt
   teaching, next round.
 - **Raster misregistration** - a rebuilt panel sits a percent or two off the baked one,
-  so crop pixels peek out beside it. Strengthens the case for the clean-plate slice and
-  for dropping the art more aggressively when everything meaningful was rebuilt.
+  so crop pixels peek out beside it. The erase slice took the geometric half: a
+  rebuilt-opaque panel edge now crops tight (the peek outside the interpreted edge is cut
+  away), and `artDropped` fires whenever every region was rebuilt and one opaque panel
+  covers the now-unpadded unit. A peek beside an edge the crop must keep - a flattened
+  panel, a kept logo - remains, and remains a clean-plate argument.
 
 ## 11. What v1 deliberately does not do
 

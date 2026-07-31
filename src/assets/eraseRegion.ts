@@ -1,5 +1,6 @@
 // Deterministic baked-text erase for imported artwork (the Import Graphic wizard's Prepare
-// step, docs/IMPORT_MVP.md). The user draws a rectangle over text that was exported INTO
+// step, docs/IMPORT_MVP.md; the NoaCG Pro compiler runs the same machinery over its concept
+// crop). The user draws a rectangle over text that was exported INTO
 // their design; if the background just outside that rectangle is flat, filling the rectangle
 // with that colour removes the text cleanly — no AI, no network, same input always gives the
 // same output. When the background is NOT flat (gradient / texture / photo), reconstruction
@@ -206,6 +207,90 @@ export async function eraseRegionFlat(dataUrl: string, rect: EraseRect): Promise
     sampling: { fill, maxDeviation, uniform, sampleCount },
     ink,
   };
+}
+
+/** The pad band a padded crop keeps on each side of a design unit, in SOURCE pixels. */
+export interface RingPad {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export interface MatteResult {
+  /** The matted artwork as a PNG data URL — the INPUT unchanged when `uniform` is false. */
+  dataUrl: string;
+  /** True when the whole band counted as flat and the matte was applied. */
+  uniform: boolean;
+  /** Worst per-channel spread across the band's pixels, alpha included (0–255). */
+  maxDeviation: number;
+}
+
+/**
+ * Make the artwork's outer PAD BAND transparent. A padded crop keeps a thin ring of the
+ * source image around the design so an imprecise region edge is never shaved — but that ring
+ * is the concept's own backdrop, and over real video it shows. Where the ENTIRE band is flat
+ * (nothing but backdrop, within FLAT_BG_TOLERANCE) it is safely disposable, so it is written
+ * as true transparency and the video shows through instead.
+ *
+ * Unlike eraseRegionFlat, a non-flat verdict returns the artwork UNTOUCHED: the erase backs a
+ * preview with a "use it anyway" button, while this runs unattended inside a compiler — a
+ * refusal must cost nothing. Deterministic: same input + pads ⇒ the same output bytes.
+ */
+export async function matteRingTransparent(dataUrl: string, pad: RingPad): Promise<MatteResult> {
+  const img = await loadImage(dataUrl);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const left = Math.max(0, Math.min(w, Math.round(pad.left)));
+  const top = Math.max(0, Math.min(h, Math.round(pad.top)));
+  const right = Math.max(0, Math.min(w - left, Math.round(pad.right)));
+  const bottom = Math.max(0, Math.min(h - top, Math.round(pad.bottom)));
+  if (left === 0 && top === 0 && right === 0 && bottom === 0) {
+    return { dataUrl, uniform: true, maxDeviation: 0 };
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is not available in this browser.');
+  ctx.drawImage(img, 0, 0);
+  const image = ctx.getImageData(0, 0, w, h);
+  const px = image.data;
+
+  const inBand = (x: number, y: number) =>
+    x < left || x >= w - right || y < top || y >= h - bottom;
+
+  const lo = [255, 255, 255, 255];
+  const hi = [0, 0, 0, 0];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!inBand(x, y)) continue;
+      const at = (y * w + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        const v = px[at + c];
+        if (v < lo[c]) lo[c] = v;
+        if (v > hi[c]) hi[c] = v;
+      }
+    }
+  }
+  const maxDeviation = Math.max(...hi.map((v, c) => v - lo[c]));
+  if (maxDeviation > FLAT_BG_TOLERANCE) return { dataUrl, uniform: false, maxDeviation };
+
+  // Write fully transparent BLACK, not just alpha 0 — a stray colour under zero alpha can
+  // still bleed through scaling filters as a fringe.
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!inBand(x, y)) continue;
+      const at = (y * w + x) * 4;
+      px[at] = 0;
+      px[at + 1] = 0;
+      px[at + 2] = 0;
+      px[at + 3] = 0;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return { dataUrl: canvas.toDataURL('image/png'), uniform: true, maxDeviation };
 }
 
 /**

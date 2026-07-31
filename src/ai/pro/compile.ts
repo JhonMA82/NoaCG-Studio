@@ -12,6 +12,7 @@ import { IMPORTED_DESIGN, PREFIX } from '../../templates/importedDesign/shared';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { addPlacedImageSlot, placeLine, setSlotSize } from '../../blocks/designLayout';
 import { uniqueAssetPath } from '../../assets/assetUtils';
+import { eraseRegionFlat, matteRingTransparent } from '../../assets/eraseRegion';
 import type { ProBrief } from './contract';
 import type { ProPlan, ProRegionOutcome } from './normalize';
 
@@ -21,6 +22,10 @@ export interface ProCompileReport {
   textFields: number;
   panelsRebuilt: number;
   flattened: number;
+  /** Baked text regions the deterministic flat-fill erase removed from the artwork. */
+  textErased: number;
+  /** True when the crop's pad ring was flat backdrop and was written as transparency. */
+  ringMatted: boolean;
   /** True when the reconstruction covered everything and the raster crop was dropped -
    *  the graphic is pure editable code. */
   artDropped: boolean;
@@ -135,16 +140,64 @@ export async function compileProPlan(
   const warnings = [...plan.warnings];
 
   // Full reconstruction: when opaque rebuilt shapes cover the whole unit, the raster crop
-  // adds nothing - drop it and the graphic is pure code.
+  // adds nothing - drop it and the graphic is pure code. Guarded on EVERY region being
+  // rebuilt: a kept-raster logo, image, or flattened panel lives only in the crop, and
+  // dropping the crop would silently delete it.
   const unitRect = { x: plan.unit.x, y: plan.unit.y, w: plan.unit.w, h: plan.unit.h };
   const artDropped = plan.panels.length > 0
+    && plan.outcomes.every((outcome) => outcome.treatment === 'rebuild-text' || outcome.treatment === 'rebuild-shape')
     && plan.panels.some((panel) => panel.opacity >= 0.98 && panel.shape === 'panel' && coverage(panel, unitRect) >= 0.96);
 
   const assets: SpxTemplate['assets'] = [];
   let artPath = '';
+  let textErased = 0;
+  let ringMatted = false;
   if (!artDropped) {
+    let art = await cropToUnit(concept.dataUrl, plan.unit);
+
+    // Baked placeholder text the reconstruction does NOT hide: run the deterministic
+    // flat-fill erase (the Import Graphic Prepare step's machinery) over each such region.
+    // Only a clean verdict is kept - the Prepare step's fill-anyway button has a human
+    // looking at a preview, while this runs unattended, so a non-flat background keeps the
+    // original pixels and the honest warning instead of a guessed fill.
+    for (const [index, rect] of plan.textRects.entries()) {
+      if (coveredByOpaquePanel(plan, rect)) continue;
+      const erased = await eraseRegionFlat(art, {
+        x: rect.x - plan.unit.x,
+        y: rect.y - plan.unit.y,
+        width: rect.w,
+        height: rect.h,
+      });
+      if (erased.sampling.uniform) {
+        art = erased.dataUrl;
+        textErased += 1;
+      } else {
+        const label = plan.fields[index]?.title ?? `text ${index + 1}`;
+        warnings.push(
+          `The concept's baked "${label}" text sits on a non-flat background, so it could not be erased cleanly - it stays visible in the artwork under the live field; restyle the panel to cover it or regenerate.`,
+        );
+      }
+    }
+
+    // The pad ring: the sides that still carry pad (their union edge is not a rebuilt opaque
+    // panel's) hold a thin band of the concept's own backdrop, visible over real video.
+    // Where the whole band is flat it is written as true transparency; a non-flat band is
+    // reported, never guessed at (plan §10).
+    const pad = plan.unitPad;
+    if (pad.left > 0 || pad.top > 0 || pad.right > 0 || pad.bottom > 0) {
+      const matte = await matteRingTransparent(art, pad);
+      if (matte.uniform) {
+        art = matte.dataUrl;
+        ringMatted = true;
+      } else {
+        warnings.push(
+          "A thin ring of the concept's backdrop remains around the design - it is not flat enough to remove automatically and can show over live video.",
+        );
+      }
+    }
+
     artPath = uniqueAssetPath('pro-concept.png', []);
-    assets.push({ path: artPath, data: await cropToUnit(concept.dataUrl, plan.unit) });
+    assets.push({ path: artPath, data: art });
   }
 
   let template = IMPORTED_DESIGN.create({
@@ -188,19 +241,6 @@ export async function compileProPlan(
   }));
   template = applyPlacedFieldSpecs(template, placed);
 
-  // Baked placeholder text the reconstruction does NOT hide is reported honestly - the
-  // named failure is leaving duplicates beneath live text and saying nothing.
-  if (!artDropped) {
-    plan.textRects.forEach((rect, index) => {
-      if (!coveredByOpaquePanel(plan, rect)) {
-        const label = plan.fields[index]?.title ?? `text ${index + 1}`;
-        warnings.push(
-          `The concept's baked "${label}" text is still visible in the artwork under the live field - edit the artwork or restyle the panel to cover it.`,
-        );
-      }
-    });
-  }
-
   // A requested logo becomes a real replaceable slot over the concept's logo area. A
   // request the interpretation found no logo area FOR is said out loud - silently
   // omitting the slot is how the first paid round's miss went unexplained.
@@ -240,6 +280,8 @@ export async function compileProPlan(
       textFields,
       panelsRebuilt,
       flattened,
+      textErased,
+      ringMatted,
       artDropped,
       editability: meaningful.length === 0 ? 1 : editable.length / meaningful.length,
       warnings,
