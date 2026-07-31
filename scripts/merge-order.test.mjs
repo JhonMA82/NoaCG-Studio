@@ -99,10 +99,83 @@ test('two branches minting the same migration number collide even though git mer
     `expected a sequence collision, got ${JSON.stringify(verdict.reasons)}`,
   );
 
-  // Different numbers are not a collision.
+  // A DIFFERENT number is never a duplicate. It can still be out of order, which is a separate
+  // and much milder finding - so assert on the kind rather than on "no notes at all".
   branchWith(root, 'feature/gamma', { 'supabase/migrations/0025_gamma.sql': 'select 3;\n' });
   const later = await assessMergeOrder(root);
-  assert.equal(later.branches.find((entry) => entry.branch === 'feature/gamma').silent.length, 0);
+  const gamma = later.branches.find((entry) => entry.branch === 'feature/gamma');
+  assert.ok(!gamma.silent.some((note) => note.kind === 'sequence'), 'a distinct number is not a duplicate');
+  assert.ok(gamma.silent.every((note) => note.severity === 'caution'), 'nothing about gamma is a hold');
+});
+
+test('a higher migration number is a caution against a lower one still pending, and sorts behind it', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/lower', { 'supabase/migrations/0024_lower.sql': 'select 1;\n' });
+  branchWith(root, 'feature/higher', { 'supabase/migrations/0025_higher.sql': 'select 2;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const higher = assessment.branches.find((entry) => entry.branch === 'feature/higher');
+  assert.equal(higher.imposed, 0, 'git reports no conflict - different file names never clash');
+
+  const verdict = verdictFor(assessment, 'feature/higher');
+  const note = verdict.reasons.find((reason) => reason.kind === 'sequence-order');
+  assert.ok(note, `expected a sequence-order reason, got ${JSON.stringify(verdict.reasons)}`);
+  assert.equal(note.severity, 'caution', 'out of order is a warning, not a stop');
+  assert.equal(verdict.severity, 'caution');
+
+  // The warning is only useful if the recommended order actually fixes it.
+  const order = assessment.order.map((entry) => entry.branch);
+  assert.ok(
+    order.indexOf('feature/lower') < order.indexOf('feature/higher'),
+    `lower number must land first, got ${order.join(' -> ')}`,
+  );
+
+  // The lower-numbered branch causes nothing and must stay clean.
+  assert.equal(verdictFor(assessment, 'feature/lower').severity, 'clear');
+});
+
+test('a migration number the target already holds is reported, though git merges it cleanly', async (t) => {
+  const root = makeRepo(t);
+  write(root, 'supabase/migrations/0023_already_on_main.sql', 'select 0;\n');
+  runGit(root, 'add', '-A');
+  runGit(root, 'commit', '-m', 'Add a migration to main');
+  branchWith(root, 'feature/reuses', { 'supabase/migrations/0023_reused.sql': 'select 1;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  const branch = assessment.branches.find((entry) => entry.branch === 'feature/reuses');
+  assert.equal(branch.imposed, 0);
+
+  const verdict = verdictFor(assessment, 'feature/reuses');
+  assert.ok(
+    verdict.reasons.some((reason) => reason.kind === 'sequence-taken'),
+    `expected a sequence-taken reason, got ${JSON.stringify(verdict.reasons)}`,
+  );
+});
+
+test('a number above everything on the target is not flagged', async (t) => {
+  const root = makeRepo(t);
+  write(root, 'supabase/migrations/0023_already_on_main.sql', 'select 0;\n');
+  runGit(root, 'add', '-A');
+  runGit(root, 'commit', '-m', 'Add a migration to main');
+  branchWith(root, 'feature/next-number', { 'supabase/migrations/0024_next.sql': 'select 1;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  assert.deepEqual(assessment.branches.find((entry) => entry.branch === 'feature/next-number').silent, []);
+  assert.equal(verdictFor(assessment, 'feature/next-number').severity, 'clear');
+});
+
+test('sequence numbers compare numerically, not as strings', async (t) => {
+  const root = makeRepo(t);
+  branchWith(root, 'feature/nine', { 'supabase/migrations/0009_nine.sql': 'select 9;\n' });
+  branchWith(root, 'feature/ten', { 'supabase/migrations/0010_ten.sql': 'select 10;\n' });
+
+  const assessment = await assessMergeOrder(root);
+  // As strings "0010" < "0009" would be false and the note would land on the wrong branch.
+  assert.ok(
+    verdictFor(assessment, 'feature/ten').reasons.some((reason) => reason.kind === 'sequence-order'),
+    'the higher number (0010) is the one that lands out of order',
+  );
+  assert.equal(verdictFor(assessment, 'feature/nine').severity, 'clear');
 });
 
 test('a stacked branch is held behind the branch it contains', async (t) => {
