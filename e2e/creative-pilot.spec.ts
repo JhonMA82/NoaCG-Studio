@@ -51,6 +51,60 @@ const BRACKET_SPEC = {
   designNote: 'The tree must read as a tree before any name is read.',
 };
 
+/** A minimal but genuinely VALID emit for the coder arms: the house contracts (a -box
+ *  element, the definition block, the runtime entry points, a readable data block) and
+ *  nothing else. The arms' grounding and the real validator run against this, so it has to
+ *  pass on its own merits - a fixture the validator waves through would prove nothing. */
+const SLATE = {
+  name: 'Test Slate',
+  type: 'info-card',
+  summary: 'A minimal test slate.',
+  html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Slate</title>
+  <script src="js/gsap.min.js"></script>
+  <link rel="stylesheet" href="css/template.css" />
+  <script src="js/template.js"></script>
+  <script>window.SPXGCTemplateDefinition = {
+    "description": "Test Slate",
+    "playserver": "OVERLAY", "playchannel": "1", "playlayer": "7",
+    "webplayout": "7", "out": "manual", "dataformat": "json",
+    "DataFields": [ { "field": "f0", "ftype": "textfield", "title": "Name", "value": "Hello AI" } ]
+  };</script>
+</head>
+<body>
+  <div class="slate">
+    <div class="slate-box"><span id="f0">Hello AI</span></div>
+  </div>
+</body>
+</html>`,
+  css: `:root { --accent: #e8c547; --text-color: #ffffff; --text-dim: rgba(255,255,255,0.7); --panel-bg: rgba(12,14,18,0.92); --font-heading: sans-serif; --scale: 1; }
+.slate { position: absolute; left: 80px; bottom: 80px; opacity: 0; }
+.slate-box { color: var(--text-color); background: var(--panel-bg); padding: calc(20px * var(--scale)); width: fit-content; max-width: calc(900px * var(--scale)); overflow-wrap: break-word; }`,
+  js: `function update(data) {
+  var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+  for (var key in fields) { var el = document.getElementById(key); if (el) el.textContent = fields[key]; }
+}
+/* == ANIMATION (generated — the timeline edits the data block below) == */
+var NOACG_ANIM = {
+  "version": 1,
+  "root": ".slate",
+  "speed": 1,
+  "steps": [
+    { "name": "In", "duration": 0.5, "ease": "power2.out", "layers": { ".slate": { "opacity": [ { "time": 0, "value": 0 }, { "time": 0.5, "value": 1 } ] } } },
+    { "name": "Out", "duration": 0.3, "ease": "power2.in", "layers": { ".slate": { "opacity": [ { "time": 0.3, "value": 0 } ] } } }
+  ]
+};
+function buildInTimeline() { var tl = gsap.timeline(); tl.to('.slate', { opacity: 1, duration: 0.5, ease: 'power2.out' }); return tl; }
+function buildOutTimeline() { var tl = gsap.timeline(); tl.to('.slate', { opacity: 0, duration: 0.3, ease: 'power2.in' }); return tl; }
+/* == END ANIMATION == */
+function play() { gsap.killTweensOf('*'); buildInTimeline(); }
+function stop() { gsap.killTweensOf('*'); buildOutTimeline(); }
+function next() {}`,
+};
+
 test.describe('creative pilot (phase C)', () => {
   test('the scaffold compiles a valid template, and its animation targets really exist', async ({ page }) => {
     await open(page);
@@ -382,6 +436,117 @@ test.describe('creative pilot (phase C)', () => {
     expect(runs.d.css).toContain('creative-champion-fix');
     expect(runs.d.css).not.toContain('.creative-row { border-bottom'); // the first patch is gone
     expect(calls.filter((c) => c === 'emit_frame_critique')).toHaveLength(1);
+  });
+
+  test('arms A and B run end to end against a stubbed gateway - control wiring, de-anchored coder, its repair round', async ({ page }) => {
+    await open(page);
+    test.setTimeout(120_000);
+    // The two CODER arms. Arm B is the one with genuinely new glue (neutral example ->
+    // repairLoop -> convertEmittedRegion -> the structural check), and its failure during a
+    // paid run would waste the run - so it is exercised here, for free, including a repair
+    // round. Arm A is the frozen control: what is proven is the WIRING, never its behaviour.
+    let emitMode: 'fail-then-fix' | 'good' = 'fail-then-fix';
+    let templateCalls = 0;
+    const systems: string[] = [];
+    const tools: string[] = [];
+
+    await page.route('**/api/ai/generate', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        request?: { system?: string; structuredOutput?: { name?: string } };
+      };
+      const tool = body.request?.structuredOutput?.name ?? '';
+      tools.push(tool);
+      const answer = (output: unknown) => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ output, usage: { inputTokens: 200, outputTokens: 80, totalTokens: 280 }, provider: 'openrouter', model: 'stub', attempts: [] }),
+      });
+      if (tool === 'emit_structural_intent') {
+        return answer({
+          kind: 'type', typeId: 'bracket', confidence: 'high', summary: 'A playoff bracket.',
+          parts: [{ id: 'tree', role: 'bracket' }], fields: [], originalityRequested: false, beyondScope: false,
+        });
+      }
+      if (tool === 'emit_design_spec') {
+        return answer({
+          fit: 'custom', reason: 'No catalog family carries this structure.',
+          name: 'Test Slate', summary: 'A minimal test slate.', category: 'info-card',
+          lines: [{ title: 'Name', sample: 'Hello AI' }],
+        });
+      }
+      if (tool === 'emit_template') {
+        systems.push(body.request?.system ?? '');
+        templateCalls += 1;
+        // Round 1 of the fail-then-fix mode has no update() - a deterministic 'runtime'
+        // error, so the repair round is driven by the real validator, not by a stub flag.
+        const broken = emitMode === 'fail-then-fix' && templateCalls === 1;
+        return answer({ ...SLATE, js: broken ? 'var nothing = true;' : SLATE.js });
+      }
+      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'x', message: 'unexpected stage' } }) });
+    });
+
+    const runArm = async (arm: 'A' | 'B') => page.evaluate(async ({ intent, arm }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const r = await runCreativeArm(arm as 'A' | 'B', {
+        brief: 'A four-team playoff bracket.',
+        intent: normalizeIntent(intent),
+        context: { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 },
+        validate: productionSpxValidator(),
+        structuralCheck: benchStructuralIntent,
+      });
+      return {
+        ok: r.ok,
+        error: r.error ?? null,
+        repairRounds: r.repairRounds,
+        stages: r.stages.map((s) => s.stage),
+        tokens: r.stages.reduce((sum, s) => sum + (s.usage?.outputTokens ?? 0), 0),
+        // The emit is GROUNDED on the way in, not passed through: the data block survives
+        // and the definition is parsed back into real fields.
+        fieldCount: r.template?.fields.length ?? 0,
+        hasAnimData: (r.template?.js ?? '').includes('NOACG_ANIM'),
+        structural: r.structural.length,
+      };
+    }, { intent: BRACKET_INTENT, arm });
+
+    const b = await runArm('B');
+    const bTemplateCalls = templateCalls;
+    const bSystems = [...systems];
+
+    emitMode = 'good';
+    templateCalls = 0;
+    const a = await runArm('A');
+
+    // Arm B: the de-anchored coder emitted, failed the REAL validator, repaired once, and
+    // the repaired result is what came back.
+    expect(b.error).toBeNull();
+    expect(bTemplateCalls).toBe(2);
+    expect(b.repairRounds).toBe(1);
+    expect(b.stages).toEqual(['coder', 'repair-1']);
+    expect(b.ok).toBe(true);
+    expect(b.fieldCount).toBe(1);
+    expect(b.hasAnimData).toBe(true);
+    // The structural check ran and DISAGREED: a one-field slate does not serve a bracket
+    // brief, whatever the validator thinks of its code. That gap is the measurement the
+    // whole pilot turns on (§11 criterion 2) - a machine-valid result that is not the
+    // graphic that was asked for. Its twin is the arm-C test above, where a scaffold built
+    // for this same intent reports zero.
+    expect(b.structural).toBeGreaterThan(0);
+    expect(b.tokens).toBeGreaterThan(0); // the cost ledger the §12 numbers come from
+    // …and BOTH of its calls carried the neutral example, repair included - a repair round
+    // that quietly re-anchored on the catalog would break the whole A-vs-B comparison.
+    expect(bSystems).toHaveLength(2);
+    expect(bSystems.every((s) => s.includes('graphic-box') && !s.includes('.lower-third-box {'))).toBe(true);
+
+    // Arm A: the control's wiring - the provider's own stages are read back off the
+    // telemetry ring, which is where §12's cost and latency for this arm come from.
+    expect(a.error).toBeNull();
+    expect(a.stages).toContain('intent');
+    expect(a.stages).toContain('design-spec');
+    expect(a.stages).toContain('coder');
+    expect(a.ok).toBe(true);
+    expect(tools.filter((t) => t === 'emit_structural_intent')).toHaveLength(1);
   });
 
   test('the anti-anchoring rule: the de-anchored arm studies a skeleton, the control a catalog design', async ({ page }) => {

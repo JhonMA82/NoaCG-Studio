@@ -25,9 +25,29 @@ export const IMPORT_ANALYSIS_REGION_ROLES = [
 ] as const;
 
 export const IMPORT_ANALYSIS_LIMITS = {
-  /** Downscale ceiling (ratified decision 3): the browser re-encodes to fit inside this. */
+  /** Downscale ceiling (ratified decision 3): the browser re-encodes to fit inside this.
+   *  These two describe the LANDSCAPE reference frame and are what the status endpoint
+   *  reports; the enforced limits are `maxPixels` + `maxEdge` below. */
   maxWidth: 1920,
   maxHeight: 1080,
+  /**
+   * The real budget, and the reason it is expressed in PIXELS rather than per axis.
+   *
+   * The cap was `width <= 1920 && height <= 1080`, which is not a size limit but a shape
+   * limit: a 1080x1920 portrait artwork carries exactly the same 2.07M pixels as the
+   * landscape frame it was refused for. The 2026-07-29 vision round is the evidence -
+   * every portrait case was rejected outright, which is one of the reasons that run was
+   * not a valid comparison (api/_lib/aiModelCatalog.ts records the rest). Worse silently:
+   * artwork that DID pass had been squeezed to fit the short axis, so a portrait poster
+   * reached the model at 608x1080 - a third of its budget spent on nothing, on a task
+   * whose entire job is reading small text.
+   *
+   * What the limit is actually for is bounding what leaves the machine and what the call
+   * costs; both scale with pixel count, not with orientation. So: a pixel budget, plus a
+   * longest-edge ceiling so a pathological 4000x500 strip cannot pass on area alone.
+   */
+  maxPixels: 1920 * 1080,
+  maxEdge: 1920,
   maxImages: 1,
   /** Base64 payload cap - a 1920x1080 JPEG/PNG re-encode sits far under this; the cap is
    *  the endpoint's own honest 400, well below the platform body limit. */
@@ -35,6 +55,22 @@ export const IMPORT_ANALYSIS_LIMITS = {
   instructionChars: 500,
   maxRegions: 12,
 } as const;
+
+/**
+ * Is this an admissible analysis image? ONE predicate, shared by the browser's downscaler
+ * and the endpoint's validation, because the previous split let them disagree: the client
+ * fitted each axis while the server checked each axis against a landscape frame, so the
+ * only shapes that worked were the ones the client had already flattened.
+ *
+ * Orientation-independent by construction - swap width and height and the answer cannot
+ * change, which is the property the old cap lacked.
+ */
+export function importAnalysisImageSizeOk(width: number, height: number): boolean {
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return false;
+  if (width < 16 || height < 16) return false;
+  if (width * height > IMPORT_ANALYSIS_LIMITS.maxPixels) return false;
+  return Math.max(width, height) <= IMPORT_ANALYSIS_LIMITS.maxEdge;
+}
 
 export interface ImportAnalysisRegion {
   kind: 'text' | 'logo' | 'image' | 'decorative';

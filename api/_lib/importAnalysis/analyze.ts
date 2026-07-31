@@ -35,6 +35,7 @@ import {
 } from '../aiLiteStore.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
+  importAnalysisImageSizeOk,
   IMPORT_ANALYSIS_OUTPUT,
   importAnalysisSystemPrompt,
   type ImportAnalysisRequest,
@@ -76,12 +77,9 @@ function validateRequest(value: unknown): ImportAnalysisRequest {
     || !BASE64.test(image.base64)
     || !image.base64.startsWith(image.mediaType === 'image/png' ? PNG_BASE64_PREFIX : JPEG_BASE64_PREFIX)
   ) throw new Error('image data');
-  if (
-    !Number.isInteger(image.width) || !Number.isInteger(image.height)
-    || Number(image.width) < 16 || Number(image.height) < 16
-    || Number(image.width) > IMPORT_ANALYSIS_LIMITS.maxWidth
-    || Number(image.height) > IMPORT_ANALYSIS_LIMITS.maxHeight
-  ) throw new Error('image size');
+  // The shared predicate, so the endpoint and the browser's downscaler cannot disagree
+  // about what fits (contract.ts explains why it is pixels, not per-axis).
+  if (!importAnalysisImageSizeOk(Number(image.width), Number(image.height))) throw new Error('image size');
   return body as unknown as ImportAnalysisRequest;
 }
 

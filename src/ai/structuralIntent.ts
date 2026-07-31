@@ -10,7 +10,6 @@
 // `routeIntent` decides.
 
 import type { ModelTool } from './modelGateway';
-import { CATEGORIES, type TemplateCategory } from '../model/wizard';
 import {
   INTENT_ZONES,
   isIntentAnswer,
@@ -19,8 +18,9 @@ import {
   type RouteDecision,
   type StructuralIntent,
 } from '../model/structuralIntent';
-import { typeById, TYPES } from '../templates/types/registry';
-import { variantsFor } from '../templates/catalog';
+// The anchor vocabulary lives in templates/ because the SATISFACTION CHECK needs the same
+// answer and validation/ may not import ai/ - see src/templates/structuralAnchor.ts.
+import { structuralFit, structuralVocabulary } from '../templates/structuralAnchor';
 
 // Re-exported so harness consumers (provider, stub, rigs, specs) keep one import path.
 export { isIntentAnswer, normalizeIntent };
@@ -133,49 +133,10 @@ export const INTENT_TOOL: ModelTool = {
 
 // ── The vocabulary (compact - this prompt must stay small, never the 18k digest) ──
 
-/** Composition families the router can anchor to catalog structures. ADVISORY vocabulary:
- *  an unlisted family word routes like novel (create), it never fails. Anchors are checked
- *  LIVE against the registry/catalog, so catalog growth updates routing by itself. */
-const FAMILY_ANCHORS: Record<string, { types?: string[]; categories?: TemplateCategory[] }> = {
-  strap: { categories: ['lower-third'] },
-  card: { categories: ['info-card'] },
-  board: { categories: ['results-board', 'infographic'] },
-  table: { categories: ['results-board'] },
-  bracket: { types: ['bracket'] },
-  tree: { types: ['bracket'] },
-  split: { categories: ['versus', 'matchup'] },
-  versus: { categories: ['versus', 'matchup'] },
-  'ring-meter': { categories: ['infographic'] },
-  strip: { categories: ['ticker'] },
-  'full-frame-reveal': { categories: ['reveal'] },
-  tower: { types: ['timing-tower'] },
-  stack: { types: ['timing-tower'] },
-};
-
-/** The intent prompt's known-structure listing: type ids + categories + family words.
- *  Hundreds of tokens, not thousands - the digest stays out of the intent stage. */
-export function intentVocabulary(): string {
-  const types = TYPES.map((t) => `${t.id} (${t.name})`).join(', ');
-  const categories = CATEGORIES.map((c) => c.id).join(', ');
-  const families = Object.keys(FAMILY_ANCHORS).join(', ');
-  // Scope notes come from the registry itself (GraphicType.structuralScope), so the router's
-  // idea of a type's coverage cannot drift from the type - the day the bracket learns double
-  // elimination, its note changes here in the same commit.
-  const scoped = TYPES.filter((t) => t.structuralScope);
-  const scopeNotes = scoped.length
-    ? [
-        'Scope notes - what a listed structure actually covers. A brief that matches a noted',
-        'entry but needs structure its note excludes is beyondScope, not a plain match:',
-        ...scoped.map((t) => `- ${t.id}: ${t.structuralScope}`),
-      ].join('\n')
-    : '';
-  return [
-    `Known graphic types: ${types}.`,
-    `Known catalog categories: ${categories}.`,
-    `Known composition families: ${families}.`,
-    ...(scopeNotes ? [scopeNotes] : []),
-  ].join('\n');
-}
+/** The intent prompt's known-structure listing. Re-exported from the shared anchor module
+ *  so the prompt teaches exactly the vocabulary the router and the satisfaction check
+ *  resolve against - three copies of this list is how they drift apart. */
+export const intentVocabulary = structuralVocabulary;
 
 export function intentSystemPrompt(): string {
   return `You are the structural analyst inside NoaCG Studio, a broadcast graphics tool.
@@ -214,50 +175,10 @@ Return ONLY via the emit_structural_intent tool.`;
 
 // ── The route decision (deterministic - the model proposes, this decides) ────
 
-const categoryHasVariants = (c: TemplateCategory): boolean => variantsFor(c).length > 0;
-
-/** One identifier resolved against EVERY vocabulary: a graphic-type id, a family word's
- *  live anchors, or a catalog category. Which vocabulary a word belongs to is not the
- *  model's problem - the router's job is recognizing the structure it named. */
-function resolveAnchor(word: string | undefined): string | null {
-  if (!word) return null;
-  if (typeById(word)) return `type:${word}`;
-  const anchors = FAMILY_ANCHORS[word];
-  if (anchors) {
-    for (const t of anchors.types ?? []) {
-      if (typeById(t)) return `type:${t}`;
-    }
-    for (const c of anchors.categories ?? []) {
-      if (categoryHasVariants(c)) return `category:${c}`;
-    }
-    return null;
-  }
-  if (categoryHasVariants(word as TemplateCategory)) return `category:${word}`;
-  return null;
-}
-
-/** Does a catalog structure carry this intent? Checked LIVE against the registry and
- *  catalog, so a family gains fit the day its designs land (and a stale expected-route
- *  table shows up as a routing diff, not silent drift).
- *
- *  The kind says whether the model matched a listed structure; the NAME of that structure
- *  may land in either id slot - measured on the 2026-07-30 open-model runs, small models
- *  routinely emit kind=type with the id in `families`, or a family word in `typeId`
- *  ("type:strap"). Punishing the slot turned correct classifications into false CREATEs,
- *  so a declared match resolves every named identifier against every vocabulary
- *  (requirements over labels, the §6 rule). Hybrid and novel stay unfit by declaration. */
-export function structuralFit(intent: StructuralIntent): { fit: boolean; anchor?: string } {
-  if (intent.kind !== 'type' && intent.kind !== 'family') return { fit: false };
-  const words =
-    intent.kind === 'type'
-      ? [intent.typeId, ...(intent.families ?? [])]
-      : [...(intent.families ?? []), intent.typeId];
-  for (const word of words) {
-    const anchor = resolveAnchor(word);
-    if (anchor) return { fit: true, anchor };
-  }
-  return { fit: false };
-}
+/** Re-exported from the shared anchor module: the router and the satisfaction check must
+ *  agree on WHICH structure a brief promised, so they resolve through one implementation
+ *  (src/templates/structuralAnchor.ts). */
+export { structuralFit };
 
 /**
  * The deterministic route decision (plan §2). An explicit mode is never overridden. Auto is
