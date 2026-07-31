@@ -289,7 +289,26 @@ function buildAnimData(spec: CreativeSpec, regions: ScaffoldRegion[], prefix: st
 
   for (const state of spec.states ?? []) {
     const targets = (state.revealRegions ?? []).map((id) => regions.find((r) => r.id === id)).filter(Boolean) as ScaffoldRegion[];
-    if (!targets.length) continue;
+    if (!targets.length) {
+      // A declared state whose revealRegions name nothing still compiles to a REAL middle
+      // step - a gentle emphasis beat the author refines in the timeline. Skipping it (the
+      // first smoke run's behaviour) silently deleted 12/15 results' operator states: the
+      // spec schema does not force revealRegions, so cheap models routinely declare states
+      // without them, and a declared operator beat that vanishes at compile time is exactly
+      // the brief-satisfaction failure the verify stage then reports. The platform owns
+      // correctness: clamp to a degraded-but-present step, never drop (plan §3.4).
+      steps.push({
+        name: state.id,
+        duration: 0.6,
+        ease: 'power3.out',
+        layers: {
+          [`.${prefix}-box`]: {
+            opacity: [{ time: 0, value: 1 }, { time: 0.3, value: 0.85 }, { time: 0.6, value: 1 }],
+          },
+        },
+      });
+      continue;
+    }
     steps.push({
       name: state.id,
       duration: 0.6,

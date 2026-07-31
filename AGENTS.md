@@ -204,7 +204,9 @@ public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports)
 scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATION - docs/
                DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, type-floor.mjs + overflow-sweep.mjs (catalog
                quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
-               render-smoke*.mjs, hooks/ (guard hooks wired in .claude/settings.json)
+               render-smoke*.mjs, worktree-activity.mjs (who else is in flight) +
+               merge-order.mjs (which branch should land FIRST - see Git below),
+               hooks/ (guard hooks wired in .claude/settings.json)
   api/         server-only Vercel functions: the render service plus the Creative AI model
                gateway, NoaCG Lite profile/allowance endpoints, sealed user-key endpoints, and
                api/admin/* behind _lib/adminAuth.ts (404 for every refusal - docs/ADMIN.md);
@@ -355,13 +357,25 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   main, no `git push origin main`. Being in the primary checkout on `main` is not
   permission to land - the user decides when work lands, *after* they know the change is safe.
   Commit verified work to the feature branch, report what you did and verified, and STOP.
-- **The one exception is invoking the repo's merge-to-main flow by name** (`/safe-merge` in
+- **The one exception is the user invoking the repo's merge-to-main flow** (`/safe-merge` in
   Claude Code or `$safe-merge` in Codex). Invoking it IS the ask: run that flow to completion for
   the named branch - preflight, merge into `main`, and push - without asking again for the merge
-  or push. It does not authorize branch or worktree cleanup. The permission is scoped to that
-  invocation and that branch; it never carries to another branch, a later turn, or any other route
-  onto `main`. If the flow's checks fail, stop and report - permission to run the flow is not
-  permission to land something broken.
+  or push. **Selecting the safe-merge option from a pick the `next` workflow offered counts as
+  invoking it** - the user chose that branch deliberately, so run the flow rather than telling
+  them to type the command; see `.agent-workflows/next.md` §2c. It does not authorize branch or
+  worktree cleanup, with one carve-out: a branch with no worktree (a closed session leaves those
+  behind) has nowhere to integrate `main` and run the gate, so the flow creates a TEMPORARY
+  worktree for it and removes that same one at the end - never any other, never with `--force`.
+  The permission is scoped to that invocation and that branch; it never carries
+  to another branch, a later turn, or any other route onto `main`. If the flow's checks fail,
+  stop and report - permission to run the flow is not permission to land something broken.
+- **Merge ORDER is checked, not guessed.** `node scripts/merge-order.mjs` ranks every branch
+  ahead of `main` by what landing it FIRST costs the other worktrees, measuring real conflicts
+  with `git merge-tree` (read-only - no working tree, no ref) and naming the collisions git
+  merges cleanly and still gets wrong: a rename over another branch's edits, two branches minting
+  the same migration number, a stacked branch jumping its ancestor. `next` uses it to avoid
+  recommending an expensive landing; `safe-merge` runs it in Phase 1 and stops for a go-ahead
+  only on a `hold`. It is advisory about order alone and never overrides a Hard safety rule.
 - **Commit messages:** clear and human-readable, explaining the actual change - understandable to an
   outside developer reading the history cold. No chat/session language, internal planning names, or
   AI-sounding phrases ("as requested", "starting era 5", "continued work"). Never mention Claude,

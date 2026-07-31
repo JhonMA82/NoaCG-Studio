@@ -283,6 +283,91 @@ test.describe('creative routing (phase A)', () => {
     expect(result.rightGraphic).toEqual([]);
   });
 
+  test('a wrong-kind grounded result FAILS CLOSED at the provider - the matched kind stays ok', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The owner decision (AI_PLATFORM_PLAN §16.3, ruled 2026-07-31): a structurally
+    // wrong-kind grounded assembly is an ERROR, not a warning - a technically valid lower
+    // third must never be DELIVERED for a stinger brief. Driven through the real provider
+    // with the gateway intercepted, so the whole seam is pinned: intent -> route ->
+    // grounded assembly -> the structural check's kind finding landing as a blocking error.
+    // The mutation twin reruns the identical flow with the design stage answering the RIGHT
+    // category; if the severity mapping ever stops firing (or fires indiscriminately), one
+    // of the two halves fails.
+    let designCategory = 'lower-third';
+    await page.route('**/api/ai/generate', async (route) => {
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        request?: { structuredOutput?: { name?: string } };
+        route?: { model?: string };
+      };
+      const tool = body.request?.structuredOutput?.name ?? '(text)';
+      const answer = (output: unknown) => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          output,
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+          provider: 'openrouter', model: body.route?.model ?? '', attempts: [],
+        }),
+      });
+      if (tool === 'emit_structural_intent') {
+        // What a correct classifier returns for a stinger brief - routing to adapt is RIGHT.
+        await answer({
+          kind: 'type', typeId: 'transition', confidence: 'high',
+          summary: 'A full-frame stinger that covers a cut.',
+          parts: [{ id: 'cover', role: 'full-frame cover' }],
+          fields: [], originalityRequested: false, beyondScope: false,
+        });
+      } else if (tool === 'emit_design_spec') {
+        await answer({ fit: 'catalog', category: designCategory, lines: [], summary: 'test spec' });
+      } else {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'x', message: 'bench stop' } }) });
+      }
+    });
+    const runs = await page.evaluate(async () => {
+      const { saveAiSettings } = await import('/src/ai/settings.ts');
+      saveAiSettings({ provider: 'openrouter', model: 'qwen/qwen3-coder-next', fallbacks: [] });
+      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
+      const change = await claudeProvider.generate(
+        'A full-frame stinger that wipes the screen between segments.',
+        ctx as never,
+        { structuralCheck: benchStructuralIntent } as never,
+      );
+      return {
+        path: change.path ?? null,
+        ok: change.validation?.ok ?? null,
+        kindErrors: (change.validation?.errors ?? []).filter((e) => e.rule === 'structural-kind').map((e) => e.message),
+        kindWarnings: (change.validation?.warnings ?? []).filter((w) => w.rule === 'structural-kind').length,
+      };
+    });
+    // The wrong graphic: assembled, surfaced, and FAILING - not delivered as a success.
+    expect(runs.path).toBe('grounded');
+    expect(runs.ok).toBe(false);
+    expect(runs.kindErrors.length).toBe(1);
+    expect(runs.kindErrors[0]).toContain('different graphic');
+    expect(runs.kindWarnings).toBe(0); // an error, not merely a warning
+
+    designCategory = 'transition';
+    const twin = await page.evaluate(async () => {
+      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
+      const change = await claudeProvider.generate(
+        'A full-frame stinger that wipes the screen between segments.',
+        ctx as never,
+        { structuralCheck: benchStructuralIntent } as never,
+      );
+      return {
+        ok: change.validation?.ok ?? null,
+        kindFindings: [...(change.validation?.errors ?? []), ...(change.validation?.warnings ?? [])]
+          .filter((f) => f.rule === 'structural-kind').length,
+      };
+    });
+    expect(twin.ok).toBe(true);
+    expect(twin.kindFindings).toBe(0);
+  });
+
   test('a lower third returned for a timing-tower brief is a finding', async ({ page }) => {
     await open(page);
     const result = await page.evaluate(async () => {

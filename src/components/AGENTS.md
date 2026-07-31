@@ -58,6 +58,11 @@ in src/blocks/AGENTS.md.
   Where the reach is unknowable the old flat pad stands: a legacy/unparsable region, MEASURED
   motion, or PERCENT travel (`xPercent`/`yPercent` moves a layer by a fraction of its own size,
   which the data does not carry). Pinned by e2e/pasteboard.spec.ts.
+  A template RUNTIME ERROR is worn on the stage itself (`.preview-runtime-error`, from the
+  store's previewError - the same fact the Export gate reports): before it, a template whose JS
+  threw at load was a silently broken canvas unless the Export panel happened to be open. The
+  badge is pointer-events: none (a label, never a control) and clears itself because every
+  rebuild starts by resetting previewError. Pinned by e2e/preview-error.spec.ts.
 - **CanvasGuides**.
 - **spaceKey.ts - WHO OWNS A KEY.** Several components listen on `window` for the same keys.
   They are SIBLINGS ON ONE NODE, so `stopPropagation` cannot reach across and the order they

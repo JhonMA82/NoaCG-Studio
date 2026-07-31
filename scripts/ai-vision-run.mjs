@@ -25,6 +25,7 @@ import {
   BASE, killTree, providerAllowlistFor, readEnvFile, settlePort, startServer, tokenMinter,
   waitForReady,
 } from './ai-bench-server.mjs';
+import { printPreflightReport, runTaskPreflight } from './ai-task-preflight.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
@@ -280,22 +281,60 @@ if (ARM !== 'model') {
   }
   const fileEnv = await readEnvFile();
   const minter = tokenMinter(fileEnv);
-  console.log(`Plan: ${candidates.length} candidate(s) x ${records.length} image(s) = `
+
+  // Resolved BEFORE anything else: an empty allowlist leaves the route unconfigured, which
+  // fails closed after the server is already up and looks like a server fault - and a
+  // candidate with NO structured-output endpoint at all fails every call identically, the
+  // uniform wall the 2026-07-29 round could not diagnose. Every candidate resolves up front
+  // so one broken arm is found before its neighbours are paid for.
+  const allowlists = {};
+  for (const model of candidates) {
+    try {
+      allowlists[model] = await providerAllowlistFor(model);
+    } catch (e) {
+      console.error(`\n${model}: ${e.message}`);
+      console.error('This candidate would fail every image. Fix the plan before spending.');
+      process.exit(1);
+    }
+  }
+
+  // The FREE profile preflight (api/_lib/aiBenchPreflight.ts): resolve every arm through
+  // the real import-analysis profile and registry under EXACTLY the environment this
+  // runner will inject, so an unapproved route, a silent override, or a mis-injected flag
+  // is caught here rather than read as model character afterwards.
+  const preflight = await runTaskPreflight({
+    task: 'import-analysis',
+    candidates,
+    ambient: fileEnv,
+    requireEvalIdentity: true,
+    includeIncumbent: false,
+    armEnvExtra: Object.fromEntries(candidates.map((model) => [
+      model,
+      { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: allowlists[model] },
+    ])),
+  });
+  console.log('');
+  const preflightOk = printPreflightReport(preflight);
+  if (!preflightOk) {
+    console.error('\nPreflight FAILED - nothing spent. Each failure above produces a');
+    console.error('complete, plausible-looking, worthless result set.');
+    process.exit(1);
+  }
+
+  console.log(`\nPlan: ${candidates.length} candidate(s) x ${records.length} image(s) = `
     + `${candidates.length * records.length} vision call(s). Cap $${MAX_COST_USD}.`);
   console.log(minter.canMint
     ? 'Token: minted fresh per candidate from the .env test account.'
     : 'Token: hand-supplied - a long run may outlive it.');
   if (!CONFIRMED) {
-    console.log('\nDRY RUN - nothing spent. Re-run with --confirm-spend to execute.');
+    console.log('\nDRY RUN - preflight OK, nothing spent. Re-run with --confirm-spend to execute.');
     process.exit(0);
   }
 
   const scorecards = [];
   for (const model of candidates) {
     console.log(`\n=== ${model}`);
-    // Resolved BEFORE the server starts: an empty allowlist leaves the route unconfigured,
-    // which fails closed after the server is already up and looks like a server fault.
-    const providers = await providerAllowlistFor(model);
+    const providers = allowlists[model];
     console.log(`  provider allowlist: ${providers}`);
     const server = startServer({
       AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
