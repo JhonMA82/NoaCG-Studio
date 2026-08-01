@@ -40,6 +40,12 @@ export interface ProPlan {
   frame: { width: number; height: number };
   /** The design UNIT: the region union the compiler crops the concept to. */
   unit: { x: number; y: number; w: number; h: number };
+  /** The pad the unit ACTUALLY carries per side (crop px). A side is padded so an imprecise
+   *  region edge is never shaved — but where the union edge is owned entirely by rebuilt
+   *  OPAQUE panels, the CSS panel repaints that edge anyway, so the pad is dropped: cropping
+   *  tight there loses nothing and removes both the concept-backdrop ring and any
+   *  misregistered baked panel bleed (the §10 peek). */
+  unitPad: { left: number; top: number; right: number; bottom: number };
   fields: FieldProposal[];
   /** The confident text regions' own boxes (full-frame px) - what the compiler checks
    *  panel coverage against when deciding whether baked placeholder text survives. */
@@ -166,6 +172,9 @@ export function normalizeProInterpretation(
   const textRects: ProPlan['textRects'] = [];
   const outcomes: ProRegionOutcome[] = [];
   const warnings = interpretation.warnings.slice(0, 8);
+  /** Every confident region's rect, flagged when it is a rebuilt OPAQUE panel — the edge
+   *  ownership the per-side pad decision below reads. */
+  const edgeRects: Array<{ x: number; y: number; w: number; h: number; rebuiltOpaque: boolean }> = [];
 
   // The unit: every confident region's union, padded so the crop never shaves an edge
   // pixel off the strap. Empty (a report with no usable regions) degrades to the whole
@@ -186,6 +195,11 @@ export function normalizeProInterpretation(
     if (region.confidence < CONFIDENCE_FLOOR) return;
     const rect = pxRect(region, frame);
     if (rect.w <= 2 || rect.h <= 2) return;
+    edgeRects.push({
+      ...rect,
+      rebuiltOpaque: treatment === 'rebuild-shape' && region.kind === 'panel'
+        && Math.min(1, Math.max(0, region.panel?.opacity ?? 1)) >= 0.95,
+    });
     left = Math.min(left, rect.x);
     top = Math.min(top, rect.y);
     right = Math.max(right, rect.x + rect.w);
@@ -214,14 +228,35 @@ export function normalizeProInterpretation(
   });
 
   const pad = Math.round(frame.height * 0.015);
+  // A side keeps its pad only when a region that is NOT a rebuilt opaque panel owns part of
+  // the union edge there (text, a logo, a flattened panel — raster the crop must not shave).
+  // A rebuilt-opaque-panel edge is repainted by its CSS layer, so the pad is dropped and the
+  // crop lands exactly on the interpreted edge.
+  const sidePad = (owns: (rect: { x: number; y: number; w: number; h: number }) => boolean) =>
+    edgeRects.filter(owns).every((rect) => rect.rebuiltOpaque) ? 0 : pad;
+  const pads = {
+    left: sidePad((rect) => rect.x <= left + 1),
+    top: sidePad((rect) => rect.y <= top + 1),
+    right: sidePad((rect) => rect.x + rect.w >= right - 1),
+    bottom: sidePad((rect) => rect.y + rect.h >= bottom - 1),
+  };
   const unit = right > left && bottom > top
     ? {
-        x: Math.max(0, left - pad),
-        y: Math.max(0, top - pad),
-        w: Math.min(frame.width, right + pad) - Math.max(0, left - pad),
-        h: Math.min(frame.height, bottom + pad) - Math.max(0, top - pad),
+        x: Math.max(0, left - pads.left),
+        y: Math.max(0, top - pads.top),
+        w: Math.min(frame.width, right + pads.right) - Math.max(0, left - pads.left),
+        h: Math.min(frame.height, bottom + pads.bottom) - Math.max(0, top - pads.top),
       }
     : { x: 0, y: 0, w: frame.width, h: frame.height };
+  // What the crop actually carries per side (frame clamping can shrink a pad).
+  const unitPad = right > left && bottom > top
+    ? {
+        left: left - unit.x,
+        top: top - unit.y,
+        right: unit.x + unit.w - right,
+        bottom: unit.y + unit.h - bottom,
+      }
+    : { left: 0, top: 0, right: 0, bottom: 0 };
   if (unit.w === frame.width && unit.h === frame.height && interpretation.regions.length > 0) {
     warnings.push('No confident regions were reported, so the whole frame was kept as the design unit.');
   }
@@ -235,6 +270,7 @@ export function normalizeProInterpretation(
     graphicTypeConfidence: clamp01(interpretation.graphicTypeConfidence),
     frame,
     unit,
+    unitPad,
     fields: analyzed.fields,
     textRects,
     // Larger panels paint first so an accent bar drawn over the strap stays visible.

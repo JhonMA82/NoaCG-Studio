@@ -1137,12 +1137,13 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  /* 240, not 264, so FIVE cards sit on ONE row at 1366px - the Entry step's height budget
-     (see .wz-hero) is spent by a second row, not by a card being wide. Measured: at 264 the
-     fifth card wraps and the step overflows by 30px; at 240 the row holds and the block is
-     196px instead of 340. Going narrower is counter-productive - 232 wraps the text enough
-     to grow the cards back. e2e/wizard-entry-fit.spec.ts is the guard. */
-  width: 240px;
+  /* 198, not 240, so all SIX cards (the AI Pro card made it six) sit on ONE row at 1366px -
+     the Entry step's height budget (see .wz-hero) is spent by a second row, not by a card
+     being wide. Measured at 1366x768: the entry row gets 1259px, and 6x198 + 5x14 gap =
+     1258 holds while 240 wrapped "Blank project" onto a second row and overflowed the step
+     by 48px. The narrower card wraps its hint one line more and the row grows ~20px taller -
+     still ~150px cheaper than the second row. e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 198px;
   padding: 16px 18px;
   text-align: left;
   display: flex;

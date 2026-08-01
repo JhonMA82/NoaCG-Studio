@@ -267,6 +267,7 @@ export default function ProStep({ format, onFormat, result, onResult }: Props) {
           <p className="hint">
             {result.report.textFields} editable text field(s) · {result.report.panelsRebuilt} rebuilt
             shape(s){result.report.artDropped ? ' · fully reconstructed, no raster left' : ''}
+            {result.report.textErased > 0 ? ` · ${result.report.textErased} baked text region(s) erased from the artwork` : ''}
             {result.report.flattened > 0 ? ` · ${result.report.flattened} region(s) left flattened` : ''}
           </p>
           <ul className="hint" data-testid="pro-outcomes">

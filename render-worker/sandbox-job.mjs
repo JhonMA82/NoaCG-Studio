@@ -15,6 +15,9 @@
 // Reports through the progress-file protocol the api reconciler reads:
 //   { state, progress, renderedFrames?, encodedFrames?, totalFrames?, outputBytes?,
 //     blobUrl?, contentType?, error? }
+// Failures report 'render_failed', except Blob problems, which report 'upload_failed' -
+// a misconfigured store is an ops fault, not a broken graphic, and the two need telling
+// apart at a glance.
 // Only @remotion/renderer, @vercel/blob, and node builtins are available in the sandbox,
 // so the PNG-sequence zip is hand-rolled (no jszip dependency).
 
@@ -35,6 +38,21 @@ function writeProgress(snapshot, { force = false } = {}) {
   renameSync(tmp, progressPath);
 }
 
+// Finished files are served straight from their unguessable renders/<jobId>/… URL, so the
+// store must accept PUBLIC writes - the 4.5 MB function response cap rules out proxying
+// downloads through our API (docs/RENDER.md, "Security posture"). A private store therefore
+// rejects every upload, which is why the store is proven BEFORE the render burns sandbox
+// time rather than after.
+const BLOB_TOKEN = (process.env.BLOB_READ_WRITE_TOKEN ?? '').trim();
+const BLOB_PUT = { access: 'public', addRandomSuffix: false, token: BLOB_TOKEN };
+
+/** Tag a Blob failure so the catch below reports it as an ops fault, not a bad graphic. */
+function uploadError(reason, cause) {
+  const detail = cause instanceof Error ? cause.message : cause ? String(cause) : '';
+  const message = `${reason}${detail ? ` - ${detail}` : ''}. The render Blob store must be configured for PUBLIC access (docs/RENDER.md).`;
+  return Object.assign(new Error(message), { progressCode: 'upload_failed' });
+}
+
 // Per-format output file + content type (mirrors src/render/manifest.ts RENDER_FORMATS).
 const OUT = {
   mp4: { ext: 'mp4', contentType: 'video/mp4' },
@@ -52,8 +70,26 @@ try {
   const out = OUT[format];
   if (!out) throw new Error(`unknown render format: ${format}`);
 
+  if (!BLOB_TOKEN) throw uploadError('BLOB_READ_WRITE_TOKEN is missing from the sandbox environment');
+  const { put, del } = await import('@vercel/blob');
+
+  // Prove the store accepts a public write now: the alternative is discovering it at the
+  // upload, with the whole render already paid for.
+  let probe;
+  try {
+    probe = await put(`${blobPath}.preflight`, 'noacg-preflight', { ...BLOB_PUT, contentType: 'text/plain' });
+  } catch (err) {
+    throw uploadError('Blob preflight upload was rejected', err);
+  }
+  // Best-effort: the TTL cron only knows about FINISHED outputs, so nothing else would
+  // ever collect this probe.
+  try {
+    await del(probe.url, { token: BLOB_TOKEN });
+  } catch {
+    // leaving a tiny probe behind is not worth failing a render over
+  }
+
   const { ensureBrowser, selectComposition, renderMedia, renderStill, renderFrames } = await import('@remotion/renderer');
-  const { put } = await import('@vercel/blob');
 
   await ensureBrowser();
   // kind:'remotion' = an authored composition module and kind:'hyperframes' = a
@@ -115,12 +151,12 @@ try {
 
   writeProgress({ state: 'uploading', progress: 0.92, renderedFrames: totalFrames, totalFrames }, { force: true });
   const { size } = statSync(outputPath);
-  const blob = await put(blobPath, readFileSync(outputPath), {
-    access: 'public',
-    contentType: out.contentType,
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
+  let blob;
+  try {
+    blob = await put(blobPath, readFileSync(outputPath), { ...BLOB_PUT, contentType: out.contentType });
+  } catch (err) {
+    throw uploadError('Blob upload of the finished render was rejected', err);
+  }
 
   writeProgress(
     { state: 'complete', progress: 1, renderedFrames: totalFrames, totalFrames, outputBytes: size, blobUrl: blob.url, contentType: out.contentType },
@@ -128,7 +164,8 @@ try {
   );
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);
-  writeProgress({ state: 'failed', progress: 0, error: { code: 'render_failed', message: message.slice(0, 2000) } }, { force: true });
+  const code = err?.progressCode ?? 'render_failed';
+  writeProgress({ state: 'failed', progress: 0, error: { code, message: message.slice(0, 2000) } }, { force: true });
   process.exit(1);
 }
 

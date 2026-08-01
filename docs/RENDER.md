@@ -246,7 +246,10 @@ Rendered documents contain user-authored HTML/CSS/JS — treated as untrusted co
   (anonymous 2 h, free 24 h). Public-read-by-URL is a deliberate v1 tradeoff — the
   4.5 MB function response cap rules out proxied downloads. **The Blob store must be
   configured for public access** (the worker uploads with `access: 'public'`); a private
-  store rejects the upload. Switching to private + token-gated signed downloads (via
+  store rejects the upload. The worker proves that with a 1-byte preflight write (deleted
+  straight after) BEFORE it renders, so a misconfigured store fails in seconds instead of
+  after a paid render, and every Blob failure reports `upload_failed` rather than
+  `render_failed` - an ops fault, not a broken graphic. Switching to private + token-gated signed downloads (via
   `@vercel/blob`'s `issueSignedToken`/`presignUrl`, redirected through a jobToken-gated
   endpoint) is the documented next step and would be isolated to the worker + the file route.
 - **kind:'remotion' specifics:** the authored module executes in the render PAGE itself
@@ -282,7 +285,8 @@ render section appears and renders on your machine (LocalExecutor spawns
 **Hosted (Vercel):**
 1. Apply migration `supabase/migrations/0007_render_jobs.sql` to the live database.
 2. Create a **public** Blob store (Vercel → Storage → Blob) and connect it to the project
-   (the worker uploads `access: 'public'`; a private store rejects the upload).
+   (the worker uploads `access: 'public'`; a private store rejects the upload - the first
+   render then fails within seconds with `upload_failed` and a message naming this).
 3. Set the project env vars and redeploy:
 
 ```

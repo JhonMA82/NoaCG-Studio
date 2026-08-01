@@ -220,6 +220,8 @@ for (const entry of briefs) {
         editability: result.report.editability,
         panelsRebuilt: result.report.panelsRebuilt,
         flattened: result.report.flattened,
+        textErased: result.report.textErased,
+        ringMatted: result.report.ringMatted,
         artDropped: result.report.artDropped,
         reportWarnings: result.report.warnings,
       };
@@ -325,7 +327,8 @@ const rows = results.map((r) => `
     </div>
     ${r.checks !== undefined || r.textFields !== undefined ? `<pre>${JSON.stringify({
       textFields: r.textFields, editability: r.editability, panelsRebuilt: r.panelsRebuilt,
-      flattened: r.flattened, artDropped: r.artDropped, warnings: r.reportWarnings,
+      flattened: r.flattened, textErased: r.textErased, ringMatted: r.ringMatted,
+      artDropped: r.artDropped, warnings: r.reportWarnings,
     }, null, 1)}</pre>` : ''}
   </section>`).join('\n');
 await writeFile(path.join(OUT, 'review.html'), `<!doctype html><meta charset="utf-8">
