@@ -185,8 +185,24 @@ export const CREATIVE_SPEC_TOOL: ModelTool = {
             type: 'string', enum: ['stack', 'row', 'grid', 'split'],
             description: 'How the regions relate to each other as a starting composition.',
           },
-          fullFrame: { type: 'boolean', description: 'True when the graphic owns the whole frame instead of anchoring in a zone.' },
-          zone: { type: 'string', enum: ZONES, description: 'Anchor zone (ignored when fullFrame is true).' },
+          // MEASURED, not guessed (both 2026-07-31 smoke rounds): 14 of 16 lower-third specs
+          // came back fullFrame TRUE, for graphics whose own family word was "strap" and whose
+          // zone was "bottom-left". Read as "owns the whole frame", the flag sounds like
+          // permission to use the canvas and the answer is always yes. Read as "which of these
+          // two things am I making", it is a question about the graphic. The value is
+          // load-bearing twice over: the scaffold anchors a zone graphic and centres a
+          // full-frame one, and the style gate refuses an opaque frame-filling backdrop on the
+          // zone graphics only (style.ts stripFrameFlood, owner ruling 2026-07-31).
+          fullFrame: {
+            type: 'boolean',
+            description:
+              'FALSE for a graphic that sits OVER live video and leaves the picture readable ' +
+              'around it - a lower third, a name strap, a corner card, a side panel, a ticker. ' +
+              'TRUE only for a graphic that replaces the picture and is the whole screen - a ' +
+              'versus card, a results board, a full-frame title. If a director would call for ' +
+              'this over a live camera, it is FALSE.',
+          },
+          zone: { type: 'string', enum: ZONES, description: 'Where an over-video graphic anchors (ignored when fullFrame is true).' },
           sizeScale: { type: 'number', description: 'Overall size, 0.85 compact … 1.2 large.' },
         },
       },

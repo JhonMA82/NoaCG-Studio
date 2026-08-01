@@ -278,6 +278,150 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.benchRules).not.toContain('bench-replay');
   });
 
+  test('a CSS transition on scaffold elements cannot steal the entrance from the timeline', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The SECOND cause of one signature, measured on the first candidate-pass brief
+    // (2026-07-31): this is the real arm-D patch. Nothing here is hidden - the box and both
+    // regions simply carry `transition: opacity/transform`, so every inline value GSAP
+    // writes re-animates on the browser's own clock, and the bench reports the same
+    // bench-entrance + bench-replay pair the hiding declarations used to produce.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const styled = applyCreativeStyle(scaffold, {
+        summary: 'transitions',
+        css: [
+          '.creative-box { display: flex; opacity: 0; transform: translateY(10px);',
+          '  transition: opacity 0.3s ease, transform 0.3s ease; }',
+          '.creative-r-header { opacity: 0; transition-property: opacity; transition-duration: 0.4s; }',
+          '.my-flourish { transition: opacity 0.3s ease; }',
+        ].join('\n'),
+      });
+      if (!styled) return { applied: false };
+      const patchCss = styled.css.slice(styled.css.indexOf('AI-authored'));
+      const verdict = await productionSpxValidator()(styled);
+      return {
+        applied: true,
+        boxTransition: /creative-box[^}]*transition/.test(patchCss),
+        regionTransition: /creative-r-header[^}]*transition/.test(patchCss),
+        boxLayoutKept: /creative-box[^}]*display\s*:\s*flex/.test(patchCss),
+        boxTransformKept: /creative-box[^}]*transform\s*:\s*translateY/.test(patchCss),
+        ownClassKept: /my-flourish[^}]*transition/.test(patchCss),
+        benchRules: verdict.errors.map((e) => e.rule),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report.applied).toBe(true);
+    expect(report.boxTransition).toBe(false);      // stripped from the box…
+    expect(report.regionTransition).toBe(false);   // …and from a region, longhands included
+    expect(report.boxLayoutKept).toBe(true);       // only that declaration goes
+    expect(report.boxTransformKept).toBe(true);    // the resting pose is the design's own
+    expect(report.ownClassKept).toBe(true);        // a patch-invented class keeps everything
+    // The end-to-end proof, the same shape as the hiding-declarations pin.
+    expect(report.benchRules).not.toContain('bench-entrance');
+    expect(report.benchRules).not.toContain('bench-replay');
+  });
+
+  test('an OVERLAY may not paint an opaque full frame; a full-frame board may', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The owner ruling of 2026-07-31 (SMOKE-2026-07-31.md item 5, -vs-lt.md item 4), pinned
+    // against the CSS that actually caused it: this is the real patch from the archived
+    // bracket round - the design shadows --panel-bg to #000000 on the root (legal, :root is
+    // untouched) and makes the box 100vw x 100vh painted with it, so a "valid" overlay
+    // floods the frame opaque black. Every gate passed it because none measured coverage.
+    const FLOOD = [
+      '.creative { --panel-bg: #000000; --accent: #00aaff; }',
+      '.creative-box { display: grid; height: 100vh; width: 100vw; position: relative;',
+      '  background-color: var(--panel-bg); padding: calc(24px * var(--scale)); }',
+      // Legal neighbours that must survive untouched: an opaque panel at content size, a
+      // full-bleed element that paints nothing, and a gradient scrim that fades out.
+      '.creative-r-header { background: var(--panel-bg); padding: calc(12px * var(--scale)); }',
+      '.creative-guide { position: absolute; inset: 0; pointer-events: none; }',
+      '.creative-scrim { position: absolute; inset: 0; background: linear-gradient(#000000, transparent); }',
+    ].join('\n');
+    const STRAP_SPEC = {
+      ...BRACKET_SPEC,
+      name: 'Name strap',
+      layout: { family: 'strap', arrangement: 'stack', fullFrame: false, zone: 'bottom-left', sizeScale: 1 },
+    };
+
+    const report = await page.evaluate(async ({ intent, overlaySpec, boardSpec, css }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const i = normalizeIntent(intent);
+      const styled = (spec: unknown) => {
+        const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+        const out = applyCreativeStyle(scaffold, { summary: 'flood', css });
+        return out ? out.css.slice(out.css.indexOf('AI-authored')) : null;
+      };
+      return { overlay: styled(overlaySpec), board: styled(boardSpec) };
+    }, { intent: BRACKET_INTENT, overlaySpec: STRAP_SPEC, boardSpec: BRACKET_SPEC, css: FLOOD });
+
+    const overlay = report.overlay ?? '';
+    const board = report.board ?? '';
+    expect(overlay).not.toBe('');
+    // The overlay: the FILL is stripped and the PAINT is kept. Which half survives is the
+    // whole point - dropping the paint would leave an invisible full-frame box with the
+    // content sprayed across the canvas, which is a broken graphic rather than a clamped one.
+    expect(/creative-box[^}]*height\s*:\s*100vh/.test(overlay)).toBe(false);
+    expect(/creative-box[^}]*width\s*:\s*100vw/.test(overlay)).toBe(false);
+    expect(/creative-box[^}]*background-color\s*:\s*var\(--panel-bg\)/.test(overlay)).toBe(true);
+    expect(/creative-box[^}]*display\s*:\s*grid/.test(overlay)).toBe(true); // the composition survives
+    // Only the COMBINATION is touched: ordinary design is not.
+    expect(/creative-r-header[^}]*background\s*:\s*var\(--panel-bg\)/.test(overlay)).toBe(true);
+    expect(/creative-guide[^}]*inset\s*:\s*0/.test(overlay)).toBe(true);   // fills, paints nothing
+    expect(/creative-scrim[^}]*inset\s*:\s*0/.test(overlay)).toBe(true);   // fills, fades to transparent
+    // The mutation twin: the SAME css under a full-frame spec keeps everything. A board that
+    // covers the canvas is the job, and is measured (scripts/creative-plate-visibility.mjs)
+    // rather than refused.
+    expect(/creative-box[^}]*height\s*:\s*100vh/.test(board)).toBe(true);
+    expect(/creative-box[^}]*width\s*:\s*100vw/.test(board)).toBe(true);
+  });
+
+  test('the critique repair lands when it is no worse than the base, never when it is worse', async ({ page }) => {
+    await open(page);
+    // Owner ruling 2026-07-31 (SMOKE blocker 4). The old rule was `validation.ok`, so a
+    // repair could not land on an already-invalid base - which is where 4 of 7 (round 1) and
+    // most (round 2) of the bases actually were, and why criterion 8 was unmeasurable at
+    // 1/20 landed. The property that must survive is "never break one", not "only perfect".
+    const verdict = await page.evaluate(async () => {
+      const { noWorseThan } = await import('/src/ai/creative/pipeline.ts');
+      const result = (rules: string[]) => ({
+        ok: rules.length === 0,
+        errors: rules.map((rule) => ({ rule, message: rule, severity: 'error' as const })),
+        warnings: [],
+      });
+      const base = result(['bench-contrast', 'bench-overflow']);
+      return {
+        cleanAlwaysLands: noWorseThan(base, result([])),
+        sameFailuresLand: noWorseThan(base, result(['bench-contrast', 'bench-overflow'])),
+        fewerFailuresLand: noWorseThan(base, result(['bench-contrast'])),
+        newRuleRefused: noWorseThan(base, result(['bench-contrast', 'bench-entrance'])),
+        moreOfTheSameRefused: noWorseThan(base, result(['bench-contrast', 'bench-contrast', 'bench-overflow'])),
+        // No base to compare against: only a clean result may land.
+        noBaseInvalidRefused: noWorseThan(null, result(['bench-contrast'])),
+        noBaseCleanLands: noWorseThan(null, result([])),
+      };
+    });
+
+    expect(verdict.cleanAlwaysLands).toBe(true);
+    expect(verdict.sameFailuresLand).toBe(true);      // the new behaviour: measurable at last
+    expect(verdict.fewerFailuresLand).toBe(true);
+    expect(verdict.newRuleRefused).toBe(false);       // a NEW failure kind is damage
+    expect(verdict.moreOfTheSameRefused).toBe(false); // …and so is more of the old one
+    expect(verdict.noBaseInvalidRefused).toBe(false);
+    expect(verdict.noBaseCleanLands).toBe(true);
+  });
+
   test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);

@@ -709,6 +709,23 @@ authority); routing regressions on catalog-fit briefs (every bank carries MUST-r
 cases); brief-bank decay against the growing catalog (§1.3 - re-verify expected routes
 before every run).
 
+**Ruled 2026-07-31, after the two smoke rounds** (full record and its evidence:
+`benchmarks/creative/v1/RULINGS-2026-07-31.md`):
+
+- **Opaque full-frame backdrops** - spec-driven. An OVERLAY (`fullFrame: false`) may not paint
+  one: a deterministic clamp in the style gate strips the frame-filling geometry and keeps the
+  paint. A full-frame BOARD may, and is MEASURED instead - plate visibility against the known
+  composite plate, with the floor calibrated per category from the catalog's own designs. The
+  measurement's first free run found the flag the whole rule keys on to be unreliable (14/16
+  lower thirds claimed full frame), which the stage-5 schema now addresses and the next round
+  re-measures.
+- **Critique acceptance** - a repair lands when it is NO WORSE than its base (no new error rule,
+  no more errors), not only when the repaired template is fully valid. Criterion 8 becomes
+  measurable; "never break one" is preserved.
+- **Bracket** - DEFERRED behind the bounded layout IR (§3.3 rival (a)). Blocker 2 is already
+  measured; re-running it across four models buys the same answer more expensively. The full
+  pass covers 19 scored briefs (8 lower third + 11 versus).
+
 Owner decisions for Mirko [owner]:
 1. §11 thresholds and the go/no-go sheet, before the paid run (PROPOSED values now in
    §11, awaiting ratification).
