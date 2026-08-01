@@ -21,7 +21,12 @@ import {
   modelRouteKey,
 } from '../aiModelCatalog.js';
 import type { AiDiscoveredModel } from '../../../src/ai/modelTypes.js';
-import type { AdminModelRow, AdminModelVerdict, ModelBlockCode } from '../../../src/admin/types.js';
+import type {
+  AdminModelRow,
+  AdminModelVerdict,
+  AdminRouteUse,
+  ModelBlockCode,
+} from '../../../src/admin/types.js';
 
 /** How recently a model has to have appeared in the provider's catalog to be called new.
  *  Long enough that a fortnight of not looking at the page does not hide anything. */
@@ -71,6 +76,9 @@ export interface EligibilityOptions {
   /** The instant "new" is measured back from. Passed in rather than read from the clock, so
    *  the classification is testable. */
   now: number;
+  /** Route key -> the tasks currently pointing at it, from the server's task registry. A route
+   *  the server does not choose is simply absent; see `usedBy` in src/admin/types.ts. */
+  usedBy?: Map<string, AdminRouteUse[]>;
 }
 
 /**
@@ -118,6 +126,11 @@ export function modelEligibility(
       // New AND not already approved: a catalog entry promoted last week is not something the
       // operator needs flagged as a discovery.
       isNew: entry === null && Number.isFinite(created) && created >= newSince,
+      // APPROVED is "we audited this and may use it"; USED BY is "traffic is going here right
+      // now". They come apart in both directions - an approved route can carry nothing, and a
+      // fallback carrying traffic means the primary is failing - which is why the page shows
+      // both rather than treating approval as deployment.
+      usedBy: options.usedBy?.get(key) ?? [],
     };
   });
 }

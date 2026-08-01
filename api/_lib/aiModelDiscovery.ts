@@ -80,6 +80,10 @@ export function normalizedOpenRouter(value: unknown): AiDiscoveredModel | null {
     available: !Number.isFinite(expiresAt) || expiresAt > Date.now(),
     createdAt: isoFromEpoch(model.created),
     revision: text(model.canonical_slug) || null,
+    // Billed per image rather than per token. `finite` already rejects a missing or malformed
+    // value, and null stays "not published" - an image route with no price must never read as
+    // free next to one that genuinely is.
+    perImageUsd: finite(pricing.image),
     source: 'openrouter-models-api',
   };
 }

@@ -32,6 +32,9 @@ export interface AiDiscoveredModel {
   available: boolean;
   createdAt: string | null;
   revision: string | null;
+  /** Per-image price, where the provider publishes one. Additive and optional: only image
+   *  routes carry it, and a missing value means "not published", never "free". */
+  perImageUsd?: number | null;
   source: 'openrouter-models-api' | 'huggingface-router';
 }
 

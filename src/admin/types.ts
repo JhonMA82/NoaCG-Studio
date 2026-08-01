@@ -387,6 +387,47 @@ export interface AdminModelRow {
   blocks: ModelBlockCode[];
   createdAt: string | null;
   isNew: boolean;
+  /** Where this route is actually wired in right now, read off the server's task registry.
+   *  Empty for the great majority of listed models. Only routes the SERVER chooses can appear
+   *  here: NoaCG Pro's image model is picked by the operator in the wizard, so no server-side
+   *  fact exists to report and none is invented. */
+  usedBy: AdminRouteUse[];
+}
+
+/** One task's use of a route. `slot` matters operationally: a fallback carrying traffic means
+ *  the primary is failing. */
+export interface AdminRouteUse {
+  /** Human label for the task, e.g. "NoaCG Lite". */
+  task: string;
+  slot: 'primary' | 'fallback';
+}
+
+// ── image models (NoaCG Pro) ───────────────────────────────────────────────────────────
+//
+// A SEPARATE shape from AdminModelRow on purpose. The funded-route rules are per-million
+// TOKENS, which says nothing about a model billed per image, so this listing carries no
+// verdict, no blocks and no eligibility language at all. Inventing a ceiling nobody has set
+// would mark usable models ineligible on a rule that does not exist.
+
+export interface AdminImageModelRow {
+  key: string;
+  provider: string;
+  model: string;
+  name: string;
+  /** Per-image price where the provider publishes one. Null is "not published", never "free". */
+  perImageUsd: number | null;
+  /** Some image routes also bill tokens for the prompt; shown when published. */
+  inputPerMillion: number | null;
+  available: boolean;
+  createdAt: string | null;
+  isNew: boolean;
+}
+
+export interface AdminImageModelsResponse {
+  provider: string;
+  syncedAt: string | null;
+  models: AdminImageModelRow[];
+  discoveryFailed: boolean;
 }
 
 export interface AdminModelsResponse {

@@ -158,3 +158,43 @@ test('an approved route the provider stopped listing is reported as missing', ()
   // A provider with no approved routes has nothing to be missing.
   assert.deepEqual(missingApprovedRoutes([], 'a-provider-with-no-routes'), []);
 });
+
+test('in-use marks the routes the task registry actually points at, and nothing else', () => {
+  const live = model({ id: 'vendor/live-primary' });
+  const spare = model({ id: 'vendor/live-fallback' });
+  const idle = model({ id: 'vendor/nobody-calls-this' });
+  const usedBy = new Map([
+    ['openrouter:vendor/live-primary', [{ task: 'NoaCG Lite', slot: 'primary' as const }]],
+    ['openrouter:vendor/live-fallback', [{ task: 'NoaCG Lite', slot: 'fallback' as const }]],
+  ]);
+
+  const rows = modelEligibility([live, spare, idle], { now: NOW, usedBy });
+  const byModel = new Map(rows.map((row) => [row.model, row]));
+  assert.deepEqual(byModel.get('vendor/live-primary')?.usedBy, [{ task: 'NoaCG Lite', slot: 'primary' }]);
+  assert.deepEqual(byModel.get('vendor/live-fallback')?.usedBy, [{ task: 'NoaCG Lite', slot: 'fallback' }]);
+  // The overwhelming majority of a 247-model listing is used by nothing. An empty array, never
+  // undefined - the page maps over it without a guard.
+  assert.deepEqual(byModel.get('vendor/nobody-calls-this')?.usedBy, []);
+});
+
+test('omitting the in-use map leaves every route unmarked rather than throwing', () => {
+  // Callers that only want eligibility (and the tests above) pass no map at all.
+  const [row] = modelEligibility([model()], { now: NOW });
+  assert.deepEqual(row.usedBy, []);
+});
+
+test('approved and in-use are independent facts', () => {
+  // An approved route carrying no traffic, and a live route nobody approved, must both be
+  // representable - conflating them is how "we audited it" turns into "it is running".
+  const approvedIdle = model({ id: APPROVED_MODEL_CATALOG[0].route.model });
+  const liveUnapproved = model({ id: 'vendor/hot-swap' });
+  const rows = modelEligibility([approvedIdle, liveUnapproved], {
+    now: NOW,
+    usedBy: new Map([['openrouter:vendor/hot-swap', [{ task: 'Import analysis', slot: 'primary' as const }]]]),
+  });
+  const [approved, live] = rows;
+  assert.equal(approved.approved, true);
+  assert.deepEqual(approved.usedBy, []);
+  assert.equal(live.approved, false);
+  assert.equal(live.usedBy[0]?.slot, 'primary');
+});

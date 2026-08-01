@@ -618,3 +618,38 @@ project is established by the NoaCG benchmarks and by nothing else
 (`docs/AI_LITE_PROMOTION.md`) - so there is no score column, no ordering by merit and no
 "recommended". A provider outage costs this section alone; the rest of `/admin` reads this
 instance's own data and is unaffected.
+
+### Sorting, and why it does not breach the no-ranking rule
+
+The table opens in a fixed reading order - approved, then newly discovered, then the rest
+alphabetically - and the operator may then sort by route, either price, or context length.
+**The rule forbids the PAGE holding an opinion about which model is better, not the operator
+asking a question.** Sorting is never the initial state, there is still no score to sort by,
+and the arrangement is the reader's own. What would breach the rule is arriving pre-ranked.
+Missing values sort last in both directions: an unpriced model is unmeasured, not cheap, and
+floating it to the top of an ascending price sort would read as "the cheapest".
+
+### In use is not the same fact as approved
+
+`approved` means "audited, and we may point traffic here"; `usedBy` means "traffic is going
+here right now", read live off the task registry (`api/_lib/aiTaskRegistry.ts`) rather than any
+table, so it cannot drift from what the gateway obeys. The two come apart in both directions -
+an approved route can carry nothing, and **a fallback carrying traffic means the primary is
+failing** - which is why both are shown rather than treating approval as deployment.
+
+Only routes the SERVER chooses can be marked. NoaCG Pro's image model is typed by the operator
+in the wizard (`src/components/wizard/steps/ProStep.tsx`), so no server-side fact exists and
+none is invented; the image tab says so in as many words rather than letting an absent badge be
+read as "Pro uses none of these".
+
+### The image tab carries no verdict, on purpose
+
+`GET /api/admin/models?output=image` lists what the provider serves for image output - the call
+NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks and no
+eligibility language at all**, because `FUNDED_ROUTE_PRICE_CEILING` is priced per million
+TOKENS and says nothing about a model billed per image. Applying it anyway would mark usable
+models ineligible against a rule nobody has written; until a per-image ceiling is set
+deliberately, this is a menu and not a judgement. A per-image price the provider did not
+publish reads "not published", never "free" - the same discipline as ZDR reading "not audited"
+rather than "no". There is no video tab: NoaCG video is Remotion/HyperFrames CODE written by
+text models and rendered locally, so there is no video-generation route to list.
