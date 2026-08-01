@@ -843,8 +843,8 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
         provider: 'openrouter',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [
-          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', perImageUsd: 0.04, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false },
-          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', perImageUsd: null, inputPerMillion: null, available: true, createdAt: null, isNew: false },
+          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', imageOutputPerMillion: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false },
+          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', imageOutputPerMillion: null, inputPerMillion: null, available: true, createdAt: null, isNew: false },
         ],
         discoveryFailed: false,
       },
@@ -855,7 +855,7 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await page.getByRole('button', { name: 'Models', exact: true }).click();
   await page.getByRole('button', { name: 'Image models', exact: true }).click();
 
-  await expect(page.locator('tr[data-model="vendor/draw"]')).toContainText('$0.040');
+  await expect(page.locator('tr[data-model="vendor/draw"]')).toContainText('$30.00');
   // An unpublished price says so. Rendering it as "free" next to a real price would be a lie
   // about money.
   await expect(page.locator('tr[data-model="vendor/quiet"]')).toContainText('not published');

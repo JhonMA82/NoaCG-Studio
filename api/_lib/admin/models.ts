@@ -103,7 +103,7 @@ export default {
               provider: model.provider,
               model: model.id,
               name: model.name,
-              perImageUsd: model.perImageUsd ?? null,
+              imageOutputPerMillion: model.imageOutputPerMillion ?? null,
               inputPerMillion: model.inputPerMillion,
               available: model.available,
               createdAt: model.createdAt,

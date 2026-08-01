@@ -646,10 +646,26 @@ read as "Pro uses none of these".
 
 `GET /api/admin/models?output=image` lists what the provider serves for image output - the call
 NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks and no
-eligibility language at all**, because `FUNDED_ROUTE_PRICE_CEILING` is priced per million
-TOKENS and says nothing about a model billed per image. Applying it anyway would mark usable
-models ineligible against a rule nobody has written; until a per-image ceiling is set
-deliberately, this is a menu and not a judgement. A per-image price the provider did not
-publish reads "not published", never "free" - the same discipline as ZDR reading "not audited"
-rather than "no". There is no video tab: NoaCG video is Remotion/HyperFrames CODE written by
-text models and rendered locally, so there is no video-generation route to list.
+eligibility language at all**: `FUNDED_ROUTE_PRICE_CEILING` was set against text generation and
+no ceiling for image work has been decided, so applying it here would mark usable models
+ineligible against a rule nobody has written. Until such a ceiling is set deliberately, this is
+a menu and not a judgement. A price the provider did not publish reads "not published", never
+"free" - the same discipline as ZDR reading "not audited" rather than "no".
+
+**The price is `pricing.image_output`, per million OUTPUT IMAGE TOKENS - not `pricing.image`,
+and not per image.** Measured against the live listing on 2026-08-01: 38 of 40 image-output
+models publish `image_output`; only 4 publish `image`, which prices an image the caller SENDS
+IN (vision). Where a model publishes both they disagree by up to ~835x
+(`x-ai/grok-imagine-image-quality`: `image` 0.01, `image_output` 0.0000120), so reading the
+wrong key does not degrade to a blank cell - it prints a confident wrong price, on the few rows
+that show a number at all. Pinned in `api/_lib/aiModelDiscovery.test.ts`.
+
+Converting to a price per image is deliberately NOT done: it needs the token count one image
+costs, which varies by model and by resolution and which the listing does not publish
+(`google/gemini-2.5-flash-image` happens to be ~1290 tokens, hence its familiar ~$0.039, but
+that factor is per-model knowledge, not data). Estimating it would put an unverified money
+figure on an operator's screen. Per million keeps the column in the same unit family as the
+text prices, where it is at least comparable between models.
+
+There is no video tab: NoaCG video is Remotion/HyperFrames CODE written by text models and
+rendered locally, so there is no video-generation route to list.

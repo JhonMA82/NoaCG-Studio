@@ -300,12 +300,13 @@ export function ModelsSection() {
   );
 }
 
-/** Per-image price. Distinct from `price()` above because the unit is different, and a missing
- *  value must never render as "free" - the provider simply did not publish one. */
-function perImage(value: number | null): string {
+/** Distinct from `price()` above only in what it says about ABSENCE: an image route with no
+ *  published output price must read "not published", never the "-" that could be mistaken for
+ *  a dash meaning zero on a money column. */
+function imagePrice(value: number | null): string {
   if (value === null) return 'not published';
   if (value === 0) return 'free';
-  return value < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(3)}`;
+  return value < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`;
 }
 
 /**
@@ -322,11 +323,13 @@ function ImageModels() {
   const rows = useMemo(() => {
     const all = [...(data?.models ?? [])];
     return all.sort((a: AdminImageModelRow, b: AdminImageModelRow) => {
-      if (a.perImageUsd === null && b.perImageUsd === null) return a.model.localeCompare(b.model);
-      if (a.perImageUsd === null) return 1;
-      if (b.perImageUsd === null) return -1;
-      if (a.perImageUsd === b.perImageUsd) return a.model.localeCompare(b.model);
-      return sortDesc ? b.perImageUsd - a.perImageUsd : a.perImageUsd - b.perImageUsd;
+      const left = a.imageOutputPerMillion;
+      const right = b.imageOutputPerMillion;
+      if (left === null && right === null) return a.model.localeCompare(b.model);
+      if (left === null) return 1;
+      if (right === null) return -1;
+      if (left === right) return a.model.localeCompare(b.model);
+      return sortDesc ? right - left : left - right;
     });
   }, [data, sortDesc]);
 
@@ -334,10 +337,12 @@ function ImageModels() {
     <>
       <p className="admin-note">
         What the provider lists for <strong>image output</strong> — the call NoaCG Pro makes to draw a concept.
-        <strong> No eligibility verdict is shown here</strong>, because the funded-route ceiling is priced per million
-        tokens and these models are priced per image; there is no per-image ceiling to check against yet. Nothing is
-        marked as in use either: Pro&apos;s image route is typed by the operator in the wizard, so the server holds no
-        fact about which one is live.
+        <strong> No eligibility verdict is shown here</strong>: the funded-route ceiling was set against text
+        generation, and no ceiling for image work has been decided, so there is nothing to check these against yet.
+        Nothing is marked as in use either — Pro&apos;s image route is typed by the operator in the wizard, so the
+        server holds no fact about which one is live. Prices are per million <strong>output image tokens</strong>, as
+        the provider publishes them; a price per image would need the token count one image costs, which varies by
+        model and resolution and is not published, so it is not shown rather than estimated.
       </p>
 
       {data && data.discoveryFailed ? (
@@ -353,7 +358,7 @@ function ImageModels() {
               <th scope="col">Route</th>
               <th scope="col" className="admin-num" aria-sort={sortDesc ? 'descending' : 'ascending'}>
                 <button type="button" className="admin-sort" onClick={() => setSortDesc((value) => !value)}>
-                  Per image
+                  Image out / M
                   <span aria-hidden="true">{sortDesc ? ' ▼' : ' ▲'}</span>
                 </button>
               </th>
@@ -373,7 +378,7 @@ function ImageModels() {
                     {row.isNew ? ' · new' : ''}
                   </span>
                 </th>
-                <td className="admin-num">{perImage(row.perImageUsd)}</td>
+                <td className="admin-num">{imagePrice(row.imageOutputPerMillion)}</td>
                 <td className="admin-num">{price(row.inputPerMillion)}</td>
                 <td>
                   {row.available ? <Pill tone="ok">listed</Pill> : <Pill tone="warn">unavailable</Pill>}

@@ -414,8 +414,13 @@ export interface AdminImageModelRow {
   provider: string;
   model: string;
   name: string;
-  /** Per-image price where the provider publishes one. Null is "not published", never "free". */
-  perImageUsd: number | null;
+  /** Price per million OUTPUT IMAGE TOKENS. Null is "not published", never "free".
+   *
+   *  NOT a price per image, and the column must not be labelled as one: a per-image figure
+   *  needs the token count one image costs, which varies by model and resolution and which the
+   *  provider does not publish. Per million keeps it in the same unit family as the text
+   *  prices, where it is at least comparable between models. */
+  imageOutputPerMillion: number | null;
   /** Some image routes also bill tokens for the prompt; shown when published. */
   inputPerMillion: number | null;
   available: boolean;
