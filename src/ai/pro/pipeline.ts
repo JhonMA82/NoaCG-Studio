@@ -29,6 +29,20 @@ import { compileProPlan, ProCompileError, type ProCompileResult } from './compil
 
 export type ProStage = 'concept' | 'interpret' | 'compile' | 'validate';
 
+/**
+ * The STANDARD Pro routes - the curated model choice behind the tier, so a normal Pro user
+ * never picks models. Measured in the 2026-07-31 paid round (docs/NOACG_PRO_PLAN.md §10):
+ * gemini-3.1-flash-image concepts at ~$0.067/image with the strongest text rendering of the
+ * affordable image routes, plus gemini-2.5-flash interpretation at ~$0.002/call - together
+ * ~$0.07-0.08 per completed generation, 4/5 brief-bank passes after the normalizer fixes.
+ * Both ride OpenRouter (one API shape, one billing meter, the gateway's existing adapter).
+ * Change them only with a re-run of `npm run bench:pro` on the paid stages.
+ */
+export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute } = {
+  concept: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+  interpret: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+};
+
 /** A generated concept, ready to review: the image plus what it cost. */
 export interface ProConcept {
   dataUrl: string;
@@ -112,6 +126,9 @@ export async function compileProConcept(
     fps?: number;
     validate?: SpxValidator;
     onStage?: (stage: ProStage) => void;
+    /** Pin the interpretation's route (the standard tier passes PRO_STANDARD_ROUTES.interpret);
+     *  omitted falls through to the session route, the original BYO behaviour. */
+    interpretRoute?: ModelRoute;
   } = {},
 ): Promise<ProResult> {
   const run = startAiRun('pro-generate');
@@ -127,6 +144,7 @@ export async function compileProConcept(
       }],
       tool: PRO_INTERPRET_TOOL,
       maxTokens: 4000,
+      ...(options.interpretRoute ? { route: options.interpretRoute } : {}),
       surface: 'pro',
     });
     if (!isProInterpretation(result.output)) {

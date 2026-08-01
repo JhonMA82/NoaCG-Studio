@@ -172,19 +172,55 @@ layers, so per-layer refinement (stagger, masked reveals) is normal timeline edi
 richer generated motion (per-layer stagger plans, masked reveals chosen by the model)
 is a later slice and stays inside the validated preset/keyframe vocabulary.
 
-## 7. UX (v1)
+## 7. UX - Pro is a TIER of Create with AI (revised 2026-08-01)
 
-A new wizard entry card, **Create with AI Pro**, in the AI strip (clearly separated from
-Lite; the Lite path is untouched). One step surface with explicit machine states:
+There is **no separate Pro wizard card**. Create with AI is the one AI creation entry
+point, and the ⚙ AI settings panel inside it carries the execution-tier picker:
 
-`brief -> generating concept -> concept review (image + estimated cost) -> interpreting
--> compiling -> review (editability report) -> open in editor / export`
+- **NoaCG Lite** - the managed free profile (offered when the server exposes it).
+- **NoaCG Pro** - this pipeline, on pinned standard routes. A normal Pro user never picks
+  a text, vision, or image model: `PRO_STANDARD_ROUTES` (src/ai/pro/pipeline.ts) documents
+  the curated choice and §7a records the reasoning.
+- **Custom provider** - the secondary advanced surface: bring your own provider, key, and
+  models (the established `AiProviderSettings` component, unchanged).
 
-- Failures are actionable and never destroy prior state (same rules as AiStep).
-- Offline / flag-off: the card is absent (mutation-pinned in e2e); the stub pipeline
-  (fixture concept + fixture interpretation) keeps the whole flow e2e-testable without
-  tokens, the `stubProvider` pattern.
+Lite and Pro share the SAME brief, UI, and workflow systems - the prompt, the "More
+control" structured setup (category, data fields with kinds, look, fonts, animation), the
+purposed uploads, and the brand strip. `src/ai/pro/brief.ts` maps that shared brief onto
+the v1 `ProBrief` deterministically: the first two text fields become the name/title lines
+(example values ride into the concept), an as-is upload or a requested image field asks
+for the logo slot, and style/mood/avoid/brand-colour decisions travel as direction text.
+Category options clamp to what v1 compiles (lower thirds); a wider pick resets to 'auto'
+exactly as Lite clamps its own scope.
+
+One Generate press runs `concept -> interpret -> compile -> validate` with the stages
+streamed into the busy line; the result card carries the concept image with its real cost,
+the per-region editability report, and the shared readiness rows. Pro results offer no
+refine/repair calls in v1 - the compile is deterministic, so the honest move on a failure
+is a new concept, and the card says so.
+
+- Failures are actionable and never destroy prior state (same rules as the rest of AiStep).
+- Without an OpenRouter key the tier says so and runs the stub pipeline (deterministic
+  local concept + fixed interpretation), which keeps the whole flow e2e-testable without
+  tokens - the `stubProvider` pattern (e2e/pro.spec.ts).
 - No isolated Pro editor: Finish lands in the ordinary editor or the export window.
+
+### 7a. The standard routes (v1) - quality / cost / model-selection reasoning
+
+`PRO_STANDARD_ROUTES` pins concept generation to `google/gemini-3.1-flash-image` and
+interpretation to `google/gemini-2.5-flash`, both via OpenRouter:
+
+- **Quality**: the 2026-07-31 paid round (§10) measured 4/5 brief-bank passes after the
+  normalizer fixes, with the strongest text rendering among affordable image routes -
+  text fidelity is the binding constraint for a concept whose lines must be transcribable.
+- **Cost**: ~$0.067 per concept + ~$0.002 per interpretation - ~$0.07-0.08 per completed
+  generation, roughly a tenth of premium image routes.
+- **Why one provider**: OpenRouter reaches both models behind one API shape, one billing
+  meter, and the gateway adapter that already implements `expect:'image'`.
+
+Changing either route requires re-running `npm run bench:pro` paid stages. Brief-driven
+model routing (picking routes per graphic type, references, or quality/latency budget) is
+deliberately deferred until the single standard path has been validated in use.
 
 ## 8. Cost and observability
 

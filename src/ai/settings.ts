@@ -96,9 +96,21 @@ export const AI_MODELS: AiModelOption[] = [
   },
 ];
 
+/** The Create-with-AI execution tiers. 'lite' and 'pro' are managed experiences (no model
+ *  picking); 'custom' is the advanced bring-your-own-provider surface. */
+export const AI_TIERS = ['lite', 'pro', 'custom'] as const;
+export type AiTier = (typeof AI_TIERS)[number];
+
+export function isAiTier(value: unknown): value is AiTier {
+  return typeof value === 'string' && (AI_TIERS as readonly string[]).includes(value);
+}
+
 export interface AiSettings {
   provider: AiProviderId;
   model: string;
+  /** The chosen execution tier; null = not chosen yet (the AI step resolves the default:
+   *  Lite when the server offers it, otherwise the custom/BYO surface). */
+  tier: AiTier | null;
   /** Explicitly ordered routes only. No entry means no cross-provider fallback. */
   fallbacks: ModelRoute[];
   /** Non-secret availability cache populated by /api/ai/config or a successful key save. */
@@ -207,6 +219,7 @@ export function loadAiSettings(): AiSettings {
   return {
     provider,
     model,
+    tier: isAiTier(saved.tier) ? saved.tier : null,
     fallbacks: 'fallbacks' in saved ? validRoutes(saved.fallbacks) : envRoutes(),
     configuredProviders: validProviders(saved.configuredProviders),
     keyStorageAvailable: typeof saved.keyStorageAvailable === 'boolean' ? saved.keyStorageAvailable : null,

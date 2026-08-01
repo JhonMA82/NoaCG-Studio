@@ -31,7 +31,7 @@ export function UsageSection() {
     <section className="admin-section admin-section-wide">
       <SectionHeader
         title="Usage and cost"
-        lede="Read from the generation ledger. Nothing here is sampled or estimated."
+        lede="Read from the generation ledger. Nothing here is sampled or estimated. Cost counts only generations that reached a provider, so it matches the overview rather than the reservation ceilings below."
         actions={
           <select value={days} onChange={(event) => setDays(Number(event.target.value))} aria-label="Window">
             <option value={7}>Last 7 days</option>
@@ -70,7 +70,8 @@ export function UsageSection() {
         </div>
         <p className="admin-muted">
           {formatUsd(spentToday)} of {formatUsd(ceiling)}. This is the ceiling the reservation path enforces, so
-          reaching it refuses new generations rather than overspending.
+          reaching it refuses new generations rather than overspending. It counts every reservation at its cost
+          ceiling, which is what admission compares against - so it reads higher than the spend above, on purpose.
         </p>
       </section>
 
@@ -87,12 +88,13 @@ export function UsageSection() {
                   <span
                     className="admin-bar-fill"
                     style={{ width: `${(day.generations / peak) * 100}%` }}
-                    title={`${day.generations} started, ${day.successes} delivered, ${day.failures} failed`}
+                    title={`${day.generations} started, ${day.successes} delivered, ${day.failures} failed, ${day.declined} declined as out of scope`}
                   />
                 </span>
                 <span className="admin-bar-value">
                   {day.generations}
                   {day.failures > 0 ? <em className="admin-bar-fail"> · {day.failures} failed</em> : null}
+                  {day.declined > 0 ? <em className="admin-muted"> · {day.declined} declined</em> : null}
                 </span>
                 <span className="admin-bar-cost">{formatUsd(day.costUsd)}</span>
               </li>
@@ -103,13 +105,32 @@ export function UsageSection() {
 
       <div className="admin-two-up">
         <section className="admin-block">
-          <h3>Why generations were refused</h3>
+          <h3>Why generations broke</h3>
           {data.failureReasons.length === 0 ? (
-            <p className="admin-muted">Nothing was refused in this window.</p>
+            <p className="admin-muted">Nothing broke in this window.</p>
           ) : (
             <table className="admin-table">
               <tbody>
                 {data.failureReasons.map((entry) => (
+                  <tr key={entry.reason}>
+                    <td className="admin-mono">{entry.reason}</td>
+                    <td className="admin-num">{entry.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <h3>Why briefs were declined</h3>
+          <p className="admin-note">
+            Out of scope for Lite, refused on purpose. Not failures - a rising count here is people asking for
+            something Lite cannot do yet.
+          </p>
+          {data.declineReasons.length === 0 ? (
+            <p className="admin-muted">Nothing was declined in this window.</p>
+          ) : (
+            <table className="admin-table">
+              <tbody>
+                {data.declineReasons.map((entry) => (
                   <tr key={entry.reason}>
                     <td className="admin-mono">{entry.reason}</td>
                     <td className="admin-num">{entry.count}</td>

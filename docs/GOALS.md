@@ -175,11 +175,20 @@ with its lower-third siblings (§8), swept per category, and covered by an E2E s
       honest editability report) → the production validator → the ordinary editor and exports
 - [x] **Create with AI Pro wizard flow** — brief, concept review with cost, compile, per-region
       report, the shared Finish doors; offline stub keeps it e2e-testable (e2e/pro.spec.ts)
+- [x] **Pro as an execution tier of Create with AI** — the separate wizard card is gone; the
+      ⚙ AI settings tier picker chooses NoaCG Lite / NoaCG Pro / Custom provider, Pro rides
+      the shared brief (prompt, category, data fields, uploads, brand) mapped by
+      src/ai/pro/brief.ts, and the standard routes are pinned (PRO_STANDARD_ROUTES) so a
+      normal Pro user never picks models
 - [x] **Fixture-first benchmark** — benchmarks/pro/v1 + scripts/pro-bench.mjs (free regression
       by default; paid generation explicit and cost-ceilinged)
-- [ ] **Clean-plate / erase integration** — remove baked text outside reconstructed panels
-- [ ] **Paid quality round** — a real image+vision model pass over the bank, fixtures saved,
-      routes picked from the gallery
+- [x] **Clean-plate / erase integration** — the compile runs the deterministic flat-fill
+      erase over baked text outside reconstructed panels, mattes retained-pad ring sides,
+      and drops the raster when every region is rebuilt (plan §5/§10; e2e-pinned with
+      hand-built flat and gradient concepts)
+- [x] **Paid quality round** — the 2026-07-31 round: gemini-3.1-flash-image +
+      gemini-2.5-flash over the bank, 4/5 after normalizer fixes, real fixtures committed
+      (free regression replays), routes pinned as PRO_STANDARD_ROUTES
 - [ ] **Managed funded tier** — task-registry profile, quotas, credit weighting, an Auto route
 
 ## The pipeline (road ahead — user-defined eras, analyzed 2026-07-05)
