@@ -293,6 +293,66 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.rowSets).toBeGreaterThan(0);
   });
 
+  test('a graphic that could say nothing gets something to say', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The rest of the bench-entrance signature (PASS-2026-08-01.md). The probe that settled it
+    // found every element at opacity 1 and visible - and every box 0x0. The graphics were not
+    // hidden, they were EMPTY: 7 runs where the intent stage declared no fields at all, and
+    // several where it typed every field as a picture, leaving a frame of src-less <img>.
+    // The floor is about what PAINTS, not what a label looks like: a keyword guess would have
+    // to call "Home Team Crest" an image and "Team 1" text, and would be wrong often enough
+    // to become its own defect.
+    const report = await page.evaluate(async ({ spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      // No repeating region, so the list field the scaffold would otherwise synthesize cannot
+      // stand in for the text - this isolates the floor itself.
+      const flat = {
+        ...(spec as Record<string, unknown>),
+        regions: [{ id: 'chef1', role: 'chef', emphasis: 'primary', fieldKeys: [] }],
+      };
+      const build = (fields: unknown[]) => {
+        const i = normalizeIntent({
+          kind: 'category', typeId: 'versus', confidence: 'high', summary: 'A cook-off card.',
+          parts: [{ id: 'chef1', role: 'chef' }], fields,
+        });
+        const { scaffold, validation } = compileScaffoldOnly(normalizeCreativeSpec(flat, i), i);
+        return {
+          errors: validation.errors.map((e) => e.rule),
+          texts: scaffold.template.fields.filter((f) => f.ftype !== 'filelist').length,
+          images: scaffold.template.fields.filter((f) => f.ftype === 'filelist').length,
+          paints: /<span[^>]*class="creative-t"/.test(scaffold.template.html),
+        };
+      };
+      return {
+        noFields: build([]),
+        allPictures: build([
+          { key: 'chef1', role: 'image', label: 'Chef 1 Name' },
+          { key: 'chef2', role: 'image', label: 'Chef 2 Name' },
+        ]),
+        // The twin: a spec that ALREADY paints text is left exactly as declared - the floor
+        // must not bolt an extra field onto a graphic that was fine.
+        sound: build([
+          { key: 'chef1', role: 'line', label: 'Chef 1', sample: 'Ada' },
+          { key: 'crest', role: 'image', label: 'Crest' },
+        ]),
+      };
+    }, { spec: BRACKET_SPEC });
+
+    expect(report.noFields.errors).toEqual([]);
+    expect(report.noFields.texts).toBe(1);          // one synthesized headline, not zero
+    expect(report.noFields.paints).toBe(true);
+    // Every field a picture: the pictures are kept and a text line joins them.
+    expect(report.allPictures.images).toBe(2);
+    expect(report.allPictures.texts).toBe(1);
+    expect(report.allPictures.paints).toBe(true);
+    // The mutation twin: nothing added to a graphic that already speaks.
+    expect(report.sound.texts).toBe(1);
+    expect(report.sound.images).toBe(1);
+  });
+
   test('a patch cannot hide scaffold structure beyond the animation\'s reach', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);

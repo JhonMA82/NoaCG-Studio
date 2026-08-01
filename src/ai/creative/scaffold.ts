@@ -130,6 +130,17 @@ function planFields(intent: StructuralIntent, spec: CreativeSpec): FieldPlan {
     });
   }
 
+  // A graphic has to be able to say SOMETHING. Two shapes in the 2026-08-01 pass could not:
+  // 7 runs where the intent stage declared no fields at all, and several where it typed every
+  // field as a picture ("Chef 1 Name" as a filelist), leaving a frame of empty <img> elements.
+  // Both render an entrance with nothing in it - which is most of what the bench-entrance
+  // signature turned out to be (PASS-2026-08-01.md). The rule is about what PAINTS rather than
+  // what the labels look like: a keyword guess would have to decide that "Home Team Crest" is
+  // an image and "Team 1" is not, and it would be wrong often enough to be its own defect.
+  if (!plan.some((f) => f.role === 'line' || f.role === 'number' || f.role === 'list')) {
+    plan.unshift({ key: '__headline', role: 'line', label: 'Headline', sample: spec.name });
+  }
+
   const byKey = new Map<string, { id: string; role: string; label: string; sample: string }>();
   const fields: SpxField[] = [];
   const listFieldIds: string[] = [];
