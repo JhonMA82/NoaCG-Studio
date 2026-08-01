@@ -601,6 +601,50 @@ test.describe('creative pilot (phase C)', () => {
     expect(findings.harder).toBeGreaterThan(0);
   });
 
+  test('the structural check drives every field and reports the ones that never appear', async ({ page }) => {
+    await open(page);
+    test.setTimeout(60_000);
+    // The gate that would have caught the 2026-08-01 pass (PASS-2026-08-01.md cause 4). The
+    // parts check measured PRESENCE in the DOM, and a hidden holder is present - so a versus
+    // card whose four fields were all undrawable scored structurally complete. Presence is not
+    // reachability, and the markup cannot be read for the difference: a standings row and a
+    // ticker item are BUILT by a runtime from one field, so its id is legitimately absent.
+    // Driving the field and re-reading the painted frame is the question that survives that.
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const healthy = await benchStructuralIntent(scaffold.template, i);
+
+      // The mutation twin: the exact defect the pass shipped. Every field's element is
+      // removed from the markup while the SPX definition still declares it, which is what a
+      // hidden holder amounts to - the operator can type, and nothing can ever show it.
+      const gutted = {
+        ...scaffold.template,
+        html: scaffold.template.html.replace(
+          /<div class="creative-mask">.*?<\/div>/gs,
+          '<div class="creative-mask"></div>',
+        ),
+        js: scaffold.template.js.replace(/host\.innerHTML = html;/, ''),
+      };
+      const broken = await benchStructuralIntent(gutted, i);
+      return {
+        healthy: healthy.map((f) => f.message),
+        broken: broken.filter((f) => f.message.includes('never reach the screen')).map((f) => f.message),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    // A sound scaffold reaches the screen with every field it declares.
+    expect(report.healthy).toEqual([]);
+    // The gutted twin is caught, and the finding NAMES the fields so a repair round can act.
+    expect(report.broken).toHaveLength(1);
+    expect(report.broken[0]).toContain('never reach the screen');
+    expect(report.broken[0]).toMatch(/f\d/);
+  });
+
   test('the style gate: a legal patch lands, and every wall refuses its own violation', async ({ page }) => {
     await open(page);
     const gate = await page.evaluate(async ({ intent, spec }) => {
