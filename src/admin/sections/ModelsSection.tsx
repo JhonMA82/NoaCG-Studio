@@ -107,8 +107,8 @@ function InUse({ uses }: { uses?: AdminRouteUse[] }) {
   return (
     <>
       {uses.map((use) => (
-        <Pill key={`${use.task}:${use.slot}`} tone={use.slot === 'primary' ? 'ok' : 'muted'}>
-          {use.task} {use.slot}
+        <Pill key={`${use.task}:${use.slot ?? 'only'}`} tone={use.slot === 'fallback' ? 'muted' : 'ok'}>
+          {use.slot ? `${use.task} ${use.slot}` : use.task}
         </Pill>
       ))}
     </>
@@ -336,13 +336,14 @@ function ImageModels() {
   return (
     <>
       <p className="admin-note">
-        What the provider lists for <strong>image output</strong> — the call NoaCG Pro makes to draw a concept.
-        <strong> No eligibility verdict is shown here</strong>: the funded-route ceiling was set against text
-        generation, and no ceiling for image work has been decided, so there is nothing to check these against yet.
-        Nothing is marked as in use either — Pro&apos;s image route is typed by the operator in the wizard, so the
-        server holds no fact about which one is live. Prices are per million <strong>output image tokens</strong>, as
-        the provider publishes them; a price per image would need the token count one image costs, which varies by
-        model and resolution and is not published, so it is not shown rather than estimated.
+        What the provider lists for <strong>image output</strong> — the call NoaCG Pro makes to draw a concept. The
+        route the tier actually draws with is marked <em>in use</em>; it is pinned in the code
+        (<span className="admin-mono">PRO_STANDARD_ROUTES</span>), not chosen per generation, so a Pro user never
+        picks a model. <strong>No eligibility verdict is shown here</strong>: the funded-route ceiling was set against
+        text generation, and no ceiling for image work has been decided, so there is nothing to check these against
+        yet. Prices are per million <strong>output image tokens</strong>, as the provider publishes them; a price per
+        image would need the token count one image costs, which varies by model and resolution and is not published,
+        so it is not shown rather than estimated.
       </p>
 
       {data && data.discoveryFailed ? (
@@ -377,6 +378,7 @@ function ImageModels() {
                     {row.name}
                     {row.isNew ? ' · new' : ''}
                   </span>
+                  <InUse uses={row.usedBy} />
                 </th>
                 <td className="admin-num">{imagePrice(row.imageOutputPerMillion)}</td>
                 <td className="admin-num">{price(row.inputPerMillion)}</td>

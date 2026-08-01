@@ -8,7 +8,28 @@
 // DOM-bearing modules may ride along. The schema IS the contract: the gateway revalidates
 // every parsed result against it server-side.
 
-import type { ModelContentBlock } from '../modelTypes';
+import type { ModelContentBlock, ModelRoute } from '../modelTypes';
+
+/**
+ * The STANDARD Pro routes - the curated model choice behind the tier, so a normal Pro user
+ * never picks models. Measured in the 2026-07-31 paid round (docs/NOACG_PRO_PLAN.md §10):
+ * gemini-3.1-flash-image concepts at ~$0.067/image with the strongest text rendering of the
+ * affordable image routes, plus gemini-2.5-flash interpretation at ~$0.002/call - together
+ * ~$0.07-0.08 per completed generation, 4/5 brief-bank passes after the normalizer fixes.
+ * Both ride OpenRouter (one API shape, one billing meter, the gateway's existing adapter).
+ * Change them only with a re-run of `npm run bench:pro` on the paid stages.
+ *
+ * It lives HERE, in the dependency-light contract, rather than beside the pipeline that calls
+ * it: `/api/admin/models` marks which listed routes are actually in use, and `api/` cannot
+ * import `pipeline.ts` - that pulls in the gateway, telemetry and the canvas-bearing compiler.
+ * One constant both trees read is the point; a second copy in the admin layer would drift the
+ * first time these are re-benched, and the admin page would then confidently name the wrong
+ * model. `pipeline.ts` re-exports it, so every existing import keeps working.
+ */
+export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute } = {
+  concept: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+  interpret: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+};
 
 /** The forced-tool shape (modelGateway's ModelTool), declared structurally so this file
  *  stays dependency-light - the liteTypes.ts rule: browser and API TypeScript trees both

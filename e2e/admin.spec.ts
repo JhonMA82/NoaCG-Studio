@@ -843,8 +843,8 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
         provider: 'openrouter',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [
-          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', imageOutputPerMillion: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false },
-          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', imageOutputPerMillion: null, inputPerMillion: null, available: true, createdAt: null, isNew: false },
+          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', imageOutputPerMillion: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [{ task: 'NoaCG Pro concept' }] },
+          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', imageOutputPerMillion: null, inputPerMillion: null, available: true, createdAt: null, isNew: false, usedBy: [] },
         ],
         discoveryFailed: false,
       },
@@ -869,5 +869,13 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await expect(imageNote).toContainText('No eligibility verdict');
   // And it says why nothing is marked in use here, rather than leaving the absence to be read
   // as "Pro is using none of these".
-  await expect(imageNote).toContainText('typed by the operator in the wizard');
+  await expect(imageNote).toContainText('PRO_STANDARD_ROUTES');
+
+  // The route the tier actually draws with is marked, so 'no verdict' is never read as
+  // 'nothing here is used'. A curated route carries no primary/fallback suffix - there is no
+  // spare behind it to distinguish it from.
+  const drawn = page.locator('tr[data-model="vendor/draw"]');
+  await expect(drawn).toContainText('NoaCG Pro concept');
+  await expect(drawn).not.toContainText('primary');
+  await expect(page.locator('tr[data-model="vendor/quiet"]')).not.toContainText('NoaCG Pro');
 });

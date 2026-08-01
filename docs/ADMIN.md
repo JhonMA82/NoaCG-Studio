@@ -648,10 +648,18 @@ table, so it cannot drift from what the gateway obeys. The two come apart in bot
 an approved route can carry nothing, and **a fallback carrying traffic means the primary is
 failing** - which is why both are shown rather than treating approval as deployment.
 
-Only routes the SERVER chooses can be marked. NoaCG Pro's image model is typed by the operator
-in the wizard (`src/components/wizard/steps/ProStep.tsx`), so no server-side fact exists and
-none is invented; the image tab says so in as many words rather than letting an absent badge be
-read as "Pro uses none of these".
+**Two sources, because the product has two mechanisms**, and both are imported rather than
+copied: the task registry for the registered tasks (Lite, import analysis), and
+`PRO_STANDARD_ROUTES` for the Pro tier, which pins one curated route per stage and goes through
+the generic gateway instead of the registry. That constant lives in the dependency-light
+`src/ai/pro/contract.ts`, NOT beside the pipeline that calls it, because `api/` cannot import
+`src/ai/pro/pipeline.ts` - that pulls in the gateway, telemetry and the canvas-bearing
+compiler. `pipeline.ts` re-exports it, so existing call sites are unaffected. A second copy in
+the admin layer would name the wrong model the first time either is re-benched.
+
+`slot` is present only where the distinction exists. A Pro stage pins one route with nothing
+behind it, so those rows carry no slot at all - calling one "primary" would invent a spare that
+does not exist.
 
 ### The image tab carries no verdict, on purpose
 
@@ -660,7 +668,8 @@ NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks an
 eligibility language at all**: `FUNDED_ROUTE_PRICE_CEILING` was set against text generation and
 no ceiling for image work has been decided, so applying it here would mark usable models
 ineligible against a rule nobody has written. Until such a ceiling is set deliberately, this is
-a menu and not a judgement. A price the provider did not publish reads "not published", never
+a menu and not a judgement. The route the tier actually draws with IS marked, from
+`PRO_STANDARD_ROUTES` - so "no verdict here" never has to be read as "nothing here is used". A price the provider did not publish reads "not published", never
 "free" - the same discipline as ZDR reading "not audited" rather than "no".
 
 **The price is `pricing.image_output`, per million OUTPUT IMAGE TOKENS - not `pricing.image`,

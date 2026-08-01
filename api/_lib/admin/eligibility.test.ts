@@ -198,3 +198,32 @@ test('approved and in-use are independent facts', () => {
   assert.equal(live.approved, false);
   assert.equal(live.usedBy[0]?.slot, 'primary');
 });
+
+test('a curated route carries no slot, so nothing invents a fallback it does not have', () => {
+  // NoaCG Pro pins one route per stage. Labelling it "primary" would imply a spare exists.
+  const pro = model({ id: 'google/gemini-3.1-flash-image' });
+  const [row] = modelEligibility([pro], {
+    now: NOW,
+    usedBy: new Map([['openrouter:google/gemini-3.1-flash-image', [{ task: 'NoaCG Pro concept' }]]]),
+  });
+  assert.deepEqual(row.usedBy, [{ task: 'NoaCG Pro concept' }]);
+  assert.equal(row.usedBy[0].slot, undefined);
+});
+
+test('one route can be used by several callers at once', () => {
+  // gemini-2.5-flash really is all three on this deployment: Lite's fallback, import
+  // analysis, and Pro's interpretation. A row that showed only the first would be wrong.
+  const shared = model({ id: 'google/gemini-2.5-flash' });
+  const [row] = modelEligibility([shared], {
+    now: NOW,
+    usedBy: new Map([
+      ['openrouter:google/gemini-2.5-flash', [
+        { task: 'NoaCG Lite', slot: 'fallback' as const },
+        { task: 'Import analysis', slot: 'primary' as const },
+        { task: 'NoaCG Pro interpret' },
+      ]],
+    ]),
+  });
+  assert.equal(row.usedBy.length, 3);
+  assert.deepEqual(row.usedBy.map((use) => use.task).sort(), ['Import analysis', 'NoaCG Lite', 'NoaCG Pro interpret']);
+});
