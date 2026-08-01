@@ -1,49 +1,61 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// NoaCG Pro - the image-guided pipeline's wizard flow (docs/NOACG_PRO_PLAN.md §7).
+// NoaCG Pro - the image-guided pipeline as an execution TIER of the ONE Create-with-AI
+// step (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
+// ⚙ AI settings, and the brief/fields/uploads workflow is the shared one.
 //
-// The offline suite runs the STUB pipeline (no AI configured): a deterministic locally-drawn
-// concept compiled through the real normalizer, compiler and production validator - so what
-// is pinned here is the product flow and the honesty of the report, with zero tokens. The
-// remote path differs only in where the concept and interpretation come from.
+// The offline suite runs the STUB pipeline (no OpenRouter key configured): a deterministic
+// locally-drawn concept compiled through the real normalizer, compiler and production
+// validator - so what is pinned here is the product flow and the honesty of the report,
+// with zero tokens. The remote path differs only in where the concept and interpretation
+// come from.
 
-async function toProStep(page: Page) {
+async function toProTier(page: Page) {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await page.locator('[data-entry="pro"]').click();
-  await expect(page.getByTestId('pro-step')).toBeVisible();
+  // There is no separate Pro entry card - Create with AI is the one AI door.
+  await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
+  await page.locator('[data-entry="ai"]').click();
+  // Offline, with nothing configured, the settings open themselves; the tier lives there.
+  await expect(page.getByTestId('ai-tier')).toBeVisible();
+  await page.getByTestId('ai-tier-pro').click();
+  await expect(page.getByRole('heading', { name: 'NoaCG Pro' })).toBeVisible();
 }
 
-test('pro: the entry card leads to the step, offline mode says so, and Next waits for a result', async ({ page }) => {
-  await toProStep(page);
+test('pro: a tier of Create with AI - offline says so, no model pickers, Next waits for a result', async ({ page }) => {
+  await toProTier(page);
 
   // Offline builds run the stub and say so - nothing pretends a model was involved.
   await expect(page.getByTestId('pro-offline-note')).toBeVisible();
-  // No image-model picker offline: the route belongs to the remote path.
-  await expect(page.getByTestId('pro-image-model')).toHaveCount(0);
+  // A normal Pro user picks NO models: the tier's settings carry the key surface only.
+  await expect(page.getByTestId('ai-pro-settings')).toBeVisible();
+  await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-pro-settings').getByText('OpenRouter key', { exact: true })).toBeVisible();
   // Nothing to finish yet.
   await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
 });
 
-test('pro: concept -> compile -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
-  await toProStep(page);
+test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
+  await toProTier(page);
 
-  await page.getByTestId('pro-name').fill('Noa Haline');
-  await page.getByTestId('pro-title').fill('Anchor · Evening News');
-  await page.getByTestId('pro-generate').click();
+  // The SHARED workflow authors the brief: category + data fields from More control.
+  await page.getByTestId('more-control-toggle').click();
+  await page.getByRole('button', { name: /^Lower third/ }).click();
+  await page.getByRole('button', { name: /Data fields/ }).click();
+  await page.getByLabel('Example value').first().fill('Noa Haline');
+  await page.getByLabel('Example value').nth(1).fill('Anchor · Evening News');
 
-  // The concept renders for review before anything is compiled.
-  await expect(page.getByTestId('pro-concept')).toBeVisible();
-  await expect(page.getByTestId('pro-concept')).toContainText('Offline concept');
-
-  // Compile runs the REAL production gate (static + live runtime bench), so give it room.
-  await page.getByTestId('pro-compile').click();
+  await page.locator('.wz-step textarea').first().fill('Calm election-night strap, deep blue.');
+  // One press runs concept -> interpret -> compile -> the REAL production gate (static +
+  // live runtime bench), so give it room.
+  await page.getByRole('button', { name: '✧ Generate' }).click();
   await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('pro-report')).toContainText('Compiled, validated');
+  await expect(page.getByTestId('pro-report')).toContainText('Offline concept');
   await expect(page.getByTestId('pro-report')).toContainText('fully reconstructed, no raster left');
   // The report is per-region and names what became editable.
   await expect(page.getByTestId('pro-outcomes')).toContainText('Name');
   await expect(page.getByTestId('pro-outcomes')).toContainText('operator-editable text field');
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation');
 
   // Finish: name it and take the editor door.
   await page.getByRole('button', { name: 'Next ›' }).click();
@@ -190,4 +202,65 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   expect(out.gradient.centre![3]).toBe(255);
   expect(out.gradient.centre![0]).toBeGreaterThan(200);
   expect(out.gradient.corner![3]).toBe(255);
+});
+
+test('pro: decorative regions with panel geometry are rebuilt, and a duplicate box becomes one layer', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // Models file accent bars under kind "decorative" (every checked-in fixture does) and
+  // sometimes report one strap twice - a 'panel' and a 'decorative' twin on the same box.
+  // The plan must rebuild the bar and paint the strap ONCE.
+  const out = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
+    const { uuid } = await import(`/src/model/id.ts${bust}`);
+
+    const FRAME = { width: 1920, height: 1080 };
+    const strap = { x: 0.1, y: 0.75, w: 0.4, h: 0.12 };
+    const interpretation = {
+      version: 1,
+      graphicType: 'lower-third',
+      graphicTypeConfidence: 0.9,
+      regions: [
+        { kind: 'panel', bbox: strap, confidence: 0.9, treatment: 'rebuild-shape',
+          panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 } },
+        // The duplicate twin: same box, filed as decorative.
+        { kind: 'decorative', bbox: strap, confidence: 0.9, treatment: 'rebuild-shape',
+          panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 } },
+        // The accent bar, filed as decorative WITH geometry: must rebuild.
+        { kind: 'decorative', bbox: { x: 0.1, y: 0.75, w: 0.004, h: 0.12 }, confidence: 0.9,
+          treatment: 'rebuild-shape',
+          panel: { shape: 'accent-bar', fill: { kind: 'solid', color: '#f5a623' }, opacity: 1 } },
+        // Geometry-less decoration: stays raster.
+        { kind: 'decorative', bbox: { x: 0.3, y: 0.9, w: 0.05, h: 0.01 }, confidence: 0.9, treatment: 'keep-asset' },
+        { kind: 'text', bbox: { x: 0.12, y: 0.78, w: 0.2, h: 0.04 }, confidence: 0.9,
+          treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Noa' },
+      ],
+      animation: { presetId: 'design-slide', speed: 1 },
+      warnings: [],
+    };
+    const plan = normalizeProInterpretation(interpretation, FRAME, uuid);
+    return {
+      panelLayers: plan.panels.map((p: { shape: string }) => p.shape),
+      treatments: plan.outcomes.map((o: { kind: string; treatment: string }) => `${o.kind}:${o.treatment}`),
+      unitPad: plan.unitPad,
+    };
+  });
+
+  // One strap layer (the twin deduped) + the accent bar - not three layers.
+  expect(out.panelLayers.sort()).toEqual(['accent-bar', 'panel']);
+  expect(out.treatments).toEqual([
+    'panel:rebuild-shape',
+    'decorative:rebuild-shape',
+    'decorative:rebuild-shape',
+    'decorative:keep-asset',
+    'text:rebuild-text',
+  ]);
+  // The strap owns every union edge except where the raster decoration sticks out below -
+  // that side keeps its pad, the rebuilt edges crop tight.
+  expect(out.unitPad.left).toBe(0);
+  expect(out.unitPad.top).toBe(0);
+  expect(out.unitPad.right).toBe(0);
+  expect(out.unitPad.bottom).toBeGreaterThan(0);
 });

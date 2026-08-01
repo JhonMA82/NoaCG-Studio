@@ -150,6 +150,19 @@ server-configured sample threshold and only as a subtle tie-breaker. They never 
 brief, semantic fit, or the diversity doctrine. Prompts, templates, screenshots, generated
 code, and full DesignSpecs never enter the ledger.
 
+## NoaCG Pro - the image-guided tier (`pro/`)
+
+Pro is an execution TIER of the same Create-with-AI step, never a second flow
+(docs/NOACG_PRO_PLAN.md is binding): `AiSettings.tier` picks lite/pro/custom, and the AI
+step maps the SHARED brief (prompt + GenerationSpec + uploads) onto the v1 `ProBrief`
+through `pro/brief.ts` - one deterministic seam, no parallel brief vocabulary. Generation
+runs concept -> interpret -> compile -> validate on `PRO_STANDARD_ROUTES`
+(`pro/pipeline.ts`): the curated model choice measured in the 2026-07-31 paid round
+(~$0.07-0.08/generation), pinned so a normal Pro user never picks models - the custom tier
+is where model choice lives. Do not change the standard routes without re-running
+`npm run bench:pro` paid stages. Offline (no OpenRouter key) the deterministic stub
+(`pro/stub.ts`) runs the identical flow, which keeps e2e/pro.spec.ts token-free.
+
 ## Import analysis - the proposal-only vision task (`importAnalysis/`)
 
 `imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import
