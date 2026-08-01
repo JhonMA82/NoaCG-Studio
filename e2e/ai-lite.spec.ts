@@ -92,11 +92,20 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
 
   await openLite(page);
   await expect(page.getByTestId('lite-allowance')).toContainText('3 successful generation(s) left today');
-  await expect(page.getByRole('button', { name: /AI settings/ })).toHaveCount(0);
   await expect(page.getByLabel(/Design 3 options/)).toHaveCount(0);
   await expect(page.getByTestId('ai-talk')).toHaveCount(0);
   await expect(page.getByTestId('ai-attach')).toHaveCount(0);
   await expect(page.getByText(/Gemini|Qwen|OpenRouter|Anthropic|OpenAI/)).toHaveCount(0);
+
+  // AI settings still exists in Lite - it is where the execution TIER is chosen (Lite /
+  // Pro / Custom) - but while Lite is the tier it offers NO provider or model surface.
+  await page.getByRole('button', { name: /AI settings/ }).click();
+  await expect(page.getByTestId('ai-tier')).toBeVisible();
+  await expect(page.getByTestId('ai-tier-lite').getByRole('radio')).toBeChecked();
+  await expect(page.getByTestId('ai-tier-pro')).toBeVisible();
+  await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-settings').getByText('Model', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /AI settings/ }).click();
 
   await page.getByTestId('more-control-toggle').click();
   await expect(page.getByTestId('more-control')).toBeVisible();

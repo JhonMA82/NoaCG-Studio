@@ -1,49 +1,61 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// NoaCG Pro - the image-guided pipeline's wizard flow (docs/NOACG_PRO_PLAN.md §7).
+// NoaCG Pro - the image-guided pipeline as an execution TIER of the ONE Create-with-AI
+// step (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
+// ⚙ AI settings, and the brief/fields/uploads workflow is the shared one.
 //
-// The offline suite runs the STUB pipeline (no AI configured): a deterministic locally-drawn
-// concept compiled through the real normalizer, compiler and production validator - so what
-// is pinned here is the product flow and the honesty of the report, with zero tokens. The
-// remote path differs only in where the concept and interpretation come from.
+// The offline suite runs the STUB pipeline (no OpenRouter key configured): a deterministic
+// locally-drawn concept compiled through the real normalizer, compiler and production
+// validator - so what is pinned here is the product flow and the honesty of the report,
+// with zero tokens. The remote path differs only in where the concept and interpretation
+// come from.
 
-async function toProStep(page: Page) {
+async function toProTier(page: Page) {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await page.locator('[data-entry="pro"]').click();
-  await expect(page.getByTestId('pro-step')).toBeVisible();
+  // There is no separate Pro entry card - Create with AI is the one AI door.
+  await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
+  await page.locator('[data-entry="ai"]').click();
+  // Offline, with nothing configured, the settings open themselves; the tier lives there.
+  await expect(page.getByTestId('ai-tier')).toBeVisible();
+  await page.getByTestId('ai-tier-pro').click();
+  await expect(page.getByRole('heading', { name: 'NoaCG Pro' })).toBeVisible();
 }
 
-test('pro: the entry card leads to the step, offline mode says so, and Next waits for a result', async ({ page }) => {
-  await toProStep(page);
+test('pro: a tier of Create with AI - offline says so, no model pickers, Next waits for a result', async ({ page }) => {
+  await toProTier(page);
 
   // Offline builds run the stub and say so - nothing pretends a model was involved.
   await expect(page.getByTestId('pro-offline-note')).toBeVisible();
-  // No image-model picker offline: the route belongs to the remote path.
-  await expect(page.getByTestId('pro-image-model')).toHaveCount(0);
+  // A normal Pro user picks NO models: the tier's settings carry the key surface only.
+  await expect(page.getByTestId('ai-pro-settings')).toBeVisible();
+  await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-pro-settings').getByText('OpenRouter key', { exact: true })).toBeVisible();
   // Nothing to finish yet.
   await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
 });
 
-test('pro: concept -> compile -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
-  await toProStep(page);
+test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
+  await toProTier(page);
 
-  await page.getByTestId('pro-name').fill('Noa Haline');
-  await page.getByTestId('pro-title').fill('Anchor · Evening News');
-  await page.getByTestId('pro-generate').click();
+  // The SHARED workflow authors the brief: category + data fields from More control.
+  await page.getByTestId('more-control-toggle').click();
+  await page.getByRole('button', { name: /^Lower third/ }).click();
+  await page.getByRole('button', { name: /Data fields/ }).click();
+  await page.getByLabel('Example value').first().fill('Noa Haline');
+  await page.getByLabel('Example value').nth(1).fill('Anchor · Evening News');
 
-  // The concept renders for review before anything is compiled.
-  await expect(page.getByTestId('pro-concept')).toBeVisible();
-  await expect(page.getByTestId('pro-concept')).toContainText('Offline concept');
-
-  // Compile runs the REAL production gate (static + live runtime bench), so give it room.
-  await page.getByTestId('pro-compile').click();
+  await page.locator('.wz-step textarea').first().fill('Calm election-night strap, deep blue.');
+  // One press runs concept -> interpret -> compile -> the REAL production gate (static +
+  // live runtime bench), so give it room.
+  await page.getByRole('button', { name: '✧ Generate' }).click();
   await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('pro-report')).toContainText('Compiled, validated');
+  await expect(page.getByTestId('pro-report')).toContainText('Offline concept');
   await expect(page.getByTestId('pro-report')).toContainText('fully reconstructed, no raster left');
   // The report is per-region and names what became editable.
   await expect(page.getByTestId('pro-outcomes')).toContainText('Name');
   await expect(page.getByTestId('pro-outcomes')).toContainText('operator-editable text field');
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation');
 
   // Finish: name it and take the editor door.
   await page.getByRole('button', { name: 'Next ›' }).click();

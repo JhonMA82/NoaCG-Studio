@@ -765,6 +765,23 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
    overlay on it would misreport what was chosen. */
 .ai-swatch.picked { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
 
+/* The AI execution-tier picker (AI settings): Lite / Pro / Custom as radio cards. */
+.ai-tier { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ai-tier-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ai-tier-option input[type='radio'] { width: auto; margin-top: 2px; flex: none; }
+.ai-tier-option.selected { border-color: var(--accent); background: var(--bg-2); }
+.ai-tier-option:has(input:disabled) { opacity: 0.55; cursor: default; }
+.ai-tier-body { display: flex; flex-direction: column; gap: 2px; }
+.ai-tier-body .hint { margin: 0; }
+
 /* On-air readiness: one row per thing that was checked. */
 .ai-ready { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
 .ai-ready-row {
@@ -1137,13 +1154,13 @@ kbd {
 
 .wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
-  /* 198, not 240, so all SIX cards (the AI Pro card made it six) sit on ONE row at 1366px -
-     the Entry step's height budget (see .wz-hero) is spent by a second row, not by a card
-     being wide. Measured at 1366x768: the entry row gets 1259px, and 6x198 + 5x14 gap =
-     1258 holds while 240 wrapped "Blank project" onto a second row and overflowed the step
-     by 48px. The narrower card wraps its hint one line more and the row grows ~20px taller -
-     still ~150px cheaper than the second row. e2e/wizard-entry-fit.spec.ts is the guard. */
-  width: 198px;
+  /* The width budget: every card of the entry row must fit ONE row at 1366px, where the
+     row gets 1259px - a second row spends the Entry step's height budget (see .wz-hero).
+     FIVE cards (Pro folded into Create with AI as a tier): 5x240 + 4x14 gap = 1256 holds.
+     Adding a card means re-spending this budget, not just appending (six cards at 240
+     wrapped and overflowed the step by 48px until they were narrowed).
+     e2e/wizard-entry-fit.spec.ts is the guard. */
+  width: 240px;
   padding: 16px 18px;
   text-align: left;
   display: flex;
