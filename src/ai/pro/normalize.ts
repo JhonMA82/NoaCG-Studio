@@ -51,8 +51,11 @@ export interface ProPlan {
    *  panel coverage against when deciding whether baked placeholder text survives. */
   textRects: { x: number; y: number; w: number; h: number }[];
   panels: ProPanelPlan[];
-  /** The logo region, when one was reported (design px, full-frame space). */
-  logo: { x: number; y: number; w: number; h: number } | null;
+  /** The logo region, when one was reported (design px, full-frame space). `outcomeIndex`
+   *  addresses its line in `outcomes` - one outcome is pushed per interpreted region, in
+   *  order, so the compile can report against the region the slot was actually placed over
+   *  rather than the first one that happens to be a logo. */
+  logo: { x: number; y: number; w: number; h: number; outcomeIndex: number } | null;
   animation: { presetId: 'design-fade' | 'design-slide' | 'design-pop' | 'design-blur'; speed: 0.75 | 1 | 1.5 };
   warnings: string[];
   outcomes: ProRegionOutcome[];
@@ -276,7 +279,9 @@ export function normalizeProInterpretation(
     warnings.push('No confident regions were reported, so the whole frame was kept as the design unit.');
   }
 
-  const logoRegion = interpretation.regions.find(
+  // The index, not just the region: `outcomes` holds one entry per interpreted region in the
+  // same order, so this IS the outcome line the placed slot belongs to.
+  const logoIndex = interpretation.regions.findIndex(
     (region) => region.kind === 'logo' && region.confidence >= CONFIDENCE_FLOOR,
   );
 
@@ -290,7 +295,9 @@ export function normalizeProInterpretation(
     textRects,
     // Larger panels paint first so an accent bar drawn over the strap stays visible.
     panels: panels.sort((a, b) => b.w * b.h - a.w * a.h),
-    logo: logoRegion ? pxRect(logoRegion, frame) : null,
+    logo: logoIndex >= 0
+      ? { ...pxRect(interpretation.regions[logoIndex], frame), outcomeIndex: logoIndex }
+      : null,
     animation: {
       presetId: interpretation.animation?.presetId ?? 'design-slide',
       // Snap to the three real speeds: the schema bounds a RANGE (Google's structured

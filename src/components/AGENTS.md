@@ -822,7 +822,11 @@ clamp pattern), spec-field findings demote to warnings (fixed contract, no repai
 `demoteSpecFields`), refine/fix are stood down (regenerate is the honest move and the card
 says so), and with no OpenRouter key the tier says so and runs the offline stub - which is
 what keeps e2e/pro.spec.ts token-free. A Pro create records activation mode 'pro' through
-the shared AI door (`aiResult.path`).
+the shared AI door (`aiResult.path`). The step then runs `fillProLogoSlot`
+(src/ai/pro/logoAsset.ts) over whatever the pipeline returned: the FIRST "use it as it is"
+upload is bundled into the logo slot the compile placed and set as its field value, so an
+as-is mark that asked the concept for a logo area is actually IN it. Deterministic, after
+the pipeline, no model call - and the outcome line on the report says the slot was filled.
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to

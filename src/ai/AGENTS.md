@@ -163,6 +163,19 @@ is where model choice lives. Do not change the standard routes without re-runnin
 `npm run bench:pro` paid stages. Offline (no OpenRouter key) the deterministic stub
 (`pro/stub.ts`) runs the identical flow, which keeps e2e/pro.spec.ts token-free.
 
+**An as-is upload is BUNDLED into the slot it asked for** (`pro/logoAsset.ts`
+`fillProLogoSlot`, called by the AI step after the pipeline returns). The compile reports
+the slot it placed (`ProCompileReport.logoSlot` - field id, wrapper id, and the outcome
+line it belongs to); the fill writes the mark into `template.assets` and the slot's
+DataField value, so the project's sample data follows from that default on create. It is
+deterministic - no model decides which file goes in the slot - and it writes no CSS, which
+is how it satisfies the as-is screen by construction; baking the `src` into the markup is
+also what ARMS that screen, since `assetIntegrity.ts` finds a protected picture by its
+`<img src>`. The report follows: the region's outcome says the mark was placed, and the
+empty-slot warning is retired BY IDENTITY (`PRO_EMPTY_LOGO_SLOT_WARNING`, exported from
+`pro/compile.ts` so the second place never keeps a copied literal). An upload whose purpose
+is `layout`/`mood`/`plate` is never bundled, here as everywhere.
+
 ## Import analysis - the proposal-only vision task (`importAnalysis/`)
 
 `imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import

@@ -29,6 +29,11 @@ export interface ProCompileReport {
   /** True when the reconstruction covered everything and the raster crop was dropped -
    *  the graphic is pure editable code. */
   artDropped: boolean;
+  /** The replaceable logo slot this compile placed, when the brief asked for one AND the
+   *  interpretation found a logo area to place it over. `outcomeIndex` addresses the region
+   *  the slot belongs to, so a later pass reports against the right line instead of guessing
+   *  which of several logo regions it was. Null when no slot was placed. */
+  logoSlot: { fieldId: string; wrapperId: string; outcomeIndex: number } | null;
   /** Meaningful regions that ended editable / all meaningful regions (0..1; 1 with none). */
   editability: number;
   warnings: string[];
@@ -40,6 +45,12 @@ export interface ProCompileResult {
 }
 
 export class ProCompileError extends Error {}
+
+/** The honest line about an EMPTY logo slot sitting over the concept's own placeholder mark.
+ *  Exported so `fillProLogoSlot` can retire it BY IDENTITY once it picks a file for that slot -
+ *  a copied literal in the second place is how the two come to disagree. */
+export const PRO_EMPTY_LOGO_SLOT_WARNING =
+  "The concept's own logo mark stays visible in the artwork until a file is picked for the Logo slot.";
 
 /** Load a data URL into pixels. Isolated so the compiler stays testable: only this touches
  *  the DOM image decoder. */
@@ -244,7 +255,7 @@ export async function compileProPlan(
   // A requested logo becomes a real replaceable slot over the concept's logo area. A
   // request the interpretation found no logo area FOR is said out loud - silently
   // omitting the slot is how the first paid round's miss went unexplained.
-  let logoPlaced = false;
+  let logoSlot: ProCompileReport['logoSlot'] = null;
   if (brief.includeLogo && !plan.logo) {
     warnings.push('A logo slot was requested, but the interpretation found no logo area in the concept - add one from the Data tab, or regenerate.');
   }
@@ -254,9 +265,9 @@ export async function compileProPlan(
       const wrapperId = `fw${added.fieldId.slice(1)}`;
       template = placeLine(added.template, wrapperId, Math.round(plan.logo.x - plan.unit.x), Math.round(plan.logo.y - plan.unit.y), true);
       template = setSlotSize(template, wrapperId, Math.round(plan.logo.w), Math.round(plan.logo.h), true);
-      logoPlaced = true;
+      logoSlot = { fieldId: added.fieldId, wrapperId, outcomeIndex: plan.logo.outcomeIndex };
       if (!artDropped && !coveredByOpaquePanel(plan, plan.logo)) {
-        warnings.push('The concept\'s own logo mark stays visible in the artwork until a file is picked for the Logo slot.');
+        warnings.push(PRO_EMPTY_LOGO_SLOT_WARNING);
       }
     }
   }
@@ -271,7 +282,7 @@ export async function compileProPlan(
   const meaningful = plan.outcomes.filter((outcome) => outcome.kind !== 'decorative');
   const editable = meaningful.filter((outcome) =>
     outcome.treatment === 'rebuild-text' || outcome.treatment === 'rebuild-shape'
-    || (outcome.kind === 'logo' && logoPlaced));
+    || (outcome.kind === 'logo' && logoSlot !== null));
 
   return {
     template: { ...template, name: 'Pro lower third' },
@@ -283,6 +294,7 @@ export async function compileProPlan(
       textErased,
       ringMatted,
       artDropped,
+      logoSlot,
       editability: meaningful.length === 0 ? 1 : editable.length / meaningful.length,
       warnings,
     },

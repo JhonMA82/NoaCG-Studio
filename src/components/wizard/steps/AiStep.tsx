@@ -19,6 +19,7 @@ import {
   type ProStage,
 } from '../../../ai/pro/pipeline';
 import { stubCompilePro, stubProConcept } from '../../../ai/pro/stub';
+import { fillProLogoSlot } from '../../../ai/pro/logoAsset';
 import { PRO_SUPPORTED_CATEGORIES, standardProBrief } from '../../../ai/pro/brief';
 import {
   emptyGenerationSpec,
@@ -654,9 +655,16 @@ export default function AiStep({
           onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
           interpretRoute: PRO_STANDARD_ROUTES.interpret,
         };
-        const compiled = proRemote
-          ? await compileProConcept(proBrief, concept, compileOptions)
-          : await stubCompilePro(proBrief, concept, compileOptions);
+        // The user's own mark goes INTO the slot the compile placed - deterministically,
+        // after the pipeline, because nothing about which file belongs there is a model
+        // decision (src/ai/pro/logoAsset.ts). Without it an as-is upload asked the concept
+        // for a logo area, got a slot, and left the file behind.
+        const compiled = fillProLogoSlot(
+          proRemote
+            ? await compileProConcept(proBrief, concept, compileOptions)
+            : await stubCompilePro(proBrief, concept, compileOptions),
+          uploads.find((upload) => upload.purpose === 'asset') ?? null,
+        );
         proDetails.current.set(compiled.template, compiled);
         const change: AiTemplateChange = {
           template: compiled.template,
@@ -935,8 +943,8 @@ export default function AiStep({
           {proMode && (
             <p className="hint" data-testid="pro-upload-note">
               Uploads do not steer the image concept yet — an as-is mark asks the design for a
-              logo slot, and colours read from your image can be applied as the exact brand
-              accent below.
+              logo slot and is bundled into it, and colours read from your image can be applied
+              as the exact brand accent below.
             </p>
           )}
           {images.length > 0 && (
