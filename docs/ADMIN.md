@@ -565,6 +565,17 @@ not terminal - the sweep missed them), and the first row date of each ledger, on
   That is right for admission and wrong for "what did this cost us": a generation that dies
   before reaching a provider keeps the ceiling forever. Spend is therefore summed only over rows
   that recorded a model. `0024` did not, and overstated by 6.5×.
+- **Both rules live in TWO places, and `0026` only reached one of them.** The overview
+  aggregates in SQL, but **Usage and cost** (`api/_lib/admin/usage.ts`) reads `ai_generations`
+  straight through PostgREST and classifies in JavaScript - so the migration could not correct
+  it, and for a day prod showed `26 failed` and `$0.09` in one section beside `19 failed`,
+  `7 declined` and `$0.01` in another, off the same rows. Its `FAILURE` set and its spend sum
+  now mirror `0026` exactly, with the vocabulary enumerated in the file. **A metric that exists
+  on more than one surface has to be changed on all of them: a migration fixes only the
+  surfaces that aggregate in the database.** The fleet-ceiling bar is the deliberate exception -
+  it counts every reservation at its ceiling because that is the sum
+  `reserve_ai_lite_generation` compares against (`0013`), and a bar that read lower than the
+  number doing the refusing would explain nothing on the day generations start being refused.
 - **A render's `expired` state is a SUCCESS, not a failure.** `expired` is written in
   exactly one place - `api/render/cleanup.ts`, in the branch guarded by
   `job.state === 'complete'` - so it is unreachable except from completion, and means "finished,

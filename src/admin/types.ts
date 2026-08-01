@@ -154,14 +154,23 @@ export interface AdminUsageDay {
   day: string;
   generations: number;
   successes: number;
+  /** Broke. `unsupported` is a decline and `expired` an abandoned reservation - neither is
+   *  here, matching migration 0026's split for the overview. */
   failures: number;
+  /** Lite refusing a brief outside its scope: the guardrail firing, never a fault. */
+  declined: number;
+  /** Real spend - only generations that reached a provider (see the API's `spent`). */
   costUsd: number;
 }
 
 export interface AdminUsageOverview {
   days: AdminUsageDay[];
-  /** Rejection reason -> count, over the window. The operator's first debugging surface. */
+  /** Rejection reason -> count for generations that BROKE, over the window. The operator's
+   *  first debugging surface. */
   failureReasons: { reason: string; count: number }[];
+  /** Rejection reason -> count for briefs Lite DECLINED. Kept apart from the failures: a
+   *  rising count here is demand for something Lite cannot do yet, not breakage. */
+  declineReasons: { reason: string; count: number }[];
   /** Users who hit an allowance in the window, worst first. */
   pinched: { userId: string; email: string; refusals: number; lastAt: string }[];
   totals: { generations: number; costUsd: number; gatewayRequests: number; renderJobs: number };
