@@ -240,9 +240,11 @@ lands on Home, and opens the standalone export window (the same surface as the e
 panel, also reachable from any saved graphic on Home). Export is not a reward for opening the
 editor.
 The Entry step leads with **Continue working** (recent library graphics + the door to Home),
-then the broadcast-graphics cards: templates, **"Create with AI"** (a brief plus optional images
-and/or an existing .html/.zip - every AI result runs the harness with the runtime bench injected,
-and the no-AI "Open as code" import stays one click away, never gated on sign-in),
+then the broadcast-graphics cards: templates, **"Create with AI"** (THE one AI door - a brief plus
+optional images and/or an existing .html/.zip; its ⚙ AI settings pick the execution TIER:
+NoaCG Lite, NoaCG Pro (the image-guided pipeline on pinned routes, docs/NOACG_PRO_PLAN.md §7),
+or the advanced Custom/BYO provider surface - every AI result runs the harness with the runtime
+bench injected, and the no-AI "Open as code" import stays one click away, never gated on sign-in),
 **"Import graphic"** (manual: artwork -> erase/scale -> PLACE text fields -> fonts -> in/out
 animation), and blank; **"Video or animation with AI"** sits in its own visually separated
 strip marked Beta (the parallel VIDEO project kind, engine chosen at create - creating/opening

@@ -18,18 +18,27 @@ import {
 interface Props {
   settings: AiSettings;
   onChange: (patch: Partial<AiSettings>) => void;
+  /** Lock the surface to ONE provider (the key/status rows target it and the provider select
+   *  disappears). The managed Pro tier uses this so key management reuses the one secure
+   *  credential surface without offering a provider choice. */
+  fixedProvider?: AiSettings['provider'];
+  /** Hide the model row - a managed tier picks its own routes. Defaults to shown. */
+  showModel?: boolean;
 }
 
 /** Shared provider/model/key controls. The secret input is submitted once and never persisted in app settings. */
-export default function AiProviderSettings({ settings, onChange }: Props) {
+export default function AiProviderSettings({ settings, onChange, fixedProvider, showModel = true }: Props) {
   const onChangeRef = useRef(onChange);
   const [key, setKey] = useState('');
   const [status, setStatus] = useState<AiProviderStatus[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [discovered, setDiscovered] = useState<AiDiscoveredModel[]>([]);
-  const curatedModels = useMemo(() => modelsForProvider(settings.provider), [settings.provider]);
-  const current = status.find((provider) => provider.id === settings.provider);
+  // The provider every row below acts on. A fixed provider never touches the saved
+  // provider/model routing preferences - those belong to the custom tier.
+  const provider = fixedProvider ?? settings.provider;
+  const curatedModels = useMemo(() => modelsForProvider(provider), [provider]);
+  const current = status.find((p) => p.id === provider);
   const selectedDiscovered = discovered.find((model) => model.id === settings.model);
 
   useEffect(() => {
@@ -56,8 +65,9 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
   useEffect(() => {
     let live = true;
     setDiscovered([]);
-    if (settings.provider !== 'openrouter' && settings.provider !== 'huggingface') return;
-    void discoverAiModels(settings.provider)
+    if (!showModel) return;
+    if (provider !== 'openrouter' && provider !== 'huggingface') return;
+    void discoverAiModels(provider)
       .then((catalog) => {
         if (live) setDiscovered(videoCompatibleModels(catalog.models));
       })
@@ -65,7 +75,7 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
         if (live) setMessage('Live model discovery is unavailable. You can still enter a model id.');
       });
     return () => { live = false; };
-  }, [settings.provider]);
+  }, [provider, showModel]);
 
   const applyConfig = (config: Awaited<ReturnType<typeof refreshAiConfiguration>>) => {
     setStatus(config.providers);
@@ -80,7 +90,7 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
     setBusy(true);
     setMessage('');
     try {
-      await saveUserAiKey(settings.provider, key);
+      await saveUserAiKey(provider, key);
       setKey('');
       applyConfig(await refreshAiConfiguration());
       setMessage('Provider key stored securely.');
@@ -95,7 +105,7 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
     setBusy(true);
     setMessage('');
     try {
-      await deleteUserAiKey(settings.provider);
+      await deleteUserAiKey(provider);
       applyConfig(await refreshAiConfiguration());
       setMessage('User-provided key removed.');
     } catch (error) {
@@ -107,48 +117,58 @@ export default function AiProviderSettings({ settings, onChange }: Props) {
 
   return (
     <>
-      <label>Provider</label>
-      <select
-        value={settings.provider}
-        onChange={(event) => {
-          setKey('');
-          setMessage('');
-          onChange({ provider: event.target.value as AiSettings['provider'] });
-        }}
-      >
-        {AI_PROVIDERS.map((provider) => (
-          <option key={provider.id} value={provider.id} title={provider.blurb}>{provider.label}</option>
-        ))}
-      </select>
-      <p className="hint">{AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.blurb}</p>
+      {!fixedProvider && (
+        <>
+          <label>Provider</label>
+          <select
+            value={settings.provider}
+            onChange={(event) => {
+              setKey('');
+              setMessage('');
+              onChange({ provider: event.target.value as AiSettings['provider'] });
+            }}
+          >
+            {AI_PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>
+            ))}
+          </select>
+          <p className="hint">{AI_PROVIDERS.find((p) => p.id === settings.provider)?.blurb}</p>
+        </>
+      )}
 
-      <label style={{ marginTop: 8 }}>Model</label>
-      <input
-        list={`ai-models-${settings.provider}`}
-        value={settings.model}
-        onChange={(event) => onChange({ model: event.target.value.trim() })}
-        placeholder="Provider model id"
-      />
-      <datalist id={`ai-models-${settings.provider}`}>
-        {discovered.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.name} - {modelPriceLabel(model)}
-          </option>
-        ))}
-        {curatedModels
-          .filter((model) => !discovered.some((item) => item.id === model.id))
-          .map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
-      </datalist>
-      <p className="hint">
-        {selectedDiscovered
-          ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
-              selectedDiscovered.inputModalities.join(', ')
-            } input - ${modelPriceLabel(selectedDiscovered)}`
-          : curatedModels.find((model) => model.id === settings.model)?.blurb
-            ?? 'Any model id supported by this provider.'}
-      </p>
+      {showModel && (
+        <>
+          <label style={{ marginTop: 8 }}>Model</label>
+          <input
+            list={`ai-models-${provider}`}
+            value={settings.model}
+            onChange={(event) => onChange({ model: event.target.value.trim() })}
+            placeholder="Provider model id"
+          />
+          <datalist id={`ai-models-${provider}`}>
+            {discovered.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name} - {modelPriceLabel(model)}
+              </option>
+            ))}
+            {curatedModels
+              .filter((model) => !discovered.some((item) => item.id === model.id))
+              .map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+          </datalist>
+          <p className="hint">
+            {selectedDiscovered
+              ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
+                  selectedDiscovered.inputModalities.join(', ')
+                } input - ${modelPriceLabel(selectedDiscovered)}`
+              : curatedModels.find((model) => model.id === settings.model)?.blurb
+                ?? 'Any model id supported by this provider.'}
+          </p>
+        </>
+      )}
 
-      <label style={{ marginTop: 8 }}>User-provided key</label>
+      <label style={{ marginTop: 8 }}>
+        {fixedProvider ? `${AI_PROVIDERS.find((p) => p.id === provider)?.label ?? provider} key` : 'User-provided key'}
+      </label>
       <div className="row" style={{ flexWrap: 'wrap', alignItems: 'stretch' }}>
         <input
           type="password"

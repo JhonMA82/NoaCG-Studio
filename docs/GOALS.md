@@ -175,6 +175,11 @@ with its lower-third siblings (§8), swept per category, and covered by an E2E s
       honest editability report) → the production validator → the ordinary editor and exports
 - [x] **Create with AI Pro wizard flow** — brief, concept review with cost, compile, per-region
       report, the shared Finish doors; offline stub keeps it e2e-testable (e2e/pro.spec.ts)
+- [x] **Pro as an execution tier of Create with AI** — the separate wizard card is gone; the
+      ⚙ AI settings tier picker chooses NoaCG Lite / NoaCG Pro / Custom provider, Pro rides
+      the shared brief (prompt, category, data fields, uploads, brand) mapped by
+      src/ai/pro/brief.ts, and the standard routes are pinned (PRO_STANDARD_ROUTES) so a
+      normal Pro user never picks models
 - [x] **Fixture-first benchmark** — benchmarks/pro/v1 + scripts/pro-bench.mjs (free regression
       by default; paid generation explicit and cost-ceilinged)
 - [ ] **Clean-plate / erase integration** — remove baked text outside reconstructed panels

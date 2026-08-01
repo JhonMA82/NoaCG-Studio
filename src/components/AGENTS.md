@@ -630,8 +630,10 @@ undo/redo keys as AppShell with the same Monaco/form-field guard. AI chat gates 
 
 CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
 preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
-which generates the complete, commented template. FIVE entry cards: template, Create with AI,
-video, Import graphic, blank.
+which generates the complete, commented template. FIVE entry cards (template, Create with AI,
+Import graphic, kit, blank) plus the separated video strip. Create with AI is the ONE AI door -
+NoaCG Pro is an execution TIER inside it, never a second card (the `.wz-entry-card` width
+budget in styles.css is re-spent whenever a card is added).
 
 **Deep-linked open** (`#/new/<variantId>`, docs/PRERENDER.md - a prerendered template page's
 CTA): the router's `design` param rides through `openGallery(designId)` into templateStore's
@@ -791,7 +793,13 @@ persists as a cross-session draft and, on Create, lands on the store's `aiSpec` 
 the project). A prompt-only user never touches it - an empty spec injects nothing (pinned by
 e2e/ai-more-control.spec.ts).
 
-When the server exposes **NoaCG Lite**, this same step becomes the smallest managed profile
+**The step has THREE execution tiers** (`AiSettings.tier`, picked under ⚙ AI settings - the
+one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro**, and **Custom provider**. The
+default resolves to Lite when the server offers it, else Custom - exactly the pre-tier
+behaviour. Lite and Pro are managed experiences of the SAME workflow (no model picking);
+Custom is the deliberate advanced surface carrying the full `AiProviderSettings`.
+
+With the **NoaCG Lite** tier active, the step is the smallest managed profile
 surface: one result, included/free-user copy, remaining allowance, lower-third-only routing,
 at most two fields, no image or logo input, and no style-reference upload. Provider/model
 settings, brainstorm, raw mode, three alternatives, "more like this", custom/import
@@ -801,6 +809,20 @@ harness. An unsupported response shows the server's explanation and one simplifi
 Creating or exporting records acceptance by generation id; the id is transient and never
 enters the template or saved graphic. If Lite is disabled, the established advanced/BYO
 surface is unchanged.
+
+The **NoaCG Pro** tier (docs/NOACG_PRO_PLAN.md §7) runs the image-guided pipeline off the
+SAME brief: `src/ai/pro/brief.ts` maps the prompt + GenerationSpec + uploads onto the v1
+`ProBrief`, generation runs concept -> interpret -> compile -> validate on the pinned
+`PRO_STANDARD_ROUTES` (a normal Pro user never picks models; the tier's settings show only
+the OpenRouter key surface via `AiProviderSettings fixedProvider/showModel`), and the result
+card adds the concept image with its real provider-reported cost plus the per-region
+editability report (`data-testid="pro-report"`, keyed to the template via a WeakMap so a
+restored past result shows its own concept). Categories clamp to lower-third/auto (the Lite
+clamp pattern), spec-field findings demote to warnings (fixed contract, no repair loop -
+`demoteSpecFields`), refine/fix are stood down (regenerate is the honest move and the card
+says so), and with no OpenRouter key the tier says so and runs the offline stub - which is
+what keeps e2e/pro.spec.ts token-free. A Pro create records activation mode 'pro' through
+the shared AI door (`aiResult.path`).
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to

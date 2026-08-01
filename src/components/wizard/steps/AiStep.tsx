@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiProvider } from '../../../ai';
 import { brainstorm, type ChatMessage } from '../../../ai/brainstorm';
 import { EXAMPLE_PROMPTS } from '../../../ai/examplePrompts';
-import { aiConfigured, loadAiSettings, saveAiSettings } from '../../../ai/settings';
+import { aiConfigured, loadAiSettings, saveAiSettings, type AiTier } from '../../../ai/settings';
 import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator } from '../../../ai/provider';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
@@ -10,7 +10,16 @@ import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/c
 import { mergeSafety } from '../../../ai/safety';
 import { productionSpxValidator } from '../../../ai/litePipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
-import { withSpecChecks } from '../../../ai/spec/specValidate';
+import { demoteSpecFields, withSpecChecks } from '../../../ai/spec/specValidate';
+import {
+  compileProConcept,
+  generateProConcept,
+  PRO_STANDARD_ROUTES,
+  type ProResult,
+  type ProStage,
+} from '../../../ai/pro/pipeline';
+import { stubCompilePro, stubProConcept } from '../../../ai/pro/stub';
+import { PRO_SUPPORTED_CATEGORIES, standardProBrief } from '../../../ai/pro/brief';
 import {
   emptyGenerationSpec,
   loadSpecDraft,
@@ -63,12 +72,14 @@ interface Props {
   /** The current AI result shown in the live preview (null until the first generation). */
   result: SpxTemplate | null;
   /** `spec` is the structured setup the result was generated under (null = prompt-only) —
-   *  the wizard saves it with the created project. */
+   *  the wizard saves it with the created project. `path` is the pipeline provenance (the
+   *  wizard's activation event distinguishes a Pro-tier create from a standard one). */
   onResult: (
     template: SpxTemplate | null,
     valid: boolean,
     spec?: GenerationSpec | null,
     generationId?: string,
+    path?: AiPath | null,
   ) => void;
   /** The conversation as it stands (talk turns only), reported on every change so the created
    *  project can carry the reasoning that produced it (persisted as GraphicDoc.aiThread). Fires
@@ -91,13 +102,32 @@ function routeLabel(path: AiPath | null): string | null {
       return '▤ Deterministic canvas structure with an AI-designed look.';
     case 'custom':
       return '✦ Custom build — exercised end to end in the live playout bench.';
+    case 'pro':
+      return '✧ Image-model visual direction, rebuilt as ordinary editable layers.';
     default:
       return null;
   }
 }
 
 /** The same route, as one glyph for a picker card. */
-const routeMark = (path: AiPath | undefined): string => (path === 'custom' ? '✦' : '▤');
+const routeMark = (path: AiPath | undefined): string =>
+  path === 'custom' ? '✦' : path === 'pro' ? '✧' : '▤';
+
+/** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §7). */
+const PRO_STAGE_LABELS: Record<ProStage, string> = {
+  concept: 'Generating the visual concept…',
+  interpret: 'Interpreting the design…',
+  compile: 'Rebuilding it as editable layers…',
+  validate: 'Validating and testing playout…',
+};
+
+/** The three execution tiers as the settings panel offers them. Descriptions deliberately
+ *  name no vendor or model - those belong to each tier's own detail area. */
+const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
+  { id: 'lite', name: 'NoaCG Lite', hint: 'Included free — one excellent editable graphic per request, nothing to configure.' },
+  { id: 'pro', name: 'NoaCG Pro', hint: 'An image model draws the visual direction; NoaCG rebuilds it as editable code. Curated routes, priced per generation, on your own key.' },
+  { id: 'custom', name: 'Custom provider', hint: 'Advanced — bring your own provider, key, and models.' },
+];
 
 /**
  * ONE transcript for the whole step: what the user said, what the AI said back, and every
@@ -165,7 +195,8 @@ export default function AiStep({
   const resolution = resolutionForSelection(format);
   const fps = format.fps;
   const { needsSignIn } = useAuthState();
-  const [liteStatus, setLiteStatus] = useState<LiteStatusResponse | null>(null);
+  // undefined = still resolving; null = no Lite on this server (offline builds, errors).
+  const [liteStatus, setLiteStatus] = useState<LiteStatusResponse | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
     void loadLiteStatus()
@@ -179,15 +210,36 @@ export default function AiStep({
       alive = false;
     };
   }, [needsSignIn]);
-  const liteMode = Boolean(liteStatus?.enabled);
-  const liteActive = Boolean(liteStatus?.available);
   const [settings, setSettings] = useState(loadAiSettings);
-  const aiReady = liteMode ? liteActive : aiConfigured(settings);
+  // THE EXECUTION TIER. Lite and Pro are managed experiences of the SAME creation workflow;
+  // 'custom' is the advanced BYO surface. The saved preference wins where it is honourable:
+  // a saved 'lite' on a server that stopped offering it falls back to custom, and no saved
+  // choice resolves to Lite when the server offers it (the historical default) else custom.
+  const liteOffered = Boolean(liteStatus?.enabled);
+  const tier: AiTier =
+    settings.tier === 'lite'
+      ? liteOffered ? 'lite' : 'custom'
+      : settings.tier ?? (liteOffered ? 'lite' : 'custom');
+  const liteMode = tier === 'lite';
+  const proMode = tier === 'pro';
+  const liteActive = liteMode && Boolean(liteStatus?.available);
+  // Pro's standard routes ride OpenRouter; without a key there the flow runs the
+  // deterministic offline stub (and says so), exactly like the custom tier's stub provider.
+  const proRemote = settings.configuredProviders.includes('openrouter');
+  const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
   // Every action on this step runs against a remote route when it runs at all (aiReady
   // gates the buttons; the stub is unreachable here), so the disclosure gate applies to
   // generate, refine, and talk alike.
   const { ensureAiConsent, consentDialog } = useAiConsent();
-  const [showSettings, setShowSettings] = useState(!aiConfigured());
+  // Opens itself ONCE, after the tier is known: a custom-tier visitor with no provider
+  // configured needs the setup in front of them, a Lite visitor does not.
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsAutoOpened = useRef(false);
+  useEffect(() => {
+    if (liteStatus === undefined || settingsAutoOpened.current) return;
+    settingsAutoOpened.current = true;
+    if (!liteStatus?.enabled && loadAiSettings().tier !== 'pro' && !aiConfigured()) setShowSettings(true);
+  }, [liteStatus]);
   const [prompt, setPrompt] = useState('');
   // ONE list of uploads, each carrying what it is FOR (model/imagePurpose.ts). The step used
   // to keep two: everything dropped here became a bundled asset, and the only way to say
@@ -213,6 +265,14 @@ export default function AiStep({
         : current,
     );
   }, [liteMode, spec.category]);
+  // The Pro tier's v1 pipeline compiles lower thirds only - a category it cannot carry
+  // resets to 'auto' (the Lite pattern) rather than being silently reinterpreted.
+  useEffect(() => {
+    if (!proMode) return;
+    if (spec.category !== 'auto' && !(PRO_SUPPORTED_CATEGORIES as readonly string[]).includes(spec.category)) {
+      setSpec((current) => ({ ...current, category: 'auto', categoryInferred: false }));
+    }
+  }, [proMode, spec.category]);
   const activeSpec = specIsEmpty(spec) ? null : spec;
   const [imported, setImported] = useState<{
     fileName: string;
@@ -229,6 +289,9 @@ export default function AiStep({
   // (passed back on refine so "warmer colours" re-assembles instead of editing code).
   const [lastPath, setLastPath] = useState<AiPath | null>(null);
   const [lastSpec, setLastSpec] = useState<DesignSpec | null>(null);
+  // The Pro concept + editability report behind each pro-path template, keyed by the
+  // template OBJECT so an archived then restored result still shows its own concept.
+  const proDetails = useRef(new WeakMap<SpxTemplate, ProResult>());
   // Harness mode: the generated directions (one, or the harness's three) + which one is
   // picked (the pick is staged as preference data and committed when the project is actually
   // created). The list SURVIVES a refinement — refining replaces only the picked entry, so
@@ -405,7 +468,7 @@ export default function AiStep({
     setValidation(v);
     setLastPath(change.path ?? null);
     setLastSpec(change.spec ?? null);
-    onResult(change.template, v.ok, activeSpec, change.generationId);
+    onResult(change.template, v.ok, activeSpec, change.generationId, change.path ?? null);
     return v;
   };
 
@@ -532,7 +595,10 @@ export default function AiStep({
   const generate = async (seed?: DesignSpec) => {
     // Gate BEFORE any transcript or prompt-box state changes, so a decline leaves the
     // step exactly as it was - nothing archived, nothing cleared, nothing recorded.
-    if (!(await ensureAiConsent())) return;
+    // The one path that reaches here WITHOUT a remote call is Pro's offline stub - a
+    // deterministic local run needs no AI disclosure.
+    const remoteRun = !proMode || proRemote;
+    if (remoteRun && !(await ensureAiConsent())) return;
     const brief = briefNow();
     // ARCHIVE FIRST, then record the request. The transcript is chronological: the result
     // standing now happened BEFORE the thing that replaces it, and appending the new turn
@@ -557,10 +623,49 @@ export default function AiStep({
         setError('NoaCG Lite does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
         return;
       }
+      if (proMode) {
+        setError('NoaCG Pro designs from a visual concept and does not convert imported templates. Open it as code, or switch the AI tier to Custom provider to convert it.');
+        return;
+      }
       void run(
         (options) => getAiProvider().convertImport(brief, imported.template, context, options),
         'Converting your template…',
       );
+      return;
+    }
+    if (proMode) {
+      // THE PRO TIER: the same brief, mapped deterministically onto the image-guided
+      // pipeline (src/ai/pro/brief.ts) and run on the STANDARD routes - a normal Pro user
+      // never picks models (PRO_STANDARD_ROUTES documents the choice). Offline (no
+      // OpenRouter key) the deterministic stub runs the identical flow without tokens.
+      // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
+      // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
+      const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
+      void run(async (options) => {
+        const proBrief = standardProBrief(brief, activeSpec, uploads);
+        options.onProgress?.(PRO_STAGE_LABELS.concept);
+        const concept = proRemote
+          ? await generateProConcept(proBrief, PRO_STANDARD_ROUTES.concept)
+          : await stubProConcept(proBrief);
+        const compileOptions = {
+          resolution,
+          fps,
+          validate: proValidate,
+          onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
+          interpretRoute: PRO_STANDARD_ROUTES.interpret,
+        };
+        const compiled = proRemote
+          ? await compileProConcept(proBrief, concept, compileOptions)
+          : await stubCompilePro(proBrief, concept, compileOptions);
+        proDetails.current.set(compiled.template, compiled);
+        const change: AiTemplateChange = {
+          template: compiled.template,
+          summary: `Image-guided design: ${compiled.report.textFields} editable text field(s), ${compiled.report.panelsRebuilt} rebuilt shape(s).`,
+          path: 'pro',
+          ...(compiled.validation ? { validation: compiled.validation } : {}),
+        };
+        return change;
+      }, PRO_STAGE_LABELS.concept);
       return;
     }
     if (liteActive) {
@@ -693,16 +798,24 @@ export default function AiStep({
   return (
     <div>
       <div className="panel-section">
-        <h3>{liteMode ? 'NoaCG Lite' : 'Create with AI'}</h3>
+        <h3>{liteMode ? 'NoaCG Lite' : proMode ? 'NoaCG Pro' : 'Create with AI'}</h3>
         <p className="hint">
           {liteMode
             ? 'Included for free users. This quality release concentrates on one excellent editable lower third, then validates and exercises it in the live playout bench. Other graphic types are explained instead of being forced into a poor design.'
-            : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
+            : proMode
+              ? 'An image model draws the visual direction; NoaCG rebuilds it as an ordinary editable graphic — live text fields, reconstructed shapes, deterministic motion, every export target. This first release designs lower thirds.'
+              : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
         </p>
         {liteMode && liteStatus?.allowance && (
           <p className="hint" data-testid="lite-allowance">
             {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}
             {liteStatus.allowance.monthlySuccessesRemaining} this month
+          </p>
+        )}
+        {proMode && !proRemote && (
+          <p className="hint" data-testid="pro-offline-note">
+            No OpenRouter key is configured, so this runs the built-in offline concept — the
+            full flow, without any model calls. Add a key under ⚙ AI settings.
           </p>
         )}
       </div>
@@ -819,6 +932,13 @@ export default function AiStep({
               }
             />
           ))}
+          {proMode && (
+            <p className="hint" data-testid="pro-upload-note">
+              Uploads do not steer the image concept yet — an as-is mark asks the design for a
+              logo slot, and colours read from your image can be applied as the exact brand
+              accent below.
+            </p>
+          )}
           {images.length > 0 && (
             <button
               onClick={() => onUseTemplates(images)}
@@ -835,7 +955,7 @@ export default function AiStep({
         // above (Open as code) and the catalog continuation stay fully open.
         <div style={{ marginTop: 12 }}>
           <SignInPrompt
-            feature={liteMode ? 'NoaCG Lite' : 'Create with AI'}
+            feature={liteMode ? 'NoaCG Lite' : proMode ? 'NoaCG Pro' : 'Create with AI'}
             reason={liteMode
               ? 'Sign in to use the included NoaCG Lite allowance for common editable graphics.'
               : 'Sign in to use AI and get a validated, editable template.'}
@@ -904,9 +1024,10 @@ export default function AiStep({
               They belong to the empty state — once there is a thread they are noise. */}
           {turns.length === 0 && (
           <div className="row wrap" style={{ marginTop: 12, marginBottom: 6, gap: 6 }}>
-            {(liteMode ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS).map((ex) => {
+            {/* Pro shares Lite's example briefs: both are lower-third-first releases. */}
+            {((liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS).map((ex) => {
               // A brief the user wrote themselves is real work; replacing it takes two clicks.
-              const examples = liteMode ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS;
+              const examples = (liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS;
               const dirty = Boolean(prompt.trim()) && !examples.some((e) => e.prompt === prompt);
               const armed = armedExample === ex.label;
               return (
@@ -937,13 +1058,15 @@ export default function AiStep({
           <textarea
             rows={result ? 3 : 4}
             placeholder={
-              result
+              result && !proMode
                 ? 'Refine it — e.g. "bigger name, move it bottom-left, calmer entrance"'
                 : imported
                   ? 'e.g. "Keep the layout but bring it to our look: darker panel, our amber accent, calmer entrance."'
                   : liteMode
                     ? 'e.g. "A calm university lower third for speaker name and academic role. Editorial, spacious, accessible, with a restrained entrance."'
-                    : 'e.g. "An election results lower third for channel A7: candidate name, party, and a\nvote percentage that counts up. Dark, serious, uses our logo as a small badge on the left."'
+                    : proMode
+                      ? 'e.g. "Public-broadcast election night: calm, authoritative, deep blue with a thin gold rule."'
+                      : 'e.g. "An election results lower third for channel A7: candidate name, party, and a\nvote percentage that counts up. Dark, serious, uses our logo as a small badge on the left."'
             }
             value={prompt}
             onChange={(e) => {
@@ -1023,7 +1146,7 @@ export default function AiStep({
           <div className="row wrap" style={{ marginTop: 10, alignItems: 'center' }}>
             {/* With a result standing, the typed text is a REFINEMENT of it — that is the
                 primary move, and starting over is the deliberate one beside it. */}
-            {result && !imported ? (
+            {result && !imported && !proMode ? (
               <button
                 className="primary"
                 disabled={!!busy || !aiReady || !prompt.trim()}
@@ -1038,12 +1161,18 @@ export default function AiStep({
                   !!busy
                   || !aiReady
                   || (!briefNow() && !imported)
-                  || (liteMode && Boolean(imported))
+                  || ((liteMode || proMode) && Boolean(imported))
                   || (Boolean(imported) && !imported?.confirmed)
                 }
                 onClick={() => void generate()}
               >
-                {imported && !liteMode ? '⚡ Convert with AI' : liteMode ? '✦ Create one Lite graphic' : '✦ Generate'}
+                {imported && !liteMode && !proMode
+                  ? '⚡ Convert with AI'
+                  : liteMode
+                    ? '✦ Create one Lite graphic'
+                    : proMode
+                      ? result ? '✧ Generate a new design' : '✧ Generate'
+                      : '✦ Generate'}
               </button>
             )}
             {!liteMode && (
@@ -1066,12 +1195,12 @@ export default function AiStep({
                 📎 Attach
               </button>
             )}
-            {result && !imported && (
+            {result && !imported && !proMode && (
               <button disabled={!!busy || !aiReady || !briefNow()} onClick={() => void generate()}>
                 ↻ Start over
               </button>
             )}
-            {!liteMode && result && !imported && alternatives[selected]?.spec && settings.useHarness && (
+            {tier === 'custom' && result && !imported && alternatives[selected]?.spec && settings.useHarness && (
               <button
                 disabled={!!busy || !aiConfigured(settings)}
                 data-testid="ai-more-like"
@@ -1081,7 +1210,7 @@ export default function AiStep({
                 ✦ 3 more like this
               </button>
             )}
-            {!liteMode && !imported && (
+            {tier === 'custom' && !imported && (
               <label
                 className="wz-match"
                 title="On: three design directions built on the catalog design system, each exercised in a live playout test, learning from your picks. Off: one quick draft — the model's own take, checked but never played."
@@ -1105,14 +1234,16 @@ export default function AiStep({
                 {moreOpen ? '▾' : '▸'} More control{activeSpec ? ' ●' : ''}
               </button>
             )}
-            {!liteMode && <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>}
+            {/* Always offered: the settings panel is where the execution TIER is chosen,
+                so a Lite or Pro user has to be able to reach it too. */}
+            <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>
           </div>
 
           {/* What a run like this has cost lately. Shown only once this browser has done
               enough of them to have an answer — a first-time user gets no number rather
               than an invented one. Tokens and seconds, never money: prices are not in this
               codebase and a stale figure presented as cost would be believed. */}
-          {!liteMode && (() => {
+          {tier === 'custom' && (() => {
             const expected = runExpectation(imported ? 'convert' : 'generate', settings.useHarness);
             if (!expected || busy) return null;
             return (
@@ -1136,15 +1267,66 @@ export default function AiStep({
               uploads={uploads}
               disabled={!!busy}
               allowUploads={!liteMode}
-              allowedCategories={liteMode ? LITE_AI_CATEGORIES : undefined}
-              maxFields={liteMode ? liteStatus?.limits.fields ?? 8 : undefined}
+              // Pro v1 compiles lower thirds carrying name + title + an optional logo
+              // slot, so the category list and the field budget say so up front.
+              allowedCategories={liteMode ? LITE_AI_CATEGORIES : proMode ? PRO_SUPPORTED_CATEGORIES : undefined}
+              maxFields={liteMode ? liteStatus?.limits.fields ?? 8 : proMode ? 3 : undefined}
             />
           )}
 
-          {showSettings && !liteMode && (
-            <div className="panel-section" style={{ marginTop: 10 }}>
+          {showSettings && (
+            <div className="panel-section" style={{ marginTop: 10 }} data-testid="ai-settings">
               <h3>AI settings</h3>
-              <AiProviderSettings settings={settings} onChange={saveSetting} />
+              {/* THE EXECUTION TIER. Lite and Pro are managed experiences of this same
+                  creation workflow — no model picking; Custom is the deliberate advanced
+                  route where provider, key, and models are the user's own. */}
+              <div className="ai-tier" role="radiogroup" aria-label="AI tier" data-testid="ai-tier">
+                {TIER_OPTIONS.map((option) => {
+                  const unavailable = option.id === 'lite' && !liteOffered;
+                  return (
+                    <label
+                      key={option.id}
+                      className={`ai-tier-option ${tier === option.id ? 'selected' : ''}`}
+                      data-testid={`ai-tier-${option.id}`}
+                    >
+                      <input
+                        type="radio"
+                        name="ai-tier"
+                        checked={tier === option.id}
+                        disabled={!!busy || unavailable}
+                        onChange={() => saveSetting({ tier: option.id })}
+                      />
+                      <span className="ai-tier-body">
+                        <strong>{option.name}</strong>
+                        <span className="hint">
+                          {unavailable ? 'Not offered by this server.' : option.hint}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {proMode && (
+                <div style={{ marginTop: 10 }} data-testid="ai-pro-settings">
+                  <p className="hint">
+                    NoaCG Pro picks its own models for every stage — there is nothing to
+                    configure. The standard route draws one visual concept and one design
+                    interpretation per generation; the concept's real cost is shown on the
+                    result. Until a hosted Pro plan exists it runs on your own OpenRouter key.
+                  </p>
+                  <AiProviderSettings
+                    settings={settings}
+                    onChange={saveSetting}
+                    fixedProvider="openrouter"
+                    showModel={false}
+                  />
+                </div>
+              )}
+              {tier === 'custom' && (
+                <div style={{ marginTop: 10 }}>
+                  <AiProviderSettings settings={settings} onChange={saveSetting} />
+                </div>
+              )}
             </div>
           )}
 
@@ -1201,6 +1383,43 @@ export default function AiStep({
               <strong>{result.name}</strong>
               {summary && <p style={{ marginTop: 6 }}>{summary}</p>}
               {routeLabel(lastPath) && <p className="hint" style={{ marginTop: 4 }}>{routeLabel(lastPath)}</p>}
+              {/* The Pro result's own story: the concept it was rebuilt from (with its real
+                  cost) and the per-region editability report - what became a live field, a
+                  rebuilt shape, or stayed raster, and why. */}
+              {lastPath === 'pro' && (() => {
+                const pro = proDetails.current.get(result);
+                if (!pro) return null;
+                return (
+                  <div className="wz-pro-concept" style={{ marginTop: 8 }} data-testid="pro-report">
+                    <img
+                      src={pro.concept.dataUrl}
+                      alt="Generated concept"
+                      style={{ maxWidth: '100%', borderRadius: 6, display: 'block' }}
+                    />
+                    <p className="hint">
+                      {pro.concept.model === 'stub'
+                        ? 'Offline concept — drawn locally, no cost.'
+                        : `Concept by ${pro.concept.model}${pro.concept.costUsd !== null ? ` · $${pro.concept.costUsd.toFixed(4)}` : ''}`}
+                    </p>
+                    <p className="hint">
+                      {pro.report.textFields} editable text field(s) · {pro.report.panelsRebuilt} rebuilt
+                      shape(s){pro.report.artDropped ? ' · fully reconstructed, no raster left' : ''}
+                      {pro.report.textErased > 0 ? ` · ${pro.report.textErased} baked text region(s) erased from the artwork` : ''}
+                      {pro.report.flattened > 0 ? ` · ${pro.report.flattened} region(s) left flattened` : ''}
+                    </p>
+                    <ul className="hint" data-testid="pro-outcomes">
+                      {pro.report.outcomes.map((outcome, index) => (
+                        <li key={index}>
+                          <strong>{outcome.label}</strong> — {outcome.note}
+                        </li>
+                      ))}
+                    </ul>
+                    {pro.report.warnings.map((warning, index) => (
+                      <p key={index} className="hint" data-testid="pro-warning">⚠ {warning}</p>
+                    ))}
+                  </div>
+                );
+              })()}
               {lastSpec && (!activeSpec || activeSpec.category === 'auto') && (
                 // The category the AI inferred — surfaced as EDITABLE metadata, never a
                 // silent decision. Changing it pins the next generation.
@@ -1264,7 +1483,7 @@ export default function AiStep({
                   ))}
                 </div>
               )}
-              {validation && !validation.ok && !liteMode && (
+              {validation && !validation.ok && tier === 'custom' && (
                 // The findings are the app's words, not the user's job to translate —
                 // one press sends them back as the instruction.
                 <div className="row" style={{ marginTop: 8 }}>
@@ -1277,6 +1496,12 @@ export default function AiStep({
               {validation && !validation.ok && liteMode && (
                 <p className="hint" style={{ marginTop: 8 }}>
                   This is a NoaCG platform failure, so Lite will not spend another model call trying to rewrite generated code.
+                </p>
+              )}
+              {validation && !validation.ok && proMode && (
+                <p className="hint" style={{ marginTop: 8 }}>
+                  The compile from a concept is deterministic, so a failing check here is a
+                  NoaCG platform defect — generate a new design rather than spending repair calls.
                 </p>
               )}
               {spent && (
