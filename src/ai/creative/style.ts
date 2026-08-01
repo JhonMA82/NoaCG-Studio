@@ -231,6 +231,64 @@ export function stripFrameFlood(css: string): string {
   });
 }
 
+/** Properties whose value is legitimately a bare number, so a missing unit is not a defect.
+ *  Everything else in a style patch takes a length, and CSS drops the declaration silently. */
+const UNITLESS_OK = new Set([
+  'line-height', 'opacity', 'z-index', 'flex', 'flex-grow', 'flex-shrink', 'order', 'zoom',
+  'scale', 'aspect-ratio', 'font-weight', 'grid-row', 'grid-column', 'grid-row-start',
+  'grid-row-end', 'grid-column-start', 'grid-column-end', 'column-count', 'orphans', 'widows',
+  'stroke-width', 'fill-opacity', 'stroke-opacity', 'tab-size', 'animation-iteration-count',
+]);
+
+const HAS_UNIT = /\d\s*(px|r?em|%|v[wh]|vmin|vmax|ch|ex|cm|mm|in|pt|pc|q|fr|deg|rad|turn|s|ms)\b/i;
+
+/** The scaffold's own sizing multipliers, and the only vars whose unitlessness this repair is
+ *  allowed to assume. Any OTHER `var()` may carry the unit itself - `calc(var(--border) * 2)`
+ *  is perfectly valid - so an expression mentioning one is left alone. Both false positives
+ *  the archive replay found were exactly that shape. */
+const UNITLESS_VARS = /var\(\s*--(scale|type-scale)\s*\)/gi;
+
+/**
+ * Give a length its unit back.
+ *
+ * The 2026-08-01 pass's cause 5: the scaffold writes
+ * `font-size: calc(26px * var(--scale) * var(--type-scale))`, the style stage copies the shape
+ * and drops the unit - `calc(48 * var(--scale) * var(--type-scale))`. That is not a
+ * `<length>`, so the browser DISCARDS the declaration and the text falls back to the default
+ * ~16px in a 1920x1080 frame. 469 such declarations across 59 of 155 archived stylesheets; the
+ * coder arms, which write plain `font-size: 48px`, were clean - so the scaffold's own pattern
+ * is what induces it.
+ *
+ * Clamp, don't reject (the round-h precedent), and REPAIR rather than strip: the design intent
+ * is unambiguous, and dropping the declaration is exactly what the browser already does.
+ *
+ * The repair is deliberately narrow - a `calc()` built only from bare numbers and the
+ * scaffold's two unitless multipliers. Such an expression evaluates to a NUMBER, which no
+ * length-typed property accepts, so the rewrite can never change CSS that would have worked.
+ * Replayed over all 155 archived stylesheets: 469 repaired, 0 residual, 0 other bytes moved.
+ */
+export function repairUnitlessLengths(css: string): string {
+  // One calc() with at most one nesting level - enough for every shape a style patch writes,
+  // and it keeps a value carrying SEVERAL of them (a box-shadow's three offsets) from being
+  // swallowed as one match.
+  const oneCalc = /calc\([^()]*(?:\([^()]*\)[^()]*)*\)/gi;
+  return eachRule(css, (_selector, body) =>
+    body.replace(/(^|;)(\s*)([-a-z]+)(\s*:\s*)([^;]+)/gi, (whole, lead, ws, prop, sep, value) => {
+      const name = String(prop).toLowerCase();
+      if (name.startsWith('--') || UNITLESS_OK.has(name)) return whole;
+      const fixed = String(value).replace(oneCalc, (expr) => {
+        if (HAS_UNIT.test(expr) || !/\d/.test(expr)) return expr;
+        // Every var() must be one we know is a bare multiplier; anything else may carry the
+        // unit itself, and `calc(var(--border) * 2)` is perfectly valid.
+        if (/var\(/i.test(expr.replace(UNITLESS_VARS, ''))) return expr;
+        return expr.replace(/(^|[(\s*/+-])(-?\d*\.?\d+)(?=$|[\s*/)+-])/, (t, pre, num) =>
+          Number(num) === 0 ? t : `${pre}${num}px`);
+      });
+      return `${lead}${ws}${prop}${sep}${fixed}`;
+    }),
+  );
+}
+
 /** Walk top-level rules, letting `visit` rewrite each body; @media/@supports recurse.
  *  Shared by both clamps - model CSS is flat, and one walker is one place to be wrong. */
 function eachRule(css: string, visit: (selector: string, body: string) => string): string {
@@ -307,8 +365,10 @@ export function applyCreativeStyle(
     for (const id of new Set(ids)) {
       if (countMatches(entry.html, new RegExp(`\\bid="${id}"`, 'g')) !== 1) return null;
     }
-    // …and so must the rows container, or the repeating runtime writes into nothing.
-    if (original.includes(`id="${prefix}-rows"`) && !entry.html.includes(`id="${prefix}-rows"`)) return null;
+    // …and so must every rows container, or the repeating runtime writes into nothing.
+    for (const hostId of region.rowsHostIds) {
+      if (countMatches(entry.html, new RegExp(`\\bid="${hostId}"`, 'g')) !== 1) return null;
+    }
     // An image field stays an <img>: setFieldValue writes a PATH, and a <div id="fN"> would
     // silently render the path as text.
     for (const id of new Set(ids)) {
@@ -318,11 +378,23 @@ export function applyCreativeStyle(
     html = html.slice(0, range.start) + entry.html + html.slice(range.end);
   }
 
+  // Document-wide, after every region has landed: a field id must exist exactly once. The
+  // per-region check above only preserves ids the region ALREADY carried, so a patch could
+  // re-add a field the scaffold had put in a hidden holder and ship the id twice - which is
+  // what lt-three-line arm D did (PASS-2026-08-01.md cause 4). getElementById then answers
+  // with whichever comes first, and update() writes to a coin flip.
+  for (const field of template.fields) {
+    if (countMatches(html, new RegExp(`\\bid="${field.field}"`, 'g')) !== 1) return null;
+  }
+
   // The elements the compiled animation actually reveals (inline opacity/transform): the
   // root, the box, and the region elements. Everything else scaffold-classed is styling
   // surface only, and a stylesheet opacity 0 there can never be lifted.
   const animated = [prefix, `${prefix}-box`, ...scaffold.regions.map((r) => r.selector)];
   let css = stripHidingDeclarations(patch.css.trim(), prefix, animated);
+  // A length with no unit is a declaration the browser throws away - most often the whole type
+  // ladder. Repair before the geometry clamps, so they read the values that will really apply.
+  css = repairUnitlessLengths(css);
   // An OVERLAY may not paint the whole frame opaque; a full-frame board may (and is measured
   // instead). The spec decided which this graphic is, at stage 5.
   if (!scaffold.fullFrame) css = stripFrameFlood(css);
@@ -339,7 +411,9 @@ export function scaffoldSummary(scaffold: CompiledScaffold): string {
   const regions = scaffold.regions.map((r) => {
     const bits = [`\`.${r.selector}\` (${r.emphasis}${r.repeating ? ', repeating' : ''})`];
     if (r.fieldIds.length) bits.push(`text spans: ${r.fieldIds.map((id) => `#${id}`).join(', ')}`);
-    if (r.repeating) bits.push(`rows: \`#${prefix}-rows\` > \`.${prefix}-row\` > \`.${prefix}-cell-N\``);
+    for (const hostId of r.rowsHostIds) {
+      bits.push(`rows: \`#${hostId}\` > \`.${prefix}-row\` > \`.${prefix}-cell-N\``);
+    }
     return `- ${bits.join(' — ')}`;
   }).join('\n');
   return `## The scaffold you are designing (already built, already correct)

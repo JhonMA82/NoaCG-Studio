@@ -47,6 +47,10 @@ export interface ScaffoldRegion {
   emphasis: CreativeRegionSpec['emphasis'];
   /** The field ids rendered inside it, in order. */
   fieldIds: string[];
+  /** The row containers this region carries, one per list field it hosts. The style gate and
+   *  the style prompt READ this rather than guessing an id, so a graphic repeating two things
+   *  is described and protected as accurately as one repeating a single thing. */
+  rowsHostIds: string[];
 }
 
 export interface CompiledScaffold {
@@ -89,8 +93,22 @@ interface FieldPlan {
   /** intent field key -> the fN id it compiled to. */
   byKey: Map<string, { id: string; role: string; label: string; sample: string }>;
   fields: SpxField[];
-  /** The list field's fN id, when the graphic has repeating content. */
-  listFieldId: string | null;
+  /** Every list field's fN id, in declaration order. The runtime rebuilds ONE row set per
+   *  entry: reading only the first is how a second list silently disappeared (the
+   *  2026-08-01 pass, cause 4). */
+  listFieldIds: string[];
+}
+
+/** One repeating row set: the textarea it reads and the container it writes into. The pairing
+ *  is compiled, never inferred, because the two used to be decided by different parts of the
+ *  spec - the runtime by a field's role, the container by a region's `repeating` flag - and 26
+ *  of 55 staged runs emitted the runtime with no container for it to find. */
+interface ListHost {
+  fieldId: string;
+  hostId: string;
+  regionId: string;
+  label: string;
+  columns: string[];
 }
 
 function planFields(intent: StructuralIntent, spec: CreativeSpec): FieldPlan {
@@ -114,14 +132,14 @@ function planFields(intent: StructuralIntent, spec: CreativeSpec): FieldPlan {
 
   const byKey = new Map<string, { id: string; role: string; label: string; sample: string }>();
   const fields: SpxField[] = [];
-  let listFieldId: string | null = null;
+  const listFieldIds: string[] = [];
 
   plan.forEach((f, i) => {
     const id = `f${i}`;
     const label = f.label || f.key;
     const sample = sampleFor(f, repeatingRegion);
     byKey.set(f.key, { id, role: f.role, label, sample });
-    if (f.role === 'list') listFieldId ??= id;
+    if (f.role === 'list') listFieldIds.push(id);
     fields.push({
       field: id,
       ftype: f.role === 'list' ? 'textarea'
@@ -136,7 +154,7 @@ function planFields(intent: StructuralIntent, spec: CreativeSpec): FieldPlan {
     });
   });
 
-  return { byKey, fields, listFieldId };
+  return { byKey, fields, listFieldIds };
 }
 
 /** A realistic default value, so the graphic says something the moment it is opened - and so
@@ -163,21 +181,28 @@ function regionMarkup(
   region: CreativeRegionSpec,
   plan: FieldPlan,
   fieldIds: string[],
+  hosts: ListHost[],
   prefix: string,
 ): string {
   const cls = `${prefix}-r-${safeId(region.id)}`;
   const inner: string[] = [];
 
-  if (region.repeating) {
-    // The repeating structure is built by the runtime from the list field, so the markup
-    // carries only the container the rebuild writes into (one direct child per item).
-    inner.push(`        <div class="${prefix}-rows" id="${prefix}-rows"><!-- rows are rebuilt from the list field --></div>`);
+  // The repeating structure is built by the runtime from the list field, so the markup carries
+  // only the container the rebuild writes into (one direct child per item). One container per
+  // list field, compiled from the same table the runtime is generated from.
+  for (const host of hosts) {
+    inner.push(
+      `        <!-- ${host.label} (${host.fieldId}) — rows are rebuilt from this list field. -->\n` +
+      `        <div class="${prefix}-rows" id="${host.hostId}"></div>`,
+    );
   }
 
+  // Whatever ids the compile assigned to this region render here - including a field the spec
+  // called `hidden`. Nothing in this scaffold READS a hidden field (only the row rebuild reads
+  // anything), so leaving one undrawn makes it unreachable rather than input-only.
   for (const id of fieldIds) {
     const entry = [...plan.byKey.values()].find((v) => v.id === id);
     if (!entry) continue;
-    if (entry.role === 'list' || entry.role === 'hidden') continue; // holders are emitted once, below
     if (entry.role === 'logo' || entry.role === 'image') {
       inner.push(
         `        <!-- ${entry.label} (${entry.id}) — SPX writes the picked file's path here. -->\n` +
@@ -201,30 +226,44 @@ function regionMarkup(
  *  item's parts (the canonical house convention - src/templates/AGENTS.md). Operator text is
  *  escaped at the data boundary, and the initial paint runs behind a DOM-ready guard because
  *  template.js loads in <head> in an export. */
-function listRuntimeJs(prefix: string, listFieldId: string, columns: string[]): string {
-  const cols = columns.length ? columns : ['Item', 'Value'];
+function listRuntimeJs(prefix: string, hosts: ListHost[]): string {
+  const table = hosts
+    .map((h) => {
+      const cols = h.columns.length ? h.columns : ['Item', 'Value'];
+      return `  // ${h.label}: one item per line, "|" between an item's parts (${cols.join(' | ')}).\n` +
+        `  { source: '${h.fieldId}', host: '${h.hostId}' }`;
+    })
+    .join(',\n');
   return `${ESCAPE_HTML_JS}
 
-// rebuildRows(): the repeating structure. The operator types one item per line into ${listFieldId};
-// "|" separates an item's parts (${cols.join(' | ')}). Every item becomes ONE .${prefix}-row, so
-// adding an item is typing a line — the template never grows more fields.
+// Every repeating structure in this graphic: the textarea the operator types into, and the
+// container its rows are drawn in. One entry per list field — a graphic may repeat more than
+// one thing (two team sheets, a bracket's two halves).
+var ROW_SETS = [
+${table}
+];
+
+// rebuildRows(): the repeating structure. Every item becomes ONE .${prefix}-row, so adding an
+// item is typing a line — the template never grows more fields.
 function rebuildRows() {
-  var source = document.getElementById('${listFieldId}');
-  var host = document.getElementById('${prefix}-rows');
-  if (!source || !host) return;
-  var lines = String(source.textContent || '').split('\\n');
-  var html = '';
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (!line) continue;                       // a blank line is not an empty row
-    var parts = line.split('|');
-    var cells = '';
-    for (var c = 0; c < parts.length; c++) {
-      cells += '<span class="${prefix}-cell ${prefix}-cell-' + (c + 1) + '">' + escapeHtml(parts[c].trim()) + '</span>';
+  for (var s = 0; s < ROW_SETS.length; s++) {
+    var source = document.getElementById(ROW_SETS[s].source);
+    var host = document.getElementById(ROW_SETS[s].host);
+    if (!source || !host) continue;
+    var lines = String(source.textContent || '').split('\\n');
+    var html = '';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;                     // a blank line is not an empty row
+      var parts = line.split('|');
+      var cells = '';
+      for (var c = 0; c < parts.length; c++) {
+        cells += '<span class="${prefix}-cell ${prefix}-cell-' + (c + 1) + '">' + escapeHtml(parts[c].trim()) + '</span>';
+      }
+      html += '<div class="${prefix}-row" data-index="' + (i + 1) + '">' + cells + '</div>';
     }
-    html += '<div class="${prefix}-row" data-index="' + (i + 1) + '">' + cells + '</div>';
+    host.innerHTML = html;
   }
-  host.innerHTML = html;
 }
 
 // The list arrives through update() like any other field, so rebuild after every write and
@@ -363,23 +402,60 @@ export function compileScaffold(
     }
     regionFields.set(region.id, ids);
   }
-  const unclaimed = [...plan.byKey.values()].filter((v) => !claimed.has(v.id) && v.role !== 'list' && v.role !== 'hidden');
-  if (unclaimed.length && spec.regions.length) {
+  // Every list field gets a container, in the region that claimed it or - when the spec bound
+  // nothing, which is the common case - in the region that declared itself repeating. The id
+  // stays the bare `-rows` while there is only one row set, because that selector is what the
+  // style prompt and the patch gate name.
+  const listHosts: ListHost[] = [];
+  for (const listId of plan.listFieldIds) {
+    const entry = [...plan.byKey.values()].find((v) => v.id === listId);
+    const claimedBy = spec.regions.find((r) => (regionFields.get(r.id) ?? []).includes(listId));
+    const host = claimedBy
+      ?? spec.regions.find((r) => r.repeating && !listHosts.some((h) => h.regionId === r.id))
+      ?? spec.regions.find((r) => !listHosts.some((h) => h.regionId === r.id))
+      ?? spec.regions[0];
+    if (!host) continue;
+    // A list renders through its container, not as a text span, so it never doubles as one.
+    regionFields.set(host.id, (regionFields.get(host.id) ?? []).filter((id) => id !== listId));
+    listHosts.push({
+      fieldId: listId,
+      hostId: plan.listFieldIds.length > 1 ? `${prefix}-rows-${listId}` : `${prefix}-rows`,
+      regionId: host.id,
+      label: entry?.label ?? 'Rows',
+      columns: (host.itemParts ?? []).filter(Boolean),
+    });
+  }
+
+  // The renderability sweep. Anything the operator can type into must reach the screen, and the
+  // only runtime that reads a field here is the row rebuild above - so a field with neither a
+  // text span nor a row container is unreachable, whatever role it was given. That is not a
+  // design decision the model gets to make silently: 48 of 69 staged runs in the 2026-08-01
+  // pass shipped one (88 fields), every gate reported them satisfied, and the frames were empty.
+  const rendered = new Set<string>([
+    ...[...regionFields.values()].flat(),
+    ...listHosts.map((h) => h.fieldId),
+  ]);
+  const unreachable = [...plan.byKey.values()].filter((v) => !rendered.has(v.id));
+  if (unreachable.length && spec.regions.length) {
     const first = spec.regions[0].id;
-    regionFields.set(first, [...(regionFields.get(first) ?? []), ...unclaimed.map((v) => v.id)]);
+    regionFields.set(first, [...(regionFields.get(first) ?? []), ...unreachable.map((v) => v.id)]);
   }
 
   const regions: ScaffoldRegion[] = spec.regions.map((r) => ({
     id: r.id,
     selector: `${prefix}-r-${safeId(r.id)}`,
-    repeating: Boolean(r.repeating),
+    repeating: listHosts.some((h) => h.regionId === r.id),
     emphasis: r.emphasis,
     fieldIds: regionFields.get(r.id) ?? [],
+    rowsHostIds: listHosts.filter((h) => h.regionId === r.id).map((h) => h.hostId),
   }));
 
-  // The hidden holders: SPX writes into them, the runtime reads them, nothing draws them.
-  const holders = [...plan.byKey.values()]
-    .filter((v) => v.role === 'list' || v.role === 'hidden')
+  // The hidden holders: SPX writes into them, the runtime reads them, nothing draws them. ONLY
+  // a field a runtime genuinely reads earns one - a holder for a field nothing reads is not an
+  // input, it is a field the operator can type into and never see.
+  const holders = listHosts
+    .map((h) => [...plan.byKey.values()].find((v) => v.id === h.fieldId))
+    .filter((v): v is NonNullable<typeof v> => Boolean(v))
     .map((v) =>
       `      <!-- ${v.label} (${v.id}) — input only: SPX writes it, the runtime reads it. -->\n` +
       `      <div id="${v.id}" class="${DATA_SOURCE_CLASS}">${v.sample.replace(/\n/g, '&#10;')}</div>`,
@@ -388,7 +464,7 @@ export function compileScaffold(
   const body = `  <!-- The graphic's root. Everything inside is one design; play() reveals it. -->
   <div class="${prefix}">
     <div class="${prefix}-box">
-${spec.regions.map((r) => regionMarkup(r, plan, regionFields.get(r.id) ?? [], prefix)).join('\n')}
+${spec.regions.map((r) => regionMarkup(r, plan, regionFields.get(r.id) ?? [], listHosts.filter((h) => h.regionId === r.id), prefix)).join('\n')}
     </div>
 ${holders.join('\n')}
   </div>`;
@@ -410,10 +486,9 @@ ${holders.join('\n')}
 
   const css = scaffoldCss(spec, regions, prefix, scale, font, resolution);
 
-  const repeatingRegion = spec.regions.find((r) => r.repeating);
-  const extraJs = plan.listFieldId
-    ? `${listRuntimeJs(prefix, plan.listFieldId, repeatingRegion?.itemParts ?? [])}\n\n`
-    : '';
+  // The runtime is generated from the SAME host table the markup was, so it can never be
+  // emitted without the containers it writes into.
+  const extraJs = listHosts.length ? `${listRuntimeJs(prefix, listHosts)}\n\n` : '';
   const animData = buildAnimData(spec, regions, prefix);
   // The list rebuild has to run after every update(), and update() is the shared runtime's -
   // so the hook is the same optional-global idiom the text-fit runtime uses.

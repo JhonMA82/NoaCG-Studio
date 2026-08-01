@@ -219,6 +219,80 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.twinRepeating).toEqual(['rounds']); // the twin: a single flag survives
   });
 
+  test('every declared field reaches the screen, whatever role or binding the spec gave it', async ({ page }) => {
+    await open(page);
+    // The 2026-08-01 pass's largest defect (PASS-2026-08-01.md cause 4): stage 5 returns
+    // `fieldKeys: []` on every region, the intent stage types fields `list`/`hidden`, and the
+    // scaffold's rescue skipped exactly those roles - so 48 of 69 staged runs shipped fields
+    // that nothing could ever draw (88 of them), while every gate reported the parts present.
+    // vs-sports-classic arm C is the fixture: four fields, no binding, all invisible.
+    const report = await page.evaluate(async () => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const intent = normalizeIntent({
+        kind: 'category', typeId: 'versus', confidence: 'high',
+        summary: 'A derby match-up card.',
+        parts: [{ id: 'teama', role: 'team' }, { id: 'teamb', role: 'team' }],
+        fields: [
+          { key: 'homeTeam', role: 'list', label: 'Home Team', sample: 'Manchester United' },
+          { key: 'awayTeam', role: 'list', label: 'Away Team', sample: 'Liverpool' },
+          { key: 'vs', role: 'hidden', label: 'VS Text', sample: 'VS' },
+          { key: 'kickoff', role: 'hidden', label: 'Kickoff Time', sample: '15:00' },
+        ],
+      });
+      const spec = normalizeCreativeSpec({
+        conceptId: 'c1', name: 'Derby', summary: 'A derby match-up card.',
+        layout: { family: 'split', arrangement: 'split', fullFrame: true, zone: 'mid-center', sizeScale: 1 },
+        // Every region binds nothing - the shape the paid pass actually produced.
+        regions: [
+          { id: 'teama', role: 'team', emphasis: 'primary', repeating: true, fieldKeys: [] },
+          { id: 'teamb', role: 'team', emphasis: 'primary', fieldKeys: [] },
+          { id: 'vs', role: 'separator', emphasis: 'primary', fieldKeys: [] },
+          { id: 'kickofftime', role: 'timestamp', emphasis: 'secondary', fieldKeys: [] },
+        ],
+        palette: { accent: '#ffb020', text: '#ffffff', textDim: '#c8ccd4', panel: 'rgba(12,14,18,0.88)' },
+        fontId: 'inter',
+        motion: { entranceOrder: ['vs'], character: 'snap', seconds: 0.85 },
+      }, intent);
+      const { scaffold, validation } = compileScaffoldOnly(spec, intent);
+      const html = scaffold.template.html;
+      const declared = scaffold.template.fields.map((f) => f.field);
+      // A field is reachable when it has a drawn element, or when it feeds a row container the
+      // generated runtime actually writes into. Anything else is a field nobody can see.
+      const rowSets = [...scaffold.template.js.matchAll(/\{ source: '(f\d+)', host: '([\w-]+)' \}/g)]
+        .map((m) => ({ source: m[1], host: m[2] }));
+      const unreachable = declared.filter((id) => {
+        const drawn = new RegExp(`<(?:span|div|img)[^>]*\\bid="${id}"`).test(html)
+          && !new RegExp(`\\bid="${id}" class="noacg-data-source"`).test(html);
+        const fed = rowSets.some((s) => s.source === id && html.includes(`id="${s.host}"`));
+        return !drawn && !fed;
+      });
+      const duplicated = declared.filter(
+        (id) => (html.match(new RegExp(`\\bid="${id}"`, 'g')) ?? []).length !== 1,
+      );
+      const orphanRuntime = rowSets.filter((s) => !html.includes(`id="${s.host}"`));
+      return {
+        errors: validation.errors.map((e) => e.rule),
+        declared: declared.length,
+        unreachable,
+        duplicated,
+        orphanRuntime: orphanRuntime.length,
+        rowSets: rowSets.length,
+      };
+    });
+
+    expect(report.errors).toEqual([]);
+    expect(report.declared).toBe(4);
+    // The assertion that would have caught the pass: nothing declared is undrawable.
+    expect(report.unreachable).toEqual([]);
+    // Each id appears exactly once - a holder AND a span for the same field is invalid HTML.
+    expect(report.duplicated).toEqual([]);
+    // The runtime and its containers are compiled from one table, so neither can exist alone.
+    expect(report.orphanRuntime).toBe(0);
+    expect(report.rowSets).toBeGreaterThan(0);
+  });
+
   test('a patch cannot hide scaffold structure beyond the animation\'s reach', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);
@@ -385,6 +459,66 @@ test.describe('creative pilot (phase C)', () => {
     // rather than refused.
     expect(/creative-box[^}]*height\s*:\s*100vh/.test(board)).toBe(true);
     expect(/creative-box[^}]*width\s*:\s*100vw/.test(board)).toBe(true);
+  });
+
+  test('a length with no unit is repaired, and valid CSS is left exactly as written', async ({ page }) => {
+    await open(page);
+    // PASS-2026-08-01.md cause 5: the style stage copies the scaffold's
+    // `calc(26px * var(--scale) * var(--type-scale))` and drops the unit, so the browser
+    // discards the declaration and the whole type ladder reverts to ~16px in a 1920x1080
+    // frame. 218 declarations across 59 of 76 staged stylesheets; the coder arms were clean at
+    // 0 of 79, which puts the cause in the scaffold's pattern rather than in the models.
+    const report = await page.evaluate(async () => {
+      const { repairUnitlessLengths } = await import('/src/ai/creative/style.ts');
+      const broken = `.creative-r-headline .creative-t {
+  font-size: calc(56 * var(--scale) * var(--type-scale));
+  letter-spacing: calc(2 * var(--scale));
+  box-shadow: calc(2 * var(--scale)) calc(2 * var(--scale)) calc(5 * var(--scale)) rgba(0, 0, 0, 0.2);
+  border-right: calc(2 * var(--scale)) solid var(--accent);
+  line-height: 1.08;
+  opacity: 0.9;
+  font-weight: 700;
+  padding: 0;
+}
+@media (max-width: 1280px) {
+  .creative-r-body .creative-t { font-size: calc(24 * var(--scale) * var(--type-scale)); }
+}`;
+      // The twin: every value already legal. A clamp that rewrites this is a clamp that
+      // corrupts working designs, which is worse than the defect it fixes.
+      const sound = `.creative-r-headline .creative-t {
+  font-size: calc(56px * var(--scale) * var(--type-scale));
+  width: calc(var(--core-size) * 2);
+  inset: calc(-1 * var(--portrait-border));
+  letter-spacing: 0.02em;
+  line-height: 1.08;
+  opacity: 0.9;
+  transform: translate3d(0, 0, 0);
+  color: rgb(255 176 32 / 0.9);
+  background: url("images/logo.png");
+  padding: 0;
+  z-index: 3;
+  flex: 1;
+  grid-column: 1 / 3;
+}`;
+      return { fixed: repairUnitlessLengths(broken), untouched: repairUnitlessLengths(sound), sound };
+    });
+
+    // The defect, repaired rather than dropped - the design intent is unambiguous.
+    expect(report.fixed).toContain('font-size: calc(56px * var(--scale) * var(--type-scale))');
+    expect(report.fixed).toContain('letter-spacing: calc(2px * var(--scale))');
+    // A value carrying SEVERAL calcs repairs every one, not just the first.
+    expect(report.fixed).toContain('box-shadow: calc(2px * var(--scale)) calc(2px * var(--scale)) calc(5px * var(--scale))');
+    // …and a calc sitting beside a var that is NOT a bare multiplier still repairs.
+    expect(report.fixed).toContain('border-right: calc(2px * var(--scale)) solid var(--accent)');
+    // Inside @media too, or the responsive ladder keeps the defect the base rule lost.
+    expect(report.fixed).toContain('font-size: calc(24px * var(--scale) * var(--type-scale))');
+    // Genuinely unitless properties are left alone.
+    expect(report.fixed).toContain('line-height: 1.08');
+    expect(report.fixed).toContain('opacity: 0.9');
+    expect(report.fixed).toContain('font-weight: 700');
+    expect(report.fixed).toContain('padding: 0');       // a bare zero is legal everywhere
+    // The mutation twin: valid CSS survives byte-identical.
+    expect(report.untouched).toBe(report.sound);
   });
 
   test('the critique repair lands when it is no worse than the base, never when it is worse', async ({ page }) => {
