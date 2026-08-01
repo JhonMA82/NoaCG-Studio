@@ -148,7 +148,11 @@ prompt-injection doctrine is restated in the Pro prompt).
   slots are the next slice); an explicit `filelist` slot is only added when the brief
   asked for a logo field.
 - **Complex textures / illustrations / backgrounds**: stay raster in
-  `.imported-design-art`, by design.
+  `.imported-design-art`, by design. A `decorative` region rides the panel rules WHEN it
+  carries reconstructable geometry - models file accent bars and divider rules under
+  decorative (every 2026-07-31 fixture does), and CSS renders those exactly; a duplicate
+  region naming the same box twice (a 'panel' and a 'decorative' twin) becomes ONE layer.
+  Geometry-less decoration stays raster.
 - The compile returns a `ProCompileReport`: per region, what it became and why - the
   editability score the product surfaces before the editor opens.
 
@@ -215,10 +219,10 @@ Lite; the Lite path is untouched). One step surface with explicit machine states
   What remains is the honest residue: a NON-flat backdrop behind a retained-pad side stays
   in the crop and is reported as a warning. Measured on the six checked-in fixtures, that
   residue is the common case for model-generated concepts - their "dark and quiet"
-  backdrops spread 200+ counts per channel across the band, far past `FLAT_BG_TOLERANCE`,
-  and their accent bars come back as `kind: decorative` (kept raster in v1), which keeps
-  the pad on those edges. The clean fix for those remains the deferred image-edit
-  clean-plate capability (or alpha matting).
+  backdrops spread 200+ counts per channel across the band, far past `FLAT_BG_TOLERANCE`.
+  (Accent bars coming back as `kind: decorative` used to keep pad on their edges too;
+  decorative-with-geometry now rebuilds - §5.) The clean fix for the non-flat residue
+  remains the deferred image-edit clean-plate capability (or alpha matting).
 - **Paint order is an unmeasured dimension.** The runtime bench measures rects, not paint,
   so a reconstructed opaque panel covering the live text passed every deterministic gate;
   only a rendered-frame screenshot caught it (fixed by insertion order, and the bench

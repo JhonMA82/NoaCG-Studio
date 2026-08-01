@@ -191,3 +191,64 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   expect(out.gradient.centre![0]).toBeGreaterThan(200);
   expect(out.gradient.corner![3]).toBe(255);
 });
+
+test('pro: decorative regions with panel geometry are rebuilt, and a duplicate box becomes one layer', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // Models file accent bars under kind "decorative" (every checked-in fixture does) and
+  // sometimes report one strap twice - a 'panel' and a 'decorative' twin on the same box.
+  // The plan must rebuild the bar and paint the strap ONCE.
+  const out = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
+    const { uuid } = await import(`/src/model/id.ts${bust}`);
+
+    const FRAME = { width: 1920, height: 1080 };
+    const strap = { x: 0.1, y: 0.75, w: 0.4, h: 0.12 };
+    const interpretation = {
+      version: 1,
+      graphicType: 'lower-third',
+      graphicTypeConfidence: 0.9,
+      regions: [
+        { kind: 'panel', bbox: strap, confidence: 0.9, treatment: 'rebuild-shape',
+          panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 } },
+        // The duplicate twin: same box, filed as decorative.
+        { kind: 'decorative', bbox: strap, confidence: 0.9, treatment: 'rebuild-shape',
+          panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 } },
+        // The accent bar, filed as decorative WITH geometry: must rebuild.
+        { kind: 'decorative', bbox: { x: 0.1, y: 0.75, w: 0.004, h: 0.12 }, confidence: 0.9,
+          treatment: 'rebuild-shape',
+          panel: { shape: 'accent-bar', fill: { kind: 'solid', color: '#f5a623' }, opacity: 1 } },
+        // Geometry-less decoration: stays raster.
+        { kind: 'decorative', bbox: { x: 0.3, y: 0.9, w: 0.05, h: 0.01 }, confidence: 0.9, treatment: 'keep-asset' },
+        { kind: 'text', bbox: { x: 0.12, y: 0.78, w: 0.2, h: 0.04 }, confidence: 0.9,
+          treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Noa' },
+      ],
+      animation: { presetId: 'design-slide', speed: 1 },
+      warnings: [],
+    };
+    const plan = normalizeProInterpretation(interpretation, FRAME, uuid);
+    return {
+      panelLayers: plan.panels.map((p: { shape: string }) => p.shape),
+      treatments: plan.outcomes.map((o: { kind: string; treatment: string }) => `${o.kind}:${o.treatment}`),
+      unitPad: plan.unitPad,
+    };
+  });
+
+  // One strap layer (the twin deduped) + the accent bar - not three layers.
+  expect(out.panelLayers.sort()).toEqual(['accent-bar', 'panel']);
+  expect(out.treatments).toEqual([
+    'panel:rebuild-shape',
+    'decorative:rebuild-shape',
+    'decorative:rebuild-shape',
+    'decorative:keep-asset',
+    'text:rebuild-text',
+  ]);
+  // The strap owns every union edge except where the raster decoration sticks out below -
+  // that side keeps its pad, the rebuilt edges crop tight.
+  expect(out.unitPad.left).toBe(0);
+  expect(out.unitPad.top).toBe(0);
+  expect(out.unitPad.right).toBe(0);
+  expect(out.unitPad.bottom).toBeGreaterThan(0);
+});

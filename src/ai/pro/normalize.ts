@@ -80,7 +80,11 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
  *  economy), so missing or non-hex colours demote the panel here. */
 function resolveTreatment(region: ProRegion): ProTreatment {
   if (region.kind === 'text') return 'rebuild-text';
-  if (region.kind === 'panel') {
+  // 'decorative' rides the same branch as 'panel' WHEN it carries reconstructable geometry:
+  // models file accent bars and divider rules under decorative (every 2026-07-31 fixture
+  // does), and keeping those raster left pad rings and blocked full reconstruction for
+  // shapes CSS renders exactly. A decorative region WITHOUT geometry still stays raster.
+  if (region.kind === 'panel' || (region.kind === 'decorative' && region.panel)) {
     const fill = region.panel?.fill;
     const fillOk = fill
       && (fill.kind === 'solid'
@@ -90,8 +94,8 @@ function resolveTreatment(region: ProRegion): ProTreatment {
       ? 'rebuild-shape'
       : region.treatment === 'flattened' ? 'flattened' : 'keep-asset';
   }
-  // Logos, images and decorative work stay raster in v1; the model's own 'flattened'
-  // uncertainty is preserved so the report can distinguish deliberate from unsure.
+  // Logos, images and geometry-less decoration stay raster in v1; the model's own
+  // 'flattened' uncertainty is preserved so the report can distinguish deliberate from unsure.
   return region.treatment === 'flattened' ? 'flattened' : 'keep-asset';
 }
 
@@ -195,9 +199,11 @@ export function normalizeProInterpretation(
     if (region.confidence < CONFIDENCE_FLOOR) return;
     const rect = pxRect(region, frame);
     if (rect.w <= 2 || rect.h <= 2) return;
+    // Only a shape-carrying region (panel, or decorative with geometry) can resolve to
+    // rebuild-shape, so the treatment alone says this rect's edge is repainted by CSS.
     edgeRects.push({
       ...rect,
-      rebuiltOpaque: treatment === 'rebuild-shape' && region.kind === 'panel'
+      rebuiltOpaque: treatment === 'rebuild-shape'
         && Math.min(1, Math.max(0, region.panel?.opacity ?? 1)) >= 0.95,
     });
     left = Math.min(left, rect.x);
@@ -206,7 +212,16 @@ export function normalizeProInterpretation(
     bottom = Math.max(bottom, rect.y + rect.h);
 
     if (region.kind === 'text') textRects.push(rect);
-    if (treatment === 'rebuild-shape' && region.kind === 'panel' && region.panel) {
+    if (treatment === 'rebuild-shape' && region.panel) {
+      // Models sometimes file ONE strap twice - a 'panel' and a 'decorative' twin with the
+      // same box (the corporate fixture does). One CSS layer is enough: a duplicate would
+      // double-paint a translucent fill, and the twin's outcome is honestly 'rebuilt' either
+      // way because this layer reconstructs it.
+      if (panels.some((existing) =>
+        Math.abs(existing.x - rect.x) <= 1 && Math.abs(existing.y - rect.y) <= 1
+        && Math.abs(existing.w - rect.w) <= 1 && Math.abs(existing.h - rect.h) <= 1)) {
+        return;
+      }
       const geometry = region.panel;
       // The wire schema deliberately carries no number bounds (contract.ts), so the angle
       // is folded into 0..360 here like every other value is clamped here. resolveTreatment
