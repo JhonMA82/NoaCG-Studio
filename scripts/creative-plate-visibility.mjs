@@ -134,7 +134,11 @@ for (const file of houseFrames) {
 }
 await browser.close();
 
-const pct = (n) => `${(n * 100).toFixed(1)}%`;
+// Below 1% the first decimal hides the whole question: a catalog full-frame design leaves a
+// few antialiased pixels of plate (0.003%) and a flooded CREATE result leaves exactly none, and
+// rounding both to "0.0%" prints frames sitting BELOW a floor of 0.0%, which reads as a broken
+// report rather than as the honest answer that coverage does not discriminate here at all.
+const pct = (n) => `${(n * 100).toFixed(n > 0 && n < 0.01 ? 3 : 1)}%`;
 const quantile = (values, q) => {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
