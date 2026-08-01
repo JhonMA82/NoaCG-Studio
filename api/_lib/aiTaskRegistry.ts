@@ -151,6 +151,11 @@ export function taskProfile(taskId: AiTaskId): TaskProfile {
   return TASKS[taskId]();
 }
 
+/** Every registered task, for callers that must walk all of them rather than name one - the
+ *  admin models section marks which listed routes are actually in use. Derived from TASKS, so
+ *  a task added there is included without a second list to keep in step. */
+export const AI_TASK_IDS = Object.keys(TASKS) as AiTaskId[];
+
 function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   if (route.provider !== 'openrouter') return true;
   return Boolean(policy.prices[modelRouteKey(route)]) && policy.openRouterProviders.length > 0;

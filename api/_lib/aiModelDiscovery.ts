@@ -80,6 +80,20 @@ export function normalizedOpenRouter(value: unknown): AiDiscoveredModel | null {
     available: !Number.isFinite(expiresAt) || expiresAt > Date.now(),
     createdAt: isoFromEpoch(model.created),
     revision: text(model.canonical_slug) || null,
+    // The generated-image side of the bill, per OUTPUT IMAGE TOKEN - so it scales like the
+    // prompt/completion prices above and is normalized the same way.
+    //
+    // It is `image_output`, NOT `image`: measured against the live listing, 38 of 40
+    // image-output models carry `image_output` and only 4 carry `image`, which is the price of
+    // an image the caller SENDS IN (vision). Where a model publishes both they disagree by up
+    // to ~835x (x-ai/grok-imagine-image-quality: image 0.01, image_output 0.0000120), so
+    // reading the wrong one does not degrade to a missing price - it prints a confident,
+    // wrong one.
+    //
+    // Deliberately NOT converted to a price per image: that needs the tokens one image costs,
+    // which varies by model and resolution and which the listing does not publish. Inventing
+    // that factor would be a money figure nobody verified.
+    imageOutputPerMillion: perMillion(pricing.image_output),
     source: 'openrouter-models-api',
   };
 }

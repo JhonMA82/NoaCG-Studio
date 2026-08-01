@@ -396,6 +396,57 @@ export interface AdminModelRow {
   blocks: ModelBlockCode[];
   createdAt: string | null;
   isNew: boolean;
+  /** Where this route is actually wired in right now, read off the code that chooses it -
+   *  the task registry for the registered tasks, `PRO_STANDARD_ROUTES` for the Pro tier.
+   *  Empty for the great majority of listed models. */
+  usedBy: AdminRouteUse[];
+}
+
+/** One caller's use of a route. */
+export interface AdminRouteUse {
+  /** Human label for what uses it, e.g. "NoaCG Lite" or "NoaCG Pro concept". */
+  task: string;
+  /** Only where the distinction EXISTS. It is operational, not decorative: a fallback
+   *  carrying traffic means the primary is failing. NoaCG Pro pins one curated route per
+   *  stage with nothing behind it, so labelling those "primary" would invent a spare that
+   *  does not exist - they carry no slot at all. */
+  slot?: 'primary' | 'fallback';
+}
+
+// ── image models (NoaCG Pro) ───────────────────────────────────────────────────────────
+//
+// A SEPARATE shape from AdminModelRow on purpose. The funded-route rules are per-million
+// TOKENS, which says nothing about a model billed per image, so this listing carries no
+// verdict, no blocks and no eligibility language at all. Inventing a ceiling nobody has set
+// would mark usable models ineligible on a rule that does not exist.
+
+export interface AdminImageModelRow {
+  key: string;
+  provider: string;
+  model: string;
+  name: string;
+  /** Price per million OUTPUT IMAGE TOKENS. Null is "not published", never "free".
+   *
+   *  NOT a price per image, and the column must not be labelled as one: a per-image figure
+   *  needs the token count one image costs, which varies by model and resolution and which the
+   *  provider does not publish. Per million keeps it in the same unit family as the text
+   *  prices, where it is at least comparable between models. */
+  imageOutputPerMillion: number | null;
+  /** Some image routes also bill tokens for the prompt; shown when published. */
+  inputPerMillion: number | null;
+  available: boolean;
+  createdAt: string | null;
+  isNew: boolean;
+  /** Same meaning as on the text rows: NoaCG Pro's concept stage pins one image route, so the
+   *  operator can see which of these the tier actually draws with. */
+  usedBy: AdminRouteUse[];
+}
+
+export interface AdminImageModelsResponse {
+  provider: string;
+  syncedAt: string | null;
+  models: AdminImageModelRow[];
+  discoveryFailed: boolean;
 }
 
 export interface AdminModelsResponse {

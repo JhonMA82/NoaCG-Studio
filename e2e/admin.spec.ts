@@ -724,3 +724,158 @@ test('an approved route the provider stopped listing is reported as an outage', 
   await expect(page.locator('.admin-problem')).toContainText('openrouter:vendor/vanished');
   await expect(page.locator('.admin-problem')).toContainText('fails closed');
 });
+
+// The Models section is a LISTING, never a shortlist (docs/ADMIN.md section 9). These three
+// behaviours are the ones that could quietly turn it into one, so they are pinned: the section
+// must open unsorted, a sort must be something the operator did, and "we audited this" must
+// stay visibly separate from "traffic is going here right now".
+function modelRow(over: Record<string, unknown> = {}) {
+  return {
+    key: 'openrouter:vendor/mid',
+    provider: 'openrouter',
+    model: 'vendor/mid',
+    name: 'Mid',
+    contextLength: 128_000,
+    inputPerMillion: 0.5,
+    outputPerMillion: 2,
+    structuredOutput: true,
+    vision: false,
+    openWeight: false,
+    free: false,
+    available: true,
+    zdr: 'unknown',
+    zdrAvailable: null,
+    approved: false,
+    verdict: 'eligible',
+    blocks: [],
+    createdAt: '2020-01-01T00:00:00Z',
+    isNew: false,
+    usedBy: [],
+    ...over,
+  };
+}
+
+test('the models table opens in reading order and sorts only when asked', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/models', (route) =>
+    route.fulfill({
+      json: {
+        provider: 'openrouter',
+        syncedAt: '2026-08-01T06:00:00Z',
+        models: [
+          modelRow({ key: 'openrouter:vendor/dear', model: 'vendor/dear', inputPerMillion: 9, contextLength: 8000 }),
+          modelRow({ key: 'openrouter:vendor/cheap', model: 'vendor/cheap', inputPerMillion: 0.1, contextLength: 32_000 }),
+          // No published price. It is unmeasured, not cheap - it must never head an ascending
+          // price sort, which would read as "the cheapest".
+          modelRow({ key: 'openrouter:vendor/unpriced', model: 'vendor/unpriced', inputPerMillion: null }),
+          modelRow({
+            key: 'openrouter:vendor/live',
+            model: 'vendor/live',
+            inputPerMillion: 1,
+            approved: true,
+            verdict: 'approved',
+            zdr: 'audited',
+            zdrAvailable: true,
+            usedBy: [{ task: 'NoaCG Lite', slot: 'primary' }],
+          }),
+        ],
+        rule: { provider: 'openrouter', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
+        missingApproved: [],
+        discoveryFailed: false,
+      },
+    }),
+  );
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Models', exact: true }).click();
+  await page.getByRole('button', { name: /Everything listed/ }).click();
+
+  const routes = () => page.locator('.admin-table tbody tr').evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute('data-model')),
+  );
+
+  // Opens in the reading order the section has always used - approved first, then the rest
+  // alphabetically. NOT by price: nothing arrives ranked.
+  expect(await routes()).toEqual(['vendor/live', 'vendor/cheap', 'vendor/dear', 'vendor/unpriced']);
+
+  // The operator asks for cheapest-first. The unpriced row sinks rather than leading.
+  await page.getByRole('button', { name: /In \/ M/ }).click();
+  expect(await routes()).toEqual(['vendor/cheap', 'vendor/live', 'vendor/dear', 'vendor/unpriced']);
+  await expect(page.locator('th[aria-sort="ascending"]')).toHaveCount(1);
+
+  // Clicking the same column again reverses it, and the unpriced row STILL sinks.
+  await page.getByRole('button', { name: /In \/ M/ }).click();
+  expect(await routes()).toEqual(['vendor/dear', 'vendor/live', 'vendor/cheap', 'vendor/unpriced']);
+  await expect(page.locator('th[aria-sort="descending"]')).toHaveCount(1);
+
+  // A different column takes over rather than compounding.
+  await page.getByRole('button', { name: /Context/ }).click();
+  expect((await routes())[0]).toBe('vendor/dear');
+
+  // Approved and in-use are different claims and are shown as different pills.
+  const live = page.locator('tr[data-model="vendor/live"]');
+  await expect(live).toContainText('approved');
+  await expect(live).toContainText('NoaCG Lite primary');
+  await expect(page.locator('tr[data-model="vendor/cheap"]')).not.toContainText('primary');
+});
+
+test('the image tab lists routes without pretending to judge them', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/models', (route) =>
+    route.fulfill({
+      json: {
+        provider: 'openrouter',
+        syncedAt: '2026-08-01T06:00:00Z',
+        models: [modelRow()],
+        rule: { provider: 'openrouter', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
+        missingApproved: [],
+        discoveryFailed: false,
+      },
+    }),
+  );
+  await page.route('**/api/admin/models?output=image', (route) =>
+    route.fulfill({
+      json: {
+        provider: 'openrouter',
+        syncedAt: '2026-08-01T06:00:00Z',
+        models: [
+          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', imageOutputPerMillion: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [{ task: 'NoaCG Pro concept' }] },
+          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', imageOutputPerMillion: null, inputPerMillion: null, available: true, createdAt: null, isNew: false, usedBy: [] },
+        ],
+        discoveryFailed: false,
+      },
+    }),
+  );
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Models', exact: true }).click();
+  await page.getByRole('button', { name: 'Image models', exact: true }).click();
+
+  await expect(page.locator('tr[data-model="vendor/draw"]')).toContainText('$30.00');
+  // An unpublished price says so. Rendering it as "free" next to a real price would be a lie
+  // about money.
+  await expect(page.locator('tr[data-model="vendor/quiet"]')).toContainText('not published');
+
+  // No eligibility language at all: the funded ceiling is per million tokens and cannot judge
+  // a model billed per image, so no verdict is offered rather than a wrong one.
+  const table = page.locator('.admin-table');
+  await expect(table).not.toContainText('ineligible');
+  await expect(table).not.toContainText('eligible');
+  const imageNote = page.locator('.admin-note').filter({ hasText: 'image output' });
+  await expect(imageNote).toContainText('No eligibility verdict');
+  // And it says why nothing is marked in use here, rather than leaving the absence to be read
+  // as "Pro is using none of these".
+  await expect(imageNote).toContainText('PRO_STANDARD_ROUTES');
+
+  // The route the tier actually draws with is marked, so 'no verdict' is never read as
+  // 'nothing here is used'. A curated route carries no primary/fallback suffix - there is no
+  // spare behind it to distinguish it from.
+  const drawn = page.locator('tr[data-model="vendor/draw"]');
+  await expect(drawn).toContainText('NoaCG Pro concept');
+  await expect(drawn).not.toContainText('primary');
+  await expect(page.locator('tr[data-model="vendor/quiet"]')).not.toContainText('NoaCG Pro');
+});

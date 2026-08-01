@@ -629,3 +629,63 @@ project is established by the NoaCG benchmarks and by nothing else
 (`docs/AI_LITE_PROMOTION.md`) - so there is no score column, no ordering by merit and no
 "recommended". A provider outage costs this section alone; the rest of `/admin` reads this
 instance's own data and is unaffected.
+
+### Sorting, and why it does not breach the no-ranking rule
+
+The table opens in a fixed reading order - approved, then newly discovered, then the rest
+alphabetically - and the operator may then sort by route, either price, or context length.
+**The rule forbids the PAGE holding an opinion about which model is better, not the operator
+asking a question.** Sorting is never the initial state, there is still no score to sort by,
+and the arrangement is the reader's own. What would breach the rule is arriving pre-ranked.
+Missing values sort last in both directions: an unpriced model is unmeasured, not cheap, and
+floating it to the top of an ascending price sort would read as "the cheapest".
+
+### In use is not the same fact as approved
+
+`approved` means "audited, and we may point traffic here"; `usedBy` means "traffic is going
+here right now", read live off the task registry (`api/_lib/aiTaskRegistry.ts`) rather than any
+table, so it cannot drift from what the gateway obeys. The two come apart in both directions -
+an approved route can carry nothing, and **a fallback carrying traffic means the primary is
+failing** - which is why both are shown rather than treating approval as deployment.
+
+**Two sources, because the product has two mechanisms**, and both are imported rather than
+copied: the task registry for the registered tasks (Lite, import analysis), and
+`PRO_STANDARD_ROUTES` for the Pro tier, which pins one curated route per stage and goes through
+the generic gateway instead of the registry. That constant lives in the dependency-light
+`src/ai/pro/contract.ts`, NOT beside the pipeline that calls it, because `api/` cannot import
+`src/ai/pro/pipeline.ts` - that pulls in the gateway, telemetry and the canvas-bearing
+compiler. `pipeline.ts` re-exports it, so existing call sites are unaffected. A second copy in
+the admin layer would name the wrong model the first time either is re-benched.
+
+`slot` is present only where the distinction exists. A Pro stage pins one route with nothing
+behind it, so those rows carry no slot at all - calling one "primary" would invent a spare that
+does not exist.
+
+### The image tab carries no verdict, on purpose
+
+`GET /api/admin/models?output=image` lists what the provider serves for image output - the call
+NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks and no
+eligibility language at all**: `FUNDED_ROUTE_PRICE_CEILING` was set against text generation and
+no ceiling for image work has been decided, so applying it here would mark usable models
+ineligible against a rule nobody has written. Until such a ceiling is set deliberately, this is
+a menu and not a judgement. The route the tier actually draws with IS marked, from
+`PRO_STANDARD_ROUTES` - so "no verdict here" never has to be read as "nothing here is used". A price the provider did not publish reads "not published", never
+"free" - the same discipline as ZDR reading "not audited" rather than "no".
+
+**The price is `pricing.image_output`, per million OUTPUT IMAGE TOKENS - not `pricing.image`,
+and not per image.** Measured against the live listing on 2026-08-01: 38 of 40 image-output
+models publish `image_output`; only 4 publish `image`, which prices an image the caller SENDS
+IN (vision). Where a model publishes both they disagree by up to ~835x
+(`x-ai/grok-imagine-image-quality`: `image` 0.01, `image_output` 0.0000120), so reading the
+wrong key does not degrade to a blank cell - it prints a confident wrong price, on the few rows
+that show a number at all. Pinned in `api/_lib/aiModelDiscovery.test.ts`.
+
+Converting to a price per image is deliberately NOT done: it needs the token count one image
+costs, which varies by model and by resolution and which the listing does not publish
+(`google/gemini-2.5-flash-image` happens to be ~1290 tokens, hence its familiar ~$0.039, but
+that factor is per-model knowledge, not data). Estimating it would put an unverified money
+figure on an operator's screen. Per million keeps the column in the same unit family as the
+text prices, where it is at least comparable between models.
+
+There is no video tab: NoaCG video is Remotion/HyperFrames CODE written by text models and
+rendered locally, so there is no video-generation route to list.
