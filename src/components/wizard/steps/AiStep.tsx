@@ -19,7 +19,6 @@ import {
   type ProStage,
 } from '../../../ai/pro/pipeline';
 import { stubCompilePro, stubProConcept } from '../../../ai/pro/stub';
-import { fillProLogoSlot } from '../../../ai/pro/logoAsset';
 import { PRO_SUPPORTED_CATEGORIES, standardProBrief } from '../../../ai/pro/brief';
 import {
   emptyGenerationSpec,
@@ -654,17 +653,16 @@ export default function AiStep({
           validate: proValidate,
           onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
           interpretRoute: PRO_STANDARD_ROUTES.interpret,
+          // The user's own mark goes INTO the slot the compile places - deterministically,
+          // inside the pipeline, because nothing about which file belongs there is a model
+          // decision (src/ai/pro/logoAsset.ts) AND the gate must see the filled template.
+          // Without it an as-is upload asked the concept for a logo area, got a slot, and
+          // left the file behind.
+          logoMark: uploads.find((upload) => upload.purpose === 'asset') ?? null,
         };
-        // The user's own mark goes INTO the slot the compile placed - deterministically,
-        // after the pipeline, because nothing about which file belongs there is a model
-        // decision (src/ai/pro/logoAsset.ts). Without it an as-is upload asked the concept
-        // for a logo area, got a slot, and left the file behind.
-        const compiled = fillProLogoSlot(
-          proRemote
-            ? await compileProConcept(proBrief, concept, compileOptions)
-            : await stubCompilePro(proBrief, concept, compileOptions),
-          uploads.find((upload) => upload.purpose === 'asset') ?? null,
-        );
+        const compiled = proRemote
+          ? await compileProConcept(proBrief, concept, compileOptions)
+          : await stubCompilePro(proBrief, concept, compileOptions);
         proDetails.current.set(compiled.template, compiled);
         const change: AiTemplateChange = {
           template: compiled.template,

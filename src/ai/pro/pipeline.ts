@@ -9,6 +9,7 @@
 
 import { callModelDetailed } from '../modelGateway';
 import type { ModelImage, ModelRoute } from '../modelTypes';
+import type { PurposedImage } from '../../model/imagePurpose';
 import { startAiRun } from '../telemetry';
 import { downscaleForAnalysis } from '../importAnalysis/client';
 import type { SpxValidator } from '../provider';
@@ -26,6 +27,7 @@ import {
 } from './contract';
 import { normalizeProInterpretation } from './normalize';
 import { compileProPlan, ProCompileError, type ProCompileResult } from './compile';
+import { fillProLogoSlot } from './logoAsset';
 
 export type ProStage = 'concept' | 'interpret' | 'compile' | 'validate';
 
@@ -129,6 +131,12 @@ export async function compileProConcept(
     /** Pin the interpretation's route (the standard tier passes PRO_STANDARD_ROUTES.interpret);
      *  omitted falls through to the session route, the original BYO behaviour. */
     interpretRoute?: ModelRoute;
+    /** The user's "use it as it is" upload, filled into the logo slot the compile placed.
+     *  It rides the PIPELINE rather than being applied afterwards because the gate has to
+     *  see the template the user actually gets: the as-is screen finds a protected picture
+     *  by its `<img src>` (assetIntegrity.ts `targetsOf`), so a fill applied after
+     *  validation would be screened by nothing at all. */
+    logoMark?: PurposedImage | null;
   } = {},
 ): Promise<ProResult> {
   const run = startAiRun('pro-generate');
@@ -157,10 +165,13 @@ export async function compileProConcept(
     // The interpretation read the downscaled copy; its bboxes are normalized, so the plan
     // is built against the ORIGINAL concept's pixel frame and the crop stays full quality.
     const plan = normalizeProInterpretation(result.output, { width: concept.width, height: concept.height }, uuid);
-    const compiled = await compileProPlan(plan, concept, brief, {
-      resolution: options.resolution,
-      fps: options.fps,
-    });
+    const compiled = fillProLogoSlot(
+      await compileProPlan(plan, concept, brief, {
+        resolution: options.resolution,
+        fps: options.fps,
+      }),
+      options.logoMark ?? null,
+    );
     run.stage('compile', t0);
 
     let validation: ValidationResult | null = null;

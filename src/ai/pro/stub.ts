@@ -5,10 +5,12 @@
 
 import type { SpxValidator } from '../provider';
 import type { Resolution } from '../../model/types';
+import type { PurposedImage } from '../../model/imagePurpose';
 import { uuid } from '../../model/id';
 import type { ProBrief, ProInterpretationV1 } from './contract';
 import { normalizeProInterpretation } from './normalize';
 import { compileProPlan } from './compile';
+import { fillProLogoSlot } from './logoAsset';
 import type { ProConcept, ProResult } from './pipeline';
 
 const FRAME = { width: 1920, height: 1080 };
@@ -146,6 +148,9 @@ export async function stubCompilePro(
     resolution?: Resolution;
     fps?: number;
     validate?: SpxValidator;
+    /** The as-is upload for the logo slot - filled BEFORE the gate, exactly as the remote
+     *  pipeline does it (see compileProConcept's note). */
+    logoMark?: PurposedImage | null;
   } = {},
 ): Promise<ProResult> {
   const plan = normalizeProInterpretation(
@@ -153,10 +158,13 @@ export async function stubCompilePro(
     { width: concept.width, height: concept.height },
     uuid,
   );
-  const compiled = await compileProPlan(plan, concept, brief, {
-    resolution: options.resolution,
-    fps: options.fps,
-  });
+  const compiled = fillProLogoSlot(
+    await compileProPlan(plan, concept, brief, {
+      resolution: options.resolution,
+      fps: options.fps,
+    }),
+    options.logoMark ?? null,
+  );
   const validation = options.validate ? await options.validate(compiled.template) : null;
   return { ...compiled, validation, concept };
 }

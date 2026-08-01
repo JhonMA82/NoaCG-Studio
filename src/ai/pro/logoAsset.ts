@@ -6,14 +6,22 @@
 // the missing step, and it is DETERMINISTIC: no model call, no measurement, no re-layout. The
 // compile decided where the slot is; this only says which file goes in it.
 //
+// It runs INSIDE the pipeline (pipeline.ts `compileProConcept`, stub.ts `stubCompilePro`),
+// between the compile and the injected validator - not on the result afterwards. That
+// ordering is the whole point of the as-is contract below: a gate that runs before the fill
+// screens a template with an empty slot, which is a different template from the one the user
+// gets, and the readiness rows would describe it.
+//
 // Two contracts it deliberately keeps rather than reinvents:
 //
 // - **The as-is screen** (assetIntegrity.ts). Baking the `src` into the markup is what ARMS
 //   that screen - it finds a protected picture by looking for an `<img>` whose src is one of
-//   the protected paths - and the slot's own CSS is already clean by construction
-//   (`object-fit: contain`, no filter, no radius, no clip-path, no uneven scale; the rules
-//   come from blocks/designLayout.ts addPlacedImageSlot, not from a model). Nothing here
-//   writes CSS, so nothing here can violate it; e2e/pro.spec.ts pins that.
+//   the protected paths, so before the fill there is nothing for it to find - and the slot's
+//   own CSS is already clean by construction (`object-fit: contain`, no filter, no radius,
+//   no clip-path, no uneven scale; the rules come from blocks/designLayout.ts
+//   addPlacedImageSlot, not from a model). Nothing here writes CSS, so nothing here can
+//   violate it; e2e/pro.spec.ts pins both halves - the clean verdict, and that the validator
+//   is handed the FILLED template.
 // - **The honest report.** A slot that got a file is a different fact from one waiting for
 //   one, so the region's outcome line says the mark was placed and the "still waiting"
 //   warning is retired by identity (PRO_EMPTY_LOGO_SLOT_WARNING).

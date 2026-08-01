@@ -247,6 +247,47 @@ test('pro: filling the slot retires the empty-slot warning, keeps the as-is scre
   expect(out.referenceUntouched).toBe(true);
 });
 
+test('pro: the quality gate is handed the FILLED template, not the one with an empty slot', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // The as-is screen finds a protected picture by its <img src> (assetIntegrity.ts
+  // targetsOf), so a fill applied AFTER validation would be screened by nothing at all -
+  // and the readiness rows the user reads would describe a template they never get. The
+  // fill therefore rides the pipeline, and this is what pins the order: a validator that
+  // reports what it was actually given.
+  const seen = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
+
+    const brief = { brief: '', name: 'Noa Haline', title: 'Anchor', includeLogo: true };
+    const concept = await stubProConcept(brief);
+    const looked: { src: boolean; screened: boolean }[] = [];
+    const validate = async (t: { html: string }) => {
+      looked.push({
+        src: /<img[^>]*src="images\/mark\.png"/.test(t.html),
+        // The screen can only REACH the picture once its src is there; an empty finding
+        // list from a template it cannot see would be a false all-clear.
+        screened: assetIntegrityFindings(t, ['images/mark.png']).length === 0
+          && /<img[^>]*src="images\/mark\.png"/.test(t.html),
+      });
+      return { ok: true, errors: [], warnings: [] };
+    };
+    await stubCompilePro(brief, concept, {
+      validate,
+      logoMark: {
+        asset: { path: 'images/mark.png', data: 'data:image/png;base64,iVBORw0KGgo=' },
+        purpose: 'asset',
+        binding: 'swappable',
+      },
+    });
+    return looked;
+  });
+
+  expect(seen).toEqual([{ src: true, screened: true }]);
+});
+
 test('pro: baked text outside panels is erased where the backdrop is flat, refused honestly where not', async ({ page }) => {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
