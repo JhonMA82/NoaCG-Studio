@@ -15,6 +15,7 @@
 
 import type { Zone9 } from '../../model/wizard';
 import type { StructuralIntent } from '../../model/structuralIntent';
+import { intentCoversFrame } from '../../templates/structuralAnchor';
 
 // ── ConceptDirection v1 (stage 4) ────────────────────────────────────────────
 
@@ -264,7 +265,11 @@ export function normalizeCreativeSpec(raw: unknown, intent: StructuralIntent): C
     layout: {
       family: str(layout.family, 'card'),
       arrangement: oneOf(layout.arrangement, ['stack', 'row', 'grid', 'split'] as const, 'stack'),
-      fullFrame: layout.fullFrame === true,
+      // The CATALOG's taxonomy answers this when the brief named a structure it knows; the
+      // model's flag is the fallback for a genuinely novel graphic. Measured at 80% wrong on
+      // lower thirds across two schema rewordings, so it is decided rather than asked for
+      // (templates/structuralAnchor.ts intentCoversFrame).
+      fullFrame: intentCoversFrame(intent) ?? layout.fullFrame === true,
       zone: ZONES.includes(str(layout.zone) as Zone9)
         ? (str(layout.zone) as Zone9)
         : intent.placement ?? 'bottom-left',

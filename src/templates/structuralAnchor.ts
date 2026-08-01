@@ -14,9 +14,11 @@
 // stinger design lands, `full-frame-reveal` starts resolving and nothing here changes.
 
 import { CATEGORIES, type TemplateCategory } from '../model/wizard';
+import { GRAPHIC_CATEGORIES } from '../model/taxonomy';
 import type { StructuralIntent } from '../model/structuralIntent';
 import { typeById, TYPES } from './types/registry';
 import { variantById, variantsFor } from './catalog';
+import { CATEGORY_DEFAULT_META, TYPE_META } from './meta';
 
 /** Composition families the router can anchor to catalog structures. ADVISORY vocabulary:
  *  an unlisted family word routes like novel (create), it never fails. */
@@ -123,6 +125,34 @@ export function anchorsSatisfiedBy(variantId: string): StructuralAnchor[] {
 export function variantSatisfiesAnchor(variantId: string, anchor: StructuralAnchor): boolean {
   if (!anchorResolves(anchor)) return true;
   return anchorsSatisfiedBy(variantId).includes(anchor);
+}
+
+/**
+ * Does the structure the brief named COVER the frame, or sit over live video?
+ *
+ * Asked of the catalog's own taxonomy rather than of the model. `spec.layout.fullFrame` is
+ * load-bearing twice over - the scaffold centres a full-frame graphic and anchors a zoned one,
+ * and the style gate refuses an opaque frame-filling backdrop on the zoned ones only - and it
+ * was measured UNRELIABLE at 80%: 24 of 30 lower-third specs claimed the whole frame for
+ * graphics whose own family word was "strap" and whose zone was "bottom-left"
+ * (benchmarks/creative/v1/PASS-2026-08-01.md). Two rewordings of the schema moved it by 8
+ * points, which is the evidence that it is not a prompt problem.
+ *
+ * So the answer comes from where it is already written down: every graphic category declares a
+ * `CoverageClass`, and a lower third is an overlay whoever is describing it. Null means the
+ * brief named no structure the catalog knows - a genuinely novel graphic, where the model's own
+ * answer is the only one there is.
+ */
+export function intentCoversFrame(intent: StructuralIntent): boolean | null {
+  const { anchor } = structuralFit(intent);
+  if (!anchor) return null;
+  const [kind, id] = anchor.split(':');
+  const declared = kind === 'type' ? TYPE_META[id] : CATEGORY_DEFAULT_META[id as TemplateCategory];
+  if (!declared) return null;
+  const coverage = declared.coverage
+    ?? GRAPHIC_CATEGORIES.find((c) => c.id === declared.category)?.coverage;
+  if (!coverage) return null;
+  return coverage === 'full' || coverage === 'frame';
 }
 
 /** The intent prompt's known-structure listing: type ids + categories + family words.

@@ -462,6 +462,57 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.benchRules).not.toContain('bench-replay');
   });
 
+  test('fullFrame is decided by the catalog taxonomy, not by the model that got it wrong', async ({ page }) => {
+    await open(page);
+    // Measured at 80% wrong: 24 of 30 lower-third specs in the 2026-08-01 pass claimed the
+    // whole frame for graphics whose own family word was "strap" and whose zone was
+    // "bottom-left", and two rewordings of the schema moved it by 8 points. It is load-bearing
+    // twice - the scaffold centres a full-frame graphic and anchors a zoned one, and the
+    // backdrop clamp only applies to the zoned ones - so it is now read off the coverage class
+    // every graphic category already declares.
+    const report = await page.evaluate(async () => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const claimsFrame = {
+        conceptId: 'c1', name: 'Strap', summary: 's',
+        layout: { family: 'strap', arrangement: 'stack', fullFrame: true, zone: 'bottom-left', sizeScale: 1 },
+        regions: [{ id: 'name', role: 'name', emphasis: 'primary', fieldKeys: ['a'] }],
+        palette: {}, fontId: 'inter', motion: { entranceOrder: [], character: 'rise', seconds: 0.9 },
+      };
+      const forFamily = (family: string) => normalizeIntent({
+        kind: 'family', families: [family], confidence: 'high', summary: 'x', parts: [],
+        fields: [{ key: 'a', role: 'line', label: 'A', sample: 'A' }],
+      });
+      const under = (family: string, spec: unknown) =>
+        normalizeCreativeSpec(spec, forFamily(family)).layout.fullFrame;
+      return {
+        // A strap says full frame; the taxonomy says a lower third is an overlay and wins.
+        strapClaimingFrame: under('strap', claimsFrame),
+        // A versus card genuinely covers, so the same claim stands.
+        versusClaimingFrame: under('versus', claimsFrame),
+        // …and a versus card that wrongly denies it is corrected in the other direction too.
+        versusDenyingFrame: under('versus', { ...claimsFrame, layout: { ...claimsFrame.layout, fullFrame: false } }),
+        // The mutation twin: a brief naming no structure the catalog knows has nothing to be
+        // corrected against, so the model's own answer is kept - both ways round.
+        novelClaiming: normalizeCreativeSpec(claimsFrame, normalizeIntent({
+          kind: 'novel', confidence: 'low', summary: 'x', parts: [],
+          fields: [{ key: 'a', role: 'line', label: 'A', sample: 'A' }],
+        })).layout.fullFrame,
+        novelDenying: normalizeCreativeSpec(
+          { ...claimsFrame, layout: { ...claimsFrame.layout, fullFrame: false } },
+          normalizeIntent({ kind: 'novel', confidence: 'low', summary: 'x', parts: [], fields: [{ key: 'a', role: 'line', label: 'A', sample: 'A' }] }),
+        ).layout.fullFrame,
+      };
+    });
+
+    expect(report.strapClaimingFrame).toBe(false);   // the correction, 24 of 30 in the pass
+    expect(report.versusClaimingFrame).toBe(true);
+    expect(report.versusDenyingFrame).toBe(true);
+    // A novel graphic keeps whatever the model said - the derivation never invents an answer.
+    expect(report.novelClaiming).toBe(true);
+    expect(report.novelDenying).toBe(false);
+  });
+
   test('an OVERLAY may not paint an opaque full frame; a full-frame board may', async ({ page }) => {
     await open(page);
     test.setTimeout(60_000);
