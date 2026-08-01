@@ -182,9 +182,13 @@ with its lower-third siblings (§8), swept per category, and covered by an E2E s
       normal Pro user never picks models
 - [x] **Fixture-first benchmark** — benchmarks/pro/v1 + scripts/pro-bench.mjs (free regression
       by default; paid generation explicit and cost-ceilinged)
-- [ ] **Clean-plate / erase integration** — remove baked text outside reconstructed panels
-- [ ] **Paid quality round** — a real image+vision model pass over the bank, fixtures saved,
-      routes picked from the gallery
+- [x] **Clean-plate / erase integration** — the compile runs the deterministic flat-fill
+      erase over baked text outside reconstructed panels, mattes retained-pad ring sides,
+      and drops the raster when every region is rebuilt (plan §5/§10; e2e-pinned with
+      hand-built flat and gradient concepts)
+- [x] **Paid quality round** — the 2026-07-31 round: gemini-3.1-flash-image +
+      gemini-2.5-flash over the bank, 4/5 after normalizer fixes, real fixtures committed
+      (free regression replays), routes pinned as PRO_STANDARD_ROUTES
 - [ ] **Managed funded tier** — task-registry profile, quotas, credit weighting, an Auto route
 
 ## The pipeline (road ahead — user-defined eras, analyzed 2026-07-05)
