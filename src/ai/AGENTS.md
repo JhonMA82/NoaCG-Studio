@@ -344,12 +344,51 @@ thirds and versus the catalog minimum is 0.0%, because vs02 legitimately covers 
 and one number over two placement classes excuses every flood there is. The same measurement
 reads the opposite end exactly - a frame pixel-identical to the bare plate painted NOTHING.
 
-**`spec.layout.fullFrame` is load-bearing and was measured UNRELIABLE**: 14 of 16 lower-third
-specs claimed full frame for graphics whose own family word was "strap". It decides both the
-scaffold's anchoring (a full-frame graphic is centred, not zoned) and whether the gate above
-applies, so the stage-5 schema now asks which of two concrete broadcast objects is being made
-rather than whether the graphic "owns the frame". Treat its rate on the next paid round as a
-reading, not a given.
+**`spec.layout.fullFrame` is DERIVED, not asked for.** It decides both the scaffold's anchoring
+(a full-frame graphic is centred, not zoned) and whether the backdrop gate above applies, and
+the model got it wrong on 24 of 30 lower thirds - for graphics whose own family word was
+"strap" and whose zone was "bottom-left". Two rewordings of the stage-5 schema moved the rate by
+8 points, which is the evidence that it was never a wording problem. `templates/
+structuralAnchor.ts intentCoversFrame` now resolves the structure the brief named through the
+anchor table and reads the `CoverageClass` the graphic category already declares; the model's
+flag survives only for a brief that names no structure the catalog knows, where there is
+nothing to correct it against. Over the archived specs: lower thirds 24/30 claiming the frame ->
+0, versus 49/49 (correcting two that had denied it). It lives beside the anchor table for that
+table's own reason - the router and the satisfaction check must not hold two answers.
+
+**Three things about a CREATE result are the platform's floor, because a model got each of
+them wrong at scale** (the 2026-08-01 pass, benchmarks/creative/v1/PASS-2026-08-01.md):
+
+- **Every declared field reaches the screen.** Fields bind to regions through the spec's
+  `fieldKeys`, which stage 5 frequently returns EMPTY, and the rescue for unbound fields used
+  to skip the `list` and `hidden` roles - so 48 of 69 staged runs shipped fields nothing could
+  draw (88 of them). Row sets are now one compiled table generating both the markup and the
+  runtime (they were decided separately, which left 26 of 55 runs with a rebuild whose
+  container did not exist), every list field gets its own container, and a final sweep gives a
+  visible slot to anything still unreachable.
+- **A graphic can say something.** Seven runs declared no fields at all and several typed every
+  field as a picture, leaving a frame of src-less `<img>`. The scaffold guarantees one
+  text-painting field, synthesized from the graphic's own name. The rule asks what a field
+  PAINTS, never what its label looks like - a keyword guess has to call "Home Team Crest" an
+  image and "Team 1" not, and would become its own defect.
+- **A length keeps its unit.** The style stage copies the scaffold's
+  `calc(26px * var(--scale) * var(--type-scale))` and drops the `px`; the browser then discards
+  the declaration and the whole type ladder reverts to ~16px in a 1920x1080 frame. 469
+  declarations across 59 of 155 archived stylesheets, and the coder arms clean at 0 - the
+  scaffold's own pattern induces it. `style.ts repairUnitlessLengths` restores the unit
+  (clamp-don't-reject) narrowly enough that it only touches expressions built from bare numbers
+  and the two scaffold multipliers, so it cannot rewrite CSS that would have worked.
+
+**These were all invisible to every gate, which is the lesson worth keeping.** Structural
+satisfaction asked whether a required part was PRESENT in the DOM, and a hidden holder is
+present - so a versus card whose four fields were all undrawable scored complete. Reading the
+markup for `id="fN"` cannot fix that: a standings row, a ticker item and a credits line are
+BUILT by a runtime from one field, so the id is legitimately absent. `validation/
+structuralIntentCheck.ts` therefore DRIVES every text-bearing field to a sentinel and re-reads
+the painted frame - scripts/field-coverage.mjs's technique asked in the opposite direction. It
+ignores opacity on purpose: a region the machine reveals in a later step is transparent during
+the entrance and perfectly reachable (the bracket's champion is exactly that, and was its first
+false positive).
 
 **The critique repair lands when it is NO WORSE than its base** (`pipeline.ts noWorseThan`,
 same ruling): no new error rule and no more errors than the base, or clean. The old

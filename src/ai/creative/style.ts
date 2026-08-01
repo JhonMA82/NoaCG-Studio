@@ -90,6 +90,14 @@ export const CREATIVE_STYLE_MARKER =
  * (`.visible`, `.reset`) nothing will ever toggle, then "fix" the resulting bench findings
  * with more of the same (benchmarks/creative/v1/SMOKE-2026-07-31-vs-lt.md item 6).
  *
+ * A LATER CORRECTION worth reading before adding a third clamp here: the same signature
+ * dominated the 2026-08-01 pass (31 of 76 staged runs) and this was NOT the cause. Probing the
+ * failing frames found every element at opacity 1, visible and displayed - and every box 0x0.
+ * They were not hidden, they were EMPTY, because their fields could not render (scaffold.ts's
+ * renderability sweep) or the graphic had nothing to display at all. Recompiling all 76
+ * archived specs against the fixed scaffold took the signature from 31 to 1. So when this pair
+ * appears at scale, measure the boxes before assuming anything hid them.
+ *
  * Clamp, don't reject (the round-h precedent), in two strengths:
  *
  * - `visibility: hidden|collapse` and `display: none` are stripped from any rule whose
