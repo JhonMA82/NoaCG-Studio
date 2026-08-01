@@ -163,6 +163,26 @@ is where model choice lives. Do not change the standard routes without re-runnin
 `npm run bench:pro` paid stages. Offline (no OpenRouter key) the deterministic stub
 (`pro/stub.ts`) runs the identical flow, which keeps e2e/pro.spec.ts token-free.
 
+**An as-is upload is BUNDLED into the slot it asked for** (`pro/logoAsset.ts`
+`fillProLogoSlot`, run by BOTH pipeline entry points via `GenerateOptions`-style
+`logoMark`). The compile reports the slot it placed (`ProCompileReport.logoSlot` - field
+id, wrapper id, and the outcome line it belongs to); the fill writes the mark into
+`template.assets` and the slot's DataField value, so the project's sample data follows from
+that default on create. It is deterministic - no model decides which file goes in the slot -
+and it writes no CSS, which is how it satisfies the as-is screen by construction. The report
+follows: the region's outcome says the mark was placed, and the empty-slot warning is
+retired BY IDENTITY (`PRO_EMPTY_LOGO_SLOT_WARNING`, exported from `pro/compile.ts` so the
+second place never keeps a copied literal). An upload whose purpose is `layout`/`mood`/
+`plate` is never bundled, here as everywhere.
+
+**It runs BETWEEN the compile and the injected validator, and that order is load-bearing.**
+Baking the `src` into the markup is what ARMS the as-is screen - `assetIntegrity.ts`
+`targetsOf` finds a protected picture by its `<img src>`, so before the fill there is
+literally nothing for it to screen, and an all-clear would mean only that it looked at a
+template with an empty slot. Same honesty argument for the result card: the readiness rows
+must describe the template the user actually gets. Generalize it - **a gate that runs before
+the last deterministic step measures a document nobody will ever see.**
+
 ## Import analysis - the proposal-only vision task (`importAnalysis/`)
 
 `imported-graphic-analysis` (docs/AI_TASK_REGISTRY.md, plan §6) assists the MANUAL Import

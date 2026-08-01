@@ -653,6 +653,12 @@ export default function AiStep({
           validate: proValidate,
           onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
           interpretRoute: PRO_STANDARD_ROUTES.interpret,
+          // The user's own mark goes INTO the slot the compile places - deterministically,
+          // inside the pipeline, because nothing about which file belongs there is a model
+          // decision (src/ai/pro/logoAsset.ts) AND the gate must see the filled template.
+          // Without it an as-is upload asked the concept for a logo area, got a slot, and
+          // left the file behind.
+          logoMark: uploads.find((upload) => upload.purpose === 'asset') ?? null,
         };
         const compiled = proRemote
           ? await compileProConcept(proBrief, concept, compileOptions)
@@ -935,8 +941,8 @@ export default function AiStep({
           {proMode && (
             <p className="hint" data-testid="pro-upload-note">
               Uploads do not steer the image concept yet — an as-is mark asks the design for a
-              logo slot, and colours read from your image can be applied as the exact brand
-              accent below.
+              logo slot and is bundled into it, and colours read from your image can be applied
+              as the exact brand accent below.
             </p>
           )}
           {images.length > 0 && (

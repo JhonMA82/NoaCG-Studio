@@ -95,6 +95,199 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   expect(shape.hasAnimData).toBe(true);
 });
 
+test('pro: an as-is upload is bundled into the logo slot it asked the concept for', async ({ page }) => {
+  await toProTier(page);
+
+  // A small opaque PNG - guessPurpose reads a mark-sized picture as "use it as it is", which
+  // is what makes the brief ask the concept for a logo area in the first place.
+  const encoded = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#0b6cf0';
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(32, 32, 64, 64);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.setInputFiles('.wz-drop input[type=file]', {
+    name: 'mark.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(encoded, 'base64'),
+  });
+  await expect(page.getByTestId('ai-upload')).toHaveAttribute('data-purpose', 'asset');
+
+  await page.locator('.wz-step textarea').first().fill('A calm news strap with the channel mark.');
+  await page.getByRole('button', { name: '✧ Generate' }).click();
+  await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
+  // The report says what happened to the mark - not that a slot exists somewhere.
+  await expect(page.getByTestId('pro-outcomes')).toContainText(
+    "Your uploaded mark was bundled as images/mark.png and set as the Logo slot's value.",
+  );
+
+  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByTestId('wz-finish-name').fill('Marked Strap');
+  await page.getByTestId('wz-finish-editor').click();
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Marked Strap');
+
+  const placed = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const state = useTemplateStore.getState();
+    const t = state.template;
+    const slot = t.fields.find((f) => f.ftype === 'filelist');
+    return {
+      slotValue: slot?.value ?? null,
+      sample: slot ? state.sampleData[slot.field] ?? null : null,
+      bundled: t.assets.some((a) => a.path === 'images/mark.png'),
+      srcInMarkup: slot ? new RegExp(`<img[^>]*id="${slot.field}"[^>]*src="images/mark.png"`).test(t.html) : false,
+    };
+  });
+  // The field carries the path, the project's sample data follows from that default, and the
+  // file really rides the template - a value pointing at nothing is the dangling-reference
+  // defect this slice exists to avoid.
+  expect(placed.slotValue).toBe('images/mark.png');
+  expect(placed.sample).toBe('images/mark.png');
+  expect(placed.bundled).toBe(true);
+  expect(placed.srcInMarkup).toBe(true);
+});
+
+test('pro: filling the slot retires the empty-slot warning, keeps the as-is screen clean, and ignores a reference', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // Driven directly: the stub concept's logo area sits INSIDE its opaque strap, so the
+  // compile has nothing to warn about there. A logo clear of every panel is the case the
+  // warning exists for - and the case whose wording changes once a file is picked.
+  const out = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
+    const { compileProPlan, PRO_EMPTY_LOGO_SLOT_WARNING } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { fillProLogoSlot } = await import(`/src/ai/pro/logoAsset.ts${bust}`);
+    const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
+    const { parseDefinition } = await import(`/src/model/spxDefinition.ts${bust}`);
+    const { uuid } = await import(`/src/model/id.ts${bust}`);
+
+    const FRAME = { width: 1920, height: 1080 };
+    const canvas = document.createElement('canvas');
+    canvas.width = FRAME.width;
+    canvas.height = FRAME.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#202530';
+    ctx.fillRect(0, 0, FRAME.width, FRAME.height);
+    const concept = { dataUrl: canvas.toDataURL('image/png'), ...FRAME };
+
+    const interpretation = {
+      version: 1,
+      graphicType: 'lower-third',
+      graphicTypeConfidence: 0.9,
+      regions: [
+        { kind: 'text', bbox: { x: 0.1, y: 0.78, w: 0.2, h: 0.04 }, confidence: 0.9,
+          treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Noa' },
+        // Clear of everything: nothing rebuilt covers it, so the crop keeps the baked mark.
+        { kind: 'logo', bbox: { x: 0.6, y: 0.78, w: 0.05, h: 0.05 }, confidence: 0.9,
+          treatment: 'keep-asset', suggestedTitle: 'Channel mark' },
+      ],
+      animation: { presetId: 'design-fade', speed: 1 },
+      warnings: [],
+    };
+    const brief = { brief: '', name: 'Noa', title: 'Anchor', includeLogo: true };
+    const plan = normalizeProInterpretation(interpretation, FRAME, uuid);
+    const compiled = await compileProPlan(plan, concept, brief, {});
+    const base = { ...compiled, validation: null, concept };
+
+    const mark = { path: 'images/mark.png', data: 'data:image/png;base64,iVBORw0KGgo=' };
+    const filled = fillProLogoSlot(base, { asset: mark, purpose: 'asset', binding: 'swappable' });
+    // A vision-only reference is never bundled or placed (model/imagePurpose.ts).
+    const asReference = fillProLogoSlot(base, { asset: mark, purpose: 'mood' });
+
+    const slot = filled.report.logoSlot;
+    return {
+      emptyWarning: PRO_EMPTY_LOGO_SLOT_WARNING,
+      before: {
+        warnings: compiled.report.warnings,
+        note: compiled.report.outcomes[1].note,
+        nameNote: compiled.report.outcomes[0].note,
+        assets: compiled.template.assets.length,
+      },
+      after: {
+        warnings: filled.report.warnings,
+        note: filled.report.outcomes[1].note,
+        nameNote: filled.report.outcomes[0].note,
+        assets: filled.template.assets.length,
+        slotValue: filled.template.fields.find((f) => f.field === slot?.fieldId)?.value ?? null,
+        // Re-PARSED, not string-matched: the definition inside the HTML is what survives a
+        // reload, and a value only in the parsed field list would be lost on the next read.
+        definitionValue: parseDefinition(filled.template.html)?.fields
+          .find((f) => f.field === slot?.fieldId)?.value ?? null,
+        wrapperFilled: new RegExp(`<div\\b[^>]*\\bid="${slot?.wrapperId}"[^>]*>`)
+          .exec(filled.template.html)?.[0]?.includes('has-image') ?? false,
+        integrity: assetIntegrityFindings(filled.template, ['images/mark.png']).map((f) => f.rule),
+      },
+      referenceUntouched: asReference === base,
+    };
+  });
+
+  // Before: the slot is empty and the report says so.
+  expect(out.before.warnings).toContain(out.emptyWarning);
+  expect(out.before.assets).toBe(1);
+  // After: the mark is bundled, the value is written into the DEFINITION (not just the parsed
+  // field list), the empty-slot line is gone, and only the logo's own outcome changed.
+  expect(out.after.assets).toBe(2);
+  expect(out.after.slotValue).toBe('images/mark.png');
+  expect(out.after.definitionValue).toBe('images/mark.png');
+  expect(out.after.wrapperFilled).toBe(true);
+  expect(out.after.warnings).not.toContain(out.emptyWarning);
+  expect(out.after.note).toContain('bundled as images/mark.png');
+  expect(out.after.nameNote).toBe(out.before.nameNote);
+  // The as-is screen finds the picture (an <img> with that src) and has nothing to report:
+  // the slot's rules crop, filter and distort nothing.
+  expect(out.after.integrity).toEqual([]);
+  // A picture that is not "use it as it is" is not bundled at all.
+  expect(out.referenceUntouched).toBe(true);
+});
+
+test('pro: the quality gate is handed the FILLED template, not the one with an empty slot', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // The as-is screen finds a protected picture by its <img src> (assetIntegrity.ts
+  // targetsOf), so a fill applied AFTER validation would be screened by nothing at all -
+  // and the readiness rows the user reads would describe a template they never get. The
+  // fill therefore rides the pipeline, and this is what pins the order: a validator that
+  // reports what it was actually given.
+  const seen = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
+
+    const brief = { brief: '', name: 'Noa Haline', title: 'Anchor', includeLogo: true };
+    const concept = await stubProConcept(brief);
+    const looked: { src: boolean; screened: boolean }[] = [];
+    const validate = async (t: { html: string }) => {
+      looked.push({
+        src: /<img[^>]*src="images\/mark\.png"/.test(t.html),
+        // The screen can only REACH the picture once its src is there; an empty finding
+        // list from a template it cannot see would be a false all-clear.
+        screened: assetIntegrityFindings(t, ['images/mark.png']).length === 0
+          && /<img[^>]*src="images\/mark\.png"/.test(t.html),
+      });
+      return { ok: true, errors: [], warnings: [] };
+    };
+    await stubCompilePro(brief, concept, {
+      validate,
+      logoMark: {
+        asset: { path: 'images/mark.png', data: 'data:image/png;base64,iVBORw0KGgo=' },
+        purpose: 'asset',
+        binding: 'swappable',
+      },
+    });
+    return looked;
+  });
+
+  expect(seen).toEqual([{ src: true, screened: true }]);
+});
+
 test('pro: baked text outside panels is erased where the backdrop is flat, refused honestly where not', async ({ page }) => {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();

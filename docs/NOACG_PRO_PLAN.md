@@ -144,9 +144,18 @@ prompt-injection doctrine is restated in the Pro prompt).
   entirely (`artDropped`) additionally requires EVERY region to be rebuilt - a kept-raster
   logo or flattened panel lives only in the crop, and dropping it would silently delete
   them.
-- **Logos / portraits**: v1 keeps them in the plate and reports them (replaceable-asset
-  slots are the next slice); an explicit `filelist` slot is only added when the brief
-  asked for a logo field.
+- **Logos / portraits**: v1 keeps them in the plate and reports them (a replaceable slot
+  for a PORTRAIT is still a later slice); an explicit `filelist` slot is only added when the
+  brief asked for a logo field. When it did, the compile reports that slot
+  (`ProCompileReport.logoSlot`) and `fillProLogoSlot` (`src/ai/pro/logoAsset.ts`, the
+  pipeline's `logoMark` option) bundles the user's first "use it as it is" upload into it and
+  sets it as the slot's value - deterministically, so the mark the user attached is actually
+  in the graphic rather than merely asked for. It runs BETWEEN the compile and the validator,
+  because the as-is screen (`src/ai/assetIntegrity.ts`) finds a protected picture by its
+  `<img src>`: filling afterwards would leave the gate screening a template with an empty
+  slot, and the result card's readiness rows describing one. It writes no CSS, which is how
+  it passes that screen by construction; the region's outcome line then says the slot was
+  filled, and the "waiting for a file" warning is retired.
 - **Complex textures / illustrations / backgrounds**: stay raster in
   `.imported-design-art`, by design. A `decorative` region rides the panel rules WHEN it
   carries reconstructable geometry - models file accent bars and divider rules under
@@ -189,7 +198,8 @@ control" structured setup (category, data fields with kinds, look, fonts, animat
 purposed uploads, and the brand strip. `src/ai/pro/brief.ts` maps that shared brief onto
 the v1 `ProBrief` deterministically: the first two text fields become the name/title lines
 (example values ride into the concept), an as-is upload or a requested image field asks
-for the logo slot, and style/mood/avoid/brand-colour decisions travel as direction text.
+for the logo slot, which the pipeline then BUNDLES that upload into (§5,
+`fillProLogoSlot`) - and style/mood/avoid/brand-colour decisions travel as direction text.
 Category options clamp to what v1 compiles (lower thirds); a wider pick resets to 'auto'
 exactly as Lite clamps its own scope.
 

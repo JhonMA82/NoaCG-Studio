@@ -9,6 +9,7 @@
 
 import { callModelDetailed } from '../modelGateway';
 import type { ModelImage, ModelRoute } from '../modelTypes';
+import type { PurposedImage } from '../../model/imagePurpose';
 import { startAiRun } from '../telemetry';
 import { downscaleForAnalysis } from '../importAnalysis/client';
 import type { SpxValidator } from '../provider';
@@ -26,22 +27,14 @@ import {
 } from './contract';
 import { normalizeProInterpretation } from './normalize';
 import { compileProPlan, ProCompileError, type ProCompileResult } from './compile';
+import { fillProLogoSlot } from './logoAsset';
 
 export type ProStage = 'concept' | 'interpret' | 'compile' | 'validate';
 
-/**
- * The STANDARD Pro routes - the curated model choice behind the tier, so a normal Pro user
- * never picks models. Measured in the 2026-07-31 paid round (docs/NOACG_PRO_PLAN.md §10):
- * gemini-3.1-flash-image concepts at ~$0.067/image with the strongest text rendering of the
- * affordable image routes, plus gemini-2.5-flash interpretation at ~$0.002/call - together
- * ~$0.07-0.08 per completed generation, 4/5 brief-bank passes after the normalizer fixes.
- * Both ride OpenRouter (one API shape, one billing meter, the gateway's existing adapter).
- * Change them only with a re-run of `npm run bench:pro` on the paid stages.
- */
-export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute } = {
-  concept: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
-  interpret: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
-};
+/** The tier's curated routes, defined in the dependency-light contract so `api/` can read the
+ *  same constant this pipeline obeys (see the note there). Re-exported unchanged: every
+ *  existing `import { PRO_STANDARD_ROUTES } from './pipeline'` keeps working. */
+export { PRO_STANDARD_ROUTES } from './contract';
 
 /** A generated concept, ready to review: the image plus what it cost. */
 export interface ProConcept {
@@ -129,6 +122,12 @@ export async function compileProConcept(
     /** Pin the interpretation's route (the standard tier passes PRO_STANDARD_ROUTES.interpret);
      *  omitted falls through to the session route, the original BYO behaviour. */
     interpretRoute?: ModelRoute;
+    /** The user's "use it as it is" upload, filled into the logo slot the compile placed.
+     *  It rides the PIPELINE rather than being applied afterwards because the gate has to
+     *  see the template the user actually gets: the as-is screen finds a protected picture
+     *  by its `<img src>` (assetIntegrity.ts `targetsOf`), so a fill applied after
+     *  validation would be screened by nothing at all. */
+    logoMark?: PurposedImage | null;
   } = {},
 ): Promise<ProResult> {
   const run = startAiRun('pro-generate');
@@ -157,10 +156,13 @@ export async function compileProConcept(
     // The interpretation read the downscaled copy; its bboxes are normalized, so the plan
     // is built against the ORIGINAL concept's pixel frame and the crop stays full quality.
     const plan = normalizeProInterpretation(result.output, { width: concept.width, height: concept.height }, uuid);
-    const compiled = await compileProPlan(plan, concept, brief, {
-      resolution: options.resolution,
-      fps: options.fps,
-    });
+    const compiled = fillProLogoSlot(
+      await compileProPlan(plan, concept, brief, {
+        resolution: options.resolution,
+        fps: options.fps,
+      }),
+      options.logoMark ?? null,
+    );
     run.stage('compile', t0);
 
     let validation: ValidationResult | null = null;
