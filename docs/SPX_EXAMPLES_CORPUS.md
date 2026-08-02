@@ -191,10 +191,37 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    measure something the corpus taught rather than to add volume - the talk-show strap is
    the bank's only brief that asks for the upper half of the ratified 44-92 px name range,
    and the score strip is the "data updates never cause transitions" rule stated as a brief.
-4. **Private visual eval set.** The on-air screenshots plus locally rendered corpus frames
-   form a taste-calibration set for human review and the vision judge (what "professional
-   broadcast" actually looks like: restraint, scrims, one accent). Local only, like the
-   bench archives.
+4. **Private visual eval set.** FIRST SLICE DONE 2026-08-02. The on-air screenshots plus
+   locally rendered corpus frames form a taste-calibration set for human review and the
+   vision judge. Local only, like the bench archives.
+
+   `benchmarks/corpus-eval/v1/set.json` is the CURATION and the only part in the repo:
+   pairings and our own written observations, no pixels. `node scripts/spx-eval-set.mjs`
+   assembles `spx-corpus-out/eval-set/` from it - a review page plus a machine-readable
+   `eval-set.json` for a future judge run - by copying each real ON-AIR frame beside OUR
+   RENDER of the same template file. Pairing is the point: the on-air frame says what the
+   graphic looked like on the channel with real content over real pictures, the render says
+   what the same file produces here with default data over a neutral plate, and only the two
+   together separate "the design is like that" from "our render of it is like that". A pair
+   whose render is missing is reported INCOMPLETE rather than shown one-sided; the renders
+   come from `scripts/spx-corpus-gallery.mjs`, which now takes `--only=<substring>` so the
+   six pairs refresh in seconds instead of re-rendering 204 templates.
+
+   The first six pairs are the whole Arto Nyberg pack (host strap, guest strap, bio board,
+   motto board, song requests, credits roll), each mapped to its template by its own
+   definition rather than by filename. What the frames show, recorded as observations and
+   NOT as rulings - three of them contradict `docs/DESIGN_LANGUAGE.md` and are filed as
+   owner questions in the same file, exactly as the production deltas above were:
+
+   - **Every name line is set LIGHT**, where §1 asks for weight 600-800. Hierarchy in this
+     pack comes from size and position; nothing is ever bolded to rank it.
+   - **The name-to-title ratio is well under §1's 1.8-2.2:1**, with position carrying the
+     difference.
+   - **There is no accent colour anywhere.** Our catalog treats one accent as the house
+     signature; this production treats zero as its own.
+
+   Which RENDERED frames belong in the set is a taste judgement, so `ownerPicks.frames` is
+   deliberately empty rather than guessed by an agent.
 5. **Feature backlog signals** (each its own product decision, not part of this doc):
    lyrics/subtitle pager (texter), measured marquee overflow as a validated technique,
    wall-clock countdown with day rollover, operator-facing theme field mapped onto our
