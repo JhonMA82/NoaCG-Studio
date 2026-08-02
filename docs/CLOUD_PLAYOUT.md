@@ -177,6 +177,18 @@ The page:
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
+- **It must parse on an OLD CEF.** CasparCG 2.3.x LTS — the ordinary school/student install
+  — embeds a ~Chromium 65 browser. A real 2.3.2 server rejected the first build outright
+  (`Uncaught SyntaxError: Unexpected token ?`: `?.`/`??` need Chromium 80), showing a dead
+  layer with nothing on air and no clue why. Two rules follow, and neither is optional
+  while 2.3.x is a supported target: **the Vite build target stays at `es2017`** (it covers
+  every bundle, including the dynamically imported supabase client), and **`output.html`
+  carries the runtime shims** for the APIs that engine lacks (`globalThis`,
+  `Object.fromEntries`, `AbortController`, `queueMicrotask`). The template code inside the
+  iframes is emitted text that Vite never transpiles, so the same bar applies to
+  `ANIM_INTERPRETER_JS` and every design-owned runtime: no `?.`, no `??`. None of this is
+  caught by `npm run build` or the e2e suite — only a real old-CEF server shows it, which
+  is why it is written here.
 - Offline build / bad slug: a neutral dark "not available" card (never on a production's
   air — this state only exists when the URL was wrong to begin with).
 

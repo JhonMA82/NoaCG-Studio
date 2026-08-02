@@ -81,7 +81,12 @@ export default defineConfig(({ command, mode }) => {
     // open: skipped on CI runners — there is no browser to open, only Playwright's.
     server: { port: devPort(), strictPort: true, open: !process.env.CI },
     build: {
-      target: 'es2020',
+      // es2017, not es2020: CasparCG 2.3.x LTS (the common student/school install) embeds a
+      // ~Chromium 63 CEF that cannot PARSE optional chaining / nullish coalescing — the output
+      // page died there with "Uncaught SyntaxError: Unexpected token ?" on a real server.
+      // Lowering the target transpiles the syntax across every bundle (runtime APIs are
+      // shimmed in output.html, the one page those renderers load).
+      target: 'es2017',
       outDir: 'dist',
       rollupOptions: {
         input: { landing: 'index.html', app: 'app.html', admin: 'admin.html', output: 'output.html' },
