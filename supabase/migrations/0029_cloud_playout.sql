@@ -20,9 +20,12 @@
 -- broadcast software, so `+` and `/` are traps.
 
 -- ── 1. The output capability + payload + heartbeat ───────────────────────────────────────────
+-- gen_random_bytes is schema-qualified: pgcrypto lives in `extensions` on Supabase, and the
+-- migration runner executes with a restricted search_path that does not include it (0008 got
+-- away with the bare name only because it ran under an older CLI).
 alter table public.control_shows
   add column if not exists output_slug text unique
-    default translate(encode(gen_random_bytes(9), 'base64'), '+/', '-_'),
+    default translate(encode(extensions.gen_random_bytes(9), 'base64'), '+/', '-_'),
   add column if not exists output jsonb,
   add column if not exists output_seen_at timestamptz;
 
@@ -191,7 +194,7 @@ declare
   v_slug text;
 begin
   -- (a) The output slug alphabet is URL-safe.
-  v_slug := translate(encode(gen_random_bytes(64), 'base64'), '+/', '-_');
+  v_slug := translate(encode(extensions.gen_random_bytes(64), 'base64'), '+/', '-_');
   if v_slug ~ '[+/]' then
     raise exception 'cloud playout self-check failed: slug alphabet is not URL-safe';
   end if;
