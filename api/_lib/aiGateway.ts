@@ -159,6 +159,68 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
   return schema.type === undefined;
 }
 
+/** Decode a structured result that arrived correct but ENCODED, before anything judges its
+ *  shape. Two encodings are common enough to cost whole benchmark rounds, both observed from
+ *  Anthropic tool use and neither specific to it:
+ *
+ *    - a nested array or object handed back as a JSON STRING - `{"concepts":"[{…}]"}`;
+ *    - the whole tool envelope repeated inside the property it belongs to -
+ *      `{"concepts":"{\"concepts\":[{…}]}"}`.
+ *
+ *  Both carry exactly the answer the schema asked for. Rejecting them spends the call, burns
+ *  the retry budget on a deterministic quirk, and reports a model failure that never happened:
+ *  seven of eight briefs in the 2026-08-02 frontier round died here with usable design work in
+ *  the payload, and every failure looked like the model's fault.
+ *
+ *  Decoding only ever REPLACES a value with what it encoded - `schemaAccepts` still runs
+ *  afterwards and still refuses anything genuinely wrong, so this widens what is understood,
+ *  never what is accepted. A string that does not parse is left exactly as it came. */
+function decodeEncodedShapes(value: unknown, schemaValue: unknown, key?: string): unknown {
+  if (!schemaValue || typeof schemaValue !== 'object' || Array.isArray(schemaValue)) return value;
+  const schema = schemaValue as Record<string, unknown>;
+  const wants = schema.type;
+  if (wants !== 'object' && wants !== 'array') return value;
+
+  let current = value;
+  if (typeof current === 'string') {
+    try {
+      current = JSON.parse(current);
+    } catch {
+      return value;
+    }
+  }
+
+  // The repeated envelope: the property's own name wrapping the property's own value.
+  // Narrow on purpose - one key, and that key is the one being decoded - so a legitimate
+  // single-key object can never be unwrapped into the thing it contains.
+  if (wants === 'array' && !Array.isArray(current) && current && typeof current === 'object' && key) {
+    const record = current as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length === 1 && keys[0] === key) current = record[key];
+  }
+
+  if (wants === 'array' && Array.isArray(current) && schema.items) {
+    return current.map((item) => decodeEncodedShapes(item, schema.items));
+  }
+  if (wants === 'object' && current && typeof current === 'object' && !Array.isArray(current)) {
+    const properties = schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
+      ? schema.properties as Record<string, unknown>
+      : null;
+    if (!properties) return current;
+    const record = current as Record<string, unknown>;
+    const decoded: Record<string, unknown> = { ...record };
+    for (const [property, subSchema] of Object.entries(properties)) {
+      if (property in record) decoded[property] = decodeEncodedShapes(record[property], subSchema, property);
+    }
+    return decoded;
+  }
+  return current;
+}
+
+export function decodeStructuredOutput(output: unknown, request: ModelRequest): unknown {
+  return request.structuredOutput ? decodeEncodedShapes(output, request.structuredOutput.schema) : output;
+}
+
 function validateStructuredOutput(output: unknown, request: ModelRequest): void {
   if (request.structuredOutput && !schemaAccepts(output, request.structuredOutput.schema)) {
     // Retryable for the same reason as the parse failure above: schema misses under
@@ -794,10 +856,11 @@ export async function executeGatewayRequest(
       totalAttempts += 1;
       try {
         const result = await oneAttempt(adapter, body.request, route, key, fetchImpl, policy);
-        validateStructuredOutput(result.output, body.request);
+        const output = decodeStructuredOutput(result.output, body.request);
+        validateStructuredOutput(output, body.request);
         attempts.push({ route, attempts: routeAttempts });
         return {
-          output: result.output,
+          output,
           usage: withEstimatedCost(result.usage, route),
           provider: route.provider,
           model: route.model,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import {
+  decodeStructuredOutput,
   executeGatewayRequest,
   GatewayError,
   validateGatewayBody,
@@ -694,4 +695,103 @@ test('the ZDR-servable claim in the catalog is backed by a written audit', () =>
   // the other endpoint's capability would describe a route the policy never takes.
   assert.equal(concept.capabilities.structuredOutput, false);
   assert.match(concept.notes, /MODEL_ROUTE_AUDITS/);
+});
+
+// A structured result that arrived CORRECT but ENCODED (decodeStructuredOutput). Both shapes
+// below were returned by claude-sonnet-5 through forced tool use and cost seven of eight
+// briefs in a paid round: the design work was in the payload and the gateway called it a
+// malformed model response. Every positive case has a mutation twin, because a decoder that
+// starts accepting genuinely wrong shapes is worse than the rejection it replaced.
+const CONCEPTS_SCHEMA = {
+  type: 'object',
+  required: ['concepts'],
+  properties: {
+    concepts: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['name'],
+        additionalProperties: false,
+        properties: {
+          name: { type: 'string' },
+          tags: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+} as const;
+
+const structuredRequest = (schema: unknown) => ({
+  system: 's',
+  messages: [],
+  structuredOutput: { name: 'emit_concept_directions', description: 'd', schema },
+}) as never;
+
+test('a nested array handed back as a JSON string is decoded, not refused', () => {
+  const decoded = decodeStructuredOutput(
+    { concepts: '[{"name":"Ledger"}]' },
+    structuredRequest(CONCEPTS_SCHEMA),
+  );
+  assert.deepEqual(decoded, { concepts: [{ name: 'Ledger' }] });
+});
+
+test('the tool envelope repeated inside its own property is unwrapped', () => {
+  const decoded = decodeStructuredOutput(
+    { concepts: '{"concepts":[{"name":"Ledger"},{"name":"Baseline"}]}' },
+    structuredRequest(CONCEPTS_SCHEMA),
+  );
+  assert.deepEqual(decoded, { concepts: [{ name: 'Ledger' }, { name: 'Baseline' }] });
+});
+
+test('decoding recurses, so an encoded array INSIDE an encoded array still arrives', () => {
+  const decoded = decodeStructuredOutput(
+    { concepts: '[{"name":"Ledger","tags":"[\\"strap\\"]"}]' },
+    structuredRequest(CONCEPTS_SCHEMA),
+  );
+  assert.deepEqual(decoded, { concepts: [{ name: 'Ledger', tags: ['strap'] }] });
+});
+
+test('a single-key object that is NOT the property name is left alone - only the envelope unwraps', () => {
+  const decoded = decodeStructuredOutput(
+    { concepts: '{"directions":[{"name":"Ledger"}]}' },
+    structuredRequest(CONCEPTS_SCHEMA),
+  );
+  assert.deepEqual(decoded, { concepts: { directions: [{ name: 'Ledger' }] } });
+});
+
+test('a string that is not JSON at all survives untouched, so the refusal still happens', () => {
+  const decoded = decodeStructuredOutput(
+    { concepts: 'three directions, described in prose' },
+    structuredRequest(CONCEPTS_SCHEMA),
+  );
+  assert.deepEqual(decoded, { concepts: 'three directions, described in prose' });
+});
+
+test('decoding widens what is UNDERSTOOD, never what is accepted', async () => {
+  // The encoded payload is decoded and then still fails the schema on its own merits: the
+  // concept object carries a property `additionalProperties: false` forbids.
+  const body = validateGatewayBody({
+    route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+    request: {
+      system: 's',
+      messages: [{ role: 'user', content: 'x' }],
+      structuredOutput: { name: 'emit_concept_directions', description: 'd', schema: CONCEPTS_SCHEMA },
+    },
+  });
+  const fetchImpl = async () => new Response(JSON.stringify({
+    content: [{
+      type: 'tool_use',
+      name: 'emit_concept_directions',
+      input: { concepts: '[{"name":"Ledger","unexpected":1}]' },
+    }],
+    usage: { input_tokens: 1, output_tokens: 1 },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+  await assert.rejects(
+    () => executeGatewayRequest(body, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      keyFor: async () => 'test-key',
+    }),
+    (error: unknown) => error instanceof GatewayError && /did not match the required structure/.test(error.message),
+  );
 });
