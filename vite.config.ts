@@ -8,12 +8,13 @@ import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
-// Three pages: index.html is the static public landing at "/", app.html is the editor at
+// Four pages: index.html is the static public landing at "/", app.html is the editor at
 // "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
-// a 404 for everyone the server does not recognise, see docs/ADMIN.md). Vercel serves the
-// clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev and preview servers
-// the same ones. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/admin'] as const;
+// a 404 for everyone the server does not recognise, see docs/ADMIN.md), and output.html is
+// the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3).
+// Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
+// and preview servers the same ones. `?raw` imports bundle GSAP + template snippets.
+const CLEAN_PAGES = ['/app', '/admin', '/output'] as const;
 
 function appCleanUrl(): Plugin {
   const prepare = (
@@ -83,7 +84,7 @@ export default defineConfig(({ command, mode }) => {
       target: 'es2020',
       outDir: 'dist',
       rollupOptions: {
-        input: { landing: 'index.html', app: 'app.html', admin: 'admin.html' },
+        input: { landing: 'index.html', app: 'app.html', admin: 'admin.html', output: 'output.html' },
       },
     },
   };

@@ -266,9 +266,10 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   const src = r.body as Record<string, unknown>;
   const name = typeof src.name === 'string' ? src.name : 'Untitled';
   const body: Record<string, unknown> = { ...src, id, updatedAt: now, deleted: false, name: `${name} (conflicted copy)` };
-  // A show's hosted control page belongs to the ORIGINAL — a copy carrying the same slug could
-  // publish over it. The copy starts unpublished.
+  // A show's hosted control page and browser-output URL belong to the ORIGINAL — a copy
+  // carrying the same slug could publish over it. The copy starts unpublished.
   delete body.hostedSlug;
+  delete body.outputSlug;
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }
 

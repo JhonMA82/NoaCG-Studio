@@ -26,6 +26,7 @@ import {
   moveShowGraphic,
   removeShowGraphic,
   setShowHostedSlug,
+  setShowOutputSlug,
   type Show,
 } from '../model/shows';
 import { publishControlShow, unpublishControlShow } from '../control/hostedControl';
@@ -86,10 +87,11 @@ export default function ControlPanel() {
   const publishShow = async (show: Show) => {
     setPublishBusy(true);
     try {
-      const hostedSlug = await publishControlShow(show);
-      if (hostedSlug) {
-        setShows(setShowHostedSlug(show.id, hostedSlug));
-        setShowNote('✓ Hosted control page is live — share the link with your operators. Re-publish after changing the rundown.');
+      const published = await publishControlShow(show);
+      if (published) {
+        setShowHostedSlug(show.id, published.slug);
+        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        setShowNote('✓ Production published — the control page and the browser output URL are live. Re-publish after changing the rundown.');
       }
     } catch (e) {
       setShowNote(`Publish failed: ${(e as Error).message}`);
@@ -101,8 +103,9 @@ export default function ControlPanel() {
     setPublishBusy(true);
     try {
       await unpublishControlShow(show.id);
-      setShows(setShowHostedSlug(show.id, undefined));
-      setShowNote('Hosted control page removed — the link no longer works.');
+      setShowHostedSlug(show.id, undefined);
+      setShows(setShowOutputSlug(show.id, undefined));
+      setShowNote('Production unpublished — the control link and the output URL no longer work.');
     } catch (e) {
       setShowNote(`Unpublish failed: ${(e as Error).message}`);
     } finally {

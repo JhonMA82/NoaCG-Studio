@@ -9,15 +9,40 @@ import type { SpxTemplate } from './types';
 import type { SavedGraphic } from './packets';
 import { uuid } from './id';
 
+/**
+ * One prepared, orderable data row of a production — "what airs next", not a graphic.
+ * Cues are data rows OVER the graphic pool (`Show.graphics`): many cues may point at the
+ * same pool graphic (`sourceId`), which is how one lower third airs Anna at cue 2 and Ben
+ * at cue 7 without a second copy of the template (docs/CLOUD_PLAYOUT.md §2).
+ */
+export interface ShowCue {
+  id: string;
+  /** The pool entry this cue drives (SavedGraphic.id). */
+  sourceId: string;
+  /** The operator-facing name — "Anna Andersson — Presenter". */
+  label: string;
+  /** fieldId -> value, the cue's prepared data. A cue OWNS its values (an entry is only a
+   *  starting point — editing a cue never writes back to a ControlEntry). */
+  values: Record<string, string>;
+  /** Operator note shown in the rundown. */
+  note?: string;
+}
+
 export interface Show {
   id: string;
   name: string;
-  /** In rundown order — the order the control page presents them. */
+  /** The graphic POOL, in layer order — which templates the production can air, each once. */
   graphics: SavedGraphic[];
+  /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
+   *  build reads and rewrites the record untouched; absent = no cues authored. */
+  cues?: ShowCue[];
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
   hostedSlug?: string;
+  /** The browser-output URL's capability slug, once published (docs/CLOUD_PLAYOUT.md §3).
+   *  ADDITIVE OPTIONAL, stripped from conflict copies exactly like hostedSlug. */
+  outputSlug?: string;
   /** When the show last changed (ISO). Bumped on every mutation; drives cloud sync (LWW). */
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
@@ -91,8 +116,11 @@ export function addGraphicToShow(
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
+  const existing = show.graphics.findIndex((g) => g.name === template.name);
   const graphic: SavedGraphic = {
-    id: uuid(),
+    // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
+    // updating a graphic must never orphan the cues prepared against it.
+    id: existing >= 0 ? show.graphics[existing].id : uuid(),
     name: template.name,
     type: template.type,
     savedAt: nowIso(),
@@ -101,9 +129,15 @@ export function addGraphicToShow(
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
   };
-  const existing = show.graphics.findIndex((g) => g.name === template.name);
   if (existing >= 0) show.graphics[existing] = graphic;
-  else show.graphics.push(graphic);
+  else {
+    show.graphics.push(graphic);
+    // A new pool graphic starts with one cue seeded from its field defaults, so the cue
+    // rundown is never empty-but-working (docs/CLOUD_PLAYOUT.md §2).
+    const values: Record<string, string> = {};
+    for (const f of template.fields) values[f.field] = f.value ?? '';
+    show.cues = [...(show.cues ?? []), { id: uuid(), sourceId: graphic.id, label: template.name, values }];
+  }
   show.updatedAt = nowIso();
   return { shows: all.filter((s) => !s.deleted), error: saveAll(all) };
 }
@@ -113,9 +147,103 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
   const show = all.find((s) => s.id === showId);
   if (show) {
     show.graphics = show.graphics.filter((g) => g.id !== graphicId);
+    // Cues over a removed pool graphic have nothing left to drive — they go with it.
+    if (show.cues?.length) show.cues = show.cues.filter((c) => c.sourceId !== graphicId);
     show.updatedAt = nowIso();
   }
   saveAll(all);
+  return all.filter((s) => !s.deleted);
+}
+
+// ── Cues (docs/CLOUD_PLAYOUT.md §2) ──────────────────────────────────────────
+
+/** Append a cue for a pool graphic. `seed` prefills label/values (e.g. from a ControlEntry —
+ *  a starting point only; the cue owns its values from here on). */
+export function addShowCue(
+  showId: string,
+  sourceId: string,
+  seed?: { label?: string; values?: Record<string, string>; note?: string },
+): { shows: Show[]; cueId: string | null } {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId && !s.deleted);
+  const source = show?.graphics.find((g) => g.id === sourceId);
+  if (!show || !source) return { shows: all.filter((s) => !s.deleted), cueId: null };
+  const values: Record<string, string> = {};
+  for (const f of source.template.fields) values[f.field] = f.value ?? '';
+  Object.assign(values, seed?.values ?? {});
+  const cue: ShowCue = {
+    id: uuid(),
+    sourceId,
+    label: seed?.label?.trim() || source.name,
+    values,
+    ...(seed?.note ? { note: seed.note } : {}),
+  };
+  show.cues = [...(show.cues ?? []), cue];
+  show.updatedAt = nowIso();
+  saveAll(all);
+  return { shows: all.filter((s) => !s.deleted), cueId: cue.id };
+}
+
+/** Patch a cue's label / values / note in place. Values merge per field. */
+export function updateShowCue(
+  showId: string,
+  cueId: string,
+  patch: { label?: string; values?: Record<string, string>; note?: string | null },
+): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId);
+  const cue = show?.cues?.find((c) => c.id === cueId);
+  if (show && cue) {
+    if (patch.label !== undefined) cue.label = patch.label;
+    if (patch.values) cue.values = { ...cue.values, ...patch.values };
+    if (patch.note === null) delete cue.note;
+    else if (patch.note !== undefined) cue.note = patch.note;
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
+  return all.filter((s) => !s.deleted);
+}
+
+/** Move a cue one slot up or down the rundown. */
+export function moveShowCue(showId: string, cueId: string, dir: -1 | 1): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId);
+  const cues = show?.cues;
+  if (show && cues) {
+    const i = cues.findIndex((c) => c.id === cueId);
+    const j = i + dir;
+    if (i >= 0 && j >= 0 && j < cues.length) {
+      const c = cues[i];
+      cues[i] = cues[j];
+      cues[j] = c;
+      show.updatedAt = nowIso();
+      saveAll(all);
+    }
+  }
+  return all.filter((s) => !s.deleted);
+}
+
+export function removeShowCue(showId: string, cueId: string): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId);
+  if (show?.cues?.some((c) => c.id === cueId)) {
+    show.cues = show.cues!.filter((c) => c.id !== cueId);
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
+  return all.filter((s) => !s.deleted);
+}
+
+/** Record (or clear, with undefined) a show's browser-output slug after (un)publishing. */
+export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId);
+  if (show) {
+    if (slug) show.outputSlug = slug;
+    else delete show.outputSlug;
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
   return all.filter((s) => !s.deleted);
 }
 

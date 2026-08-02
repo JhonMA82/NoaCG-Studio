@@ -48,6 +48,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (!live) return;
       setShow(resolved);
       if (!resolved) return;
+      // Seed the tail cursor from the resolve's log baseline — starting at 0 made the very
+      // first live row look like a hole and tail-replayed the log from its beginning.
+      lastIdRef.current = resolved.lastEventId;
       // Follow the log: staged/live meta rows update the shared view; command rows from
       // other operators need no handling here (the graphic's own live report follows).
       const applyRow = (row: ControlEventRow) => {
@@ -62,13 +65,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           );
         }
       };
-      unsubscribe = await subscribeControlEvents(resolved.id, (row) => {
-        // A hole in the ids means missed rows — recover order from the log's tail.
-        if (row.id > lastIdRef.current + 1) {
-          void hostedControlTail(slug, lastIdRef.current).then((rows) => rows.forEach(applyRow));
-        }
-        applyRow(row);
-      });
+      unsubscribe = await subscribeControlEvents(
+        resolved.id,
+        (row) => {
+          // A hole in the ids means missed rows — recover order from the log's tail.
+          if (row.id > lastIdRef.current + 1) {
+            void hostedControlTail(slug, lastIdRef.current).then((rows) => rows.forEach(applyRow));
+          }
+          applyRow(row);
+        },
+        // Every (re)subscribe tail-fills: a tab that slept through a socket drop follows the
+        // rows it missed instead of waiting for the next one to reveal the hole.
+        () => void hostedControlTail(slug, lastIdRef.current).then((rows) => rows.forEach(applyRow)),
+      );
     })();
     return () => {
       live = false;
