@@ -650,7 +650,8 @@ test.describe('creative pilot (phase C)', () => {
         cleanAlwaysLands: noWorseThan(base, result([])),
         sameFailuresLand: noWorseThan(base, result(['bench-contrast', 'bench-overflow'])),
         fewerFailuresLand: noWorseThan(base, result(['bench-contrast'])),
-        newRuleRefused: noWorseThan(base, result(['bench-contrast', 'bench-entrance'])),
+        newRuleSameCountLands: noWorseThan(base, result(['bench-contrast', 'bench-entrance'])),
+        newRuleMoreRefused: noWorseThan(base, result(['bench-contrast', 'bench-overflow', 'bench-entrance'])),
         moreOfTheSameRefused: noWorseThan(base, result(['bench-contrast', 'bench-contrast', 'bench-overflow'])),
         // No base to compare against: only a clean result may land.
         noBaseInvalidRefused: noWorseThan(null, result(['bench-contrast'])),
@@ -659,12 +660,78 @@ test.describe('creative pilot (phase C)', () => {
     });
 
     expect(verdict.cleanAlwaysLands).toBe(true);
-    expect(verdict.sameFailuresLand).toBe(true);      // the new behaviour: measurable at last
+    expect(verdict.sameFailuresLand).toBe(true);      // measurable at last
     expect(verdict.fewerFailuresLand).toBe(true);
-    expect(verdict.newRuleRefused).toBe(false);       // a NEW failure kind is damage
-    expect(verdict.moreOfTheSameRefused).toBe(false); // …and so is more of the old one
+    // A same-count trade LANDS (changed 2026-08-02). The rule used to veto any finding whose
+    // rule was absent from the base, which sounds careful and is wrong for a visual repair: a
+    // composition that moves trades findings between rules nearly every time - a fixed overflow
+    // becomes an overlap. The re-run measured the cost: the critique found something on 88-100%
+    // of results and was refused 17 times in 20, so the only arm with eyes could not act.
+    expect(verdict.newRuleSameCountLands).toBe(true);
+    // The promise that survives is "never break one", measured as COUNT.
+    expect(verdict.newRuleMoreRefused).toBe(false);
+    expect(verdict.moreOfTheSameRefused).toBe(false);
     expect(verdict.noBaseInvalidRefused).toBe(false);
     expect(verdict.noBaseCleanLands).toBe(true);
+  });
+
+  test('the type ladder is a floor a patch may exceed but not undercut', async ({ page }) => {
+    await open(page);
+    // The re-run's frames read as amateur before anything else registered, and the reason was
+    // typographic: the ladder in scaffold.ts sets broadcast sizes by emphasis, but the patch is
+    // appended after the scaffold CSS, so any font-size the model wrote won at the cascade.
+    const out = await page.evaluate(async () => {
+      const { clampTypeFloors } = await import('/src/ai/creative/style.ts');
+      const regions = [
+        { id: 'name', selector: 'creative-r-name', repeating: false, emphasis: 'primary', fieldIds: [], rowsHostIds: [], typeFloorPx: 52 },
+        { id: 'role', selector: 'creative-r-role', repeating: false, emphasis: 'secondary', fieldIds: [], rowsHostIds: [], typeFloorPx: 28 },
+      ] as never;
+      return clampTypeFloors(`
+.creative-r-name .creative-t { font-size: calc(30px * var(--scale) * var(--type-scale)); font-weight: 700; }
+.creative-r-role .creative-t { font-size: 18px; }
+.creative-r-name .creative-t.big { font-size: calc(96px * var(--scale)); }
+.creative-r-role .creative-t.em { font-size: 1.2em; }
+.creative-panel { font-size: 4px; }
+@media (max-width: 1280px) { .creative-r-name .creative-t { font-size: 12px; } }`, regions, 'creative');
+    });
+
+    expect(out).toContain('font-size: calc(52px * var(--scale) * var(--type-scale))'); // 30 -> 52
+    expect(out).toContain('font-size: 28px');                    // 18 -> 28, the secondary floor
+    expect(out).toContain('font-size: 52px');                    // inside @media too
+    // The mutation twins: everything the clamp must NOT touch.
+    expect(out).toContain('font-size: calc(96px * var(--scale))'); // bigger is a design decision
+    expect(out).toContain('font-size: 1.2em');                     // a unit it cannot reason about
+    expect(out).toContain('.creative-panel { font-size: 4px; }');  // not region text at all
+    expect(out).toContain('font-weight: 700');                     // neighbours survive
+  });
+
+  test('the safe-area clamp lands after the design and caps the box', async ({ page }) => {
+    await open(page);
+    const report = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const i = normalizeIntent(intent);
+      const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
+      const out = applyCreativeStyle(scaffold, {
+        summary: 'wide', css: '.creative-box { width: 3000px; max-width: none; }',
+      });
+      if (!out) return null;
+      return {
+        // The clamp must come AFTER the AI block, or the cascade leaves it to the patch.
+        clampAfterDesign: out.css.lastIndexOf('Platform clamp') > out.css.lastIndexOf('AI-authored'),
+        capsWidth: /\.creative-box\s*\{[^}]*max-width:\s*calc\(100% - /.test(out.css.slice(out.css.lastIndexOf('Platform clamp'))),
+        // It caps rather than hiding: clipping the overflowing text would turn a visible fault
+        // into an invisible one, which is the failure this pilot keeps rediscovering.
+        doesNotHide: !/Platform clamp[\s\S]*overflow:\s*hidden/.test(out.css),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(report).not.toBeNull();
+    expect(report!.clampAfterDesign).toBe(true);
+    expect(report!.capsWidth).toBe(true);
+    expect(report!.doesNotHide).toBe(true);
   });
 
   test('the scaffold is airworthy on its own - it is the floor when a style patch is refused', async ({ page }) => {

@@ -466,8 +466,18 @@ async function styleWithRepair(
 export function noWorseThan(base: ValidationResult | null, next: ValidationResult): boolean {
   if (next.ok) return true;
   if (!base) return false;
-  const baseRules = new Set(base.errors.map((e) => e.rule));
-  if (next.errors.some((e) => !baseRules.has(e.rule))) return false;
+  // COUNT, not rule identity. The rule used to veto any finding whose RULE was absent from the
+  // base, which reads as caution and is wrong for the thing being judged: a visual repair moves
+  // a composition, and a composition that moves trades findings between rules almost every time
+  // - a fixed overflow becomes an overlap, a re-anchored strap becomes a stress finding. The
+  // 2026-08-01 re-run measured the cost: the critique found something on 88-100% of results and
+  // its repair was REFUSED 17 times out of 20, so the one arm with EYES was the one arm not
+  // allowed to act.
+  //
+  // What must still hold is the promise "a critique may improve a result, never break one", and
+  // the honest measure of that is that the result does not come back with MORE wrong with it.
+  // Whether a same-count trade was a good one is a question for the frames and for criterion
+  // 8's three-rate report, which exist precisely because a validator cannot answer it.
   return next.errors.length <= base.errors.length;
 }
 

@@ -51,6 +51,10 @@ export interface ScaffoldRegion {
    *  the style prompt READ this rather than guessing an id, so a graphic repeating two things
    *  is described and protected as accurately as one repeating a single thing. */
   rowsHostIds: string[];
+  /** The smallest type this region's text may be, in design px before `--scale`. The platform
+   *  owns it (§3.4) and the style gate clamps UP to it - a patch may set bigger type, never
+   *  smaller. Carried here so style.ts does not need the ladder. */
+  typeFloorPx: number;
 }
 
 export interface CompiledScaffold {
@@ -459,6 +463,7 @@ export function compileScaffold(
     emphasis: r.emphasis,
     fieldIds: regionFields.get(r.id) ?? [],
     rowsHostIds: listHosts.filter((h) => h.regionId === r.id).map((h) => h.hostId),
+    typeFloorPx: TYPE_LADDER[r.emphasis].px,
   }));
 
   // The hidden holders: SPX writes into them, the runtime reads them, nothing draws them. ONLY

@@ -16,7 +16,7 @@
 
 import type { SpxTemplate } from '../../model/types';
 import type { ModelTool } from '../modelGateway';
-import type { CompiledScaffold } from './scaffold';
+import type { CompiledScaffold, ScaffoldRegion } from './scaffold';
 import type { CreativeSpec } from './contracts';
 import type { KnowledgeCard } from './knowledgeCards';
 import { cardsBlock } from './stages';
@@ -297,6 +297,64 @@ export function repairUnitlessLengths(css: string): string {
   );
 }
 
+/**
+ * Raise any region text set SMALLER than the platform's ladder back up to it.
+ *
+ * The type ladder in `scaffold.ts` answers emphasis in px so the broadcast type floor cannot be
+ * argued away by a model that wanted a delicate caption - but it was only ever a default: the
+ * style patch is appended after the scaffold CSS, so any `font-size` the model wrote won at the
+ * cascade. The 2026-08-01 re-run shipped legible-but-weak straps for exactly this reason, and
+ * the frames read as amateur before anything else about them registers.
+ *
+ * Clamp, don't reject, and clamp UP ONLY: a design that wants a bigger headline is making a
+ * typographic decision, and this takes nothing away from it. It is the floor that is the
+ * platform's (§3.4), not the size.
+ *
+ * Only the leading px term is raised, which is the shape both the scaffold and every observed
+ * patch write (`calc(52px * var(--scale) * var(--type-scale))`, or a bare `52px`). A value in
+ * some other unit is left alone rather than converted on a guess - `em` depends on a parent
+ * this function cannot see.
+ */
+export function clampTypeFloors(css: string, regions: ScaffoldRegion[], prefix: string): string {
+  // The smallest floor in the ladder, for a rule that styles text without naming a region.
+  const generic = Math.min(...regions.map((r) => r.typeFloorPx), Infinity);
+  const floorFor = (selector: string): number | null => {
+    if (!new RegExp(`\\.${prefix}-t\\b|\\.${prefix}-cell`).test(selector)) return null;
+    for (const region of regions) {
+      if (new RegExp(`\\.${region.selector}(?![a-zA-Z0-9_-])`).test(selector)) return region.typeFloorPx;
+    }
+    return Number.isFinite(generic) ? generic : null;
+  };
+  return eachRule(css, (selector, body) => {
+    const floor = floorFor(selector);
+    if (floor === null) return body;
+    return body.replace(/(font-size\s*:\s*)([^;]+)/gi, (whole, lead, value) => {
+      const m = String(value).match(/(^|[(\s*/+-])(\d*\.?\d+)px\b/);
+      if (!m) return whole;                        // no px term to reason about
+      if (Number(m[2]) >= floor) return whole;
+      return `${lead}${String(value).replace(m[0], `${m[1]}${floor}px`)}`;
+    });
+  });
+}
+
+/**
+ * Keep the composition inside the frame.
+ *
+ * Emitted AFTER the patch, so it beats it at the cascade - the same mechanism
+ * `designAdjust.ts` uses on the grounded path. It caps the box at the title-safe width rather
+ * than hiding the overflow: `overflow: hidden` would clip the very text that is running off,
+ * turning a visible fault into an invisible one, which is the failure mode this whole pilot
+ * keeps rediscovering. A max-width makes long content WRAP inside the safe area instead.
+ */
+function safeAreaClamp(prefix: string, fullFrame: boolean): string {
+  const inset = fullFrame ? '4%' : '5%';           // title-safe; a board may use a little more
+  return `/* ── Platform clamp: the frame's edges are not the design's to cross. ── */
+.${prefix}-box {
+  max-width: calc(100% - ${inset} * 2);            /* long content wraps rather than running off */
+  max-height: calc(100% - ${inset} * 2);
+}`;
+}
+
 /** Walk top-level rules, letting `visit` rewrite each body; @media/@supports recurse.
  *  Shared by both clamps - model CSS is flat, and one walker is one place to be wrong. */
 function eachRule(css: string, visit: (selector: string, body: string) => string): string {
@@ -403,10 +461,16 @@ export function applyCreativeStyle(
   // A length with no unit is a declaration the browser throws away - most often the whole type
   // ladder. Repair before the geometry clamps, so they read the values that will really apply.
   css = repairUnitlessLengths(css);
+  // The ladder is a floor, not a default: a patch may set bigger type, never smaller.
+  css = clampTypeFloors(css, scaffold.regions, prefix);
   // An OVERLAY may not paint the whole frame opaque; a full-frame board may (and is measured
   // instead). The spec decided which this graphic is, at stage 5.
   if (!scaffold.fullFrame) css = stripFrameFlood(css);
-  return { ...template, html, css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n` };
+  return {
+    ...template,
+    css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n\n${safeAreaClamp(prefix, scaffold.fullFrame)}\n`,
+    html,
+  };
 }
 
 // ── The prompt ───────────────────────────────────────────────────────────────
