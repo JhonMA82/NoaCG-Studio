@@ -650,8 +650,7 @@ test.describe('creative pilot (phase C)', () => {
         cleanAlwaysLands: noWorseThan(base, result([])),
         sameFailuresLand: noWorseThan(base, result(['bench-contrast', 'bench-overflow'])),
         fewerFailuresLand: noWorseThan(base, result(['bench-contrast'])),
-        newRuleSameCountLands: noWorseThan(base, result(['bench-contrast', 'bench-entrance'])),
-        newRuleMoreRefused: noWorseThan(base, result(['bench-contrast', 'bench-overflow', 'bench-entrance'])),
+        newRuleRefused: noWorseThan(base, result(['bench-contrast', 'bench-entrance'])),
         moreOfTheSameRefused: noWorseThan(base, result(['bench-contrast', 'bench-contrast', 'bench-overflow'])),
         // No base to compare against: only a clean result may land.
         noBaseInvalidRefused: noWorseThan(null, result(['bench-contrast'])),
@@ -662,15 +661,12 @@ test.describe('creative pilot (phase C)', () => {
     expect(verdict.cleanAlwaysLands).toBe(true);
     expect(verdict.sameFailuresLand).toBe(true);      // measurable at last
     expect(verdict.fewerFailuresLand).toBe(true);
-    // A same-count trade LANDS (changed 2026-08-02). The rule used to veto any finding whose
-    // rule was absent from the base, which sounds careful and is wrong for a visual repair: a
-    // composition that moves trades findings between rules nearly every time - a fixed overflow
-    // becomes an overlap. The re-run measured the cost: the critique found something on 88-100%
-    // of results and was refused 17 times in 20, so the only arm with eyes could not act.
-    expect(verdict.newRuleSameCountLands).toBe(true);
-    // The promise that survives is "never break one", measured as COUNT.
-    expect(verdict.newRuleMoreRefused).toBe(false);
-    expect(verdict.moreOfTheSameRefused).toBe(false);
+    // A NEW failure kind is damage even at the same count. Loosening this to a pure count
+    // comparison was TRIED AND REVERTED on 2026-08-02: the landing rate did not move (25% in
+    // all three rounds, so the refusals were never coming from here), while arm D's validity
+    // fell from 75%/63% to 13%. See noWorseThan's comment before revisiting.
+    expect(verdict.newRuleRefused).toBe(false);
+    expect(verdict.moreOfTheSameRefused).toBe(false); // …and so is more of the old one
     expect(verdict.noBaseInvalidRefused).toBe(false);
     expect(verdict.noBaseCleanLands).toBe(true);
   });
