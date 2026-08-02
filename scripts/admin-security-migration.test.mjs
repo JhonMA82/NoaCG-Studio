@@ -405,7 +405,12 @@ test('every migration that (re)defines an overview function re-locks it, not jus
   // rather than naming them, so the guard cannot go stale by omission.
   let checked = 0;
   for (const [name, sql] of allMigrations) {
-    for (const match of sql.matchAll(/create or replace function public\.(admin_overview_\w+)\s*\(([^)]*)\)/gi)) {
+    // `or replace` is OPTIONAL in the pattern, and that is the point. A migration whose
+    // SIGNATURE changes cannot use `create or replace` at all - Postgres refuses to replace a
+    // function whose argument list differs - so it must DROP and plain-CREATE, which is exactly
+    // the case that discards the ACL. Matching only the `or replace` spelling would have let
+    // 0027's three re-created functions past this guard while it reported a pass.
+    for (const match of sql.matchAll(/create (?:or replace )?function public\.(admin_overview_\w+)\s*\(([^)]*)\)/gi)) {
       const fn = match[1];
       // The signature as the GRANT statements have to spell it: parameter types only.
       const types = match[2]

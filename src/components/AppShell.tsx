@@ -17,6 +17,7 @@ import ModerationQueue from './ModerationQueue';
 import CreationWizard from './wizard/CreationWizard';
 import BrandLogo from './BrandLogo';
 import SaveControls from './save/SaveControls';
+import { BetaFeedbackButton } from './feedback/BetaFeedback';
 import SaveDialogs from './save/SaveDialogs';
 import InsertTemplateDialog from './InsertTemplateDialog';
 import { useRouter } from '../app/router';
@@ -406,6 +407,10 @@ export default function AppShell() {
         >
           🏠 Home
         </button>
+        {/* The general beta door. Deliberately the quietest control on the bar - visible from
+            wherever somebody is standing when they get annoyed, and never asking for attention.
+            Renders nothing offline: there is no inbox to send to. */}
+        <BetaFeedbackButton area="editor" />
         {/* Both render nothing offline; cloud status + account appear in hosted mode. */}
         <SyncStatus />
         <AuthStatus />

@@ -14,15 +14,8 @@ export interface ParsedDefinition {
 
 const DEFINITION_SCRIPT_ID = 'spx-template-definition';
 
-/** Extract the `{ ... }` object literal that follows `SPXGCTemplateDefinition =` via brace matching. */
-function extractObjectLiteral(source: string): string | null {
-  const marker = source.indexOf('SPXGCTemplateDefinition');
-  if (marker === -1) return null;
-  const eq = source.indexOf('=', marker);
-  if (eq === -1) return null;
-  const start = source.indexOf('{', eq);
-  if (start === -1) return null;
-
+/** Brace-match the `{ ... }` object literal starting at `start`. */
+function matchBraces(source: string, start: number): string | null {
   let depth = 0;
   let inString: string | null = null;
   for (let i = start; i < source.length; i++) {
@@ -43,6 +36,27 @@ function extractObjectLiteral(source: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Extract candidate `{ ... }` object literals, one per `SPXGCTemplateDefinition =` ASSIGNMENT.
+ * Real templates mention the name in prose comments too ("See SPXGCTemplateDefinition -object
+ * below"), so anchoring on the first mention grabs whatever `=` and `{` happen to follow - which
+ * either fails to parse or, worse, captures an unrelated block that evaluates to a plausible
+ * empty definition. Only a `=` directly after the name (whitespace only) anchors a candidate,
+ * and the caller tries each candidate until one evaluates.
+ */
+function extractObjectLiterals(source: string): string[] {
+  const literals: string[] = [];
+  const assignment = /SPXGCTemplateDefinition\s*=/g;
+  for (let m = assignment.exec(source); m; m = assignment.exec(source)) {
+    const start = source.indexOf('{', m.index + m[0].length);
+    if (start === -1) continue;
+    if (source.slice(m.index + m[0].length, start).trim() !== '') continue;
+    const literal = matchBraces(source, start);
+    if (literal) literals.push(literal);
+  }
+  return literals;
 }
 
 /** Safely evaluate a JS object literal (handles trailing commas / unquoted keys). */
@@ -97,11 +111,11 @@ function fromDefinitionObject(def: Record<string, unknown>): ParsedDefinition {
 
 /** Parse the SPXGCTemplateDefinition out of a template's HTML. Returns null if absent/invalid. */
 export function parseDefinition(html: string): ParsedDefinition | null {
-  const literal = extractObjectLiteral(html);
-  if (!literal) return null;
-  const obj = evalObjectLiteral(literal);
-  if (!obj) return null;
-  return fromDefinitionObject(obj);
+  for (const literal of extractObjectLiterals(html)) {
+    const obj = evalObjectLiteral(literal);
+    if (obj) return fromDefinitionObject(obj);
+  }
+  return null;
 }
 
 /** Serialize settings + fields into a pretty `window.SPXGCTemplateDefinition = {...};` string. */

@@ -7,10 +7,18 @@ import { readFileSync } from 'node:fs';
 // Era 2a: import an existing template (.html or SPX-style .zip) to edit and convert.
 
 // A believable foreign template: inline style + script, an SPX definition, no house contracts.
+// The header comment names SPXGCTemplateDefinition BEFORE the real assignment, with an `=`
+// (charset) and a CSS `{...}` in between - the exact shape of real SPX packs, where a
+// first-mention parser anchors on the prose and reads garbage instead of the definition.
 const FOREIGN_HTML = `<!DOCTYPE html>
 <html>
 <head>
+<!-- Old score bug. See SPXGCTemplateDefinition -object below for data field descriptions. -->
+<meta charset="utf-8">
 <title>Old Score Bug</title>
+<style>
+  .legacy-note { margin: 0; }
+</style>
 <script>window.SPXGCTemplateDefinition = {
   "description": "Old Score Bug", "playserver": "OVERLAY", "playchannel": "1",
   "playlayer": "9", "webplayout": "9", "out": "manual", "dataformat": "json",
@@ -29,6 +37,9 @@ const FOREIGN_HTML = `<!DOCTYPE html>
     function stop() { document.getElementById('bug').style.opacity = '0'; }
     function next() {}
   </script>
+  <!-- Module scripts only parse as modules: the importer must leave them in the HTML,
+       never strip them into the classic JS pane (the HKO-lineage corpus shape). -->
+  <script type="module">export {};</script>
 </body>
 </html>`;
 
@@ -62,6 +73,8 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
   expect(tpl.js).toContain('function play()');             // script moved to the JS pane
   expect(tpl.html).toContain('SPXGCTemplateDefinition');   // definition stays in the HTML
   expect(tpl.html).not.toContain('function play()');
+  expect(tpl.html).toContain('type="module"');             // module script stays in the HTML
+  expect(tpl.js).not.toContain('export {}');               // ...never in the classic JS pane
   expect(tpl.fields).toEqual(['f0']);
 
   // Landed on Export with the inline validation — this one is already valid.

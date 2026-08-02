@@ -133,6 +133,10 @@ export function importHtmlTemplate(
   html = html.replace(/[ \t]*<script\b([^>]*)>([\s\S]*?)<\/script>\s*/gi, (full: string, attrs: string, body: string) => {
     if (/\bsrc\s*=/i.test(attrs)) return full; // external reference — keep in place
     if (/SPXGCTemplateDefinition/.test(body)) return full;
+    // A module script must keep its tag: import/export only parse as a module, so moving
+    // the body into the classic JS pane manufactures a syntax error (real SPX packs ship
+    // <script type="module"> templates - the HKO lineage in the reference corpus).
+    if (/\btype\s*=\s*["']module["']/i.test(attrs)) return full;
     // Our own injected control receiver is re-added at export time — drop it on import so
     // a round-trip stays faithful (same as we drop a bundled GSAP blob below).
     if (/spx-control-receiver/.test(attrs)) return '';

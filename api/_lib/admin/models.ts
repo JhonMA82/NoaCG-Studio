@@ -21,7 +21,7 @@
 import { json, methodGuard } from '../http.js';
 import { requireAdmin } from '../adminAuth.js';
 import { discoverProviderModels } from '../aiModelDiscovery.js';
-import { eligibilityRule, missingApprovedRoutes, modelEligibility } from './eligibility.js';
+import { auditedZdr, eligibilityRule, missingApprovedRoutes, modelEligibility } from './eligibility.js';
 import { FUNDED_ROUTE_PROVIDER, modelRouteKey } from '../aiModelCatalog.js';
 import { AI_TASK_IDS, taskProfile, type AiTaskId } from '../aiTaskRegistry.js';
 // The Pro tier's curated routes. Imported from the dependency-light contract, never from
@@ -115,6 +115,9 @@ export default {
               name: model.name,
               imageOutputPerMillion: model.imageOutputPerMillion ?? null,
               inputPerMillion: model.inputPerMillion,
+              // Not a verdict - a recorded audit. Same discipline as the text table: 'audited'
+              // only where an audit exists, 'unknown' otherwise, never an inferred no.
+              ...auditedZdr(model.provider, model.id),
               available: model.available,
               createdAt: model.createdAt,
               isNew: Number.isFinite(created) && created >= newSince,

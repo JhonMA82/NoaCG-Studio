@@ -76,8 +76,16 @@ const MAP = [
   [/^api\/admin\//, ['admin.spec.ts']],
   [/^api\/_lib\/admin/, ['admin.spec.ts']],
   [/^scripts\/adminDevPlugin/, ['admin.spec.ts']],
-  [/^api\/me\//, ['admin.spec.ts', 'render.spec.ts']],
-  [/^scripts\/meDevPlugin/, ['admin.spec.ts']],
+  [/^api\/me\//, ['admin.spec.ts', 'render.spec.ts', 'feedback.spec.ts']],
+  [/^scripts\/meDevPlugin/, ['admin.spec.ts', 'feedback.spec.ts']],
+  // The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the
+  // half this suite can check; the interactive half is e2e/configured/feedback.spec.ts and
+  // needs a configured backend. src/components/AppShell is already in CORE, so the topbar
+  // button's own file does not need naming here - but the contract and the client do.
+  [/^src\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
+  [/^src\/components\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
+  [/^src\/backend\/feedback/, ['feedback.spec.ts']],
+  [/^api\/_lib\/feedbackStore/, ['feedback.spec.ts']],
   // The caller's own entitlement drives format greying, the template browser and the gallery.
   [/^src\/backend\/myEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts', 'community.spec.ts']],
   [/^src\/components\/useMyEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts']],

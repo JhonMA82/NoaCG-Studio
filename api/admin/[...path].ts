@@ -22,6 +22,7 @@ import plans from '../_lib/admin/plans.js';
 import grants from '../_lib/admin/grants.js';
 import usage from '../_lib/admin/usage.js';
 import quality from '../_lib/admin/quality.js';
+import feedback from '../_lib/admin/feedback.js';
 import system from '../_lib/admin/system.js';
 import templates from '../_lib/admin/templates.js';
 import audit from '../_lib/admin/audit.js';
@@ -40,6 +41,7 @@ const ROUTES: Record<string, Handler> = {
   grants,
   usage,
   quality,
+  feedback,
   system,
   templates,
   audit,

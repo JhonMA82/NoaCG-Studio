@@ -112,6 +112,10 @@ export function UsersSection({ session }: { session: AdminSessionResponse }) {
                   <td>
                     {user.email || <span className="admin-muted">(no email)</span>}
                     {user.isAdmin ? <Pill tone="warn">{user.isAdmin}</Pill> : null}
+                    {/* Excluded from the default usage scope (migration 0027) and nothing else.
+                        Shown in the list because the operator's own question is usually "which
+                        of these have I already marked" rather than "what is this one". */}
+                    {user.internal ? <Pill tone="muted">internal</Pill> : null}
                     {user.pendingInvite ? <Pill tone="muted">invited</Pill> : null}
                   </td>
                   <td>{formatDate(user.createdAt)}</td>

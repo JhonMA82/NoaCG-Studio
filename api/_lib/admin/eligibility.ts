@@ -18,6 +18,8 @@ import {
   APPROVED_MODEL_CATALOG,
   FUNDED_ROUTE_PRICE_CEILING,
   FUNDED_ROUTE_PROVIDER,
+  approvedModelEntry,
+  approvedTextCatalog,
   modelRouteKey,
 } from '../aiModelCatalog.js';
 import type { AiDiscoveredModel } from '../../../src/ai/modelTypes.js';
@@ -39,6 +41,24 @@ export const NEW_MODEL_DAYS = 30;
  *  time and recorded in the catalog. So a model outside the catalog reports `unknown` rather
  *  than a guess, because a wrong "yes" here would be a privacy claim nobody verified. */
 export type ZdrState = 'audited' | 'unknown';
+
+/**
+ * The audited retention answer for one listed route, in the two-field shape both tables use.
+ *
+ * Extracted because the IMAGE tab needs it too. That tab carries no eligibility verdict - the
+ * funded-route ceiling was set against text tokens and says nothing about image work - but ZDR
+ * is not a verdict, it is a recorded audit, and withholding it there would let "no verdict
+ * here" be read as "nothing here has been audited". The Pro concept route has been
+ * (docs/MODEL_ROUTE_AUDITS.md), and the row should say so.
+ */
+export function auditedZdr(provider: string, id: string): { zdr: ZdrState; zdrAvailable: boolean | null } {
+  const entry = provider === 'openrouter'
+    ? approvedModelEntry({ provider: 'openrouter', model: id })
+    : null;
+  return entry
+    ? { zdr: 'audited', zdrAvailable: entry.zdrAvailable }
+    : { zdr: 'unknown', zdrAvailable: null };
+}
 
 function priceKnown(model: AiDiscoveredModel): boolean {
   return model.inputPerMillion !== null && model.outputPerMillion !== null;
@@ -156,7 +176,10 @@ export function eligibilityRule(): {
  *  (aiTaskRegistry.ts), so it stops serving rather than falling back. */
 export function missingApprovedRoutes(models: AiDiscoveredModel[], provider: string): string[] {
   const seen = new Set(models.map((model) => `${model.provider}:${model.id}`));
-  return APPROVED_MODEL_CATALOG.filter((entry) => entry.route.provider === provider)
+  // TEXT entries only. `models` is the text listing, so an approved IMAGE route (the Pro
+  // concept model) is absent from it by construction and would be reported as a vanished
+  // route on every single request - an outage warning that can never clear.
+  return approvedTextCatalog().filter((entry) => entry.route.provider === provider)
     .map((entry) => modelRouteKey(entry.route))
     .filter((key) => !seen.has(key));
 }

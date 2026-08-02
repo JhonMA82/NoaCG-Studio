@@ -5,17 +5,23 @@
 // from the ledgers the reservation path already writes - nothing here is an estimate.
 
 import { useState } from 'react';
-import type { AdminUsageOverview } from '../types';
+import type { AdminActivityScope, AdminUsageOverview } from '../types';
+import { ScopePicker } from '../ScopePicker';
 import { AsyncState, SectionHeader, formatDate, formatUsd, relative, useAdminData } from '../ui';
 
 export function UsageSection() {
   const [days, setDays] = useState(30);
-  const usage = useAdminData<AdminUsageOverview>(`usage?days=${days}`);
+  const [scope, setScope] = useState<AdminActivityScope>('external');
+  const usage = useAdminData<AdminUsageOverview>(`usage?days=${days}&scope=${scope}`);
 
   if (!usage.data) {
     return (
       <section className="admin-section admin-section-wide">
         <SectionHeader title="Usage and cost" />
+        {/* The scope control stays reachable while the numbers are not: switching scope is what
+            RELOADS them, so hiding it behind a loaded response would strand a failed request in
+            whichever scope produced it. */}
+        <ScopePicker scope={scope} onScope={setScope} internalAccounts={0} />
         <AsyncState state={usage} />
       </section>
     );
@@ -40,6 +46,8 @@ export function UsageSection() {
           </select>
         }
       />
+
+      <ScopePicker scope={scope} onScope={setScope} internalAccounts={data.internalAccounts} />
 
       <dl className="admin-stats">
         <div>

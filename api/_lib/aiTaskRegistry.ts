@@ -9,7 +9,7 @@ import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
 import { importAnalysisProfile, type ImportAnalysisProfile } from './aiImportAnalysisProfile.js';
 // fundedModelRoute subsumes approvedModelRoute: it looks the entry up in the catalog AND
 // applies the funded-route rule, so the gate below needs only the one predicate.
-import { fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
+import { approvedModelRoute, approvedTextRoute, fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
 import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { IMPORT_ANALYSIS_LIMITS } from '../../src/ai/importAnalysis/contract.js';
@@ -158,6 +158,11 @@ export const AI_TASK_IDS = Object.keys(TASKS) as AiTaskId[];
 
 function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   if (route.provider !== 'openrouter') return true;
+  // A catalogued route that produces IMAGES cannot serve a registered task - every task here
+  // sends a text request and reads a structured answer. The catalog held only text models
+  // until the Pro concept route was audited into it, so this is the check that stops an env
+  // edit from pointing Lite at an image model and discovering it on the first call.
+  if (approvedModelRoute(route) && !approvedTextRoute(route)) return false;
   return Boolean(policy.prices[modelRouteKey(route)]) && policy.openRouterProviders.length > 0;
 }
 

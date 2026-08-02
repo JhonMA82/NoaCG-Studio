@@ -15,12 +15,12 @@
 // PRIVACY: it answers only about the caller. `hiddenTemplates` is the list THIS caller cannot
 // see - never the overlay, never who else can see what, never the beta cohort's membership.
 
-import { bearerToken, json, methodGuard } from '../_lib/http.js';
-import { verifyUser } from '../_lib/auth.js';
-import { resolveUserEntitlement } from '../_lib/entitlements.js';
-import { hiddenTemplateKeys } from '../_lib/templateVisibility.js';
-import { FEATURE_KEYS, LIMIT_KEYS, type FeatureKey, type LimitKey } from '../../src/entitlements/contract.js';
-import type { MyEntitlement } from '../../src/entitlements/clientTypes.js';
+import { bearerToken, json, methodGuard } from '../http.js';
+import { verifyUser } from '../auth.js';
+import { resolveUserEntitlement } from '../entitlements.js';
+import { hiddenTemplateKeys } from '../templateVisibility.js';
+import { FEATURE_KEYS, LIMIT_KEYS, type FeatureKey, type LimitKey } from '../../../src/entitlements/contract.js';
+import type { MyEntitlement } from '../../../src/entitlements/clientTypes.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {

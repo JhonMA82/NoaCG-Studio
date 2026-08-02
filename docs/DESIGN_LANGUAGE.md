@@ -13,9 +13,12 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
 
 - **One family per graphic** (two max: heading + label). Pick from the bundled fonts registry.
 - **Contrast through weight and size, not more fonts.** A lower third is typically:
-  - **Name / headline:** 44–64 px, weight 600–800, line-height 1.05–1.15, letter-spacing 0 to
-    −0.01em (big text tightens).
-  - **Title / role line:** 22–30 px, weight 400–500, line-height 1.2–1.35.
+  - **Name / headline:** 44–92 px, weight 600–800, line-height 1.05–1.15, letter-spacing 0 to
+    −0.01em (big text tightens). The upper half of the range (65–92 px) is flagship-show
+    territory — talk shows, entertainment — measured from real broadcast packages (ratified
+    2026-08-02, docs/SPX_EXAMPLES_CORPUS.md); news-style straps stay in the lower half.
+  - **Title / role line:** 22–46 px, weight 400–500, line-height 1.2–1.35 — the top half
+    exists only to keep the name:title ratio when the name runs flagship-size.
   - **Kicker / label** (small caps line like "LIVE" or a category): 16–22 px, weight 600–700,
     `text-transform: uppercase`, letter-spacing **0.08–0.2em** (small caps breathe).
 - Size ratio between name and title ≈ **1.8–2.2 : 1**. Closer than 1.5:1 looks indecisive.
@@ -96,16 +99,21 @@ The animation **is** the taste. Rules:
     settles smoothly. Back Out (`back.out(1.4–1.8)`) is the pick for snappy pop-ins with a small
     overshoot.
   - **Exits (out):** prefer **Ease In** (`power2.in` / `power3.in`) — the object starts naturally
-    and exits quickly. Exits run **30–40 % faster than entrances**.
+    and exits quickly. Exits run **30–60 % faster than entrances** (the slower the entrance,
+    the bigger the gap — production packages pair 1.4 s entrances with ~0.5 s exits).
   - **Bounce and Elastic are playful options only** — offered in the picker, never defaults.
   - **Linear is never a default** — reserve it for continuous motion: tickers, timers,
     progress bars, seamless loops.
   - The full preset list: Linear, Easy Ease, Ease In, Ease Out, Ease In-Out, Back, Bounce,
     Elastic, Expo, Cubic, Sine, Circ — each mapped to direction-correct GSAP curves per phase.
-- **Durations:** in = 0.5–0.9 s total; out = 0.3–0.5 s. Respect `animSpeed` (divide durations).
-- **Choreograph, don't blob:** elements enter in sequence with 0.06–0.15 s staggers — accent
-  first, then name, then title. One `gsap.timeline()` per direction (`buildInTimeline()`,
-  `buildOutTimeline()`), never a pile of loose tweens.
+- **Durations:** in = 0.5–1.4 s total; out = 0.3–0.5 s. Respect `animSpeed` (divide durations).
+  Above ~0.9 s an entrance reads as deliberate broadcast pacing — production packages commonly
+  run 1.0–1.4 s (ratified 2026-08-02, docs/SPX_EXAMPLES_CORPUS.md); keep fast-feel graphics
+  (stream overlays, alerts) at the low end.
+- **Choreograph, don't blob:** elements enter in sequence with 0.06–0.25 s staggers — accent
+  first, then name, then title. Longer ladders (0.15–0.25 s) suit multi-line reveals; the
+  theatrical 0.4 s production extreme stays out. One `gsap.timeline()` per direction
+  (`buildInTimeline()`, `buildOutTimeline()`), never a pile of loose tweens.
 - **Signature reveals** (each variant has one, matched to its style):
   - *line/underline reveal:* accent line scales `scaleX 0→1` (set `transform-origin: left`),
     text slides up from behind an `overflow: hidden` line-mask with a slight y+opacity.

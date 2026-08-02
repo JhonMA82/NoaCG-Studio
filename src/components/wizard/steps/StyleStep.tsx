@@ -42,18 +42,21 @@ const ZONES: Zone9[] = [
   'bottom-left', 'bottom-center', 'bottom-right',
 ];
 
+// Wide enough apart that picking a size visibly commits to it — the old 0.85/1/1.2 ladder
+// read as three near-identical graphics (and the corpus review showed production runs a far
+// wider size range than we did).
 const SIZES: { label: string; scale: number }[] = [
-  { label: 'S', scale: 0.85 },
+  { label: 'S', scale: 0.8 },
   { label: 'M', scale: 1 },
-  { label: 'L', scale: 1.2 },
+  { label: 'L', scale: 1.25 }, // the catalog-wide design-growth cap - 1.3 clipped card05's stress test
 ];
 
 // Text sizes ride ON TOP of the graphic size (--type-scale × --scale), so the range is
 // tighter — L text on an L graphic must still sit comfortably inside its panel.
 const TYPE_SIZES: { label: string; scale: number }[] = [
-  { label: 'S', scale: 0.9 },
+  { label: 'S', scale: 0.85 },
   { label: 'M', scale: 1 },
-  { label: 'L', scale: 1.15 },
+  { label: 'L', scale: 1.2 },
 ];
 
 /** What the collapsed "Size & position" disclosure says it is holding. Empty while everything

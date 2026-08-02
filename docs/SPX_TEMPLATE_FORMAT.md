@@ -211,8 +211,57 @@ The premium pack ships a `js/spx_interface.js` with small utilities (not require
 
 ---
 
+## 7. Real-world dialects (measured from production templates)
+
+A 2026-08 sweep of ~200 real production templates (Yle shows, orchestra packages, SmartPX's
+own packs — the local `spx_examples/` corpus, `docs/SPX_EXAMPLES_CORPUS.md`) shows how far
+templates in the wild drift from the clean form above. **The importer and validator must
+accept all of this; the generator emits none of it.**
+
+**Definition syntax is loose.** The object literal appears in `<head>`, in `<body>`, even
+after `</body>`; keys quoted or unquoted; trailing commas everywhere. Header comments name
+`SPXGCTemplateDefinition` in prose *before* the real assignment, so parsing must anchor on
+the assignment, not the first mention (`model/spxDefinition.ts` does; the corpus is what
+caught it).
+
+**Settings in practice.** `playserver` is `"OVERLAY"` essentially always (`"-"` marks a
+non-graphic device-command item); `webplayout` always equals `playlayer`; `out` is
+`"manual"` almost everywhere. `steps` semantics vary wildly: `"1"` as default noise,
+`"2"` with a real phase machine, and `"500"`/`"999"`/`"9999"` meaning "unbounded
+Continue" — where `next()` sometimes *re-fetches data* rather than advancing.
+
+**The hidden-holder pattern dominates** (~70% of corpus files): `update()` writes invisible
+holder elements, a template-owned `runTemplateUpdate()` composes the visible DOM (§4's
+split style, generalized — target ids are arbitrary, not just `fN_gfx`). In the newest
+lineage **`update()` drives the IN animation and `play()` is a no-op** (SPX sends
+update-then-play), usually behind a 50–200 ms "let the DOM settle" `setTimeout`; the older
+lineage animates from `play()`. Assume neither.
+
+**Data quirks.** CasparCG delivers `"undefined"`/`"null"` as literal strings — every robust
+template guards for them. Multi-line textarea values arrive with literal `<br>` separators,
+so parsers split on `"<br>"` (after an `htmlDecode` round-trip), never `"\n"`.
+
+**Fields beyond the table above.** Reserved names: `comment` (rundown item label, no DOM
+element) and `epochID` (SPX-injected item id — templates use it to stop their own rundown
+item via `fetch('/api/v1/item/stop/' + id)` when a credits roll finishes). `f99` is a
+de-facto theme-selector convention (a `filelist` over `./themes/*.css` repointing a
+`<link>`). Non-`fN` named fields ship too (`pos`, `styleSelector`). `instruction` and
+`spacer` entries legitimately have **no `field` key at all**. `dropdown` item values are
+chosen to be directly usable as CSS values or class names. `button` + `fcall` calls an
+arbitrary global. Definitions may also carry `function_onPlay`/`function_onStop`
+(`"Name|param|delayMs|field"`) invoking server-side SPX extensions.
+
+**No text auto-fit exists in the wild.** Overflow is handled by measured marquee scroll
+(duration ≈ overflow px × 6–8 ms), char-count truncation, or plain clipping — our
+runtime bench and auto-fit are stricter than production practice, which is intentional.
+
+---
+
 ### Sources
 - `example_projects/Template_Pack_1.1/` — official premium pack (split `#fN`/`#fN_gfx` style,
   `js/spx_interface.js` runtime).
 - `example_projects/bw_simple/` — minimal template writing data straight into `.f0`/`.f1`.
 - docs.spxgraphics.com — Graphic Templates / Formats / HTML, and the "My first HTML template" guide.
+- `spx_examples/` (local-only, licence-restricted) — ~200 real production templates;
+  analysis and exemplar index in `docs/SPX_EXAMPLES_CORPUS.md`, coverage measured by
+  `scripts/spx-corpus-sweep.mjs`.
