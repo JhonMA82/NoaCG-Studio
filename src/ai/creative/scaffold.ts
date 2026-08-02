@@ -116,8 +116,22 @@ interface ListHost {
 }
 
 function planFields(intent: StructuralIntent, spec: CreativeSpec): FieldPlan {
-  const declared = intent.fields.slice(0, 12);
   const wantsList = spec.regions.some((r) => r.repeating) || intent.parts.some((p) => p.repeating);
+
+  // A LIST FIELD IN A GRAPHIC THAT REPEATS NOTHING IS NOT A LIST.
+  //
+  // The intent stage types ordinary fields `list` often enough to dominate the output: after the
+  // unrenderable-field fix gave every list field its own row container, a plain name-and-role
+  // strap started compiling into a TWO-ROW TABLE - hidden holders feeding `.creative-cell`s at
+  // one flat size, with the emphasis ladder bypassed entirely. Measured on the 2026-08-02 round:
+  // 8 of 16 lower-third and 11 of 25 versus staged runs rendered through the row runtime with NO
+  // region declaring `repeating` anywhere. That is most of why the frames read as flat.
+  //
+  // The repeating structure is what makes a list a list, and the spec and the intent both say
+  // whether there is one. When neither does, the field is a line: one span, in a region, sized
+  // by the ladder like every other line.
+  const declared = intent.fields.slice(0, 12).map((f) =>
+    (f.role === 'list' && !wantsList ? { ...f, role: 'line' as const } : f));
   const hasList = declared.some((f) => f.role === 'list');
 
   // A repeating region with no declared list field still gets one: repeating content rides
@@ -629,9 +643,14 @@ ${position}
   gap: calc(16px * var(--scale));
 }
 .${prefix}-cell {
-  font-size: calc(26px * var(--scale) * var(--type-scale));
+  /* A row's text is the hosting region's text: the ladder answers emphasis, and a flat cell
+     size here silently overrode it for every graphic whose content is a list. */
+  font-size: calc(${TYPE_LADDER.secondary.px}px * var(--scale) * var(--type-scale));
   color: var(--text-color);
 }
+${regions.filter((r) => r.rowsHostIds.length).map((r) => `.${r.selector} .${prefix}-cell {
+  font-size: calc(${r.typeFloorPx}px * var(--scale) * var(--type-scale));
+}`).join('\n')}
 .${prefix}-cell-1 {
   color: var(--accent);            /* the item's leading part */
 }

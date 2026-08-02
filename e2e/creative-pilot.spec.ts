@@ -675,6 +675,61 @@ test.describe('creative pilot (phase C)', () => {
     expect(verdict.noBaseCleanLands).toBe(true);
   });
 
+  test('a list field in a graphic that repeats nothing renders as a line, not a row', async ({ page }) => {
+    await open(page);
+    // The dominant reason staged frames read as FLAT (2026-08-02). The intent stage types
+    // ordinary fields `list` often, and once every list field got its own row container a plain
+    // name-and-role strap compiled into a two-row table: hidden holders feeding `.creative-cell`
+    // at one flat size, the emphasis ladder bypassed. 8 of 16 lower-third and 11 of 25 versus
+    // staged runs rendered that way with NO region declaring `repeating` anywhere.
+    const report = await page.evaluate(async () => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const fields = [
+        { key: 'name', role: 'list', label: 'Name', sample: 'Alex Morgan' },
+        { key: 'role', role: 'list', label: 'Role', sample: 'Senior Correspondent' },
+      ];
+      const build = (regions: unknown[], parts: unknown[]) => {
+        const i = normalizeIntent({
+          kind: 'category', typeId: 'lower-third', confidence: 'high', summary: 'A name strap.',
+          parts, fields,
+        });
+        const { scaffold, validation } = compileScaffoldOnly(normalizeCreativeSpec({
+          conceptId: 'c1', name: 'Strap', summary: 's',
+          layout: { family: 'strap', arrangement: 'stack', fullFrame: false, zone: 'bottom-left', sizeScale: 1 },
+          regions,
+          palette: {}, fontId: 'inter', motion: { entranceOrder: [], character: 'rise', seconds: 0.9 },
+        }, i), i);
+        const html = scaffold.template.html;
+        return {
+          errors: validation.errors.map((e) => e.rule),
+          rows: /id="creative-rows/.test(html),
+          spans: (html.match(/<span[^>]*class="creative-t"/g) ?? []).length,
+          textareas: scaffold.template.fields.filter((f) => f.ftype === 'textarea').length,
+        };
+      };
+      return {
+        // Nothing repeats: the two "lists" are ordinary lines.
+        flat: build(
+          [{ id: 'name', role: 'name', emphasis: 'primary', fieldKeys: ['name'] },
+            { id: 'role', role: 'role', emphasis: 'secondary', fieldKeys: ['role'] }], []),
+        // The mutation twin: a genuinely repeating region still gets its row runtime.
+        repeating: build(
+          [{ id: 'rows', role: 'entry', emphasis: 'primary', repeating: true, itemParts: ['name', 'role'] }],
+          [{ id: 'rows', role: 'entry', repeating: true }]),
+      };
+    });
+
+    expect(report.flat.errors).toEqual([]);
+    expect(report.flat.rows).toBe(false);       // no row container at all
+    expect(report.flat.spans).toBe(2);          // both fields render as ladder-sized text
+    expect(report.flat.textareas).toBe(0);      // and neither is a hidden textarea
+    // The twin: repeating content still rides one textarea and its row container.
+    expect(report.repeating.rows).toBe(true);
+    expect(report.repeating.textareas).toBeGreaterThan(0);
+  });
+
   test('the type ladder is a floor a patch may exceed but not undercut', async ({ page }) => {
     await open(page);
     // The re-run's frames read as amateur before anything else registered, and the reason was
