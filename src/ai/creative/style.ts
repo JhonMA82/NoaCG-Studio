@@ -239,6 +239,44 @@ export function stripFrameFlood(css: string): string {
   });
 }
 
+/**
+ * Keep the graphic's two structural elements IN FLOW, so the root keeps a size.
+ *
+ * The root is absolutely positioned in its zone and sized by what it contains; the box is its
+ * only in-flow child. A design layer that gives the BOX `position: absolute` takes the root's
+ * entire content out of flow, the root collapses to 0x0, and the graphic renders as an empty
+ * corner - the exact `bench-entrance` signature the 2026-08-01 replay identified ("the boxes
+ * were 0x0, empty not hidden"). Five of eight briefs in the 2026-08-02 frontier round died
+ * this way, with complete, well-formed design work in the stylesheet.
+ *
+ * Placement is already the platform's half of the split (plan §3.4: clamps, zones and safe
+ * areas), so a patch RE-PLACING the graphic is out of contract regardless of what it collapses.
+ * Everything the design layer legitimately wants here - padding, background, gap, alignment,
+ * width - is untouched, and a region or any other element inside the box may still position
+ * itself absolutely, which is how overlaps and pinned decorations get built.
+ *
+ * Clamp, don't reject: the one offending declaration is dropped and the rest of the rule
+ * applies. Any `top/left/right/bottom` left behind is inert on a static element, which is
+ * exactly what the browser already does with them.
+ *
+ * Honest limit, the same one stripFrameFlood states: this reads CSS TEXT, not the resolved
+ * cascade. It also does not chase the sibling shape where EVERY region is absolute and the box
+ * collapses instead - that one has not been observed, and the runtime bench catches the empty
+ * frame either way.
+ */
+export function keepStructureInFlow(css: string, prefix: string): string {
+  const structural = new RegExp(`(^|,)\\s*\\.${prefix}(-box)?\\s*(,|$)`);
+  // The trailing separator goes with the declaration, so the rule reads as if the property had
+  // never been written - a stylesheet the user opens should not carry the scar of a repair.
+  const detaching = /(^|;)\s*position\s*:\s*(absolute|fixed)\s*(;|$)/gi;
+  return eachRule(css, (selector, body) => {
+    if (/@\s*(media|supports)/i.test(selector)) return body;
+    if (!structural.test(selector)) return body;
+    detaching.lastIndex = 0;
+    return body.replace(detaching, '$1');
+  });
+}
+
 /** Properties whose value is legitimately a bare number, so a missing unit is not a defect.
  *  Everything else in a style patch takes a length, and CSS drops the declaration silently. */
 const UNITLESS_OK = new Set([
@@ -563,6 +601,9 @@ export function applyCreativeStyle(
   // A length with no unit is a declaration the browser throws away - most often the whole type
   // ladder. Repair before the geometry clamps, so they read the values that will really apply.
   css = repairUnitlessLengths(css);
+  // A box taken out of flow leaves the root with nothing to size it: an empty corner where the
+  // graphic should be. Placement is the platform's; everything else in the rule survives.
+  css = keepStructureInFlow(css, prefix);
   // The ladder is a floor, not a default: a patch may set bigger type, never smaller.
   css = clampTypeFloors(css, scaffold.regions, prefix);
   // An OVERLAY may not paint the whole frame opaque; a full-frame board may (and is measured

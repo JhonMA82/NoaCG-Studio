@@ -1113,6 +1113,43 @@ test.describe('creative pilot (phase C)', () => {
     });
   });
 
+  test('the root keeps a size: the box may not leave the flow, everything else may', async ({ page }) => {
+    await open(page);
+    const flow = await page.evaluate(async ({ intent, spec }) => {
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { compileScaffold } = await import('/src/ai/creative/scaffold.ts');
+      const { applyCreativeStyle, keepStructureInFlow } = await import('/src/ai/creative/style.ts');
+      const i = normalizeIntent(intent);
+      const scaffold = compileScaffold(normalizeCreativeSpec(spec, i), i);
+      const landed = (css: string) => applyCreativeStyle(scaffold, { summary: 'x', css })?.css ?? '';
+      return {
+        // The observed failure: the design layer re-places the box, the root collapses to 0x0,
+        // and the frame is empty. The declaration goes; the rest of the rule stays.
+        boxDetached: keepStructureInFlow('.creative-box{position:absolute;left:5%;padding:20px}', 'creative'),
+        rootDetached: keepStructureInFlow('.creative{position:fixed;bottom:0}', 'creative'),
+        inGroup: keepStructureInFlow('.creative-box, .creative-r-name{position:absolute;color:red}', 'creative'),
+        // Mutation twins - each is a shape the rule must NOT touch, or it has become a ban on
+        // absolute positioning rather than a guarantee that the root has a size.
+        regionKept: keepStructureInFlow('.creative-r-name{position:absolute;top:0}', 'creative'),
+        relativeKept: keepStructureInFlow('.creative-box{position:relative;z-index:2}', 'creative'),
+        prefixedSiblingKept: keepStructureInFlow('.creative-boxed{position:absolute}', 'creative'),
+        // …and end to end, through the real gate: the patch still LANDS, minus the one
+        // declaration. A refusal here would cost the whole design over one property.
+        endToEnd: landed('.creative-box { position: absolute; background: red; }'),
+      };
+    }, { intent: BRACKET_INTENT, spec: BRACKET_SPEC });
+
+    expect(flow.boxDetached).toBe('.creative-box{left:5%;padding:20px}');
+    expect(flow.rootDetached).toBe('.creative{bottom:0}');
+    expect(flow.inGroup).toBe('.creative-box, .creative-r-name{color:red}');
+    expect(flow.regionKept).toBe('.creative-r-name{position:absolute;top:0}');
+    expect(flow.relativeKept).toBe('.creative-box{position:relative;z-index:2}');
+    expect(flow.prefixedSiblingKept).toBe('.creative-boxed{position:absolute}');
+    expect(flow.endToEnd).toContain('background: red');
+    expect(flow.endToEnd).not.toMatch(/\.creative-box\s*\{[^}]*position:\s*absolute/);
+  });
+
   test('a normalized spec never loses a required part, however off-shape the emit', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent }) => {
