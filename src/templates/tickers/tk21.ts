@@ -56,9 +56,9 @@ export const tk21: TemplateVariant = defineTickerVariant(
   display: grid;                   /* masthead above the story */
   grid-template-columns: auto auto minmax(0, 1fr); /* label, rule and story share one line */
   align-items: stretch;            /* every part fills the strip height */
-  width: calc(1640px * var(--scale)); /* safe-area news width */
+  width: min(calc(1640px * var(--scale)), 100vw); /* safe-area news width, never past the frame */
   min-height: calc(102px * var(--scale)); /* long stories can wrap and grow */
-  max-width: calc(1640px * var(--scale)); /* never leaves the safe area */
+  max-width: min(calc(1640px * var(--scale)), 100vw); /* the L size hits the frame edge, not beyond */
   background: var(--panel-bg);     /* flat printed ink */
   border-top: var(--accent-weight) solid var(--accent); /* exact editorial 2 px rule */
   border-bottom: var(--accent-weight) solid var(--accent); /* matching printed close */
@@ -78,6 +78,11 @@ export const tk21: TemplateVariant = defineTickerVariant(
   text-transform: uppercase;       /* masthead voice */
   color: var(--label-color);       /* accent-coloured label */
   white-space: nowrap;             /* the masthead stays one line */
+}
+.ticker-masthead span {
+  max-width: calc(430px * var(--scale)); /* an extreme desk name ellipsizes instead of */
+  overflow: hidden;                      /* pushing the whole strip past the frame */
+  text-overflow: ellipsis;
 }
 
 /* The column rule - the single vertical organising mark. */
