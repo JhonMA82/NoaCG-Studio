@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "The Creative Mode pilot brief banks (docs/CREATIVE_MODE_PLAN.md §10) with the EXPECTED-ROUTE table (§11). expectedRoute is what a correct router decides under the given mode: 'adapt' | 'create' | 'either' (genuinely defensible both ways - never counted as a routing failure). catalogAnchor names the catalog structure an 'adapt' expectation rests on; e2e/creative-routing.spec.ts re-verifies every anchor against the CURRENT catalog before the table is trusted (the brief-bank decay rule, plan §1.3). Routing runs are scripts/creative-route-bench.mjs (SPENDS TOKENS). An 'either' brief that resolves the same way across every benched model is a candidate for tightening into a real expectation at the next bank revision (§11 criterion 1); three were tightened to 'adapt' on 2026-07-30, leaving 27 scored briefs (8 lower third / 11 versus / 8 bracket) and 2 'either'.",
+  "note": "The Creative Mode pilot brief banks (docs/CREATIVE_MODE_PLAN.md §10) with the EXPECTED-ROUTE table (§11). expectedRoute is what a correct router decides under the given mode: 'adapt' | 'create' | 'either' (genuinely defensible both ways - never counted as a routing failure). catalogAnchor names the catalog structure an 'adapt' expectation rests on; e2e/creative-routing.spec.ts re-verifies every anchor against the CURRENT catalog before the table is trusted (the brief-bank decay rule, plan §1.3). Routing runs are scripts/creative-route-bench.mjs (SPENDS TOKENS). An 'either' brief that resolves the same way across every benched model is a candidate for tightening into a real expectation at the next bank revision (§11 criterion 1); three were tightened to 'adapt' on 2026-07-30. Three CORPUS-DERIVED briefs joined on 2026-08-02 (ids lt-talkshow-flagship, lt-bilingual-alternate, vs-live-score) - real production graphics described in our own words from docs/SPX_EXAMPLES_CORPUS.md, never copied from the licensed originals and never judged on visual similarity to them. That leaves 29 scored briefs (9 lower third / 12 versus / 8 bracket) and 3 'either'.",
   "briefs": [
     {
       "id": "lt-plain",
@@ -83,6 +83,23 @@
       "catalogAnchor": "category:lower-third",
       "brief": "A three-line lower third: kicker (LIVE), name, and location line, left-aligned, newsroom-clean.",
       "notes": "Well inside catalog capability."
+    },
+    {
+      "id": "lt-talkshow-flagship",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:lower-third",
+      "brief": "A guest strap for our flagship evening talk show: the guest's name large and confident with their role in a quieter line underneath, sitting on a strip along the bottom of the frame. Entertainment scale, warm, unmistakably the show's own - not a small news caption.",
+      "notes": "Corpus-derived (docs/SPX_EXAMPLES_CORPUS.md): the flagship talk-show strap is what widened the ratified name range to 44-92 px, and this brief is the one in the bank that asks for the upper half of it. Catalog-shaped, so routing must stay adapt; what it measures is whether the result reads at flagship scale instead of defaulting to news-small."
+    },
+    {
+      "id": "lt-bilingual-alternate",
+      "category": "lower-third",
+      "mode": "auto",
+      "expectedRoute": "either",
+      "brief": "A concert strap for a bilingual broadcast: the performer's name and instrument, shown first in Finnish and then in Swedish, changing over by itself every few seconds for as long as the graphic is on air. The panel itself must not re-animate on each change.",
+      "notes": "Corpus-derived: the orchestra lineage ships this and it is genuinely defensible both ways. The identity half is plainly a catalog lower third, but no catalog variant carries a timed two-state alternation, so a router that fits it to the category and one that decides the structure is new are both arguable. Tighten it once either a variant carries the alternation or the lower-third scope note excludes it (§11 criterion 1)."
     },
     {
       "id": "vs-sports-classic",
@@ -205,6 +222,15 @@
       "catalogAnchor": "category:matchup",
       "brief": "A match-up board where the operator picks the winner live and locks it in: two players, a select-winner moment, then a locked state.",
       "notes": "The matchup graphic type carries exactly this machine."
+    },
+    {
+      "id": "vs-live-score",
+      "category": "versus",
+      "mode": "auto",
+      "expectedRoute": "adapt",
+      "catalogAnchor": "category:versus",
+      "brief": "A score strip for a live game: both team names and their two scores, with the scores changing many times while the graphic stays on air. Every change must land instantly - the strip never replays its entrance to show a new number.",
+      "notes": "Corpus-derived: production scoreboards are driven field-by-field by an external control plugin between plays, which is the same shape as our rule that data updates never cause transitions. Catalog-shaped, so routing stays adapt; what it measures is whether the result binds the scores as data rather than rebuilding the graphic per update."
     },
     {
       "id": "br-4team-plain",

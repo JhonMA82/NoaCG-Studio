@@ -159,11 +159,16 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    contract gain the measured motion/type/safe-area numbers where they differ from what we
    teach today (OUT faster than IN and linear-opacity are already house style - the corpus
    confirms them with numbers).
-3. **Reality-grounded brief bank.** Describe corpus graphics as briefs in our own words
-   ("talk-show guest lower third: name + title over an alpha-video plate, signature image
-   variant", "bilingual musician strap that auto-alternates languages", "concert programme
-   loop with grouped works and paged credits") and add them to the bench brief banks.
-   Structure judged by our own gates - never visual similarity to the licensed originals.
+3. **Reality-grounded brief bank.** DONE 2026-08-02. Corpus graphics described as briefs in
+   our own words, judged by our own gates and never by visual similarity to the licensed
+   originals: the flagship talk-show guest strap (`lt-talkshow-flagship`), the bilingual
+   musician strap that alternates languages on a timer (`lt-bilingual-alternate`) and the
+   externally-driven live score strip (`vs-live-score`) in `benchmarks/creative/v1/
+   briefs.json`; the paging concert programme board (`programme-loop`) in
+   `scripts/ai-bench.mjs`, whose bank is deliberately off-catalog. Two of them exist to
+   measure something the corpus taught rather than to add volume - the talk-show strap is
+   the bank's only brief that asks for the upper half of the ratified 44-92 px name range,
+   and the score strip is the "data updates never cause transitions" rule stated as a brief.
 4. **Private visual eval set.** The on-air screenshots plus locally rendered corpus frames
    form a taste-calibration set for human review and the vision judge (what "professional
    broadcast" actually looks like: restraint, scrims, one accent). Local only, like the

@@ -37,6 +37,10 @@ const BRIEFS = [
   ['poll-donut', 'A live poll result: a donut/ring that fills to a percentage field on play, the percentage counted up in the middle, question text above. One accent, clean strokes, mid-center.'],
   ['schedule-board', 'A "coming up tonight" schedule board: three rows of time + show name from a textarea ("20:00 | News"), a header field on top. Elegant fullscreen-lite panel, rows reveal one by one.'],
   ['quote-card', 'A quote/attribution card for a talk show: a large quotation with typographic quote marks, the speaker name and role underneath. Fields: quote, name, role. Literary, generous whitespace, mid-center.'],
+  // Corpus-derived (docs/SPX_EXAMPLES_CORPUS.md workstream 3): a real concert-hall graphic
+  // described in our own words. Structure judged by our own gates, never visual similarity
+  // to the licensed original.
+  ['programme-loop', 'A concert programme board that pages by itself: works grouped under their composer from one textarea ("Sibelius | Finlandia | 8 min"), the composer as a heading above each group, and the performer credits as a second block that advances a page every few seconds while the board stays on air. Concert-hall restraint, one saturated accent, mid-center.'],
 ];
 
 const browser = await chromium.launch();
