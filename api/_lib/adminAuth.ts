@@ -160,7 +160,7 @@ async function actorEmail(userId: string): Promise<string> {
 export interface AuditEntry {
   /** Dotted verb: 'user.suspend', 'plan.update', 'grant.revoke', 'system.set'. */
   action: string;
-  targetType?: 'user' | 'plan' | 'grant' | 'system' | 'template' | '';
+  targetType?: 'user' | 'plan' | 'grant' | 'system' | 'template' | 'feedback' | '';
   targetId?: string;
   /** One human-readable line for the log view. */
   summary?: string;

@@ -67,6 +67,26 @@ brought in, and someone who returns later through a different link does not sile
 their own history. The captured touch rides every subsequent event, so retention stays
 attributable to the channel without a server-side join.
 
+## The one place a visitor id is read against an account, and why it is not a profile
+
+The admin overview counts OTHER PEOPLE by default, which means excluding the operator's own
+activity (`docs/ADMIN.md` §8). Every other ledger carries a user id and filters exactly; this
+one does not, so migration `0027` derives a set of INTERNAL BROWSERS - visitor ids that have
+ever appeared on a funnel row alongside an account marked internal - and drops their rows from
+the external count.
+
+That is a link between the two identifiers, so it is worth being precise about what kind. It is
+used in ONE direction and for ONE purpose: to REMOVE rows from an aggregate. Nothing associates
+a visitor with an account in any output, no row of this table is written by it, and no admin
+response contains the mapping. The refusal this document makes is about BUILDING attribution -
+inferring that an anonymous create belongs to somebody who registered later - and that stays
+refused; §8's "never created anything" figure is still an upper bound for exactly that reason.
+
+The limit is stated on the admin page as well as here: it reaches our own SIGNED-IN browsing
+and cannot reach signed-out development traffic, because nothing distinguishes that from a
+stranger's. Every funnel figure under the external scope is therefore an upper bound on
+external activity, in the same direction as the opt-out floor below.
+
 ## Opting out
 
 The client is inert - it reports nothing at all - when any of these hold:

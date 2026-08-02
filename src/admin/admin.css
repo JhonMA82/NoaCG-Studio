@@ -606,3 +606,51 @@ body {
   .admin-rail-item { white-space: nowrap; }
   .admin-content { padding: 20px 16px 48px; }
 }
+
+/* ---------- scope control ---------- */
+/* Always visible, never a quiet default. A filtered total that does not announce itself is
+   more misleading than an unfiltered one, so the control and its sentence travel together. */
+.admin-scope {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.admin-scope .admin-row { align-items: center; gap: 8px; }
+.admin-scope .admin-field-label { margin: 0 4px 0 0; }
+.admin-scope .admin-muted { margin: 8px 0 0; max-width: 88ch; }
+
+/* The internal mark in the user drawer. Deliberately plain and unarmed: it grants nothing and
+   is reversible in one click, which is the opposite of the suspend control below it. */
+.admin-internal-mark { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* ---------- feedback inbox ---------- */
+.admin-feedback-list { display: flex; flex-direction: column; gap: 12px; }
+.admin-feedback-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Resolved items stay in the list rather than disappearing - the filter above is what hides
+   them - so they recede instead. */
+.admin-feedback-item.resolved { opacity: 0.62; }
+.admin-feedback-item header { align-items: center; gap: 8px; }
+.admin-feedback-item .spacer { flex: 1; }
+.admin-feedback-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+/* The person's own words, set apart from everything the product wrote about them. */
+.admin-feedback-message {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-3);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-feedback-context { margin: 0; font-size: 12px; }
+.admin-feedback-item .admin-row input[type='text'] { flex: 1; min-width: 200px; }

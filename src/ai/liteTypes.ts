@@ -1,4 +1,8 @@
 import type { ModelUsage } from './modelTypes';
+// Both trees import this file, so it stays dependency-light - and src/feedback/contract.ts is
+// held to the same discipline (pure, no DOM, no env), which is why the discard vocabulary can
+// live there instead of being copied here.
+import type { LiteDiscardReason } from '../feedback/contract';
 
 export type CreativeAiProfileId = 'lite';
 
@@ -200,15 +204,11 @@ export interface LiteOutcomeRequest {
   resolvedCategory?: string;
   validationRuleCodes?: string[];
   runtimeMs?: number;
-  discardReason?:
-    | 'regenerated'
-    | 'closed'
-    | 'wrong-style'
-    | 'hard-to-read'
-    | 'missing-information'
-    | 'wrong-layout'
-    | 'poor-motion'
-    | 'other';
+  /** The enumerated set migration 0011's CHECK constraint allows, expressed ONCE in
+   *  src/feedback/contract.ts. It used to be written out here, again in the endpoint validator,
+   *  and again in the SQL - three copies of a list that has to agree, which is how a value
+   *  ends up accepted by the endpoint and rejected by the database. */
+  discardReason?: LiteDiscardReason;
 }
 
 export interface LiteOutcomeResponse {

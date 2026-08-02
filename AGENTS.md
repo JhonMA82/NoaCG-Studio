@@ -194,8 +194,15 @@ src/
                showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
   entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence
                default < plan < temporary grant < manual override, every value carrying WHY
+  feedback/    the PURE feedback contract (docs/ADMIN.md §10): the two-valued rating axis, the
+               enumerated reason vocabularies (the generation set IS 0011's, minus the two the
+               app writes), areas, triage states. Read by the browser form, api/, the admin
+               inbox and 0028's CHECK constraints - one vocabulary, four consumers
   admin/       the PRIVATE admin page (its own MPA entry at /admin) - unlinked, noindex,
-               a plain 404 for anyone api/admin/* does not recognise. Never a security boundary
+               a plain 404 for anyone api/admin/* does not recognise. Never a security boundary.
+               Usage sections count OTHER PEOPLE by default: the ScopePicker's external /
+               internal / all scope excludes accounts marked internal (migration 0027), and
+               says on the page which scope is showing and what it cannot reach
   output/      the browser-output RENDERER (its own MPA entry at /output) - one persistent
                transparent capability URL per production for CasparCG/OBS/vMix; follows the
                hosted-control log with boot recovery + tail-fill (docs/CLOUD_PLAYOUT.md)

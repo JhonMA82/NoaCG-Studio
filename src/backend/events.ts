@@ -91,6 +91,19 @@ function visitorId(): string {
   return minted;
 }
 
+/**
+ * The visitor id this browser ALREADY has, or null.
+ *
+ * Deliberately different from `visitorId()` above in the one way that matters: it never mints.
+ * Feedback is the only other thing that wants this id, and minting one there would create a
+ * tracking identifier for somebody who has never had one - out of a click whose whole purpose
+ * was to help us. Opting out answers null for the same reason: "stop knowing me" has to mean
+ * this too, even when the person is being helpful.
+ */
+export function currentVisitorId(): string | null {
+  return optedOut() ? null : read(VISITOR_KEY);
+}
+
 function hostOf(url: string): string | undefined {
   try {
     const host = new URL(url).hostname.toLowerCase();

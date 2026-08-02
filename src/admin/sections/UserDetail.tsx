@@ -101,6 +101,7 @@ export function UserDetail({
         {suspended ? <Pill tone="danger">Suspended</Pill> : <Pill tone="ok">Active</Pill>}
         <Pill tone="muted">{detail.access.planName}</Pill>
         {detail.user.isAdmin ? <Pill tone="warn">{detail.user.isAdmin}</Pill> : null}
+        {detail.user.internal ? <Pill tone="muted">internal</Pill> : null}
         {detail.usage.atLimit.length ? <Pill tone="warn">at limit</Pill> : null}
       </div>
 
@@ -143,6 +144,39 @@ export function UserDetail({
             </li>
           ))}
         </ol>
+      ) : null}
+
+      {!readOnly ? (
+        // Marking an account internal changes NOTHING about what it may do - it moves that
+        // account's rows out of the default usage scope so the dashboard reports other people
+        // (migration 0027). One click, no arming step: it grants nothing, withdraws nothing,
+        // and is trivially reversible, which is the opposite of the suspension below it.
+        <div className="admin-internal-mark">
+          <label className="admin-toggle">
+            <input
+              type="checkbox"
+              checked={detail.user.internal}
+              disabled={busy}
+              onChange={(event) =>
+                void run(() =>
+                  adminPost('user', {
+                    id: detail.user.id,
+                    action: 'set-internal',
+                    internal: event.target.checked,
+                  }),
+                )
+              }
+            />
+            <span>
+              This is one of our own accounts
+              <em>
+                Development, testing or a demo. Excluded from the default “Other people” scope on
+                Overview, Usage and Feedback — and from nothing else: it is not a role and grants
+                no access.
+              </em>
+            </span>
+          </label>
+        </div>
       ) : null}
 
       {!readOnly ? (

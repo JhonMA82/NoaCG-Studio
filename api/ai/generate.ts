@@ -2,6 +2,7 @@ import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.j
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
 import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
+import { surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
 import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
@@ -148,7 +149,15 @@ export default {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
       await guardSurface();
-      result = await executeGatewayRequest(body, { keyFor });
+      // A tagged surface's MANAGED traffic carries a routing policy (api/_lib/aiSurfacePolicy.ts):
+      // zero data retention, data collection denied, no silent fallback off the ZDR endpoint.
+      // BYO is excluded by the same rule the disabled-route switch uses - a user spending their
+      // own key on their own model is not ours to route - and "is this BYO" is decided here from
+      // the presented keys rather than inside keyFor, because the policy is a property of the
+      // whole request while keyFor answers per provider.
+      const byoPrimary = Boolean(userKeys[body.route.provider]);
+      const openRouter = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
+      result = await executeGatewayRequest(body, { keyFor }, openRouter ? { openRouter } : undefined);
     } catch (error) {
       failure = error instanceof GatewayError
         ? error

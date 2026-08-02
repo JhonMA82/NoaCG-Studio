@@ -319,23 +319,23 @@ function buildInTimeline() {
       ? `
   tl.fromTo('.${cfg.prefix}-accent',
     { scaleX: 0, transformOrigin: 'left center' },   // the line grows from its left end
-    { scaleX: 1, duration: 0.45 / animSpeed }
+    { scaleX: 1, duration: 0.6 / animSpeed }         // an unhurried draw — this preset takes its time
   );
   tl.fromTo('.${cfg.prefix}-box',
     { clipPath: 'inset(0 100% 0 0)', opacity: 0 },   // the panel draws open behind the line…
-    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.5 / animSpeed },
-    '-=0.25'                                         // …overlapping the accent draw
+    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.65 / animSpeed },
+    '-=0.35'                                         // …overlapping the accent draw
   );`
       : `
   tl.fromTo('.${cfg.prefix}-box',
     { clipPath: 'inset(0 100% 0 0)', opacity: 0 },   // the panel draws open left to right
-    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.5 / animSpeed }
+    { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 0.65 / animSpeed }
   );`
   }
   tl.fromTo([${linesInIntro(cfg)}],
     { yPercent: 110 },                               // start hidden below the mask edge
-    { yPercent: 0, duration: 0.55 / animSpeed, stagger: 0.1 / animSpeed },
-    '-=0.3'
+    { yPercent: 0, duration: 0.7 / animSpeed, stagger: 0.14 / animSpeed },
+    '-=0.4'
   );
   tl.set('.${cfg.prefix}-box', { clearProps: 'clipPath' });     // drop the clip once open — skewed ::before/::after layers may poke past the box
   return tl;
@@ -375,12 +375,12 @@ function buildInTimeline() {
   tl.set('.${cfg.prefix}', { opacity: 1 });                     // reveal the (CSS-hidden) graphic${hideStepLines(cfg)}
   tl.fromTo('.${cfg.prefix}-box',
     { clipPath: 'inset(0 100% 0 0)' },               // fully clipped from the right…
-    { clipPath: 'inset(0 0% 0 0)', duration: 0.55 / animSpeed }  // …wipes open
+    { clipPath: 'inset(0 0% 0 0)', duration: 0.85 / animSpeed }  // …wipes open, curtain-slow
   );
   tl.fromTo([${linesInIntro(cfg)}],
     { x: -24, opacity: 0 },
-    { x: 0, opacity: 1, duration: 0.45 / animSpeed, stagger: 0.08 / animSpeed },
-    '-=0.35'
+    { x: 0, opacity: 1, duration: 0.55 / animSpeed, stagger: 0.1 / animSpeed },
+    '-=0.5'
   );
   tl.set('.${cfg.prefix}-box', { clearProps: 'clipPath' });     // drop the clip once open — skewed ::before/::after layers may poke past the box
   return tl;
@@ -484,13 +484,13 @@ function buildInTimeline() {
   var tl = gsap.timeline({ defaults: { ease: easeIn } });
   tl.set('.${cfg.prefix}', { opacity: 1 });                     // reveal the (CSS-hidden) graphic${hideStepLines(cfg)}
   tl.fromTo('.${cfg.prefix}-box',
-    { opacity: 0, filter: 'blur(14px)', y: 12 },
-    { opacity: 1, filter: 'blur(0px)', y: 0, duration: 0.6 / animSpeed }
+    { opacity: 0, filter: 'blur(14px)', y: 16 },
+    { opacity: 1, filter: 'blur(0px)', y: 0, duration: 1.0 / animSpeed }  // a slow materialise — the soft pole of the bank
   );
   tl.fromTo([${linesInIntro(cfg)}],
     { y: 10, opacity: 0 },
-    { y: 0, opacity: 1, duration: 0.4 / animSpeed, stagger: 0.08 / animSpeed },
-    '-=0.3'
+    { y: 0, opacity: 1, duration: 0.6 / animSpeed, stagger: 0.12 / animSpeed },
+    '-=0.55'
   );
   return tl;
 }
@@ -498,7 +498,7 @@ function buildInTimeline() {
 // buildOutTimeline(): the exit — dissolves back into the blur, faster.
 function buildOutTimeline() {
   var tl = gsap.timeline({ defaults: { ease: easeOut } });
-  tl.to('.${cfg.prefix}-box', { opacity: 0, filter: 'blur(10px)', duration: 0.35 / animSpeed });
+  tl.to('.${cfg.prefix}-box', { opacity: 0, filter: 'blur(10px)', duration: 0.5 / animSpeed });
   tl.set('.${cfg.prefix}', { opacity: 0 });                     // fully hidden; ready to play again
   return tl;
 }${stepsBlock(cfg)}
@@ -520,12 +520,12 @@ function buildInTimeline() {
   tl.set('.${cfg.prefix}', { opacity: 1 });                     // reveal the (CSS-hidden) graphic${hideStepLines(cfg)}
   tl.fromTo('.${cfg.prefix}-box',
     { opacity: 0 },
-    { opacity: 1, duration: 0.6 / animSpeed }
+    { opacity: 1, duration: 0.9 / animSpeed }        // an unhurried dissolve — calm is the point
   );
   tl.fromTo([${linesInIntro(cfg)}],
     { opacity: 0 },
-    { opacity: 1, duration: 0.5 / animSpeed, stagger: 0.12 / animSpeed },
-    '-=0.35'                                         // lines join while the box is still fading
+    { opacity: 1, duration: 0.7 / animSpeed, stagger: 0.16 / animSpeed },
+    '-=0.5'                                          // lines join while the box is still fading
   );
   return tl;
 }
@@ -533,7 +533,7 @@ function buildInTimeline() {
 // buildOutTimeline(): the exit — fades away faster than it arrived.
 function buildOutTimeline() {
   var tl = gsap.timeline({ defaults: { ease: easeOut } });
-  tl.to('.${cfg.prefix}-box', { opacity: 0, duration: 0.4 / animSpeed });
+  tl.to('.${cfg.prefix}-box', { opacity: 0, duration: 0.55 / animSpeed });
   tl.set('.${cfg.prefix}', { opacity: 0 });                     // fully hidden; ready to play again
   return tl;
 }${stepsBlock(cfg)}
@@ -555,12 +555,12 @@ function buildInTimeline() {
   tl.set('.${cfg.prefix}', { opacity: 1 });                     // reveal the (CSS-hidden) graphic${hideStepLines(cfg)}
   tl.fromTo('.${cfg.prefix}-box',
     { rotationX: -80, opacity: 0, transformPerspective: 900, transformOrigin: 'center top' },
-    { rotationX: 0, opacity: 1, duration: 0.65 / animSpeed }
+    { rotationX: 0, opacity: 1, duration: 0.85 / animSpeed }  // a full theatrical swing
   );
   tl.fromTo([${linesInIntro(cfg)}],
     { opacity: 0 },
-    { opacity: 1, duration: 0.35 / animSpeed, stagger: 0.08 / animSpeed },
-    '-=0.25'
+    { opacity: 1, duration: 0.45 / animSpeed, stagger: 0.1 / animSpeed },
+    '-=0.35'
   );
   return tl;
 }
@@ -569,7 +569,7 @@ function buildInTimeline() {
 function buildOutTimeline() {
   var tl = gsap.timeline({ defaults: { ease: easeOut } });
   tl.to('.${cfg.prefix}-box',
-    { rotationX: 65, opacity: 0, transformPerspective: 900, transformOrigin: 'center top', duration: 0.4 / animSpeed });
+    { rotationX: 65, opacity: 0, transformPerspective: 900, transformOrigin: 'center top', duration: 0.45 / animSpeed });
   tl.set('.${cfg.prefix}', { opacity: 0 });                     // fully hidden; ready to play again
   return tl;
 }${stepsBlock(cfg)}

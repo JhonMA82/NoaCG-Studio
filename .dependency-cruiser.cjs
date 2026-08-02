@@ -60,6 +60,18 @@ module.exports = {
       to: { path: '^src/entitlements/' },
     },
     {
+      comment:
+        'Everything may import feedback/ - the second layer-0 PURE contract, same shape and ' +
+        'same reasoning as entitlements/ (§2). It is the one vocabulary for a rating, a ' +
+        'reason code and a triage state, and it has FOUR consumers that must agree: the ' +
+        'browser form, the API validator, the admin inbox and the CHECK constraints in ' +
+        'migration 0028. Four copies of one enumeration is the bug it exists to prevent - ' +
+        'the discard-reason list was already living in three places before it. It imports ' +
+        'nothing in return.',
+      from: { path: '^src/' },
+      to: { path: '^src/feedback/' },
+    },
+    {
       comment: 'The entry files at the src root (App.tsx, main.tsx, styles.css) wire the app',
       from: { path: '^src/[^/]+$' },
       to: { path: '^src/' },

@@ -12,7 +12,7 @@ import { getUserDetail } from '../adminUsers.js';
 
 const MAX_BODY_BYTES = 4_000;
 
-type Action = 'suspend' | 'reactivate' | 'assign-plan' | 'reset-allowance';
+type Action = 'suspend' | 'reactivate' | 'assign-plan' | 'reset-allowance' | 'set-internal';
 
 interface ActionBody {
   id?: unknown;
@@ -23,7 +23,8 @@ interface ActionBody {
 }
 
 function isAction(value: unknown): value is Action {
-  return value === 'suspend' || value === 'reactivate' || value === 'assign-plan' || value === 'reset-allowance';
+  return value === 'suspend' || value === 'reactivate' || value === 'assign-plan'
+    || value === 'reset-allowance' || value === 'set-internal';
 }
 
 /** An ISO instant strictly in the future, or null. Anything else is rejected rather than
@@ -116,6 +117,42 @@ export default {
 
     if (body.action === 'suspend') return setState(req, gate.actor, userId, 'suspended', reason);
     if (body.action === 'reactivate') return setState(req, gate.actor, userId, 'active', reason);
+
+    // set-internal: is this OUR account - development, testing, a demo?
+    //
+    // It changes NO ACCESS. Nothing in `src/entitlements/` reads it, no RLS policy names it,
+    // and marking an account internal neither grants nor withdraws a single thing. All it does
+    // is move that account's rows out of the default admin usage scope (migration 0027), so
+    // the dashboard reports what other people are doing rather than what we did while building
+    // it. That is why it sits beside suspension rather than beside a grant: same table, same
+    // audit trail, entirely different kind of switch.
+    //
+    // It needs 'admin' like every other action here - not because it is dangerous, but because
+    // it changes what every other admin then reads, and a metric quietly reshaped by somebody
+    // with read-only access is worse than one anybody can change loudly.
+    if (body.action === 'set-internal') {
+      const value = (body as { internal?: unknown }).internal;
+      if (typeof value !== 'boolean') return apiError('invalid', 'internal must be true or false.', 400);
+      const { error } = await db
+        .from('user_accounts')
+        // Upsert, because a row here exists only once an admin has touched the account -
+        // marking an untouched one is the normal case, not the exception. Only the two keys
+        // below are written, so an existing row keeps its `state`: marking a suspended account
+        // internal must never quietly reactivate it.
+        .upsert({ user_id: userId, internal: value }, { onConflict: 'user_id', ignoreDuplicates: false });
+      if (error) return apiError('internal', 'The internal mark could not be changed.', 500);
+
+      await writeAudit(req, gate.actor, {
+        action: value ? 'user.internal.mark' : 'user.internal.clear',
+        targetType: 'user',
+        targetId: userId,
+        summary: value
+          ? `marked internal${reason ? `: ${reason}` : ''} - excluded from the default usage scope`
+          : 'no longer internal - counted as an ordinary user again',
+        detail: { internal: value, reason },
+      });
+      return json({ ok: true, internal: value });
+    }
 
     if (body.action === 'assign-plan') {
       const expiresAt = futureInstant(body.expiresAt);
