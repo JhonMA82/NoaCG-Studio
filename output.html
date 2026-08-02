@@ -40,8 +40,9 @@
       window.queueMicrotask || (window.queueMicrotask = function (fn) { Promise.resolve().then(fn); });
       Object.fromEntries || (Object.fromEntries = function (entries) {
         var out = {};
-        // Accepts an array or any iterable of [key, value] pairs, like the real one.
-        var list = Array.isArray(entries) ? entries : Array.prototype.slice.call(entries);
+        // Array.from, not slice.call: the real one takes ANY iterable of [k, v] pairs, and an
+        // iterator is not array-like, so slice would silently yield {} for a Map's entries().
+        var list = Array.isArray(entries) ? entries : Array.from(entries);
         for (var i = 0; i < list.length; i++) out[list[i][0]] = list[i][1];
         return out;
       });
