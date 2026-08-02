@@ -88,6 +88,23 @@ if ((ARMS.includes('A') || ARMS.includes('B')) && (!coderProvider || !coderModel
   process.exit(1);
 }
 
+// The reference model READS the brief's attachments (plan §7, src/ai/creative/references.ts).
+// It is the critique route because that is already required to be a vision model and a second
+// flag for the same capability would only be a second thing to get wrong. Without one, briefs
+// carrying references still run - the reference stage skips, exactly as every round before
+// 2026-08-02 did, and the report says so rather than pretending the picture was read.
+const referenceModel = critiqueModel || '';
+
+/** A brief's declared attachments as data-URL assets, straight from the bank. */
+const REF_DIR = new URL('../benchmarks/creative/v1/references/', import.meta.url);
+const referencesFor = (brief) => (brief.references ?? []).map((r) => ({
+  asset: {
+    path: `images/${r.file}`,
+    data: `data:image/png;base64,${readFileSync(new URL(r.file, REF_DIR)).toString('base64')}`,
+  },
+  use: r.use,
+}));
+
 const prices = JSON.parse(readFileSync(new URL('./ai-bench-prices.json', import.meta.url), 'utf8'));
 const priced = (id, label) => {
   const entry = prices[id];
@@ -250,7 +267,7 @@ for (const brief of selected) {
     const started = Date.now();
     let row;
     try {
-      row = await page.evaluate(async ({ brief, intent, arm, critiqueModel, plateCss }) => {
+      row = await page.evaluate(async ({ brief, intent, arm, critiqueModel, referenceModel, references, plateCss }) => {
         const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
         const { productionSpxValidator } = await import('/src/ai/litePipeline.ts');
         const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
@@ -287,6 +304,11 @@ for (const brief of selected) {
 
         const context = {
           images: [],
+          // The brief's own attachments (plan §7). Four briefs in the bank have said "the
+          // attached mood board" / "plate attached" since the bank was written, and every
+          // round before 2026-08-02 sent them nothing - the model was told to follow a
+          // reference that did not exist. Loaded from benchmarks/creative/v1/references.
+          references,
           palette: null,
           resolution: { width: 1920, height: 1080, label: '1080p' },
           fps: 25,
@@ -297,6 +319,10 @@ for (const brief of selected) {
           context,
           validate: productionSpxValidator(),
           structuralCheck: benchStructuralIntent,
+          // Both staged arms read the references - the stage sits before the concept call, so
+          // making it arm D's alone would have measured the critique and the references
+          // together and told us which of the two moved the frame: neither.
+          ...(referenceModel && references.length ? { referenceModel } : {}),
           ...(arm === 'D' ? { capture, critiqueModel } : {}),
         });
 
@@ -321,7 +347,7 @@ for (const brief of selected) {
             : null,
           hold,
         };
-      }, { brief: brief.brief, intent, arm, critiqueModel, plateCss: PLATE_CSS });
+      }, { brief: brief.brief, intent, arm, critiqueModel, referenceModel, references: referencesFor(brief), plateCss: PLATE_CSS });
     } catch (e) {
       console.log(`ERROR ${String(e?.message ?? e).split('\n')[0]}`);
       results.push({ brief: brief.id, category: brief.category, arm, error: String(e?.message ?? e), latencyMs: Date.now() - started });

@@ -43,7 +43,13 @@
       "expectedRoute": "adapt",
       "catalogAnchor": "category:lower-third",
       "brief": "A lower third for a concert broadcast that stays readable over a bright, busy stage: artist name and song title, strong separation from the background.",
-      "notes": "Legibility-over-plate is a styling demand, not a structural one."
+      "notes": "Legibility-over-plate is a styling demand, not a structural one.",
+      "references": [
+        {
+          "file": "plate-concert-stage.png",
+          "use": "plate"
+        }
+      ]
     },
     {
       "id": "lt-long-name-portrait",
@@ -61,7 +67,13 @@
       "expectedRoute": "adapt",
       "catalogAnchor": "category:lower-third",
       "brief": "A lower third following the attached mood board's feel: warm, editorial, papery. Name and role.",
-      "notes": "Tightened from 'either' after the 2026-07-30 routing runs (all four benched models adapt): an inspiration reference is a styling demand over a carried structure, and the brief carries no originality request."
+      "notes": "Tightened from 'either' after the 2026-07-30 routing runs (all four benched models adapt): an inspiration reference is a styling demand over a carried structure, and the brief carries no originality request.",
+      "references": [
+        {
+          "file": "mood-warm-editorial.png",
+          "use": "mood"
+        }
+      ]
     },
     {
       "id": "lt-three-line",
@@ -72,7 +84,6 @@
       "brief": "A three-line lower third: kicker (LIVE), name, and location line, left-aligned, newsroom-clean.",
       "notes": "Well inside catalog capability."
     },
-
     {
       "id": "vs-sports-classic",
       "category": "versus",
@@ -164,7 +175,13 @@
       "expectedRoute": "adapt",
       "catalogAnchor": "category:versus",
       "brief": "A match-up card shown over a busy arena wide shot (plate attached): keep both names readable over crowd and lights.",
-      "notes": "Plate constraint is styling, not structure."
+      "notes": "Plate constraint is styling, not structure.",
+      "references": [
+        {
+          "file": "plate-arena-wide.png",
+          "use": "plate"
+        }
+      ]
     },
     {
       "id": "vs-transform-ref",
@@ -172,7 +189,13 @@
       "mode": "create",
       "expectedRoute": "create",
       "brief": "Take the palette and typography voice of the attached poster, and build a completely new match-up composition from them: two fighters, tale-of-the-tape numbers.",
-      "notes": "The transform-reference case (plan §7)."
+      "notes": "The transform-reference case (plan §7).",
+      "references": [
+        {
+          "file": "mood-fight-poster.png",
+          "use": "mood"
+        }
+      ]
     },
     {
       "id": "vs-winner-states",
@@ -183,7 +206,6 @@
       "brief": "A match-up board where the operator picks the winner live and locks it in: two players, a select-winner moment, then a locked state.",
       "notes": "The matchup graphic type carries exactly this machine."
     },
-
     {
       "id": "br-4team-plain",
       "category": "bracket",

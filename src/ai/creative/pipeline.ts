@@ -42,6 +42,7 @@ import {
   creativeSpecSystemPrompt,
   intentBrief,
 } from './stages';
+import { analyzeReferences, referenceBlock } from './references';
 import { compileScaffold, type CompiledScaffold } from './scaffold';
 import { applyCreativeStyle, creativeStyleSystemPrompt, CREATIVE_STYLE_TOOL, type CreativeStylePatch } from './style';
 import { CRITIQUE_TOOL, critiqueRepairMessage, critiqueSystemPrompt, normalizeCritique, type CritiqueVerdict } from './critique';
@@ -75,6 +76,12 @@ export interface CreativeRunInput {
    *  test is usually a text model - a cheap open coder has no eyes, and pointing the
    *  critique at a VLM is what makes the arm runnable at all. */
   critiqueModel?: string;
+  /** The model that READS the user's reference pictures (stage 3). Same reason the critique
+   *  needs its own: the designing stages are text models on purpose, so a reference has to be
+   *  turned into words before it can reach them. Absent, references are skipped - which is
+   *  what every round before 2026-08-02 did, silently, on briefs whose text promised an
+   *  attachment. */
+  referenceModel?: string;
   onProgress?: (stage: string) => void;
 }
 
@@ -271,7 +278,20 @@ async function runStagedArm(arm: 'C' | 'D', input: CreativeRunInput): Promise<Cr
 
   try {
     const briefCards = cardsForIntent(input.intent, input.brief);
-    const userText = `${contextText(input.brief, input.context)}\n\n${intentBrief(input.intent)}`;
+
+    // Stage 3 - READ THE USER'S REFERENCES, once, into words the text stages can act on.
+    // Skipped when there are none or no vision route, both ordinary. Its output rides every
+    // designing stage below, which is the whole point: a reference that only reached the
+    // concept call would be forgotten by the one writing the CSS.
+    input.onProgress?.('Reading your references…');
+    const t3 = now();
+    const refRead = await analyzeReferences(input.context, input.referenceModel);
+    if (refRead) ledger.record('references', t3, refRead.model, refRead.usage as never);
+    const refs = referenceBlock(refRead?.analysis ?? null);
+
+    const userText = [contextText(input.brief, input.context), intentBrief(input.intent), refs]
+      .filter(Boolean)
+      .join('\n\n');
     const userContent: ContentBlock[] = [...imageBlocks(input.context), { type: 'text', text: userText }];
 
     // Stage 4 - three concept directions.
@@ -309,7 +329,7 @@ async function runStagedArm(arm: 'C' | 'D', input: CreativeRunInput): Promise<Cr
     // Stages 7 + 8 + 9 - style, verify, bounded repair. The scaffold is the floor: a style
     // patch the gate refuses leaves a plain but correct graphic, never a broken one.
     input.onProgress?.('Writing the design…');
-    const styled = await styleWithRepair(scaffold, spec, specCards.length ? specCards : briefCards, input, ledger, () => { repairRounds += 1; });
+    const styled = await styleWithRepair(scaffold, spec, specCards.length ? specCards : briefCards, input, ledger, () => { repairRounds += 1; }, refs);
 
     let template = styled.template;
     let validation = styled.validation;
@@ -388,11 +408,20 @@ async function styleWithRepair(
   input: CreativeRunInput,
   ledger: Ledger,
   onRepair: () => void,
+  /** The reference reading from stage 3. This stage is the one that WRITES the colour and the
+   *  weight, so a mood reference that reached the concept call and stopped there would have
+   *  been read and then ignored - the failure mode this whole wiring exists to avoid. */
+  refs = '',
 ): Promise<StyledResult> {
   const system = creativeStyleSystemPrompt(spec, scaffold, cards);
   const brief: ContentBlock[] = [
     ...imageBlocks(input.context),
-    { type: 'text', text: `${contextText(input.brief, input.context)}\n\n${intentBrief(input.intent)}` },
+    {
+      type: 'text',
+      text: [contextText(input.brief, input.context), intentBrief(input.intent), refs]
+        .filter(Boolean)
+        .join('\n\n'),
+    },
   ];
 
   const t0 = now();

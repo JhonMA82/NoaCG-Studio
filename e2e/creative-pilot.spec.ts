@@ -671,6 +671,49 @@ test.describe('creative pilot (phase C)', () => {
     expect(verdict.noBaseCleanLands).toBe(true);
   });
 
+  test('a reference is read once, per its purpose, and reaches the stage that writes the design', async ({ page }) => {
+    await open(page);
+    // Plan §7, wired 2026-08-02. Four briefs in the bank say "the attached mood board" /
+    // "plate attached" and every round before this one sent NOTHING - the model was told to
+    // follow a reference that did not exist. The designing stages are text models by choice,
+    // so the picture is read once by a vision model and the WORDS ride the later stages.
+    const report = await page.evaluate(async () => {
+      const { referenceBlock, analyzeReferences } = await import('/src/ai/creative/references.ts');
+      const block = referenceBlock({
+        version: 1,
+        readings: [
+          { index: 1, use: 'mood', reading: 'Warm papery ochres, letterpress texture.', palette: ['#efe7db', '#8c6a4a'] },
+          { index: 2, use: 'plate', reading: 'Hot white key light upper centre, dark crowd below.', busyRegions: ['upper centre'] },
+          { index: 3, use: 'layout', reading: 'A single left column, heavy top-to-bottom reading order.' },
+        ],
+      });
+      // No references and no model are both ordinary states, not failures.
+      const none = await analyzeReferences({ images: [], references: [] }, 'some-model');
+      const noModel = await analyzeReferences(
+        { images: [], references: [{ asset: { path: 'a.png', data: 'data:image/png;base64,AAAA' }, use: 'mood' }] },
+        undefined,
+      );
+      return { block, none, noModel, empty: referenceBlock(null) };
+    });
+
+    // Each purpose gets its own heading and its own instruction - a flat list is how a plate
+    // gets read as a mood board, which is the one way a reference makes a result worse.
+    expect(report.block).toContain('The look the user asked for');
+    expect(report.block).toContain('Warm papery ochres');
+    expect(report.block).toContain('#8c6a4a');
+    expect(report.block).toContain('stay readable OVER');
+    expect(report.block).toContain('Never draw this and never imitate it');
+    expect(report.block).toContain('upper centre');
+    expect(report.block).toContain('The arrangement the user asked for');
+    // A mood reference must never be described as an arrangement, or vice versa.
+    const moodPart = report.block.slice(report.block.indexOf('The look'), report.block.indexOf('The arrangement'));
+    expect(moodPart).not.toContain('reading order');
+    // Absent inputs degrade quietly.
+    expect(report.none).toBeNull();
+    expect(report.noModel).toBeNull();
+    expect(report.empty).toBe('');
+  });
+
   test('a list field in a graphic that repeats nothing renders as a line, not a row', async ({ page }) => {
     await open(page);
     // The dominant reason staged frames read as FLAT (2026-08-02). The intent stage types
