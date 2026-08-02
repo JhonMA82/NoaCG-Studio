@@ -441,7 +441,7 @@ transition through status and cost as a generation runs, and neither claims to b
 | `0027_internal_activity_scope` | `user_accounts.internal`, `admin_scope()` (raises on an unknown scope), `admin_internal_user_ids()`, and all three `admin_overview_*` functions re-created with a REQUIRED `p_scope`. Its self-check asserts that external + internal PARTITION all, against the live tables |
 | `0028_user_feedback` | `public.user_feedback` - beta notes and generation ratings, the one table allowed to hold user-authored free text. Server-write-only like `funnel_events`; DELETE and TRUNCATE explicitly REVOKED from `service_role` (a grant-only line does not withhold anything on this platform - see §5); its self-check proves the lockdown, the message bound and the reason allowlist all actually bite, and it refused to apply until they did |
 | `0030_audit_log_append_only` | revokes `update`, `delete` and `truncate` on `admin_audit_log` from `service_role`, making §5's append-only claim true for the first time - it had been false since `0017`, because a grant-only line withholds nothing against Supabase's default privileges. Asserts the result in a `DO` block, including that the log is still insertable and readable, so an over-tightened lockdown cannot ship either |
-| `0031_variant_quality_external_only` | `ai_lite_variant_quality()` excludes accounts marked internal, so the Lite prompt stops tie-breaking on our own test discards - the same `user_accounts.internal` predicate `0027` uses, so the dashboard and the generator agree about who counts. CREATE OR REPLACE (signature unchanged, ACL survives); asserts that every pair it returns has at least one external contributor |
+| `0032_variant_quality_external_only` | `ai_lite_variant_quality()` excludes accounts marked internal, so the Lite prompt stops tie-breaking on our own test discards - the same `user_accounts.internal` predicate `0027` uses, so the dashboard and the generator agree about who counts. CREATE OR REPLACE (signature unchanged, ACL survives); asserts that every pair it returns has at least one external contributor |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -537,7 +537,7 @@ deliberate: those are literally the rows the Lite prompt is being handed, so a f
 would describe a prompt nobody is running. What the page reports instead is how much of that
 evidence is internal.
 
-**That question is now settled at the source (`0031`): `ai_lite_variant_quality()` itself
+**That question is now settled at the source (`0032`): `ai_lite_variant_quality()` itself
 excludes internal accounts.** It was decided rather than defaulted, because it changes
 production GENERATION behaviour rather than a dashboard. The reasoning: the loop exists to
 learn from what USERS keep, and on this instance not one row was a user's - 43 from a throwaway

@@ -138,14 +138,14 @@ export function QualitySection() {
         />
         {/* THIS TABLE IGNORES THE SCOPE CONTROL, and it has to: it is literally the rows the
             generator is handed, so showing a filtered copy would describe a prompt that does not
-            exist. Internal accounts are nonetheless absent from it, because migration 0031
+            exist. Internal accounts are nonetheless absent from it, because migration 0032
             excludes them inside `ai_lite_variant_quality()` itself - at the source, not on the
             way to this page. The count below is therefore how much evidence is being correctly
             withheld from the prompt, which is a different statement from "this table is filtered". */}
         <p className="admin-note">
           <strong>Not filtered by the scope above</strong> — these are the rows the prompt actually
           receives, and a filtered copy would describe a prompt nobody is running. Internal
-          accounts are excluded at the source instead (migration <code>0031</code>): the loop
+          accounts are excluded at the source instead (migration <code>0032</code>): the loop
           exists to learn what <em>users</em> keep, and our own regenerating is not that.
           {data.priorRows === 0 ? (
             <> Nothing in this window is eligible to become a prior yet.</>

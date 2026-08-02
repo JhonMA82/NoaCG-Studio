@@ -70,16 +70,16 @@ test('Lite quality priors store only non-content facets and stay server-only', (
   assert.doesNotMatch(qualitySql, /pg_catalog\.greatest/i);
 });
 
-// ── the priors the prompt is fed come from OTHER PEOPLE (0031) ───────────────────────────
+// ── the priors the prompt is fed come from OTHER PEOPLE (0032) ───────────────────────────
 //
-// `ai_lite_variant_quality()` feeds the Lite system prompt a chassis tie-breaker. Until 0031 it
+// `ai_lite_variant_quality()` feeds the Lite system prompt a chassis tie-breaker. Until 0032 it
 // aggregated every generation in the ledger, and on this instance every one of them was ours:
 // 43 from a throwaway test account plus 30 from the fallback bench, not a single user opinion.
 // The product was tie-breaking on its own developer's discards, and every bench round made that
 // signal stronger.
 //
 // The filter is the LAST definition of the function that counts, so this reads whichever
-// migration defines it most recently rather than naming 0031 - a later redefinition that drops
+// migration defines it most recently rather than naming 0032 - a later redefinition that drops
 // the predicate has to fail here, which is the whole point of pinning it.
 const variantQualityDefiners = (await readdir(new URL('../supabase/migrations/', import.meta.url)))
   .filter((file) => file.endsWith('.sql'))
