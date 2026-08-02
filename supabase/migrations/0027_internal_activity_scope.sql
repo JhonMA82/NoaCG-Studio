@@ -628,7 +628,7 @@ begin
     raise exception 'an unknown scope was accepted';
   exception
     when others then
-      if pg_catalog.sqlerrm like 'an unknown scope was accepted%' then raise; end if;
+      if sqlerrm like 'an unknown scope was accepted%' then raise; end if;
   end;
 end;
 $$;

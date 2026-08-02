@@ -103,9 +103,32 @@ alter table public.user_feedback enable row level security;
 -- authenticated alike, the pattern 0016 established for the funnel.
 revoke all on table public.user_feedback from public, anon, authenticated;
 grant select, insert, update on table public.user_feedback to service_role;
--- No DELETE grant for any role. Feedback is somebody telling us something went wrong; an admin
--- surface that can make a complaint disappear is a surface that will. Triage is `status`, and
--- the audit log records who set it.
+
+-- AND THEN REVOKE WHAT THE GRANT ABOVE DID NOT WITHHOLD.
+--
+-- This line exists because the self-check below refused the migration without it, which is the
+-- whole reason that check was written as an assertion rather than a comment. Supabase configures
+-- `alter default privileges in schema public grant all on tables to service_role`, so a new
+-- table arrives with EVERY privilege already granted and a narrow `grant select, insert, update`
+-- adds nothing at all. "I only granted three privileges" is not the same statement as "only
+-- three privileges exist", and on this platform the second one needs its own line.
+--
+-- The same gap is live on `admin_audit_log` (0017) and `funnel_events` (0016): both hold
+-- service_role DELETE, UPDATE and TRUNCATE on production today, and docs/ADMIN.md §5 currently
+-- claims the audit log is "append-only by privilege rather than by convention". It is not.
+-- Repairing that is its own deliberate change to a live security record, not a side effect of
+-- adding a table, so it is named here and left alone.
+revoke delete, truncate on table public.user_feedback from service_role;
+
+-- What that buys, stated exactly. The APPLICATION can never delete a piece of feedback: not the
+-- endpoint, not the admin page, not a mistake in either. Feedback is somebody telling us
+-- something went wrong, and a surface that can make a complaint disappear is a surface that
+-- eventually will - triage is `status`, and the audit log records who set it.
+--
+-- What it does not buy: the table OWNER can always grant itself back, so purging genuine spam
+-- (this is the one route that accepts free text from an unauthenticated caller) stays possible
+-- through the SQL editor. That is deliberate - it makes deletion an out-of-band act somebody
+-- has to decide to perform, rather than a button.
 
 -- ── self-check ───────────────────────────────────────────────────────────────────────────
 -- The three properties this table exists for, asserted rather than assumed: it is unreachable
@@ -130,7 +153,7 @@ begin
   exception
     when check_violation then null;
     when others then
-      if pg_catalog.sqlerrm like 'an over-long message was accepted%' then raise; end if;
+      if sqlerrm like 'an over-long message was accepted%' then raise; end if;
   end;
 
   begin
@@ -140,7 +163,7 @@ begin
   exception
     when check_violation then null;
     when others then
-      if pg_catalog.sqlerrm like 'an unenumerated reason was accepted%' then raise; end if;
+      if sqlerrm like 'an unenumerated reason was accepted%' then raise; end if;
   end;
 end;
 $$;

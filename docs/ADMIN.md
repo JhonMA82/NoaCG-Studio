@@ -373,10 +373,28 @@ Every handler is wrapped by `withAdmin(req, minRole)` in `api/_lib/adminAuth.ts`
 ## 5. The audit log
 
 `public.admin_audit_log` records actor, actor role, action, target type and id, a summary, a
-structured detail object, an IP hash, and a timestamp. Service role holds `insert` and `select`
-only - **no update or delete grant exists for any role**, so it is append-only by privilege
-rather than by convention. It stays content-free of secrets in the same sense as the AI
-ledgers: no tokens, no passwords, no prompt or template content.
+structured detail object, an IP hash, and a timestamp. It stays content-free of secrets in the
+same sense as the AI ledgers: no tokens, no passwords, no prompt or template content.
+
+**Correction, 2026-08-02: this section used to claim the log was "append-only by privilege
+rather than by convention", and that claim was false on production.** `0017` writes
+`grant select, insert ... to service_role` and nothing else, which reads like a restriction and
+is not one: Supabase configures `alter default privileges in schema public grant all on tables
+to service_role`, so the table arrived with DELETE, UPDATE and TRUNCATE already granted and a
+narrower grant adds nothing on top. Verified against the live database - `service_role` holds
+all seven privileges on `admin_audit_log` today, and on `funnel_events` for the same reason.
+
+**"I only granted three privileges" is a different statement from "only three privileges
+exist", and on this platform the second one needs its own REVOKE.** The gap went unnoticed for
+five migrations because nothing asserted it; `0028` found it within a minute of being written,
+because that migration asserts the property in a `DO` block instead of stating it in a comment,
+and refused to apply until `user_feedback` actually withheld DELETE and TRUNCATE.
+
+So today the audit log is append-only **by convention**: nothing in `api/` issues an UPDATE or a
+DELETE against it, and `withAudit` only ever inserts. That is a weaker guarantee than the one
+this document promised, and repairing it means revoking live privileges on a security record -
+its own deliberate change, not a footnote to another one. Until then the honest wording is the
+one above. **Any new table making this claim must assert it the way `0028` does.**
 
 ## 6. Known limits, stated rather than papered over
 
@@ -409,7 +427,7 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0024_admin_overview` | `admin_overview_window(from, to)`, `admin_overview_state()`, `admin_overview_mix(from, to)` - read-only aggregation for §8, off the REST surface; plus the two indexes they need (`funnel_events (user_id, event)`, `render_jobs (created_at)`) |
 | `0026_overview_outcome_metrics` | corrects the three outcome/cost aggregates `0024` got wrong: `renders_failed` stops counting `expired`, `renders_completed` becomes `renders_delivered` (`complete` OR `expired`, since `complete` is transient), `ai_failures` narrows to `failed` with the refusals split out into `ai_declined`, and `ai_cost_usd` sums only rows that recorded a model so a reservation ceiling is never reported as spend. DROP-and-CREATE, since the column set changes - so it re-asserts the revokes and the grant the DROP discarded |
 | `0027_internal_activity_scope` | `user_accounts.internal`, `admin_scope()` (raises on an unknown scope), `admin_internal_user_ids()`, and all three `admin_overview_*` functions re-created with a REQUIRED `p_scope`. Its self-check asserts that external + internal PARTITION all, against the live tables |
-| `0028_user_feedback` | `public.user_feedback` - beta notes and generation ratings, the one table allowed to hold user-authored free text. Server-write-only like `funnel_events`; no DELETE grant for any role; its self-check proves the message bound and the reason allowlist actually bite |
+| `0028_user_feedback` | `public.user_feedback` - beta notes and generation ratings, the one table allowed to hold user-authored free text. Server-write-only like `funnel_events`; DELETE and TRUNCATE explicitly REVOKED from `service_role` (a grant-only line does not withhold anything on this platform - see §5); its self-check proves the lockdown, the message bound and the reason allowlist all actually bite, and it refused to apply until they did |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
