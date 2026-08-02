@@ -551,6 +551,17 @@ of it but a different one nobody asked for. `liteContract.ts` already treats an 
 as normal - it is a tie-breaker applied only after brief, intent and chassis fit - so nothing
 downstream changes and no generation can fail for want of one.
 
+**Measured after applying it, and it corrects the framing above: the loop was LATENT, not
+active.** Zero rows were ever prior-eligible. A generation only becomes one at
+`status = 'accepted'` or `rejection_reason = 'user_discarded'`, and those are written when a
+person creates a project from a result or explicitly throws it away - neither of which a
+benchmark run does. All 73 rows sat at `usable`, `failed` or `unsupported`, so the prompt was
+being fed nothing before `0032` and is being fed nothing after it. What the migration actually
+buys is that the FIRST accepted internal generation does not silently start steering the
+prompt. It prevents rather than cures, and the distinction is worth keeping straight: an
+earlier draft of this section implied the generator was already leaning on our discards, which
+the data does not support.
+
 It uses the same `user_accounts.internal` predicate as the scope above, so the dashboard and the
 generator cannot disagree about who counts as ours. The `internalPriorRows` figure stays on the
 page: it is now the answer to "how much evidence is being correctly withheld" rather than a
