@@ -21,13 +21,23 @@
 // CONTENT-FREE, like every other admin surface: counts, ids, enumerated slugs and money. No
 // prompt, brief, project name, template body, imported asset or free-text feedback can reach
 // this response - the ledgers it reads deliberately cannot hold any (docs/FUNNEL_EVENTS.md,
-// src/ai/AGENTS.md).
+// src/ai/AGENTS.md). Free text a user deliberately WROTE has its own table and its own
+// section (`user_feedback`, migration 0028); it never joins these aggregates.
+//
+// IT COUNTS OTHER PEOPLE BY DEFAULT. `?scope=` picks external (the default), internal or all
+// (migration 0027). Without it every number on this instance was a number about its own
+// operator: all 43 Lite generations, 92 of 93 gateway calls, every render and four of six
+// creates were produced while building and testing the product. The scope is echoed back so
+// the page can say which one it is showing - a filtered total that does not announce itself is
+// worse than an unfiltered one.
 
 import { json, methodGuard } from '../http.js';
 import { requireAdmin, adminDb } from '../adminAuth.js';
 import { liteProfile } from '../aiLiteProfile.js';
 import { reportTimezone, reportingPeriods, type Period } from './periods.js';
+import { readScope } from './scope.js';
 import type {
+  AdminActivityScope,
   AdminLedgerId,
   AdminOverviewMetrics,
   AdminOverviewMixEntry,
@@ -141,10 +151,16 @@ type Db = Awaited<ReturnType<typeof adminDb>>;
 
 /** One window, or null when the aggregation could not be read. Deliberately not throwing:
  *  a comparison span that fails must cost the comparison, not the whole dashboard. */
-async function readWindow(db: Db, from: Date, to: Date): Promise<AdminOverviewMetrics | null> {
+async function readWindow(
+  db: Db,
+  from: Date,
+  to: Date,
+  scope: AdminActivityScope,
+): Promise<AdminOverviewMetrics | null> {
   const { data, error } = await db.rpc('admin_overview_window', {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
+    p_scope: scope,
   });
   if (error || !data) return null;
   const row = (Array.isArray(data) ? data[0] : data) as WindowRow | undefined;
@@ -161,6 +177,7 @@ export default {
     const now = new Date();
     const timezone = reportTimezone();
     const periods = reportingPeriods(now, timezone);
+    const scope = readScope(req);
 
     const db = await adminDb();
 
@@ -170,8 +187,8 @@ export default {
     const windowReads = await Promise.all(
       periods.map(async (period: Period) => {
         const [current, previous] = await Promise.all([
-          readWindow(db, period.from, period.to),
-          readWindow(db, period.previousFrom, period.previousTo),
+          readWindow(db, period.from, period.to, scope),
+          readWindow(db, period.previousFrom, period.previousTo, scope),
         ]);
         return { period, current, previous };
       }),
@@ -181,13 +198,14 @@ export default {
     // over the Lite ledger alone (ai_lite_usage, migration 0010) - and not as the calendar day
     // beside it. They differ by hours and by which ledger counts, and a bar drawn against a
     // ceiling that is enforced on a different number is worse than no bar.
-    const rolling24h = await readWindow(db, new Date(now.getTime() - 86_400_000), now);
+    const rolling24h = await readWindow(db, new Date(now.getTime() - 86_400_000), now, scope);
 
     const [stateResult, mixResult] = await Promise.all([
-      db.rpc('admin_overview_state'),
+      db.rpc('admin_overview_state', { p_scope: scope }),
       db.rpc('admin_overview_mix', {
         p_from: (periods.filter((period) => period.id === 'month')[0] ?? periods[0]).from.toISOString(),
         p_to: now.toISOString(),
+        p_scope: scope,
       }),
     ]);
 
@@ -200,6 +218,7 @@ export default {
           totalAccounts: count(stateRow.total_accounts),
           suspendedAccounts: count(stateRow.suspended_accounts),
           accountsNeverCreated: count(stateRow.accounts_never_created),
+          internalAccounts: count(stateRow.internal_accounts),
           activeGrants: count(stateRow.active_grants),
           grantsExpiringSoon: count(stateRow.grants_expiring_soon),
           rendersInFlight: count(stateRow.renders_in_flight),
@@ -269,6 +288,11 @@ export default {
       : null;
 
     const response: AdminOverviewResponse = {
+      scope,
+      // Read off the state row, which reports it unfiltered on purpose - and defaults to zero
+      // when the aggregation is missing, which is the same answer as "nothing is marked". Both
+      // mean the filter is showing everything, and the page says so either way.
+      internalAccounts: state?.internalAccounts ?? 0,
       timezone,
       generatedAt: now.toISOString(),
       windows,

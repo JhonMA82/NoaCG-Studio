@@ -2,14 +2,15 @@ import { bearerToken, json, methodGuard, readJson } from '../http.js';
 import { verifyUser } from '../auth.js';
 import { liteError } from '../aiLiteHttp.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
+import { LITE_DISCARD_REASONS } from '../../../src/feedback/contract.js';
 import type { LiteOutcomeRequest, LiteOutcomeResponse } from '../../../src/ai/liteTypes.js';
 
 const ID = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i;
 const RULE = /^[a-z0-9][a-z0-9_.:-]{0,79}$/i;
-const DISCARD_REASONS = new Set([
-  'regenerated', 'closed', 'wrong-style', 'hard-to-read',
-  'missing-information', 'wrong-layout', 'poor-motion', 'other',
-]);
+// The SAME list the browser type and migration 0011's CHECK constraint express, imported
+// rather than repeated. Three copies of one enumeration is how a value ends up accepted here
+// and refused by the database.
+const DISCARD_REASONS = new Set<string>(LITE_DISCARD_REASONS);
 
 function validate(value: unknown): LiteOutcomeRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('object');

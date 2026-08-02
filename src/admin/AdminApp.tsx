@@ -17,6 +17,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { AdminUnavailable, adminFetch } from './client';
 import { NotFound } from './NotFound';
 import { AuditSection } from './sections/AuditSection';
+import { FeedbackSection } from './sections/FeedbackSection';
 import { ModelsSection } from './sections/ModelsSection';
 import { OverviewSection } from './sections/OverviewSection';
 import { PlansSection } from './sections/PlansSection';
@@ -42,6 +43,7 @@ const SECTIONS: AdminSection[] = [
   { id: 'plans', label: 'Plans', render: (session) => <PlansSection session={session} /> },
   { id: 'usage', label: 'Usage and cost', render: () => <UsageSection /> },
   { id: 'quality', label: 'Output quality', render: () => <QualitySection /> },
+  { id: 'feedback', label: 'Feedback', render: (session) => <FeedbackSection canTriage={session.role !== 'support'} /> },
   { id: 'models', label: 'Models', render: () => <ModelsSection /> },
   { id: 'system', label: 'System', render: (session) => <SystemSection session={session} /> },
   { id: 'templates', label: 'Templates', render: (session) => <TemplatesSection session={session} /> },

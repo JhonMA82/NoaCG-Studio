@@ -124,6 +124,7 @@ test('each admin section renders behind a stubbed session', async ({ page }) => 
     'Plans',
     'Usage and cost',
     'Output quality',
+    'Feedback',
     'Models',
     'System',
     'Templates',
@@ -283,6 +284,8 @@ function overviewWindow(id: string, overrides: Record<string, unknown> = {}) {
 
 function overviewBody(overrides: Record<string, unknown> = {}) {
   return {
+    scope: 'external',
+    internalAccounts: 2,
     timezone: 'Europe/Helsinki',
     generatedAt: '2026-07-31T06:15:00Z',
     windows: [overviewWindow('day'), overviewWindow('week'), overviewWindow('month')],
@@ -290,6 +293,7 @@ function overviewBody(overrides: Record<string, unknown> = {}) {
       totalAccounts: 40,
       suspendedAccounts: 1,
       accountsNeverCreated: 24,
+      internalAccounts: 2,
       activeGrants: 3,
       grantsExpiringSoon: 2,
       rendersInFlight: 1,
@@ -878,4 +882,143 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await expect(drawn).toContainText('NoaCG Pro concept');
   await expect(drawn).not.toContainText('primary');
   await expect(page.locator('tr[data-model="vendor/quiet"]')).not.toContainText('NoaCG Pro');
+});
+
+// ── the internal-account scope ───────────────────────────────────────────────────────────
+//
+// The filter's whole risk is silence. A dashboard that quietly excludes some of its rows and
+// does not say so is more misleading than one that excludes nothing, so what these pin is not
+// the arithmetic (migration 0027's own self-check asserts that against the live tables) but
+// that the page ANNOUNCES what it is showing and what it cannot reach.
+
+test('a scoped usage section says which scope it is showing, and what that scope misses', async ({ page }) => {
+  await stubOverview(page, overviewBody());
+  await page.goto('/admin');
+
+  const scope = page.getByTestId('admin-scope');
+  await expect(scope).toBeVisible();
+  // External is the default and is stated in words, not just as a pressed button.
+  await expect(scope).toContainText('Accounts marked internal');
+  await expect(scope).toContainText('2 accounts are marked internal');
+  // The honest limit rides with it: the funnel identifies a BROWSER, so signed-out
+  // development traffic cannot be told from a stranger's and stays counted as external.
+  await expect(scope).toContainText('upper bound');
+
+  // Switching scope re-reads the endpoint with the new value rather than filtering in place -
+  // the counting happens in SQL and a client-side filter would be a second, disagreeing answer.
+  const asked: string[] = [];
+  await page.route('**/api/admin/overview*', (route) => {
+    asked.push(new URL(route.request().url()).searchParams.get('scope') ?? '');
+    return route.fulfill({ json: overviewBody({ scope: 'internal' }) });
+  });
+  await page.getByTestId('admin-scope-internal').click();
+  await expect.poll(() => asked).toContain('internal');
+});
+
+test('a scope that excludes nothing says so, rather than implying a filter is working', async ({ page }) => {
+  // Zero marked accounts is the state every instance starts in, and it is exactly when a
+  // confident "showing other people" would be a lie.
+  await stubOverview(page, overviewBody({ internalAccounts: 0 }));
+  await page.goto('/admin');
+  await expect(page.getByTestId('admin-scope')).toContainText('this filter is currently doing nothing');
+});
+
+// ── the feedback inbox ───────────────────────────────────────────────────────────────────
+
+const FEEDBACK_ITEM = {
+  id: '11111111-1111-4111-8111-111111111111',
+  kind: 'generation',
+  sentiment: 'negative',
+  reasons: ['hard-to-read'],
+  message: 'The second line was cut off on the right.',
+  userId: null,
+  email: '',
+  internal: false,
+  visitorId: '22222222-2222-4222-8222-222222222222',
+  area: 'wizard',
+  generationId: '33333333-3333-4333-8333-333333333333',
+  tier: 'lite',
+  model: 'google/gemini-2.5-flash-lite',
+  variantId: 'ltc01',
+  intentKind: 'person',
+  promptVersion: 'lite-lower-third-v3',
+  status: 'new',
+  adminNote: '',
+  reviewedAt: null,
+  createdAt: '2026-08-02T09:00:00Z',
+};
+
+function feedbackBody(overrides: Record<string, unknown> = {}) {
+  return {
+    scope: 'external',
+    internalAccounts: 1,
+    days: 90,
+    items: [FEEDBACK_ITEM],
+    totals: {
+      all: 1, positive: 0, negative: 1, unresolved: 1,
+      withMessage: 1, generationRatings: 1, betaNotes: 0,
+    },
+    reasons: [{ reason: 'hard-to-read', count: 1 }],
+    byModel: [{ key: 'google/gemini-2.5-flash-lite', positive: 0, negative: 1, total: 1 }],
+    byTier: [{ key: 'lite', positive: 0, negative: 1, total: 1 }],
+    byVariant: [{ key: 'ltc01', positive: 0, negative: 1, total: 1 }],
+    byArea: [{ key: 'wizard', positive: 0, negative: 1, total: 1 }],
+    truncated: false,
+    ...overrides,
+  };
+}
+
+test('the feedback inbox shows the words and enough context to reproduce them', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/feedback*', (route) => route.fulfill({ json: feedbackBody() }));
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Feedback', exact: true }).click();
+
+  const item = page.getByTestId('feedback-item');
+  await expect(item).toContainText('The second line was cut off on the right.');
+  // The investigation context an operator actually needs: which model, which chassis, which
+  // prompt version. All server-derived - the browser is never told the model.
+  await expect(item).toContainText('google/gemini-2.5-flash-lite');
+  await expect(item).toContainText('ltc01');
+  await expect(item).toContainText('lite-lower-third-v3');
+  // And the things that must never be here.
+  const body = (await page.locator('.admin-content').innerText()).toLowerCase();
+  for (const forbidden of ['prompt:', 'brief', '<div', 'data:image']) {
+    expect(body, `the inbox must not carry ${forbidden}`).not.toContain(forbidden);
+  }
+});
+
+test('the feedback section refuses to rank models, and says why', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/feedback*', (route) => route.fulfill({ json: feedbackBody() }));
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Feedback', exact: true }).click();
+
+  // The same rule the Models section holds: user feedback is operational evidence, and only a
+  // NoaCG benchmark can establish quality. A per-model complaint count next to no such
+  // sentence would read as a league table.
+  await expect(page.locator('.admin-note').first()).toContainText('evidence, not a verdict');
+  await expect(page.locator('.admin-content')).toContainText('NoaCG benchmarks');
+  const text = await page.locator('.admin-content').innerText();
+  expect(text.toLowerCase()).not.toContain('recommended');
+});
+
+test('a satisfaction percentage is withheld until there are enough ratings to mean one', async ({ page }) => {
+  await page.route('**/api/admin/session', (route) =>
+    route.fulfill({ json: { email: 'owner@example.com', role: 'owner' } }),
+  );
+  await page.route('**/api/admin/feedback*', (route) => route.fulfill({ json: feedbackBody() }));
+
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Feedback', exact: true }).click();
+  // One rating is not 0% satisfaction, it is one person - and a page that says 0% invites a
+  // decision nobody has the evidence for.
+  await expect(page.getByTestId('feedback-satisfaction')).toContainText('too few to put a number on');
+  await expect(page.getByTestId('feedback-satisfaction')).not.toContainText('0%');
 });

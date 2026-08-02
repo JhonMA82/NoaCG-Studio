@@ -92,7 +92,7 @@ export async function listUsers(query: string): Promise<{ users: AdminUserSummar
   const db = await adminDb();
   const [dir, states, assignments, admins] = await Promise.all([
     directory(),
-    db.from('user_accounts').select('user_id, state'),
+    db.from('user_accounts').select('user_id, state, internal'),
     db.from('user_plans').select('user_id, expires_at, plans!inner(name)'),
     db.from('admin_users').select('user_id, role'),
   ]);
@@ -101,6 +101,9 @@ export async function listUsers(query: string): Promise<{ users: AdminUserSummar
   const ledger = await ledgerSince(since);
 
   const stateOf = new Map((states.data ?? []).map((row) => [row.user_id as string, row.state as string]));
+  // The internal mark rides the same read as the account state - it lives on the same row, and
+  // a second query for one boolean would be a second thing to keep in step.
+  const internalOf = new Set((states.data ?? []).filter((row) => row.internal).map((row) => row.user_id as string));
   const planOf = new Map<string, string>();
   for (const row of (assignments.data ?? []) as { user_id: string; expires_at: string | null; plans: { name: string } | { name: string }[] }[]) {
     if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) continue; // an expired assignment is none
@@ -124,6 +127,7 @@ export async function listUsers(query: string): Promise<{ users: AdminUserSummar
     .map<AdminUserSummary>((user) => ({
       ...user,
       state: stateOf.get(user.id) === 'suspended' ? 'suspended' : 'active',
+      internal: internalOf.has(user.id),
       planName: planOf.get(user.id) ?? 'Default',
       isAdmin: roleOf.get(user.id) ?? null,
       aiGenerations30d: counts.get(user.id)?.n ?? 0,
@@ -245,7 +249,7 @@ export async function getUserDetail(userId: string): Promise<AdminUserDetail | n
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  const stateRow = await db.from('user_accounts').select('state').eq('user_id', userId).maybeSingle();
+  const stateRow = await db.from('user_accounts').select('state, internal').eq('user_id', userId).maybeSingle();
   const assignment = await db.from('user_plans').select('expires_at').eq('user_id', userId).maybeSingle();
   access.planExpiresAt = assignment.data?.expires_at ?? null;
 
@@ -257,6 +261,7 @@ export async function getUserDetail(userId: string): Promise<AdminUserDetail | n
       lastSignInAt: found.user.last_sign_in_at ?? null,
       pendingInvite: Boolean(found.user.invited_at) && !found.user.last_sign_in_at,
       state: stateRow.data?.state === 'suspended' ? 'suspended' : 'active',
+      internal: Boolean(stateRow.data?.internal),
       planName: entitlement.planName,
       isAdmin: (role.data?.role as AdminRole | undefined) ?? null,
       aiGenerations30d: usage.aiGenerations30d,

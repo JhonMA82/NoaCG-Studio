@@ -398,7 +398,10 @@ export const openRouterAdapter: ProviderAdapter = {
               data_collection: policy.openRouter.dataCollection,
               require_parameters: policy.openRouter.requireParameters,
               allow_fallbacks: policy.openRouter.allowProviderFallbacks,
-              only: policy.openRouter.only,
+              // Omitted, not sent empty: `only: []` reads to OpenRouter as "no endpoint is
+              // permitted" and would refuse every route, where a surface with no allowlist
+              // means "any endpoint the other directives already narrowed to".
+              ...(policy.openRouter.only?.length ? { only: policy.openRouter.only } : {}),
               max_price: {
                 prompt: policy.openRouter.maxInputPerMillion,
                 completion: policy.openRouter.maxOutputPerMillion,
@@ -682,12 +685,28 @@ export interface GatewayDependencies {
   sleep?: (ms: number) => Promise<void>;
 }
 
+/**
+ * The routing directives a MANAGED call sends to OpenRouter.
+ *
+ * The two privacy-bearing fields stay pinned to one value each, because a policy that can
+ * ask for data collection or silently fall back off the ZDR endpoint is not a privacy policy:
+ * `dataCollection` is always 'deny', and `allowProviderFallbacks` is always false so a route
+ * whose ZDR endpoint is down FAILS rather than being served by one that retains prompts.
+ *
+ * The two selection fields are per-surface, because they are about which endpoint answers
+ * rather than what it may keep. `only` is an endpoint allowlist a surface may not have -
+ * absent, OpenRouter picks within whatever the other directives already narrowed it to.
+ * `requireParameters` filters to endpoints advertising every parameter in the request, which
+ * is right for a structured-output text call and wrong for an image one: `modalities` is not
+ * a listed provider parameter, so requiring parameters on an image request narrows the set to
+ * nothing (docs/MODEL_ROUTE_AUDITS.md).
+ */
 export interface OpenRouterRoutingPolicy {
   zdr: boolean;
   dataCollection: 'deny';
-  requireParameters: true;
+  requireParameters: boolean;
   allowProviderFallbacks: false;
-  only: string[];
+  only?: string[];
   maxInputPerMillion: number;
   maxOutputPerMillion: number;
   structuredOutputMode?: 'json-schema' | 'tool';

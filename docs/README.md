@@ -36,7 +36,8 @@ Layers of documentation, top to bottom:
 | `TIMELINE_INTERACTION_MODEL.md` | The editing surfaces' interaction contract (selection, keyframes, playhead, what NoaCG deliberately does not copy from NLEs). |
 | `IMPORT_MVP.md` | The Import Graphic flow: the structure contract, fit modes, Prepare/erase, 9-slice stretch. Shipped; doubles as the domain record. |
 | `RENDER.md` | The render service: manifest kinds, virtual clock, tiers, security posture, deploy checklist. |
-| `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, migrations 0017+. |
+| `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, the internal-account usage scope, the beta feedback inbox, migrations 0017+. |
+| `MODEL_ROUTE_AUDITS.md` | The register of hand-performed audits behind `APPROVED_MODEL_CATALOG` - how a ZDR audit is done, and one section per audited route. A `zdrAvailable: true` entry with nothing here is an unbacked privacy claim. |
 | `EXPORT_TARGETS_RESEARCH.md` | Where exports run: shipped targets + the doctrine for adding one. |
 | `FORMATTING.md` | What Prettier may and may not touch, and why. |
 | `DEV_PORTS.md` | Per-worktree dev-port reservation. |

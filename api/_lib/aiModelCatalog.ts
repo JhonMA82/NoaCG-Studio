@@ -26,6 +26,17 @@ export interface ApprovedModelCapabilities {
 
 export interface ApprovedModelEntry {
   route: ModelRoute;
+  /**
+   * What the route PRODUCES, and unlike `openWeights` this one IS a gate.
+   *
+   * The catalog began as the free tier's menu, so every entry was a text model and the
+   * invariants could assume it: a registered task's route must decode structured output, and
+   * an approved route missing from the text listing is an outage. Cataloguing the Pro concept
+   * route (an image model) breaks both assumptions - it will never decode structured output
+   * and will never appear in the text listing - so the kind is declared rather than inferred.
+   * `approvedTextRoute()` is what keeps an image route from being pointed at a Lite task.
+   */
+  outputs: 'text' | 'image';
   /** Promotion-time preference metadata - never a per-request gate (plan §15.1). */
   openWeights: boolean;
   capabilities: ApprovedModelCapabilities;
@@ -38,6 +49,7 @@ export interface ApprovedModelEntry {
 export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   {
     route: { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
+    outputs: 'text',
     openWeights: false,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
     price: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
@@ -46,14 +58,21 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   },
   {
     route: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+    outputs: 'text',
     openWeights: false,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
     price: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
     zdrAvailable: true,
-    notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b).',
+    notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b), and the NoaCG Pro '
+      + 'INTERPRET route (PRO_STANDARD_ROUTES.interpret). Re-audited 2026-08-02 for the second '
+      + 'use: the zdrAvailable flag was established for the judge, where aiLiteProfile sends the '
+      + 'routing policy, and Pro reached the same model through the unpolicied generic gateway. '
+      + 'proSurfacePolicy() closes that; the ZDR (Google) endpoint carries structured_outputs, '
+      + 'which the interpret call needs and the judge already relied on.',
   },
   {
     route: { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: false, coding: true, structuredOutput: true, contextWindow: 262_144 },
     price: { inputPerMillion: 0.11, outputPerMillion: 0.80 },
@@ -61,7 +80,26 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     notes: 'Lite design-spec fallback; open-weight coding candidate for the code benches.',
   },
   {
+    route: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+    outputs: 'image',
+    openWeights: false,
+    // structuredOutput describes the endpoint ZDR ROUTING SELECTS, not the default listing.
+    // This model has two endpoints; only Google (Vertex) is ZDR-servable, and that one
+    // advertises `response_format` without `structured_outputs`. The concept call asks for an
+    // image and requests no structured output, so nothing here depends on it - but recording
+    // the other endpoint's capability would describe a route we never take.
+    capabilities: { vision: true, coding: false, structuredOutput: false, contextWindow: 131_072 },
+    price: { inputPerMillion: 0.50, outputPerMillion: 3.00 },
+    zdrAvailable: true,
+    notes: 'NoaCG Pro concept route (PRO_STANDARD_ROUTES.concept). Audited 2026-08-02, '
+      + 'docs/MODEL_ROUTE_AUDITS.md: ZDR-servable on the Google (Vertex) endpoint only, which '
+      + 'proSurfacePolicy() now pins by sending zdr + deny on every managed Pro call. The '
+      + 'image-output side is $60/M output image tokens and is measured against NO ceiling - '
+      + 'none has been decided for image work (docs/ADMIN.md §9).',
+  },
+  {
     route: { provider: 'openrouter', model: 'mistralai/mistral-small-2603' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.15, outputPerMillion: 0.60 },
@@ -70,6 +108,7 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   },
   {
     route: { provider: 'openrouter', model: 'mistralai/mistral-small-24b-instruct-2501' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 32_768 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.08 },
@@ -86,6 +125,7 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   // docs/AI_LITE_PROMOTION.md - drop any candidate that loses its bench round.
   {
     route: { provider: 'openrouter', model: 'google/gemma-3-12b-it' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.15 },
@@ -94,6 +134,7 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   },
   {
     route: { provider: 'openrouter', model: 'openai/gpt-oss-20b' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.03, outputPerMillion: 0.14 },
@@ -102,6 +143,7 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   },
   {
     route: { provider: 'openrouter', model: 'qwen/qwen3-30b-a3b-instruct-2507' },
+    outputs: 'text',
     openWeights: true,
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
@@ -138,6 +180,21 @@ export function approvedModelRoute(route: ModelRoute): boolean {
   return byRouteKey.has(modelRouteKey(route));
 }
 
+/** Approved AND a text model. Every registered task in the registry sends a text request and
+ *  reads a structured answer, so pointing one at the Pro concept route would fail on the first
+ *  call - approval alone stopped being a sufficient check the moment the catalog held an image
+ *  entry. The registry's fail-closed gate uses this rather than `approvedModelRoute`. */
+export function approvedTextRoute(route: ModelRoute): boolean {
+  return byRouteKey.get(modelRouteKey(route))?.outputs === 'text';
+}
+
+/** The audited catalog restricted to text routes - what the funded-route checklist and the
+ *  "approved but no longer listed" outage check are about. Both read the TEXT listing, so an
+ *  image entry measured against either would report a permanent false alarm. */
+export function approvedTextCatalog(): readonly ApprovedModelEntry[] {
+  return APPROVED_MODEL_CATALOG.filter((entry) => entry.outputs === 'text');
+}
+
 // Decision 5 (plan §15): WHO PAYS DECIDES THE ROUTE. Free hosted surfaces are funded by
 // the project, not the user, so a route NoaCG pays for must be cheap and reachable
 // through the OpenRouter adapter - which is why no entry above names OpenAI or Anthropic
@@ -169,6 +226,10 @@ export function fundedRoutePrice(price: ModelPrice): boolean {
 export function fundedModelRoute(route: ModelRoute, price?: ModelPrice | null): boolean {
   const entry = approvedModelEntry(route);
   if (!entry) return false;
+  // An image route's cost is dominated by `image_output`, which this ceiling does not measure
+  // and for which no ceiling has been decided (docs/ADMIN.md §9). Answering "yes, funded" off
+  // the text sides alone would clear a route on a rule that misses most of its bill.
+  if (entry.outputs !== 'text') return false;
   if (entry.route.provider !== FUNDED_ROUTE_PROVIDER) return false;
   return fundedRoutePrice(price ?? entry.price);
 }

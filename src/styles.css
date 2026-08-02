@@ -4300,3 +4300,37 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   font-size: 13px;
 }
 .system-notice button:hover { color: var(--text); background: transparent; }
+
+/* ---------- Feedback (beta notes + generation ratings) ---------- */
+/* Quiet by construction. Both surfaces are optional and one click deep, so nothing here
+   competes with the product: no accent fill on a resting control, no badge, no motion. The
+   amber accent means ON AIR (BRAND-MANUAL.md) and a feedback prompt is the last thing that
+   should borrow it - the selected states below reuse the shell's own `button.active`, which
+   is a tint rather than a fill, instead of inventing a second highlight. */
+.fb-open { font-size: 12px; padding: 4px 9px; opacity: 0.72; }
+.fb-open:hover { opacity: 1; }
+
+/* The inline rating under an AI result: a hairline above it and nothing else. It is the last
+   thing on the card and must read as an aside, not as a step. */
+.fb-inline {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.fb-question { margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
+.fb-choice { display: flex; gap: 8px; flex-wrap: wrap; }
+.fb-pick { font-size: 13px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; }
+.fb-ack { margin: 8px 0 0; font-size: 13px; color: var(--text-dim); }
+.fb-why { margin-top: 8px; }
+.fb-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fb-reason { font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+.fb-message { font-size: 13px; }
+.fb-send { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.fb-send .hint { flex: 1; min-width: 220px; margin: 0; }
+
+/* The beta sheet borrows .wz-modal's frame and sizes to its content, the way the packet
+   manager and Settings do - it is a short form, not a workspace. */
+.wz-modal.fb-modal { width: min(560px, 94vw); height: auto; max-height: min(720px, 90vh); }
+.fb-body { padding: 14px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.fb-body .hint { margin: 0; }
+.fb-privacy { border-top: 1px solid var(--border); padding-top: 10px; }
