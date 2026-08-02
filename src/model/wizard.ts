@@ -249,7 +249,7 @@ export interface WizardOptions {
   fontId?: string;
   /** A user-imported font (embedded as an asset) — takes precedence over fontId. */
   customFont?: CustomFont;
-  /** Whole-graphic size multiplier written as --scale (S 0.85 · M 1 · L 1.2). */
+  /** Whole-graphic size multiplier written as --scale (S 0.8 · M 1 · L 1.25 — StyleStep's SIZES). */
   sizeScale?: number;
   /** Text-only size multiplier written as --type-scale (S 0.9 · M 1 · L 1.15). */
   typeScale?: number;
