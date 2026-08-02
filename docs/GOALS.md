@@ -1176,6 +1176,35 @@ control-page export absorbed, not duplicated.
       type floor, overflow baseline, capacity bench and reviewed contact sheets cover the
       information-system packages as coherent families.
 
+### Cloud playout — the Browser Output platform (2026-08-02, binding: docs/CLOUD_PLAYOUT.md)
+
+The year-long direction: from a graphic-creation tool to a browser-based broadcast graphics
+PLATFORM (the Singular.live-class workflow), while every offline/portable export stays
+first-class. Stages are direction, not a calendar; each is independently shippable.
+
+- [ ] **Stage 1 — Browser Output MVP (the current push)**: Productions as a top-level area
+      (cue rundown over the Show record), ONE persistent transparent output URL
+      (`/output?production=<slug>`, a 4th MPA entry) loadable in CasparCG/OBS/vMix, the
+      operator workflow (local preview / Take / Update / Next / Out, live status, staged
+      edits) on the production page and the phone-capable hosted control page — all over the
+      EXISTING hosted-control log (0008; migration 0029 adds the output capability, pinned
+      publish payload, cue status rows, log pruning). Preview and program are structurally
+      separate; reconnect restores on-air state (data half, then snap).
+- [ ] **Stage 2 — Production workflow + reliability**: multiple layers (z-order over the
+      per-graphic instances), rehearsal vs show modes, published/draft versions + rollback,
+      renderer health surfaced properly (multi-renderer awareness), operator access +
+      sharing, logs/diagnostics, per-caller rate caps, the `control_events` anon-read
+      narrowing (needs a v2 receiver generation + deprecation window), stronger
+      SPX/CasparCG integration docs.
+- [ ] **Stage 3 — the NoaCG Data Hub**: server-side connectors writing `update` rows into
+      the SAME command log (one ingress, renderer stays dumb), normalized field schemas +
+      visual mapping, credentials server-side only, caching + freshness + last-known-good,
+      manual override/freeze as connector gates. First experiments: a published-CSV sheet
+      driving a ticker; one real stock-data provider through the backend.
+- [ ] **Stage 4 — professional automation**: real-time streams, sports/timing providers, the
+      local NoaCG Bridge (venue networks), public API/SDK, Companion/Stream Deck, webhooks,
+      synchronized redundant renderers + failover, data replay/simulation.
+
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate
 - [x] Playwright E2E for core UI flows

@@ -259,6 +259,16 @@ window.addEventListener('unhandledrejection', function (ev) {
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       report(window);
+    } else if (msg.cmd === 'snap') {
+      // Recovery semantics (docs/CLOUD_PLAYOUT.md §3): the output renderer restores a live
+      // graphic's pose instantly — timers arm unless the sender says otherwise, exactly like
+      // the exported receivers' noacgSnap path.
+      try {
+        window.noacgSnap && window.noacgSnap(
+          msg.assignments || null,
+          msg.timers === false ? { timers: false } : undefined
+        );
+      } catch (e) {}
     } else if (msg.cmd === 'state') {
       try {
         var s = window.noacgMachineState ? window.noacgMachineState() : null;

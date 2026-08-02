@@ -8,7 +8,8 @@ organized, reopened, and controlled. It supersedes the packet-embedded storage m
 
 ```text
 User
-├── Package  (model/packets.ts Packet — a folder: show, production, or collection)
+├── Package  (model/packets.ts Packet — a folder for related graphics; a PRODUCTION is
+│             the separate live unit, model/shows.ts — docs/CLOUD_PLAYOUT.md)
 │   └── Graphic … (by reference: GraphicDoc.packageId)
 ├── Unassigned Graphic  (GraphicDoc with packageId: null)
 │   └── Control panel + entries (ControlEntry[] ON the graphic)
@@ -26,7 +27,8 @@ User
   packet is rewritten with `graphics: []` + `version: 2`. The migration is convergent —
   re-running it is a no-op — and an old build reading a v2 packet sees an empty-but-valid
   packet while the graphics stay safe under the key it never reads.
-- **Shows** (`model/shows.ts`) are unchanged: the rundown/control aggregation unit.
+- **Shows** (`model/shows.ts`) are the PRODUCTION unit (user-facing word: production): the
+  graphic pool + the cue rundown + the published capability slugs — docs/CLOUD_PLAYOUT.md §2.
 - A graphic belongs to AT MOST one package (`packageId`), so "move to package" is one
   record write and package contents are a filter, never a second list to keep in sync.
 

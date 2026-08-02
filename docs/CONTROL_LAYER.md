@@ -1,5 +1,9 @@
 # The Control Layer (Phase 5)
 
+> **Cloud playout builds ON this layer**: the persistent browser-output URL, the cue rundown,
+> and the production surfaces are a thin consumer of the same log and RPCs — see
+> **`docs/CLOUD_PLAYOUT.md`** (migration 0029) before extending anything here.
+
 How operators drive graphics. Control pages are GENERATED FROM THE STATE MACHINE
 (docs/STATE_MACHINE_SCHEMA.md): every operator-triggered transition becomes a button, every
 data field an input — per template, from one generator, with no per-template code. This doc

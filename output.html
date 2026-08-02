@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The browser-output RENDERER (docs/CLOUD_PLAYOUT.md §3): a transparent full-frame page a
+         production client (CasparCG HTML producer, OBS/vMix browser source) loads once and keeps
+         loaded. Reached only by its capability URL (?production=<output_slug>); the head stays
+         deliberately quiet (the /admin pattern) — nothing here should read like a page worth
+         indexing or previewing. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- Chromium paints an iframe opaque when parent and child color-schemes disagree; every
+         composed srcdoc declares dark, so the renderer page must too or the stage goes white. -->
+    <meta name="color-scheme" content="dark" />
+    <title>Output</title>
+    <style>
+      /* Transparent by construction — the page IS the broadcast key layer. */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="/src/output/main.ts"></script>
+  </body>
+</html>

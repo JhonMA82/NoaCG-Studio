@@ -51,11 +51,13 @@ troubleshooting a stuck server). `.claude/launch.json` and `.claude/dev-port.jso
 from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
 everything. `npm run test:ports` covers the allocator.
 
-**Three pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
+**Four pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
 shim so old root `?chat=`/`?template=` share links land on `/app` with their query); `app.html` is
 the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
 in production); `admin.html` is the PRIVATE admin surface at `/admin` - unlinked from everything,
-`noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**).
+`noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**);
+`output.html` is the browser-output RENDERER at `/output?production=<slug>` - the transparent
+capability-URL page a production client (CasparCG/OBS/vMix) loads once (**`docs/CLOUD_PLAYOUT.md`**).
 E2E specs navigate to `/app`.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
@@ -147,7 +149,8 @@ src/
   model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, packets;
                library.ts (the GRAPHICS LIBRARY - docs/SAVED_CONTENT_MODEL.md: GraphicDoc
                stable-id records + control ENTRIES + the packet v1->v2 migration; sync kind
-               'graphic', supabase migration 0009); shows.ts (the RUNDOWN unit -
+               'graphic', supabase migration 0009); shows.ts (the PRODUCTION unit - the graphic
+               pool + the CUE rundown + both hosted capability slugs, docs/CLOUD_PLAYOUT.md +
                docs/CONTROL_LAYER.md); structure.ts (element identity) + fieldModel.ts (the
                FieldDescriptor contract)
   templates/ * the wizard catalog: shared assemblers + 21 categories (11 core + frames = chrome
@@ -200,10 +203,14 @@ src/
                Usage sections count OTHER PEOPLE by default: the ScopePicker's external /
                internal / all scope excludes accounts marked internal (migration 0027), and
                says on the page which scope is showing and what it cannot reach
+  output/      the browser-output RENDERER (its own MPA entry at /output) - one persistent
+               transparent capability URL per production for CasparCG/OBS/vMix; follows the
+               hosted-control log with boot recovery + tail-fill (docs/CLOUD_PLAYOUT.md)
   components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
                timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
                (SaveControls + the save/guard dialogs), home/ (the routed HomePage +
-               GraphicControlPage - packages, entries, per-graphic operator panel), and
+               GraphicControlPage + ProductionPage - packages, entries, per-graphic operator
+               panel, and the production cockpit: cues, links, publish, the operator verbs), and
                video/ (the PARALLEL video shell, topbar Graphics/Home escape hatches)
 public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports); src/assets/ has
                the bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source -
