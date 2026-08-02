@@ -17,7 +17,8 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
     −0.01em (big text tightens). The upper half of the range (65–92 px) is flagship-show
     territory — talk shows, entertainment — measured from real broadcast packages (ratified
     2026-08-02, docs/SPX_EXAMPLES_CORPUS.md); news-style straps stay in the lower half.
-  - **Title / role line:** 22–30 px, weight 400–500, line-height 1.2–1.35.
+  - **Title / role line:** 22–46 px, weight 400–500, line-height 1.2–1.35 — the top half
+    exists only to keep the name:title ratio when the name runs flagship-size.
   - **Kicker / label** (small caps line like "LIVE" or a category): 16–22 px, weight 600–700,
     `text-transform: uppercase`, letter-spacing **0.08–0.2em** (small caps breathe).
 - Size ratio between name and title ≈ **1.8–2.2 : 1**. Closer than 1.5:1 looks indecisive.
@@ -98,7 +99,8 @@ The animation **is** the taste. Rules:
     settles smoothly. Back Out (`back.out(1.4–1.8)`) is the pick for snappy pop-ins with a small
     overshoot.
   - **Exits (out):** prefer **Ease In** (`power2.in` / `power3.in`) — the object starts naturally
-    and exits quickly. Exits run **30–40 % faster than entrances**.
+    and exits quickly. Exits run **30–60 % faster than entrances** (the slower the entrance,
+    the bigger the gap — production packages pair 1.4 s entrances with ~0.5 s exits).
   - **Bounce and Elastic are playful options only** — offered in the picker, never defaults.
   - **Linear is never a default** — reserve it for continuous motion: tickers, timers,
     progress bars, seamless loops.
