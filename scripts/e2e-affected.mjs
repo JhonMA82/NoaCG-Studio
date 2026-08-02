@@ -123,10 +123,15 @@ const CORE = [
 // measured on the 2026-07-31 merge of claude/ai-benchmark-harness-routing, where it was the
 // only unmapped file and cost a 619-spec run plus the catalog gate to prove nothing.
 //
+// `benchmarks/corpus-eval/` is the visual eval set's CURATION (docs/SPX_EXAMPLES_CORPUS.md
+// workstream 4): pairings and written observations, read only by scripts/spx-eval-set.mjs,
+// which is local-only and already ignored above. It ships no code and no spec loads it -
+// unlike benchmarks/creative/, whose brief bank creative-routing.spec.ts really does read.
+//
 // Add to this list only for a file that genuinely cannot change what a spec sees. The script's
 // safety comes from failing TOWARD running more (an unmapped path escalates), so a wrong entry
 // here silently runs FEWER specs - the one failure mode with no alarm attached.
-const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
+const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
