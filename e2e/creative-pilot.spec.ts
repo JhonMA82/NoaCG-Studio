@@ -826,6 +826,10 @@ test.describe('creative pilot (phase C)', () => {
         // earlier version accepted any class starting with the prefix, so a red dot in a
         // corner silently disabled this floor for the designs most likely to need it.
         decorativeOnly: legibilityFloor(`${root}.creative-guide { background: #ff0000; }`, 'creative'),
+        // …and the same fault through a PSEUDO-ELEMENT on a scaffold class. The accent motif is
+        // `.creative-box::before`, which is beside the words rather than under them; it briefly
+        // disabled this floor and shipped unreadable brown-on-navy with an edge bar.
+        accentPseudo: legibilityFloor(`${root}.creative-box::before { background: var(--accent); }`, 'creative'),
       };
     });
 
@@ -834,6 +838,7 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.clearRgba).toContain('background: var(--panel-bg)');
     expect(report.noPanel).toContain('text-shadow');                        // the fallback
     expect(report.decorativeOnly).toContain('background: var(--panel-bg)'); // decoration != surface
+    expect(report.accentPseudo).toContain('background: var(--panel-bg)');   // …nor is an accent
     // The mutation twins: a design that already solved it is left completely alone.
     expect(report.painted).toBe('');
     expect(report.region).toBe('');

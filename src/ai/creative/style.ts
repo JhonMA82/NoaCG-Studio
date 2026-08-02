@@ -361,6 +361,14 @@ function paintsBackdrop(css: string, prefix: string): boolean {
     // `.creative-scrim`) gets a panel painted over it: a second surface, still readable. The
     // cost of being loose is text on live video. This pilot has now twice shipped a fault that
     // was invisible rather than ugly, so it errs toward painting.
+    // A PSEUDO-ELEMENT IS A DECORATION, NOT A SURFACE. `.creative-box::before` is the accent
+    // motif - a bar down the edge or a rule under the words - and it sits on a scaffold class,
+    // so the check above waves it through as proof that something is painted behind the text.
+    // It is not: the accent is beside the words, not under them. Caught the hard way, and it is
+    // the same fault as the decorative-class one directly below, reintroduced by the accent
+    // feature itself - a graphic with an edge bar and no panel rendered unreadable brown on
+    // navy while this function reported a reading surface.
+    if (/::?(before|after)\b/.test(selector)) return body;
     const scaffoldSurface = new RegExp(
       `\\.${prefix}(?![a-zA-Z0-9_-])|\\.${prefix}-(box|r-[a-z0-9-]+|rows|row|cell(-\\d+)?|t)(?![a-zA-Z0-9_-])`,
     );
