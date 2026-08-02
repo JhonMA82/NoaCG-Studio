@@ -154,11 +154,18 @@ export async function analyzeReferences(
   const raw = (call.output ?? {}) as { readings?: unknown };
   const list = Array.isArray(raw.readings) ? raw.readings : [];
   const readings: ReferenceReading[] = [];
+  const claimed = new Set<number>();
   for (const item of list.slice(0, refs.length)) {
     const r = (item ?? {}) as Record<string, unknown>;
     const index = Number(r.index);
     // An emit that numbers an attachment we did not send describes nothing we have.
     if (!Number.isFinite(index) || index < 1 || index > refs.length) continue;
+    // …and one that numbers the same attachment twice would file the SECOND reading under
+    // the first's purpose, which is the one way a reference actively harms a result: a plate
+    // described as a mood board becomes a palette to copy instead of a background to survive.
+    // First claim wins; the duplicate is dropped rather than re-purposed.
+    if (claimed.has(index)) continue;
+    claimed.add(index);
     const reading = typeof r.reading === 'string' ? r.reading.trim() : '';
     if (!reading) continue;
     readings.push({

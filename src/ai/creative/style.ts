@@ -352,10 +352,19 @@ function paintsBackdrop(css: string, prefix: string): boolean {
   let found = false;
   eachRule(css, (selector, body) => {
     if (found) return body;
-    // The root, the box, or a region - the elements a reading surface could sit on. A cell or
-    // a text span painting its own background is a chip, not a plate, but it still counts:
-    // it is a surface those words are read against.
-    if (!new RegExp(`\\.${prefix}(-box|-r-|-rows|-row|-cell|-t|\\b)`).test(selector)) return body;
+    // ONLY the scaffold's own elements - the ones the text demonstrably sits inside. An
+    // earlier version accepted any class starting with the prefix, which meant a decorative
+    // `.creative-guide` painting a red dot in a corner counted as a reading surface and
+    // silently disabled this floor for the designs most likely to need it.
+    //
+    // The cost of being strict is a design whose INVENTED backdrop class (a full-bleed
+    // `.creative-scrim`) gets a panel painted over it: a second surface, still readable. The
+    // cost of being loose is text on live video. This pilot has now twice shipped a fault that
+    // was invisible rather than ugly, so it errs toward painting.
+    const scaffoldSurface = new RegExp(
+      `\\.${prefix}(?![a-zA-Z0-9_-])|\\.${prefix}-(box|r-[a-z0-9-]+|rows|row|cell(-\\d+)?|t)(?![a-zA-Z0-9_-])`,
+    );
+    if (!scaffoldSurface.test(selector)) return body;
     for (const m of body.matchAll(/(?:^|;)\s*background(?:-color|-image)?\s*:\s*([^;]+)/gi)) {
       if (PAINTS(m[1])) { found = true; break; }
     }

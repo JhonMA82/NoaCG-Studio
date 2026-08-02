@@ -376,7 +376,38 @@ nothing to correct it against. Over the archived specs: lower thirds 24/30 claim
 0, versus 49/49 (correcting two that had denied it). It lives beside the anchor table for that
 table's own reason - the router and the satisfaction check must not hold two answers.
 
-**Three things about a CREATE result are the platform's floor, because a model got each of
+**Stage 3 READS THE USER'S REFERENCES** (`creative/references.ts`, plan §7; wired 2026-08-02,
+benchmarks/creative/v1/REFERENCES-2026-08-02.md). Four briefs in the bank had said "the attached
+mood board" / "plate attached" since it was written and every round sent nothing.
+
+- **The reading REPLACES the picture, it does not accompany it.** The designing stages are text
+  models by choice - that is what makes arm C cost a tenth of the control - so one vision call
+  turns every attachment into structured words and the raw image blocks are dropped. Sending
+  both is not redundancy but a FAILED REQUEST: a text route rejects a message carrying an image
+  rather than ignoring it, which killed every reference brief on this stage's first run.
+- **The purpose decides what may be said** (model/imagePurpose.ts): `mood` gives colour and
+  texture and explicitly no arrangement, `layout` gives arrangement and no artwork, `plate` is
+  what the graphic must survive and is never drawn. Each keeps its own heading in the prompt -
+  a flat list is how a plate gets read as a mood board, and a duplicated attachment claim is
+  dropped rather than filed under another's purpose.
+- **Arm A does not get references** and the bench says so wherever its numbers are: the frozen
+  control cannot consume a picture on a text route, so a reference brief compares a pipeline
+  that can see against one that cannot.
+- Fixtures are SYNTHESISED (`scripts/creative-reference-fixtures.mjs`), not collected. Real
+  broadcast graphics belong to whoever made them, and a mood board carries no composition - a
+  real design used as one would smuggle a layout in and make the experiment unreadable.
+
+**A CREATE result must be readable against SOMETHING - a surface, or its own halo, never
+neither** (`style.ts legibilityFloor`). The scaffold published `--panel-bg` as a variable and
+nothing ever painted it, so a contract that correctly said dark ink on cream paper rendered the
+ink onto live video. The floor is a disjunction, not "always paint a panel": a panel-less design
+is real (the catalog's `clean` skin carries none and buys legibility with a halo), so the
+platform supplies one only when the design supplied neither. It applies to the BARE SCAFFOLD
+too, which is what ships whenever the gate refuses a patch. Only the scaffold's own elements
+count as a surface - accepting any prefixed class let a decorative dot disable the floor for
+the designs most likely to need it, so it errs toward painting.
+
+**Three more things about a CREATE result are the platform's floor, because a model got each of
 them wrong at scale** (the 2026-08-01 pass, benchmarks/creative/v1/PASS-2026-08-01.md):
 
 - **Every declared field reaches the screen.** Fields bind to regions through the spec's

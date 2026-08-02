@@ -822,6 +822,10 @@ test.describe('creative pilot (phase C)', () => {
         clearRgba: legibilityFloor(`${root}.creative-box { background: rgba(0,0,0,0); }`, 'creative'),
         // No panel colour declared at all: the words carry themselves instead.
         noPanel: legibilityFloor('.creative-box { display: flex; }', 'creative'),
+        // A DECORATION painting somewhere far from the words is not a reading surface. An
+        // earlier version accepted any class starting with the prefix, so a red dot in a
+        // corner silently disabled this floor for the designs most likely to need it.
+        decorativeOnly: legibilityFloor(`${root}.creative-guide { background: #ff0000; }`, 'creative'),
       };
     });
 
@@ -829,10 +833,36 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.transparentOnly).toContain('background: var(--panel-bg)'); // the real case
     expect(report.clearRgba).toContain('background: var(--panel-bg)');
     expect(report.noPanel).toContain('text-shadow');                        // the fallback
+    expect(report.decorativeOnly).toContain('background: var(--panel-bg)'); // decoration != surface
     // The mutation twins: a design that already solved it is left completely alone.
     expect(report.painted).toBe('');
     expect(report.region).toBe('');
     expect(report.haloed).toBe('');
+  });
+
+  test('a reference reading cannot be filed under another attachment\'s purpose', async ({ page }) => {
+    await open(page);
+    // The one way a reference actively HARMS a result: a plate described as a mood board stops
+    // being a background to survive and becomes a palette to copy. The purpose comes from the
+    // attachment the reading claims, so a duplicated claim would file the second reading under
+    // the first's purpose.
+    const out = await page.evaluate(async () => {
+      const { referenceBlock } = await import('/src/ai/creative/references.ts');
+      // A mood reading and a plate reading must never end up under one heading.
+      const mixed = referenceBlock({
+        version: 1,
+        readings: [
+          { index: 1, use: 'mood', reading: 'Warm ochres.' },
+          { index: 2, use: 'plate', reading: 'Hot key light upper centre.' },
+        ],
+      });
+      const moodSection = mixed.slice(mixed.indexOf('The look'), mixed.indexOf('stay readable OVER'));
+      return { mixed, moodSection };
+    });
+    expect(out.mixed).toContain('Warm ochres.');
+    expect(out.mixed).toContain('Hot key light upper centre.');
+    // The plate's words never appear under the "follow this" heading.
+    expect(out.moodSection).not.toContain('Hot key light');
   });
 
   test('the safe-area clamp lands after the design and caps the box', async ({ page }) => {
