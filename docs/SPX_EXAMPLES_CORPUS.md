@@ -114,6 +114,24 @@ HMC/Musiikkitalo, and older webcg-era packs):
   and a line-height fix that was clipping descenders. Character encoding, contrast, and
   clipping are what actually break on air.
 
+### Production deltas vs our DESIGN_LANGUAGE guardrails (owner decision pending)
+
+Where the measured corpus disagrees with `docs/DESIGN_LANGUAGE.md` - evidence for a taste
+review, NOT applied to the guardrails or the creative knowledge cards (those numbers are
+bound to DESIGN_LANGUAGE, and the creative benchmark consuming the cards must not have its
+candidate changed mid-experiment):
+
+- **Strap name size:** we prescribe 44-64 px at 1080p; Yle/elemento production runs
+  72-92 px. Production straps are markedly bigger than ours.
+- **Entrance duration:** we prescribe 0.5-0.9 s total; production runs 0.5-2.0 s, with
+  1.0-1.4 s common on premium packs. Exits agree (ours 30-40% faster; production is often
+  ~50% faster - direction confirmed, magnitude even stronger).
+- **Staggers:** we prescribe 60-150 ms; production uses 50-400 ms (200/400/700 ms ladders
+  in elemento). Ours sit at the tight end.
+- **Confirmed as-is:** opacity always linear and separate from movement; clip-path
+  `inset()` as the reveal primitive; OUT always faster than IN; empty fields collapse
+  their boxes.
+
 ## How we use it (the plan)
 
 There is no model fine-tuning here - the harness learns through prompts, deterministic
