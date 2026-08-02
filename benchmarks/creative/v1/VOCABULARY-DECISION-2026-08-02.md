@@ -110,31 +110,75 @@ pure relationship, and the numbers already exist in DESIGN_LANGUAGE §8's family
 
 ---
 
-## 4. Recommendation
+## 4. Recommendation - SUPERSEDED by the falsification round
 
-**Take option C**, and rule that a parameterized primitive answering *how much* is a
-machine-readable constraint under §4, while anything answering *what goes where* is not.
+**What this section originally said:** take option C, and falsify it cheaply first - one paid
+round, lower thirds, arm C with a hand-written vocabulary, roughly $0.10.
 
-**Falsify it cheaply before committing the 3-5 days.** One paid round, lower thirds only, arm C
-with a hand-written vocabulary against arm C without - roughly $0.10 and one review pass. If
-frames with a parameterized panel, accent and rhythm are not visibly better, the hypothesis is
-wrong and no amount of extraction will save it.
+**The round ran (2026-08-02, $0.109) and the hypothesis did not survive it.**
 
-**Stated plainly: two confident predictions in this line of work were wrong** - loosening the
-critique acceptance rule (no measured benefit, ROUND-2026-08-02.md) and declaring clamping
-finished as a strategy (four of the six fault groups turned out clampable). The vocabulary
-argument is better evidenced than either, being the reviewer's own list of faults, but it is
-still a hypothesis and the cheap test above should run before the expensive work.
+### The model did not make proportion decisions. It pinned to the clamp bounds.
+
+Four numbers were exposed on the spec - panel air, line rhythm, accent kind, accent weight -
+each a multiple of the primary type size, each with a tool description written to give the model
+a way to JUDGE a value rather than a number to copy, and each defaulting to a neutral middle
+rather than the catalog's numbers. Across eight briefs:
+
+| value | what the model chose |
+|---|---|
+| `panelPad` | **0.15 (the clamp minimum) ×4, 1.4 (the maximum) ×3**, 0.63 ×1 |
+| `lineRhythm` | **0.9 (the maximum) ×5**, 0.6, 0.62, 0.024 |
+| `accentWeight` | **0.35 (the maximum) ×6** |
+
+Those are not chosen values. They are what the normalizer produces when an emit is out of range
+or nonsense - the CLAMP decided, not the model. Given a vocabulary for proportion, it reached
+for the extremes of every parameter.
+
+The frames agree: `lt-three-line` renders ONE LETTER PER LINE running off the right edge, the
+maximum padding having squeezed the box to a sliver. Engineering validity fell from 63% to 38%.
+
+### What this does and does not settle
+
+**Settles:** proportion offered to the model AS A SPEC FIELD does not work. The knowledge was
+made expressible and the model did not have it. No amount of extracting `pack4/skin.ts` changes
+that, because extraction only makes the same parameters prettier to set.
+
+**Does not settle:** the other mechanism, which this round did not test - proportion derived by
+the PLATFORM from the graphic's own content (line count, longest string, category), the way the
+type ladder already works. That is the one platform-owned design decision in this pilot that has
+demonstrably held, and it asks the model for nothing.
+
+### Revised recommendation
+
+**Rule NO on the model-facing vocabulary** - options B and C as written are both answers to a
+question the evidence has now closed.
+
+**Treat platform-derived proportion as a separate and cheaper question.** It sidesteps §4
+entirely: nothing catalog-shaped reaches CREATE, because the platform computes the air from the
+content in front of it. Free to build, ~$0.10 to measure, and the type ladder is the precedent.
+
+**Track record, stated because it should weigh on how much this brief is trusted:** three
+confident predictions in this line of work have now failed measurement - loosening the critique
+acceptance rule (no measured benefit), declaring clamping finished as a strategy (four of six
+fault groups turned out clampable), and this vocabulary. The falsification round cost $0.11 and
+saved 3-5 days; that ratio is the argument for running the cheap test every time, not for
+trusting the next recommendation more.
 
 ---
 
 ## 5. What the ruling needs to say
 
-1. **Is a parameterized primitive a "machine-readable constraint" under §4?** Yes / no.
-2. If yes: **option B or C** - four looks cheaply, or a parameterized vocabulary properly.
-3. **Does the cheap falsification round run first?** Recommended yes.
+**Question 3 is answered** - the falsification round ran and is recorded above. The remaining
+ruling is narrower than when this brief was written:
 
-A "no" on (1) is a coherent position and closes the question: CREATE then stays a blank-stylesheet
-generator, and the product answer for quality becomes ADAPT plus the user's own reference. That
-should be recorded as a decision rather than left as a gap, because it makes the pilot's
-remaining §11 criteria unreachable and the plan should say so.
+1. **Is the model-facing vocabulary closed?** Recommended yes - it was tested and failed.
+2. **Does platform-derived proportion get built and measured?** Free to build, ~$0.10 to
+   measure. It asks the model for nothing, so §4 does not bear on it.
+3. **If that also fails, is CREATE's quality answer ADAPT plus the user's own reference?** That
+   is a coherent product position, and it should be recorded as a decision rather than left as
+   a gap - it makes several §11 criteria unreachable and the plan should say so.
+
+The original §4 question - whether a parameterized primitive counts as a machine-readable
+constraint - **no longer needs answering to make progress.** Both remaining paths avoid it: one
+asks the model for nothing, and the other abandons generation-side quality altogether. It is
+worth recording if the vocabulary idea is ever revived, but it is not blocking anything today.
