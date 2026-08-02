@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const migrationUrl = new URL('../supabase/migrations/0010_ai_generations.sql', import.meta.url);
@@ -68,4 +68,52 @@ test('Lite quality priors store only non-content facets and stay server-only', (
     /having count\(\*\) >= case when p_min_samples > 4 then p_min_samples else 4 end/i,
   );
   assert.doesNotMatch(qualitySql, /pg_catalog\.greatest/i);
+});
+
+// ── the priors the prompt is fed come from OTHER PEOPLE (0031) ───────────────────────────
+//
+// `ai_lite_variant_quality()` feeds the Lite system prompt a chassis tie-breaker. Until 0031 it
+// aggregated every generation in the ledger, and on this instance every one of them was ours:
+// 43 from a throwaway test account plus 30 from the fallback bench, not a single user opinion.
+// The product was tie-breaking on its own developer's discards, and every bench round made that
+// signal stronger.
+//
+// The filter is the LAST definition of the function that counts, so this reads whichever
+// migration defines it most recently rather than naming 0031 - a later redefinition that drops
+// the predicate has to fail here, which is the whole point of pinning it.
+const variantQualityDefiners = (await readdir(new URL('../supabase/migrations/', import.meta.url)))
+  .filter((file) => file.endsWith('.sql'))
+  .sort();
+
+test('the Lite chassis priors exclude internal accounts, in whichever migration defines them last', async () => {
+  let latest = null;
+  for (const file of variantQualityDefiners) {
+    const body = await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8');
+    if (/create or replace function public\.ai_lite_variant_quality/i.test(body)) latest = { file, body };
+  }
+  assert.ok(latest, 'no migration defines ai_lite_variant_quality');
+
+  // The same predicate the admin scope uses (0027), so the dashboard and the generator can
+  // never disagree about who counts as ours.
+  assert.match(
+    latest.body,
+    /not exists\s*\(\s*select 1 from public\.user_accounts[\s\S]{0,200}?\.internal/i,
+    `${latest.file} defines the priors without excluding internal accounts`,
+  );
+  // ai_generations.user_id is NOT NULL, so the exclusion is exact and needs no anonymous branch.
+  // Comments stripped first: this migration EXPLAINS why it stays security invoker, and the
+  // write-up naming the thing must not read as the thing - the same trap 0020s test records
+  // for RESET ROLE. Caught by this assertion firing on its own explanation.
+  const code = latest.body.replace(/--[^\n]*/g, '');
+  assert.doesNotMatch(code, /security definer/i, `${latest.file} must stay security invoker`);
+  assert.match(
+    latest.body,
+    /grant execute on function public\.ai_lite_variant_quality\(timestamptz, integer\)[\s\S]+to service_role/i,
+  );
+  // And it must assert the property, not merely implement it - the lesson 0030 recorded.
+  assert.match(
+    latest.body,
+    /raise exception[^;]*no external account contributed/i,
+    `${latest.file} does not assert that every returned pair has an external contributor`,
+  );
 });

@@ -136,32 +136,33 @@ export function QualitySection() {
           rows={data.priors}
           empty={`No design has reached ${data.priorMinSamples} samples yet, so the prompt is being fed nothing.`}
         />
-        {/* THIS TABLE IGNORES THE SCOPE, and it has to. It is literally the rows the generator is
-            being handed, so showing a filtered version would describe a prompt that does not
-            exist. What the scope CAN honestly say is how much of that evidence is our own
-            testing - reported here rather than acted on, because excluding internal accounts
-            from `ai_lite_variant_quality()` would change how the product generates, which is a
-            deliberate decision and not a dashboard setting. */}
+        {/* THIS TABLE IGNORES THE SCOPE CONTROL, and it has to: it is literally the rows the
+            generator is handed, so showing a filtered copy would describe a prompt that does not
+            exist. Internal accounts are nonetheless absent from it, because migration 0031
+            excludes them inside `ai_lite_variant_quality()` itself - at the source, not on the
+            way to this page. The count below is therefore how much evidence is being correctly
+            withheld from the prompt, which is a different statement from "this table is filtered". */}
         <p className="admin-note">
           <strong>Not filtered by the scope above</strong> — these are the rows the prompt actually
-          receives, and a filtered copy would describe a prompt nobody is running.
+          receives, and a filtered copy would describe a prompt nobody is running. Internal
+          accounts are excluded at the source instead (migration <code>0031</code>): the loop
+          exists to learn what <em>users</em> keep, and our own regenerating is not that.
           {data.priorRows === 0 ? (
             <> Nothing in this window is eligible to become a prior yet.</>
           ) : data.internalPriorRows === data.priorRows ? (
             <>
               {' '}
               <strong>
-                Every one of the {data.priorRows} eligible outcomes in this window came from an
-                internal account
+                All {data.priorRows} eligible outcomes in this window came from internal accounts
               </strong>
-              , so any prior that crosses the floor is the generator learning from our own testing
-              rather than from anyone using the product.
+              , so the prompt is currently fed nothing — which is the correct answer, not a fault.
+              It is a tie-breaker; with no user data yet there is no tie to break.
             </>
           ) : (
             <>
               {' '}
               {data.internalPriorRows} of {data.priorRows} eligible outcomes in this window came from
-              internal accounts.
+              internal accounts and are excluded from what the prompt sees.
             </>
           )}
         </p>
