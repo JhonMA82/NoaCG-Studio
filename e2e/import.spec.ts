@@ -37,6 +37,9 @@ const FOREIGN_HTML = `<!DOCTYPE html>
     function stop() { document.getElementById('bug').style.opacity = '0'; }
     function next() {}
   </script>
+  <!-- Module scripts only parse as modules: the importer must leave them in the HTML,
+       never strip them into the classic JS pane (the HKO-lineage corpus shape). -->
+  <script type="module">export {};</script>
 </body>
 </html>`;
 
@@ -70,6 +73,8 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
   expect(tpl.js).toContain('function play()');             // script moved to the JS pane
   expect(tpl.html).toContain('SPXGCTemplateDefinition');   // definition stays in the HTML
   expect(tpl.html).not.toContain('function play()');
+  expect(tpl.html).toContain('type="module"');             // module script stays in the HTML
+  expect(tpl.js).not.toContain('export {}');               // ...never in the classic JS pane
   expect(tpl.fields).toEqual(['f0']);
 
   // Landed on Export with the inline validation — this one is already valid.
