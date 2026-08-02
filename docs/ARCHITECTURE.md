@@ -48,6 +48,7 @@ thin `CLAUDE.md` import.
 | 3 app | `app/` | hash router | `router` |
 | 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
 | 3 app | `admin/` | the PRIVATE admin page: its own MPA entry (`admin.html` -> `/admin`), the wire types, the authorized fetch client (docs/ADMIN.md) | (top of the graph - nothing imports these) |
+| 3 app | `output/` | the browser-output RENDERER: its own MPA entry (`output.html` -> `/output`), a capability URL loaded by CasparCG/OBS/vMix (docs/CLOUD_PLAYOUT.md) | (top of the graph - nothing imports these) |
 
 ## 3. Allowed edges (the ratchet)
 
@@ -74,6 +75,9 @@ here and not in §6 are wrong - fix the code, not the table.
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
   from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control
+- `output` -> control, preview, backend (the renderer follows the hosted-control log through
+  `control/hostedControl`, composes each published graphic through `preview/composeDocument`,
+  and feature-detects the backend; it reads no store, no components, no templates)
 - `app` -> (nothing)
 - `components` -> any lower domain, **through its seam column in §2**
 

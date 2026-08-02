@@ -70,17 +70,18 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   // choices this step leads with. Open it to reach the knobs (see components/CLAUDE.md).
   await page.locator('.wz-style-more summary').click();
   // Graphic size L scales the WHOLE graphic (the --scale contract), not just the text.
+  // 1.25 / 1.2 are StyleStep's SIZES/TYPE_SIZES ladders (widened with the corpus review).
   await page.locator('.panel-section', { hasText: 'Graphic size' }).getByRole('button', { name: 'L', exact: true }).click();
-  await expect.poll(() => previewVar(page, '--scale')).toBe('1.2');
+  await expect.poll(() => previewVar(page, '--scale')).toBe('1.25');
   // Text size L scales ONLY the type (the --type-scale contract): the name line's
   // font grows while the graphic's --scale stays where the size knob put it.
   const fontPx = () =>
     preview(page).locator('#f0').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   const before = await fontPx();
   await page.locator('.panel-section', { hasText: 'Text size' }).getByRole('button', { name: 'L', exact: true }).click();
-  await expect.poll(() => previewVar(page, '--type-scale')).toBe('1.15');
-  expect(await fontPx()).toBeCloseTo(before * 1.15, 0);
-  await expect.poll(() => previewVar(page, '--scale')).toBe('1.2');
+  await expect.poll(() => previewVar(page, '--type-scale')).toBe('1.2');
+  expect(await fontPx()).toBeCloseTo(before * 1.2, 0);
+  await expect.poll(() => previewVar(page, '--scale')).toBe('1.25');
   await expect.poll(() => rootOpacity(page)).toBe('1');
 });
 

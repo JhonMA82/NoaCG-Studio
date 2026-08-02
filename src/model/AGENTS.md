@@ -100,9 +100,13 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 - **packets.ts** - PACKAGES (v2: folders over the library - graphics point back via
   packageId; the legacy `graphics` array stays a real empty array so older builds never
   crash) + brand looks 'spx-gfx-looks' + captureLookFromTemplate/applyLookToTemplate.
-- **shows.ts** - the RUNDOWN unit (docs/CONTROL_LAYER.md): an ORDERED set of graphics that run
-  together, one aggregated control page. Packet conventions ('spx-gfx-shows', updatedAt LWW,
-  tombstones), sync kind 'show'; `hostedSlug` records the published control page's capability.
+- **shows.ts** - the PRODUCTION unit (docs/CLOUD_PLAYOUT.md + docs/CONTROL_LAYER.md; the UI word
+  is "production", the old "rundown"): the graphic POOL (ordered, name-keyed, one renderer
+  instance each) plus the CUE rundown (`cues` - additive optional data rows over the pool, many
+  cues per graphic; a pool replace KEEPS the entry id so cues never orphan). Packet conventions
+  ('spx-gfx-shows', updatedAt LWW, tombstones), sync kind 'show'; `hostedSlug` (control page) +
+  `outputSlug` (browser output) record the published capabilities, `publishedAt` the pin point -
+  all three stripped from sync conflict copies.
 - **easings.ts** - the easing catalog; the doctrine is in src/templates/AGENTS.md +
   DESIGN_LANGUAGE §4.
 - **defaultTemplate.ts** - the fallback template.

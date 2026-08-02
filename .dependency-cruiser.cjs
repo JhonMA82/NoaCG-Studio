@@ -163,6 +163,16 @@ module.exports = {
       to: { path: '^src/(backend|control)/' },
     },
     {
+      comment:
+        '§3: output -> control, preview, backend. The browser-output renderer ' +
+        '(docs/CLOUD_PLAYOUT.md §3) is its own MPA entry: it resolves and follows the ' +
+        'hosted-control log through control/hostedControl, composes each published graphic ' +
+        'through preview/composeDocument, and feature-detects the backend. It reads no ' +
+        'store, no components, no templates - the published payload is its whole world.',
+      from: { path: '^src/output/' },
+      to: { path: '^src/(control|preview|backend)/' },
+    },
+    {
       comment: '§3: components may import any lower domain (through its seam - review-time)',
       from: { path: '^src/components/' },
       to: { path: '^src/' },

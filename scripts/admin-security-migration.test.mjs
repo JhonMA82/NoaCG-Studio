@@ -486,3 +486,75 @@ test('0026 corrects the render states rather than re-stating the bug', () => {
 function escapeForRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+// ── append-only is a REVOKE, never a comment ─────────────────────────────────────────────
+//
+// Not hypothetical: `0017` headed its table `admin_audit_log: append-only by PRIVILEGE, not by
+// convention` and wrote `grant select, insert ... to service_role` underneath it. That reads
+// like a restriction and is not one - Supabase configures `alter default privileges in schema
+// public grant all on tables to service_role`, so the table was created holding DELETE, UPDATE
+// and TRUNCATE, and a narrower grant adds nothing on top of privileges already there. Measured
+// on production thirteen migrations later, all three were still granted. `0030` is the repair.
+//
+// THE OBLIGATION IS SET-WIDE, not per-migration: one migration may make the claim and a later
+// one deliver it, which is exactly what 0017 and 0030 do. Requiring the claiming migration to
+// carry its own revoke would mean rewriting applied history to satisfy a test.
+//
+// SCOPED TO SERVICE-ROLE TABLES, because that is the only class where the defect can exist. A
+// table whose writes are gated by RLS can be append-only with its grants left wide -
+// `control_events` (0008) is exactly that: RLS on, a single SELECT-only policy, writes only
+// through SECURITY DEFINER RPCs, so no client can rewrite the command log whatever the table
+// grants say. This test flagged it on an earlier draft and that was a FALSE POSITIVE. A table
+// handed to `service_role` has no such backstop - the service key bypasses RLS, so there the
+// grant IS the gate.
+test('every table called append-only is one service_role cannot rewrite', () => {
+  // A claim binds to the table named ON ITS OWN LINE. Prose that mentions the concept without
+  // naming a table ("an append-only record of what they did") promises nothing checkable, and
+  // a cross-reference to another migration's table is not a claim about this one's.
+  const claimed = new Set();
+  for (const sql of allMigrations.values()) {
+    for (const line of sql.split(/\r?\n/)) {
+      if (!/append-only/i.test(line)) continue;
+      for (const [, table] of line.matchAll(/(?:public\.)?\b([a-z][a-z0-9_]{3,})\b(?=\s*:)/g)) {
+        claimed.add(table);
+      }
+    }
+  }
+  assert.ok(claimed.has('admin_audit_log'), 'expected the audit log to still claim append-only');
+
+  const everything = [...allMigrations.entries()];
+  for (const table of claimed) {
+    // Only binding once some migration hands the table to service_role - see the header.
+    // String.raw, not a plain template literal. `\s` in a template literal is just `s` - the
+    // first draft of this test built `grants+[a-z, ]+?s+ons+table...`, matched nothing, and
+    // therefore PASSED while asserting nothing at all. Only mutation-testing it found that.
+    const handed = everything.some(([, sql]) =>
+      new RegExp(String.raw`grant\s+[a-z, ]+?\s+on\s+table\s+public\.${escapeForRegExp(table)}\s+to\s+service_role`, 'i').test(sql));
+    if (!handed) continue;
+
+    const revoke = new RegExp(
+      String.raw`revoke\s+([a-z, ]+?)\s+on\s+table\s+public\.${escapeForRegExp(table)}\s+from\s+service_role`, 'i');
+    const source = everything.find(([, sql]) => revoke.test(sql));
+    assert.ok(
+      source,
+      `${table} is called append-only and handed to service_role, but no migration revokes `
+      + 'anything from it - a grant-only line withholds nothing against the platform defaults',
+    );
+    const [name, sql] = source;
+    const privileges = sql.match(revoke)[1].toLowerCase();
+    for (const privilege of ['update', 'delete', 'truncate']) {
+      assert.ok(
+        privileges.includes(privilege),
+        `${name} revokes on ${table} but leaves ${privilege} - that is not append-only`,
+      );
+    }
+    // And it must say so to the DATABASE, not only to the reader. A revoke with nothing checking
+    // it is how the original claim survived thirteen migrations: nothing ever looked.
+    assert.match(
+      sql,
+      new RegExp(
+        String.raw`has_table_privilege\([^)]*service_role[^)]*${escapeForRegExp(table)}[^)]*'(update|delete|truncate)'\)`, 'i'),
+      `${name} revokes on ${table} without asserting the result in a DO block`,
+    );
+  }
+});

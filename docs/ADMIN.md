@@ -376,25 +376,37 @@ Every handler is wrapped by `withAdmin(req, minRole)` in `api/_lib/adminAuth.ts`
 structured detail object, an IP hash, and a timestamp. It stays content-free of secrets in the
 same sense as the AI ledgers: no tokens, no passwords, no prompt or template content.
 
-**Correction, 2026-08-02: this section used to claim the log was "append-only by privilege
-rather than by convention", and that claim was false on production.** `0017` writes
-`grant select, insert ... to service_role` and nothing else, which reads like a restriction and
-is not one: Supabase configures `alter default privileges in schema public grant all on tables
-to service_role`, so the table arrived with DELETE, UPDATE and TRUNCATE already granted and a
-narrower grant adds nothing on top. Verified against the live database - `service_role` holds
-all seven privileges on `admin_audit_log` today, and on `funnel_events` for the same reason.
+**It is append-only by privilege**: `0030` revokes `update`, `delete` and `truncate` from
+`service_role`, leaving `insert` and `select`, and asserts all five facts in a `DO` block that
+refuses to apply if any of them is untrue. The table owner can still grant itself back through
+the SQL editor - that keeps a genuine legal erasure request possible while making it an
+out-of-band act somebody has to decide to perform, rather than something an endpoint can do by
+accident.
 
-**"I only granted three privileges" is a different statement from "only three privileges
-exist", and on this platform the second one needs its own REVOKE.** The gap went unnoticed for
-five migrations because nothing asserted it; `0028` found it within a minute of being written,
-because that migration asserts the property in a `DO` block instead of stating it in a comment,
-and refused to apply until `user_feedback` actually withheld DELETE and TRUNCATE.
+**That claim was FALSE from `0017` until `0030`, and the reason is worth carrying forward.**
+`0017` wrote `grant select, insert ... to service_role` and nothing else, which reads like a
+restriction and is not one: Supabase configures `alter default privileges in schema public grant
+all on tables to service_role`, so the table was created holding all seven privileges and a
+narrower grant adds nothing on top of privileges that are already there. Measured on production
+on 2026-08-02, five migrations later: `service_role` held DELETE, UPDATE and TRUNCATE the whole
+time.
 
-So today the audit log is append-only **by convention**: nothing in `api/` issues an UPDATE or a
-DELETE against it, and `withAudit` only ever inserts. That is a weaker guarantee than the one
-this document promised, and repairing it means revoking live privileges on a security record -
-its own deliberate change, not a footnote to another one. Until then the honest wording is the
-one above. **Any new table making this claim must assert it the way `0028` does.**
+**"I only granted two privileges" is a different statement from "only two privileges exist",
+and on this platform the second one needs its own REVOKE.** The gap survived five migrations of
+review because each of them stated the property in a comment. `0028` found the identical defect
+in `user_feedback` within a minute of being written, because it asserted the property in a `DO`
+block instead - the migration refused to apply until the revoke was actually there.
+
+**So: a privilege guarantee is only real if a migration asserts it.** State it in a comment and
+it is a wish. `scripts/admin-security-migration.test.mjs` now fails the build if any migration
+claims append-only for a table without revoking the three write privileges from `service_role`
+and asserting the result.
+
+Two omissions are deliberate rather than pending. **`funnel_events` keeps DELETE**: it takes a
+row per page load, so it is the one ledger that will genuinely need retention pruning, and a
+pruning job needs it - `0016` promises server-*write*-only, which is about who may write, and
+that part is true. **`ai_generations` and `ai_gateway_requests` keep UPDATE**: their rows
+transition through status and cost as a generation runs, and neither claims to be append-only.
 
 ## 6. Known limits, stated rather than papered over
 
@@ -428,6 +440,7 @@ one above. **Any new table making this claim must assert it the way `0028` does.
 | `0026_overview_outcome_metrics` | corrects the three outcome/cost aggregates `0024` got wrong: `renders_failed` stops counting `expired`, `renders_completed` becomes `renders_delivered` (`complete` OR `expired`, since `complete` is transient), `ai_failures` narrows to `failed` with the refusals split out into `ai_declined`, and `ai_cost_usd` sums only rows that recorded a model so a reservation ceiling is never reported as spend. DROP-and-CREATE, since the column set changes - so it re-asserts the revokes and the grant the DROP discarded |
 | `0027_internal_activity_scope` | `user_accounts.internal`, `admin_scope()` (raises on an unknown scope), `admin_internal_user_ids()`, and all three `admin_overview_*` functions re-created with a REQUIRED `p_scope`. Its self-check asserts that external + internal PARTITION all, against the live tables |
 | `0028_user_feedback` | `public.user_feedback` - beta notes and generation ratings, the one table allowed to hold user-authored free text. Server-write-only like `funnel_events`; DELETE and TRUNCATE explicitly REVOKED from `service_role` (a grant-only line does not withhold anything on this platform - see §5); its self-check proves the lockdown, the message bound and the reason allowlist all actually bite, and it refused to apply until they did |
+| `0030_audit_log_append_only` | revokes `update`, `delete` and `truncate` on `admin_audit_log` from `service_role`, making §5's append-only claim true for the first time - it had been false since `0017`, because a grant-only line withholds nothing against Supabase's default privileges. Asserts the result in a `DO` block, including that the log is still insertable and readable, so an over-tightened lockdown cannot ship either |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:

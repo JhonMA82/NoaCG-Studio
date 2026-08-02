@@ -13,6 +13,7 @@
 //   <show>/<graphic>/index.html + css/ js/ images/ fonts/ + controlpanel.html
 
 import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { slug } from './common';
 import { buildStarterInto } from './targets/spxStarter';
 import { renderShowControlPanelHtml } from '../control/controlPanelHtml';
@@ -82,4 +83,12 @@ export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promis
       `\nExtract this folder into your SPX/CasparCG templates directory as-is.\n`,
   );
   return zip;
+}
+
+/** Download the production package under the one filename every surface agrees on — the two
+ *  callers previously named the same zip `_rundown` and `_production`. */
+export async function downloadShowZip(show: Show, opts?: ShowExportOptions): Promise<void> {
+  const zip = await buildShowZip(show, opts);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  saveAs(blob, `${slug(show.name)}_production.zip`);
 }

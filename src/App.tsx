@@ -6,6 +6,7 @@ import HostedControlPage from './components/HostedControlPage';
 import HomePage from './components/home/HomePage';
 import ExportWindow from './components/ExportWindow';
 import GraphicControlPage from './components/home/GraphicControlPage';
+import ProductionPage from './components/home/ProductionPage';
 import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
 import { useRouter } from './app/router';
@@ -111,6 +112,7 @@ export default function App() {
   const surface =
     route.view === 'home' || route.view === 'package' ? <HomePage route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
+    : route.view === 'production' ? <ProductionPage id={route.id} />
     : route.view === 'video' ? <VideoAppShell />
     : route.view === 'graphic' ? <AppShell />
     : kind === 'video' ? <VideoAppShell />

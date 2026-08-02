@@ -613,6 +613,19 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 .hosted-entries button { flex: 0 0 auto; white-space: nowrap; }
 .hosted-entries .hint { margin: 6px 0 0; }
 .hosted-error { color: #e07a5f; font-size: 13px; }
+/* The hosted page's cue rundown (docs/CLOUD_PLAYOUT.md §4): phone-first — the live chip and
+   the takeable rows lead; buttons are operator-sized touch targets. */
+.hosted-cues {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.hosted-cues-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hosted-cues-head h2 { font-size: 14px; margin: 0; }
+.hosted-cues button { min-height: 40px; }
+.hosted-cues .control-entry-label { padding: 6px 4px; }
 
 /* ---------- Category grouping (Essentials / Specials) ---------- */
 .wz-cat-group { margin-bottom: 18px; }
@@ -3855,7 +3868,41 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 }
 .control-entry.active .control-entry-label { color: var(--amber); }
 
+/* ── The PRODUCTION page (#/production/<id>, docs/CLOUD_PLAYOUT.md §4-5). Shares the control
+   page's two-column shell; the main column scrolls (links + preview + verbs + cue editor). ── */
+.control-page-main { min-width: 0; overflow: auto; padding: 14px 16px 30px; }
+.prod-links { margin-bottom: 12px; }
+.prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
+.prod-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.prod-preview { margin: 10px 0; }
+/* The verbs are pressed live, in a hurry, often on touch — operator-sized like the control
+   page's transport. LIVE status reads as status, pushed right. */
+.prod-verbs { align-items: center; gap: 8px; flex-wrap: wrap; }
+.prod-verbs button { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+.prod-verbs button.primary { padding-inline: 20px; font-weight: 600; }
+.prod-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.prod-status.ok { color: #4ade80; }
+/* The cue on air: the one row that must be findable at a glance. */
+.control-entry.live { border-color: rgba(74, 222, 128, 0.6); background: rgba(74, 222, 128, 0.07); }
+.prod-cue-note { font-style: italic; }
+.status-warn { color: var(--amber); font-size: 13px; }
+
 @media (max-width: 900px) {
+  /* The production page stacks into one scrolling column on a phone. */
+  .production-page .control-page-body { display: flex; flex-direction: column; overflow: auto; }
+  .production-page .control-page-main { overflow: visible; }
   /* Rows, not columns — and the nav row is content-sized: without it, grid's default
      align-content stretch inflates both auto rows, blowing the nav up to half the screen. */
   .home-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }

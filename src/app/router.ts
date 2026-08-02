@@ -23,6 +23,7 @@ export type Route =
   | { view: 'package'; id: string }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
+  | { view: 'production'; id: string }
   | { view: 'video' }
   | { view: 'new'; design?: string | null };
 
@@ -37,6 +38,8 @@ export function parseRoute(hash: string): Route {
       return parts[1] ? { view: 'graphic', id: parts[1] } : { view: 'editor' };
     case 'control':
       return parts[1] ? { view: 'control', id: parts[1] } : { view: 'home', section: 'controls' };
+    case 'production':
+      return parts[1] ? { view: 'production', id: parts[1] } : { view: 'home', section: 'productions' };
     case 'video':
       return { view: 'video' };
     case 'new':
@@ -58,6 +61,8 @@ export function routeHash(route: Route): string {
       return `#/graphic/${encodeURIComponent(route.id)}`;
     case 'control':
       return `#/control/${encodeURIComponent(route.id)}`;
+    case 'production':
+      return `#/production/${encodeURIComponent(route.id)}`;
     case 'video':
       return '#/video';
     case 'new':

@@ -32,8 +32,11 @@ export type PreviewCmd =
    *  (branch snap-then-enter, the plain entrance, a Continue step, or the full run-to-out) stays
    *  inside the document — it drives live GSAP timeline objects that can't cross postMessage. */
   | { cmd: 'scrub'; phase: string; time: number; data: string; from?: string }
-  /** Editor snap (PlayoutSimulator's 'snap' control command): jump the machine straight to these
-   *  state assignments, `timers: false` for a design-view park that must never auto-advance. */
+  /** Jump the machine straight to these state assignments. TWO listeners answer it with
+   *  OPPOSITE defaults for an omitted `timers` — the editor simulator parks (timers off,
+   *  simulatorRuntime.ts) while the liveControl script recovers (timers arm,
+   *  composeDocument.ts) — so a sender should always state `timers` explicitly: `false` for a
+   *  design-view park, `true` for renderer recovery (the output stage does). */
   | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean }
   /**
    * The editor's own simulator lifecycle (PlayoutSimulator.tsx), distinct from the plain
