@@ -129,12 +129,16 @@ visual gallery and ruled by the owner:
   `inset()` as the reveal primitive; OUT always faster than IN; empty fields collapse
   their boxes.
 
-The rulings live in DESIGN_LANGUAGE.md itself. The AI prompt stack still carries the OLD
-ranges on purpose - `src/ai/claudeProvider.ts` `coderSystemPrompt` (the FROZEN benchmark
-control, byte-identical until the Creative Mode comparison has run - src/ai/AGENTS.md),
-`src/ai/creative/knowledgeCards.ts` (the candidate that comparison measures), and
-`src/ai/brainstorm.ts` (kept with them so the stack changes once, together). Sync all
-three in one pass after the creative benchmark work lands.
+The rulings live in DESIGN_LANGUAGE.md itself. **The AI prompt stack was synced to them in
+one pass on 2026-08-02**, once the Creative Mode pilot's pairwise round had landed:
+`src/ai/claudeProvider.ts` `coderSystemPrompt` (entrance window and stagger range),
+`src/ai/creative/knowledgeCards.ts` (the strap and card type ranges, the strap/tower/
+full-frame motion numbers), and `src/ai/brainstorm.ts` (the entrance window it steers
+toward). The stack now states the same numbers as DESIGN_LANGUAGE §1 and §4.
+
+That sync ended the coder prompt's benchmark freeze (docs/CREATIVE_MODE_PLAN.md §8), so
+**arm A's numbers from rounds up to and including 2026-08-02 are not comparable with any
+later round** - a re-run has to re-baseline the control rather than reuse them.
 
 ## How we use it (the plan)
 
