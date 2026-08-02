@@ -95,6 +95,13 @@ export type LiveReportMap = Record<
   { data?: Record<string, string>; state?: { groups: Record<string, string> } | null; at?: string }
 >;
 
+/** Which cue is on air — the row-persisted snapshot (0031; null on a pre-0031 server or
+ *  before any take, degrading to "nothing on air" until the next cue row arrives). */
+export interface LiveCueSnapshot {
+  id: string | null;
+  graphic: string | null;
+}
+
 export interface ResolvedControlShow {
   id: string;
   title: string;
@@ -107,6 +114,7 @@ export interface ResolvedControlShow {
   output: OutputPayload | null;
   /** The renderer's last heartbeat — staleness is the "renderer connected" indicator. */
   outputSeenAt: string | null;
+  liveCue: LiveCueSnapshot | null;
 }
 
 /** What the output renderer resolves — payload + live snapshot, never panel/staged/slug. */
@@ -304,7 +312,15 @@ export async function controlShowBySlug(slug: string): Promise<ResolvedControlSh
     lastEventId: Number(row.last_event_id ?? 0),
     output: readOutputPayload(row.output),
     outputSeenAt: (row.output_seen_at as string | null) ?? null,
+    liveCue: readLiveCue(row.live_cue),
   };
+}
+
+/** Normalize the row-persisted cue snapshot (absent on a pre-0031 server → null). */
+function readLiveCue(value: unknown): LiveCueSnapshot | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as { cue?: string | null; graphic?: string | null };
+  return { id: v.cue ?? null, graphic: v.graphic ?? null };
 }
 
 /** Resolve the RENDERER's view by the output capability — payload + live snapshot only. */
@@ -400,20 +416,6 @@ export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void>
     { graphic: liveGraphic, msg: { t: 'stop' } },
     { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
   ]);
-}
-
-/** Which cue is on air right now, recovered from the log's recent tail (the marker rides the
- *  log, not the row). `null` = no cue row in the scanned window. 500 = the tail RPC's cap. */
-export async function recentLiveCue(
-  tail: (afterId: number) => Promise<ControlEventRow[]>,
-  lastEventId: number,
-): Promise<{ id: string | null; graphic: string | null } | null> {
-  const rows = await tail(Math.max(0, lastEventId - 500));
-  let found: { id: string | null; graphic: string | null } | null = null;
-  for (const row of rows) {
-    if (row.msg.t === 'cue') found = { id: row.msg.cue, graphic: row.msg.cue ? row.graphic : null };
-  }
-  return found;
 }
 
 /**

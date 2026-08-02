@@ -205,8 +205,13 @@ send.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
 - **The five verbs**:
-  - **Take** — air the selected cue: `update` (cue values + staged edits) + `play` to its
-    graphic, `stop` to the previously-live graphic when different, and the `cue` status row.
+  - **Take** — air the selected cue AS PREPARED: `update` (the cue's values — on the
+    production page including its unsaved draft edits) + `play` to its graphic, `stop` to
+    the previously-live graphic when different, and the `cue` status row — one atomic batch
+    (`control_send_many`). Staged edits do NOT ride a cue Take; they air through the graphic
+    card's own ⟳ Take, which exists for exactly that. The send RPCs also mirror the cue
+    marker onto `control_shows.live_cue` (0031), so a reloading surface recovers "what is
+    on air" from the row rather than scanning a log window that global event ids can defeat.
   - **Update** — send the edited values to the LIVE graphic without replaying it (`update`).
   - **Next** — advance the live graphic's state machine (`next`).
   - **Out** — animate the live graphic off (`stop` — the SPX contract's out IS stop) + a
@@ -323,8 +328,11 @@ last-known-good). Choose concrete providers only after licensing/cost review.
   rows. Fine for one operator + one renderer; a two-operator production hammering steppers
   can hit it (the page surfaces the slow-down error today).
 - **Payload size**: `output` inlines assets as data URLs; a production heavy on large images
-  makes a heavy row (read once per renderer load, so tolerable, but not free). Asset
-  externalization to a public bucket is the known next step if it bites.
+  makes a heavy row (read once per renderer load, so tolerable, but not free). The HOSTED
+  OPERATOR page pays the same row on every load while using only the cue list from it — a
+  deliberate MVP trade (the templates are already there for a future preview); splitting the
+  cues out of the operator resolve is the fix if a metered phone connection makes it bite.
+  Asset externalization to a public bucket is the known next step if the renderer side bites.
 - **One report authority**: two open output tabs both write `control_report`; last write
   wins. Harmless for state (they converge on the same log) but `output_seen_at` cannot tell
   two renderers apart. Multi-renderer awareness is Stage-2 work.
@@ -334,4 +342,6 @@ last-known-good). Choose concrete providers only after licensing/cost review.
   whenever other shows are active on the instance. A consumer cannot tell a benign gap from a
   missed row, so every suspected hole answers with a tail round-trip (correct either way; the
   cost is one extra RPC of latency on that command when the instance is busy). A per-show
-  sequence number would remove the ambiguity — schema work for the multi-layer stage.
+  sequence number would remove the ambiguity — schema work for the multi-layer stage. The
+  RECOVERY half of this ambiguity (an id-windowed scan for the on-air cue that busy traffic
+  could defeat) is gone since 0031 mirrors the cue marker onto the row.

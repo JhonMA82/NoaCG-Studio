@@ -24,7 +24,6 @@ import {
   hostedControlTail,
   outputPageUrl,
   publishControlShow,
-  recentLiveCue,
   sendHostedControl,
   takeCueOnWire,
   unpublishControlShow,
@@ -144,9 +143,8 @@ export default function ProductionPage({ id }: { id: string }) {
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
-      const initial = await recentLiveCue(tail, resolved.lastEventId);
-      if (!alive) return;
-      if (initial) setLiveCue(initial);
+      // The on-air cue comes off the ROW (0031's snapshot) — no log-window scan to miss.
+      if (resolved.liveCue) setLiveCue(resolved.liveCue);
       unsubscribe = await followControlLog({
         showId: show.id,
         from: resolved.lastEventId,
