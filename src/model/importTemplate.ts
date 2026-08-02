@@ -199,18 +199,46 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   const read = (n: string) => zip.file(n)!.async('string');
   const html = await read(entry);
 
-  // CSS/JS files referenced the standard way (any others are concatenated too).
+  // CSS files referenced the standard way (any others are concatenated too).
   const cssFiles = files.filter((n) => inBase(n) && n.toLowerCase().endsWith('.css'));
-  const jsFiles = files.filter(
-    (n) => inBase(n) && n.toLowerCase().endsWith('.js') && !/gsap\.min\.js$|spx_interface\.js$/i.test(n),
-  );
+
+  // JS is taken in the order the ENTRY page loads it, and only what it actually loads. A
+  // vendor pack ships one folder holding several templates plus every library any of them
+  // uses, so "concatenate every .js under the folder" merged three sibling designs'
+  // animation files into one pane - each declaring the same top-level names, an instant
+  // redeclaration SyntaxError - on top of ~1.6 MB of jQuery, lodash, axios and both its
+  // minified twin. The corpus sweep measured 9 such templates importing clean as a dropped
+  // .html and broken as a zip (docs/SPX_EXAMPLES_CORPUS.md, scripts/spx-corpus-sweep.mjs).
+  // The all-files behaviour survives as a FALLBACK for a page that references no local
+  // script at all, so a template that wires its code up some other way is not emptied.
+  const localJs = new Set<string>();
+  for (const m of html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) {
+    const src = m[1];
+    if (/^(?:https?:)?\/\//i.test(src)) continue; // CDN reference - not in the zip
+    localJs.add(`${base}${src.replace(/^\.\//, '')}`.toLowerCase());
+  }
+  const importableJs = (n: string) =>
+    inBase(n) && n.toLowerCase().endsWith('.js') && !/gsap\.min\.js$|spx_interface\.js$/i.test(n);
+  const referencedJs = files.filter((n) => importableJs(n) && localJs.has(n.toLowerCase()));
+  const jsFiles = referencedJs.length
+    ? [...localJs].map((ref) => referencedJs.find((n) => n.toLowerCase() === ref)).filter((n): n is string => Boolean(n))
+    : files.filter(importableJs);
   // The packaged stylesheet ships one level down (css/template.css), so the exporter gave
   // its asset refs a ../ hop (export/targets/spxStarter.ts cssForSubfolder). In the editor
   // the css is root-relative — undo the hop so a round-tripped export is byte-identical.
   const cssFromSubfolder = (text: string) =>
     text.replace(/url\(\s*(['"]?)\.\.\/(images|fonts|lottie|assets)\//g, 'url($1$2/');
   const css = cssFromSubfolder((await Promise.all(cssFiles.map(read))).join('\n\n'));
-  const js = (await Promise.all(jsFiles.map(read))).join('\n\n');
+  // An ES module cannot join the classic JS pane. The inline case is handled above (the
+  // <script type="module"> tag stays in the HTML); here the module is a FILE, and it lands
+  // in the pane as bare `import`/`export`, making the whole template a syntax error. The
+  // corpus sweep measured 23 templates that import cleanly as a dropped .html and failed
+  // only as a zip for this. Dropping it loses nothing that worked: relative `import` paths
+  // cannot survive the flattening into one HTML/CSS/JS document either way. Kept alongside
+  // the reference filter above because a page can load a module ENTRY file by tag, which
+  // the reference filter would happily keep.
+  const isEsModule = (text: string) => /^[ \t]*(?:import|export)[\s{*]/m.test(text);
+  const js = (await Promise.all(jsFiles.map(read))).filter((text) => !isEsModule(text)).join('\n\n');
 
   // Binary assets keep their relative paths (images/…, fonts/…, assets/…).
   const assets: AssetFile[] = [];

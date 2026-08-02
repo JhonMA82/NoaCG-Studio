@@ -152,6 +152,28 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    parse coverage: definition found, fields extracted, lifecycle detected. Every dialect
    above that we mis-parse is a real-world import bug found for free. The corpus never
    enters CI or the repo; the script and its findings do.
+
+   **The ZIP path joined the sweep on 2026-08-02** and immediately paid for itself. The
+   script now builds a real in-memory zip per template (its html plus that folder's
+   css/js/assets, other templates' folders left out) and runs `importZipTemplate` beside
+   the html import, then names every template where the zip result is WORSE. It is a
+   genuinely different code path - the zip importer picks its own entry point and used to
+   concatenate every .js under the folder rather than the ones the page loads - and 23 of
+   204 templates imported cleanly as a dropped .html and failed as a zip:
+
+   - **ES module files landed in the classic JS pane.** An earlier fix kept INLINE
+     `<script type="module">` in the HTML; a module that lives in a .js FILE bypassed it
+     entirely and arrived as bare `import`/`export`, a syntax error for the whole template.
+   - **Sibling templates were merged.** A pack folder holds several designs and every
+     library any of them uses, so one import concatenated three designs' animation files
+     (each declaring the same names - a redeclaration SyntaxError) onto ~1.6 MB of jQuery,
+     lodash, axios, and both axios builds.
+
+   Both are fixed in `importZipTemplate` (referenced scripts only, in page order, modules
+   excluded) and pinned in `e2e/import.spec.ts`, mutation-tested on both halves. The sweep
+   now reports **0 templates worse on the zip path**, and the zip path validates 128 of 204
+   against the html path's 111. Its remaining honest limit is printed on every run: assets
+   above the per-file/per-zip size caps are left out and counted, never silently dropped.
 2. **Teach the coder the dialect, not the designs.** Fold the conventions above (in our
    own words) into the places the harness already learns from: `docs/SPX_TEMPLATE_FORMAT.md`
    gains a "real-world dialects" section (holders, reserved fields, steps semantics, ftype

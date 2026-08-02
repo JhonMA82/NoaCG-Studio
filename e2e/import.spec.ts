@@ -143,3 +143,38 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   expect(after.resolution).toEqual(before.resolution);
   expect(after.fps).toBe(before.fps);
 });
+
+test('import zip: only the scripts the page loads reach the JS pane', async ({ page }) => {
+  // A real vendor pack ships ONE folder holding several templates plus every library any of
+  // them uses. Concatenating every .js under that folder merged sibling designs (identical
+  // top-level names - a redeclaration SyntaxError) and dragged ES modules into a classic
+  // pane. Both shapes are here; the corpus sweep found them (docs/SPX_EXAMPLES_CORPUS.md).
+  const zip = new JSZip();
+  // helpers.js is REFERENCED, so only the module check can keep it out - the reference
+  // filter would happily let it through and the assertion below would pass vacuously.
+  zip.file('MAIN.html', `<!doctype html><html><body><div id="f0"></div>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/helpers.js"></script>
+    </body></html>`);
+  zip.file('js/main.js', 'var eaze = "main"; function play() {}');
+  zip.file('SIBLING.html', '<!doctype html><html><body>sibling</body></html>');
+  zip.file('js/sibling.js', 'var eaze = "sibling";');           // the other template's copy
+  zip.file('js/helpers.js', "import x from './lib.js';\nexport function crop() {}");
+  const base64 = (await zip.generateAsync({ type: 'nodebuffer' })).toString('base64');
+
+  await page.goto('/app');
+  const js = await page.evaluate(async (b64) => {
+    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    const { template } = await importZipTemplate('pack.zip', bytes.buffer);
+    return template.js;
+  }, base64);
+
+  expect(js).toContain('var eaze = "main"');
+  expect(js).not.toContain('var eaze = "sibling"');    // no redeclaration
+  expect(js).not.toContain('export function crop');    // no module in a classic pane
+  // Still one runnable script, which is the property the pane has to keep.
+  expect(() => new Function(js)).not.toThrow();
+});
