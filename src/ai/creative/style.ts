@@ -384,12 +384,50 @@ const PAINTS = (value: string): boolean => {
   return !/rgba\([^)]*,\s*0?\.?0+\s*\)/.test(v);
 };
 
+/** Selectors the stylesheet takes OUT OF FLOW anywhere in it.
+ *
+ *  Collected in its own pass because a design routinely splits the paint and the positioning
+ *  across two rules for one element, and a check that only looks inside the rule it found the
+ *  paint in would miss exactly that.
+ *
+ *  Honest limit, stated because it is the same one every text-level check here carries: this
+ *  reads selectors, not the resolved cascade, so `.a, .b { position: absolute }` marks both. For
+ *  a stylesheet that is one flat model patch over a known scaffold that is the intended
+ *  reading. */
+function outOfFlowSelectors(css: string): Set<string> {
+  const out = new Set<string>();
+  eachRule(css, (selector, body) => {
+    if (/(^|;)\s*position\s*:\s*(absolute|fixed)\s*(?=;|$)/i.test(body)) {
+      for (const part of selector.split(',')) {
+        const trimmed = part.trim();
+        if (trimmed) out.add(trimmed);
+      }
+    }
+    return body;
+  });
+  return out;
+}
+
 /** Does anything paint a reading surface behind the words? Checked over the WHOLE stylesheet,
  *  scaffold and design together - the question is what the frame ends up with, not who did it. */
 function paintsBackdrop(css: string, prefix: string): boolean {
+  const outOfFlow = outOfFlowSelectors(css);
   let found = false;
   eachRule(css, (selector, body) => {
     if (found) return body;
+    // AN OUT-OF-FLOW SLAB IS A BACKDROP LAYER, NOT A READING SURFACE. Take an element out of
+    // flow and its size stops tracking the words: it is a rectangle at coordinates the design
+    // guessed once. Observed - a region painted `--panel-bg` at `position: absolute` with a
+    // 220px min-height, behind a text stack taller than that, so the top line hung off the
+    // plate and this function still reported a reading surface. The frame was rejected on
+    // exactly that ("text not on plate") while passing every check in the repo.
+    //
+    // This is the THIRD shape of one recurring mistake - the decorative class and the
+    // pseudo-element below are the other two - and they are all the same sentence: an element
+    // that paints is not thereby an element the words sit ON. A design may still paint such a
+    // layer; it just no longer switches the floor off, so the words also get a surface that
+    // does follow them.
+    if (selector.split(',').some((part) => outOfFlow.has(part.trim()))) return body;
     // ONLY the scaffold's own elements - the ones the text demonstrably sits inside. An
     // earlier version accepted any class starting with the prefix, which meant a decorative
     // `.creative-guide` painting a red dot in a corner counted as a reading surface and

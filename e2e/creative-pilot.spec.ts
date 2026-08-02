@@ -1150,6 +1150,37 @@ test.describe('creative pilot (phase C)', () => {
     expect(flow.endToEnd).not.toMatch(/\.creative-box\s*\{[^}]*position:\s*absolute/);
   });
 
+  test('an out-of-flow slab is a backdrop layer, not the surface the words sit on', async ({ page }) => {
+    await open(page);
+    const floor = await page.evaluate(async () => {
+      const { legibilityFloor } = await import('/src/ai/creative/style.ts');
+      const fired = (css: string) => legibilityFloor(css, 'creative').includes('Platform floor');
+      return {
+        // The observed frame: a region painted `--panel-bg`, positioned absolutely, guessing a
+        // height the text stack exceeded. Rejected by the reviewer as "text not on plate" while
+        // this check reported a reading surface.
+        absoluteSlab: fired('.creative-r-plate{position:absolute;bottom:0;min-height:220px;background:var(--panel-bg)}'),
+        fixedSlab: fired('.creative-r-plate{position:fixed;background:#111}'),
+        // Split across two rules, which is how designs actually write it - a check reading only
+        // the rule that carried the paint would miss this one.
+        splitRules: fired('.creative-r-plate{background:#111}\n.creative-r-plate{position:absolute;inset:auto}'),
+        // Mutation twins: the same paint IN FLOW is a real surface and must still silence the
+        // floor, or this rule has quietly become "a region may never be the panel".
+        inFlowRegion: fired('.creative-r-plate{background:var(--panel-bg);padding:20px}'),
+        paintedBox: fired('.creative-box{background:#111;padding:24px}'),
+        // …and an out-of-flow element that paints NOTHING was never a surface either way.
+        absoluteNoPaint: fired('.creative-r-plate{position:absolute;inset:0}'),
+      };
+    });
+
+    expect(floor.absoluteSlab).toBe(true);
+    expect(floor.fixedSlab).toBe(true);
+    expect(floor.splitRules).toBe(true);
+    expect(floor.inFlowRegion).toBe(false);
+    expect(floor.paintedBox).toBe(false);
+    expect(floor.absoluteNoPaint).toBe(true);
+  });
+
   test('a normalized spec never loses a required part, however off-shape the emit', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent }) => {
