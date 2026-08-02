@@ -87,7 +87,7 @@ ${MARK_CLOSE}`,
     autoEase: { easeIn: 'back.out(1.4)', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Bars grow — pop the panel in, then each bar grows to its data-value percent.
-// The staged reveal runs past the usual 0.5-0.9s entrance window on purpose: a data
+// The staged reveal runs past the usual 0.5-1.4s entrance window on purpose: a data
 // chart earns the extra beats (panel first, then one bar per stagger step).
 ${knobs(cfg)}
 
