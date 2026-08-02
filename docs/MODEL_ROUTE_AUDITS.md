@@ -112,6 +112,48 @@ flag would put a privacy claim on the admin page that production does not honour
 same defect shape §9 already forbids in the other direction ("it never reads *no*, which would
 be an equally unfounded claim").
 
+### Verified against the live provider, 2026-08-02
+
+The audit above establishes that the model *can* be served ZDR. This section records that it
+actually *is* - the claim was measured with real calls rather than left resting on a listing.
+
+**Two text probes first** (`$0.0000111` total), carrying the exact block `surfaceRoutePolicy()`
+sends - `zdr: true`, `data_collection: 'deny'`, `allow_fallbacks: false`,
+`max_price {1.0, 5.0}`:
+
+| Route | HTTP | Served by |
+|---|---|---|
+| `google/gemini-3.1-flash-image` (concept) | 200 | **Google** |
+| `google/gemini-2.5-flash` (interpret) | 200 | **Google** |
+
+`Google` is the ZDR-listed Vertex endpoint. The model's other endpoint reports as
+`Google AI Studio` and is absent from `/api/v1/endpoints/zdr`, so the provider name in the
+response is itself the evidence that ZDR routing selected the audited endpoint.
+
+**Then one real concept generation** (`$0.067267`), adding `modalities: ['image','text']` - the
+only thing a production call has that the text probe did not:
+
+- HTTP 200, served by **Google**, `finish_reason: stop`
+- one image, `image/png`, 956 KB, parsing cleanly as the data URL `parseImageDataUrl()` requires
+- **1120 image tokens**, `$0.067267`
+
+So the whole chain is now evidenced rather than argued: `api/ai/generate.ts` attaches the
+directives (`aiGenerate.test.ts`, in the build gate), OpenRouter accepts them, and the audited
+ZDR endpoint serves. **`require_parameters: false` is what makes the image case work** - with it
+true, OpenRouter would filter on advertised parameters and `modalities` is not one, which is why
+that field is false in the policy and why this call is the test of it.
+
+**A measured per-image cost, as ONE measurement rather than a rule.** §9 of `docs/ADMIN.md`
+declines to convert `image_output` per-million into a price per image, because the token count
+varies by model and resolution and the listing does not publish it. That still holds. What this
+call adds is a single data point: a 1920x1080-framed lower-third concept cost **1120 image
+tokens**, which at the published `$60`/M is `$0.0672` - and the arithmetic matching the invoice
+independently confirms the audited price is the right key (`image_output`, not `image`).
+
+Worth knowing about the cost shape: **a failure here would have been free.** An unresolvable
+provider filter errors before generating, so the charge only lands when everything already
+works. That makes this probe cheap to repeat whenever the policy or the route changes.
+
 ### Recommendation
 
 **Approve, conditionally: catalog the route and wire the policy in the same change.**
