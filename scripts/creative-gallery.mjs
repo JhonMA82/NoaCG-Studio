@@ -177,6 +177,7 @@ const html = `<!doctype html>
   <h1>Which would you air?</h1>
   <span class="progress" id="progress"></span>
   <span class="grow"></span>
+  <button id="undo">Undo</button>
   <button id="skip">Skip</button>
   <button id="download" class="primary">Download judgements</button>
 </header>
@@ -220,7 +221,7 @@ function render() {
       '<button data-v="tie">Too close to call</button>' +
     '</div>' +
     '<textarea id="notes" placeholder="What is wrong with the one you rejected? (optional)"></textarea>' +
-    '<p class="hint">Keys: <kbd>A</kbd> left &middot; <kbd>B</kbd> right &middot; <kbd>N</kbd> neither &middot; <kbd>T</kbd> tie</p>';
+    '<p class="hint">Keys: <kbd>A</kbd> left &middot; <kbd>B</kbd> right &middot; <kbd>N</kbd> neither &middot; <kbd>T</kbd> tie &middot; one tap each, held keys are ignored</p>';
   for (const b of main.querySelectorAll('.choices button')) {
     b.onclick = () => record(it.code, b.dataset.v, document.getElementById('notes').value);
   }
@@ -229,6 +230,15 @@ function render() {
 document.getElementById('skip').onclick = () => {
   const left = remaining();
   if (left.length) record(left[0].code, 'skipped', '');
+};
+
+// Undo exists because a mis-record used to be unrecoverable: the first review session lost all
+// 17 items to one held key, and the only way back was clearing storage by hand.
+document.getElementById('undo').onclick = () => {
+  if (!done.length) return;
+  done.pop();
+  localStorage.setItem(STORE, JSON.stringify(done));
+  render();
 };
 
 document.getElementById('download').onclick = () => {
@@ -242,6 +252,11 @@ document.getElementById('download').onclick = () => {
 
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'TEXTAREA') return;
+  // AUTO-REPEAT IS NOT SEVENTEEN DECISIONS. A held key fires keydown about thirty times a
+  // second, and each firing judged the next pair - the first real review session recorded the
+  // whole gallery from one keypress and landed on "all done". A judgement is one deliberate
+  // press, so a repeat is never one.
+  if (e.repeat) return;
   const map = { a: 'left', b: 'right', n: 'neither', t: 'tie' };
   const v = map[e.key.toLowerCase()];
   if (!v) return;
