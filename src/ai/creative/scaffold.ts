@@ -567,6 +567,11 @@ function scaffoldCss(
   font: ReturnType<typeof fontById>,
   resolution: { width: number; height: number },
 ): string {
+  const prop = spec.layout.proportion;
+  // The unit every proportion is expressed in: the biggest type on the graphic. Published as a
+  // variable so the generated stylesheet stays readable, and so retuning type also retunes the
+  // air around it instead of the two drifting apart.
+  const primaryPx = TYPE_LADDER.primary.px;
   const position = spec.layout.fullFrame
     ? `  inset: 0;                        /* a full-frame graphic owns the canvas */
   display: flex;
@@ -601,6 +606,7 @@ function scaffoldCss(
   --font-heading: ${fontStack(font)};
   --scale: ${scale};
   --type-scale: 1;
+  --type-primary: calc(${primaryPx}px * var(--scale) * var(--type-scale));  /* the proportion unit */
 }
 
 ${fontFaceCss(font)}
@@ -620,10 +626,33 @@ ${position}
    replace it entirely — this is the starting arrangement, not a cage. ── */
 .${prefix}-box {
   ${ARRANGEMENT_CSS[spec.layout.arrangement]}
-  gap: calc(14px * var(--scale));
+  /* Air as a PROPORTION of the type it surrounds, not a pixel count - the spec's own numbers
+     (VOCABULARY-DECISION-2026-08-02.md). A gap that scales with the words reads as a decision;
+     one that does not reads as an accident, which is what the review kept calling it. */
+  gap: calc(${prop.lineRhythm} * var(--type-primary));
+  padding: calc(${prop.panelPad} * var(--type-primary));
   max-width: ${spec.layout.fullFrame ? '100%' : 'min(calc(840px * var(--scale)), ' + Math.round(resolution.width * 0.875) + 'px)'};
+  ${prop.accent === 'none' ? '' : 'position: relative;'}
   will-change: transform, opacity;
-}
+}${prop.accent === 'none' ? '' : `
+
+/* The accent motif. It SPANS the content it belongs to rather than floating at a fixed
+   length - "the short line looks accidental" was the review's note on a rule that did not
+   reach anything. */
+.${prefix}-box::before {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+${prop.accent === 'edge'
+  ? `  left: 0;
+  top: calc(${prop.panelPad} * var(--type-primary));
+  bottom: calc(${prop.panelPad} * var(--type-primary));
+  width: calc(${prop.accentWeight} * var(--type-primary));`
+  : `  left: calc(${prop.panelPad} * var(--type-primary));
+  right: calc(${prop.panelPad} * var(--type-primary));
+  bottom: calc(${Math.max(prop.panelPad * 0.45, 0.08).toFixed(3)} * var(--type-primary));
+  height: calc(${prop.accentWeight} * var(--type-primary));`}
+}`}
 
 .${prefix}-mask {
   overflow: hidden;                /* lines animate in from behind this mask */

@@ -136,6 +136,33 @@ export interface CreativeSpec {
     zone: Zone9;
     /** 0.85 compact … 1.2 large, clamped. */
     sizeScale: number;
+    /**
+     * PROPORTION - the falsification vocabulary (VOCABULARY-DECISION-2026-08-02.md §4).
+     *
+     * The 2026-08-02 review's most repeated fault was proportion: "banner too large", "spacing
+     * between the name and title is too wide", "too much empty space", a rule that "looks
+     * accidental". None of those is a value out of range that a clamp could bring back; they
+     * are RELATIONSHIPS, and the model had no way to express one - it wrote raw CSS against a
+     * scaffold whose air was hard-coded.
+     *
+     * Every value is a MULTIPLE OF THE PRIMARY TYPE SIZE rather than a pixel count, because
+     * that is what makes it a proportion: air that scales with the words it surrounds reads as
+     * a decision, and air that does not reads as an accident.
+     *
+     * Defaults are deliberately NEUTRAL, not the catalog's. The whole point of the experiment
+     * is to see whether the MODEL can make proportion decisions - if the vocabulary shipped
+     * with the catalog's numbers, a good frame would only prove the catalog has good numbers.
+     */
+    proportion: {
+      /** Panel padding, as a multiple of the primary type size. */
+      panelPad: number;
+      /** Vertical gap between regions, same unit. */
+      lineRhythm: number;
+      /** The accent motif: absent, a bar down the leading edge, or a rule under the words. */
+      accent: 'none' | 'edge' | 'underline';
+      /** The accent's thickness, same unit. Ignored when `accent` is none. */
+      accentWeight: number;
+    };
   };
   regions: CreativeRegionSpec[];
   palette: { accent: string; text: string; textDim: string; panel: string };
@@ -361,6 +388,20 @@ export function normalizeCreativeSpec(raw: unknown, intent: StructuralIntent): C
         ? (str(layout.zone) as Zone9)
         : intent.placement ?? 'bottom-left',
       sizeScale: clamp(layout.sizeScale, 0.85, 1.2, 1),
+      proportion: (() => {
+        const p = (layout.proportion ?? {}) as Record<string, unknown>;
+        return {
+          // Neutral middles, NOT the catalog's numbers - see the field's own comment. The
+          // ranges are what a broadcast graphic can survive, not what looks good: a panel with
+          // no air and one drowning in it are both legal here and both the model's decision.
+          panelPad: clamp(p.panelPad, 0.15, 1.4, 0.5),
+          lineRhythm: clamp(p.lineRhythm, 0, 0.9, 0.25),
+          accent: (['none', 'edge', 'underline'] as const).includes(str(p.accent) as never)
+            ? (str(p.accent) as 'none' | 'edge' | 'underline')
+            : 'none',
+          accentWeight: clamp(p.accentWeight, 0.02, 0.35, 0.08),
+        };
+      })(),
     },
     regions: finalRegions,
     palette: legiblePalette({
