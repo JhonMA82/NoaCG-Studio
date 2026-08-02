@@ -308,7 +308,14 @@ for (const brief of selected) {
           // attached mood board" / "plate attached" since the bank was written, and every
           // round before 2026-08-02 sent them nothing - the model was told to follow a
           // reference that did not exist. Loaded from benchmarks/creative/v1/references.
-          references,
+          //
+          // NOT GIVEN TO ARM A, and the asymmetry is stated wherever its numbers are: the
+          // control is the FROZEN coder (§8), its code may not be touched, and it sends any
+          // reference straight to its own route as a vision block - which a text coder
+          // REJECTS, failing the brief outright rather than ignoring the picture. The staged
+          // arms read references through a vision stage that arm A has no equivalent of, so a
+          // reference brief compares a pipeline that can see against one that cannot.
+          references: arm === 'A' ? [] : references,
           palette: null,
           resolution: { width: 1920, height: 1080, label: '1080p' },
           fps: 25,

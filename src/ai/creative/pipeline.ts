@@ -178,7 +178,11 @@ async function runControlArm(input: CreativeRunInput): Promise<CreativeRunResult
  *  comparison). */
 function deAnchoredContent(input: CreativeRunInput): ContentBlock[] {
   return [
-    ...imageBlocks(input.context),
+    // No reference pictures: this arm is one coder call with no vision stage in front of it,
+    // and a text route REJECTS the request outright rather than ignoring the image. It saw
+    // nothing from a reference before this stage existed and still sees nothing - what
+    // changed is that it no longer dies on the briefs that carry one.
+    ...imageBlocks({ ...input.context, references: [] }),
     { type: 'text', text: contextText(input.brief, input.context) },
     { type: 'text', text: intentBrief(input.intent) },
   ];
@@ -292,7 +296,15 @@ async function runStagedArm(arm: 'C' | 'D', input: CreativeRunInput): Promise<Cr
     const userText = [contextText(input.brief, input.context), intentBrief(input.intent), refs]
       .filter(Boolean)
       .join('\n\n');
-    const userContent: ContentBlock[] = [...imageBlocks(input.context), { type: 'text', text: userText }];
+    // THE READING REPLACES THE PICTURE - it does not accompany it. Sending both to a text
+    // model is not redundancy, it is a failed request: the first run of this stage read the
+    // references correctly and then died on every brief that had one, because the raw image
+    // blocks were still in the message and the candidate route cannot see. Assets the graphic
+    // USES (a logo) still ride along - those are for the result, not for looking at.
+    const userContent: ContentBlock[] = [
+      ...(refs ? imageBlocks({ ...input.context, references: [] }) : imageBlocks(input.context)),
+      { type: 'text', text: userText },
+    ];
 
     // Stage 4 - three concept directions.
     input.onProgress?.('Sketching directions…');
@@ -415,7 +427,8 @@ async function styleWithRepair(
 ): Promise<StyledResult> {
   const system = creativeStyleSystemPrompt(spec, scaffold, cards);
   const brief: ContentBlock[] = [
-    ...imageBlocks(input.context),
+    // As in the staged entry above: where a reading exists, the words replace the picture.
+    ...(refs ? imageBlocks({ ...input.context, references: [] }) : imageBlocks(input.context)),
     {
       type: 'text',
       text: [contextText(input.brief, input.context), intentBrief(input.intent), refs]
