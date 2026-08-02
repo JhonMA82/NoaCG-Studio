@@ -114,23 +114,27 @@ HMC/Musiikkitalo, and older webcg-era packs):
   and a line-height fix that was clipping descenders. Character encoding, contrast, and
   clipping are what actually break on air.
 
-### Production deltas vs our DESIGN_LANGUAGE guardrails (owner decision pending)
+### Production deltas vs our DESIGN_LANGUAGE guardrails (RATIFIED 2026-08-02)
 
-Where the measured corpus disagrees with `docs/DESIGN_LANGUAGE.md` - evidence for a taste
-review, NOT applied to the guardrails or the creative knowledge cards (those numbers are
-bound to DESIGN_LANGUAGE, and the creative benchmark consuming the cards must not have its
-candidate changed mid-experiment):
+Where the measured corpus disagreed with `docs/DESIGN_LANGUAGE.md`, reviewed against the
+visual gallery and ruled by the owner:
 
-- **Strap name size:** we prescribe 44-64 px at 1080p; Yle/elemento production runs
-  72-92 px. Production straps are markedly bigger than ours.
-- **Entrance duration:** we prescribe 0.5-0.9 s total; production runs 0.5-2.0 s, with
-  1.0-1.4 s common on premium packs. Exits agree (ours 30-40% faster; production is often
-  ~50% faster - direction confirmed, magnitude even stronger).
-- **Staggers:** we prescribe 60-150 ms; production uses 50-400 ms (200/400/700 ms ladders
-  in elemento). Ours sit at the tight end.
+- **Strap name size:** was 44-64 px; production flagships run 72-92 px (commercial packs
+  sit lower). **Ruling: widened to 44-92 px**, upper half reserved for flagship-show looks.
+- **Entrance duration:** was capped 0.9 s; production commonly runs 1.0-1.4 s.
+  **Ruling: cap raised to 1.4 s**; fast-feel graphics stay at the low end.
+- **Staggers:** was 60-150 ms; production ladders reach 400 ms. **Ruling: widened to
+  60-250 ms** - the theatrical extreme stays out.
 - **Confirmed as-is:** opacity always linear and separate from movement; clip-path
   `inset()` as the reveal primitive; OUT always faster than IN; empty fields collapse
   their boxes.
+
+The rulings live in DESIGN_LANGUAGE.md itself. The AI prompt stack still carries the OLD
+ranges on purpose - `src/ai/claudeProvider.ts` `coderSystemPrompt` (the FROZEN benchmark
+control, byte-identical until the Creative Mode comparison has run - src/ai/AGENTS.md),
+`src/ai/creative/knowledgeCards.ts` (the candidate that comparison measures), and
+`src/ai/brainstorm.ts` (kept with them so the stack changes once, together). Sync all
+three in one pass after the creative benchmark work lands.
 
 ## How we use it (the plan)
 
