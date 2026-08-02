@@ -27,6 +27,33 @@
     </style>
   </head>
   <body>
+    <!-- Old-CEF runtime shims. CasparCG 2.3.x LTS - the common school/student install -
+         embeds a ~Chromium 65 CEF: `vite.config.ts`'s es2017 target handles the SYNTAX it
+         cannot parse (a real 2.3.2 server rejected the es2020 bundle with "Uncaught
+         SyntaxError: Unexpected token ?"), and these guards cover the runtime APIs that
+         engine predates. Each one is used by code this page actually loads: globalThis and
+         Object.fromEntries by supabase-js and composeDocument, AbortController by the fetch
+         paths, queueMicrotask by the promise plumbing. Written ES5 in a classic script, so
+         it runs before the module bundle on every engine. -->
+    <script>
+      window.globalThis || (window.globalThis = window);
+      window.queueMicrotask || (window.queueMicrotask = function (fn) { Promise.resolve().then(fn); });
+      Object.fromEntries || (Object.fromEntries = function (entries) {
+        var out = {};
+        // Array.from, not slice.call: the real one takes ANY iterable of [k, v] pairs, and an
+        // iterator is not array-like, so slice would silently yield {} for a Map's entries().
+        var list = Array.isArray(entries) ? entries : Array.from(entries);
+        for (var i = 0; i < list.length; i++) out[list[i][0]] = list[i][1];
+        return out;
+      });
+      if (typeof AbortController === 'undefined') {
+        // Enough for libraries that create one defensively; nothing here aborts requests.
+        window.AbortController = function () {
+          this.signal = { aborted: false, addEventListener: function () {}, removeEventListener: function () {} };
+        };
+        window.AbortController.prototype.abort = function () { this.signal.aborted = true; };
+      }
+    </script>
     <script type="module" src="/src/output/main.ts"></script>
   </body>
 </html>

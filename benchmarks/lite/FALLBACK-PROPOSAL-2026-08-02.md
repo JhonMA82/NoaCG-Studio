@@ -1,8 +1,9 @@
 # Lite fallback route - benchmark proposal
 
-**2026-08-02. Nothing here has been run. No provider token has been spent producing it.**
-It exists to be approved, amended or refused before any paid round starts
-(`docs/AI_LITE_PROMOTION.md`: the benchmark recommends, only the owner promotes).
+**2026-08-02. Stage 0 and Stage 1 have RUN - see sections 9 and 10. Total spend $0.01043.**
+The proposal below is preserved as written, before the run, so the prediction in section 2
+can be read against the result in section 10 (`docs/AI_LITE_PROMOTION.md`: the benchmark
+recommends, only the owner promotes).
 
 ## 1. What the fallback is, and when it matters
 
@@ -228,3 +229,71 @@ this checkout, or the run has to happen in the main checkout. That is the owner'
 deliberately - a session copying a secrets file between checkouts on its own initiative is not
 a thing that should happen quietly. Nothing has been spent.
 
+## 10. Stage 1 result (run 2026-08-02) - VERDICT: change nothing
+
+```
+arm            openrouter:qwen/qwen3-coder-next, endpoint pinned to ionstream (fp8)
+prompt         lite-lower-third-v3 (the shipping prompt - the gap this run existed to close)
+fixtures       30 of 30 (LITE_LOWER_THIRD_FIXTURES v2, complete - no truncation)
+machine-usable 29 / 30  =  96.7%
+failures       1  - intent_variant_mismatch
+platform fails 0  - no internal, no ledger_*, no provider_rejected
+repairs        3 across 33 provider attempts
+cost           $0.01043   (cap $0.50, never approached; the 40-call ceiling was not reached)
+```
+
+**§7 said this run would justify changing nothing if it came back in the 85-100% band with no
+`internal` failures. It did, on both counts. Stage 2 is CANCELLED and the fallback stays
+`qwen/qwen3-coder-next`.**
+
+The premise this proposal was written against does not survive contact with the shipping
+prompt. §2 predicted that, and the run confirms it:
+
+- The failure cluster was confined to the `lite-lower-third-v2` arm - 0 usable of 7. Under v3
+  the same route on 30 fixtures returns 29.
+- **The four `internal` failures did not reproduce.** They were the largest single bucket in the
+  whole ledger and they were OUR server throwing, not the model failing. Whatever caused them
+  was fixed, transient, or specific to that arm; either way the route was not what was broken.
+- The one real failure is the right KIND. `intent_variant_mismatch` is a semantic rejection the
+  model earned - the platform catching a chassis that did not match the brief's intent facet,
+  which is the guardrail working rather than breaking.
+
+Cost per accepted result: **$0.00036** against the $0.01 Lite ceiling, twenty-seven times under
+it. Nothing about this route is expensive.
+
+**What this does NOT establish**, because a clean number invites over-reading:
+
+- It is one arm, not a comparison. `qwen/qwen3-30b-a3b-instruct-2507` may still be better; this
+  run says only that the incumbent is not broken, which is what §4 set out to learn first.
+- Machine-usable is a MACHINE verdict - schema, semantics, compile, static and runtime
+  validation. It is not a judgement that 29 graphics look good. The creative round already
+  taught that lesson at some expense: structural completeness passed frames a human called
+  unusable. Blind human review is still the only quality authority here, and none was run.
+- Endpoint-pinned to ionstream fp8, whose $0.11/$0.80 is exactly the catalog's audited snapshot
+  (Parasail's bf16 at $0.12 input would have been refused by the policy's own `max_price`). Per
+  `docs/AI_LITE_PROMOTION.md`, results from a different endpoint are not interchangeable even
+  when the model name matches.
+
+### What it cost to get the run started, which is the reusable part
+
+Four configuration faults stood between a green preflight and a first generation, and every one
+of them was caught before a token was spent. Worth recording, because the next person will hit
+them too:
+
+1. **`.env` will not source in a shell here.** The file has Windows line endings, so every value
+   picks up a trailing `\r`. Sourcing appears to work and every key reads as unset.
+2. **`npm run dev:bench` is the wrong server for this bench.** `.env.bench` is a COMMITTED file
+   that deliberately blanks the Supabase vars, because the *video* bench needs the app in
+   offline mode. The Lite bench needs the opposite. Use plain `dev`.
+3. **`IP_HASH_SALT` (>= 16 chars) is required by `liteLedgerConfigured()`**, and its absence
+   alone makes `/api/ai/lite/status` answer `not-configured` while every other check is green.
+4. **The account's rolling allowance was exhausted** - `monthlyStartsRemaining: 0`, spent by the
+   43 July generations against a default cap of 30. Raise `AI_LITE_*_STARTS` on the dev server
+   only; the runner's own 40-call and cost ceilings are what actually bound the spend.
+
+One diagnostic trap alongside them: `status.ts` returns `requiresSignIn: requiresSignIn && !user`,
+so a *working* token makes it read false. It is not an indicator of `serverAuthConfigured()`
+unless the probe is anonymous.
+
+Artifacts (entrance/hold/update/exit frames plus a webm per fixture) are outside the repo at
+`C:\claude\noacg-bench-archive\lite-stage1-2026-08-02`.

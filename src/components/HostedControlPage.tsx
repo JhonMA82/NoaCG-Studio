@@ -5,7 +5,6 @@ import {
   controlShowBySlug,
   followControlLog,
   hostedControlTail,
-  recentLiveCue,
   sendHostedControl,
   stageHostedData,
   takeCueOnWire,
@@ -52,11 +51,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       setShow(resolved);
       if (!resolved) return;
       const tail = (after: number) => hostedControlTail(slug, after);
-      // Which cue was already on air lives only in the log — recover it from the recent tail
-      // BEFORE following live rows, so old markers can never overwrite a newer one.
-      const initial = await recentLiveCue(tail, resolved.lastEventId);
-      if (!live) return;
-      if (initial) setLiveCue(initial);
+      // Which cue was already on air comes off the ROW (0031's snapshot, mirrored by the send
+      // RPCs) — a tail scan was windowed by GLOBAL log ids and could miss the marker on a
+      // busy instance. Seeded before following, so old rows can never overwrite a newer fact.
+      if (resolved.liveCue) setLiveCue(resolved.liveCue);
       // Follow the log (shared recovery discipline — control/hostedControl.ts followControlLog):
       // staged/live meta rows update the shared view; cue rows move the live chip; command
       // rows from other operators need no handling (the graphic's own live report follows).

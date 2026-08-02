@@ -13,6 +13,7 @@ import { composeDocument } from '../preview/composeDocument';
 import {
   postPreviewCmd,
   PREVIEW_STATE_TYPE,
+  type PreviewCmd,
   type PreviewMachineState,
   type PreviewStateMessage,
 } from '../preview/previewProtocol';
@@ -83,6 +84,18 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
   const frames = new Map<string, HTMLIFrameElement>();
   const states = new Map<string, PreviewMachineState | null>();
   const stateCbs: ((graphic: string, state: PreviewMachineState | null) => void)[] = [];
+  // Commands QUEUE until the iframe's document has loaded its command listener — a
+  // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
+  // recovery burst on a renderer refresh (live commands worked; the restore did not).
+  const loaded = new Set<string>();
+  const pending = new Map<string, PreviewCmd[]>();
+  const post = (graphic: string, cmd: PreviewCmd) => {
+    if (!loaded.has(graphic)) {
+      pending.set(graphic, [...(pending.get(graphic) ?? []), cmd]);
+      return;
+    }
+    postPreviewCmd(frames.get(graphic)?.contentWindow, cmd);
+  };
 
   for (const spec of payload.graphics) {
     const iframe = document.createElement('iframe');
@@ -99,6 +112,12 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
       'border:0',
       'background:transparent',
     ].join(';');
+    iframe.addEventListener('load', () => {
+      loaded.add(spec.key);
+      const queue = pending.get(spec.key) ?? [];
+      pending.delete(spec.key);
+      for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
+    });
     iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true });
     stage.appendChild(iframe);
     frames.set(spec.key, iframe);
@@ -124,40 +143,39 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
   window.addEventListener('message', onMessage);
 
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
-    const win = frames.get(graphic)?.contentWindow;
-    if (!win) return;
+    if (!frames.has(graphic)) return;
     switch (msg.t) {
       case 'update':
-        postPreviewCmd(win, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
+        post(graphic, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
         break;
       case 'play':
-        postPreviewCmd(win, { cmd: 'play' });
+        post(graphic, { cmd: 'play' });
         break;
       case 'stop':
-        postPreviewCmd(win, { cmd: 'stop' });
+        post(graphic, { cmd: 'stop' });
         break;
       case 'next':
-        postPreviewCmd(win, { cmd: 'next' });
+        post(graphic, { cmd: 'next' });
         break;
       case 'event':
-        postPreviewCmd(win, { cmd: 'dispatch', event: msg.event, payload: msg.payload });
+        post(graphic, { cmd: 'dispatch', event: msg.event, payload: msg.payload });
         break;
       case 'snap':
         // Recovery semantics stated explicitly — the wire field means opposite things to the
         // editor simulator (parked design view, timers off) and to a renderer (timers arm).
-        postPreviewCmd(win, { cmd: 'snap', assignments: msg.snap, timers: true });
+        post(graphic, { cmd: 'snap', assignments: msg.snap, timers: true });
         break;
       default:
         return; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands
     }
-    postPreviewCmd(win, { cmd: 'state' });
+    post(graphic, { cmd: 'state' });
   };
 
   return {
     apply,
     requestState: (graphic) => {
-      const win = frames.get(graphic)?.contentWindow;
-      if (win) postPreviewCmd(win, { cmd: 'state' });
+      // Polls are droppable pre-load — queueing them would just replay stale asks.
+      if (loaded.has(graphic)) post(graphic, { cmd: 'state' });
     },
     states,
     onState: (cb) => stateCbs.push(cb),
