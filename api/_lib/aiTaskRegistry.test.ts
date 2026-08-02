@@ -7,6 +7,7 @@ import {
   approvedModelEntry,
   approvedModelPrices,
   approvedModelRoute,
+  approvedTextRoute,
   fundedModelRoute,
   fundedRoutePrice,
   modelRouteKey,
@@ -168,7 +169,12 @@ test('openWeights is preference metadata, never an approval gate', () => {
 test('every catalog entry is complete enough for the free-route policy to price it', () => {
   assert.ok(APPROVED_MODEL_CATALOG.length > 0);
   for (const entry of APPROVED_MODEL_CATALOG) {
-    assert.ok(entry.capabilities.structuredOutput, `${entry.route.model} must decode structured output`);
+    // Scoped to TEXT entries, and that is not a loosening. A registered task sends a text
+    // request and reads a structured answer; an image route cannot do either, which is why
+    // routeConfigured() refuses one outright rather than asking about this capability.
+    if (entry.outputs === 'text') {
+      assert.ok(entry.capabilities.structuredOutput, `${entry.route.model} must decode structured output`);
+    }
     assert.ok(entry.capabilities.contextWindow > 0);
     assert.ok(entry.price.inputPerMillion >= 0 && entry.price.outputPerMillion >= 0);
     assert.ok(entry.zdrAvailable, `${entry.route.model} must honour the ZDR-by-default policy`);
@@ -176,16 +182,20 @@ test('every catalog entry is complete enough for the free-route policy to price 
   }
 });
 
-test('every catalog entry could serve a NoaCG-funded route (plan §15 decision 5)', () => {
+test('every TEXT catalog entry could serve a NoaCG-funded route (plan §15 decision 5)', () => {
   // The catalog IS the free tier's menu, so an entry that decision 5 forbids has no
   // business in it. This is the test that fails when someone adds an Anthropic/OpenAI
   // entry or a model the project cannot afford to subsidize.
+  const text = APPROVED_MODEL_CATALOG.filter((entry) => entry.outputs === 'text');
+  assert.ok(text.length > 0);
   for (const entry of APPROVED_MODEL_CATALOG) {
     assert.equal(
       entry.route.provider,
       FUNDED_ROUTE_PROVIDER,
       `${entry.route.model}: NoaCG-funded routes go through OpenRouter; OpenAI/Anthropic are BYO-key only`,
     );
+  }
+  for (const entry of text) {
     assert.equal(
       fundedRoutePrice(entry.price),
       true,
@@ -193,6 +203,24 @@ test('every catalog entry could serve a NoaCG-funded route (plan §15 decision 5
     );
     assert.equal(fundedModelRoute(entry.route), true);
   }
+});
+
+test('a catalogued IMAGE route cannot be pointed at a registered task', () => {
+  // The Pro concept route is audited and approved, which used to be the whole gate. It is
+  // still not something Lite may serve: the funded-route ceiling measures text tokens and
+  // says nothing about the `image_output` price that dominates an image model's bill, and the
+  // task would fail on its first structured-output read anyway. Both refusals are asserted,
+  // because either one alone would let an env edit through.
+  const image = { provider: 'openrouter' as const, model: 'google/gemini-3.1-flash-image' };
+  assert.equal(approvedModelRoute(image), true, 'the audit did approve this route');
+  assert.equal(approvedTextRoute(image), false);
+  assert.equal(fundedModelRoute(image), false);
+
+  process.env.AI_LITE_ENABLED = '1';
+  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_PRIMARY_PROVIDER = 'openrouter';
+  process.env.AI_LITE_PRIMARY_MODEL = 'google/gemini-3.1-flash-image';
+  assert.equal(taskConfigured(liteTaskProfile()), false);
 });
 
 test('the funded-route ceiling admits cheap models and refuses flagship pricing', () => {

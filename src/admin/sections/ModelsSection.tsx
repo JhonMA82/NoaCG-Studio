@@ -366,6 +366,7 @@ function ImageModels() {
               <th scope="col" className="admin-num">
                 In / M
               </th>
+              <th scope="col">Zero data retention</th>
               <th scope="col">Available</th>
             </tr>
           </thead>
@@ -382,6 +383,13 @@ function ImageModels() {
                 </th>
                 <td className="admin-num">{imagePrice(row.imageOutputPerMillion)}</td>
                 <td className="admin-num">{price(row.inputPerMillion)}</td>
+                <td>
+                  {row.zdr === 'audited' ? (
+                    <Pill tone={row.zdrAvailable ? 'ok' : 'danger'}>{row.zdrAvailable ? 'audited: yes' : 'audited: no'}</Pill>
+                  ) : (
+                    <Pill tone="muted">not audited</Pill>
+                  )}
+                </td>
                 <td>
                   {row.available ? <Pill tone="ok">listed</Pill> : <Pill tone="warn">unavailable</Pill>}
                 </td>

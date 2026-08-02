@@ -35,6 +35,12 @@ export interface AdminUserSummary {
   /** Set when the account was invited and has not yet accepted. */
   pendingInvite: boolean;
   state: AccountState;
+  /** An operator-owned account - development, testing, a demo. Excluded from the default
+   *  admin usage scope (migration 0027) and NOTHING ELSE: it grants nothing, withdraws
+   *  nothing, and is not a role. Separate from `isAdmin` on purpose, because the two come
+   *  apart in both directions - on this instance the account that produced every AI
+   *  generation is a test account with no admin row, and the one admin has produced none. */
+  internal: boolean;
   planName: string;
   isAdmin: AdminRole | null;
   /** Rolling 30-day AI generation count and provider cost. */
@@ -173,6 +179,11 @@ export interface AdminUsageOverview {
   declineReasons: { reason: string; count: number }[];
   /** Users who hit an allowance in the window, worst first. */
   pinched: { userId: string; email: string; refusals: number; lastAt: string }[];
+  /** Whose activity produced every number here. Same vocabulary and same default as the
+   *  overview - the two sections read one ledger and must not disagree about who is in it. */
+  scope: AdminActivityScope;
+  /** Accounts carrying the internal mark, unfiltered. Zero means the exclusion is inert. */
+  internalAccounts: number;
   totals: { generations: number; costUsd: number; gatewayRequests: number; renderJobs: number };
   /** Today's spend against the deployment's daily fleet ceiling. */
   fleetSpendTodayUsd: number;
@@ -314,6 +325,9 @@ export interface AdminOverviewState {
    *  have been signed in at the time, so somebody who built a graphic before registering is
    *  counted here - an upper bound on "never made anything", not an exact figure. */
   accountsNeverCreated: number;
+  /** Accounts carrying the internal mark. NOT scoped - it is the same number under every
+   *  scope, because it describes the filter rather than being filtered by it. */
+  internalAccounts: number;
   activeGrants: number;
   grantsExpiringSoon: number;
   rendersInFlight: number;
@@ -338,7 +352,28 @@ export interface AdminOverviewMixEntry {
   count: number;
 }
 
+/**
+ * Whose activity a usage section is counting.
+ *
+ * `external` is the default everywhere and excludes accounts marked internal - the operator's
+ * own development, testing and demo accounts (migration 0027). `internal` is the exact
+ * complement, so that activity stays inspectable for debugging instead of merely hidden. `all`
+ * is the unfiltered number these endpoints returned before the scope existed.
+ *
+ * The two halves partition the whole, which is what makes the filter checkable rather than
+ * plausible - asserted against the live tables by 0027's self-check.
+ */
+export const ADMIN_ACTIVITY_SCOPES = ['external', 'internal', 'all'] as const;
+export type AdminActivityScope = (typeof ADMIN_ACTIVITY_SCOPES)[number];
+
 export interface AdminOverviewResponse {
+  /** Which scope produced every number below. Echoed rather than assumed: a filtered total
+   *  that does not announce itself is more misleading than an unfiltered one. */
+  scope: AdminActivityScope;
+  /** How many accounts carry the internal mark, ALWAYS unfiltered. Zero here means the
+   *  exclusion is doing nothing, which is the difference between a working filter and one
+   *  nobody has configured yet. */
+  internalAccounts: number;
   /** The IANA zone every boundary above is expressed in. Stated because a dashboard whose
    *  "today" is undefined is a dashboard two people read differently. */
   timezone: string;
@@ -434,6 +469,11 @@ export interface AdminImageModelRow {
   imageOutputPerMillion: number | null;
   /** Some image routes also bill tokens for the prompt; shown when published. */
   inputPerMillion: number | null;
+  /** Same two fields, same meaning and same discipline as the text rows. This tab carries no
+   *  eligibility verdict, but ZDR is not a verdict - it is an audit that either happened or
+   *  did not, and omitting it here would let "no verdict" read as "nothing audited". */
+  zdr: 'audited' | 'unknown';
+  zdrAvailable: boolean | null;
   available: boolean;
   createdAt: string | null;
   isNew: boolean;
@@ -480,6 +520,19 @@ export interface AdminQualityVariant {
 }
 
 export interface AdminQualityOverview {
+  /** Applies to `emerging`, `reasons` and `totals`. Deliberately NOT to `priors` - those are
+   *  the rows the generator is actually fed, and a filtered version would describe a prompt
+   *  that does not exist. */
+  scope: AdminActivityScope;
+  internalAccounts: number;
+  /** Rows in the window that are eligible to become a prior (kept or explicitly discarded,
+   *  with a chassis and an intent facet), and how many of those came from internal accounts.
+   *  Always unscoped, because the question is about what the PROMPT is being fed. A high share
+   *  means the generator is learning from our own testing - reported so the owner can decide
+   *  whether `ai_lite_variant_quality()` should exclude internal accounts, which would be a
+   *  change to generation behaviour rather than to this page. */
+  priorRows: number;
+  internalPriorRows: number;
   /** The operator's window, in days, after clamping. */
   days: number;
   /** Accept-versus-discard per chassis over that window, WITHOUT the sample floor, worst keep
@@ -534,4 +587,87 @@ export interface AdminTemplateListResponse {
   templates: AdminTemplateEntry[];
   /** True when the funnel ledger is not available, so `uses` is zero for a reason. */
   usageUnavailable: boolean;
+}
+
+// ── beta feedback and generation ratings ───────────────────────────────────────────────
+//
+// The one admin surface that carries what a PERSON wrote rather than what the product recorded
+// about itself. Everything here comes from `user_feedback` (migration 0028), which is a
+// separate table for exactly that reason: the generation ledger and the overview aggregates
+// keep their promise that no free text can reach them.
+//
+// It is operational evidence and never a verdict. A model attracting complaints is a reason to
+// go and look; only a NoaCG benchmark can say a model is worse (docs/AI_LITE_PROMOTION.md), and
+// the Models section still refuses to rank.
+
+export interface AdminFeedbackItem {
+  id: string;
+  kind: 'beta' | 'generation';
+  sentiment: 'positive' | 'negative';
+  /** Enumerated reason codes from src/feedback/contract.ts - never free text. */
+  reasons: string[];
+  /** The user's own words. Empty when they rated without explaining, which is normal: the
+   *  rating is one click and an explanation is never demanded. */
+  message: string;
+  userId: string | null;
+  /** Resolved from the auth directory at read time. Empty for anonymous feedback - the editor
+   *  has no login wall, so the most useful note may come from someone with no account. */
+  email: string;
+  /** Whether this came from an account marked internal. Shown rather than silently filtered,
+   *  so a page under the 'all' scope can still be read honestly. */
+  internal: boolean;
+  /** The funnel's first-party browser id, when the visitor had one. It is what groups several
+   *  anonymous notes as one person's session; it is not derived from any account. */
+  visitorId: string | null;
+  area: string | null;
+
+  // ── investigation context, all server-derived (api/_lib/feedbackStore.ts) ──────────────
+  // Enough to reproduce a bad result. Deliberately NOT here: the prompt, the brief, the
+  // generated template, or any uploaded asset.
+  generationId: string | null;
+  tier: string | null;
+  model: string | null;
+  variantId: string | null;
+  intentKind: string | null;
+  promptVersion: string | null;
+
+  status: 'new' | 'reviewed' | 'resolved';
+  adminNote: string;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+/** One dimension's split. `negative` leads the ordering because this is an inbox: three
+ *  complaints must not be buried under thirty compliments. */
+export interface AdminFeedbackBreakdown {
+  key: string;
+  positive: number;
+  negative: number;
+  total: number;
+}
+
+export interface AdminFeedbackOverview {
+  scope: AdminActivityScope;
+  /** Accounts carrying the internal mark, unfiltered - so the scope control can say whether
+   *  the exclusion is doing anything at all. */
+  internalAccounts: number;
+  days: number;
+  items: AdminFeedbackItem[];
+  totals: {
+    all: number;
+    positive: number;
+    negative: number;
+    /** Anything not yet marked resolved - what is still owed an answer. */
+    unresolved: number;
+    withMessage: number;
+    generationRatings: number;
+    betaNotes: number;
+  };
+  reasons: { reason: string; count: number }[];
+  byModel: AdminFeedbackBreakdown[];
+  byTier: AdminFeedbackBreakdown[];
+  byVariant: AdminFeedbackBreakdown[];
+  byArea: AdminFeedbackBreakdown[];
+  /** The window hit the row cap, so every figure above is a floor rather than a total. */
+  truncated: boolean;
 }

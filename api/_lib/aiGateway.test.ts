@@ -6,6 +6,8 @@ import {
   validateGatewayBody,
 } from './aiGateway.js';
 import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.js';
+import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
+import { APPROVED_MODEL_CATALOG, FUNDED_ROUTE_PRICE_CEILING } from './aiModelCatalog.js';
 import type { AiGatewayRequestBody, AiProviderId } from '../../src/ai/modelTypes.js';
 
 const CONTROLLED_ENV = [
@@ -608,4 +610,88 @@ test('seals user keys in a tamper-evident HttpOnly cookie', () => {
   assert.deepEqual(readUserAiKeys(new Request('http://localhost/api/ai/config', {
     headers: { cookie: tampered },
   })), {});
+});
+
+// ── the tagged-surface routing policy (api/_lib/aiSurfacePolicy.ts) ─────────────────────
+
+test('a policied surface asks for ZDR, denies collection, and refuses a silent fallback', () => {
+  const policy = surfaceRoutePolicy('pro', { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' });
+  assert.ok(policy);
+  assert.equal(policy.zdr, true);
+  assert.equal(policy.dataCollection, 'deny');
+  // Without this the ZDR pin is decorative: OpenRouter would serve the non-ZDR endpoint the
+  // moment the audited one is unavailable, which is precisely the case the pin exists for.
+  assert.equal(policy.allowProviderFallbacks, false);
+  // False on purpose - an image request carries `modalities`, which is not a listed provider
+  // parameter, so requiring parameters narrows the endpoint set to nothing.
+  assert.equal(policy.requireParameters, false);
+  assert.equal(policy.only, undefined);
+});
+
+test('an unpoliced or untagged surface is left exactly as it was', () => {
+  assert.equal(surfaceRoutePolicy(undefined, { provider: 'openrouter', model: 'any/model' }), undefined);
+  // Video routes are user-selectable and unaudited: a no-fallback ZDR pin would refuse the
+  // ones with no ZDR endpoint, turning a privacy improvement into an outage.
+  assert.equal(surfaceRoutePolicy('video', { provider: 'openrouter', model: 'any/model' }), undefined);
+  // The directives are OpenRouter's vocabulary; another provider gets no policy rather than a
+  // translated one.
+  assert.equal(surfaceRoutePolicy('pro', { provider: 'anthropic', model: 'any-model' }), undefined);
+});
+
+test('the policy caps price at the funded ceiling, not at the route\'s audited price', () => {
+  const policy = surfaceRoutePolicy('pro', { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' });
+  assert.ok(policy);
+  // Capping at the exact audited figure would refuse the route the day the provider moves a
+  // cent and Pro would simply stop; the ceiling still refuses one that became expensive.
+  assert.equal(policy.maxInputPerMillion, FUNDED_ROUTE_PRICE_CEILING.inputPerMillion);
+  assert.equal(policy.maxOutputPerMillion, FUNDED_ROUTE_PRICE_CEILING.outputPerMillion);
+});
+
+test('an empty endpoint allowlist is omitted rather than sent as "no endpoint permitted"', async () => {
+  let sent: Record<string, unknown> = {};
+  await executeGatewayRequest(body('openrouter', 'vendor/model'), {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+      }));
+    },
+  }, {
+    maxAttempts: 1,
+    retryLimit: 0,
+    openRouter: {
+      zdr: true,
+      dataCollection: 'deny',
+      requireParameters: false,
+      allowProviderFallbacks: false,
+      only: [],
+      maxInputPerMillion: 1,
+      maxOutputPerMillion: 5,
+    },
+  });
+  const provider = sent.provider as Record<string, unknown>;
+  assert.equal('only' in provider, false);
+  assert.equal(provider.zdr, true);
+});
+
+test('the ZDR-servable claim in the catalog is backed by a written audit', () => {
+  // A zdrAvailable:true entry is a privacy claim on the /admin Models page. It is an AUDITED
+  // fact (docs/ADMIN.md §9), so the entry has to say where the audit is - otherwise the badge
+  // is an assertion with nothing behind it.
+  for (const entry of APPROVED_MODEL_CATALOG) {
+    if (!entry.zdrAvailable) continue;
+    assert.ok(
+      entry.notes.length > 0,
+      `${entry.route.model} claims ZDR with no audit note`,
+    );
+  }
+  const concept = APPROVED_MODEL_CATALOG.find((entry) => entry.route.model === 'google/gemini-3.1-flash-image');
+  assert.ok(concept, 'the Pro concept route must be catalogued now that its ZDR is claimed');
+  assert.equal(concept.zdrAvailable, true);
+  // The ZDR endpoint does not advertise structured_outputs; the non-ZDR one does. Recording
+  // the other endpoint's capability would describe a route the policy never takes.
+  assert.equal(concept.capabilities.structuredOutput, false);
+  assert.match(concept.notes, /MODEL_ROUTE_AUDITS/);
 });
