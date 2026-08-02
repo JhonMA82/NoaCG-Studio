@@ -270,6 +270,7 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   // carrying the same slug could publish over it. The copy starts unpublished.
   delete body.hostedSlug;
   delete body.outputSlug;
+  delete body.publishedAt;
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }
 

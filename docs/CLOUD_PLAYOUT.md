@@ -99,14 +99,14 @@ interface Show {
 ```jsonc
 {
   "v": 1,
-  "resolution": { "w": 1920, "h": 1080 },     // the production canvas
+  "resolution": { "width": 1920, "height": 1080, "label": "…" }, // the production canvas
   "graphics": [{                                // one renderer instance per pool graphic
     "key": "Lower third",                       // = the 0008 graphic name key, unchanged
     "html": "…", "css": "…", "js": "…",
     "assets": [{ "path": "images/logo.png", "data": "data:…" }],
-    "resolution": { "w": 1920, "h": 1080 }, "fps": 50
+    "resolution": { "width": 1920, "height": 1080, "label": "…" }, "fps": 50
   }],
-  "cues": [{ "id": "…", "graphic": "Lower third", "label": "Anna", 
+  "cues": [{ "id": "…", "graphic": "Lower third", "label": "Anna",
              "values": { "f0": "Anna Andersson" }, "note": "after the intro" }]
 }
 ```

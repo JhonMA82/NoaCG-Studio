@@ -43,6 +43,10 @@ export interface Show {
   /** The browser-output URL's capability slug, once published (docs/CLOUD_PLAYOUT.md §3).
    *  ADDITIVE OPTIONAL, stripped from conflict copies exactly like hostedSlug. */
   outputSlug?: string;
+  /** When the hosted pages were last published (ISO). The output payload is PINNED at publish,
+   *  so updatedAt > publishedAt means the renderer and operators run an older snapshot — the
+   *  production page's "changes not yet published" hint reads exactly this. */
+  publishedAt?: string;
   /** When the show last changed (ISO). Bumped on every mutation; drives cloud sync (LWW). */
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
@@ -234,13 +238,19 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
   return all.filter((s) => !s.deleted);
 }
 
-/** Record (or clear, with undefined) a show's browser-output slug after (un)publishing. */
+/** Record (or clear, with undefined) a show's browser-output slug after (un)publishing.
+ *  Publishing also stamps publishedAt; clearing removes it (nothing is live any more). */
 export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId);
   if (show) {
-    if (slug) show.outputSlug = slug;
-    else delete show.outputSlug;
+    if (slug) {
+      show.outputSlug = slug;
+      show.publishedAt = nowIso();
+    } else {
+      delete show.outputSlug;
+      delete show.publishedAt;
+    }
     show.updatedAt = nowIso();
     saveAll(all);
   }

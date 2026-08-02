@@ -116,7 +116,7 @@ test.describe('signed-in UX walk (configured)', () => {
     await wipeMyGraphics(page);
   });
 
-  test('the hosted control page publish surface speaks rundowns', async ({ page }) => {
+  test('the hosted control page publish surface speaks productions', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signIn(page);
     await settleSync(page);
@@ -126,19 +126,20 @@ test.describe('signed-in UX walk (configured)', () => {
     await page.getByTestId('save-name').fill('Hairline');
     await page.getByTestId('save-confirm').click();
 
-    // Build a one-graphic rundown so the hosted-publish controls become reachable.
+    // Build a one-graphic production so the hosted-publish controls become reachable.
     await page.getByTestId('dock-tab-control').click();
     const panel = page.locator('.panel-body');
-    await panel.getByPlaceholder('New rundown name').fill('Evening bulletin');
+    await panel.getByPlaceholder('New production name').fill('Evening bulletin');
     await panel.getByRole('button', { name: 'Create', exact: true }).click();
     await panel.getByRole('button', { name: '+ Add current' }).click();
 
     const host = panel.getByRole('button', { name: /Host control page online/ });
     await expect(host).toBeEnabled();
-    // Wave 3 renamed shows to rundowns in user-facing strings; a tooltip is user-facing, and
-    // this branch only ever renders for a signed-in account — which is how it was missed.
-    await expect(host).toHaveAttribute('title', /rundown/i);
-    await expect(host).not.toHaveAttribute('title', /\bshow\b/i);
+    // The cloud-playout wave renamed rundowns to productions in user-facing strings; a tooltip
+    // is user-facing, and this branch only ever renders for a signed-in account — which is how
+    // an earlier rename missed it.
+    await expect(host).toHaveAttribute('title', /production/i);
+    await expect(host).not.toHaveAttribute('title', /\bshow\b|\brundown\b/i);
     await shot(page, 'control-panel-hosted-publish');
   });
 });

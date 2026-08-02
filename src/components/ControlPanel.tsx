@@ -31,6 +31,7 @@ import {
 } from '../model/shows';
 import { publishControlShow, unpublishControlShow } from '../control/hostedControl';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
+import { useRouter } from '../app/router';
 
 /**
  * The Control panel — an operator view generated from the template's fields (the same
@@ -73,7 +74,7 @@ export default function ControlPanel() {
     // page can find the graphic's saved entries (control/hostedControl.ts).
     const { shows: next, error } = addGraphicToShow(activeShow.id, template, { graphicId: savedGraphicId });
     setShows(next);
-    setShowNote(error ?? `✓ "${template.name}" is in the rundown (same name updates in place).`);
+    setShowNote(error ?? `✓ "${template.name}" is in the production (same name updates in place).`);
   };
   const exportShow = async (show: Show) => {
     const zip = await buildShowZip(show);
@@ -277,15 +278,16 @@ export default function ControlPanel() {
 
       <div className="divider" />
       <div className="panel-section">
-        <h3>Rundowns <span className="muted">— graphics that run together</span></h3>
+        <h3>Productions <span className="muted">— graphics that run together</span></h3>
         <p className="hint">
-          A rundown collects graphics that run at once (bug + lower third + ticker). Exporting it
-          packages every graphic plus <strong>one</strong> control page with a card per graphic
-          — the whole rundown operated from a single tab. Manage saved rundowns from Home.
+          A production collects graphics that run at once (bug + lower third + ticker) and the
+          prepared CUES that air on them. Add the current graphic here; everything else — cues,
+          the browser-output URL, publishing, operating — lives on the production’s own page
+          (Home → Productions).
         </p>
         <div className="row">
           <input
-            placeholder="New rundown name"
+            placeholder="New production name"
             value={newShowName}
             onChange={(e) => setNewShowName(e.target.value)}
           />
@@ -294,13 +296,13 @@ export default function ControlPanel() {
         {shows.length > 0 && (
           <div className="row" style={{ marginTop: 8 }}>
             <select className="grow" value={showId} onChange={(e) => setShowId(e.target.value)}>
-              <option value="">Pick a rundown…</option>
+              <option value="">Pick a production…</option>
               {shows.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.graphics.length})</option>
               ))}
             </select>
             {activeShow && (
-              <button className="primary" onClick={addCurrent} title="Add or update this graphic in the rundown">
+              <button className="primary" onClick={addCurrent} title="Add or update this graphic in the production">
                 + Add current
               </button>
             )}
@@ -320,35 +322,42 @@ export default function ControlPanel() {
                   className="show-row-btn"
                   disabled={i === 0}
                   onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, -1))}
-                  title="Move up the rundown"
+                  title="Move up the production"
                 >↑</button>
                 <button
                   className="show-row-btn"
                   disabled={i === activeShow.graphics.length - 1}
                   onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, 1))}
-                  title="Move down the rundown"
+                  title="Move down the production"
                 >↓</button>
-                <button className="show-row-btn" onClick={() => setShows(removeShowGraphic(activeShow.id, g.id))} title="Remove from the rundown">✕</button>
+                <button className="show-row-btn" onClick={() => setShows(removeShowGraphic(activeShow.id, g.id))} title="Remove from the production">✕</button>
               </div>
             ))}
             <div className="row" style={{ marginTop: 8 }}>
-              <button onClick={() => { setShows(deleteShow(activeShow.id)); setShowId(''); }} title="Delete this rundown (its graphics stay saved wherever else they live)">
-                Delete rundown
+              <button
+                onClick={() => useRouter.getState().navigate({ view: 'production', id: activeShow.id })}
+                title="Cues, links, publishing, and operating live on the production's page"
+                data-testid="open-production-page"
+              >
+                📺 Open production page
+              </button>
+              <button onClick={() => { setShows(deleteShow(activeShow.id)); setShowId(''); }} title="Delete this production (its graphics stay saved wherever else they live)">
+                Delete production
               </button>
               <div className="spacer" style={{ flex: 1 }} />
               <button className="primary" disabled={activeShow.graphics.length === 0} onClick={() => exportShow(activeShow)}>
-                ⬇ Export rundown package
+                ⬇ Export production package
               </button>
             </div>
             {backendConfigured && (
               <div style={{ marginTop: 10 }}>
                 {needsSignIn ? (
                   <p className="muted">
-                    <button className="link-inline" onClick={() => openSignIn('Sign in to host this rundown’s control page online.')}>
+                    <button className="link-inline" onClick={() => openSignIn('Sign in to host this production’s control page online.')}>
                       Sign in
                     </button>{' '}
-                    to host this rundown’s control page online — operators then drive it from any
-                    device via a private link, with crash recovery.
+                    to host this production’s control page online — operators then drive it from
+                    any device via a private link, with crash recovery.
                   </p>
                 ) : (
                   <>
@@ -357,7 +366,7 @@ export default function ControlPanel() {
                         className="primary"
                         disabled={publishBusy || activeShow.graphics.length === 0}
                         onClick={() => publishShow(activeShow)}
-                        title="Create or update the online control page for this rundown"
+                        title="Create or update the online control page + output URL for this production"
                       >
                         {activeShow.hostedSlug ? '↻ Re-publish online page' : '🌐 Host control page online'}
                       </button>
@@ -371,7 +380,7 @@ export default function ControlPanel() {
                           readOnly
                           value={hostedUrl(activeShow.hostedSlug)}
                           style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
-                          title="The operator link — anyone with it can drive the rundown (keep it private)"
+                          title="The operator link — anyone with it can drive the production (keep it private)"
                           onFocus={(e) => e.currentTarget.select()}
                         />
                         <button
@@ -391,8 +400,8 @@ export default function ControlPanel() {
                     )}
                     {activeShow.hostedSlug && (
                       <p className="hint" style={{ marginTop: 6 }}>
-                        Exporting the rundown now bakes the hosted receiver into each graphic, so the
-                        online page drives the exported package from any device — with recovery.
+                        Exporting the production now bakes the hosted receiver into each graphic, so
+                        the online page drives the exported package from any device — with recovery.
                       </p>
                     )}
                   </>

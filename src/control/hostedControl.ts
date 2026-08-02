@@ -107,12 +107,20 @@ export interface ResolvedOutputShow {
   lastEventId: number;
 }
 
+/** The cue STATUS row (docs/CLOUD_PLAYOUT.md §4): written on Take/Out so every open surface
+ *  agrees on which cue is live. Receivers ignore it — pages render it. `cue: null` = off air. */
+export interface CueStatusMsg {
+  t: 'cue';
+  cue: string | null;
+}
+
 /** A log row as delivered by Realtime / the tail RPC. */
 export interface ControlEventRow {
   id: number;
   graphic: string;
   msg:
     | ControlMessage
+    | CueStatusMsg
     | { t: 'staged'; data: Record<string, string> }
     | { t: 'live'; data?: Record<string, string>; state?: { groups: Record<string, string> } | null };
 }
@@ -331,7 +339,7 @@ export async function controlOutputSeen(outputSlug: string): Promise<void> {
 }
 
 /** Send one command — the INSERT is the send. */
-export async function sendHostedControl(slug: string, graphic: string, msg: ControlMessage): Promise<void> {
+export async function sendHostedControl(slug: string, graphic: string, msg: ControlMessage | CueStatusMsg): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
   const { error } = await sb.rpc('control_send', { p_slug: slug, p_graphic: graphic, p_msg: msg });

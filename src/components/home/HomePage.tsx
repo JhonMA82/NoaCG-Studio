@@ -27,8 +27,7 @@ import {
   type SavedLook,
 } from '../../model/packets';
 import { saveBrand } from '../../model/brand';
-import { loadShows, deleteShow, type Show } from '../../model/shows';
-import { buildShowZip } from '../../export/showExport';
+import { loadShows, createShow, deleteShow, type Show } from '../../model/shows';
 import {
   deleteSavedVideoProject,
   listSavedVideoProjects,
@@ -72,14 +71,16 @@ function activeValues(g: GraphicDoc): Record<string, string> | undefined {
   return g.entries.find((e) => e.id === g.activeEntryId)?.values;
 }
 
-type Section = 'recent' | 'graphics' | 'packages' | 'controls' | 'rundowns' | 'videos' | 'looks';
+type Section = 'recent' | 'graphics' | 'packages' | 'controls' | 'productions' | 'videos' | 'looks';
 
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: 'recent', label: 'Recent', icon: '🕘' },
   { id: 'graphics', label: 'Graphics', icon: '◫' },
   { id: 'packages', label: 'Packages', icon: '📦' },
   { id: 'controls', label: 'Control panels', icon: '🎛' },
-  { id: 'rundowns', label: 'Rundowns', icon: '📋' },
+  // Productions replaced Rundowns (docs/CLOUD_PLAYOUT.md): the same Show records, now with a
+  // cue rundown, a persistent browser-output URL, and their own page (#/production/<id>).
+  { id: 'productions', label: 'Productions', icon: '📺' },
   { id: 'videos', label: 'Videos', icon: '🎬' },
   { id: 'looks', label: 'Brand looks', icon: '🎨' },
 ];
@@ -337,8 +338,12 @@ export default function HomePage({ route }: { route: Route }) {
                 </>
               )}
 
-              {section === 'rundowns' && (
-                <RundownsSection rundowns={rundowns} onChanged={refresh} onNew={() => navigate({ view: 'new' })} />
+              {section === 'productions' && (
+                <ProductionsSection
+                  productions={rundowns}
+                  onOpen={(p) => navigate({ view: 'production', id: p.id })}
+                  onChanged={refresh}
+                />
               )}
 
               {section === 'videos' && (
@@ -628,7 +633,7 @@ function PackagesSection({
       <p className="hint">
         A package is a folder for related graphics — “Election Night” with its lower thirds,
         results graphic, and ticker filed together. To run several graphics at once on air,
-        that is a <strong>rundown</strong> (in a graphic’s control panel).
+        that is a <strong>production</strong> (the Productions section).
       </p>
       <div className="row" style={{ marginBottom: 10 }}>
         <input
@@ -664,83 +669,92 @@ function PackagesSection({
 }
 
 /**
- * The Rundowns Home section: DISCOVER and manage the rundowns built in the editor's control
- * panel (a rundown = graphics that run together on air, model/shows.ts). Building one - creating
- * it, adding the graphic you are editing - stays in that control panel, where the graphic
- * context is, exactly as saving into a package does. Here you see them all, export a package,
- * copy a published operator link, or delete one.
+ * The Productions Home section (docs/CLOUD_PLAYOUT.md §5): create and open productions — the
+ * live unit over the Show record. Unlike the old Rundowns section this is a first-class door:
+ * everything about one production (graphics, cues, publish, links, operating) lives on its own
+ * page at #/production/<id>; the editor's Rehearse panel keeps its "add current graphic" hook.
  */
-function RundownsSection({
-  rundowns,
+function ProductionsSection({
+  productions,
+  onOpen,
   onChanged,
-  onNew,
 }: {
-  rundowns: Show[];
+  productions: Show[];
+  onOpen: (p: Show) => void;
   onChanged: () => void;
-  onNew: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
-  const exportRundown = async (r: Show) => {
-    const zip = await buildShowZip(r);
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, `${slug(r.name)}_rundown.zip`);
-  };
+  const [newName, setNewName] = useState('');
   return (
     <>
-      <h2>Rundowns</h2>
+      <h2>Productions</h2>
       <p className="hint">
-        A rundown is several graphics that run together on air — a bug, a lower third, and a
-        ticker as one show, operated from a single control page. Build one from a graphic’s
-        <strong> control panel</strong> (“Add current” to a rundown); manage and export them here.
+        A production is the live unit: its graphics, a prepared CUE rundown, one persistent
+        browser-<strong>output URL</strong> for CasparCG/OBS/vMix, and one <strong>control
+        page</strong> for operating — see each production’s page for all of it.
       </p>
-      {rundowns.length === 0 && (
-        <p className="hint">
-          No rundowns yet.{' '}
-          <button className="link-inline" onClick={onNew}>Create a graphic</button>, then add it to a
-          rundown from its control panel.
-        </p>
+      <div className="row" style={{ marginBottom: 12 }}>
+        <input
+          value={newName}
+          placeholder="New production name…"
+          onChange={(e) => setNewName(e.target.value)}
+          data-testid="new-production-name"
+        />
+        <button
+          className="primary"
+          disabled={!newName.trim()}
+          onClick={() => {
+            const next = createShow(newName);
+            setNewName('');
+            onChanged();
+            const made = next[next.length - 1];
+            if (made) onOpen(made);
+          }}
+          data-testid="new-production"
+        >
+          ＋ Create
+        </button>
+      </div>
+      {productions.length === 0 && (
+        <p className="hint" data-testid="no-productions">No productions yet — create one above, then add graphics and cues.</p>
       )}
-      {rundowns.map((r) => (
-        <div className="pk-graphic" key={r.id} data-testid={`rundown-row-${r.id}`}>
-          <strong>📋 {r.name}</strong>
+      {productions.map((r) => (
+        <div className="pk-graphic" key={r.id} data-testid={`production-row-${r.id}`}>
+          <strong>📺 {r.name}</strong>
           <span className="muted">
             {r.graphics.length} graphic{r.graphics.length === 1 ? '' : 's'}
-            {r.hostedSlug ? ' · 🌐 published' : ''}
+            {r.cues?.length ? ` · ${r.cues.length} cue${r.cues.length === 1 ? '' : 's'}` : ''}
+            {r.hostedSlug ? ' · 🌐 live' : ''}
           </span>
           <div className="spacer" />
-          {r.hostedSlug && (
+          {r.outputSlug && (
             <button
               onClick={() => {
-                void copyLink(`${window.location.origin}/app?control=${encodeURIComponent(r.hostedSlug!)}`).then((ok) => {
+                void copyLink(`${window.location.origin}/output?production=${encodeURIComponent(r.outputSlug!)}`).then((ok) => {
                   if (!ok) return;
                   setCopiedLink(r.id);
                   setTimeout(() => setCopiedLink((c) => (c === r.id ? null : c)), 2000);
                 });
               }}
-              title="Copy the operator link (keep it private)"
+              title="Copy the browser-output URL (the one your playout client loads)"
             >
-              {copiedLink === r.id ? '✓ Copied' : '🔗 Copy link'}
+              {copiedLink === r.id ? '✓ Copied' : '🔗 Output URL'}
             </button>
           )}
-          <button
-            className="primary"
-            disabled={r.graphics.length === 0}
-            onClick={() => void exportRundown(r)}
-            data-testid="export-rundown"
-          >
-            ⬇ Export
+          <button className="primary" onClick={() => onOpen(r)} data-testid="open-production">
+            Open
           </button>
           {confirmDelete === r.id ? (
             <button
               className="destructive"
               onClick={() => { deleteShow(r.id); setConfirmDelete(null); onChanged(); }}
-              title="Delete this rundown (its graphics stay saved wherever else they live)"
+              title="Delete this production (its graphics stay saved wherever else they live)"
             >
               Delete?
             </button>
           ) : (
-            <button onClick={() => setConfirmDelete(r.id)} title="Delete this rundown">🗑</button>
+            <button onClick={() => setConfirmDelete(r.id)} title="Delete this production">🗑</button>
           )}
         </div>
       ))}

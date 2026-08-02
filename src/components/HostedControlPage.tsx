@@ -34,7 +34,11 @@ import { FieldControl } from './fields/FieldControl';
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
+  /** Which cue is on air — followed from the log's cue status rows (docs/CLOUD_PLAYOUT.md §4). */
+  const [liveCue, setLiveCue] = useState<{ id: string | null; graphic: string | null }>({ id: null, graphic: null });
   const lastIdRef = useRef(0);
+  /** The newest cue row applied — the boot-time tail scan must never overwrite a newer live one. */
+  const cueRowIdRef = useRef(0);
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -63,8 +67,22 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           setShow((s) =>
             s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
           );
+        } else if (msg.t === 'cue') {
+          cueRowIdRef.current = Math.max(cueRowIdRef.current, row.id);
+          setLiveCue({ id: msg.cue, graphic: msg.cue ? row.graphic : null });
         }
       };
+      // Which cue was already on air when this page opened lives only in the log — scan the
+      // recent tail for the last cue status row. These old rows never touch lastIdRef, and a
+      // live row that raced ahead wins via cueRowIdRef.
+      void hostedControlTail(slug, Math.max(0, resolved.lastEventId - 100)).then((rows) => {
+        for (const row of rows) {
+          if (row.msg.t === 'cue' && row.id > cueRowIdRef.current) {
+            cueRowIdRef.current = row.id;
+            setLiveCue({ id: row.msg.cue, graphic: row.msg.cue ? row.graphic : null });
+          }
+        }
+      });
       unsubscribe = await subscribeControlEvents(
         resolved.id,
         (row) => {
@@ -108,6 +126,24 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     );
   }
 
+  const cues = show.output?.cues ?? [];
+  const sendTo = (graphic: string, msg: Parameters<typeof sendHostedControl>[2]) =>
+    sendHostedControl(slug, graphic, msg).catch((e: Error) =>
+      setError(/slow down/i.test(e.message) ? 'Too many commands — slow down a moment.' : `Send failed: ${e.message}`),
+    );
+  /** Take a cue: its data, the previous graphic out, this one in, and the shared status row. */
+  const takeCue = async (cue: (typeof cues)[number]) => {
+    await sendTo(cue.graphic, { t: 'update', data: cue.values });
+    if (liveCue.graphic && liveCue.graphic !== cue.graphic) await sendTo(liveCue.graphic, { t: 'stop' });
+    await sendTo(cue.graphic, { t: 'play' });
+    await sendTo(cue.graphic, { t: 'cue', cue: cue.id });
+  };
+  const outLive = async () => {
+    if (!liveCue.graphic) return;
+    await sendTo(liveCue.graphic, { t: 'stop' });
+    await sendTo(liveCue.graphic, { t: 'cue', cue: null });
+  };
+
   return (
     <div className="hosted-control">
       <header className="hosted-header">
@@ -115,6 +151,48 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         <span className="muted">hosted control</span>
       </header>
       <main>
+        {/* The cue rundown (docs/CLOUD_PLAYOUT.md §4): prepared rows, takeable in order. LOAD
+            stages a cue's values into its graphic's card (shared, like typing them); TAKE airs
+            it. The live cue is the green row — the first thing a phone screen shows. */}
+        {cues.length > 0 && (
+          <section className="hosted-cues" data-testid="hosted-cues">
+            <div className="hosted-cues-head">
+              <h2>Cues</h2>
+              <span className="muted" data-testid="hosted-live-chip">
+                {liveCue.id
+                  ? `● LIVE: ${cues.find((c) => c.id === liveCue.id)?.label ?? liveCue.graphic}`
+                  : '○ nothing on air'}
+              </span>
+              <div className="spacer" />
+              <button disabled={!liveCue.graphic} onClick={() => liveCue.graphic && void sendTo(liveCue.graphic, { t: 'next' })} title="Advance the live graphic">
+                » Next
+              </button>
+              <button disabled={!liveCue.graphic} onClick={() => void outLive()} title="Play the live graphic out">
+                ■ Out
+              </button>
+            </div>
+            <div className="control-entries">
+              {cues.map((cue, i) => (
+                <div key={cue.id} className={`control-entry ${cue.id === liveCue.id ? 'live' : ''}`} data-testid={`hosted-cue-${cue.id}`}>
+                  <span className="control-entry-label">
+                    {cue.id === liveCue.id ? '●' : `${i + 1}.`} {cue.label}
+                    <span className="muted"> · {cue.graphic}</span>
+                    {cue.note ? <span className="muted prod-cue-note"> — {cue.note}</span> : null}
+                  </span>
+                  <button
+                    onClick={() => void stageHostedData(slug, cue.graphic, cue.values)}
+                    title="Load this cue's data into its graphic's fields (stages for every operator; airs on a take)"
+                  >
+                    Load
+                  </button>
+                  <button className="primary" onClick={() => void takeCue(cue)} title="Air this cue" data-testid="hosted-take-cue">
+                    ⟳ Take
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         {show.panel.length === 0 && <p className="muted">This show has no graphics yet.</p>}
         {show.panel.map((g) => (
           <HostedGraphicCard
