@@ -812,7 +812,7 @@ function hslToHex(h: number, s: number, l: number, alpha: string): string {
  * refusing. Stepped rather than binary-searched on purpose: travelling toward an extreme
  * can pass THROUGH the panel's own luminance, so contrast is not monotonic along the path.
  */
-function clampLightnessForContrast(color: string, panel: string, target: number): string | null {
+export function clampLightnessForContrast(color: string, panel: string, target: number): string | null {
   const current = contrastRatio(color, panel);
   if (current === null) return color;
   if (current >= target) return color;

@@ -16,6 +16,7 @@
 import type { Zone9 } from '../../model/wizard';
 import type { StructuralIntent } from '../../model/structuralIntent';
 import { intentCoversFrame } from '../../templates/structuralAnchor';
+import { clampLightnessForContrast } from '../liteContract';
 
 // ── ConceptDirection v1 (stage 4) ────────────────────────────────────────────
 
@@ -175,6 +176,92 @@ const ZONES: Zone9[] = [
  *  which is legible over anything and never a silent black-on-black. */
 const FALLBACK_PALETTE = { accent: '#ffb020', text: '#ffffff', textDim: '#c8ccd4', panel: 'rgba(12,14,18,0.88)' };
 
+/** Below this a panel is a tint, not a reading surface: the video reads through it and no ink
+ *  colour is reliably legible, because what is behind the panel is a picture nobody has seen
+ *  yet. Raising alpha is the smallest change that makes the design the model asked for work,
+ *  and it leaves the hue alone. */
+const MIN_PANEL_ALPHA = 0.85;
+
+type Rgba = { r: number; g: number; b: number; a: number };
+
+function parseColour(value: string): Rgba | null {
+  const v = value.trim();
+  const rgba = v.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/i);
+  if (rgba) {
+    const rawA = rgba[4];
+    const a = rawA === undefined ? 1 : (rawA.endsWith('%') ? Number(rawA.slice(0, -1)) / 100 : Number(rawA));
+    return { r: +rgba[1], g: +rgba[2], b: +rgba[3], a: Number.isFinite(a) ? a : 1 };
+  }
+  const hex = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+  if (!hex) return null;
+  const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
+  return { r: parseInt(full.slice(0, 2), 16), g: parseInt(full.slice(2, 4), 16), b: parseInt(full.slice(4, 6), 16), a: 1 };
+}
+
+const toHex = ({ r, g, b }: Rgba): string =>
+  `#${[r, g, b].map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('')}`;
+
+/**
+ * Make the declared palette one a viewer can actually read.
+ *
+ * The 2026-08-02 rounds produced correct-looking contracts that rendered unreadable - white
+ * ink on a near-white panel at 1.1:1, dark brown on a dark plate. The contrast maths already
+ * exists (`liteContract.ts clampLightnessForContrast`, stepped rather than binary-searched
+ * because travelling toward an extreme can pass THROUGH the panel's own luminance), so this
+ * reuses it rather than writing a third implementation.
+ *
+ * What it could NOT reuse is the entry point: `clampLitePalette` works on hex, and 48 of the
+ * 61 panels across the archived creative specs are `rgba`. Handed one, the luminance maths
+ * returns null and the clamp silently no-ops - it would have looked like a fix and changed
+ * nothing on four cases in five. So the panel is resolved to an opaque colour FIRST, by
+ * raising a too-thin alpha to the point where the panel is a surface rather than a tint, and
+ * the ink is then clamped against that.
+ */
+function legiblePalette(p: { accent: string; text: string; textDim: string; panel: string }) {
+  const panel = parseColour(p.panel);
+  if (!panel) return p;
+  const raised: Rgba = { ...panel, a: panel.a < MIN_PANEL_ALPHA ? MIN_PANEL_ALPHA : panel.a };
+  const panelHex = toHex(raised);
+
+  // TRANSLUCENT INK IS THE SAME TRAP AS A TRANSLUCENT PANEL, and fixing only the panel left it
+  // live: an emit asking for `rgba(128,128,128,0.9)` text on a pale panel measured 1.8:1 and
+  // the clamp did nothing, because the luminance maths reads hex. So each ink is composited
+  // ONTO the resolved panel first - which is what the viewer actually sees - and clamped as
+  // that. The alpha is baked in rather than kept: it was what made the line unreadable.
+  //
+  // A colour that already clears its floor comes back BYTE-IDENTICAL. Normalizing every value
+  // on the way through would rewrite `rgba(12,14,18,0.88)` as `rgba(12, 14, 18, 0.88)` in code
+  // the user is expected to read and edit - churn with nothing behind it, on the majority of
+  // palettes, which are fine to begin with.
+  const ink = (value: string, target: number): string => {
+    const c = parseColour(value);
+    if (!c) return value;
+    const flat = c.a >= 1 ? c : {
+      r: c.r * c.a + raised.r * (1 - c.a),
+      g: c.g * c.a + raised.g * (1 - c.a),
+      b: c.b * c.a + raised.b * (1 - c.a),
+      a: 1,
+    };
+    const flatHex = toHex(flat);
+    const clamped = clampLightnessForContrast(flatHex, panelHex, target) ?? flatHex;
+    // Opaque and already clearing the floor: nothing to say, so say nothing.
+    return clamped === flatHex && c.a >= 1 ? value : clamped;
+  };
+
+  return {
+    // The accent is INK too wherever a design uses it for words - the scaffold colours a row's
+    // leading cell with it - so it carries the secondary floor rather than being left alone.
+    accent: ink(p.accent, 3),
+    text: ink(p.text, 4.5),
+    textDim: ink(p.textDim, 3),
+    // Keep the declared FORM, and the declared STRING when nothing needed raising: a design
+    // that asked for a translucent panel keeps one, just thick enough to be read against.
+    panel: raised.a === panel.a
+      ? p.panel
+      : `rgba(${raised.r}, ${raised.g}, ${raised.b}, ${Number(raised.a.toFixed(2))})`,
+  };
+}
+
 /**
  * Clamp a raw stage-5 emit into a well-formed CreativeSpec. Nothing here rejects: an
  * off-shape region list degrades to one content region, an unknown zone to the intent's,
@@ -276,12 +363,12 @@ export function normalizeCreativeSpec(raw: unknown, intent: StructuralIntent): C
       sizeScale: clamp(layout.sizeScale, 0.85, 1.2, 1),
     },
     regions: finalRegions,
-    palette: {
+    palette: legiblePalette({
       accent: colour(palette.accent, FALLBACK_PALETTE.accent),
       text: colour(palette.text, FALLBACK_PALETTE.text),
       textDim: colour(palette.textDim, FALLBACK_PALETTE.textDim),
       panel: colour(palette.panel, FALLBACK_PALETTE.panel),
-    },
+    }),
     fontId: str(r.fontId, 'inter'),
     motion: {
       // An emit that named no order (or named regions that do not exist) still gets the

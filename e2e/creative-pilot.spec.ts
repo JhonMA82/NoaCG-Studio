@@ -840,6 +840,64 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.haloed).toBe('');
   });
 
+  test('the declared palette is made readable, translucency and all', async ({ page }) => {
+    await open(page);
+    // Correct-looking contracts rendered unreadable across the 2026-08-02 rounds: white ink on
+    // a near-white panel at 1.1:1, translucent grey on pale at 1.8:1. The contrast maths is
+    // reused from liteContract (stepped, because travelling toward an extreme can pass THROUGH
+    // the panel's own luminance) - what could not be reused was its ENTRY POINT, which works on
+    // hex while 48 of 61 archived creative panels are rgba. Handed one it silently no-ops.
+    const report = await page.evaluate(async () => {
+      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const i = normalizeIntent({ kind: 'category', confidence: 'high', summary: 'x', parts: [], fields: [] });
+      const spec = (palette: unknown) => normalizeCreativeSpec({
+        conceptId: 'c1', name: 'n', summary: 's',
+        layout: { family: 'strap', arrangement: 'stack', fullFrame: false, zone: 'bottom-left', sizeScale: 1 },
+        regions: [{ id: 'a', role: 'name', emphasis: 'primary', fieldKeys: [] }],
+        palette, fontId: 'inter', motion: { entranceOrder: [], character: 'rise', seconds: 0.9 },
+      }, i).palette;
+      return {
+        // White ink on a near-white panel - the measured 1.1:1 case.
+        whiteOnWhite: spec({ accent: '#FFFFFF', text: '#FFFFFF', textDim: '#FFFFFF', panel: '#F4F1EA' }),
+        // A translucent panel: the maths must resolve it rather than give up.
+        thinPanel: spec({ accent: '#ffb020', text: '#ffffff', textDim: '#cccccc', panel: 'rgba(200,200,200,0.4)' }),
+        // Translucent INK on a pale panel - the 1.8:1 residual the panel fix alone left live.
+        thinInk: spec({ accent: '#FFFFFF', text: 'rgba(128,128,128,0.9)', textDim: 'rgba(128,128,128,0.65)', panel: 'rgba(194,194,194,0.4)' }),
+        // A palette that is already fine must come back untouched.
+        sound: spec({ accent: '#ffb020', text: '#ffffff', textDim: '#c8ccd4', panel: 'rgba(12,14,18,0.88)' }),
+      };
+    });
+
+    const lum = (hex: string) => {
+      const n = hex.replace('#', '');
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255)
+        .map((s) => (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const flat = (c: string) => {
+      const m = c.match(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+      return m ? `#${[1, 2, 3].map((i) => Math.round(+m[i]).toString(16).padStart(2, '0')).join('')}` : c;
+    };
+    const ratio = (fg: string, bg: string) => {
+      const a = lum(flat(fg)) + 0.05; const b = lum(flat(bg)) + 0.05;
+      return a > b ? a / b : b / a;
+    };
+
+    for (const key of ['whiteOnWhite', 'thinPanel', 'thinInk'] as const) {
+      const p = report[key];
+      expect(ratio(p.text, p.panel), `${key} text`).toBeGreaterThanOrEqual(4.4);
+      expect(ratio(p.textDim, p.panel), `${key} textDim`).toBeGreaterThanOrEqual(2.9);
+      // The accent is ink too - the scaffold colours a row's leading cell with it.
+      expect(ratio(p.accent, p.panel), `${key} accent`).toBeGreaterThanOrEqual(2.9);
+    }
+    // A translucent panel stays translucent, just thick enough to read against.
+    expect(report.thinPanel.panel).toMatch(/^rgba\(/);
+    // The mutation twin: a sound palette is not touched.
+    expect(report.sound.text).toBe('#ffffff');
+    expect(report.sound.panel).toBe('rgba(12,14,18,0.88)');
+  });
+
   test('a reference reading cannot be filed under another attachment\'s purpose', async ({ page }) => {
     await open(page);
     // The one way a reference actively HARMS a result: a plate described as a mood board stops
