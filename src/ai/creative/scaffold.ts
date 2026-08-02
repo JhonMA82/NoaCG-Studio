@@ -28,6 +28,7 @@ import {
   runtimeJs,
   zoneCssText,
 } from '../../templates/shared/base';
+import { legibilityFloor } from './style';
 import { emitAnimRegion } from '../../templates/shared/animRuntime';
 import type { AnimData, AnimStep } from '../../blocks/animData';
 import type { GenerateContext } from '../provider';
@@ -514,7 +515,15 @@ ${holders.join('\n')}
     body,
   });
 
-  const css = scaffoldCss(spec, regions, prefix, scale, font, resolution);
+  const bareCss = scaffoldCss(spec, regions, prefix, scale, font, resolution);
+  // The scaffold IS the shipped result whenever the style gate refuses a patch, so the
+  // legibility floor has to hold here too - a floor that only applies to styled results leaves
+  // the refusal path renderng ink on whatever the video happens to be (the 2026-08-02
+  // reference round: `--panel-bg` declared, nothing drawing it). A landed patch is composed
+  // over this, and the floor is not applied twice: style.ts checks the FINISHED sheet and
+  // finds the surface this one already painted.
+  const floor = legibilityFloor(bareCss, prefix);
+  const css = floor ? `${bareCss}\n${floor}\n` : bareCss;
 
   // The runtime is generated from the SAME host table the markup was, so it can never be
   // emitted without the containers it writes into.

@@ -337,6 +337,91 @@ export function clampTypeFloors(css: string, regions: ScaffoldRegion[], prefix: 
   });
 }
 
+/** A background value that actually paints something. `transparent`, `none` and a fully
+ *  clear rgba are declarations, not paint - which is the distinction the whole floor below
+ *  turns on. */
+const PAINTS = (value: string): boolean => {
+  const v = value.trim().toLowerCase();
+  if (!v || v === 'none' || v === 'transparent' || v === 'initial' || v === 'unset') return false;
+  return !/rgba\([^)]*,\s*0?\.?0+\s*\)/.test(v);
+};
+
+/** Does anything paint a reading surface behind the words? Checked over the WHOLE stylesheet,
+ *  scaffold and design together - the question is what the frame ends up with, not who did it. */
+function paintsBackdrop(css: string, prefix: string): boolean {
+  let found = false;
+  eachRule(css, (selector, body) => {
+    if (found) return body;
+    // The root, the box, or a region - the elements a reading surface could sit on. A cell or
+    // a text span painting its own background is a chip, not a plate, but it still counts:
+    // it is a surface those words are read against.
+    if (!new RegExp(`\\.${prefix}(-box|-r-|-rows|-row|-cell|-t|\\b)`).test(selector)) return body;
+    for (const m of body.matchAll(/(?:^|;)\s*background(?:-color|-image)?\s*:\s*([^;]+)/gi)) {
+      if (PAINTS(m[1])) { found = true; break; }
+    }
+    return body;
+  });
+  return found;
+}
+
+/** Does the text carry its own legibility - the panel-less family's answer (pack4/skin.ts
+ *  `textLegibilityCss`)? A halo or a stroke is a real alternative to a plate, not a lesser one. */
+function textCarriesLegibility(css: string, prefix: string): boolean {
+  let found = false;
+  eachRule(css, (selector, body) => {
+    if (found) return body;
+    if (!new RegExp(`\\.${prefix}-(t|cell)\\b`).test(selector)) return body;
+    if (/(?:^|;)\s*(text-shadow|-webkit-text-stroke|paint-order)\s*:\s*(?!none)[^;]+/i.test(body)) found = true;
+    return body;
+  });
+  return found;
+}
+
+/** The panel colour the design CONTRACT published, read back from the compiled `:root`. */
+function declaredPanel(css: string): string | null {
+  const m = css.match(/--panel-bg\s*:\s*([^;]+);/);
+  const value = m?.[1]?.trim();
+  return value && PAINTS(value) ? value : null;
+}
+
+/**
+ * A graphic must be readable against SOMETHING. Never neither.
+ *
+ * The 2026-08-02 reference round's finding, and the clearest evidence in the pilot. A mood
+ * board of warm papery ochres was read correctly and produced a correct design contract - dark
+ * brown ink, warm cream paper - and then rendered dark brown text straight onto the dark plate,
+ * because `--panel-bg` is DECLARED and nothing ever paints it. The only `background` in that
+ * stylesheet was `transparent` on the body. The model did not choose badly; the platform
+ * published a paper colour and drew no paper.
+ *
+ * The floor is deliberately not "always paint a panel". A panel-less design is a real design -
+ * the catalog's own `clean` skin has `hasPanel: false` and buys its legibility with a halo
+ * instead (pack4/skin.ts `textLegibilityCss`), and the reviewer's note on a frame that WORKED
+ * asked for exactly that: "readability may be weak unless the text has a dark outline or
+ * shadow". So the rule is a disjunction: a reading surface, or text that carries its own
+ * legibility, and the platform supplies one only when the design supplied neither.
+ *
+ * The panel is preferred when the contract declared one, because that is what the design asked
+ * for. It paints at CONTENT size, which is what `stripFrameFlood` protects rather than
+ * refuses - a panel behind the words is the job; a wash over the whole frame is not.
+ */
+export function legibilityFloor(css: string, prefix: string): string {
+  if (paintsBackdrop(css, prefix) || textCarriesLegibility(css, prefix)) return '';
+  const panel = declaredPanel(css);
+  return panel
+    ? `/* ── Platform floor: the contract declared a reading surface and nothing drew it. ── */
+.${prefix}-box {
+  background: var(--panel-bg);
+  padding: calc(24px * var(--scale)) calc(32px * var(--scale));
+  border-radius: calc(6px * var(--scale));
+}`
+    : `/* ── Platform floor: no reading surface, so the words carry their own legibility. ── */
+.${prefix}-t, .${prefix}-cell {
+  text-shadow: 0 calc(2px * var(--scale)) calc(10px * var(--scale)) rgba(0, 0, 0, 0.85),
+               0 0 calc(3px * var(--scale)) rgba(0, 0, 0, 0.9);
+}`;
+}
+
 /**
  * Keep the composition inside the frame.
  *
@@ -466,9 +551,13 @@ export function applyCreativeStyle(
   // An OVERLAY may not paint the whole frame opaque; a full-frame board may (and is measured
   // instead). The spec decided which this graphic is, at stage 5.
   if (!scaffold.fullFrame) css = stripFrameFlood(css);
+  // The floor reads the FINISHED stylesheet - scaffold plus design - because the question is
+  // what the frame ends up with, not which stage was responsible for it.
+  const composed = `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n`;
+  const floor = legibilityFloor(composed, prefix);
   return {
     ...template,
-    css: `${template.css}\n\n${CREATIVE_STYLE_MARKER}\n${css}\n\n${safeAreaClamp(prefix, scaffold.fullFrame)}\n`,
+    css: `${composed}\n${safeAreaClamp(prefix, scaffold.fullFrame)}\n${floor ? `\n${floor}\n` : ''}`,
     html,
   };
 }

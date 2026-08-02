@@ -799,6 +799,42 @@ test.describe('creative pilot (phase C)', () => {
     expect(out).toContain('font-weight: 700');                     // neighbours survive
   });
 
+  test('a graphic is readable against something - a surface, or its own halo, never neither', async ({ page }) => {
+    await open(page);
+    // The 2026-08-02 reference round's finding. A mood board of warm papery ochres was read
+    // correctly and produced a correct contract - dark brown ink, warm cream paper - and then
+    // rendered the ink straight onto the dark plate, because `--panel-bg` is DECLARED and
+    // nothing painted it. The only `background` in that stylesheet was `transparent` on body.
+    const report = await page.evaluate(async () => {
+      const { legibilityFloor } = await import('/src/ai/creative/style.ts');
+      const root = ':root { --panel-bg: #DDCAB8; }\n';
+      return {
+        // Nothing paints and nothing haloes: the declared surface gets drawn.
+        bare: legibilityFloor(`${root}.creative-box { display: flex; }`, 'creative'),
+        // A design that paints its own surface needs no help.
+        painted: legibilityFloor(`${root}.creative-box { background: #101418; }`, 'creative'),
+        // …including one painted on a region rather than the box.
+        region: legibilityFloor(`${root}.creative-r-name { background-color: rgb(20,20,20); }`, 'creative'),
+        // A panel-less design that carries its own legibility is a real design, not a fault.
+        haloed: legibilityFloor(`${root}.creative-t { text-shadow: 0 2px 8px #000; }`, 'creative'),
+        // A declaration that paints NOTHING is not paint - this is the exact defect.
+        transparentOnly: legibilityFloor(`${root}.creative-box { background: transparent; }`, 'creative'),
+        clearRgba: legibilityFloor(`${root}.creative-box { background: rgba(0,0,0,0); }`, 'creative'),
+        // No panel colour declared at all: the words carry themselves instead.
+        noPanel: legibilityFloor('.creative-box { display: flex; }', 'creative'),
+      };
+    });
+
+    expect(report.bare).toContain('background: var(--panel-bg)');
+    expect(report.transparentOnly).toContain('background: var(--panel-bg)'); // the real case
+    expect(report.clearRgba).toContain('background: var(--panel-bg)');
+    expect(report.noPanel).toContain('text-shadow');                        // the fallback
+    // The mutation twins: a design that already solved it is left completely alone.
+    expect(report.painted).toBe('');
+    expect(report.region).toBe('');
+    expect(report.haloed).toBe('');
+  });
+
   test('the safe-area clamp lands after the design and caps the box', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent, spec }) => {
