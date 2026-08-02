@@ -1,7 +1,7 @@
 // The browser-output renderer's entry (docs/CLOUD_PLAYOUT.md §3). Boot: resolve the
 // production by its OUTPUT capability, build the stage (every graphic preloaded), rebuild each
 // graphic from its last report (the data half, then the visual half — recovery is both), then
-// follow the command log live with tail-fill on every (re)subscribe.
+// follow the command log live through the shared recovery discipline (followControlLog).
 //
 // Nothing but graphics ever renders on air: no connection text, no UI. A disconnected renderer
 // keeps its last applied state and recovers silently; `&debug=1` overlays a status readout for
@@ -9,16 +9,15 @@
 // build — states a live production can never be in.
 
 import { isBackendConfigured } from '../backend/config';
-import type { ControlMessage } from '../control/controlModel';
 import {
   controlOutputBySlug,
   controlOutputReport,
   controlOutputSeen,
   controlOutputTail,
-  subscribeControlEvents,
+  followControlLog,
   type ControlEventRow,
 } from '../control/hostedControl';
-import { createOutputStage, type OutputStage } from './stage';
+import { createOutputStage } from './stage';
 
 const params = new URLSearchParams(window.location.search);
 const outputSlug = params.get('production');
@@ -72,47 +71,60 @@ async function boot(): Promise<void> {
     return;
   }
 
-  const stage: OutputStage = createOutputStage(document.body, resolved.output);
+  const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
 
   // ── Applied-truth bookkeeping (the panel event-log pattern, parent-side): the sandbox has
   // no DOM to harvest across, so the renderer reports what it FORWARDED — update data merged
   // per graphic, event payloads merged optimistically (the same rule the standalone panel's
-  // log applies), machine state from the documents' own replies. ──
+  // log applies), machine state from the documents' own replies. Reports fire ONLY for
+  // forwarded renderer commands and observed state changes — never for the log's status rows,
+  // because control_output_report itself inserts a {t:'live'} status row, and reporting on it
+  // would make the renderer feed its own subscription forever. ──
   const mergedData = new Map<string, Record<string, string>>();
+  const lastReported = new Map<string, string>();
   const reportTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const scheduleReport = (graphic: string) => {
     clearTimeout(reportTimers.get(graphic));
     reportTimers.set(
       graphic,
       setTimeout(() => {
-        void controlOutputReport(outputSlug, graphic, mergedData.get(graphic) ?? {}, stage.states.get(graphic) ?? null);
+        const data = mergedData.get(graphic) ?? {};
+        const state = stage.states.get(graphic) ?? null;
+        // Byte-identical truth needs no second write (the 1 s state poll answers every second).
+        const key = JSON.stringify([data, state]);
+        if (key === lastReported.get(graphic)) return;
+        lastReported.set(graphic, key);
+        void controlOutputReport(outputSlug, graphic, data, state);
       }, 800),
     );
   };
   stage.onState((graphic) => scheduleReport(graphic));
-  // Timer-driven machine changes reply through the same state channel — a light poll keeps
-  // the reported truth honest between commands (receiverScript's 1 s watcher, renderer-side).
-  setInterval(() => stage.graphics.forEach((g) => stage.requestState(g)), 1000);
 
-  let lastId = resolved.lastEventId;
+  // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
+  // state on a timer, so only those need the 1 s machine-state poll — an idle stacked
+  // graphic's machine cannot move without a command, and the renderer's main thread is the
+  // one that must not miss frames. ──
+  const liveGraphics = new Set<string>();
+  setInterval(() => liveGraphics.forEach((g) => stage.requestState(g)), 1000);
+
   const apply = (row: ControlEventRow) => {
-    if (row.id <= lastId) return;
-    lastId = row.id;
-    const msg = row.msg as ControlMessage | { t: string };
+    const msg = row.msg;
     if (msg.t === 'update') {
-      const m = msg as Extract<ControlMessage, { t: 'update' }>;
-      mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...m.data });
-    } else if (msg.t === 'event') {
-      const m = msg as Extract<ControlMessage, { t: 'event' }>;
-      if (m.payload) mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...m.payload });
+      mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...msg.data });
+    } else if (msg.t === 'event' && msg.payload) {
+      mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...msg.payload });
+    } else if (msg.t === 'play' || msg.t === 'snap') {
+      liveGraphics.add(row.graphic);
+    } else if (msg.t === 'stop') {
+      liveGraphics.delete(row.graphic);
     }
-    stage.apply(row.graphic, msg as ControlMessage);
-    scheduleReport(row.graphic);
-    dbg('last row', String(lastId));
-  };
-  const fillTail = () => {
-    void controlOutputTail(outputSlug, lastId).then((rows) => rows.forEach(apply));
+    stage.apply(row.graphic, msg);
+    // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
+    // and so does the report path.
+    const forwarded = msg.t === 'update' || msg.t === 'play' || msg.t === 'stop' || msg.t === 'next' || msg.t === 'event' || msg.t === 'snap';
+    if (forwarded) scheduleReport(row.graphic);
+    dbg('last row', String(row.id));
   };
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
@@ -123,21 +135,20 @@ async function boot(): Promise<void> {
       mergedData.set(key, { ...mine.data });
       stage.apply(key, { t: 'update', data: mine.data });
     }
-    if (mine.state?.groups) stage.apply(key, { t: 'snap', snap: mine.state.groups });
+    if (mine.state?.groups) {
+      stage.apply(key, { t: 'snap', snap: mine.state.groups });
+      liveGraphics.add(key);
+    }
   }
 
-  // ── Follow the log live; every (re)subscribe tail-fills the gap it can't see. ──
-  await subscribeControlEvents(
-    resolved.id,
-    (row) => {
-      if (row.id > lastId + 1) fillTail();
-      apply(row);
-    },
-    () => {
-      dbg('realtime', 'subscribed');
-      fillTail();
-    },
-  );
+  // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe). ──
+  await followControlLog({
+    showId: resolved.id,
+    from: resolved.lastEventId,
+    tail: (after) => controlOutputTail(outputSlug, after),
+    onRow: apply,
+  });
+  dbg('realtime', 'following');
 
   // ── Heartbeat: operator surfaces read output_seen_at staleness as "renderer connected". ──
   void controlOutputSeen(outputSlug);

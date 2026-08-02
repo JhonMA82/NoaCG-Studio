@@ -22,7 +22,7 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await expect(page.getByTestId('production-page')).toBeVisible();
 
   // Adding a graphic auto-created its first cue, seeded from the template's defaults (§2).
-  const cueRows = page.locator('[data-testid^="cue-"][class*="control-entry"]');
+  const cueRows = page.getByTestId('cue-list').locator('.control-entry');
   await expect(cueRows).toHaveCount(1);
   await expect(cueRows.first()).toContainText('Hairline');
 

@@ -16,8 +16,7 @@ import {
   type PreviewMachineState,
   type PreviewStateMessage,
 } from '../preview/previewProtocol';
-import type { ControlMessage } from '../control/controlModel';
-import type { OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
+import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { SpxTemplate } from '../model/types';
 import { DEFAULT_SETTINGS } from '../model/types';
 
@@ -40,8 +39,9 @@ function templateFromSpec(spec: OutputGraphicSpec): SpxTemplate {
 }
 
 export interface OutputStage {
-  /** Route one command to its graphic's document. Unknown graphics are ignored. */
-  apply(graphic: string, msg: ControlMessage): void;
+  /** Route one command to its graphic's document. Unknown graphics and the log's status rows
+   *  ('cue'/'staged'/'live') are ignored, so a caller can feed rows straight through. */
+  apply(graphic: string, msg: ControlEventRow['msg']): void;
   /** Ask a graphic's document for its machine state (answers arrive via onState). */
   requestState(graphic: string): void;
   /** The latest machine state each document reported (null = none / not machine-bearing). */
@@ -123,7 +123,7 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
   };
   window.addEventListener('message', onMessage);
 
-  const apply = (graphic: string, msg: ControlMessage) => {
+  const apply = (graphic: string, msg: ControlEventRow['msg']) => {
     const win = frames.get(graphic)?.contentWindow;
     if (!win) return;
     switch (msg.t) {
@@ -143,7 +143,9 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
         postPreviewCmd(win, { cmd: 'dispatch', event: msg.event, payload: msg.payload });
         break;
       case 'snap':
-        postPreviewCmd(win, { cmd: 'snap', assignments: msg.snap });
+        // Recovery semantics stated explicitly — the wire field means opposite things to the
+        // editor simulator (parked design view, timers off) and to a renderer (timers arm).
+        postPreviewCmd(win, { cmd: 'snap', assignments: msg.snap, timers: true });
         break;
       default:
         return; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands

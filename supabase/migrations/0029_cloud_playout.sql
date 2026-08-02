@@ -129,6 +129,52 @@ begin
   return v_id;
 end $$;
 
+-- ── 4b. Batched send: a multi-part verb is ONE atomic, log-ordered insert. ───────────────────
+-- Take is four commands (update → stop previous → play → cue status); sent one at a time it
+-- pays four RPC round-trips of on-air latency and can fail halfway, leaving the renderer
+-- inconsistent. The batch validates every item first, checks the burst budget once for the
+-- whole batch, and inserts in array order (identity ids follow the ORDER BY, so log order is
+-- the verb's order).
+create or replace function public.control_send_many(p_slug text, p_items jsonb)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  v_show uuid;
+  v_owner uuid;
+  v_recent int;
+  v_count int;
+  v_item jsonb;
+begin
+  select id, owner_id into v_show, v_owner from public.control_shows where slug = p_slug;
+  if v_show is null then raise exception 'unknown control page'; end if;
+  if public.feature_denied_for(v_owner, 'control.hosted') then
+    raise exception 'hosted control is switched off for this page' using errcode = '42501';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' then
+    raise exception 'not a command batch';
+  end if;
+  v_count := jsonb_array_length(p_items);
+  -- A verb is a handful of commands; anything bigger is an ingest pattern this API is not.
+  if v_count < 1 or v_count > 8 then
+    raise exception 'not a command batch';
+  end if;
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    if coalesce(v_item->'msg'->>'t', '') not in ('update', 'play', 'stop', 'next', 'event', 'snap', 'cue')
+       or coalesce(v_item->>'graphic', '') = '' then
+      raise exception 'not a control command';
+    end if;
+  end loop;
+  select count(*) into v_recent from public.control_events
+    where show_id = v_show and created_at > now() - interval '5 seconds';
+  if v_recent + v_count > 50 then
+    raise exception 'too many commands — slow down' using errcode = 'check_violation';
+  end if;
+  insert into public.control_events (show_id, graphic, msg)
+    select v_show, item.value->>'graphic', item.value->'msg'
+    from jsonb_array_elements(p_items) with ordinality as item(value, ord)
+    order by item.ord;
+end $$;
+grant execute on function public.control_send_many(text, jsonb) to anon, authenticated;
+
 -- ── 5. Log retention: the OWNER may prune their shows' old rows (publish deletes > 7 days). ──
 -- 0008 deliberately had no DELETE policy at all; the owner-scoped one keeps "writes go through
 -- RPCs" true for operators while letting the publish path bound the log.
@@ -153,7 +199,8 @@ begin
   if to_regprocedure('public.control_output_by_slug(text)') is null
      or to_regprocedure('public.control_output_tail(text, bigint)') is null
      or to_regprocedure('public.control_output_report(text, text, jsonb, jsonb)') is null
-     or to_regprocedure('public.control_output_seen(text)') is null then
+     or to_regprocedure('public.control_output_seen(text)') is null
+     or to_regprocedure('public.control_send_many(text, jsonb)') is null then
     raise exception 'cloud playout self-check failed: an output RPC is missing';
   end if;
   -- (c) The operator resolve carries the payload columns.

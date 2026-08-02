@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { eventButtons, eventLegality, fieldDescriptors, isEventLegal, type ControlMessage } from '../control/controlModel';
 import {
+  clearCueOnWire,
   controlShowBySlug,
+  followControlLog,
   hostedControlTail,
+  recentLiveCue,
   sendHostedControl,
   stageHostedData,
-  subscribeControlEvents,
-  type ControlEventRow,
+  takeCueOnWire,
   type PanelEntry,
   type PanelGraphicSpec,
   type ResolvedControlShow,
@@ -36,9 +38,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const [error, setError] = useState<string | null>(null);
   /** Which cue is on air — followed from the log's cue status rows (docs/CLOUD_PLAYOUT.md §4). */
   const [liveCue, setLiveCue] = useState<{ id: string | null; graphic: string | null }>({ id: null, graphic: null });
-  const lastIdRef = useRef(0);
-  /** The newest cue row applied — the boot-time tail scan must never overwrite a newer live one. */
-  const cueRowIdRef = useRef(0);
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -52,50 +51,32 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (!live) return;
       setShow(resolved);
       if (!resolved) return;
-      // Seed the tail cursor from the resolve's log baseline — starting at 0 made the very
-      // first live row look like a hole and tail-replayed the log from its beginning.
-      lastIdRef.current = resolved.lastEventId;
-      // Follow the log: staged/live meta rows update the shared view; command rows from
-      // other operators need no handling here (the graphic's own live report follows).
-      const applyRow = (row: ControlEventRow) => {
-        if (row.id <= lastIdRef.current) return;
-        lastIdRef.current = row.id;
-        const msg = row.msg;
-        if (msg.t === 'staged') {
-          setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
-        } else if (msg.t === 'live') {
-          setShow((s) =>
-            s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
-          );
-        } else if (msg.t === 'cue') {
-          cueRowIdRef.current = Math.max(cueRowIdRef.current, row.id);
-          setLiveCue({ id: msg.cue, graphic: msg.cue ? row.graphic : null });
-        }
-      };
-      // Which cue was already on air when this page opened lives only in the log — scan the
-      // recent tail for the last cue status row. These old rows never touch lastIdRef, and a
-      // live row that raced ahead wins via cueRowIdRef.
-      void hostedControlTail(slug, Math.max(0, resolved.lastEventId - 100)).then((rows) => {
-        for (const row of rows) {
-          if (row.msg.t === 'cue' && row.id > cueRowIdRef.current) {
-            cueRowIdRef.current = row.id;
-            setLiveCue({ id: row.msg.cue, graphic: row.msg.cue ? row.graphic : null });
+      const tail = (after: number) => hostedControlTail(slug, after);
+      // Which cue was already on air lives only in the log — recover it from the recent tail
+      // BEFORE following live rows, so old markers can never overwrite a newer one.
+      const initial = await recentLiveCue(tail, resolved.lastEventId);
+      if (!live) return;
+      if (initial) setLiveCue(initial);
+      // Follow the log (shared recovery discipline — control/hostedControl.ts followControlLog):
+      // staged/live meta rows update the shared view; cue rows move the live chip; command
+      // rows from other operators need no handling (the graphic's own live report follows).
+      unsubscribe = await followControlLog({
+        showId: resolved.id,
+        from: resolved.lastEventId,
+        tail,
+        onRow: (row) => {
+          const msg = row.msg;
+          if (msg.t === 'staged') {
+            setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
+          } else if (msg.t === 'live') {
+            setShow((s) =>
+              s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
+            );
+          } else if (msg.t === 'cue') {
+            setLiveCue({ id: msg.cue, graphic: msg.cue ? row.graphic : null });
           }
-        }
-      });
-      unsubscribe = await subscribeControlEvents(
-        resolved.id,
-        (row) => {
-          // A hole in the ids means missed rows — recover order from the log's tail.
-          if (row.id > lastIdRef.current + 1) {
-            void hostedControlTail(slug, lastIdRef.current).then((rows) => rows.forEach(applyRow));
-          }
-          applyRow(row);
         },
-        // Every (re)subscribe tail-fills: a tab that slept through a socket drop follows the
-        // rows it missed instead of waiting for the next one to reveal the hole.
-        () => void hostedControlTail(slug, lastIdRef.current).then((rows) => rows.forEach(applyRow)),
-      );
+      });
     })();
     return () => {
       live = false;
@@ -127,21 +108,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   }
 
   const cues = show.output?.cues ?? [];
-  const sendTo = (graphic: string, msg: Parameters<typeof sendHostedControl>[2]) =>
-    sendHostedControl(slug, graphic, msg).catch((e: Error) =>
-      setError(/slow down/i.test(e.message) ? 'Too many commands — slow down a moment.' : `Send failed: ${e.message}`),
-    );
-  /** Take a cue: its data, the previous graphic out, this one in, and the shared status row. */
-  const takeCue = async (cue: (typeof cues)[number]) => {
-    await sendTo(cue.graphic, { t: 'update', data: cue.values });
-    if (liveCue.graphic && liveCue.graphic !== cue.graphic) await sendTo(liveCue.graphic, { t: 'stop' });
-    await sendTo(cue.graphic, { t: 'play' });
-    await sendTo(cue.graphic, { t: 'cue', cue: cue.id });
-  };
-  const outLive = async () => {
-    if (!liveCue.graphic) return;
-    await sendTo(liveCue.graphic, { t: 'stop' });
-    await sendTo(liveCue.graphic, { t: 'cue', cue: null });
+  const surfaceSendError = (e: Error) =>
+    setError(/slow down/i.test(e.message) ? 'Too many commands — slow down a moment.' : `Send failed: ${e.message}`);
+  // The verbs are the SHARED wire authors (control/hostedControl.ts) — one atomic batch per
+  // verb, so a take can neither pay four round-trips nor fail halfway through.
+  const takeCue = (cue: (typeof cues)[number]) =>
+    takeCueOnWire(slug, { id: cue.id, graphic: cue.graphic, values: cue.values }, liveCue.graphic).catch(surfaceSendError);
+  const outLive = () => {
+    if (!liveCue.graphic) return Promise.resolve();
+    return clearCueOnWire(slug, liveCue.graphic).catch(surfaceSendError);
   };
 
   return (
@@ -164,7 +139,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                   : '○ nothing on air'}
               </span>
               <div className="spacer" />
-              <button disabled={!liveCue.graphic} onClick={() => liveCue.graphic && void sendTo(liveCue.graphic, { t: 'next' })} title="Advance the live graphic">
+              <button
+                disabled={!liveCue.graphic}
+                onClick={() =>
+                  liveCue.graphic && void sendHostedControl(slug, liveCue.graphic, { t: 'next' }).catch(surfaceSendError)
+                }
+                title="Advance the live graphic"
+              >
                 » Next
               </button>
               <button disabled={!liveCue.graphic} onClick={() => void outLive()} title="Play the live graphic out">

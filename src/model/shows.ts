@@ -138,9 +138,10 @@ export function addGraphicToShow(
     show.graphics.push(graphic);
     // A new pool graphic starts with one cue seeded from its field defaults, so the cue
     // rundown is never empty-but-working (docs/CLOUD_PLAYOUT.md §2).
-    const values: Record<string, string> = {};
-    for (const f of template.fields) values[f.field] = f.value ?? '';
-    show.cues = [...(show.cues ?? []), { id: uuid(), sourceId: graphic.id, label: template.name, values }];
+    show.cues = [
+      ...(show.cues ?? []),
+      { id: uuid(), sourceId: graphic.id, label: template.name, values: seedValues(template.fields) },
+    ];
   }
   show.updatedAt = nowIso();
   return { shows: all.filter((s) => !s.deleted), error: saveAll(all) };
@@ -161,6 +162,26 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
 
 // ── Cues (docs/CLOUD_PLAYOUT.md §2) ──────────────────────────────────────────
 
+/** The mutator envelope, once: resolve the LIVE (non-tombstoned) record, run the mutation,
+ *  stamp + persist only when it reports a change, return the visible list. Hand-rolling this
+ *  per mutator is how four of the first five cue mutators forgot the tombstone guard. */
+function patchShow(showId: string, mutate: (show: Show) => boolean): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId && !s.deleted);
+  if (show && mutate(show)) {
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
+  return all.filter((s) => !s.deleted);
+}
+
+/** A cue's starting values: the template's own field defaults (what update() falls back to). */
+function seedValues(fields: SpxTemplate['fields']): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const f of fields) values[f.field] = f.value ?? '';
+  return values;
+}
+
 /** Append a cue for a pool graphic. `seed` prefills label/values (e.g. from a ControlEntry —
  *  a starting point only; the cue owns its values from here on). */
 export function addShowCue(
@@ -168,24 +189,22 @@ export function addShowCue(
   sourceId: string,
   seed?: { label?: string; values?: Record<string, string>; note?: string },
 ): { shows: Show[]; cueId: string | null } {
-  const all = loadAllShows();
-  const show = all.find((s) => s.id === showId && !s.deleted);
-  const source = show?.graphics.find((g) => g.id === sourceId);
-  if (!show || !source) return { shows: all.filter((s) => !s.deleted), cueId: null };
-  const values: Record<string, string> = {};
-  for (const f of source.template.fields) values[f.field] = f.value ?? '';
-  Object.assign(values, seed?.values ?? {});
-  const cue: ShowCue = {
-    id: uuid(),
-    sourceId,
-    label: seed?.label?.trim() || source.name,
-    values,
-    ...(seed?.note ? { note: seed.note } : {}),
-  };
-  show.cues = [...(show.cues ?? []), cue];
-  show.updatedAt = nowIso();
-  saveAll(all);
-  return { shows: all.filter((s) => !s.deleted), cueId: cue.id };
+  let cueId: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const source = show.graphics.find((g) => g.id === sourceId);
+    if (!source) return false;
+    const cue: ShowCue = {
+      id: uuid(),
+      sourceId,
+      label: seed?.label?.trim() || source.name,
+      values: { ...seedValues(source.template.fields), ...(seed?.values ?? {}) },
+      ...(seed?.note ? { note: seed.note } : {}),
+    };
+    show.cues = [...(show.cues ?? []), cue];
+    cueId = cue.id;
+    return true;
+  });
+  return { shows, cueId };
 }
 
 /** Patch a cue's label / values / note in place. Values merge per field. */
@@ -194,56 +213,42 @@ export function updateShowCue(
   cueId: string,
   patch: { label?: string; values?: Record<string, string>; note?: string | null },
 ): Show[] {
-  const all = loadAllShows();
-  const show = all.find((s) => s.id === showId);
-  const cue = show?.cues?.find((c) => c.id === cueId);
-  if (show && cue) {
+  return patchShow(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return false;
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
-    show.updatedAt = nowIso();
-    saveAll(all);
-  }
-  return all.filter((s) => !s.deleted);
+    return true;
+  });
 }
 
-/** Move a cue one slot up or down the rundown. */
+/** Move a cue one slot up or down the rundown (the moveShowGraphic swap, over cues). */
 export function moveShowCue(showId: string, cueId: string, dir: -1 | 1): Show[] {
-  const all = loadAllShows();
-  const show = all.find((s) => s.id === showId);
-  const cues = show?.cues;
-  if (show && cues) {
+  return patchShow(showId, (show) => {
+    const cues = show.cues;
+    if (!cues) return false;
     const i = cues.findIndex((c) => c.id === cueId);
     const j = i + dir;
-    if (i >= 0 && j >= 0 && j < cues.length) {
-      const c = cues[i];
-      cues[i] = cues[j];
-      cues[j] = c;
-      show.updatedAt = nowIso();
-      saveAll(all);
-    }
-  }
-  return all.filter((s) => !s.deleted);
+    if (i < 0 || j < 0 || j >= cues.length) return false;
+    [cues[i], cues[j]] = [cues[j], cues[i]];
+    return true;
+  });
 }
 
 export function removeShowCue(showId: string, cueId: string): Show[] {
-  const all = loadAllShows();
-  const show = all.find((s) => s.id === showId);
-  if (show?.cues?.some((c) => c.id === cueId)) {
-    show.cues = show.cues!.filter((c) => c.id !== cueId);
-    show.updatedAt = nowIso();
-    saveAll(all);
-  }
-  return all.filter((s) => !s.deleted);
+  return patchShow(showId, (show) => {
+    if (!show.cues?.some((c) => c.id === cueId)) return false;
+    show.cues = show.cues.filter((c) => c.id !== cueId);
+    return true;
+  });
 }
 
 /** Record (or clear, with undefined) a show's browser-output slug after (un)publishing.
  *  Publishing also stamps publishedAt; clearing removes it (nothing is live any more). */
 export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
-  const all = loadAllShows();
-  const show = all.find((s) => s.id === showId);
-  if (show) {
+  return patchShow(showId, (show) => {
     if (slug) {
       show.outputSlug = slug;
       show.publishedAt = nowIso();
@@ -251,10 +256,8 @@ export function setShowOutputSlug(showId: string, slug: string | undefined): Sho
       delete show.outputSlug;
       delete show.publishedAt;
     }
-    show.updatedAt = nowIso();
-    saveAll(all);
-  }
-  return all.filter((s) => !s.deleted);
+    return true;
+  });
 }
 
 /** Move a graphic one slot up or down the rundown. */

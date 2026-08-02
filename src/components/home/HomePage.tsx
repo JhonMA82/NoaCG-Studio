@@ -28,6 +28,7 @@ import {
 } from '../../model/packets';
 import { saveBrand } from '../../model/brand';
 import { loadShows, createShow, deleteShow, type Show } from '../../model/shows';
+import { outputPageUrl } from '../../control/hostedControl';
 import {
   deleteSavedVideoProject,
   listSavedVideoProjects,
@@ -62,7 +63,7 @@ import GraphicThumb from './GraphicThumb';
  * a button that claims "Copied" when nothing was is worse than one that says nothing. Also keeps
  * the refusal from surfacing as an unhandled rejection.
  */
-function copyLink(text: string): Promise<boolean> {
+export function copyLink(text: string): Promise<boolean> {
   return navigator.clipboard?.writeText(text).then(() => true, () => false) ?? Promise.resolve(false);
 }
 
@@ -731,7 +732,7 @@ function ProductionsSection({
           {r.outputSlug && (
             <button
               onClick={() => {
-                void copyLink(`${window.location.origin}/output?production=${encodeURIComponent(r.outputSlug!)}`).then((ok) => {
+                void copyLink(outputPageUrl(r.outputSlug!)).then((ok) => {
                   if (!ok) return;
                   setCopiedLink(r.id);
                   setTimeout(() => setCopiedLink((c) => (c === r.id ? null : c)), 2000);

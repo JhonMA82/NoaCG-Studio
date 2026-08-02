@@ -133,6 +133,10 @@ not yet published" hint when the library template or cue list is newer than the 
    control surfaces write on Take so every open page agrees on which cue is live. Receivers
    ignore unknown `t` by construction (verified against `receiverScript.ts` and
    `hostedReceiver.ts` — the row is backward-compatible with already-exported graphics).
+5b. **`control_send_many(p_slug, p_items)`** — a multi-part verb (Take is update → stop
+   previous → play → cue) as ONE atomic, log-ordered insert: one RPC round-trip of on-air
+   latency instead of four, and it cannot fail halfway. Validated per item, burst-checked
+   once for the batch, capped at 8 items (a verb, not an ingest API).
 6. **Owner pruning** — a DELETE policy on `control_events` for the show's owner; the publish
    path deletes rows older than 7 days. Keeps the append-only log from growing without bound
    under a 24/7 output URL (the 0008 schema has no retention at all).
@@ -191,9 +195,13 @@ send.
 
 - **The cue rundown** — ordered cues with label, graphic, note; the LIVE cue marked (from the
   `cue` status rows + `live` reports). Selecting a cue stages nothing by itself.
-- **Preview** — a local sandboxed iframe composed from the PUBLISHED template
-  (`output.graphics`), settled with the selected cue's values (staged edits included). Pure
-  local render; the wire is never touched. Editing or previewing can never modify program.
+- **Preview** — a local sandboxed iframe settled with the selected cue's values. Pure local
+  render; the wire is never touched, so editing or previewing can never modify program. The
+  PRODUCTION page deliberately previews the LOCAL (to-be-published) template — it is the
+  authoring cockpit, and the "changes not yet published" hint names any divergence from what
+  the renderer runs. The hosted page ships no visual preview in the MVP (cue strip + fields +
+  live status); the published payload already carries the templates, so adding one there is
+  UI work, not schema work.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
 - **The five verbs**:
@@ -322,3 +330,8 @@ last-known-good). Choose concrete providers only after licensing/cost review.
   two renderers apart. Multi-renderer awareness is Stage-2 work.
 - **Graphic identity is still the pool NAME** (the 0008 key). Renaming a pool graphic
   between publishes orphans the old key's `live`/`staged` rows until the next publish.
+- **`control_events.id` is a GLOBAL identity**, so per-show id sequences have legitimate gaps
+  whenever other shows are active on the instance. A consumer cannot tell a benign gap from a
+  missed row, so every suspected hole answers with a tail round-trip (correct either way; the
+  cost is one extra RPC of latency on that command when the instance is busy). A per-show
+  sequence number would remove the ambiguity — schema work for the multi-layer stage.

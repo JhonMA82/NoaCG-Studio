@@ -10,10 +10,21 @@
 
 import { getSupabase } from '../backend/supabase';
 import type { Show } from '../model/shows';
-import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic } from '../model/library';
+import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
+import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 import type { ControlMessage } from './controlModel';
+
+/** The operator page's URL for a control slug — the one shape every surface mints. */
+export function controlPageUrl(slug: string): string {
+  return `${window.location.origin}/app?control=${encodeURIComponent(slug)}`;
+}
+
+/** The browser-output URL for an output slug (docs/CLOUD_PLAYOUT.md §3). */
+export function outputPageUrl(outputSlug: string): string {
+  return `${window.location.origin}/output?production=${encodeURIComponent(outputSlug)}`;
+}
 
 /** A saved data row published with the panel (model/library.ts ControlEntry, values only). */
 export interface PanelEntry {
@@ -128,8 +139,7 @@ export interface ControlEventRow {
 /** The stored operator spec for a show — one entry per graphic, no template payload. The
  *  entries come from the library via the shared resolver (model/library.ts), by `graphicId`
  *  with a unique-name fallback, so hosted publish and show export agree on the lookup. */
-export function buildPanelSpec(show: Show): PanelGraphicSpec[] {
-  const library = loadGraphics();
+export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics()): PanelGraphicSpec[] {
   return show.graphics.map((g) => {
     // The LIVE template (templateForSavedGraphic), not the snapshot embedded when the graphic
     // was added — publishing a show that carried the stale fields/js would drive the hosted
@@ -164,7 +174,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   if (o.v !== 1 || !Array.isArray(o.graphics)) return null;
   return {
     v: 1,
-    resolution: o.resolution ?? { w: 1920, h: 1080 },
+    resolution: o.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
     graphics: o.graphics.map((g) => ({ ...g, assets: Array.isArray(g.assets) ? g.assets : [] })),
     cues: Array.isArray(o.cues) ? o.cues : [],
   };
@@ -183,8 +193,7 @@ async function serializeAssets(template: SpxTemplate): Promise<{ path: string; d
 /** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
  *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
  *  graphic name. Async because Blob assets serialize to data URLs. */
-export async function buildOutputPayload(show: Show): Promise<OutputPayload> {
-  const library = loadGraphics();
+export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(
     show.graphics.map(async (g) => {
@@ -202,15 +211,12 @@ export async function buildOutputPayload(show: Show): Promise<OutputPayload> {
   );
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
-    (r, g) =>
-      g.resolution.width > r.width || g.resolution.height > r.height
-        ? {
-            width: Math.max(r.width, g.resolution.width),
-            height: Math.max(r.height, g.resolution.height),
-            label: r.label,
-          }
-        : r,
-    { width: 1920, height: 1080, label: 'Full HD 1080p' },
+    (r, g) => ({
+      width: Math.max(r.width, g.resolution.width),
+      height: Math.max(r.height, g.resolution.height),
+      label: r.label,
+    }),
+    DEFAULT_GRAPHICS_RESOLUTION,
   );
   const cues: OutputCue[] = (show.cues ?? [])
     .filter((c) => byId.has(c.sourceId))
@@ -232,36 +238,44 @@ export async function buildOutputPayload(show: Show): Promise<OutputPayload> {
 export async function publishControlShow(show: Show): Promise<{ slug: string; outputSlug: string | null } | null> {
   const sb = await getSupabase();
   if (!sb) return null;
-  const output = await buildOutputPayload(show);
+  const library = loadGraphics();
+  const output = await buildOutputPayload(show, library);
   const { error } = await sb.from('control_shows').upsert(
-    { id: show.id, title: show.name, panel: buildPanelSpec(show), output },
+    { id: show.id, title: show.name, panel: buildPanelSpec(show, library), output },
     { onConflict: 'id' },
   );
   if (error) throw new Error(error.message);
+  // The prune result is deliberately unread (best-effort retention; the 0029 owner DELETE
+  // policy may not exist on an older instance) — run it beside the slug read-back.
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-  await sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff);
-  const { data, error: readError } = await sb
-    .from('control_shows')
-    .select('slug, output_slug')
-    .eq('id', show.id)
-    .single();
-  if (readError) throw new Error(readError.message);
-  const row = data as { slug: string; output_slug: string | null };
-  return { slug: row.slug, outputSlug: row.output_slug };
+  const [, readBack] = await Promise.all([
+    sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff),
+    sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single(),
+  ]);
+  if (readBack.error) throw new Error(readBack.error.message);
+  return readBack.data as { slug: string; outputSlug: string | null };
 }
 
 /** The signed-in owner's hosted control pages. */
 export async function myControlShows(): Promise<ControlShowRow[]> {
   const sb = await getSupabase();
   if (!sb) return [];
-  const { data, error } = await sb.from('control_shows').select('id, slug, output_slug, title').order('created_at');
+  const { data, error } = await sb
+    .from('control_shows')
+    .select('id, slug, outputSlug:output_slug, title')
+    .order('created_at');
   if (error) return [];
-  return ((data ?? []) as { id: string; slug: string; output_slug: string | null; title: string }[]).map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    outputSlug: r.output_slug ?? null,
-    title: r.title,
-  }));
+  return (data ?? []) as ControlShowRow[];
+}
+
+/** The renderer's last heartbeat, read as ONE column (the owner's cheap 30 s poll — resolving
+ *  the whole row would re-download the multi-MB pinned payload to read a timestamp). */
+export async function controlOutputSeenAt(showId: string): Promise<string | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('output_seen_at').eq('id', showId).single();
+  if (error) return null;
+  return (data as { output_seen_at: string | null }).output_seen_at ?? null;
 }
 
 export async function unpublishControlShow(id: string): Promise<void> {
@@ -344,6 +358,98 @@ export async function sendHostedControl(slug: string, graphic: string, msg: Cont
   if (!sb) return;
   const { error } = await sb.rpc('control_send', { p_slug: slug, p_graphic: graphic, p_msg: msg });
   if (error) throw new Error(error.message);
+}
+
+/** One wire item of a batched send. */
+export interface ControlSendItem {
+  graphic: string;
+  msg: ControlMessage | CueStatusMsg;
+}
+
+/** Send several commands as ONE atomic, log-ordered insert (`control_send_many`, 0029) —
+ *  a multi-part verb must not pay one RPC round-trip per command or fail halfway through. */
+export async function sendHostedControlBatch(slug: string, items: ControlSendItem[]): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  const { error } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items });
+  if (error) throw new Error(error.message);
+}
+
+// ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence. ─────────────
+
+/** Take a cue: its data, the previous graphic played out (one live layer), this graphic in,
+ *  and the shared cue status row — atomically, in log order. */
+export function takeCueOnWire(
+  slug: string,
+  cue: { id: string; graphic: string; values: Record<string, string> },
+  prevGraphic: string | null,
+): Promise<void> {
+  return sendHostedControlBatch(slug, [
+    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
+    ...(prevGraphic && prevGraphic !== cue.graphic
+      ? [{ graphic: prevGraphic, msg: { t: 'stop' } satisfies ControlMessage }]
+      : []),
+    { graphic: cue.graphic, msg: { t: 'play' } },
+    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id } },
+  ]);
+}
+
+/** Out: play the live graphic off and clear the cue status. */
+export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void> {
+  return sendHostedControlBatch(slug, [
+    { graphic: liveGraphic, msg: { t: 'stop' } },
+    { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
+  ]);
+}
+
+/** Which cue is on air right now, recovered from the log's recent tail (the marker rides the
+ *  log, not the row). `null` = no cue row in the scanned window. 500 = the tail RPC's cap. */
+export async function recentLiveCue(
+  tail: (afterId: number) => Promise<ControlEventRow[]>,
+  lastEventId: number,
+): Promise<{ id: string | null; graphic: string | null } | null> {
+  const rows = await tail(Math.max(0, lastEventId - 500));
+  let found: { id: string | null; graphic: string | null } | null = null;
+  for (const row of rows) {
+    if (row.msg.t === 'cue') found = { id: row.msg.cue, graphic: row.msg.cue ? row.graphic : null };
+  }
+  return found;
+}
+
+/**
+ * Follow the command log with the FULL recovery discipline, owned once (docs/CLOUD_PLAYOUT.md
+ * §3; previously hand-rolled per surface, which is how the same hole-handling bug shipped
+ * three times): dedupe by row id; on an id hole recover from the tail INSTEAD of applying the
+ * holed row (applying it would advance the cursor past the gap and the tail's older rows
+ * would then be dropped as duplicates — a failed tail retries on the next row); tail-fill on
+ * every (re)subscribe, because rows inserted while the socket was down produce no replay.
+ * `tail` is injected — the control and output capabilities read the log through different RPCs.
+ */
+export async function followControlLog(opts: {
+  showId: string;
+  /** The log baseline from the resolve call — rows after it follow live. */
+  from: number;
+  tail: (afterId: number) => Promise<ControlEventRow[]>;
+  onRow: (row: ControlEventRow) => void;
+}): Promise<() => void> {
+  let lastId = opts.from;
+  const apply = (row: ControlEventRow) => {
+    if (row.id <= lastId) return;
+    lastId = row.id;
+    opts.onRow(row);
+  };
+  const refill = () => void opts.tail(lastId).then((rows) => rows.forEach(apply));
+  return subscribeControlEvents(
+    opts.showId,
+    (row) => {
+      if (row.id > lastId + 1) {
+        refill();
+        return;
+      }
+      apply(row);
+    },
+    refill,
+  );
 }
 
 /** Stage PREPARED data — shared with every operator page on this slug. */

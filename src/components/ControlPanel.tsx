@@ -17,7 +17,7 @@ import { hasChatGraphic, chatGraphicBlock, stripChatGraphic, chatBackendRefKey, 
 import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
 import { slug } from '../export/common';
-import { buildShowZip } from '../export/showExport';
+import { downloadShowZip } from '../export/showExport';
 import {
   addGraphicToShow,
   createShow,
@@ -29,7 +29,7 @@ import {
   setShowOutputSlug,
   type Show,
 } from '../model/shows';
-import { publishControlShow, unpublishControlShow } from '../control/hostedControl';
+import { controlPageUrl, publishControlShow, unpublishControlShow } from '../control/hostedControl';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
 import { useRouter } from '../app/router';
 
@@ -77,14 +77,12 @@ export default function ControlPanel() {
     setShowNote(error ?? `✓ "${template.name}" is in the production (same name updates in place).`);
   };
   const exportShow = async (show: Show) => {
-    const zip = await buildShowZip(show);
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, `${slug(show.name)}_rundown.zip`);
-    setShowNote(`✓ Exported "${show.name}" — one folder per graphic + show_controlpanel.html (rundown package).`);
+    await downloadShowZip(show);
+    setShowNote(`✓ Exported "${show.name}" — one folder per graphic + show_controlpanel.html (production package).`);
   };
   // ── Hosted control (account feature): publish the show's control page online ──
   const [publishBusy, setPublishBusy] = useState(false);
-  const hostedUrl = (s: string) => `${window.location.origin}/app?control=${encodeURIComponent(s)}`;
+  const hostedUrl = controlPageUrl;
   const publishShow = async (show: Show) => {
     setPublishBusy(true);
     try {

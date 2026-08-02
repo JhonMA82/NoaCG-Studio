@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { saveAs } from 'file-saver';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '../../app/router';
 import {
   addGraphicToShow,
@@ -15,25 +14,40 @@ import {
   type ShowCue,
 } from '../../model/shows';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
-import type { SavedGraphic } from '../../model/packets';
 import { fieldDescriptors } from '../../control/controlModel';
 import {
+  clearCueOnWire,
+  controlOutputSeenAt,
+  controlPageUrl,
   controlShowBySlug,
+  followControlLog,
   hostedControlTail,
+  outputPageUrl,
   publishControlShow,
+  recentLiveCue,
   sendHostedControl,
-  subscribeControlEvents,
+  takeCueOnWire,
   unpublishControlShow,
-  type ControlEventRow,
 } from '../../control/hostedControl';
 import { composeDocument } from '../../preview/composeDocument';
+import { postPreviewCmd } from '../../preview/previewProtocol';
 import { isBackendConfigured } from '../../backend/config';
 import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
-import { buildShowZip } from '../../export/showExport';
-import { slug as slugify } from '../../export/common';
+import { downloadShowZip } from '../../export/showExport';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
+import { copyLink } from './HomePage';
+
+/** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
+ *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
+ *  full template snapshots, so that is a visible input-lag class of cost). */
+interface CueDraft {
+  cueId: string;
+  label: string;
+  note: string;
+  values: Record<string, string>;
+}
 
 /**
  * The PRODUCTION page (route `#/production/<id>`, docs/CLOUD_PLAYOUT.md §4-5): one production's
@@ -41,19 +55,19 @@ import BrandLogo from '../BrandLogo';
  * controls with both capability links (control page + browser output), the renderer heartbeat,
  * a LOCAL preview of the selected cue, and the operator verbs (Take / Update / Next / Out).
  *
- * Preview is local by construction: the iframe composes the graphic with the selected cue's
- * values and never touches the wire — the five verbs are the ONLY thing that writes to the
- * command log, so previewing or editing another cue cannot modify program. The output page and
- * every other operator surface follow the same log, so what airs here airs everywhere.
+ * Preview is local by construction: the iframe composes the graphic once and settle-commands
+ * carry the cue's values into it — the wire is never touched. The verbs are the ONLY thing
+ * that writes to the command log, so previewing or editing another cue cannot modify program.
+ * The preview shows the LOCAL (to-be-published) template deliberately — this is the authoring
+ * cockpit, and the "changes not yet published" hint names any divergence from the renderer.
  */
 export default function ProductionPage({ id }: { id: string }) {
   const navigate = useRouter((s) => s.navigate);
-  const [rev, setRev] = useState(0);
-  const refresh = () => setRev((r) => r + 1);
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  const show: Show | null = useMemo(() => loadShows().find((s) => s.id === id) ?? null, [id, rev]);
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  const library = useMemo(() => loadGraphics(), [rev]);
+  // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
+  // an edit from re-parsing every store on every render.
+  const [shows, setShows] = useState<Show[]>(() => loadShows());
+  const library = useMemo(() => loadGraphics(), []);
+  const show: Show | null = shows.find((s) => s.id === id) ?? null;
 
   const backendConfigured = isBackendConfigured();
   const { needsSignIn } = useAuthState();
@@ -66,54 +80,89 @@ export default function ProductionPage({ id }: { id: string }) {
   const [addPick, setAddPick] = useState('');
 
   // ── Live status (published productions): the renderer heartbeat + which cue is on air. ──
-  const [liveCueId, setLiveCueId] = useState<string | null>(null);
+  const [liveCue, setLiveCue] = useState<{ id: string | null; graphic: string | null }>({ id: null, graphic: null });
   const [outputSeenAt, setOutputSeenAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const liveGraphicRef = useRef<string | null>(null);
-  const lastIdRef = useRef(0);
   const hostedSlug = show?.hostedSlug ?? null;
 
-  const cues = show?.cues ?? [];
+  const cues = useMemo(() => show?.cues ?? [], [show]);
   const graphicByPoolId = useMemo(() => new Map((show?.graphics ?? []).map((g) => [g.id, g] as const)), [show]);
   const selectedCue = cues.find((c) => c.id === selectedCueId) ?? cues[0] ?? null;
-  const cueGraphicName = (cue: ShowCue) => graphicByPoolId.get(cue.sourceId)?.name ?? null;
+  const cueGraphicName = useCallback(
+    (cue: ShowCue) => graphicByPoolId.get(cue.sourceId)?.name ?? null,
+    [graphicByPoolId],
+  );
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 10_000);
-    return () => clearInterval(t);
-  }, []);
+  // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
+  const [draft, setDraft] = useState<CueDraft | null>(null);
+  const draftRef = useRef<CueDraft | null>(null);
+  draftRef.current = draft;
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushDraft = useCallback(() => {
+    if (flushTimer.current) {
+      clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
+    const d = draftRef.current;
+    if (!d) return;
+    setShows(updateShowCue(id, d.cueId, { label: d.label, note: d.note || null, values: d.values }));
+  }, [id]);
+  useEffect(() => () => flushDraft(), [flushDraft]);
+  const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
+    if (!selectedCue) return;
+    setDraft((d) => {
+      const base: CueDraft =
+        d && d.cueId === selectedCue.id
+          ? d
+          : { cueId: selectedCue.id, label: selectedCue.label, note: selectedCue.note ?? '', values: { ...selectedCue.values } };
+      return { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
+    });
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(flushDraft, 300);
+  };
+  /** The cue as the operator currently sees it — draft over record. */
+  const cueView = useCallback(
+    (cue: ShowCue): Pick<CueDraft, 'label' | 'note' | 'values'> => {
+      const d = draftRef.current;
+      return d && d.cueId === cue.id ? d : { label: cue.label, note: cue.note ?? '', values: cue.values };
+    },
+    [],
+  );
+  const selectCue = (cueId: string) => {
+    flushDraft();
+    setDraft(null);
+    setSelectedCueId(cueId);
+  };
 
+  // ── Live tracking: recover the marker from the log's tail, then follow (shared discipline). ──
   useEffect(() => {
     if (!hostedSlug || !backendConfigured || !show) return;
     let alive = true;
     let unsubscribe: (() => void) | null = null;
-    const applyRow = (row: ControlEventRow) => {
-      if (row.id <= lastIdRef.current) return;
-      lastIdRef.current = row.id;
-      if (row.msg.t === 'cue') {
-        setLiveCueId(row.msg.cue);
-        liveGraphicRef.current = row.msg.cue ? row.graphic : null;
-      }
-    };
+    const tail = (after: number) => hostedControlTail(hostedSlug, after);
     void (async () => {
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
-      // Which cue is live survives a page load through the log: scan the recent tail for the
-      // last cue status row (the marker rides the log, not the row — §4).
-      const tail = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - 100));
+      const initial = await recentLiveCue(tail, resolved.lastEventId);
       if (!alive) return;
-      lastIdRef.current = Math.max(0, resolved.lastEventId - 100);
-      tail.forEach(applyRow);
-      lastIdRef.current = Math.max(lastIdRef.current, resolved.lastEventId);
-      unsubscribe = await subscribeControlEvents(show.id, applyRow, () => {
-        void hostedControlTail(hostedSlug, lastIdRef.current).then((rows) => rows.forEach(applyRow));
+      if (initial) setLiveCue(initial);
+      unsubscribe = await followControlLog({
+        showId: show.id,
+        from: resolved.lastEventId,
+        tail,
+        onRow: (row) => {
+          if (row.msg.t === 'cue') setLiveCue({ id: row.msg.cue, graphic: row.msg.cue ? row.graphic : null });
+        },
       });
     })();
-    // The heartbeat column is a plain row stamp — poll it at the same cadence it advances.
+    // ONE ticker serves both facts the freshness chip needs: the clock and the heartbeat
+    // column (a single-column read — never the resolve RPC, whose row carries the multi-MB
+    // pinned payload).
     const seenTimer = setInterval(() => {
-      void controlShowBySlug(hostedSlug).then((r) => {
-        if (alive && r) setOutputSeenAt(r.outputSeenAt);
+      setNow(Date.now());
+      void controlOutputSeenAt(show.id).then((at) => {
+        if (alive && at !== null) setOutputSeenAt(at);
       });
     }, 30_000);
     return () => {
@@ -123,26 +172,49 @@ export default function ProductionPage({ id }: { id: string }) {
     };
   }, [hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── The local preview: the selected cue's graphic settled with the cue's values. ──
-  const previewTemplate = useMemo(() => {
-    if (!show || !selectedCue) return null;
-    const pool = graphicByPoolId.get(selectedCue.sourceId);
-    return pool ? templateForSavedGraphic(pool, library) : null;
-  }, [show, selectedCue, graphicByPoolId, library]);
-  const [previewDoc, setPreviewDoc] = useState('');
+  // ── The local preview: composed ONCE per template, cue values pushed as settle commands
+  // (the GraphicControlPage pattern — rebuilding the document per edit re-parses GSAP and
+  // reloads every asset on the most common gesture a rundown has). ──
+  const previewIframe = useRef<HTMLIFrameElement>(null);
+  const previewStage = useRef<HTMLDivElement>(null);
+  const poolGraphic = selectedCue ? graphicByPoolId.get(selectedCue.sourceId) ?? null : null;
+  // Recompute only when the underlying saved copy actually changes — the pool objects get new
+  // identities on every store write, so object identity alone would recompose per keystroke.
+  const previewKey = poolGraphic ? `${poolGraphic.id}:${poolGraphic.savedAt}` : '';
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const previewTemplate = useMemo(
+    () => (poolGraphic ? templateForSavedGraphic(poolGraphic, library) : null),
+    [previewKey, library],
+  );
+  const previewDoc = useMemo(
+    () => (previewTemplate ? composeDocument(previewTemplate, { liveControl: true }) : ''),
+    [previewTemplate],
+  );
+  /* eslint-enable react-hooks/exhaustive-deps */
+  const settleData = selectedCue ? JSON.stringify(cueView(selectedCue).values) : '';
+  const settlePreview = useCallback((data: string) => {
+    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
+  }, []);
   useEffect(() => {
-    if (!previewTemplate || !selectedCue) {
-      setPreviewDoc('');
-      return;
-    }
-    // Debounced: typing into a cue field re-renders the settled preview, not per keystroke.
-    const t = setTimeout(() => {
-      setPreviewDoc(
-        composeDocument(previewTemplate, { settleWithData: JSON.stringify(selectedCue.values) }),
-      );
-    }, 350);
+    if (!previewDoc || !settleData) return;
+    const t = setTimeout(() => settlePreview(settleData), 150);
     return () => clearTimeout(t);
-  }, [previewTemplate, selectedCue]);
+  }, [previewDoc, settleData, settlePreview]);
+  // FIT THE GRAPHIC (the GraphicControlPage recipe): the iframe carries the template's own
+  // resolution and scales down, so the preview shows the real composition — a lower third at
+  // its true share of frame, not the top-left crop a 100%-width iframe of a 1920px document
+  // would show.
+  const [stageW, setStageW] = useState(0);
+  useEffect(() => {
+    const el = previewStage.current;
+    if (!el) return;
+    const measure = () => setStageW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewDoc]);
+  const fit = previewTemplate && stageW ? stageW / previewTemplate.resolution.width : 0;
 
   if (!show) {
     return (
@@ -161,23 +233,17 @@ export default function ProductionPage({ id }: { id: string }) {
     );
   }
 
-  const outputUrl = show.outputSlug
-    ? `${window.location.origin}/output?production=${encodeURIComponent(show.outputSlug)}`
-    : null;
-  const controlUrl = show.hostedSlug
-    ? `${window.location.origin}/app?control=${encodeURIComponent(show.hostedSlug)}`
-    : null;
+  const outputUrl = show.outputSlug ? outputPageUrl(show.outputSlug) : null;
+  const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const unpublishedChanges = !!show.publishedAt && show.updatedAt > show.publishedAt;
   const rendererFresh = outputSeenAt ? now - Date.parse(outputSeenAt) < 90_000 : false;
 
   const copy = (kind: 'output' | 'control', text: string) => {
-    void navigator.clipboard?.writeText(text).then(
-      () => {
-        setCopied(kind);
-        setTimeout(() => setCopied((c) => (c === kind ? null : c)), 2000);
-      },
-      () => {},
-    );
+    void copyLink(text).then((ok) => {
+      if (!ok) return;
+      setCopied(kind);
+      setTimeout(() => setCopied((c) => (c === kind ? null : c)), 2000);
+    });
   };
 
   const publish = async () => {
@@ -185,13 +251,14 @@ export default function ProductionPage({ id }: { id: string }) {
       openSignIn('Publishing a production needs an account — the hosted pages live in your cloud space.');
       return;
     }
+    flushDraft();
     setBusy(true);
     try {
-      const published = await publishControlShow(show);
+      const current = loadShows().find((s) => s.id === show.id);
+      const published = current ? await publishControlShow(current) : null;
       if (published) {
         setShowHostedSlug(show.id, published.slug);
-        setShowOutputSlug(show.id, published.outputSlug ?? undefined);
-        refresh();
+        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
         setNote('✓ Published. Load the output URL in your browser source once — it stays the same across re-publishes.');
       } else {
         setNote('Publishing needs the cloud backend — this build runs offline.');
@@ -208,10 +275,8 @@ export default function ProductionPage({ id }: { id: string }) {
     try {
       await unpublishControlShow(show.id);
       setShowHostedSlug(show.id, undefined);
-      setShowOutputSlug(show.id, undefined);
-      refresh();
-      setLiveCueId(null);
-      liveGraphicRef.current = null;
+      setShows(setShowOutputSlug(show.id, undefined));
+      setLiveCue({ id: null, graphic: null });
       setNote('Production unpublished — the control link and the output URL no longer work.');
     } catch (e) {
       setNote(`Unpublish failed: ${(e as Error).message}`);
@@ -220,13 +285,7 @@ export default function ProductionPage({ id }: { id: string }) {
     }
   };
 
-  const exportZip = async () => {
-    const zip = await buildShowZip(show);
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, `${slugify(show.name)}_production.zip`);
-  };
-
-  // ── The verbs (docs/CLOUD_PLAYOUT.md §4). Every send is explicit; nothing airs on edit. ──
+  // ── The verbs (docs/CLOUD_PLAYOUT.md §4) — one shared wire author, atomic batches. ──
   const requirePublished = (): string | null => {
     if (!hostedSlug) {
       setNote('Publish the production first — the verbs drive the shared command log.');
@@ -239,29 +298,25 @@ export default function ProductionPage({ id }: { id: string }) {
     const s = requirePublished();
     const graphic = cueGraphicName(cue);
     if (!s || !graphic) return;
+    flushDraft();
     try {
-      await sendHostedControl(s, graphic, { t: 'update', data: cue.values });
-      // One live layer: taking a cue on ANOTHER graphic plays the previous one out first.
-      const prev = liveGraphicRef.current;
-      if (prev && prev !== graphic) await sendHostedControl(s, prev, { t: 'stop' });
-      await sendHostedControl(s, graphic, { t: 'play' });
-      await sendHostedControl(s, graphic, { t: 'cue', cue: cue.id });
-      setLiveCueId(cue.id);
-      liveGraphicRef.current = graphic;
+      await takeCueOnWire(s, { id: cue.id, graphic, values: cueView(cue).values }, liveCue.graphic);
+      setLiveCue({ id: cue.id, graphic });
     } catch (e) {
       setNote(`Take failed: ${(e as Error).message}`);
     }
   };
 
-  const liveCue = cues.find((c) => c.id === liveCueId) ?? null;
+  const liveCueRow = cues.find((c) => c.id === liveCue.id) ?? null;
 
   const updateLive = async () => {
     const s = requirePublished();
-    if (!s || !liveCue) return;
-    const graphic = cueGraphicName(liveCue);
+    if (!s || !liveCueRow) return;
+    const graphic = cueGraphicName(liveCueRow);
     if (!graphic) return;
+    flushDraft();
     try {
-      await sendHostedControl(s, graphic, { t: 'update', data: liveCue.values });
+      await sendHostedControl(s, graphic, { t: 'update', data: cueView(liveCueRow).values });
     } catch (e) {
       setNote(`Update failed: ${(e as Error).message}`);
     }
@@ -269,10 +324,9 @@ export default function ProductionPage({ id }: { id: string }) {
 
   const nextLive = async () => {
     const s = requirePublished();
-    const graphic = liveGraphicRef.current;
-    if (!s || !graphic) return;
+    if (!s || !liveCue.graphic) return;
     try {
-      await sendHostedControl(s, graphic, { t: 'next' });
+      await sendHostedControl(s, liveCue.graphic, { t: 'next' });
     } catch (e) {
       setNote(`Next failed: ${(e as Error).message}`);
     }
@@ -280,19 +334,17 @@ export default function ProductionPage({ id }: { id: string }) {
 
   const outLive = async () => {
     const s = requirePublished();
-    const graphic = liveGraphicRef.current;
-    if (!s || !graphic) return;
+    if (!s || !liveCue.graphic) return;
     try {
-      await sendHostedControl(s, graphic, { t: 'stop' });
-      await sendHostedControl(s, graphic, { t: 'cue', cue: null });
-      setLiveCueId(null);
-      liveGraphicRef.current = null;
+      await clearCueOnWire(s, liveCue.graphic);
+      setLiveCue({ id: null, graphic: null });
     } catch (e) {
       setNote(`Out failed: ${(e as Error).message}`);
     }
   };
 
   const selectedDescriptors = previewTemplate ? fieldDescriptors(previewTemplate.fields) : [];
+  const selectedView = selectedCue ? cueView(selectedCue) : null;
 
   return (
     <div className="app home-page control-page production-page" data-testid="production-page">
@@ -369,13 +421,37 @@ export default function ProductionPage({ id }: { id: string }) {
 
           {/* Preview — LOCAL, never the wire. */}
           <div className="prod-preview" data-testid="production-preview">
-            {previewDoc ? (
-              <iframe
-                title="Cue preview"
-                sandbox="allow-scripts"
-                srcDoc={previewDoc}
-                style={{ width: '100%', aspectRatio: '16 / 9', border: '1px solid #26262c', borderRadius: 8, background: '#0a0a0c' }}
-              />
+            {previewDoc && previewTemplate ? (
+              <div
+                ref={previewStage}
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  height: fit ? previewTemplate.resolution.height * fit : undefined,
+                  aspectRatio: fit ? undefined : '16 / 9',
+                  border: '1px solid #26262c',
+                  borderRadius: 8,
+                  background: '#0a0a0c',
+                }}
+              >
+                <iframe
+                  ref={previewIframe}
+                  title="Cue preview"
+                  sandbox="allow-scripts"
+                  srcDoc={previewDoc}
+                  onLoad={() => settlePreview(settleData)}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    width: previewTemplate.resolution.width,
+                    height: previewTemplate.resolution.height,
+                    border: 0,
+                    transformOrigin: '0 0',
+                    transform: `scale(${fit || 1})`,
+                  }}
+                />
+              </div>
             ) : (
               <p className="hint">Add a cue to preview it here.</p>
             )}
@@ -395,46 +471,40 @@ export default function ProductionPage({ id }: { id: string }) {
             >
               ⟳ Take
             </button>
-            <button disabled={!liveCue || !show.hostedSlug} onClick={() => void updateLive()} data-testid="verb-update" title="Send the live cue's edited values without replaying">
+            <button disabled={!liveCueRow || !show.hostedSlug} onClick={() => void updateLive()} data-testid="verb-update" title="Send the live cue's edited values without replaying">
               ✎ Update
             </button>
-            <button disabled={!liveCueId || !show.hostedSlug} onClick={() => void nextLive()} data-testid="verb-next" title="Advance the live graphic's next step">
+            <button disabled={!liveCue.id || !show.hostedSlug} onClick={() => void nextLive()} data-testid="verb-next" title="Advance the live graphic's next step">
               » Next
             </button>
-            <button disabled={!liveCueId || !show.hostedSlug} onClick={() => void outLive()} data-testid="verb-out" title="Play the live graphic out">
+            <button disabled={!liveCue.id || !show.hostedSlug} onClick={() => void outLive()} data-testid="verb-out" title="Play the live graphic out">
               ■ Out
             </button>
             <div className="spacer" />
             <span className="muted" data-testid="live-cue-chip">
-              {liveCue ? `● LIVE: ${liveCue.label}` : liveCueId ? '● LIVE (cue not in this rundown)' : '○ nothing on air'}
+              {liveCueRow ? `● LIVE: ${liveCueRow.label}` : liveCue.id ? '● LIVE (cue not in this rundown)' : '○ nothing on air'}
             </span>
           </div>
 
           {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
 
           {/* The selected cue's data. */}
-          {selectedCue && (
+          {selectedCue && selectedView && (
             <div className="panel-section" data-testid="cue-editor">
               <label className="save-field">
                 <span>Cue name</span>
                 <input
-                  value={selectedCue.label}
-                  onChange={(e) => {
-                    updateShowCue(show.id, selectedCue.id, { label: e.target.value });
-                    refresh();
-                  }}
+                  value={selectedView.label}
+                  onChange={(e) => editDraft({ label: e.target.value })}
                   data-testid="cue-label"
                 />
               </label>
               <label className="save-field">
                 <span>Operator note</span>
                 <input
-                  value={selectedCue.note ?? ''}
+                  value={selectedView.note}
                   placeholder="e.g. after the intro"
-                  onChange={(e) => {
-                    updateShowCue(show.id, selectedCue.id, { note: e.target.value || null });
-                    refresh();
-                  }}
+                  onChange={(e) => editDraft({ note: e.target.value })}
                   data-testid="cue-note"
                 />
               </label>
@@ -442,11 +512,8 @@ export default function ProductionPage({ id }: { id: string }) {
                 <FieldRow
                   key={d.key}
                   descriptor={d}
-                  value={String(selectedCue.values[d.key] ?? d.defaultValue ?? '')}
-                  onChange={(v) => {
-                    updateShowCue(show.id, selectedCue.id, { values: { [d.key]: String(v) } });
-                    refresh();
-                  }}
+                  value={String(selectedView.values[d.key] ?? d.defaultValue ?? '')}
+                  onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
                   testIdPrefix="cue-field"
                 />
               ))}
@@ -455,72 +522,75 @@ export default function ProductionPage({ id }: { id: string }) {
         </section>
 
         <aside className="control-page-side">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Cue rundown</h3>
-            <div className="spacer" />
-          </div>
+          <h3 style={{ margin: 0 }}>Cue rundown</h3>
           <p className="hint">
             A cue is one prepared row of data on one of the production’s graphics — the same lower
             third can carry a different person at cue 2 and cue 7.
           </p>
           {cues.length === 0 && <p className="hint" data-testid="no-cues">No cues yet — add a graphic below, then add cues on it.</p>}
           <div className="control-entries" data-testid="cue-list">
-            {cues.map((cue, i) => (
-              <div
-                key={cue.id}
-                className={`control-entry ${cue.id === (selectedCue?.id ?? '') ? 'active' : ''} ${cue.id === liveCueId ? 'live' : ''}`}
-                data-testid={`cue-${cue.id}`}
-              >
-                <button className="control-entry-label" onClick={() => setSelectedCueId(cue.id)} data-testid="select-cue">
-                  {cue.id === liveCueId ? '●' : `${i + 1}.`} {cue.label}
-                  <span className="muted"> · {cueGraphicName(cue) ?? 'missing graphic'}</span>
-                  {cue.note ? <span className="muted prod-cue-note"> — {cue.note}</span> : null}
-                </button>
-                <button onClick={() => { moveShowCue(show.id, cue.id, -1); refresh(); }} title="Move up" disabled={i === 0}>↑</button>
-                <button onClick={() => { moveShowCue(show.id, cue.id, 1); refresh(); }} title="Move down" disabled={i === cues.length - 1}>↓</button>
-                <button
-                  onClick={() => {
-                    const { cueId } = addShowCue(show.id, cue.sourceId, { label: `${cue.label} copy`, values: cue.values, note: cue.note });
-                    if (cueId) setSelectedCueId(cueId);
-                    refresh();
-                  }}
-                  title="Duplicate this cue"
+            {cues.map((cue, i) => {
+              const view = cueView(cue);
+              return (
+                <div
+                  key={cue.id}
+                  className={`control-entry ${cue.id === (selectedCue?.id ?? '') ? 'active' : ''} ${cue.id === liveCue.id ? 'live' : ''}`}
+                  data-testid={`cue-${cue.id}`}
                 >
-                  ⧉
-                </button>
-                <button
-                  onClick={() => { removeShowCue(show.id, cue.id); refresh(); }}
-                  title="Remove this cue (the graphic stays in the pool)"
-                  data-testid="delete-cue"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <button className="control-entry-label" onClick={() => selectCue(cue.id)} data-testid="select-cue">
+                    {cue.id === liveCue.id ? '●' : `${i + 1}.`} {view.label}
+                    <span className="muted"> · {cueGraphicName(cue) ?? 'missing graphic'}</span>
+                    {view.note ? <span className="muted prod-cue-note"> — {view.note}</span> : null}
+                  </button>
+                  <button onClick={() => { flushDraft(); setShows(moveShowCue(show.id, cue.id, -1)); }} title="Move up" disabled={i === 0}>↑</button>
+                  <button onClick={() => { flushDraft(); setShows(moveShowCue(show.id, cue.id, 1)); }} title="Move down" disabled={i === cues.length - 1}>↓</button>
+                  <button
+                    onClick={() => {
+                      flushDraft();
+                      const view2 = cueView(cue);
+                      const { shows: next, cueId } = addShowCue(show.id, cue.sourceId, {
+                        label: `${view2.label} copy`,
+                        values: view2.values,
+                        note: view2.note || undefined,
+                      });
+                      setShows(next);
+                      if (cueId) selectCue(cueId);
+                    }}
+                    title="Duplicate this cue"
+                  >
+                    ⧉
+                  </button>
+                  <button
+                    onClick={() => { setDraft(null); setShows(removeShowCue(show.id, cue.id)); }}
+                    title="Remove this cue (the graphic stays in the pool)"
+                    data-testid="delete-cue"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="row" style={{ alignItems: 'center', marginTop: 16 }}>
-            <h3 style={{ margin: 0 }}>Graphics</h3>
-            <div className="spacer" />
-          </div>
+          <h3 style={{ margin: '16px 0 0' }}>Graphics</h3>
           <p className="hint">The templates this production can air. Each graphic renders on its own layer of the output.</p>
-          {show.graphics.map((g: SavedGraphic) => (
+          {show.graphics.map((g) => (
             <div className="pk-graphic" key={g.id} data-testid={`pool-${g.id}`}>
               <strong>{g.name}</strong>
               <span className="muted">{cues.filter((c) => c.sourceId === g.id).length} cue(s)</span>
               <div className="spacer" />
               <button
                 onClick={() => {
-                  const { cueId } = addShowCue(show.id, g.id);
-                  if (cueId) setSelectedCueId(cueId);
-                  refresh();
+                  const { shows: next, cueId } = addShowCue(show.id, g.id);
+                  setShows(next);
+                  if (cueId) selectCue(cueId);
                 }}
                 data-testid="add-cue"
               >
                 ＋ Cue
               </button>
               <button
-                onClick={() => { removeShowGraphic(show.id, g.id); refresh(); }}
+                onClick={() => { setDraft(null); setShows(removeShowGraphic(show.id, g.id)); }}
                 title="Remove this graphic and its cues from the production"
               >
                 ✕
@@ -539,9 +609,9 @@ export default function ProductionPage({ id }: { id: string }) {
               onClick={() => {
                 const doc = library.find((g) => g.id === addPick);
                 if (!doc) return;
-                addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+                const { shows: next } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+                setShows(next);
                 setAddPick('');
-                refresh();
               }}
               data-testid="add-graphic"
             >
@@ -550,7 +620,11 @@ export default function ProductionPage({ id }: { id: string }) {
           </div>
 
           <div className="row" style={{ marginTop: 16 }}>
-            <button onClick={() => void exportZip()} disabled={show.graphics.length === 0} title="The offline package: one SPX folder per graphic + the standalone control page">
+            <button
+              onClick={() => void downloadShowZip(show)}
+              disabled={show.graphics.length === 0}
+              title="The offline package: one SPX folder per graphic + the standalone control page"
+            >
               ⬇ Export package
             </button>
           </div>

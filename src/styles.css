@@ -3898,13 +3898,11 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .control-entry.live { border-color: rgba(74, 222, 128, 0.6); background: rgba(74, 222, 128, 0.07); }
 .prod-cue-note { font-style: italic; }
 .status-warn { color: var(--amber); font-size: 13px; }
-@media (max-width: 900px) {
-  .production-page .control-page-body { grid-template-rows: none; display: flex; flex-direction: column; }
-  .production-page .control-page-main { overflow: visible; }
-  .production-page .control-page-body { overflow: auto; }
-}
 
 @media (max-width: 900px) {
+  /* The production page stacks into one scrolling column on a phone. */
+  .production-page .control-page-body { display: flex; flex-direction: column; overflow: auto; }
+  .production-page .control-page-main { overflow: visible; }
   /* Rows, not columns — and the nav row is content-sized: without it, grid's default
      align-content stretch inflates both auto rows, blowing the nav up to half the screen. */
   .home-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
