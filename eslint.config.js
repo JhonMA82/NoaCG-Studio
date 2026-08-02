@@ -57,6 +57,7 @@ export default tseslint.config(
       'creative-route-out*/',
       'creative-pilot-out*/',
       'creative-rerun-out*/',
+      'creative-gallery/',
       'lite-bench-out*/',
       'lite-eval-out*/',
       'pro-bench-out*/',

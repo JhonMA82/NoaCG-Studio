@@ -28,6 +28,7 @@ compare-out*/
 creative-route-out*/
 creative-pilot-out*/
 creative-rerun-out*/
+creative-gallery/
 # NoaCG Lite benchmark output (append-only local results, screenshots, motion clips,
 # blind galleries, judgements - docs/AI_LITE_BENCHMARK.md; raw artifacts never commit)
 lite-bench-out*/
