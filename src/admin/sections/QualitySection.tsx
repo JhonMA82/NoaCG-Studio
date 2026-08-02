@@ -8,7 +8,8 @@
 // carry a charting library for two tables.
 
 import { useState } from 'react';
-import type { AdminQualityOverview, AdminQualityVariant } from '../types';
+import type { AdminActivityScope, AdminQualityOverview, AdminQualityVariant } from '../types';
+import { ScopePicker } from '../ScopePicker';
 import { AsyncState, Pill, SectionHeader, useAdminData } from '../ui';
 
 /** How the enumerated reasons read to a person. The set is fixed by a CHECK constraint in
@@ -72,12 +73,14 @@ function VariantTable({ rows, empty }: { rows: AdminQualityVariant[]; empty: str
 
 export function QualitySection() {
   const [days, setDays] = useState(30);
-  const quality = useAdminData<AdminQualityOverview>(`quality?days=${days}`);
+  const [scope, setScope] = useState<AdminActivityScope>('external');
+  const quality = useAdminData<AdminQualityOverview>(`quality?days=${days}&scope=${scope}`);
 
   if (!quality.data) {
     return (
       <section className="admin-section admin-section-wide">
         <SectionHeader title="Output quality" />
+        <ScopePicker scope={scope} onScope={setScope} internalAccounts={0} />
         <AsyncState state={quality} />
       </section>
     );
@@ -98,6 +101,8 @@ export function QualitySection() {
           </select>
         }
       />
+
+      <ScopePicker scope={scope} onScope={setScope} internalAccounts={data.internalAccounts} />
 
       <dl className="admin-stats">
         <div>
@@ -131,6 +136,35 @@ export function QualitySection() {
           rows={data.priors}
           empty={`No design has reached ${data.priorMinSamples} samples yet, so the prompt is being fed nothing.`}
         />
+        {/* THIS TABLE IGNORES THE SCOPE, and it has to. It is literally the rows the generator is
+            being handed, so showing a filtered version would describe a prompt that does not
+            exist. What the scope CAN honestly say is how much of that evidence is our own
+            testing - reported here rather than acted on, because excluding internal accounts
+            from `ai_lite_variant_quality()` would change how the product generates, which is a
+            deliberate decision and not a dashboard setting. */}
+        <p className="admin-note">
+          <strong>Not filtered by the scope above</strong> — these are the rows the prompt actually
+          receives, and a filtered copy would describe a prompt nobody is running.
+          {data.priorRows === 0 ? (
+            <> Nothing in this window is eligible to become a prior yet.</>
+          ) : data.internalPriorRows === data.priorRows ? (
+            <>
+              {' '}
+              <strong>
+                Every one of the {data.priorRows} eligible outcomes in this window came from an
+                internal account
+              </strong>
+              , so any prior that crosses the floor is the generator learning from our own testing
+              rather than from anyone using the product.
+            </>
+          ) : (
+            <>
+              {' '}
+              {data.internalPriorRows} of {data.priorRows} eligible outcomes in this window came from
+              internal accounts.
+            </>
+          )}
+        </p>
       </section>
 
       <div className="admin-two-up">

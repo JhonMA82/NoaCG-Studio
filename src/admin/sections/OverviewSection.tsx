@@ -14,8 +14,9 @@
 // percentages: at this instance's volume a move from 2 to 3 is a 50% rise, and a page that
 // says so is a page that cries wolf every morning.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type {
+  AdminActivityScope,
   AdminLedgerId,
   AdminOverviewMetrics,
   AdminOverviewResponse,
@@ -24,6 +25,7 @@ import type {
   AdminSystemState,
 } from '../types';
 import { FEATURE_LABELS } from '../../entitlements/contract';
+import { ScopePicker } from '../ScopePicker';
 import { Pill, SectionHeader, formatUsd, useAdminData } from '../ui';
 
 const ROLE_MEANING: Record<AdminSessionResponse['role'], string> = {
@@ -269,7 +271,8 @@ export function OverviewSection({
   session: AdminSessionResponse;
   onNavigate?: (sectionId: string) => void;
 }) {
-  const overview = useAdminData<AdminOverviewResponse>('overview');
+  const [scope, setScope] = useState<AdminActivityScope>('external');
+  const overview = useAdminData<AdminOverviewResponse>(`overview?scope=${scope}`);
   const system = useAdminData<AdminSystemState>('system');
 
   const data = overview.data;
@@ -333,6 +336,13 @@ export function OverviewSection({
   return (
     <section className="admin-section admin-section-wide">
       <SectionHeader title="Overview" />
+
+      <ScopePicker
+        scope={scope}
+        onScope={setScope}
+        internalAccounts={data?.internalAccounts ?? 0}
+        funnelCaveat
+      />
 
       <p className="admin-lede">
         You are signed in as <strong>{session.email || 'an account with no email on file'}</strong> with the{' '}

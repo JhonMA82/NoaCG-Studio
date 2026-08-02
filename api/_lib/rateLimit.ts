@@ -142,3 +142,24 @@ export function checkEventsRateLimit(req: Request): RateLimitDecision | null {
   const decision = hitRateLimit(`events:${ipHash(req)}`, eventsRateLimitCaps(), Date.now());
   return decision.allowed ? null : decision;
 }
+
+// ── feedback ──────────────────────────────────────────────────────────────────────────────
+// Tighter than the funnel's 60/minute, and deliberately so: this is the only route on the
+// product that accepts free text from an unauthenticated caller, which makes it the only one
+// worth spamming. A real person sends a handful of notes in a session and never approaches
+// twelve in an hour; a script trying to fill the table hits the wall immediately.
+//
+// Per IP like the others, with the same shared-address stance: a classroom behind one NAT is a
+// realistic case, so the cap is set where a room full of people can all still be heard.
+
+export function feedbackRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('FEEDBACK_RATE_WINDOW_SEC', 3600)) * 1000,
+    max: envInt('FEEDBACK_RATE_MAX', 12),
+  };
+}
+
+export function checkFeedbackRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`feedback:${ipHash(req)}`, feedbackRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}

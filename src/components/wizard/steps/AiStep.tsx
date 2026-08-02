@@ -60,6 +60,7 @@ import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpe
 import MiniPreview from '../MiniPreview';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import MoreControlPanel from './ai/MoreControlPanel';
+import { GenerationRating } from '../../feedback/GenerationRating';
 import { LITE_AI_CATEGORIES } from '../../../ai/liteContract';
 import { LiteUnsupportedError, loadLiteStatus, recordLiteOutcome } from '../../../ai/liteClient';
 import type { LiteStatusResponse } from '../../../ai/liteTypes';
@@ -1529,6 +1530,19 @@ export default function AiStep({
                   <span className="hint">Back to this direction as it was first designed.</span>
                 </div>
               )}
+              {/* LAST on the card, and nothing depends on it. Create project, Refine and
+                  Regenerate are all reachable without touching it - a rating standing between
+                  somebody and their finished graphic is a toll, and a toll collects resentment
+                  rather than data. */}
+              <GenerationRating
+                generationId={alternatives[selected]?.generationId}
+                tier={tier}
+                // The chassis the harness actually assembled, off the returned DesignSpec -
+                // not the one the setup panel asked for. A grounded result can clamp an
+                // out-of-range chassis to the nearest legal one, and a rating filed against
+                // the request rather than the result would point at the wrong design.
+                variantId={alternatives[selected]?.spec?.variantId}
+              />
             </div>
           )}
         </>

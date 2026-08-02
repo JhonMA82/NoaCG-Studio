@@ -336,6 +336,7 @@ self-promotion path and no first-run "claim this instance" flow.
 | `GET /api/admin/usage` | AI spend, failures, quota pressure |
 | `GET /api/admin/models` | live model ELIGIBILITY against the funded-route rules (§9) |
 | `GET /api/admin/quality` | what people kept, what they threw away, and what the prompt is nudged by |
+| `GET/POST /api/admin/feedback` | the beta inbox and the satisfaction picture; triage (§10) |
 | `GET/POST /api/admin/system` | model and feature toggles, maintenance notice |
 | `GET/POST /api/admin/templates` | visibility, beta/internal marking, usage |
 | `GET /api/admin/audit` | the log |
@@ -349,12 +350,14 @@ separately, the same arithmetic *without* the sample floor, so signal that has n
 the threshold is visible rather than silently withheld. It stays content-free: ids, counts and
 enumerated facets, never a brief or a generated graphic (`src/ai/AGENTS.md`).
 
-One route sits outside the admin gate on purpose: **`GET /api/me/entitlement`** is public
-(auth optional) and answers only about its own caller. It is what lets the editor stop guessing
-at access; see "The browser's own entitlement" above.
+Two routes sit outside the admin gate on purpose, and they share one serverless function
+(`api/me/[...path].ts`, the same catch-all shape the other four areas use). **`GET
+/api/me/entitlement`** answers only about its own caller - see "The browser's own entitlement"
+above. **`POST /api/me/feedback`** is how a visitor tells us something (§10). Auth is optional
+on both, because the editor has no login wall and neither question needs an account.
 
 The page's sections mirror those endpoints: Overview, Users, Plans, Usage and cost, Output
-quality, Models, System, Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
+quality, Feedback, Models, System, Templates, Audit. A `support` role sees all of them read-only; the controls are simply absent
 rather than present-and-disabled, because a button that cannot work is a worse answer than no
 button.
 
@@ -405,6 +408,8 @@ ledgers: no tokens, no passwords, no prompt or template content.
 | `0023_temporary_deny_absolute` | the grant branch of `feature_denied_for` widens to cover a TEMPORARY denying grant while it is in force - safe only because `0021` guarantees no override can sit above it |
 | `0024_admin_overview` | `admin_overview_window(from, to)`, `admin_overview_state()`, `admin_overview_mix(from, to)` - read-only aggregation for §8, off the REST surface; plus the two indexes they need (`funnel_events (user_id, event)`, `render_jobs (created_at)`) |
 | `0026_overview_outcome_metrics` | corrects the three outcome/cost aggregates `0024` got wrong: `renders_failed` stops counting `expired`, `renders_completed` becomes `renders_delivered` (`complete` OR `expired`, since `complete` is transient), `ai_failures` narrows to `failed` with the refusals split out into `ai_declined`, and `ai_cost_usd` sums only rows that recorded a model so a reservation ceiling is never reported as spend. DROP-and-CREATE, since the column set changes - so it re-asserts the revokes and the grant the DROP discarded |
+| `0027_internal_activity_scope` | `user_accounts.internal`, `admin_scope()` (raises on an unknown scope), `admin_internal_user_ids()`, and all three `admin_overview_*` functions re-created with a REQUIRED `p_scope`. Its self-check asserts that external + internal PARTITION all, against the live tables |
+| `0028_user_feedback` | `public.user_feedback` - beta notes and generation ratings, the one table allowed to hold user-authored free text. Server-write-only like `funnel_events`; no DELETE grant for any role; its self-check proves the message bound and the reason allowlist actually bite |
 
 `0019` is also the one place the admin surface publishes OUTWARD. `public_system_notice()` is a
 SECURITY DEFINER function granted to `anon` and `authenticated` that returns exactly two things:
@@ -455,6 +460,53 @@ handler issues a fixed number of small queries no matter how large the ledgers g
 A database that has not had `0024` applied answers `available: false` and the page says the
 aggregation is not installed. It never renders a screen of zeroes, which would be
 indistinguishable from an instance nobody uses.
+
+### Whose activity: the scope, and why external is the default
+
+**Every usage section counts OTHER PEOPLE unless told otherwise.** `?scope=` takes `external`
+(the default), `internal` or `all`, on Overview, Usage and cost, Output quality and Feedback.
+
+It exists because the dashboard was, in effect, a mirror. Measured on production before the
+filter was built: **all 43 rows in `ai_generations`, 92 of 93 in `ai_gateway_requests`, all
+three renders and four of six `activation` events** were produced by the operator's own accounts
+while building and testing the product. Every AI number on the page was a number about us.
+
+- **The mark is explicit, on `user_accounts.internal`** (`0027`), set from the account's own
+  admin page and therefore audited like every other account change. It changes NO ACCESS
+  whatsoever: nothing in `src/entitlements/` reads it and no policy names it.
+- **It is deliberately NOT `admin_users`.** On this instance that would exclude *nothing* - the
+  account that produced all 43 generations is a throwaway test account with no admin row, and
+  the one account that has an admin row has produced none. Role and internal-ness are different
+  facts and come apart in both directions.
+- **It is deliberately not a list of emails in code either.** That is a second authority on
+  identity, it drifts the day an account is added, it needs a deploy to change, and nobody can
+  audit it.
+- **External and internal PARTITION all**, which is what makes the filter checkable rather than
+  merely plausible - `0027`'s self-check asserts it against the live tables for every additive
+  count and both money columns.
+- **The count of marked accounts is reported unfiltered**, on the page, beside the control. Zero
+  marked accounts means the filter is inert, and an operator has to be able to see that.
+
+**The honest limit, stated on the page as well.** An account-keyed ledger filters exactly:
+`ai_generations`, `ai_gateway_requests`, `render_jobs` and `auth.users` all carry a user id.
+**The funnel does not**, for most of its rows. A browser is excluded when it has ever carried an
+internal user id on a funnel row - which reaches our own signed-in browsing and does NOT reach
+signed-out development traffic, because nothing distinguishes it from a stranger's. Every funnel
+figure under `external` is therefore an upper bound on external activity, in the same direction
+as the opt-out and Do-Not-Track floor `docs/FUNNEL_EVENTS.md` already documents.
+
+Note the direction of the one identifier link this makes: visitor -> "is internal" is used only
+to REMOVE rows from a count. Nothing associates a visitor with an account in any output, and no
+row is written by it - which is why it does not breach the cross-identifier refusal that
+document makes.
+
+**`priors` on Output quality is the one figure the scope does NOT touch**, and that is
+deliberate: those are literally the rows the Lite prompt is being handed, so a filtered copy
+would describe a prompt nobody is running. What the page reports instead is how much of that
+evidence is internal. On this instance it is all of it - so any prior crossing the sample floor
+is the generator learning from our own testing. **Whether `ai_lite_variant_quality()` should
+exclude internal accounts is a change to production GENERATION behaviour, not a dashboard
+setting, and it is left as the owner's decision with that number in front of them.**
 
 ### Time: the one thing two people could otherwise read differently
 
@@ -617,7 +669,27 @@ question: could a NoaCG-funded route point at this model at all?
   per-model retention flag - routing asks for ZDR per request, and whether a model can actually
   be served that way is checked by hand at promotion. Anything outside the catalog reads "not
   audited"; it never reads "no", which would be an equally unfounded claim in the other
-  direction.
+  direction. **The audits themselves are written down in `docs/MODEL_ROUTE_AUDITS.md`**, one
+  section each, so the badge can be checked rather than trusted; a `zdrAvailable: true` entry
+  whose notes point nowhere fails `aiGateway.test.ts`.
+- **"ZDR-servable" and "served ZDR" are two facts, and the second one is code.** The routing
+  directive has to be sent, and `POST /api/ai/generate` sent none until
+  `api/_lib/aiSurfacePolicy.ts` existed: the profile-owning surfaces (Lite, import analysis)
+  build a policy, and everything reached through the generic proxy did not. That module maps a
+  tagged surface to its MANAGED-key policy - `zdr`, `data_collection: deny`, no provider
+  fallback - and today only `pro` is in it. Video is deliberately absent: its routes are
+  user-selectable and unaudited, so a no-fallback ZDR pin would refuse the ones with no ZDR
+  endpoint and turn a privacy improvement into an outage. BYO is excluded everywhere, on the
+  same line the disabled-route switch draws.
+- **The catalog is no longer text-only, and `outputs` is what keeps that honest.** Cataloguing
+  the Pro concept route (an image model) broke two invariants that had silently assumed every
+  entry was a text one: a registered task's route must decode structured output, and an
+  approved route absent from the text listing is an outage. Both were true of every entry until
+  they were not. `ApprovedModelEntry.outputs` declares the kind, `approvedTextRoute()` stops an
+  image route being pointed at a Lite task, `fundedModelRoute()` refuses one outright (the
+  ceiling measures text tokens and misses the `image_output` price that dominates its bill),
+  and `missingApprovedRoutes()` reads text entries only so the image route is not reported as
+  permanently vanished.
 - An approved route the provider has stopped listing is reported as an outage, because the free
   tier fails closed on a route it cannot reach.
 
@@ -672,6 +744,11 @@ a menu and not a judgement. The route the tier actually draws with IS marked, fr
 `PRO_STANDARD_ROUTES` - so "no verdict here" never has to be read as "nothing here is used". A price the provider did not publish reads "not published", never
 "free" - the same discipline as ZDR reading "not audited" rather than "no".
 
+**ZDR is shown here too, and that is not a verdict creeping back in.** A verdict is this page's
+opinion about whether a route may be used; an audit is a thing that either happened or did not.
+Withholding the column on the image tab would have let "no verdict here" be read as "nothing
+here has been audited", which stopped being true on 2026-08-02.
+
 **The price is `pricing.image_output`, per million OUTPUT IMAGE TOKENS - not `pricing.image`,
 and not per image.** Measured against the live listing on 2026-08-01: 38 of 40 image-output
 models publish `image_output`; only 4 publish `image`, which prices an image the caller SENDS
@@ -689,3 +766,98 @@ text prices, where it is at least comparable between models.
 
 There is no video tab: NoaCG video is Remotion/HyperFrames CODE written by text models and
 rendered locally, so there is no video-generation route to list.
+
+## 10. Beta feedback and generation ratings
+
+The one surface on this project that carries what a PERSON wrote. Everything else counts rows
+the product wrote about itself, and that separation is enforced at the schema rather than by
+convention: `user_feedback` (`0028`) is its own table precisely so `ai_generations` and the
+`admin_overview_*` aggregates can keep promising that no free text can reach them.
+
+### What already existed, and what this adds
+
+**It is not a second quality system.** `0011_ai_lite_quality_feedback.sql` has recorded a
+content-free outcome per Lite generation for a while - resolved chassis, intent facet, an
+enumerated discard reason - and `ai_lite_variant_quality()` feeds it back into the Lite prompt
+(§4). That is unchanged. This answers the question that one deliberately cannot: **why**, in the
+user's own words.
+
+The two are joined rather than parallel. `GENERATION_FEEDBACK_REASONS` in
+`src/feedback/contract.ts` IS the `0011` vocabulary minus the two values a user never picks -
+`regenerated` and `closed` are written by the app when a result is replaced or the wizard is
+closed, so they are implicit signals rather than answers. The Lite outcome endpoint now imports
+its full set from the same module, which retired the third copy of that list.
+
+### The two surfaces
+
+- **A generation rating** sits at the BOTTOM of the AI result card, after the readiness rows.
+  Two buttons, and pressing one SENDS - there is no submit step between a person and their
+  finished graphic. A negative rating then offers enumerated reasons and a text box, as an offer
+  rather than a step; a positive one asks nothing further, because "this was good" is already
+  complete and the cheap half of the flow must stay cheap.
+- **A general beta note** is the quietest button in the topbar. Visible from wherever somebody
+  is standing when they get annoyed, and never opening itself. Nothing in this product asks
+  "how are we doing?" unprompted.
+
+Both render nothing when no backend is configured - a self-hosted instance has no inbox, and an
+offline build grows no UI that cannot work, the same rule the auth surfaces follow.
+
+### What is stored with a note, and what cannot be
+
+The investigation context - tier, model, chassis, intent facet, prompt version - is **derived
+server-side** from the generation row, never accepted from the browser. Two reasons: Lite
+deliberately never tells the browser which model answered, and a client-supplied value could not
+be trusted anyway. It is COPIED onto the feedback row rather than joined, because a Lite retry
+rewrites the ledger row in place and a join would silently re-attribute an old complaint to
+whatever model ran last.
+
+The two fields the browser MAY declare are `tier` and `variantId`, and only for a generation
+with no ledger id at all - Pro, BYO and the offline stub write no `ai_generations` row. Where a
+ledger row does resolve, it wins.
+
+Deliberately absent, and unable to be added: the prompt, the brief, the design spec, the
+template, any uploaded asset, the page URL, the user agent, and the IP - not even the salted
+hash `ai_gateway_requests` keeps.
+
+### Anonymous feedback is the point, not an edge case
+
+The editor has no login wall, and on this instance 114 browsers have visited against six
+accounts. A channel only signed-in users could reach would be a channel almost nobody reaches.
+So `user_id` is nullable, the endpoint's auth is optional, and the account - when there is one -
+comes from the token rather than the body.
+
+The visitor id rides along when the browser already has one. It is **read, never minted**
+(`currentVisitorId()`): creating a tracking identifier for somebody out of a click whose whole
+purpose was to help us would be exactly backwards, and an opted-out visitor answers null.
+
+### The write path, and why it is a route rather than RLS
+
+No client policy exists on the table - the same posture as `funnel_events` (`0016`). The browser
+POSTs to `/api/me/feedback`, which validates against the shared contract and writes with the
+service key. That costs one round trip and buys three things: the vocabularies are enforced
+somewhere the client cannot edit, a scraped anon key cannot read other people's feedback, and
+anonymous submission still works. The route answers `{ recorded: true }` to a dropped submission
+as well as a stored one, because a person who just told us something was broken must not then be
+shown an error, and a response distinguishing the two would be an oracle for which generation
+ids exist. A per-IP burst gate (12/hour, tighter than the funnel's 60/minute) sits in front of
+the body read - it is the only route accepting free text from an unauthenticated caller.
+
+### The inbox, and the line it does not cross
+
+`GET /api/admin/feedback` gives the satisfaction summary, the reason distribution, and splits by
+model, tier, chassis and area; `POST` sets `status` (`new` / `reviewed` / `resolved`) and an
+internal note, audited like every other admin write. Reading is `support`, triaging is `admin`.
+
+- **Ordering is most-negative-first everywhere.** This is an inbox: three complaints must not be
+  buried under thirty compliments.
+- **No satisfaction percentage below eight ratings.** At n=3 one thumb moves the figure by 33
+  points, and a page saying "67% satisfied" off three clicks invites a decision nobody has the
+  evidence for - the same reason §8 reports absolute changes rather than percentages.
+- **There is no DELETE grant for any role.** An admin surface that can make a complaint
+  disappear is one that eventually will. Triage is a status, and what a person wrote stays as
+  they wrote it.
+- **It is evidence, never a verdict, and the section says so above the tables.** A model
+  attracting complaints is a reason to go and look; only a NoaCG benchmark can say a model is
+  worse (`docs/AI_LITE_PROMOTION.md`). There is no score, no league table, and the per-model
+  split answers "where do I look first", which is a different question from "which is best".
+  The no-ranking rule §9 holds for the Models page holds here for the same reason.

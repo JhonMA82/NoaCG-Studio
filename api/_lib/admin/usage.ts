@@ -12,7 +12,8 @@
 import { apiError, json, methodGuard } from '../http.js';
 import { requireAdmin, adminDb } from '../adminAuth.js';
 import { liteProfile } from '../aiLiteProfile.js';
-import type { AdminUsageDay, AdminUsageOverview } from '../../../src/admin/types.js';
+import { inScope, readScope } from './scope.js';
+import type { AdminActivityScope, AdminUsageDay, AdminUsageOverview } from '../../../src/admin/types.js';
 
 /** Rows read per window. Well above a month of this instance's traffic; a window that would
  *  exceed it is reported short rather than silently trimmed. */
@@ -80,6 +81,28 @@ export function committed(row: Pick<Row, 'model' | 'provider_cost_usd'>): number
   return costField(row as Row);
 }
 
+type Db = Awaited<ReturnType<typeof adminDb>>;
+
+/** A whole-window count narrowed to a scope, from the total and the internal share. */
+export function scopedTotal(scope: AdminActivityScope, total: number, internal: number): number {
+  if (scope === 'all') return total;
+  return scope === 'internal' ? internal : Math.max(0, total - internal);
+}
+
+/** How many gateway calls and renders in the window belong to internal accounts. Head counts,
+ *  so nothing is read into memory; `{0,0}` when nobody is marked, which is both the correct
+ *  answer and the one that leaves the totals untouched. */
+async function internalTotals(db: Db, since: string, ids: string[]): Promise<{ gateway: number; renders: number }> {
+  if (ids.length === 0) return { gateway: 0, renders: 0 };
+  const [gateway, renders] = await Promise.all([
+    db.from('ai_gateway_requests').select('id', { count: 'exact', head: true })
+      .gte('created_at', since).in('user_id', ids),
+    db.from('render_jobs').select('id', { count: 'exact', head: true })
+      .gte('created_at', since).in('user_id', ids),
+  ]);
+  return { gateway: gateway.count ?? 0, renders: renders.count ?? 0 };
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     const gate = await requireAdmin(req, 'support');
@@ -92,8 +115,27 @@ export default {
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     const since1 = new Date(Date.now() - 86_400_000).toISOString();
 
+    const scope = readScope(req);
     const db = await adminDb();
-    const [generations, gateway, renders] = await Promise.all([
+
+    // WHO IS INTERNAL comes from the same function the overview's SQL reads
+    // (`admin_internal_user_ids`, migration 0027), not from a second definition here. The two
+    // sections aggregate in two different places - that split already produced one day of
+    // production showing `26 failed` beside `19 failed` off one ledger, because `0026` could
+    // only reach the surface that counts in SQL. A shared list is the smallest thing that
+    // stops the scope repeating it.
+    //
+    // A failed lookup degrades to "nobody is internal", which shows MORE rows rather than
+    // fewer. That is the honest direction for a filter failure: an operator who sees their own
+    // test traffic knows something is off, where silently emptying the page looks like calm.
+    const internalIds = await db.rpc('admin_internal_user_ids');
+    const internal = new Set<string>(
+      ((internalIds.data ?? []) as (string | { admin_internal_user_ids: string })[]).map((entry) =>
+        typeof entry === 'string' ? entry : entry.admin_internal_user_ids,
+      ),
+    );
+
+    const [generations, gateway, renders, internalCounts] = await Promise.all([
       db
         .from('ai_generations')
         .select('user_id, status, model, provider_cost_usd, created_at, rejection_reason')
@@ -102,10 +144,19 @@ export default {
         .limit(MAX_ROWS),
       db.from('ai_gateway_requests').select('id', { count: 'exact', head: true }).gte('created_at', since),
       db.from('render_jobs').select('id', { count: 'exact', head: true }).gte('created_at', since),
+      // The internal half of each, counted separately and SUBTRACTED below rather than
+      // expressed as a `not.in` filter. In SQL, `user_id not in (...)` is NULL for a NULL
+      // user_id and the row is dropped - which would silently delete every account-free
+      // gateway call from the external count, the traffic this page most wants to see.
+      internalTotals(db, since, [...internal]),
     ]);
     if (generations.error) return apiError('internal', 'Could not read the AI ledger.', 500);
 
-    const rows = (generations.data ?? []) as Row[];
+    // Filtered HERE rather than in the query, so `truncated` keeps meaning what it says: the
+    // MAX_ROWS bound is about how much of the ledger was read, and moving the scope into a
+    // `.not('user_id','in',...)` would let a scope with few rows silently read a much longer
+    // stretch of history than the unscoped one and report the same day count.
+    const rows = ((generations.data ?? []) as Row[]).filter((row) => inScope(scope, internal.has(row.user_id)));
 
     const byDay = new Map<string, AdminUsageDay>();
     for (const row of rows) {
@@ -167,11 +218,16 @@ export default {
       failureReasons: ranked(failureReasons),
       declineReasons: ranked(declineReasons),
       pinched,
+      scope,
+      internalAccounts: internal.size,
       totals: {
         generations: rows.length,
         costUsd: Number(rows.reduce((sum, row) => sum + spent(row), 0).toFixed(6)),
-        gatewayRequests: gateway.count ?? 0,
-        renderJobs: renders.count ?? 0,
+        // all - internal, internal, or the whole thing. Subtraction rather than a filter, for
+        // the NULL reason above; `Math.max(0, ...)` because the two head counts are separate
+        // queries and a row landing between them must not produce a negative total.
+        gatewayRequests: scopedTotal(scope, gateway.count ?? 0, internalCounts.gateway),
+        renderJobs: scopedTotal(scope, renders.count ?? 0, internalCounts.renders),
       },
       fleetSpendTodayUsd: Number(
         rows.filter((row) => row.created_at >= since1).reduce((sum, row) => sum + committed(row), 0).toFixed(6),
