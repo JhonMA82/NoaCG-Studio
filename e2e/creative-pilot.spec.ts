@@ -845,59 +845,6 @@ test.describe('creative pilot (phase C)', () => {
     expect(report.haloed).toBe('');
   });
 
-  test('proportion is the spec\'s decision, expressed against the type it surrounds', async ({ page }) => {
-    await open(page);
-    // The falsification vocabulary (VOCABULARY-DECISION-2026-08-02.md). Proportion was the
-    // review's most repeated fault - "banner too large", "spacing too wide", "too much empty
-    // space", a rule that "looks accidental" - and none of it is a value a clamp brings into
-    // range. Every number is a MULTIPLE OF THE PRIMARY TYPE, because that is what makes it a
-    // proportion: air that scales with the words reads as a decision.
-    const out = await page.evaluate(async () => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const i = normalizeIntent({
-        kind: 'category', typeId: 'lower-third', confidence: 'high', summary: 'A name strap.',
-        parts: [{ id: 'name', role: 'name' }],
-        fields: [{ key: 'name', role: 'line', label: 'Name', sample: 'Alex Morgan' }],
-      });
-      const build = (proportion: unknown) => {
-        const spec = normalizeCreativeSpec({
-          conceptId: 'c1', name: 'Strap', summary: 's',
-          layout: { family: 'strap', arrangement: 'stack', fullFrame: false, zone: 'bottom-left', sizeScale: 1, proportion },
-          regions: [{ id: 'name', role: 'name', emphasis: 'primary', fieldKeys: ['name'] }],
-          palette: {}, fontId: 'inter', motion: { entranceOrder: [], character: 'rise', seconds: 0.9 },
-        }, i);
-        const { scaffold, validation } = compileScaffoldOnly(spec, i);
-        return { errors: validation.errors.map((e) => e.rule), css: scaffold.template.css, prop: spec.layout.proportion };
-      };
-      return {
-        edge: build({ panelPad: 0.35, lineRhythm: 0.08, accent: 'edge', accentWeight: 0.09 }),
-        none: build({ panelPad: 0.5, lineRhythm: 0.2, accent: 'none', accentWeight: 0.08 }),
-        missing: build(undefined),
-        wild: build({ panelPad: 99, lineRhythm: -5, accent: 'spiral', accentWeight: 42 }),
-      };
-    });
-
-    expect(out.edge.errors).toEqual([]);
-    // Expressed against the type, never in pixels - that is what makes it a proportion.
-    expect(out.edge.css).toContain('--type-primary');
-    expect(out.edge.css).toContain('gap: calc(0.08 * var(--type-primary))');
-    expect(out.edge.css).toContain('padding: calc(0.35 * var(--type-primary))');
-    // The accent SPANS its content rather than floating at a fixed length.
-    expect(out.edge.css).toMatch(/creative-box::before[\s\S]*width: calc\(0\.09 \* var\(--type-primary\)\)/);
-    // `none` is an honest answer, not a zero-width accent.
-    expect(out.none.css).not.toContain('creative-box::before');
-    // Absent proportion falls back to NEUTRAL middles - deliberately not the catalog's numbers,
-    // or a good frame would only prove the catalog has good numbers.
-    expect(out.missing.prop).toEqual({ panelPad: 0.5, lineRhythm: 0.25, accent: 'none', accentWeight: 0.08 });
-    // Nonsense clamps into range instead of failing (the normalize-don't-reject rule).
-    expect(out.wild.errors).toEqual([]);
-    expect(out.wild.prop.panelPad).toBeLessThanOrEqual(1.4);
-    expect(out.wild.prop.lineRhythm).toBeGreaterThanOrEqual(0);
-    expect(out.wild.prop.accent).toBe('none');
-  });
-
   test('the declared palette is made readable, translucency and all', async ({ page }) => {
     await open(page);
     // Correct-looking contracts rendered unreadable across the 2026-08-02 rounds: white ink on

@@ -177,7 +177,7 @@ export const CREATIVE_SPEC_TOOL: ModelTool = {
       summary: { type: 'string', description: 'One sentence describing the graphic for the user.' },
       layout: {
         type: 'object',
-        required: ['family', 'arrangement', 'fullFrame', 'zone', 'proportion'],
+        required: ['family', 'arrangement', 'fullFrame', 'zone'],
         additionalProperties: false,
         properties: {
           family: { type: 'string', description: 'The composition family from the chosen direction.' },
@@ -204,42 +204,6 @@ export const CREATIVE_SPEC_TOOL: ModelTool = {
           },
           zone: { type: 'string', enum: ZONES, description: 'Where an over-video graphic anchors (ignored when fullFrame is true).' },
           sizeScale: { type: 'number', description: 'Overall size, 0.85 compact … 1.2 large.' },
-          // PROPORTION - every value a multiple of the PRIMARY TYPE SIZE, never a pixel count.
-          // The 2026-08-02 review's most repeated complaint was proportion, and the model had
-          // no way to express one: air that scales with the words reads as a decision, air
-          // that does not reads as an accident. The descriptions give the reader a way to
-          // JUDGE a number rather than a number to copy.
-          proportion: {
-            type: 'object',
-            required: ['panelPad', 'lineRhythm', 'accent', 'accentWeight'],
-            additionalProperties: false,
-            properties: {
-              panelPad: {
-                type: 'number',
-                description: 'Air inside the panel, as a multiple of the biggest type. 0.2 is '
-                  + 'tight and urgent, 0.5 is comfortable, 1.0 is spacious and formal. Too much '
-                  + 'air on a small graphic reads as amateur rather than generous.',
-              },
-              lineRhythm: {
-                type: 'number',
-                description: 'Gap BETWEEN lines, same unit. 0 sets them solid, 0.2 separates '
-                  + 'them, 0.6 makes them separate objects. Lines belonging to one person '
-                  + 'should sit closer than lines that do not.',
-              },
-              accent: {
-                type: 'string', enum: ['none', 'edge', 'underline'],
-                description: 'The accent motif. `edge` is a bar down the leading edge, '
-                  + '`underline` a rule under the words, `none` an honest absence. Pick none '
-                  + 'rather than a short rule floating with nothing to do - a mark that does '
-                  + 'not reach something reads as an accident.',
-              },
-              accentWeight: {
-                type: 'number',
-                description: 'Accent thickness, same unit. 0.05 is a hairline, 0.15 a strong '
-                  + 'bar. Ignored when accent is none.',
-              },
-            },
-          },
         },
       },
       regions: { type: 'array', minItems: 1, maxItems: 10, items: REGION_SCHEMA },
