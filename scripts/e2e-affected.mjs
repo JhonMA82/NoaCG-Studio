@@ -109,6 +109,16 @@ const CORE = [
   /^src\/components\/(AppShell|PreviewFrame|WorkspaceDock|CodeEditor|App\.)/,
   /^src\/(App|main)\./,
   /^src\/styles/,
+  // The bundled GSAP build is a shared foundation that happens to live under src/assets/, and
+  // the `src/assets/` MAP entry below is written for asset HELPERS (eraseRegion, assetInfo,
+  // lottieSupport) - so without this line an upgrade of the animation engine ran the assets
+  // and Pro specs and never anim-engine.spec.ts. Measured on the 3.10.4 -> 3.15.0 upgrade: 57
+  // specs, none of them the one that pins editor-vs-runtime motion parity. Every preview and
+  // every export inlines this file verbatim (imported `?raw`, so Vite never even transpiles
+  // it), which is the definition of fan-out. Matching CORE as well as MAP is harmless - the
+  // full suite is a superset - and it fails toward running MORE, the direction this script
+  // says its safety comes from.
+  /^src\/assets\/gsap\.min\.js$/,
   /^e2e\/_/,
   /^playwright\.config\.ts$/,
   /^(package|package-lock)\.json$/,
