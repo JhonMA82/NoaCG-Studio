@@ -8,7 +8,7 @@
 // a benchmark-only compile path is the drift this module exists to make impossible.
 // scripts/ai-lite-bench.test.mjs pins that claudeProvider has no second copy.
 
-import { specToTemplate, type DesignSpec } from './designSpec';
+import { specToTemplate, type AssembleOptions, type DesignSpec } from './designSpec';
 import { applyDesignAdjustments } from './designAdjust';
 import { applyPolish } from './polish';
 import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
@@ -20,7 +20,6 @@ import type { LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
 import type { SpxTemplate } from '../model/types';
-import type { TemplateVariant } from '../model/wizard';
 import { ltc01 } from '../templates/lowerThirds/skinCanvas';
 import type { ValidationResult } from '../validation/validateTemplate';
 import { validateTemplate } from '../validation/validateTemplate';
@@ -40,10 +39,11 @@ export interface GroundedAssembly {
 export function assembleGroundedTemplate(
   spec: DesignSpec,
   ctx?: GenerateContext,
-  /** Assemble THIS chassis instead of the spec's catalog pick (the skin canvas). */
-  variantOverride?: TemplateVariant,
+  /** Assembly policy — the skin canvas chassis override, and whether the chassis keeps the
+   *  zone it was drawn for (the harness opts in; Lite does not — see AssembleOptions). */
+  options?: AssembleOptions,
 ): GroundedAssembly {
-  const assembled = specToTemplate(spec, ctx, variantOverride);
+  const assembled = specToTemplate(spec, ctx, options);
   const template = applySpecOutPreset(
     ensureSpecFonts(applyDesignAdjustments(assembled.template, spec), ctx?.spec),
     ctx?.spec,
@@ -129,7 +129,7 @@ export async function attemptLiteSkinDetailed(
   if (!String(patch.css ?? '').trim() || liteSkinPatchErrors(patch).length) {
     return { assembly: null, rejection: 'patch' };
   }
-  const { template, diversity } = assembleGroundedTemplate(spec, ctx, ltc01);
+  const { template, diversity } = assembleGroundedTemplate(spec, ctx, { variantOverride: ltc01 });
   const skinned = applyPolish(template, patch, LITE_SKIN_MARKER);
   if (!skinned) return { assembly: null, rejection: 'gate' };
   const validation = demoteSpecFields(await validate(skinned));

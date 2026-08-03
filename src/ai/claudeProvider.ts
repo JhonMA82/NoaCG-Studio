@@ -20,7 +20,15 @@ import { parseDataUrl } from '../assets/assetUtils';
 import type { ReferencePurpose } from '../model/imagePurpose';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
 import { lt01 } from '../templates/lowerThirds/lt01';
-import { catalogDigest, DESIGN_ALTERNATIVES_TOOL, DESIGN_SPEC_TOOL, type DesignSpec } from './designSpec';
+import {
+  catalogDigest,
+  DESIGN_ALTERNATIVES_TOOL,
+  DESIGN_SPEC_TOOL,
+  narrowVariantTool,
+  type DesignSpec,
+} from './designSpec';
+import { FULL_CATALOG, shortlistFor, type Shortlist } from './retrieval';
+import { aiCategoryById } from './spec/categories';
 import { preferenceHint } from './preferences';
 import { assembleGroundedTemplate, attemptLiteSkin, normalizeLiteSpec } from './litePipeline';
 import { applyPolish, POLISH_TOOL, type PolishPatch } from './polish';
@@ -242,8 +250,13 @@ ${example.js}
 Return the template ONLY via the emit_template tool.`;
 }
 
-/** The design-stage prompt: decide the route and every design parameter — no code. */
-function specSystemPrompt(): string {
+/** The design-stage prompt: decide the route and every design parameter — no code.
+ *
+ *  `shortlist` is the retrieved set of proven designs (src/ai/retrieval.ts). Absent — which is
+ *  every CREATE-routed generation — the prompt is byte-identical to the pre-retrieval one, so
+ *  the frozen benchmark control stays frozen (src/ai/AGENTS.md, plan §8). */
+function specSystemPrompt(shortlist?: Shortlist): string {
+  const proven = shortlist && !shortlist.full && shortlist.variants.length ? shortlist.variants : undefined;
   return `You are the design director inside NoaCG Studio — a tool that creates broadcast
 graphics templates. You do NOT write code here. You read the brief (and any attached
 reference images) and return ONE design decision via the emit_design_spec tool.
@@ -273,7 +286,7 @@ referenceSystem, and let it drive your parameters. References outweigh every gen
 above.
 
 ## What the platform can assemble
-${catalogDigest()}
+${catalogDigest(proven)}
 ${(() => {
     const hint = preferenceHint();
     return hint ? `\n## Aggregated user preferences\n${hint}\n` : '';
@@ -798,7 +811,9 @@ async function groundedResult(
   const t0 = Date.now();
   // The deterministic assembly sequence lives in litePipeline, shared verbatim with the
   // Lite benchmark runners — one compile path, so a benchmark result describes the product.
-  const assembled = assembleGroundedTemplate(spec, ctx);
+  // keepChassisZone: the design's own zone is part of the design (docs/ADAPT_FIRST_PLAN.md
+  // §1.1 / AssembleOptions). Lite deliberately does not opt in — see §6.2.
+  const assembled = assembleGroundedTemplate(spec, ctx, { keepChassisZone: true });
   let template = assembled.template;
   run.stage('assemble', t0);
   run.diversity(assembled.diversity);
@@ -920,6 +935,31 @@ function contextFrom(template: SpxTemplate, outer?: GenerateContext): GenerateCo
 interface RoutedIntent {
   intent: StructuralIntent | null;
   route: RouteDecision | null;
+  /** The proven designs an ADAPT-routed brief is chosen from. FULL_CATALOG on every other
+   *  route, which is what keeps a CREATE generation's prompt byte-identical. */
+  shortlist: Shortlist;
+}
+
+/**
+ * Retrieval for an ADAPT-routed brief (docs/ADAPT_FIRST_PLAN.md §3, Stage R). Deterministic
+ * and free: the ranking is the Browse storefront's engine and the structural filter is the one
+ * anchor table, both reading inputs the intent stage already produced.
+ *
+ * A CREATE route keeps the full digest deliberately — the frozen benchmark control must not
+ * change what it is shown (src/ai/AGENTS.md, plan §8), and a brief no catalog structure carries
+ * has nothing to be shortlisted from anyway.
+ */
+function retrieveShortlist(
+  prompt: string,
+  intent: StructuralIntent | null,
+  route: RouteDecision | null,
+  context?: GenerateContext,
+): Shortlist {
+  if (route?.route !== 'adapt') return FULL_CATALOG;
+  // Explicit adapt skips the intent call, so the only structure known is one the user pinned
+  // in the structured setup. Nothing pinned means nothing to retrieve within.
+  const pinned = aiCategoryById(context?.spec?.category)?.templateCategory;
+  return shortlistFor(prompt, intent, pinned ? `category:${pinned}` : null);
 }
 
 /**
@@ -929,13 +969,20 @@ interface RoutedIntent {
  * on any failure - a routing stage must never kill a generation.
  */
 async function intentAndRoute(
+  prompt: string,
   userContent: ContentBlock[],
   mode: GenerationMode,
   run: AiRunRecorder,
   options?: GenerateOptions,
+  context?: GenerateContext,
 ): Promise<RoutedIntent> {
+  const routed = (intent: StructuralIntent | null, route: RouteDecision | null): RoutedIntent => ({
+    intent,
+    route,
+    shortlist: retrieveShortlist(prompt, intent, route, context),
+  });
   if (mode === 'adapt') {
-    return { intent: null, route: { mode, route: 'adapt', reason: 'Explicit adapt request.' } };
+    return routed(null, { mode, route: 'adapt', reason: 'Explicit adapt request.' });
   }
   let intent: StructuralIntent;
   try {
@@ -960,9 +1007,10 @@ async function intentAndRoute(
     intent = normalizeIntent(result.output);
   } catch {
     // No intent. Explicit create still routes create; auto falls through to today's flow.
-    return { intent: null, route: mode === 'create' ? { mode, route: 'create', reason: 'Explicit create request.' } : null };
+    return routed(null, mode === 'create' ? { mode, route: 'create', reason: 'Explicit create request.' } : null);
   }
   const route = routeIntent(intent, mode);
+  const result = routed(intent, route);
   run.routing({
     mode,
     route: route.route,
@@ -970,8 +1018,25 @@ async function intentAndRoute(
     intentKind: intent.kind + (intent.typeId ? `:${intent.typeId}` : intent.families?.length ? `:${intent.families[0]}` : ''),
     confidence: intent.confidence,
     originalityRequested: intent.originalityRequested,
+    ...(result.shortlist.full
+      ? {}
+      : {
+          shortlist: {
+            size: result.shortlist.variants.length,
+            anchor: result.shortlist.anchor ?? undefined,
+            reason: result.shortlist.reason,
+          },
+        }),
   });
-  return { intent, route };
+  return result;
+}
+
+/** Collapse `variantId`'s enum to the retrieved shortlist, so the schema allows exactly the
+ *  designs the prompt showed. Shown-but-illegal is a chassis the model picks and
+ *  `resolveVariant` silently swaps for another - the wrong graphic delivered as a success. */
+function shortlistTool(base: ModelTool, shortlist: Shortlist): ModelTool {
+  if (shortlist.full || !shortlist.variants.length) return base;
+  return narrowVariantTool(base, shortlist.variants.map((v) => v.id));
 }
 
 /** The routed fit narrowing: only an explicit adapt or a CREATE decision collapses the
@@ -1063,7 +1128,7 @@ export const claudeProvider: AIProvider = {
       // exists so an off-catalog brief (or an explicit create) reaches the custom path
       // without the catalog-anchored design call deciding against it.
       const mode: GenerationMode = options?.mode ?? 'auto';
-      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+      const { intent, route, shortlist } = await intentAndRoute(prompt, userContent, mode, run, options, context);
 
       // Stage 1 — the design spec (the design decision; also the router when routing
       // above was advisory). A stage failure must never kill the generation: fall through
@@ -1073,11 +1138,11 @@ export const claudeProvider: AIProvider = {
       try {
         const t0 = Date.now();
         const result = await callModelDetailed({
-          system: specSystemPrompt(),
+          system: specSystemPrompt(shortlist),
           messages: [{ role: 'user', content: userContent }],
           // A pinned user category narrows the tool schema itself — the model can only
           // route within the decision. The routed fit narrows the same way (plan §2).
-          tool: routedSpecTool(narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec), route),
+          tool: shortlistTool(routedSpecTool(narrowedSpecTool(DESIGN_SPEC_TOOL, context?.spec), route), shortlist),
           maxTokens: 4000,
         });
         run.stage('design-spec', t0, result.model, result.usage);
@@ -1153,7 +1218,7 @@ export const claudeProvider: AIProvider = {
       // Stage 0 — the same mode + intent routing as generate() (plan §2): the alternatives
       // call is the product's default path, so honest routing has to live here too.
       const mode: GenerationMode = options?.mode ?? 'auto';
-      const { intent, route } = await intentAndRoute(userContent, mode, run, options);
+      const { intent, route, shortlist } = await intentAndRoute(prompt, userContent, mode, run, options, context);
 
       // ONE design-stage call returns three distinct directions; each assembles like a
       // single harness generation (grounded deterministically, or the validated custom path).
@@ -1162,9 +1227,9 @@ export const claudeProvider: AIProvider = {
       try {
         const t0 = Date.now();
         const result = await callModelDetailed({
-          system: specSystemPrompt(),
+          system: specSystemPrompt(shortlist),
           messages: [{ role: 'user', content: userContent }],
-          tool: routedSpecTool(narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec), route),
+          tool: shortlistTool(routedSpecTool(narrowedSpecTool(DESIGN_ALTERNATIVES_TOOL, context?.spec), route), shortlist),
           maxTokens: 8000,
         });
         run.stage('design-alternatives', t0, result.model, result.usage);

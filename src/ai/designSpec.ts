@@ -245,13 +245,48 @@ export const DESIGN_ALTERNATIVES_TOOL: ModelTool = {
   },
 };
 
+/**
+ * Collapse `variantId`'s enum to the retrieved shortlist - the same schema-narrowing mechanism
+ * `narrowFitTool` and `narrowedSpecTool` already use, so the model chooses WITHIN a decision the
+ * platform made instead of being asked to re-make it. A listing the prompt shows and an enum the
+ * schema allows must be the same set: shown-but-illegal is a chassis the model picks and
+ * `resolveVariant` silently swaps, which is a wrong graphic delivered as a success.
+ */
+export function narrowVariantTool(base: ModelTool, ids: readonly string[]): ModelTool {
+  if (!ids.length) return base;
+  const tool = JSON.parse(JSON.stringify(base)) as ModelTool;
+  const root = tool.input_schema as { properties?: Record<string, unknown> };
+  const alts = root.properties?.alternatives as { items?: { properties?: Record<string, unknown> } } | undefined;
+  const schemas = alts?.items?.properties ? [alts.items.properties] : root.properties ? [root.properties] : [];
+  for (const props of schemas) {
+    const variantProp = props.variantId as { enum?: string[] } | undefined;
+    if (variantProp) variantProp.enum = [...ids];
+  }
+  return tool;
+}
+
 // ── The catalog digest (the spec prompt's world) ──────────────────────────────
 
-/** One compact listing of everything the platform can assemble, for the system prompt. */
-export function catalogDigest(): string {
+/**
+ * One compact listing of what the platform can assemble, for the system prompt.
+ *
+ * `only` is the RETRIEVED SHORTLIST (src/ai/retrieval.ts): the proven designs a brief was
+ * matched to, in rank order. The full listing is 430 variants and ~20,300 tokens, and asking
+ * the cheapest model in the product to find one design in it is the retrieval problem the
+ * adapt-first pivot exists to fix (docs/ADAPT_FIRST_PLAN.md §1.4). Passing nothing keeps the
+ * full listing byte-identical, which is what a CREATE-routed generation still gets.
+ */
+export function catalogDigest(only?: readonly TemplateVariant[]): string {
   const lines: string[] = [];
+  const shortlisted = only?.length ? new Set(only.map((v) => v.id)) : null;
+  if (shortlisted) {
+    lines.push(
+      'These are the closest PROVEN designs for this brief, already ranked. Adapt one of them:',
+      '',
+    );
+  }
   for (const cat of CATEGORIES) {
-    const variants = variantsFor(cat.id);
+    const variants = (shortlisted ? only! : variantsFor(cat.id)).filter((v) => v.category === cat.id);
     if (!variants.length) continue;
     lines.push(`### ${cat.name} (category: ${cat.id}) — ${cat.description}`);
     for (const v of variants) {
@@ -301,6 +336,32 @@ export interface AssembledSpec {
   diversity: AiDiversity;
 }
 
+export interface AssembleOptions {
+  /**
+   * Assemble THIS variant instead of resolving one from the catalog — the Lite skin path's
+   * seam: its neutral canvas chassis is deliberately not in the browse catalog.
+   */
+  variantOverride?: TemplateVariant;
+  /**
+   * **The chassis keeps the zone it was drawn for.** `spec.zone` is ignored and the design's
+   * own `defaultZone` is used.
+   *
+   * Measured, not assumed (docs/ADAPT_FIRST_PLAN.md §1.1): across 89 catalog lower thirds the
+   * rendered side agrees with the declared zone on 89 of 89, 88 sit in the bottom band, and 87
+   * sit at exactly 119px from the bottom edge. The catalog ships left-, right- and centre-drawn
+   * designs as SEPARATE members precisely because re-siding a strap means re-siding its accent
+   * — `lowerThirds/index.ts` says so — so moving a design to a zone its author did not draw it
+   * for is the "a lower third that anchors bottom-centre has stopped being one" defect the
+   * 2026-08-02 review named. Placement is expressed by picking a differently-anchored member,
+   * which retrieval now puts in front of the model, and by the Style panel afterwards.
+   *
+   * Off by default: NoaCG Lite is a versioned server-owned profile that carries this rule as a
+   * prompt instruction and cannot change behaviour without a paid re-baseline (ADAPT_FIRST_PLAN
+   * §6.2), so the harness opts in and Lite does not.
+   */
+  keepChassisZone?: boolean;
+}
+
 /**
  * Spec + context → a guaranteed-valid template through the REAL catalog assemblers.
  * Every out-of-range value CLAMPS to the nearest legal one instead of failing — the
@@ -309,12 +370,11 @@ export interface AssembledSpec {
 export function specToTemplate(
   spec: DesignSpec,
   ctx?: GenerateContext,
-  /** Assemble THIS variant instead of resolving one from the catalog — the Lite skin
-   *  path's seam: its neutral canvas chassis is deliberately not in the browse catalog. */
-  variantOverride?: TemplateVariant,
+  assembly?: AssembleOptions,
 ): AssembledSpec {
+  const opts = assembly ?? {};
   const wantsLogo = Boolean(spec.useLogoSlot && ctx?.images?.length);
-  const variant = variantOverride ?? resolveVariant(spec, wantsLogo);
+  const variant = opts.variantOverride ?? resolveVariant(spec, wantsLogo);
 
   // Palette precedence: the project brand (ctx) wins, then a bespoke spec palette, then a
   // curated palette id, then the chassis default (via resolveOptions).
@@ -352,8 +412,11 @@ export function specToTemplate(
     fontId: FONTS.some((f) => f.id === spec.fontId) ? spec.fontId : undefined,
     // The user's uploaded font wins over any font id (WizardOptions' own precedence rule).
     customFont: ctx?.customFont,
-    sizeScale: clampNumber(spec.sizeScale, 0.7, 1.4),
-    zone: ZONES.includes(spec.zone as Zone9) ? spec.zone : undefined,
+    // The schema describes this as "0.85 compact … 1.2 large" and the clamp used to allow
+    // 0.7–1.4: a 1.4x on the widest lower third (42% of frame) lands at 59% and takes the
+    // overflow risk with it. The clamp now matches what the model was told.
+    sizeScale: clampNumber(spec.sizeScale, 0.85, 1.2),
+    zone: !opts.keepChassisZone && ZONES.includes(spec.zone as Zone9) ? spec.zone : undefined,
     animation: {
       ...(presetOk ? { presetId: spec.animation?.presetId as never } : {}),
       ...(easingOk ? { easing: spec.animation?.easing as EasingId } : {}),
