@@ -83,8 +83,12 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'openrouter',
-    id: 'openai/gpt-5.6',
-    label: 'GPT-5.6 via OpenRouter',
+    // GPT-5.6 ships as named tiers rather than one id - luna (fast, cost-efficient), terra
+    // (balanced), sol (flagship), each with a `-pro` twin served at `reasoning.mode: pro`. The
+    // bare `openai/gpt-5.6` this suggestion used to name has never existed on OpenRouter, so
+    // picking it returned a provider error; scripts/check-model-ids.mjs now catches that class.
+    id: 'openai/gpt-5.6-luna',
+    label: 'GPT-5.6 Luna via OpenRouter',
     blurb: 'Proprietary route; any supported model id can be entered.',
   },
   {

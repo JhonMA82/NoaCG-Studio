@@ -81,6 +81,11 @@ The listing endpoint is public: no key, no tokens.
 The video harness already syncs its own catalog (`npm run video:models:sync`); this covers the
 SPX/Lite/Pro routes, which had nothing watching them.
 
+**It only sees OpenRouter.** Anthropic, direct-OpenAI and Hugging Face ids in `AI_MODELS` cannot
+be listed without a key for each provider, and this check is deliberately keyless — so those
+entries are unwatched, and a retirement there still fails the same silent way. Treat them as a
+manual review when a provider announces a deprecation.
+
 ### Things with no version at all — the `MANUAL_REVIEW` table
 
 A woff2 carries no version string, and a Supabase platform upgrade is a dashboard action that
