@@ -1204,12 +1204,22 @@ first-class. Stages are direction, not a calendar; each is independently shippab
       hardware session, so they are proven by the suite and by a reproduction, not yet by a
       second run in CasparCG. Two checklist items stay open and need the owner: a CasparCG
       channel restart (§8.7) and unpublish/re-publish (§8.8).
-- [ ] **Stage 2 — Production workflow + reliability**: multiple layers (z-order over the
-      per-graphic instances), rehearsal vs show modes, published/draft versions + rollback,
-      renderer health surfaced properly (multi-renderer awareness), operator access +
-      sharing, logs/diagnostics, per-caller rate caps, the `control_events` anon-read
-      narrowing (needs a v2 receiver generation + deprecation window), stronger
-      SPX/CasparCG integration docs.
+- [ ] **Stage 2 — Production workflow + reliability**: rehearsal vs show modes,
+      published/draft versions + rollback, renderer health surfaced properly (multi-renderer
+      awareness), operator access + sharing, logs/diagnostics, per-caller rate caps, the
+      `control_events` anon-read narrowing (needs a v2 receiver generation + deprecation
+      window), stronger SPX/CasparCG integration docs.
+  - [x] **Multiple layers, z-order over the per-graphic instances** — every pool graphic is a
+        layer holding its OWN on-air cue, so a bug, a lower third and a ticker are up together
+        and Take no longer stops whatever was live before it. The log was already per-layer
+        (a cue status row has always carried its graphic); what changed is the row snapshot
+        (migration `0034`, `live_cue` becomes a per-graphic map, migrating format 1 on read
+        and on write), the verbs (Update/Next/Out address the selected cue's layer; **All out**
+        is the new clear-the-frame verb), both operator surfaces, and the production page's
+        layer stack — the pool listed front to back with ↑/↓ reordering, which the stage now
+        states as an explicit `z-index` instead of relying on append order.
+        Covered offline by `e2e/productions.spec.ts`; the wire half is §8.4/§8.4b of
+        `docs/CLOUD_PLAYOUT.md` and **migration 0034 is not yet applied to production**.
 - [ ] **Stage 3 — the NoaCG Data Hub**: server-side connectors writing `update` rows into
       the SAME command log (one ingress, renderer stays dumb), normalized field schemas +
       visual mapping, credentials server-side only, caching + freshness + last-known-good,

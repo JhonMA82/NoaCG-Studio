@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { eventButtons, eventLegality, fieldDescriptors, isEventLegal, type ControlMessage } from '../control/controlModel';
 import {
+  clearAllCuesOnWire,
   clearCueOnWire,
   controlShowBySlug,
   followControlLog,
@@ -8,6 +9,8 @@ import {
   sendHostedControl,
   stageHostedData,
   takeCueOnWire,
+  withLiveCue,
+  type LiveCueMap,
   type PanelEntry,
   type PanelGraphicSpec,
   type ResolvedControlShow,
@@ -35,8 +38,9 @@ import { FieldControl } from './fields/FieldControl';
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
-  /** Which cue is on air — followed from the log's cue status rows (docs/CLOUD_PLAYOUT.md §4). */
-  const [liveCue, setLiveCue] = useState<{ id: string | null; graphic: string | null }>({ id: null, graphic: null });
+  /** Which cue is on air ON EACH LAYER, keyed by graphic — followed from the log's cue status
+   *  rows (docs/CLOUD_PLAYOUT.md §4). Several graphics are up at once by design. */
+  const [liveCue, setLiveCue] = useState<LiveCueMap>({});
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -51,10 +55,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       setShow(resolved);
       if (!resolved) return;
       const tail = (after: number) => hostedControlTail(slug, after);
-      // Which cue was already on air comes off the ROW (0031's snapshot, mirrored by the send
-      // RPCs) — a tail scan was windowed by GLOBAL log ids and could miss the marker on a
-      // busy instance. Seeded before following, so old rows can never overwrite a newer fact.
-      if (resolved.liveCue) setLiveCue(resolved.liveCue);
+      // Which cues were already on air comes off the ROW (0031's snapshot, per-layer since
+      // 0034, mirrored by the send RPCs) — a tail scan was windowed by GLOBAL log ids and
+      // could miss the marker on a busy instance. Seeded before following, so old rows can
+      // never overwrite a newer fact.
+      setLiveCue(resolved.liveCue);
       // Follow the log (shared recovery discipline — control/hostedControl.ts followControlLog):
       // staged/live meta rows update the shared view; cue rows move the live chip; command
       // rows from other operators need no handling (the graphic's own live report follows).
@@ -71,7 +76,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               s && s !== 'loading' ? { ...s, live: { ...s.live, [row.graphic]: { data: msg.data, state: msg.state } } } : s,
             );
           } else if (msg.t === 'cue') {
-            setLiveCue({ id: msg.cue, graphic: msg.cue ? row.graphic : null });
+            // A cue row names its own graphic, so it only ever speaks for that ONE layer.
+            setLiveCue((m) => withLiveCue(m, row.graphic, msg.cue));
           }
         },
       });
@@ -111,11 +117,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // The verbs are the SHARED wire authors (control/hostedControl.ts) — one atomic batch per
   // verb, so a take can neither pay four round-trips nor fail halfway through.
   const takeCue = (cue: (typeof cues)[number]) =>
-    takeCueOnWire(slug, { id: cue.id, graphic: cue.graphic, values: cue.values }, liveCue.graphic).catch(surfaceSendError);
-  const outLive = () => {
-    if (!liveCue.graphic) return Promise.resolve();
-    return clearCueOnWire(slug, liveCue.graphic).catch(surfaceSendError);
-  };
+    takeCueOnWire(slug, { id: cue.id, graphic: cue.graphic, values: cue.values }).catch(surfaceSendError);
+  // Per-layer verbs ride the LIVE CUE ROW itself. With several graphics up there is no single
+  // "the live graphic" a header button could mean, and on a phone the row the operator is
+  // already looking at is the least ambiguous place to put » and ■.
+  const nextLayer = (graphic: string) =>
+    void sendHostedControl(slug, graphic, { t: 'next' }).catch(surfaceSendError);
+  const outLayer = (graphic: string) => void clearCueOnWire(slug, graphic).catch(surfaceSendError);
+  /** The layers that are up, in panel (layer) order — the panel spec is built from the pool. */
+  const liveGraphics = show.panel.map((g) => g.name).filter((name) => liveCue[name]);
+  const outAll = () => void clearAllCuesOnWire(slug, liveGraphics).catch(surfaceSendError);
 
   return (
     <div className="hosted-control">
@@ -126,49 +137,60 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       <main>
         {/* The cue rundown (docs/CLOUD_PLAYOUT.md §4): prepared rows, takeable in order. LOAD
             stages a cue's values into its graphic's card (shared, like typing them); TAKE airs
-            it. The live cue is the green row — the first thing a phone screen shows. */}
+            it. Every graphic is its own LAYER, so more than one row can be green at a time and
+            each live row carries its own » and ■ — taking a cue never clears another layer. */}
         {cues.length > 0 && (
           <section className="hosted-cues" data-testid="hosted-cues">
             <div className="hosted-cues-head">
               <h2>Cues</h2>
               <span className="muted" data-testid="hosted-live-chip">
-                {liveCue.id
-                  ? `● LIVE: ${cues.find((c) => c.id === liveCue.id)?.label ?? liveCue.graphic}`
-                  : '○ nothing on air'}
+                {liveGraphics.length === 0
+                  ? '○ nothing on air'
+                  : liveGraphics
+                      .map((g) => `● ${cues.find((c) => c.id === liveCue[g])?.label ?? g}`)
+                      .join(' · ')}
               </span>
               <div className="spacer" />
-              <button
-                disabled={!liveCue.graphic}
-                onClick={() =>
-                  liveCue.graphic && void sendHostedControl(slug, liveCue.graphic, { t: 'next' }).catch(surfaceSendError)
-                }
-                title="Advance the live graphic"
-              >
-                » Next
-              </button>
-              <button disabled={!liveCue.graphic} onClick={() => void outLive()} title="Play the live graphic out">
-                ■ Out
+              <button disabled={liveGraphics.length === 0} onClick={outAll} title="Play every live layer out — clear the frame">
+                ■■ All out
               </button>
             </div>
             <div className="control-entries">
-              {cues.map((cue, i) => (
-                <div key={cue.id} className={`control-entry ${cue.id === liveCue.id ? 'live' : ''}`} data-testid={`hosted-cue-${cue.id}`}>
-                  <span className="control-entry-label">
-                    {cue.id === liveCue.id ? '●' : `${i + 1}.`} {cue.label}
-                    <span className="muted"> · {cue.graphic}</span>
-                    {cue.note ? <span className="muted prod-cue-note"> — {cue.note}</span> : null}
-                  </span>
-                  <button
-                    onClick={() => void stageHostedData(slug, cue.graphic, cue.values)}
-                    title="Load this cue's data into its graphic's fields (stages for every operator; airs on a take)"
-                  >
-                    Load
-                  </button>
-                  <button className="primary" onClick={() => void takeCue(cue)} title="Air this cue" data-testid="hosted-take-cue">
-                    ⟳ Take
-                  </button>
-                </div>
-              ))}
+              {cues.map((cue, i) => {
+                const cueIsLive = liveCue[cue.graphic] === cue.id;
+                return (
+                  <div key={cue.id} className={`control-entry ${cueIsLive ? 'live' : ''}`} data-testid={`hosted-cue-${cue.id}`}>
+                    <span className="control-entry-label">
+                      {cueIsLive ? '●' : `${i + 1}.`} {cue.label}
+                      <span className="muted"> · {cue.graphic}</span>
+                      {cue.note ? <span className="muted prod-cue-note"> — {cue.note}</span> : null}
+                    </span>
+                    {cueIsLive && (
+                      <>
+                        <button onClick={() => nextLayer(cue.graphic)} title={`Advance ${cue.graphic}`} data-testid="hosted-next-cue">
+                          »
+                        </button>
+                        <button
+                          onClick={() => outLayer(cue.graphic)}
+                          title={`Play ${cue.graphic} out — the other layers stay up`}
+                          data-testid="hosted-out-cue"
+                        >
+                          ■
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => void stageHostedData(slug, cue.graphic, cue.values)}
+                      title="Load this cue's data into its graphic's fields (stages for every operator; airs on a take)"
+                    >
+                      Load
+                    </button>
+                    <button className="primary" onClick={() => void takeCue(cue)} title="Air this cue" data-testid="hosted-take-cue">
+                      ⟳ Take
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

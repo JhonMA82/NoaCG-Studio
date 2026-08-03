@@ -3894,9 +3894,39 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .prod-verbs button.primary { padding-inline: 20px; font-weight: 600; }
 .prod-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .prod-status.ok { color: #4ade80; }
-/* The cue on air: the one row that must be findable at a glance. */
+/* A cue on air: a row that must be findable at a glance. There can be SEVERAL — one per layer
+   that is up — so this reads as a per-row mark, never as "the" live row. */
 .control-entry.live { border-color: rgba(74, 222, 128, 0.6); background: rgba(74, 222, 128, 0.07); }
 .prod-cue-note { font-style: italic; }
+/* The LAYER STACK. Listed front to back, so the number falls as the eye travels down; the
+   badge is fixed-width and monospaced so the column stays a column at two digits.
+   The row carries six things in a 380px rail, so NOTHING here may wrap: the name ellipsizes
+   (it is the one item with unbounded length) and everything else is nowrap. Without that the
+   row grew to 64px with "Ticker crawl", "1 cue(s)" and "＋ Cue" all broken across two lines. */
+.prod-layer { gap: 8px; }
+/* The NAME absorbs the row's slack, which right-aligns the button cluster without a spacer
+   (`.spacer` only grows inside `.pk-body` anyway, so this rail's controls used to start
+   wherever each name happened to end and the ↑ ↓ ✕ column zig-zagged down the stack). Giving
+   the space to the name rather than to an empty box also means it only ellipsizes when the row
+   is genuinely too narrow for it. */
+.prod-layer-no {
+  flex: 0 0 auto;
+  min-width: 22px;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+}
+.prod-layer-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prod-layer-count { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
+/* Four controls in a 380px rail leave the name almost nothing at the app's default button
+   padding, so this row buys its name back with compact ones. Desktop only — the phone layout
+   below wraps the row and restores operator-sized targets. */
+.prod-layer button { flex: 0 0 auto; white-space: nowrap; padding: 4px 8px; }
+.prod-layer-break { display: none; }
+.pk-graphic.live { background: rgba(74, 222, 128, 0.06); }
+.pk-graphic.live .prod-layer-no { color: #4ade80; }
+.prod-layer-live { font-size: 11px; color: #4ade80; white-space: nowrap; }
 .status-warn { color: var(--amber); font-size: 13px; }
 
 @media (max-width: 900px) {
@@ -3932,6 +3962,12 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 
   .pk-graphic { flex-wrap: wrap; row-gap: 8px; padding: 10px 4px; }
   .pk-graphic > .spacer { display: none; }
+  /* The layer row's desktop compaction buys width the phone does not need to buy — here the
+     row wraps, so the controls go back to operator-sized targets on a line of their own.
+     The break element is what puts them there: letting the NAME claim the full line instead
+     stranded the layer number alone above it, three lines for two facts. */
+  .prod-layer-break { display: block; flex: 1 0 100%; height: 0; }
+  .prod-layer button { min-height: 40px; min-width: 44px; padding: 6px 10px; }
   .pk-graphic .pk-info {
     display: flex;
     flex-direction: column;

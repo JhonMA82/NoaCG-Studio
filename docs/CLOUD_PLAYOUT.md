@@ -133,6 +133,9 @@ not yet published" hint when the library template or cue list is newer than the 
    control surfaces write on Take so every open page agrees on which cue is live. Receivers
    ignore unknown `t` by construction (verified against `receiverScript.ts` and
    `hostedReceiver.ts` — the row is backward-compatible with already-exported graphics).
+   The row has always named its GRAPHIC (`control_events.graphic`), so the log was per-layer
+   from the start; making a production multi-layer (0034) changed only the row snapshot below
+   and the clients reading it, never the wire.
 5b. **`control_send_many(p_slug, p_items)`** — a multi-part verb (Take is update → stop
    previous → play → cue) as ONE atomic, log-ordered insert: one RPC round-trip of on-air
    latency instead of four, and it cannot fail halfway. Validated per item, burst-checked
@@ -162,11 +165,16 @@ The page:
   transparent background (`html, body, iframe { background: transparent }`,
   `<meta name="color-scheme" content="dark">` on BOTH the page and every srcdoc — the
   Chromium opaque-iframe rule).
-- **One sandboxed iframe per pool graphic**, all built at load (preload), stacked in rundown
-  order (z-order = layer order later; the MVP airs one primary layer but the model is
-  per-graphic instances, so layers are an ordering feature, not a rearchitecture). Each
-  iframe is `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start
-  invisible by the SPX contract, so a stacked idle graphic shows nothing.
+- **One sandboxed iframe per pool graphic**, all built at load (preload). Each iframe is
+  `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start invisible
+  by the SPX contract, so a stacked idle graphic shows nothing.
+- **Every graphic is a LAYER, and pool order is the stack** — index 0 furthest back, the last
+  entry on top, carried through the published payload's `graphics` array to the stage, which
+  states it as an explicit `z-index` rather than relying on append order. The production page
+  authors it (§5) and a re-publish is what moves it, like every other pinned fact. Several
+  layers are on air at once by design: a bug, a lower third and a ticker are three graphics,
+  so taking a cue on one leaves the other two exactly as they were. That is why a cue's
+  identity is its GRAPHIC — one cue per layer, never one cue per production.
 - **Transport** — the `hostedReceiver` behavior implemented app-side over supabase-js:
   resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
   rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
@@ -237,8 +245,9 @@ send.
 **The production page** (`#/production/<id>`, in-app, the owner's cockpit — §5) and the
 **hosted control page** (`?control=<slug>`, no login, phone-capable) both present:
 
-- **The cue rundown** — ordered cues with label, graphic, note; the LIVE cue marked (from the
-  `cue` status rows + `live` reports). Selecting a cue stages nothing by itself.
+- **The cue rundown** — ordered cues with label, graphic, note; every LIVE cue marked (from the
+  `cue` status rows + `live` reports). Selecting a cue stages nothing by itself. There is no
+  single live cue: one per layer that is up, so several rows carry the mark at once.
 - **Preview** — a local sandboxed iframe settled with the selected cue's values. Pure local
   render; the wire is never touched, so editing or previewing can never modify program. The
   PRODUCTION page deliberately previews the LOCAL (to-be-published) template — it is the
@@ -248,21 +257,33 @@ send.
   UI work, not schema work.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
-- **The five verbs**:
+- **The verbs, and the layer each one addresses.** Every verb below Take acts on ONE LAYER —
+  the layer of the SELECTED cue on the production page, the layer of the row the button sits on
+  in the hosted page. There is no longer a "the live graphic" for a header button to mean, so
+  the surface has to name which layer it is about, and the operator's own selection is the
+  least ambiguous answer.
   - **Take** — air the selected cue AS PREPARED: `update` (the cue's values — on the
-    production page including its unsaved draft edits) + `play` to its graphic, `stop` to
-    the previously-live graphic when different, and the `cue` status row — one atomic batch
-    (`control_send_many`). Staged edits do NOT ride a cue Take; they air through the graphic
-    card's own ⟳ Take, which exists for exactly that. The send RPCs also mirror the cue
-    marker onto `control_shows.live_cue` (0031), so a reloading surface recovers "what is
-    on air" from the row rather than scanning a log window that global event ids can defeat.
-  - **Update** — send the edited values to the LIVE graphic without replaying it (`update`).
-  - **Next** — advance the live graphic's state machine (`next`).
-  - **Out** — animate the live graphic off (`stop` — the SPX contract's out IS stop) + a
-    `cue: null` status row.
+    production page including its unsaved draft edits) + `play` + the `cue` status row to its
+    OWN graphic — one atomic batch (`control_send_many`). It stops nothing. Taking a second
+    cue on the SAME graphic re-airs that one instance, which is what makes two cues over one
+    lower third replace each other rather than stack; taking a cue on ANOTHER graphic leaves
+    the first up, because that is another layer. Staged edits do NOT ride a cue Take; they air
+    through the graphic card's own ⟳ Take, which exists for exactly that. The send RPCs mirror
+    each cue marker onto `control_shows.live_cue` (0031, per-layer since 0034), so a reloading
+    surface recovers what is on air from the row rather than scanning a log window that global
+    event ids can defeat.
+  - **Update** — send the selected cue's edited values to its layer without replaying it
+    (`update`). Legal only while that cue is the one on air on its layer: pushing another
+    cue's data onto a live layer would be a take nobody asked for.
+  - **Next** — advance that layer's state machine (`next`).
+  - **Out** — animate that layer off (`stop` — the SPX contract's out IS stop) + a `cue: null`
+    status row. The other layers stay up.
+  - **All out** — every live layer off, in batches of four layers (`control_send_many` takes
+    eight items and Out costs two). With per-layer Out no single verb clears the frame any
+    more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — renderer connected (from `output_seen_at` staleness, polled), live cue +
-  graphic + machine state + applied values (from `live` reports), publish freshness.
+- **Status** — renderer connected (from `output_seen_at` staleness, polled), every live layer
+  with its cue + machine state + applied values (from `live` reports), publish freshness.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).
@@ -274,7 +295,11 @@ verb row are the priority content (the preview collapses first).
 - **`#/production/<id>`**: the production page — name, status, links (copy output URL / copy
   control URL), publish ("Start production" = publish + verify the renderer connects; it
   never airs anything), the cue rundown editor (add from library or pool, edit values/notes,
-  reorder, delete), the operator surface of §4.
+  reorder, delete), the **layer stack** (the pool, listed FRONT TO BACK like every layer panel,
+  with ↑/↓ moving a graphic forward and back, its layer number, and an on-air mark), the
+  operator surface of §4. The stored pool stays in PAINT order — index 0 furthest back, which
+  is what the payload and the stage read — and only the list is reversed, so there is one
+  ordering in the data and one convention on screen.
 - **The editor's Control tab**: its Rundowns block renames to Productions and links out to
   the production page; adding the current graphic to a production stays.
 - The wizard Finish step and Home rows keep their existing doors; a graphic's "add to
@@ -330,7 +355,12 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    `&debug=1` shows connected + graphics loaded; `output_seen_at` advances.
 4. From the production page: Preview cue 1 (program unchanged), Take cue 1 (airs), edit a
    field + Update (live text changes without replay), Next (state advances), Take cue 2 on
-   the OTHER graphic (cue 1's graphic plays out, cue 2 enters), Out (clean exit).
+   the OTHER graphic — **both are now on air**, each on its own layer, cue 1 untouched — then
+   Out on cue 2's layer (only that one exits) and All out (the frame clears).
+4b. **Layers**: with two graphics up that overlap on screen, reorder them on the production
+   page (↑/↓), re-publish, and reload the output — the one listed higher paints over the
+   other. Take a third cue on the SAME graphic as cue 1: it replaces cue 1 rather than
+   stacking, because a graphic is one layer and one renderer instance.
 5. Kill the output tab, reload → it snaps back to the pre-kill on-air state (data, then
    snap). Kill the network briefly → commands sent meanwhile apply on reconnect, in order.
 6. Open `?control=<slug>` on a phone (signed out): cue strip + fields + verbs usable; a Take
@@ -370,7 +400,9 @@ last-known-good). Choose concrete providers only after licensing/cost review.
   generation + a deprecation window — an explicit product decision, not a quick fix.
 - **The 50-commands-per-5-s cap is per show**, shared by all operators AND the `cue` status
   rows. Fine for one operator + one renderer; a two-operator production hammering steppers
-  can hit it (the page surfaces the slow-down error today).
+  can hit it (the page surfaces the slow-down error today). **All out** costs two commands per
+  live layer, so it is the one verb whose price grows with the production — a twelve-layer
+  clear is 24 of the 50, which is affordable but not free.
 - **Payload size**: `output` inlines assets as data URLs; a production heavy on large images
   makes a heavy row (read once per renderer load, so tolerable, but not free). The HOSTED
   OPERATOR page pays the same row on every load while using only the cue list from it — a
