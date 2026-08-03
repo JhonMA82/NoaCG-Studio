@@ -129,12 +129,16 @@ visual gallery and ruled by the owner:
   `inset()` as the reveal primitive; OUT always faster than IN; empty fields collapse
   their boxes.
 
-The rulings live in DESIGN_LANGUAGE.md itself. The AI prompt stack still carries the OLD
-ranges on purpose - `src/ai/claudeProvider.ts` `coderSystemPrompt` (the FROZEN benchmark
-control, byte-identical until the Creative Mode comparison has run - src/ai/AGENTS.md),
-`src/ai/creative/knowledgeCards.ts` (the candidate that comparison measures), and
-`src/ai/brainstorm.ts` (kept with them so the stack changes once, together). Sync all
-three in one pass after the creative benchmark work lands.
+The rulings live in DESIGN_LANGUAGE.md itself. **The AI prompt stack was synced to them in
+one pass on 2026-08-02**, once the Creative Mode pilot's pairwise round had landed:
+`src/ai/claudeProvider.ts` `coderSystemPrompt` (entrance window and stagger range),
+`src/ai/creative/knowledgeCards.ts` (the strap and card type ranges, the strap/tower/
+full-frame motion numbers), and `src/ai/brainstorm.ts` (the entrance window it steers
+toward). The stack now states the same numbers as DESIGN_LANGUAGE §1 and §4.
+
+That sync ended the coder prompt's benchmark freeze (docs/CREATIVE_MODE_PLAN.md §8), so
+**arm A's numbers from rounds up to and including 2026-08-02 are not comparable with any
+later round** - a re-run has to re-baseline the control rather than reuse them.
 
 ## How we use it (the plan)
 
@@ -148,6 +152,28 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    parse coverage: definition found, fields extracted, lifecycle detected. Every dialect
    above that we mis-parse is a real-world import bug found for free. The corpus never
    enters CI or the repo; the script and its findings do.
+
+   **The ZIP path joined the sweep on 2026-08-02** and immediately paid for itself. The
+   script now builds a real in-memory zip per template (its html plus that folder's
+   css/js/assets, other templates' folders left out) and runs `importZipTemplate` beside
+   the html import, then names every template where the zip result is WORSE. It is a
+   genuinely different code path - the zip importer picks its own entry point and used to
+   concatenate every .js under the folder rather than the ones the page loads - and 23 of
+   204 templates imported cleanly as a dropped .html and failed as a zip:
+
+   - **ES module files landed in the classic JS pane.** An earlier fix kept INLINE
+     `<script type="module">` in the HTML; a module that lives in a .js FILE bypassed it
+     entirely and arrived as bare `import`/`export`, a syntax error for the whole template.
+   - **Sibling templates were merged.** A pack folder holds several designs and every
+     library any of them uses, so one import concatenated three designs' animation files
+     (each declaring the same names - a redeclaration SyntaxError) onto ~1.6 MB of jQuery,
+     lodash, axios, and both axios builds.
+
+   Both are fixed in `importZipTemplate` (referenced scripts only, in page order, modules
+   excluded) and pinned in `e2e/import.spec.ts`, mutation-tested on both halves. The sweep
+   now reports **0 templates worse on the zip path**, and the zip path validates 128 of 204
+   against the html path's 111. Its remaining honest limit is printed on every run: assets
+   above the per-file/per-zip size caps are left out and counted, never silently dropped.
 2. **Teach the coder the dialect, not the designs.** Fold the conventions above (in our
    own words) into the places the harness already learns from: `docs/SPX_TEMPLATE_FORMAT.md`
    gains a "real-world dialects" section (holders, reserved fields, steps semantics, ftype
@@ -155,15 +181,47 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    contract gain the measured motion/type/safe-area numbers where they differ from what we
    teach today (OUT faster than IN and linear-opacity are already house style - the corpus
    confirms them with numbers).
-3. **Reality-grounded brief bank.** Describe corpus graphics as briefs in our own words
-   ("talk-show guest lower third: name + title over an alpha-video plate, signature image
-   variant", "bilingual musician strap that auto-alternates languages", "concert programme
-   loop with grouped works and paged credits") and add them to the bench brief banks.
-   Structure judged by our own gates - never visual similarity to the licensed originals.
-4. **Private visual eval set.** The on-air screenshots plus locally rendered corpus frames
-   form a taste-calibration set for human review and the vision judge (what "professional
-   broadcast" actually looks like: restraint, scrims, one accent). Local only, like the
-   bench archives.
+3. **Reality-grounded brief bank.** DONE 2026-08-02. Corpus graphics described as briefs in
+   our own words, judged by our own gates and never by visual similarity to the licensed
+   originals: the flagship talk-show guest strap (`lt-talkshow-flagship`), the bilingual
+   musician strap that alternates languages on a timer (`lt-bilingual-alternate`) and the
+   externally-driven live score strip (`vs-live-score`) in `benchmarks/creative/v1/
+   briefs.json`; the paging concert programme board (`programme-loop`) in
+   `scripts/ai-bench.mjs`, whose bank is deliberately off-catalog. Two of them exist to
+   measure something the corpus taught rather than to add volume - the talk-show strap is
+   the bank's only brief that asks for the upper half of the ratified 44-92 px name range,
+   and the score strip is the "data updates never cause transitions" rule stated as a brief.
+4. **Private visual eval set.** FIRST SLICE DONE 2026-08-02. The on-air screenshots plus
+   locally rendered corpus frames form a taste-calibration set for human review and the
+   vision judge. Local only, like the bench archives.
+
+   `benchmarks/corpus-eval/v1/set.json` is the CURATION and the only part in the repo:
+   pairings and our own written observations, no pixels. `node scripts/spx-eval-set.mjs`
+   assembles `spx-corpus-out/eval-set/` from it - a review page plus a machine-readable
+   `eval-set.json` for a future judge run - by copying each real ON-AIR frame beside OUR
+   RENDER of the same template file. Pairing is the point: the on-air frame says what the
+   graphic looked like on the channel with real content over real pictures, the render says
+   what the same file produces here with default data over a neutral plate, and only the two
+   together separate "the design is like that" from "our render of it is like that". A pair
+   whose render is missing is reported INCOMPLETE rather than shown one-sided; the renders
+   come from `scripts/spx-corpus-gallery.mjs`, which now takes `--only=<substring>` so the
+   six pairs refresh in seconds instead of re-rendering 204 templates.
+
+   The first six pairs are the whole Arto Nyberg pack (host strap, guest strap, bio board,
+   motto board, song requests, credits roll), each mapped to its template by its own
+   definition rather than by filename. What the frames show, recorded as observations and
+   NOT as rulings - three of them contradict `docs/DESIGN_LANGUAGE.md` and are filed as
+   owner questions in the same file, exactly as the production deltas above were:
+
+   - **Every name line is set LIGHT**, where §1 asks for weight 600-800. Hierarchy in this
+     pack comes from size and position; nothing is ever bolded to rank it.
+   - **The name-to-title ratio is well under §1's 1.8-2.2:1**, with position carrying the
+     difference.
+   - **There is no accent colour anywhere.** Our catalog treats one accent as the house
+     signature; this production treats zero as its own.
+
+   Which RENDERED frames belong in the set is a taste judgement, so `ownerPicks.frames` is
+   deliberately empty rather than guessed by an agent.
 5. **Feature backlog signals** (each its own product decision, not part of this doc):
    lyrics/subtitle pager (texter), measured marquee overflow as a validated technique,
    wall-clock countdown with day rollover, operator-facing theme field mapped onto our

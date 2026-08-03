@@ -103,7 +103,10 @@ test('the /output page answers honestly offline and builds a stage from a payloa
   await expect(page.locator('body')).toContainText('missing its');
 
   // The STAGE is testable without a backend: build it from a payload in the page context —
-  // one sandboxed iframe per graphic, resolution-exact, scaled to the viewport.
+  // one sandboxed iframe per graphic, resolution-exact, scaled to the viewport. Commands are
+  // applied IMMEDIATELY after creation, before any iframe can have loaded: the stage must
+  // queue them until each document's listener exists, because a postMessage into an unloaded
+  // srcdoc is silently lost — exactly what ate the boot-recovery burst on a renderer refresh.
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
@@ -125,8 +128,11 @@ test('the /output page answers honestly offline and builds a stage from a payloa
       graphics: [graphic('Lower third'), graphic('Ticker')],
       cues: [],
     });
+    // The recovery pattern, fired before load: data half, then visual half.
+    stage.apply('Lower third', { t: 'update', data: { f0: 'Recovered after refresh' } });
+    stage.apply('Lower third', { t: 'play' });
     const iframes = [...root.querySelectorAll('iframe')];
-    const out = {
+    return {
       graphics: stage.graphics,
       count: iframes.length,
       sandboxes: iframes.map((f) => f.getAttribute('sandbox')),
@@ -134,8 +140,6 @@ test('the /output page answers honestly offline and builds a stage from a payloa
       transform: (root.firstElementChild as HTMLElement).style.transform,
       transparent: (root.firstElementChild as HTMLElement).style.background,
     };
-    stage.destroy();
-    return out;
   });
   expect(result.graphics).toEqual(['Lower third', 'Ticker']);
   expect(result.count).toBe(2);
@@ -144,4 +148,6 @@ test('the /output page answers honestly offline and builds a stage from a payloa
   expect(result.widths).toEqual(['1920px', '1920px']);
   expect(result.transform).toContain('scale(');
   expect(result.transparent).toBe('transparent');
+  // The pre-load commands flushed into the document once it loaded — the queued update landed.
+  await expect(page.frameLocator('iframe[title="Lower third"]').locator('#f0')).toHaveText('Recovered after refresh');
 });

@@ -276,10 +276,15 @@ record (`AiRoutingRecord`) - the routing benchmark (`scripts/creative-route-benc
 SPENDS TOKENS; bank + expected routes in `benchmarks/creative/v1/briefs.json`) reads them,
 never reconstructs.
 
-**THE CUSTOM CODER IS THE FROZEN BENCHMARK CONTROL (plan §8): its system prompt, catalog
-example, `designNotes`, and repair policy stay byte-identical. Routing changes WHICH briefs
-reach it, never what it is shown. Do not "improve" it before the Creative Mode comparison
-has run** - the comparison's control arm is exactly this code.
+**THE CUSTOM CODER IS THE BENCHMARK CONTROL (plan §8): its catalog example, `designNotes`,
+and repair policy stay byte-identical, and routing changes WHICH briefs reach it, never what
+it is shown.** The byte-identical freeze on its SYSTEM PROMPT held through the pairwise round
+of 2026-08-02 and was then lifted for exactly one edit: the ratified corpus motion numbers
+(docs/SPX_EXAMPLES_CORPUS.md "Production deltas"), which the rest of the platform had already
+adopted and which a control cannot keep contradicting once it is also production code.
+**Arm A results from 2026-08-02 and earlier are therefore not comparable with later rounds -
+re-baseline the control instead of reusing them** (arm B reuses `coderSystemPrompt`, so it
+moved too). No further prompt change without the same explicit trade being written down.
 
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather

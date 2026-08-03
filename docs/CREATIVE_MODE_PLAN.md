@@ -377,11 +377,20 @@ consent notice and vision quota decisions (AI_PLATFORM_PLAN §15) apply.
 
 ## 8. The frozen control, and what the pre-work may touch [architecture]
 
-**The current custom generator is the benchmark control and is FROZEN until the comparison
-has run.** Redesigning it first would destroy the only clean baseline the experiment has.
+**The current custom generator is the benchmark control and was FROZEN until the comparison
+had run.** Redesigning it first would destroy the only clean baseline the experiment has.
 Concretely: the coder's system prompt, the catalog example, `designNotes`, and the repair
 policy stay byte-identical on the control arm; the pilot rig invokes them exactly as
 production does today.
+
+**Status 2026-08-02:** the catalog example, `designNotes` and repair policy remain frozen.
+The system prompt was released for one edit after the pairwise round - the ratified corpus
+motion numbers (entrance window 0.5-1.4 s, staggers 60-250 ms; docs/SPX_EXAMPLES_CORPUS.md
+"Production deltas"), which DESIGN_LANGUAGE, the wizard and the preset bank had already
+adopted. The control is also the shipping generator, and leaving it alone would have meant
+shipping guardrails the platform had ruled against. The cost is stated rather than hidden:
+**arm A and arm B numbers from 2026-08-02 and earlier do not compare with later rounds**, so
+a future round re-baselines both instead of reusing the archived ones.
 
 The pre-work (phase A, §12) is limited to what creates a fair experiment WITHOUT changing
 what the control generates:

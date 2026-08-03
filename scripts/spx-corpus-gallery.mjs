@@ -8,7 +8,12 @@
 // real broadcast output look like" for taste calibration (e.g. the DESIGN_LANGUAGE delta
 // review), not "what does our importer produce" - that is spx-corpus-sweep.mjs's job.
 //
-//   node scripts/spx-corpus-gallery.mjs [corpus-dir] [out-dir]
+//   node scripts/spx-corpus-gallery.mjs [corpus-dir] [out-dir] [--only=<substring>]
+//
+// --only keeps the templates whose path under templates/ contains the substring, and
+// leaves every other frame already in the out dir alone - which is how the visual eval
+// set (scripts/spx-eval-set.mjs) refreshes its six pairs in seconds instead of re-rendering
+// the whole corpus. The index it writes then covers the rendered subset only.
 //
 // Local-only, like the sweep: exits 0 with a note when the corpus is absent. Output
 // (default ./spx-corpus-out/gallery) is gitignored. Needs no dev server - it brings its
@@ -19,8 +24,10 @@ import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, relative, resolve } from 'node:path';
 
-const corpusDir = resolve(process.argv[2] || join(process.cwd(), 'spx_examples'));
-const outDir = resolve(process.argv[3] || './spx-corpus-out/gallery');
+const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.length);
+const corpusDir = resolve(positional[0] || join(process.cwd(), 'spx_examples'));
+const outDir = resolve(positional[1] || './spx-corpus-out/gallery');
 
 if (!existsSync(corpusDir)) {
   console.log(`spx-corpus-gallery: corpus not present at ${corpusDir} - nothing to do.`);
@@ -57,8 +64,11 @@ function htmlFiles(dir) {
   }
   return out;
 }
-const files = htmlFiles(join(corpusDir, 'templates'));
-console.log(`spx-corpus-gallery: rendering ${files.length} templates from ${corpusDir}`);
+const templatesDir = join(corpusDir, 'templates');
+const files = htmlFiles(templatesDir).filter(
+  (f) => !only || relative(templatesDir, f).replaceAll('\\', '/').includes(only),
+);
+console.log(`spx-corpus-gallery: rendering ${files.length} templates from ${corpusDir}${only ? ` (--only=${only})` : ''}`);
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();

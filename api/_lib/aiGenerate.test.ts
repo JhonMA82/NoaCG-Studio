@@ -3,6 +3,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 import generate from '../ai/generate.js';
 import { gatewayLedgerConfigured, gatewayLedgerEntry } from './aiGatewayLedger.js';
 import { aiGenerateRateLimitCaps } from './rateLimit.js';
+import { userAiKeysCookie } from './aiCredentials.js';
 import type { AiGatewayRequestBody, ModelResult } from '../../src/ai/modelTypes.js';
 
 const ENV = [
@@ -16,6 +17,8 @@ const ENV = [
   'SUPABASE_SECRET_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'IP_HASH_SALT',
+  'OPENROUTER_API_KEY',
+  'AI_KEY_ENCRYPTION_SECRET',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -218,4 +221,95 @@ test('the gateway ledger requires the Supabase URL and secret key', () => {
   assert.equal(gatewayLedgerConfigured(), false);
   process.env.SUPABASE_SECRET_KEY = 'server-secret';
   assert.equal(gatewayLedgerConfigured(), true);
+});
+
+// ── the Pro surface's routing policy, on the REAL endpoint ───────────────────────────────
+//
+// `surfaceRoutePolicy` is unit-tested as a pure function in aiGateway.test.ts. That proves it
+// RETURNS the right object and nothing more; these prove the endpoint actually attaches it to
+// the request that leaves the process, which is the only version of the claim /admin makes.
+//
+// It matters because the claim is a privacy one. docs/MODEL_ROUTE_AUDITS.md records that
+// google/gemini-3.1-flash-image is ZDR-servable on exactly one of its two endpoints, and the
+// Models page prints "audited: yes" on the strength of it. If the directives silently stopped
+// being sent, the badge would keep saying yes while the concept prompt - a named person and
+// their role, on a real lower third - went to whichever endpoint was cheapest.
+//
+// What these CANNOT prove: that OpenRouter accepts the combination. That needs a real call and
+// real money; this is the half that is free and belongs in the build gate.
+
+/** A 1x1 PNG as a data URL - the smallest thing parseImageDataUrl() accepts. */
+const PIXEL_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+/** Drive the real handler with a captured fetch, and hand back the JSON body it sent. */
+async function capturePayload(body: unknown, headers: Record<string, string> = {}): Promise<Record<string, unknown>> {
+  const realFetch = globalThis.fetch;
+  let sent: Record<string, unknown> = {};
+  globalThis.fetch = (async (_input: unknown, init?: { body?: unknown }) => {
+    sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    // A real image answer: the Pro concept call sets expect:'image', and the adapter refuses
+    // a text-only reply as malformed - so a stub returning text would test the retry path
+    // rather than the routing directives.
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: null, images: [{ image_url: { url: PIXEL_PNG } }] } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+    }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof globalThis.fetch;
+  try {
+    const response = await generate.fetch(new Request('https://noacg.test/api/ai/generate', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': uniqueIp(), ...headers },
+      body: JSON.stringify(body),
+    }));
+    assert.equal(response.status, 200, 'the captured call should have succeeded');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  return sent;
+}
+
+const PRO_CALL = {
+  route: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+  request: { system: 'You generate concepts.', messages: [{ role: 'user', content: 'a lower third' }], expect: 'image' },
+  surface: 'pro',
+};
+
+test('a managed Pro call leaves the process asking for zero data retention', async () => {
+  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  const sent = await capturePayload(PRO_CALL);
+
+  const provider = sent.provider as Record<string, unknown> | undefined;
+  assert.ok(provider, 'the Pro surface must attach a provider routing block');
+  assert.equal(provider.zdr, true);
+  assert.equal(provider.data_collection, 'deny');
+  // Without this the ZDR pin is decorative: OpenRouter would serve the non-ZDR endpoint the
+  // moment the audited one is unavailable, which is the exact case the pin exists for.
+  assert.equal(provider.allow_fallbacks, false);
+  // False on purpose - `modalities` is not a listed provider parameter, so requiring parameters
+  // on an image request narrows the endpoint set to nothing.
+  assert.equal(provider.require_parameters, false);
+  // An empty allowlist would read as "no endpoint permitted" and refuse every route.
+  assert.equal('only' in provider, false);
+});
+
+test('an untagged call is unchanged - the policy is opt-in per surface', async () => {
+  // The mutation guard for the test above: if `provider` appeared on every managed call, the
+  // assertions there would pass for a reason that has nothing to do with the Pro surface.
+  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  const sent = await capturePayload({ ...PRO_CALL, surface: undefined });
+  assert.equal('provider' in sent, false, 'an untagged call must carry no routing directives');
+});
+
+test('a BYO Pro call is NOT policied - a user key is not ours to route', async () => {
+  // The line api/ai/generate.ts already draws for the disabled-route switch: somebody spending
+  // their own money on a model they chose does not get our routing opinions attached.
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'a'.repeat(64);
+  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  const cookie = userAiKeysCookie(
+    new Request('https://noacg.test/api/ai/credentials', { headers: { origin: 'https://noacg.test' } }),
+    { openrouter: 'user-supplied-key' },
+  ).split(';')[0];
+
+  const sent = await capturePayload(PRO_CALL, { cookie });
+  assert.equal('provider' in sent, false, 'a BYO call must not carry our routing directives');
 });

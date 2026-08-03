@@ -212,7 +212,9 @@ Copy this skeleton from the example; only the prefix and what lives inside the b
 
 ## Motion doctrine
 - Entrances use Out-direction easings (power2.out/power3.out/expo.out; back.out for a snappy
-  pop). Exits use In-direction and run FASTER than entrances. Entrances 0.5–0.9 s total.
+  pop). Exits use In-direction and run FASTER than entrances. Entrances 0.5–1.4 s total —
+  above ~0.9 s reads as deliberate broadcast pacing, so keep fast-feel graphics (stream
+  overlays, alerts) at the low end. Staggers between elements 60–250 ms.
 - Linear ("none") ONLY for continuous travel (tickers, rolls, timers, progress).
 - Bounce/elastic only if the user asks for playful.
 
