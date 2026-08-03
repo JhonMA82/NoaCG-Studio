@@ -10,6 +10,7 @@
 
 import { isBackendConfigured } from '../backend/config';
 import {
+  CONTROL_TAIL_PAGE,
   controlOutputBySlug,
   controlOutputReport,
   controlOutputSeen,
@@ -18,6 +19,14 @@ import {
   type ControlEventRow,
 } from '../control/hostedControl';
 import { createOutputStage } from './stage';
+
+/** How long the recovered picture is given to settle off air before the stage comes back.
+ *  Covers a typical entrance plus an exit; the cost of overshooting is a moment more of the
+ *  blank a just-loaded page was showing anyway, the cost of undershooting is an animation
+ *  finishing on air. */
+const CATCH_UP_SETTLE_MS = 1200;
+/** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
+const MAX_CATCH_UP_PAGES = 40;
 
 const params = new URLSearchParams(window.location.search);
 const outputSlug = params.get('production');
@@ -149,6 +158,29 @@ async function boot(): Promise<void> {
     dbg('last row', String(row.id));
   };
 
+  // ── Catch-up: everything commanded while this renderer was gone. Fetched BEFORE the rebuild
+  // so the whole recovery happens in one hidden pass, because replayed commands are ordinary
+  // commands and animate: a reopened output must show the settled picture, not the outage's
+  // history playing out on air (the doctrine is data, then SNAP — recovery is never watchable).
+  // Only lifecycle commands are worth hiding for; a missed `update` is a text swap with nothing
+  // to watch, and nothing missed at all hides nothing, so an ordinary reopen still paints at
+  // once. Paged, because the tail RPC answers CONTROL_TAIL_PAGE rows at a time. ──
+  const missed: ControlEventRow[] = [];
+  for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
+    const rows = await controlOutputTail(outputSlug, missed.length > 0 ? missed[missed.length - 1].id : followFrom);
+    missed.push(...rows);
+    if (rows.length < CONTROL_TAIL_PAGE) break;
+  }
+  const animates = missed.some(
+    (row) =>
+      row.id > (snapshotAt.get(row.graphic) ?? -1) &&
+      (row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event'),
+  );
+  if (animates) {
+    stage.setVisible(false);
+    dbg('catch-up', `${missed.length} row(s), off air while they settle`);
+  }
+
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
   for (const key of stage.graphics) {
     const mine = resolved.live[key];
@@ -160,15 +192,32 @@ async function boot(): Promise<void> {
     if (mine.state?.groups) {
       stage.apply(key, { t: 'snap', snap: mine.state.groups });
       liveGraphics.add(key);
+      // …and the data half AGAIN. Snap resets the graphic before composing the pose, which
+      // clears every inline style — including ones the DATA layer owns, like the display:none
+      // that hides an image field with no picture (that one recovers as an empty broken-image
+      // box otherwise). Restating the data costs one message and repairs graphics whose code
+      // was published before the runtime learned to preserve it.
+      if (mine.data) stage.apply(key, { t: 'update', data: mine.data });
     }
+  }
+
+  // Replay what was missed, then come back on air once the animations it fired have landed.
+  // A fixed settle beats waiting for "no state change in N ms": a recovered graphic can hold a
+  // state that keeps moving (a ticker, a clock), so a quiet-period test would never fire.
+  missed.forEach(apply);
+  if (animates) {
+    setTimeout(() => {
+      stage.setVisible(true);
+      dbg('catch-up', `${missed.length} row(s) replayed, back on air`);
+    }, CATCH_UP_SETTLE_MS);
   }
 
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe). ──
   await followControlLog({
     showId: resolved.id,
-    // The oldest per-graphic baseline, NOT the log head: everything commanded while this
-    // renderer was down lives between the two, and `apply` drops only what a snapshot holds.
-    from: followFrom,
+    // Everything up to here is applied — including the catch-up rows replayed above, which is
+    // why this is the applied cursor and not the baseline the catch-up started from.
+    from: lastAppliedId,
     tail: (after) => controlOutputTail(outputSlug, after),
     onRow: apply,
   });

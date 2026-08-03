@@ -100,6 +100,13 @@ export function resetGraphicInline(w: SimWindow): void {
   const root = w.document.body?.querySelector('div');
   if (!root) return;
   w.gsap.set([root, ...root.querySelectorAll('*')], { clearProps: 'all' });
+  // clearProps wipes every inline style, and one of them belongs to the DATA layer rather than
+  // to the motion: an image field with no picture hides itself inline (setFieldValue removes the
+  // src and sets display:none). Left cleared, an empty logo slot draws as a broken-image box on
+  // the canvas. The emitted runtime restates the same truth after its own reset.
+  root.querySelectorAll('img[id]').forEach((img) => {
+    if (!img.getAttribute('src')) (img as HTMLElement).style.display = 'none';
+  });
 }
 
 /** A single simulator command, as sent by PlayoutSimulator.tsx over previewProtocol.ts's

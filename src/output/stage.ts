@@ -51,6 +51,11 @@ export interface OutputStage {
   onState(cb: (graphic: string, state: PreviewMachineState | null) => void): void;
   /** The graphic keys the stage hosts, in payload (rundown/layer) order. */
   graphics: string[];
+  /** Hide/show the WHOLE stage — the renderer's own surface, never the graphics' own state.
+   *  Boot catch-up replays missed commands as commands, so their animations run; airing that
+   *  replay would put the outage's history on screen. Hidden, it settles off air and the
+   *  reveal shows the finished picture (docs/CLOUD_PLAYOUT.md §3). */
+  setVisible(visible: boolean): void;
   destroy(): void;
 }
 
@@ -180,6 +185,12 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
     states,
     onState: (cb) => stateCbs.push(cb),
     graphics: payload.graphics.map((g) => g.key),
+    // Opacity, not `visibility`/`display`: the documents keep compositing and their timelines
+    // keep ticking, so what the reveal shows is a settled picture rather than one that only
+    // starts moving once it is on air.
+    setVisible: (visible) => {
+      stage.style.opacity = visible ? '1' : '0';
+    },
     destroy: () => {
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);

@@ -191,6 +191,24 @@ The page:
   replayed rather than trusted — a needless re-animation is recoverable, a lost take is not.
   Catch-up is paged: the tail RPC answers 500 rows, so `followControlLog` keeps pulling while
   pages come back full instead of recovering only the first page of a long outage.
+- **Recovery is never watchable.** The doctrine is data, then SNAP — instant, timers arm — and
+  catch-up rows break it by their nature: they are ordinary commands, so replaying them animates.
+  A reopened output would air the outage's history (a graphic entering, a cue leaving, another
+  entering) before settling. So the whole boot pass — the rebuild AND the replay — runs with the
+  stage hidden (`setVisible`, an opacity on the renderer's own surface, never the graphics'
+  state), and the stage returns after a fixed settle. Nothing to replay hides nothing, so an
+  ordinary reopen still paints at once. The settle is fixed rather than "wait for quiet": a
+  recovered state can legitimately keep moving (a ticker, a clock), so a quiet-period test would
+  never fire.
+- **Snap resets the graphic first, and the reset is blunt** (`clearProps: 'all'` over the root's
+  subtree). It clears inline styles the DATA layer owns, not just the motion's: an image field
+  with no picture hides itself inline, so recovery used to put a broken-image box on air beside
+  the caption (seen in CasparCG, 2026-08-03; every design with a `filelist` field was exposed).
+  Two guards now, because the runtime lives in two places: the emitted interpreter re-hides every
+  srcless field image after its reset, and the renderer restates the data AFTER the snap — which
+  is what repairs graphics whose code was published before the interpreter learned the rule.
+  `e2e/snap-recovery.spec.ts` is the gate: it drives every image-bearing design through recovery
+  and fails if a snap changes what the fields decided to show.
 - **It must parse on an OLD CEF.** CasparCG 2.3.x LTS — the ordinary school/student install
   — embeds a ~Chromium 65 browser. A real 2.3.2 server rejected the first build outright
   (`Uncaught SyntaxError: Unexpected token ?`: `?.`/`??` need Chromium 80), showing a dead
