@@ -39,7 +39,13 @@ npm run dev      # Vite dev server (landing at /, THE EDITOR AT /app)
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
+npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
 ```
+
+**Freshness is TIME-driven, never commit-driven** (`docs/STACK_FRESHNESS.md`): `check:freshness`
+is not in the build gate, because its answer changes when upstream publishes. It runs weekly in
+`weekly-audit.yml` and REPORTS - nothing here auto-upgrades, since Remotion's three-file exact
+pin and the es2017 output floor can both be broken by a bump that passes every check.
 
 **The dev port is per-checkout** (`scripts/dev-port.mjs`, which prints it): 5174 in the main
 checkout (5175 for the live e2e suite), a RESERVED port from the 5180-5298 block in a linked

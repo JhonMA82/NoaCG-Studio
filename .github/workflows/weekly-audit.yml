@@ -2,13 +2,27 @@
 #
 # Everything commit-driven (build, the offline e2e suite, the factory gates) runs in ci.yml on
 # every push and PR — a scheduled repeat of those would only re-prove yesterday, since npm ci
-# is lockfile-pinned. What drifts WITHOUT a commit is the advisory database, so that is all
-# this checks: new high/critical advisories against the pinned tree, plus a non-blocking
-# staleness report. Weekly is deliberate — advisory latency of a few days is acceptable for a
-# client-side app with pinned dependencies (docs/NIGHTLY_AUTOMATION_PLAN.md job A, re-scoped).
+# is lockfile-pinned. What drifts WITHOUT a commit is what belongs here: the advisory database,
+# upstream releases of the libraries we VENDOR, and the model ids we PIN. Weekly is deliberate —
+# advisory latency of a few days is acceptable for a client-side app with pinned dependencies
+# (docs/NIGHTLY_AUTOMATION_PLAN.md job A, re-scoped).
 #
-# Secret-free. The AI generation pipeline (plan jobs B/C) is a separate, separately-approved
-# workflow when its §10 decisions are made.
+# The two checks beside `npm audit` exist because npm cannot see the things most likely to
+# rot (docs/STACK_FRESHNESS.md):
+#   - GSAP and the Lottie player are COMMITTED FILES, not dependencies, and they ship inside
+#     every exported graphic. Nothing warned while GSAP sat five minor versions behind.
+#   - A retired OpenRouter model id fails in PRODUCTION, never in a build: nothing references a
+#     version of it, so typecheck, lint and the e2e suite all stay green while a user's
+#     generation returns a provider error.
+#
+# This job REPORTS; it never bumps anything. Several pins here are deliberate (Remotion is
+# exact-pinned across three package files for licence isolation, and the Vite target must stay
+# es2017 while CasparCG 2.3.x is supported — docs/CLOUD_PLAYOUT.md §3), so an auto-merged
+# upgrade could pass every check and still take playout off air.
+#
+# Secret-free — both new checks read public, keyless endpoints and spend no tokens. The AI
+# generation pipeline (plan jobs B/C) is a separate, separately-approved workflow when its §10
+# decisions are made.
 
 name: weekly-audit
 
@@ -44,6 +58,24 @@ jobs:
       - name: Staleness report (non-blocking)
         run: npm outdated || true
 
+      # The two sibling packages are exact-pinned and never installed here — `npm outdated`
+      # reads package.json against the registry, so it reports Wanted-vs-Latest without one.
+      # Non-blocking for the same reason the root report is: a new upstream release is news,
+      # not a fault, and Remotion has to move in all three files at once.
+      - name: Staleness report — render-worker and player-host (non-blocking)
+        run: |
+          npm --prefix render-worker outdated || true
+          npm --prefix player-host outdated || true
+
+      # Blocking: a vendored library that is behind, or a calendar review that is due.
+      - name: Vendored libraries and manual reviews
+        run: npm run check:vendored
+
+      # Blocking: a pinned model id that upstream no longer lists. This is the check that
+      # catches a production-only failure, so it must be able to turn the run red.
+      - name: Pinned model ids
+        run: npm run check:models
+
       # Fail-loud: one rolling tracking issue, updated per red run.
       - name: File / update the failure issue
         if: failure()
@@ -51,7 +83,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TITLE="Weekly dependency audit is red"
-          BODY="Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (commit ${{ github.sha }})"
+          RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY=$(printf '%s\n%s\n\n%s' \
+            "One of: a new high/critical advisory, a vendored library behind upstream, a due manual review, or a pinned model id upstream no longer lists." \
+            "The run log says which; docs/STACK_FRESHNESS.md says what to do about each." \
+            "Run: $RUN (commit ${{ github.sha }})")
           EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "Still red. $BODY"

@@ -45,6 +45,14 @@ export default tseslint.config(
       'render-worker/remotion/*.generated.ts', // data-URL font CSS (scripts/gen-video-font-css.mjs)
       'src/assets/gsap.min.js',
       'example_projects/', // vendored SPX reference packs, not ours to lint
+      // The real-broadcaster corpus and its sweep output (both gitignored, licence-restricted):
+      // third-party production templates carrying their own bundled libraries — axios, the
+      // WebCG framework — whose inline eslint directives fight ours. Same reason as
+      // example_projects/ above, and the same failure mode as the bench directories below: a
+      // checkout that HAS the corpus had a permanently red `eslint .`, and therefore a red
+      // build gate, over code that is not ours and that we never ship.
+      'spx_examples/',
+      'spx-corpus-out/',
       'playwright-report/',
       'test-results/',
       // Bench output directories (same broad patterns as .gitignore): they hold
