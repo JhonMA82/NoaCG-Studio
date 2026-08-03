@@ -525,3 +525,76 @@ test('reattach gate rejects a detached commit not reachable from any branch or r
   assert.equal(assessment.safe, false);
   assert.match(assessment.reason, /not reachable from any branch or remote/);
 });
+
+// --- The opt-in `fromBranch` widening -------------------------------------------------------
+//
+// This one option lets the gate say yes to a state it used to refuse, so every condition it
+// still enforces gets a test that makes it fire. Loosening a guard without watching it refuse
+// is how a guard quietly becomes decoration.
+
+test('reattach gate accepts the root sitting on the branch the caller named', (t) => {
+  const { primary } = makeRepo(t);
+  runGit(primary, 'switch', '-c', 'claude/finished-work');
+
+  const strict = assessReattach(primary);
+  assert.equal(strict.safe, false, 'without the option this is still refused');
+  assert.match(strict.reason, /on branch claude\/finished-work/);
+
+  const opted = assessReattach(primary, { fromBranch: 'claude/finished-work' });
+  assert.equal(opted.safe, true);
+  assert.equal(opted.attached, true);
+  assert.equal(opted.branch, 'claude/finished-work');
+});
+
+test('reattach gate refuses a branch other than the one the caller named', (t) => {
+  const { primary } = makeRepo(t);
+  runGit(primary, 'switch', '-c', 'claude/somebody-elses-work');
+
+  const assessment = assessReattach(primary, { fromBranch: 'claude/finished-work' });
+
+  assert.equal(assessment.safe, false);
+  assert.match(assessment.reason, /on branch claude\/somebody-elses-work/);
+});
+
+test('reattach gate still refuses a dirty tree, an in-progress op and an occupied main', (t) => {
+  const { primary, root } = makeRepo(t);
+  const branch = 'claude/finished-work';
+  runGit(primary, 'switch', '-c', branch);
+  const opts = { fromBranch: branch };
+  assert.equal(assessReattach(primary, opts).safe, true, 'baseline must be safe, or nothing below proves anything');
+
+  // Dirty: an untracked file is enough - switching would carry it onto main.
+  writeFileSync(join(primary, 'uncommitted.txt'), 'keep\n');
+  const dirty = assessReattach(primary, opts);
+  assert.equal(dirty.safe, false);
+  assert.match(dirty.reason, /not clean/);
+  rmSync(join(primary, 'uncommitted.txt'));
+  assert.equal(assessReattach(primary, opts).safe, true);
+
+  // Mid-flight git operation: the marker file is what the gate reads, so plant exactly that.
+  const gitDir = runGit(primary, 'rev-parse', '--absolute-git-dir');
+  writeFileSync(join(gitDir, 'MERGE_HEAD'), `${runGit(primary, 'rev-parse', 'HEAD')}\n`);
+  const midMerge = assessReattach(primary, opts);
+  assert.equal(midMerge.safe, false);
+  assert.match(midMerge.reason, /operation is in progress/);
+  rmSync(join(gitDir, 'MERGE_HEAD'));
+  assert.equal(assessReattach(primary, opts).safe, true);
+
+  // main taken by another worktree: it is not ours to switch to. It has to live OUTSIDE the
+  // primary checkout, or adding it makes the tree dirty and the earlier check answers first.
+  runGit(primary, 'worktree', 'add', join(root, 'holds-main'), 'main');
+  const occupied = assessReattach(primary, opts);
+  assert.equal(occupied.safe, false);
+  assert.match(occupied.reason, /checked out in another worktree/);
+});
+
+test('reattach gate never treats main itself as a fromBranch', (t) => {
+  const { primary } = makeRepo(t);
+
+  // The root is already on main; naming it must not turn "nothing to do" into an action.
+  const assessment = assessReattach(primary, { fromBranch: 'main' });
+
+  assert.equal(assessment.safe, false);
+  assert.equal(assessment.onMain, true);
+  assert.match(assessment.reason, /already on main/);
+});

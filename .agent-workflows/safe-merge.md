@@ -183,15 +183,24 @@ The single, authoritative definition of "is it safe to reattach `<root>` to `mai
 in `scripts/reattach-main.mjs` - the SAME gate the SessionStart hook uses, so this workflow
 and the hook can never disagree. Assess read-only, and trust its verdict:
 
-    node scripts/reattach-main.mjs --check <root>
+    node scripts/reattach-main.mjs --check --from-branch <branch> <root>
 
-It prints `SAFE to reattach to main` (clean checkout, HEAD detached with no commits
-unreachable from any branch/remote, no git op in progress, `main` free) or
-`will NOT reattach - <reason>`.
+It prints `SAFE to reattach to main` (clean checkout, no git op in progress, `main` free, and
+HEAD either detached with no commits unreachable from any branch/remote or attached to
+`<branch>` itself) or `will NOT reattach - <reason>`.
+
+`--from-branch <branch>` names the ONE branch this run is merging. The root sitting on that
+branch is the normal rhythm here - it is where the work was done - so it is a configuration to
+handle, not a risk to stop on; pass the source branch every run and never any other name. The
+SessionStart hook passes no such flag, so it still refuses to pull the root off any branch.
 
 **Decision:**
-- SAFE: plan to **reattach** `<root>` to `main`; it is a state change, so only REPORT the
-  plan here and perform it as the first action of Phase 2.
+- SAFE, HEAD detached: plan to **reattach** `<root>` to `main`; it is a state change, so only
+  REPORT the plan here and perform it as the first action of Phase 2.
+- SAFE, HEAD on `<branch>`: `<root>` is BOTH the source worktree and the future `main`
+  worktree. Reattaching now would strand the branch with nowhere to verify, so the reattach
+  moves to **Phase 4, after verification passes** - see the marked steps below. Report that
+  ordering in the plan.
 - NOT SAFE (any reason): STOP and report the exact reason it printed. Never switch, reset,
   stash, discard, or overwrite anything.
 
@@ -209,7 +218,9 @@ real risk, meaning any of:
 - local `main` is diverged from or ahead-only of `origin/main` (the Hard safety rules cases);
 - the source worktree has uncommitted changes;
 - the merge is predicted to conflict;
-- `main` is checked out nowhere and `reattach-main.mjs --check` does not report SAFE;
+- `main` is checked out nowhere and `reattach-main.mjs --check --from-branch <branch>` does not
+  report SAFE (the root simply being ON `<branch>` is not this case - the gate reports that
+  SAFE, and it is the ordinary shape of a merge here);
 - the source branch is ambiguous or was not clearly identified;
 - `merge-order.mjs` returned a `hold` verdict (step 8).
 
@@ -224,8 +235,10 @@ Order matters: bring the latest main into the WORKTREE branch first, so all conf
 resolution and testing happen on the branch. Main only ever receives an already-tested
 branch - it is never where conflicts get resolved.
 
-1. If Phase 1 found `main` checked out nowhere and the gate reported SAFE, reattach now:
-   `node scripts/reattach-main.mjs <root>` (it re-verifies safety, then switches).
+1. If Phase 1 found `main` checked out nowhere, the gate reported SAFE **and HEAD was
+   detached**, reattach now: `node scripts/reattach-main.mjs <root>` (it re-verifies safety,
+   then switches). If instead the root is on the source branch, do NOT reattach here - it is
+   the source worktree until Phase 3 is done; Phase 4 step 3 handles it.
    If Phase 1 found the SOURCE branch has no worktree, create the temporary one now:
    `git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>`. Do NOT install into
    it yet - that happens in step 6, once the branch holds the manifest the gates will use.
@@ -234,7 +247,10 @@ branch - it is never where conflicts get resolved.
    became dirty after assessment. A freshly created worktree reports clean because
    `node_modules/` is gitignored; if it reports anything else, stop - something is wrong.
 3. In the actual `main` worktree, update main from the remote:
-   `git pull --ff-only origin main`.
+   `git pull --ff-only origin main`. When `main` has no worktree at all because the root is on
+   the source branch, update the ref in place instead: `git fetch origin main:main`, which git
+   refuses unless it fast-forwards - the same guarantee `--ff-only` gives, without needing a
+   checkout.
 4. Record `INTEGRATED_MAIN_SHA = git rev-parse main` - the exact main integrated into the
    branch, re-checked in Phase 4.
 5. In the SOURCE branch's worktree, integrate that main into the branch: `git merge main`.
@@ -293,13 +309,18 @@ Do this immediately before merging - main may have moved on the remote while you
    the new latest `main` into the source branch (`git pull --ff-only origin main`, then
    `git merge main` in the worktree), rerun the Phase 3 verification (new `VERIFIED_SHA`),
    and only then repeat this Phase 4 re-check.
-3. Fast-forward merge from the actual main worktree:
+3. If the root has been carrying the source branch (the Phase 1 "SAFE, HEAD on `<branch>`"
+   case), reattach it NOW - verification is finished, so the branch no longer needs a working
+   tree and `main` does: `node scripts/reattach-main.mjs --from-branch <branch> <root>`. It
+   re-verifies every condition and switches only if they all still hold; if it declines, STOP
+   and report what it said. `<root>` is the actual main worktree from here on.
+4. Fast-forward merge from the actual main worktree:
    `git merge --ff-only <branch>`. Git refuses this if it is not a fast-forward; if it fails,
    STOP and report (main moved, or the branch does not contain main). Because the branch already
    includes main, a healthy run fast-forwards cleanly, bringing in only this branch's commits.
-4. Confirm the exact verified commit is now `main`: `git rev-parse main` must equal
+5. Confirm the exact verified commit is now `main`: `git rev-parse main` must equal
    `VERIFIED_SHA`. Do not push otherwise.
-5. Push: `git push origin main` (standing permission). If Phase 1 flagged pre-existing
+6. Push: `git push origin main` (standing permission). If Phase 1 flagged pre-existing
    local-only commits ahead of `origin/main`, you must already have the user's explicit
    confirmation that publishing them is intended.
 
