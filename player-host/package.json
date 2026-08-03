@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "NoaCG Studio's Remotion Player host: a standalone iframe bundle that previews AI/user-authored video compositions. Kept as its own package - built into public/player-host/ and served as a static asset - so the Remotion dependency (source-available, company license above 3 employees - see https://remotion.dev/license) never enters the AGPL app bundle. Talks to the app ONLY via postMessage; loaded with sandbox=allow-scripts (opaque origin), so the untrusted composition code it evaluates can never reach the app's localStorage or session.",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "vite",
