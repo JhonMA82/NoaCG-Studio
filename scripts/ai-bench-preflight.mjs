@@ -14,10 +14,9 @@
 // Run it before `npm run bench:compare -- ... --confirm-spend`. Every failure it reports
 // wasted a real round at least once (api/_lib/aiBenchPreflight.ts has the catalogue).
 
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { projectRoot } from './api-runtime-build.mjs';
 import { printPreflightReport, runTaskPreflight } from './ai-task-preflight.mjs';
+import { loadEnvFile } from './read-dotenv.mjs';
 
 const argv = process.argv.slice(2);
 // --env=<path> checks a DIFFERENT environment file (a staging config, or a fixture
@@ -32,26 +31,19 @@ if (!REQUESTED.length || !['lite', 'import-analysis'].includes(TASK)) {
   process.exit(1);
 }
 
-/** The ambient environment the dev server would inherit. Parsed from .env exactly as the
- *  paid runner reads it - the precedence is the point, so this must be the same file. */
-async function readEnvFile() {
-  const env = {};
-  try {
-    const raw = await readFile(path.resolve(projectRoot, ENV_FILE), 'utf8');
-    for (const line of raw.split(/\r?\n/)) {
-      const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-      if (match) env[match[1]] = match[2].trim();
-    }
-  } catch {
-    console.warn(`No ${ENV_FILE} found - checking the plan against the ambient environment only.\n`);
-  }
+/** The ambient environment the dev server would inherit. Parsed by scripts/read-dotenv.mjs,
+ *  the same reader the paid runner uses - the precedence is the point, so this must be both
+ *  the same file and the same parse. */
+function readAmbientEnv() {
+  const { env, found } = loadEnvFile(projectRoot, ENV_FILE);
+  if (!found) console.warn(`No ${ENV_FILE} found - checking the plan against the ambient environment only.\n`);
   return env;
 }
 
 const report = await runTaskPreflight({
   task: TASK,
   candidates: REQUESTED,
-  ambient: await readEnvFile(),
+  ambient: readAmbientEnv(),
   // The Lite comparison mints per-candidate bench tokens; the vision runner does too.
   requireEvalIdentity: true,
   includeIncumbent: true,
