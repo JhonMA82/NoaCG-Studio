@@ -20,7 +20,16 @@ No automated dependency bumps, and no Dependabot. This is a deliberate call, not
 - **Remotion is exact-pinned in three package files** (`package.json`, `render-worker/`,
   `player-host/`) and they must move together. The split exists so a source-available licence
   never enters the AGPL bundle.
-- **`@vercel/sandbox` is exact-pinned** and runs the render worker.
+- **`@vercel/sandbox` is exact-pinned** and runs the render worker. It is pinned to the version
+  `@remotion/vercel` is built against, and **its peer range is not evidence of anything**:
+  `@remotion/vercel` declares `@vercel/sandbox: ">=1.0.0"`, so npm will happily install a v2 that
+  its own compiled code cannot call. v2 removed the `sandboxId` API entirely — sandboxes are
+  addressed by `name` with session resume — while `@remotion/vercel@4.0.488`'s built output still
+  calls `Sandbox.get({ sandboxId })` and reads `sandbox.sandboxId` (`dist/index.mjs`, three
+  places). Our own three call sites in `api/_lib/executorSandbox.ts` fail typecheck, which is the
+  visible half; the dependency's calls fail at RUNTIME on a real hosted render, where no local
+  gate looks. **Checked 2026-08-03 against 2.9.2 and reverted.** It unblocks only on a
+  `@remotion/vercel` release built against v2 — check its compiled code, not its peer range.
 - **The Vite build target must stay `es2017`** while CasparCG 2.3.x is supported
   (docs/CLOUD_PLAYOUT.md §3). A 2.3.2 client embeds a ~Chromium 65 CEF that rejects `?.` and
   `??` outright — a dead layer with nothing in the log. No automated gate catches this class.
@@ -42,6 +51,19 @@ The audit threshold is `high` on purpose. Low and moderate advisories that have 
 accepted (today: DOMPurify reached through `monaco-editor`) belong in the staleness report, not
 in a weekly alarm — an alarm that cries about something you have consciously accepted trains
 you to ignore it.
+
+**Upgrading `monaco-editor` does not close the DOMPurify pair, whatever the release notes
+suggest.** monaco pins dompurify EXACTLY, so its version moves only when monaco's does: 0.55.1
+carried 3.2.7 and 0.56.0 carries 3.4.8, while the advisory covers `<=3.4.11` and the fix landed
+in 3.4.12. `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0. Closing the pair
+therefore needs a `dompurify` override, which is a deliberate reversal of the acceptance above
+rather than a version bump — decide it as one. Checked 2026-08-03 at monaco 0.56.0.
+
+The threshold cuts the other way too, so read the severity rather than the count: on 2026-08-03 a
+**high** undici advisory (response desynchronization; cross-user disclosure) sat in this list
+unnoticed behind two moderates, which means the blocking gate was genuinely failing and not
+merely reporting accepted noise. Both copies were fixable inside the ranges their parents already
+declared.
 
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
