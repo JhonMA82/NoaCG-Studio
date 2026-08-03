@@ -346,6 +346,41 @@ function overlapIssues(
 }
 
 /** Mid-line clipping, canvas escape, and title-safe escape for every leaf. */
+/** Does this style actually paint, rather than merely declare a background? A fully
+ *  transparent colour and `none` are declarations; everything else puts pixels down. */
+function paintsSurface(cs: CSSStyleDeclaration): boolean {
+  if (cs.backgroundImage && cs.backgroundImage !== 'none') return true;
+  const bg = cs.backgroundColor;
+  if (!bg || bg === 'transparent') return false;
+  const alpha = /rgba?\([^)]*,\s*([\d.]+)\s*\)/.exec(bg);
+  return alpha ? Number(alpha[1]) > 0.05 : true;
+}
+
+/**
+ * The nearest thing painted behind this element, or null when nothing is.
+ *
+ * A PSEUDO-ELEMENT COUNTS HERE, and that is the opposite of the rule in the creative style
+ * gate, on purpose. There, the question is whether the design supplied a reading surface at
+ * all, and `::before` is usually an accent motif beside the words. Here the question is
+ * geometric - is anything painted behind THIS text - and a `::after` scrim is the commonest way
+ * a design paints one. The frame that prompted this check painted its surface exactly that way.
+ *
+ * The ancestor's own border box is used as the surface geometry even when the paint came from
+ * its pseudo-element, because a pseudo's box is not directly measurable. That is conservative
+ * in the safe direction: an inset scrim is smaller than the box, so this under-reports rather
+ * than inventing an escape that is not there.
+ */
+function paintedAncestor(el: Element, win: Window): Element | null {
+  for (let anc: Element | null = el; anc && anc !== win.document.body; anc = anc.parentElement) {
+    if (paintsSurface(win.getComputedStyle(anc))) return anc === el ? null : anc;
+    for (const pseudo of ['::before', '::after']) {
+      const ps = win.getComputedStyle(anc, pseudo);
+      if (ps.content && ps.content !== 'none' && paintsSurface(ps)) return anc === el ? null : anc;
+    }
+  }
+  return null;
+}
+
 function overflowIssues(
   leaves: Element[],
   exempt: Element[],
@@ -401,6 +436,35 @@ function overflowIssues(
           ),
         );
         break;
+      }
+    }
+
+    // (a2) The words leave the surface that backs them. Check (a) above only fires when an
+    // ancestor CLIPS - overflow hidden, or a clip-path - because that is the case where the
+    // text is visibly cut. Text that simply spills past a painted panel is not cut, sits
+    // inside the canvas, and can sit inside title-safe, so every branch here used to miss it:
+    // observed as a name running ~30px past its own plate, judged unusable by eye while the
+    // bench reported the template clean.
+    //
+    // WARNING, not error, and deliberately so. Text breaking out of its panel is a real
+    // technique - a headline overhanging its bar is a designed look, not a defect - and this
+    // gate runs over the whole catalog. A rule that cannot tell the two apart may report, but
+    // must not block.
+    const surface = paintedAncestor(el, win);
+    if (surface) {
+      const sr = surface.getBoundingClientRect();
+      const escapes =
+        rect.left < sr.left - 2 || rect.right > sr.right + 2 ||
+        rect.top < sr.top - 2 || rect.bottom > sr.bottom + 2;
+      if (escapes) {
+        warnings.push(
+          issue(
+            'bench-unbacked-text',
+            `${labelFor(el)} extends past ${labelFor(surface)}, the nearest thing painted behind it, ${phase} - ` +
+              `part of the text reads straight against the video. Either let the surface follow the ` +
+              `content (width: fit-content, padding) or keep the text inside it.`,
+          ),
+        );
       }
     }
 

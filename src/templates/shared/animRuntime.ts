@@ -685,6 +685,14 @@ function noacgResetGraphic() {
     var all = root.querySelectorAll('*');
     for (var i = 0; i < all.length; i++) gsap.set(all[i], { clearProps: 'all' });
   }
+  // clearProps wipes INLINE styles, and one of them is not the animation's to wipe: an image
+  // field with no picture is hidden inline (setFieldValue removes the src and sets
+  // display:none), so clearing it turns an empty field into a 52px broken-image box on air.
+  // Re-hide every srcless field image — the data layer's truth, restated after the reset.
+  var imgs = document.querySelectorAll('img[id]');
+  for (var m = 0; m < imgs.length; m++) {
+    if (!imgs[m].getAttribute('src')) imgs[m].style.display = 'none';
+  }
   // Press-revealed layers can sit OUTSIDE the root — clear them too.
   for (var s = 1; s < NOACG_ANIM.steps.length - 1; s++) {
     var reveals = NOACG_ANIM.steps[s].reveals || [];

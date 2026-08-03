@@ -161,7 +161,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       // Reset is two operations, and recovery is both: the data half, then the visual half
       // (snap arms timers — recovery semantics).
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
-      if (mine.state && mine.state.groups && typeof noacgSnap === 'function') noacgSnap(mine.state.groups);
+      if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
+        noacgSnap(mine.state.groups);
+        // Snap resets the graphic first, clearing every inline style — including the ones the
+        // DATA layer owns (an image field with no picture is hidden inline). Restate the data.
+        if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
+      }
     }
     connect();
   });

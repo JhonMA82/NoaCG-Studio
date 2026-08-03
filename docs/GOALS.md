@@ -1182,7 +1182,7 @@ The year-long direction: from a graphic-creation tool to a browser-based broadca
 PLATFORM (the Singular.live-class workflow), while every offline/portable export stays
 first-class. Stages are direction, not a calendar; each is independently shippable.
 
-- [ ] **Stage 1 — Browser Output MVP (the current push)**: Productions as a top-level area
+- [x] **Stage 1 — Browser Output MVP**: Productions as a top-level area
       (cue rundown over the Show record), ONE persistent transparent output URL
       (`/output?production=<slug>`, a 4th MPA entry) loadable in CasparCG/OBS/vMix, the
       operator workflow (local preview / Take / Update / Next / Out, live status, staged
@@ -1190,6 +1190,20 @@ first-class. Stages are direction, not a calendar; each is independently shippab
       EXISTING hosted-control log (0008; migration 0029 adds the output capability, pinned
       publish payload, cue status rows, log pruning). Preview and program are structurally
       separate; reconnect restores on-air state (data half, then snap).
+      **Verified 2026-08-03** against production, per `docs/CLOUD_PLAYOUT.md` §8: playout in
+      OBS and in CasparCG 2.3.2; the hosted control page on a phone; two operators agreeing
+      on the live chip; Take / Update (no replay) / Next / the reveal event / Out; refresh,
+      and kill-and-reopen with commands taken while the renderer was gone. Verification is
+      what found the three faults it also cost: the renderer resumed from the log HEAD and
+      dropped every command issued while it was down (fixed with the per-graphic recovery
+      baseline, migration 0033); the recovered commands then REPLAYED on air instead of
+      arriving settled (fixed by hiding the stage for the boot pass); and snap's reset wiped
+      the inline style that hides an empty image field, so any design with a logo slot
+      recovered with a broken-image box (fixed in the emitted runtime, the canvas reset and
+      the receivers, gated by `e2e/snap-recovery.spec.ts`). Those last two shipped after the
+      hardware session, so they are proven by the suite and by a reproduction, not yet by a
+      second run in CasparCG. Two checklist items stay open and need the owner: a CasparCG
+      channel restart (§8.7) and unpublish/re-publish (§8.8).
 - [ ] **Stage 2 — Production workflow + reliability**: multiple layers (z-order over the
       per-graphic instances), rehearsal vs show modes, published/draft versions + rollback,
       renderer health surfaced properly (multi-renderer awareness), operator access +

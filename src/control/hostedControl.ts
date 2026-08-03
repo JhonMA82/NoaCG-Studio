@@ -445,7 +445,7 @@ export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void>
  * `tail` is injected — the control and output capabilities read the log through different RPCs.
  */
 /** The tail RPCs' page size (0008/0029: `limit 500`) — a full page means "there is more". */
-const TAIL_PAGE = 500;
+export const CONTROL_TAIL_PAGE = 500;
 /** Runaway guard on the catch-up walk: 20k rows is far past any real outage after pruning. */
 const MAX_TAIL_PAGES = 40;
 
@@ -462,7 +462,7 @@ export async function followControlLog(opts: {
     lastId = row.id;
     opts.onRow(row);
   };
-  // The tail RPC answers at most TAIL_PAGE rows, so ONE call only ever recovers that much of
+  // The tail RPC answers at most CONTROL_TAIL_PAGE rows, so ONE call only ever recovers that much of
   // the gap. A renderer booting after an outage can be much further behind than a reconnecting
   // socket ever is, so keep pulling while pages come back full. Every page advances `lastId`
   // (the RPC returns rows AFTER it), so the walk always terminates; the page ceiling is a
@@ -472,7 +472,7 @@ export async function followControlLog(opts: {
       for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
         const rows = await opts.tail(lastId);
         rows.forEach(apply);
-        if (rows.length < TAIL_PAGE) return;
+        if (rows.length < CONTROL_TAIL_PAGE) return;
       }
     })();
   return subscribeControlEvents(

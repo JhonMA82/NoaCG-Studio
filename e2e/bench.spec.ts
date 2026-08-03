@@ -107,6 +107,66 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules((res as { errors: { rule: string }[] }).errors)).toContain('bench-overflow');
   });
 
+  // Text spilling past its own painted panel is NOT clipped, sits inside the canvas, and can sit
+  // inside title-safe - so every geometry branch above missed it. Observed in a generated lower
+  // third whose name ran ~30px past its plate: unusable by eye, clean by bench.
+  const spillFixture = (panel: string, value: string, extra = '') => `(async () => { ${HELPERS}
+      const tpl = fixture({
+        html: doc('<div class="fx">' +
+          '<div style="position:absolute;left:200px;top:700px;${panel}">' +
+          '<span id="f0" style="font-size:40px;color:#fff;white-space:nowrap;${extra}">${value}</span>' +
+          '</div></div>'),
+        js: FIXTURE_JS,
+        fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: '${value}' }],
+      });
+      const res = await bench(tpl, { houseContract: false });
+      return { errors: res.errors, warnings: res.warnings };
+    })()`;
+
+  test('text spilling past its own painted panel warns, without being clipped or off-canvas', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(spillFixture('width:300px;height:70px;background:#123;', 'Elena Marsh, Senior Correspondent'));
+    const { errors, warnings } = res as { errors: { rule: string }[]; warnings: { rule: string }[] };
+    expect(rules(warnings)).toContain('bench-unbacked-text');
+    // It is a warning on purpose: a headline overhanging its bar is a designed look, and this
+    // gate runs over the whole catalog. Nothing here may block.
+    expect(rules(errors)).not.toContain('bench-unbacked-text');
+  });
+
+  test('the same panel sized to its content does not warn - the twin that keeps the check honest', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(spillFixture('width:max-content;padding:12px 20px;background:#123;', 'Elena Marsh, Senior Correspondent'));
+    const { warnings } = res as { warnings: { rule: string }[] };
+    expect(rules(warnings)).not.toContain('bench-unbacked-text');
+  });
+
+  test('a scrim painted by a pseudo-element counts as the surface', async ({ page }) => {
+    await toApp(page);
+    // The panel itself paints nothing; its ::after does. That is how the observed frame drew its
+    // surface, and reading only real elements would have found no surface and stayed silent.
+    const res = await page.evaluate(`(async () => { ${HELPERS}
+      const tpl = fixture({
+        html: doc('<style>.plate::after{content:"";position:absolute;inset:0;background:#123;z-index:-1}</style>' +
+          '<div class="fx">' +
+          '<div class="plate" style="position:absolute;left:200px;top:700px;width:300px;height:70px;isolation:isolate;">' +
+          '<span id="f0" style="font-size:40px;color:#fff;white-space:nowrap;">Elena Marsh, Senior Correspondent</span>' +
+          '</div></div>'),
+        js: FIXTURE_JS,
+        fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: 'Elena Marsh, Senior Correspondent' }],
+      });
+      const res = await bench(tpl, { houseContract: false });
+      return { warnings: res.warnings };
+    })()`);
+    expect(rules((res as { warnings: { rule: string }[] }).warnings)).toContain('bench-unbacked-text');
+  });
+
+  test('text over bare video is silent here - that is the legibility floor\'s question, not this one', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(spillFixture('width:300px;height:70px;', 'Elena Marsh, Senior Correspondent'));
+    const { warnings } = res as { warnings: { rule: string }[] };
+    expect(rules(warnings)).not.toContain('bench-unbacked-text');
+  });
+
   test('a clip-path the text fits inside does not trip bench-overflow', async ({ page }) => {
     await toApp(page);
     // Same 240px clip, a 232px name - a near miss, so the detector must not fire.

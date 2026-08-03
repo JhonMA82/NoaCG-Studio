@@ -485,6 +485,9 @@ GRAPHICS.forEach(function (g) {
     else if (m.t === 'graphic-online') {
       if (log.data) post({ t: 'update', data: log.data });
       if (log.state) post({ t: 'snap', snap: log.state.groups });
+      // Snap resets the graphic before composing the pose, clearing every inline style —
+      // including the data layer's own (an image field with no picture hides itself inline).
+      if (log.state && log.data) post({ t: 'update', data: log.data });
     }
   };
   if (ch) post({ t: 'hello' });
