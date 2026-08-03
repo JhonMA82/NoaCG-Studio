@@ -21,14 +21,19 @@
 //   node scripts/supabase-advisors.mjs --input <file.json> # read a saved payload instead of the API
 //   node scripts/supabase-advisors.mjs --json              # machine-readable report
 //
-// Needs a Management API personal access token in SUPABASE_ACCESS_TOKEN (the CLI's own login is
-// stored elsewhere and is deliberately not read here). That is why this is NOT part of
-// .github/workflows/weekly-audit.yml, which is secret-free on purpose - see docs/STACK_FRESHNESS.md.
+// Needs a Management API personal access token in SUPABASE_ACCESS_TOKEN - taken from the real
+// environment or from the checkout's `.env`, the same way check-model-ids.mjs finds its provider
+// keys (the CLI's own login is stored elsewhere and is deliberately not read here). That is why
+// this is NOT part of .github/workflows/weekly-audit.yml, which is secret-free on purpose - see
+// docs/STACK_FRESHNESS.md.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ambientEnv } from './read-dotenv.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const env = ambientEnv(root);
 const BASELINE = resolve(root, 'supabase/advisor-baseline.json');
 
 const args = process.argv.slice(2);
@@ -70,7 +75,7 @@ const ACCEPTED_CLASSES = {
 };
 
 const readProjectRef = () => {
-  if (process.env.SUPABASE_PROJECT_REF) return process.env.SUPABASE_PROJECT_REF;
+  if (env.SUPABASE_PROJECT_REF) return env.SUPABASE_PROJECT_REF;
   const fromCli = resolve(root, 'supabase/.temp/project-ref');
   if (existsSync(fromCli)) return readFileSync(fromCli, 'utf8').trim();
   throw new Error('no project ref: set SUPABASE_PROJECT_REF, or link the CLI so supabase/.temp/project-ref exists');
@@ -78,13 +83,15 @@ const readProjectRef = () => {
 
 /** The live fetch. Both advisor types; the endpoint is one per type. */
 const fetchAdvisors = async () => {
-  const token = process.env.SUPABASE_ACCESS_TOKEN;
+  const token = env.SUPABASE_ACCESS_TOKEN;
   if (!token) {
     // "Could not check" is not "clean". Exit 2 so a caller can tell the two apart.
     console.error(
-      'supabase-advisors: SUPABASE_ACCESS_TOKEN is not set, so nothing was checked.\n' +
+      'supabase-advisors: no SUPABASE_ACCESS_TOKEN in the environment or in .env, so nothing ' +
+        'was checked.\n' +
         '  Create a personal access token at https://supabase.com/dashboard/account/tokens\n' +
-        '  then re-run:  SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs',
+        '  then add SUPABASE_ACCESS_TOKEN=<token> to .env, or re-run:\n' +
+        '    SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs',
     );
     process.exitCode = 2;
     return null;
