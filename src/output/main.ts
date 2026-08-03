@@ -74,6 +74,24 @@ async function boot(): Promise<void> {
   const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
 
+  // ── Recovery baselines (0033): each live entry records the log row the renderer had applied
+  // when it wrote that report, so a graphic's rebuilt state accounts for everything up to its
+  // own baseline and nothing after it. Follow from the OLDEST baseline and skip, per graphic,
+  // what its own snapshot already contains — reports are per graphic and debounced, so one can
+  // be seconds fresher than another, and a single show-wide cursor would drop the difference.
+  // An entry with no baseline (a pre-0033 server or renderer) is replayed from the oldest
+  // baseline instead: replaying a command the snapshot already holds costs one re-animation,
+  // skipping one loses the picture. Nothing reported at all (no renderer has ever run) starts
+  // at the log head, because there is no snapshot the history would be filling in. ──
+  const snapshotAt = new Map<string, number>();
+  for (const key of stage.graphics) {
+    const at = resolved.live[key]?.event;
+    if (typeof at === 'number') snapshotAt.set(key, at);
+  }
+  const baselines = [...snapshotAt.values()];
+  const followFrom = baselines.length > 0 ? Math.min(...baselines) : resolved.lastEventId;
+  let lastAppliedId = followFrom;
+
   // ── Applied-truth bookkeeping (the panel event-log pattern, parent-side): the sandbox has
   // no DOM to harvest across, so the renderer reports what it FORWARDED — update data merged
   // per graphic, event payloads merged optimistically (the same rule the standalone panel's
@@ -95,7 +113,7 @@ async function boot(): Promise<void> {
         const key = JSON.stringify([data, state]);
         if (key === lastReported.get(graphic)) return;
         lastReported.set(graphic, key);
-        void controlOutputReport(outputSlug, graphic, data, state);
+        void controlOutputReport(outputSlug, graphic, data, state, lastAppliedId);
       }, 800),
     );
   };
@@ -109,6 +127,10 @@ async function boot(): Promise<void> {
   setInterval(() => liveGraphics.forEach((g) => stage.requestState(g)), 1000);
 
   const apply = (row: ControlEventRow) => {
+    lastAppliedId = Math.max(lastAppliedId, row.id);
+    const snapshot = snapshotAt.get(row.graphic);
+    // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
+    if (snapshot !== undefined && row.id <= snapshot) return;
     const msg = row.msg;
     if (msg.t === 'update') {
       mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...msg.data });
@@ -144,7 +166,9 @@ async function boot(): Promise<void> {
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe). ──
   await followControlLog({
     showId: resolved.id,
-    from: resolved.lastEventId,
+    // The oldest per-graphic baseline, NOT the log head: everything commanded while this
+    // renderer was down lives between the two, and `apply` drops only what a snapshot holds.
+    from: followFrom,
     tail: (after) => controlOutputTail(outputSlug, after),
     onRow: apply,
   });

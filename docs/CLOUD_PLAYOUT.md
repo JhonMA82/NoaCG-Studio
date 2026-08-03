@@ -168,8 +168,8 @@ The page:
   iframe is `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start
   invisible by the SPX contract, so a stacked idle graphic shows nothing.
 - **Transport** — the `hostedReceiver` behavior implemented app-side over supabase-js:
-  resolve via `control_output_by_slug`, seed `lastId = last_event_id`, rebuild each graphic
-  from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
+  resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
+  rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
   show id, **re-tail on every `SUBSCRIBED`** (the reconnect gap the audit found in the hosted
   page), dedupe by row id, tail-fill on holes, route each command to its graphic's iframe as
   a `previewProtocol` message, report applied state back via `control_report` (debounced),
@@ -177,6 +177,20 @@ The page:
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
+- **The recovery baseline is per graphic, and it is what the renderer APPLIED** (migration
+  0033). Every report writes `live[graphic].event` — the last log row that renderer had
+  applied when it captured that truth. Boot rebuilds each graphic from its own report and
+  then follows the log from the OLDEST of those baselines, dropping only rows a graphic's own
+  snapshot already contains. The rule it replaces looked identical and was not: 0029 seeded
+  the cursor with the log HEAD, so anything commanded between the last report and the boot
+  counted as applied and was dropped. A running renderer reports within ~800 ms of any
+  command, so the hole was invisible in rehearsal — but while the renderer is DOWN the hole is
+  the whole outage, which is the exact case recovery exists for (kill the output page, take a
+  cue, bring it back: the pre-kill picture returned and the cue never aired; found on prod
+  2026-08-03 by §8's step 5). A snapshot with no baseline (pre-0033 row or renderer) is
+  replayed rather than trusted — a needless re-animation is recoverable, a lost take is not.
+  Catch-up is paged: the tail RPC answers 500 rows, so `followControlLog` keeps pulling while
+  pages come back full instead of recovering only the first page of a long outage.
 - **It must parse on an OLD CEF.** CasparCG 2.3.x LTS — the ordinary school/student install
   — embeds a ~Chromium 65 browser. A real 2.3.2 server rejected the first build outright
   (`Uncaught SyntaxError: Unexpected token ?`: `?.`/`??` need Chromium 80), showing a dead

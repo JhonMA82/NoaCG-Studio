@@ -90,9 +90,18 @@ export interface OutputPayload {
   cues: OutputCue[];
 }
 
+/** Per graphic: the renderer's last reported truth, plus (0033) `event` — the log row it had
+ *  applied when the report was written. `event` is the graphic's RECOVERY BASELINE: on boot the
+ *  renderer rebuilds from `data`/`state` and replays only rows after it. Absent on a pre-0033
+ *  server or from a pre-0033 renderer, which degrades to the old "start at the log head". */
 export type LiveReportMap = Record<
   string,
-  { data?: Record<string, string>; state?: { groups: Record<string, string> } | null; at?: string }
+  {
+    data?: Record<string, string>;
+    state?: { groups: Record<string, string> } | null;
+    at?: string;
+    event?: number;
+  }
 >;
 
 /** Which cue is on air — the row-persisted snapshot (0031; null on a pre-0031 server or
@@ -355,10 +364,18 @@ export async function controlOutputReport(
   graphic: string,
   data: Record<string, string>,
   state: { groups: Record<string, string> } | null,
+  /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
+  lastEventId: number | null = null,
 ): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  await sb.rpc('control_output_report', { p_output_slug: outputSlug, p_graphic: graphic, p_data: data, p_state: state });
+  await sb.rpc('control_output_report', {
+    p_output_slug: outputSlug,
+    p_graphic: graphic,
+    p_data: data,
+    p_state: state,
+    p_last_event_id: lastEventId,
+  });
 }
 
 /** The renderer's heartbeat — operator surfaces read output_seen_at staleness. */
@@ -427,6 +444,11 @@ export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void>
  * every (re)subscribe, because rows inserted while the socket was down produce no replay.
  * `tail` is injected — the control and output capabilities read the log through different RPCs.
  */
+/** The tail RPCs' page size (0008/0029: `limit 500`) — a full page means "there is more". */
+const TAIL_PAGE = 500;
+/** Runaway guard on the catch-up walk: 20k rows is far past any real outage after pruning. */
+const MAX_TAIL_PAGES = 40;
+
 export async function followControlLog(opts: {
   showId: string;
   /** The log baseline from the resolve call — rows after it follow live. */
@@ -440,7 +462,19 @@ export async function followControlLog(opts: {
     lastId = row.id;
     opts.onRow(row);
   };
-  const refill = () => void opts.tail(lastId).then((rows) => rows.forEach(apply));
+  // The tail RPC answers at most TAIL_PAGE rows, so ONE call only ever recovers that much of
+  // the gap. A renderer booting after an outage can be much further behind than a reconnecting
+  // socket ever is, so keep pulling while pages come back full. Every page advances `lastId`
+  // (the RPC returns rows AFTER it), so the walk always terminates; the page ceiling is a
+  // runaway guard, not a design limit.
+  const refill = () =>
+    void (async () => {
+      for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
+        const rows = await opts.tail(lastId);
+        rows.forEach(apply);
+        if (rows.length < TAIL_PAGE) return;
+      }
+    })();
   return subscribeControlEvents(
     opts.showId,
     (row) => {
