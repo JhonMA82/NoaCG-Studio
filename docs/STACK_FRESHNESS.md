@@ -82,8 +82,9 @@ The video harness already syncs its own catalog (`npm run video:models:sync`); t
 SPX/Lite/Pro routes, which had nothing watching them.
 
 **All four providers are covered, but only two without a key.** OpenRouter and Hugging Face are
-public and always checked. OpenAI and Anthropic need a key, read from `.env` exactly as the bench
-runners read it; without one they are reported **NOT CHECKED** and never counted as ok — "could
+public and always checked. OpenAI and Anthropic need a key, taken from the real environment or
+from the checkout's `.env` through `scripts/read-dotenv.mjs` (the one definition of that, shared
+with the advisor check); without one they are reported **NOT CHECKED** and never counted as ok — "could
 not check" is not "clean" — but they do not fail the run, because the weekly workflow is keyless
 by design and a permanent red there trains everyone to ignore it.
 
@@ -147,18 +148,28 @@ The baseline is recorded: **70 findings** as of 2026-08-03 — 49 security (19 a
 anon `SECURITY DEFINER` functions, 16 deny-all tables, leaked-password protection) and 21
 performance (11 unindexed foreign keys, 8 unused indexes, 2 overlapping policies).
 
+**The token comes from `.env` or the environment.** `SUPABASE_ACCESS_TOKEN=<token>` in the
+checkout's `.env` is enough — the script reads it through `scripts/read-dotenv.mjs`, the same
+shared reader the model check uses, and a real environment variable still overrides the file.
+Create the token at <https://supabase.com/dashboard/account/tokens>. It reads `.env` rather than
+only the environment because every other key here lives in that file: a check that reported "not
+set, so nothing was checked" on a fully configured machine looked like a missing token instead of
+a missing `export`, which is the most misleading answer it has.
+
 Re-record after a deliberate change:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs --update-baseline
+node scripts/supabase-advisors.mjs --update-baseline
 ```
 
 Read the diff before committing it — recording accepts everything currently reported.
 
-**The live fetch path is untested.** The committed baseline was recorded through the Supabase MCP
-connector rather than the Management API, because no `SUPABASE_ACCESS_TOKEN` was available; same
-data and same `cache_key` identities, different door. The first run with a real token proves the
-HTTP path — and if that run reports differences, suspect the fetch before suspecting the database.
+**The live fetch path was proved on 2026-08-03** and agrees with the baseline exactly: `70 advisor
+findings; 70 accepted in the baseline. No change against the baseline.`, exit 0. That matters
+because the baseline itself was first recorded through the Supabase MCP connector rather than the
+Management API — same data and same `cache_key` identities, but a different door, so until that
+run nothing had exercised the HTTP path. It now has, and the two doors agree. If a future run
+disagrees, suspect the fetch before suspecting the database.
 
 Errors in a baseline fail in the safe direction, which is why hand-assembling one was acceptable:
 a missing entry makes its finding read as NEW and turns the run red, and a key that does not exist
