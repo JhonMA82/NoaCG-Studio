@@ -66,7 +66,36 @@ cannot be compared like-for-like with the 0-of-5 and 0-of-6 pairwise results. Wh
 is the absolute claim, which is the one that matters here: four graphics the owner would use,
 from a path that had produced none.
 
-The blind pairwise on the same night's qwen round is still outstanding.
+### The qwen round's blind pairwise (reviewed 2026-08-03)
+
+The same night's qwen round - arms C and D against the frozen control, with both platform fixes
+in - went through the blind gallery the next day. 13 items, 12 joined to a comparison.
+
+| | this round | 2026-08-02 | the round before |
+|---|---|---|---|
+| neither arm airable | **9 of 12** | 10 of 16 | 11 of 16 |
+| decisive pairs | 3 | 6 | 5 |
+| staged wins over the control | **0 of 3** | 0 of 6 | 0 of 5 |
+| test-retest repeat | **INCONSISTENT** | consistent | consistent |
+
+**The repeat disagreed with itself** - the same pair, sides swapped, answered "right" and then
+"neither". The gallery includes that item precisely so this can be known rather than assumed,
+and it means every margin here narrower than the reviewer's own noise is unreadable. Recorded
+alongside it because it bears on the same question: the thirteen decisions took about
+thirty-five seconds, several of them 1.3-1.5s apart. This pass carries less weight than the
+2026-08-02 one, which was self-consistent.
+
+What survives that caveat is the absolute number, and it is unchanged: **three quarters of the
+pairs had no airable graphic on either side.** The cheap staged arm with both fixes in is still
+not producing a lower third the owner would use, and neither is the control beside it.
+
+**It does NOT compare to the 4-of-8 above.** Different arm, different model, and a different
+instrument - blind pairwise against a control versus an unblinded single-arm "would you use it".
+The two numbers answer different questions and are not two readings of one scale.
+
+**And it is now a closed baseline either way:** `main` has since unfrozen arm A's system prompt
+for the ratified corpus motion numbers, so the control in these pairs no longer exists in that
+form. Re-baseline the control rather than reusing any of it.
 
 ### The rejections are mostly ONE fault
 
