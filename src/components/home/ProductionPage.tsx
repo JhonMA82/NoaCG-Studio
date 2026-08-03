@@ -17,8 +17,8 @@ import {
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import { fieldDescriptors } from '../../control/controlModel';
 import {
-  clearAllCuesOnWire,
-  clearCueOnWire,
+  clearAllCueBatches,
+  clearCueItems,
   controlOutputSeenAt,
   controlPageUrl,
   controlShowBySlug,
@@ -26,12 +26,14 @@ import {
   hostedControlTail,
   outputPageUrl,
   publishControlShow,
-  sendHostedControl,
-  takeCueOnWire,
+  sendHostedControlBatch,
+  takeCueItems,
   unpublishControlShow,
   withLiveCue,
+  type ControlSendItem,
   type LiveCueMap,
 } from '../../control/hostedControl';
+import RehearsalStage, { type RehearsalStageHandle } from './RehearsalStage';
 import { composeDocument } from '../../preview/composeDocument';
 import { postPreviewCmd } from '../../preview/previewProtocol';
 import { isBackendConfigured } from '../../backend/config';
@@ -95,6 +97,23 @@ export default function ProductionPage({ id }: { id: string }) {
   const [outputSeenAt, setOutputSeenAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const hostedSlug = show?.hostedSlug ?? null;
+
+  // ── REHEARSE vs SHOW (docs/CLOUD_PLAYOUT.md §4a). Rehearsal is this operator's own choice,
+  // never the production's: it only ever takes the wire AWAY, so a rehearsing operator cannot
+  // reach anybody else's air, and the mistake that matters — believing you were rehearsing
+  // while you were live — is the one it cannot cause.
+  //
+  // It is always OPT-IN, including before publishing. Making an unpublished production rehearse
+  // by default looked tidy and was wrong: the cue preview is how a rundown gets BUILT, and
+  // swapping it for a rehearsal output took that away from everyone still authoring. ──
+  const [rehearsing, setRehearsing] = useState(false);
+  const rehearsalRef = useRef<RehearsalStageHandle>(null);
+  /** What is on air IN THE REHEARSAL — a second live map, because a rehearsal must never be
+   *  able to make the production page report something about the real output. */
+  const [rehearsalCue, setRehearsalCue] = useState<LiveCueMap>({});
+  // Entering or leaving rehearsal builds a fresh stage with nothing up, so the map starts empty
+  // either way. Without this, a rehearsal's leftovers would still read as live on the next one.
+  useEffect(() => setRehearsalCue({}), [rehearsing]);
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
   const graphicByPoolId = useMemo(() => new Map((show?.graphics ?? []).map((g) => [g.id, g] as const)), [show]);
@@ -307,83 +326,90 @@ export default function ProductionPage({ id }: { id: string }) {
     return hostedSlug;
   };
 
+  /**
+   * THE ONE PLACE a verb's commands go somewhere. Both destinations take the very same
+   * `ControlSendItem` batches (control/hostedControl.ts builds them), so rehearsing and airing
+   * cannot drift into two behaviours; only the destination differs. Returns whether it ran, so
+   * a verb knows whether to move its live map.
+   */
+  const runVerb = async (batches: ControlSendItem[][], label: string): Promise<boolean> => {
+    if (rehearsing) {
+      for (const batch of batches) rehearsalRef.current?.apply(batch);
+      return true;
+    }
+    const s = requirePublished();
+    if (!s) return false;
+    try {
+      for (const batch of batches) await sendHostedControlBatch(s, batch);
+      return true;
+    } catch (e) {
+      setNote(`${label} failed: ${(e as Error).message}`);
+      return false;
+    }
+  };
+
+  /** The live map the surface is currently about — the rehearsal's, or the real output's. */
+  const liveNow = rehearsing ? rehearsalCue : liveCue;
+  const setLiveNow = rehearsing ? setRehearsalCue : setLiveCue;
+  /** A rehearsal needs no publish; airing does. This is the only thing publishing gates now —
+   *  before rehearsal the verbs were simply dead on an unpublished production. */
+  const canRunVerbs = rehearsing || !!show.hostedSlug;
+
   // Every verb below Take addresses ONE LAYER — the layer of the SELECTED cue. That is the
   // whole difference multi-layer makes to the operator: there is no longer a single "the live
   // graphic" to act on, so the surface has to say which one it means, and the selection is
   // already the thing the operator is pointing at.
   const takeCue = async (cue: ShowCue) => {
-    const s = requirePublished();
     const graphic = cueGraphicName(cue);
-    if (!s || !graphic) return;
+    if (!graphic) return;
     flushDraft();
-    try {
-      await takeCueOnWire(s, { id: cue.id, graphic, values: cueView(cue).values });
-      setLiveCue((m) => withLiveCue(m, graphic, cue.id));
-    } catch (e) {
-      setNote(`Take failed: ${(e as Error).message}`);
+    if (await runVerb([takeCueItems({ id: cue.id, graphic, values: cueView(cue).values })], 'Take')) {
+      setLiveNow((m) => withLiveCue(m, graphic, cue.id));
     }
   };
 
   /** The layers that are up, in stack order, each with the cue that put it there. A pool graphic
    *  is a layer; a live_cue key naming a graphic the pool no longer has is simply not shown. */
   const liveLayers = show.graphics
-    .map((g, i) => ({ layer: i + 1, graphic: g.name, cueId: liveCue[g.name] ?? null }))
+    .map((g, i) => ({ layer: i + 1, graphic: g.name, cueId: liveNow[g.name] ?? null }))
     .filter((l): l is { layer: number; graphic: string; cueId: string } => !!l.cueId)
     .map((l) => ({ ...l, label: cues.find((c) => c.id === l.cueId)?.label ?? l.graphic }));
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
-  const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
+  const selectedLayerCueId = selectedGraphic ? liveNow[selectedGraphic] ?? null : null;
   const selectedLayerLive = !!selectedLayerCueId;
   // Update pushes the SELECTED cue's values, so it may only run when that cue is the one on
   // air: pushing a different cue's data onto a live layer would be a take nobody asked for.
   const selectedIsLive = !!selectedCue && selectedLayerCueId === selectedCue.id;
 
   const updateLive = async () => {
-    const s = requirePublished();
-    if (!s || !selectedCue || !selectedGraphic || !selectedIsLive) return;
+    if (!selectedCue || !selectedGraphic || !selectedIsLive) return;
     flushDraft();
-    try {
-      await sendHostedControl(s, selectedGraphic, { t: 'update', data: cueView(selectedCue).values });
-    } catch (e) {
-      setNote(`Update failed: ${(e as Error).message}`);
-    }
+    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: cueView(selectedCue).values } }]], 'Update');
   };
 
   const nextLive = async () => {
-    const s = requirePublished();
-    if (!s || !selectedGraphic || !selectedLayerLive) return;
-    try {
-      await sendHostedControl(s, selectedGraphic, { t: 'next' });
-    } catch (e) {
-      setNote(`Next failed: ${(e as Error).message}`);
-    }
+    if (!selectedGraphic || !selectedLayerLive) return;
+    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'next' } }]], 'Next');
   };
 
   const outLive = async () => {
-    const s = requirePublished();
-    if (!s || !selectedGraphic || !selectedLayerLive) return;
-    try {
-      await clearCueOnWire(s, selectedGraphic);
-      setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
-    } catch (e) {
-      setNote(`Out failed: ${(e as Error).message}`);
+    if (!selectedGraphic || !selectedLayerLive) return;
+    if (await runVerb([clearCueItems(selectedGraphic)], 'Out')) {
+      setLiveNow((m) => withLiveCue(m, selectedGraphic, null));
     }
   };
 
   /** Clear the screen. With per-layer Out there is no single verb that empties the frame any
    *  more, and "get everything off" is the one an operator reaches for under pressure. */
   const outAll = async () => {
-    const s = requirePublished();
-    if (!s || liveLayers.length === 0) return;
-    try {
-      const cleared = liveLayers.map((l) => l.graphic);
-      await clearAllCuesOnWire(s, cleared);
+    if (liveLayers.length === 0) return;
+    const cleared = liveLayers.map((l) => l.graphic);
+    if (await runVerb(clearAllCueBatches(cleared), 'All out')) {
       // Clear exactly what was sent, not the whole map: a key naming a graphic the pool no
       // longer has was never in `liveLayers`, so nothing cleared it on the wire either.
-      setLiveCue((m) => cleared.reduce((acc, g) => withLiveCue(acc, g, null), m));
-    } catch (e) {
-      setNote(`All out failed: ${(e as Error).message}`);
+      setLiveNow((m) => cleared.reduce((acc, g) => withLiveCue(acc, g, null), m));
     }
   };
 
@@ -463,9 +489,47 @@ export default function ProductionPage({ id }: { id: string }) {
             </p>
           )}
 
-          {/* Preview — LOCAL, never the wire. */}
+          {/* The mode strip. It is the loudest thing on the page on purpose: the one mistake
+              this feature could introduce is believing you were rehearsing while you were live,
+              so the mode says which it is in the on-air colour and never hides. Three states,
+              because "not rehearsing" and "airing" are not the same thing on a production that
+              was never published — claiming SHOW there would be a lie about dead buttons. */}
+          <div className={`prod-mode prod-mode-${rehearsing ? 'rehearse' : hostedSlug ? 'show' : 'idle'}`} data-testid="production-mode">
+            <strong>{rehearsing ? '● REHEARSE' : hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}</strong>
+            <span className="muted">
+              {rehearsing
+                ? 'The verbs drive the rehearsal below. Nothing reaches the output URL.'
+                : hostedSlug
+                  ? 'The verbs air on the output URL and every operator’s page.'
+                  : 'Nothing to air yet. Rehearse to practise the rundown, or Start production to go live.'}
+            </span>
+            <div className="spacer" />
+            <button
+              onClick={() => setRehearsing((r) => !r)}
+              data-testid="toggle-rehearsal"
+              title={
+                rehearsing
+                  ? hostedSlug
+                    ? 'Go live: the verbs write the shared command log again'
+                    : 'Back to authoring: the cue preview returns'
+                  : 'Practise the rundown against a local copy of the output — nothing airs'
+              }
+            >
+              {rehearsing ? (hostedSlug ? '▶ Go live' : '✎ Back to authoring') : '⟲ Rehearse'}
+            </button>
+          </div>
+
+          {/* Preview — LOCAL, never the wire. In rehearsal the whole output stands here
+              instead of one cue, because layering and stepping are what you rehearse. */}
           <div className="prod-preview" data-testid="production-preview">
-            {previewDoc && previewTemplate ? (
+            {rehearsing ? (
+              <>
+                <RehearsalStage ref={rehearsalRef} show={show} library={library} empty={liveLayers.length === 0} />
+                <p className="hint" style={{ marginTop: 4 }}>
+                  A local copy of the production’s own output, driven by the verbs below.
+                </p>
+              </>
+            ) : previewDoc && previewTemplate ? (
               <div
                 ref={previewStage}
                 style={{
@@ -499,16 +563,18 @@ export default function ProductionPage({ id }: { id: string }) {
             ) : (
               <p className="hint">Add a cue to preview it here.</p>
             )}
-            <p className="hint" style={{ marginTop: 4 }}>
-              Preview only — nothing changes on air until <strong>Take</strong>.
-            </p>
+            {!rehearsing && (
+              <p className="hint" style={{ marginTop: 4 }}>
+                Preview only — nothing changes on air until <strong>Take</strong>.
+              </p>
+            )}
           </div>
 
           {/* The verbs. */}
           <div className="prod-verbs row" data-testid="production-verbs">
             <button
               className="primary"
-              disabled={!selectedCue || !show.hostedSlug}
+              disabled={!selectedCue || !canRunVerbs}
               onClick={() => selectedCue && void takeCue(selectedCue)}
               data-testid="verb-take"
               title="Air the selected cue"
@@ -516,7 +582,7 @@ export default function ProductionPage({ id }: { id: string }) {
               ⟳ Take
             </button>
             <button
-              disabled={!selectedIsLive || !show.hostedSlug}
+              disabled={!selectedIsLive || !canRunVerbs}
               onClick={() => void updateLive()}
               data-testid="verb-update"
               title="Send this cue's edited values to its layer, without replaying it"
@@ -524,7 +590,7 @@ export default function ProductionPage({ id }: { id: string }) {
               ✎ Update
             </button>
             <button
-              disabled={!selectedLayerLive || !show.hostedSlug}
+              disabled={!selectedLayerLive || !canRunVerbs}
               onClick={() => void nextLive()}
               data-testid="verb-next"
               title={selectedGraphic ? `Advance ${selectedGraphic} to its next step` : 'Advance the layer to its next step'}
@@ -532,7 +598,7 @@ export default function ProductionPage({ id }: { id: string }) {
               » Next
             </button>
             <button
-              disabled={!selectedLayerLive || !show.hostedSlug}
+              disabled={!selectedLayerLive || !canRunVerbs}
               onClick={() => void outLive()}
               data-testid="verb-out"
               title={selectedGraphic ? `Play ${selectedGraphic} off — the other layers stay up` : 'Play this layer off'}
@@ -540,7 +606,7 @@ export default function ProductionPage({ id }: { id: string }) {
               ■ Out
             </button>
             <button
-              disabled={liveLayers.length === 0 || !show.hostedSlug}
+              disabled={liveLayers.length === 0 || !canRunVerbs}
               onClick={() => void outAll()}
               data-testid="verb-out-all"
               title="Play every live layer off — clear the frame"
@@ -605,7 +671,7 @@ export default function ProductionPage({ id }: { id: string }) {
               // A cue is live when it is the cue on air on ITS OWN layer — several rows can
               // carry the mark at once, one per graphic that is up.
               const cueGraphic = cueGraphicName(cue);
-              const cueIsLive = !!cueGraphic && liveCue[cueGraphic] === cue.id;
+              const cueIsLive = !!cueGraphic && liveNow[cueGraphic] === cue.id;
               return (
                 <div
                   key={cue.id}
@@ -658,7 +724,7 @@ export default function ProductionPage({ id }: { id: string }) {
               read), so the list reverses it and ↑/↓ move toward the front and the back. */}
           {[...show.graphics].reverse().map((g, rowIndex) => {
             const layer = show.graphics.length - rowIndex;
-            const live = !!liveCue[g.name];
+            const live = !!liveNow[g.name];
             return (
               <div className={`pk-graphic prod-layer${live ? ' live' : ''}`} key={g.id} data-testid={`pool-${g.id}`}>
                 <span className="prod-layer-no" title={`Layer ${layer} of ${show.graphics.length}`}>L{layer}</span>

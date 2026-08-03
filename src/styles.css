@@ -3887,6 +3887,50 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   padding: 6px 8px;
 }
 .prod-preview { margin: 10px 0; }
+/* REHEARSE vs SHOW (docs/CLOUD_PLAYOUT.md §4a). The strip is a STATE, not a control, so it is
+   always present and always coloured — a mode you have to go looking for is a mode you can be
+   wrong about. SHOW borrows the on-air green the live cue rows already use; rehearsal is the
+   brand amber, which reads as "armed, not airing" everywhere else in the app. */
+.prod-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.prod-mode > .spacer { flex: 1; }
+.prod-mode strong { white-space: nowrap; letter-spacing: 0.06em; }
+.prod-mode .muted { min-width: 0; }
+.prod-mode-show { border-color: rgba(74, 222, 128, 0.55); background: rgba(74, 222, 128, 0.07); }
+.prod-mode-show strong { color: #4ade80; }
+.prod-mode-rehearse { border-color: rgba(246, 166, 35, 0.5); background: rgba(246, 166, 35, 0.06); }
+.prod-mode-rehearse strong { color: var(--amber); }
+/* Never published: no colour to claim, because nothing is armed and nothing is airing. */
+.prod-mode-idle strong { color: var(--text-dim); }
+/* The rehearsal output: the same 16:9 box the cue preview uses, so switching modes does not
+   resize the column. The stage inside is absolutely positioned and scales itself into it. */
+.prod-rehearsal-stage {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #26262c;
+  border-radius: 8px;
+  background: #0a0a0c;
+}
+.prod-rehearsal-note { position: absolute; left: 12px; top: 12px; margin: 0; }
+.prod-rehearsal-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  pointer-events: none;
+}
 /* The verbs are pressed live, in a hurry, often on touch — operator-sized like the control
    page's transport. LIVE status reads as status, pushed right. */
 .prod-verbs { align-items: center; gap: 8px; flex-wrap: wrap; }

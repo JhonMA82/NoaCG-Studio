@@ -288,6 +288,48 @@ send.
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).
 
+## 4a. Rehearse vs Show
+
+**Rehearsal is the whole operator workflow with the wire taken away.** The verbs drive a LOCAL
+copy of the production's own output — `createOutputStage` over `buildOutputPayload`, the exact
+two functions the published `/output` page is built from — and nothing is written to the log.
+Practising a rundown, checking that a new lower third really does sit under the ticker, learning
+the verbs: none of it needed to cost an airing, and before this there was no way to do any of it
+except on air.
+
+- **Each verb is defined ONCE, as the commands it is** (`takeCueItems`, `clearCueItems`,
+  `clearAllCueBatches`), and the surface either SENDS those `ControlSendItem`s or APPLIES them to
+  the rehearsal stage. That is what makes a rehearsal worth trusting: rehearsing and airing are
+  the same commands in the same order through the same renderer, not two implementations that
+  have to be kept in step by hand. `ProductionPage`'s `runVerb` is the one place the destination
+  is decided.
+- **The mode is this operator's, not the production's.** It lives in the page, never on the
+  record or the server. Rehearsal only ever takes the wire AWAY, so a rehearsing operator cannot
+  reach anyone else's air, and the mistake that actually matters — believing you were rehearsing
+  while you were live — is the one this shape cannot produce. Two operators can therefore
+  disagree about the mode safely: whoever is in Show is the one airing, and their page says so.
+- **It is always opt-in, including before publishing.** Making an unpublished production rehearse
+  by default read tidily and was wrong: the cue preview is how a rundown gets BUILT, and swapping
+  it for a rehearsal output takes that away from everyone still authoring. So the strip carries
+  three honest states — `NOT PUBLISHED` (nothing to air yet, verbs dead, cue preview), `SHOW`
+  (published, verbs air), `REHEARSE` (verbs drive the local stage) — and the mode strip is
+  always present and always coloured, because a mode you have to go looking for is a mode you can
+  be wrong about.
+- **The rehearsal has its own live map.** A rehearsal must never make the page report something
+  about the real output, so the on-air marks, the layer chips and the verb legality all read
+  whichever map the current mode owns. Entering or leaving rehearsal builds a fresh stage with
+  nothing up, and empties that map with it.
+- **The payload comes from the LOCAL show, not from what was published** — rehearsing is how you
+  check a change before publishing it. It rebuilds only when the POOL changes (a graphic added,
+  removed, reordered, or re-saved); cue values ride each Take as `update` data, so typing never
+  restarts the rehearsal.
+- The hosted phone page has no rehearsal: it exists to operate a live production, and it has no
+  local stage. Adding one is UI work over the payload it already loads.
+
+Because none of this touches the backend, it is the one part of §4 the OFFLINE e2e suite can
+drive end to end — `e2e/productions.spec.ts` takes two cues, asserts both layers are up and that
+the values reached the rendered documents, then Outs one layer and All-outs the rest.
+
 ## 5. Where it lives in the app
 
 - **Home rail**: the `rundowns` section becomes **Productions** (`#/home/productions`) —
@@ -297,7 +339,7 @@ verb row are the priority content (the preview collapses first).
   never airs anything), the cue rundown editor (add from library or pool, edit values/notes,
   reorder, delete), the **layer stack** (the pool, listed FRONT TO BACK like every layer panel,
   with ↑/↓ moving a graphic forward and back, its layer number, and an on-air mark), the
-  operator surface of §4. The stored pool stays in PAINT order — index 0 furthest back, which
+  **mode strip** (§4a) and the operator surface of §4. The stored pool stays in PAINT order — index 0 furthest back, which
   is what the payload and the stage read — and only the list is reversed, so there is one
   ordering in the data and one convention on screen.
 - **The editor's Control tab**: its Rundowns block renames to Productions and links out to

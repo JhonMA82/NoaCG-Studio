@@ -61,11 +61,27 @@ export interface OutputStage {
    *  replay would put the outage's history on screen. Hidden, it settles off air and the
    *  reveal shows the finished picture (docs/CLOUD_PLAYOUT.md §3). */
   setVisible(visible: boolean): void;
+  /** Re-measure the fit box and rescale. The stage does this on every window resize; a host
+   *  whose box changes for other reasons (a panel resize) calls it itself. */
+  rescale(): void;
   destroy(): void;
 }
 
-/** Build the stage into `root` and keep it scaled to the viewport. */
-export function createOutputStage(root: HTMLElement, payload: OutputPayload): OutputStage {
+export interface OutputStageOptions {
+  /** The box the stage scales itself into. Defaults to the VIEWPORT, which is what the /output
+   *  page wants — its root fills the window and a browser source is the window. The production
+   *  page's rehearsal embed passes its own panel's size instead, so one stage implementation
+   *  serves both and a rehearsal cannot drift from what airs. Call `rescale()` on the returned
+   *  stage after the box changes; the stage listens to window resizes either way. */
+  fit?: () => { width: number; height: number };
+}
+
+/** Build the stage into `root` and keep it scaled to its fit box (the viewport by default). */
+export function createOutputStage(
+  root: HTMLElement,
+  payload: OutputPayload,
+  options: OutputStageOptions = {},
+): OutputStage {
   const { width, height } = payload.resolution;
   const stage = document.createElement('div');
   stage.style.cssText = [
@@ -79,11 +95,13 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
   ].join(';');
   root.appendChild(stage);
 
-  // Predictable broadcast scaling: the stage is always resolution-exact design pixels,
-  // centred and uniformly scaled to fit the window (a 1920×1080 production fills a 1920×1080
-  // browser source 1:1; any other viewport letterboxes transparently).
+  // Predictable broadcast scaling: the stage is always resolution-exact design pixels, centred
+  // and uniformly scaled to fit its box (a 1920×1080 production fills a 1920×1080 browser
+  // source 1:1; any other size letterboxes transparently).
+  const fit = options.fit ?? (() => ({ width: window.innerWidth, height: window.innerHeight }));
   const rescale = () => {
-    const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+    const box = fit();
+    const scale = Math.min(box.width / width, box.height / height);
     // transform-origin 0 0 + a translate by half the SCALED size: the stage stays centred
     // without percentage translates compounding with the scale.
     stage.style.transform = `translate(${(-width * scale) / 2}px, ${(-height * scale) / 2}px) scale(${scale})`;
@@ -203,6 +221,7 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
     setVisible: (visible) => {
       stage.style.opacity = visible ? '1' : '0';
     },
+    rescale,
     destroy: () => {
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);

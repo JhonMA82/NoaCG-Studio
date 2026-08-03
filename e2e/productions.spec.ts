@@ -229,6 +229,118 @@ test('the layer stack is authored front to back and is what the output stacks', 
   expect(payloadOrder).toEqual(['Bug', 'Anchor L3']);
 });
 
+test('rehearsal drives a local copy of the output, and every verb reaches it', async ({ page }) => {
+  // Rehearsal is the whole operator workflow WITHOUT the wire, so unlike everything else in
+  // §4 it runs offline — which is what lets this spec assert what actually reaches the screen.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Anchor L3');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+
+  await createProject(page, { category: 'Tickers' });
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Ticker crawl');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('new-production-name').fill('Evening News');
+  await page.getByTestId('new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  for (const label of ['Anchor L3', 'Ticker crawl']) {
+    await page.getByTestId('add-graphic-pick').selectOption({ label });
+    await page.getByTestId('add-graphic').click();
+  }
+
+  // Unpublished and not rehearsing: the strip says so rather than claiming a mode, the verbs
+  // stay dead, and the cue preview is still what the box shows — this is authoring.
+  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
+
+  // Rehearsing is opt-in, and it is what makes the verbs usable before there is any wire.
+  await page.getByTestId('toggle-rehearsal').click();
+  await expect(page.getByTestId('production-mode')).toContainText('REHEARSE');
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await expect(page.getByTestId('production-publish')).toBeDisabled();
+
+  // The rehearsal is the REAL renderer: one iframe per pool graphic, stacked as layers.
+  const stage = page.getByTestId('rehearsal-stage');
+  await expect(stage.locator('iframe')).toHaveCount(2);
+
+  const cueRows = page.getByTestId('cue-list').locator('.control-entry');
+  const takeCue = async (i: number) => {
+    await cueRows.nth(i).getByTestId('select-cue').click();
+    await page.getByTestId('verb-take').click();
+  };
+
+  // Take the lower third: its value reaches the rehearsal's own document, so this is the
+  // rendered graphic, not a claim about one.
+  await page.getByTestId('cue-field-f0').fill('Anna Andersson');
+  await takeCue(0);
+  await expect(page.frameLocator('[data-testid="rehearsal-stage"] iframe[title="Anchor L3"]').locator('#f0')).toHaveText(
+    'Anna Andersson',
+  );
+  await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
+
+  // Take the ticker: BOTH layers are up. This is the multi-layer contract, and rehearsal is
+  // the only place the offline suite can see it end to end.
+  await takeCue(1);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('L2');
+  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(2);
+
+  // Out takes down the SELECTED cue's layer and leaves the other one up.
+  await cueRows.nth(0).getByTestId('select-cue').click();
+  await page.getByTestId('verb-out').click();
+  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(1);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('Anchor L3');
+
+  // All out clears the frame.
+  await page.getByTestId('verb-out-all').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(0);
+});
+
+test('a published production shows SHOW until the operator asks to rehearse', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill('Evening News');
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
+
+  // Offline builds cannot publish, so stand a slug in for one: what is under test is which
+  // mode a PUBLISHED production starts in, and that reads `hostedSlug` alone.
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { hostedSlug?: string }[];
+    for (const s of list) s.hostedSlug = 'stand-in-slug';
+    localStorage.setItem('spx-gfx-shows', JSON.stringify(list));
+  });
+  await page.reload();
+
+  // Published starts in SHOW — the behaviour that existed before rehearsal did, unchanged.
+  await expect(page.getByTestId('production-mode')).toContainText('SHOW');
+  await expect(page.getByTestId('production-preview')).toContainText('nothing changes on air');
+  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
+
+  // Rehearsing is one click, and it is the strip that says so.
+  await page.getByTestId('toggle-rehearsal').click();
+  await expect(page.getByTestId('production-mode')).toContainText('REHEARSE');
+  await expect(page.getByTestId('production-mode')).toContainText('Nothing reaches the output URL');
+  await expect(page.getByTestId('rehearsal-stage')).toBeVisible();
+
+  await page.getByTestId('toggle-rehearsal').click();
+  await expect(page.getByTestId('production-mode')).toContainText('SHOW');
+  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
+});
+
 test('a cue is live per LAYER, not per production', async ({ page }) => {
   // The vocabulary the whole multi-layer operator surface rests on: the row-persisted snapshot
   // reads as a map keyed by graphic, an older single-cue row migrates into the one layer it

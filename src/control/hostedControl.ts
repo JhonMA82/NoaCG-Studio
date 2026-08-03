@@ -444,34 +444,36 @@ export async function sendHostedControlBatch(slug: string, items: ControlSendIte
 
 // ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence. ─────────────
 
+// Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
+// applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
+// is what makes a rehearsal faithful: rehearsing and airing are the same commands in the same
+// order, not two implementations that have to be kept in step by hand.
+
 /**
- * Take a cue: its data, its graphic in, and the shared cue status row — atomically, in log
- * order. It touches ONE LAYER, its own. Taking a lower third leaves the bug and the ticker on
- * air, because those are other graphics and therefore other layers (docs/CLOUD_PLAYOUT.md §4);
- * taking a second cue on the SAME graphic re-airs that one instance, which is what makes two
- * cues over one lower third replace each other and not stack.
+ * Take a cue: its data, its graphic in, and the shared cue status row. It touches ONE LAYER,
+ * its own. Taking a lower third leaves the bug and the ticker on air, because those are other
+ * graphics and therefore other layers (docs/CLOUD_PLAYOUT.md §4); taking a second cue on the
+ * SAME graphic re-airs that one instance, which is what makes two cues over one lower third
+ * replace each other and not stack.
  *
- * Clearing another layer is the operator's own verb (`clearCueOnWire` / `clearAllCuesOnWire`),
+ * Clearing another layer is the operator's own verb (`clearCueItems` / `clearAllCueBatches`),
  * never a side effect of taking this one — an implicit stop is exactly what made a production
  * single-layer.
  */
-export function takeCueOnWire(
-  slug: string,
-  cue: { id: string; graphic: string; values: Record<string, string> },
-): Promise<void> {
-  return sendHostedControlBatch(slug, [
+export function takeCueItems(cue: { id: string; graphic: string; values: Record<string, string> }): ControlSendItem[] {
+  return [
     { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
     { graphic: cue.graphic, msg: { t: 'play' } },
     { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id } },
-  ]);
+  ];
 }
 
 /** Out ONE layer: play that graphic off and clear its cue status. */
-export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void> {
-  return sendHostedControlBatch(slug, [
+export function clearCueItems(liveGraphic: string): ControlSendItem[] {
+  return [
     { graphic: liveGraphic, msg: { t: 'stop' } },
     { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
-  ]);
+  ];
 }
 
 /** `control_send_many` takes at most 8 items — a verb, not an ingest API — so an all-layers
@@ -480,19 +482,34 @@ const LAYERS_PER_CLEAR_BATCH = 4;
 
 /**
  * Out EVERY live layer: the "clear the screen" verb a multi-layer production needs, since no
- * single Take does it any more. Batches stay atomic per group of four layers, so a production
- * bigger than that clears in log order rather than not at all.
+ * single Take does it any more. One batch per four layers, so a production bigger than that
+ * clears in log order rather than not at all.
  */
-export async function clearAllCuesOnWire(slug: string, liveGraphics: string[]): Promise<void> {
+export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
+  const batches: ControlSendItem[][] = [];
   for (let i = 0; i < liveGraphics.length; i += LAYERS_PER_CLEAR_BATCH) {
-    const chunk = liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH);
-    await sendHostedControlBatch(
-      slug,
-      chunk.flatMap((graphic) => [
-        { graphic, msg: { t: 'stop' } satisfies ControlMessage },
-        { graphic, msg: { t: 'cue', cue: null } satisfies CueStatusMsg },
-      ]),
-    );
+    batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(clearCueItems));
+  }
+  return batches;
+}
+
+/** Take a cue on the wire — one atomic, log-ordered insert. */
+export function takeCueOnWire(
+  slug: string,
+  cue: { id: string; graphic: string; values: Record<string, string> },
+): Promise<void> {
+  return sendHostedControlBatch(slug, takeCueItems(cue));
+}
+
+/** Out one layer on the wire. */
+export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void> {
+  return sendHostedControlBatch(slug, clearCueItems(liveGraphic));
+}
+
+/** Out every live layer on the wire, batch by batch. */
+export async function clearAllCuesOnWire(slug: string, liveGraphics: string[]): Promise<void> {
+  for (const batch of clearAllCueBatches(liveGraphics)) {
+    await sendHostedControlBatch(slug, batch);
   }
 }
 
