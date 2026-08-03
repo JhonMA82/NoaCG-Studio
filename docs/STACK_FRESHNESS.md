@@ -81,10 +81,25 @@ The listing endpoint is public: no key, no tokens.
 The video harness already syncs its own catalog (`npm run video:models:sync`); this covers the
 SPX/Lite/Pro routes, which had nothing watching them.
 
-**It only sees OpenRouter.** Anthropic, direct-OpenAI and Hugging Face ids in `AI_MODELS` cannot
-be listed without a key for each provider, and this check is deliberately keyless — so those
-entries are unwatched, and a retirement there still fails the same silent way. Treat them as a
-manual review when a provider announces a deprecation.
+**All four providers are covered, but only two without a key.** OpenRouter and Hugging Face are
+public and always checked. OpenAI and Anthropic need a key, read from `.env` exactly as the bench
+runners read it; without one they are reported **NOT CHECKED** and never counted as ok — "could
+not check" is not "clean" — but they do not fail the run, because the weekly workflow is keyless
+by design and a permanent red there trains everyone to ignore it.
+
+So the weekly job checks 12 of 16 ids; a local `npm run check:models` checks all 16.
+
+This split exists because the gap bit once. The check began OpenRouter-only and caught
+`openai/gpt-5.6`; the second dead id was one entry above it in the same file, on the direct-OpenAI
+provider the check could not see, and only a manual listing call settled it.
+
+Two things it took a mutation test to get right, both worth keeping in mind if you extend it:
+the Hugging Face Hub answers an unauthenticated request for a nonexistent repo with **401, not
+404** (it will not leak which private names are taken), so treating only 404 as missing reported
+a dead id as UNCHECKED; and `settings.ts` must not also be scanned for slashed route literals,
+because `openai/gpt-oss-120b` is a Hugging Face repo id in one entry and an OpenRouter route in
+another — attributing every slashed id to OpenRouter would report a HF-only model as gone from a
+listing it was never in.
 
 ### Things with no version at all — the `MANUAL_REVIEW` table
 
@@ -104,11 +119,38 @@ rule). Update `lastReviewed` when you actually check, not when the reminder fire
 rather than a default. There was no pin at all before, which is the same shape as the
 `tsconfig.api.json` trap: local and deployed toolchains diverging with nothing saying so.
 
-## Not covered here
+### Supabase advisors — `scripts/supabase-advisors.mjs` (`npm run check:advisors`)
 
-**Supabase advisors** (RLS and `SECURITY DEFINER` findings) need an access token, and this
-workflow is deliberately secret-free. Roughly 30 of the current findings are the capability-URL
-design working as intended and will never clear, so the useful shape is a checked-in baseline
-that fails only on something NEW — the pattern `scripts/overflow-sweep.mjs` already uses. That
-is tracked separately; whether it ever joins CI is a decision about putting a Supabase token in
+Security and performance advisor findings, diffed against `supabase/advisor-baseline.json`.
+
+Most of what the advisors report here is the project working as designed and will never clear:
+~30 `SECURITY DEFINER` functions callable by `anon` (the capability-URL model — a CasparCG or OBS
+client holding an output slug is unauthenticated by construction) and 16 tables with RLS enabled
+and no policies (which is deny-all, the *stricter* posture; the linter cannot tell that from
+"forgot to write policies"). A permanent wall of forty-plus warnings trains you to ignore the
+report, and then a genuinely new one arrives into a list nobody reads.
+
+So the baseline records what has been seen and accepted, and the check alarms only on what is
+new — the same shape as `scripts/overflow-sweep.mjs`, for the same reason. The per-class reasons
+live in `ACCEPTED_CLASSES` in the script.
+
+**A new member of an accepted class still fails.** A new table with RLS and no policies is
+exactly the case worth catching, so the reason explains the class without admitting its future
+members. A finding that *disappears* is reported but never fails — good news must not be an
+alarm — though it should be re-recorded, or the baseline decays into a list of things that no
+longer exist.
+
+Exit codes are three-valued: `0` clean, `1` new findings, **`2` could not check** (no token, or
+no baseline yet). "Could not check" is deliberately not "clean".
+
+Bootstrap, once:
+
+```bash
+SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs --update-baseline
+```
+
+Read the recorded file before committing it — recording accepts everything currently reported.
+
+**Not in CI.** It needs a Management API personal access token and `weekly-audit.yml` is
+secret-free on purpose. Whether it ever joins is a decision about putting a Supabase token in
 Actions, and should be made deliberately rather than drifted into.
