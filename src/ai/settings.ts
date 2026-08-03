@@ -62,8 +62,11 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'openai',
-    id: 'gpt-5.6',
-    label: 'GPT-5.6',
+    // Tiered exactly like the OpenRouter entry below, and dead in the same way: the direct API
+    // lists gpt-5.6-luna / -sol / -terra and no bare `gpt-5.6`. Luna is the cost-efficient tier
+    // - the cheapest suggestion for a route the user pays for with their own key.
+    id: 'gpt-5.6-luna',
+    label: 'GPT-5.6 Luna',
     blurb: 'OpenAI Responses API route for design and code.',
     role: 'default',
   },
