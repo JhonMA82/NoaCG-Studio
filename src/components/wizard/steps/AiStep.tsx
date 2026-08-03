@@ -7,6 +7,7 @@ import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxVal
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
+import { variantById } from '../../../templates/catalog';
 import { mergeSafety } from '../../../ai/safety';
 import { productionSpxValidator } from '../../../ai/litePipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
@@ -96,9 +97,9 @@ interface Props {
 function routeLabel(path: AiPath | null): string | null {
   switch (path) {
     case 'grounded':
-      return '▤ Built on the catalog design system — editable everywhere, exactly like wizard output.';
+      return '▤ Adapted from a proven catalog design — editable everywhere, exactly like wizard output.';
     case 'grounded+polish':
-      return '▤ Catalog design system plus a bounded custom flourish.';
+      return '▤ A proven catalog design, adapted, plus a bounded custom flourish.';
     case 'grounded+skin':
       return '▤ Deterministic canvas structure with an AI-designed look.';
     case 'custom':
@@ -113,6 +114,18 @@ function routeLabel(path: AiPath | null): string | null {
 /** The same route, as one glyph for a picker card. */
 const routeMark = (path: AiPath | undefined): string =>
   path === 'custom' ? '✦' : path === 'pro' ? '✧' : '▤';
+
+/**
+ * WHICH proven design this result was adapted from - the honest half of the promise
+ * (docs/ADAPT_FIRST_PLAN.md §3, Stage U). A result that says only "built on the catalog"
+ * cannot be checked; naming the design lets the user open that design in Browse and see for
+ * themselves what changed. Null on a free-form or Pro result, which started from no design.
+ */
+function adaptedFrom(change: AiTemplateChange | undefined): string | null {
+  if (!change?.path?.startsWith('grounded')) return null;
+  const variant = change.spec?.variantId ? variantById(change.spec.variantId) : undefined;
+  return variant ? `Adapted from “${variant.name}” — a ${variant.styleTag} ${variant.category.replace(/-/g, ' ')}.` : null;
+}
 
 /** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §7). */
 const PRO_STAGE_LABELS: Record<ProStage, string> = {
@@ -1389,6 +1402,11 @@ export default function AiStep({
             <div className="change-preview" style={{ marginTop: 10 }}>
               <strong>{result.name}</strong>
               {summary && <p style={{ marginTop: 6 }}>{summary}</p>}
+              {adaptedFrom(alternatives[selected]) && (
+                <p className="hint" style={{ marginTop: 4 }} data-testid="ai-adapted-from">
+                  {adaptedFrom(alternatives[selected])}
+                </p>
+              )}
               {routeLabel(lastPath) && <p className="hint" style={{ marginTop: 4 }}>{routeLabel(lastPath)}</p>}
               {/* The Pro result's own story: the concept it was rebuilt from (with its real
                   cost) and the per-region editability report - what became a live field, a

@@ -16,6 +16,7 @@ import {
 } from './structuralIntent';
 import { blankTemplate } from './presets';
 import { specToTemplate, type DesignSpec } from './designSpec';
+import { shortlistFor } from './retrieval';
 import type { TemplateCategory } from '../model/wizard';
 import type { StyleTag } from '../model/fonts';
 import { variantsFor } from '../templates/catalog';
@@ -103,7 +104,13 @@ function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec;
   const pool = variantsFor(category);
   if (!pool.length) return null;
   const style = STYLE_KEYWORDS.find((s) => s.test.test(p))?.tag;
-  const variant = (style && pool.find((v) => v.styleTag === style)) ?? pool[0];
+  // Retrieval, offline: the same shortlist the live harness hands the design stage, picked
+  // from deterministically instead of by a model. That is what makes the adapt-first path
+  // demonstrable end to end without tokens - and it is a better answer than `pool[0]`, which
+  // gave every worship brief the house strap while Scripture Reading sat in the catalog.
+  const shortlist = shortlistFor(prompt, stubIntent(prompt), `category:${category}`);
+  const candidates = shortlist.full || !shortlist.variants.length ? pool : shortlist.variants;
+  const variant = (style && candidates.find((v) => v.styleTag === style)) ?? candidates[0];
   const spec: DesignSpec = {
     fit: 'catalog',
     reason: pinned ? `User-selected category: ${pinned.name}.` : `Keyword match: ${label}.`,

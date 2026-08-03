@@ -286,6 +286,51 @@ adopted and which a control cannot keep contradicting once it is also production
 re-baseline the control instead of reusing them** (arm B reuses `coderSystemPrompt`, so it
 moved too). No further prompt change without the same explicit trade being written down.
 
+## Retrieval - the shortlist of proven designs (`retrieval.ts`, docs/ADAPT_FIRST_PLAN.md)
+
+The default path was already an ADAPTATION pipeline; what it lacked was retrieval. The design
+stage was handed `catalogDigest()` - **430 variants, ~20,300 tokens, one flat list** - and asked
+to find the right design in it on the cheapest model in the product, and that chassis choice is
+the one decision the whole grounded path rests on.
+
+`shortlistFor(brief, intent, anchorOverride?)` narrows it with **no new model call and no second
+retrieval system**: the ranking is the Browse storefront's own engine (`templates/search.ts`) and
+the structural filter is the ONE anchor table, both reading what the intent stage already
+produced. Three things make the result usable rather than merely shorter, each measured:
+
+- **A brief is a SET of terms, not one query.** `textScore` is token-AND - every token must land
+  or the whole query scores zero - and a sentence always contains a word the index cannot place.
+- **Each term is weighted by how RARE it is in the pool.** "lower", "third" and "name" match every
+  lower third there is; summing raw scores collapsed the shortlist to catalog order once the
+  distinctive words ran out (measured: 89 of 89 "matched the brief text").
+- **The cut is RELATIVE to the best match, and the list is never padded.** A worship brief's two
+  scripture designs score 29 and 11 and the next sixty score 2.2 - a nonzero score is not
+  relevance. A slot spent on an irrelevant design is worse than an empty one.
+
+Everything degrades rather than empties: an over-tight field bucket is dropped, a query that
+matched nothing falls back to catalog order, and no resolvable anchor returns `FULL_CATALOG` -
+today's full digest. **`variantSatisfiesAnchor` answers TRUE for an anchor that no longer
+resolves**, which is right for the satisfaction check and would hand retrieval a meaningless
+shortlist, so retrieval checks `anchorResolves` first.
+
+**It runs on the ADAPT route only.** `catalogDigest(only?)` and `narrowVariantTool` are the two
+seams: the prompt shows the shortlist and the schema accepts exactly that set (shown-but-illegal
+is a chassis the model picks and `resolveVariant` silently swaps - the wrong graphic delivered as
+a success). A CREATE route keeps the full digest, so the frozen coder control stays frozen. The
+offline stub picks from the same shortlist deterministically, which is what makes the whole path
+e2e-testable without tokens (`e2e/adapt-first.spec.ts`, `e2e/ai-retrieval.spec.ts`).
+
+**A catalog chassis is assembled at the zone it was DRAWN for** (`AssembleOptions.
+keepChassisZone`, set by `groundedResult`). Measured over 89 lower thirds: the rendered side
+agrees with the declared `defaultZone` on 89 of 89, 88 sit in the bottom band and 87 at exactly
+119px from the edge (`scripts/catalog-geometry.mjs`). The catalog ships left-, right- and
+centre-drawn designs as SEPARATE members because re-siding a strap means re-siding its accent, so
+placement is expressed by picking a differently-anchored member - which retrieval now puts in
+front of the model - and by the Style panel afterwards. The `intentCoversFrame` precedent: a
+decision the catalog's own data answers better than a prompt does. **Lite does not opt in yet** -
+it carries the rule as a prompt instruction and changing it needs a paid re-baseline
+(ADAPT_FIRST_PLAN §6.2).
+
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather
 than here because the router and the satisfaction check both need the same answer and
