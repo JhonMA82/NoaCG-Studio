@@ -5,12 +5,18 @@
   "version": "0.1.0",
   "type": "module",
   "description": "NoaCG Studio — a modern, premium broadcast graphics builder. Create on-air templates and export SPX / CasparCG / OGraf.",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "vite",
     "dev:bench": "node scripts/dev-bench.mjs",
     "build": "node scripts/check-shared-instructions.mjs && node --test scripts/worktree-safety.test.mjs scripts/merge-order.test.mjs scripts/hooks/stop-next.test.mjs && node scripts/run-ai-gateway-tests.mjs && node --test scripts/ai-serverless-runtime.test.mjs scripts/ai-lite-migration.test.mjs scripts/admin-security-migration.test.mjs scripts/ai-lite-bench.test.mjs scripts/video-benchmark-scoring.test.mjs scripts/ai-vision-scoring.test.mjs scripts/prerender.test.mjs && node scripts/check-client-secrets.mjs && node scripts/build-player-host.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist",
     "build:player-host": "node scripts/build-player-host.mjs --force",
     "check:shared-instructions": "node scripts/check-shared-instructions.mjs",
+    "check:vendored": "node scripts/check-vendored-versions.mjs",
+    "check:models": "node scripts/check-model-ids.mjs",
+    "check:freshness": "node scripts/check-vendored-versions.mjs && node scripts/check-model-ids.mjs",
     "lint": "eslint . --max-warnings 0",
     "depcruise": "depcruise --config .dependency-cruiser.cjs src",
     "preview": "vite preview",
