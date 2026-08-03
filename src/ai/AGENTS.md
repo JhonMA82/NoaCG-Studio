@@ -267,8 +267,10 @@ low-confidence/novel/hybrid classification, or a BEYOND-SCOPE match
 `GraphicType.structuralScope` note excludes - a double-elimination brief on the
 single-elim bracket type. The REGISTRY declares the scope, the intent stage judges the
 brief against it with evidence, `routeIntent` decides deterministically - the
-originalityRequested pattern) - a catalog-fit brief under auto runs the
-pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
+originalityRequested pattern) - a catalog-fit brief under auto still gets NO FIT NARROWING.
+(It used to run the pre-routing flow byte-identically; **retrieval ended that** - the design call
+now reads the shortlist instead of the full digest. What stays byte-identical is the CREATE
+route, which is the one the frozen control needed.) Explicit
 adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
 catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
 mechanism). Decision + intent land on `AiTemplateChange.routing`/`.intent` and the telemetry
@@ -327,9 +329,23 @@ agrees with the declared `defaultZone` on 89 of 89, 88 sit in the bottom band an
 centre-drawn designs as SEPARATE members because re-siding a strap means re-siding its accent, so
 placement is expressed by picking a differently-anchored member - which retrieval now puts in
 front of the model - and by the Style panel afterwards. The `intentCoversFrame` precedent: a
-decision the catalog's own data answers better than a prompt does. **Lite does not opt in yet** -
-it carries the rule as a prompt instruction and changing it needs a paid re-baseline
-(ADAPT_FIRST_PLAN §6.2).
+decision the catalog's own data answers better than a prompt does.
+
+**A brief that ASKS for a side is what makes that defensible, so retrieval matches placement
+against `variant.defaultZone`** - the one place a side is declared. It cannot come from the text
+index: `templateMeta` records a coverage-derived `placements` list, never a side, and of the
+twelve right-anchored lower thirds only three carry the word in their name ("Line Handle" and
+"Glass Tag" are unreachable by any wording). A matched design is RELEVANT, not merely boosted,
+or it would sit behind designs on the wrong side of the frame.
+
+**The policy is an ARGUMENT to `groundedResult`, not a constant** (`AssembleOptions`:
+`keepChassisZone` + `sizeScaleRange`), because **NoaCG Lite reaches that same function**
+(`liteGroundedResult` calls it with `profile` stripped, so nothing there can detect Lite) and
+Lite must keep compiling under its own declared contract: its schema allows `sizeScale` 0.7-1.4
+where the harness tool says 0.85-1.2, and its prompt already carries the bottom-zone rule.
+Moving either needs the paid re-baseline ADAPT_FIRST_PLAN §6.2 defers. Clamping every caller to
+the harness's numbers told the Lite model 1.35 was legal and then discarded it at compile - the
+shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over.
 
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather

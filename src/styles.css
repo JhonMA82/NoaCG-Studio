@@ -693,6 +693,19 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 /* The ellipsis lives on the name's own box — see the note in AiStep.tsx. */
 .wz-alt-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wz-alt-route { color: var(--text-dim); flex: none; }
+/* The PROVEN designs a result was retrieved from (src/ai/retrieval.ts). Same card chassis
+   again — the shortlist, the three directions and a Browse tile are all "pick a design", so
+   they must look like it. Smaller tiles: there are up to ten and they sit under a result the
+   user is already reading, so they are an aside, not the main choice. */
+.wz-shortlist { margin-top: 8px; }
+.wz-shortlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.wz-shortlist-card { display: flex; flex-direction: column; }
+.wz-shortlist-card .wz-variant-cap { gap: 6px; padding-bottom: 2px; font-size: 11px; }
 .wz-alt-mark { flex: none; font-size: 12px; }
 .wz-alt-mark.ok { color: var(--ok); }
 .wz-alt-mark.bad { color: var(--danger); }

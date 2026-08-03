@@ -94,7 +94,10 @@ const STYLE_KEYWORDS: { test: RegExp; tag: StyleTag }[] = [
 /** Keyword-match a grounded design spec, or null when nothing fits. A structured setup's
  *  pinned category wins over keywords, and the user's decisions overlay the result — so the
  *  offline provider honors the "More control" panel exactly like the live harness. */
-function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec; label: string } | null {
+function keywordSpec(
+  prompt: string,
+  ctx?: GenerateContext,
+): { spec: DesignSpec; label: string; shortlist: string[] } | null {
   const p = prompt.toLowerCase();
   const pinned = ctx?.spec && ctx.spec.category !== 'auto' ? aiCategoryById(ctx.spec.category) : undefined;
   const hit = CATEGORY_KEYWORDS.find((k) => k.test.test(p));
@@ -121,7 +124,12 @@ function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec;
     lines: [],
     useLogoSlot: Boolean(ctx?.images?.length),
   };
-  return { label, spec: applySpecLocks(spec, ctx?.spec) };
+  return {
+    label,
+    spec: applySpecLocks(spec, ctx?.spec),
+    // What the pick was made FROM - shown to the user exactly as on the live path.
+    shortlist: shortlist.full ? [] : shortlist.variants.map((v) => v.id),
+  };
 }
 
 /** The spec's deterministic post-passes, shared with the live harness. */
@@ -181,6 +189,7 @@ export class StubAIProvider implements AIProvider {
         spec: grounded.spec,
         intent,
         routing: route,
+        ...(grounded.shortlist.length ? { shortlist: grounded.shortlist } : {}),
       };
     }
     if (/full ?screen|title card|headline/.test(p)) {

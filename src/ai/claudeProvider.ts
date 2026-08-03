@@ -25,6 +25,7 @@ import {
   DESIGN_ALTERNATIVES_TOOL,
   DESIGN_SPEC_TOOL,
   narrowVariantTool,
+  type AssembleOptions,
   type DesignSpec,
 } from './designSpec';
 import { FULL_CATALOG, shortlistFor, type Shortlist } from './retrieval';
@@ -806,14 +807,22 @@ async function groundedResult(
   ctx: GenerateContext | undefined,
   options: GenerateOptions | undefined,
   run: AiRunRecorder,
+  /**
+   * The adapt-first assembly policy (docs/ADAPT_FIRST_PLAN.md §3 Stage P + §6.2): the chassis
+   * keeps the zone it was drawn for, and `sizeScale` clamps to the range this provider's own
+   * design tool declares. **NoaCG Lite passes its own**, because it is a versioned server-owned
+   * profile with a different declared range and a prompt that already carries the zone rule -
+   * changing what it compiles needs a paid re-baseline. It reaches this function through
+   * `liteGroundedResult`, which strips `profile`, so the policy has to be an argument: there is
+   * nothing left here to detect Lite by.
+   */
+  assembly: AssembleOptions = { keepChassisZone: true, sizeScaleRange: [0.85, 1.2] },
 ): Promise<AiTemplateChange> {
   options?.onProgress?.('Assembling…');
   const t0 = Date.now();
   // The deterministic assembly sequence lives in litePipeline, shared verbatim with the
   // Lite benchmark runners — one compile path, so a benchmark result describes the product.
-  // keepChassisZone: the design's own zone is part of the design (docs/ADAPT_FIRST_PLAN.md
-  // §1.1 / AssembleOptions). Lite deliberately does not opt in — see §6.2.
-  const assembled = assembleGroundedTemplate(spec, ctx, { keepChassisZone: true });
+  const assembled = assembleGroundedTemplate(spec, ctx, assembly);
   let template = assembled.template;
   run.stage('assemble', t0);
   run.diversity(assembled.diversity);
@@ -883,7 +892,11 @@ async function liteGroundedResult(
         };
       }
     }
-    change ??= await groundedResult(spec, context, { ...options, profile: undefined }, run);
+    // Lite compiles under its OWN declared contract, not the harness's adapt-first policy: its
+    // schema allows sizeScale 0.7–1.4 and its prompt already carries the bottom-zone rule, so
+    // moving either is a behaviour change its versioned benchmark has to re-baseline first
+    // (docs/ADAPT_FIRST_PLAN.md §6.2). `profile` is stripped above, so this must be explicit.
+    change ??= await groundedResult(spec, context, { ...options, profile: undefined }, run, {});
     const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
     await recordLiteOutcome({
       generationId: generated.generationId,
@@ -1163,6 +1176,7 @@ export const claudeProvider: AIProvider = {
           ...grounded,
           ...(intent ? { intent } : {}),
           ...(route ? { routing: route } : {}),
+            ...(shortlist.full ? {} : { shortlist: shortlist.variants.map((v) => v.id) }),
         };
         // The catalog path is checked too: assembly is correct BY CONSTRUCTION, which says
         // nothing about whether the right thing was constructed.
@@ -1178,7 +1192,12 @@ export const claudeProvider: AIProvider = {
         ? [...userContent, { type: 'text', text: designNotes(spec) }]
         : userContent;
       const change = await generateValidated(content, context, undefined, options, run, exampleVariant);
-      const annotated = { ...change, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+      const annotated = {
+        ...change,
+        ...(intent ? { intent } : {}),
+        ...(route ? { routing: route } : {}),
+        ...(shortlist.full ? {} : { shortlist: shortlist.variants.map((v) => v.id) }),
+      };
       return withStructuralFindings(annotated, intent, options, run);
     });
   },
@@ -1251,6 +1270,7 @@ export const claudeProvider: AIProvider = {
             ...grounded,
             ...(intent ? { intent } : {}),
             ...(route ? { routing: route } : {}),
+            ...(shortlist.full ? {} : { shortlist: shortlist.variants.map((v) => v.id) }),
           };
           results.push(await withStructuralFindings(annotatedGrounded, intent, options, run));
         } else {
@@ -1262,7 +1282,13 @@ export const claudeProvider: AIProvider = {
             run,
             variantsFor(spec.category)[0],
           );
-          const annotated = { ...change, spec, ...(intent ? { intent } : {}), ...(route ? { routing: route } : {}) };
+          const annotated = {
+            ...change,
+            spec,
+            ...(intent ? { intent } : {}),
+            ...(route ? { routing: route } : {}),
+            ...(shortlist.full ? {} : { shortlist: shortlist.variants.map((v) => v.id) }),
+          };
           results.push(await withStructuralFindings(annotated, intent, options, run));
         }
       }

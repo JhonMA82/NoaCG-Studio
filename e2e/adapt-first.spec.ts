@@ -206,6 +206,62 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   expect(state.fields).toBeGreaterThanOrEqual(2);
 });
 
+test('the shortlist is shown, and picking another design rebuilds on it for free', async ({ page }) => {
+  let calls = 0;
+  let picked = '';
+  await page.route('/api/ai/generate', (route: Route) => {
+    const req = capture(route);
+    calls += 1;
+    if (req.tool === 'emit_structural_intent') return route.fulfill(ok(WORSHIP_INTENT));
+    picked = req.variantEnum[0] ?? 'lt01';
+    const one = spec(picked);
+    if (req.tool === 'emit_design_alternatives') return route.fulfill(ok({ alternatives: [one, one, one] }));
+    return route.fulfill(ok(one));
+  });
+
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').first().fill(BRIEF);
+  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+
+  // The designs the AI chose BETWEEN, as pictures - the claim's evidence.
+  const cards = page.getByTestId('ai-shortlist').locator('.wz-shortlist-card');
+  await expect(cards.first()).toBeVisible();
+  const shown = await cards.count();
+  expect(shown).toBeGreaterThan(1);
+  await expect(page.getByTestId('ai-shortlist').locator(`[data-variant="${picked}"]`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  // Pick a different one. It must rebuild WITHOUT another model call - that is the whole
+  // point: the shortlist is already on the result, and assembly is deterministic.
+  const spent = calls;
+  const other = cards.filter({ hasNot: page.locator('[aria-pressed="true"]') }).first();
+  const otherId = await other.getAttribute('data-variant');
+  await other.click();
+
+  await expect(page.getByTestId('ai-shortlist').locator(`[data-variant="${otherId}"]`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+    GENERATED,
+  );
+  expect(calls, 'rebuilding on another design costs nothing').toBe(spent);
+
+  // The result now names the design that was picked, and still passes its checks.
+  const otherName = await page.evaluate(async (id) => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return (variantById(id!) as { name: string }).name;
+  }, otherId);
+  await expect(page.getByTestId('ai-adapted-from')).toContainText(otherName);
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation');
+
+  // The brief's own content survived the swap - the spec carried over onto the new design.
+  // Read from the wizard's live preview, which is where an un-created result actually is;
+  // the store only holds a template once Create runs.
+  await expect(page.frameLocator('.wz-side iframe').locator('#f0')).toContainText('Miriam Aalto', GENERATED);
+});
+
 test('an off-catalog brief keeps the full catalog listing, so the create route is untouched', async ({ page }) => {
   const seen: Captured[] = [];
   await page.route('/api/ai/generate', (route: Route) => {

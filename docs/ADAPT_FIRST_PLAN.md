@@ -170,25 +170,53 @@ header warns about. The reviewer's "a lower third that anchors bottom-centre has
 is that defect.
 
 So: **a catalog chassis is assembled at its own zone.** Placement is expressed by choosing a
-differently-anchored member - the catalog ships 67 left, 12 right and 10 centred lower thirds, and
-retrieval now puts them side by side. The user can still move it afterwards with the Style panel,
-which is where a placement preference belongs.
+differently-anchored member - the catalog ships 67 left, 12 right and 10 centred lower thirds. The
+user can still move it afterwards with the Style panel, which is where a placement preference
+belongs.
+
+That is only defensible if a brief that ASKS for a side can still get one, and **retrieval cannot
+deliver that through the text index**: `templateMeta` records a coverage-derived `placements`
+list, never a side, and of the twelve right-anchored lower thirds only three carry the word in
+their name - "Line Handle" and "Glass Tag" are unreachable by any wording of the request. So
+retrieval matches placement against the one place a side IS declared, `variant.defaultZone`, and a
+requested side **narrows the pool** rather than merely ranking it: a left-anchored strap is not an
+answer to "anchored on the right".
+
+Two guards keep that from misfiring, both learned by measuring:
+
+- **A placement only counts once it narrows.** "Bottom" describes 88 of 89 lower thirds, so
+  honouring it there restricts nothing while claiming to.
+- **A graphic's own NAME is not a request.** "A lower third" says what the graphic is; read as a
+  bottom-placement request it matched the whole category and handed back catalog order wearing a
+  rationale - the worship shortlist regressed to ten with a tail of club crests before
+  `NOT_A_PLACEMENT` stripped the phrase.
 
 This is the `intentCoversFrame` precedent: a decision the catalog's own data answers better than a
 prompt does, moved from the model to the platform.
 
-**Scope:** the harness's grounded path. NoaCG Lite keeps today's behaviour, because Lite is a
-versioned server-owned profile whose prompt already carries the rule as an instruction
-(`liteContract.ts`, "keep it in a bottom zone") and changing it requires a paid re-baseline of the
-lower-third benchmark. Folding Lite onto the platform rule and deleting that prompt line is a
-follow-up with a cost attached, recorded in §6.
+**Scope:** the harness's grounded path only. **NoaCG Lite reaches the same `groundedResult`** -
+`liteGroundedResult` calls it with `profile` stripped, so nothing inside can detect Lite - which
+is why the policy travels as an explicit argument (`AssembleOptions`) rather than a constant. It
+was a constant first, and Lite was silently opted in. Lite keeps compiling under its own declared
+contract: its prompt already carries the rule as an instruction (`liteContract.ts`, "keep it in a
+bottom zone") and changing what it compiles requires a paid re-baseline of the lower-third
+benchmark. Folding Lite onto the platform rule and deleting that prompt line is a follow-up with a
+cost attached, recorded in §6.
 
 ### Stage V - the variation clamps match their own documentation
 
-`sizeScale` is described to the model as "0.85 compact … 1.2 large" and clamped to 0.7-1.4. The
-catalog's own width band is 20.8%-30.5% of frame; a 1.4x on the widest design (0.42) lands at 0.59
-and takes the overflow risk with it. Narrow the clamp to the documented range. This is a bug fix,
-not a new rule: nothing should be able to leave a proven design by 40% while the schema says 20%.
+The harness's design tool describes `sizeScale` to the model as "0.85 compact … 1.2 large" and the
+compile clamped it to 0.7-1.4. The catalog's own width band is 20.8%-30.5% of frame; a 1.4x on the
+widest design (0.42) lands at 0.59 and takes the overflow risk with it. So the harness clamps to
+the range it documents, and the tool schema now declares those bounds too - a description is not a
+constraint.
+
+**The range belongs to the SCHEMA the spec was authored against, and there are two.** NoaCG Lite's
+server-owned contract declares 0.7-1.4 (`liteContract.ts`), and both profiles compile through the
+same `specToTemplate`. Clamping every caller to the harness's numbers told the Lite model 1.35 was
+legal, accepted it in server semantic validation, and then discarded it at compile - the exact
+shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over. It is therefore
+`AssembleOptions.sizeScaleRange`, defaulting to the permissive range every caller has always had.
 
 ### Stage U - the promise in the product
 
@@ -257,6 +285,12 @@ No new paid stage is introduced.
    media because logo slots are empty at defaults.
 5. **Frontier-authored catalog members** as a way to spend model money once instead of per
    generation - proposed, not costed.
+6. **The placement rule is the one thing here with a cheap read available and unrun.**
+   `VOCABULARY-DECISION-2026-08-02.md` §"Revised recommendation" records that three confident
+   predictions in this line of work have each failed measurement, and that the falsification
+   round costing $0.11 saved three to five days. Stage P is a platform-derived placement
+   decision - exactly the class that document ranked next and free to build - so the argument
+   for measuring it before trusting it is the repo's own track record, not caution.
 
 ---
 

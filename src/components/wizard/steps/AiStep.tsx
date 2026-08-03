@@ -8,8 +8,9 @@ import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
 import { variantById } from '../../../templates/catalog';
+import type { TemplateVariant } from '../../../model/wizard';
 import { mergeSafety } from '../../../ai/safety';
-import { productionSpxValidator } from '../../../ai/litePipeline';
+import { assembleGroundedTemplate, productionSpxValidator } from '../../../ai/litePipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
 import { demoteSpecFields, withSpecChecks } from '../../../ai/spec/specValidate';
 import {
@@ -121,10 +122,33 @@ const routeMark = (path: AiPath | undefined): string =>
  * cannot be checked; naming the design lets the user open that design in Browse and see for
  * themselves what changed. Null on a free-form or Pro result, which started from no design.
  */
+/**
+ * The paths whose template really IS `spec.variantId` assembled. 'stub' is the offline
+ * provider's own grounded assembly, so it earns the same treatment. Deliberately NOT
+ * 'grounded+skin': that path assembles the neutral canvas chassis (`ltc01`) while carrying the
+ * house spec, so naming the spec's design would credit a design the user is not looking at.
+ * 'custom', 'raw' and 'pro' started from no catalog design at all.
+ */
+const ADAPTED_PATHS: AiPath[] = ['grounded', 'grounded+polish', 'stub'];
+const isAdapted = (change: AiTemplateChange | undefined): boolean =>
+  Boolean(change?.path && ADAPTED_PATHS.includes(change.path));
+
 function adaptedFrom(change: AiTemplateChange | undefined): string | null {
-  if (!change?.path?.startsWith('grounded')) return null;
-  const variant = change.spec?.variantId ? variantById(change.spec.variantId) : undefined;
+  if (!isAdapted(change)) return null;
+  const variant = change?.spec?.variantId ? variantById(change.spec.variantId) : undefined;
   return variant ? `Adapted from “${variant.name}” — a ${variant.styleTag} ${variant.category.replace(/-/g, ' ')}.` : null;
+}
+
+/** The retrieved designs behind a result, resolved to real variants. A catalog id that no
+ *  longer resolves is dropped rather than rendered as a dead card.
+ *
+ *  Gated on the ADAPTED paths, not merely on a shortlist being present: retrieval runs before
+ *  the design stage decides, so a free-form alternative under auto->adapt legitimately carries
+ *  the shortlist it was chosen against. Offering the swap there would replace the model's own
+ *  code with a catalog assembly while the card still read "custom-generated code". */
+function shortlistOf(change: AiTemplateChange | undefined): TemplateVariant[] {
+  if (!isAdapted(change) || !change?.shortlist?.length || !change.spec) return [];
+  return change.shortlist.map((id) => variantById(id)).filter((v): v is TemplateVariant => Boolean(v));
 }
 
 /** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §7). */
@@ -555,6 +579,45 @@ export default function AiStep({
     setSelected(i);
     showChange(alternatives[i]);
     stagePick(alternatives[i], originals);
+  };
+
+  /**
+   * Re-assemble the selected direction on a DIFFERENT design from the shortlist it was chosen
+   * from — deterministically, with no model call and no cost. Everything the design stage
+   * decided (lines, palette, typography, density, motion, shape) is in the spec and applies to
+   * the new chassis exactly as it did to the old one; only the proven design underneath swaps.
+   *
+   * That is what makes the promise checkable rather than a slogan: the user sees the designs
+   * the AI chose between and can overrule the choice without paying for another generation.
+   *
+   * No structural KIND check is needed here, unlike a generation: every design on the shortlist
+   * satisfies the anchor the brief resolved to, by construction (src/ai/retrieval.ts), so a
+   * swap inside it cannot produce the wrong kind of graphic.
+   */
+  const rebuildOnChassis = async (variantId: string) => {
+    const current = alternatives[selected];
+    if (!current?.spec || current.spec.variantId === variantId) return;
+    setBusy('Rebuilding on that design…');
+    try {
+      const spec: DesignSpec = { ...current.spec, variantId };
+      const { template } = assembleGroundedTemplate(spec, contextFor(), { keepChassisZone: true });
+      const change: AiTemplateChange = {
+        ...current,
+        template,
+        spec,
+        // A plain grounded assembly is what this now IS. Spreading `current` would carry a
+        // 'grounded+polish' path onto a template the polish pass never touched, so the card
+        // would keep promising "plus a bounded custom flourish" for a flourish that is gone.
+        path: 'grounded',
+        validation: demoteSpecFields(await validate(template)),
+      };
+      setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
+      showChange(change);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
   };
 
   // Exact brand colours from the setup win over the project-brand toggle; the setup's
@@ -1406,6 +1469,44 @@ export default function AiStep({
                 <p className="hint" style={{ marginTop: 4 }} data-testid="ai-adapted-from">
                   {adaptedFrom(alternatives[selected])}
                 </p>
+              )}
+              {/* The proven designs this result was chosen FROM (src/ai/retrieval.ts). Shown
+                  because "adapted from a proven design" is a claim, and a claim whose
+                  alternatives the user can see — and swap onto — is checkable. The swap is
+                  deterministic: no model call, no cost, everything the brief decided carried
+                  over onto the other design. */}
+              {shortlistOf(alternatives[selected]).length > 1 && !busy && (
+                <div className="wz-shortlist" data-testid="ai-shortlist">
+                  <p className="hint" style={{ marginTop: 8 }}>
+                    Chosen from {shortlistOf(alternatives[selected]).length} proven designs for this brief — pick another to
+                    rebuild on it, free.
+                  </p>
+                  <div className="wz-shortlist-grid">
+                    {shortlistOf(alternatives[selected]).map((variant) => {
+                      const current = variant.id === alternatives[selected]?.spec?.variantId;
+                      return (
+                        <button
+                          key={variant.id}
+                          className={`wz-variant wz-shortlist-card ${current ? 'selected' : ''}`}
+                          data-variant={variant.id}
+                          aria-pressed={current}
+                          title={variant.description}
+                          onClick={() => void rebuildOnChassis(variant.id)}
+                        >
+                          <MiniPreview variant={variant} />
+                          {/* The NAME gets the whole caption. A style-family tag beside it read
+                              well on a Browse tile, where it is also a filter facet — here it
+                              took a third of a 132px card and clipped "Scripture Reading" and
+                              "House Handle" to nothing useful, to name something the picture
+                              above it already shows. */}
+                          <div className="wz-variant-cap">
+                            <span className="wz-alt-title">{variant.name}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
               {routeLabel(lastPath) && <p className="hint" style={{ marginTop: 4 }}>{routeLabel(lastPath)}</p>}
               {/* The Pro result's own story: the concept it was rebuilt from (with its real

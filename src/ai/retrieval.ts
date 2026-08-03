@@ -110,6 +110,43 @@ export function briefTerms(brief: string, intent: StructuralIntent | null): stri
   return terms.slice(0, MAX_TERMS);
 }
 
+// ── Placement ────────────────────────────────────────────────────────────────
+//
+// The chassis now keeps the zone it was drawn for (AssembleOptions.keepChassisZone), which is
+// only defensible if a brief that ASKS for a side can still get one. It cannot get there
+// through the text index: `templateMeta` records a coverage-derived `placements` list, never a
+// side, and the index reads name/category/semantics/field titles/capabilities/formats/
+// structures/description - so of the twelve right-anchored lower thirds only three ("House
+// Right", "Right Rail", "Right Slam") carry the word at all, and "Line Handle" or "Glass Tag"
+// are unreachable by any wording of the request.
+//
+// So placement is matched against the one place it IS declared: `variant.defaultZone`.
+
+const ZONE_WORDS: { test: RegExp; match: (zone: string) => boolean }[] = [
+  { test: /\b(right|right-hand|right side|starboard)\b/, match: (z) => z.endsWith('-right') },
+  { test: /\b(left|left-hand|left side)\b/, match: (z) => z.endsWith('-left') },
+  { test: /\b(cent(er|re)|centred|centered|middle)\b/, match: (z) => z.endsWith('-center') },
+  { test: /\b(top|upper|above)\b/, match: (z) => z.startsWith('top-') },
+  { test: /\b(bottom|lower|beneath|underneath)\b/, match: (z) => z.startsWith('bottom-') },
+];
+
+/** Graphic NAMES that contain a position word without asking for one. "A lower third" says
+ *  what the graphic is, not where to put it - and read as a request it matches all 88
+ *  bottom-anchored lower thirds, which is every design in the pool. */
+const NOT_A_PLACEMENT = /\b(lower|upper)[- ]thirds?\b/g;
+
+/** Does the brief ask for a placement, and does this design answer it? Null = it asked for
+ *  nothing, which must not be read as every design being wrong. */
+function placementMatch(brief: string): ((zone: string) => boolean) | null {
+  const text = ` ${brief.toLowerCase().replace(NOT_A_PLACEMENT, ' ')} `;
+  const asked = ZONE_WORDS.filter((w) => w.test.test(text));
+  if (!asked.length) return null;
+  // EVERY asked-for word must hold: "bottom left" names one place, and a brief that somehow
+  // says both left and right matches nothing, so the boost simply never applies - the right
+  // degrade for a request nobody can satisfy.
+  return (zone: string) => asked.every((w) => w.match(zone));
+}
+
 // ── The field bucket ─────────────────────────────────────────────────────────
 
 /** The intent's own field list as a Browse bucket. Only fields that PAINT count - the bucket
@@ -159,19 +196,35 @@ export function shortlistFor(
   if (!anchor || !anchorResolves(anchor)) return FULL_CATALOG;
 
   const satisfies = (v: TemplateVariant) => variantSatisfiesAnchor(v.id, anchor);
-  const pool = allTemplateMeta().map((m) => m.variant).filter(satisfies);
-  if (!pool.length) return FULL_CATALOG;
+  const anchored = allTemplateMeta().map((m) => m.variant).filter(satisfies);
+  if (!anchored.length) return FULL_CATALOG;
+
+  const notes: string[] = [];
+
+  // A requested SIDE narrows the pool rather than merely ranking it: with the chassis keeping
+  // the zone it was drawn for, a left-anchored strap is not an answer to "anchored on the
+  // right", so offering one would spend a shortlist slot on a design the brief ruled out.
+  // It only counts once it actually narrows - "bottom" describes 88 of 89 lower thirds, and
+  // honouring that would restrict nothing while claiming to.
+  const asked = placementMatch(brief);
+  const zoneMatched = asked ? anchored.filter((v) => asked(v.defaultZone)) : [];
+  const placed = asked && zoneMatched.length > 0 && zoneMatched.length < anchored.length / 2;
+  if (placed) notes.push(`placement requested (${zoneMatched.length} designs)`);
+  const pool = placed ? zoneMatched : anchored;
 
   const terms = briefTerms(brief, intent);
   const bucket = bucketFor(intent);
-  const notes: string[] = [];
 
   // The bucket is a STRICT facet in the storefront and a noisy signal here (the intent's field
   // list is a model's reading of a brief), so it narrows only while it leaves something.
+  // Everything below scores INSIDE the pool, which a placement request may have narrowed. It
+  // has to: the rarity discount divides by the pool size, so counting hits against the wider
+  // anchored set makes every term look common and drops them all.
+  const inPool = new Set(pool.map((v) => v.id));
   const bucketed = bucket
     ? new Set(
         browseTemplates({ ...NO_BROWSE_FILTERS, fieldBucket: bucket }).best
-          .filter((r) => satisfies(r.variant))
+          .filter((r) => inPool.has(r.variant.id))
           .map((r) => r.variant.id),
       )
     : null;
@@ -188,7 +241,7 @@ export function shortlistFor(
   const scores = new Map<string, number>();
   let distinctive = 0;
   for (const term of terms) {
-    const hits = browseTemplates({ ...NO_BROWSE_FILTERS, query: term }).best.filter((r) => satisfies(r.variant));
+    const hits = browseTemplates({ ...NO_BROWSE_FILTERS, query: term }).best.filter((r) => inPool.has(r.variant.id));
     if (!hits.length) continue;
     const idf = Math.log(pool.length / hits.length);
     if (idf <= 0) continue;
@@ -224,7 +277,7 @@ export function shortlistFor(
   const MIN_SHORTLIST = 4;
   const RELEVANCE_FLOOR = 0.2;
   const top = Math.max(0, ...scores.values());
-  const hit = ranked.filter((r) => (scores.get(r.variant.id) ?? 0) >= top * RELEVANCE_FLOOR && top > 0);
+  const hit = ranked.filter((r) => top > 0 && (scores.get(r.variant.id) ?? 0) >= top * RELEVANCE_FLOOR);
   const matched = hit.length;
   if (!terms.length) notes.push('no searchable terms in the brief');
   if (terms.length && !matched) notes.push('no design matched the brief text; ranked by catalog order');

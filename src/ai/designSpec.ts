@@ -166,7 +166,12 @@ const SPEC_INPUT_SCHEMA: Record<string, unknown> = {
         },
       },
       fontId: { type: 'string', enum: FONTS.map((f) => f.id) },
-      sizeScale: { type: 'number', description: 'Overall size multiplier, 0.85 compact … 1.2 large.' },
+      sizeScale: {
+        type: 'number',
+        minimum: 0.85,
+        maximum: 1.2,
+        description: 'Overall size multiplier, 0.85 compact … 1.2 large.',
+      },
       animation: {
         type: 'object',
         additionalProperties: false,
@@ -278,15 +283,15 @@ export function narrowVariantTool(base: ModelTool, ids: readonly string[]): Mode
  */
 export function catalogDigest(only?: readonly TemplateVariant[]): string {
   const lines: string[] = [];
-  const shortlisted = only?.length ? new Set(only.map((v) => v.id)) : null;
-  if (shortlisted) {
+  const shortlist = only?.length ? only : null;
+  if (shortlist) {
     lines.push(
       'These are the closest PROVEN designs for this brief, already ranked. Adapt one of them:',
       '',
     );
   }
   for (const cat of CATEGORIES) {
-    const variants = (shortlisted ? only! : variantsFor(cat.id)).filter((v) => v.category === cat.id);
+    const variants = (shortlist ?? variantsFor(cat.id)).filter((v) => v.category === cat.id);
     if (!variants.length) continue;
     lines.push(`### ${cat.name} (category: ${cat.id}) — ${cat.description}`);
     for (const v of variants) {
@@ -360,6 +365,16 @@ export interface AssembleOptions {
    * §6.2), so the harness opts in and Lite does not.
    */
   keepChassisZone?: boolean;
+  /**
+   * The legal `sizeScale` range. Defaults to the permissive one every caller has always had,
+   * because the bounds belong to the SCHEMA the spec was authored against and there are two:
+   * the harness's design tool says "0.85 compact … 1.2 large", NoaCG Lite's server-owned
+   * contract declares 0.7–1.4 (`liteContract.ts`). Clamping every caller to the harness's
+   * numbers told the Lite model 1.35 was legal, accepted it in server validation, and then
+   * discarded it at compile - the same shown-but-illegal mismatch `narrowVariantTool` exists
+   * to prevent, one field over.
+   */
+  sizeScaleRange?: [number, number];
 }
 
 /**
@@ -412,10 +427,7 @@ export function specToTemplate(
     fontId: FONTS.some((f) => f.id === spec.fontId) ? spec.fontId : undefined,
     // The user's uploaded font wins over any font id (WizardOptions' own precedence rule).
     customFont: ctx?.customFont,
-    // The schema describes this as "0.85 compact … 1.2 large" and the clamp used to allow
-    // 0.7–1.4: a 1.4x on the widest lower third (42% of frame) lands at 59% and takes the
-    // overflow risk with it. The clamp now matches what the model was told.
-    sizeScale: clampNumber(spec.sizeScale, 0.85, 1.2),
+    sizeScale: clampNumber(spec.sizeScale, ...(opts.sizeScaleRange ?? [0.7, 1.4])),
     zone: !opts.keepChassisZone && ZONES.includes(spec.zone as Zone9) ? spec.zone : undefined,
     animation: {
       ...(presetOk ? { presetId: spec.animation?.presetId as never } : {}),
