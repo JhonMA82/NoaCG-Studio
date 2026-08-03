@@ -143,13 +143,26 @@ longer exist.
 Exit codes are three-valued: `0` clean, `1` new findings, **`2` could not check** (no token, or
 no baseline yet). "Could not check" is deliberately not "clean".
 
-Bootstrap, once:
+The baseline is recorded: **70 findings** as of 2026-08-03 — 49 security (19 authenticated and 13
+anon `SECURITY DEFINER` functions, 16 deny-all tables, leaked-password protection) and 21
+performance (11 unindexed foreign keys, 8 unused indexes, 2 overlapping policies).
+
+Re-record after a deliberate change:
 
 ```bash
 SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs --update-baseline
 ```
 
-Read the recorded file before committing it — recording accepts everything currently reported.
+Read the diff before committing it — recording accepts everything currently reported.
+
+**The live fetch path is untested.** The committed baseline was recorded through the Supabase MCP
+connector rather than the Management API, because no `SUPABASE_ACCESS_TOKEN` was available; same
+data and same `cache_key` identities, different door. The first run with a real token proves the
+HTTP path — and if that run reports differences, suspect the fetch before suspecting the database.
+
+Errors in a baseline fail in the safe direction, which is why hand-assembling one was acceptable:
+a missing entry makes its finding read as NEW and turns the run red, and a key that does not exist
+shows up as "gone". Neither can silently accept something.
 
 **Not in CI.** It needs a Management API personal access token and `weekly-audit.yml` is
 secret-free on purpose. Whether it ever joins is a decision about putting a Supabase token in

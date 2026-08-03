@@ -49,7 +49,10 @@ const ACCEPTED_CLASSES = {
     'DEFINER functions or the service role, which is the stricter posture, not a gap.',
   anon_security_definer_function_executable:
     'The capability-URL model: an output/control slug is held by an unauthenticated playout ' +
-    'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md.',
+    'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +
+    'NOTE: control_send, control_send_many and control_stage WRITE, so anyone holding a slug ' +
+    'can append to the log. That is the design, but it is an abuse-rate question the linter ' +
+    'cannot ask - accepted here as reachability, not as a judgement about volume.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',
