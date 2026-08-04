@@ -88,8 +88,8 @@ export interface WizardDraft {
   /** What the finished graphic is CALLED (the Finish step). Empty = fall back to the design's
    *  own catalog name, which is what every project was called before this step existed. It
    *  matters most on the export branch: the name slugs the zip AND, for the SPX and CasparCG
-   *  targets, the template FOLDER inside it — the name the operator reads in the playout
-   *  server. Shipping `hairline/index.html` is the reason this field exists. */
+   *  targets, the template FOLDER and FILE inside it — the name the operator reads in the
+   *  playout server. Shipping `hairline/hairline.html` is the reason this field exists. */
   name: string;
   category: TemplateCategory | null;
   variantId: string | null;

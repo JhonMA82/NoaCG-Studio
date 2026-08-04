@@ -47,14 +47,39 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
 
 ## 2. The export door on real hardware (the no-account path)
 
+**Round 1 findings (owner, 2026-08-04) — all four boxes FAILED, root-caused and fixed
+2026-08-05; re-test against a build carrying those fixes:**
+
+- A PUBLISHED production's package baked the hosted-log receiver into every graphic; its boot
+  recovery snapped the graphic to its last reported (off) state one RPC round-trip after the
+  host's `play()` — seen as "flashes in then disappears" in both CasparCG and SPX. Fixed: the
+  production package never carries the receiver (the playout host is the controller); pinned
+  by `e2e/shows.spec.ts`.
+- Every graphic exported as `index.html`, so SPX rundowns listed every template as "index".
+  Fixed: `<slug>/<slug>.html`, and production packages assign each graphic its own playout
+  layer (previously all playlayer 7 — two templates in one rundown evicted each other).
+- `controlpanel.html` opened from disk did nothing and still claimed a connection. The earlier
+  parenthetical here ("BroadcastChannel needs both files opened from the same place — the
+  README says so") was DOUBLY false: the README did not say so, and "same place" is not
+  enough — Chrome gives every `file://` page a private opaque origin, so two local files can
+  NEVER pair, and a graphic inside OBS/vMix/CasparCG runs a separate browser engine a normal
+  browser tab cannot reach at all. Fixed: the panel detects silence (no state reply to its
+  hello) and says so; READMEs state the same-origin http requirement; every package ships
+  GETTING-ON-AIR.md. The full offline local-control answer (a bundled localhost service +
+  launcher + the shared production controller) is the follow-up program in flight.
+
 - [ ] CasparCG export: load the package from disk on the real server (the README's
-      channel-layer-BEFORE-ADD incantation), fonts render, fields update, plays clean.
-- [ ] SPX export: import into a real SPX rundown; play/continue/stop from SPX.
-- [ ] The HTML overlay in OBS as a LOCAL browser source (`file://` path): transparent,
-      fonts correct, `controlpanel.html` beside it drives it (BroadcastChannel needs both
-      files opened from the same place — the README says so).
-- [ ] Whole-production export: `show_controlpanel.html` drives every graphic of the package
-      independently.
+      channel-layer-BEFORE-ADD incantation), fonts render, fields update, plays clean —
+      including from a PUBLISHED production's package.
+- [ ] SPX export: import into a real SPX rundown; templates listed by their own names;
+      play/continue/stop from SPX; two templates from one production on air together
+      (distinct layers).
+- [ ] The HTML overlay in OBS as a LOCAL browser source (`file://` path): transparent, fonts
+      correct, autoplays. Driving it live requires the same-origin http setup (or the hosted
+      page) — confirm the bundled panel's no-listener banner appears over `file://` instead
+      of a false "connected".
+- [ ] Whole-production export served over a local http address: `show_controlpanel.html`
+      drives every graphic of the package independently from that origin.
 
 ## 3. Production-length soak (one real show's length, hours)
 

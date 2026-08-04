@@ -141,8 +141,8 @@ test('finish: the name reaches the exported package folder', async ({ page }) =>
   await expect(page.getByTestId('export-window')).toBeVisible();
 
   // The point of the name field. For SPX and CasparCG the slug is the TEMPLATE FOLDER inside
-  // the zip — what the operator picks from in the playout server. Without it every package
-  // shipped under the design's catalog name ('hairline/index.html').
+  // the zip AND the template file's own name — what the operator picks from in the playout
+  // server. Without it every package shipped under the design's catalog name ('hairline/…').
   const files = await page.evaluate(async () => {
     const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
     const { loadGraphics } = await import('/src/model/library.ts');
@@ -150,7 +150,7 @@ test('finish: the name reaches the exported package folder', async ({ page }) =>
     const zip = await spx.build(loadGraphics()[0].template, { sampleData: {} });
     return Object.keys(zip.files);
   });
-  expect(files).toContain('match_day_strap/index.html');
+  expect(files).toContain('match_day_strap/match_day_strap.html');
   expect(files.some((f) => f.startsWith('hairline/'))).toBe(false);
 });
 

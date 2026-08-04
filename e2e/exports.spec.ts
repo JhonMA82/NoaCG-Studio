@@ -131,7 +131,7 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   await nameInput.fill('Overlay Works');
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline/README.md', 'hairline/controlpanel.html', 'hairline/hairline.html']);
+  expect(names.sort()).toEqual(['hairline/GETTING-ON-AIR.md', 'hairline/README.md', 'hairline/controlpanel.html', 'hairline/hairline.html']);
 
   const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('Autoplay for browser sources');
@@ -152,7 +152,7 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   await createHairline(page);
   const zip = await downloadTarget(page, 'CasparCG export');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline/README.md', 'hairline/hairline.html']);
+  expect(names.sort()).toEqual(['hairline/GETTING-ON-AIR.md', 'hairline/README.md', 'hairline/hairline.html']);
 
   const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('CasparCG data shim');
@@ -171,6 +171,46 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   await expect
     .poll(async () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('1');
+  await view.close();
+});
+
+test('spx: the folder package plays like a host drives it, and a late update never hides it', async ({ page }) => {
+  // The coverage gap behind the student-release acceptance failure: the SPX FOLDER package
+  // was asserted on (files, references) but never PLAYED. Drive it in the host's order —
+  // update, play, then another update landing mid-air (SPX's webplayout updates whenever the
+  // operator edits) — and require the graphic to still be on screen afterwards.
+  await createHairline(page);
+  const zip = await downloadTarget(page, 'SPX export');
+  const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
+  // The template file carries the graphic's own name (an SPX rundown lists files; index.html
+  // listed every NoaCG template as "index"), and the on-air guide travels in the package.
+  expect(names).toContain('hairline/hairline.html');
+  expect(names).toContain('hairline/GETTING-ON-AIR.md');
+  expect(names.filter((n) => n.endsWith('index.html'))).toEqual([]);
+
+  // Inline the external refs so the folder package plays inside setContent.
+  const inline = (src: string) => src.replace(/<\/script>/gi, '<\\/script>');
+  const css = await zip.file('hairline/css/template.css')!.async('string');
+  const js = await zip.file('hairline/js/template.js')!.async('string');
+  const gsap = await zip.file('hairline/js/gsap.min.js')!.async('string');
+  const html = (await zip.file('hairline/hairline.html')!.async('string'))
+    .replace(/<link[^>]*href=["'](?:\.\/)?css\/template\.css["'][^>]*>/i, `<style>${css}</style>`)
+    .replace(/<script[^>]*src=["'](?:\.\/)?js\/gsap\.min\.js["'][^>]*><\/script>/i, () => `<script>${inline(gsap)}</script>`)
+    .replace(/<script[^>]*src=["'](?:\.\/)?js\/template\.js["'][^>]*><\/script>/i, () => `<script>${inline(js)}</script>`);
+
+  const view = await page.context().newPage();
+  await view.setContent(html, { waitUntil: 'load' });
+  const opacity = () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  await view.evaluate(() => {
+    (window as unknown as { update(raw: string): void }).update('{"f0":"SPX Works"}');
+    (window as unknown as { play(): void }).play();
+  });
+  await expect.poll(opacity).toBe('1');
+  // The late update — this must write fields only, never reset or hide the running graphic.
+  await view.evaluate(() => (window as unknown as { update(raw: string): void }).update('{"f0":"Still Here"}'));
+  await view.waitForTimeout(700);
+  await expect(view.locator('#f0')).toHaveText('Still Here');
+  expect(await opacity()).toBe('1');
   await view.close();
 });
 

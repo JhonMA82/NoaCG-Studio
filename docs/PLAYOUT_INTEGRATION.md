@@ -115,9 +115,14 @@ Two OBS-specific notes:
 - **"Shutdown source when not visible"** will tear the page down every time you hide the scene,
   which throws away a cloud output's connection and forces a full rebuild on the way back. Leave
   it **off** for a production output.
-- An exported overlay ships a `controlpanel.html` beside it. OBS can host that as a dock —
-  **View → Docks → Custom Browser Docks…** — so the operator drives the graphic from inside OBS
-  with no second machine.
+- An exported overlay ships a `controlpanel.html` beside it. It pairs with the graphic over a
+  **same-origin browser channel**, which sets two hard rules: both pages must be loaded from
+  the same http(s) address (serve the folder with any local web server — files opened straight
+  from `file://` get private origins and can never pair, and the panel says so when nothing
+  answers), and a panel in your normal browser cannot reach a graphic loaded inside OBS's own
+  browser engine. The working OBS shape is a **Custom Browser Dock** (View → Docks → Custom
+  Browser Docks…) pointing at the panel on the same local address as the browser source. For
+  remote operation use the hosted control page instead.
 
 ## 5. vMix
 
@@ -166,7 +171,9 @@ than one that admits the gaps.
   commands issued while the renderer was down; the hosted control page driving it from a phone;
   two operators agreeing on which cue is live.
 - **Verified by the test suite, not on hardware**: the exported packages open and play from
-  `file://` with no network, fonts and images inlined.
+  `file://` with no network, fonts and images inlined; the bundled control panel pairs with
+  its graphic over one http origin (and honestly reports the no-listener case elsewhere —
+  `file://` pages can never pair, see §4).
 - **Not yet verified on hardware**: a CasparCG channel restart under a live output URL; vMix;
   CasparCG 2.4/2.5 (the engine versions in §3 come from the CasparCG changelog, not from a
   machine we have run).

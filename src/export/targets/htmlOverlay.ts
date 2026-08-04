@@ -10,6 +10,7 @@ import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { injectControlReceiver, addControlPanel, slug } from '../common';
 import { hasRealtimeControl } from '../../control/realtimeControl';
+import { onAirGuideMd } from '../onAirGuide';
 import type { ExportContext, ExportTarget } from '../registry';
 
 /** The autoplay block appended after the template's JS. Teachable ES5, same voice as the
@@ -83,10 +84,13 @@ the fields with the exported values and plays automatically.
 ## Changing the text/data
 - Quick edit: open ${name}.html in a text editor — the values live in the marked
   "Autoplay for browser sources" block at the bottom.
-- Live control: open controlpanel.html in another tab of the SAME browser as the graphic —
-  edits + Play/Stop/Update/Next drive it over a BroadcastChannel, no server needed.
-  In OBS you can add controlpanel.html as a custom dock (View → Docks → Custom Browser
-  Docks…) to drive the source from inside OBS.
+- Live control: controlpanel.html drives the graphic over a same-origin browser channel, so
+  BOTH pages must be opened from the same web address (http:// or https://) in the same
+  browser — serve this folder with any local web server, open the graphic from that address
+  as the browser source URL, and the panel from the same address in a tab (or as an OBS
+  custom dock: View → Docks → Custom Browser Docks…). Opening the files straight from disk
+  (file://) does NOT connect them — the panel will tell you when nothing is answering. See
+  GETTING-ON-AIR.md.
 ${hasRealtimeControl(template.js) ? `- Remote control (enabled): this graphic also listens on a Supabase Realtime channel, so
   controlpanel.html works from ANOTHER device too. The channel topic baked into both files
   is a shared secret — keep it private. The machine running the overlay must be allowed to
@@ -124,6 +128,7 @@ export const htmlOverlayTarget: ExportTarget = {
     // picker sends the embedded bytes rather than a path that resolves at neither end.
     addControlPanel(root, template, { inlineAssets: true, entries: ctx?.entries });
     root.file('README.md', overlayReadme(template));
+    root.file('GETTING-ON-AIR.md', onAirGuideMd());
     return zip;
   },
 };

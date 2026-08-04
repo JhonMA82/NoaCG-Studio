@@ -252,10 +252,17 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const entries = Object.keys(zip.files);
-  expect(entries.filter((name) => name.endsWith('/index.html'))).toHaveLength(36);
-  expect(entries).toContain('esports/map_veto/index.html');
-  expect(entries).toContain('esports/series_scorebug/index.html');
-  expect(entries).toContain('esports/volt_stinger/index.html');
+  // Each graphic's template file carries its own name (folder and file agree); no index.html.
+  const graphicHtmls = entries.filter((name) => /^esports\/[^/]+\/[^/]+\.html$/.test(name) && !name.endsWith('controlpanel.html'));
+  expect(graphicHtmls).toHaveLength(36);
+  expect(graphicHtmls.every((name) => {
+    const [, folder, file] = name.split('/');
+    return file === `${folder}.html`;
+  })).toBe(true);
+  expect(entries.filter((name) => name.endsWith('index.html'))).toEqual([]);
+  expect(entries).toContain('esports/map_veto/map_veto.html');
+  expect(entries).toContain('esports/series_scorebug/series_scorebug.html');
+  expect(entries).toContain('esports/volt_stinger/volt_stinger.html');
   expect(entries).toContain('esports/show_controlpanel.html');
   expect(entries).toContain('esports/README.md');
 });

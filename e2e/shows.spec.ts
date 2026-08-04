@@ -53,9 +53,12 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
-  expect(names).toContain('evening_show/hairline/index.html');
-  expect(names).toContain('evening_show/arena_quiz/index.html');
+  // Template files carry the GRAPHIC'S NAME (an SPX rundown lists files; index.html-per-folder
+  // listed every NoaCG template as "index" — student-release acceptance finding).
+  expect(names).toContain('evening_show/hairline/hairline.html');
+  expect(names).toContain('evening_show/arena_quiz/arena_quiz.html');
   expect(names).toContain('evening_show/show_controlpanel.html');
+  expect(names.filter((n) => n.endsWith('index.html'))).toEqual([]);
 
   const panelHtml = await zip.file('evening_show/show_controlpanel.html')!.async('string');
   expect(panelHtml).toContain('spx-control-hairline'); // each card on its own channel
@@ -77,11 +80,11 @@ test('a show collects graphics in rundown order and exports one aggregated panel
 
   const third = await context.newPage();
   await third.route('http://show-rt.local/**', serve);
-  await third.goto('http://show-rt.local/hairline/index.html', { waitUntil: 'load' });
+  await third.goto('http://show-rt.local/hairline/hairline.html', { waitUntil: 'load' });
 
   const quiz = await context.newPage();
   await quiz.route('http://show-rt.local/**', serve);
-  await quiz.goto('http://show-rt.local/arena_quiz/index.html', { waitUntil: 'load' });
+  await quiz.goto('http://show-rt.local/arena_quiz/arena_quiz.html', { waitUntil: 'load' });
 
   const panel = await context.newPage();
   await panel.route('http://show-rt.local/**', serve);
@@ -173,45 +176,56 @@ test('shows and videos ride the storage seam (the sync engine sees and writes bo
   expect(result.videoListed).toBe(true);
 });
 
-test('a published show bakes the hosted receiver into its export; unpublished or offline stays clean', async ({ page }) => {
+test('a production package never carries the hosted receiver, and each graphic gets its own playout layer', async ({ page }) => {
+  // Student-release acceptance regression (2026-08-05): a PUBLISHED show used to bake the
+  // hosted-log receiver into every exported graphic. Under SPX/CasparCG the HOST drives the
+  // template, and the receiver's boot recovery snapped the graphic to its last REPORTED state
+  // (usually off) one RPC round-trip after play() — "the graphic flashes in and disappears"
+  // on real hardware. The package is the offline door: no receiver, published or not.
+  // Cloud-driven browser sources are the HTML-overlay flavor's job, opt-in.
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { buildShowZip } = await import('/src/export/showExport.ts');
-    const template = variantsFor('lower-third')[0].create({});
-    const graphic = { id: 'g-1', name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template };
-    const base = { id: 'a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4', name: 'Baked Show', graphics: [graphic], updatedAt: '2026-01-01T00:00:00.000Z' };
+    const { slug } = await import('/src/export/slug.ts');
+    const third = variantsFor('lower-third')[0].create({});
+    const ticker = variantsFor('ticker')[0].create({});
+    const graphics = [third, ticker].map((template, i) => ({
+      id: `g-${i}`, name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template,
+    }));
+    const base = { id: 'a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4', name: 'Baked Show', graphics, updatedAt: '2026-01-01T00:00:00.000Z' };
     const backend = { ref: 'testref', key: 'sb_publishable_testkey' };
 
-    const jsOf = async (zip: Awaited<ReturnType<typeof buildShowZip>>) => {
-      const path = Object.keys(zip.files).find((n) => n.endsWith('js/template.js'))!;
-      return zip.file(path)!.async('string');
+    const zip = await buildShowZip({ ...base, hostedSlug: 'slug-under-test' }, { hostedBackend: backend });
+    const texts: Record<string, string> = {};
+    for (const n of Object.keys(zip.files)) {
+      if (!zip.files[n].dir && /\.(html|js|md)$/.test(n)) texts[n] = await zip.file(n)!.async('string');
+    }
+    const jsPaths = Object.keys(texts).filter((n) => n.endsWith('js/template.js'));
+    const layerOf = (name: string) => {
+      const html = texts[`baked_show/${slug(name)}/${slug(name)}.html`];
+      return {
+        play: html?.match(/"playlayer":\s*"(\d+)"/)?.[1] ?? null,
+        web: html?.match(/"webplayout":\s*"(\d+)"/)?.[1] ?? null,
+      };
     };
-
-    // Published + backend coordinates: the receiver block is baked, config and all.
-    const published = await jsOf(await buildShowZip({ ...base, hostedSlug: 'slug-under-test' }, { hostedBackend: backend }));
-    // Unpublished: no block, even with a backend.
-    const unpublished = await jsOf(await buildShowZip(base, { hostedBackend: backend }));
-    // Published but OFFLINE (the default resolver, and this suite builds with no backend env):
-    // the export stays 100% offline rather than baking a half-configured receiver.
-    const offline = await jsOf(await buildShowZip({ ...base, hostedSlug: 'slug-under-test' }));
 
     return {
-      publishedHasBlock: published.includes('== HOSTED CONTROL'),
-      publishedConfig: ['"slug-under-test"', JSON.stringify(template.name), '"testref"', '"sb_publishable_testkey"']
-        .every((s) => published.includes(s)),
-      // The export baked the block; the show's SAVED snapshot must stay clean.
-      snapshotClean: !graphic.template.js.includes('== HOSTED CONTROL'),
-      unpublishedClean: !unpublished.includes('== HOSTED CONTROL'),
-      offlineClean: !offline.includes('== HOSTED CONTROL'),
+      anyReceiver: jsPaths.some((p) => texts[p].includes('== HOSTED CONTROL')),
+      snapshotClean: graphics.every((g) => !g.template.js.includes('== HOSTED CONTROL')),
+      // Distinct ascending layers from pool order — every generated template used to say
+      // playlayer '7', so two templates in one SPX rundown evicted each other.
+      thirdLayer: layerOf(third.name),
+      tickerLayer: layerOf(ticker.name),
+      guideShipped: Object.keys(texts).some((n) => n.endsWith('GETTING-ON-AIR.md')),
     };
   });
-  expect(result.publishedHasBlock).toBe(true);
-  expect(result.publishedConfig).toBe(true);
+  expect(result.anyReceiver).toBe(false);
   expect(result.snapshotClean).toBe(true);
-  expect(result.unpublishedClean).toBe(true);
-  expect(result.offlineClean).toBe(true);
+  expect(result.thirdLayer).toEqual({ play: '5', web: '5' });
+  expect(result.tickerLayer).toEqual({ play: '6', web: '6' });
+  expect(result.guideShipped).toBe(true);
 });
 
 test("a show export bakes each graphic's saved library entries into both panels", async ({ page }) => {

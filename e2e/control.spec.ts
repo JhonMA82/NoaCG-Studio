@@ -43,7 +43,7 @@ test('a number field becomes a +/- stepper (no per-template code)', async ({ pag
   await expect(num).toHaveValue(String(before + 1));
 });
 
-test('export bundles controlpanel.html + injects the receiver into index.html', async ({ page }) => {
+test("export bundles controlpanel.html + injects the receiver into the graphic's own html", async ({ page }) => {
   await createScoreboard(page);
   await page.getByTestId('dock-tab-export').click();
   const [download] = await Promise.all([
@@ -53,9 +53,11 @@ test('export bundles controlpanel.html + injects the receiver into index.html', 
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
   expect(names).toContain('match_strip/controlpanel.html');
-  expect(names).toContain('match_strip/index.html');
+  // The template file carries the graphic's own name — SPX rundowns list files, and an
+  // index.html-per-folder package listed every template as "index".
+  expect(names).toContain('match_strip/match_strip.html');
 
-  const index = await zip.file('match_strip/index.html')!.async('string');
+  const index = await zip.file('match_strip/match_strip.html')!.async('string');
   expect(index).toContain('spx-control-receiver');
   expect(index).toContain('new BroadcastChannel');
 
@@ -190,7 +192,7 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
     if (!zip.files[n].dir) files.set(n.replace(/^arena_quiz\//, ''), await zip.file(n)!.async('string'));
   }
   const serve = (route: Route) => {
-    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'index.html';
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'arena_quiz.html';
     const body = files.get(path);
     if (body == null) return route.fulfill({ status: 404, body: 'nf' });
     const ct = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/html';
@@ -199,7 +201,7 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
 
   const graphic = await context.newPage();
   await graphic.route('http://cp-machine.local/**', serve);
-  await graphic.goto('http://cp-machine.local/index.html', { waitUntil: 'load' });
+  await graphic.goto('http://cp-machine.local/arena_quiz.html', { waitUntil: 'load' });
 
   const panel = await context.newPage();
   await panel.route('http://cp-machine.local/**', serve);
@@ -212,6 +214,10 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
   await expect(panel.locator('.state-chip')).toBeVisible();
   await expect(select).toBeDisabled();
   await expect(lock).toBeDisabled();
+  // A graphic answered, so the connectivity story is honest the other way too: no
+  // "nothing is answering" banner, and the footer reports the live pairing.
+  await expect(panel.locator('#nolisten')).toBeHidden();
+  await expect(panel.locator('#status')).toContainText('connected');
 
   // Play → the walk enters the question waypoint; select becomes legal, lock stays out
   // (its only arrow leaves `selected`) — the structural guard, mirrored as greying.
@@ -233,6 +239,30 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
   await graphic.close();
 });
 
+test('the exported panel says so when no graphic is answering (file:// and cross-engine truth)', async ({ page, context }) => {
+  // Student-release acceptance finding: opened from disk the panel used to claim
+  // "local channel: …" while every post landed nowhere (file:// pages have private origins;
+  // OBS/vMix run their own browser engine). The only proof of a listener is a state reply to
+  // the hello — silence must surface, not pretend.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  const panelHtml = await page.evaluate(async () => {
+    const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return renderControlPanelHtml(useTemplateStore.getState().template, null, {});
+  });
+
+  const lone = await context.newPage();
+  await lone.setContent(panelHtml, { waitUntil: 'load' });
+  // Before the verdict: an honest "waiting", never a claimed connection.
+  await expect(lone.locator('#status')).toContainText('waiting for a graphic');
+  await expect(lone.locator('#nolisten')).toBeHidden();
+  // After the grace period with nobody answering, the banner explains what is wrong.
+  await expect(lone.locator('#nolisten')).toBeVisible({ timeout: 6000 });
+  await expect(lone.locator('#nolisten')).toContainText('No graphic is answering');
+  await expect(lone.locator('#nolisten')).toContainText('file://');
+  await lone.close();
+});
+
 test('staging + event log: staged data airs only on take, and refresh recovers both sides', async ({ page, context }) => {
   await createProject(page, { name: 'Arena Quiz' });
   await page.getByTestId('dock-tab-export').click();
@@ -246,7 +276,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
     if (!zip.files[n].dir) files.set(n.replace(/^arena_quiz\//, ''), await zip.file(n)!.async('string'));
   }
   const serve = (route: Route) => {
-    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'index.html';
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'arena_quiz.html';
     const body = files.get(path);
     if (body == null) return route.fulfill({ status: 404, body: 'nf' });
     const ct = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/html';
@@ -255,7 +285,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
 
   const graphic = await context.newPage();
   await graphic.route('http://cp-rec.local/**', serve);
-  await graphic.goto('http://cp-rec.local/index.html', { waitUntil: 'load' });
+  await graphic.goto('http://cp-rec.local/arena_quiz.html', { waitUntil: 'load' });
   const panel = await context.newPage();
   await panel.route('http://cp-rec.local/**', serve);
   await panel.goto('http://cp-rec.local/controlpanel.html', { waitUntil: 'load' });
@@ -320,7 +350,7 @@ test('round-trip: the exported control panel drives the exported graphic over th
 
   // Serve both files from ONE origin so they share the BroadcastChannel (same-origin).
   const serve = (route: Route) => {
-    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'index.html';
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '') || 'match_strip.html';
     const body = files.get(path);
     if (body == null) return route.fulfill({ status: 404, body: 'nf' });
     const ct = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/html';
@@ -329,7 +359,7 @@ test('round-trip: the exported control panel drives the exported graphic over th
 
   const graphic = await context.newPage();
   await graphic.route('http://cp-rt.local/**', serve);
-  await graphic.goto('http://cp-rt.local/index.html', { waitUntil: 'load' });
+  await graphic.goto('http://cp-rt.local/match_strip.html', { waitUntil: 'load' });
 
   const panel = await context.newPage();
   await panel.route('http://cp-rt.local/**', serve);

@@ -8,6 +8,7 @@ import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { slug } from '../common';
+import { onAirGuideMd } from '../onAirGuide';
 import type { ExportTarget } from '../registry';
 
 // Wraps the template's own update() so CasparCG XML payloads work too. Teachable ES5,
@@ -59,6 +60,7 @@ export const casparTarget: ExportTarget = {
         `template's update(). play()/stop()/next() are the standard CasparCG invokes.\n` +
         `Everything is inlined: no other files are needed at playout.\n`,
     );
+    root.file('GETTING-ON-AIR.md', onAirGuideMd());
     return zip;
   },
 };

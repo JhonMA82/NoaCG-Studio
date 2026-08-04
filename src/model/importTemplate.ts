@@ -188,8 +188,14 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   const zip = await JSZip.loadAsync(data);
   const files = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
 
-  // The entry point: prefer an index.html anywhere (shallowest first), else any .html.
-  const htmls = files.filter((n) => n.toLowerCase().endsWith('.html')).sort((a, b) => a.split('/').length - b.split('/').length);
+  // The entry point: prefer an index.html anywhere (shallowest first), else any .html —
+  // never a bundled operator page. Our own packages name the template after the graphic
+  // (hairline/hairline.html) and ship controlpanel.html beside it, so without the exclusion
+  // a round-tripped package could import its control panel as the template.
+  const htmls = files
+    .filter((n) => n.toLowerCase().endsWith('.html'))
+    .filter((n) => !/(^|\/)(show_)?controlpanel\.html$/i.test(n))
+    .sort((a, b) => a.split('/').length - b.split('/').length);
   const entry = htmls.find((n) => n.toLowerCase().endsWith('index.html')) ?? htmls[0];
   if (!entry) throw new Error('No .html file found in the zip.');
   const base = entry.includes('/') ? entry.slice(0, entry.lastIndexOf('/') + 1) : '';

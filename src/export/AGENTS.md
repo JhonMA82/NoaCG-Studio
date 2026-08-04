@@ -31,7 +31,16 @@ export-time reflow, stretching, or cropping.
   setContent() and srcdoc both inherit the dev server's base URL and hide exactly this class of
   defect.
 - **targets/spxStarter.ts** - the one SPX export = spxTarget, id 'spx'; + buildStarterInto,
-  reused by the show export.
+  reused by the show export. **The template file carries the graphic's own slug**
+  (`hairline/hairline.html`, never index.html): SPX rundowns list FILES, and an
+  index.html-per-folder package listed every NoaCG template as "index" (real SPX packs name
+  every template file - see example_projects/). The show export passes `fileName` so a
+  collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`).
+- **onAirGuide.ts** - GETTING-ON-AIR.md, the playout-side quick guide bundled into the SPX,
+  CasparCG, HTML-overlay and show packages (condensed from docs/PLAYOUT_INTEGRATION.md - keep
+  them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is
+  origin-scoped, so the panel pairs only over one http(s) origin in one browser - never over
+  file:// (private opaque origins) and never into OBS/vMix/CasparCG's own engine.
 - **targets/htmlOverlay.ts** - OBS/vMix browser source: an autoplay block fills fields from baked
   sampleData -> definition defaults, then play(). An auto-out `out` = N ms setting rides
   along: the block measures the entrance from a paused throwaway timeline and schedules
@@ -53,9 +62,14 @@ export-time reflow, stretching, or cropping.
   `entriesForSavedGraphic`, by graphicId with a unique-name fallback - the SAME resolver the
   hosted control page uses) and baked into both the aggregated panel and each graphic's own
   controlpanel.html; entries are never embedded in the show, so there is no persisted-shape
-  change to migrate (docs/SAVED_CONTENT_MODEL.md §4). A PUBLISHED show (hostedSlug set) bakes
-  the hosted-control receiver block into each graphic AT EXPORT - the saved snapshot stays
-  clean, an unpublished show exports 100% offline (docs/CONTROL_LAYER.md).
+  change to migrate (docs/SAVED_CONTENT_MODEL.md §4). **Two playout rules it owns
+  (student-release acceptance, 2026-08-05): NO hosted receiver, published or not** - the
+  package is the offline door and SPX/CasparCG are the controller; a baked log follower's boot
+  recovery snapped graphics to their last reported (off) state right after the host's play()
+  ("flashes in and disappears" on real hardware; cloud-driven browser sources are the
+  HTML-overlay flavor's opt-in job) - **and DISTINCT playout layers per pool graphic**
+  (`showGraphicLayer`: 5 + pool index, capped at SPX's webplayout 20), because every generated
+  template declaring playlayer '7' meant two templates in one rundown evicted each other.
 - **common.ts** - addSharedAssets, addReferencedFonts, injectControlReceiver + addControlPanel,
   FONT_LICENSES.md.
 
@@ -83,7 +97,7 @@ text.
 
 - Asset paths: uploads land at `images/<file>` (fonts at `fonts/<file>`); the export zip wraps
   everything in one project folder, so extracting into a templates folder yields
-  `[TemplatesFolder]/<project>/index.html` + `<project>/images/<file>` - the layout SPX and
+  `[TemplatesFolder]/<project>/<project>.html` + `<project>/images/<file>` - the layout SPX and
   CasparCG expect. Both of those exporters use `zip.folder(slug(name))`.
 - Uploads are base64 data URLs in `template.assets[]`; the preview inlines them, the exporter
   decodes them to real files. The Assets panel may nest ONE user folder inside a bucket

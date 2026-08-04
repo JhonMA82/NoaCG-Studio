@@ -94,7 +94,7 @@ test('corner bug: the logo field replaces the placeholder mark', async ({ page }
     .toBe('data:');
 });
 
-test('export: the zip is [project]/index.html with images under [project]/images/', async ({ page }) => {
+test('export: the zip is [project]/[project].html with images under [project]/images/', async ({ page }) => {
   await createFrom(page, 'Credits', 'Classic Roll');
   await create(page);
   await uploadImage(page, 'Logo', 'station_logo.png');
@@ -105,7 +105,7 @@ test('export: the zip is [project]/index.html with images under [project]/images
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
-  expect(names).toContain('classic_roll/index.html');
+  expect(names).toContain('classic_roll/classic_roll.html');
   expect(names).toContain('classic_roll/images/station_logo.png');
   expect(names).toContain('classic_roll/js/template.js');
   expect(names).toContain('classic_roll/js/gsap.min.js');

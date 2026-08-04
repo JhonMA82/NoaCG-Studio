@@ -1,7 +1,11 @@
 // Generate the standalone controlpanel.html bundled with an export: a self-contained
 // operator page (inline CSS + JS, no dependencies) built from a graphic's fields and its
 // state machine's control buttons. It drives the graphic over a BroadcastChannel — open the
-// graphic (index.html) and this page in the same browser and operate it live.
+// graphic's own .html and this page FROM THE SAME http(s) ORIGIN in the same browser and
+// operate it live. BroadcastChannel is origin-scoped: two file:// pages never share one
+// (each local file gets a private opaque origin), and a graphic inside OBS/vMix/CasparCG
+// runs in a different browser engine entirely — the panel detects the silence (no state
+// reply to its hello) and says so instead of pretending to be connected.
 //
 // Same engine as the in-app Control tab: the SAME field descriptors (model/fieldModel.ts)
 // and the SAME event-button merge (blocks/animMachine.ts machineControls). It only renders
@@ -199,6 +203,8 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
   .actions .primary { background:var(--accent); color:#06131f; border-color:var(--accent); font-weight:700; flex:1; }
   .live { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); }
   .thumb { width:40px; height:40px; object-fit:contain; background:var(--bg); border:1px solid var(--line); border-radius:6px; }
+  .nolisten { display:none; max-width:680px; margin:14px auto 0; padding:12px 16px; border:1px solid #8a4a2a; border-radius:10px; background:#2d1c12; color:#f0c9a8; font-size:13px; line-height:1.5; }
+  .nolisten strong { color:#f5d8bd; }
 </style>
 </head>
 <body>
@@ -207,9 +213,28 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
   <span class="status" id="status">connecting…</span>
   <label class="live"><input type="checkbox" id="live" checked style="width:auto" /> live</label>
 </header>
+<div class="nolisten" id="nolisten">
+  <strong>No graphic is answering.</strong> This panel reaches a graphic over a same-origin
+  browser channel: open the graphic's .html and this page from the <strong>same web address</strong>
+  (http:// or https://) in the <strong>same browser</strong> — e.g. SPX's template server or any
+  local web server. Files opened straight from disk (file://) cannot connect, and a graphic
+  loaded inside OBS/vMix/CasparCG runs its own browser — use that host's controls there
+  (or an OBS Custom Browser Dock). See GETTING-ON-AIR.md in this package.
+</div>
 <main id="cards"></main>
 <script>
 var GRAPHICS = ${jsonForScript(graphics)};  // one card per graphic: fields, event buttons, legality, channel
+// Honesty about connectivity: a BroadcastChannel EXISTING proves nothing — over file:// the
+// pages sit in private origins and every post lands nowhere. The only proof of a listener is
+// a state reply to our hello, so until one arrives the footer says "waiting" and after a
+// grace period the banner above explains what is wrong (unless a remote transport is
+// configured, whose sends are legitimately blind).
+var answeredAny = false;
+function noteAnswer() {
+  answeredAny = true;
+  document.getElementById('nolisten').style.display = 'none';
+  paintStatus();
+}
 
 function el(tag, attrs, kids) {
   var e = document.createElement(tag);
@@ -477,7 +502,7 @@ GRAPHICS.forEach(function (g) {
   if (ch) ch.onmessage = function (ev) {
     var m = ev.data || {};
     // The graphic answers every message (and 'hello') with its machine state.
-    if (m.t === 'state' && m.state) { machineState = m.state; log.state = m.state; persistLog(); paintState(); }
+    if (m.t === 'state' && m.state) { machineState = m.state; log.state = m.state; persistLog(); paintState(); noteAnswer(); }
     // A rebooted graphic (browser-source refresh, crash) announces itself: rebuild it from
     // the log — the latest data first (the data half of reset), then snap to the last known
     // state (the visual half; timers arm, recovery semantics). First boot has nothing
@@ -493,9 +518,19 @@ GRAPHICS.forEach(function (g) {
   if (ch) post({ t: 'hello' });
 });
 
-document.getElementById('status').textContent =
-  ${jsonForScript(anyRemote)} ? 'remote + local' :
-  (connected > 0 ? (GRAPHICS.length === 1 ? 'local channel: ' + GRAPHICS[0].channel : connected + ' local channels') : 'BroadcastChannel unsupported');
+function paintStatus() {
+  var elStatus = document.getElementById('status');
+  if (${jsonForScript(anyRemote)}) { elStatus.textContent = 'remote + local'; return; }
+  if (connected === 0) { elStatus.textContent = 'BroadcastChannel unsupported'; return; }
+  if (!answeredAny) { elStatus.textContent = 'waiting for a graphic…'; return; }
+  elStatus.textContent = GRAPHICS.length === 1 ? 'connected: ' + GRAPHICS[0].channel : 'graphic connected';
+}
+paintStatus();
+// Give a same-origin graphic a moment to answer the hello; silence after that means the
+// pairing cannot work from where these files were opened — say so.
+setTimeout(function () {
+  if (!answeredAny && !${jsonForScript(anyRemote)}) document.getElementById('nolisten').style.display = 'block';
+}, 2500);
 </script>
 </body>
 </html>`;
