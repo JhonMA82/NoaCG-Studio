@@ -47,6 +47,15 @@ export interface TemplatePack {
    *  but never all six and not the same set for every pack — Match Day and Esports resolve in
    *  two, editorial and cinematic in none (see the header). Ask `resolvePack`, don't assume. */
   family: StyleTag;
+  /**
+   * The ONE palette every kit graphic is CREATED with (docs/GOALS.md "Student release" step
+   * 7) — the unified look a coherent show demands. A style family is not one palette (the
+   * measured fact: newsroom's own defaults mixed signal, ivory, frost and noacg), so a pack
+   * that claims production-readiness names its palette and the kit create imposes it on
+   * every graphic. Absent = each design keeps its own default — the pre-step-7 behavior the
+   * uncurated packs (and their pinned specs, e.g. esports' Volt) still rely on.
+   */
+  paletteId?: string;
   /** GraphicType ids, in curated order (the order a rundown would reach for them). */
   types: string[];
   /** Catalog variants OUTSIDE the type registry that belong in the kit (end credits, the
@@ -293,6 +302,9 @@ export const PACKS: TemplatePack[] = [
     name: 'Newsroom',
     description: 'Anchor straps, the wire ticker, headline and topic cards for news programs.',
     family: 'minimal',
+    // The unified desk look (step 7): every kit graphic is created in Ivory, so the strap,
+    // the crawls and the cards read as ONE broadcast rather than four palettes.
+    paletteId: 'ivory',
     types: [
       'lower-third', 'ticker', 'topic-card', 'title-card', 'agenda', 'sponsor-bug',
       'headline-card', 'key-facts', 'notice-card',
@@ -305,15 +317,18 @@ export const PACKS: TemplatePack[] = [
       'alert-level', 'public-notice',
     ],
     extras: [
-      // The news desk's specialist straps: the remote two-box interview, the kicker that
-      // marks comment as comment, the expert's field of expertise, the LIVE flag as its own
-      // element, the correspondent's dateline, and — for a market show cutting between
-      // exchanges — the strap that computes another city's time instead of stating it.
-      'ls01', 'ls23', 'ls24', 'ls28', 'ls29', 'ls30',
+      // The news desk's specialist straps, ALL in-family since step 7 (the measured audit
+      // found ls24 glass, ls29 noacg, ls30 glass riding a minimal kit): the remote two-box
+      // interview, the kicker that marks comment as comment, the LIVE flag as its own
+      // element, the debate podium for election nights, and the press-conference lectern.
+      'ls01', 'ls23', 'ls28', 'ls21', 'ls17',
       // The crawls, one per job the `ticker` type's own design does not do: caps framing the
       // travel, a strip along the TOP while the lower third is busy, market deltas, the
-      // opaque notice crawl, the breaking dot, a bilingual split, and the fixed top deck.
-      'tk11', 'tk12', 'tk14', 'tk15', 'tk16', 'tk17', 'tk20',
+      // opaque notice crawl, the breaking dot, a bilingual split — and the index strip +
+      // status rotator standing in for the off-family split deck and world clock. (NOT
+      // tk10: the ticker TYPE already resolves to Wire Rotator in this family, and the
+      // name-keyed pool would silently merge the duplicate.)
+      'tk11', 'tk12', 'tk14', 'tk15', 'tk16', 'tk17', 'tk04', 'tk18',
       // The breaking banner (its kicker is a field, not a state), the numbered emergency
       // instructions, and the source label a press conference is obliged to carry.
       'al09', 'pi02', 'pi03',
@@ -368,6 +383,9 @@ export const PACKS: TemplatePack[] = [
     name: 'Talk Show',
     description: 'Guest straps, topic and question cards, polls — panels, podcasts and Q&As.',
     family: 'glass',
+    // The unified studio look (step 7): everything in Frost, so the straps, cards and
+    // audience surfaces read as one show rather than frost/orchid/noacg/ivory at once.
+    paletteId: 'frost',
     types: [
       'lower-third', 'topic-card', 'poll', 'agenda', 'social-bug', 'sponsor-bug', 'countdown',
       'key-facts', 'recap-card',
@@ -378,11 +396,15 @@ export const PACKS: TemplatePack[] = [
       'viewer-question', 'qa-card', 'chat-highlight', 'question-queue', 'live-poll',
     ],
     extras: [
-      // The panel's own straps: the two-card remote interview, the guest-over-host pair in
-      // both its compositions, the specialist's subject tag, and the now-playing strap a
+      // The panel's own straps, ALL in-family since step 7 (the measured audit found ls05
+      // and ss06 noacg and card52 ivory riding a glass kit): the two-card remote interview,
+      // the guest-over-host pair, the specialist's subject tag, and the now-playing strap a
       // radio-with-video show needs (the topic card had been standing in for it).
-      'ls02', 'ls04', 'ls05', 'ls24', 'ls25',
-      'card52', 'ss06', 'ss12',
+      'ls02', 'ls04', 'ls24', 'ls25',
+      // The coming-up card replaces the off-family Studio Pair (ls04 already carries that
+      // job), the glass Reading Card replaces the ivory Quotation, and Intermission
+      // replaces the noacg Short Break beside the kept Back Shortly.
+      'card19', 'card35', 'ss07', 'ss12',
     ],
     formats: [
       'Talk show / panel discussion',

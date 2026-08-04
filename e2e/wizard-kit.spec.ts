@@ -147,6 +147,50 @@ test('picking another kit brings back its own default look', async ({ page }) =>
   await expect(family).toHaveValue('minimal'); // newsroom's own, not the carried pick
 });
 
+test('the newsroom and talk-show kits are coherent: one look, one family, no duplicates', async ({ page }) => {
+  // The student-release flagship kits (docs/GOALS.md step 7). Their promise is COHERENCE:
+  // every graphic in the kit shares ONE curated look. Measured before the fix (2026-08-04):
+  // newsroom shipped 4 of 32 graphics off-family and mixed four accent palettes; talk-show
+  // 3 of 24 off-family across four palettes. The mechanism is `TemplatePack.paletteId` -
+  // imposed on every kit graphic at create - plus in-family extras curation, and this test
+  // is the drift guard for both. Module-level on purpose: the church test above already
+  // pins the create/pool/cue mechanics, so building 56 graphics through the UI would re-buy
+  // that coverage at real cost.
+  await page.goto('/app');
+  const report = await page.evaluate(async () => {
+    const { PACKS } = await import('/src/templates/packs.ts');
+    const { kitItems } = await import('/src/templates/kit.ts');
+    const { paletteById } = await import('/src/model/wizard.ts');
+    const out: Record<string, { total: number; offFamily: string[]; accents: string[]; expected: string; dupes: string[] }> = {};
+    for (const pack of PACKS.filter((p) => ['newsroom', 'talk-show'].includes(p.id))) {
+      const items = kitItems(pack, pack.family);
+      const palette = paletteById(pack.paletteId!);
+      const accents = new Set<string>();
+      for (const item of items) {
+        const created = item.variant.create({ palette });
+        accents.add(created.css.match(/--accent:\s*([^;]+);/)?.[1]?.trim() ?? 'NONE');
+      }
+      const names = items.map((item) => item.variant.name);
+      out[pack.id] = {
+        total: items.length,
+        offFamily: items.filter((item) => item.variant.styleTag !== pack.family).map((item) => item.variant.id),
+        accents: [...accents],
+        expected: palette.accent,
+        dupes: names.filter((name, index) => names.indexOf(name) !== index),
+      };
+    }
+    return out;
+  });
+
+  expect(report['newsroom'].total).toBe(32);
+  expect(report['talk-show'].total).toBe(24);
+  for (const kit of Object.values(report)) {
+    expect(kit.offFamily).toEqual([]);
+    expect(kit.accents).toEqual([kit.expected]); // ONE accent across the whole kit
+    expect(kit.dupes).toEqual([]); // a type resolution and an extra naming the same design would silently merge in the pool
+  }
+});
+
 test('the Esports kit builds and downloads as one complete Volt tournament package', async ({ page }) => {
   await page.goto('/app');
   await page.locator('[data-entry="kit"]').click();

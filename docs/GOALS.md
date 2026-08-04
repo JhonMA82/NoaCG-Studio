@@ -1318,8 +1318,14 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       the republish hint), and the walk measured: fresh visit → named production with a
       seeded cue in ~1 second of machine time. (The publish/output wire half stays on the
       step-10 owner checklist - backend-gated by design.)
-- [ ] **7. Two coherent production-ready packs** - newsroom + talk-show, one unified look
-      each, complete for their programme type.
+- [x] **7. Two coherent production-ready packs** - newsroom + talk-show, one unified look
+      each, complete for their programme type. Done 2026-08-04: `TemplatePack.paletteId`
+      imposes ONE palette on every kit graphic at create (newsroom = ivory, talk-show =
+      frost; a pack without one keeps design defaults, which the esports Volt kit relies
+      on), extras recurated in-family (measured before: newsroom 4/32 off-family across
+      four palettes, talk-show 3/24 across four), and a duplicate the name-keyed pool
+      would have silently merged removed. Coherence pinned in e2e/wizard-kit.spec.ts.
+      Catalog defaults untouched - no baseline re-record needed.
 - [ ] **8. Home simplified around Productions** - productions first, dashboards one click,
       professional aligned grid, phone reaches a control dashboard in two taps.
 - [ ] **9. Account essentials** - password reset and change, account email, sign out,

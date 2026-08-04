@@ -42,15 +42,29 @@ config are ready for it; only the surface is unbuilt.
 | Match Day | sport | scorebug, match-board, match-status, match-event, fixtures, scoreboard, countdown, lower-third, ticker, sponsor-bug, title-card, holding-screen, now-next, notice-card, event-bug, live-bug, sponsor-strip, status-chip, roster, standings, winner-card | ls06, ls07, ls08, ls09, ls10, tk13, al10, vs01, cr03, ss11, cr12 |
 | Esports | sport | title-card, holding-screen, countdown, now-next, agenda, notice-card, station-bug, live-bug, event-bug, status-chip, lower-third, social-bug, sponsor-bug, sponsor-strip, sponsor-rotator, transition, matchup, head-to-head, player-card, roster, esports-score, map-round, match-event, match-status, fixtures, standings, bracket, ticker, scoreboard, winner-card | mr04, ls11, ls06, ls13, tk13, cr12 |
 | Creator | noacg | holding-screen, lower-third, topic-card, social-bug, sponsor-bug, countdown, poll, now-next, process-steps, station-bug, live-bug, logo-bug, chat-highlight, live-poll, viewer-question | ls03, ls31, ls32, al07, al10, ss06, ss08, ss09, ss12 |
-| Newsroom | minimal | lower-third, ticker, topic-card, title-card, agenda, sponsor-bug, headline-card, key-facts, notice-card, station-bug, live-bug, status-chip, **alert-level**, **public-notice** | ls01, ls23, ls24, ls28, ls29, ls30, tk11, tk12, tk14, tk15, tk16, tk17, tk20, al09, pi02, pi03, ss08, card52 |
+| Newsroom | minimal | lower-third, ticker, topic-card, title-card, agenda, sponsor-bug, headline-card, key-facts, notice-card, station-bug, live-bug, status-chip, **alert-level**, **public-notice** | ls01, ls23, ls28, ls21, ls17, tk11, tk12, tk14, tk15, tk16, tk17, tk04, tk18, al09, pi02, pi03, ss08, card52 |
 | Election | minimal | poll, lower-third, ticker, title-card, agenda, countdown, headline-card, key-facts, status-chip, live-bug, live-poll, **public-notice** | ls20, ls21, ls22, ls23, tk15, pi01, pi05, pi07, card52, cr05 |
-| Talk Show | glass | lower-third, topic-card, poll, agenda, social-bug, sponsor-bug, countdown, key-facts, recap-card, station-bug, sponsor-rotator, viewer-question, qa-card, chat-highlight, question-queue, live-poll | ls02, ls04, ls05, ls24, ls25, card52, ss06, ss12 |
+| Talk Show | glass | lower-third, topic-card, poll, agenda, social-bug, sponsor-bug, countdown, key-facts, recap-card, station-bug, sponsor-rotator, viewer-question, qa-card, chat-highlight, question-queue, live-poll | ls02, ls04, ls24, ls25, card19, card35, ss07, ss12 |
 | Corporate Events | minimal | agenda, lower-third, countdown, title-card, topic-card, poll, holding-screen, now-next, process-steps, recap-card, key-facts, event-bug, sponsor-strip, question-queue, qa-card, viewer-question, live-poll | ls17, ls18, ls19, ls24, al07, al08, pi04, pi06, ss13, cr05, cr07, cr09 |
 | Classroom | noacg | quiz-board, countdown, lower-third, topic-card, agenda, scoreboard, process-steps, key-facts, recap-card, logo-bug, verdict-card, standings, answer-board-2, answer-board-3, live-poll, viewer-question | ls17, ls18, cr10, card58, ss13 |
 | Church & Ceremony | minimal | title-card, lower-third, topic-card, holding-screen, countdown, agenda, statement-card, logo-bug, event-bug, community-request, viewer-question, question-queue | ls14, ls15, ls16, pi07, cr01, cr05, cr10, cr11, ss07, ss10, card50, card51, card54, card55, card57 |
 | Stage & Music | glass | title-card, lower-third, holding-screen, countdown, social-bug, agenda, ticker, now-next, statement-card, notice-card, award-bug, event-bug | ls04, ls25, ls26, ls27, al10, cr02, cr09, cr12, ss07, ss11, card56 |
 | Shopping | noacg | topic-card, countdown, lower-third, ticker, title-card, sponsor-bug, key-facts, sponsor-strip, sponsor-rotator | pi04, ss06, ss12, cr12 |
 | Wellness | minimal | countdown, holding-screen, topic-card, lower-third, social-bug, process-steps, logo-bug | pi04, pi06, ss08, ss09, card52 |
+
+### Kit look unification (`TemplatePack.paletteId`)
+
+A pack may declare a palette id, and the kit create path then builds EVERY graphic in the kit
+with that palette imposed - the same `variant.create({ palette })` a wizard palette pick uses.
+This is what makes a kit's graphics read as one package out of the box: measured 2026-08-04,
+the newsroom kit's 32 graphics otherwise arrived in four different accent palettes (each
+design's own default) and the talk-show kit's 24 in four. Newsroom declares `ivory`, Talk Show
+declares `frost`. A pack WITHOUT a palette id keeps every design's own defaults - the Esports
+kit relies on that, because its specialists' Volt look is authored into the designs themselves
+(below). Curation rule the newsroom kit taught: an extra must not name a design a pack's TYPE
+already resolves to in its family - the production pool is name-keyed, so the duplicate would
+silently merge (`tk10` Wire Rotator was the case; the ticker type already resolves to it in
+minimal). Both rules are pinned in e2e/wizard-kit.spec.ts.
 
 ### The complete Esports tournament package
 

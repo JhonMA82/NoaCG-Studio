@@ -352,12 +352,16 @@ export default function CreationWizard() {
       // through the matrix PLUS the pack's extras. Reading only the resolved types here
       // silently dropped every extra (end credits, the versus card) while the card still
       // counted them, so the kit built fewer graphics than it promised.
+      // A pack that declares its palette (step 7 - the curated production-ready ones) gets
+      // it imposed on EVERY graphic: a style family is not one palette, and the measured
+      // audit found a single kit mixing four. Packs without one keep each design's own
+      // default - the pre-step-7 behavior their pinned looks (esports' Volt) rely on.
+      const kitPalette = pack.paletteId ? paletteById(pack.paletteId) : undefined;
       const built = kitItems(pack, family).map((item) => ({
         name: item.variant.name,
-        // Only the project format is imposed. Everything else stays the design's own
-        // tasteful default: a kit's whole promise is that its graphics already look like
-        // siblings, and overriding palette or font per graphic here would fight that.
-        template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps }),
+        // Beyond palette, only the project format is imposed - everything else stays the
+        // design's own tasteful default.
+        template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps, palette: kitPalette }),
       }));
 
       // Library records first, so the production is only created once every graphic in it
