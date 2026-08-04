@@ -195,6 +195,24 @@ jobs:
       - name: E2E time budget
         run: node scripts/e2e-budget.mjs nightly-report.json
 
+      # Classify failures focus-vs-paused for the verdict job (docs/GOALS.md "Student
+      # release"). Runs even when shards failed - a red night is exactly when the triage
+      # matters - and never fails the job itself: the script degrades to an honest note.
+      - name: Triage failures (sprint focus vs paused areas)
+        if: ${{ !cancelled() }}
+        run: node scripts/nightly-triage.mjs nightly-report.json > nightly-triage.md
+
+      - name: Upload triage
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: nightly-triage
+          path: |
+            nightly-triage.md
+            nightly-triage.json
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Upload combined report
         uses: actions/upload-artifact@v4
         with:
@@ -257,8 +275,23 @@ jobs:
           fi
           printf 'commits<<EOF\n%s\nEOF\n' "$LOG" >> "$GITHUB_OUTPUT"
 
+      # The per-spec triage from the report job (focus vs paused areas + the failure-set
+      # hash). Absent when the report job died before merging - the verdict still files, just
+      # without classification.
+      - name: Download triage
+        if: ${{ steps.verdict.outputs.green == 'false' }}
+        uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          name: nightly-triage
+          path: nightly-triage
+
       # The rolling-issue pattern every alarm here follows (docs/DEPLOYMENT.md): one open issue,
-      # one comment per newly red night, closed by the next green.
+      # one comment per newly red night, closed by the next green. Sprint amendment
+      # (docs/GOALS.md "Student release"): when the triage shows ZERO focus failures and the
+      # failure SET is byte-identical to the one already reported (the hash marker in the last
+      # comment), post nothing - paused-area drift is reported once per CHANGE of drift, never
+      # once per night. Any focus failure always posts.
       - name: File / update the nightly issue
         if: ${{ steps.verdict.outputs.green == 'false' }}
         env:
@@ -269,9 +302,20 @@ jobs:
         run: |
           TITLE="Nightly full test suite is red"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          BODY="$(printf 'Nightly at %s failed.\n\n**What failed**\n%s\n**Commits since the last green nightly**\n```\n%s\n```\n\nRun: %s' \
-            "${{ github.sha }}" "$FAILED" "$COMMITS" "$RUN_URL")"
+          TRIAGE=""
+          [ -f nightly-triage/nightly-triage.md ] && TRIAGE="$(cat nightly-triage/nightly-triage.md)"
+          BODY="$(printf 'Nightly at %s failed.\n\n**What failed**\n%s\n%s\n\n**Commits since the last green nightly**\n```\n%s\n```\n\nRun: %s' \
+            "${{ github.sha }}" "$FAILED" "$TRIAGE" "$COMMITS" "$RUN_URL")"
           EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ] && [ -f nightly-triage/nightly-triage.json ]; then
+            HASH="$(jq -r '.hash' nightly-triage/nightly-triage.json)"
+            FOCUS_FAILED="$(jq -r '.focusFailed | length' nightly-triage/nightly-triage.json)"
+            LAST="$(gh issue view "$EXISTING" --json comments,body --jq '(.comments | map(.body) | last) // .body')"
+            if [ "$FOCUS_FAILED" = "0" ] && printf '%s' "$LAST" | grep -q "nightly-failure-set: $HASH"; then
+              echo "Same paused-area failure set already reported ($HASH) and no focus failures - not commenting."
+              exit 0
+            fi
+          fi
           if [ -z "$EXISTING" ]; then
             gh issue create --title "$TITLE" --body "$BODY"
           else

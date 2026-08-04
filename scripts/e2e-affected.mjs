@@ -11,6 +11,7 @@
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
 // config) runs the full suite, because those files feed every flow.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { FOCUS } from './e2e-lists.mjs';
 
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
@@ -153,6 +154,13 @@ const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin
 const CATALOG_TRIGGERS = [/^src\/templates\//, /^src\/blocks\//, /^src\/assets\//, /^src\/validation\/runtimeBench\.ts$/];
 
 const args = process.argv.slice(2);
+// SPRINT FOCUS (docs/GOALS.md "Student release", scripts/e2e-lists.mjs): while the sprint
+// runs, a CORE/unmapped escalation runs the student-critical focus set instead of the full
+// suite. Opt-in via env so nothing changes for a checkout that has not set it; --no-focus
+// forces the honest full escalation for a one-off. Mapped subsets are NOT intersected - they
+// are already small and precisely targeted, and intersecting would run zero relevant specs
+// for a paused-area fix. The nightly still runs everything.
+const sprintFocus = process.env.E2E_SPRINT_FOCUS === '1' && !args.includes('--no-focus');
 // --json prints the plan as one machine-readable object and runs nothing, which is how CI
 // decides between "skip the suite", "run these specs" and "run everything". It implies
 // --list, and it silences the human commentary: in this mode stdout is a data channel and a
@@ -211,16 +219,29 @@ for (const file of changed) {
     for (const [, list] of rules) for (const s of list) specs.add(s);
   }
 }
+// Under sprint focus, the escalation that would have run everything runs the focus set
+// (union with whatever the mapped rules already named). The full->catalog coupling below is
+// deliberately skipped for an intercepted run: a styles.css tweak stops paying the 25-minute
+// catalog gate, while a direct CATALOG_TRIGGERS match above still raises the flag.
+let focusApplied = false;
+if (full && sprintFocus) {
+  full = false;
+  focusApplied = true;
+  for (const s of FOCUS) specs.add(s);
+}
 // A core/unmapped change gets the same conservative default the offline suite gets: assume it
 // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
 if (full) catalogAffected = true;
 
 if (unmapped.length > 0) {
-  log('e2e-affected: no mapping for these files (falling back to the full suite):');
+  log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
   for (const f of unmapped) log('  -', f);
 }
 
 const plan = full ? [] : [...specs].sort();
+if (focusApplied) {
+  log(`e2e-affected: SPRINT FOCUS - a core/unmapped change would run the full suite (96 files); running the ${plan.length}-spec student-critical set instead (E2E_SPRINT_FOCUS=1; nightly still runs everything).`);
+}
 if (full) {
   log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
 } else if (plan.length === 0 && !catalogAffected) {
