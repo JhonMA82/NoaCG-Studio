@@ -8,7 +8,7 @@ import type { ProjectFormatSelection } from '../../../model/projectFormat';
 interface Props {
   format: ProjectFormatSelection;
   onFormat: (selection: ProjectFormatSelection) => void;
-  /** Build the kit: one package holding every graphic in it. */
+  /** Build the kit: one PRODUCTION holding every graphic in it. */
   onCreate: (pack: TemplatePack, family: StyleTag) => void;
   busy: boolean;
   error: string | null;
@@ -41,9 +41,9 @@ function familiesFor(pack: TemplatePack): StyleTag[] {
  * The KIT step (docs/PACK_TAXONOMY.md, ratified in docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18).
  *
  * Its own entry, deliberately NOT a third mode inside Browse: **Browse produces one graphic,
- * a kit produces several**, and a surface that promises a single pick while delivering a
- * package would be lying about the outcome. So the whole step is one decision - "which show
- * am I running?" - and the outcome is a saved package, not an open editor.
+ * a kit produces several**, and a surface that promises a single pick while delivering many
+ * would be lying about the outcome. So the whole step is one decision - "which show am I
+ * running?" - and the outcome is a PRODUCTION ready to publish or export, not an open editor.
  *
  * A kit is pure config (`src/templates/packs.ts`): `resolvePack` looks each graphic TYPE up
  * in the (type x family) matrix and returns shipped, gate-checked designs - so re-resolving
@@ -83,7 +83,7 @@ export default function KitStep({ format, onFormat, onCreate, busy, error }: Pro
     <div className="wz-kit" data-testid="kit-step">
       <p className="wz-kit-lede">
         A kit is a curated set of graphics for one kind of show — created together into a
-        package, ready to open one by one.
+        production, ready to publish or export as one package.
       </p>
 
       <div className="wz-kit-grid" role="list">
@@ -154,8 +154,8 @@ export default function KitStep({ format, onFormat, onCreate, busy, error }: Pro
             {busy ? 'Creating…' : `Create the ${selected.name} kit`}
           </button>
           <p className="hint">
-            Saves {contents?.length ?? kitSize(selected)} graphics into a new package and
-            takes you to it. Nothing opens in the editor — open whichever one you need first.
+            Saves {contents?.length ?? kitSize(selected)} graphics into a new production and
+            takes you to its page — publish for live output URLs, or export the whole set.
           </p>
         </div>
       )}

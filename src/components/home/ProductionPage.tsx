@@ -887,6 +887,7 @@ export default function ProductionPage({ id }: { id: string }) {
               onClick={() => void downloadShowZip(show)}
               disabled={show.graphics.length === 0}
               title="The offline package: one SPX folder per graphic + the standalone control page"
+              data-testid="export-production"
             >
               ⬇ Export package
             </button>

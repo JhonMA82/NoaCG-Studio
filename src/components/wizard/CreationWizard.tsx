@@ -51,7 +51,8 @@ import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
 import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
-import { createPacketNamed } from '../../model/packets';
+import { captureLookFromTemplate } from '../../model/packets';
+import { addGraphicToShow, createShowNamed, setShowLook } from '../../model/shows';
 import type { TemplatePack } from '../../templates/packs';
 import { kitItems } from '../../templates/kit';
 import type { StyleTag } from '../../model/fonts';
@@ -299,12 +300,13 @@ export default function CreationWizard() {
   };
 
   /**
-   * Build a KIT: every graphic in the pack, saved into one new package.
+   * Build a KIT: every graphic in the pack, saved to the library and pooled into one new
+   * PRODUCTION - the unit that airs (docs/GOALS.md "Student release" step 3).
    *
    * It deliberately does NOT touch the editor - no applyTemplate, no working project. A kit's
-   * outcome is a package of several graphics, and silently opening one of them would pick for
-   * the user and leave the other N-1 looking like they had not been made. Landing on the
-   * package puts all of them in front of them instead.
+   * outcome is a production of several graphics, and silently opening one of them would pick
+   * for the user and leave the other N-1 looking like they had not been made. Landing on the
+   * production page puts all of them - and the road to air - in front of them instead.
    *
    * Graphics are written straight through `createGraphic` rather than the store's save path,
    * because that path saves THE OPEN PROJECT and there is exactly one of those. A partial
@@ -327,17 +329,29 @@ export default function CreationWizard() {
         template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps }),
       }));
 
-      // The package exists only once every graphic in it built, so a resolution error above
-      // never leaves an empty package on Home.
-      const packet = createPacketNamed(pack.name);
-      for (const item of built) {
-        const { error } = createGraphic(item.template, { name: item.name, packageId: packet.id });
+      // Library records first, so the production is only created once every graphic in it
+      // saved - a quota failure mid-way never leaves an empty production on Home.
+      const docs = built.map((item) => {
+        const { doc, error } = createGraphic(item.template, { name: item.name, packageId: null });
+        if (error || !doc) throw new Error(error ?? 'Could not save the graphic.');
+        return doc;
+      });
+
+      // Pool each copy with its library back-link - the same construction the production
+      // page's own add uses, cue auto-seeding included. Pool order follows the pack's list
+      // order, which is also the layer paint order (index 0 furthest back).
+      const show = createShowNamed(pack.name);
+      for (const doc of docs) {
+        const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
         if (error) throw new Error(error);
       }
+      // The kit's curated look becomes the production's look, so a graphic later made FOR
+      // this production inherits it.
+      if (docs[0]) setShowLook(show.id, captureLookFromTemplate(docs[0].template));
 
       trackEvent('activation', 'kit');
       closeGallery();
-      useRouter.getState().navigate({ view: 'package', id: packet.id });
+      useRouter.getState().navigate({ view: 'production', id: show.id });
     } catch (error) {
       setKitError(error instanceof Error ? error.message : String(error));
     } finally {

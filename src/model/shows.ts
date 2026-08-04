@@ -7,6 +7,7 @@
 
 import type { SpxTemplate } from './types';
 import type { SavedGraphic } from './packets';
+import type { ProjectBrand } from './brand';
 import { uuid } from './id';
 
 /**
@@ -31,6 +32,16 @@ export interface ShowCue {
 export interface Show {
   id: string;
   name: string;
+  /** Format stamp. Absent = a pre-stamp record, normalized to 2 on read and written on every
+   *  save. A no-op today - it exists so a FUTURE breaking change has a field to bump and
+   *  migrate on (AGENTS.md rule 6); 2 matches the packet lineage this store follows. */
+  version?: 2;
+  /** The production's LOOK (palette + font + style family) - the unified brand its graphics
+   *  share. Set when a kit creates the production or from the first graphic added; the wizard
+   *  pre-applies it when creating a graphic FOR this production. Absent = none chosen (the
+   *  global project brand stays the default outside a production). ADDITIVE OPTIONAL - an
+   *  older build reads and rewrites the record untouched. */
+  look?: ProjectBrand;
   /** The graphic POOL, in layer order — which templates the production can air, each once. */
   graphics: SavedGraphic[];
   /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
@@ -76,11 +87,13 @@ function saveAll(list: Show[]): string | null {
   }
 }
 
-/** All shows INCLUDING tombstones — for the sync engine. Back-fills a stable sync timestamp. */
+/** All shows INCLUDING tombstones — for the sync engine. Back-fills a stable sync timestamp
+ *  and normalizes the format stamp on read (pure read-shape: no updatedAt bump, so a record
+ *  never looks freshly edited just because a newer build read it). */
 export function loadAllShows(): Show[] {
   try {
     const list = JSON.parse(localStorage.getItem(SHOWS_KEY) ?? '[]') as Show[];
-    return list.map((s) => (s.updatedAt ? s : { ...s, updatedAt: BACKFILL_TS }));
+    return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
   } catch {
     return [];
   }
@@ -91,11 +104,32 @@ export function loadShows(): Show[] {
   return loadAllShows().filter((s) => !s.deleted);
 }
 
+/** The live productions whose pool holds a copy of this LIBRARY graphic (SavedGraphic's
+ *  `graphicId` back-link) - "in 2 productions" on a Home row, and the guard that says what a
+ *  library delete would orphan. */
+export function productionsContaining(graphicId: string): Show[] {
+  return loadShows().filter((s) => s.graphics.some((g) => g.graphicId === graphicId));
+}
+
 export function createShow(name: string): Show[] {
+  createShowNamed(name);
+  return loadShows();
+}
+
+/** Create a production and return the RECORD itself - the wizard's kit and Finish doors need
+ *  the new id to navigate to, and `createShow` above only returns the list. */
+export function createShowNamed(name: string): Show {
+  const show: Show = {
+    id: uuid(),
+    name: name.trim() || 'Untitled production',
+    version: 2,
+    graphics: [],
+    updatedAt: nowIso(),
+  };
   const all = loadAllShows();
-  all.push({ id: uuid(), name: name.trim() || 'Untitled show', graphics: [], updatedAt: nowIso() });
+  all.push(show);
   saveAll(all);
-  return all.filter((s) => !s.deleted);
+  return show;
 }
 
 /** Insert or replace a whole show by id (the storage seam's put('show'), incl. tombstones). */
@@ -241,6 +275,15 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
   return patchShow(showId, (show) => {
     if (!show.cues?.some((c) => c.id === cueId)) return false;
     show.cues = show.cues.filter((c) => c.id !== cueId);
+    return true;
+  });
+}
+
+/** Set (or clear, with undefined) the production's unified look. */
+export function setShowLook(showId: string, look: ProjectBrand | undefined): Show[] {
+  return patchShow(showId, (show) => {
+    if (look) show.look = look;
+    else delete show.look;
     return true;
   });
 }

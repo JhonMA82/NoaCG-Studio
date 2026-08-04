@@ -6,11 +6,12 @@ import { readFileSync } from 'node:fs';
 // §18: its own card, NOT a third Browse mode, because Browse produces one graphic and a kit
 // produces several).
 //
-// What matters here is the OUTCOME the card promises: several graphics, saved together, with
-// the editor left alone. A spec that only checked the step rendered would pass on a card that
-// created nothing.
+// What matters here is the OUTCOME the card promises: several graphics saved to the library
+// and pooled into one PRODUCTION - the unit that airs (docs/GOALS.md "Student release") -
+// with the editor left alone. A spec that only checked the step rendered would pass on a
+// card that created nothing.
 
-test('a kit creates every graphic in it as one package and lands there', async ({ page }) => {
+test('a kit creates every graphic into one production and lands on its page', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
 
@@ -38,43 +39,63 @@ test('a kit creates every graphic in it as one package and lands there', async (
   const detail = page.getByTestId('kit-detail');
   await expect(detail).toBeVisible();
   // The kit says what is in it, by name, before anything is created - and the list, the card
-  // count and the created package must all be the same number.
+  // count and the created production's pool must all be the same number.
   const contents = detail.locator('.wz-kit-contents li');
   const declared = await contents.count();
   expect(declared).toBe(cardCount);
 
   await page.getByTestId('kit-create').click();
 
-  // The outcome is a PACKAGE route, not the editor.
-  await expect(page).toHaveURL(/#\/package\//);
+  // The outcome is a PRODUCTION route, not the editor.
+  await expect(page).toHaveURL(/#\/production\//);
   await expect(page.locator('.wz-modal')).toHaveCount(0);
 
   const saved = await page.evaluate(() => {
-    const packageId = location.hash.split('/').pop();
-    const graphics = JSON.parse(localStorage.getItem('spx-gfx-graphics') ?? '[]') as {
+    const showId = location.hash.split('/').pop();
+    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+      id: string;
+      name: string;
+      look?: { palette?: { accent?: string } };
+      graphics: { name: string; graphicId?: string; template: { html: string; js: string; fields?: unknown[] } }[];
+      cues?: { sourceId: string }[];
+    }[];
+    const library = JSON.parse(localStorage.getItem('spx-gfx-graphics') ?? '[]') as {
+      id: string;
       name: string;
       packageId: string | null;
-      template: { html: string; js: string; fields?: unknown[] };
     }[];
-    const packets = JSON.parse(localStorage.getItem('spx-gfx-packets') ?? '[]') as { id: string; name: string }[];
-    const inPackage = graphics.filter((g) => g.packageId === packageId);
+    const show = shows.find((s) => s.id === showId);
+    if (!show) return null;
+    const libraryIds = new Set(library.map((g) => g.id));
     return {
-      packageName: packets.find((p) => p.id === packageId)?.name ?? null,
-      count: inPackage.length,
-      uniqueNames: new Set(inPackage.map((g) => g.name)).size,
+      showName: show.name,
+      count: show.graphics.length,
+      uniqueNames: new Set(show.graphics.map((g) => g.name)).size,
+      // One cue auto-seeded per pool graphic - the rundown is never empty-but-working.
+      cueCount: show.cues?.length ?? 0,
+      // Every pool copy back-links to a real library record, saved standalone.
+      allLinked: show.graphics.every((g) => g.graphicId && libraryIds.has(g.graphicId)),
+      allStandalone: library.every((g) => g.packageId === null),
+      // The kit's curated look landed on the production.
+      hasLook: Boolean(show.look?.palette?.accent),
       // Every one is a REAL template, not a stub: SPX definition present and a play() to call.
-      allComplete: inPackage.every(
+      allComplete: show.graphics.every(
         (g) => g.template.html.includes('SPXGCTemplateDefinition') && /play\s*(=|\()/.test(g.template.js),
       ),
-      allHaveFields: inPackage.every((g) => (g.template.fields ?? []).length > 0),
+      allHaveFields: show.graphics.every((g) => (g.template.fields ?? []).length > 0),
     };
   });
 
-  expect(saved.packageName).toBe('Church & Ceremony');
-  expect(saved.count).toBe(declared);
-  expect(saved.uniqueNames).toBe(declared); // no duplicate rows in the package
-  expect(saved.allComplete).toBe(true);
-  expect(saved.allHaveFields).toBe(true);
+  expect(saved).not.toBeNull();
+  expect(saved!.showName).toBe('Church & Ceremony');
+  expect(saved!.count).toBe(declared);
+  expect(saved!.uniqueNames).toBe(declared); // no duplicate pool rows
+  expect(saved!.cueCount).toBe(declared);
+  expect(saved!.allLinked).toBe(true);
+  expect(saved!.allStandalone).toBe(true);
+  expect(saved!.hasLook).toBe(true);
+  expect(saved!.allComplete).toBe(true);
+  expect(saved!.allHaveFields).toBe(true);
 });
 
 test('only looks the kit can actually be built in are offered', async ({ page }) => {
@@ -151,16 +172,15 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
   }
 
   await page.getByTestId('kit-create').click();
-  await expect(page).toHaveURL(/#\/package\//);
+  await expect(page).toHaveURL(/#\/production\//);
 
-  const packageReport = await page.evaluate(() => {
-    const packageId = location.hash.split('/').pop();
-    const graphics = JSON.parse(localStorage.getItem('spx-gfx-graphics') ?? '[]') as {
-      name: string;
-      packageId: string | null;
-      template: { css: string };
+  const productionReport = await page.evaluate(() => {
+    const showId = location.hash.split('/').pop();
+    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+      id: string;
+      graphics: { name: string; template: { css: string } }[];
     }[];
-    const inPackage = graphics.filter((graphic) => graphic.packageId === packageId);
+    const pool = shows.find((s) => s.id === showId)?.graphics ?? [];
     const voltSpecialists = new Set([
       'Map Veto',
       'Team Tag',
@@ -170,21 +190,21 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
       'Sponsor Crawl',
     ]);
     return {
-      count: inPackage.length,
-      names: inPackage.map((graphic) => graphic.name),
-      specialistLookMatches: inPackage
+      count: pool.length,
+      names: pool.map((graphic) => graphic.name),
+      specialistLookMatches: pool
         .filter((graphic) => voltSpecialists.has(graphic.name))
         .every((graphic) => graphic.template.css.includes('#c8f31d') && graphic.template.css.includes('Oswald')),
     };
   });
 
-  expect(packageReport.count).toBe(36);
-  expect(new Set(packageReport.names).size).toBe(36);
-  expect(packageReport.specialistLookMatches).toBe(true);
+  expect(productionReport.count).toBe(36);
+  expect(new Set(productionReport.names).size).toBe(36);
+  expect(productionReport.specialistLookMatches).toBe(true);
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByTestId('export-package').click(),
+    page.getByTestId('export-production').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const entries = Object.keys(zip.files);
@@ -192,5 +212,6 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
   expect(entries).toContain('esports/map_veto/index.html');
   expect(entries).toContain('esports/series_scorebug/index.html');
   expect(entries).toContain('esports/volt_stinger/index.html');
+  expect(entries).toContain('esports/show_controlpanel.html');
   expect(entries).toContain('esports/README.md');
 });
