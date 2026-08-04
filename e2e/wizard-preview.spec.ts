@@ -66,6 +66,14 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   await openWizardTo(page, 'style');
   await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
+  // A growth-set face flows through the same path: the first serif the catalog ever had
+  // (docs/GOALS.md "Student release" step 5) - pick it via search, land it in the build.
+  await page.getByTestId('font-search').fill('playfair');
+  await page.locator('.font-option', { hasText: 'Playfair Display' }).click();
+  await expect.poll(() => previewVar(page, '--font-heading')).toContain('Playfair Display');
+  await page.getByTestId('font-search').fill('');
+  await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
+  await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // Size and position are TUNING and sit behind a disclosure — palette and font are the two
   // choices this step leads with. Open it to reach the knobs (see components/CLAUDE.md).
   await page.locator('.wz-style-more summary').click();
