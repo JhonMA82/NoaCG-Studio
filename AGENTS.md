@@ -160,14 +160,16 @@ in the same PR.
 ```
 src/
   app/         router.ts - HASH ROUTING for /app (docs/SAVED_CONTENT_MODEL.md §3): #/home,
-               #/package/<id>, #/graphic/<id>, #/control/<id>, #/video, #/new - real history
+               #/graphic/<id>, #/control/<id>, #/production/<id>, #/video, #/new - real history
                (Back/Forward walk surfaces, refresh restores); ?control=/?chat= query routes
                stay in App.tsx
-  model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, packets;
-               library.ts (the GRAPHICS LIBRARY - docs/SAVED_CONTENT_MODEL.md: GraphicDoc
-               stable-id records + control ENTRIES + the packet v1->v2 migration; sync kind
-               'graphic', supabase migration 0009); shows.ts (the PRODUCTION unit - the graphic
-               pool + the CUE rundown + both hosted capability slugs, docs/CLOUD_PLAYOUT.md +
+  model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, looks;
+               library.ts (the FLAT graphics LIBRARY - docs/SAVED_CONTENT_MODEL.md: GraphicDoc
+               stable-id records + control ENTRIES + the legacy packet v1 extraction; sync kind
+               'graphic', supabase migration 0009; PACKAGES are RETIRED - the one grouping is a
+               production); shows.ts (the PRODUCTION unit - the graphic
+               pool + the CUE rundown + the production look + both hosted capability slugs,
+               docs/CLOUD_PLAYOUT.md +
                docs/CONTROL_LAYER.md); structure.ts (element identity) + fieldModel.ts (the
                FieldDescriptor contract)
   templates/ * the wizard catalog: shared assemblers + 21 categories (11 core + frames = chrome
@@ -201,8 +203,8 @@ src/
                FieldDescriptors + event buttons off the state machine; the ControlMessage
                protocol, three receivers (BroadcastChannel / Realtime / the hosted log),
                the staged-vs-take model, and the hosted-control client (migration 0008)
-  export/ *    the export registry - 6 targets + whole-packet + whole-SHOW export (one
-               aggregated control page) + packaging conventions
+  export/ *    the export registry - 6 targets + whole-SHOW export (one aggregated control
+               page; whole-packet export retired with packages) + packaging conventions
   render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store; docs/RENDER.md
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
   backend/     the OPTIONAL Supabase backend: config.ts isBackendConfigured is the ONE
@@ -226,8 +228,9 @@ src/
   components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
                timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
                (SaveControls + the save/guard dialogs), home/ (the routed HomePage +
-               GraphicControlPage + ProductionPage - packages, entries, per-graphic operator
-               panel, and the production cockpit: cues, links, publish, the operator verbs), and
+               GraphicControlPage + ProductionPage - the flat library, entries, per-graphic
+               operator panel, and the production cockpit: cues, links, publish, the operator
+               verbs), and
                video/ (the PARALLEL video shell, topbar Graphics/Home escape hatches)
 public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports); src/assets/ has
                the bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source -

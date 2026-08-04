@@ -14,13 +14,9 @@
 // key and must never leave the machine to a shared store.
 
 import {
-  loadAllPackets,
-  upsertPacket,
-  deletePacket,
   loadAllLooks,
   upsertLook,
   deleteLook,
-  type Packet,
   type SavedLook,
 } from '../model/packets';
 import { loadBrand, saveBrand, clearBrand, type ProjectBrand } from '../model/brand';
@@ -34,8 +30,10 @@ import {
   type SavedVideoRecord,
 } from '../model/videoProject';
 
-/** The kinds of records that sync. */
-export type SyncKind = 'packet' | 'look' | 'brand' | 'project' | 'show' | 'video' | 'graphic';
+/** The kinds of records that sync. 'packet' is RETIRED (packages removed - docs/GOALS.md
+ *  "Student release" step 3): pull is per-kind, so dropping the kind simply stops fetching
+ *  those rows; existing cloud/local packet rows stay inert and are never destroyed. */
+export type SyncKind = 'look' | 'brand' | 'project' | 'show' | 'video' | 'graphic';
 
 // ── denied puts ──────────────────────────────────────────────────────────────
 // A put() the backend rejected for OWNERSHIP (Supabase RLS: the row id belongs to another
@@ -118,7 +116,6 @@ export function toStoredRecord(kind: SyncKind, id: string, body: unknown): Store
  */
 export class LocalStorageProvider implements StorageProvider {
   async list(kind: SyncKind): Promise<StoredRecord[]> {
-    if (kind === 'packet') return loadAllPackets().map((p) => toStoredRecord('packet', p.id, p));
     if (kind === 'look') return loadAllLooks().map((l) => toStoredRecord('look', l.id, l));
     if (kind === 'show') return loadAllShows().map((s) => toStoredRecord('show', s.id, s));
     if (kind === 'graphic') return loadAllGraphics().map((g) => toStoredRecord('graphic', g.id, g));
@@ -139,8 +136,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async put(record: StoredRecord): Promise<void> {
-    if (record.kind === 'packet') upsertPacket(record.body as Packet);
-    else if (record.kind === 'look') upsertLook(record.body as SavedLook);
+    if (record.kind === 'look') upsertLook(record.body as SavedLook);
     else if (record.kind === 'show') upsertShow(record.body as Show);
     else if (record.kind === 'graphic') upsertGraphic(record.body as GraphicDoc);
     else if (record.kind === 'video') upsertSavedVideoRecord(record.body as SavedVideoRecord);
@@ -149,8 +145,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async remove(kind: SyncKind, id: string): Promise<void> {
-    if (kind === 'packet') deletePacket(id);
-    else if (kind === 'look') deleteLook(id);
+    if (kind === 'look') deleteLook(id);
     else if (kind === 'show') deleteShow(id);
     else if (kind === 'graphic') deleteGraphic(id);
     else if (kind === 'video') deleteSavedVideoProject(id);

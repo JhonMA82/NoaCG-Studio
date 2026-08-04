@@ -31,7 +31,7 @@ export-time reflow, stretching, or cropping.
   setContent() and srcdoc both inherit the dev server's base URL and hide exactly this class of
   defect.
 - **targets/spxStarter.ts** - the one SPX export = spxTarget, id 'spx'; + buildStarterInto,
-  reused by packets.
+  reused by the show export.
 - **targets/htmlOverlay.ts** - OBS/vMix browser source: an autoplay block fills fields from baked
   sampleData -> definition defaults, then play(). An auto-out `out` = N ms setting rides
   along: the block measures the entrance from a paused throwaway timeline and schedules
@@ -47,9 +47,6 @@ export-time reflow, stretching, or cropping.
   `addOgrafPackage` is reused by **targets/liveos.ts** in explicit live-only mode - LiveOS's HTML5
   graphics engine is OGraf-compliant, so that target is the same live package with NetOn.Live
   install steps in the README.
-- **packetExport.ts** - whole packet -> one zip, a Starter folder per graphic. The caller
-  already holds the library records, so each `ExportableGraphic` carries its own `entries`
-  straight through - no resolver needed here, unlike the show export.
 - **showExport.ts** - whole SHOW -> one zip: a Starter folder per graphic + ONE aggregated
   show_controlpanel.html (a card per graphic, each on its own channel). Each graphic's saved
   control-panel ENTRIES are resolved out of the LIBRARY at export time (model/library.ts

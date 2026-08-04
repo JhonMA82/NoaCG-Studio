@@ -1,7 +1,7 @@
 // The GRAPHICS LIBRARY (docs/SAVED_CONTENT_MODEL.md): every durably saved graphic is ONE
-// GraphicDoc record with a STABLE id — renaming never breaks references. A package
-// (model/packets.ts Packet) is a FOLDER over the library: a graphic points at it via
-// `packageId`, so "move to package" is one record write and package contents are a filter.
+// GraphicDoc record with a STABLE id — renaming never breaks references. The library is FLAT
+// (packages retired - docs/GOALS.md "Student release" step 3): grouping for air is a
+// PRODUCTION's pool (model/shows.ts), which copies with a `graphicId` back-link.
 // Control-panel ENTRIES (named data rows an operator switches between) live ON the graphic,
 // so they save, reopen, and sync with it.
 //
@@ -30,7 +30,9 @@ export interface GraphicDoc {
   id: string;
   name: string;
   type: TemplateType;
-  /** The package (Packet id) this graphic belongs to; null = standalone. */
+  /** @deprecated Packages are retired; INERT data, never read by the UI. Kept (not nulled)
+   *  because rewriting every record would bump updatedAt across the whole library - a sync
+   *  storm whose LWW could stomp a genuinely newer remote edit. New records write null. */
   packageId: string | null;
   template: SpxTemplate;
   /** The pristine create-time template — the editor's Reset target travels with the save. */
@@ -264,14 +266,6 @@ export function migrateEmbeddedGraphics(): void {
   saveAll(all);
 }
 
-// ── Package helpers over the library ─────────────────────────────────────────────────────────
-
-/** Live graphics grouped by package id ('' = standalone), newest first inside each group. */
-export function graphicsInPackage(packageId: string | null): GraphicDoc[] {
-  return loadGraphics()
-    .filter((g) => (g.packageId ?? null) === packageId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
 
 // ── Entry helpers (pure, over one doc's entries list) ────────────────────────────────────────
 

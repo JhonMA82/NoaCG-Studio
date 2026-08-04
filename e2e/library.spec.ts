@@ -1,28 +1,27 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
+import { showCode } from './_code';
 
-// docs/SAVED_CONTENT_MODEL.md — the graphics LIBRARY, the Save flow, routed Home, packages,
-// and the per-graphic control panel with its ENTRIES. These are the core-product promises:
-// a signed-out user saves, reopens, organizes, and operates a graphic without ever touching
-// code, and browser Back/Forward walk the surfaces like pages.
+// docs/SAVED_CONTENT_MODEL.md — the graphics LIBRARY, the Save flow, routed Home, brand
+// looks, and the per-graphic control panel with its ENTRIES. These are the core-product
+// promises: a signed-out user saves, reopens, and operates a graphic without ever touching
+// code, and browser Back/Forward walk the surfaces like pages. (Packages are retired -
+// docs/GOALS.md "Student release" step 3: every save is standalone in the flat library and
+// grouping for air is a PRODUCTION, covered by shows/productions specs.)
 
-async function saveAs(page: Page, name: string, dest: 'standalone' | 'new-package' = 'standalone', packageName = '') {
+async function saveAs(page: Page, name: string) {
   await page.getByTestId('save-graphic').click();
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('save-name').fill(name);
-  if (dest === 'new-package') {
-    await page.getByTestId('save-dest').selectOption('new');
-    await page.getByTestId('save-new-package').fill(packageName);
-  }
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 }
 
-test('save names the graphic into a new package; the status stays honest through edits and reopen', async ({ page }) => {
+test('save names the graphic; the status stays honest through edits and reopen', async ({ page }) => {
   await createProject(page, 'Hairline');
   await expect(page.getByTestId('save-status')).toHaveText('Not saved');
 
-  await saveAs(page, 'Presenter lower third', 'new-package', 'Election Night');
+  await saveAs(page, 'Presenter lower third');
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
   // An edit flips the badge; Ctrl+S saves it back without a dialog.
@@ -72,22 +71,24 @@ test('save dialog: a text-selection drag that ends on the backdrop never closes 
   await expect(dialog).toBeHidden();
 });
 
-test('Home lists the library; a package opens with its graphics; Back walks the history', async ({ page }) => {
+test('Home lists the library; Back walks the history; an old package link lands on Home', async ({ page }) => {
   await createProject(page, 'Hairline');
-  await saveAs(page, 'Presenter lower third', 'new-package', 'Election Night');
+  await saveAs(page, 'Presenter lower third');
 
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   await expect(page.locator('.pk-graphic', { hasText: 'Presenter lower third' })).toBeVisible();
 
-  // Packages section → open the package → its contents; Back returns to the section.
-  await page.getByTestId('home-nav-packages').click();
-  await expect(page.locator('[data-testid^="package-row-"]', { hasText: 'Election Night' })).toBeVisible();
-  await page.getByTestId('open-package').click();
-  await expect(page.locator('h2', { hasText: 'Election Night' })).toBeVisible();
-  await expect(page.locator('.pk-graphic', { hasText: 'Presenter lower third' })).toBeVisible();
+  // Graphics section → the control panel → Back returns to Home (history is real).
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.pk-graphic', { hasText: 'Presenter lower third' }).getByTitle('Open its control panel').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
   await page.goBack();
-  await expect(page.locator('[data-testid^="package-row-"]', { hasText: 'Election Night' })).toBeVisible();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+
+  // A bookmarked pre-retirement package link degrades to Home, never a dead surface.
+  await page.evaluate(() => { window.location.hash = '#/package/00000000-0000-4000-8000-000000000000'; });
+  await expect(page.getByTestId('home-page')).toBeVisible();
 
   // Continue editing returns to the editor with the same document.
   await page.getByTestId('home-continue-editing').click();
@@ -431,6 +432,46 @@ test('video and graphics stay separate but connected: #/video, back to graphics,
   await expect(page.locator('.video-workspace-badge')).toContainText('Video');
   await page.getByTestId('back-to-graphics').click();
   await expect(page.locator('.tpl-name')).toHaveText('Hairline');
+});
+
+test('looks: capture the current look in Home, apply it to another graphic, survive reload', async ({ page }) => {
+  // Moved from the retired packets.spec.ts (packages removed): brand LOOKS are their own
+  // store and stay first-class.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+
+  // Tweak the accent through the Style panel, then capture the look in Home.
+  await page.getByTestId('dock-tab-style').click();
+  await page
+    .locator('.field-row', { hasText: '--accent' })
+    .first()
+    .locator('input.grow')
+    .fill('#12e29a');
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-looks').click();
+  await page.getByPlaceholder(/Look name/).fill('Mint look');
+  await page.getByRole('button', { name: 'Save current look' }).click();
+  await expect(page.locator('.pk-graphic', { hasText: 'Mint look' })).toBeVisible();
+
+  // The look survives a full reload (localStorage) and applies to a FRESH graphic. A fresh
+  // graphic matters for determinism too: whether the autosave (800 ms debounce) caught the
+  // accent tweak before the reload decides if the restored project already carries it — and
+  // applying a look that is already active changes nothing, so nothing would highlight.
+  await page.reload();
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' }); // the wizard opens on load — make the fresh graphic
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-looks').click();
+  await page.locator('.pk-graphic', { hasText: 'Mint look' }).getByRole('button', { name: 'Apply', exact: true }).click();
+  // Apply returns to the editor (the look retints the OPEN graphic).
+  const css = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.css;
+  });
+  expect(css).toContain('--accent: #12e29a');
+  // The applied change is highlighted in the CSS tab — for a user who has the code pane open
+  // (it ships closed; applying a look works either way, this asserts what they'd then see).
+  await showCode(page);
+  await expect(page.locator('.tabs .tab.active')).toHaveText('CSS');
+  await expect(page.locator('.editor-host .changed-line').first()).toBeVisible();
 });
 
 test('the save dialog is sized by its content, not by the wizard it borrows styling from', async ({ page }) => {

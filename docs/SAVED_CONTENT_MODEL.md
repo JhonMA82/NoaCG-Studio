@@ -1,18 +1,18 @@
-# The saved-content model (the library, packages, and the graphic lifecycle)
+# The saved-content model (the library, productions, and the graphic lifecycle)
 
-**Status: adopted 2026-07-21.** This is the binding contract for how finished work is saved,
-organized, reopened, and controlled. It supersedes the packet-embedded storage model
-(packets keep their key and sync kind, but become FOLDERS over the library).
+**Status: adopted 2026-07-21; PACKAGES RETIRED 2026-08-04** (docs/GOALS.md "Student release"
+step 3 - the audit found only empty folder shells, so removal needed no data migration).
+This is the binding contract for how finished work is saved, organized, reopened, and
+controlled.
 
 ## 1. The shape
 
 ```text
 User
-├── Package  (model/packets.ts Packet — a folder for related graphics; a PRODUCTION is
-│             the separate live unit, model/shows.ts — docs/CLOUD_PLAYOUT.md)
-│   └── Graphic … (by reference: GraphicDoc.packageId)
-├── Unassigned Graphic  (GraphicDoc with packageId: null)
+├── Graphic  (GraphicDoc — the FLAT library; every save is standalone)
 │   └── Control panel + entries (ControlEntry[] ON the graphic)
+├── Production  (model/shows.ts Show — the live unit: pool COPIES with a graphicId
+│                back-link + cues + look + capability slugs — docs/CLOUD_PLAYOUT.md)
 └── Video  (model/videoProject.ts — unchanged)
 ```
 
@@ -20,17 +20,17 @@ User
   `'graphic'`) is the durable unit: `{ id, name, packageId, template, baseline?,
   entries, activeEntryId, createdAt, updatedAt, deleted? }`. The id is a stable UUID —
   renaming never breaks references. `entries` are the control panel's named data rows
-  (`{ id, label, values: Record<fieldId, string>, updatedAt }`).
-- **`Packet`** stays `{ id, name, updatedAt, deleted? }` + a legacy `graphics` array that
-  is MIGRATED ON READ: any embedded `SavedGraphic` found in a packet (v1 shape, or one
-  written by an older build) is extracted into the library with `packageId` set, and the
-  packet is rewritten with `graphics: []` + `version: 2`. The migration is convergent —
-  re-running it is a no-op — and an old build reading a v2 packet sees an empty-but-valid
-  packet while the graphics stay safe under the key it never reads.
+  (`{ id, label, values: Record<fieldId, string>, updatedAt }`). `packageId` is DEPRECATED
+  inert data: never read by the UI, kept (not nulled) so retirement did not bump updatedAt
+  across the whole library.
+- **Packages are retired.** The `'packet'` sync kind is gone (existing cloud/local rows stay
+  inert; nothing reads or destroys them), all package UI and writers are removed, and
+  `#/package/*` lands on Home. The ONE surviving packet path is library.ts's v1 extraction:
+  a pre-library packet found in localStorage still gets its embedded graphics migrated into
+  the library on read (convergent; the packet is rewritten `graphics: [] + version: 2`).
 - **Shows** (`model/shows.ts`) are the PRODUCTION unit (user-facing word: production): the
-  graphic pool + the cue rundown + the published capability slugs — docs/CLOUD_PLAYOUT.md §2.
-- A graphic belongs to AT MOST one package (`packageId`), so "move to package" is one
-  record write and package contents are a filter, never a second list to keep in sync.
+  graphic pool + the cue rundown + the production LOOK + the published capability slugs —
+  docs/CLOUD_PLAYOUT.md §2. Grouping graphics for air happens HERE, nowhere else.
 
 ## 2. The working document and Save
 
@@ -41,8 +41,8 @@ since the last explicit Save. The store (`templateStore`) tracks
 
 - Any template mutation marks `dirty` (the same subscription that autosaves).
 - **Save** writes the template (+ baseline + entries) into the linked GraphicDoc; first
-  save opens the SAVE DIALOG: name the graphic, keep it standalone, add it to an existing
-  package, or create a new package.
+  save opens the SAVE DIALOG: name the graphic (every save is standalone in the flat
+  library).
 - **Save As / Duplicate** mints a new GraphicDoc id.
 - The autosave slot is the crash-safety net (reload restores edits, dirty flag included);
   Save is the durable, named, synced record. Both survive; they are never conflated.
@@ -56,18 +56,17 @@ Back/Forward are real history):
 | Route | Surface |
 |---|---|
 | *(none)* | The editor, whichever kind `docKind` persisted (unchanged refresh behavior). |
-| `#/home` (+`#/home/<section>`) | Home — recent, graphics, packages, control panels, videos. |
-| `#/package/<id>` | One package's contents. |
+| `#/home` (+`#/home/<section>`) | Home — recent, graphics, control panels, productions, videos, looks. |
 | `#/graphic/<id>` | Open that library graphic in the SPX editor. |
 | `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). |
+| `#/production/<id>` | One production's page (pool, cues, links, publish, operating). |
 | `#/video` | The video editor shell. |
 | `#/new` | The creation wizard over the editor. |
+| `#/package/*` | RETIRED — old links land on Home. |
 
 `?control=<slug>` and `?chat=<slug>` query routes are untouched (hosted capability URLs).
-Home and the control panel are ROUTED SURFACES, not modals, so Package → Graphic → Back
-returns to the package, Graphic → Control panel → Back returns to the graphic, and
-Video ↔ Graphics is plain history. The old Homebase modal and the topbar 📦 Packets
-button are retired; packages are managed through Save and Home.
+Home and the control panel are ROUTED SURFACES, not modals, so Graphic → Control panel →
+Back returns to the graphic, and Video ↔ Graphics is plain history.
 
 **Card thumbnails are a LIVE render, never a stored picture** (`components/home/GraphicThumb.tsx`).
 Every Home graphic card renders the real template through `preview/composeDocument`, in a small
@@ -106,16 +105,17 @@ aggregated `show_controlpanel.html` and that graphic's own `controlpanel.html`. 
 never embedded in the `Show` record, so this is not a persisted-shape change and needs no
 migration — the show export references the library graphic and resolves entries on export.
 
-**Every export that bundles an operator page carries them.** The whole-PACKAGE export
-(`export/packetExport.ts`) takes each graphic's entries straight from the library records the
-caller already holds, and the SINGLE-GRAPHIC export (the Export panel's SPX and HTML-overlay
-targets) reads them back through `ExportContext.entries`, resolved from the working project's
-`saved.graphicId` at export time. So the panel an operator downloads has the same switcher
+**Every export that bundles an operator page carries them.** The SINGLE-GRAPHIC export (the
+Export panel's SPX and HTML-overlay targets) reads them back through `ExportContext.entries`,
+resolved from the working project's `saved.graphicId` at export time; the whole-SHOW export
+resolves them per pool graphic as above. (The whole-PACKAGE export retired with packages —
+whole-show export covers the need.) So the panel an operator downloads has the same switcher
 wherever it came from, and a graphic that was never saved simply has no entries to carry —
 entries are authored on the RECORD, not on the code.
 
 ## 5. Versioning
 
-`GraphicDoc` carries `version: 1`; `Packet` bumps to `version: 2` with the on-read
-migration in the same commit (doctrine: STATE_MACHINE_SCHEMA §5). Additive fields never
-bump; sync kind `'graphic'` ships with Supabase migration `0009_graphic_kind.sql`.
+`GraphicDoc` carries `version: 1`; `Show` carries `version: 2` (normalized on read, a
+format stamp for future breaking changes); the retired `Packet` keeps `version: 2` for the
+v1 extraction (doctrine: STATE_MACHINE_SCHEMA §5). Additive fields never bump; sync kind
+`'graphic'` ships with Supabase migration `0009_graphic_kind.sql`.

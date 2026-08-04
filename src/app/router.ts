@@ -1,26 +1,27 @@
 // Hash routing for /app (docs/SAVED_CONTENT_MODEL.md §3). Hash routes survive any static
 // host with zero rewrite config, refresh restores the same surface, and browser Back/Forward
-// are real history — which is the whole point: Package → Graphic → Back returns to the
-// package. The `?control=` / `?chat=` QUERY routes (hosted capability URLs) stay untouched
+// are real history — which is the whole point: Home → Graphic → Back returns to where you
+// were. The `?control=` / `?chat=` QUERY routes (hosted capability URLs) stay untouched
 // in App.tsx; this store only owns the in-app surface.
 //
 // Routes:
 //   ''                     the editor (whichever kind docKind persisted)
-//   #/home[/<section>]     Home — recent / graphics / packages / controls / videos / looks
-//   #/package/<id>         one package's contents
+//   #/home[/<section>]     Home — recent / graphics / controls / productions / videos / looks
 //   #/graphic/<id>         open that library graphic in the SPX editor (refresh restores it)
 //   #/control/<graphicId>  the graphic's control panel
+//   #/production/<id>      one production's page (pool, cues, links, operating)
 //   #/video                the video editor shell
 //   #/new[/<designId>]     the creation wizard (Back closes it); an optional trailing catalog
 //                          variant id preselects that design (docs/PRERENDER.md's template-page
 //                          deep link) — an id that fails to resolve just opens at Entry
+//   #/package/*            RETIRED (packages removed - docs/GOALS.md "Student release" step 3);
+//                          old links land on Home
 
 import { create } from 'zustand';
 
 export type Route =
   | { view: 'editor' }
   | { view: 'home'; section: string | null }
-  | { view: 'package'; id: string }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
   | { view: 'production'; id: string }
@@ -33,7 +34,8 @@ export function parseRoute(hash: string): Route {
     case 'home':
       return { view: 'home', section: parts[1] ?? null };
     case 'package':
-      return parts[1] ? { view: 'package', id: parts[1] } : { view: 'home', section: 'packages' };
+      // Retired route: a bookmarked package link lands on Home rather than a dead surface.
+      return { view: 'home', section: null };
     case 'graphic':
       return parts[1] ? { view: 'graphic', id: parts[1] } : { view: 'editor' };
     case 'control':
@@ -55,8 +57,6 @@ export function routeHash(route: Route): string {
       return '';
     case 'home':
       return route.section ? `#/home/${encodeURIComponent(route.section)}` : '#/home';
-    case 'package':
-      return `#/package/${encodeURIComponent(route.id)}`;
     case 'graphic':
       return `#/graphic/${encodeURIComponent(route.id)}`;
     case 'control':

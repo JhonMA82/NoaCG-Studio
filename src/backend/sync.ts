@@ -34,7 +34,9 @@
 import { isPutDenied, isSingleton, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
 import { uuid } from '../model/id';
 
-export const SYNC_KINDS: SyncKind[] = ['packet', 'look', 'brand', 'project', 'show', 'video', 'graphic'];
+// 'packet' is retired (packages removed): the kind is gone from SyncKind, so those cloud rows
+// are simply never fetched or pushed again - they stay inert, nothing is destroyed.
+export const SYNC_KINDS: SyncKind[] = ['look', 'brand', 'project', 'show', 'video', 'graphic'];
 
 const SYNC_META_KEY = 'spx-gfx-sync';
 const EPOCH = '1970-01-01T00:00:00.000Z';
@@ -76,7 +78,7 @@ export interface SyncResult {
   failures: SyncFailure[];
 }
 
-// Packets/looks reconcile by id; singletons (brand, project) reconcile by KIND — there is at most
+// Looks/shows/graphics reconcile by id; singletons (brand, project) reconcile by KIND — there is at most
 // one per user, and its id differs between local (a local uuid) and cloud (a per-user deterministic
 // uuid), so matching by kind is what pairs them.
 const recordKey = (r: StoredRecord) => (isSingleton(r.kind) ? r.kind : `${r.kind}:${r.id}`);

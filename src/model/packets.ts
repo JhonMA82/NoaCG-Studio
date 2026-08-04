@@ -1,12 +1,15 @@
-// The packet manager's data layer.
+// Looks, plus the RETIRED packet store's read seam.
 //
-// Two kinds of saved things, both in localStorage:
-//   - Packets: named collections of ACTUAL GRAPHICS (a show's lower third + ticker +
-//     credits + bug together). Save the current graphic in, reopen any of them, export
-//     the whole packet as one zip.
 //   - Looks: named brand looks (palette + font + style family) that can be applied to
 //     the current graphic, set as the project brand for new graphics, and shared as a
-//     .json file.
+//     .json file. Fully live.
+//   - Packets (PACKAGES) are RETIRED (docs/GOALS.md "Student release" step 3): the one
+//     grouping is a PRODUCTION (model/shows.ts). No UI reads or writes packages and the
+//     'packet' sync kind is gone; stored rows - local and cloud - stay inert rather than
+//     being destroyed. What remains here is the READ seam library.ts's v1 migration needs
+//     (loadAllPackets + upsertPacket: a pre-library packet found in localStorage still gets
+//     its embedded graphics extracted), the SavedGraphic shape shows.ts pools reuse, and
+//     the look capture helpers.
 
 import { getCssVariable, setCssVariable } from '../blocks/cssVars';
 import {
@@ -115,42 +118,10 @@ export function loadAllPackets(): Packet[] {
   return loadList<Packet>(PACKETS_KEY).map((p) => (p.updatedAt ? p : { ...p, updatedAt: BACKFILL_TS }));
 }
 
-/** Live packets for the UI (tombstones hidden). */
-export function loadPackets(): Packet[] {
-  return loadAllPackets().filter((p) => !p.deleted);
-}
-
-export function createPacket(name: string): Packet[] {
-  const all = loadAllPackets();
-  all.push({ id: newId(), name: name.trim() || 'Untitled package', graphics: [], version: 2, updatedAt: nowIso() });
-  saveList(PACKETS_KEY, all);
-  return all.filter((p) => !p.deleted);
-}
-
-/** Create a package and return the new record itself (the Save dialog's "new package" path). */
-export function createPacketNamed(name: string): Packet {
-  const packet: Packet = { id: newId(), name: name.trim() || 'Untitled package', graphics: [], version: 2, updatedAt: nowIso() };
-  const all = loadAllPackets();
-  all.push(packet);
-  saveList(PACKETS_KEY, all);
-  return packet;
-}
-
-/** Rename a package. */
-export function renamePacket(packetId: string, name: string): Packet[] {
-  const all = loadAllPackets();
-  const packet = all.find((p) => p.id === packetId && !p.deleted);
-  if (packet) {
-    packet.name = name.trim() || packet.name;
-    packet.updatedAt = nowIso();
-    saveList(PACKETS_KEY, all);
-  }
-  return all.filter((p) => !p.deleted);
-}
-
 /**
- * Insert or replace a whole packet by id (used by the Era-5 storage seam's put('packet'), which
- * also writes tombstones on a pulled delete). Preserves the given id, graphics, and deleted flag.
+ * Insert or replace a whole packet by id. The one remaining WRITER: library.ts's v1
+ * migration uses it to rewrite an old packet as `graphics: [] + version: 2` after
+ * extracting its embedded graphics. Nothing else writes packages any more.
  */
 export function upsertPacket(packet: Packet): void {
   const all = loadAllPackets();
@@ -158,52 +129,6 @@ export function upsertPacket(packet: Packet): void {
   if (i >= 0) all[i] = packet;
   else all.push(packet);
   saveList(PACKETS_KEY, all);
-}
-
-/**
- * Save the current graphic into a packet. A graphic with the same NAME in the same
- * packet is replaced (saving twice = updating), so iterating on a show is natural.
- */
-export function saveGraphicToPacket(packetId: string, template: SpxTemplate): { packets: Packet[]; error: string | null } {
-  const all = loadAllPackets();
-  const packet = all.find((p) => p.id === packetId && !p.deleted);
-  if (!packet) return { packets: all.filter((p) => !p.deleted), error: 'That packet no longer exists.' };
-  const graphic: SavedGraphic = {
-    id: newId(),
-    name: template.name,
-    type: template.type,
-    savedAt: new Date().toISOString(),
-    template,
-  };
-  const existing = packet.graphics.findIndex((g) => g.name === template.name);
-  if (existing >= 0) packet.graphics[existing] = graphic;
-  else packet.graphics.push(graphic);
-  packet.updatedAt = nowIso();
-  return { packets: all.filter((p) => !p.deleted), error: saveList(PACKETS_KEY, all) };
-}
-
-export function removeGraphic(packetId: string, graphicId: string): Packet[] {
-  const all = loadAllPackets();
-  const packet = all.find((p) => p.id === packetId);
-  if (packet) {
-    packet.graphics = packet.graphics.filter((g) => g.id !== graphicId);
-    packet.updatedAt = nowIso();
-  }
-  saveList(PACKETS_KEY, all);
-  return all.filter((p) => !p.deleted);
-}
-
-/** Delete = tombstone (strip payload, keep the id + fresh timestamp) so the delete syncs. */
-export function deletePacket(packetId: string): Packet[] {
-  const all = loadAllPackets();
-  const packet = all.find((p) => p.id === packetId);
-  if (packet) {
-    packet.deleted = true;
-    packet.graphics = [];
-    packet.updatedAt = nowIso();
-  }
-  saveList(PACKETS_KEY, all);
-  return all.filter((p) => !p.deleted);
 }
 
 // ── Looks (named brand looks) ────────────────────────────────────────────────

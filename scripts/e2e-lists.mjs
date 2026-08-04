@@ -23,7 +23,6 @@ export const FOCUS = [
   'library.spec.ts',
   'offline.spec.ts',
   'package.spec.ts',
-  'packets.spec.ts',
   'productions.spec.ts',
   'project.spec.ts',
   'project-format.spec.ts',

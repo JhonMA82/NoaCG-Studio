@@ -50,11 +50,9 @@ await page.getByTestId('mg-style').selectOption('cut');
 await page.waitForTimeout(600);
 await shot('02-states-graph.png');
 
-// ── 4. Save into a new package through the real dialog ──
+// ── 4. Save through the real dialog (standalone - packages are retired) ──
 await page.getByTestId('save-graphic').click();
 await page.getByTestId('save-name').fill('Presenter lower third');
-await page.getByTestId('save-dest').selectOption('new');
-await page.getByTestId('save-new-package').fill('Election Night');
 await page.getByTestId('save-confirm').click();
 await page.waitForSelector('[data-testid="save-status"]:has-text("Saved")');
 await shot('03-editor-saved.png');
@@ -77,12 +75,11 @@ await page.getByTestId('control-play').click();
 await page.waitForTimeout(1200);
 await shot('04-control-entries.png');
 
-// ── 6. Home: the library + the package ──
+// ── 6. Home: the library ──
 await page.goBack();
-await page.getByTestId('home-nav-packages').click();
-await page.getByTestId('open-package').click();
+await page.getByTestId('home-nav-graphics').click();
 await page.waitForTimeout(300);
-await shot('05-home-package.png');
+await shot('05-home-library.png');
 
 // ── 7. Export the fixture: SPX starter folder + CasparCG single file ──
 await page.getByTestId('home-continue-editing').click();

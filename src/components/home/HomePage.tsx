@@ -7,7 +7,6 @@ import { useExportUi } from '../ExportWindow';
 import {
   deleteGraphic,
   duplicateGraphic,
-  graphicsInPackage,
   loadGraphics,
   updateGraphic,
   type GraphicDoc,
@@ -16,14 +15,9 @@ import {
   addLook,
   applyLookToTemplate,
   captureLookFromTemplate,
-  createPacketNamed,
   deleteLook,
-  deletePacket,
   importLook,
   loadLooks,
-  loadPackets,
-  renamePacket,
-  type Packet,
   type SavedLook,
 } from '../../model/packets';
 import { saveBrand } from '../../model/brand';
@@ -36,7 +30,6 @@ import {
   type SavedVideoRecord,
 } from '../../model/videoProject';
 import { useDocKindStore } from '../../store/docKindStore';
-import { buildGraphicsZip } from '../../export/packetExport';
 import { slug } from '../../export/common';
 import { isBackendConfigured } from '../../backend/config';
 import { subscribeAuth } from '../../backend/auth';
@@ -72,12 +65,11 @@ function activeValues(g: GraphicDoc): Record<string, string> | undefined {
   return g.entries.find((e) => e.id === g.activeEntryId)?.values;
 }
 
-type Section = 'recent' | 'graphics' | 'packages' | 'controls' | 'productions' | 'videos' | 'looks';
+type Section = 'recent' | 'graphics' | 'controls' | 'productions' | 'videos' | 'looks';
 
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: 'recent', label: 'Recent', icon: '🕘' },
   { id: 'graphics', label: 'Graphics', icon: '◫' },
-  { id: 'packages', label: 'Packages', icon: '📦' },
   { id: 'controls', label: 'Control panels', icon: '🎛' },
   // Productions replaced Rundowns (docs/CLOUD_PLAYOUT.md): the same Show records, now with a
   // cue rundown, a persistent browser-output URL, and their own page (#/production/<id>).
@@ -88,10 +80,11 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 
 /**
  * HOME (docs/SAVED_CONTENT_MODEL.md §3) — the routed dashboard over everything saved:
- * recent work, the graphics library, packages, control panels, videos, and brand looks.
+ * recent work, the graphics library, control panels, productions, videos, and brand looks.
+ * (Packages are retired - docs/GOALS.md "Student release" step 3: a PRODUCTION is the one
+ * grouping, and the flat library carries everything else.)
  * Local-first and open to everyone (auth posture: no gate — sign-in only adds sync).
- * Rendered for `#/home[/<section>]` and `#/package/<id>`; browser Back/Forward walk it
- * like any pages.
+ * Rendered for `#/home[/<section>]`; browser Back/Forward walk it like any pages.
  */
 export default function HomePage({ route }: { route: Route }) {
   const navigate = useRouter((s) => s.navigate);
@@ -104,7 +97,6 @@ export default function HomePage({ route }: { route: Route }) {
   const refresh = () => setRev((r) => r + 1);
   /* eslint-disable react-hooks/exhaustive-deps */
   const graphics = useMemo(() => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
-  const packages = useMemo(() => loadPackets(), [rev]);
   const looks = useMemo(() => loadLooks(), [rev]);
   const rundowns = useMemo(() => loadShows(), [rev]);
   const videos = useMemo(() => listSavedVideoProjects(), [rev]);
@@ -133,10 +125,7 @@ export default function HomePage({ route }: { route: Route }) {
   const section: Section =
     route.view === 'home' && SECTIONS.some((s) => s.id === route.section)
       ? (route.section as Section)
-      : route.view === 'package'
-        ? 'packages'
-        : 'recent';
-  const packageView = route.view === 'package' ? packages.find((p) => p.id === route.id) ?? null : null;
+      : 'recent';
 
   const openGraphic = (g: GraphicDoc) => {
     requestSwitch(() => {
@@ -150,18 +139,6 @@ export default function HomePage({ route }: { route: Route }) {
     useDocKindStore.getState().setKind('video');
     navigate({ view: 'video' });
   };
-
-  const exportPackage = async (packet: Packet) => {
-    const docs = graphicsInPackage(packet.id);
-    const zip = await buildGraphicsZip(
-      packet.name,
-      docs.map((d) => ({ name: d.name, template: d.template, entries: d.entries })),
-    );
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, `${slug(packet.name)}_package.zip`);
-  };
-
-  const packageName = (id: string | null) => (id ? packages.find((p) => p.id === id)?.name ?? null : null);
 
   return (
     <div className="app home-page" data-testid="home-page">
@@ -192,7 +169,7 @@ export default function HomePage({ route }: { route: Route }) {
           {SECTIONS.map((s) => (
             <button
               key={s.id}
-              className={s.id === section && !packageView ? 'active' : ''}
+              className={s.id === section ? 'active' : ''}
               onClick={() => navigate(s.id === 'recent' ? { view: 'home', section: null } : { view: 'home', section: s.id })}
               data-testid={`home-nav-${s.id}`}
             >
@@ -211,16 +188,7 @@ export default function HomePage({ route }: { route: Route }) {
               }}
             />
           )}
-          {packageView ? (
-            <PackageView
-              packet={packageView}
-              graphics={graphicsInPackage(packageView.id)}
-              onOpen={openGraphic}
-              onExport={() => void exportPackage(packageView)}
-              onChanged={refresh}
-            />
-          ) : (
-            <>
+          <>
               {(section === 'graphics' || section === 'recent') && (
                 <div className="home-search row">
                   <input
@@ -241,8 +209,6 @@ export default function HomePage({ route }: { route: Route }) {
                   )}
                   <GraphicList
                     graphics={filtered.slice(0, 8)}
-                    packages={packages}
-                    packageName={packageName}
                     onOpen={openGraphic}
                     onChanged={refresh}
                   />
@@ -266,8 +232,6 @@ export default function HomePage({ route }: { route: Route }) {
                   {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
                   <GraphicList
                     graphics={filtered}
-                    packages={packages}
-                    packageName={packageName}
                     onOpen={openGraphic}
                     onChanged={refresh}
                     onPublish={communityOn ? (g) => setPublish({ name: g.name, template: g.template, gate: publishGate(g.template) }) : undefined}
@@ -301,15 +265,6 @@ export default function HomePage({ route }: { route: Route }) {
                 </>
               )}
 
-              {section === 'packages' && (
-                <PackagesSection
-                  packages={packages}
-                  countIn={(id) => graphicsInPackage(id).length}
-                  onOpenPackage={(p) => navigate({ view: 'package', id: p.id })}
-                  onChanged={refresh}
-                />
-              )}
-
               {section === 'controls' && (
                 <>
                   <h2>Control panels</h2>
@@ -324,7 +279,6 @@ export default function HomePage({ route }: { route: Route }) {
                       <strong>{g.name}</strong>
                       <span className="muted">
                         {g.entries.length} entr{g.entries.length === 1 ? 'y' : 'ies'}
-                        {packageName(g.packageId) ? ` · 📦 ${packageName(g.packageId)}` : ''}
                       </span>
                       <div className="spacer" />
                       <button
@@ -362,8 +316,7 @@ export default function HomePage({ route }: { route: Route }) {
               )}
 
               {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={() => navigate({ view: 'editor' })} />}
-            </>
-          )}
+          </>
         </main>
       </div>
 
@@ -440,18 +393,14 @@ function EmptyHint({ onNew }: { onNew: () => void }) {
   );
 }
 
-/** One graphic row with the full action set: open, control panel, rename, duplicate, move, delete. */
+/** One graphic row with the full action set: open, control panel, rename, duplicate, delete. */
 function GraphicRow({
   g,
-  packages,
-  packageLabel,
   onOpen,
   onChanged,
   onPublish,
 }: {
   g: GraphicDoc;
-  packages: Packet[];
-  packageLabel: string | null;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
   /** Present only when community publishing is available (backend + signed in). */
@@ -461,7 +410,6 @@ function GraphicRow({
   const openExport = useExportUi((s) => s.openExport);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(g.name);
-  const [moving, setMoving] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (deleteTimer.current) clearTimeout(deleteTimer.current); }, []);
@@ -473,20 +421,6 @@ function GraphicRow({
       // The open working copy keeps its own name until re-opened; the row updates now.
       onChanged();
     }
-  };
-
-  const move = (value: string) => {
-    setMoving(false);
-    if (value === '__keep') return;
-    if (value === '__new') {
-      const pkgName = window.prompt('New package name:', 'My show');
-      if (!pkgName) return;
-      const packet = createPacketNamed(pkgName);
-      updateGraphic(g.id, { packageId: packet.id });
-    } else {
-      updateGraphic(g.id, { packageId: value === '__standalone' ? null : value });
-    }
-    onChanged();
   };
 
   return (
@@ -510,24 +444,12 @@ function GraphicRow({
         )}
         <span className="muted">
           {g.type}
-          {packageLabel ? ` · 📦 ${packageLabel}` : ''}
           {' · '}
           {new Date(g.updatedAt).toLocaleDateString()}
         </span>
       </div>
       <div className="spacer" />
       <div className="pk-actions">
-      {moving ? (
-        <select autoFocus defaultValue="__keep" onChange={(e) => move(e.target.value)} onBlur={() => setMoving(false)} data-testid="move-select">
-          <option value="__keep" disabled>Move to…</option>
-          <option value="__standalone">Standalone (no package)</option>
-          {packages.map((p) => (
-            <option key={p.id} value={p.id}>📦 {p.name}</option>
-          ))}
-          <option value="__new">＋ New package…</option>
-        </select>
-      ) : (
-        <>
           <button className="primary" onClick={() => onOpen(g)} title="Open in the editor" data-testid="open-graphic">
             Open
           </button>
@@ -554,7 +476,6 @@ function GraphicRow({
           >
             ⧉
           </button>
-          <button onClick={() => setMoving(true)} title="Move to a package">📦</button>
           {onPublish && (
             <button onClick={() => onPublish(g)} title="Publish to the community" data-testid="publish-graphic">🌐</button>
           )}
@@ -577,8 +498,6 @@ function GraphicRow({
           >
             {deleteArmed ? 'Delete?' : '🗑'}
           </button>
-        </>
-      )}
       </div>
     </div>
   );
@@ -586,15 +505,11 @@ function GraphicRow({
 
 function GraphicList({
   graphics,
-  packages,
-  packageName,
   onOpen,
   onChanged,
   onPublish,
 }: {
   graphics: GraphicDoc[];
-  packages: Packet[];
-  packageName: (id: string | null) => string | null;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
   onPublish?: (g: GraphicDoc) => void;
@@ -605,65 +520,10 @@ function GraphicList({
         <GraphicRow
           key={g.id}
           g={g}
-          packages={packages}
-          packageLabel={packageName(g.packageId)}
           onOpen={onOpen}
           onChanged={onChanged}
           onPublish={onPublish}
         />
-      ))}
-    </>
-  );
-}
-
-function PackagesSection({
-  packages,
-  countIn,
-  onOpenPackage,
-  onChanged,
-}: {
-  packages: Packet[];
-  countIn: (id: string) => number;
-  onOpenPackage: (p: Packet) => void;
-  onChanged: () => void;
-}) {
-  const [newName, setNewName] = useState('');
-  return (
-    <>
-      <h2>Packages</h2>
-      <p className="hint">
-        A package is a folder for related graphics — “Election Night” with its lower thirds,
-        results graphic, and ticker filed together. To run several graphics at once on air,
-        that is a <strong>production</strong> (the Productions section).
-      </p>
-      <div className="row" style={{ marginBottom: 10 }}>
-        <input
-          className="grow"
-          placeholder="New package name, e.g. Election Night"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newName.trim()) { createPacketNamed(newName); setNewName(''); onChanged(); }
-          }}
-          data-testid="new-package-name"
-        />
-        <button
-          className="primary"
-          disabled={!newName.trim()}
-          onClick={() => { createPacketNamed(newName); setNewName(''); onChanged(); }}
-          data-testid="create-package"
-        >
-          + Create package
-        </button>
-      </div>
-      {packages.length === 0 && <p className="hint">No packages yet — you can also create one when saving a graphic.</p>}
-      {packages.map((p) => (
-        <div className="pk-graphic" key={p.id} data-testid={`package-row-${p.id}`}>
-          <strong>📦 {p.name}</strong>
-          <span className="muted">{countIn(p.id)} graphic{countIn(p.id) === 1 ? '' : 's'}</span>
-          <div className="spacer" />
-          <button className="primary" onClick={() => onOpenPackage(p)} data-testid="open-package">Open</button>
-        </div>
       ))}
     </>
   );
@@ -759,91 +619,6 @@ function ProductionsSection({
           )}
         </div>
       ))}
-    </>
-  );
-}
-
-function PackageView({
-  packet,
-  graphics,
-  onOpen,
-  onExport,
-  onChanged,
-}: {
-  packet: Packet;
-  graphics: GraphicDoc[];
-  onOpen: (g: GraphicDoc) => void;
-  onExport: () => void;
-  onChanged: () => void;
-}) {
-  const navigate = useRouter((s) => s.navigate);
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(packet.name);
-  const [deleteArmed, setDeleteArmed] = useState(false);
-
-  return (
-    <>
-      <button className="link-inline" onClick={() => navigate({ view: 'home', section: 'packages' })}>
-        ‹ All packages
-      </button>
-      <div className="row" style={{ alignItems: 'center', marginTop: 6 }}>
-        {renaming ? (
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => { setRenaming(false); if (name.trim()) { renamePacket(packet.id, name); onChanged(); } }}
-            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-          />
-        ) : (
-          <h2 style={{ margin: 0 }}>📦 {packet.name}</h2>
-        )}
-        <button onClick={() => { setName(packet.name); setRenaming(true); }} title="Rename package">✎</button>
-        <div className="spacer" />
-        <button onClick={onExport} disabled={graphics.length === 0} title="One zip: a plug-and-play folder per graphic" data-testid="export-package">
-          ⬇ Export package
-        </button>
-        <button
-          className={deleteArmed ? 'reset-armed' : ''}
-          onClick={() => {
-            if (deleteArmed) {
-              // Deleting the FOLDER never deletes the graphics — they become standalone.
-              for (const g of graphics) updateGraphic(g.id, { packageId: null });
-              deletePacket(packet.id);
-              navigate({ view: 'home', section: 'packages' });
-            } else {
-              setDeleteArmed(true);
-              setTimeout(() => setDeleteArmed(false), 3500);
-            }
-          }}
-          title={deleteArmed ? 'Click again — its graphics become standalone' : 'Delete this package (graphics are kept)'}
-        >
-          {deleteArmed ? 'Delete package?' : '🗑'}
-        </button>
-      </div>
-      {graphics.length === 0 && (
-        <p className="hint" style={{ marginTop: 10 }}>
-          Empty — save a graphic into this package from the editor's 💾 Save dialog, or move one
-          here from Graphics.
-        </p>
-      )}
-      <div style={{ marginTop: 10 }}>
-        {graphics.map((g) => (
-          <div className="pk-graphic" key={g.id}>
-            <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} />
-            <div className="pk-info">
-              <strong>{g.name}</strong>
-              <span className="muted">{g.type} · {new Date(g.updatedAt).toLocaleDateString()}</span>
-            </div>
-            <div className="spacer" />
-            <div className="pk-actions">
-              <button className="primary" onClick={() => onOpen(g)}>Open</button>
-              <button onClick={() => navigate({ view: 'control', id: g.id })} title="Open its control panel">🎛</button>
-              <button onClick={() => { updateGraphic(g.id, { packageId: null }); onChanged(); }} title="Remove from the package (kept as standalone)">✕</button>
-            </div>
-          </div>
-        ))}
-      </div>
     </>
   );
 }

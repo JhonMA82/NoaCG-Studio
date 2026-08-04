@@ -515,20 +515,21 @@ e2e/layout.spec.ts.
 
 ## Save + Home (docs/SAVED_CONTENT_MODEL.md)
 
-PacketManager and the Homebase modal are RETIRED - packages are managed through Save and
-Home, both routed (src/app/router.ts) so browser Back/Forward walk between surfaces.
+PACKAGES are fully RETIRED (docs/GOALS.md "Student release" step 3): every save is standalone
+in the flat library and the one grouping is a PRODUCTION (model/shows.ts). Save and Home are
+both routed (src/app/router.ts) so browser Back/Forward walk between surfaces.
 
 - **save/SaveControls** - the topbar Save button + honest status (Not saved / Unsaved
   changes / Saving… / Saved / Save failed) + the ▾ menu (Save As, open saved) + global
   Ctrl/Cmd+S (capture phase, works inside Monaco, stands down under modals).
-- **save/SaveDialogs** - the first-save/Save-As dialog (name + standalone / package / new
-  package) and the unsaved-changes guard (Save & continue / Save first… / Discard /
+- **save/SaveDialogs** - the first-save/Save-As dialog (name only - every save is standalone)
+  and the unsaved-changes guard (Save & continue / Save first… / Discard /
   Cancel), mounted once per shell; both declare useModalGate.
-- **home/HomePage** - `#/home[/<section>]` + `#/package/<id>`: recent work, the graphics
-  library (search, open, 🎛 control panel, rename, duplicate, move-to-package, two-step
-  delete), packages (create/rename/export via buildGraphicsZip/delete - deleting a package
-  KEEPS its graphics as standalone), control panels, videos, brand looks (absorbed from
-  PacketManager). Local-first, no auth gate - sign-in only adds sync.
+- **home/HomePage** - `#/home[/<section>]`: recent work, the graphics
+  library (search, open, 🎛 control panel, rename, duplicate, two-step
+  delete), control panels, productions, videos, brand looks.
+  Local-first, no auth gate - sign-in only adds sync. `#/package/*` is a retired route that
+  lands on Home.
 - **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
   preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
   recipe - update, buildInTimeline().progress(1, true), update again; a template with no builder

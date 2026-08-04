@@ -110,7 +110,7 @@ export default function App() {
   // editor, which is open to everyone — no login wall (Era 5.6). Account features (cloud
   // sync, community, AI) gate themselves via useAuthState and the on-demand SignInDialog.
   const surface =
-    route.view === 'home' || route.view === 'package' ? <HomePage route={route} />
+    route.view === 'home' ? <HomePage route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} />
     : route.view === 'video' ? <VideoAppShell />

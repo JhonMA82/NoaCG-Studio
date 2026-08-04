@@ -11,7 +11,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const { reconcile, runSync } = await import('/src/backend/sync.ts?t=' + Date.now());
 
     const rec = (id: string, updatedAt: string, extra: Record<string, unknown> = {}) => ({
-      kind: 'packet' as const,
+      kind: 'look' as const,
       id,
       updatedAt,
       body: { id, name: id, updatedAt, ...extra },
@@ -98,8 +98,8 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const local = mem([rec('L', T1)]);
     const remote = mem([rec('R', T1)]);
     const r1 = await runSync(local, remote);
-    const remoteHasL = remote.store.has('packet:L');
-    const localHasR = local.store.has('packet:R');
+    const remoteHasL = remote.store.has('look:L');
+    const localHasR = local.store.has('look:R');
     check('runSync pushes+pulls', r1.pushed === 1 && r1.pulled === 1 && remoteHasL && localHasR);
     const r2 = await runSync(local, remote);
     check('runSync idempotent', r2.pushed === 0 && r2.pulled === 0 && r2.conflicts === 0);
@@ -117,14 +117,14 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     //     bookmark — a later remote edit is then a true conflict, not a silent overwrite
     const T1b = '2026-02-15T00:00:00.000Z';
     const pNo = reconcile([rec('pp', T1)], [rec('pp', T2)], T1b);
-    p = reconcile([rec('pp', T1)], [rec('pp', T2)], T1b, { push: new Set(['packet:pp']) });
+    p = reconcile([rec('pp', T1)], [rec('pp', T2)], T1b, { push: new Set(['look:pp']) });
     check(
       'pending push forces conflict',
       pNo.conflicts.length === 0 && pNo.toLocal.length === 1 && p.conflicts.length === 1 && p.toLocal.length === 1,
     );
 
     // 12. an owed "(conflicted copy)" forces the conflict branch again until it materializes
-    p = reconcile([rec('pc', T1)], [rec('pc', T2)], '2026-04-01T00:00:00.000Z', { conflict: new Set(['packet:pc']) });
+    p = reconcile([rec('pc', T1)], [rec('pc', T2)], '2026-04-01T00:00:00.000Z', { conflict: new Set(['look:pc']) });
     check('owed conflict copy forces conflict branch', p.conflicts.length === 1 && p.toLocal.length === 1);
 
     // 13. one failing put never sinks the pass: the healthy record still pushes, the failure is
@@ -140,17 +140,17 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
         s13.failures.length === 1 &&
         s13.failures[0].id === 'bad' &&
         s13.failures[0].op === 'push' &&
-        r13.store.has('packet:ok1') &&
+        r13.store.has('look:ok1') &&
         typeof meta13.lastSyncedAt === 'string' &&
         meta13.lastSyncedAt > T2 &&
-        meta13.pendingPush.includes('packet:bad'),
+        meta13.pendingPush.includes('look:bad'),
     );
 
     // 14. the frozen-bookmark disaster, replayed against the fix: the failed push's record is
     //     edited remotely before the next pass — the local edit must survive as a copy, not be
     //     silently overwritten (and the pending debt clears once handled)
     const T9 = '2036-01-01T00:00:00.000Z'; // after the just-saved bookmark
-    r13.store.set('packet:bad', rec('bad', T9));
+    r13.store.set('look:bad', rec('bad', T9));
     const s14 = await runSync(l13, r13);
     const copies14 = [...l13.store.values()].filter(
       (x) => typeof (x.body as { name?: unknown })?.name === 'string' && String((x.body as { name: string }).name).includes('(conflicted copy)'),
@@ -159,7 +159,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
       'failed push + later remote edit = conflict, copy kept',
       s14.conflicts === 1 &&
         copies14.length === 1 &&
-        l13.store.get('packet:bad')?.updatedAt === T9 &&
+        l13.store.get('look:bad')?.updatedAt === T9 &&
         [...r13.store.values()].some((x) => String((x.body as { name?: unknown })?.name ?? '').includes('(conflicted copy)')) &&
         readMeta().pendingPush.length === 0,
     );
@@ -185,7 +185,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     // ── cross-account id collisions (RLS-denied puts) ────────────────────────────────────────────
 
     const denied = () =>
-      Object.assign(new Error('Cloud put(packet) failed: new row violates row-level security policy'), {
+      Object.assign(new Error('Cloud put(look) failed: new row violates row-level security policy'), {
         putDenied: true,
       });
 
@@ -204,8 +204,8 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
         !!minted &&
         re.test(minted.id) &&
         (minted.body as { id: string }).id === minted.id &&
-        r16.store.has('packet:' + minted.id) &&
-        !l16.store.has('packet:11111111-1111-4111-8111-111111111111'),
+        r16.store.has('look:' + minted.id) &&
+        !l16.store.has('look:11111111-1111-4111-8111-111111111111'),
     );
 
     // 17. a TOMBSTONE denied by RLS deletes nothing of ours in the cloud — dropped silently,
@@ -215,7 +215,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const s17 = await runSync(l17, r17);
     check(
       'foreign tombstone dropped silently',
-      s17.failures.length === 0 && s17.reminted === 0 && s17.pushed === 0 && l17.store.has('packet:ghost'),
+      s17.failures.length === 0 && s17.reminted === 0 && s17.pushed === 0 && l17.store.has('look:ghost'),
     );
 
     return out;

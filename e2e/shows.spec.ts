@@ -156,8 +156,9 @@ test('shows and videos ride the storage seam (the sync engine sees and writes bo
       videoListed: videos.some((r) => r.id === videoBody.id),
     };
   });
-  // 'graphic' joined the list with the graphics library (docs/SAVED_CONTENT_MODEL.md).
-  expect(result.kinds).toEqual(['packet', 'look', 'brand', 'project', 'show', 'video', 'graphic']);
+  // 'graphic' joined with the graphics library; 'packet' left with the packages retirement
+  // (docs/SAVED_CONTENT_MODEL.md - old packet rows stay inert, simply never fetched).
+  expect(result.kinds).toEqual(['look', 'brand', 'project', 'show', 'video', 'graphic']);
   expect(result.showListed).toBe(true);
   expect(result.showLive).toBe(true);
   expect(result.videoListed).toBe(true);
@@ -309,7 +310,7 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   expect(css).toContain('EDITED-AFTER-ADD');
 });
 
-test('Home lists productions, the production page exports the package; packages stay packages', async ({ page }) => {
+test('Home lists productions and the production page exports the package', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await addCurrentToShow(page, 'Home Production', true);
 
@@ -331,8 +332,8 @@ test('Home lists productions, the production page exports the package; packages 
   ]);
   expect(await download.suggestedFilename()).toMatch(/production\.zip$/);
 
-  // The word clash the review found: the Packages tab must not describe a package as a "show".
+  // Packages are retired (docs/GOALS.md "Student release" step 3): no Packages nav on Home.
   await page.getByTestId('production-back').click();
-  await page.getByTestId('home-nav-packages').click();
-  await expect(page.locator('.home-body')).not.toContainText(/A package is a show/i);
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('home-nav-packages')).toHaveCount(0);
 });

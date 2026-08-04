@@ -89,17 +89,19 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   (not src/ai) because SavedProject and GraphicDoc persist it as `aiSpec` (additive optional);
   the category REGISTRY that interprets it is src/ai/spec/categories.ts. Version-1 migrate-on-read
   via normalizeSpec; an unknown version degrades to "no spec", never a crash.
-- **library.ts** - the GRAPHICS LIBRARY (docs/SAVED_CONTENT_MODEL.md): every durably saved
-  graphic is ONE `GraphicDoc` with a STABLE uuid ('spx-gfx-graphics', sync kind 'graphic',
-  supabase migration 0009) - template + baseline + `packageId` (null = standalone) + the
-  control panel's `entries` (`ControlEntry` named data rows) + `activeEntryId`, plus the AI
-  provenance `aiSpec` + `aiThread` (both ADDITIVE OPTIONAL - version stays 1). Packet
-  conventions (updatedAt LWW, tombstones). `migrateEmbeddedGraphics` extracts v1 packets'
-  embedded graphics into the library UNDER THEIR OWN ids (convergent across devices) and
-  rewrites the packet as version 2; it runs on every loadAllGraphics.
-- **packets.ts** - PACKAGES (v2: folders over the library - graphics point back via
-  packageId; the legacy `graphics` array stays a real empty array so older builds never
-  crash) + brand looks 'spx-gfx-looks' + captureLookFromTemplate/applyLookToTemplate.
+- **library.ts** - the FLAT graphics LIBRARY (docs/SAVED_CONTENT_MODEL.md): every durably
+  saved graphic is ONE `GraphicDoc` with a STABLE uuid ('spx-gfx-graphics', sync kind
+  'graphic', supabase migration 0009) - template + baseline + the control panel's `entries`
+  (`ControlEntry` named data rows) + `activeEntryId`, plus the AI provenance `aiSpec` +
+  `aiThread` (both ADDITIVE OPTIONAL - version stays 1). `packageId` is DEPRECATED inert data
+  (packages retired - docs/GOALS.md "Student release" step 3; not nulled, because rewriting
+  the whole library would storm sync). Packet conventions (updatedAt LWW, tombstones).
+  `migrateEmbeddedGraphics` still extracts a legacy v1 packet's embedded graphics into the
+  library UNDER THEIR OWN ids (convergent across devices); it runs on every loadAllGraphics.
+- **packets.ts** - LOOKS ('spx-gfx-looks', captureLookFromTemplate/applyLookToTemplate) plus
+  the RETIRED package store's read seam: no UI reads or writes packages and the 'packet' sync
+  kind is gone (rows stay inert); what remains is loadAllPackets + upsertPacket for
+  library.ts's v1 extraction, and the `SavedGraphic` shape shows.ts pools reuse.
 - **shows.ts** - the PRODUCTION unit (docs/CLOUD_PLAYOUT.md + docs/CONTROL_LAYER.md; the UI word
   is "production", the old "rundown"): the graphic POOL (name-keyed, one renderer instance each)
   plus the CUE rundown (`cues` - additive optional data rows over the pool, many

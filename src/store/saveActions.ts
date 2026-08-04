@@ -16,7 +16,6 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { createPacketNamed } from '../model/packets';
 import { saveProject } from '../model/project';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
@@ -28,17 +27,11 @@ function persistLink(): void {
   saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
 }
 
-/** Where a first save / Save As puts the graphic. */
-export type SaveDestination =
-  | { kind: 'standalone' }
-  | { kind: 'package'; id: string }
-  | { kind: 'new-package'; name: string };
-
-function destPackageId(dest: SaveDestination): string | null {
-  if (dest.kind === 'standalone') return null;
-  if (dest.kind === 'package') return dest.id;
-  return createPacketNamed(dest.name).id;
-}
+/** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS.md
+ *  "Student release" step 3): every save is standalone in the flat library, and grouping
+ *  happens in a PRODUCTION's own pool. The envelope type stays so every caller keeps one
+ *  signature. */
+export type SaveDestination = { kind: 'standalone' };
 
 /**
  * Save the working template into its linked library record. Returns 'needs-name' when the
@@ -64,11 +57,11 @@ export function saveCurrentGraphic(): 'saved' | 'needs-name' | 'failed' {
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. */
-export function saveGraphicAs(name: string, dest: SaveDestination): { ok: boolean; error: string | null } {
+export function saveGraphicAs(name: string, _dest: SaveDestination): { ok: boolean; error: string | null } {
   const s = useTemplateStore.getState();
   const { doc, error } = createGraphic(s.template, {
     name,
-    packageId: destPackageId(dest),
+    packageId: null,
     baseline: s.baseline,
     aiSpec: s.aiSpec,
     aiThread: s.aiThread,

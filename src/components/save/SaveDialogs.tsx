@@ -1,20 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   saveCurrentGraphic,
   saveGraphicAs,
   useSaveUi,
-  type SaveDestination,
 } from '../../store/saveActions';
-import { loadPackets } from '../../model/packets';
 import { useModalGate } from '../spaceKey';
 
 /**
  * The two save-flow dialogs (docs/SAVED_CONTENT_MODEL.md §2), mounted once in each shell:
  *
- * - SAVE DIALOG (first save / Save As): name the graphic and choose where it lives —
- *   standalone, an existing package, or a new package created right here. Packages are
- *   managed through Save and Home; there is no separate package manager.
+ * - SAVE DIALOG (first save / Save As): name the graphic. Every save is standalone in the
+ *   flat library (packages retired - docs/GOALS.md "Student release" step 3); grouping for
+ *   air happens in a PRODUCTION's own pool.
  * - UNSAVED-CHANGES GUARD: shown before an action that REPLACES the working document
  *   (opening another graphic, creating a new project). Save first, discard, or cancel.
  */
@@ -34,11 +32,8 @@ function SaveDialog() {
   const dialog = useSaveUi((s) => s.saveDialog)!;
   const close = useSaveUi((s) => s.closeSaveDialog);
   const template = useTemplateStore((s) => s.template);
-  const packages = useMemo(() => loadPackets(), []);
 
   const [name, setName] = useState(dialog.mode === 'save-as' ? `${template.name} copy` : template.name);
-  const [dest, setDest] = useState<string>('standalone'); // 'standalone' | 'new' | a package id
-  const [newPackage, setNewPackage] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Backdrop click-to-close must only fire on a genuine outside click — not when a text
   // selection drag STARTED in the name field and released over the backdrop (which routes the
@@ -54,11 +49,7 @@ function SaveDialog() {
   }, [close]);
 
   const confirm = () => {
-    const destination: SaveDestination =
-      dest === 'standalone' ? { kind: 'standalone' }
-      : dest === 'new' ? { kind: 'new-package', name: newPackage }
-      : { kind: 'package', id: dest };
-    const res = saveGraphicAs(name.trim() || template.name, destination);
+    const res = saveGraphicAs(name.trim() || template.name, { kind: 'standalone' });
     if (!res.ok) {
       setError(res.error);
       return;
@@ -93,29 +84,10 @@ function SaveDialog() {
               data-testid="save-name"
             />
           </label>
-          <div className="save-field">
-            <span>Where it lives</span>
-            <select value={dest} onChange={(e) => setDest(e.target.value)} data-testid="save-dest">
-              <option value="standalone">Standalone graphic (no package)</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>📦 {p.name}</option>
-              ))}
-              <option value="new">＋ New package…</option>
-            </select>
-            {dest === 'new' && (
-              <input
-                placeholder="Package name, e.g. Election Night"
-                value={newPackage}
-                onChange={(e) => setNewPackage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
-                data-testid="save-new-package"
-              />
-            )}
-            <p className="hint">
-              A package is a show or collection — its graphics stay together in Home and can
-              be exported as one set.
-            </p>
-          </div>
+          <p className="hint">
+            Saved graphics live in your library on Home. To run several together on air, add
+            them to a <strong>production</strong> — its page holds the rundown and the links.
+          </p>
           {error && <p className="status-bad">{error}</p>}
           <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
             <button onClick={close}>Cancel</button>

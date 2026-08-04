@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import BrandLogo from '../../BrandLogo';
 import { loadGraphics, type GraphicDoc } from '../../../model/library';
-import { loadPackets } from '../../../model/packets';
+import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
 
 interface Props {
@@ -35,13 +35,13 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
     () => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
     [],
   );
-  /** Is there anything to continue? Home holds graphics, packages and videos, so any of them
-   *  counts. On a first-ever visit there is nothing, and offering the loudest card on the
-   *  screen as a door to an empty room is a false lead - creation leads instead. */
+  /** Is there anything to continue? Home holds graphics, productions and videos, so any of
+   *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
+   *  the screen as a door to an empty room is a false lead - creation leads instead. */
   const hasSavedWork = useMemo(
     () =>
       recent.length > 0 ||
-      loadPackets().length > 0 ||
+      loadShows().length > 0 ||
       listSavedVideoProjects().length > 0 ||
       hasCurrentVideoProject(),
     [recent],
