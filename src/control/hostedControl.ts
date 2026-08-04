@@ -151,6 +151,10 @@ export interface CueStatusMsg {
 export interface ControlEventRow {
   id: number;
   graphic: string;
+  /** When the row was written (0008's `control_tail` has always returned it, and a Realtime
+   *  INSERT payload carries the whole row). Optional because a locally-authored row — a
+   *  rehearsal's own commands — has no server time, and older callers never read it. */
+  created_at?: string;
   msg:
     | ControlMessage
     | CueStatusMsg

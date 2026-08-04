@@ -3922,6 +3922,33 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   background: #0a0a0c;
 }
 .prod-rehearsal-note { position: absolute; left: 12px; top: 12px; margin: 0; }
+/* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
+   TEXT column aligned down the list, which is what makes a feed scannable rather than merely
+   present. Capped in height so an afternoon's traffic scrolls inside the panel instead of
+   pushing the page. */
+.prod-log summary { cursor: pointer; font-weight: 600; }
+.prod-log-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.prod-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  border-top: 1px solid var(--border);
+}
+.prod-log-row:first-child { border-top: none; }
+.prod-log-time { flex: 0 0 auto; font-family: var(--mono, monospace); font-size: 11px; color: var(--text-dim); }
+.prod-log-text { flex: 1 1 auto; min-width: 0; }
+.prod-log-graphic { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
+/* Only the two verbs that change what is ON AIR earn a colour; everything else is a step. */
+.prod-log-take .prod-log-text { color: #4ade80; }
+.prod-log-out .prod-log-text { color: var(--text-dim); }
 .prod-rehearsal-empty {
   position: absolute;
   inset: 0;

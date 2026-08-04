@@ -330,6 +330,38 @@ Because none of this touches the backend, it is the one part of §4 the OFFLINE 
 drive end to end — `e2e/productions.spec.ts` takes two cues, asserts both layers are up and that
 the values reached the rendered documents, then Outs one layer and All-outs the rest.
 
+## 4b. The action log
+
+The command log has always recorded everything, because that is what makes recovery possible —
+and nothing ever showed it to the person driving the show. "Did that take actually go?" was a
+question the system could answer and did not. The production page's **Activity** panel is that
+answer: the log read back in the words an operator would use, newest first.
+
+- **It shows COMMANDS — what somebody asked the production to do.** The two meta rows are
+  deliberately absent. `staged` is typing (debounced, one row per few keystrokes, per operator)
+  and would drown everything else; `live` is the RENDERER reporting back, a different fact with
+  its own surfaces (the live chips, the renderer-connected indicator). A feed carrying all three
+  is unreadable, which is the usual failure of an event log.
+- **A verb is several rows and the log says so.** A Take is `update` + `play` + `cue`, and it
+  prints as three lines. Collapsing them would mean inventing a grouping the log does not carry;
+  the log's whole value is that it is what actually happened.
+- **Cues are named, never numbered.** `describeLogRow` resolves a cue id to the label the
+  operator wrote, and the id never reaches the screen. The lookup reads the DRAFT first, for the
+  same reason a Take sends draft values: a verb runs in the same tick as its own `flushDraft()`,
+  so reading the stored record alone logged the name a cue had *before* the rename that just
+  happened — precisely when someone is most likely to be reading.
+- **Rehearsal keeps its own log**, built from the same `ControlSendItem`s through the same
+  `describeLogRow`. That is what makes the panel identical in both modes, and it is the only
+  reason any of this is provable without a backend.
+- Opening a published production seeds the panel with recent history (one tail read behind the
+  log head — `followControlLog` starts AT the head by design, being recovery rather than a
+  history reader). Global event ids mean that window is a ceiling on rows READ, not on rows
+  shown: on a busy instance it simply yields fewer of this show's rows. Entries are capped
+  (`LOG_LIMIT`) so a 24/7 production cannot grow the page without bound.
+- Timestamps are real: `control_tail` has returned `created_at` since 0008, and a Realtime
+  INSERT payload carries the whole row — surfacing them needed no migration, only a widened
+  type. A row with no time says `—` rather than guessing.
+
 ## 5. Where it lives in the app
 
 - **Home rail**: the `rundowns` section becomes **Productions** (`#/home/productions`) —

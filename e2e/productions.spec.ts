@@ -277,7 +277,10 @@ test('rehearsal drives a local copy of the output, and every verb reaches it', a
   };
 
   // Take the lower third: its value reaches the rehearsal's own document, so this is the
-  // rendered graphic, not a claim about one.
+  // rendered graphic, not a claim about one. The cue is NAMED too — the action log reads
+  // cues by the name the operator wrote, so a cue left on its default name proves nothing.
+  await cueRows.nth(0).getByTestId('select-cue').click();
+  await page.getByTestId('cue-label').fill('Anna Andersson');
   await page.getByTestId('cue-field-f0').fill('Anna Andersson');
   await takeCue(0);
   await expect(page.frameLocator('[data-testid="rehearsal-stage"] iframe[title="Anchor L3"]').locator('#f0')).toHaveText(
@@ -303,6 +306,28 @@ test('rehearsal drives a local copy of the output, and every verb reaches it', a
   await page.getByTestId('verb-out-all').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(0);
+
+  // The ACTION LOG recorded all of it, newest first, in the operator's own words. Rehearsal
+  // keeps its own log through the same describeLogRow the wire rows go through, which is the
+  // only reason any of this is checkable without a backend.
+  const log = page.getByTestId('action-log');
+  await log.locator('summary').click();
+  const rows = log.getByTestId('action-log-row');
+  // Newest first: the last thing done was the All out, which stops the ticker's layer.
+  await expect(rows.first()).toContainText('Out');
+  await expect(rows.first()).toContainText('Ticker crawl');
+  // The take is named by the CUE's label, never its id.
+  await expect(log).toContainText('Took “Anna Andersson”');
+  await expect(log).not.toContainText('Updated 0 fields');
+
+  // Rename a cue and take it IMMEDIATELY — no click in between to let the record catch up.
+  // The verb runs in the same tick as its own draft flush, so a log reading only the stored
+  // record names the cue as it was BEFORE the rename: the one moment the log is most likely
+  // to be read is the one it used to get wrong.
+  await cueRows.nth(0).getByTestId('select-cue').click();
+  await page.getByTestId('cue-label').fill('Björn Berg');
+  await page.getByTestId('verb-take').click();
+  await expect(rows.first()).toContainText('Took “Björn Berg”');
 });
 
 test('a published production shows SHOW until the operator asks to rehearse', async ({ page }) => {
@@ -339,6 +364,50 @@ test('a published production shows SHOW until the operator asks to rehearse', as
   await page.getByTestId('toggle-rehearsal').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW');
   await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
+});
+
+test('the action log reads commands as operator language, and drops the bookkeeping', async ({ page }) => {
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const result = await page.evaluate(async () => {
+    const { describeLogRow, appendLogEntries, logTime } = await import('/src/control/eventLog.ts');
+    const label = (id: string) => (id === 'cue-a' ? 'Anna Andersson' : null);
+    const row = (id: number, graphic: string, msg: unknown) => ({ id, graphic, msg, created_at: '2026-08-04T09:15:30.000Z' });
+    const say = (id: number, graphic: string, msg: unknown) => describeLogRow(row(id, graphic, msg) as never, label);
+    return {
+      take: say(1, 'Bug', { t: 'cue', cue: 'cue-a' }),
+      // A cue whose label has since been deleted still reads as a take, never as a raw id.
+      unknownCue: say(2, 'Bug', { t: 'cue', cue: 'gone' })?.text,
+      out: say(3, 'Bug', { t: 'cue', cue: null })?.text,
+      update: say(4, 'Bug', { t: 'update', data: { f0: 'x', f1: 'y' } })?.text,
+      one: say(5, 'Bug', { t: 'update', data: { f0: 'x' } })?.text,
+      event: say(6, 'Bug', { t: 'event', event: 'reveal' })?.text,
+      // The bookkeeping rows are NOT operator actions and must never reach the feed.
+      staged: say(7, 'Bug', { t: 'staged', data: {} }),
+      live: say(8, 'Bug', { t: 'live', data: {} }),
+      unknown: say(9, 'Bug', { t: 'something-new' }),
+      // Newest first, and a re-delivered row (the tail refill replays what the socket brought)
+      // must not appear twice.
+      order: appendLogEntries(
+        appendLogEntries([], [say(1, 'Bug', { t: 'play' })!, say(2, 'Bug', { t: 'next' })!]),
+        [say(2, 'Bug', { t: 'next' })!, say(3, 'Bug', { t: 'stop' })!],
+      ).map((e) => e.id),
+      time: logTime('2026-08-04T09:15:30.000Z').length,
+      undated: logTime(null),
+    };
+  });
+  expect(result.take).toMatchObject({ kind: 'take', graphic: 'Bug', text: 'Took “Anna Andersson”' });
+  expect(result.unknownCue).toBe('Took “a cue”');
+  expect(result.out).toBe('Out');
+  expect(result.update).toBe('Updated 2 fields');
+  expect(result.one).toBe('Updated 1 field');
+  expect(result.event).toBe('Fired “reveal”');
+  expect(result.staged).toBeNull();
+  expect(result.live).toBeNull();
+  expect(result.unknown).toBeNull();
+  expect(result.order).toEqual([3, 2, 1]);
+  expect(result.time).toBe(8); // hh:mm:ss — seconds matter when two takes are a moment apart
+  expect(result.undated).toBe('—');
 });
 
 test('a cue is live per LAYER, not per production', async ({ page }) => {

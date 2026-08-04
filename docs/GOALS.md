@@ -1206,8 +1206,8 @@ first-class. Stages are direction, not a calendar; each is independently shippab
       channel restart (§8.7) and unpublish/re-publish (§8.8).
 - [ ] **Stage 2 — Production workflow + reliability**: published/draft versions + rollback,
       renderer health surfaced properly (multi-renderer awareness), operator access + sharing,
-      logs/diagnostics, per-caller rate caps, the `control_events` anon-read narrowing (needs a
-      v2 receiver generation + deprecation window).
+      per-caller rate caps, the `control_events` anon-read narrowing (needs a v2 receiver
+      generation + deprecation window).
   - [x] **Multiple layers, z-order over the per-graphic instances** — every pool graphic is a
         layer holding its OWN on-air cue, so a bug, a lower third and a ticker are up together
         and Take no longer stops whatever was live before it. The log was already per-layer
@@ -1236,6 +1236,15 @@ first-class. Stages are direction, not a calendar; each is independently shippab
         2.3.x carries the pre-Chromium-80 engine that killed our first build silently, **2.4.0
         ships CEF 117 and 2.5.0 ships CEF 142** (CasparCG changelog), so the guide can tell an
         operator whether it affects them at all.
+  - [x] **The action log** (`docs/CLOUD_PLAYOUT.md` §4b) — the command log has always recorded
+        everything, and nothing ever showed it to the person driving the show. The production
+        page's Activity panel reads it back as operator language, newest first, naming cues by
+        the label someone wrote rather than by id. It shows COMMANDS and drops the two meta
+        rows (`staged` is typing, `live` is the renderer reporting — both have their own
+        surfaces, and together they make the feed unreadable). Rehearsal keeps its own log
+        through the same `describeLogRow`, which is what makes the panel provable offline.
+        **No migration:** `control_tail` has returned `created_at` since 0008 and a Realtime
+        payload carries the whole row, so real timestamps needed only a widened type.
 - [ ] **Stage 3 — the NoaCG Data Hub**: server-side connectors writing `update` rows into
       the SAME command log (one ingress, renderer stays dumb), normalized field schemas +
       visual mapping, credentials server-side only, caching + freshness + last-known-good,

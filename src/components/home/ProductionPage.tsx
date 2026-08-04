@@ -33,6 +33,7 @@ import {
   type ControlSendItem,
   type LiveCueMap,
 } from '../../control/hostedControl';
+import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../../control/eventLog';
 import RehearsalStage, { type RehearsalStageHandle } from './RehearsalStage';
 import { composeDocument } from '../../preview/composeDocument';
 import { postPreviewCmd } from '../../preview/previewProtocol';
@@ -53,6 +54,10 @@ interface CueDraft {
   note: string;
   values: Record<string, string>;
 }
+
+/** How far behind the log head the action log seeds its history. Global ids mean this is a
+ *  ceiling on rows READ, not on rows shown — a busy instance yields fewer of this show's. */
+const LOG_HISTORY_SPAN = 400;
 
 /**
  * The PRODUCTION page (route `#/production/<id>`, docs/CLOUD_PLAYOUT.md §4-5): one production's
@@ -111,9 +116,21 @@ export default function ProductionPage({ id }: { id: string }) {
   /** What is on air IN THE REHEARSAL — a second live map, because a rehearsal must never be
    *  able to make the production page report something about the real output. */
   const [rehearsalCue, setRehearsalCue] = useState<LiveCueMap>({});
-  // Entering or leaving rehearsal builds a fresh stage with nothing up, so the map starts empty
-  // either way. Without this, a rehearsal's leftovers would still read as live on the next one.
-  useEffect(() => setRehearsalCue({}), [rehearsing]);
+
+  // ── The operator ACTION LOG (docs/CLOUD_PLAYOUT.md §4b). Two sources, one vocabulary: the
+  // shared command log in Show mode, this page's own verbs in Rehearse. Rehearsal entries carry
+  // NEGATIVE ids so they can never collide with a real row's id in the dedupe. ──
+  const [wireLog, setWireLog] = useState<LogEntry[]>([]);
+  const [rehearsalLog, setRehearsalLog] = useState<LogEntry[]>([]);
+  const localLogId = useRef(0);
+
+  // Entering or leaving rehearsal builds a fresh stage with nothing up, so the map and the
+  // rehearsal's own log both start empty either way. Without this, a previous rehearsal's
+  // leftovers would still read as live, and its actions as this one's.
+  useEffect(() => {
+    setRehearsalCue({});
+    setRehearsalLog([]);
+  }, [rehearsing]);
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
   const graphicByPoolId = useMemo(() => new Map((show?.graphics ?? []).map((g) => [g.id, g] as const)), [show]);
@@ -164,6 +181,21 @@ export default function ProductionPage({ id }: { id: string }) {
     setSelectedCueId(cueId);
   };
 
+  // The log names cues by the LABEL the operator wrote, and it is read from long-lived
+  // callbacks (a Realtime subscription that must not be torn down every time a cue is renamed),
+  // so the lookup goes through a ref rather than a dependency.
+  const cuesRef = useRef(cues);
+  cuesRef.current = cues;
+  const cueLabel = useCallback((cueId: string) => {
+    // The DRAFT wins, exactly as it does for the values a Take sends. A verb runs in the same
+    // tick as the `flushDraft()` before it, so the record behind `cuesRef` has not re-rendered
+    // yet — reading it alone logged the name the cue had BEFORE the rename the operator just
+    // made, which is the one moment the log is most likely to be read.
+    const d = draftRef.current;
+    if (d && d.cueId === cueId) return d.label;
+    return cuesRef.current.find((c) => c.id === cueId)?.label ?? null;
+  }, []);
+
   // ── Live tracking: recover the marker from the log's tail, then follow (shared discipline). ──
   useEffect(() => {
     if (!hostedSlug || !backendConfigured || !show) return;
@@ -177,6 +209,19 @@ export default function ProductionPage({ id }: { id: string }) {
       // The on-air cues come off the ROW (0031's snapshot, per-layer since 0034) — no
       // log-window scan to miss.
       setLiveCue(resolved.liveCue);
+      // Seed the action log with what already happened. `followControlLog` starts at the log
+      // HEAD by design (it is a recovery mechanism, not a history reader), so without this the
+      // panel would open empty on a production that has been on air all afternoon. One tail
+      // read behind the head is enough: the RPC filters by slug, so a window measured in
+      // GLOBAL ids simply returns fewer rows on a busy instance rather than the wrong ones.
+      const history = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
+      if (!alive) return;
+      setWireLog((l) =>
+        appendLogEntries(
+          l,
+          history.map((r) => describeLogRow(r, cueLabel)).filter((e): e is LogEntry => !!e),
+        ),
+      );
       unsubscribe = await followControlLog({
         showId: show.id,
         from: resolved.lastEventId,
@@ -185,6 +230,8 @@ export default function ProductionPage({ id }: { id: string }) {
           // A cue row names its own graphic, so it only ever speaks for that ONE layer.
           const msg = row.msg;
           if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, row.graphic, msg.cue));
+          const entry = describeLogRow(row, cueLabel);
+          if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
         },
       });
     })();
@@ -335,6 +382,15 @@ export default function ProductionPage({ id }: { id: string }) {
   const runVerb = async (batches: ControlSendItem[][], label: string): Promise<boolean> => {
     if (rehearsing) {
       for (const batch of batches) rehearsalRef.current?.apply(batch);
+      // A rehearsal writes no log row, so it keeps its own — same rows through the same
+      // describeLogRow, which is what lets the panel work identically in both modes (and is
+      // the only reason any of this is provable offline).
+      const now = new Date().toISOString();
+      const entries = batches
+        .flat()
+        .map((item) => describeLogRow({ id: (localLogId.current -= 1), graphic: item.graphic, msg: item.msg, created_at: now }, cueLabel))
+        .filter((e): e is LogEntry => !!e);
+      setRehearsalLog((l) => appendLogEntries(l, entries));
       return true;
     }
     const s = requirePublished();
@@ -354,6 +410,8 @@ export default function ProductionPage({ id }: { id: string }) {
   /** A rehearsal needs no publish; airing does. This is the only thing publishing gates now —
    *  before rehearsal the verbs were simply dead on an unpublished production. */
   const canRunVerbs = rehearsing || !!show.hostedSlug;
+  /** The log the surface is currently about, for the same reason `liveNow` exists. */
+  const logNow = rehearsing ? rehearsalLog : wireLog;
 
   // Every verb below Take addresses ONE LAYER — the layer of the SELECTED cue. That is the
   // whole difference multi-layer makes to the operator: there is no longer a single "the live
@@ -656,6 +714,35 @@ export default function ProductionPage({ id }: { id: string }) {
               ))}
             </div>
           )}
+
+          {/* The action log (docs/CLOUD_PLAYOUT.md §4b) — what this production was ASKED to do,
+              newest first. Collapsed by default: it answers a question you only ask when
+              something looks wrong, and an always-open feed under the cue editor would push the
+              fields off a laptop screen. */}
+          <details className="panel-section prod-log" data-testid="action-log">
+            <summary>
+              Activity <span className="muted">{rehearsing ? '· this rehearsal' : '· this production'}</span>
+            </summary>
+            {logNow.length === 0 ? (
+              <p className="hint" data-testid="action-log-empty">
+                {rehearsing
+                  ? 'Nothing rehearsed yet — the verbs above will show up here.'
+                  : backendConfigured
+                    ? 'Nothing yet. Every Take, Update, Next and Out lands here, whoever sends it.'
+                    : 'The shared log needs the cloud backend — this build runs offline. Rehearse to see the verbs logged locally.'}
+              </p>
+            ) : (
+              <ol className="prod-log-list">
+                {logNow.map((e) => (
+                  <li key={e.id} className={`prod-log-row prod-log-${e.kind}`} data-testid="action-log-row">
+                    <span className="prod-log-time">{logTime(e.at)}</span>
+                    <span className="prod-log-text">{e.text}</span>
+                    <span className="muted prod-log-graphic">{e.graphic}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </details>
         </section>
 
         <aside className="control-page-side">
