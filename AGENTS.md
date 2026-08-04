@@ -309,7 +309,12 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   fails on any box that newly escapes the 1920x1080 frame or clips its own content, diffing
   against `scripts/overflow-baseline.json` (~200 variants clip by design - reveal masks, ticker/
   crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
-  change). Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
+  change). **`--with-images` adds a second pass with a mark in every image field**, recorded as
+  `<id>@image` in the same baseline: a logo is the one operator action that can spend a strap's
+  remaining width (+35% on lt54, docs/ADAPT_FIRST_PLAN.md §1.5) and every gate here otherwise runs
+  on the EMPTY build. Re-record with `--update-baseline --with-images`; the script refuses a bare
+  re-record once image rows exist, because that would silently retire half the gate.
+  Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
   `e2e/catalog/catalog-bench.spec.ts`) is the ONLY gate that catches a design growing past its
   width budget (it doubles every text value), so run it too. It is excluded from the default
   `npm run test:e2e` suite - benching every catalog variant across every category is the single

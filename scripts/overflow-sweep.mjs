@@ -19,6 +19,12 @@
 //   node scripts/overflow-sweep.mjs lower-third        # one category
 //   node scripts/overflow-sweep.mjs --json out.json    # dump every row for diffing
 //   node scripts/overflow-sweep.mjs --baseline b.json  # only fail on rows WORSE than a baseline
+//   node scripts/overflow-sweep.mjs --with-images      # + a pass with a mark in every image field
+//
+// --with-images sweeps every image-capable design a SECOND time with a picture in every
+// `filelist` field, recorded as `<id>@image` in the same baseline. A logo is the one operator
+// action that can spend a strap's remaining width (docs/ADAPT_FIRST_PLAN.md §1.5 measured +35%
+// on lt54) and both this sweep and the catalog tripwire used to run on the bare build only.
 //
 // IMPORTANT — read before trusting a zero: ~200 of 387 variants report self-clip BY DESIGN.
 // Reveal masks (`overflow:hidden` line-masks, `clip-path` wipes) legitimately hide content that
@@ -68,6 +74,14 @@ for (const [at, val] of [[jsonAt, jsonOut], [baseAt, baseArg], [writeAt, writeAr
   }
 }
 const only = args.find((a, i) => !consumed.has(i) && !a.startsWith('--')) || null;
+// `--with-images` adds a SECOND pass over every image-capable design with a mark in every image
+// field, keyed `<id>@image` in the same baseline. Without the flag a run is byte-identical to
+// before it existed, so the committed gate and its baseline are untouched.
+//
+// Why it exists: docs/ADAPT_FIRST_PLAN.md §1.5 measured a logo taking a lower third 35% wider
+// (lt54: 409 -> 551px), and BOTH this sweep and the catalog tripwire ran on the bare build - so
+// the one operator action that can spend a strap's remaining width was the one nothing watched.
+const withImages = args.includes('--with-images');
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
@@ -83,7 +97,7 @@ await page.evaluate(async () => {
 const targets = await page.evaluate(
   (only) =>
     window.__wiz.CATEGORIES.filter((c) => !only || c.id === only).flatMap((c) =>
-      (window.__cat.CATALOG[c.id] || []).map((v) => ({ id: v.id, cat: c.id, name: v.name })),
+      (window.__cat.CATALOG[c.id] || []).map((v) => ({ id: v.id, cat: c.id, name: v.name, logo: v.logo })),
     ),
   only,
 );
@@ -99,21 +113,37 @@ await page.evaluate(
   ({ FRAME_W, FRAME_H, EDGE_TOLERANCE, CLIP_TOLERANCE }) => {
     window.__scan = async (batch) => {
       document.body.innerHTML = '';
-      const frames = batch.map(({ id }) => {
+      const frames = batch.map(({ id, mark }) => {
         const v = window.__cat.variantById(id);
         const f = document.createElement('iframe');
         // The iframe IS the frame: its own 1920x1080 box is the reference rectangle, so an
         // element's offset relative to it maps straight onto frame coordinates.
         f.style.cssText = 'width:1920px;height:1080px;border:0;position:fixed;left:-5000px;top:0';
         try {
-          f.srcdoc = window.__comp.composeDocument(v.create({}));
+          f.srcdoc = window.__comp.composeDocument(
+            mark ? v.create({ logoEnabled: true, logoAssetPath: mark.path, importedImages: [mark] }) : v.create({}),
+          );
         } catch (e) {
           f.dataset.err = String((e && e.message) || e);
         }
         document.body.appendChild(f);
-        return { id, f };
+        return { id, f, mark };
       });
       await new Promise((r) => setTimeout(r, 900));
+      // Drive every image FIELD, not just the slot `create` bound: a crest, a sponsor rail and
+      // an avatar are ordinary `filelist` fields the assembler leaves empty, and a sweep that
+      // filled only the logo slot would call five designs image-free that carry three slots
+      // each (docs/ADAPT_FIRST_PLAN.md §1.5).
+      for (const { f, mark } of frames) {
+        if (!mark) continue;
+        try {
+          const fields = (f.contentWindow.SPXGCTemplateDefinition || {}).DataFields || [];
+          const data = {};
+          for (const fd of fields) if (fd.ftype === 'filelist') data[fd.field] = mark.data;
+          if (Object.keys(data).length) f.contentWindow.update(JSON.stringify(data));
+        } catch { /* a template that cannot take a picture is not an overflow problem */ }
+      }
+      await new Promise((r) => setTimeout(r, 300));
       for (const { f } of frames) {
         try {
           f.contentWindow.play && f.contentWindow.play();
@@ -184,11 +214,31 @@ await page.evaluate(
   { FRAME_W, FRAME_H, EDGE_TOLERANCE, CLIP_TOLERANCE },
 );
 
+/** One mark, drawn in the page rather than committed as a fixture. */
+const MARK = withImages
+  ? await page.evaluate(() => {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const g = c.getContext('2d');
+      g.fillStyle = '#f6a623'; g.fillRect(0, 0, 256, 256);
+      return { path: 'images/sweep-mark.png', data: c.toDataURL('image/png') };
+    })
+  : null;
+
+// The bare pass is every design; the image pass is only the designs that can hold a picture.
+// Its rows are keyed `<id>@image` so one baseline file carries both states and the existing
+// signature diff works on them unchanged — a design is allowed to clip differently with a mark
+// in it, and the gate's job is to notice when that CHANGES.
+const plan = [
+  ...targets.map((t) => ({ t, key: t.id, mark: null })),
+  ...(MARK ? targets.filter((t) => t.logo !== 'none').map((t) => ({ t, key: `${t.id}@image`, mark: MARK })) : []),
+];
+
 const rows = [];
-for (let i = 0; i < targets.length; i += 12) {
-  const slice = targets.slice(i, i + 12);
-  const res = await page.evaluate((b) => window.__scan(b), slice.map((t) => ({ id: t.id })));
-  res.forEach((r, k) => rows.push({ ...slice[k], ...r }));
+for (let i = 0; i < plan.length; i += 12) {
+  const slice = plan.slice(i, i + 12);
+  const res = await page.evaluate((b) => window.__scan(b), slice.map((p) => ({ id: p.t.id, mark: p.mark })));
+  res.forEach((r, k) => rows.push({ ...slice[k].t, ...r, id: slice[k].key }));
 }
 await browser.close();
 
@@ -214,6 +264,19 @@ if (writeOut) {
         `every other category. Re-run without a category, or write to an explicit path.`,
     );
     process.exit(2);
+  }
+  // The same hazard the category guard above covers, one axis over: re-recording without
+  // `--with-images` drops every `@image` row and silently retires the image half of the gate.
+  if (toDefault && !withImages) {
+    let existing = {};
+    try { existing = JSON.parse(readFileSync(DEFAULT_BASELINE, 'utf8')); } catch { /* no baseline yet */ }
+    if (Object.keys(existing).some((k) => k.endsWith('@image'))) {
+      console.error(
+        'Refusing to overwrite the committed baseline without --with-images — it already carries ' +
+          'image-pass rows, and this run measured none of them. Re-run with --with-images.',
+      );
+      process.exit(2);
+    }
   }
   const sigs = {};
   for (const r of rows) {

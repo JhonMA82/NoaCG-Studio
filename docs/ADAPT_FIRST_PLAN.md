@@ -322,9 +322,13 @@ No new paid stage is introduced.
    here, and not to be run without an explicit cost approval.
 4. ~~**Image-to-text relationships are unmeasured**~~ - **CLOSED**, measured in §1.5
    (`catalog-geometry.mjs --with-images`, 115 of 430 designs carry a picture, all 115 painted it).
-   What it leaves open is a product question rather than a measurement one: a logo is the only
-   operator action that can push a lower third past its width budget (+35% on `lt54`), and no gate
-   watches for it - the overflow sweep and the catalog tripwire both run on the BARE build.
+   The blind spot it exposed is **now closed too**: `overflow-sweep.mjs --with-images` sweeps every
+   image-capable design with a mark in every image field, recorded as `<id>@image` in the same
+   baseline. It found **no defect** - the 12 designs that differ with a mark are the credits logos
+   sitting at the end of an already-off-frame scrolling track and the stream-notification avatars,
+   whose CSS says `overflow: hidden` / `object-fit: cover` ("crop uploaded avatars to the design
+   shape"). That is what a baseline is for: the state is recorded, and a future change to it fails.
+   The catalog tripwire still runs bare, so capacity-with-a-mark remains unmeasured there.
 5. **Frontier-authored catalog members** as a way to spend model money once instead of per
    generation - proposed, not costed.
 6. **The placement rule is the one thing here with a cheap read available and unrun.**
