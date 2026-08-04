@@ -117,12 +117,27 @@ declared dependency graph, where the `dompurify` entry is a different artefact t
 never imports; since 2026-08-04 an override pins that entry to 3.4.13, so audit reports zero
 while the vendored 3.4.8 keeps running (Group 1 above says why that was accepted).
 
-There is no automated check for it because there is no useful action a check could name: the
-file moves only when `monaco-editor` moves, and nothing else can move it. What it needs is for
-the next monaco upgrade to look — read the vendored `DOMPurify.version` and the advisories
-against it, rather than trusting a green audit — and to drop the override once that version
-reaches 3.4.12 or newer. Recorded here because a thing nothing watches is exactly what this
-document is for.
+`scripts/check-vendored-versions.mjs` reads it, as a third entry beside GSAP and Lottie — same
+method, the file's own banner rather than a number recorded next to it. It differs from those
+two in three ways, each written into the entry:
+
+- **`optional`** — it lives in `node_modules`, so a checkout with no install has nothing to
+  read. That prints `NOT CHECKED` and does not pass: "could not look" is never "looked, fine".
+- **`advisory`** — a lag is REPORTED under "worth knowing", never counted as a finding, and
+  never touches the exit code. Nothing here can act on it; the file moves only when monaco
+  publishes a release vendoring a newer copy. A row that goes red the moment upstream diverges
+  and stays red for months is the standing alarm Group 1 above refuses to keep.
+- **`scan: Infinity`** — the banner sits far past the first few KB, unlike the two minified
+  bundles.
+
+Advisory does NOT mean unmonitored: a file that is present but whose banner no longer matches
+is a hard finding, because that means the upstream layout moved and the row has silently
+stopped measuring anything. Today it reports
+`fyi dompurify vendored 3.4.8 latest 3.4.13`.
+
+What it still cannot do is decide for you. On the next monaco upgrade, read that row and the
+advisories against the version it names rather than trusting a green `npm audit` — and drop the
+`dompurify` override once the vendored copy reaches 3.4.12 or newer.
 
 ### Pinned model ids — `scripts/check-model-ids.mjs`
 
