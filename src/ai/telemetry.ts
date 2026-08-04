@@ -72,6 +72,10 @@ export interface AiRoutingRecord {
   intentKind?: string;
   confidence?: 'high' | 'medium' | 'low';
   originalityRequested?: boolean;
+  /** The retrieved shortlist an ADAPT-routed brief was chosen from (src/ai/retrieval.ts).
+   *  Absent on every other route, and absent when nothing narrowed the catalog — so its
+   *  presence is also the record of whether retrieval ran at all. */
+  shortlist?: { size: number; anchor?: string; reason: string };
 }
 
 const STORAGE_KEY = 'spx-gfx-ai-telemetry';

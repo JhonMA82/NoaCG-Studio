@@ -16,6 +16,7 @@ import {
 } from './structuralIntent';
 import { blankTemplate } from './presets';
 import { specToTemplate, type DesignSpec } from './designSpec';
+import { shortlistFor } from './retrieval';
 import type { TemplateCategory } from '../model/wizard';
 import type { StyleTag } from '../model/fonts';
 import { variantsFor } from '../templates/catalog';
@@ -93,7 +94,10 @@ const STYLE_KEYWORDS: { test: RegExp; tag: StyleTag }[] = [
 /** Keyword-match a grounded design spec, or null when nothing fits. A structured setup's
  *  pinned category wins over keywords, and the user's decisions overlay the result — so the
  *  offline provider honors the "More control" panel exactly like the live harness. */
-function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec; label: string } | null {
+function keywordSpec(
+  prompt: string,
+  ctx?: GenerateContext,
+): { spec: DesignSpec; label: string; shortlist: string[] } | null {
   const p = prompt.toLowerCase();
   const pinned = ctx?.spec && ctx.spec.category !== 'auto' ? aiCategoryById(ctx.spec.category) : undefined;
   const hit = CATEGORY_KEYWORDS.find((k) => k.test.test(p));
@@ -103,7 +107,13 @@ function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec;
   const pool = variantsFor(category);
   if (!pool.length) return null;
   const style = STYLE_KEYWORDS.find((s) => s.test.test(p))?.tag;
-  const variant = (style && pool.find((v) => v.styleTag === style)) ?? pool[0];
+  // Retrieval, offline: the same shortlist the live harness hands the design stage, picked
+  // from deterministically instead of by a model. That is what makes the adapt-first path
+  // demonstrable end to end without tokens - and it is a better answer than `pool[0]`, which
+  // gave every worship brief the house strap while Scripture Reading sat in the catalog.
+  const shortlist = shortlistFor(prompt, stubIntent(prompt), { anchor: `category:${category}` });
+  const candidates = shortlist.full || !shortlist.variants.length ? pool : shortlist.variants;
+  const variant = (style && candidates.find((v) => v.styleTag === style)) ?? candidates[0];
   const spec: DesignSpec = {
     fit: 'catalog',
     reason: pinned ? `User-selected category: ${pinned.name}.` : `Keyword match: ${label}.`,
@@ -114,7 +124,12 @@ function keywordSpec(prompt: string, ctx?: GenerateContext): { spec: DesignSpec;
     lines: [],
     useLogoSlot: Boolean(ctx?.images?.length),
   };
-  return { label, spec: applySpecLocks(spec, ctx?.spec) };
+  return {
+    label,
+    spec: applySpecLocks(spec, ctx?.spec),
+    // What the pick was made FROM - shown to the user exactly as on the live path.
+    shortlist: shortlist.full ? [] : shortlist.variants.map((v) => v.id),
+  };
 }
 
 /** The spec's deterministic post-passes, shared with the live harness. */
@@ -174,6 +189,7 @@ export class StubAIProvider implements AIProvider {
         spec: grounded.spec,
         intent,
         routing: route,
+        ...(grounded.shortlist.length ? { shortlist: grounded.shortlist } : {}),
       };
     }
     if (/full ?screen|title card|headline/.test(p)) {

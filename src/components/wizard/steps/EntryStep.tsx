@@ -102,7 +102,7 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-icon">✦</span>
           <strong>Create with AI</strong>
-          <span className="hint">Describe what you need — drop in a logo, brand stills, or an existing .html / SPX template to convert. Choose the Lite or Pro tier in AI settings; every result is live-tested and lands as clean, editable code.</span>
+          <span className="hint">Describe the graphic you need and NoaCG turns a proven broadcast design into a customized one — drop in a logo, brand stills, or an existing .html / SPX template to convert. Choose the Lite or Pro tier in AI settings; every result is live-tested and lands as clean, editable code.</span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
           <span className="wz-entry-icon">▦</span>
