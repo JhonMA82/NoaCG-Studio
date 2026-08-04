@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { acceptAiNotice } from './_ai-notice';
+import { enableAdvancedMode } from './_create';
 import { previewFrame } from './_frame';
 import { awaitPreviewRebuild } from './_preview';
 
@@ -101,6 +102,10 @@ test.beforeEach(async ({ page }) => {
       JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true }),
     ),
   );
+  // Claim 5 walks into the EDITOR through the Finish step's editor door, which has been
+  // Advanced-only since step 6 (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`).
+  // The sibling AI specs opt in the same way - see e2e/ai-more-control.spec.ts.
+  await enableAdvancedMode(page);
   await acceptAiNotice(page);
 });
 
