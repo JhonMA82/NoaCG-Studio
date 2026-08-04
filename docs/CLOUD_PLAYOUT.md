@@ -379,9 +379,19 @@ answer: the log read back in the words an operator would use, newest first.
 - The wizard Finish step and Home rows keep their existing doors; a graphic's "add to
   production" is reachable from the production page (pool + cue add), not a new wizard branch.
 
+  *Amendment (2026-08-04, the student-release pivot - docs/GOALS.md "Student release" step
+  6): REVERSED. The wizard's Finish step now leads with a production door - pick or name a
+  production and land on its page with the graphic pooled, its first cue seeded, and the
+  look captured onto a production that had none - because the primary workflow is
+  wizard → production → playout URL. The production page keeps its own add paths, and the
+  constraint that Finish stays the wizard's ONE branch still holds: the door is a Finish
+  card, not a new step.*
+
 ## 6. Export parity (nothing removed)
 
-The six zip targets, the whole-package export, and the whole-show export are untouched.
+The six zip targets and the whole-show export are untouched. (The whole-PACKAGE export
+retired with packages themselves - step 3 of the student release; whole-show export covers
+the need.)
 `buildShowZip` keeps producing the offline `show_controlpanel.html` + per-graphic folders, and
 a published production still bakes the hosted receiver into exported graphics — the
 self-hosted/offline path is the same production operated over the same log, with the renderer

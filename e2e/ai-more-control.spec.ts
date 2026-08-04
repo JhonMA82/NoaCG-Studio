@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { acceptAiNotice } from './_ai-notice';
+import { enableAdvancedMode } from './_create';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
 // data fields, animation intensity, draft persistence, and the untouched prompt-only
@@ -62,6 +63,8 @@ function categoryEnum(schema: Record<string, unknown> | undefined): string[] {
 const GENERATED = { timeout: 25_000 };
 
 async function openAiStep(page: Page) {
+  // These setups create through the AI Finish EDITOR door - Advanced-only since step 6.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
@@ -157,12 +160,13 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
   await page.locator('.mc-head', { hasText: 'Data fields' }).click();
   await expect(labels).toHaveCount(seeded);
 
-  // Close the wizard entirely and come back: the draft survives (localStorage). A default-
-  // mode close lands on HOME (step 4), whose empty state repeats the "+ New project" label -
-  // the topbar testid names the one button this means.
+  // Close the wizard entirely and come back: the draft survives (localStorage). This file
+  // runs in Advanced mode (openAiStep), so the close rewinds to the EDITOR - reopen through
+  // its "+ New project" like a user would.
   await page.locator('.gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await page.getByTestId('home-new-project').click();
+  await page.getByRole('button', { name: '+ New project' }).click();
+  await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
   // A non-empty draft opens the panel by itself, summarizing the picked category.
   await expect(page.getByTestId('more-control')).toBeVisible();

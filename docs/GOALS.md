@@ -1310,10 +1310,14 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       OFL faces with upload + local fonts; dead definition-only adds refused with the
       reason. (Left for later: optionalSlots declarations beyond the logo, and the editor
       Style panel adopting the shared picker.)
-- [ ] **6. Wizard → Production → publish → output, complete** - the Finish step's production
-      door, the full rundown workflow (cue lifecycle, operator clarity, the verb glossary),
-      automated dependability specs (reopen, refresh, republish, stable URLs, failure without
-      data loss), and the timed 5-minute walk.
+- [x] **6. Wizard → Production → publish → output, complete** - the Finish step's production
+      door (save → pool → seeded cue → look → the production page), skip-to-finish, the
+      production-context wizard open, the rundown workflow validated (cue lifecycle, the
+      clarity heading naming cue/graphic/draft-vs-LIVE, the verb glossary in
+      docs/CONTROL_LAYER.md), production-persistence specs (reopen, refresh, slug survival,
+      the republish hint), and the walk measured: fresh visit → named production with a
+      seeded cue in ~1 second of machine time. (The publish/output wire half stays on the
+      step-10 owner checklist - backend-gated by design.)
 - [ ] **7. Two coherent production-ready packs** - newsroom + talk-show, one unified look
       each, complete for their programme type.
 - [ ] **8. Home simplified around Productions** - productions first, dashboards one click,

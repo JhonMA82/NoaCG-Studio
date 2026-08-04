@@ -58,6 +58,26 @@ agreement: `receiverScript.ts` (BroadcastChannel), `realtimeControl.ts` (Realtim
 send-only panel path), `hostedReceiver.ts` (the durable log path). An event's payload is
 applied only if the machine accepts the event — that is the atomic multi-part change.
 
+## The operator verbs (the one glossary)
+
+The canonical meanings, worded here ONCE (docs/GOALS.md "Student release" step 6); every
+surface's button hints - the production page, the hosted control page, the exported panels -
+say the same thing, and rehearsal applies the identical command lists locally:
+
+- **⟳ Take** - air the selected cue on its layer: its values + play, sent as ONE atomic
+  batch. Other layers stay up (every pool graphic holds its own on-air cue).
+- **✎ Update** - push the cue's edited values to the LIVE graphic without re-animating it.
+- **» Next** - advance the live graphic to its next step (its reveal).
+- **■ Out** - play the selected cue's layer off air; the other layers stay up.
+- **■■ All out** - play every live layer off; clear the frame.
+- **Load** (hosted page) - stage the cue's values into its graphic's fields for EVERY open
+  operator page; nothing airs until a take.
+- **▶ Play / ■ Stop** (single-graphic surfaces) - take the values and run the entrance /
+  animate the graphic off.
+
+Editing is always a DRAFT: the production page's cue editor stages locally and the hosted
+page stages into the shared buffer - in both, nothing reaches air because it was typed.
+
 ## Prepared vs published, and the event log
 
 - **Nothing airs merely because it was typed.** With Live off, edits are STAGED (badge) and
@@ -112,8 +132,9 @@ hosted receiver into each graphic at export (the saved snapshot stays clean).
 ## Profiles
 
 The routed Home (`components/home/HomePage.tsx`, `#/home` — docs/SAVED_CONTENT_MODEL.md §3;
-it replaced the old Homebase modal) is the profile: saved graphics across packages, video
-projects, shows with their hosted-page links, community submissions. Sync kinds now
+it replaced the old Homebase modal) is the profile: the flat graphics library, video
+projects, productions with their hosted-page links, community submissions. (Packages are
+retired — docs/GOALS.md "Student release" step 3.) Sync kinds
 include `'show'` and `'video'` (video tombstones strip the heavy payload to a readable
 stub). All local-first; cloud mirrors for signed-in users.
 

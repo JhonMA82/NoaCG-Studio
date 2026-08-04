@@ -684,9 +684,19 @@ export default function ProductionPage({ id }: { id: string }) {
 
           {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
 
-          {/* The selected cue's data. */}
+          {/* The selected cue's data. The heading answers, at a glance, what an operator must
+              never have to infer: WHICH cue these fields belong to, WHICH graphic (layer) it
+              drives, and that edits are a DRAFT - nothing reaches air until ⟳ Take (or
+              ✎ Update on an already-live layer). */}
           {selectedCue && selectedView && (
             <div className="panel-section" data-testid="cue-editor">
+              <h3 data-testid="cue-editor-heading">
+                Editing: {selectedView.label || 'this cue'}
+                <span className="muted">
+                  {' '}· {cueGraphicName(selectedCue) ?? 'its graphic'} ·{' '}
+                  {selectedIsLive ? 'LIVE — ✎ Update pushes edits' : 'draft — airs on ⟳ Take'}
+                </span>
+              </h3>
               <label className="save-field">
                 <span>Cue name</span>
                 <input

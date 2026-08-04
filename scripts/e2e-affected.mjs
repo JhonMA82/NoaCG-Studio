@@ -61,7 +61,7 @@ const MAP = [
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-persistence.spec.ts']],
   [/^src\/components\/auth\//, ['auth.spec.ts', 'sync.spec.ts']],
   [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts']],
   [/^src\/community\//, ['community.spec.ts']],

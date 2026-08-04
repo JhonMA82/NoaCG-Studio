@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { startNewProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 
 // The Browse step's faceted discovery (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12-13): category
 // tiles + field buckets + style chips narrow the grid (facets AND together), programme
@@ -140,11 +140,13 @@ test('a card\'s ⓘ opens its full detail without picking the template', async (
 
 test('the brand toggle ranks the package siblings first without filtering anything out', async ({ page }) => {
   // Create a glass graphic so the saved project brand is the glass family, then reopen the
-  // wizard and turn on "Use current project's colors & font" (proposal §13.3).
+  // wizard and turn on "Use current project's colors & font" (proposal §13.3). The create
+  // rides the Advanced editor door (the footer shortcut is Skip to finish since step 6).
+  await enableAdvancedMode(page);
   await toBrowseStep(page);
   await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Frosted Card' }).click();
-  await page.getByRole('button', { name: 'Create project' }).click();
+  await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
 
   await startNewProject(page);

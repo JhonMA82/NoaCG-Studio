@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { startNewProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 
@@ -93,13 +93,14 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
 });
 
 test('import round-trip: an exported Starter zip re-imports as the same code', async ({ page }) => {
-  // Create + export a wizard template.
+  // Create + export a wizard template (the editor create - Advanced since step 6).
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
   });
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

@@ -34,8 +34,17 @@ export default function App() {
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
+    const bootRoute = useRouter.getState().route;
+    // A DEEP LINK (a production page, a control panel, a graphic) must never open under the
+    // startup wizard: the auto-open (galleryOpen's initial value - no autosaved project)
+    // exists for the bare '' boot only, and since the wizard mounts at App level it would
+    // otherwise cover whatever the link pointed at. Both modes.
+    if (bootRoute.view !== 'editor' && bootRoute.view !== 'new') {
+      if (useTemplateStore.getState().galleryOpen) useTemplateStore.getState().closeGallery();
+      return;
+    }
     if (isAdvancedMode()) return;
-    if (useRouter.getState().route.view !== 'editor') return;
+    if (bootRoute.view !== 'editor') return;
     if (useTemplateStore.getState().galleryOpen) {
       useRouter.getState().replace({ view: 'new' });
     } else {

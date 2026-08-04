@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { enableAdvancedMode } from './_create';
 
 // NoaCG Pro - the image-guided pipeline as an execution TIER of the ONE Create-with-AI
 // step (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
@@ -11,6 +12,8 @@ import { test, expect, type Page } from '@playwright/test';
 // come from.
 
 async function toProTier(page: Page) {
+  // Pro creates end in the EDITOR (wz-finish-editor) - an Advanced door now (step 6).
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   // There is no separate Pro entry card - Create with AI is the one AI door.

@@ -167,7 +167,12 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
   // Number Badge is the design this test drives: its slot is hand-authored, so a working
   // image here proves the whole path (upload -> asset -> field -> <img> src).
   await page.locator('.wz-variant', { hasText: 'Number Badge' }).click();
-  await createFromCurrentStep(page);
+  // The catalog continuation is mode IMPORT, which keeps the classic footer create (the
+  // skip-to-finish shortcut is template mode's - createFromCurrentStep would wait forever).
+  await awaitPreviewRebuild(page, async () => {
+    await page.getByRole('button', { name: 'Create project' }).click();
+    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  });
 
   const logo = previewFrame(page).locator('.lower-third-logo');
   await expect(logo).toBeVisible();

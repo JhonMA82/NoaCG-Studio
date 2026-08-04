@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
-import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
+import { enableAdvancedMode, createProject } from './_create';
 
 // The canvas TEXT TOOLS (the stage toolbar's T / area-text switch, placed designs): the T
 // tool clicks point text onto the artwork and types it directly on the canvas; the area
