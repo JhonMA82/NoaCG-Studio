@@ -10,10 +10,13 @@
 
 import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+// Worker paths drop the `esm/vs/` prefix as of monaco 0.56: the package gained an `exports`
+// map whose `"./*": "./esm/vs/*.js"` rule adds that prefix itself, so the old specifier now
+// resolves to `esm/vs/esm/vs/…` and fails the build. The files did not move.
+import editorWorker from 'monaco-editor/editor/editor.worker?worker';
+import htmlWorker from 'monaco-editor/language/html/html.worker?worker';
+import cssWorker from 'monaco-editor/language/css/css.worker?worker';
+import tsWorker from 'monaco-editor/language/typescript/ts.worker?worker';
 
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
