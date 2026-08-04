@@ -118,6 +118,16 @@ export interface AiTemplateChange extends TemplateChange {
   intent?: StructuralIntent;
   /** What the router decided and why - the routing benchmark reads this, never reconstructs it. */
   routing?: RouteDecision;
+  /**
+   * The PROVEN designs this result was chosen from (src/ai/retrieval.ts), catalog variant ids
+   * in rank order. Present on an ADAPT-routed result and absent everywhere else, so its
+   * presence is also the honest record of whether retrieval ran.
+   *
+   * It is on the change rather than only in telemetry because the user is shown it: "adapted
+   * from a proven design" is a claim, and a claim the user can see the alternatives to - and
+   * swap onto, deterministically - is the difference between a promise and a slogan.
+   */
+  shortlist?: string[];
 }
 
 export interface AIProvider {
