@@ -1,3 +1,4 @@
+import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 
@@ -32,6 +33,9 @@ const HARNESS = `
 `;
 
 async function toApp(page: Page) {
+  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
+  // (the default studio lands on Home - docs/GOALS.md "Student release" step 4).
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.keyboard.press('Escape');
 }

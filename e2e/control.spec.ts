@@ -29,18 +29,18 @@ test('control tab live-drives the preview from a field control', async ({ page }
 });
 
 test('a number field becomes a +/- stepper (no per-template code)', async ({ page }) => {
-  await createScoreboard(page);
-  // Add a genuine number field through the Data panel.
-  await page.getByTestId('dock-tab-data').click();
-  await page.getByPlaceholder(/Label the operator sees/).fill('Points');
-  await page.locator('.panel-body select').selectOption('number');
-  await page.getByRole('button', { name: '+ Add' }).click();
-
+  // A design that SHIPS a genuine wired number field (Election Bars' percent). The old walk
+  // added one to a scoreboard through the Data panel - which the panel now refuses, because
+  // a scoreboard's fixed contract has no place for it and the add landed definition-only
+  // (docs/GOALS.md "Student release" step 5). The stepper is this test's subject, not the add.
+  await createProject(page, { category: 'infographic', name: 'Election Bars' });
   await page.getByTestId('dock-tab-control').click();
-  const row = page.locator('.field-row', { hasText: 'Points' });
+  const row = page.locator('.field-row', { hasText: 'percent' }).first();
   await expect(row.locator('.ctl-step')).toHaveCount(2); // − and +
+  const num = row.locator('.ctl-num').first();
+  const before = Number(await num.inputValue());
   await row.getByRole('button', { name: '+', exact: true }).click();
-  await expect(row.locator('.ctl-num').first()).toHaveValue('1');
+  await expect(num).toHaveValue(String(before + 1));
 });
 
 test('export bundles controlpanel.html + injects the receiver into index.html', async ({ page }) => {

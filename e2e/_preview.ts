@@ -39,7 +39,8 @@ export async function awaitPreviewRebuild(
     // keeps the strict revision-moved bracket below.
     if ((await frame.count()) === 0) {
       await action();
-      await expect(frame).not.toHaveAttribute('data-doc-pending', '1', REBUILT);
+      // One wait, not two: `data-doc-rev` only stamps once the NEW frame's build has
+      // LOADED, and (unlike a .not matcher) it also waits for the frame to exist at all.
       await expect(frame).toHaveAttribute('data-doc-rev', /\d/, REBUILT);
       return;
     }

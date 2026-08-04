@@ -1291,20 +1291,25 @@ responsible for making layouts valid), and Home polish beyond step 8. Accepted l
 (decided 2026-08-04): post-save design restyling waits for a later improvement - recreate
 through the wizard or use Advanced mode; cloud publish requires an account (export does not).
 
-- [ ] **1. Scope locked + guidance simplified** - this north star in GOALS.md and AGENTS.md;
+- [x] **1. Scope locked + guidance simplified** - this north star in GOALS.md and AGENTS.md;
       one goal, one plan, one roadmap.
-- [ ] **2. Fast critical-path test loop** - the student-critical focus suite
+- [x] **2. Fast critical-path test loop** - the student-critical focus suite
       (`E2E_SPRINT_FOCUS=1 npm run test:e2e:affected`) is the per-change gate; the full suite
-      stays the nightly safety net.
-- [ ] **3. Packages removed** - Production is the only workflow; kits create productions.
-      (Audit 2026-08-04: the only server packet rows are the owner's four empty v2 folder
-      shells - nothing to migrate.)
-- [ ] **4. Editor behind Advanced mode; full-screen wizard** - default UI shows no editor
-      doors; `#/home` is the default route; the wizard is the full-screen creation surface.
-- [ ] **5. Deterministic customization + declared field expansion** - every template declares
-      the fields it supports (lines / fixed contract / repeatable list / optional slots) and
-      the wizard offers exactly that; colors, fonts, and text size editable with live preview;
-      no dead fields creatable from student surfaces.
+      stays the nightly safety net, its verdict separating focus failures from paused drift.
+- [x] **3. Packages removed** - Production is the only workflow; kits create productions
+      (pool + one seeded cue per graphic + the kit's look captured onto the record).
+      (Audit 2026-08-04: the only server packet rows were the owner's four empty v2 folder
+      shells - nothing to migrate; old rows stay inert, never destroyed.)
+- [x] **4. Editor behind Advanced mode; full-screen wizard** - default UI shows no editor
+      doors (graphic Open lands on its control page); `#/home` is the returning default and
+      the wizard the first-visit one; the wizard is one full-screen App-level surface.
+- [x] **5. Deterministic customization + declared field expansion** - every template declares
+      the fields it supports (lines / fixed contract / repeatable list via fieldPlanOf) and
+      the wizard offers exactly that; every design color editable (palette roles + the
+      generic :root enumeration); the shared searchable FontPicker over seventeen bundled
+      OFL faces with upload + local fonts; dead definition-only adds refused with the
+      reason. (Left for later: optionalSlots declarations beyond the logo, and the editor
+      Style panel adopting the shared picker.)
 - [ ] **6. Wizard → Production → publish → output, complete** - the Finish step's production
       door, the full rundown workflow (cue lifecycle, operator clarity, the verb glossary),
       automated dependability specs (reopen, refresh, republish, stable URLs, failure without

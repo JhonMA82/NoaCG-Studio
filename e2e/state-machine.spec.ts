@@ -1,3 +1,4 @@
+import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICKER } from './_machines';
@@ -11,6 +12,9 @@ import { frameMachineState, frameOpacity } from './_frame';
 // runs against the same interpreter and IS that proof.
 
 async function toApp(page: Page) {
+  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
+  // (the default studio lands on Home - docs/GOALS.md "Student release" step 4).
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.keyboard.press('Escape'); // the wizard modal — most of these tests need no project
 }
@@ -426,6 +430,8 @@ test('drift guards: the export gate accepts every machine, editor and runtime ag
 });
 
 test('preview: snap-to-state works in the editor, and the event strip guards like the graph', async ({ page }) => {
+  // Asserts EDITOR surfaces (the simulator's event strip), so it needs the Advanced boot.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await awaitPreviewRebuild(page, () =>

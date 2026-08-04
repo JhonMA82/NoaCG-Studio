@@ -38,13 +38,22 @@ export interface CreateSpec {
  */
 export async function enableAdvancedMode(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    // The WHOLE body is guarded: this init script also runs inside sandboxed preview
+    // iframes (allow-scripts without allow-same-origin), where merely TOUCHING
+    // localStorage throws a SecurityError - and an uncaught one lands in the page-error
+    // listeners some specs assert empty. There is nothing to persist in such a frame.
     try {
-      const prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{}') as Record<string, unknown>;
+      let prefs: Record<string, unknown> = {};
+      try {
+        prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{}') as Record<string, unknown>;
+      } catch {
+        prefs = {}; // corrupt JSON - rebuild the key
+      }
       if (prefs.advancedMode !== true) {
         localStorage.setItem('spx-gfx-prefs', JSON.stringify({ ...prefs, advancedMode: true }));
       }
     } catch {
-      localStorage.setItem('spx-gfx-prefs', JSON.stringify({ advancedMode: true }));
+      /* opaque-origin frame: no storage to write, nothing to do */
     }
   });
 }
