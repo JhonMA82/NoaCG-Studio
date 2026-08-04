@@ -48,16 +48,37 @@ verification attached.
 | Playwright browser binaries | follows the `@playwright/test` bump | n/a |
 
 The audit threshold is `high` on purpose. Low and moderate advisories that have been read and
-accepted (today: DOMPurify reached through `monaco-editor`) belong in the staleness report, not
-in a weekly alarm — an alarm that cries about something you have consciously accepted trains
-you to ignore it.
+accepted belong in the staleness report, not in a weekly alarm — an alarm that cries about
+something you have consciously accepted trains you to ignore it. **`npm audit` currently reports
+zero, and keeping it there is the point:** a clean run is only useful as a signal while nothing
+in it is routinely ignored.
 
-**Upgrading `monaco-editor` does not close the DOMPurify pair, whatever the release notes
-suggest.** monaco pins dompurify EXACTLY, so its version moves only when monaco's does: 0.55.1
-carried 3.2.7 and 0.56.0 carries 3.4.8, while the advisory covers `<=3.4.11` and the fix landed
-in 3.4.12. `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0. Closing the pair
-therefore needs a `dompurify` override, which is a deliberate reversal of the acceptance above
-rather than a version bump — decide it as one. Checked 2026-08-03 at monaco 0.56.0.
+**The `dompurify` override, and what it does NOT do (2026-08-04).** `package.json` pins
+`overrides: { "dompurify": "3.4.13" }`. Upgrading `monaco-editor` could never have closed those
+advisories — monaco pins dompurify exactly, so its version moves only when monaco's does (0.55.1
+carried 3.2.7, 0.56.0 carries 3.4.8, the advisory covers `<=3.4.11`, the fix landed in 3.4.12,
+and `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0). The override was taken
+deliberately, for audit hygiene rather than for a live exposure.
+
+Be precise about its effect, because it is easy to overstate: **it changes the dependency graph
+npm audits, not the code we ship.** `monaco-editor`'s ESM build — the one Vite bundles — imports
+`./dompurify/dompurify.js`, a copy VENDORED inside the package at 3.4.8, and never imports the
+npm `dompurify` package at all. So the override silences the finding and carries no regression
+risk, and equally no runtime benefit. Which is why the vendored copy is listed in Group 2 below:
+after this change, a green `npm audit` says nothing about the sanitizer that actually runs.
+
+The advisories were also assessed as unreachable in this build before the override was taken,
+and that assessment is the reason nothing more urgent was done. All three are CONFIG-path bugs:
+`CUSTOM_ELEMENT_HANDLING` bypassing `afterSanitizeElements`, `ALLOWED_ATTR` pollution via
+`setConfig()`, and a Trusted Types policy surviving `clearConfig()`. Monaco's `domSanitize.js`
+calls `purify.sanitize(untrusted, …)` with a per-call allowlist, removes all hooks in a
+`finally`, and never calls `setConfig()` or `clearConfig()` nor passes `CUSTOM_ELEMENT_HANDLING`.
+Nothing in `src/` imports dompurify directly. **Recheck those three call-site facts, not the
+advisory text, if monaco's sanitizer is ever rewritten** — that is the assumption that would
+break.
+
+**Remove the override when monaco vendors 3.4.12 or newer**, or it silently holds a future
+dompurify back. Nothing enforces that; it is why it is written here.
 
 The threshold cuts the other way too, so read the severity rather than the count: on 2026-08-03 a
 **high** undici advisory (response desynchronization; cross-user disclosure) sat in this list
@@ -85,6 +106,23 @@ goes stale exactly when someone updates the library without updating the note.
 
 When it fires, upgrading is a real piece of work, not a version bump: the new file has to be
 re-minified into place, and its output re-checked against the es2017 floor above.
+
+### A library vendored inside a DEPENDENCY — monaco's DOMPurify
+
+GSAP and Lottie are vendored by us, in files we can see in a diff. `monaco-editor` vendors one
+too: `esm/vs/base/browser/dompurify/dompurify.js`, currently 3.4.8, imported by relative path
+from `domSanitize.js`. It is the sanitizer that actually runs in the editor — hover tooltips and
+suggest documentation — and **no tool here has an opinion about it.** `npm audit` reads the
+declared dependency graph, where the `dompurify` entry is a different artefact that monaco's ESM
+never imports; since 2026-08-04 an override pins that entry to 3.4.13, so audit reports zero
+while the vendored 3.4.8 keeps running (Group 1 above says why that was accepted).
+
+There is no automated check for it because there is no useful action a check could name: the
+file moves only when `monaco-editor` moves, and nothing else can move it. What it needs is for
+the next monaco upgrade to look — read the vendored `DOMPurify.version` and the advisories
+against it, rather than trusting a green audit — and to drop the override once that version
+reaches 3.4.12 or newer. Recorded here because a thing nothing watches is exactly what this
+document is for.
 
 ### Pinned model ids — `scripts/check-model-ids.mjs`
 
