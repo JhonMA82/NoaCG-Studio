@@ -14,7 +14,6 @@ import ExportPanel from './ExportPanel';
 import WorkspaceDock from './WorkspaceDock';
 import CommunityGallery from './CommunityGallery';
 import ModerationQueue from './ModerationQueue';
-import CreationWizard from './wizard/CreationWizard';
 import BrandLogo from './BrandLogo';
 import SaveControls from './save/SaveControls';
 import { BetaFeedbackButton } from './feedback/BetaFeedback';
@@ -489,7 +488,6 @@ export default function AppShell() {
       )}
 
       {/* Creation wizard overlay — shown on startup and via "New project". */}
-      <CreationWizard />
 
       {/* Save dialogs: first-save naming + the unsaved-changes guard. */}
       <SaveDialogs />

@@ -3,6 +3,7 @@ import { loadAiSettings, saveAiSettings } from '../ai/settings';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
 import { useModalGate } from './spaceKey';
+import { useAdvancedMode } from './useAdvancedMode';
 import AiProviderSettings from './AiProviderSettings';
 
 interface Props {
@@ -55,6 +56,20 @@ export default function SettingsDialog({ onClose }: Props) {
 
           <div className="panel-section">
             <h3>Workflow defaults</h3>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={useAdvancedMode((s) => s.advanced)}
+                onChange={(event) => useAdvancedMode.getState().setAdvanced(event.target.checked)}
+                data-testid="advanced-mode-toggle"
+              />
+              Advanced mode — show the code editor
+            </label>
+            <p className="hint">
+              Off, the studio is wizard → production → playout. On, every &quot;Open in the
+              editor&quot; door returns: canvas, timeline, and code. Direct graphic links open
+              the editor either way.
+            </p>
             <label htmlFor="set-export-target">Default export target</label>
             <select
               id="set-export-target"

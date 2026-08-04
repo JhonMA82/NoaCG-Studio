@@ -48,6 +48,8 @@ import AuthStatus from '../auth/AuthStatus';
 import SyncStatus from '../SyncStatus';
 import SignInDialog from '../auth/SignInDialog';
 import SaveDialogs from '../save/SaveDialogs';
+import SettingsDialog from '../SettingsDialog';
+import { useAdvancedMode } from '../useAdvancedMode';
 import GraphicThumb from './GraphicThumb';
 
 /**
@@ -91,6 +93,8 @@ export default function HomePage({ route }: { route: Route }) {
   const requestSwitch = useSaveUi((s) => s.requestSwitch);
   const workingName = useTemplateStore((s) => s.template.name);
   const workingSaved = useTemplateStore((s) => s.saved);
+  const advanced = useAdvancedMode((s) => s.advanced);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // One nonce refreshes every list after any mutation (the model layer is the store).
   const [rev, setRev] = useState(0);
@@ -127,7 +131,14 @@ export default function HomePage({ route }: { route: Route }) {
       ? (route.section as Section)
       : 'recent';
 
+  /** What "Open" means follows the mode (docs/GOALS.md "Student release" step 4): the
+   *  default studio opens a graphic onto its CONTROL page (preview + data + operating);
+   *  Advanced mode opens the editor. Direct #/graphic links work either way. */
   const openGraphic = (g: GraphicDoc) => {
+    if (!advanced) {
+      navigate({ view: 'control', id: g.id });
+      return;
+    }
     requestSwitch(() => {
       openGraphicById(g.id);
       navigate({ view: 'graphic', id: g.id });
@@ -143,22 +154,30 @@ export default function HomePage({ route }: { route: Route }) {
   return (
     <div className="app home-page" data-testid="home-page">
       <header className="topbar">
-        <button className="brand brand-home" onClick={() => navigate({ view: 'editor' })} title="Back to the editor">
+        <button className="brand brand-home" onClick={() => navigate({ view: 'home', section: null })} title="Home">
           <BrandLogo size={24} />
         </button>
         <span className="divider-dot" aria-hidden="true">·</span>
         <span className="tpl-name">Home</span>
         <div className="spacer" />
-        <button
-          onClick={() => navigate({ view: 'editor' })}
-          data-testid="home-continue-editing"
-          title="Back to the graphic open in the editor"
-        >
-          ↩ Continue editing <strong style={{ marginLeft: 4 }}>{workingName}</strong>
-          {workingSaved.dirty ? ' •' : ''}
-        </button>
+        {/* An editor door - Advanced mode only (docs/GOALS.md "Student release" step 4). */}
+        {advanced && (
+          <button
+            onClick={() => navigate({ view: 'editor' })}
+            data-testid="home-continue-editing"
+            title="Back to the graphic open in the editor"
+          >
+            ↩ Continue editing <strong style={{ marginLeft: 4 }}>{workingName}</strong>
+            {workingSaved.dirty ? ' •' : ''}
+          </button>
+        )}
         <button className="primary" onClick={() => navigate({ view: 'new' })} data-testid="home-new-project">
           + New project
+        </button>
+        {/* Settings must be reachable WITHOUT an account (the avatar menu is the other door,
+            and offline builds have none) - it is where Advanced mode lives. Not auth UI. */}
+        <button onClick={() => setSettingsOpen(true)} title="Settings" data-testid="home-settings">
+          ⚙
         </button>
         <SyncStatus />
         <AuthStatus />
@@ -324,6 +343,7 @@ export default function HomePage({ route }: { route: Route }) {
           editor holds unsaved work), and account features need their sign-in dialog. */}
       <SaveDialogs />
       <SignInDialog />
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }
@@ -450,7 +470,7 @@ function GraphicRow({
       </div>
       <div className="spacer" />
       <div className="pk-actions">
-          <button className="primary" onClick={() => onOpen(g)} title="Open in the editor" data-testid="open-graphic">
+          <button className="primary" onClick={() => onOpen(g)} title="Open this graphic" data-testid="open-graphic">
             Open
           </button>
           <button onClick={() => navigate({ view: 'control', id: g.id })} title="Open its control panel">🎛</button>

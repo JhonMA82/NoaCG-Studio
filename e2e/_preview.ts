@@ -31,6 +31,18 @@ export async function awaitPreviewRebuild(
 ): Promise<void> {
   const frame = page.locator(FRAME);
   if (action) {
+    // DEFAULT-MODE WIZARD (docs/GOALS.md "Student release" step 4): Home renders under the
+    // full-screen wizard, so no preview iframe exists until the action creates the project
+    // and the editor mounts. There is nothing to snapshot - and nothing to need it for: any
+    // revision the NEW frame stamps IS the action's build, so the bracket degrades to
+    // "frame exists, not pending, stamped". Advanced mode (an editor under the wizard)
+    // keeps the strict revision-moved bracket below.
+    if ((await frame.count()) === 0) {
+      await action();
+      await expect(frame).not.toHaveAttribute('data-doc-pending', '1', REBUILT);
+      await expect(frame).toHaveAttribute('data-doc-rev', /\d/, REBUILT);
+      return;
+    }
     // Settle any in-flight initial build first, so "the revision changed" can only mean
     // the ACTION's rebuild — never the initial document stamping late.
     await expect(frame).toHaveAttribute('data-doc-rev', /\d/, REBUILT);

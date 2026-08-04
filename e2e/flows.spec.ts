@@ -1,5 +1,6 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+import { enableAdvancedMode } from './_create';
 
 // Core UI flows for the choose-first creation wizard + live panels.
 
@@ -46,6 +47,9 @@ test('wizard: create a lower third with defaults', async ({ page }) => {
 });
 
 test('wizard: blank project escape hatch', async ({ page }) => {
+  // The Blank card is an Advanced-mode door (docs/GOALS.md "Student release" step 4);
+  // advanced-mode.spec.ts pins its absence from the default studio.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="blank"]').click();
   // Blank no longer silently creates with a default. It has the same authored-format setup

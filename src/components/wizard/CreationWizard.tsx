@@ -155,12 +155,6 @@ export default function CreationWizard() {
     };
   }, [open]);
 
-  // Backdrop click-to-close must only fire on a genuine outside click - not when a text
-  // selection drag STARTED inside an input (e.g. the video duration field) and released
-  // over the backdrop. The browser routes that release's `click` to the backdrop (the
-  // nearest common ancestor), so we additionally require the press to have begun there.
-  const pressedOnBackdrop = useRef(false);
-
   // Fresh wizard every time it opens; reload the brand (it may have just been saved).
   useEffect(() => {
     if (open) {
@@ -272,6 +266,12 @@ export default function CreationWizard() {
   // lands in the video shell. Only the wizard flips the persisted doc-kind switch.
   const toSpxShell = () => useDocKindStore.getState().setKind('spx');
 
+  /** Every create that ENDS IN A WORKSPACE names its route in the same tick. Without this,
+   *  the `#/new` route-agreement effect reads a closed-but-still-routed wizard as a ✕ close,
+   *  and a default-mode ✕ close rewinds to HOME (docs/GOALS.md "Student release" step 4) -
+   *  which would swallow the surface the create just promised. */
+  const landAt = (view: 'editor' | 'video') => useRouter.getState().replace({ view });
+
   const createVideo = (project: VideoProject) => {
     useVideoProjectStore.getState().loadProject(project);
     useDocKindStore.getState().setKind('video');
@@ -279,6 +279,7 @@ export default function CreationWizard() {
     // report nothing at all, so a whole project kind was invisible to the funnel and to the
     // admin overview - which showed as an honest-looking zero rather than as a gap.
     trackEvent('activation', 'video');
+    landAt('video');
     closeGallery();
   };
 
@@ -290,6 +291,7 @@ export default function CreationWizard() {
   // accurate. Imported templates are NOT routed here: they stay byte-faithful to the user's file.
   const applyGenerated = async (template: SpxTemplate) => {
     const formatted = await formatTemplate(template); // HTML-only by default
+    landAt('editor'); // the seam every editor-ending create flows through
     applyTemplate(formatted, { resetSampleData: true });
     setActiveTab('html');
     toSpxShell();
@@ -434,8 +436,14 @@ export default function CreationWizard() {
     // preview is exactly the created code already.
     await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate);
     // An imported design creates BARE and hands off to the editor's Data tab — that is
-    // where its fields are added, as real placed layers (docs/IMPORT_MVP.md).
-    if (variant.category === 'imported-design') useTemplateStore.getState().setActivePanel('data');
+    // where its fields are added, as real placed layers (docs/IMPORT_MVP.md). DEFERRED a
+    // tick: in the default studio no editor renders under the wizard, so AppShell mounts on
+    // the route change this create just made — and the dock reveal is keyed on
+    // panelRevealNonce CHANGING after mount (mount itself never reveals). A same-tick bump
+    // lands before the mount and is silently missed.
+    if (variant.category === 'imported-design') {
+      setTimeout(() => useTemplateStore.getState().setActivePanel('data'), 0);
+    }
     // Remember this look as the project brand so the next graphic matches it.
     saveBrand({
       styleTag: variant.styleTag,
@@ -538,17 +546,13 @@ export default function CreationWizard() {
   });
 
   return (
-    <div
-      className="gallery-backdrop"
-      onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && pressedOnBackdrop.current) closeGallery();
-        pressedOnBackdrop.current = false;
-      }}
-    >
+    // No backdrop-click close: the wizard is FULL-SCREEN (docs/GOALS.md "Student release"
+    // step 4 - `.wz-wizard`), so there is no visible backdrop to click; ✕ and Escape close.
+    <div className="gallery-backdrop">
       {/* `.wz-modal` is shared styling — the save dialogs wear it too — so the wizard carries
-          its own test id for anything that must name THIS dialog and not one of those. */}
-      <div className="wz-modal" data-testid="creation-wizard">
+          `.wz-wizard` (the full-screen override) + its own test id for anything that must
+          name THIS dialog and not one of those. */}
+      <div className="wz-modal wz-wizard" data-testid="creation-wizard">
         {/* Header: title + step dots */}
         <div className="wz-header">
           <div className="wz-title">
@@ -658,9 +662,13 @@ export default function CreationWizard() {
                     // user's file opens exactly as written, and the Export panel's inline
                     // validation shows what (if anything) needs fixing before it is
                     // SPX/CasparCG/OGraf-ready. applyTemplate closes the wizard.
+                    landAt('editor');
                     applyTemplate(imported, { resetSampleData: true });
                     setActiveTab('html');
-                    useTemplateStore.getState().setActivePanel('export');
+                    // Deferred a tick for the same reason as the imported-design Data
+                    // reveal above: AppShell mounts on this route change, and a same-tick
+                    // nonce bump lands before the mount and is missed.
+                    setTimeout(() => useTemplateStore.getState().setActivePanel('export'), 0);
                     toSpxShell();
                   }}
                   onUseTemplates={(images) => {

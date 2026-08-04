@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
-import { startNewProject } from './_create';
+import { enableAdvancedMode, startNewProject } from './_create';
 import { acceptAiNotice } from './_ai-notice';
 
 async function pickFormat(
@@ -86,6 +86,8 @@ test('aspect changes select a valid resolution and route switches preserve the c
 });
 
 test('blank and imported artwork require an authored format before creation', async ({ page }) => {
+  // Blank is an Advanced-mode door (step 4); the import half needs no toggle but shares the walk.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="blank"]').click();
   await expect(page.getByTestId('blank-step')).toBeVisible();
@@ -299,6 +301,8 @@ test('save, reopen, and package exports preserve authored dimensions and timing'
 });
 
 test('render output settings are explicit scaling from the authored canvas', async ({ page }) => {
+  // Drives the editor's Export dock directly, so it needs the Advanced ('' = editor) boot.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.evaluate(async () => {
     const { createBlankTemplate } = await import('/src/templates/blank.ts');

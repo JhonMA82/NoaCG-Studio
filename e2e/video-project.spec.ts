@@ -5,7 +5,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { expectOfflineAi } from './_video';
-import { startNewProject } from './_create';
+import { enableAdvancedMode, startNewProject } from './_create';
 
 /** The player host iframe's content (Playwright reaches into sandboxed frames). */
 function player(page: Page) {
@@ -311,6 +311,9 @@ test('reload restores the project; save/reopen and the SPX switch work', async (
   // reads like a broken app. test.slow() triples the budget for this test alone rather than
   // loosening the global one, so a real regression elsewhere still trips at 30 s.
   test.slow();
+  // Advanced: this test reloads expecting the video shell straight back (default mode boots
+  // to Home) and reaches for the Blank card (an Advanced-only door).
+  await enableAdvancedMode(page);
   await createCountdownProject(page);
   await waitForGeneration(page);
 

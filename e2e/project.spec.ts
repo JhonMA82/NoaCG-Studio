@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
+import { enableAdvancedMode } from './_create';
 
-// Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows from
-// it: only a first-ever visit (no autosaved project) opens the wizard; a returning user lands
-// straight back in the restored graphic, and "+ New project" / #/new open the wizard on demand.
+// Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
+// from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
+// studio boots to Home/wizard instead; advanced-mode.spec.ts pins that split). Only a
+// first-ever visit (no autosaved project) opens the wizard; a returning user lands straight
+// back in the restored graphic, and "+ New project" / #/new open the wizard on demand.
 
 test('project autosave: the working graphic survives a reload', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();

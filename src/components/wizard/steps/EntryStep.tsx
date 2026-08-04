@@ -3,6 +3,7 @@ import BrandLogo from '../../BrandLogo';
 import { loadGraphics, type GraphicDoc } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
+import { useAdvancedMode } from '../../useAdvancedMode';
 
 interface Props {
   onTemplates: () => void;
@@ -12,7 +13,7 @@ interface Props {
   /** Start from a KIT: a curated set of graphics for one kind of show. */
   onKit: () => void;
   onBlank: () => void;
-  /** Go to Home (all saved work: graphics, packages, control panels, videos). */
+  /** Go to Home (all saved work: graphics, productions, control panels, videos). */
   onHome: () => void;
   /** Open one recent graphic straight from the wizard. */
   onOpenGraphic: (g: GraphicDoc) => void;
@@ -31,6 +32,7 @@ interface Props {
  * logos to design around) go through Create with AI instead.
  */
 export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome, onOpenGraphic }: Props) {
+  const advanced = useAdvancedMode((s) => s.advanced);
   const recent = useMemo(
     () => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
     [],
@@ -112,13 +114,17 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         <button className="wz-entry-card" onClick={onKit} data-entry="kit">
           <span className="wz-entry-icon">▥</span>
           <strong>Start from a kit</strong>
-          <span className="hint">Running a match, a service, an election night? Get the whole set of graphics that show needs, created together into one package.</span>
+          <span className="hint">Running a match, a service, an election night? Get the whole set of graphics that show needs, created together into one production — publish or export it as one.</span>
         </button>
-        <button className="wz-entry-card" onClick={onBlank} data-entry="blank">
-          <span className="wz-entry-icon">‹›</span>
-          <strong>Blank project</strong>
-          <span className="hint">A minimal valid SPX template — pure code-first, no training wheels.</span>
-        </button>
+        {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
+            (docs/GOALS.md "Student release" step 4). */}
+        {advanced && (
+          <button className="wz-entry-card" onClick={onBlank} data-entry="blank">
+            <span className="wz-entry-icon">‹›</span>
+            <strong>Blank project</strong>
+            <span className="hint">A minimal valid SPX template — pure code-first, no training wheels.</span>
+          </button>
+        )}
       </div>
 
       {/* ── The video world, clearly apart: a standalone rendered video, not a live graphic. ── */}

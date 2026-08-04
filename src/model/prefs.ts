@@ -15,6 +15,11 @@ export interface UserPrefs {
   renderSettings: { format: string; scale: number; fps: number | null; durationSec: number } | null;
   /** How the code editors render comments — a VIEW preference; the code itself never changes. */
   commentVisibility: CommentVisibility;
+  /** ADVANCED MODE (docs/GOALS.md "Student release" step 4): show the code editor's doors.
+   *  Off (the default), the studio is wizard -> production -> playout; the editor stays
+   *  reachable only by a direct #/graphic link. Device-level on purpose - it is a UI
+   *  complexity preference, not project data. Read live via components/useAdvancedMode. */
+  advancedMode: boolean;
 }
 
 const DEFAULTS: UserPrefs = {
@@ -22,6 +27,7 @@ const DEFAULTS: UserPrefs = {
   timelineCollapsed: null,
   renderSettings: null,
   commentVisibility: 'normal',
+  advancedMode: false,
 };
 
 export function loadPrefs(): UserPrefs {

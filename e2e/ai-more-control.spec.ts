@@ -157,10 +157,12 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
   await page.locator('.mc-head', { hasText: 'Data fields' }).click();
   await expect(labels).toHaveCount(seeded);
 
-  // Close the wizard entirely and come back: the draft survives (localStorage).
+  // Close the wizard entirely and come back: the draft survives (localStorage). A default-
+  // mode close lands on HOME (step 4), whose empty state repeats the "+ New project" label -
+  // the topbar testid names the one button this means.
   await page.locator('.gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await page.getByRole('button', { name: '+ New project' }).click();
+  await page.getByTestId('home-new-project').click();
   await page.locator('[data-entry="ai"]').click();
   // A non-empty draft opens the panel by itself, summarizing the picked category.
   await expect(page.getByTestId('more-control')).toBeVisible();

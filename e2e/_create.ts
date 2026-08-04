@@ -27,8 +27,32 @@ export interface CreateSpec {
  * clicking Entry -> Category -> Template -> Create project. Waits out the preview rebuild,
  * so the test starts against the created document.
  */
+/**
+ * ADVANCED-MODE BOOTSTRAP (docs/GOALS.md "Student release" step 4): opt a spec into the
+ * classic editor-centric behavior - '' boots into the editor, every editor door shows, and
+ * an editor shell renders under the wizard. For specs whose SUBJECT is the editor world;
+ * specs asserting the DEFAULT experience simply don't call it. Must run BEFORE the first
+ * goto. NOTE: addInitScript also runs inside the same-origin srcdoc preview iframe -
+ * WRITING this pref key there is harmless (unlike the documented localStorage-CLEAR trap),
+ * it just re-writes the same value.
+ */
+export async function enableAdvancedMode(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    try {
+      const prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{}') as Record<string, unknown>;
+      if (prefs.advancedMode !== true) {
+        localStorage.setItem('spx-gfx-prefs', JSON.stringify({ ...prefs, advancedMode: true }));
+      }
+    } catch {
+      localStorage.setItem('spx-gfx-prefs', JSON.stringify({ advancedMode: true }));
+    }
+  });
+}
+
 export async function createProject(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
   const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;
+  // Editor subject by definition - see enableAdvancedMode above.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   // Boot signal only — deliberately NOT the wizard: the wizard auto-opens solely on a
   // first-ever visit (no autosaved project), so a mid-test re-bootstrap lands straight in

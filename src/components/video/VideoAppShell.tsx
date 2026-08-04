@@ -7,7 +7,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { useVideoProjectStore, type VideoPanelTab } from '../../store/videoProjectStore';
-import CreationWizard from '../wizard/CreationWizard';
 import BrandLogo from '../BrandLogo';
 import AuthStatus from '../auth/AuthStatus';
 import SignInDialog from '../auth/SignInDialog';
@@ -261,7 +260,6 @@ export default function VideoAppShell() {
       )}
 
       {/* Creation wizard overlay - the app-wide new-project flow (both shells mount it). */}
-      <CreationWizard />
 
       {savedOpen && <SavedVideoProjects onClose={() => setSavedOpen(false)} />}
 

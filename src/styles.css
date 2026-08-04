@@ -876,12 +876,12 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 }
 .ai-brief .hint { flex: 1; margin: 0; }
 
-/* ---------- Packet manager ---------- */
-/* The four sheets built on .wz-modal that are NOT the wizard — the community gallery, both
-   moderation queues, Settings — borrow its frame but not its job. The wizard is a fixed 94vh
-   workspace because it carries a live preview beside the step; these are lists and forms, so
-   they size to their content and only CAP at the wizard's height. Left fixed, Settings' short
-   form and a gallery still loading each opened a near-full-screen sheet of dead space.
+/* ---------- .wz-modal borrower sheets ---------- */
+/* The sheets built on .wz-modal that are NOT the wizard — the community gallery, both
+   moderation queues, Settings — borrow its frame but not its job. The wizard is a full-screen
+   workspace (`.wz-wizard`) because it carries a live preview beside the step; these are lists
+   and forms, so they size to their content and only CAP their height. Left fixed, Settings'
+   short form and a gallery still loading each opened a near-full-screen sheet of dead space.
    Both classes are on the element, so the selector names both: .wz-modal is defined further down
    the file and would otherwise win the height on source order alone. */
 .wz-modal.pk-modal { max-width: 760px; height: auto; max-height: min(880px, 90vh); }
@@ -1051,6 +1051,31 @@ kbd {
   flex-direction: column;
   overflow: hidden;
 }
+/* THE WIZARD IS FULL-SCREEN (docs/GOALS.md "Student release" step 4): it is the primary
+   creation surface, not a popup over the editor. `.wz-wizard` is on the wizard's element
+   ONLY — every borrower dialog (save, settings, consent, export, feedback, insert-template,
+   community, moderation, saved-videos) keeps the classic .wz-modal frame. This promotes what
+   the ≤768px block below always did. The base type steps up one notch with it: the wizard
+   sets the size the student actually reads. */
+.wz-wizard {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  border-radius: 0;
+  border: none;
+  font-size: 15px;
+}
+.wz-wizard input,
+.wz-wizard select,
+.wz-wizard textarea,
+.wz-wizard button { font-size: 14px; }
+.wz-wizard .hint { font-size: 13px; }
+.wz-wizard .wz-header h2 { font-size: 20px; }
+.wz-wizard .wz-hero-title { font-size: 34px; }
+.wz-wizard .wz-hero-sub { font-size: 16px; }
+.wz-wizard .wz-entry-card strong { font-size: 16px; }
+.wz-wizard .wz-finish-name { font-size: 16px; }
+.wz-wizard .wz-footer button.wz-next { font-size: 15px; }
 .wz-header {
   display: flex;
   align-items: center;
