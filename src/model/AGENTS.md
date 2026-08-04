@@ -101,9 +101,14 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   packageId; the legacy `graphics` array stays a real empty array so older builds never
   crash) + brand looks 'spx-gfx-looks' + captureLookFromTemplate/applyLookToTemplate.
 - **shows.ts** - the PRODUCTION unit (docs/CLOUD_PLAYOUT.md + docs/CONTROL_LAYER.md; the UI word
-  is "production", the old "rundown"): the graphic POOL (ordered, name-keyed, one renderer
-  instance each) plus the CUE rundown (`cues` - additive optional data rows over the pool, many
-  cues per graphic; a pool replace KEEPS the entry id so cues never orphan). Packet conventions
+  is "production", the old "rundown"): the graphic POOL (name-keyed, one renderer instance each)
+  plus the CUE rundown (`cues` - additive optional data rows over the pool, many
+  cues per graphic; a pool replace KEEPS the entry id so cues never orphan).
+  **`graphics` order IS the layer stack, in PAINT order** - index 0 furthest back, the last entry
+  on top - carried unchanged into the published payload and out to the output stage's z-indexes.
+  Both surfaces that show it (the production page, the editor's Productions block) reverse it for
+  display, because a layer panel lists the front first; `moveShowGraphic(+1)` therefore means
+  "forward". Every pool graphic holds its OWN on-air cue, so several are live at once. Packet conventions
   ('spx-gfx-shows', updatedAt LWW, tombstones), sync kind 'show'; `hostedSlug` (control page) +
   `outputSlug` (browser output) record the published capabilities, `publishedAt` the pin point -
   all three stripped from sync conflict copies.

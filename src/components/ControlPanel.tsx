@@ -311,22 +311,26 @@ export default function ControlPanel() {
             {activeShow.graphics.length === 0 && (
               <p className="muted" style={{ marginTop: 6 }}>Empty — add the current graphic, then open other graphics and add them too.</p>
             )}
-            {activeShow.graphics.map((g, i) => (
+            {/* The production's LAYER STACK, shown exactly as the production page shows it
+                (docs/CLOUD_PLAYOUT.md §5): front to back, ↑ forward and ↓ back. The stored pool
+                is the reverse — paint order — and two surfaces that ordered the same array
+                differently would be a trap, not a convenience. */}
+            {[...activeShow.graphics].reverse().map((g, rowIndex) => (
               <div key={g.id} className="row show-graphic-row">
                 <span className="grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {i + 1}. {g.name}
+                  L{activeShow.graphics.length - rowIndex} · {g.name}
                 </span>
                 <button
                   className="show-row-btn"
-                  disabled={i === 0}
-                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, -1))}
-                  title="Move up the production"
+                  disabled={rowIndex === 0}
+                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, 1))}
+                  title="Bring this layer forward — it paints over the one above it"
                 >↑</button>
                 <button
                   className="show-row-btn"
-                  disabled={i === activeShow.graphics.length - 1}
-                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, 1))}
-                  title="Move down the production"
+                  disabled={rowIndex === activeShow.graphics.length - 1}
+                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, -1))}
+                  title="Send this layer back — the one below it paints over it"
                 >↓</button>
                 <button className="show-row-btn" onClick={() => setShows(removeShowGraphic(activeShow.id, g.id))} title="Remove from the production">✕</button>
               </div>

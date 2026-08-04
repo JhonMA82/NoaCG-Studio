@@ -104,12 +104,17 @@ export type LiveReportMap = Record<
   }
 >;
 
-/** Which cue is on air — the row-persisted snapshot (0031; null on a pre-0031 server or
- *  before any take, degrading to "nothing on air" until the next cue row arrives). */
-export interface LiveCueSnapshot {
-  id: string | null;
-  graphic: string | null;
-}
+/**
+ * Which cue is on air ON EACH LAYER — the row-persisted snapshot, keyed by the graphic NAME
+ * (the 0008 wire key, which is also the layer identity). An absent key means that layer is off
+ * air; a production with three graphics up has three entries.
+ *
+ * Format 2 (migration 0034). A pre-0034 row carries 0031's single `{cue, graphic}` snapshot and
+ * MIGRATES ON READ into the one-entry map it describes, so an unupgraded server still reports
+ * its one live layer correctly (rule 6). An empty map is the honest reading of both "nothing on
+ * air" and "no snapshot yet" — the cue rows on the log correct it either way.
+ */
+export type LiveCueMap = Record<string, string>;
 
 export interface ResolvedControlShow {
   id: string;
@@ -123,7 +128,7 @@ export interface ResolvedControlShow {
   output: OutputPayload | null;
   /** The renderer's last heartbeat — staleness is the "renderer connected" indicator. */
   outputSeenAt: string | null;
-  liveCue: LiveCueSnapshot | null;
+  liveCue: LiveCueMap;
 }
 
 /** What the output renderer resolves — payload + live snapshot, never panel/staged/slug. */
@@ -146,6 +151,10 @@ export interface CueStatusMsg {
 export interface ControlEventRow {
   id: number;
   graphic: string;
+  /** When the row was written (0008's `control_tail` has always returned it, and a Realtime
+   *  INSERT payload carries the whole row). Optional because a locally-authored row — a
+   *  rehearsal's own commands — has no server time, and older callers never read it. */
+  created_at?: string;
   msg:
     | ControlMessage
     | CueStatusMsg
@@ -325,11 +334,40 @@ export async function controlShowBySlug(slug: string): Promise<ResolvedControlSh
   };
 }
 
-/** Normalize the row-persisted cue snapshot (absent on a pre-0031 server → null). */
-function readLiveCue(value: unknown): LiveCueSnapshot | null {
-  if (!value || typeof value !== 'object') return null;
-  const v = value as { cue?: string | null; graphic?: string | null };
-  return { id: v.cue ?? null, graphic: v.graphic ?? null };
+/**
+ * Normalize the row-persisted cue snapshot into the per-layer map (docs/CLOUD_PLAYOUT.md §4).
+ * Three shapes reach this: format 2 (`{v:2, layers:{…}}`, migration 0034), format 1 (0031's
+ * single `{cue, graphic}`, migrated here into the one entry it means), and nothing at all
+ * (a pre-0031 server, or a production that has never taken a cue). An unrecognised version
+ * degrades to an empty map rather than throwing — the log's cue rows repopulate it.
+ */
+export function readLiveCue(value: unknown): LiveCueMap {
+  if (!value || typeof value !== 'object') return {};
+  const v = value as { v?: number; layers?: unknown; cue?: string | null; graphic?: string | null };
+  if ((v.v ?? 1) >= 2) {
+    const layers = v.layers;
+    if (!layers || typeof layers !== 'object') return {};
+    const out: LiveCueMap = {};
+    for (const [graphic, entry] of Object.entries(layers as Record<string, unknown>)) {
+      const cue = (entry as { cue?: unknown } | null)?.cue;
+      if (typeof cue === 'string' && cue) out[graphic] = cue;
+    }
+    return out;
+  }
+  return v.graphic && v.cue ? { [v.graphic]: v.cue } : {};
+}
+
+/** Apply one cue marker to the per-layer map: a cue id puts that layer on air, `null` takes it
+ *  off. Off air is an ABSENT key, never a stored null, so "is this layer up" is one question.
+ *  Returns the SAME map when nothing changed, so a repeated marker re-renders nothing. */
+export function withLiveCue(map: LiveCueMap, graphic: string, cue: string | null): LiveCueMap {
+  if (!cue) {
+    if (!(graphic in map)) return map;
+    const next = { ...map };
+    delete next[graphic];
+    return next;
+  }
+  return map[graphic] === cue ? map : { ...map, [graphic]: cue };
 }
 
 /** Resolve the RENDERER's view by the output capability — payload + live snapshot only. */
@@ -410,29 +448,73 @@ export async function sendHostedControlBatch(slug: string, items: ControlSendIte
 
 // ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence. ─────────────
 
-/** Take a cue: its data, the previous graphic played out (one live layer), this graphic in,
- *  and the shared cue status row — atomically, in log order. */
+// Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
+// applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
+// is what makes a rehearsal faithful: rehearsing and airing are the same commands in the same
+// order, not two implementations that have to be kept in step by hand.
+
+/**
+ * Take a cue: its data, its graphic in, and the shared cue status row. It touches ONE LAYER,
+ * its own. Taking a lower third leaves the bug and the ticker on air, because those are other
+ * graphics and therefore other layers (docs/CLOUD_PLAYOUT.md §4); taking a second cue on the
+ * SAME graphic re-airs that one instance, which is what makes two cues over one lower third
+ * replace each other and not stack.
+ *
+ * Clearing another layer is the operator's own verb (`clearCueItems` / `clearAllCueBatches`),
+ * never a side effect of taking this one — an implicit stop is exactly what made a production
+ * single-layer.
+ */
+export function takeCueItems(cue: { id: string; graphic: string; values: Record<string, string> }): ControlSendItem[] {
+  return [
+    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
+    { graphic: cue.graphic, msg: { t: 'play' } },
+    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id } },
+  ];
+}
+
+/** Out ONE layer: play that graphic off and clear its cue status. */
+export function clearCueItems(liveGraphic: string): ControlSendItem[] {
+  return [
+    { graphic: liveGraphic, msg: { t: 'stop' } },
+    { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
+  ];
+}
+
+/** `control_send_many` takes at most 8 items — a verb, not an ingest API — so an all-layers
+ *  clear pays two items per layer and goes out in batches of four layers. */
+const LAYERS_PER_CLEAR_BATCH = 4;
+
+/**
+ * Out EVERY live layer: the "clear the screen" verb a multi-layer production needs, since no
+ * single Take does it any more. One batch per four layers, so a production bigger than that
+ * clears in log order rather than not at all.
+ */
+export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
+  const batches: ControlSendItem[][] = [];
+  for (let i = 0; i < liveGraphics.length; i += LAYERS_PER_CLEAR_BATCH) {
+    batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(clearCueItems));
+  }
+  return batches;
+}
+
+/** Take a cue on the wire — one atomic, log-ordered insert. */
 export function takeCueOnWire(
   slug: string,
   cue: { id: string; graphic: string; values: Record<string, string> },
-  prevGraphic: string | null,
 ): Promise<void> {
-  return sendHostedControlBatch(slug, [
-    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
-    ...(prevGraphic && prevGraphic !== cue.graphic
-      ? [{ graphic: prevGraphic, msg: { t: 'stop' } satisfies ControlMessage }]
-      : []),
-    { graphic: cue.graphic, msg: { t: 'play' } },
-    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id } },
-  ]);
+  return sendHostedControlBatch(slug, takeCueItems(cue));
 }
 
-/** Out: play the live graphic off and clear the cue status. */
+/** Out one layer on the wire. */
 export function clearCueOnWire(slug: string, liveGraphic: string): Promise<void> {
-  return sendHostedControlBatch(slug, [
-    { graphic: liveGraphic, msg: { t: 'stop' } },
-    { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
-  ]);
+  return sendHostedControlBatch(slug, clearCueItems(liveGraphic));
+}
+
+/** Out every live layer on the wire, batch by batch. */
+export async function clearAllCuesOnWire(slug: string, liveGraphics: string[]): Promise<void> {
+  for (const batch of clearAllCueBatches(liveGraphics)) {
+    await sendHostedControlBatch(slug, batch);
+  }
 }
 
 /**

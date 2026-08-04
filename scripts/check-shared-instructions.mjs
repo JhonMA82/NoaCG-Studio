@@ -68,11 +68,13 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'git pull --ff-only origin main',
       'git merge --ff-only <branch>',
       'git push origin main',
-      // The removal rule has exactly ONE carve-out - the temporary worktree this flow creates
-      // for a branch that has none. Both halves are pinned: widening it to any other worktree,
-      // or letting a `--force` past the refusal, has to edit this list to land.
+      // The removal rule has exactly TWO carve-outs, both temporary worktrees this flow creates
+      // itself: one for a source branch that has none, and one for `main` when the root cannot
+      // host it (added 2026-08-04, after four runs improvised the second). Widening it further -
+      // to any worktree this run did not create - or letting a `--force` past the refusal, still
+      // has to edit this list to land, which is the whole point of pinning it here.
       'never remove a worktree you did not create in this run',
-      'Remove ONLY the worktree this run\n   created, and never the branch.',
+      'Remove ONLY the worktrees this run\n   created, and never the branch.',
       'Never delete a branch,',
       'Never use\n   `git merge --no-commit` as a preview',
     ],

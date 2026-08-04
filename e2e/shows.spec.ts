@@ -30,11 +30,12 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await createProject(page, { name: 'Arena Quiz' });
   await addCurrentToShow(page, 'Evening Show');
 
-  // The rundown lists both, in order.
+  // The production lists both as LAYERS, front to back: the newest addition is on top, so it
+  // heads the list and carries the higher number (docs/CLOUD_PLAYOUT.md §5).
   const section = page.locator('.panel-section', { hasText: 'Productions' });
   await expect(section.locator('.show-graphic-row')).toHaveCount(2);
-  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('1. Hairline');
-  await expect(section.locator('.show-graphic-row').nth(1)).toContainText('2. Arena Quiz');
+  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Arena Quiz');
+  await expect(section.locator('.show-graphic-row').nth(1)).toContainText('L1 · Hairline');
 
   // Export: one folder per graphic + the aggregated show panel.
   const [download] = await Promise.all([
@@ -250,15 +251,19 @@ test("a show export bakes each graphic's saved library entries into both panels"
   }
 });
 
-test('the rundown reorders and removes; deleting the show keeps nothing behind', async ({ page }) => {
+test('the layer stack reorders and removes; deleting the show keeps nothing behind', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await addCurrentToShow(page, 'Reorder Show', true);
   await createProject(page, { name: 'Arena Quiz' });
   await addCurrentToShow(page, 'Reorder Show');
 
+  // Front to back: Arena Quiz went in last, so it starts on top. Bringing the BACK layer
+  // forward puts Hairline on top and renumbers both.
   const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Arena Quiz');
   await section.locator('.show-graphic-row').nth(1).getByRole('button', { name: '↑' }).click();
-  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('1. Arena Quiz');
+  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Hairline');
+  await expect(section.locator('.show-graphic-row').nth(1)).toContainText('L1 · Arena Quiz');
 
   await section.locator('.show-graphic-row').nth(0).getByRole('button', { name: '✕' }).click();
   await expect(section.locator('.show-graphic-row')).toHaveCount(1);

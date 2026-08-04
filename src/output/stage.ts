@@ -1,8 +1,13 @@
 // The output STAGE (docs/CLOUD_PLAYOUT.md §3): one fixed-size surface at the production
 // resolution, CSS-scaled to the viewport, holding ONE sandboxed iframe per published graphic —
-// all built at load (preload), stacked in rundown order, each composed through the same
-// composeDocument the editor previews with. Templates start invisible by the SPX contract, so
-// an idle stacked graphic shows nothing.
+// all built at load (preload), each composed through the same composeDocument the editor
+// previews with. Templates start invisible by the SPX contract, so an idle stacked graphic
+// shows nothing.
+//
+// Every graphic is a LAYER, and payload order is the stack: index 0 furthest back, the last
+// entry on top. Several layers are on air at once by design — a bug, a lower third and a
+// ticker are three graphics, so taking a cue on one of them leaves the other two exactly as
+// they were. Nothing here decides that; the stage stays dumb and the log says who plays.
 //
 // The stage is deliberately DUMB: it routes ControlMessages to the right iframe as
 // previewProtocol commands and reports back what it forwarded. Which cue airs, and stopping the
@@ -49,18 +54,34 @@ export interface OutputStage {
   states: ReadonlyMap<string, PreviewMachineState | null>;
   /** Called whenever a document reports a state that DIFFERS from the last one seen. */
   onState(cb: (graphic: string, state: PreviewMachineState | null) => void): void;
-  /** The graphic keys the stage hosts, in payload (rundown/layer) order. */
+  /** The graphic keys the stage hosts, in LAYER order — furthest back first. */
   graphics: string[];
   /** Hide/show the WHOLE stage — the renderer's own surface, never the graphics' own state.
    *  Boot catch-up replays missed commands as commands, so their animations run; airing that
    *  replay would put the outage's history on screen. Hidden, it settles off air and the
    *  reveal shows the finished picture (docs/CLOUD_PLAYOUT.md §3). */
   setVisible(visible: boolean): void;
+  /** Re-measure the fit box and rescale. The stage does this on every window resize; a host
+   *  whose box changes for other reasons (a panel resize) calls it itself. */
+  rescale(): void;
   destroy(): void;
 }
 
-/** Build the stage into `root` and keep it scaled to the viewport. */
-export function createOutputStage(root: HTMLElement, payload: OutputPayload): OutputStage {
+export interface OutputStageOptions {
+  /** The box the stage scales itself into. Defaults to the VIEWPORT, which is what the /output
+   *  page wants — its root fills the window and a browser source is the window. The production
+   *  page's rehearsal embed passes its own panel's size instead, so one stage implementation
+   *  serves both and a rehearsal cannot drift from what airs. Call `rescale()` on the returned
+   *  stage after the box changes; the stage listens to window resizes either way. */
+  fit?: () => { width: number; height: number };
+}
+
+/** Build the stage into `root` and keep it scaled to its fit box (the viewport by default). */
+export function createOutputStage(
+  root: HTMLElement,
+  payload: OutputPayload,
+  options: OutputStageOptions = {},
+): OutputStage {
   const { width, height } = payload.resolution;
   const stage = document.createElement('div');
   stage.style.cssText = [
@@ -74,11 +95,13 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
   ].join(';');
   root.appendChild(stage);
 
-  // Predictable broadcast scaling: the stage is always resolution-exact design pixels,
-  // centred and uniformly scaled to fit the window (a 1920×1080 production fills a 1920×1080
-  // browser source 1:1; any other viewport letterboxes transparently).
+  // Predictable broadcast scaling: the stage is always resolution-exact design pixels, centred
+  // and uniformly scaled to fit its box (a 1920×1080 production fills a 1920×1080 browser
+  // source 1:1; any other size letterboxes transparently).
+  const fit = options.fit ?? (() => ({ width: window.innerWidth, height: window.innerHeight }));
   const rescale = () => {
-    const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+    const box = fit();
+    const scale = Math.min(box.width / width, box.height / height);
     // transform-origin 0 0 + a translate by half the SCALED size: the stage stays centred
     // without percentage translates compounding with the scale.
     stage.style.transform = `translate(${(-width * scale) / 2}px, ${(-height * scale) / 2}px) scale(${scale})`;
@@ -102,18 +125,25 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
     postPreviewCmd(frames.get(graphic)?.contentWindow, cmd);
   };
 
-  for (const spec of payload.graphics) {
+  payload.graphics.forEach((spec, layer) => {
     const iframe = document.createElement('iframe');
     // The same sandbox posture as every preview surface: published template code must never
     // reach the app origin (no allow-same-origin, ever — see preview/previewProtocol.ts).
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('title', spec.key);
+    // The layer number the production authored, stated rather than implied. Payload order IS
+    // the stack (index 0 furthest back), and appending in that order would already paint it
+    // correctly — but only for as long as nothing ever inserts, replaces or re-appends a frame.
+    // An explicit z-index makes the stack a property of the layer instead of a property of the
+    // loop, which is what a production reordering its graphics is entitled to rely on.
+    iframe.dataset.layer = String(layer + 1);
     iframe.style.cssText = [
       'position:absolute',
       'left:0',
       'top:0',
       `width:${spec.resolution.width}px`,
       `height:${spec.resolution.height}px`,
+      `z-index:${layer + 1}`,
       'border:0',
       'background:transparent',
     ].join(';');
@@ -127,7 +157,7 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
     stage.appendChild(iframe);
     frames.set(spec.key, iframe);
     states.set(spec.key, null);
-  }
+  });
 
   // State replies carry no graphic name — the SOURCE window identifies the sender.
   const onMessage = (ev: MessageEvent) => {
@@ -191,6 +221,7 @@ export function createOutputStage(root: HTMLElement, payload: OutputPayload): Ou
     setVisible: (visible) => {
       stage.style.opacity = visible ? '1' : '0';
     },
+    rescale,
     destroy: () => {
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);
