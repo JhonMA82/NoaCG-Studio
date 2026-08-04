@@ -45,7 +45,7 @@ import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
 import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
-import { openGraphicDoc, saveGraphicAs, useSaveUi } from '../../store/saveActions';
+import { saveGraphicAs } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
 import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
@@ -623,7 +623,9 @@ export default function CreationWizard() {
   return (
     // No backdrop-click close: the wizard is FULL-SCREEN (docs/GOALS.md "Student release"
     // step 4 - `.wz-wizard`), so there is no visible backdrop to click; ✕ and Escape close.
-    <div className="gallery-backdrop">
+    // `.wz-full` drops the backdrop blur: it composited every frame under a 100% opaque
+    // full-screen surface — pure paint cost, and part of the open-transition jank.
+    <div className="gallery-backdrop wz-full">
       {/* `.wz-modal` is shared styling — the save dialogs wear it too — so the wizard carries
           `.wz-wizard` (the full-screen override) + its own test id for anything that must
           name THIS dialog and not one of those. */}
@@ -631,7 +633,17 @@ export default function CreationWizard() {
         {/* Header: title + step dots */}
         <div className="wz-header">
           <div className="wz-title">
-            <BrandLogo size={20} />
+            {/* The brand is the Home door on every topbar — the wizard's included. */}
+            <button
+              className="brand brand-home"
+              title="NoaCG Studio — Home"
+              onClick={() => {
+                closeGallery();
+                useRouter.getState().navigate({ view: 'home', section: null });
+              }}
+            >
+              <BrandLogo size={24} />
+            </button>
             <span className="wz-title-sep">·</span>
             <span className="wz-title-step">
               {mode === 'ai' ? 'Create with AI'
@@ -698,13 +710,6 @@ export default function CreationWizard() {
                 onHome={() => {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section: null });
-                }}
-                onOpenGraphic={(g) => {
-                  useSaveUi.getState().requestSwitch(() => {
-                    openGraphicDoc(g);
-                    closeGallery();
-                    useRouter.getState().navigate({ view: 'graphic', id: g.id });
-                  });
                 }}
               />
             )}

@@ -88,7 +88,8 @@ test('operator clarity: the editor names its cue, graphic and draft state; rehea
   await page.getByTestId('toggle-rehearsal').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
-  await expect(heading).toContainText('LIVE — ✎ Update pushes edits');
+  // Rehearsal names itself: the tally word must never let a rehearsal read as air.
+  await expect(heading).toContainText('LIVE IN REHEARSAL — ✎ Update pushes edits');
   // Out clears the layer; the chip returns to honest silence.
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');

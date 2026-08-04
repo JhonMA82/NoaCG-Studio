@@ -1073,24 +1073,27 @@ kbd {
   max-width: none;
   border-radius: 0;
   border: none;
-  font-size: 15px;
+  font-size: 16px;
 }
 .wz-wizard input,
 .wz-wizard select,
 .wz-wizard textarea,
-.wz-wizard button { font-size: 14px; }
-.wz-wizard .hint { font-size: 13px; }
+.wz-wizard button { font-size: 15px; }
+.wz-wizard .hint { font-size: 14px; }
 .wz-wizard .wz-header h2 { font-size: 20px; }
-.wz-wizard .wz-hero-title { font-size: 34px; }
-.wz-wizard .wz-hero-sub { font-size: 16px; }
-.wz-wizard .wz-entry-card strong { font-size: 16px; }
+/* Desktop-first sizing (acceptance feedback: the full-screen entry read small and used only
+   the middle of the screen). The vertical budget stays pinned by e2e/wizard-entry-fit.spec.ts
+   at 1366×768 — the removed Recent strip paid for the taller hero. */
+.wz-wizard .wz-hero-title { font-size: 42px; }
+.wz-wizard .wz-hero-sub { font-size: 18px; }
+.wz-wizard .wz-entry-card strong { font-size: 17px; }
 .wz-wizard .wz-finish-name { font-size: 16px; }
 .wz-wizard .wz-footer button.wz-next { font-size: 15px; }
 .wz-header {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 16px 20px;
+  padding: 18px 28px;
   border-bottom: 1px solid var(--border);
 }
 .wz-header h2 { margin: 0; font-size: 18px; }
@@ -1102,8 +1105,8 @@ kbd {
 .export-window .wz-header .gallery-close { margin-left: auto; }
 .wz-dots { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
 .wz-dot {
-  font-size: 12px;
-  padding: 5px 10px;
+  font-size: 13px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: transparent;
   border: 1px solid transparent;
@@ -1191,18 +1194,19 @@ kbd {
 /* Step 0: the home hero + entry cards */
 .wz-entry-wrap { display: flex; flex-direction: column; align-items: center; }
 /* The whole step must fit a 768px-tall laptop without scrolling — every vertical margin here
-   is budgeted. If you grow one, take the height from another. */
-.wz-hero { text-align: center; max-width: 660px; padding: 16px 16px 0; }
+   is budgeted. If you grow one, take the height from another. (The Recent strip's removal
+   paid for the desktop-first hero sizes above.) */
+.wz-hero { text-align: center; max-width: 880px; padding: 16px 16px 0; }
 .wz-hero-title {
   font-size: 30px;
   font-weight: 600;
   line-height: 1.08;
   letter-spacing: -0.01em;
-  margin: 12px 0 10px;
+  margin: 10px 0 8px;
 }
 .wz-hero-title span { color: var(--amber); }
-.wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0 auto; max-width: 600px; }
-.wz-hero-tags { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0 auto; max-width: 760px; }
+.wz-hero-tags { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
 .wz-hero-tags span {
   font-size: 10px;
   letter-spacing: 0.18em;
@@ -1213,7 +1217,7 @@ kbd {
   padding: 3px 11px;
 }
 
-.wz-entry { display: flex; gap: 14px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
+.wz-entry { display: flex; gap: 14px; padding: 10px 0 0; justify-content: center; flex-wrap: wrap; }
 .wz-entry-card {
   /* The width budget: every card of the entry row must fit ONE row at 1366px, where the
      row gets 1259px - a second row spends the Entry step's height budget (see .wz-hero).
@@ -1745,6 +1749,9 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   justify-content: center;
   backdrop-filter: blur(4px);
 }
+/* The full-screen wizard is 100% opaque — blurring and dimming what it fully occludes is
+   pure per-frame compositing cost (and visible jank on the open transition). */
+.gallery-backdrop.wz-full { backdrop-filter: none; background: var(--bg-2); }
 
 .gallery-modal {
   background: var(--bg-2);
@@ -3813,6 +3820,20 @@ h2 + .lib-row,
 .lib-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .lib-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-info .muted { font-size: 12px; }
+/* A row NAME that is itself the open door (productions): text-shaped, never button chrome. */
+.lib-name-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+}
+.lib-name-link strong { display: block; }
+.lib-name-link:hover strong { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
 .lib-actions { display: flex; align-items: center; gap: 6px; }
 .lib-actions button { white-space: nowrap; }
 .lib-live { color: #4ade80; }
@@ -3904,6 +3925,24 @@ h2 + .lib-row,
   position: relative;
   overflow: hidden;
 }
+/* The red on-air tally around the stage: this surface AIRS, so "the graphic is up" must be
+   unmissable — the broadcast convention, inset so it never shifts layout. */
+.control-page-stage.on-air { box-shadow: inset 0 0 0 3px rgba(239, 68, 68, 0.9); }
+.on-air-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #fff;
+  background: rgba(239, 68, 68, 0.92);
+  border-radius: 4px;
+  padding: 4px 10px;
+  pointer-events: none;
+}
 /* ABSOLUTE on purpose: `transform: scale()` shrinks what you SEE, never the layout box, so a
    1920×1080 iframe left in flow would still claim 1080px of column and shove the cue row off
    the bottom of the window. Out of flow, the stage is free to be whatever height is left. */
@@ -3956,6 +3995,12 @@ h2 + .lib-row,
   border-radius: 6px;
   padding: 6px 10px;
   white-space: nowrap;
+}
+.control-state-chip.on-air {
+  color: #fff;
+  background: rgba(239, 68, 68, 0.9);
+  border-color: rgba(239, 68, 68, 0.9);
+  font-weight: 700;
 }
 .control-page-side {
   border-left: 1px solid var(--border);
@@ -4081,8 +4126,12 @@ h2 + .lib-row,
 .prod-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .prod-status.ok { color: #4ade80; }
 /* A cue on air: a row that must be findable at a glance. There can be SEVERAL — one per layer
-   that is up — so this reads as a per-row mark, never as "the" live row. */
-.control-entry.live { border-color: rgba(74, 222, 128, 0.6); background: rgba(74, 222, 128, 0.07); }
+   that is up — so this reads as a per-row mark, never as "the" live row. RED is the broadcast
+   tally convention for program/on-air (acceptance feedback: the old green mark read as "ok",
+   not "live"); the box-shadow fattens the border without shifting layout. A REHEARSAL keeps
+   its own amber — rehearsal must never read as air. */
+.control-entry.live { border-color: rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.08); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.85); }
+.control-entry.live.rehearse { border-color: rgba(246, 166, 35, 0.75); background: rgba(246, 166, 35, 0.07); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.75); }
 .prod-cue-note { font-style: italic; }
 /* The LAYER STACK. Listed front to back, so the number falls as the eye travels down; the
    badge is fixed-width and monospaced so the column stays a column at two digits.
@@ -4110,9 +4159,20 @@ h2 + .lib-row,
    below wraps the row and restores operator-sized targets. */
 .prod-layer button { flex: 0 0 auto; white-space: nowrap; padding: 4px 8px; }
 .prod-layer-break { display: none; }
-.pk-graphic.live { background: rgba(74, 222, 128, 0.06); }
-.pk-graphic.live .prod-layer-no { color: #4ade80; }
-.prod-layer-live { font-size: 11px; color: #4ade80; white-space: nowrap; }
+/* The layer stack's on-air rows follow the same red tally; amber under rehearsal. */
+.pk-graphic.live { background: rgba(239, 68, 68, 0.07); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.7); border-radius: 6px; }
+.pk-graphic.live .prod-layer-no { color: #ef4444; }
+.prod-layer-live { font-size: 11px; color: #ef4444; white-space: nowrap; }
+.pk-graphic.live.rehearse { background: rgba(246, 166, 35, 0.06); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.65); }
+.pk-graphic.live.rehearse .prod-layer-no { color: var(--amber); }
+.pk-graphic.live.rehearse .prod-layer-live { color: var(--amber); }
+/* The cue EDITOR wears the tally too while the cue it edits is on air — typing into a live
+   cue and typing into a draft must never look the same. */
+.panel-section.cue-editor-live { border: 1px solid rgba(239, 68, 68, 0.75); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.75); border-radius: 8px; padding: 12px; }
+.panel-section.cue-editor-live.rehearse { border-color: rgba(246, 166, 35, 0.7); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+.cue-editor-live-word { color: #ef4444; font-weight: 600; }
+.cue-editor-live.rehearse .cue-editor-live-word { color: var(--amber); }
+.live-chip-on { color: #ef4444; font-weight: 600; }
 .status-warn { color: var(--amber); font-size: 13px; }
 
 @media (max-width: 900px) {
@@ -4210,15 +4270,6 @@ h2 + .lib-row,
 .wz-continue { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; width: 100%; max-width: 1098px; }
 .wz-continue-card { width: 100%; flex-direction: row; align-items: center; gap: 12px; padding: 12px 18px; }
 .wz-continue-card .hint { flex: 1; min-width: 0; }
-.wz-recent { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 4px; }
-.wz-recent-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); }
-.wz-recent-chip {
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 320px;
-}
 .wz-beta-tag {
   display: inline-block;
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -4237,8 +4288,8 @@ h2 + .lib-row,
 /* The video strip stays visually apart (dashed rule) but flat: the card lays out as one
    ROW so the whole strip is on screen at 768px viewport height, below the entry grid. */
 .wz-video-strip {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px dashed var(--border);
   display: flex;
   align-items: center;

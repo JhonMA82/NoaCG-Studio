@@ -69,7 +69,16 @@ export default function ProductionsSection({
         <div className="lib-row lib-row-flat" key={r.id} data-testid={`production-row-${r.id}`}>
           <span className="lib-row-icon" aria-hidden="true"><IconTv size={20} /></span>
           <div className="lib-info">
-            <strong>{r.name}</strong>
+            {/* The NAME is the row's own door — reaching for "Open dashboard" on the far
+                right for every open was an acceptance-round papercut. */}
+            <button
+              className="lib-name-link"
+              onClick={() => onOpen(r)}
+              title={`Open "${r.name}"`}
+              data-testid="open-production-name"
+            >
+              <strong>{r.name}</strong>
+            </button>
             <span className="muted">
               {r.graphics.length} graphic{r.graphics.length === 1 ? '' : 's'}
               {r.cues?.length ? ` · ${r.cues.length} cue${r.cues.length === 1 ? '' : 's'}` : ''}

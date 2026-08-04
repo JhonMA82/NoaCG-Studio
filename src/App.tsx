@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import AppShell from './components/AppShell';
 import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
@@ -102,7 +102,10 @@ export default function App() {
   // `if (galleryOpen)` branch below must still hand a `#/new/<id>` route's design off to
   // openGallery rather than assuming a prior call already did.
   const consumedDesign = useRef<string | null>(null);
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: the wizard must be IN the frame the route change paints.
+  // As a post-paint effect this ran one frame late, so navigating Home → `#/new` painted an
+  // uncovered under-surface first — the visible "flash" the acceptance round reported.
+  useLayoutEffect(() => {
     if (route.view === 'new') {
       const design = route.design ?? null;
       if (galleryOpen) {
@@ -160,17 +163,17 @@ export default function App() {
   // Under the full-screen wizard (`#/new`) the default studio renders HOME, not an editor
   // shell — booting Monaco under a surface that covers it helped no one; Advanced mode keeps
   // the classic editor-under-wizard so its create flows land where they always did.
-  // The two HomePage usages carry DISTINCT keys on purpose: leaving `#/new` for `#/home`
-  // must REMOUNT Home, or its rev-memoized lists (graphics, productions) keep the state from
-  // before the wizard created anything - the just-made graphic would be missing from the
-  // library it just landed in.
+  // The two HomePage usages share ONE key on purpose: navigating Home ⇄ `#/new` must NOT
+  // remount Home — the remount repainted blank thumbnails for a frame before the wizard
+  // covered them (the acceptance round's "flash"). Freshness after a wizard create comes from
+  // Home's own 'spx-data-changed' listener instead.
   const surface =
     route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} />
     : route.view === 'video' ? <VideoAppShell />
     : route.view === 'graphic' ? <AppShell />
-    : route.view === 'new' && !advanced ? <HomePage key="under-wizard" route={{ view: 'home', section: null }} />
+    : route.view === 'new' && !advanced ? <HomePage key="home" route={{ view: 'home', section: null }} />
     : kind === 'video' ? <VideoAppShell />
     : <AppShell />;
 

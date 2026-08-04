@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import BrandLogo from '../../BrandLogo';
-import { loadGraphics, type GraphicDoc } from '../../../model/library';
+import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
 import { useAdvancedMode } from '../../useAdvancedMode';
@@ -15,44 +15,42 @@ interface Props {
   onBlank: () => void;
   /** Go to Home (all saved work: graphics, productions, control panels, videos). */
   onHome: () => void;
-  /** Open one recent graphic straight from the wizard. */
-  onOpenGraphic: (g: GraphicDoc) => void;
 }
 
 /**
  * Step 0 — the app's home moment. A branded hero states what NoaCG Studio is and who it's
- * for, then two halves: CONTINUE WORKING (recent saved graphics + the door to Home) and
- * ways to start something new. Broadcast-graphics paths sit together; "Video or animation
- * with AI" is visually separated and marked Beta, because it creates a STANDALONE video —
- * not a live broadcast graphic.
+ * for, then two halves: the HOME card (all saved work — the wizard is not the place to
+ * browse it, Home is) and ways to start something new. Broadcast-graphics paths sit
+ * together; "Video or animation with AI" is visually separated and marked Beta, because it
+ * creates a STANDALONE video — not a live broadcast graphic.
+ *
+ * The old per-graphic "Recent" chips are gone deliberately: in the default studio they
+ * opened the EDITOR, the demoted surface, and Home's rows (control page, productions,
+ * export) are the honest continuation of saved work.
  *
  * "Import graphic" is deliberately its own card and a MANUAL path — no AI anywhere in it.
  * A user who designed their graphic in Photoshop wants NoaCG to make it broadcast-ready
  * (fields, animation, export), not to regenerate it. Existing .html / SPX templates (and
  * logos to design around) go through Create with AI instead.
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome, onOpenGraphic }: Props) {
+export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome }: Props) {
   const advanced = useAdvancedMode((s) => s.advanced);
-  const recent = useMemo(
-    () => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3),
-    [],
-  );
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
    *  the screen as a door to an empty room is a false lead - creation leads instead. */
   const hasSavedWork = useMemo(
     () =>
-      recent.length > 0 ||
+      loadGraphics().length > 0 ||
       loadShows().length > 0 ||
       listSavedVideoProjects().length > 0 ||
       hasCurrentVideoProject(),
-    [recent],
+    [],
   );
 
   return (
     <div className="wz-entry-wrap">
       <div className="wz-hero">
-        <BrandLogo size={36} />
+        <BrandLogo size={40} />
         <h1 className="wz-hero-title">
           Broadcast graphics, <span>built in minutes.</span>
         </h1>
@@ -67,31 +65,18 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         </div>
       </div>
 
-      {/* ── Continue working: saved work first — creation is not the only door. Shown only
-             when there IS work to continue; see hasSavedWork. ── */}
+      {/* ── Home: saved work first — creation is not the only door. Shown only when there
+             IS work to continue; see hasSavedWork. ── */}
       {hasSavedWork && (
       <div className="wz-continue" data-testid="wz-continue">
         <button className="wz-entry-card wz-continue-card" onClick={onHome} data-entry="continue">
           <span className="wz-entry-icon">🏠</span>
-          <strong>Continue working</strong>
+          <strong>Home</strong>
           <span className="hint">
-            Your saved graphics, packages, control panels, and videos — pick up where you left
-            off.
+            Your saved graphics, productions, control panels, and videos — pick up where you
+            left off.
           </span>
         </button>
-        {recent.length > 0 && (
-          <div className="wz-recent">
-            <span className="wz-recent-label mono">Recent</span>
-            {recent.map((g) => (
-              <button key={g.id} className="wz-recent-chip" onClick={() => onOpenGraphic(g)} title={`Open "${g.name}"`}>
-                ↩ {g.name}
-              </button>
-            ))}
-            <button className="link-inline" onClick={onHome} data-testid="wz-view-all">
-              View everything →
-            </button>
-          </div>
-        )}
       </div>
       )}
 

@@ -120,7 +120,9 @@ export default function GraphicControlPage({ id }: { id: string }) {
   const legality = useMemo(() => (doc ? eventLegality(doc.template.js) : {}), [doc]);
   const [machineState, setMachineState] = useState<PreviewMachineState | null>(null);
   useEffect(() => {
-    if (buttons.length === 0) return; // an ordinary template has no machine to report
+    // EVERY template answers noacgMachineState() (a machine-less one through its derived
+    // machine, kept honest by noacgTrackPath) — so the poll runs for all of them: the on-air
+    // tally below needs it, not only the event buttons' greying.
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== iframeRef.current?.contentWindow) return;
       const msg = ev.data;
@@ -140,6 +142,20 @@ export default function GraphicControlPage({ id }: { id: string }) {
         .map(([g, s]) => (Object.keys(machineState.groups).length > 1 ? `${g}:${s}` : s))
         .join(' · ')
     : null;
+  /** The operator PLAYED something here and has not stopped it. Machine state alone cannot
+   *  carry the tally: the load-time SETTLE parks the preview at its on-air pose, which walks
+   *  the derived machine to its entered state — so "state ≠ off" is true before anyone
+   *  pressed a thing (browser-verified). The tally therefore needs both halves: an operator
+   *  action started it AND the machine has not returned to off (a stop press, a self-clear
+   *  timer, or an exit event all land the machine back on off, clearing the tally). */
+  const [aired, setAired] = useState(false);
+  /** The lifecycle group is `main` on every template (a derived machine has only it); a
+   *  parallel group's own state (an alert level, a language) says nothing about being up. */
+  const machineOff = !!machineState &&
+    ('main' in machineState.groups
+      ? machineState.groups.main === 'off'
+      : Object.values(machineState.groups).every((s) => s === 'off'));
+  const onAir = aired && !machineOff;
 
   if (!doc) {
     return (
@@ -188,6 +204,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
 
   const playEntry = (entry: ControlEntry | null) => {
     postCmd({ cmd: 'play', data: JSON.stringify(mergedValues(entry?.values ?? {})) });
+    setAired(true);
   };
 
   const addEntry = () => {
@@ -274,6 +291,11 @@ export default function GraphicControlPage({ id }: { id: string }) {
         <span className="tpl-name"><IconControl /> {doc.name}</span>
         <span className="topbar-meta mono muted">control panel</span>
         <div className="spacer" />
+        {/* Every surface keeps a door to the wizard (acceptance feedback: creating must be
+            reachable from anywhere, not only from Home and the editor). */}
+        <button onClick={() => navigate({ view: 'new' })} data-testid="control-new-project">
+          + New project
+        </button>
         <button
           onClick={() =>
             requestSwitch(
@@ -299,7 +321,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
               an unsettled preview is an empty black rectangle where the operator expects to see
               what they are about to air. Selecting an entry re-settles this SAME document (the
               effect above); the key is the GRAPHIC, so only opening a different one rebuilds. */}
-          <div className="control-page-stage" ref={stageRef}>
+          <div className={`control-page-stage${onAir ? ' on-air' : ''}`} ref={stageRef} data-testid="control-stage">
+            {/* The red tally: unmissable while the graphic is up. This surface AIRS (the
+                acceptance round called the old chip-only mark "a small off becomes enter"). */}
+            {onAir && <span className="on-air-badge" data-testid="control-on-air">● ON AIR</span>}
             <iframe
               key={doc.id}
               ref={iframeRef}
@@ -343,7 +368,13 @@ export default function GraphicControlPage({ id }: { id: string }) {
             <button onClick={() => postCmd({ cmd: 'next' })} title="Advance to the next step (SPX Continue)" data-testid="control-next">
               » Next
             </button>
-            <button onClick={() => postCmd({ cmd: 'stop' })} title="Take the graphic off air" data-testid="control-stop">■ Stop</button>
+            <button
+              onClick={() => { postCmd({ cmd: 'stop' }); setAired(false); }}
+              title="Take the graphic off air"
+              data-testid="control-stop"
+            >
+              ■ Stop
+            </button>
             {buttons.length > 0 && <span className="control-events-sep" aria-hidden="true" />}
             {buttons.map((b) => {
               const legal = isEventLegal(legality, b.event, machineState);
@@ -355,6 +386,9 @@ export default function GraphicControlPage({ id }: { id: string }) {
                     const payload: Record<string, string> = {};
                     for (const key of b.payload ?? []) payload[key] = String(active?.values[key] ?? '');
                     postCmd({ cmd: 'dispatch', event: b.event, payload });
+                    // An accepted event can be what airs the graphic (an arrow out of off);
+                    // the machine-off check above clears the tally if it was not.
+                    setAired(true);
                   }}
                   title={
                     legal
@@ -373,11 +407,11 @@ export default function GraphicControlPage({ id }: { id: string }) {
                 chip names the graphic's state plainly rather than hedging it as a preview. */}
             {stateLabel && (
               <span
-                className="control-state-chip"
+                className={`control-state-chip${onAir ? ' on-air' : ''}`}
                 title="The graphic's current state — what the event buttons are greyed against"
                 data-testid="control-state"
               >
-                ◇ {stateLabel}
+                {onAir ? '●' : '◇'} {stateLabel}
               </span>
             )}
           </div>

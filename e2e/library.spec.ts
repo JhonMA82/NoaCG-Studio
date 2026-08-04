@@ -118,17 +118,34 @@ test('a first-ever visit is offered creation, not a door to an empty Home', asyn
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
 });
 
-test('the wizard leads with Continue working: recent graphics reopen from the entry step', async ({ page }) => {
+test('the wizard leads with the Home card once there is saved work, and it lands on Home', async ({ page }) => {
+  // The old per-graphic "Recent" chips are gone deliberately: in the default studio they
+  // opened the EDITOR (the demoted surface). Saved work continues from Home's rows.
   await createProject(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');
   await page.locator('.brand-home').click(); // → Home
   await expect(page.getByTestId('home-page')).toBeVisible();
   await page.getByTestId('home-new-project').click(); // → the wizard route
   await expect(page.getByTestId('wz-continue')).toBeVisible();
-  await page.locator('.wz-recent-chip', { hasText: 'Presenter lower third' }).click();
+  await expect(page.getByTestId('wz-continue')).toContainText('Home');
+  await expect(page.locator('.wz-recent-chip')).toHaveCount(0);
+  await page.locator('[data-entry="continue"]').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await expect(page.locator('.tpl-name')).toHaveText('Presenter lower third');
-  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('home-search')).toBeVisible();
+});
+
+test('the wizard header brand is the Home door', async ({ page }) => {
+  // Acceptance feedback: the logo goes Home from EVERY surface — the wizard's included.
+  await createProject(page, 'Hairline');
+  await saveAs(page, 'Presenter lower third');
+  await page.locator('.brand-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.getByTestId('home-new-project').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.getByTestId('creation-wizard').locator('.brand-home').click();
+  await expect(page.locator('.wz-modal')).toBeHidden();
+  await expect(page.getByTestId('home-page')).toBeVisible();
 });
 
 test('opening another graphic with unsaved changes asks first; Discard proceeds', async ({ page }) => {

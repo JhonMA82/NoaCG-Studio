@@ -175,8 +175,11 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
   header .status { font-size:12px; color:var(--dim); }
   main { max-width:680px; margin:0 auto; padding:18px; display:flex; flex-direction:column; gap:16px; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  /* The red on-air tally (broadcast convention): the WHOLE card marks a graphic that is up. */
+  .card.on-air { border-color:#ef4444; box-shadow: inset 0 0 0 1px #ef4444; }
   .card > h2 { font-size:14px; margin:0 0 4px; display:flex; align-items:center; gap:10px; }
   .state-chip { font-size:12px; font-weight:400; color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:1px 10px; display:none; }
+  .card.on-air .state-chip { color:#fff; background:#ef4444; border-color:#ef4444; font-weight:700; }
   .staged-chip { font-size:12px; font-weight:400; color:#e8b34a; display:none; }
   .row { display:flex; gap:8px; align-items:center; }
   .field { padding:10px 0; border-bottom:1px solid var(--line); }
@@ -423,6 +426,12 @@ GRAPHICS.forEach(function (g) {
       for (var gid in machineState.groups) parts.push((many ? gid + ': ' : '') + machineState.groups[gid]);
       chip.textContent = parts.join(' · ');
       chip.style.display = 'inline-block';
+      // The red tally: 'main' is the lifecycle group on every template (a parallel group's
+      // own state — an alert level, a language — says nothing about being on air).
+      var onAir;
+      if (machineState.groups.main !== undefined) onAir = machineState.groups.main !== 'off';
+      else { onAir = false; for (var og in machineState.groups) { if (machineState.groups[og] !== 'off') { onAir = true; break; } } }
+      card.className = onAir ? 'card on-air' : 'card';
     }
     eventBtns.forEach(function (entry) { entry.btn.disabled = !legalNow(entry.event); });
   }

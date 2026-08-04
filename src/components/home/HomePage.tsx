@@ -68,6 +68,15 @@ export default function HomePage({ route }: { route: Route }) {
   // One nonce refreshes every list after any mutation (the model layer is the store).
   const [rev, setRev] = useState(0);
   const refresh = () => setRev((r) => r + 1);
+  // Every model layer announces a persisted change (saves, deletes, sync pulls) with
+  // 'spx-data-changed'. Refreshing on it is what lets Home stay MOUNTED under the wizard —
+  // the old remount-on-key-change repainted a blank Home for one frame before the wizard
+  // covered it — while a graphic the wizard just created still appears the moment it lands.
+  useEffect(() => {
+    const onData = () => setRev((r) => r + 1);
+    window.addEventListener('spx-data-changed', onData);
+    return () => window.removeEventListener('spx-data-changed', onData);
+  }, []);
   /* eslint-disable react-hooks/exhaustive-deps */
   const graphics = useMemo(() => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
   const looks = useMemo(() => loadLooks(), [rev]);

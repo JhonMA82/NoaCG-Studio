@@ -676,7 +676,10 @@ export default function ProductionPage({ id }: { id: string }) {
             <div className="spacer" />
             {/* One chip per LIVE LAYER, in stack order: with several graphics up at once, a
                 single "● LIVE: …" line can only ever name one of them. */}
-            <span className="muted" data-testid="live-cue-chip">
+            <span
+              className={liveLayers.length === 0 ? 'muted' : rehearsing ? 'status-warn' : 'live-chip-on'}
+              data-testid="live-cue-chip"
+            >
               {liveLayers.length === 0
                 ? '○ nothing on air'
                 : liveLayers.map((l) => `● L${l.layer} ${l.label}`).join(' · ')}
@@ -690,12 +693,17 @@ export default function ProductionPage({ id }: { id: string }) {
               drives, and that edits are a DRAFT - nothing reaches air until ⟳ Take (or
               ✎ Update on an already-live layer). */}
           {selectedCue && selectedView && (
-            <div className="panel-section" data-testid="cue-editor">
+            <div
+              className={`panel-section${selectedIsLive ? ` cue-editor-live${rehearsing ? ' rehearse' : ''}` : ''}`}
+              data-testid="cue-editor"
+            >
               <h3 data-testid="cue-editor-heading">
                 Editing: {selectedView.label || 'this cue'}
                 <span className="muted">
                   {' '}· {cueGraphicName(selectedCue) ?? 'its graphic'} ·{' '}
-                  {selectedIsLive ? 'LIVE — ✎ Update pushes edits' : 'draft — airs on ⟳ Take'}
+                  {selectedIsLive
+                    ? <span className="cue-editor-live-word">{rehearsing ? 'LIVE IN REHEARSAL' : 'LIVE'} — ✎ Update pushes edits</span>
+                    : 'draft — airs on ⟳ Take'}
                 </span>
               </h3>
               <label className="save-field">
@@ -774,7 +782,7 @@ export default function ProductionPage({ id }: { id: string }) {
               return (
                 <div
                   key={cue.id}
-                  className={`control-entry ${cue.id === (selectedCue?.id ?? '') ? 'active' : ''} ${cueIsLive ? 'live' : ''}`}
+                  className={`control-entry ${cue.id === (selectedCue?.id ?? '') ? 'active' : ''} ${cueIsLive ? `live${rehearsing ? ' rehearse' : ''}` : ''}`}
                   data-testid={`cue-${cue.id}`}
                 >
                   <button className="control-entry-label" onClick={() => selectCue(cue.id)} data-testid="select-cue">
@@ -825,7 +833,7 @@ export default function ProductionPage({ id }: { id: string }) {
             const layer = show.graphics.length - rowIndex;
             const live = !!liveNow[g.name];
             return (
-              <div className={`pk-graphic prod-layer${live ? ' live' : ''}`} key={g.id} data-testid={`pool-${g.id}`}>
+              <div className={`pk-graphic prod-layer${live ? ` live${rehearsing ? ' rehearse' : ''}` : ''}`} key={g.id} data-testid={`pool-${g.id}`}>
                 <span className="prod-layer-no" title={`Layer ${layer} of ${show.graphics.length}`}>L{layer}</span>
                 <strong className="prod-layer-name" title={g.name}>{g.name}</strong>
                 <span className="muted prod-layer-count">
