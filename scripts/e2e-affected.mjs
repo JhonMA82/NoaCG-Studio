@@ -42,8 +42,8 @@ const MAP = [
   [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
   [/^scripts\/aiDevPlugin/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
-  [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'template-pack-10.spec.ts']],
-  [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'snap-recovery.spec.ts']],
+  [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
+  [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'snap-recovery.spec.ts']],
   // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
   [/^src\/output\//, ['productions.spec.ts', 'snap-recovery.spec.ts']],
   [/^output\.html$/, ['productions.spec.ts']],

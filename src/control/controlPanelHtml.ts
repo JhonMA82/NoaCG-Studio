@@ -238,6 +238,29 @@ function noteAnswer() {
   document.getElementById('nolisten').style.display = 'none';
   paintStatus();
 }
+// Transport 3: the LOCAL RELAY — the bundled localhost service (see GETTING-ON-AIR.md).
+// When this panel is served by it, every command ALSO posts into the relay's ordered log,
+// which is the only route into a graphic loaded by OBS/vMix's separate browser engine.
+// Send-only and best-effort: the BroadcastChannel replies still carry the state feedback
+// for same-origin tabs; a relay-driven OBS source cannot answer, so relay presence also
+// stands the no-listener banner down.
+var relayOk = false;
+if (location.protocol === 'http:' || location.protocol === 'https:') {
+  fetch('/relay/ping')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d && d.ok) { relayOk = true; document.getElementById('nolisten').style.display = 'none'; paintStatus(); }
+    })
+    .catch(function () { /* not relay-hosted */ });
+}
+function sendRelay(graphic, msg) {
+  if (!relayOk) return;
+  fetch('/relay/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ graphic: graphic, msg: msg }),
+  }).catch(function () { /* the BroadcastChannel path still works */ });
+}
 
 function el(tag, attrs, kids) {
   var e = document.createElement(tag);
@@ -306,7 +329,7 @@ GRAPHICS.forEach(function (g) {
     }).catch(function () { /* offline / blocked — the local BroadcastChannel path still works */ });
   }
 
-  function post(msg) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') record(msg); }
+  function post(msg) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg); record(msg); } }
   // PREPARED vs PUBLISHED: with Live off, edits stay in this panel (staged — the badge
   // says so) and go on air only on an explicit ⟳ Take / ▶ Play. Nothing airs merely
   // because it was typed.
@@ -529,6 +552,7 @@ GRAPHICS.forEach(function (g) {
 
 function paintStatus() {
   var elStatus = document.getElementById('status');
+  if (relayOk) { elStatus.textContent = answeredAny ? 'local relay + graphic' : 'local relay connected'; return; }
   if (${jsonForScript(anyRemote)}) { elStatus.textContent = 'remote + local'; return; }
   if (connected === 0) { elStatus.textContent = 'BroadcastChannel unsupported'; return; }
   if (!answeredAny) { elStatus.textContent = 'waiting for a graphic…'; return; }
@@ -536,9 +560,10 @@ function paintStatus() {
 }
 paintStatus();
 // Give a same-origin graphic a moment to answer the hello; silence after that means the
-// pairing cannot work from where these files were opened — say so.
+// pairing cannot work from where these files were opened — say so. (Relay hosting stands
+// the banner down: its sends are legitimately one-way into OBS/vMix.)
 setTimeout(function () {
-  if (!answeredAny && !${jsonForScript(anyRemote)}) document.getElementById('nolisten').style.display = 'block';
+  if (!answeredAny && !relayOk && !${jsonForScript(anyRemote)}) document.getElementById('nolisten').style.display = 'block';
 }, 2500);
 </script>
 </body>

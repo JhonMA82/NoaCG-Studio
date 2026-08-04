@@ -40,22 +40,34 @@ server log. Generated code already respects that bar.
 Add a **Browser** source (OBS) or **Web Browser** input (vMix), point it at the graphic's .html
 file, set width/height to the graphic's resolution, leave the background alone.
 
-## The bundled control panel — read this before using it
+## Local control — the launcher (overlay packages)
 
-\`controlpanel.html\` drives the graphic over a **same-origin browser channel**. That means:
+An overlay package bundles a tiny **local relay**: double-click **"Start controller.cmd"**
+(Windows) or **"start-controller.command"** (macOS; Linux: \`./start-controller.sh\`). It serves
+this folder at \`http://localhost:<port>/\`, opens the operator page, and relays every command
+through an ordered log — which is the only route into a graphic loaded by OBS/vMix (they run
+their own browser engine that a browser tab can never reach directly).
+
+1. Start the launcher and keep its window open.
+2. Point the OBS/vMix browser source at the graphic ON THAT ADDRESS
+   (\`http://localhost:<port>/<graphic>.html\`), not at the file on disk.
+3. Operate from the panel the launcher opened. Fully offline; no accounts, no internet.
+
+macOS note: the .command file may need one-time permission (System Settings → Privacy &
+Security), and python3 comes with the OS developer tools.
+
+## The bundled control panel without the launcher
+
+\`controlpanel.html\` can also drive a graphic over a **same-origin browser channel**:
 
 - **Works:** both pages opened from the same web address (http:// or https://, same host and
-  port) in the same browser — for example SPX's own template server, or any local web server.
+  port) in the same browser — the launcher above, SPX's own template server, or any web server.
 - **Does not work:** opening the files straight from disk (\`file://\`) — the browser gives every
   local file its own private origin, so the pages cannot see each other. The panel will tell you
   when nothing is answering.
-- **Does not work:** driving a graphic that is loaded inside OBS/vMix/CasparCG from a panel in
-  your normal browser — those hosts run their own separate browser engine. Use the host's own
-  controls (SPX rundown, CasparCG commands), or an OBS **Custom Browser Dock** pointing at the
-  panel beside a same-origin graphic, or the production's hosted control page (cloud).
 
 In an SPX or CasparCG rundown you normally do not need the panel at all — the host is the
-controller there.
+controller there, and those packages carry no relay on purpose.
 
 ## When it does not work
 

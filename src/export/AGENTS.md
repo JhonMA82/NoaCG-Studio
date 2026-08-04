@@ -41,6 +41,20 @@ export-time reflow, stretching, or cropping.
   them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is
   origin-scoped, so the panel pairs only over one http(s) origin in one browser - never over
   file:// (private opaque origins) and never into OBS/vMix/CasparCG's own engine.
+- **localControl.ts + local-relay/** - the LOCAL-CONTROL bundle the overlay flavors ship
+  (single overlay + the production overlay package): relay.ps1 (Windows PowerShell 5.1) and
+  relay.py (python3), TWO stdlib implementations of ONE versioned protocol (v1: /relay/ping,
+  /relay/head, /relay/log?after=N, POST /relay/send, static files from the package root,
+  rows persisted to relay-log.jsonl), plus double-click launchers per OS and payload.json
+  (the package manifest). The panel gains a relay SEND transport (controlPanelHtml
+  `sendRelay`, probe on /relay/ping) and every overlay graphic carries the relay RECEIVER
+  (control/localReceiver.ts - polls the log, `?stream=` aware, inert over file:// or plain
+  static hosting). This is the only route into a graphic loaded by OBS/vMix's separate
+  browser engine. Both servers are conformance-tested for real by
+  `npm run test:local-relay` (scripts/local-relay.test.mjs - keep protocol changes in BOTH
+  implementations and that harness); the browser ends are pinned by e2e/local-relay.spec.ts
+  against an in-spec v1 implementation. SPX/CasparCG packages carry NO relay on purpose -
+  the playout host is the controller there.
 - **targets/htmlOverlay.ts** - OBS/vMix browser source: an autoplay block fills fields from baked
   sampleData -> definition defaults, then play(). An auto-out `out` = N ms setting rides
   along: the block measures the entrance from a paused throwaway timeline and schedules

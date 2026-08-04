@@ -23,6 +23,7 @@ export const FOCUS = [
   'lazy-editor.spec.ts',
   'library.spec.ts',
   'library-bulk.spec.ts',
+  'local-relay.spec.ts',
   'offline.spec.ts',
   'package.spec.ts',
   'playout-drills.spec.ts',

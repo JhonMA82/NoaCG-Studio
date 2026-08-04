@@ -131,7 +131,18 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   await nameInput.fill('Overlay Works');
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline/GETTING-ON-AIR.md', 'hairline/README.md', 'hairline/controlpanel.html', 'hairline/hairline.html']);
+  expect(names.sort()).toEqual([
+    'hairline/GETTING-ON-AIR.md',
+    'hairline/README.md',
+    'hairline/Start controller.cmd',
+    'hairline/controlpanel.html',
+    'hairline/hairline.html',
+    'hairline/payload.json',
+    'hairline/relay.ps1',
+    'hairline/relay.py',
+    'hairline/start-controller.command',
+    'hairline/start-controller.sh',
+  ]);
 
   const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('Autoplay for browser sources');

@@ -27,6 +27,7 @@
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
     "test:ports": "node --test scripts/port-registry.test.mjs",
     "test:worktree-safety": "node --test scripts/worktree-safety.test.mjs",
+    "test:local-relay": "node --test scripts/local-relay.test.mjs",
     "test:merge-order": "node --test scripts/merge-order.test.mjs",
     "test:stop-next-hook": "node --test scripts/hooks/stop-next.test.mjs",
     "test:prerender": "node --test scripts/prerender.test.mjs",

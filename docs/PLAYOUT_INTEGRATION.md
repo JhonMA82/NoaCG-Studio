@@ -115,14 +115,18 @@ Two OBS-specific notes:
 - **"Shutdown source when not visible"** will tear the page down every time you hide the scene,
   which throws away a cloud output's connection and forces a full rebuild on the way back. Leave
   it **off** for a production output.
-- An exported overlay ships a `controlpanel.html` beside it. It pairs with the graphic over a
-  **same-origin browser channel**, which sets two hard rules: both pages must be loaded from
-  the same http(s) address (serve the folder with any local web server — files opened straight
+- An exported overlay package ships a **local relay + launcher**: double-click
+  "Start controller.cmd" (Windows) or "start-controller.command" (macOS; Linux
+  `./start-controller.sh`). It serves the folder at `http://localhost:<port>/`, opens the
+  operator page, and relays every command through an ordered log — the only route into a
+  graphic loaded by OBS/vMix's own browser engine. Point the browser source at the graphic ON
+  that address (not the file on disk) and operate from the panel. Fully offline, no installs
+  (Windows PowerShell / macOS python3 are OS-bundled).
+- Without the launcher, `controlpanel.html` still pairs with the graphic over a **same-origin
+  browser channel**: both pages from one http(s) address in one browser (files opened straight
   from `file://` get private origins and can never pair, and the panel says so when nothing
-  answers), and a panel in your normal browser cannot reach a graphic loaded inside OBS's own
-  browser engine. The working OBS shape is a **Custom Browser Dock** (View → Docks → Custom
-  Browser Docks…) pointing at the panel on the same local address as the browser source. For
-  remote operation use the hosted control page instead.
+  answers). An OBS **Custom Browser Dock** pointing at the panel on the same local address
+  works too. For remote operation use the hosted control page instead.
 
 ## 5. vMix
 

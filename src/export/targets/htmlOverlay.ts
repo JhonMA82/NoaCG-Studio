@@ -10,6 +10,8 @@ import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { injectControlReceiver, addControlPanel, slug } from '../common';
 import { hasRealtimeControl } from '../../control/realtimeControl';
+import { localReceiverJs } from '../../control/localReceiver';
+import { addLocalControlBundle } from '../localControl';
 import { onAirGuideMd } from '../onAirGuide';
 import type { ExportContext, ExportTarget } from '../registry';
 
@@ -84,13 +86,15 @@ the fields with the exported values and plays automatically.
 ## Changing the text/data
 - Quick edit: open ${name}.html in a text editor — the values live in the marked
   "Autoplay for browser sources" block at the bottom.
-- Live control: controlpanel.html drives the graphic over a same-origin browser channel, so
-  BOTH pages must be opened from the same web address (http:// or https://) in the same
-  browser — serve this folder with any local web server, open the graphic from that address
-  as the browser source URL, and the panel from the same address in a tab (or as an OBS
-  custom dock: View → Docks → Custom Browser Docks…). Opening the files straight from disk
-  (file://) does NOT connect them — the panel will tell you when nothing is answering. See
+- Live control, the easy way: double-click **"Start controller.cmd"** (Windows) or
+  **"start-controller.command"** (macOS) — the bundled LOCAL RELAY serves this folder at
+  http://localhost:<port>/, opens the panel, and relays commands into a graphic loaded by
+  OBS/vMix (their own browser engine, unreachable any other way). Point the browser source
+  at the graphic ON that address, not at the file on disk. Fully offline. Details in
   GETTING-ON-AIR.md.
+- Without the launcher the panel still pairs over a same-origin browser channel (both pages
+  from ONE http address in ONE browser); files opened straight from disk (file://) can never
+  pair — the panel says so when nothing is answering.
 ${hasRealtimeControl(template.js) ? `- Remote control (enabled): this graphic also listens on a Supabase Realtime channel, so
   controlpanel.html works from ANOTHER device too. The channel topic baked into both files
   is a shared secret — keep it private. The machine running the overlay must be allowed to
@@ -120,15 +124,26 @@ export const htmlOverlayTarget: ExportTarget = {
     // along so the overlay leaves by itself — same behavior as the editor preview.
     const withReceiver = { ...template, html: injectControlReceiver(template.html, template) };
     const outMs = /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
+    // Two receivers, two transports: the BroadcastChannel one (same-origin tabs) and the
+    // LOCAL RELAY one (through the bundled localhost service — the only route into a graphic
+    // loaded by OBS/vMix's own browser engine). Both are inert where they cannot work.
     root.file(
       `${name}.html`,
-      await composeSelfContainedHtml(withReceiver, [autoplayScript(ctx?.sampleData ?? {}, outMs)]),
+      await composeSelfContainedHtml(withReceiver, [
+        localReceiverJs(template.name),
+        autoplayScript(ctx?.sampleData ?? {}, outMs),
+      ]),
     );
     // This package is ONE graphic file: there is no images/ folder beside the panel, so its
     // picker sends the embedded bytes rather than a path that resolves at neither end.
     addControlPanel(root, template, { inlineAssets: true, entries: ctx?.entries });
     root.file('README.md', overlayReadme(template));
     root.file('GETTING-ON-AIR.md', onAirGuideMd());
+    addLocalControlBundle(root, {
+      v: 1,
+      show: { name: template.name },
+      graphics: [{ name: template.name, file: `${name}.html`, layer: Number(template.settings.playlayer) || 1 }],
+    });
     return zip;
   },
 };

@@ -29,6 +29,7 @@ import { saveAs } from 'file-saver';
 import { slug } from './common';
 import { buildStarterInto } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
+import { addLocalControlBundle } from './localControl';
 import { EXPORT_TARGETS } from './registry';
 import { renderShowControlPanelHtml } from '../control/controlPanelHtml';
 import { stripHostedReceiver } from '../control/hostedReceiver';
@@ -204,13 +205,26 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
     index++;
   }
 
-  // The overlay flavor is the one serverless door, so it gets the aggregated show panel
-  // (inline assets: a single-file package has no images/ folder beside the panel).
+  // The overlay flavor is the LOCAL-CONTROL package (the OBS/vMix door): the aggregated
+  // show panel (inline assets: a single-file package has no images/ folder beside it) PLUS
+  // the localhost relay + launchers, so panel-to-OBS control works offline with no
+  // command-line setup. The per-graphic sub-packages each carry their own relay copy too
+  // (a single folder lifted out keeps working); the root bundle is the one the launcher
+  // story documents.
   if (targetId === 'html-overlay') {
     root.file(
       'show_controlpanel.html',
       renderShowControlPanelHtml(show.name, panelGraphics, { inlineAssets: true }),
     );
+    addLocalControlBundle(root, {
+      v: 1,
+      show: { name: show.name },
+      graphics: panelGraphics.map(({ template }, i) => ({
+        name: template.name,
+        file: `${slug(template.name)}/${slug(template.name)}.html`,
+        layer: showGraphicLayer(i),
+      })),
+    });
   }
   root.file('GETTING-ON-AIR.md', onAirGuideMd());
   root.file(
