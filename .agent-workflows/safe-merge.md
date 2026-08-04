@@ -70,11 +70,12 @@ the user has invoked it, and the adapter is only a pointer to this file anyway.
   report the conflicting files rather than guessing.
 - Never delete a branch, and never remove a worktree you did not create in this run. Cleanup
   is out of scope for this workflow - the cleanup-worktrees workflow owns it and runs from the
-  primary `main` checkout, where removal actually works. The single exception is the TEMPORARY
-  worktree this flow may create for a branch that has none (Phase 1, "If the source branch has
-  no worktree"): the run that created it removes it in Phase 5, and it may never remove any
-  other. It is identified by the `safe-merge-` name prefix AND by having been created in this
-  run - a pre-existing folder with that prefix belongs to someone else and is left alone.
+  primary `main` checkout, where removal actually works. The exceptions are the TEMPORARY
+  worktrees this flow may create, one for a source branch that has none and one for `main` when
+  the root cannot host it (both in Phase 1; a run may need both): the run that created them
+  removes them in Phase 5, and it may never remove any other. They are identified by the
+  `safe-merge-` name prefix AND by having been created in this run - a pre-existing folder with
+  that prefix belongs to someone else and is left alone.
 - Never touch other worktrees' work. Merge only the ONE requested branch; its merge brings
   in only that branch's commits and must never overwrite or discard work living on other
   worktrees' branches. Do not `git checkout`/`switch`/`restore` files across worktrees, and
@@ -201,8 +202,42 @@ SessionStart hook passes no such flag, so it still refuses to pull the root off 
   worktree. Reattaching now would strand the branch with nowhere to verify, so the reattach
   moves to **Phase 4, after verification passes** - see the marked steps below. Report that
   ordering in the plan.
-- NOT SAFE (any reason): STOP and report the exact reason it printed. Never switch, reset,
-  stash, discard, or overwrite anything.
+- NOT SAFE (any reason): do not touch `<root>` - never switch, reset, stash, discard, or
+  overwrite anything there. Give `main` a TEMPORARY worktree of its own instead, below.
+
+### If `main` has no worktree and `<root>` cannot provide one
+
+The gate refuses whenever `<root>` is somebody else's right now: on an unrelated branch, dirty,
+or mid-operation. Several sessions share this checkout, and the root is as often carrying live
+work as it is parked on `main`. That is not a fault to report and stop on - it is the ordinary
+state of a busy repo, and stopping there strands a fully verified branch on a condition the user
+can only clear by interrupting another session.
+
+So `main` gets its own TEMPORARY worktree, on exactly the terms the source branch already gets
+one:
+
+    git worktree add .claude/worktrees/safe-merge-main main
+
+**This is only ever a substitute for a `main` worktree, never a way around a refusal.** It
+applies when, and only when, `main` is checked out NOWHERE. Git enforces that itself: with
+`main` already checked out, `git worktree add … main` fails with `'main' is already used by
+worktree at …`, so there is no path where this quietly creates a second one. **Stop instead**
+if `.claude/worktrees/safe-merge-main` already exists (it is another run's), or if
+`git worktree add` fails for any reason. Never use `--force`.
+
+It needs no `npm install`: only git runs there - the fetch, the fast-forward and the push.
+Verification still happens in the source worktree, against the source branch, exactly as below.
+
+**What this does NOT relax.** The Hard rule against merging into a dirty target worktree stands
+untouched, and is *satisfied rather than skipped*: a freshly created worktree is clean by
+construction, and it - not `<root>` - is the target. A dirty `<root>` no longer blocks the merge
+for the same reason it is no longer involved: nothing in the flow reads or writes it. The source
+worktree must still be clean, `main` must still equal `origin/main`, and the final merge is
+still `--ff-only`.
+
+Everywhere below, "the actual `main` worktree" means this temporary one for the rest of the run.
+The run that created it removes it in Phase 5 - never any other, never with `--force` - under
+the same rule as the temporary SOURCE worktree, and a run may create both.
 
 Then present a short plan: **the source branch and the target (`main`), stated explicitly**
 ("merge `<branch>` -> `main`"), how many commits, predicted conflict files (if any), any
@@ -218,9 +253,11 @@ real risk, meaning any of:
 - local `main` is diverged from or ahead-only of `origin/main` (the Hard safety rules cases);
 - the source worktree has uncommitted changes;
 - the merge is predicted to conflict;
-- `main` is checked out nowhere and `reattach-main.mjs --check --from-branch <branch>` does not
-  report SAFE (the root simply being ON `<branch>` is not this case - the gate reports that
-  SAFE, and it is the ordinary shape of a merge here);
+- `main` is checked out nowhere AND neither route to a `main` worktree is open - the gate did
+  not report SAFE and a temporary `main` worktree could not be created. Neither of those alone
+  is a risk: the root sitting on `<branch>` is reported SAFE and is the ordinary shape of a
+  merge here, and the root being busy with someone else's work is the ordinary state of a
+  shared checkout, answered by the temporary worktree rather than by stopping;
 - the source branch is ambiguous or was not clearly identified;
 - `merge-order.mjs` returned a `hold` verdict (step 8).
 
@@ -238,7 +275,10 @@ branch - it is never where conflicts get resolved.
 1. If Phase 1 found `main` checked out nowhere, the gate reported SAFE **and HEAD was
    detached**, reattach now: `node scripts/reattach-main.mjs <root>` (it re-verifies safety,
    then switches). If instead the root is on the source branch, do NOT reattach here - it is
-   the source worktree until Phase 3 is done; Phase 4 step 3 handles it.
+   the source worktree until Phase 3 is done; Phase 4 step 3 handles it. If Phase 1 found the
+   root cannot host `main` at all, create its temporary worktree now:
+   `git worktree add .claude/worktrees/safe-merge-main main`, and read "the actual `main`
+   worktree" as that one everywhere below.
    If Phase 1 found the SOURCE branch has no worktree, create the temporary one now:
    `git worktree add .claude/worktrees/safe-merge-<branch-slug> <branch>`. Do NOT install into
    it yet - that happens in step 6, once the branch holds the manifest the gates will use.
@@ -327,22 +367,30 @@ Do this immediately before merging - main may have moved on the remote while you
 ## Phase 5 - Finish
 
 1. Confirm the branch is contained: `git branch --merged main` includes `<branch>`.
-2. If THIS run created a temporary worktree in Phase 2, remove it now - it exists only to have
-   made verification possible, and leaving it behind turns a merge into litter that the next
-   session mistakes for live work:
+2. Remove every temporary worktree THIS run created - each exists only to have made the merge
+   possible, and leaving one behind turns a merge into litter that the next session mistakes
+   for live work:
 
        git worktree remove .claude/worktrees/safe-merge-<branch-slug>
+       git worktree remove .claude/worktrees/safe-merge-main
        node scripts/dev-port.mjs --prune
 
-   The prune releases the dev-port ticket if the e2e run reserved one for that path - it only
+   Run each line only for a worktree this run actually created. The prune releases the dev-port
+   ticket if the e2e run reserved one for that path - it only
    ever clears tickets whose worktree is gone, so it is safe to run unconditionally, and on a
    docs-only branch (where the affected run skips without starting a server) it simply finds
    nothing of ours to release. Never use
    `--force`: if the removal refuses, say so and leave it for the cleanup-worktrees workflow
-   rather than overriding a refusal you did not diagnose. Remove ONLY the worktree this run
+   rather than overriding a refusal you did not diagnose. Remove ONLY the worktrees this run
    created, and never the branch.
+
+   On Windows a removal routinely half-succeeds: git deregisters the worktree and then reports
+   `failed to delete … Permission denied`, leaving an EMPTY directory behind. That is the known
+   OS lock, not a refusal to override - the worktree is gone from `git worktree list`. Deleting
+   an empty directory this run created is fine; if it will not go, leave it and say so, because
+   `session-start.mjs` sweeps empty leftover folders under `.claude/worktrees/` anyway.
 3. Do NOT remove any other worktree or delete the branch, and do not offer to. Just note that
    the cleanup-worktrees workflow (run from the primary `main` checkout) sweeps merged
    branches and their worktrees when the user wants them gone.
 4. Final report: merged commits, verified SHA now on `main`, build result, push result, and
-   whether a temporary worktree was created and removed.
+   which temporary worktrees were created and removed.
