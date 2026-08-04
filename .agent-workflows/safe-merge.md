@@ -327,6 +327,24 @@ branch - it is never where conflicts get resolved.
    stronger evidence than the local pair (it runs the same gates plus the full sharded suite
    on a clean checkout) - say so and let it stand in for the affected run. It does NOT
    substitute for anything if the commit moved afterwards.
+
+   **A run you already did in this session counts too, under conditions worth checking one by
+   one.** A branch that changes `package.json` escalates to the whole suite, so re-running it
+   minutes later on a byte-identical commit costs a quarter of an hour to reproduce a result
+   you are holding. Cite the earlier run in place of a fresh one ONLY when ALL of these hold,
+   and say in the report which run you are citing and when it finished:
+
+   - it was `npm run test:e2e:affected` (whatever scope the mapper chose) and it finished GREEN;
+   - it ran in the SAME worktree, so the same `node_modules` and the same dev port;
+   - it ran on exactly `VERIFIED_SHA` - AFTER the Phase 2 `git merge main`, never before it,
+     because that merge produced a different tree;
+   - `VERIFIED_SHA` has not moved since, and nothing has been installed or edited since;
+   - `main` has not moved either: `INTEGRATED_MAIN_SHA` still equals `origin/<default>`. If
+     main moved, Phase 4 sends you back to re-integrate anyway, and the old run is void.
+
+   If you cannot positively confirm every one, run it again - the doubt costs less than the
+   minutes. A merge is not the place to be approximately sure, and "I think that run was after
+   the merge" is exactly the shape of an assumption that turns out wrong.
 4. Confirm the source worktree is clean with `git status --porcelain`. The checked filesystem
    must exactly match the commit being promoted; generated or uncommitted changes make the
    verification invalid.
