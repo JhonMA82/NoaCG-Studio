@@ -246,9 +246,11 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
   expect(new Set(productionReport.names).size).toBe(36);
   expect(productionReport.specialistLookMatches).toBe(true);
 
+  await page.getByTestId('export-production').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByTestId('export-production').click(),
+    page.getByTestId('prod-export-download').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const entries = Object.keys(zip.files);

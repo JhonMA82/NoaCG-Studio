@@ -70,6 +70,15 @@ export-time reflow, stretching, or cropping.
   HTML-overlay flavor's opt-in job) - **and DISTINCT playout layers per pool graphic**
   (`showGraphicLayer`: 5 + pool index, capped at SPX's webplayout 20), because every generated
   template declaring playlayer '7' meant two templates in one rundown evicted each other.
+  **`buildShowZipFor(show, targetId)` is the production TARGET PICKER's build** (the
+  acceptance round's "couldn't choose the platform"): 'spx' keeps the dedicated builder
+  above; every other registry id runs the generic merge - each pool graphic goes through the
+  per-graphic `target.build()` VERBATIM (so a target fix reaches the production package by
+  construction) and the files merge under one show folder, with the same playout rules
+  applied through `exportTemplateFor` (live template, receiver strip, layers,
+  collision-suffixed names). The overlay flavor adds the aggregated show_controlpanel.html
+  (inline assets); the UI is components/home/ProductionExportDialog.tsx, opened from the
+  production page and the Home row, validation-gated per graphic (non-negotiable 4).
 - **common.ts** - addSharedAssets, addReferencedFonts, injectControlReceiver + addControlPanel,
   FONT_LICENSES.md.
 

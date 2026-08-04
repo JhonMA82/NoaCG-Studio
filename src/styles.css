@@ -3875,6 +3875,13 @@ h2 + .lib-row,
 }
 .lib-bulkbar .destructive { border-color: #8a4a2a; background: #2d1c12; }
 .lib-bulkbar .destructive:hover { border-color: #e0763a; }
+
+/* ── The production export dialog: the six-target picker over one pool ─────────────────── */
+.prod-export { width: min(680px, 94vw); max-height: 90vh; }
+.prod-export-body { flex: 1; overflow: auto; padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; }
+.prod-export-target { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.prod-export-target:has(input:checked) { border-color: var(--accent); background: rgba(246, 166, 35, 0.06); }
+.prod-export-target input { margin-top: 3px; }
 .lib-create-row input { max-width: 320px; }
 
 /* The row popovers — the ⋯ overflow menu and the "+ Production" picker. A plain absolute

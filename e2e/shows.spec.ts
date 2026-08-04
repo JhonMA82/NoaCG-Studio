@@ -46,10 +46,14 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await expect(layers.nth(1)).toContainText('L1');
   await expect(layers.nth(1)).toContainText('Hairline');
 
-  // Export: one folder per graphic + the aggregated show panel.
+  // Export: the target picker (SPX is the remembered default), one folder per graphic + the
+  // aggregated show panel.
+  await page.getByTestId('export-production').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+  await expect(page.getByTestId('prod-target-spx')).toBeChecked();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByTestId('export-production').click(),
+    page.getByTestId('prod-export-download').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
@@ -174,6 +178,65 @@ test('shows and videos ride the storage seam (the sync engine sees and writes bo
   expect(result.showListed).toBe(true);
   expect(result.showLive).toBe(true);
   expect(result.videoListed).toBe(true);
+});
+
+test('production export packages for the other registry targets through the same per-graphic builders', async ({ page }) => {
+  // The target picker's build path (buildShowZipFor): every non-SPX flavor reuses the
+  // per-graphic target packagers verbatim, merged under one show folder. Pin the layouts and
+  // that the CasparCG flavor actually PLAYS (self-contained, host-driven, no receiver).
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const result = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const third = variantsFor('lower-third')[0].create({});
+    const quiz = variantsFor('quiz')[0].create({});
+    const graphics = [third, quiz].map((template, i) => ({
+      id: `g-${i}`, name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template,
+    }));
+    const show = { id: 'b0b0b0b0-c1c1-4d2d-8e3e-f4f4f4f4f4f4', name: 'Flavor Show', graphics, updatedAt: '2026-01-01T00:00:00.000Z', hostedSlug: 'x' };
+
+    const list = async (targetId: string) => {
+      const zip = await buildShowZipFor(show, targetId);
+      const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
+      return { names, zip };
+    };
+
+    const caspar = await list('casparcg');
+    const overlay = await list('html-overlay');
+    const ograf = await list('ograf');
+    // The lower third's own file, named by its slug inside its own folder.
+    const casparHtmlPath = caspar.names.find((n) => /^flavor_show\/([^/]+)\/\1\.html$/.test(n))!;
+    const casparHtml = await caspar.zip.file(casparHtmlPath)!.async('string');
+    return {
+      casparNames: caspar.names,
+      overlayHasShowPanel: overlay.names.includes('flavor_show/show_controlpanel.html'),
+      overlayGuide: overlay.names.includes('flavor_show/GETTING-ON-AIR.md'),
+      ografManifests: ograf.names.filter((n) => n.endsWith('.ograf.json')).length,
+      casparHtml,
+      casparReceiverFree: !casparHtml.includes('== HOSTED CONTROL'),
+    };
+  });
+
+  // Each graphic is its own CasparCG sub-package: folder + self-contained html + README.
+  expect(result.casparNames.filter((n) => /^flavor_show\/[^/]+\/[^/]+\.html$/.test(n))).toHaveLength(2);
+  expect(result.casparNames.filter((n) => n.endsWith('README.md')).length).toBeGreaterThanOrEqual(3); // per graphic + the show's
+  expect(result.overlayHasShowPanel).toBe(true);
+  expect(result.overlayGuide).toBe(true);
+  expect(result.ografManifests).toBe(2);
+  expect(result.casparReceiverFree).toBe(true);
+
+  // The CasparCG flavor plays like the host drives it.
+  const view = await page.context().newPage();
+  await view.setContent(result.casparHtml, { waitUntil: 'load' });
+  await view.evaluate(() => {
+    (window as unknown as { update(raw: string): void }).update('{"f0":"Caspar Flavor"}');
+    (window as unknown as { play(): void }).play();
+  });
+  await expect
+    .poll(async () => view.locator('.lower-third, .quiz').first().evaluate((el) => getComputedStyle(el).opacity))
+    .toBe('1');
+  await view.close();
 });
 
 test('a production package never carries the hosted receiver, and each graphic gets its own playout layer', async ({ page }) => {
@@ -337,9 +400,10 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   const section = page.locator('.panel-section', { hasText: 'Productions' });
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('export-production').click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByTestId('export-production').click(),
+    page.getByTestId('prod-export-download').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');
@@ -361,14 +425,22 @@ test('Home lists productions and the production page exports the package', async
   // Adding a graphic auto-creates its first cue (docs/CLOUD_PLAYOUT.md §2).
   await expect(row).toContainText('1 cue');
 
+  // The export door is on the ROW too now (acceptance ask: export straight from Home), with
+  // the same target picker the production page opens.
+  await row.getByTestId('export-production-row').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('prod-export-download').click(),
+  ]);
+  expect(await download.suggestedFilename()).toMatch(/production\.zip$/);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeHidden();
+
   // The production page owns everything about one production — including the offline export.
   await row.getByTestId('open-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: /Export package/ }).click(),
-  ]);
-  expect(await download.suggestedFilename()).toMatch(/production\.zip$/);
+  await expect(page.getByTestId('export-production')).toBeVisible();
 
   // Packages are retired (docs/GOALS.md "Student release" step 3): no Packages nav on Home.
   await page.getByTestId('production-back').click();

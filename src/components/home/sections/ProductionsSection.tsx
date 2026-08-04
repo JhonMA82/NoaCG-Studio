@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { createShow, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl } from '../../../control/hostedControl';
 import { copyLink } from '../copyLink';
-import { IconLink, IconTrash, IconTv } from '../../icons';
+import ProductionExportDialog from '../ProductionExportDialog';
+import { IconDownload, IconLink, IconTrash, IconTv } from '../../icons';
 
 /**
  * The Productions section — Home's LEAD (docs/GOALS.md "Student release" step 8): a production
@@ -27,6 +28,7 @@ export default function ProductionsSection({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [exportShow, setExportShow] = useState<Show | null>(null);
   const shown = limit ? productions.slice(0, limit) : productions;
   return (
     <>
@@ -101,6 +103,15 @@ export default function ProductionsSection({
                 {copiedLink === r.id ? '✓ Copied' : <><IconLink /> Output URL</>}
               </button>
             )}
+            <button
+              onClick={() => setExportShow(r)}
+              disabled={r.graphics.length === 0}
+              title="Export every graphic of this production — SPX, CasparCG, OBS/vMix overlay, H2R, OGraf, LiveOS"
+              aria-label={`Export ${r.name}`}
+              data-testid="export-production-row"
+            >
+              <IconDownload />
+            </button>
             <button className="primary" onClick={() => onOpen(r)} data-testid="open-production">
               Open dashboard
             </button>
@@ -120,6 +131,7 @@ export default function ProductionsSection({
           )}
         </div>
       ))}
+      {exportShow && <ProductionExportDialog show={exportShow} onClose={() => setExportShow(null)} />}
     </>
   );
 }

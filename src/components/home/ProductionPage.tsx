@@ -41,7 +41,7 @@ import { postPreviewCmd } from '../../preview/previewProtocol';
 import { isBackendConfigured } from '../../backend/config';
 import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
-import { downloadShowZip } from '../../export/showExport';
+import ProductionExportDialog from './ProductionExportDialog';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
 import { copyLink } from './copyLink';
@@ -92,6 +92,7 @@ export default function ProductionPage({ id }: { id: string }) {
   const openSignIn = useAuthUi((s) => s.openSignIn);
 
   const [note, setNote] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<'output' | 'control' | null>(null);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
@@ -919,16 +920,17 @@ export default function ProductionPage({ id }: { id: string }) {
 
           <div className="row" style={{ marginTop: 16 }}>
             <button
-              onClick={() => void downloadShowZip(show)}
+              onClick={() => setExportOpen(true)}
               disabled={show.graphics.length === 0}
-              title="The offline package: one SPX folder per graphic + the standalone control page"
+              title="Export every graphic of this production — pick SPX, CasparCG, OBS/vMix overlay, H2R, OGraf or LiveOS"
               data-testid="export-production"
             >
-              <IconDownload /> Export package
+              <IconDownload /> Export package…
             </button>
           </div>
         </aside>
       </div>
+      {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
     </div>
   );
 }
