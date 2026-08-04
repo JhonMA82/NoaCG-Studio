@@ -407,8 +407,9 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    snap). Kill the network briefly → commands sent meanwhile apply on reconnect, in order.
 6. Open `?control=<slug>` on a phone (signed out): cue strip + fields + verbs usable; a Take
    from the phone airs on the output tab; the live chip agrees on both surfaces.
-7. OBS Browser Source and CasparCG HTML producer (`CG ADD 1-20 "<url>" 1`): transparent,
-   correct scale at 1920×1080, survives a CasparCG channel restart.
+7. OBS Browser Source and CasparCG HTML producer (`CG 1-20 ADD 1 "<url>" 1` — channel-layer
+   BEFORE `ADD`, as in the generated CasparCG export README): transparent, correct scale at
+   1920×1080, survives a CasparCG channel restart.
 8. Unpublish → output URL and control URL both go dead honestly; re-publish → same record,
    new session, output URL unchanged only if the row was updated rather than deleted.
 

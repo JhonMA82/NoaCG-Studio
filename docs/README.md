@@ -39,6 +39,7 @@ Layers of documentation, top to bottom:
 | `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, the internal-account usage scope, the beta feedback inbox, migrations 0017+. |
 | `MODEL_ROUTE_AUDITS.md` | The register of hand-performed audits behind `APPROVED_MODEL_CATALOG` - how a ZDR audit is done, and one section per audited route. A `zdrAvailable: true` entry with nothing here is an unbacked privacy claim. |
 | `EXPORT_TARGETS_RESEARCH.md` | Where exports run: shipped targets + the doctrine for adding one. |
+| `PLAYOUT_INTEGRATION.md` | The USER-facing setup guide for the playout side: choosing between the cloud output URL, self-hosted output and portable export, then CasparCG (incl. which server versions carry the old CEF), OBS, vMix and SPX, with a troubleshooting table and an explicit statement of what has been tested on real hardware. |
 | `FORMATTING.md` | What Prettier may and may not touch, and why. |
 | `DEV_PORTS.md` | Per-worktree dev-port reservation. |
 | `DEPLOYMENT.md` | CI + Vercel production runbook: the pipeline, the 12-function budget, deploy verification (`deploy-verify.yml`, `version.json`), opt-in previews, rolling-issue alerts, and where to look when production stops updating. |

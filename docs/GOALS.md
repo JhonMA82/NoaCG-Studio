@@ -1207,7 +1207,7 @@ first-class. Stages are direction, not a calendar; each is independently shippab
 - [ ] **Stage 2 — Production workflow + reliability**: published/draft versions + rollback,
       renderer health surfaced properly (multi-renderer awareness), operator access + sharing,
       logs/diagnostics, per-caller rate caps, the `control_events` anon-read narrowing (needs a
-      v2 receiver generation + deprecation window), stronger SPX/CasparCG integration docs.
+      v2 receiver generation + deprecation window).
   - [x] **Multiple layers, z-order over the per-graphic instances** — every pool graphic is a
         layer holding its OWN on-air cue, so a bug, a lower third and a ticker are up together
         and Take no longer stops whatever was live before it. The log was already per-layer
@@ -1228,6 +1228,14 @@ first-class. Stages are direction, not a calendar; each is independently shippab
         (three honest states: NOT PUBLISHED / SHOW / REHEARSE), and rehearsal keeps its own live
         map so it can never report anything about the real output. It touches no backend, which
         makes it the one part of §4 the offline suite drives end to end.
+  - [x] **SPX/CasparCG integration docs** — `docs/PLAYOUT_INTEGRATION.md`, written for the
+        person configuring the playout machine rather than for this codebase. Picks between the
+        three output routes, then CasparCG / OBS / vMix / SPX setup, a symptom-first
+        troubleshooting table, and a section saying exactly what has been proven on real
+        hardware and what has not. The CasparCG CEF constraint stops being a maintainer note:
+        2.3.x carries the pre-Chromium-80 engine that killed our first build silently, **2.4.0
+        ships CEF 117 and 2.5.0 ships CEF 142** (CasparCG changelog), so the guide can tell an
+        operator whether it affects them at all.
 - [ ] **Stage 3 — the NoaCG Data Hub**: server-side connectors writing `update` rows into
       the SAME command log (one ingress, renderer stays dumb), normalized field schemas +
       visual mapping, credentials server-side only, caching + freshness + last-known-good,
