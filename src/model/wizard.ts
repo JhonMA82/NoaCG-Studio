@@ -326,6 +326,50 @@ export interface ResolvedOptions {
  *  'none' = the design has no sensible place for one. */
 export type LogoSupport = 'none' | 'optional' | 'built-in';
 
+/**
+ * What FIELD-STRUCTURE changes a design supports - the wizard offers EXACTLY this, nothing
+ * arbitrary (docs/GOALS.md "Student release" step 5).
+ *
+ * - 'lines': the standard line contract - lines addable/removable between min and maxLines,
+ *   each becoming its own `fN` element (shared/standard.ts's mask idiom).
+ * - 'fixed': a CLOSED field contract (a scoreboard's cells, a quiz's answer rows). Titles
+ *   and sample values stay editable; the field COUNT does not. Before this, the wizard
+ *   rendered add/remove here anyway and the assembler silently ignored them.
+ * - 'list': the design's runtime BUILDS its rows from ONE textarea field (the repeating-data
+ *   doctrine, src/templates/AGENTS.md - a ticker's items, a credits roll). The wizard offers
+ *   a rows editor over that one field's value; never more fields.
+ */
+export type FieldPlan =
+  | { kind: 'lines'; min: number }
+  | { kind: 'fixed'; reason: string }
+  | { kind: 'list'; itemLabel: string; itemHint: string; maxItems?: number };
+
+/**
+ * The per-CATEGORY field plans that differ from the standard line contract. A category's
+ * field structure is its assembler's contract (one shared assembler per category), so the
+ * declaration lives in ONE table rather than on dozens of variant files; a variant that
+ * genuinely deviates can override via `TemplateVariant.fieldPlan`. Categories not named here
+ * keep the standard 'lines' plan - the behavior they always had.
+ */
+const CATEGORY_FIELD_PLANS: Partial<Record<TemplateCategory, FieldPlan>> = {
+  // One hidden textarea IS the rundown of items; the runtime rebuilds the strip from it.
+  ticker: { kind: 'list', itemLabel: 'Ticker items', itemHint: 'One item per row' },
+  // `Role | Name` per row; the roll is built from them.
+  'end-credits': { kind: 'list', itemLabel: 'Credits', itemHint: 'Role | Name — one credit per row' },
+  // Question + answer rows + the correct-answer marker: a machine drives them as one unit.
+  quiz: { kind: 'fixed', reason: 'A quiz board is question + its answer rows — a fixed set its state machine drives.' },
+  // Team names, scores, period, clock: the cells are the design.
+  scoreboard: { kind: 'fixed', reason: 'A scoreboard is its cells — team names, scores and clock are the design itself.' },
+  'game-timer': { kind: 'fixed', reason: 'A game clock is its readouts — the fields are the design itself.' },
+  'starting-soon': { kind: 'fixed', reason: 'A countdown is its readouts — the fields are the design itself.' },
+};
+
+/** Resolve a variant's field plan: its own declaration, else its category's, else the
+ *  standard line contract. THE one rule every field-offering surface asks. */
+export function fieldPlanOf(variant: Pick<TemplateVariant, 'category' | 'fieldPlan'>): FieldPlan {
+  return variant.fieldPlan ?? CATEGORY_FIELD_PLANS[variant.category] ?? { kind: 'lines', min: 1 };
+}
+
 export interface TemplateVariant {
   /** e.g. "lt01". */
   id: string;
@@ -339,6 +383,9 @@ export interface TemplateVariant {
   description: string;
   /** How many visible text lines the design supports (1–5). */
   maxLines: number;
+  /** This design's field-structure contract, when it deviates from its category's (see
+   *  fieldPlanOf - absent means the category's plan, else the standard line contract). */
+  fieldPlan?: FieldPlan;
   /** Suggested lines used as the wizard's starting point (and preview defaults). */
   suggestedLines: LineSpec[];
   /** Logo capability — drives the wizard's logo toggle, the import flow, and filtering. */

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { type Ftype, type SpxField } from '../model/types';
+import { type Ftype } from '../model/types';
 import { fieldDescriptors } from '../control/controlModel';
 import SpxFieldRow from './fields/SpxFieldRow';
-import { addCatalogLine, addFieldToDefinition, nextFieldId } from '../blocks/edit';
+import { addCatalogLine } from '../blocks/edit';
 import { addPlacedImageSlot, addPlacedLine, designBoxInfo } from '../blocks/designLayout';
 import { useTemplateStore } from '../store/templateStore';
 
@@ -31,6 +31,7 @@ export default function SampleDataPanel() {
 
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<Ftype>('textfield');
+  const [addNote, setAddNote] = useState<string | null>(null);
 
   const dataFields = fieldDescriptors(fields, { includeHidden: true });
   const noteFields = fields.filter((f) => ['instruction', 'caption'].includes(f.ftype));
@@ -47,9 +48,12 @@ export default function SampleDataPanel() {
   // undoable apply (blocks/designLayout.ts); on a standard-contract CATALOG template a
   // single-line field lands as a real line in the assembler's own mask idiom
   // (blocks/edit.ts addCatalogLine) — both code-derived gates, and in both cases the new
-  // layer is selected so the canvas and Inspector pick it up straight away. Everything else
-  // appends to the SPX definition only (the editor highlights the new entry) — the field is
-  // definition-only until it's wired to an element; AI modify does that in one prompt.
+  // layer is selected so the canvas and Inspector pick it up straight away.
+  //
+  // An add that CANNOT land as a real element is REFUSED with the reason (docs/GOALS.md
+  // "Student release" step 5): the old fallback appended a definition-only field no element
+  // answered — a control that renders, accepts a value, and silently does nothing on air,
+  // which is the exact defect class scripts/field-coverage.mjs exists to catch.
   const addField = () => {
     const title = newTitle.trim() || 'New field';
     if (newType === 'textfield' || newType === 'number' || newType === 'filelist') {
@@ -63,19 +67,16 @@ export default function SampleDataPanel() {
         setSelectedPart(`#${added.fieldId}`); // the new layer — selectable, draggable, animatable
         setActiveTab('html');
         setNewTitle('');
+        setAddNote(null);
         return;
       }
     }
-    const field: SpxField = {
-      field: nextFieldId(fields),
-      ftype: newType,
-      title,
-      value: newType === 'number' ? '0' : '',
-      ...(newType === 'filelist' ? { assetfolder: './images/', extension: 'png' } : {}),
-    };
-    applyTemplate(addFieldToDefinition(template, field));
-    setActiveTab('html'); // the definition lives in the HTML — show what was added
-    setNewTitle('');
+    const typeLabel = ADD_FTYPES.find((t) => t.value === newType)?.label ?? newType;
+    setAddNote(
+      `This design has no place for a ${typeLabel} field — it would exist in the SPX ` +
+        `definition, but nothing on screen would show it, so on air it would silently do ` +
+        `nothing. Fields this design supports are added where its layout can adapt to them.`,
+    );
   };
 
   return (
@@ -146,12 +147,17 @@ export default function SampleDataPanel() {
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
-          <button onClick={addField} title="Append the field to the SPX definition">+ Add</button>
+          <button onClick={addField} title="Add the field as a real element in the design">+ Add</button>
         </div>
+        {addNote && (
+          <p className="hint status-bad" style={{ marginTop: 6 }} data-testid="add-field-refused">
+            {addNote}
+          </p>
+        )}
         <p className="hint" style={{ marginTop: 6 }}>
           {placedDesign
-            ? 'Text, number, and image fields appear on your design, ready to drag into place on the canvas. Long text lands in the SPX definition only.'
-            : 'Lands in the SPX definition (highlighted in the HTML). To show it in the design, ask the AI — e.g. “display the new Sponsor field under the title”.'}
+            ? 'Text, number, and image fields appear on your design, ready to drag into place on the canvas.'
+            : 'A new field lands as a REAL line in the design (never a definition-only entry nothing shows).'}
         </p>
       </div>
     </div>

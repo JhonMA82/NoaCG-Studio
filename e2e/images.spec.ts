@@ -44,22 +44,24 @@ async function uploadImage(page: Page, fieldLabel: string, fileName: string) {
   await awaitPreviewRebuild(page);
 }
 
-test('data panel: the add-field types are the broadcast set, and Image becomes a filelist field', async ({ page }) => {
+test('data panel: the add-field types are the broadcast set, and an unanswerable add is refused', async ({ page }) => {
   await createFrom(page, 'Lower thirds', 'Hairline');
   await create(page);
   await page.getByTestId('dock-tab-data').click();
   const addSection = page.locator('.panel-section', { hasText: 'Add a field' });
   const select = addSection.locator('select');
   await expect(select.locator('option')).toHaveText(['Text', 'Long text', 'Number', 'Image']);
+  // An Image field has nowhere to land on a catalog lower third (no placed-design slot),
+  // so the add is REFUSED with the reason - the old behavior appended a definition-only
+  // filelist no element answered, the silent on-air no-op (docs/GOALS.md step 5).
   await select.selectOption('filelist');
   await addSection.getByRole('button', { name: '+ Add' }).click();
-  // The generated definition carries the SPX filelist contract.
+  await expect(page.getByTestId('add-field-refused')).toContainText('no place for a Image field');
   const html = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.html;
   });
-  expect(html).toContain('"ftype": "filelist"');
-  expect(html).toContain('"assetfolder": "./images/"');
+  expect(html).not.toContain('"ftype": "filelist"');
 });
 
 test('end credits: uploading a logo through the Logo field puts it in the end block', async ({ page }) => {

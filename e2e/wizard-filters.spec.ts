@@ -181,3 +181,44 @@ test('facet values without catalog mass render no chip', async ({ page }) => {
     .sort();
   expect(rendered).toEqual(expected);
 });
+
+// ── The FIELD PLAN (docs/GOALS.md "Student release" step 5): the Fields step offers exactly
+// what the design's contract supports - lines add/remove on the standard contract, a rows
+// editor over the ONE source field on a list design, and no restructuring at all on a fixed
+// contract. Before the plan existed, add/remove rendered everywhere and self-assembled
+// categories silently ignored it.
+
+test('field plan: a ticker offers a rows editor, never line add/remove', async ({ page }) => {
+  await toBrowseStep(page);
+  await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Tickers' }).click();
+  await page.locator('.wz-variant', { hasText: 'News Strip' }).first().click();
+  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+
+  // The items line renders as ROWS over the one textarea-backed source field.
+  const rowsEditor = page.getByTestId('list-rows-editor');
+  await expect(rowsEditor).toBeVisible();
+  await expect(page.getByTestId('field-plan-hint')).toContainText('Rows here are CONTENT');
+  // No structural line add/remove anywhere on the step.
+  await expect(page.getByRole('button', { name: '+ Add a line' })).toHaveCount(0);
+
+  // Editing rows edits the ONE field's value: add a row, type into it, and the draft's
+  // sample for that line gains exactly one more \n-separated entry.
+  const before = await rowsEditor.locator('input').count();
+  await page.getByTestId('list-row-add').click();
+  await rowsEditor.locator('input').nth(before).fill('BREAKING · Rows are content');
+  await expect(rowsEditor.locator('input')).toHaveCount(before + 1);
+  await expect(rowsEditor.locator('input').nth(before)).toHaveValue('BREAKING · Rows are content');
+});
+
+test('field plan: a quiz board is a fixed contract - fields edit, structure does not', async ({ page }) => {
+  await toBrowseStep(page);
+  await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Quiz' }).click();
+  await page.locator('.wz-variant', { hasText: 'Arena Quiz' }).first().click();
+  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+
+  // Titles and samples stay editable; add/remove is gone (it was a silent no-op).
+  await expect(page.locator('.wz-line-row').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Add a line' })).toHaveCount(0);
+  await expect(page.locator('.wz-line-row button', { hasText: '✕' })).toHaveCount(0);
+  await expect(page.getByTestId('field-plan-hint')).toContainText('fixed set');
+});

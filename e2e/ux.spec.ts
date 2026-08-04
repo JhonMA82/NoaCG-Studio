@@ -98,10 +98,11 @@ test('data: the catalog-line add is gated on the standard line SHAPE, never the 
     return {
       lowerThird: tryAdd('lt01'),
       infoCard: tryAdd('card01'),
-      // Fixed contracts and data-driven categories fail the shape gate and keep the
-      // definition-only fallback: a scoreboard's cells are a grid ({p}-team / {p}-score,
-      // not the line ladder), a quiz's rows are their own shape, a ticker's lines live in
-      // one hidden textarea source.
+      // Fixed contracts and data-driven categories fail the shape gate - the Data panel
+      // then REFUSES the add with the reason (a definition-only field nothing shows is the
+      // silent on-air no-op this gate exists to end): a scoreboard's cells are a grid
+      // ({p}-team / {p}-score, not the line ladder), a quiz's rows are their own shape, a
+      // ticker's lines live in one hidden textarea source.
       scoreboard: tryAdd('sb01'),
       quiz: tryAdd('qz01'),
       ticker: tryAdd('tk01'),

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
-import { type TemplateVariant } from '../../../model/wizard';
+import { fieldPlanOf, type TemplateVariant } from '../../../model/wizard';
 import type { DraftPatch, WizardDraft } from '../draft';
 
 interface Props {
@@ -9,16 +9,25 @@ interface Props {
   onDraft: (patch: DraftPatch) => void;
 }
 
-/** Step 3 — the data fields: the visible text lines plus the design's logo slot.
+/** Step 3 — the data fields: the visible text lines plus the design's logo slot, offered
+ *  EXACTLY as the design's field plan declares (fieldPlanOf, docs/GOALS.md "Student
+ *  release" step 5): the standard contract adds/removes lines, a fixed contract edits but
+ *  never restructures, a list design gets a rows editor over its one source field.
  *  (An imported design never reaches this step: it creates bare from the Design step and
  *  its fields are added in the editor's Data tab as real placed layers.) */
 export default function FieldsStep({ variant, draft, onDraft }: Props) {
   const lines = draft.lines;
+  const plan = fieldPlanOf(variant);
   const logoInput = useRef<HTMLInputElement>(null);
 
   const setLine = (i: number, key: 'title' | 'sample', value: string) => {
     onDraft({ lines: lines.map((l, k) => (k === i ? { ...l, [key]: value } : l)) });
   };
+
+  /** The 'list' plan's SOURCE line: the one whose suggested sample is multi-row (the same
+   *  code-derived signal the textarea render below always keyed on). */
+  const listLineIndex =
+    plan.kind === 'list' ? variant.suggestedLines.findIndex((l) => l.sample.includes('\n')) : -1;
 
   // The logo slot: built-in designs always carry one; optional designs get a toggle.
   // Unset (null) follows "a logo image exists" — the import flow pre-fills it.
@@ -41,9 +50,13 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
     <div>
       <div className="panel-section">
         <h3>
-          Text lines{' '}
+          {plan.kind === 'fixed' ? 'Data fields' : 'Text lines'}{' '}
           <span className="muted">
-            (the design adapts — {variant.maxLines} max for {variant.name})
+            {plan.kind === 'lines'
+              ? `(the design adapts — ${variant.maxLines} max for ${variant.name})`
+              : plan.kind === 'list'
+                ? '(rows are content — the design builds itself from them)'
+                : `(this design's field set is fixed)`}
           </span>
         </h3>
         {lines.map((line, i) => (
@@ -54,7 +67,14 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
               value={line.title}
               onChange={(e) => setLine(i, 'title', e.target.value)}
             />
-            {variant.suggestedLines[i]?.sample.includes('\n') ? (
+            {i === listLineIndex && plan.kind === 'list' ? (
+              <ListRowsEditor
+                value={line.sample}
+                itemHint={plan.itemHint}
+                maxItems={plan.maxItems}
+                onChange={(sample) => setLine(i, 'sample', sample)}
+              />
+            ) : variant.suggestedLines[i]?.sample.includes('\n') ? (
               <textarea
                 rows={5}
                 placeholder="One entry per line — e.g.  Role | Name"
@@ -68,16 +88,18 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
                 onChange={(e) => setLine(i, 'sample', e.target.value)}
               />
             )}
-            <button
-              disabled={lines.length <= 1}
-              title="Remove this line"
-              onClick={() => onDraft({ lines: lines.filter((_, k) => k !== i) })}
-            >
-              ✕
-            </button>
+            {plan.kind === 'lines' && (
+              <button
+                disabled={lines.length <= Math.max(1, plan.min)}
+                title="Remove this line"
+                onClick={() => onDraft({ lines: lines.filter((_, k) => k !== i) })}
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))}
-        {lines.length < variant.maxLines && (
+        {plan.kind === 'lines' && lines.length < variant.maxLines && (
           <button
             onClick={() =>
               onDraft({ lines: [...lines, { title: `Line ${lines.length + 1}`, sample: 'More text' }] })
@@ -86,14 +108,23 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
             + Add a line
           </button>
         )}
-        {/* Why the list stops at maxLines. This was a section of its own with a heading and no
-            control in it — three lines of prose sitting where a fourth decision looked like it
-            should be, on a step that often holds only two inputs. It answers a real question,
-            so it stays; it just stops presenting itself as something to do. */}
-        <p className="hint" style={{ marginTop: 10 }}>
-          The wizard keeps to the lines this design actually shows. Extra fields and custom
-          layouts come after creating, where the design can adapt to them — the Data tab adds a
-          field, and AI editing or the canvas works it into the graphic.
+        {/* Why the structure stops where it does. Prose, not a control - it answers a real
+            question without presenting itself as something to do. */}
+        <p className="hint" style={{ marginTop: 10 }} data-testid="field-plan-hint">
+          {plan.kind === 'lines' && (
+            <>
+              The wizard keeps to the lines this design actually shows. Extra fields and custom
+              layouts come after creating, where the design can adapt to them — the Data tab
+              adds a field, and AI editing or the canvas works it into the graphic.
+            </>
+          )}
+          {plan.kind === 'fixed' && plan.reason}
+          {plan.kind === 'list' && (
+            <>
+              Rows here are CONTENT, not fields: on air you edit them as one value and the
+              design rebuilds itself — add as many as the show needs.
+            </>
+          )}
         </p>
       </div>
 
@@ -148,6 +179,54 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
         </div>
       )}
 
+    </div>
+  );
+}
+
+/**
+ * The 'list' plan's rows editor: one row input per line of the ONE source field's value.
+ * Editing rows edits that value - the design's runtime rebuilds from it, exactly as an
+ * operator's update() does on air - so this is a friendlier face on the same field, never
+ * a second data model.
+ */
+function ListRowsEditor({
+  value,
+  itemHint,
+  maxItems,
+  onChange,
+}: {
+  value: string;
+  itemHint: string;
+  maxItems?: number;
+  onChange: (value: string) => void;
+}) {
+  const rows = value.split('\n');
+  const setRow = (i: number, v: string) => onChange(rows.map((r, k) => (k === i ? v : r)).join('\n'));
+  const removeRow = (i: number) => onChange(rows.filter((_, k) => k !== i).join('\n'));
+  const addRow = () => onChange([...rows, ''].join('\n'));
+  return (
+    <div className="wz-list-rows" data-testid="list-rows-editor">
+      {rows.map((row, i) => (
+        <div className="row" style={{ gap: 6, marginBottom: 4 }} key={i}>
+          <input
+            className="grow"
+            placeholder={itemHint}
+            value={row}
+            onChange={(e) => setRow(i, e.target.value)}
+            data-testid={`list-row-${i}`}
+          />
+          <button disabled={rows.length <= 1} title="Remove this row" onClick={() => removeRow(i)}>
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        disabled={maxItems !== undefined && rows.length >= maxItems}
+        onClick={addRow}
+        data-testid="list-row-add"
+      >
+        + Add a row
+      </button>
     </div>
   );
 }
