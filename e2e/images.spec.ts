@@ -1,3 +1,4 @@
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import JSZip from 'jszip';
@@ -12,6 +13,7 @@ const PNG_1PX = Buffer.from(
 );
 
 async function createFrom(page: Page, categoryName: string, variantName: string) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -21,7 +23,7 @@ async function createFrom(page: Page, categoryName: string, variantName: string)
 
 async function create(page: Page) {
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
 }

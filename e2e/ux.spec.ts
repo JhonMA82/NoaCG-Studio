@@ -1,3 +1,4 @@
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
@@ -7,13 +8,14 @@ import { showCode } from './_code';
 // in Data, and the editor's change highlighting.
 
 async function createHairline(page: Page) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
 }
@@ -88,6 +90,7 @@ test('data: add-field lands as a REAL line on a catalog template, in the assembl
 });
 
 test('data: the catalog-line add is gated on the standard line SHAPE, never the category', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
@@ -112,6 +115,7 @@ test('data: the catalog-line add is gated on the standard line SHAPE, never the 
 });
 
 test('wizard: direction control mixes a different exit preset at create', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -128,7 +132,7 @@ test('wizard: direction control mixes a different exit preset at create', async 
   await page.locator('.wz-anim-dirs button', { hasText: '↓' }).click();
   await expect(page.locator('.wz-step .hint').first()).toContainText('Out Slide down');
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
   // Lower thirds create as data blocks: the mix is real keyframe data — the entrance

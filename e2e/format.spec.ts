@@ -1,3 +1,4 @@
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
@@ -10,6 +11,7 @@ import { showCode } from './_code';
 // ── The formatting service (pure functions, run in the app's module context) ──
 
 test('formatHtml / formatCss / formatJs normalize messy code', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const out = await page.evaluate(async () => {
     const { formatHtml, formatCss, formatJs } = await import('/src/format/formatCode.ts');
@@ -30,6 +32,7 @@ test('formatHtml / formatCss / formatJs normalize messy code', async ({ page }) 
 });
 
 test('formatJs refuses any file that owns an animation region', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const result = await page.evaluate(async () => {
     const { formatJs, hasProtectedRegion } = await import('/src/format/formatCode.ts');
@@ -51,6 +54,7 @@ test('formatJs refuses any file that owns an animation region', async ({ page })
 });
 
 test('minimalTextChange returns only the changed span (cursor-stable, merge-friendly)', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const out = await page.evaluate(async () => {
     const { minimalTextChange } = await import('/src/format/formatCode.ts');
@@ -64,6 +68,7 @@ test('minimalTextChange returns only the changed span (cursor-stable, merge-frie
 });
 
 test('formatTemplate formats HTML but leaves CSS and JS alone by default', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const out = await page.evaluate(async () => {
     const { formatTemplate } = await import('/src/format/formatCode.ts');
@@ -85,13 +90,14 @@ test('formatTemplate formats HTML but leaves CSS and JS alone by default', async
 // ── The Format button in the code editor ──
 
 async function createLowerThird(page: Page) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant').first().click();
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
   // The Format button lives in the code pane's toolbar, and the pane ships closed.

@@ -4,8 +4,10 @@ import { enableAdvancedMode } from './_create';
 
 // Core UI flows for the choose-first creation wizard + live panels.
 
-/** Walk the wizard entry → category → variant selection. */
+/** Walk the wizard entry → category → variant selection. These flows end in the EDITOR, so
+ *  they run in Advanced mode (docs/GOALS.md "Student release" step 4). */
 async function toVariantStep(page: Page, variantName: string) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -13,12 +15,14 @@ async function toVariantStep(page: Page, variantName: string) {
   await page.locator('.wz-variant', { hasText: variantName }).click();
 }
 
-/** Click through the remaining steps and create the project. */
+/** Create into the editor from wherever the walk stands: Skip to finish (remaining steps
+ *  keep their defaults - step 6's shortcut) then the Advanced editor door. */
 async function createFromCurrentStep(page: Page) {
   // Wait out the rebuild here: the default document behind the wizard also binds #f0, so an
   // assertion (or Play) racing the debounced rebuild would run against the old document.
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await page.getByTestId('wz-skip-to-finish').click();
+    await page.getByTestId('wz-finish-editor').click();
     // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
     // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });

@@ -58,6 +58,17 @@ export async function enableAdvancedMode(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Create INTO THE EDITOR from any configuring step of a template-mode walk: Skip to finish
+ * (the footer's one-click "Create project" became this shortcut - docs/GOALS.md "Student
+ * release" step 6), then the Finish step's editor door. The door is Advanced-only, so any
+ * spec calling this must have run enableAdvancedMode before its goto.
+ */
+export async function finishIntoEditor(page: Page): Promise<void> {
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-editor').click();
+}
+
 export async function createProject(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
   const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;
   // Editor subject by definition - see enableAdvancedMode above.

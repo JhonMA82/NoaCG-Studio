@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '../../app/router';
+import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
   addShowCue,
@@ -879,6 +880,21 @@ export default function ProductionPage({ id }: { id: string }) {
               data-testid="add-graphic"
             >
               ＋ Add
+            </button>
+          </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            {/* The wizard, opened FOR this production (docs/GOALS.md "Student release" step
+                6): its look pre-applies and the Finish step preselects it, so a graphic made
+                from here belongs to the show by default. */}
+            <button
+              onClick={() => {
+                useTemplateStore.setState({ pendingProductionId: show.id });
+                navigate({ view: 'new' });
+              }}
+              title="Create a new graphic for this production — the wizard uses its look and adds it here"
+              data-testid="production-new-graphic"
+            >
+              ＋ New graphic for this production…
             </button>
           </div>
 

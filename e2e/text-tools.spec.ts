@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
-import { createProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
 
 // The canvas TEXT TOOLS (the stage toolbar's T / area-text switch, placed designs): the T
 // tool clicks point text onto the artwork and types it directly on the canvas; the area
@@ -12,6 +12,7 @@ import { createProject } from './_create';
 // subject with the next free fN id — never a second text-object system.
 
 async function createBareDesign(page: Page) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="import-graphic"]').click();
@@ -21,6 +22,8 @@ async function createBareDesign(page: Page) {
     buffer: lowerThirdPng(1920, 1080),
   });
   await awaitPreviewRebuild(page, async () => {
+    // DESIGN MODE keeps the footer's "Create project" (create from any step); the
+    // skip-to-finish shortcut is template mode's.
     await page.getByRole('button', { name: 'Create project' }).click();
     // 20 s: Create fires applyGenerated, which formats the new template through Prettier -
     // five lazy dynamic imports (standalone + the html/postcss/babel/estree plugins), cold on

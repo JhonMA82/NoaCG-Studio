@@ -1,11 +1,12 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { startNewProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 
 // The broadcast-package flows: custom colors, imported fonts, the project brand,
 // and the first-wave categories (info cards, end credits, tickers).
 
 async function toVariantStep(page: Page, categoryName: string, variantName: string) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -15,7 +16,7 @@ async function toVariantStep(page: Page, categoryName: string, variantName: stri
 
 async function create(page: Page) {
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
 }

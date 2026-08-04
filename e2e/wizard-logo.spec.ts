@@ -1,3 +1,4 @@
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 
@@ -13,6 +14,7 @@ const PNG = Buffer.from(
 );
 
 async function toFieldsStep(page: Page, category: string, variantName: string) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -47,7 +49,7 @@ test('logo toggle + custom upload: the created template carries the field, asset
   await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
 
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
   });
 
@@ -72,7 +74,7 @@ test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).
   await expect(page.locator('.panel-section', { hasText: 'Include a logo slot' })).toBeVisible();
-  await page.getByRole('button', { name: 'Create project' }).click();
+  await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
 
   const t = await createdTemplate(page);

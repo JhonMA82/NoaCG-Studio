@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, startNewProject } from './_create';
+import { finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
 import { acceptAiNotice } from './_ai-notice';
 
 async function pickFormat(
@@ -36,7 +36,8 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
 
   for (const [index, format] of cases.entries()) {
     if (index === 0) {
-      await page.goto('/app');
+      await enableAdvancedMode(page);
+  await page.goto('/app');
       await expect(page.getByTestId('creation-wizard')).toBeVisible();
     } else {
       await startNewProject(page);
@@ -55,7 +56,7 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
       await awaitPreviewRebuild(page, () => page.getByTestId('wz-finish-editor').click());
     } else {
       await awaitPreviewRebuild(page, () =>
-        page.getByRole('button', { name: 'Create project' }).click(),
+        finishIntoEditor(page),
       );
     }
 
@@ -70,6 +71,7 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
 });
 
 test('aspect changes select a valid resolution and route switches preserve the choice', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await page.getByTestId('browse-format-aspect').selectOption('9:16');
@@ -87,6 +89,7 @@ test('aspect changes select a valid resolution and route switches preserve the c
 
 test('blank and imported artwork require an authored format before creation', async ({ page }) => {
   // Blank is an Advanced-mode door (step 4); the import half needs no toggle but shares the walk.
+  await enableAdvancedMode(page);
   await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="blank"]').click();
@@ -118,6 +121,7 @@ test('blank and imported artwork require an authored format before creation', as
   await expect(page.getByTestId('import-raster-warning')).toBeVisible();
   await expect(page.locator('.wz-preview-bar')).toContainText('Project 1080×1080 · 60 fps');
   await awaitPreviewRebuild(page, async () => {
+    // Design mode keeps the footer's "Create project" - no skip-to-finish there.
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.getByTestId('creation-wizard')).toBeHidden({ timeout: 30_000 });
   });
@@ -126,6 +130,7 @@ test('blank and imported artwork require an authored format before creation', as
 
 test('video AI uses the shared selected project format', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.getByRole('button', { name: 'Video or animation with AI' }).click();
   await expect.poll(() => page.locator('.wz-step').evaluate((element) => element.scrollTop)).toBe(0);
@@ -236,6 +241,7 @@ test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page 
     route.fulfill({ status: 200, contentType: 'application/json', body: '{"recorded":true}' }),
   );
 
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="ai"]').click();
   await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
@@ -254,6 +260,7 @@ test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page 
 });
 
 test('save, reopen, and package exports preserve authored dimensions and timing', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const facts = await page.evaluate(async () => {
     const { createBlankTemplate } = await import('/src/templates/blank.ts');
@@ -303,6 +310,7 @@ test('save, reopen, and package exports preserve authored dimensions and timing'
 test('render output settings are explicit scaling from the authored canvas', async ({ page }) => {
   // Drives the editor's Export dock directly, so it needs the Advanced ('' = editor) boot.
   await enableAdvancedMode(page);
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.evaluate(async () => {
     const { createBlankTemplate } = await import('/src/templates/blank.ts');
@@ -326,6 +334,7 @@ test('render output settings are explicit scaling from the authored canvas', asy
 });
 
 test('animation seconds remain equal at 25, 50, and 60 fps', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const durations = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
@@ -365,6 +374,7 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 3840, height: 2160 });
+  await enableAdvancedMode(page);
   await page.goto('/app');
   const measurements = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');

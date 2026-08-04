@@ -101,6 +101,11 @@ interface TemplateState {
    *  link, docs/PRERENDER.md) — consumed by CreationWizard's open effect, then cleared by
    *  the next openGallery() call (every other call site passes none). */
   pendingDesignId: string | null;
+  /** The production this wizard open is FOR (the production page's "+ New graphic",
+   *  docs/GOALS.md "Student release" step 6): its look pre-applies to the draft and the
+   *  Finish step preselects it. Same one-shot lifecycle as pendingDesignId — set right
+   *  before navigating to `#/new`, consumed and cleared by the wizard's open effect. */
+  pendingProductionId: string | null;
   /** Snapshots taken before each panel / AI / gallery apply, for one-click undo. */
   history: SpxTemplate[];
   /** Undone snapshots, for redo. Any NEW edit clears it (the classic undo-tree cut). */
@@ -325,6 +330,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   // "+ New project" and the #/new route still open it on demand.
   galleryOpen: !initialProject && !hasCurrentVideoProject(),
   pendingDesignId: null,
+  pendingProductionId: null,
   history: [],
   future: [],
   lastChange: null,

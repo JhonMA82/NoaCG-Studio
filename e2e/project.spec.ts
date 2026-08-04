@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
-import { enableAdvancedMode } from './_create';
+import { finishIntoEditor, enableAdvancedMode } from './_create';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
@@ -17,7 +17,7 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
   });
 
   // A distinctive edit into the code (the pane ships closed — open it as a user would).

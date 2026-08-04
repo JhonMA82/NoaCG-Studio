@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 
 // THE HOLDING / CREDITS / CEREMONY PACK.
@@ -16,6 +16,7 @@ import { awaitPreviewRebuild } from './_preview';
 
 /** Walk the wizard as far as a category's template grid — the real discovery path. */
 async function toTemplateStep(page: Page, category: string) {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -86,7 +87,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
   await page.locator('.wz-variant', { hasText: 'In Memoriam' }).click();
   // Create only appears from the Fields step on, so step forward once first.
   await page.locator('.wz-next').click();
-  await awaitPreviewRebuild(page, () => page.getByRole('button', { name: 'Create project' }).click());
+  await awaitPreviewRebuild(page, () => finishIntoEditor(page));
   await expect(page.locator('.wz-modal')).toBeHidden();
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -100,6 +101,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
 // ── The countdown ────────────────────────────────────────────────────────────
 
 test('a start-time countdown chases the wall clock and never goes negative', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
 
@@ -134,6 +136,7 @@ test('a start-time countdown chases the wall clock and never goes negative', asy
 });
 
 test('the countdown self-corrects through a stalled event loop', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
 
@@ -163,6 +166,7 @@ test('the countdown self-corrects through a stalled event loop', async ({ page }
 });
 
 test('a clock-less holding screen carries no countdown at all', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
   const emitted = await page.evaluate(async () => {
@@ -182,6 +186,7 @@ test('a clock-less holding screen carries no countdown at all', async ({ page })
 // ── The loop ─────────────────────────────────────────────────────────────────
 
 test('the credit reel loops with no seam and does not stack clones on replay', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
 
@@ -221,6 +226,7 @@ test('the credit reel loops with no seam and does not stack clones on replay', a
 });
 
 test('a static board holds still and shrinks to fit rather than losing rows', async ({ page }) => {
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
 

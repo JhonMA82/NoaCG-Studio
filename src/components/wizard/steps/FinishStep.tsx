@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
+import type { Show } from '../../../model/shows';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
 import { formatProjectSummary } from '../../../model/projectFormat';
@@ -12,6 +14,9 @@ export interface SummaryRow {
   value: string;
 }
 
+/** Where the production door sends the graphic: an existing production, or a new one. */
+export type ProductionDest = { kind: 'existing'; id: string } | { kind: 'new'; name: string };
+
 interface Props {
   /** The graphic's name (`draft.name`), and what an empty field falls back to. */
   name: string;
@@ -19,8 +24,18 @@ interface Props {
   onName: (name: string) => void;
   /** The read-back rows — catalog choices, or the AI result's shape. */
   summary: SummaryRow[];
+  /** The saved productions on offer (live list, loaded by the wizard when Finish shows). */
+  productions: Show[];
+  /** Preselect: the production the wizard was opened FOR (its page's "+ New graphic"),
+   *  else null — the picker then defaults to the most recent, else a new one. */
+  defaultProductionId: string | null;
+  /** THE PRIMARY DOOR (docs/GOALS.md "Student release" step 6): create it, save it, pool it
+   *  into the production, land on the production page — the road to air. */
+  onAddToProduction: (dest: ProductionDest) => void;
   /** Create the project and land in the editor — the classic ending. Saving stays manual. */
   onOpenEditor: () => void;
+  /** ADVANCED MODE only: the editor door renders when true (default studio hides it). */
+  showEditorDoor: boolean;
   /** Create it, save it to the library, and go straight to the export window. */
   onExport: () => void;
   /** Disabled while there is nothing built to finish. */
@@ -88,14 +103,40 @@ export function aiSummaryRows(template: SpxTemplate, valid: boolean): SummaryRow
 
 /**
  * The Finish step — the wizard's one branch point, shared by every creation mode. Everything
- * before it configures the graphic; this step names it and asks the only question left: are
- * you going to work on it, or is it done?
+ * before it configures the graphic; this step names it and asks the only question left:
+ * where does it go?
  *
- * "Export" exists because a graphic you are happy with should not have to pass through the
- * editor to become a package. It is the reason the step is here at all — a name field, and
- * two doors.
+ * THE PRIMARY DOOR is a production (docs/GOALS.md "Student release" step 6) — the wizard's
+ * whole promise ends on air, so the door that leads there leads. "Export" stays for the
+ * download-and-run-locally workflow, and "Open in the editor" is Advanced mode's continuation
+ * (the default studio does not offer it).
  */
-export default function FinishStep({ name, namePlaceholder, onName, summary, onOpenEditor, onExport, busy }: Props) {
+export default function FinishStep({
+  name,
+  namePlaceholder,
+  onName,
+  summary,
+  productions,
+  defaultProductionId,
+  onAddToProduction,
+  onOpenEditor,
+  showEditorDoor,
+  onExport,
+  busy,
+}: Props) {
+  // The picker's selection: an existing production's id, or 'new'. Preselect the context
+  // production (opened FOR one), else the most recent, else a new one named after the graphic.
+  const [dest, setDest] = useState<string>(() =>
+    defaultProductionId && productions.some((p) => p.id === defaultProductionId)
+      ? defaultProductionId
+      : productions[0]?.id ?? 'new',
+  );
+  const [newName, setNewName] = useState('');
+  const resolvedDest = (): ProductionDest =>
+    dest === 'new'
+      ? { kind: 'new', name: newName.trim() || (name.trim() || namePlaceholder) }
+      : { kind: 'existing', id: dest };
+
   return (
     <div className="wz-finish">
       <div className="panel-section">
@@ -129,22 +170,57 @@ export default function FinishStep({ name, namePlaceholder, onName, summary, onO
         </dl>
       </div>
 
+      {/* Where the graphic joins a show: the primary door's one decision. */}
+      <div className="panel-section" data-testid="wz-finish-production-pick">
+        <h3>Production</h3>
+        <div className="row" style={{ gap: 8 }}>
+          <select
+            className="grow"
+            value={dest}
+            onChange={(e) => setDest(e.target.value)}
+            data-testid="wz-finish-production"
+            aria-label="Which production this graphic joins"
+          >
+            {productions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.graphics.length} graphic{p.graphics.length === 1 ? '' : 's'})
+              </option>
+            ))}
+            <option value="new">＋ New production…</option>
+          </select>
+          {dest === 'new' && (
+            <input
+              className="grow"
+              placeholder={`Production name — e.g. Friday Show (empty = "${name.trim() || namePlaceholder}")`}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              data-testid="wz-finish-production-name"
+            />
+          )}
+        </div>
+        <p className="hint">
+          A production is what airs: its graphics, the cue rundown, and — once published — the
+          output URL your playout client loads and the control page you operate from.
+        </p>
+      </div>
+
       <div className="wz-finish-doors">
         <button
-          className="wz-entry-card"
-          onClick={onOpenEditor}
+          className="wz-entry-card wz-entry-card--primary"
+          onClick={() => onAddToProduction(resolvedDest())}
           disabled={busy}
-          data-testid="wz-finish-editor"
+          data-testid="wz-finish-production-go"
         >
-          <span className="wz-entry-icon">‹›</span>
-          <strong>Open in the editor</strong>
+          <span className="wz-entry-icon">▶</span>
+          <strong>Add to the production — go live</strong>
           <span className="hint">
-            Fine-tune fields, motion and code on the canvas and timeline. Save it whenever you
-            are ready — nothing is written to your library until you do.
+            Saves the graphic to your library, pools it into the production above with its
+            first cue ready, and lands on the production page — publish for the live URLs, or
+            export the whole set from there.
           </span>
         </button>
         <button
-          className="wz-entry-card wz-entry-card--primary"
+          className="wz-entry-card"
           onClick={onExport}
           disabled={busy}
           data-testid="wz-finish-export"
@@ -152,11 +228,26 @@ export default function FinishStep({ name, namePlaceholder, onName, summary, onO
           <span className="wz-entry-icon">⬇</span>
           <strong>Export it</strong>
           <span className="hint">
-            Happy with it? Go straight to the packages — SPX, CasparCG, OGraf, LiveOS, an
-            OBS/vMix overlay{isRenderConfigured() ? ', or a rendered video or still' : ''}. It
-            is saved to your library first, so you can always come back to it.
+            Just the files — SPX, CasparCG, OGraf, LiveOS, an OBS/vMix overlay
+            {isRenderConfigured() ? ', or a rendered video or still' : ''}. It is saved to
+            your library first, so you can always come back to it.
           </span>
         </button>
+        {showEditorDoor && (
+          <button
+            className="wz-entry-card"
+            onClick={onOpenEditor}
+            disabled={busy}
+            data-testid="wz-finish-editor"
+          >
+            <span className="wz-entry-icon">‹›</span>
+            <strong>Open in the editor</strong>
+            <span className="hint">
+              Fine-tune fields, motion and code on the canvas and timeline. Save it whenever
+              you are ready — nothing is written to your library until you do.
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
@@ -12,13 +13,14 @@ test('the editor loads and works with all CDNs blocked', async ({ page }) => {
     return route.abort();
   });
 
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
   await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await finishIntoEditor(page);
   });
 
   // Monaco rendered from the bundle and is interactive — opened from the topbar, since the

@@ -52,7 +52,9 @@ import { trackEvent } from '../../backend/events';
 import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
 import { captureLookFromTemplate } from '../../model/packets';
-import { addGraphicToShow, createShowNamed, setShowLook } from '../../model/shows';
+import { addGraphicToShow, createShowNamed, loadShows, setShowLook, type Show } from '../../model/shows';
+import type { ProductionDest } from './steps/FinishStep';
+import { useAdvancedMode } from '../useAdvancedMode';
 import type { TemplatePack } from '../../templates/packs';
 import { kitItems } from '../../templates/kit';
 import type { StyleTag } from '../../model/fonts';
@@ -118,6 +120,9 @@ export default function CreationWizard() {
   // graphics in the same package).
   const [brand, setBrand] = useState<ProjectBrand | null>(null);
   const [matchBrand, setMatchBrand] = useState(false);
+  // The production this open is FOR (one-shot from pendingProductionId; Finish preselects it).
+  const [contextProductionId, setContextProductionId] = useState<string | null>(null);
+  const advanced = useAdvancedMode((s) => s.advanced);
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
@@ -171,6 +176,20 @@ export default function CreationWizard() {
       // Off by default: reusing the previous project's look is an explicit choice,
       // not something a new graphic silently inherits.
       setMatchBrand(false);
+      // PRODUCTION CONTEXT (step 6): opened FOR a production (its page's "+ New graphic"),
+      // the wizard pre-applies that production's look — the unified brand its graphics
+      // share — and the Finish step preselects it. One-shot, like pendingDesignId.
+      const forProduction = useTemplateStore.getState().pendingProductionId;
+      useTemplateStore.setState({ pendingProductionId: null });
+      setContextProductionId(forProduction);
+      if (forProduction) {
+        const show = loadShows().find((s) => s.id === forProduction);
+        if (show?.look) {
+          setBrand(show.look);
+          setMatchBrand(true);
+          setDraft((d) => mergeDraft(d, brandPatch(show.look!)));
+        }
+      }
     }
   }, [open]);
 
@@ -257,6 +276,16 @@ export default function CreationWizard() {
     !!variant &&
     ['lower-third', 'info-card', 'scoreboard', 'corner-bug', 'imported-design'].includes(variant.category) &&
     draft.animation.direction !== 'in';
+
+  // The productions the Finish step offers - read fresh each time Finish shows (another tab
+  // may have made one), never while it doesn't (localStorage churn for nothing). MUST sit
+  // above the closed-wizard early return: a hook after it changes the hook count between
+  // open and closed renders, which React refuses mid-transition.
+  const onFinish = open && step === finishStep;
+  const finishProductions: Show[] = useMemo(
+    () => (onFinish ? loadShows() : []),
+    [onFinish],
+  );
 
   if (!open) return null;
 
@@ -413,12 +442,22 @@ export default function CreationWizard() {
       const saved = saveGraphicAs(aiName(), { kind: 'standalone' });
       const s = useTemplateStore.getState();
       closeGallery();
-      if (saved.ok) useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+      // REPLACE, not navigate - the createAndExport back-stack reasoning.
+      if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
         graphicId: s.saved.graphicId,
       });
+    });
+  };
+
+  /** The AI production door - the same primary ending as the catalog one (byte-identical
+   *  doors doctrine: both route through applyAiProject). */
+  const createFromAiAndAddToProduction = (dest: ProductionDest) => {
+    void applyAiProject().then((template) => {
+      if (!template) return;
+      addToProduction(dest, aiName());
     });
   };
 
@@ -486,12 +525,43 @@ export default function CreationWizard() {
       // what the export slugs the zip and the SPX/CasparCG template folder from.
       const s = useTemplateStore.getState();
       closeGallery();
-      if (saved.ok) useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+      // REPLACE, not navigate: applyGenerated already replaced the route with the editor's,
+      // and pushing over it would leave Back landing a default-mode user in the editor.
+      if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
         graphicId: s.saved.graphicId,
       });
+    });
+  };
+
+  /**
+   * THE PRIMARY DOOR (docs/GOALS.md "Student release" step 6): create it, SAVE it (library
+   * record first - never lose the work), pool a copy into the chosen production with its
+   * auto-seeded first cue, capture the look onto a production that has none yet, and land on
+   * the production page - the road to air. A FAILED save stays in the editor exactly like the
+   * export door: the topbar's failed status is visible there and Save can be retried.
+   */
+  const addToProduction = (dest: ProductionDest, name: string) => {
+    const saved = saveGraphicAs(name, { kind: 'standalone' });
+    if (!saved.ok) return;
+    const s = useTemplateStore.getState();
+    const show =
+      dest.kind === 'existing' ? loadShows().find((x) => x.id === dest.id) : createShowNamed(dest.name);
+    // A picked production deleted mid-wizard (another tab/device): fall back to a new one
+    // named after the graphic rather than dropping the work on the floor.
+    const target = show ?? createShowNamed(name);
+    addGraphicToShow(target.id, s.template, { graphicId: s.saved.graphicId ?? undefined });
+    if (!target.look) setShowLook(target.id, captureLookFromTemplate(s.template));
+    closeGallery();
+    useRouter.getState().replace({ view: 'production', id: target.id });
+  };
+
+  const createAndAddToProduction = (dest: ProductionDest) => {
+    void applyDraftProject().then((template) => {
+      if (!template || !variant) return;
+      addToProduction(dest, draftName(variant, draft));
     });
   };
 
@@ -531,6 +601,7 @@ export default function CreationWizard() {
   const stepIndexes = stepTitles.map((_, i) => i);
   const railPos = stepIndexes.indexOf(step);
   const goToStep = (delta: number) => setStep(stepIndexes[railPos + delta] ?? step);
+
 
   // Ordering: imported images put logo-slot designs first; a matched brand puts its
   // style family first (so the package's siblings lead).
@@ -573,7 +644,16 @@ export default function CreationWizard() {
                 <button
                   key={t}
                   className={`wz-dot ${s === step ? 'active' : ''} ${s < step ? 'done' : ''}`}
-                  disabled={s > step || (s > (mode === 'template' ? 1 : 2) && !draft.variantId)}
+                  // Backward always. FORWARD jumps unlock in template mode once a design is
+                  // picked (docs/GOALS.md "Student release" step 6): every later step holds
+                  // a tasteful default, so "the template is good enough" must not cost four
+                  // Next presses. Other modes keep their sequential walks - their steps
+                  // build state a jump would skip.
+                  disabled={
+                    s > step
+                      ? !(mode === 'template' && !!draft.variantId)
+                      : s > (mode === 'template' ? 1 : 2) && !draft.variantId
+                  }
                   onClick={() => setStep(s)}
                   title={t}
                 >
@@ -842,7 +922,11 @@ export default function CreationWizard() {
                 namePlaceholder={variant.name}
                 onName={(name) => patch({ name })}
                 summary={catalogSummaryRows(variant, draft)}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
+                onAddToProduction={createAndAddToProduction}
                 onOpenEditor={create}
+                showEditorDoor={advanced}
                 onExport={createAndExport}
                 busy={!previewTemplate}
               />
@@ -856,7 +940,11 @@ export default function CreationWizard() {
                 namePlaceholder={aiResult.template.name}
                 onName={(name) => patch({ name })}
                 summary={aiSummaryRows(aiResult.template, aiResult.valid)}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
+                onAddToProduction={createFromAiAndAddToProduction}
                 onOpenEditor={createFromAi}
+                showEditorDoor={advanced}
                 onExport={createFromAiAndExport}
                 busy={!aiResult.valid}
               />
@@ -918,16 +1006,25 @@ export default function CreationWizard() {
                 Next ›
               </button>
             )}
-            {/* "Create project" is the quiet shortcut out of any configuring step — create
-                now, remaining steps keep their defaults. It stands down entirely on FINISH,
-                whose two door cards ARE the actions: a third button saying almost the same
-                thing as one of them would only make the branch harder to read.
-                It stands down in KIT mode for the same reason it does on Finish: the kit's
-                own Create button IS the action, and the footer's Next would advance to a
-                step that does not exist.
-                Design mode: Create is available from the Design step on (a design that
-                needs no erase, fields, or animation choice creates immediately). */}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+            {/* TEMPLATE MODE's quiet shortcut is "Skip to finish" (docs/GOALS.md "Student
+                release" step 6): remaining steps keep their defaults and the Finish step's
+                doors decide where the graphic goes - it no longer creates straight into the
+                editor, which default mode does not even surface. It stands down ON Finish,
+                whose door cards ARE the actions.
+                DESIGN/IMPORT keep the classic "Create project" (create from any step - a
+                design needing no erase, fields, or animation choice creates immediately);
+                KIT stands down for the same reason as Finish: its own Create IS the action. */}
+            {mode === 'template' && step >= 1 && step < finishStep && (
+              <button
+                disabled={!draft.variantId}
+                onClick={() => setStep(finishStep)}
+                title="Happy with the defaults? Jump straight to naming it and choosing where it goes"
+                data-testid="wz-skip-to-finish"
+              >
+                Skip to finish ›
+              </button>
+            )}
+            {(mode === 'design' || mode === 'import') && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
               <button
                 disabled={!previewTemplate}
                 onClick={create}

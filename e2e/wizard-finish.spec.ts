@@ -1,11 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
+import { enableAdvancedMode } from './_create';
 
 // The wizard's FINISH step and the standalone export window.
 //
 // What is pinned here is the branch: everything before Finish configures the graphic, and
-// Finish asks the only remaining question — work on it, or ship it. The export door has to
-// reach a real package WITHOUT the editor, and it has to leave the graphic somewhere the user
-// can find again, or a wizard session ends with a download and nothing else.
+// Finish asks where it goes. THE PRIMARY DOOR is a production (docs/GOALS.md "Student
+// release" step 6) — the road to air; Export ships just the files; the editor door is
+// Advanced mode's continuation and the default studio does not offer it.
 
 /** Walk Entry → Browse → pick a design, then Next through to the Finish step. */
 async function toFinishStep(page: Page, variantName = 'Hairline') {
@@ -19,23 +20,74 @@ async function toFinishStep(page: Page, variantName = 'Hairline') {
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 }
 
-test('finish: the step is the last one and offers both doors', async ({ page }) => {
+test('finish: the production door leads, export follows, and the editor door needs Advanced', async ({ page }) => {
   await toFinishStep(page);
 
   await expect(page.locator('.wz-dot').last()).toHaveText(/Finish/);
-  await expect(page.getByTestId('wz-finish-editor')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
   await expect(page.getByTestId('wz-finish-export')).toBeVisible();
-  // The footer's quiet "Create project" shortcut stands down here — the two cards ARE the
-  // actions, and a third button meaning the same as one of them muddies the branch.
-  await expect(page.getByRole('button', { name: 'Create project' })).toHaveCount(0);
+  // Default studio: no editor door (advanced-mode.spec.ts pins the toggle restoring it).
+  await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
+  // The footer shortcuts stand down here — the door cards ARE the actions.
+  await expect(page.getByTestId('wz-skip-to-finish')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Next ›' })).toHaveCount(0);
+
+  // With nothing saved yet the picker offers exactly "new production".
+  await expect(page.getByTestId('wz-finish-production')).toHaveValue('new');
 
   // The read-back names what was actually chosen, so the branch is taken in full view.
   await expect(page.locator('.wz-finish-summary')).toContainText('Hairline');
   await expect(page.locator('.wz-finish-summary')).toContainText('1920×1080');
 });
 
-test('finish: the editor door creates the project and leaves saving to the user', async ({ page }) => {
+test('finish: the production door saves, pools with a seeded cue, and lands on the production page', async ({ page }) => {
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  await page.getByTestId('wz-finish-production-go').click();
+
+  // The wizard closes onto the PRODUCTION page — the road to air.
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  await expect(page).toHaveURL(/#\/production\//);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  const state = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    const graphics = loadGraphics();
+    const show = loadShows().find((s) => s.name === 'Friday Show');
+    return {
+      libraryNames: graphics.map((g) => g.name),
+      pool: show?.graphics.map((g) => ({ name: g.name, linked: g.graphicId === graphics[0]?.id })) ?? [],
+      cues: show?.cues?.map((c) => c.label) ?? [],
+      hasLook: Boolean(show?.look?.palette?.accent),
+    };
+  });
+  // Library record FIRST (never lose the work), pool copy with the back-link, one cue
+  // auto-seeded from the field defaults, and the look captured onto the new production.
+  expect(state.libraryNames).toEqual(['Guest Strap']);
+  expect(state.pool).toEqual([{ name: 'Guest Strap', linked: true }]);
+  expect(state.cues).toEqual(['Guest Strap']);
+  expect(state.hasLook).toBe(true);
+});
+
+test('finish: skip-to-finish jumps from Browse once a design is picked', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+  // One click instead of four Nexts: the remaining steps keep their defaults.
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  // The rail's forward dots unlocked too — Back to Style directly is one click.
+  await page.locator('.wz-dot', { hasText: 'Style' }).click();
+  await expect(page.getByTestId('font-picker')).toBeVisible();
+  await page.locator('.wz-dot', { hasText: 'Finish' }).click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+});
+
+test('finish: the editor door (Advanced) creates the project and leaves saving to the user', async ({ page }) => {
+  await enableAdvancedMode(page);
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Studio Guest Strap');
   await page.getByTestId('wz-finish-editor').click();
@@ -123,10 +175,14 @@ test('export window: navigating away closes it rather than stranding it over ano
   await page.getByTestId('wz-finish-export').click();
   await expect(page.getByTestId('export-window')).toBeVisible();
 
-  // The window holds a snapshot of ONE graphic; Back is how it would otherwise outlive the
-  // surface it was opened from. The wizard's own create→navigate→open hop happens in a single
-  // batched tick and must NOT trip this.
-  await page.goBack();
+  // The window holds a snapshot of ONE graphic; a route change is how it would otherwise
+  // outlive the surface it was opened from. (The export landing now REPLACES history rather
+  // than pushing, so within this flow there is no Back entry left to strand it over — any
+  // route change must still close it.) The wizard's own create→navigate→open hop happens in
+  // a single batched tick and must NOT trip this.
+  await page.evaluate(() => {
+    window.location.hash = '#/home/productions';
+  });
   await expect(page.getByTestId('export-window')).toBeHidden();
 });
 
