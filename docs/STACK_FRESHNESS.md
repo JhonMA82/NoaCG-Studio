@@ -20,7 +20,16 @@ No automated dependency bumps, and no Dependabot. This is a deliberate call, not
 - **Remotion is exact-pinned in three package files** (`package.json`, `render-worker/`,
   `player-host/`) and they must move together. The split exists so a source-available licence
   never enters the AGPL bundle.
-- **`@vercel/sandbox` is exact-pinned** and runs the render worker.
+- **`@vercel/sandbox` is exact-pinned** and runs the render worker. It is pinned to the version
+  `@remotion/vercel` is built against, and **its peer range is not evidence of anything**:
+  `@remotion/vercel` declares `@vercel/sandbox: ">=1.0.0"`, so npm will happily install a v2 that
+  its own compiled code cannot call. v2 removed the `sandboxId` API entirely — sandboxes are
+  addressed by `name` with session resume — while `@remotion/vercel@4.0.488`'s built output still
+  calls `Sandbox.get({ sandboxId })` and reads `sandbox.sandboxId` (`dist/index.mjs`, three
+  places). Our own three call sites in `api/_lib/executorSandbox.ts` fail typecheck, which is the
+  visible half; the dependency's calls fail at RUNTIME on a real hosted render, where no local
+  gate looks. **Checked 2026-08-03 against 2.9.2 and reverted.** It unblocks only on a
+  `@remotion/vercel` release built against v2 — check its compiled code, not its peer range.
 - **The Vite build target must stay `es2017`** while CasparCG 2.3.x is supported
   (docs/CLOUD_PLAYOUT.md §3). A 2.3.2 client embeds a ~Chromium 65 CEF that rejects `?.` and
   `??` outright — a dead layer with nothing in the log. No automated gate catches this class.
@@ -42,6 +51,19 @@ The audit threshold is `high` on purpose. Low and moderate advisories that have 
 accepted (today: DOMPurify reached through `monaco-editor`) belong in the staleness report, not
 in a weekly alarm — an alarm that cries about something you have consciously accepted trains
 you to ignore it.
+
+**Upgrading `monaco-editor` does not close the DOMPurify pair, whatever the release notes
+suggest.** monaco pins dompurify EXACTLY, so its version moves only when monaco's does: 0.55.1
+carried 3.2.7 and 0.56.0 carries 3.4.8, while the advisory covers `<=3.4.11` and the fix landed
+in 3.4.12. `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0. Closing the pair
+therefore needs a `dompurify` override, which is a deliberate reversal of the acceptance above
+rather than a version bump — decide it as one. Checked 2026-08-03 at monaco 0.56.0.
+
+The threshold cuts the other way too, so read the severity rather than the count: on 2026-08-03 a
+**high** undici advisory (response desynchronization; cross-user disclosure) sat in this list
+unnoticed behind two moderates, which means the blocking gate was genuinely failing and not
+merely reporting accepted noise. Both copies were fixable inside the ranges their parents already
+declared.
 
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
@@ -82,8 +104,9 @@ The video harness already syncs its own catalog (`npm run video:models:sync`); t
 SPX/Lite/Pro routes, which had nothing watching them.
 
 **All four providers are covered, but only two without a key.** OpenRouter and Hugging Face are
-public and always checked. OpenAI and Anthropic need a key, read from `.env` exactly as the bench
-runners read it; without one they are reported **NOT CHECKED** and never counted as ok — "could
+public and always checked. OpenAI and Anthropic need a key, taken from the real environment or
+from the checkout's `.env` through `scripts/read-dotenv.mjs` (the one definition of that, shared
+with the advisor check); without one they are reported **NOT CHECKED** and never counted as ok — "could
 not check" is not "clean" — but they do not fail the run, because the weekly workflow is keyless
 by design and a permanent red there trains everyone to ignore it.
 
@@ -147,18 +170,28 @@ The baseline is recorded: **70 findings** as of 2026-08-03 — 49 security (19 a
 anon `SECURITY DEFINER` functions, 16 deny-all tables, leaked-password protection) and 21
 performance (11 unindexed foreign keys, 8 unused indexes, 2 overlapping policies).
 
+**The token comes from `.env` or the environment.** `SUPABASE_ACCESS_TOKEN=<token>` in the
+checkout's `.env` is enough — the script reads it through `scripts/read-dotenv.mjs`, the same
+shared reader the model check uses, and a real environment variable still overrides the file.
+Create the token at <https://supabase.com/dashboard/account/tokens>. It reads `.env` rather than
+only the environment because every other key here lives in that file: a check that reported "not
+set, so nothing was checked" on a fully configured machine looked like a missing token instead of
+a missing `export`, which is the most misleading answer it has.
+
 Re-record after a deliberate change:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=<token> node scripts/supabase-advisors.mjs --update-baseline
+node scripts/supabase-advisors.mjs --update-baseline
 ```
 
 Read the diff before committing it — recording accepts everything currently reported.
 
-**The live fetch path is untested.** The committed baseline was recorded through the Supabase MCP
-connector rather than the Management API, because no `SUPABASE_ACCESS_TOKEN` was available; same
-data and same `cache_key` identities, different door. The first run with a real token proves the
-HTTP path — and if that run reports differences, suspect the fetch before suspecting the database.
+**The live fetch path was proved on 2026-08-03** and agrees with the baseline exactly: `70 advisor
+findings; 70 accepted in the baseline. No change against the baseline.`, exit 0. That matters
+because the baseline itself was first recorded through the Supabase MCP connector rather than the
+Management API — same data and same `cache_key` identities, but a different door, so until that
+run nothing had exercised the HTTP path. It now has, and the two doors agree. If a future run
+disagrees, suspect the fetch before suspecting the database.
 
 Errors in a baseline fail in the safe direction, which is why hand-assembling one was acceptable:
 a missing entry makes its finding read as NEW and turns the run red, and a key that does not exist

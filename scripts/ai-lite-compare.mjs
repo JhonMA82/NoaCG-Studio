@@ -23,7 +23,9 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { projectRoot } from './api-runtime-build.mjs';
 import { devPort } from './dev-port.mjs';
+import { readEnvFile } from './read-dotenv.mjs';
 
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith('--')));
@@ -44,19 +46,10 @@ const BASE = `http://localhost:${devPort()}`;
 // from the same dedicated test account the configured e2e suite already uses
 // (e2e/configured/_helpers.ts). Falls back to NOACG_LITE_EVAL_BEARER_TOKEN when the
 // credentials are absent, so an operator can still supply one by hand.
-async function readEnvFile() {
-  const env = {};
-  try {
-    const raw = await readFile(path.resolve('.env'), 'utf8');
-    for (const line of raw.split(/\r?\n/)) {
-      const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-      if (match) env[match[1]] = match[2].trim();
-    }
-  } catch { /* no .env - the fallback token path still works */ }
-  return env;
-}
-
-const fileEnv = await readEnvFile();
+// Parsing lives in scripts/read-dotenv.mjs - one definition, shared with the other runners and
+// the freshness checks. Resolved against the project root rather than the cwd, so a run started
+// from a subdirectory finds the same file instead of silently finding none.
+const fileEnv = readEnvFile(projectRoot);
 const credentials = {
   url: process.env.VITE_SUPABASE_URL || fileEnv.VITE_SUPABASE_URL || '',
   anon: process.env.VITE_SUPABASE_ANON_KEY || fileEnv.VITE_SUPABASE_ANON_KEY || '',

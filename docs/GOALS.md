@@ -911,6 +911,27 @@ The stages, in order (details in the plan):
       presets) — the full-frame match-up that misfitted info-cards (dropped card05) now owns
       its contract. Catalog: **11 categories, 49 designs**.
 
+### Adapt-first Create with AI (2026-08-03, binding: docs/ADAPT_FIRST_PLAN.md)
+*Describe the graphic you need, and NoaCG turns a proven broadcast design into a customized,
+editable, production-ready graphic.* The pivot away from cheap models inventing broadcast
+graphics from a blank stylesheet, after five paid Creative-Mode rounds measured that they cannot.
+- [x] **The catalog measured** — `scripts/catalog-geometry.mjs` over all 430 variants: 88 of 89
+      lower thirds sit in the bottom band, 87 at exactly 119px, and the rendered side agrees
+      with the declared zone on 89 of 89; 219 of 430 designs across every category sit at a
+      119/120px inset. Placement is one number, not a preference.
+- [x] **Retrieval before the design call** — `src/ai/retrieval.ts` shortlists through the Browse
+      storefront's own engine and the one anchor table, with no new model call and no second
+      retrieval system: ~20,300 tokens of flat catalog become ~600 of ranked candidates, and the
+      tool schema is narrowed to exactly the designs the prompt showed.
+- [x] **The chassis keeps the zone it was drawn for**, with a requested side answered by
+      retrieval rather than by moving a design off its own anchor; the assembly policy travels
+      as an argument so NoaCG Lite keeps compiling under its own declared contract.
+- [x] **The promise is visible** — the result names the proven design it adapted and shows the
+      shortlist it was chosen from; picking another rebuilds on it deterministically, free.
+- [ ] **Prove the shortlist beats the digest** — one paid round, same briefs and model, full
+      digest vs shortlist (ADAPT_FIRST_PLAN §6.3). Not run; needs explicit cost approval.
+- [ ] **Fold Lite onto the platform placement rule** — needs a paid lower-third re-baseline (§6.2).
+
 ### Import Graphic - your own artwork becomes the design (2026-07-18)
 The flat-PNG import workflow; **docs/IMPORT_MVP.md is the binding contract.** NoaCG is not
 replacing Photoshop/Figma/After Effects - graphics may be designed elsewhere; NoaCG's job is

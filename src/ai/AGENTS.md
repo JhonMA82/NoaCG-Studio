@@ -267,8 +267,10 @@ low-confidence/novel/hybrid classification, or a BEYOND-SCOPE match
 `GraphicType.structuralScope` note excludes - a double-elimination brief on the
 single-elim bracket type. The REGISTRY declares the scope, the intent stage judges the
 brief against it with evidence, `routeIntent` decides deterministically - the
-originalityRequested pattern) - a catalog-fit brief under auto runs the
-pre-routing flow BYTE-IDENTICALLY (no fit narrowing, same tool, same prompts). Explicit
+originalityRequested pattern) - a catalog-fit brief under auto still gets NO FIT NARROWING.
+(It used to run the pre-routing flow byte-identically; **retrieval ended that** - the design call
+now reads the shortlist instead of the full digest. What stays byte-identical is the CREATE
+route, which is the one the frozen control needed.) Explicit
 adapt skips the intent call entirely (one-call economy) and narrows the spec tool's fit to
 catalog; a CREATE decision narrows it to custom (`narrowFitTool`, the narrowedSpecTool
 mechanism). Decision + intent land on `AiTemplateChange.routing`/`.intent` and the telemetry
@@ -285,6 +287,75 @@ adopted and which a control cannot keep contradicting once it is also production
 **Arm A results from 2026-08-02 and earlier are therefore not comparable with later rounds -
 re-baseline the control instead of reusing them** (arm B reuses `coderSystemPrompt`, so it
 moved too). No further prompt change without the same explicit trade being written down.
+
+## Retrieval - the shortlist of proven designs (`retrieval.ts`, docs/ADAPT_FIRST_PLAN.md)
+
+The default path was already an ADAPTATION pipeline; what it lacked was retrieval. The design
+stage was handed `catalogDigest()` - **430 variants, ~20,300 tokens, one flat list** - and asked
+to find the right design in it on the cheapest model in the product, and that chassis choice is
+the one decision the whole grounded path rests on.
+
+`shortlistFor(brief, intent, options?)` narrows it with **no new model call and no second
+retrieval system**: the ranking is the Browse storefront's own engine (`templates/search.ts`) and
+the structural filter is the ONE anchor table, both reading what the intent stage already
+produced. Three things make the result usable rather than merely shorter, each measured:
+
+- **A brief is a SET of terms, not one query.** `textScore` is token-AND - every token must land
+  or the whole query scores zero - and a sentence always contains a word the index cannot place.
+- **Each term is weighted by how RARE it is in the pool.** "lower", "third" and "name" match every
+  lower third there is; summing raw scores collapsed the shortlist to catalog order once the
+  distinctive words ran out (measured: 89 of 89 "matched the brief text").
+- **The cut is RELATIVE to the best match, and the list is never padded.** A worship brief's two
+  scripture designs score 29 and 11 and the next sixty score 2.2 - a nonzero score is not
+  relevance. A slot spent on an irrelevant design is worse than an empty one.
+
+Everything degrades rather than empties: an over-tight field bucket is dropped, a query that
+matched nothing falls back to catalog order, and no resolvable anchor returns `FULL_CATALOG` -
+today's full digest. **`variantSatisfiesAnchor` answers TRUE for an anchor that no longer
+resolves**, which is right for the satisfaction check and would hand retrieval a meaningless
+shortlist, so retrieval checks `anchorResolves` first.
+
+**It runs on the ADAPT route only.** `catalogDigest(only?)` and `narrowVariantTool` are the two
+seams: the prompt shows the shortlist and the schema accepts exactly that set (shown-but-illegal
+is a chassis the model picks and `resolveVariant` silently swaps - the wrong graphic delivered as
+a success). A CREATE route keeps the full digest, so the frozen coder control stays frozen. The
+offline stub picks from the same shortlist deterministically, which is what makes the whole path
+e2e-testable without tokens (`e2e/adapt-first.spec.ts`, `e2e/ai-retrieval.spec.ts`).
+
+**A spec-level REFINEMENT retrieves too, and `ShortlistOptions.keep` is what makes that safe.**
+`specRefine` takes its anchor from the spec it is editing (the structure is not in doubt, so no
+intent call) and its terms from the request PLUS what the graphic already is - "warmer colours"
+places nothing in a design index, and searching on it alone would rank by catalog order and offer
+a worse set than the one already on screen. `keep` pins the design in use into the shortlist:
+narrowing collapses the `variantId` enum, so a design missing from it is one the model cannot ask
+for, and a colour request would swap the user's graphic out from under them. It is matched against
+the ANCHOR rather than the narrowed pool, so a placement filter cannot evict it either, and a
+`keep` from another structure is refused rather than smuggled in.
+
+**A catalog chassis is assembled at the zone it was DRAWN for** (`AssembleOptions.
+keepChassisZone`, set by `groundedResult`). Measured over 89 lower thirds: the rendered side
+agrees with the declared `defaultZone` on 89 of 89, 88 sit in the bottom band and 87 at exactly
+119px from the edge (`scripts/catalog-geometry.mjs`). The catalog ships left-, right- and
+centre-drawn designs as SEPARATE members because re-siding a strap means re-siding its accent, so
+placement is expressed by picking a differently-anchored member - which retrieval now puts in
+front of the model - and by the Style panel afterwards. The `intentCoversFrame` precedent: a
+decision the catalog's own data answers better than a prompt does.
+
+**A brief that ASKS for a side is what makes that defensible, so retrieval matches placement
+against `variant.defaultZone`** - the one place a side is declared. It cannot come from the text
+index: `templateMeta` records a coverage-derived `placements` list, never a side, and of the
+twelve right-anchored lower thirds only three carry the word in their name ("Line Handle" and
+"Glass Tag" are unreachable by any wording). A matched design is RELEVANT, not merely boosted,
+or it would sit behind designs on the wrong side of the frame.
+
+**The policy is an ARGUMENT to `groundedResult`, not a constant** (`AssembleOptions`:
+`keepChassisZone` + `sizeScaleRange`), because **NoaCG Lite reaches that same function**
+(`liteGroundedResult` calls it with `profile` stripped, so nothing there can detect Lite) and
+Lite must keep compiling under its own declared contract: its schema allows `sizeScale` 0.7-1.4
+where the harness tool says 0.85-1.2, and its prompt already carries the bottom-zone rule.
+Moving either needs the paid re-baseline ADAPT_FIRST_PLAN §6.2 defers. Clamping every caller to
+the harness's numbers told the Lite model 1.35 was legal and then discarded it at compile - the
+shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over.
 
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather

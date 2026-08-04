@@ -857,6 +857,18 @@ actually faced; a lone result stages nothing (counting it would score every face
 direction before creating it — the most engaged ones — trained the model with nothing.
 CreationWizard's `createFromAi` COMMITS whatever is staged.
 
+**The result names the PROVEN DESIGN it was adapted from, and shows what it was chosen
+between** (docs/ADAPT_FIRST_PLAN.md §3 Stage U). "Adapted from a proven design" is a claim, so
+the card carries the design's name (`data-testid="ai-adapted-from"`) and, under it, the
+retrieved shortlist (`ai-shortlist`) as MiniPreview cards - the same card chassis as the three
+directions and a Browse tile, because all three are "pick a design". Picking another one
+REBUILDS on it deterministically: `assembleGroundedTemplate(spec, ctx, { keepChassisZone: true })`
+with the same spec, no model call and no cost, so the user can overrule the AI's choice without
+paying for a generation. No structural KIND check is needed on that swap - every design on the
+shortlist satisfies the brief's anchor by construction (src/ai/retrieval.ts).
+The card's caption is the NAME ALONE: a style-family tag beside it clipped "Scripture Reading"
+on a 132px card to name something the live render above it already shows.
+
 A failing non-Lite result carries **⟳ Fix these** (`data-testid="ai-fix"`): the exact validator
 findings go back as the instruction, at CODE level (no spec — the findings are about emitted
 code). It is a button, not an automatic loop: a grounded assembly failing its own bench is a

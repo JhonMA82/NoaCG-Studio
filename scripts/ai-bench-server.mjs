@@ -8,24 +8,19 @@
 // secrets, and nothing here edits .env.
 
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { projectRoot } from './api-runtime-build.mjs';
 import { devPort } from './dev-port.mjs';
+import { readEnvFile as parseEnvFile } from './read-dotenv.mjs';
 
 export const BASE = `http://localhost:${devPort()}`;
 
 /** Read .env without loading it into this process: the bench needs the test-account
- *  credentials, not the provider keys. */
+ *  credentials, not the provider keys. Parsing lives in scripts/read-dotenv.mjs, so this and
+ *  the freshness checks cannot drift on what a line means. Resolved against the project root
+ *  rather than the cwd - a bench started from a subdirectory used to find no .env at all and
+ *  fall through to the hand-supplied-token path without saying so. */
 export async function readEnvFile() {
-  const env = {};
-  try {
-    const raw = await readFile(path.resolve('.env'), 'utf8');
-    for (const line of raw.split(/\r?\n/)) {
-      const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-      if (match) env[match[1]] = match[2].trim();
-    }
-  } catch { /* absent - the caller falls back to a hand-supplied token */ }
-  return env;
+  return parseEnvFile(projectRoot);
 }
 
 /** Access tokens last about an hour and a full bench outruns that, so one minted at the
