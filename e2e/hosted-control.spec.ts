@@ -20,11 +20,10 @@ test('a saved graphic carries its entries into the show it is added to', async (
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
   await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-controls').click();
-  await page
-    .locator('.pk-graphic', { hasText: 'Presenter lower third' })
-    .locator('button', { hasText: 'Open control panel' })
-    .click();
+  await page.getByTestId('home-nav-graphics').click();
+  const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('open-control').click();
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
   await page.getByTestId('add-entry').click();
   await page.getByTestId('entry-field-f0').fill('Anna Andersson');

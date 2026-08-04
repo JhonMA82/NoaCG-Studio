@@ -17,19 +17,7 @@ import { hasChatGraphic, chatGraphicBlock, stripChatGraphic, chatBackendRefKey, 
 import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
 import { slug } from '../export/common';
-import { downloadShowZip } from '../export/showExport';
-import {
-  addGraphicToShow,
-  createShow,
-  deleteShow,
-  loadShows,
-  moveShowGraphic,
-  removeShowGraphic,
-  setShowHostedSlug,
-  setShowOutputSlug,
-  type Show,
-} from '../model/shows';
-import { controlPageUrl, publishControlShow, unpublishControlShow } from '../control/hostedControl';
+import { addGraphicToShow, createShow, loadShows, type Show } from '../model/shows';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
 import { useRouter } from '../app/router';
 
@@ -75,41 +63,6 @@ export default function ControlPanel() {
     const { shows: next, error } = addGraphicToShow(activeShow.id, template, { graphicId: savedGraphicId });
     setShows(next);
     setShowNote(error ?? `✓ "${template.name}" is in the production (same name updates in place).`);
-  };
-  const exportShow = async (show: Show) => {
-    await downloadShowZip(show);
-    setShowNote(`✓ Exported "${show.name}" — one folder per graphic + show_controlpanel.html (production package).`);
-  };
-  // ── Hosted control (account feature): publish the show's control page online ──
-  const [publishBusy, setPublishBusy] = useState(false);
-  const hostedUrl = controlPageUrl;
-  const publishShow = async (show: Show) => {
-    setPublishBusy(true);
-    try {
-      const published = await publishControlShow(show);
-      if (published) {
-        setShowHostedSlug(show.id, published.slug);
-        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
-        setShowNote('✓ Production published — the control page and the browser output URL are live. Re-publish after changing the rundown.');
-      }
-    } catch (e) {
-      setShowNote(`Publish failed: ${(e as Error).message}`);
-    } finally {
-      setPublishBusy(false);
-    }
-  };
-  const unpublishShow = async (show: Show) => {
-    setPublishBusy(true);
-    try {
-      await unpublishControlShow(show.id);
-      setShowHostedSlug(show.id, undefined);
-      setShows(setShowOutputSlug(show.id, undefined));
-      setShowNote('Production unpublished — the control link and the output URL no longer work.');
-    } catch (e) {
-      setShowNote(`Unpublish failed: ${(e as Error).message}`);
-    } finally {
-      setPublishBusy(false);
-    }
   };
 
   const controls = fieldDescriptors(template.fields); // operator view: hidden fields stay hidden
@@ -277,11 +230,14 @@ export default function ControlPanel() {
       <div className="divider" />
       <div className="panel-section">
         <h3>Productions <span className="muted">— graphics that run together</span></h3>
+        {/* SLIM by design (docs/GOALS.md "Student release" step 8): this block only puts the
+            current graphic INTO a production. The layer stack, export, publishing and the
+            links all live on the production's own page — two surfaces carrying the same
+            controls is how they drift. */}
         <p className="hint">
           A production collects graphics that run at once (bug + lower third + ticker) and the
           prepared CUES that air on them. Add the current graphic here; everything else — cues,
-          the browser-output URL, publishing, operating — lives on the production’s own page
-          (Home → Productions).
+          layers, export, publishing, operating — lives on the production’s own page.
         </p>
         <div className="row">
           <input
@@ -307,113 +263,18 @@ export default function ControlPanel() {
           </div>
         )}
         {activeShow && (
-          <>
-            {activeShow.graphics.length === 0 && (
-              <p className="muted" style={{ marginTop: 6 }}>Empty — add the current graphic, then open other graphics and add them too.</p>
-            )}
-            {/* The production's LAYER STACK, shown exactly as the production page shows it
-                (docs/CLOUD_PLAYOUT.md §5): front to back, ↑ forward and ↓ back. The stored pool
-                is the reverse — paint order — and two surfaces that ordered the same array
-                differently would be a trap, not a convenience. */}
-            {[...activeShow.graphics].reverse().map((g, rowIndex) => (
-              <div key={g.id} className="row show-graphic-row">
-                <span className="grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  L{activeShow.graphics.length - rowIndex} · {g.name}
-                </span>
-                <button
-                  className="show-row-btn"
-                  disabled={rowIndex === 0}
-                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, 1))}
-                  title="Bring this layer forward — it paints over the one above it"
-                >↑</button>
-                <button
-                  className="show-row-btn"
-                  disabled={rowIndex === activeShow.graphics.length - 1}
-                  onClick={() => setShows(moveShowGraphic(activeShow.id, g.id, -1))}
-                  title="Send this layer back — the one below it paints over it"
-                >↓</button>
-                <button className="show-row-btn" onClick={() => setShows(removeShowGraphic(activeShow.id, g.id))} title="Remove from the production">✕</button>
-              </div>
-            ))}
-            <div className="row" style={{ marginTop: 8 }}>
-              <button
-                onClick={() => useRouter.getState().navigate({ view: 'production', id: activeShow.id })}
-                title="Cues, links, publishing, and operating live on the production's page"
-                data-testid="open-production-page"
-              >
-                📺 Open production page
-              </button>
-              <button onClick={() => { setShows(deleteShow(activeShow.id)); setShowId(''); }} title="Delete this production (its graphics stay saved wherever else they live)">
-                Delete production
-              </button>
-              <div className="spacer" style={{ flex: 1 }} />
-              <button className="primary" disabled={activeShow.graphics.length === 0} onClick={() => exportShow(activeShow)}>
-                ⬇ Export production package
-              </button>
-            </div>
-            {backendConfigured && (
-              <div style={{ marginTop: 10 }}>
-                {needsSignIn ? (
-                  <p className="muted">
-                    <button className="link-inline" onClick={() => openSignIn('Sign in to host this production’s control page online.')}>
-                      Sign in
-                    </button>{' '}
-                    to host this production’s control page online — operators then drive it from
-                    any device via a private link, with crash recovery.
-                  </p>
-                ) : (
-                  <>
-                    <div className="row">
-                      <button
-                        className="primary"
-                        disabled={publishBusy || activeShow.graphics.length === 0}
-                        onClick={() => publishShow(activeShow)}
-                        title="Create or update the online control page + output URL for this production"
-                      >
-                        {activeShow.hostedSlug ? '↻ Re-publish online page' : '🌐 Host control page online'}
-                      </button>
-                      {activeShow.hostedSlug && (
-                        <button disabled={publishBusy} onClick={() => unpublishShow(activeShow)}>Unpublish</button>
-                      )}
-                    </div>
-                    {activeShow.hostedSlug && (
-                      <div className="row" style={{ marginTop: 6 }}>
-                        <input
-                          readOnly
-                          value={hostedUrl(activeShow.hostedSlug)}
-                          style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
-                          title="The operator link — anyone with it can drive the production (keep it private)"
-                          onFocus={(e) => e.currentTarget.select()}
-                        />
-                        <button
-                          onClick={() => {
-                            // Only claim the copy once it lands — the clipboard can refuse
-                            // (permission, or a plain-http page with no clipboard at all).
-                            void navigator.clipboard?.writeText(hostedUrl(activeShow.hostedSlug!)).then(
-                              () => setShowNote('✓ Link copied.'),
-                              () => setShowNote('Could not copy — select the link above and copy it by hand.'),
-                            );
-                          }}
-                          title="Copy the operator link"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    )}
-                    {activeShow.hostedSlug && (
-                      <p className="hint" style={{ marginTop: 6 }}>
-                        Exporting the production now bakes the hosted receiver into each graphic, so
-                        the online page drives the exported package from any device — with recovery.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button
+              onClick={() => useRouter.getState().navigate({ view: 'production', id: activeShow.id })}
+              title="Cues, layers, links, publishing, and operating live on the production's page"
+              data-testid="open-production-page"
+            >
+              Open production page →
+            </button>
+          </div>
         )}
-        {/* The same slot carries confirmations AND failures ("Publish failed: …"), so it must not
-            paint every one of them green. ✓ leads a success, as it does in Home. */}
+        {/* The same slot carries confirmations AND failures, so it must not paint every one of
+            them green. ✓ leads a success, as it does in Home. */}
         {showNote && (
           <p className={showNote.startsWith('✓') ? 'status-ok' : 'status-bad'} style={{ marginTop: 6 }}>
             {showNote}

@@ -74,7 +74,9 @@ test.describe('signed-in UX walk (configured)', () => {
     await page.getByTestId('save-confirm').click();
     await page.getByTestId('open-home').click();
     await page.getByTestId('home-nav-graphics').click();
-    await page.locator('.pk-graphic', { hasText: 'Hairline' }).getByTestId('publish-graphic').click();
+    const hairlineRow = page.locator('.lib-row', { hasText: 'Hairline' });
+    await hairlineRow.getByTestId('row-menu').click();
+    await hairlineRow.getByTestId('publish-graphic').click();
     await shot(page, 'publish-sheet');
     await page.getByPlaceholder(/One-line description/).fill('E2E signed-in walk');
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
@@ -133,13 +135,16 @@ test.describe('signed-in UX walk (configured)', () => {
     await panel.getByRole('button', { name: 'Create', exact: true }).click();
     await panel.getByRole('button', { name: '+ Add current' }).click();
 
-    const host = panel.getByRole('button', { name: /Host control page online/ });
-    await expect(host).toBeEnabled();
-    // The cloud-playout wave renamed rundowns to productions in user-facing strings; a tooltip
-    // is user-facing, and this branch only ever renders for a signed-in account — which is how
-    // an earlier rename missed it.
-    await expect(host).toHaveAttribute('title', /production/i);
-    await expect(host).not.toHaveAttribute('title', /\bshow\b|\brundown\b/i);
-    await shot(page, 'control-panel-hosted-publish');
+    // Publishing lives on the production's own PAGE now (the editor block is slim by design,
+    // docs/GOALS.md "Student release" step 8) — follow its link and publish from there.
+    await panel.getByTestId('open-production-page').click();
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    const publish = page.getByTestId('production-publish');
+    await expect(publish).toBeEnabled();
+    // The cloud-playout wave renamed rundowns to productions in user-facing strings — the
+    // surface must speak "production", never "show" or "rundown".
+    await expect(publish).toContainText(/production/i);
+    await expect(page.locator('.control-page-main')).not.toContainText(/\brundown export\b/i);
+    await shot(page, 'production-page-publish');
   });
 });

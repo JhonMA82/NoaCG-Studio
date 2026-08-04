@@ -6,7 +6,9 @@
 //
 // Routes:
 //   ''                     the editor (whichever kind docKind persisted)
-//   #/home[/<section>]     Home — recent / graphics / controls / productions / videos / looks
+//   #/home[/<section>]     Home — no section = the dashboard (productions first, then top
+//                          graphics + videos); sections: productions / graphics / videos /
+//                          looks. Retired section names (recent, controls) land on the dashboard
 //   #/graphic/<id>         open that library graphic in the SPX editor (refresh restores it)
 //   #/control/<graphicId>  the graphic's control panel
 //   #/production/<id>      one production's page (pool, cues, links, operating)
@@ -39,7 +41,7 @@ export function parseRoute(hash: string): Route {
     case 'graphic':
       return parts[1] ? { view: 'graphic', id: parts[1] } : { view: 'editor' };
     case 'control':
-      return parts[1] ? { view: 'control', id: parts[1] } : { view: 'home', section: 'controls' };
+      return parts[1] ? { view: 'control', id: parts[1] } : { view: 'home', section: 'graphics' };
     case 'production':
       return parts[1] ? { view: 'production', id: parts[1] } : { view: 'home', section: 'productions' };
     case 'video':

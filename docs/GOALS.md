@@ -1326,8 +1326,17 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       four palettes, talk-show 3/24 across four), and a duplicate the name-keyed pool
       would have silently merged removed. Coherence pinned in e2e/wizard-kit.spec.ts.
       Catalog defaults untouched - no baseline re-record needed.
-- [ ] **8. Home simplified around Productions** - productions first, dashboards one click,
-      professional aligned grid, phone reaches a control dashboard in two taps.
+- [x] **8. Home simplified around Productions** - productions first, dashboards one click,
+      professional aligned grid, phone reaches a control dashboard in two taps. Done
+      2026-08-04: `#/home` is a DASHBOARD (productions with Open-dashboard + output-URL copy
+      first, then top graphics + search, then videos); nav = Productions / Graphics / Videos /
+      Brand looks (Recent + Control-panels retired - the dashboard covers recent, and every
+      graphic row reaches its control panel via its ⋯ menu). Rows are the uniform `.lib-row`
+      grid (fixed 168x95 letterboxed thumbs) with THREE actions - Open, "+ Production"
+      popover, ⋯ overflow (control panel / export / rename / duplicate / publish / two-step
+      delete); icons are inline SVG (components/icons.tsx), no pictographic emoji. The
+      editor's Productions block slimmed to add-current + link. Phone: chip nav, two-row
+      library rows, 44px targets, two taps to a dashboard (pinned in layout.spec.ts).
 - [ ] **9. Account essentials** - password reset and change, account email, sign out,
       session-expiry recovery that never loses local work.
 - [ ] **10. Playout hardening + owner acceptance** - automated recovery drills, soak and

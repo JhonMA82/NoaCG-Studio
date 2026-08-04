@@ -17,6 +17,17 @@ async function saveAs(page: Page, name: string) {
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 }
 
+/** Home → Graphics → the row's ⋯ menu → Control panel. The retired Control-panels SECTION's
+ *  job lives on every graphic row now (docs/GOALS.md "Student release" step 8). */
+async function openControlPanel(page: Page, name: string) {
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  const row = page.locator('.lib-row', { hasText: name });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('open-control').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+}
+
 test('save names the graphic; the status stays honest through edits and reopen', async ({ page }) => {
   await createProject(page, 'Hairline');
   await expect(page.getByTestId('save-status')).toHaveText('Not saved');
@@ -77,11 +88,14 @@ test('Home lists the library; Back walks the history; an old package link lands 
 
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
-  await expect(page.locator('.pk-graphic', { hasText: 'Presenter lower third' })).toBeVisible();
+  await expect(page.locator('.lib-row', { hasText: 'Presenter lower third' })).toBeVisible();
 
-  // Graphics section → the control panel → Back returns to Home (history is real).
+  // Graphics section → the row's ⋯ menu → the control panel → Back returns to Home
+  // (history is real). The per-graphic control panel lives one step from every row.
   await page.getByTestId('home-nav-graphics').click();
-  await page.locator('.pk-graphic', { hasText: 'Presenter lower third' }).getByTitle('Open its control panel').click();
+  const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('open-control').click();
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
   await page.goBack();
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -131,7 +145,7 @@ test('opening another graphic with unsaved changes asks first; Discard proceeds'
   await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
 
   await page.getByTestId('open-home').click();
-  await page.locator('.pk-graphic', { hasText: 'First graphic' }).getByTestId('open-graphic').click();
+  await page.locator('.lib-row', { hasText: 'First graphic' }).getByTestId('open-graphic').click();
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-discard').click();
   await expect(page.locator('.tpl-name')).toHaveText('First graphic');
@@ -140,10 +154,7 @@ test('opening another graphic with unsaved changes asks first; Discard proceeds'
 test('a saved graphic\'s control panel: entries create, play with the active entry, persist', async ({ page }) => {
   await createProject(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-controls').click();
-  await page.locator('.pk-graphic', { hasText: 'Presenter lower third' }).locator('button', { hasText: 'Open control panel' }).click();
-  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await openControlPanel(page, 'Presenter lower third');
 
   // Three entries — the operator's rundown rows.
   await page.getByTestId('add-entry').click();
@@ -172,7 +183,7 @@ test('a saved graphic\'s control panel: entries create, play with the active ent
   await expect(page.locator('.control-entry')).toHaveCount(3);
   await expect(page.locator('.control-entry', { hasText: 'Anna Andersson' })).toBeVisible();
 
-  // Back returns to Home's control panels section (history is real).
+  // Back returns to Home's graphics section (history is real).
   await page.goBack();
   await expect(page.getByTestId('home-page')).toBeVisible();
 });
@@ -184,10 +195,7 @@ test('switching entries re-settles the SAME preview document instead of reloadin
   // still land without a take; only the reload goes away.
   await createProject(page, 'Hairline');
   await saveAs(page, 'Rundown graphic');
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-controls').click();
-  await page.locator('.pk-graphic', { hasText: 'Rundown graphic' }).locator('button', { hasText: 'Open control panel' }).click();
-  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await openControlPanel(page, 'Rundown graphic');
 
   await page.getByTestId('add-entry').click();
   await page.getByTestId('entry-field-f0').fill('Michael Smith');
@@ -224,10 +232,7 @@ test('the control panel reports the state and greys an event the machine would d
   // so a live operator had no on-air indication and every button looked pressable.
   await createProject(page, { category: 'quiz' });
   await saveAs(page, 'Quiz board');
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-controls').click();
-  await page.locator('.pk-graphic', { hasText: 'Quiz board' }).locator('button', { hasText: 'Open control panel' }).click();
-  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await openControlPanel(page, 'Quiz board');
 
   // The chip names where the preview is, and it is what the greying is judged against.
   await expect(page.getByTestId('control-state')).toContainText('enter');
@@ -252,10 +257,7 @@ test('the control panel reports the state and greys an event the machine would d
 test('the control panel shows the graphic at rest before any take, and says how to get Home', async ({ page }) => {
   await createProject(page, 'Hairline');
   await saveAs(page, 'Settled at rest');
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-controls').click();
-  await page.locator('.pk-graphic', { hasText: 'Settled at rest' }).locator('button', { hasText: 'Open control panel' }).click();
-  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await openControlPanel(page, 'Settled at rest');
 
   // A graphic is hidden until play(), so an unsettled preview is an empty black rectangle.
   // The panel settles it on load: the operator sees what they are about to air, no take needed.
@@ -311,7 +313,7 @@ test('a Home card shows the real graphic, parked at its settled on-air state', a
   await saveAs(page, 'Presenter lower third');
 
   await page.getByTestId('open-home').click();
-  const row = page.locator('.pk-graphic', { hasText: 'Presenter lower third' });
+  const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
   await expect(row.getByTestId('graphic-thumb')).toBeVisible();
 
   // The card is a LIVE render, not a stored picture — the template's own fields are inside it,
@@ -326,11 +328,13 @@ test('a Home card shows the real graphic, parked at its settled on-air state', a
     expect(Number(opacity)).toBeGreaterThan(0.9);
   }).toPass();
 
-  // It follows the graphic rather than a snapshot: renaming leaves the same live render in place.
-  await row.getByTitle('Rename').click();
+  // It follows the graphic rather than a snapshot: renaming (via the row's ⋯ menu) leaves the
+  // same live render in place.
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('rename-graphic').click();
   await page.getByTestId('rename-input').fill('Anchor lower third');
   await page.getByTestId('rename-input').press('Enter');
-  const renamed = page.locator('.pk-graphic', { hasText: 'Anchor lower third' });
+  const renamed = page.locator('.lib-row', { hasText: 'Anchor lower third' });
   await expect(renamed.getByTestId('graphic-thumb')).toBeVisible();
   await expect(renamed.locator('.gfx-thumb iframe').contentFrame().locator('#f0')).not.toBeEmpty();
 });
@@ -344,7 +348,7 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click();
 
-  const row = page.locator('.pk-graphic', { hasText: 'Presenter lower third' });
+  const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
   const card = row.getByTestId('graphic-thumb');
   await expect(card).toBeVisible();
   // The graphic's own root, found the way the framing code finds it — never a class name, which
@@ -389,38 +393,45 @@ test('phone width: every row action is reachable, the text stays two lines, the 
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click();
 
-  const row = page.locator('.pk-graphic').first();
+  const row = page.locator('.lib-row').first();
   await expect(row).toBeVisible();
 
-  // Every action button sits inside the viewport with a touch-sized box — the review found
-  // Move and Delete rendered past the 390px edge with no way to scroll to them.
-  const buttons = row.locator('.pk-actions button');
-  const count = await buttons.count();
-  expect(count).toBeGreaterThanOrEqual(6);
-  for (let i = 0; i < count; i++) {
-    const box = await buttons.nth(i).boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-    expect(box!.height).toBeGreaterThanOrEqual(36);
+  // The row keeps THREE visible controls (step 8's action model: Open, + Production, ⋯) —
+  // each a 44px touch target sitting inside the 390px viewport. The old seven-button strip
+  // is the thing this redesign removed.
+  for (const id of ['open-graphic', 'add-to-production', 'row-menu']) {
+    const box = (await row.getByTestId(id).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.height).toBeGreaterThanOrEqual(44);
   }
 
-  // Name and metadata are single ellipsized lines with the action strip below them,
-  // not a seven-line stack sharing one row.
-  const nameBox = (await row.locator('.pk-info strong').boundingBox())!;
-  const metaBox = (await row.locator('.pk-info .muted').boundingBox())!;
-  const openBox = (await row.getByTestId('open-graphic').boundingBox())!;
+  // The rarer actions live behind ⋯ and open INSIDE the viewport.
+  await row.getByTestId('row-menu').click();
+  for (const id of ['open-control', 'export-graphic', 'delete-graphic']) {
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  }
+  await page.locator('.lib-menu-backdrop').click({ position: { x: 5, y: 5 } });
+  await expect(page.getByTestId('export-graphic')).toHaveCount(0); // outside press closes it
+
+  // Name and metadata are single ellipsized lines, not a wrapped stack.
+  const nameBox = (await row.locator('.lib-info strong').boundingBox())!;
+  const metaBox = (await row.locator('.lib-info .muted').boundingBox())!;
   expect(nameBox.height).toBeLessThanOrEqual(24);
   expect(metaBox.height).toBeLessThanOrEqual(24);
-  expect(openBox.y).toBeGreaterThanOrEqual(nameBox.y + nameBox.height - 1);
 
   // No page-level horizontal overflow.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
-  // The section nav is one horizontally scrollable chip row, not a ragged half-screen grid.
+  // The section nav is ONE chip row (scrollable if it overflows), not a ragged half-screen
+  // grid: every chip sits on the same line. (Four sections may or may not overflow 390px, so
+  // the one-row fact is asserted directly rather than via scrollWidth.)
   const nav = page.locator('.home-nav');
   expect((await nav.boundingBox())!.height).toBeLessThanOrEqual(80);
-  expect(await nav.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  const chipTops = await nav.locator('button').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
+  expect(new Set(chipTops.map((t) => Math.round(t))).size).toBe(1);
 });
 
 test('video and graphics stay separate but connected: #/video, back to graphics, never trapped', async ({ page }) => {
@@ -450,7 +461,7 @@ test('looks: capture the current look in Home, apply it to another graphic, surv
   await page.getByTestId('home-nav-looks').click();
   await page.getByPlaceholder(/Look name/).fill('Mint look');
   await page.getByRole('button', { name: 'Save current look' }).click();
-  await expect(page.locator('.pk-graphic', { hasText: 'Mint look' })).toBeVisible();
+  await expect(page.locator('.lib-row', { hasText: 'Mint look' })).toBeVisible();
 
   // The look survives a full reload (localStorage) and applies to a FRESH graphic. A fresh
   // graphic matters for determinism too: whether the autosave (800 ms debounce) caught the
@@ -460,7 +471,7 @@ test('looks: capture the current look in Home, apply it to another graphic, surv
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' }); // the wizard opens on load — make the fresh graphic
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-looks').click();
-  await page.locator('.pk-graphic', { hasText: 'Mint look' }).getByRole('button', { name: 'Apply', exact: true }).click();
+  await page.locator('.lib-row', { hasText: 'Mint look' }).getByRole('button', { name: 'Apply', exact: true }).click();
   // Apply returns to the editor (the look retints the OPEN graphic).
   const css = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

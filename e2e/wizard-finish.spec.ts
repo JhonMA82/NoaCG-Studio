@@ -131,7 +131,7 @@ test('finish: the export door saves the graphic and opens the export window on H
   // Closing the window leaves the user in the library, holding what they just made.
   await win.locator('.gallery-close').click();
   await expect(win).toBeHidden();
-  await expect(page.locator('.pk-graphic')).toContainText('Match Day Strap');
+  await expect(page.locator('.lib-row')).toContainText('Match Day Strap');
 });
 
 test('finish: the name reaches the exported package folder', async ({ page }) => {
@@ -161,7 +161,10 @@ test('export window: a saved graphic exports from Home without opening the edito
   await page.getByTestId('export-window').locator('.gallery-close').click();
   await expect(page.getByTestId('export-window')).toBeHidden();
 
-  await page.getByTestId('export-graphic').first().click();
+  // Export lives in the row's ⋯ menu (step 8's three-action rows).
+  const row = page.locator('.lib-row', { hasText: 'Match Day Strap' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('export-graphic').click();
   const win = page.getByTestId('export-window');
   await expect(win).toBeVisible();
   await expect(win.locator('h2')).toContainText('Match Day Strap');

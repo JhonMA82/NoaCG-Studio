@@ -3790,6 +3790,78 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .home-search { margin-bottom: 12px; }
 .home-search input { max-width: 420px; }
 
+/* ── The library GRID (docs/GOALS.md "Student release" step 8): one row shape for every list.
+   Four columns — thumbnail (fixed, so the text column starts on one line for every row),
+   name + metadata, the two primary actions, the overflow menu. `.lib-row-flat` swaps the
+   thumbnail column for a small icon (productions, videos, looks — rows with no render). */
+.lib-row {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr) max-content max-content;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.lib-row:first-of-type,
+h2 + .lib-row,
+.home-search + .lib-row,
+.hint + .lib-row,
+.lib-create-row + .lib-row { border-top: none; }
+.lib-row-flat { grid-template-columns: max-content minmax(0, 1fr) max-content max-content; min-height: 48px; }
+.lib-row-icon { color: var(--text-dim); display: inline-flex; padding: 0 4px; }
+.lib-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lib-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-info .muted { font-size: 12px; }
+.lib-actions { display: flex; align-items: center; gap: 6px; }
+.lib-actions button { white-space: nowrap; }
+.lib-live { color: #4ade80; }
+.lib-create-row { margin-bottom: 10px; }
+.lib-create-row input { max-width: 320px; }
+
+/* The row popovers — the ⋯ overflow menu and the "+ Production" picker. A plain absolute
+   popover against its button (the rows never clip), closed by the fixed backdrop. */
+.lib-menu-host { position: relative; }
+/* Above the mobile topbar's sticky z-index 60: an outside press ANYWHERE — including on the
+   topbar — must close the menu rather than land through it. */
+.lib-menu-backdrop { position: fixed; inset: 0; z-index: 89; }
+.lib-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 90;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  padding: 4px;
+}
+.lib-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.lib-menu button:hover { background: rgba(232, 237, 242, 0.06); }
+.lib-menu .lib-menu-destructive { color: #f87171; }
+.lib-menu .lib-menu-destructive:hover { background: rgba(248, 113, 113, 0.1); }
+.lib-menu .hint { margin: 4px 8px; }
+.lib-menu-new { display: flex; gap: 4px; padding: 6px 4px 2px; border-top: 1px solid var(--border); margin-top: 4px; }
+.lib-menu-new input { min-width: 0; flex: 1; }
+
+/* The nav's inline SVG icons sit on the text baseline like glyphs. */
+.home-nav button svg { vertical-align: -3px; margin-right: 2px; }
+.home-content h2 svg { vertical-align: -3px; margin-right: 4px; color: var(--text-dim); }
+
 /* A card's live thumbnail (home/GraphicThumb): the real graphic, scaled from its own
    resolution and parked at rest. Inert — the row's buttons own every gesture. */
 .gfx-thumb {
@@ -4105,6 +4177,29 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   /* Touch targets: roomy enough for a thumb, and the move select gets the whole line. */
   .pk-graphic .pk-actions button { min-height: 40px; min-width: 44px; }
   .pk-graphic .pk-actions select { flex: 1 1 100%; min-height: 40px; }
+
+  /* The library grid on a phone: TWO rows — the compact thumb (GraphicThumb's 96×54, keep the
+     two in sync) beside the name with the ⋯ menu at its end, then the action buttons on a
+     full-width line of their own. One row crushed the name to two letters: the two labelled
+     buttons cost more width than a 390px viewport has left beside a thumbnail. 44px touch
+     targets, so open-app → tap "Open dashboard" is a real two-tap path to a control surface. */
+  .lib-row {
+    grid-template-columns: 96px minmax(0, 1fr) max-content;
+    grid-template-areas: 'thumb info menu' 'actions actions actions';
+    gap: 6px 8px;
+  }
+  .lib-row-flat {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-areas: 'thumb info menu' 'actions actions actions';
+  }
+  .lib-row > .gfx-thumb, .lib-row-icon { grid-area: thumb; }
+  .lib-info { grid-area: info; }
+  .lib-actions { grid-area: actions; flex-wrap: wrap; }
+  /* The ⋯ host takes the menu slot; a flat row's trailing delete button shares it. */
+  .lib-row > .lib-menu-host, .lib-row > button:last-child { grid-area: menu; align-self: start; }
+  .lib-actions button,
+  .lib-menu-host > button { min-height: 44px; min-width: 44px; }
+  .lib-create-row input { max-width: none; flex: 1; }
 }
 
 /* ══ Wizard entry: Continue working + the separated video strip ═══════════════════════════ */

@@ -30,17 +30,26 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await createProject(page, { name: 'Arena Quiz' });
   await addCurrentToShow(page, 'Evening Show');
 
-  // The production lists both as LAYERS, front to back: the newest addition is on top, so it
-  // heads the list and carries the higher number (docs/CLOUD_PLAYOUT.md §5).
+  // The layer stack, the export and everything else live on the production's own PAGE now —
+  // the editor's Productions block is deliberately slim (docs/GOALS.md "Student release"
+  // step 8): add-current + the link, nothing that could drift from the page.
   const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await expect(section.locator('.show-graphic-row')).toHaveCount(2);
-  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Arena Quiz');
-  await expect(section.locator('.show-graphic-row').nth(1)).toContainText('L1 · Hairline');
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  // Both graphics as LAYERS, front to back: the newest addition is on top, so it heads the
+  // list and carries the higher number (docs/CLOUD_PLAYOUT.md §5).
+  const layers = page.locator('[data-testid^="pool-"]');
+  await expect(layers).toHaveCount(2);
+  await expect(layers.nth(0)).toContainText('L2');
+  await expect(layers.nth(0)).toContainText('Arena Quiz');
+  await expect(layers.nth(1)).toContainText('L1');
+  await expect(layers.nth(1)).toContainText('Hairline');
 
   // Export: one folder per graphic + the aggregated show panel.
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    section.getByRole('button', { name: /Export production package/ }).click(),
+    page.getByTestId('export-production').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
@@ -258,19 +267,31 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await createProject(page, { name: 'Arena Quiz' });
   await addCurrentToShow(page, 'Reorder Show');
 
+  // The layer stack lives on the production PAGE now (the editor block is slim by design).
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
   // Front to back: Arena Quiz went in last, so it starts on top. Bringing the BACK layer
   // forward puts Hairline on top and renumbers both.
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Arena Quiz');
-  await section.locator('.show-graphic-row').nth(1).getByRole('button', { name: '↑' }).click();
-  await expect(section.locator('.show-graphic-row').nth(0)).toContainText('L2 · Hairline');
-  await expect(section.locator('.show-graphic-row').nth(1)).toContainText('L1 · Arena Quiz');
+  const layers = page.locator('[data-testid^="pool-"]');
+  await expect(layers.nth(0)).toContainText('Arena Quiz');
+  await expect(layers.nth(0)).toContainText('L2');
+  await layers.nth(1).getByTestId('layer-forward').click();
+  await expect(layers.nth(0)).toContainText('Hairline');
+  await expect(layers.nth(0)).toContainText('L2');
+  await expect(layers.nth(1)).toContainText('Arena Quiz');
+  await expect(layers.nth(1)).toContainText('L1');
 
-  await section.locator('.show-graphic-row').nth(0).getByRole('button', { name: '✕' }).click();
-  await expect(section.locator('.show-graphic-row')).toHaveCount(1);
+  await layers.nth(0).getByTitle(/Remove this graphic/).click();
+  await expect(layers).toHaveCount(1);
 
-  await section.getByRole('button', { name: 'Delete production' }).click();
-  await expect(section.locator('.show-graphic-row')).toHaveCount(0);
+  // Deleting the production is a Home action (two-step, on its row).
+  await page.getByTestId('production-back').click();
+  const row = page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' });
+  await row.getByRole('button', { name: 'Delete Reorder Show' }).click();
+  await row.getByRole('button', { name: 'Delete?' }).click();
+  await expect(page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' })).toHaveCount(0);
   const stored = await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { deleted?: boolean; graphics: unknown[] }[];
     return { live: list.filter((s) => !s.deleted).length, payloads: list.map((s) => s.graphics.length) };
@@ -298,10 +319,13 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
     saveCurrentGraphic();
   });
 
+  // The export lives on the production page (the editor's block is slim by design).
   const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    section.getByRole('button', { name: /Export production package/ }).click(),
+    page.getByTestId('export-production').click(),
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');

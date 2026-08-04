@@ -51,15 +51,26 @@ function useCompactThumb(): boolean {
   return compact;
 }
 
+/** The `.lib-row` grid's fixed cell (docs/GOALS.md "Student release" step 8): every row the
+ *  same height, non-16:9 graphics letterboxed on the void inside it. 16:9 at the grid's 168px
+ *  column; keep in sync with the `.lib-row` rules in styles.css. */
+const FIXED_W = 168;
+const FIXED_H = 95;
+const FIXED_W_COMPACT = 96;
+const FIXED_H_COMPACT = 54;
+
 export default function GraphicThumb({
   template,
   values,
   label,
+  fixedBox = false,
 }: {
   template: SpxTemplate;
   /** Field values to show (an entry's row); anything missing falls back to the definition default. */
   values?: Record<string, string>;
   label: string;
+  /** Fixed 16:9 box (uniform library rows) instead of following the template's aspect. */
+  fixedBox?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -68,9 +79,9 @@ export default function GraphicThumb({
 
   const [box, setBox] = useState<GraphicBox | null>(null);
 
-  const boxW = compact ? THUMB_W_COMPACT : THUMB_W;
+  const boxW = fixedBox ? (compact ? FIXED_W_COMPACT : FIXED_W) : compact ? THUMB_W_COMPACT : THUMB_W;
   const { width, height } = template.resolution;
-  const boxH = Math.round(boxW * (height / width));
+  const boxH = fixedBox ? (compact ? FIXED_H_COMPACT : FIXED_H) : Math.round(boxW * (height / width));
 
   // Mount the iframe only when the card reaches the viewport — a library of a hundred graphics
   // must not parse a hundred copies of GSAP to show the eight rows a user can actually see.

@@ -30,7 +30,9 @@ test.describe('community (configured / signed-in)', () => {
     await page.getByTestId('save-confirm').click();
     await page.getByTestId('open-home').click();
     await page.getByTestId('home-nav-graphics').click();
-    await page.locator('.pk-graphic', { hasText: 'Hairline' }).getByTestId('publish-graphic').click();
+    const hairlineRow = page.locator('.lib-row', { hasText: 'Hairline' });
+    await hairlineRow.getByTestId('row-menu').click();
+    await hairlineRow.getByTestId('publish-graphic').click();
     await page.getByPlaceholder(/One-line description/).fill('E2E round-trip');
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
@@ -65,7 +67,9 @@ test.describe('community (configured / signed-in)', () => {
     await page.getByTestId('save-confirm').click();
     await page.getByTestId('open-home').click();
     await page.getByTestId('home-nav-graphics').click();
-    await page.locator('.pk-graphic', { hasText: 'Hairline' }).getByTestId('publish-graphic').click();
+    const gateRow = page.locator('.lib-row', { hasText: 'Hairline' });
+    await gateRow.getByTestId('row-menu').click();
+    await gateRow.getByTestId('publish-graphic').click();
 
     // The sheet shows the blocking error and disables Publish.
     await expect(page.locator('[data-testid="publish-sheet"] .status-bad')).toContainText(/External dependency/i);

@@ -227,7 +227,9 @@ src/
                hosted-control log with boot recovery + tail-fill (docs/CLOUD_PLAYOUT.md)
   components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
                timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
-               (SaveControls + the save/guard dialogs), home/ (the routed HomePage +
+               (SaveControls + the save/guard dialogs), icons.tsx (the inline-SVG icon set -
+               Home/production surfaces use it instead of emoji), home/ (the routed
+               PRODUCTIONS-FIRST HomePage + sections/ + GraphicRow/RowMenu +
                GraphicControlPage + ProductionPage - the flat library, entries, per-graphic
                operator panel, and the production cockpit: cues, links, publish, the operator
                verbs), and

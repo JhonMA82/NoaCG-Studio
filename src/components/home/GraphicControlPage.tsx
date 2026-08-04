@@ -15,6 +15,7 @@ import { openGraphicById, useSaveUi } from '../../store/saveActions';
 import { setFieldDefault } from '../../blocks/edit';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
+import { IconControl } from '../icons';
 import { slug } from '../../export/common';
 
 /**
@@ -270,7 +271,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
           ← Home
         </button>
         <span className="divider-dot" aria-hidden="true">·</span>
-        <span className="tpl-name">🎛 {doc.name}</span>
+        <span className="tpl-name"><IconControl /> {doc.name}</span>
         <span className="topbar-meta mono muted">control panel</span>
         <div className="spacer" />
         <button

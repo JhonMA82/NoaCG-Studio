@@ -44,7 +44,8 @@ import { useAuthUi } from '../auth/authUi';
 import { downloadShowZip } from '../../export/showExport';
 import { FieldRow } from '../fields/FieldControl';
 import BrandLogo from '../BrandLogo';
-import { copyLink } from './HomePage';
+import { copyLink } from './copyLink';
+import { IconDownload, IconLink, IconTv } from '../icons';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -485,7 +486,7 @@ export default function ProductionPage({ id }: { id: string }) {
           ← Productions
         </button>
         <span className="divider-dot" aria-hidden="true">·</span>
-        <span className="tpl-name">📺 {show.name}</span>
+        <span className="tpl-name"><IconTv /> {show.name}</span>
         <span className="topbar-meta mono muted">production</span>
         <div className="spacer" />
         {show.hostedSlug ? (
@@ -514,7 +515,7 @@ export default function ProductionPage({ id }: { id: string }) {
                 <span className="mono muted">Output URL</span>
                 <code className="prod-url">{outputUrl}</code>
                 <button onClick={() => outputUrl && copy('output', outputUrl)} data-testid="copy-output-url">
-                  {copied === 'output' ? '✓ Copied' : '🔗 Copy'}
+                  {copied === 'output' ? '✓ Copied' : <><IconLink /> Copy</>}
                 </button>
               </div>
               <p className="hint">
@@ -525,7 +526,7 @@ export default function ProductionPage({ id }: { id: string }) {
                 <span className="mono muted">Control page</span>
                 <code className="prod-url">{controlUrl}</code>
                 <button onClick={() => controlUrl && copy('control', controlUrl)} data-testid="copy-control-url">
-                  {copied === 'control' ? '✓ Copied' : '🔗 Copy'}
+                  {copied === 'control' ? '✓ Copied' : <><IconLink /> Copy</>}
                 </button>
               </div>
               <p className="hint">
@@ -915,7 +916,7 @@ export default function ProductionPage({ id }: { id: string }) {
               title="The offline package: one SPX folder per graphic + the standalone control page"
               data-testid="export-production"
             >
-              ⬇ Export package
+              <IconDownload /> Export package
             </button>
           </div>
         </aside>

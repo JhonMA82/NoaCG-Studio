@@ -48,7 +48,7 @@ test('default studio: a saved graphic opens onto its control page, not the edito
   await expect(page.getByTestId('home-page')).toBeVisible();
 
   await page.getByTestId('home-nav-graphics').click();
-  await page.locator('.pk-graphic', { hasText: 'Seeded lower third' }).getByTestId('open-graphic').click();
+  await page.locator('.lib-row', { hasText: 'Seeded lower third' }).getByTestId('open-graphic').click();
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
 });
 

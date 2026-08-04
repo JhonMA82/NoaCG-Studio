@@ -58,7 +58,9 @@ test.describe('community moderation (configured / moderator)', () => {
     await page.getByTestId('save-confirm').click();
     await page.getByTestId('open-home').click();
     await page.getByTestId('home-nav-graphics').click();
-    await page.locator('.pk-graphic', { hasText: 'Hairline' }).getByTestId('publish-graphic').click();
+    const hairlineRow = page.locator('.lib-row', { hasText: 'Hairline' });
+    await hairlineRow.getByTestId('row-menu').click();
+    await hairlineRow.getByTestId('publish-graphic').click();
     await page.getByPlaceholder(/One-line description/).fill('E2E moderation');
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     await expect(page.getByTestId('publish-sheet')).toHaveCount(0);

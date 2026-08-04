@@ -452,9 +452,10 @@ e2e/layout.spec.ts.
   simulator; renders the state machine's EVENT BUTTONS (controlModel eventButtons - labels/
   sections/payloads from `machine.controls`, payload values from sampleData via
   store.sendEvent), GREYED by `isEventLegal` against store.machineGroups exactly as a hosted
-  control page greys them; downloads controlpanel.html; hosts the SHOWS section (model/shows.ts
-  rundowns, aggregated show export, and - signed-in - publishing the hosted control page,
-  docs/CONTROL_LAYER.md); adds the Google-Sheets live-data block.
+  control page greys them; downloads controlpanel.html; hosts a SLIM Productions block
+  (docs/GOALS.md "Student release" step 8: create/pick a production + "+ Add current" + the
+  link to its page - the layer stack, export, publishing and links all live on
+  ProductionPage, so two surfaces cannot drift); adds the Google-Sheets live-data block.
 - **HostedControlPage** - the `?control=<slug>` operator page (routed in App.tsx like ?chat=):
   one card per graphic off the stored panel spec - event buttons with structural-guard
   greying, shared staged fields (local echo + debounced control_stage), explicit take, state
@@ -525,11 +526,17 @@ both routed (src/app/router.ts) so browser Back/Forward walk between surfaces.
 - **save/SaveDialogs** - the first-save/Save-As dialog (name only - every save is standalone)
   and the unsaved-changes guard (Save & continue / Save first… / Discard /
   Cancel), mounted once per shell; both declare useModalGate.
-- **home/HomePage** - `#/home[/<section>]`: recent work, the graphics
-  library (search, open, 🎛 control panel, rename, duplicate, two-step
-  delete), control panels, productions, videos, brand looks.
-  Local-first, no auth gate - sign-in only adds sync. `#/package/*` is a retired route that
-  lands on Home.
+- **home/HomePage** - `#/home[/<section>]`, PRODUCTIONS-FIRST (docs/GOALS.md "Student
+  release" step 8): no section = the DASHBOARD (productions with their Open-dashboard door +
+  output-URL copy, then the top graphics with search, then recent videos); nav sections are
+  productions / graphics / videos / looks. The retired `recent` and `controls` sections land
+  on the dashboard - every graphic row reaches its control panel through its ⋯ menu. The
+  shell/nav/dashboard live here; the section bodies are `home/sections/*` and a graphic row
+  is `home/GraphicRow` (a `.lib-row` grid row - thumb, name, Open + "+ Production" popover,
+  and the `home/RowMenu` ⋯ overflow holding control panel / export / rename / duplicate /
+  publish / two-step delete). Icons are inline SVG from `components/icons.tsx` - no
+  pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
+  gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
 - **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
   preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
   recipe - update, buildInTimeline().progress(1, true), update again; a template with no builder

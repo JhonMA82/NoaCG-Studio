@@ -167,6 +167,37 @@ test('mobile: the Inspector is a panel tab, so a selected layer can still be edi
   await expect(page.locator('.panel-body')).toContainText('Content');
 });
 
+test('mobile: Home leads with Productions and a dashboard is two taps from open', async ({ page }) => {
+  // The student phone path (docs/GOALS.md "Student release" step 8): open the app, tap the
+  // production's Open dashboard — two taps to a control surface. Seed a saved graphic + a
+  // production with it, as a returning student's device would hold.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app');
+  await page.evaluate(async () => {
+    const { createBlankTemplate } = await import('/src/templates/blank.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const tpl = createBlankTemplate();
+    const { doc } = createGraphic(tpl, { name: 'Phone strap' });
+    const show = createShowNamed('Morning show');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+
+  // Tap 1 is opening the app; the dashboard door is the FIRST actionable block on Home —
+  // above the graphics list — and is a 44px touch target.
+  const open = page.getByTestId('open-production');
+  const openBox = (await open.boundingBox())!;
+  expect(openBox.height).toBeGreaterThanOrEqual(44);
+  const firstGraphic = await page.locator('.lib-row', { hasText: 'Phone strap' }).first().boundingBox();
+  expect(openBox.y).toBeLessThan(firstGraphic!.y);
+
+  // Tap 2 lands on the production dashboard.
+  await open.click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+});
+
 test('mobile: the wizard preview keeps a real stage instead of collapsing', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app');

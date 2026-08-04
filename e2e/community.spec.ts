@@ -28,7 +28,12 @@ test('offline: no community affordances anywhere', async ({ page }) => {
   await page.getByTestId('save-confirm').click();
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-graphics').click();
-  await expect(page.locator('.pk-graphic', { hasText: 'Hairline' })).toBeVisible();
+  const row = page.locator('.lib-row', { hasText: 'Hairline' });
+  await expect(row).toBeVisible();
+  // The publish action lives in the row's ⋯ menu when it exists at all — open it to prove
+  // the offline build genuinely grew no publish entry, not merely a closed menu.
+  await row.getByTestId('row-menu').click();
+  await expect(page.getByTestId('export-graphic')).toBeVisible(); // the menu IS open
   await expect(page.getByTestId('publish-graphic')).toHaveCount(0);
   await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
 });

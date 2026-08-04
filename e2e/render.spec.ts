@@ -174,15 +174,18 @@ test('cancel mid-render returns to the idle form', async ({ page }) => {
 
 test('the standalone export window carries the render section, measured off the saved record', async ({ page }) => {
   await createHairline(page);
-  // Save it, then export from Home's ⬇ card — the door that reads the RECORD's template, not
-  // the store, so the render section here measures a graphic independent of the working doc.
+  // Save it, then export from the Home row's ⋯ menu — the door that reads the RECORD's
+  // template, not the store, so the render section measures a graphic independent of the
+  // working doc.
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Saved Render Target');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
   await page.getByTestId('open-home').click();
-  await page.getByTestId('export-graphic').first().click();
+  const row = page.locator('.lib-row', { hasText: 'Saved Render Target' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('export-graphic').click();
   const win = page.getByTestId('export-window');
   await expect(win).toBeVisible();
 
