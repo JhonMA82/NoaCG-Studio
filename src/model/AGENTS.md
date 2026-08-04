@@ -136,7 +136,8 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   ignores all of this. See src/components/AGENTS.md (AppShell / WorkspaceDock).
 - **prefs.ts** - small device-level workflow defaults (localStorage 'spx-gfx-prefs'):
   defaultExportTarget, timelineCollapsed, renderSettings, commentVisibility (the code editors'
-  comment view mode - src/editor/). Not synced; keep it tiny.
+  comment view mode - src/editor/), advancedMode (the editor-visibility switch, read live via
+  components/useAdvancedMode - docs/GOALS.md "Student release" step 4). Not synced; keep it tiny.
 - **id.ts** - uuid() that ALWAYS returns a valid RFC-4122 v4, even where crypto.randomUUID is
   undefined (plain-HTTP LAN hosts, CasparCG's CEF). Record ids must be real UUIDs: the cloud
   `documents.id` column is a uuid PK, and a non-UUID id would be rejected by Postgres and poison

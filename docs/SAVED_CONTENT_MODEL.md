@@ -55,7 +55,7 @@ Back/Forward are real history):
 
 | Route | Surface |
 |---|---|
-| *(none)* | The editor, whichever kind `docKind` persisted (unchanged refresh behavior). |
+| *(none)* | Advanced mode: the editor, whichever kind `docKind` persisted. Default studio: redirected on boot - the wizard on a first-ever visit, Home otherwise (docs/GOALS.md "Student release" step 4). |
 | `#/home` (+`#/home/<section>`) | Home — recent, graphics, control panels, productions, videos, looks. |
 | `#/graphic/<id>` | Open that library graphic in the SPX editor. |
 | `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). |
