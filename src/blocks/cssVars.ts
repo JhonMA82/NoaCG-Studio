@@ -2,6 +2,26 @@
 // Brand colors and fonts live in the visible CSS as variables (e.g. --brand-primary), so
 // the code stays the source of truth and templates can reference var(--brand-primary).
 
+/** rgb()/rgba()/#hex → #rrggbb for a color-input swatch; non-colors return null. Shared by
+ *  the Style panel and the wizard's design-colors section - one conversion, so a swatch
+ *  means the same thing wherever a color is picked. */
+export function toHex(value: string): string | null {
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return '#' + value.slice(1).split('').map((c) => c + c).join('');
+  }
+  const m = value.match(/rgba?\(([^)]+)\)/);
+  if (!m) return null;
+  const [r, g, b] = m[1].split(',').map((n) => parseInt(n.trim(), 10));
+  const h = (n: number) => Math.max(0, Math.min(255, n || 0)).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+/** Does a :root value read as a COLOR (the generic enumeration's filter)? */
+export function looksLikeColor(value: string): boolean {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) || /^(rgb|rgba|hsl|hsla)\(/i.test(value);
+}
+
 /** List every custom property declared in the first :root rule (in source order). */
 export function listCssVariables(css: string): { name: string; value: string }[] {
   const root = findRootBody(css);

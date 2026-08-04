@@ -825,7 +825,7 @@ export default function CreationWizard() {
               <FieldsStep variant={variant} draft={draft} onDraft={patch} />
             )}
             {step === (mode === 'template' ? 3 : 4) && (mode === 'template' || mode === 'import') && variant && (
-              <StyleStep variant={variant} draft={draft} onDraft={patch} />
+              <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} />
             )}
             {step === animStep && (mode === 'template' || mode === 'import') && variant && (
               <AnimationStep

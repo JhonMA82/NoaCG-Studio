@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FONTS,
   familyFromFileName,
+  fontAssetPath,
   fontFormatForExt,
   registerAppFont,
   type BundledFont,
@@ -78,7 +79,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
     const font: CustomFont = {
       family: familyFromFileName(file.name),
       format: fontFormatForExt(ext),
-      asset: { path: `fonts/${file.name}`, data },
+      asset: { path: fontAssetPath(file.name), data },
     };
     registerAppFont(font.family, data); // renders in the builder UI immediately
     onCustomFont(font);
@@ -116,7 +117,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
         family: f.family,
         // The API serves SFNT bytes; ttf/otf both load via format('truetype'/'opentype').
         format: 'truetype',
-        asset: { path: `fonts/${f.postscriptName || f.family.replace(/\s+/g, '-')}.ttf`, data },
+        asset: { path: fontAssetPath(`${f.postscriptName || f.family}.ttf`), data },
       };
       registerAppFont(font.family, data);
       onCustomFont(font);

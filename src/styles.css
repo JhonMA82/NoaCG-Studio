@@ -1559,11 +1559,6 @@ kbd {
   background-color: #20262e;
 }
 .wz-custom-colors { margin-top: 12px; max-width: 420px; }
-.wz-fonts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.wz-font { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; border-radius: 8px; }
-.wz-font.selected { border-color: var(--accent); }
-.wz-font-sample { font-size: 26px; line-height: 1; width: 40px; text-align: center; flex: none; }
-.wz-font .hint { display: block; }
 .wz-zones { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
 .wz-zone { width: 30px; height: 22px; border-radius: 4px; padding: 0; }
 .wz-zone.selected { border-color: var(--accent); background: rgba(246, 166, 35, 0.25); }

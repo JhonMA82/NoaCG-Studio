@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
-import { getCssVariable, listCssVariables, setCssVariable } from '../blocks/cssVars';
+import { getCssVariable, listCssVariables, looksLikeColor, setCssVariable, toHex } from '../blocks/cssVars';
 import { setCssDeclaration } from '../blocks/edit';
 import {
   FONTS,
@@ -16,23 +16,6 @@ import type { Zone9 } from '../model/wizard';
 import { detectPrefix } from '../model/structure';
 import { zoneDecls } from '../templates/lowerThirds/shared';
 import { fileToDataUrl } from '../assets/assetUtils';
-
-/** rgb()/rgba()/#hex → #rrggbb for the color input swatch; non-colors return null. */
-function toHex(value: string): string | null {
-  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
-  if (/^#[0-9a-f]{3}$/i.test(value)) {
-    return '#' + value.slice(1).split('').map((c) => c + c).join('');
-  }
-  const m = value.match(/rgba?\(([^)]+)\)/);
-  if (!m) return null;
-  const [r, g, b] = m[1].split(',').map((n) => parseInt(n.trim(), 10));
-  const h = (n: number) => Math.max(0, Math.min(255, n || 0)).toString(16).padStart(2, '0');
-  return `#${h(r)}${h(g)}${h(b)}`;
-}
-
-function looksLikeColor(value: string): boolean {
-  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) || /^(rgb|rgba|hsl|hsla)\(/i.test(value);
-}
 
 const ZONES: Zone9[] = [
   'top-left', 'top-center', 'top-right',

@@ -11,6 +11,7 @@ import {
   type Resolution,
 } from '../../model/projectFormat';
 import { addPlacedLine } from '../../blocks/designLayout';
+import { getCssVariable, setCssVariable } from '../../blocks/cssVars';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { anyPresetById, type AnimPhase } from '../../blocks/presetRegistry';
 import { parseAnimData } from '../../blocks/animData';
@@ -109,6 +110,11 @@ export interface WizardDraft {
   paletteId: string | null;
   /** User-defined colors (takes precedence over paletteId when set). */
   customPalette: Palette | null;
+  /** Direct `:root` variable overrides beyond the four palette roles - the wizard's "All
+   *  design colors" rows (docs/GOALS.md "Student release" step 5). Applied AFTER the variant
+   *  builds, through the same setCssVariable patch the Style panel writes post-create, so
+   *  every design color is editable without the editor. Keyed by var name (no `--`). */
+  cssVarOverrides: Record<string, string>;
   /** 'custom' selects the imported font; a bundled id or null otherwise. */
   fontId: string | null;
   /** The user's imported font, kept even while a bundled font is selected. */
@@ -180,6 +186,7 @@ export function initialDraft(): WizardDraft {
     extraFields: [],
     paletteId: null,
     customPalette: null,
+    cssVarOverrides: {},
     fontId: null,
     customFont: null,
     sizeScale: 1,
@@ -429,6 +436,18 @@ export function buildDraftTemplate(
   // prefill, and the export slug through ONE path rather than being applied per branch.
   const named = draftName(variant, draft);
   if (named !== template.name) template = { ...template, name: named };
+  // The "All design colors" rows: direct :root overrides beyond the palette's four roles,
+  // written with the Style panel's own patch so the wizard needs no second mechanism.
+  const overridden = Object.entries(draft.cssVarOverrides);
+  if (overridden.length > 0) {
+    let css = template.css;
+    // Only vars the built design DECLARES: switching designs mid-wizard must not graft the
+    // previous design's variable names onto one that never reads them.
+    for (const [name, value] of overridden) {
+      if (getCssVariable(css, name) !== null) css = setCssVariable(css, name, value);
+    }
+    template = { ...template, css };
+  }
   if (variant.category === 'imported-design') {
     template = withEraseSeedFields(template, draft);
     template = withDesignFieldSpecs(template, draft);

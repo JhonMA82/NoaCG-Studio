@@ -59,7 +59,7 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
     mimeType: 'font/woff2',
     buffer: Buffer.from(buf),
   });
-  await expect(page.locator('.wz-font', { hasText: 'My Brand Font' })).toBeVisible();
+  await expect(page.getByTestId('font-option-custom')).toContainText('My Brand Font');
   await create(page);
 
   // The generated code carries the embedded font; the export bundles the binary.

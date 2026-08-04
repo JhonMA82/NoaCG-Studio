@@ -1,22 +1,22 @@
-import { useRef, useState } from 'react';
-import { FONTS, familyFromFileName, fontFormatForExt, registerAppFont } from '../../../model/fonts';
+import { useState } from 'react';
+import { FONTS, registerAppFont } from '../../../model/fonts';
 import { PALETTES, paletteById, type Palette, type TemplateVariant, type Zone9 } from '../../../model/wizard';
-import { fileToDataUrl } from '../../../assets/assetUtils';
+import { listCssVariables, looksLikeColor, toHex } from '../../../blocks/cssVars';
+import FontPicker from '../FontPicker';
 import type { DraftPatch, WizardDraft } from '../draft';
-
-/** A safe relative path for an imported font file (fonts/<sanitized>.<ext>). */
-function fontAssetPath(fileName: string): string {
-  const dot = fileName.lastIndexOf('.');
-  const base = (dot >= 0 ? fileName.slice(0, dot) : fileName).replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'font';
-  const ext = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : 'woff2';
-  return `fonts/${base}.${ext}`;
-}
 
 interface Props {
   variant: TemplateVariant;
   draft: WizardDraft;
   onDraft: (patch: DraftPatch) => void;
+  /** The BUILT preview template's CSS - the source the "All design colors" rows enumerate
+   *  (every `:root` color var the design declares, beyond the palette's four roles). */
+  builtCss: string | null;
 }
+
+/** The four vars the Palette section already owns - the generic rows exclude them so one
+ *  color never has two controls disagreeing about it. */
+const PALETTE_VARS = new Set(['accent', 'text-color', 'text-dim', 'panel-bg']);
 
 /** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
  *  Shared with the AI step's brand-colour rows (steps/ai/MoreControlPanel) — one conversion,
@@ -74,7 +74,21 @@ function placementSummaryOf(draft: WizardDraft): string {
 }
 
 /** Step 4 — colors, font, size, and position. */
-export default function StyleStep({ variant, draft, onDraft }: Props) {
+export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) {
+  // Every OTHER color the design declares in its :root (shape tokens, chart colors, a
+  // second accent) - editable right here, so no design color needs the editor
+  // (docs/GOALS.md "Student release" step 5). Values read from the BUILT css, which already
+  // carries the draft's overrides - the rows always show what the preview shows.
+  const designColors = builtCss
+    ? listCssVariables(builtCss).filter((v) => !PALETTE_VARS.has(v.name) && looksLikeColor(v.value))
+    : [];
+  const overrideVar = (name: string, value: string) =>
+    onDraft({ cssVarOverrides: { ...draft.cssVarOverrides, [name]: value } });
+  const clearOverride = (name: string) => {
+    const next = { ...draft.cssVarOverrides };
+    delete next[name];
+    onDraft({ cssVarOverrides: next });
+  };
   const placementSummary = placementSummaryOf(draft);
   // Open on arrival only if something in there is already off-default — which is how Back
   // returns a user to the nudge they set. Controlled with onToggle rather than a bare `open`
@@ -85,26 +99,10 @@ export default function StyleStep({ variant, draft, onDraft }: Props) {
   const palettes = [...PALETTES].sort(
     (a, b) => Number(b.styleTags.includes(variant.styleTag)) - Number(a.styleTags.includes(variant.styleTag)),
   );
-  const fonts = [...FONTS].sort(
-    (a, b) => Number(b.styleTags.includes(variant.styleTag)) - Number(a.styleTags.includes(variant.styleTag)),
-  );
   const custom = draft.customPalette;
   const activePalette = custom ? 'custom' : draft.paletteId ?? variant.defaultPalette.id;
   const activeFont = draft.fontId ?? variant.defaultFontId;
   const activeZone = draft.zone ?? variant.defaultZone;
-  const fontInput = useRef<HTMLInputElement>(null);
-
-  /** Import a font file: embed it as a data-URL asset and select it. */
-  const importFont = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const family = familyFromFileName(file.name);
-    const ext = file.name.split('.').pop() ?? 'woff2';
-    registerAppFont(family, dataUrl); // so the picker + preview host can render it
-    onDraft({
-      customFont: { family, format: fontFormatForExt(ext), asset: { path: fontAssetPath(file.name), data: dataUrl } },
-      fontId: 'custom',
-    });
-  };
 
   /** Rename the imported font (updates the generated @font-face family). */
   const renameCustomFont = (family: string) => {
@@ -181,57 +179,74 @@ export default function StyleStep({ variant, draft, onDraft }: Props) {
             ))}
           </div>
         )}
+
+        {/* Every OTHER color the design declares - the same generic :root enumeration the
+            editor's Style panel uses, here so no color needs the editor. Collapsed: the
+            palette answers the common case; this is the full control. */}
+        {designColors.length > 0 && (
+          <details className="wz-style-more" data-testid="wz-design-colors">
+            <summary>
+              All design colors <span className="muted">({designColors.length} more)</span>
+            </summary>
+            {designColors.map((v) => {
+              const hex = toHex(v.value);
+              const overridden = v.name in draft.cssVarOverrides;
+              return (
+                <div className="field-row" key={v.name}>
+                  <div className="field-meta">
+                    <label style={{ margin: 0 }}>{v.name.replace(/-/g, ' ')}</label>
+                    <span className="field-id">--{v.name}</span>
+                  </div>
+                  <div className="row">
+                    {hex && (
+                      <input
+                        type="color"
+                        style={{ width: 44, padding: 2 }}
+                        value={hex}
+                        onChange={(e) => overrideVar(v.name, e.target.value)}
+                      />
+                    )}
+                    <input
+                      className="grow"
+                      value={v.value}
+                      onChange={(e) => overrideVar(v.name, e.target.value)}
+                      placeholder="#hex or rgba(…)"
+                    />
+                    {overridden && (
+                      <button onClick={() => clearOverride(v.name)} title="Back to the design's own value">
+                        ↺
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </details>
+        )}
       </div>
 
       <div className="panel-section">
         <h3>Font <span className="muted">(every font — bundled or imported — ships inside the export)</span></h3>
-        <div className="wz-fonts">
-          {draft.customFont && (
-            <button
-              className={`wz-font ${activeFont === 'custom' ? 'selected' : ''}`}
-              onClick={() => onDraft({ fontId: 'custom' })}
-              title="Your imported font (embedded in the template)"
-            >
-              <span className="wz-font-sample" style={{ fontFamily: `"${draft.customFont.family}", Arial, sans-serif` }}>Ag</span>
-              <span>
-                <strong>{draft.customFont.family}</strong>
-                <span className="hint">Yours — embedded in the template + export.</span>
-              </span>
-            </button>
-          )}
-          {fonts.map((f) => (
-            <button
-              key={f.id}
-              className={`wz-font ${activeFont === f.id ? 'selected' : ''}`}
-              onClick={() => onDraft({ fontId: f.id })}
-              title={f.blurb}
-            >
-              <span className="wz-font-sample" style={{ fontFamily: `"${f.family}", ${f.fallback}` }}>Ag</span>
-              <span>
-                <strong>{f.family}</strong>
-                <span className="hint">{f.blurb}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
-          <input
-            ref={fontInput}
-            type="file"
-            accept=".woff2,.woff,.ttf,.otf"
-            style={{ display: 'none' }}
-            onChange={(e) => { if (e.target.files?.[0]) void importFont(e.target.files[0]); e.target.value = ''; }}
-          />
-          <button onClick={() => fontInput.current?.click()}>⬆ Import font…</button>
-          {draft.customFont && activeFont === 'custom' && (
+        {/* The ONE font picker (shared with the import flow and the AI setup): searchable,
+            each family rendered in its own face, upload + this computer's installed fonts.
+            The card grid it replaced could never scale past a handful of faces. */}
+        <FontPicker
+          value={draft.fontId}
+          customFont={draft.customFont}
+          onPick={(fontId) => onDraft({ fontId })}
+          onCustomFont={(customFont) => onDraft({ customFont, fontId: 'custom' })}
+          defaultLabel={`Design font (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})`}
+        />
+        {draft.customFont && activeFont === 'custom' && (
+          <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
             <input
               className="grow"
               value={draft.customFont.family}
               onChange={(e) => renameCustomFont(e.target.value)}
               title="Font name used in the generated CSS"
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Size and placement under progressive disclosure (the Browse step's `More filters`

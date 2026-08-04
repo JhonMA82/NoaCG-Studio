@@ -64,7 +64,7 @@ test('style step: rapid palette clicks settle on the LAST palette, entrance repl
 
 test('style step: font and size choices land in the rebuilt preview', async ({ page }) => {
   await openWizardTo(page, 'style');
-  await page.locator('.wz-font', { hasText: 'Space Grotesk' }).click();
+  await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // Size and position are TUNING and sit behind a disclosure — palette and font are the two
   // choices this step leads with. Open it to reach the knobs (see components/CLAUDE.md).

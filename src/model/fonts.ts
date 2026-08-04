@@ -204,6 +204,21 @@ export function fontFormatForExt(ext: string): string {
   return { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' }[ext.toLowerCase()] ?? 'woff2';
 }
 
+/**
+ * THE safe relative asset path for an imported font file: `fonts/<sanitized>.<ext>`. The one
+ * path builder every import surface uses (wizard Style step, FontPicker upload, Local Font
+ * Access embed, the editor's Style panel) - a space or unicode in a filename used to ride
+ * verbatim into the asset path and the emitted url(), which three hand-rolled builders
+ * agreed on only by luck.
+ */
+export function fontAssetPath(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  const base =
+    (dot >= 0 ? fileName.slice(0, dot) : fileName).replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'font';
+  const ext = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : 'woff2';
+  return `fonts/${base}.${ext}`;
+}
+
 /** A readable family name from a font file name ("Neue-Machina_Bold.otf" -> "Neue Machina Bold"). */
 export function familyFromFileName(name: string): string {
   const base = name.replace(/\.(woff2|woff|ttf|otf)$/i, '');
