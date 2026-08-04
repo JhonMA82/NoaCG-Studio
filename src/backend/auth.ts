@@ -53,11 +53,66 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 }
 
 export async function signOut(): Promise<void> {
+  // Mark this as the USER's choice before the SIGNED_OUT event can land, so the session-expiry
+  // prompt (syncController) never mistakes a deliberate sign-out for a dead session.
+  deliberateSignOut = true;
   const sb = await getSupabase();
   await sb?.auth.signOut();
   // The next sign-in may be a DIFFERENT account: its first pass must re-reconcile from scratch,
   // not inherit this account's bookmark or per-record pending debts.
   resetSyncBookmark();
+}
+
+/** Whether the most recent transition to signed-out was the user's own Sign out. Reading it
+ *  CONSUMES it — the flag describes one transition, never a standing state. */
+let deliberateSignOut = false;
+export function consumeDeliberateSignOut(): boolean {
+  const was = deliberateSignOut;
+  deliberateSignOut = false;
+  return was;
+}
+
+/**
+ * Ask for a password-reset email. The link returns to the app (OAUTH_REDIRECT), where Supabase
+ * establishes a RECOVERY session and fires PASSWORD_RECOVERY — see onPasswordRecovery.
+ */
+export async function requestPasswordReset(email: string): Promise<{ error: string | null }> {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'No backend configured.' };
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: OAUTH_REDIRECT });
+  return { error: error?.message ?? null };
+}
+
+/** Set a new password for the signed-in user (a normal session, or the recovery session the
+ *  reset link establishes). */
+export async function updatePassword(password: string): Promise<{ error: string | null }> {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'No backend configured.' };
+  const { error } = await sb.auth.updateUser({ password });
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Fire when the user arrives on a password-reset link: Supabase reads the token from the URL,
+ * establishes the recovery session, and emits PASSWORD_RECOVERY. The subscriber opens the
+ * set-a-new-password dialog (components/auth/PasswordRecoveryDialog). Returns an unsubscribe fn;
+ * no-op with no backend.
+ */
+export function onPasswordRecovery(cb: () => void): () => void {
+  let unsub = () => {};
+  let cancelled = false;
+  void (async () => {
+    const sb = await getSupabase();
+    if (cancelled || !sb) return;
+    const { data: sub } = sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') cb();
+    });
+    unsub = () => sub.subscription.unsubscribe();
+  })();
+  return () => {
+    cancelled = true;
+    unsub();
+  };
 }
 
 /**

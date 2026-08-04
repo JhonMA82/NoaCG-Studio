@@ -1337,8 +1337,16 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       delete); icons are inline SVG (components/icons.tsx), no pictographic emoji. The
       editor's Productions block slimmed to add-current + link. Phone: chip nav, two-row
       library rows, 44px targets, two taps to a dashboard (pinned in layout.spec.ts).
-- [ ] **9. Account essentials** - password reset and change, account email, sign out,
-      session-expiry recovery that never loses local work.
+- [x] **9. Account essentials** - password reset and change, account email, sign out,
+      session-expiry recovery that never loses local work. Done 2026-08-04: the sign-in
+      dialog's "Forgot your password?" sends the reset email; the link's return trip is the
+      new PasswordRecoveryDialog (mounted once in App.tsx - PASSWORD_RECOVERY was previously
+      ignored); Settings grew an Account section (email, password change, sign out; renders
+      nothing offline); and a session that DIES - a signed-out transition that was not the
+      user's own Sign out - dispatches `spx-session-expired`, answered with the sign-in
+      prompt naming that local work is safe. Offline pins in e2e/auth.spec.ts; the real
+      flows (incl. the password round-trip and expiry recovery without data loss) in
+      e2e/configured/account.spec.ts, which runs on the live suite.
 - [ ] **10. Playout hardening + owner acceptance** - automated recovery drills, soak and
       exported-file checks first; then the owner's real CasparCG/OBS acceptance and a timed
       first-time-user walk. CasparCG + OBS are the primary verification targets; every export

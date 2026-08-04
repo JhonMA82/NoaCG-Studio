@@ -5,7 +5,7 @@
 // untouched.
 
 import { isBackendConfigured } from './config';
-import { getAccessToken, subscribeAuth } from './auth';
+import { consumeDeliberateSignOut, getAccessToken, subscribeAuth } from './auth';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
 import { runSync, type SyncResult } from './sync';
@@ -134,8 +134,20 @@ export function startAutoSync(): void {
   subscribeAuth((auth) => {
     const signedIn = auth.status === 'signed-in' && !!auth.user;
     if (signedIn === wasSignedIn) return;
+    const hadSession = wasSignedIn === true;
     wasSignedIn = signedIn;
-    if (signedIn) void syncNow();
-    else setState({ phase: 'offline' });
+    if (signedIn) {
+      void syncNow();
+      return;
+    }
+    setState({ phase: 'offline' });
+    // A session that DIES (refresh token expired or revoked) used to end here silently: the
+    // chip fell to 'offline' and nothing said why, so sync just stopped. Surface it — unless
+    // the user pressed Sign out themselves, which is the same transition and not a problem.
+    // The event (not a direct UI import — backend never imports components) is answered in
+    // App.tsx with the sign-in prompt; local work is untouched either way.
+    if (hadSession && !consumeDeliberateSignOut()) {
+      window.dispatchEvent(new CustomEvent('spx-session-expired'));
+    }
   });
 }

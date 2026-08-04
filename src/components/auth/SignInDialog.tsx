@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '../../backend/auth';
+import { requestPasswordReset, signInWithGoogle, signInWithEmail, signUpWithEmail } from '../../backend/auth';
 import { trackEvent } from '../../backend/events';
 import { useAuthState } from './useAuthState';
 import { useAuthUi } from './authUi';
@@ -22,7 +22,9 @@ export default function SignInDialog() {
   // state — gating on mount would disable every editor shortcut for the whole session.
   useModalGate(open && backendConfigured);
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  // 'reset' = the forgot-password branch: email only, sends the reset link (docs/GOALS.md
+  // "Student release" step 9 — the link's return trip is PasswordRecoveryDialog's job).
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,6 +68,13 @@ export default function SignInDialog() {
     setBusy(true);
     setError(null);
     setNote(null);
+    if (mode === 'reset') {
+      const { error } = await requestPasswordReset(email.trim());
+      setBusy(false);
+      if (error) setError(error);
+      else setNote('Check your email — the reset link brings you back here to set a new password.');
+      return;
+    }
     const fn = mode === 'signin' ? signInWithEmail : signUpWithEmail;
     const { error } = await fn(email.trim(), password);
     setBusy(false);
@@ -121,24 +130,38 @@ export default function SignInDialog() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <label htmlFor="auth-pass" style={{ marginTop: 10 }}>Password</label>
-          <input
-            id="auth-pass"
-            type="password"
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
+          {mode !== 'reset' && (
+            <>
+              <label htmlFor="auth-pass" style={{ marginTop: 10 }}>Password</label>
+              <input
+                id="auth-pass"
+                type="password"
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </>
+          )}
           <button type="submit" className="primary auth-submit" disabled={busy}>
-            {mode === 'signin' ? 'Sign in' : 'Create account'}
+            {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link'}
           </button>
         </form>
 
         {error && <p className="auth-error">{error}</p>}
         {note && <p className="auth-note">{note}</p>}
 
+        {mode === 'signin' && (
+          <button
+            className="auth-toggle"
+            onClick={() => { setMode('reset'); setError(null); setNote(null); }}
+            disabled={busy}
+            data-testid="forgot-password"
+          >
+            Forgot your password?
+          </button>
+        )}
         <button className="auth-toggle" onClick={toggle} disabled={busy}>
           {mode === 'signin' ? 'New here? Create a free account' : 'Already have an account? Sign in'}
         </button>

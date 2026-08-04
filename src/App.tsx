@@ -8,6 +8,9 @@ import ExportWindow from './components/ExportWindow';
 import CreationWizard from './components/wizard/CreationWizard';
 import GraphicControlPage from './components/home/GraphicControlPage';
 import ProductionPage from './components/home/ProductionPage';
+import PasswordRecoveryDialog from './components/auth/PasswordRecoveryDialog';
+import { useAuthUi } from './components/auth/authUi';
+import { isBackendConfigured } from './backend/config';
 import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
 import { useRouter } from './app/router';
@@ -128,6 +131,18 @@ export default function App() {
     }
   }, [route, galleryOpen]);
 
+  // A session that DIED (refresh token expired/revoked — syncController's transition, never a
+  // deliberate Sign out) surfaces as the ordinary sign-in prompt with a reason: sync stops
+  // silently otherwise, and local work was never at risk, so the prompt says both. Never a
+  // wall — dismissing it keeps the whole studio working offline-style (step 9).
+  useEffect(() => {
+    if (!isBackendConfigured()) return;
+    const onExpired = () =>
+      useAuthUi.getState().openSignIn('Your session expired — sign in again to keep syncing. Everything you made is safe on this device.');
+    window.addEventListener('spx-session-expired', onExpired);
+    return () => window.removeEventListener('spx-session-expired', onExpired);
+  }, []);
+
   // Public show-chat send-in page: <app-url>?chat=<slug>. Anyone with the link may submit;
   // RLS is the boundary. Everything else is the builder.
   const params = new URLSearchParams(window.location.search);
@@ -169,6 +184,9 @@ export default function App() {
       {surface}
       <CreationWizard />
       <ExportWindow />
+      {/* The password-reset link can land on ANY route, so its dialog mounts once here
+          (renders nothing offline — step 9). */}
+      <PasswordRecoveryDialog />
     </>
   );
 }

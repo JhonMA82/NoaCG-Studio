@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { startNewProject } from '../_create';
+import { enableAdvancedMode, finishIntoEditor, startNewProject } from '../_create';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
 // the public repo carries no secrets; `haveCreds` gates the whole suite off when they're unset.
@@ -15,6 +15,9 @@ export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
  *  fresh Playwright contexts have no persisted session). Leaves the wizard OPEN afterwards, the
  *  same state a fresh load presents, so createGraphic can run directly. */
 export async function signIn(page: Page): Promise<void> {
+  // These walks drive the EDITOR surfaces (topbar Save, Continue editing, the Community
+  // button) - Advanced-mode subjects since the student release demoted the editor (step 4).
+  await enableAdvancedMode(page);
   await page.goto('/app');
   // The startup wizard covers the topbar — close it to reach the Sign in button.
   await expect(page.locator('.wz-modal')).toBeVisible();
@@ -31,13 +34,14 @@ export async function signIn(page: Page): Promise<void> {
   await startNewProject(page);
 }
 
-/** Create a project through the wizard (which opens on load). */
+/** Create a project through the wizard (which opens on load) and land in the editor — the
+ *  Finish step's editor door, Advanced mode (signIn above enables it). */
 export async function createGraphic(page: Page, category: string, variant: string): Promise<void> {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: category }).click();
   await page.locator('.wz-variant', { hasText: variant }).click();
-  await page.getByRole('button', { name: 'Create project' }).click();
+  await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   await page.waitForTimeout(650);
 }

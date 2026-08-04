@@ -961,3 +961,14 @@ only when a backend is configured AND the visitor is signed out) and render `Sig
 call `useAuthUi().openSignIn(reason)` - never block the app. Signup is OPEN (migration `0006`
 made the Before-User-Created hook permissive; restore the 0002 function body to re-close it to
 the allowlist). No login wall, ever - see the root AGENTS.md "Auth posture".
+
+ACCOUNT ESSENTIALS (docs/GOALS.md "Student release" step 9): SignInDialog carries a third
+'reset' mode ("Forgot your password?" - email only, backend/auth `requestPasswordReset`);
+the reset link's return trip is **PasswordRecoveryDialog** (mounted ONCE in App.tsx - the
+link can land on any route), which answers the PASSWORD_RECOVERY event backend/auth
+`onPasswordRecovery` now surfaces. SettingsDialog's Account section (email + password change
+via `updatePassword` + sign out) renders nothing offline and waits through 'loading'. An
+EXPIRED session (a signed-in to signed-out transition that was not the user's own Sign out -
+backend/auth's consume-once deliberate-sign-out flag, checked in syncController) dispatches
+`spx-session-expired`; App.tsx answers with openSignIn + a reason naming that local work is
+safe. Offline pins in e2e/auth.spec.ts; the real flows in e2e/configured/account.spec.ts.

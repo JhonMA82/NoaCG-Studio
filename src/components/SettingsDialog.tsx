@@ -1,9 +1,12 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { loadAiSettings, saveAiSettings } from '../ai/settings';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
+import { signOut, updatePassword } from '../backend/auth';
 import { useModalGate } from './spaceKey';
 import { useAdvancedMode } from './useAdvancedMode';
+import { useAuthState } from './auth/useAuthState';
+import { useAuthUi } from './auth/authUi';
 import AiProviderSettings from './AiProviderSettings';
 
 interface Props {
@@ -15,6 +18,92 @@ interface Props {
  * this browser; provider keys are held only by the server. Style defaults live where the
  * work happens so this dialog stays small on purpose.
  */
+/**
+ * The Account section (docs/GOALS.md "Student release" step 9): email display, password
+ * change, sign out — the essentials a student needs without leaving Settings. Renders NOTHING
+ * offline (no backend, zero auth UI — e2e/auth.spec.ts pins the posture) and a sign-in door
+ * when signed out. Password change needs only the live session (Supabase updateUser); the
+ * forgotten-password path is the SignInDialog's reset link instead.
+ */
+function AccountSection({ onClose }: { onClose: () => void }) {
+  const { backendConfigured, status, user } = useAuthState();
+  const openSignIn = useAuthUi((s) => s.openSignIn);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  // Offline builds grow zero auth UI; while the stored session is still being read, showing
+  // "Not signed in" would be a wrong claim, so the section waits.
+  if (!backendConfigured || status === 'loading') return null;
+
+  if (status === 'signed-out') {
+    return (
+      <div className="panel-section" data-testid="settings-account">
+        <h3>Account</h3>
+        <p className="hint">Not signed in. An account adds cloud sync, publishing, and hosted control pages — creating and exporting never needs one.</p>
+        <button className="primary" onClick={() => { onClose(); openSignIn(); }}>Sign in</button>
+      </div>
+    );
+  }
+
+  const changePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (password !== confirm) {
+      setNote('The two passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    const { error } = await updatePassword(password);
+    setBusy(false);
+    setNote(error ?? '✓ Password changed.');
+    if (!error) {
+      setPassword('');
+      setConfirm('');
+    }
+  };
+
+  return (
+    <div className="panel-section" data-testid="settings-account">
+      <h3>Account</h3>
+      <p data-testid="account-email"><strong>{user?.email ?? 'Signed in'}</strong></p>
+      <form onSubmit={(e) => void changePassword(e)}>
+        <label htmlFor="account-new-pass">Change password</label>
+        <div className="row">
+          <input
+            id="account-new-pass"
+            type="password"
+            autoComplete="new-password"
+            placeholder="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            data-testid="account-password"
+          />
+          <input
+            type="password"
+            autoComplete="new-password"
+            placeholder="Repeat it"
+            aria-label="Repeat the new password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            minLength={6}
+            data-testid="account-password-confirm"
+          />
+          <button type="submit" disabled={busy || !password} data-testid="account-password-save">Save</button>
+        </div>
+      </form>
+      {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="account-note">{note}</p>}
+      <div className="row" style={{ marginTop: 8 }}>
+        <button onClick={() => { void signOut(); onClose(); }} data-testid="account-sign-out">Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsDialog({ onClose }: Props) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
@@ -49,6 +138,8 @@ export default function SettingsDialog({ onClose }: Props) {
         </div>
 
         <div className="pk-body">
+          <AccountSection onClose={onClose} />
+
           <div className="panel-section">
             <h3>AI</h3>
             <AiProviderSettings settings={ai} onChange={saveAi} />
