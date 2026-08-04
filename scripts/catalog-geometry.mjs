@@ -17,12 +17,17 @@
 //                 its rect, and the padding between it and the text it contains
 //   type        — every visible text run's px size, weight, tracking and case, largest first
 //   ratio       — primary:secondary type size, the hierarchy number DESIGN_LANGUAGE talks about
-//   media       — <img>/<svg> boxes, so image-to-text relationships can be counted
+//   media       — <img>/<svg> boxes; with --with-images, where the mark sits against the text,
+//                 how big it is next to the type beside it, and whether the graphic GREW to hold
+//                 it or the design had already reserved the room (measured against the paired
+//                 bare build — an absolute reading calls a credit roll "off frame" when it always
+//                 was one)
 //
 // Usage (dev server must be running for this checkout — scripts/dev-port.mjs):
 //   node scripts/catalog-geometry.mjs lower-third
 //   node scripts/catalog-geometry.mjs lower-third --json out.json
 //   node scripts/catalog-geometry.mjs --all --json all.json
+//   node scripts/catalog-geometry.mjs --all --with-images   # + a mark in every image field
 import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
@@ -34,6 +39,12 @@ const args = process.argv.slice(2);
 const jsonAt = args.indexOf('--json');
 const jsonOut = jsonAt >= 0 ? args[jsonAt + 1] : null;
 const all = args.includes('--all');
+// `--with-images` answers a question the default run structurally CANNOT (§6.4 of
+// docs/ADAPT_FIRST_PLAN.md): a logo slot is empty at `create({})`, so every variant reports
+// zero media and "image-to-text relationships are unmeasured" was the honest verdict. This
+// mode builds every logo-capable design a SECOND time with a real mark in the slot and
+// measures what the picture does to the words.
+const withImages = args.includes('--with-images');
 const category = args.find((a, i) => !a.startsWith('--') && i !== jsonAt + 1) || (all ? null : 'lower-third');
 
 const browser = await chromium.launch();
@@ -72,20 +83,41 @@ await page.evaluate(
   ({ FRAME_W, FRAME_H }) => {
     window.__geo = async (batch) => {
       document.body.innerHTML = '';
-      const frames = batch.map(({ id }) => {
+      const frames = batch.map(({ id, mark }) => {
         const v = window.__cat.variantById(id);
         const f = document.createElement('iframe');
         // The iframe IS the frame: an element's rect relative to it maps onto frame coordinates.
         f.style.cssText = 'width:1920px;height:1080px;border:0;position:fixed;left:-5000px;top:0';
         try {
-          f.srcdoc = window.__comp.composeDocument(v.create({}));
+          // A mark is passed the way the product passes one: a real asset plus the path the
+          // slot binds to. composeDocument inlines `images/…` from template.assets, so this
+          // is the same picture the wizard's logo upload produces, not a preview-only shim.
+          const options = mark
+            ? { logoEnabled: true, logoAssetPath: mark.path, importedImages: [mark] }
+            : {};
+          f.srcdoc = window.__comp.composeDocument(v.create(options));
         } catch (e) {
           f.dataset.err = String((e && e.message) || e);
         }
         document.body.appendChild(f);
-        return { id, f };
+        return { id, f, mark };
       });
       await new Promise((r) => setTimeout(r, 900));
+      // Drive EVERY image field, not just the shared logo slot. A crest, a sponsor rail and an
+      // avatar are ordinary `filelist` fields that `create()` leaves empty, so filling the slot
+      // alone reported five designs as "painted nothing" that in fact carry two crests and three
+      // sponsor slots. This is field-coverage.mjs's technique: drive the fields, re-read the
+      // screen, and let the graphic say what it does with a picture.
+      for (const { f, mark } of frames) {
+        if (!mark) continue;
+        try {
+          const fields = (f.contentWindow.SPXGCTemplateDefinition || {}).DataFields || [];
+          const data = {};
+          for (const fd of fields) if (fd.ftype === 'filelist') data[fd.field] = mark.data;
+          if (Object.keys(data).length) f.contentWindow.update(JSON.stringify(data));
+        } catch { /* a template without update() cannot take a picture; the read below says so */ }
+      }
+      await new Promise((r) => setTimeout(r, 300));
       for (const { f } of frames) {
         try { f.contentWindow.play && f.contentWindow.play(); } catch { /* no play() is not a geometry fault */ }
       }
@@ -226,10 +258,51 @@ await page.evaluate(
           }
           out.textLines = runs.length;
 
-          // ── Media ────────────────────────────────────────────────────────
-          out.media = visible
-            .filter((v) => v.el.tagName === 'IMG' || v.el.tagName === 'SVG')
-            .map((v) => ({ tag: v.el.tagName.toLowerCase(), w: Math.round(v.r.width), h: Math.round(v.r.height) }));
+          // ── Media, and what it does to the words ─────────────────────────
+          // A box is not the answer on its own: the question §6.4 leaves open is the
+          // RELATIONSHIP - where the mark sits against the text, how big it is next to the
+          // type it stands beside, and whether it displaces the words or the design had
+          // already reserved its room.
+          const media = visible.filter((v) => v.el.tagName === 'IMG' || v.el.tagName === 'SVG');
+          out.media = media.map((v) => ({
+            tag: v.el.tagName.toLowerCase(),
+            w: Math.round(v.r.width),
+            h: Math.round(v.r.height),
+            aspect: +(v.r.width / Math.max(1, v.r.height)).toFixed(2),
+          }));
+          if (media.length && runs.length) {
+            const m = media.reduce((a, b) => (a.r.width * a.r.height >= b.r.width * b.r.height ? a : b));
+            const textBoxes = visible.filter(textish).filter((v) => v.el.tagName !== 'IMG' && v.el.tagName !== 'SVG');
+            if (textBoxes.length) {
+              const tu = textBoxes.reduce(
+                (a, { r }) => ({
+                  left: Math.min(a.left, r.left), top: Math.min(a.top, r.top),
+                  right: Math.max(a.right, r.right), bottom: Math.max(a.bottom, r.bottom),
+                }),
+                { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+              );
+              // WHERE it sits. Overlap on an axis decides which reading applies: a mark to
+              // the left of the words is 'leading' only while it shares their band; one above
+              // them is 'above' however far left it starts.
+              const sharesRow = m.r.bottom > tu.top + 4 && m.r.top < tu.bottom - 4;
+              const sharesCol = m.r.right > tu.left + 4 && m.r.left < tu.right - 4;
+              const place = sharesRow && m.r.right <= tu.left + 4 ? 'leading'
+                : sharesRow && m.r.left >= tu.right - 4 ? 'trailing'
+                : sharesCol && m.r.bottom <= tu.top + 4 ? 'above'
+                : sharesCol && m.r.top >= tu.bottom - 4 ? 'below'
+                : 'overlapping';
+              out.markPlace = place;
+              // Sized against the TYPE it stands beside, which is the transferable number: a
+              // px box means nothing without the ladder it sits in.
+              out.markVsType = +(m.r.height / Math.max(1, runs[0].size)).toFixed(2);
+              out.markGap = place === 'leading' ? Math.round(tu.left - m.r.right)
+                : place === 'trailing' ? Math.round(m.r.left - tu.right)
+                : place === 'above' ? Math.round(tu.top - m.r.bottom)
+                : place === 'below' ? Math.round(m.r.top - tu.bottom)
+                : 0;
+              out.markShare = +((m.r.width * m.r.height) / Math.max(1, bbox.width * bbox.height)).toFixed(3);
+            }
+          }
         } catch (e) {
           out.err = (out.err || '') + ' READ:' + String((e && e.message) || e);
         }
@@ -240,12 +313,46 @@ await page.evaluate(
   { FRAME_W, FRAME_H },
 );
 
+/**
+ * Two marks, drawn in the page rather than committed as fixtures. The pair matters: every
+ * shared logo slot is a SQUARE box with `object-fit: contain`, so a wide wordmark cannot fill
+ * it and leaves vertical air a square mark does not. Measuring only one shape would report
+ * that as a property of the design instead of the picture.
+ */
+const MARKS = await page.evaluate(() => {
+  const draw = (w, h, fill) => {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.fillStyle = fill; g.fillRect(0, 0, w, h);
+    return c.toDataURL('image/png');
+  };
+  return {
+    square: { path: 'images/mark-square.png', data: draw(256, 256, '#f6a623') },
+    wordmark: { path: 'images/mark-wide.png', data: draw(512, 128, '#f6a623') },
+  };
+});
+
 const rows = [];
-for (let i = 0; i < targets.length; i += 10) {
-  const slice = targets.slice(i, i + 10);
-  const res = await page.evaluate((b) => window.__geo(b), slice.map((t) => ({ id: t.id })));
-  res.forEach((r, k) => rows.push({ ...slice[k], ...r }));
-  process.stderr.write(`\r  measured ${rows.length}/${targets.length}`);
+// The plan: every variant bare, plus a SECOND build for every logo-capable one with a mark in
+// its slot. Only `logo !== 'none'` can carry a picture, and asking the rest to would measure
+// a design refusing an option it never offered.
+const plan = [
+  ...targets.map((t) => ({ t, mark: null, markKind: 'none' })),
+  ...(withImages
+    ? targets
+        .filter((t) => t.logo !== 'none')
+        .flatMap((t) => [
+          { t, mark: MARKS.square, markKind: 'square' },
+          { t, mark: MARKS.wordmark, markKind: 'wordmark' },
+        ])
+    : []),
+];
+for (let i = 0; i < plan.length; i += 10) {
+  const slice = plan.slice(i, i + 10);
+  const res = await page.evaluate((b) => window.__geo(b), slice.map((p) => ({ id: p.t.id, mark: p.mark })));
+  res.forEach((r, k) => rows.push({ ...slice[k].t, markKind: slice[k].markKind, ...r }));
+  process.stderr.write(`\r  measured ${rows.length}/${plan.length}`);
 }
 process.stderr.write('\n');
 await browser.close();
@@ -256,7 +363,9 @@ if (jsonOut) {
 }
 
 // ── Summary ────────────────────────────────────────────────────────────────
-const ok = rows.filter((r) => !r.err && r.bbox);
+// The bare build is the catalog's own state, so every statistic below is over THAT. A
+// mark-bearing row is an answer to a different question and is summarised separately.
+const ok = rows.filter((r) => !r.err && r.bbox && r.markKind === 'none');
 const bad = rows.filter((r) => r.err);
 const pct = (n) => `${Math.round((n / ok.length) * 100)}%`;
 const stat = (vals) => {
@@ -315,3 +424,49 @@ console.log('type steps     :', fmt(stat(ok.map((r) => r.typeSteps))));
 console.log('hierarchy ratio:', fmt(stat(ok.map((r) => r.ratio))));
 console.log('text runs      :', fmt(stat(ok.map((r) => r.textLines))));
 console.log('media elements :', fmt(stat(ok.map((r) => (r.media || []).length))));
+
+// ── Image-to-text, only when a mark was actually placed ────────────────────
+if (withImages) {
+  const capable = ok.filter((r) => r.logo !== 'none');
+  const bare = new Map(ok.map((r) => [r.id, r]));
+  for (const kind of ['square', 'wordmark']) {
+    const shot = rows.filter((r) => r.markKind === kind && !r.err && r.bbox);
+    const drew = shot.filter((r) => (r.media || []).length > 0);
+    const silent = shot.filter((r) => !(r.media || []).length);
+    console.log(`\n=== with a ${kind} mark: ${drew.length} of ${shot.length} logo-capable designs drew it ===`);
+    // A design that took the option and painted nothing is the honest half of the answer:
+    // the self-assembled categories build their own slots and ignore the shared one.
+    if (silent.length) {
+      console.log(`  no image painted (${silent.length}): ${[...new Set(silent.map((r) => r.cat))].join(', ')}`);
+    }
+    if (!drew.length) continue;
+    const places = new Map();
+    for (const r of drew) places.set(r.markPlace ?? 'unplaced', (places.get(r.markPlace ?? 'unplaced') ?? 0) + 1);
+    console.log('  placement    :', [...places].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · '));
+    console.log('  mark w x h   :', fmt(stat(drew.map((r) => r.media[0].w))), '/', fmt(stat(drew.map((r) => r.media[0].h))));
+    console.log('  mark : type  :', fmt(stat(drew.map((r) => r.markVsType))));
+    console.log('  gap to text  :', fmt(stat(drew.map((r) => r.markGap))));
+    console.log('  share of box :', fmt(stat(drew.map((r) => r.markShare))));
+    // Does the graphic GROW to hold the mark, or had the design already kept its room? The
+    // paired bare build is the only way to tell, and it decides whether an operator adding a
+    // logo can push a strap past its width budget.
+    const grown = drew
+      .map((r) => ({ id: r.id, bare: bare.get(r.id), now: r }))
+      .filter((p) => p.bare)
+      .map((p) => ({ id: p.id, dw: p.now.bbox.width - p.bare.bbox.width, dh: p.now.bbox.height - p.bare.bbox.height }));
+    console.log('  width growth :', fmt(stat(grown.map((g) => g.dw))));
+    console.log('  height growth:', fmt(stat(grown.map((g) => g.dh))));
+    const unchanged = grown.filter((g) => Math.abs(g.dw) < 2 && Math.abs(g.dh) < 2).length;
+    console.log(`  reserved room: ${unchanged} of ${grown.length} designs did not resize for the mark`);
+    // Off-frame is only meaningful as a CHANGE. Credit rolls and full-frame cards are
+    // off-frame BARE - a roll scrolls past the edge on purpose - so reporting whatever is
+    // negative here named nine designs the picture had done nothing to.
+    const pushed = drew.filter((r) => {
+      const b = bare.get(r.id);
+      if (!b?.margins || !r.margins) return false;
+      return ['left', 'right', 'top', 'bottom'].some((s) => r.margins[s] < -2 && b.margins[s] >= -2);
+    });
+    console.log(`  pushed off frame: ${pushed.length}${pushed.length ? ' — ' + pushed.map((r) => r.id).join(' ') : ' (none: was inside bare and still is)'}`);
+  }
+  console.log(`\nlogo-capable   : ${capable.length} of ${ok.length} (${pct(capable.length)})`);
+}

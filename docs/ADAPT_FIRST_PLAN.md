@@ -75,9 +75,48 @@ Stated because a rule invented from a tendency is worse than no rule:
   but the catalog runs 1.06-3.05, and other categories sit near 1.3.
 - **Width is a band** - 20.8%-30.5% interquartile for lower thirds. It constrains a *sanity check*,
   not a target.
-- **Measurement limit:** logo slots are empty at `create({})`, so every variant reports zero media
-  elements. Image-to-text relationships are not measured by this instrument and nothing here should
-  be read as evidence about them.
+- **Image-to-text is measured separately** (§1.5) - at `create({})` every image field is empty, so
+  the bare pass reports zero media everywhere and says nothing about pictures.
+
+### 1.5 Image-to-text - what a picture does to the words
+
+`--with-images` builds every image-capable design a second time and **drives every `filelist`
+field through `update()`** - a crest, a sponsor rail and an avatar are ordinary image fields that
+`create()` leaves empty, so filling the shared logo slot alone is not the question. That is
+`field-coverage.mjs`'s technique: drive the fields, re-read the painted frame. Two marks are used,
+a square and a wide wordmark, because every shared slot is a square box with `object-fit: contain`
+and a wordmark cannot fill it. **115 of 430 designs (27%) can carry a picture at all; all 115
+painted it.**
+
+| question | answer |
+|---|---|
+| which designs can | 115 of 430. info-card 47/71 · corner-bug 28/36 · lower-third **13/89** · end-credits 12/12 · scoreboard 4/20 · stream-notification 4/4 · public-info 3/10 · versus 2/2 · alert 1/12 · frame 1/14 |
+| which carry none | ticker, starting-soon, infographic, game-timer, transition, esports-score, matchup, results-board, reveal, quiz, poll, audience |
+| where it sits | **category-determined**: info-card **above** the text (42 of 47), lower-third **leading** it (10 of 13, 3 trailing), corner-bug leading, end-credits / versus / scoreboard / frame **overlapping** (a crest among the score, a sponsor on the chrome) |
+| how big | **mark height ≈ 1.4x the primary type size** (median 1.43 square, 1.39 wordmark) - the transferable number, since a px box means nothing without its type ladder |
+| gap to the text | median 14px overall; **41px** on lower thirds |
+| does the graphic grow | **only lower thirds grow sideways** - median **+101px**, up to +142 (lt54: 409 -> 551px, **+35%**, frame share 0.213 -> 0.287). Every other category reserved its room: +0 width. Info-card, public-info and alert grow in HEIGHT instead (+70 / +85 / +86), which is what "above the text" costs |
+| **47 of 115 do not resize at all** | every corner bug, both versus cards, the scoreboards, the stream notifications, `lt07` / `ls10` / `ls25` |
+| pushed off frame | **none** |
+
+**The capacity finding:** a logo is the one operator action that can push a lower third past its
+width budget. `catalog-type-floor`'s rule of thumb is to cap design growth at 1.25x; a mark costs
+up to **1.35x** on `lt54`, and the median +101px moves the median strap from 471px (24.5% of frame)
+to 572px (29.8%) - from the middle of §1.1's interquartile band to its top. Nothing overflows
+today, but a design already near the p75 has spent its remaining air on the mark.
+
+**Two alarms in the first pass were the instrument, not the catalog**, and both are worth knowing
+because the naive form of each looks like a finding:
+
+- *"The mark pushed 9 designs off frame."* It pushed none. Credit rolls and full-frame cards are
+  off-frame **bare** - a roll scrolls past the edge on purpose - so a check that reports whatever
+  is negative reports the design's own nature. `cr01` sat at -944 before the mark and -967 after,
+  and that delta is the mark's own height inside a scrolling track. Off-frame is only meaningful
+  measured as a CHANGE against the paired bare build, which is how the script now reports it.
+- *"9 logo-capable designs painted nothing."* They painted nothing **because the test only filled
+  the shared logo slot**. `sn01` carries an `Avatar / icon` field, `sb09` two crests, `fr13` three
+  sponsor slots - all real image fields the standard assembler does not bind at create. Driving
+  every `filelist` field took the number from 106/115 to **115/115**.
 
 ### 1.4 The retrieval cost nobody had priced
 
@@ -281,8 +320,11 @@ No new paid stage is introduced.
 3. **Prove the shortlist beats the digest.** The honest experiment is one paid round, same briefs,
    same model, full digest vs shortlist, scored on chassis correctness and the human read. Not run
    here, and not to be run without an explicit cost approval.
-4. **Image-to-text relationships are unmeasured** (§1.3) - the geometry instrument reports zero
-   media because logo slots are empty at defaults.
+4. ~~**Image-to-text relationships are unmeasured**~~ - **CLOSED**, measured in §1.5
+   (`catalog-geometry.mjs --with-images`, 115 of 430 designs carry a picture, all 115 painted it).
+   What it leaves open is a product question rather than a measurement one: a logo is the only
+   operator action that can push a lower third past its width budget (+35% on `lt54`), and no gate
+   watches for it - the overflow sweep and the catalog tripwire both run on the BARE build.
 5. **Frontier-authored catalog members** as a way to spend model money once instead of per
    generation - proposed, not costed.
 6. **The placement rule is the one thing here with a cheap read available and unrun.**
