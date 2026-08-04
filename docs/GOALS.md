@@ -1354,9 +1354,17 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       (e2e/playout-drills.spec.ts - loud failure, last good copy intact, recovery), the
       dangling-reference walk over all six export targets (e2e/exports.spec.ts), and the
       consolidated owner checklist at **docs/STUDENT_RELEASE_ACCEPTANCE.md**, which names
-      what the suites already pin so nothing is re-tested by hand. REMAINING (owner, real
-      hardware + backend): that checklist's §1-§6 - CasparCG 2.3.x + OBS through both doors,
-      the soak, the live recovery drills, one live-suite run, and the timed walks.
+      what the suites already pin so nothing is re-tested by hand. ROUND 1 (owner, 2026-08-04)
+      FAILED the export door and its findings are FIXED (2026-08-05, all pinned by specs):
+      the published-package hosted-receiver boot snap ("flashes in then disappears" on real
+      CasparCG/SPX), index.html naming, the shared playlayer 7, the dishonest file://
+      control panel - plus the follow-up program that round demanded: the production export
+      target picker (all six flavors), the bundled LOCAL RELAY + double-click launchers
+      (offline panel-to-OBS control), and the exported PRODUCTION CONTROLLER with the
+      preview/program workflow. REMAINING (owner, real hardware + backend): the checklist's
+      §1-§6 RE-TEST against a build carrying those fixes - CasparCG 2.3.x + OBS through both
+      doors (incl. the launcher + controller path), the soak, the live recovery drills, one
+      live-suite run, and the timed walks.
 
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate

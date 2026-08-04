@@ -25,6 +25,16 @@ is the binding contract for `src/control/`, the show model, and the hosted-contr
   `machineControls` merge for its labels and the same `isEventLegal` for its greying. It owns
   the preview iframe, so it runs the one poll of `noacgMachineState()` and publishes the
   pointers to `templateStore.machineGroups`, which is where the in-app Control tab reads them.
+- The FIFTH renderer is the exported **PRODUCTION CONTROLLER**
+  (`control/productionControllerHtml.ts`, vanilla JS — the launcher's landing page in a
+  local-control package): the cue rundown + the shared verbs + PREVIEW/PROGRAM monitors, its
+  per-graphic modules built from the SAME `emitGraphic` the standalone panel uses. Its wire is
+  the **LOCAL RELAY** (`export/local-relay/`, protocol v1 — the local counterpart of the
+  hosted log: ordered rows, a `stream` field for preview vs program, persisted to
+  relay-log.jsonl), received by `control/localReceiver.ts` in every exported overlay graphic
+  and conformance-tested by `npm run test:local-relay`. "→ Preview" and "⟳ Take" are the same
+  command list one `stream` apart; `{t:'cue'}` meta rows carry the per-stream tally, and
+  receivers ignore them exactly as they ignore the hosted log's status rows.
 
 ## Buttons come from the machine
 

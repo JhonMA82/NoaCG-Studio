@@ -78,8 +78,16 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
       correct, autoplays. Driving it live requires the same-origin http setup (or the hosted
       page) — confirm the bundled panel's no-listener banner appears over `file://` instead
       of a false "connected".
+- [ ] **The launcher path** (the shipped answer to round 1's dead panel): double-click
+      "Start controller.cmd" in an overlay/production package — the relay starts, the
+      controller opens; point an OBS browser source at
+      `http://localhost:<port>/<graphic>/<graphic>.html?stream=program` and confirm it does
+      NOT autoplay, → Preview shows the cue on the PVW monitor only, ⟳ Take airs it in OBS,
+      Out/All out clear it, and a relay restart mid-show keeps working (relay-log.jsonl).
 - [ ] Whole-production export served over a local http address: `show_controlpanel.html`
       drives every graphic of the package independently from that origin.
+- [ ] The production export target picker: download the same production as SPX, CasparCG and
+      HTML overlay; spot-check one CasparCG file plays on the server.
 
 ## 3. Production-length soak (one real show's length, hours)
 
