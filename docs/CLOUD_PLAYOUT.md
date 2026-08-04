@@ -133,6 +133,9 @@ not yet published" hint when the library template or cue list is newer than the 
    control surfaces write on Take so every open page agrees on which cue is live. Receivers
    ignore unknown `t` by construction (verified against `receiverScript.ts` and
    `hostedReceiver.ts` — the row is backward-compatible with already-exported graphics).
+   The row has always named its GRAPHIC (`control_events.graphic`), so the log was per-layer
+   from the start; making a production multi-layer (0034) changed only the row snapshot below
+   and the clients reading it, never the wire.
 5b. **`control_send_many(p_slug, p_items)`** — a multi-part verb (Take is update → stop
    previous → play → cue) as ONE atomic, log-ordered insert: one RPC round-trip of on-air
    latency instead of four, and it cannot fail halfway. Validated per item, burst-checked
@@ -162,11 +165,16 @@ The page:
   transparent background (`html, body, iframe { background: transparent }`,
   `<meta name="color-scheme" content="dark">` on BOTH the page and every srcdoc — the
   Chromium opaque-iframe rule).
-- **One sandboxed iframe per pool graphic**, all built at load (preload), stacked in rundown
-  order (z-order = layer order later; the MVP airs one primary layer but the model is
-  per-graphic instances, so layers are an ordering feature, not a rearchitecture). Each
-  iframe is `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start
-  invisible by the SPX contract, so a stacked idle graphic shows nothing.
+- **One sandboxed iframe per pool graphic**, all built at load (preload). Each iframe is
+  `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start invisible
+  by the SPX contract, so a stacked idle graphic shows nothing.
+- **Every graphic is a LAYER, and pool order is the stack** — index 0 furthest back, the last
+  entry on top, carried through the published payload's `graphics` array to the stage, which
+  states it as an explicit `z-index` rather than relying on append order. The production page
+  authors it (§5) and a re-publish is what moves it, like every other pinned fact. Several
+  layers are on air at once by design: a bug, a lower third and a ticker are three graphics,
+  so taking a cue on one leaves the other two exactly as they were. That is why a cue's
+  identity is its GRAPHIC — one cue per layer, never one cue per production.
 - **Transport** — the `hostedReceiver` behavior implemented app-side over supabase-js:
   resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
   rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
@@ -237,8 +245,9 @@ send.
 **The production page** (`#/production/<id>`, in-app, the owner's cockpit — §5) and the
 **hosted control page** (`?control=<slug>`, no login, phone-capable) both present:
 
-- **The cue rundown** — ordered cues with label, graphic, note; the LIVE cue marked (from the
-  `cue` status rows + `live` reports). Selecting a cue stages nothing by itself.
+- **The cue rundown** — ordered cues with label, graphic, note; every LIVE cue marked (from the
+  `cue` status rows + `live` reports). Selecting a cue stages nothing by itself. There is no
+  single live cue: one per layer that is up, so several rows carry the mark at once.
 - **Preview** — a local sandboxed iframe settled with the selected cue's values. Pure local
   render; the wire is never touched, so editing or previewing can never modify program. The
   PRODUCTION page deliberately previews the LOCAL (to-be-published) template — it is the
@@ -248,24 +257,110 @@ send.
   UI work, not schema work.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
-- **The five verbs**:
+- **The verbs, and the layer each one addresses.** Every verb below Take acts on ONE LAYER —
+  the layer of the SELECTED cue on the production page, the layer of the row the button sits on
+  in the hosted page. There is no longer a "the live graphic" for a header button to mean, so
+  the surface has to name which layer it is about, and the operator's own selection is the
+  least ambiguous answer.
   - **Take** — air the selected cue AS PREPARED: `update` (the cue's values — on the
-    production page including its unsaved draft edits) + `play` to its graphic, `stop` to
-    the previously-live graphic when different, and the `cue` status row — one atomic batch
-    (`control_send_many`). Staged edits do NOT ride a cue Take; they air through the graphic
-    card's own ⟳ Take, which exists for exactly that. The send RPCs also mirror the cue
-    marker onto `control_shows.live_cue` (0031), so a reloading surface recovers "what is
-    on air" from the row rather than scanning a log window that global event ids can defeat.
-  - **Update** — send the edited values to the LIVE graphic without replaying it (`update`).
-  - **Next** — advance the live graphic's state machine (`next`).
-  - **Out** — animate the live graphic off (`stop` — the SPX contract's out IS stop) + a
-    `cue: null` status row.
+    production page including its unsaved draft edits) + `play` + the `cue` status row to its
+    OWN graphic — one atomic batch (`control_send_many`). It stops nothing. Taking a second
+    cue on the SAME graphic re-airs that one instance, which is what makes two cues over one
+    lower third replace each other rather than stack; taking a cue on ANOTHER graphic leaves
+    the first up, because that is another layer. Staged edits do NOT ride a cue Take; they air
+    through the graphic card's own ⟳ Take, which exists for exactly that. The send RPCs mirror
+    each cue marker onto `control_shows.live_cue` (0031, per-layer since 0034), so a reloading
+    surface recovers what is on air from the row rather than scanning a log window that global
+    event ids can defeat.
+  - **Update** — send the selected cue's edited values to its layer without replaying it
+    (`update`). Legal only while that cue is the one on air on its layer: pushing another
+    cue's data onto a live layer would be a take nobody asked for.
+  - **Next** — advance that layer's state machine (`next`).
+  - **Out** — animate that layer off (`stop` — the SPX contract's out IS stop) + a `cue: null`
+    status row. The other layers stay up.
+  - **All out** — every live layer off, in batches of four layers (`control_send_many` takes
+    eight items and Out costs two). With per-layer Out no single verb clears the frame any
+    more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — renderer connected (from `output_seen_at` staleness, polled), live cue +
-  graphic + machine state + applied values (from `live` reports), publish freshness.
+- **Status** — renderer connected (from `output_seen_at` staleness, polled), every live layer
+  with its cue + machine state + applied values (from `live` reports), publish freshness.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).
+
+## 4a. Rehearse vs Show
+
+**Rehearsal is the whole operator workflow with the wire taken away.** The verbs drive a LOCAL
+copy of the production's own output — `createOutputStage` over `buildOutputPayload`, the exact
+two functions the published `/output` page is built from — and nothing is written to the log.
+Practising a rundown, checking that a new lower third really does sit under the ticker, learning
+the verbs: none of it needed to cost an airing, and before this there was no way to do any of it
+except on air.
+
+- **Each verb is defined ONCE, as the commands it is** (`takeCueItems`, `clearCueItems`,
+  `clearAllCueBatches`), and the surface either SENDS those `ControlSendItem`s or APPLIES them to
+  the rehearsal stage. That is what makes a rehearsal worth trusting: rehearsing and airing are
+  the same commands in the same order through the same renderer, not two implementations that
+  have to be kept in step by hand. `ProductionPage`'s `runVerb` is the one place the destination
+  is decided.
+- **The mode is this operator's, not the production's.** It lives in the page, never on the
+  record or the server. Rehearsal only ever takes the wire AWAY, so a rehearsing operator cannot
+  reach anyone else's air, and the mistake that actually matters — believing you were rehearsing
+  while you were live — is the one this shape cannot produce. Two operators can therefore
+  disagree about the mode safely: whoever is in Show is the one airing, and their page says so.
+- **It is always opt-in, including before publishing.** Making an unpublished production rehearse
+  by default read tidily and was wrong: the cue preview is how a rundown gets BUILT, and swapping
+  it for a rehearsal output takes that away from everyone still authoring. So the strip carries
+  three honest states — `NOT PUBLISHED` (nothing to air yet, verbs dead, cue preview), `SHOW`
+  (published, verbs air), `REHEARSE` (verbs drive the local stage) — and the mode strip is
+  always present and always coloured, because a mode you have to go looking for is a mode you can
+  be wrong about.
+- **The rehearsal has its own live map.** A rehearsal must never make the page report something
+  about the real output, so the on-air marks, the layer chips and the verb legality all read
+  whichever map the current mode owns. Entering or leaving rehearsal builds a fresh stage with
+  nothing up, and empties that map with it.
+- **The payload comes from the LOCAL show, not from what was published** — rehearsing is how you
+  check a change before publishing it. It rebuilds only when the POOL changes (a graphic added,
+  removed, reordered, or re-saved); cue values ride each Take as `update` data, so typing never
+  restarts the rehearsal.
+- The hosted phone page has no rehearsal: it exists to operate a live production, and it has no
+  local stage. Adding one is UI work over the payload it already loads.
+
+Because none of this touches the backend, it is the one part of §4 the OFFLINE e2e suite can
+drive end to end — `e2e/productions.spec.ts` takes two cues, asserts both layers are up and that
+the values reached the rendered documents, then Outs one layer and All-outs the rest.
+
+## 4b. The action log
+
+The command log has always recorded everything, because that is what makes recovery possible —
+and nothing ever showed it to the person driving the show. "Did that take actually go?" was a
+question the system could answer and did not. The production page's **Activity** panel is that
+answer: the log read back in the words an operator would use, newest first.
+
+- **It shows COMMANDS — what somebody asked the production to do.** The two meta rows are
+  deliberately absent. `staged` is typing (debounced, one row per few keystrokes, per operator)
+  and would drown everything else; `live` is the RENDERER reporting back, a different fact with
+  its own surfaces (the live chips, the renderer-connected indicator). A feed carrying all three
+  is unreadable, which is the usual failure of an event log.
+- **A verb is several rows and the log says so.** A Take is `update` + `play` + `cue`, and it
+  prints as three lines. Collapsing them would mean inventing a grouping the log does not carry;
+  the log's whole value is that it is what actually happened.
+- **Cues are named, never numbered.** `describeLogRow` resolves a cue id to the label the
+  operator wrote, and the id never reaches the screen. The lookup reads the DRAFT first, for the
+  same reason a Take sends draft values: a verb runs in the same tick as its own `flushDraft()`,
+  so reading the stored record alone logged the name a cue had *before* the rename that just
+  happened — precisely when someone is most likely to be reading.
+- **Rehearsal keeps its own log**, built from the same `ControlSendItem`s through the same
+  `describeLogRow`. That is what makes the panel identical in both modes, and it is the only
+  reason any of this is provable without a backend.
+- Opening a published production seeds the panel with recent history (one tail read behind the
+  log head — `followControlLog` starts AT the head by design, being recovery rather than a
+  history reader). Global event ids mean that window is a ceiling on rows READ, not on rows
+  shown: on a busy instance it simply yields fewer of this show's rows. Entries are capped
+  (`LOG_LIMIT`) so a 24/7 production cannot grow the page without bound.
+- Timestamps are real: `control_tail` has returned `created_at` since 0008, and a Realtime
+  INSERT payload carries the whole row — surfacing them needed no migration, only a widened
+  type. A row with no time says `—` rather than guessing.
 
 ## 5. Where it lives in the app
 
@@ -274,7 +369,11 @@ verb row are the priority content (the preview collapses first).
 - **`#/production/<id>`**: the production page — name, status, links (copy output URL / copy
   control URL), publish ("Start production" = publish + verify the renderer connects; it
   never airs anything), the cue rundown editor (add from library or pool, edit values/notes,
-  reorder, delete), the operator surface of §4.
+  reorder, delete), the **layer stack** (the pool, listed FRONT TO BACK like every layer panel,
+  with ↑/↓ moving a graphic forward and back, its layer number, and an on-air mark), the
+  **mode strip** (§4a) and the operator surface of §4. The stored pool stays in PAINT order — index 0 furthest back, which
+  is what the payload and the stage read — and only the list is reversed, so there is one
+  ordering in the data and one convention on screen.
 - **The editor's Control tab**: its Rundowns block renames to Productions and links out to
   the production page; adding the current graphic to a production stays.
 - The wizard Finish step and Home rows keep their existing doors; a graphic's "add to
@@ -330,13 +429,19 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    `&debug=1` shows connected + graphics loaded; `output_seen_at` advances.
 4. From the production page: Preview cue 1 (program unchanged), Take cue 1 (airs), edit a
    field + Update (live text changes without replay), Next (state advances), Take cue 2 on
-   the OTHER graphic (cue 1's graphic plays out, cue 2 enters), Out (clean exit).
+   the OTHER graphic — **both are now on air**, each on its own layer, cue 1 untouched — then
+   Out on cue 2's layer (only that one exits) and All out (the frame clears).
+4b. **Layers**: with two graphics up that overlap on screen, reorder them on the production
+   page (↑/↓), re-publish, and reload the output — the one listed higher paints over the
+   other. Take a third cue on the SAME graphic as cue 1: it replaces cue 1 rather than
+   stacking, because a graphic is one layer and one renderer instance.
 5. Kill the output tab, reload → it snaps back to the pre-kill on-air state (data, then
    snap). Kill the network briefly → commands sent meanwhile apply on reconnect, in order.
 6. Open `?control=<slug>` on a phone (signed out): cue strip + fields + verbs usable; a Take
    from the phone airs on the output tab; the live chip agrees on both surfaces.
-7. OBS Browser Source and CasparCG HTML producer (`CG ADD 1-20 "<url>" 1`): transparent,
-   correct scale at 1920×1080, survives a CasparCG channel restart.
+7. OBS Browser Source and CasparCG HTML producer (`CG 1-20 ADD 1 "<url>" 1` — channel-layer
+   BEFORE `ADD`, as in the generated CasparCG export README): transparent, correct scale at
+   1920×1080, survives a CasparCG channel restart.
 8. Unpublish → output URL and control URL both go dead honestly; re-publish → same record,
    new session, output URL unchanged only if the row was updated rather than deleted.
 
@@ -370,7 +475,9 @@ last-known-good). Choose concrete providers only after licensing/cost review.
   generation + a deprecation window — an explicit product decision, not a quick fix.
 - **The 50-commands-per-5-s cap is per show**, shared by all operators AND the `cue` status
   rows. Fine for one operator + one renderer; a two-operator production hammering steppers
-  can hit it (the page surfaces the slow-down error today).
+  can hit it (the page surfaces the slow-down error today). **All out** costs two commands per
+  live layer, so it is the one verb whose price grows with the production — a twelve-layer
+  clear is 24 of the 50, which is affordable but not free.
 - **Payload size**: `output` inlines assets as data URLs; a production heavy on large images
   makes a heavy row (read once per renderer load, so tolerable, but not free). The HOSTED
   OPERATOR page pays the same row on every load while using only the cue list from it — a
