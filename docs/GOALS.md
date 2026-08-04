@@ -5,14 +5,17 @@ bottom rather than rewriting history.
 
 ## North star
 
-> **NoaCG Studio — the best and most useful place to create modern, premium broadcast graphics, and run them anywhere.**
+> **NoaCG Studio - pick a design, make it yours, and be live on air in five minutes - in CasparCG, OBS, vMix, or straight from a cloud output URL.**
 
-Make an on-air-worthy graphic in a couple of minutes, no code required, then export it to whatever
-environment the user already runs. Two kinds of user are first-class: a **non-technical creator** who
-never opens the code, and a **professional** who drops into the always-available editor for full
-control. The generated HTML/CSS/JS stays clean, well-named, and the single source of truth — its view
-is optional. Users span organizations, TV channels, streamers, and universities (it's also used in
-teaching, but the product is a production tool, not a code tutorial).
+The primary workflow is wizard-first: choose a template or a coordinated pack, customize the
+supported fields and branding (fonts, colors, text size, logos, images, content - manually, no
+code and no AI required), add it to a **Production**, then export the files or publish and run
+the show live through the control dashboard and the persistent output URL. The first-named user
+is a **student or non-technical operator** who runs a real production without ever seeing code;
+organizations, TV channels, streamers, and universities follow. A **professional** keeps full
+control through **Advanced mode** - the always-available editor, one toggle away, never
+required. The generated HTML/CSS/JS stays clean, well-named, and the single source of truth — its view
+is optional. It is used in teaching, but the product is a production tool, not a code tutorial.
 
 ### Anything-goes export (a platform, not an SPX generator)
 
@@ -36,7 +39,8 @@ a primary long-term differentiator, not a nice-to-have.
   the GTM plan + [[gtm-competitive]] memory.
 
 ### What "done right" feels like
-- **Fast:** new project → on-air-worthy lower third in under 2 minutes, no code required.
+- **Fast:** open NoaCG → choose a pack or template → production → paste the output URL into
+  CasparCG or OBS → live in under 5 minutes, no code, no install.
 - **Tasteful:** every template looks like a paid MotionArray/Envato asset, not a tutorial demo.
 - **Consistent:** graphics made in the same project form a coherent **broadcast package** — the
   same style family, palette, and typography across every category, usable in a real program.
@@ -1274,6 +1278,47 @@ first-class. Stages are direction, not a calendar; each is independently shippab
 - [ ] **Stage 4 — professional automation**: real-time streams, sports/timing providers, the
       local NoaCG Bridge (venue networks), public API/SDK, Companion/Stream Deck, webhooks,
       synchronized redundant renderers + failover, data replay/simulation.
+
+### Student release - wizard to live broadcast (2026-08, current push)
+
+Everything in this release serves ONE north star: **a first-time student can choose or create a
+supported graphic, customize it without the editor or AI, prepare and manage cues in a
+Production, export or publish it, and reliably operate it live in CasparCG or OBS.**
+
+Postponed until after this release: Google Fonts import, the dedicated preview channel, all AI
+work (AI later assists with selecting and configuring SUPPORTED fields - it is never the system
+responsible for making layouts valid), and Home polish beyond step 8. Accepted limitations
+(decided 2026-08-04): post-save design restyling waits for a later improvement - recreate
+through the wizard or use Advanced mode; cloud publish requires an account (export does not).
+
+- [ ] **1. Scope locked + guidance simplified** - this north star in GOALS.md and AGENTS.md;
+      one goal, one plan, one roadmap.
+- [ ] **2. Fast critical-path test loop** - the student-critical focus suite
+      (`E2E_SPRINT_FOCUS=1 npm run test:e2e:affected`) is the per-change gate; the full suite
+      stays the nightly safety net.
+- [ ] **3. Packages removed** - Production is the only workflow; kits create productions.
+      (Audit 2026-08-04: the only server packet rows are the owner's four empty v2 folder
+      shells - nothing to migrate.)
+- [ ] **4. Editor behind Advanced mode; full-screen wizard** - default UI shows no editor
+      doors; `#/home` is the default route; the wizard is the full-screen creation surface.
+- [ ] **5. Deterministic customization + declared field expansion** - every template declares
+      the fields it supports (lines / fixed contract / repeatable list / optional slots) and
+      the wizard offers exactly that; colors, fonts, and text size editable with live preview;
+      no dead fields creatable from student surfaces.
+- [ ] **6. Wizard → Production → publish → output, complete** - the Finish step's production
+      door, the full rundown workflow (cue lifecycle, operator clarity, the verb glossary),
+      automated dependability specs (reopen, refresh, republish, stable URLs, failure without
+      data loss), and the timed 5-minute walk.
+- [ ] **7. Two coherent production-ready packs** - newsroom + talk-show, one unified look
+      each, complete for their programme type.
+- [ ] **8. Home simplified around Productions** - productions first, dashboards one click,
+      professional aligned grid, phone reaches a control dashboard in two taps.
+- [ ] **9. Account essentials** - password reset and change, account email, sign out,
+      session-expiry recovery that never loses local work.
+- [ ] **10. Playout hardening + owner acceptance** - automated recovery drills, soak and
+      exported-file checks first; then the owner's real CasparCG/OBS acceptance and a timed
+      first-time-user walk. CasparCG + OBS are the primary verification targets; every export
+      target stays supported.
 
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate

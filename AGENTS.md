@@ -21,21 +21,32 @@ goal is users/adoption, not revenue.** Binding docs, read before generating or j
 **`docs/DESIGN_LANGUAGE.md`** (taste + motion + code style) and **`docs/GOALS.md`** (north star +
 milestones - keep it checked off as work lands).
 
+**Current push (2026-08): the STUDENT RELEASE** - the binding 10-step roadmap is the "Student
+release" section of `docs/GOALS.md`. The primary workflow is WIZARD-FIRST: choose a template or
+pack, customize supported fields and branding manually, add it to a PRODUCTION, export or
+publish, operate live (CasparCG + OBS are the primary verification targets). The editor is
+being demoted to an Advanced mode over those steps; AI work is postponed until template-to-live
+is dependable. Prefer work that serves that north star.
+
 **The pillars (keep every change true to these):**
-- **Best & easiest to create** - premium output with the least friction; a non-technical user can
-  make a great graphic without ever touching code. **AI-assisted**, but a pro keeps full control.
+- **Best & easiest to create - and put on air** - premium output with the least friction; a
+  non-technical user can make a great graphic AND run it live without ever touching code.
+  **AI-assisted** (later), but a pro keeps full control.
 - **Export anywhere, SPX-canonical** - SPX is the canonical *internal* format and the strictest
   validation target; every other target is an adapter off the same source. SPX compatibility stays
   rock-solid, but the product is not "an SPX generator."
 - **Code is real & always available, view optional** - every visual/AI action writes real
   HTML/CSS/JS; **nothing hides behind a visual-only scene model**. No-code users keep the view
   hidden, pros work in it. Generated code is clean and commented; exports are always plug-and-play.
+  The wizard and every production write real code; the student release demotes only the VIEW
+  (the editor becomes Advanced mode), never the code.
 
 ## Commands
 
 ```bash
 npm install
-npm run dev      # Vite dev server (landing at /, THE EDITOR AT /app)
+npm run dev      # Vite dev server (landing at /, THE STUDIO AT /app: home, wizard,
+                 # productions - the editor is its Advanced surface)
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
@@ -238,9 +249,9 @@ player-host/   so the non-OSI license never enters the AGPL bundle. The player h
                (never add allow-same-origin), postMessage with a per-session nonce
 ```
 
-### Auth posture (the open editor)
+### Auth posture (the open studio)
 
-**There is no login wall, ever.** The editor - create, preview, export, local packets - is open to
+**There is no login wall, ever.** The studio - create, preview, export, local saves - is open to
 everyone, hosted or self-hosted. Only *account features* gate themselves: cloud sync, community,
 show chat, and AI (hosted mode). Offline builds (no Supabase env) must grow **zero** auth UI
 (E2E-pinned in `e2e/auth.spec.ts`). Don't reintroduce an app-wide gate; the `needsSignIn`/
