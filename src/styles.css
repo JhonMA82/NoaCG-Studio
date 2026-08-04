@@ -3838,6 +3838,43 @@ h2 + .lib-row,
 .lib-actions button { white-space: nowrap; }
 .lib-live { color: #4ade80; }
 .lib-create-row { margin-bottom: 10px; }
+
+/* ── The Graphics section's organisation layer: multi-select + flat folders ─────────── */
+/* A selectable row grows a leading checkbox COLUMN (the base grid is 4 columns). */
+.lib-row.selectable { grid-template-columns: max-content 168px minmax(0, 1fr) max-content max-content; }
+.lib-row.selected { background: rgba(246, 166, 35, 0.06); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.35); border-radius: 8px; }
+.lib-select { width: 16px; height: 16px; accent-color: var(--amber); cursor: pointer; }
+.lib-folders { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.lib-folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+}
+.lib-folder-chip.active { border-color: var(--accent); color: var(--text); background: rgba(246, 166, 35, 0.08); }
+.lib-folder-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+/* The bulk bar sticks over the list while a selection exists — actions stay reachable on a
+   long library without scrolling back up. */
+.lib-bulkbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.lib-bulkbar .destructive { border-color: #8a4a2a; background: #2d1c12; }
+.lib-bulkbar .destructive:hover { border-color: #e0763a; }
 .lib-create-row input { max-width: 320px; }
 
 /* The row popovers — the ⋯ overflow menu and the "+ Production" picker. A plain absolute

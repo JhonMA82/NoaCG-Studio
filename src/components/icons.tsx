@@ -44,6 +44,15 @@ export function IconTv(props: IconProps) {
   );
 }
 
+/** A flat library folder (Home's light grouping — not the retired packages). */
+export function IconFolder(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+    </Svg>
+  );
+}
+
 /** The graphics library. */
 export function IconGrid(props: IconProps) {
   return (

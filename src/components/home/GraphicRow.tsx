@@ -26,12 +26,18 @@ export default function GraphicRow({
   onOpen,
   onChanged,
   onPublish,
+  selected,
+  onToggleSelect,
 }: {
   g: GraphicDoc;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
   /** Present only when community publishing is available (backend + signed in). */
   onPublish?: (g: GraphicDoc) => void;
+  /** Multi-select (the Graphics section's bulk bar). Present = the row offers a checkbox;
+   *  shift-click range logic lives with the LIST, which knows the visible order. */
+  selected?: boolean;
+  onToggleSelect?: (shiftKey: boolean) => void;
 }) {
   const navigate = useRouter((s) => s.navigate);
   const openExport = useExportUi((s) => s.openExport);
@@ -113,7 +119,23 @@ export default function GraphicRow({
   ];
 
   return (
-    <div className="lib-row" data-testid={`graphic-row-${g.id}`}>
+    <div
+      className={`lib-row${onToggleSelect ? ' selectable' : ''}${selected ? ' selected' : ''}`}
+      data-testid={`graphic-row-${g.id}`}
+    >
+      {onToggleSelect && (
+        <input
+          type="checkbox"
+          className="lib-select"
+          checked={!!selected}
+          // onClick, not onChange: shiftKey has to ride along for range selection.
+          onClick={(e) => onToggleSelect(e.shiftKey)}
+          onChange={() => {}}
+          title="Select (Shift-click selects a range)"
+          aria-label={`Select ${g.name}`}
+          data-testid="select-graphic"
+        />
+      )}
       <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fixedBox />
       <div className="lib-info">
         {renaming ? (

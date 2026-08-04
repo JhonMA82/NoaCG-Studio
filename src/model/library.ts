@@ -54,6 +54,11 @@ export interface GraphicDoc {
    *  with the save so the graphic carries the reasoning that produced it. Additive optional,
    *  same rails as aiSpec (no version bump: rule 6, additive fields never bump). */
   aiThread?: AiThread | null;
+  /** The ONE flat folder this graphic is sorted into (Home's library organisation — a light
+   *  grouping, deliberately not the retired packages: no export unit, no embedded copies,
+   *  just a name). Absent/undefined = unfiled. Additive optional, same rails as aiSpec
+   *  (no version bump: rule 6; rides the sync record unchanged). */
+  folder?: string;
 }
 
 const GRAPHICS_KEY = 'spx-gfx-graphics';
@@ -154,7 +159,7 @@ export function createGraphic(
 /** Update fields of an existing graphic (the Save path, rename, move, entries…). */
 export function updateGraphic(
   id: string,
-  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread'>>,
+  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder'>>,
 ): { doc: GraphicDoc | null; error: string | null } {
   const all = rawGraphics();
   const doc = all.find((g) => g.id === id && !g.deleted);
@@ -182,9 +187,16 @@ export function duplicateGraphic(id: string): { doc: GraphicDoc | null; error: s
 
 /** Delete = tombstone (strip payload, keep the id + fresh timestamp) so the delete syncs. */
 export function deleteGraphic(id: string): void {
+  deleteGraphics([id]);
+}
+
+/** Bulk delete (Home's multi-select): every tombstone in ONE storage write + one change
+ *  event, instead of N of each — each record still gets its own fresh updatedAt for LWW. */
+export function deleteGraphics(ids: string[]): void {
+  const wanted = new Set(ids);
   const all = rawGraphics();
-  const doc = all.find((g) => g.id === id);
-  if (doc) {
+  for (const doc of all) {
+    if (!wanted.has(doc.id)) continue;
     doc.deleted = true;
     doc.template = { ...doc.template, html: '', css: '', js: '', assets: [], fields: [], layers: [] };
     doc.baseline = undefined;
@@ -192,6 +204,27 @@ export function deleteGraphic(id: string): void {
     doc.updatedAt = nowIso();
   }
   saveAll(all);
+}
+
+/** Bulk move into (or out of: undefined) a flat folder — one storage write, LWW per record. */
+export function setGraphicsFolder(ids: string[], folder: string | undefined): string | null {
+  const wanted = new Set(ids);
+  const name = folder?.trim() || undefined;
+  const all = rawGraphics();
+  for (const doc of all) {
+    if (!wanted.has(doc.id) || doc.deleted) continue;
+    doc.folder = name;
+    doc.updatedAt = nowIso();
+  }
+  return saveAll(all);
+}
+
+/** The distinct folder names in use, sorted — the Home chips derive from the data, so an
+ *  emptied folder disappears by itself (folders have no record of their own to orphan). */
+export function graphicFolders(): string[] {
+  const names = new Set<string>();
+  for (const g of loadGraphics()) if (g.folder) names.add(g.folder);
+  return [...names].sort((a, b) => a.localeCompare(b));
 }
 
 /** Drop local tombstones older than the cutoff (the sync controller's coordinated purge). */

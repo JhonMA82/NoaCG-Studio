@@ -32,6 +32,7 @@ import SettingsDialog from '../SettingsDialog';
 import { useAdvancedMode } from '../useAdvancedMode';
 import { copyLink } from './copyLink';
 import GraphicRow from './GraphicRow';
+import GraphicsSection from './sections/GraphicsSection';
 import ProductionsSection from './sections/ProductionsSection';
 import VideosSection, { VideoList } from './sections/VideosSection';
 import LooksSection from './sections/LooksSection';
@@ -255,7 +256,12 @@ export default function HomePage({ route }: { route: Route }) {
               <h2><IconGrid size={18} /> Graphics <span className="muted">({filtered.length})</span></h2>
               {searchRow}
               {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
-              {graphicRows(filtered)}
+              <GraphicsSection
+                graphics={filtered}
+                onOpen={openGraphic}
+                onChanged={refresh}
+                onPublish={onPublish}
+              />
               {communityOn && mySubs.length > 0 && (
                 <div className="panel-section" style={{ marginTop: 14 }}>
                   <h3>My community templates</h3>
