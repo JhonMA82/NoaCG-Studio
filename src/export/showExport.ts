@@ -31,7 +31,8 @@ import { buildStarterInto } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
 import { addLocalControlBundle } from './localControl';
 import { EXPORT_TARGETS } from './registry';
-import { renderShowControlPanelHtml } from '../control/controlPanelHtml';
+import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanelHtml';
+import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import {
@@ -215,6 +216,29 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
     root.file(
       'show_controlpanel.html',
       renderShowControlPanelHtml(show.name, panelGraphics, { inlineAssets: true }),
+    );
+    // THE PRODUCTION CONTROLLER — the page the launcher opens: cue rundown + verbs +
+    // PREVIEW/PROGRAM monitors + per-graphic capability modules, all through the relay.
+    const byPoolId = new Map(show.graphics.map((g, i) => [g.id, panelGraphics[i]?.template.name ?? g.name]));
+    const cues: EmittedCue[] = (show.cues ?? []).flatMap((cue) => {
+      const graphicName = byPoolId.get(cue.sourceId);
+      if (!graphicName) return [];
+      return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '' }];
+    });
+    const first = panelGraphics[0]?.template;
+    root.file(
+      'controller.html',
+      renderProductionControllerHtml({
+        show: show.name,
+        graphics: panelGraphics.map(({ template, entries }, i) => ({
+          ...emitGraphic(template, null, { inlineAssets: true, entries }),
+          file: `${slug(template.name)}/${slug(template.name)}.html`,
+          layer: showGraphicLayer(i),
+        })),
+        cues,
+        width: first?.resolution.width ?? 1920,
+        height: first?.resolution.height ?? 1080,
+      }),
     );
     addLocalControlBundle(root, {
       v: 1,

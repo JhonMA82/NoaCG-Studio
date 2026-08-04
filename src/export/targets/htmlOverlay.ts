@@ -57,6 +57,11 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     return data;
   }
   window.addEventListener('load', function () {
+    // A STREAM-ADDRESSED instance (…?stream=program / preview) is MANAGED: it belongs to a
+    // production run through the local relay's ordered log (a controller monitor, or an
+    // OBS source in a cue-driven show), so it loads at rest and waits for commands instead
+    // of popping on air by itself. The plain file keeps the classic single-overlay autoplay.
+    if (/[?&]stream=/.test(location.search)) return;
     if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
     if (typeof window.play === 'function') window.play();${autoOut}
   });

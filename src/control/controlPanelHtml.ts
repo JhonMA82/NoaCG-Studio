@@ -39,8 +39,10 @@ interface EmittedEntry {
   values: Record<string, string>;
 }
 
-/** Everything the page needs to render and drive ONE graphic. */
-interface EmittedGraphic {
+/** Everything the page needs to render and drive ONE graphic. Exported for the production
+ *  CONTROLLER generator (productionControllerHtml.ts), which reuses the same emit so the
+ *  two generated operator surfaces cannot disagree about a graphic's controls. */
+export interface EmittedGraphic {
   name: string;
   channel: string;
   controls: EmittedControl[];
@@ -68,7 +70,7 @@ function emitControls(fields: SpxField[]): EmittedControl[] {
   return fieldDescriptors(fields).map((d) => ({ ...d, value: byId.get(d.key)?.value ?? '' }));
 }
 
-function emitGraphic(
+export function emitGraphic(
   template: PanelTemplate,
   remote: RemoteControlConfig | null,
   opts?: { inlineAssets?: boolean; entries?: EmittedEntry[] },

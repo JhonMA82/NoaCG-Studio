@@ -52,7 +52,14 @@ TYPES = {
     '.webm': 'video/webm', '.mp4': 'video/mp4', '.txt': 'text/plain; charset=utf-8',
 }
 
-PANEL = 'show_controlpanel.html' if os.path.exists(os.path.join(ROOT, 'show_controlpanel.html')) else 'controlpanel.html'
+# The operator page: the production CONTROLLER when the package has one, else the
+# aggregated show panel, else the single graphic's panel.
+if os.path.exists(os.path.join(ROOT, 'controller.html')):
+    PANEL = 'controller.html'
+elif os.path.exists(os.path.join(ROOT, 'show_controlpanel.html')):
+    PANEL = 'show_controlpanel.html'
+else:
+    PANEL = 'controlpanel.html'
 
 
 def append_row(item):

@@ -599,6 +599,9 @@ export default function ProductionPage({ id }: { id: string }) {
                   height: fit ? previewTemplate.resolution.height * fit : undefined,
                   aspectRatio: fit ? undefined : '16 / 9',
                   border: '1px solid #26262c',
+                  // The broadcast PVW convention (amber = preview, red = air), same frame the
+                  // exported controller's PREVIEW monitor wears.
+                  boxShadow: 'inset 0 0 0 2px rgba(246, 166, 35, 0.55)',
                   borderRadius: 8,
                   background: '#0a0a0c',
                 }}
@@ -626,7 +629,8 @@ export default function ProductionPage({ id }: { id: string }) {
             )}
             {!rehearsing && (
               <p className="hint" style={{ marginTop: 4 }}>
-                Preview only — nothing changes on air until <strong>Take</strong>.
+                <span className="status-warn">PREVIEW</span> — the selected cue, checked before
+                it airs; nothing changes on air until <strong>⟳ Take</strong>.
               </p>
             )}
           </div>

@@ -48,9 +48,11 @@ Write-Host "NoaCG local relay v1 -- http://localhost:$Port/"
 Write-Host 'Point OBS/vMix browser sources at the graphics on this address; keep this window open.'
 Write-Host 'Ctrl+C stops it.'
 
-# Open the operator page (the aggregated show panel when the package has one).
+# Open the operator page: the production CONTROLLER when the package has one, else the
+# aggregated show panel, else the single graphic's panel.
 $panel = 'controlpanel.html'
 if (Test-Path (Join-Path $root 'show_controlpanel.html')) { $panel = 'show_controlpanel.html' }
+if (Test-Path (Join-Path $root 'controller.html')) { $panel = 'controller.html' }
 if (Test-Path (Join-Path $root $panel)) { Start-Process "http://localhost:$Port/$panel" }
 
 $types = @{
