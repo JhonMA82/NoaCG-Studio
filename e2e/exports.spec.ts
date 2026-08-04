@@ -616,6 +616,69 @@ test('a single-file export survives its own autoplay: the baked logo stays inlin
   expect(failed, 'the lone export requested a file that is not there').toEqual([]);
 });
 
+// ── Nothing dangles ──────────────────────────────────────────────────────────────────────
+//
+// The dangling-reference class of export bug degrades SILENTLY: a relative path packaging
+// never satisfies renders as a missing image / fallback font / dead script over transparent
+// video, with nothing on screen to say so (docs/GOALS.md "Student release" step 10 — the
+// exported-file half of the recovery drills). The fonts test below covers url(fonts/…)
+// specifically; this walk covers EVERY relative reference in every text entry of every
+// target — src/href attributes and url() alike, including ../ hops (the SPX css-in-subfolder
+// convention) — and fails the target that ships a path its own zip cannot resolve.
+
+const REL_REFS = [
+  /(?:src|href)=["']([^"']+)["']/gi, // markup
+  /url\(["']?([^"')]+)["']?\)/gi, // stylesheets (inline or .css)
+];
+
+/** Resolve `ref` against the directory of `entryPath`, folding ../ — zip paths, not URLs. */
+function resolveZipRef(entryPath: string, ref: string): string {
+  const dir = entryPath.includes('/') ? entryPath.slice(0, entryPath.lastIndexOf('/') + 1) : '';
+  const parts = (dir + ref).split('/');
+  const out: string[] = [];
+  for (const part of parts) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') out.pop();
+    else out.push(part);
+  }
+  return out.join('/');
+}
+
+test('no export target ships a relative reference its own package cannot resolve', async ({ page }) => {
+  test.setTimeout(180_000);
+  await createHairline(page);
+
+  for (const label of [
+    'SPX export',
+    'HTML overlay (OBS / vMix)',
+    'H2R Graphics export',
+    'CasparCG export',
+    'OGraf (EBU) export',
+    'LiveOS (NetOn.Live) export',
+  ]) {
+    const zip = await downloadTarget(page, label);
+    const texts = await textEntries(zip);
+    const packaged = new Set(Object.keys(zip.files).filter((p) => !zip.files[p].dir));
+
+    const dangling: string[] = [];
+    for (const [entryPath, text] of Object.entries(texts)) {
+      if (/\.(md|json)$/i.test(entryPath)) continue; // prose and manifests, not loadable refs
+      for (const pattern of REL_REFS) {
+        for (const [, ref] of text.matchAll(pattern)) {
+          // Only PACKAGE-relative references are the package's to satisfy.
+          if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i.test(ref)) continue;
+          const clean = ref.split(/[?#]/)[0];
+          if (!clean) continue;
+          if (!packaged.has(resolveZipRef(entryPath, clean))) {
+            dangling.push(`${entryPath} -> ${ref}`);
+          }
+        }
+      }
+    }
+    expect(dangling, `${label}: references files its own package does not contain`).toEqual([]);
+  }
+});
+
 /** Text entries of a package, keyed by path (binaries skipped). */
 async function textEntries(zip: JSZip): Promise<Record<string, string>> {
   const out: Record<string, string> = {};

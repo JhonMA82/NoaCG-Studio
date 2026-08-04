@@ -1350,7 +1350,13 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
 - [ ] **10. Playout hardening + owner acceptance** - automated recovery drills, soak and
       exported-file checks first; then the owner's real CasparCG/OBS acceptance and a timed
       first-time-user walk. CasparCG + OBS are the primary verification targets; every export
-      target stays supported.
+      target stays supported. THE AGENT HALF IS DONE (2026-08-04): the storage-full drill
+      (e2e/playout-drills.spec.ts - loud failure, last good copy intact, recovery), the
+      dangling-reference walk over all six export targets (e2e/exports.spec.ts), and the
+      consolidated owner checklist at **docs/STUDENT_RELEASE_ACCEPTANCE.md**, which names
+      what the suites already pin so nothing is re-tested by hand. REMAINING (owner, real
+      hardware + backend): that checklist's §1-§6 - CasparCG 2.3.x + OBS through both doors,
+      the soak, the live recovery drills, one live-suite run, and the timed walks.
 
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate
