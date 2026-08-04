@@ -111,7 +111,7 @@ function keywordSpec(
   // from deterministically instead of by a model. That is what makes the adapt-first path
   // demonstrable end to end without tokens - and it is a better answer than `pool[0]`, which
   // gave every worship brief the house strap while Scripture Reading sat in the catalog.
-  const shortlist = shortlistFor(prompt, stubIntent(prompt), `category:${category}`);
+  const shortlist = shortlistFor(prompt, stubIntent(prompt), { anchor: `category:${category}` });
   const candidates = shortlist.full || !shortlist.variants.length ? pool : shortlist.variants;
   const variant = (style && candidates.find((v) => v.styleTag === style)) ?? candidates[0];
   const spec: DesignSpec = {

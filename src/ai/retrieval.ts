@@ -166,6 +166,25 @@ function bucketFor(intent: StructuralIntent | null): FieldBucket | null {
 
 // ── The shortlist ────────────────────────────────────────────────────────────
 
+export interface ShortlistOptions {
+  /** The structure to retrieve within when the intent stage did not run. Explicit ADAPT skips
+   *  the intent call on purpose (the one-call economy), so the caller supplies the anchor it
+   *  already knows - a category the user pinned in the structured setup, or the category of
+   *  the spec a refinement is editing. */
+  anchor?: StructuralAnchor | null;
+  /**
+   * A design the shortlist must offer even if the brief does not reach it: the one already in
+   * use.
+   *
+   * Load-bearing on a REFINEMENT. The shortlist narrows the tool's `variantId` enum, so a
+   * design missing from it is a design the model cannot ask for - and "warmer colours" would
+   * then be unable to keep the graphic the user is looking at. Swapping someone's design under
+   * a colour request is a far worse failure than showing one design too many.
+   */
+  keep?: string;
+  limit?: number;
+}
+
 /**
  * The proven designs this brief should be adapted from, best first.
  *
@@ -181,12 +200,9 @@ function bucketFor(intent: StructuralIntent | null): FieldBucket | null {
 export function shortlistFor(
   brief: string,
   intent: StructuralIntent | null,
-  /** The structure to retrieve within when the intent stage did not run. Explicit ADAPT skips
-   *  the intent call on purpose (the one-call economy), so the caller supplies the anchor it
-   *  already knows - a category the user pinned in the structured setup. */
-  anchorOverride?: StructuralAnchor | null,
-  limit: number = SHORTLIST_LIMIT,
+  options: ShortlistOptions = {},
 ): Shortlist {
+  const { anchor: anchorOverride, keep, limit = SHORTLIST_LIMIT } = options;
   const resolved = intent ? structuralFit(intent) : { fit: false, anchor: undefined };
   const anchor = resolved.anchor ?? anchorOverride ?? null;
   // `variantSatisfiesAnchor` answers TRUE for an anchor that no longer resolves — an
@@ -288,9 +304,18 @@ export function shortlistFor(
         Math.min(limit, Math.max(MIN_SHORTLIST, matched)),
       )
     : ranked.slice(0, limit);
-  const variants = chosen.map((r) => r.variant);
+  // The design already in use leads, and can never be cut. It is measured against the ANCHOR
+  // rather than the pool: a placement request may have narrowed the pool, and a refinement that
+  // said nothing about placement must not lose the graphic it is refining to that filter.
+  const incumbent = keep ? anchored.find((v) => v.id === keep) : undefined;
+  const variants = [
+    ...(incumbent ? [incumbent] : []),
+    ...chosen.map((r) => r.variant).filter((v) => v.id !== incumbent?.id),
+  ].slice(0, Math.max(limit, incumbent ? 1 : 0));
+  if (keep && !incumbent) notes.push(`${keep} is not one of this structure's designs`);
   const reason = [
     `${variants.length} of ${pool.length} designs carrying ${anchor}`,
+    incumbent ? `keeping ${incumbent.id}` : null,
     matched
       ? `${matched} above the relevance cut on ${distinctive} distinguishing term${distinctive === 1 ? '' : 's'}`
       : null,

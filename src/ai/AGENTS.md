@@ -295,7 +295,7 @@ stage was handed `catalogDigest()` - **430 variants, ~20,300 tokens, one flat li
 to find the right design in it on the cheapest model in the product, and that chassis choice is
 the one decision the whole grounded path rests on.
 
-`shortlistFor(brief, intent, anchorOverride?)` narrows it with **no new model call and no second
+`shortlistFor(brief, intent, options?)` narrows it with **no new model call and no second
 retrieval system**: the ranking is the Browse storefront's own engine (`templates/search.ts`) and
 the structural filter is the ONE anchor table, both reading what the intent stage already
 produced. Three things make the result usable rather than merely shorter, each measured:
@@ -321,6 +321,16 @@ is a chassis the model picks and `resolveVariant` silently swaps - the wrong gra
 a success). A CREATE route keeps the full digest, so the frozen coder control stays frozen. The
 offline stub picks from the same shortlist deterministically, which is what makes the whole path
 e2e-testable without tokens (`e2e/adapt-first.spec.ts`, `e2e/ai-retrieval.spec.ts`).
+
+**A spec-level REFINEMENT retrieves too, and `ShortlistOptions.keep` is what makes that safe.**
+`specRefine` takes its anchor from the spec it is editing (the structure is not in doubt, so no
+intent call) and its terms from the request PLUS what the graphic already is - "warmer colours"
+places nothing in a design index, and searching on it alone would rank by catalog order and offer
+a worse set than the one already on screen. `keep` pins the design in use into the shortlist:
+narrowing collapses the `variantId` enum, so a design missing from it is one the model cannot ask
+for, and a colour request would swap the user's graphic out from under them. It is matched against
+the ANCHOR rather than the narrowed pool, so a placement filter cannot evict it either, and a
+`keep` from another structure is refused rather than smuggled in.
 
 **A catalog chassis is assembled at the zone it was DRAWN for** (`AssembleOptions.
 keepChassisZone`, set by `groundedResult`). Measured over 89 lower thirds: the rendered side

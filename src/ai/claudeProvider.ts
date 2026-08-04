@@ -709,10 +709,27 @@ async function specRefine(
       `needs the image somewhere a catalog design has no room for — a full-frame still, a ` +
       `background, featured media — route to custom rather than dropping it.`
     : '';
+  // Retrieval, on a refinement (docs/ADAPT_FIRST_PLAN.md §3 Stage R). The structure is not in
+  // doubt here - the spec being edited names its own category - so the anchor comes from the
+  // spec rather than from an intent call, and no model is asked anything extra.
+  //
+  // The TERMS are the refinement request PLUS what the graphic already is: "warmer colours"
+  // says nothing a design index can place, and searching on it alone would rank by catalog
+  // order and offer a worse set than the one the user is already looking at.
+  //
+  // `keep` is what makes narrowing safe: the shortlist collapses the tool's `variantId` enum,
+  // so the design in use has to be in it or the model literally cannot leave it alone.
+  const shortlist = shortlistFor(
+    [prompt, priorSpec.name, priorSpec.summary, ...(priorSpec.lines ?? []).map((l) => l.title)]
+      .filter(Boolean)
+      .join(' '),
+    null,
+    { anchor: `category:${priorSpec.category}`, keep: priorSpec.variantId },
+  );
   try {
     const t0 = Date.now();
     const result = await callModelDetailed({
-      system: specSystemPrompt(),
+      system: specSystemPrompt(shortlist),
       messages: [
         {
           role: 'user',
@@ -732,7 +749,7 @@ catalog cannot express.`,
           ],
         },
       ],
-      tool: DESIGN_SPEC_TOOL,
+      tool: shortlistTool(DESIGN_SPEC_TOOL, shortlist),
       maxTokens: 4000,
     });
     run.stage('design-spec', t0, result.model, result.usage);
@@ -972,7 +989,7 @@ function retrieveShortlist(
   // Explicit adapt skips the intent call, so the only structure known is one the user pinned
   // in the structured setup. Nothing pinned means nothing to retrieve within.
   const pinned = aiCategoryById(context?.spec?.category)?.templateCategory;
-  return shortlistFor(prompt, intent, pinned ? `category:${pinned}` : null);
+  return shortlistFor(prompt, intent, { anchor: pinned ? `category:${pinned}` : null });
 }
 
 /**

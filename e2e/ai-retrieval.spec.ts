@@ -96,8 +96,8 @@ test.describe('shortlist retrieval', () => {
         summary: '', parts: [], fields: [], originalityRequested: false,
       });
       const noIntent = shortlistFor('anything at all', null);
-      const deadAnchor = shortlistFor('anything at all', null, 'category:not-a-category');
-      const pinned = shortlistFor('anything at all', null, 'category:lower-third');
+      const deadAnchor = shortlistFor('anything at all', null, { anchor: 'category:not-a-category' });
+      const pinned = shortlistFor('anything at all', null, { anchor: 'category:lower-third' });
       return {
         novel: novel.full, noIntent: noIntent.full, deadAnchor: deadAnchor.full,
         pinnedFull: pinned.full, pinnedCount: pinned.variants.length,
@@ -151,6 +151,45 @@ test.describe('shortlist retrieval', () => {
     expect(r.worshipReason).not.toContain('placement requested');
     expect(r.worshipIds.slice(0, 2)).toEqual(['ls15', 'ls14']);
     for (const sporty of ['ls08', 'ls09', 'ls10', 'ls11']) expect(r.worshipIds).not.toContain(sporty);
+  });
+
+  test('a refinement can always keep the design it is refining', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(`(async () => {
+      const { shortlistFor } = await import('/src/ai/retrieval.ts');
+      // A worship graphic being refined with a request that names no design at all. Without
+      // the keep rule the shortlist narrows the tool's variantId enum around the BRIEF, and
+      // a sports strap the user never asked for is the only thing the model can name.
+      const kept = shortlistFor('warmer colours and a calmer entrance', null, {
+        anchor: 'category:lower-third', keep: 'ls15',
+      });
+      const without = shortlistFor('warmer colours and a calmer entrance', null, {
+        anchor: 'category:lower-third',
+      });
+      // A design from another structure cannot be kept - that would offer the wrong KIND.
+      const wrongKind = shortlistFor('warmer colours', null, {
+        anchor: 'category:lower-third', keep: 'tk01',
+      });
+      return {
+        keptIds: kept.variants.map((v) => v.id),
+        keptReason: kept.reason,
+        withoutIds: without.variants.map((v) => v.id),
+        wrongKindIds: wrongKind.variants.map((v) => v.id),
+        wrongKindReason: wrongKind.reason,
+      };
+    })()`);
+    const r = res as Record<string, string[] | string>;
+
+    // The incumbent is present AND leads: on a refinement it is the default answer.
+    expect((r.keptIds as string[])[0]).toBe('ls15');
+    expect(r.keptReason).toContain('keeping ls15');
+    // Mutation check: without the rule this brief does NOT reach ls15, so the assertion above
+    // is testing the rule rather than a coincidence of ranking.
+    expect(r.withoutIds).not.toContain('ls15');
+    // A ticker cannot be kept inside a lower-third shortlist, and the reason says so rather
+    // than silently dropping it.
+    expect(r.wrongKindIds).not.toContain('tk01');
+    expect(r.wrongKindReason).toContain('not one of this structure');
   });
 
   test('the shortlist digest lists exactly the shortlisted designs', async ({ page }) => {
