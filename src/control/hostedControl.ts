@@ -9,7 +9,7 @@
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
 import { getSupabase } from '../backend/supabase';
-import type { Show } from '../model/shows';
+import { graphicLayer, type Show } from '../model/shows';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -71,6 +71,11 @@ export interface OutputGraphicSpec {
   assets: { path: string; data: string }[];
   resolution: Resolution;
   fps: number;
+  /** The PLAYOUT LAYER the operator gave this graphic (docs/PLAYOUT_DASHBOARD.md §5) — the
+   *  same number its exported package declares, used here as the output stage's paint order
+   *  (higher = in front). ADDITIVE OPTIONAL: a payload published before the field falls back
+   *  to its position in the array, which is exactly what the stage used to do. */
+  layer?: number;
 }
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
@@ -232,6 +237,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         assets: await serializeAssets(template),
         resolution: template.resolution,
         fps: template.fps,
+        layer: graphicLayer(g),
       };
     }),
   );

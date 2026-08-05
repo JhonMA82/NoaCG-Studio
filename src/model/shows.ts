@@ -166,6 +166,10 @@ export function addGraphicToShow(
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
+    // The playout layer: a REPLACEMENT keeps whatever the operator chose (re-adding an edited
+    // graphic must not silently move it off its layer mid-show); a new graphic starts on the
+    // default (docs/PLAYOUT_DASHBOARD.md §5).
+    layer: existing >= 0 ? graphicLayer(show.graphics[existing]) : DEFAULT_PLAYOUT_LAYER,
   };
   if (existing >= 0) show.graphics[existing] = graphic;
   else {
@@ -304,6 +308,67 @@ export function setShowOutputSlug(showId: string, slug: string | undefined): Sho
 }
 
 /** Move a graphic one slot up or down the rundown. */
+// ── Playout layers (docs/PLAYOUT_DASHBOARD.md §5) ──────────────────────────────────────────
+//
+// A pool graphic airs on a layer NUMBER the operator types, not on one derived from its
+// position in the pool. CasparCG offers 1-100 and a teaching install's rundowns live around
+// 20, so that is the default: a production with one graphic never thinks about it, and a
+// production that wants three up at once gives them three numbers.
+
+/** What a graphic airs on when nobody has chosen (owner decision, 2026-08-05). */
+export const DEFAULT_PLAYOUT_LAYER = 20;
+/** The range CasparCG accepts, and therefore the range the control offers. */
+export const MIN_PLAYOUT_LAYER = 1;
+export const MAX_PLAYOUT_LAYER = 100;
+
+/** A pool graphic's layer — the stored number, or the default for a record saved before the
+ *  field existed (additive-optional read, root AGENTS.md rule 6). */
+export function graphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
+  const n = Number(graphic.layer);
+  return Number.isFinite(n) && n >= MIN_PLAYOUT_LAYER && n <= MAX_PLAYOUT_LAYER
+    ? Math.round(n)
+    : DEFAULT_PLAYOUT_LAYER;
+}
+
+/** The lowest layer no graphic of the pool is using, from the default upward — what the
+ *  duplicate-layer warning offers as its one-click fix. */
+export function nextFreeLayer(graphics: Pick<SavedGraphic, 'layer'>[]): number {
+  const used = new Set(graphics.map(graphicLayer));
+  for (let n = DEFAULT_PLAYOUT_LAYER; n <= MAX_PLAYOUT_LAYER; n++) if (!used.has(n)) return n;
+  for (let n = MIN_PLAYOUT_LAYER; n < DEFAULT_PLAYOUT_LAYER; n++) if (!used.has(n)) return n;
+  return DEFAULT_PLAYOUT_LAYER;
+}
+
+/**
+ * Which pool graphics SHARE a layer, keyed by that layer. Two graphics on one layer evict each
+ * other the moment both are taken - in CasparCG, in SPX, and in the browser output alike - so
+ * the surface says so rather than letting it be found live (docs/PLAYOUT_DASHBOARD.md §5).
+ * Defaulting everything to one number is the deliberate choice; this is what keeps it honest.
+ */
+export function duplicateLayers(graphics: SavedGraphic[]): Map<number, SavedGraphic[]> {
+  const byLayer = new Map<number, SavedGraphic[]>();
+  for (const g of graphics) {
+    const layer = graphicLayer(g);
+    byLayer.set(layer, [...(byLayer.get(layer) ?? []), g]);
+  }
+  return new Map([...byLayer].filter(([, gs]) => gs.length > 1));
+}
+
+/** Set one pool graphic's playout layer. Out-of-range values clamp rather than refuse — the
+ *  control is a number input and a half-typed "1" must not be rejected mid-keystroke. */
+export function setShowGraphicLayer(showId: string, graphicId: string, layer: number): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId && !s.deleted);
+  const graphic = show?.graphics.find((g) => g.id === graphicId);
+  if (show && graphic) {
+    const clamped = Math.min(MAX_PLAYOUT_LAYER, Math.max(MIN_PLAYOUT_LAYER, Math.round(layer) || DEFAULT_PLAYOUT_LAYER));
+    graphic.layer = clamped;
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
+  return all.filter((s) => !s.deleted);
+}
+
 export function moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId);

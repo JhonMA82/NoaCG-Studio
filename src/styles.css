@@ -4072,41 +4072,396 @@ h2 + .lib-row,
 }
 .control-entry.active .control-entry-label { color: var(--amber); }
 
-/* ── The PRODUCTION page (#/production/<id>, docs/CLOUD_PLAYOUT.md §4-5). Shares the control
-   page's two-column shell; the main column scrolls (links + preview + verbs + cue editor). ── */
-.control-page-main { min-width: 0; overflow: auto; padding: 14px 16px 30px; }
+/* ══ THE PLAYOUT DASHBOARD (#/production/<id>) ══════════════════════════════════════════════
+   Binding design: docs/PLAYOUT_DASHBOARD.md. The hosted control page and the exported
+   controller render the same surface; a change here that is not in that doc is a divergence.
 
-/* ONE SCREEN (acceptance round 2, 2026-08-05: "I want the whole page to fit on one screen").
-   The production page is a COCKPIT, not a document: on a desktop the main column is a flex
-   stack that does not scroll, the strips take their natural height, and the PREVIEW takes
-   whatever is left. Fitting the preview on width alone gave it 862px of a 1027px column on a
-   1080p screen and pushed the verbs and the cue editor — the two things an operator drives —
-   below the fold.
+   NOTHING SCROLLS BUT THE TWO LISTS, and no scrollbar chrome ever shows (§3). A horizontal
+   scrollbar on this surface is a layout bug, never an affordance. */
+.playout-dashboard { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail) { scrollbar-width: none; }
+.playout-dashboard :where(.pd-cues, .pd-editor, .pd-activity, .pd-rail)::-webkit-scrollbar { width: 0; height: 0; }
 
-   Only the cue editor may scroll inside itself: its height follows the graphic's field count,
-   which is the one thing here the layout cannot bound. Phones keep the stacked, scrolling
-   column below (the 900px query further down). */
-@media (min-width: 901px) {
-  .production-page .control-page-main {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding-bottom: 14px;
-  }
-  /* Every strip is content-sized; without this flex's default shrink would squeeze them
-     instead of the one element that is meant to give way. */
-  .production-page .control-page-main > * { flex: none; }
-  /* Basis 0, not auto: the preview's height comes from the LEFTOVER space alone, never from
-     what is inside it (see .prod-preview-fit). */
-  .production-page .control-page-main > .prod-preview { flex: 1 1 0; min-height: 190px; }
-  .production-page .prod-preview-fit { flex: 1 1 0; aspect-ratio: auto; }
-  .production-page .control-page-main > [data-testid='cue-editor'] {
-    flex: 0 1 auto;
-    min-height: 0;
-    max-height: 40vh;
-    overflow: auto;
-  }
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.pd-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 50px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2, #14161c);
 }
+.pd-header h1 {
+  font-size: 14px;
+  margin: 0;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.pd-header .spacer { flex: 1; }
+.pd-back { padding: 4px 9px; }
+.pd-mode {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.pd-mode-show { color: #4ade80; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.4); }
+.pd-mode-idle { color: var(--text-dim); border: 1px solid var(--border); }
+.pd-clock { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pd-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.pd-status.ok { color: #4ade80; }
+/* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
+   for Take must never land on it. */
+.pd-allout {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.55);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pd-allout:disabled { color: var(--text-dim); border-color: var(--border); }
+.pd-links-host { position: relative; }
+.pd-links {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  width: min(520px, 90vw);
+  padding: 12px 14px;
+  background: var(--bg-2, #14161c);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Body: the stage column + the cue rail ─────────────────────────────────── */
+.pd-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
+.pd-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; overflow: hidden; }
+
+/* ── The monitors: PREVIEW beside PROGRAM, equal, 16:9, sized by the column ── */
+.pd-monitors { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: none; }
+.pd-monitor { display: flex; flex-direction: column; min-width: 0; }
+.pd-monitor h2 {
+  margin: 0 0 5px;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.pd-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.pd-what {
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pd-layer-badge {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-family: var(--mono, monospace);
+  flex: none;
+}
+.pd-pvw h2 { color: var(--amber); }
+.pd-pvw .pd-dot { background: var(--amber); }
+.pd-pgm h2 { color: #ef4444; }
+.pd-pgm .pd-dot { background: #ef4444; }
+.pd-screen { display: flex; align-items: center; justify-content: center; min-width: 0; }
+/* Contain in CSS alone: full width of the monitor, height from the graphic's own aspect ratio
+   (set inline). The component measures this element only to derive the iframe's scale — sizing
+   it FROM that measurement made the observed box depend on the value it produced. */
+.pd-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #0a0a0c;
+}
+.pd-pvw .pd-frame { box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.7); }
+.pd-pgm .pd-frame { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
+.pd-frame-empty { display: flex; align-items: center; justify-content: center; }
+.prod-monitor-stage { position: absolute; inset: 0; overflow: hidden; }
+.prod-monitor-note { position: absolute; left: 12px; top: 12px; margin: 0; }
+.prod-monitor-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* ── The verbs: pressed live, in a hurry, often on touch ───────────────────── */
+.pd-verbs { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; }
+.pd-verb {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.pd-verb kbd {
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.pd-verb-preview { border-color: rgba(246, 166, 35, 0.55); color: #f8c675; }
+/* The ONE red button on the surface. Red means air, and nothing else may claim it. */
+.pd-verb-take { background: #ef4444; border-color: #ef4444; color: #fff; font-weight: 700; padding: 0 24px; }
+.pd-verb-take:hover:not(:disabled) { background: #f05a5a; }
+.pd-verb-take kbd { background: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.25); color: #fff; }
+.pd-verb:disabled { opacity: 0.4; }
+.pd-onair-line { margin-left: auto; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.pd-onair { color: #ef4444; font-weight: 600; }
+
+/* ── The cue editor ────────────────────────────────────────────────────────── */
+.pd-editor {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-2, #14161c);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 13px;
+}
+/* Typing into a live cue and typing into a draft must never look the same. */
+.pd-editor.live { border-color: rgba(239, 68, 68, 0.75); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.4); }
+.pd-editor-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.pd-editor-kicker {
+  font-family: var(--mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  white-space: nowrap;
+}
+.pd-editor.live .pd-editor-kicker { color: #ef4444; }
+.pd-cue-title {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 7px;
+  min-width: 160px;
+  max-width: 340px;
+}
+.pd-cue-title:hover { border-color: var(--border); }
+.pd-cue-title:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+.pd-editor-fate { font-size: 12px; }
+.pd-editor-switch { font-size: 12px; padding: 4px 9px; }
+/* Update, where the line naming it already is. It exists for the PHONE, whose bottom bar
+   carries only TAKE/Next/Out; on desktop the verb bar owns it and this stands down. */
+.pd-editor-update { display: none; font-size: 12px; padding: 4px 10px; }
+.pd-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; }
+.pd-field { display: flex; flex-direction: column; gap: 3px; }
+.pd-field > span {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pd-field input { width: 100%; }
+.pd-field-layer { max-width: 130px; }
+.pd-layer-clash { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 9px 0 0; }
+.pd-layer-clash button { font-size: 12px; padding: 4px 9px; }
+
+/* ── Activity: one collapsed line, expandable ──────────────────────────────── */
+.pd-activity { flex: 0 1 auto; min-height: 0; overflow: auto; font-size: 12.5px; }
+.pd-activity summary { cursor: pointer; color: var(--text-dim); padding: 2px 0; }
+.pd-activity summary::marker { color: var(--text-dim); }
+
+/* ── The cue rail ──────────────────────────────────────────────────────────── */
+.pd-rail { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.pd-rail-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 7px; flex: none; }
+.pd-rail-head h2 { font-size: 13px; margin: 0; }
+.pd-rail-head .spacer { flex: 1; }
+.pd-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.pd-cues { flex: 1 1 0; min-height: 0; overflow: auto; padding: 0 12px 10px; display: flex; flex-direction: column; gap: 5px; }
+.pd-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-2, #14161c);
+  cursor: pointer;
+  min-width: 0;
+}
+.pd-cue.selected { border-color: #3b4252; }
+/* RED is the broadcast tally for program; amber is preview. Both are per-ROW marks — several
+   rows can be red at once, one per layer that is up. */
+.pd-cue.on-air { border-color: rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.09); }
+.pd-cue.on-pvw { border-color: rgba(246, 166, 35, 0.7); background: rgba(246, 166, 35, 0.07); }
+.pd-grip { color: #3f4553; cursor: grab; flex: none; font-size: 11px; }
+.pd-cue-no {
+  flex: none;
+  min-width: 14px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.pd-cue.on-air .pd-cue-no { color: #ef4444; }
+/* The label gets the row's slack: it is the one item with unbounded length, and the reorder /
+   duplicate / delete buttons that used to crush it now live behind ⋯. */
+.pd-cue-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.pd-cue-label strong { font-size: 13.5px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-cue-label .muted { font-size: 11.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; flex: none; padding: 2px 6px; border-radius: 4px; }
+.pd-tag.air { color: #fff; background: #ef4444; }
+.pd-tag.pvw { color: #1a1205; background: var(--amber); }
+.pd-cue-menu-host { position: relative; flex: none; }
+.pd-cue-more { opacity: 0; }
+.pd-cue:hover .pd-cue-more,
+.pd-cue-more:focus-visible,
+.pd-cue-menu-host:has(.lib-menu) .pd-cue-more { opacity: 1; }
+
+.pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pd-layers-head { display: flex; align-items: baseline; gap: 8px; }
+.pd-layers-head h3 { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin: 0; }
+.pd-layers-head .muted { font-size: 11px; }
+.pd-layer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-layer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  background: var(--bg-2, #14161c);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pd-layer-chip b { font-family: var(--mono, monospace); font-size: 10.5px; color: var(--text-dim); font-weight: 600; }
+.pd-layer-chip.live { border-color: rgba(239, 68, 68, 0.7); background: rgba(239, 68, 68, 0.08); }
+.pd-layer-chip.live b { color: #ef4444; }
+/* A shared layer means two graphics replace each other on air — say so where the layer is
+   shown, not only in the editor (docs/PLAYOUT_DASHBOARD.md §5). */
+.pd-layer-chip.clash { border-color: rgba(246, 166, 35, 0.7); }
+.pd-layer-chip.clash b { color: var(--amber); }
+.pd-layer-live { width: 6px; height: 6px; border-radius: 50%; background: #ef4444; flex: none; }
+.pd-layer-chip button { padding: 0 4px; min-height: 0; line-height: 1; color: var(--text-dim); background: none; border: none; }
+.pd-new-graphic { width: 100%; }
+
+/* ── Phone (docs/PLAYOUT_DASHBOARD.md §3) ──────────────────────────────────────
+   One column: header, the two monitors STILL SIDE BY SIDE (seeing preview and air together is
+   the whole point of the surface), the cue list, the editor, and a fixed bottom verb bar. */
+@media (max-width: 900px) {
+  .playout-dashboard { height: 100dvh; }
+  /* ONE column in the reference's order: monitors → cue list → editor → activity, with the
+     verbs pinned to the bottom. `display: contents` flattens .pd-main so its children can be
+     ordered against the rail; each therefore carries its own inline padding. */
+  .pd-body { display: flex; flex-direction: column; overflow: auto; }
+  .pd-main { display: contents; }
+  .pd-monitors { order: 1; padding: 10px 12px 0; }
+  .pd-rail { order: 2; border-left: none; border-top: 1px solid var(--border); margin-top: 10px; }
+  .pd-editor { order: 3; margin: 10px 12px 0; }
+  .pd-activity { order: 4; padding: 8px 12px 0; }
+  .pd-verbs { order: 5; }
+  /* In ONE scrolling column nothing may take its height from leftover space — there is none to
+     take, and `flex: 1 1 0` collapsed the cue list to a sliver while its siblings overlapped
+     each other. Every block is content-sized here; the PAGE scrolls, and only the cue list caps
+     itself so the editor is never pushed off the end of a nine-cue rundown. */
+  .pd-body > * { flex: none; }
+  .pd-cues { flex: none; max-height: 46vh; }
+  .pd-editor,
+  .pd-activity { overflow: visible; }
+
+  /* The header is the operator's, not the author's: identity, mode, and the panic control.
+     Export is an authoring action and stands down at this width. */
+  .pd-header { height: 46px; padding: 0 8px; gap: 6px; }
+  .pd-header h1 { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; }
+  .pd-clock,
+  .pd-status,
+  .pd-back,
+  .pd-header .brand-home,
+  .pd-header [data-testid='export-production'] { display: none; }
+  /* At 390px the header has room for identity, mode and the panic control — and only if each
+     one gives up its full-size padding. It must NEVER overflow: a clipped All out is the one
+     control that has to be reachable at any width. */
+  .pd-header > button { flex: none; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; }
+  .pd-mode { font-size: 9.5px; padding: 3px 7px; letter-spacing: 0.06em; flex: none; }
+  /* "NOT PUBLISHED" costs 130px to repeat what the Start-production button beside it already
+     says, and the production's NAME was paying for it (truncated to "Fri"). ● SHOW is short
+     and is the one an operator must never miss, so only that one stays. */
+  .pd-mode-idle { display: none; }
+
+  /* Monitor labels stay ONE line: at 390px "PROGRAM — ON AIR" wrapped and pushed the frame
+     down, and the cue name beside it is the first thing worth dropping. */
+  .pd-monitor h2 { font-size: 9px; letter-spacing: 0.1em; white-space: nowrap; }
+  .pd-monitor .pd-what { display: none; }
+
+  /* The fixed bottom bar (docs/PLAYOUT_DASHBOARD.md §3): TAKE · Next · Out. Preview is
+     redundant here — selecting a cue already previews it — and Update rides in the editor's
+     own head, where the line that names it already is. */
+  .pd-verbs {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: var(--bg);
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border);
+    flex-wrap: nowrap;
+    margin-top: 10px;
+  }
+  .pd-verb { flex: 1 1 0; justify-content: center; min-height: 52px; padding: 0 10px; }
+  .pd-verb kbd { display: none; }
+  .pd-verb-take { flex: 1.6 1 0; }
+  .pd-verb-preview,
+  .pd-verbs .pd-verb-update { display: none; }
+  .pd-onair-line { display: none; }
+  .pd-editor-update { display: inline-flex; }
+}
+
 .prod-links { margin-bottom: 12px; }
 .prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
 .prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
@@ -4122,80 +4477,6 @@ h2 + .lib-row,
   border-radius: 6px;
   padding: 6px 8px;
 }
-.prod-preview { margin: 10px 0; display: flex; flex-direction: column; min-height: 0; }
-/* The box the preview is ALLOWED — the room left over once the strips above and below have
-   taken theirs. Both modes centre themselves inside it and neither may grow it.
-   ITS HEIGHT MUST NOT DEPEND ON ITS CONTENT: the component measures this box and sizes the
-   frame from it, so a content-derived height is a feedback loop (the frame's own height feeds
-   the next measurement, and the preview settles a frame late — or, where ResizeObserver
-   delivers only once, never, leaving a stale scale that crops the graphic). Hence a 16:9
-   shape here and a zero flex-basis in the desktop cockpit query below: both derive the height
-   from something OUTSIDE the box. */
-.prod-preview-fit {
-  min-height: 0;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* CONTAIN, in CSS alone: full height of the box it is offered, width from the graphic's own
-   aspect ratio (set inline from the template's resolution), never wider than the box. The
-   component only measures this element to derive the iframe's scale. */
-.prod-preview-frame {
-  position: relative;
-  overflow: hidden;
-  height: 100%;
-  width: auto;
-  max-width: 100%;
-  border: 1px solid #26262c;
-  /* The broadcast PVW convention (amber = preview, red = air) — the same frame the exported
-     controller's PREVIEW monitor wears. */
-  box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.55);
-  border-radius: 8px;
-  background: #0a0a0c;
-}
-.prod-preview-caption { flex: none; margin: 4px 0 0; }
-/* REHEARSE vs SHOW (docs/CLOUD_PLAYOUT.md §4a). The strip is a STATE, not a control, so it is
-   always present and always coloured — a mode you have to go looking for is a mode you can be
-   wrong about. SHOW borrows the on-air green the live cue rows already use; rehearsal is the
-   brand amber, which reads as "armed, not airing" everywhere else in the app. */
-.prod-mode {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-}
-.prod-mode > .spacer { flex: 1; }
-.prod-mode strong { white-space: nowrap; letter-spacing: 0.06em; }
-.prod-mode .muted { min-width: 0; }
-.prod-mode-show { border-color: rgba(74, 222, 128, 0.55); background: rgba(74, 222, 128, 0.07); }
-.prod-mode-show strong { color: #4ade80; }
-.prod-mode-rehearse { border-color: rgba(246, 166, 35, 0.5); background: rgba(246, 166, 35, 0.06); }
-.prod-mode-rehearse strong { color: var(--amber); }
-/* Never published: no colour to claim, because nothing is armed and nothing is airing. */
-.prod-mode-idle strong { color: var(--text-dim); }
-/* The rehearsal output: the same 16:9 box the cue preview uses, so switching modes does not
-   resize the column. The stage inside is absolutely positioned and scales itself into it. */
-.prod-rehearsal-stage {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  /* Contain, never fill: inside `.prod-preview-fit` it takes the full height it is offered and
-     lets the aspect ratio decide its width, so a rehearsal is exactly as big as a cue preview. */
-  height: 100%;
-  width: auto;
-  max-width: 100%;
-  border: 1px solid #26262c;
-  border-radius: 8px;
-  background: #0a0a0c;
-}
-.prod-rehearsal-note { position: absolute; left: 12px; top: 12px; margin: 0; }
 /* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
    TEXT column aligned down the list, which is what makes a feed scannable rather than merely
    present. Capped in height so an afternoon's traffic scrolls inside the panel instead of
@@ -4223,20 +4504,6 @@ h2 + .lib-row,
 /* Only the two verbs that change what is ON AIR earn a colour; everything else is a step. */
 .prod-log-take .prod-log-text { color: #4ade80; }
 .prod-log-out .prod-log-text { color: var(--text-dim); }
-.prod-rehearsal-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  pointer-events: none;
-}
-/* The verbs are pressed live, in a hurry, often on touch — operator-sized like the control
-   page's transport. LIVE status reads as status, pushed right. */
-.prod-verbs { align-items: center; gap: 8px; flex-wrap: wrap; }
-.prod-verbs button { min-height: 44px; padding: 10px 16px; font-size: 14px; }
-.prod-verbs button.primary { padding-inline: 20px; font-weight: 600; }
 .prod-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .prod-status.ok { color: #4ade80; }
 /* A cue on air: a row that must be findable at a glance. There can be SEVERAL — one per layer
@@ -4247,45 +4514,6 @@ h2 + .lib-row,
 .control-entry.live { border-color: rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.08); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.85); }
 .control-entry.live.rehearse { border-color: rgba(246, 166, 35, 0.75); background: rgba(246, 166, 35, 0.07); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.75); }
 .prod-cue-note { font-style: italic; }
-/* The LAYER STACK. Listed front to back, so the number falls as the eye travels down; the
-   badge is fixed-width and monospaced so the column stays a column at two digits.
-   The row carries six things in a 380px rail, so NOTHING here may wrap: the name ellipsizes
-   (it is the one item with unbounded length) and everything else is nowrap. Without that the
-   row grew to 64px with "Ticker crawl", "1 cue(s)" and "＋ Cue" all broken across two lines. */
-.prod-layer { gap: 8px; }
-/* The NAME absorbs the row's slack, which right-aligns the button cluster without a spacer
-   (`.spacer` only grows inside `.pk-body` anyway, so this rail's controls used to start
-   wherever each name happened to end and the ↑ ↓ ✕ column zig-zagged down the stack). Giving
-   the space to the name rather than to an empty box also means it only ellipsizes when the row
-   is genuinely too narrow for it. */
-.prod-layer-no {
-  flex: 0 0 auto;
-  min-width: 22px;
-  font-family: var(--mono, monospace);
-  font-size: 11px;
-  color: var(--text-dim);
-  text-align: right;
-}
-.prod-layer-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prod-layer-count { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
-/* Four controls in a 380px rail leave the name almost nothing at the app's default button
-   padding, so this row buys its name back with compact ones. Desktop only — the phone layout
-   below wraps the row and restores operator-sized targets. */
-.prod-layer button { flex: 0 0 auto; white-space: nowrap; padding: 4px 8px; }
-.prod-layer-break { display: none; }
-/* The layer stack's on-air rows follow the same red tally; amber under rehearsal. */
-.pk-graphic.live { background: rgba(239, 68, 68, 0.07); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.7); border-radius: 6px; }
-.pk-graphic.live .prod-layer-no { color: #ef4444; }
-.prod-layer-live { font-size: 11px; color: #ef4444; white-space: nowrap; }
-.pk-graphic.live.rehearse { background: rgba(246, 166, 35, 0.06); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.65); }
-.pk-graphic.live.rehearse .prod-layer-no { color: var(--amber); }
-.pk-graphic.live.rehearse .prod-layer-live { color: var(--amber); }
-/* The cue EDITOR wears the tally too while the cue it edits is on air — typing into a live
-   cue and typing into a draft must never look the same. */
-.panel-section.cue-editor-live { border: 1px solid rgba(239, 68, 68, 0.75); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.75); border-radius: 8px; padding: 12px; }
-.panel-section.cue-editor-live.rehearse { border-color: rgba(246, 166, 35, 0.7); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
-.cue-editor-live-word { color: #ef4444; font-weight: 600; }
-.cue-editor-live.rehearse .cue-editor-live-word { color: var(--amber); }
 .live-chip-on { color: #ef4444; font-weight: 600; }
 .status-warn { color: var(--amber); font-size: 13px; }
 

@@ -42,6 +42,20 @@ export interface SavedGraphic {
    * (control/hostedControl.ts). Not an ownership link: the copy is still a copy.
    */
   graphicId?: string;
+  /**
+   * The PLAYOUT LAYER this graphic airs on, inside a production pool (docs/PLAYOUT_DASHBOARD.md
+   * §5). A number the operator types - CasparCG offers 1-100 - defaulting to `DEFAULT_PLAYOUT_LAYER`.
+   * It is both the SPX/CasparCG playout layer an export declares and the browser output's paint
+   * order (higher = in front).
+   *
+   * ADDITIVE OPTIONAL (root AGENTS.md rule 6): absent means "never chosen", read as the default,
+   * so every production saved before this field keeps working and no migration is needed. It is
+   * meaningful only inside a `Show.graphics` pool; a library copy simply carries it along.
+   *
+   * It replaced a layer DERIVED from pool position, which the operator moved with ↑/↓ arrows -
+   * an ordering game for something CasparCG states as a plain number.
+   */
+  layer?: number;
 }
 
 export interface Packet {
