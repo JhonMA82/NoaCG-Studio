@@ -14,6 +14,20 @@ import { useModalGate } from '../spaceKey';
  * buildShowZipFor. Validation stays the gate (non-negotiable 4): every graphic runs
  * validateTemplate and a package with errors does not download.
  */
+/** WHAT DRIVES THE GRAPHICS once the package is unzipped — the one flavour that bundles a
+ *  double-click local controller, and the host that owns control in each of the others. Only
+ *  the overlay package carries the relay + launchers (export/localControl.ts); saying so here
+ *  is what stops someone picking CasparCG and then hunting for a "Start controller.cmd" that
+ *  was never in it. */
+const CONTROL_NOTE: Record<string, string> = {
+  spx: ' Controlled by your SPX rundown.',
+  'html-overlay': ' Includes the double-click local controller (“Start controller.cmd”) — no other software needed.',
+  casparcg: ' Controlled by your CasparCG client (no local controller in this package).',
+  h2r: ' Controlled by H2R Graphics.',
+  ograf: ' Controlled by your OGraf renderer.',
+  liveos: ' Controlled by NetOn.Live.',
+};
+
 export default function ProductionExportDialog({ show, onClose }: { show: Show; onClose: () => void }) {
   useModalGate(true);
   const [targetId, setTargetId] = useState(
@@ -71,9 +85,17 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
               <span>
                 <strong>{t.label}</strong>
                 <span className="hint"> {t.description}</span>
+                {/* WHO CONTROLS IT is the question the acceptance round asked out loud ("there
+                    is no Start controller.cmd — I don't know how to steer the graphics"), and
+                    the answer belongs at the moment of choosing, not only inside the zip. */}
+                <span className="hint prod-export-control">{CONTROL_NOTE[t.id] ?? ''}</span>
               </span>
             </label>
           ))}
+          <p className="hint">
+            Every package also carries <strong>FIELDS.md</strong> — each graphic's fields with the
+            ID a playout client sends them under (<code>f0</code>, <code>f1</code>, …).
+          </p>
 
           {blocked.length > 0 && (
             <div className="status-bad" data-testid="prod-export-blocked">

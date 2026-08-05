@@ -1361,7 +1361,13 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       control panel - plus the follow-up program that round demanded: the production export
       target picker (all six flavors), the bundled LOCAL RELAY + double-click launchers
       (offline panel-to-OBS control), and the exported PRODUCTION CONTROLLER with the
-      preview/program workflow. REMAINING (owner, real hardware + backend): the checklist's
+      preview/program workflow. ROUND 2 (owner, 2026-08-05): the CasparCG production package
+      PASSED on the real server; two things around it did not, both FIXED the same day - the
+      on-air guide named a "Start controller.cmd" the SPX/CasparCG flavors deliberately do not
+      bundle (it now describes only what the caller actually shipped, and says what does steer
+      each flavor), and no package said which field id was which, so every package now carries
+      FIELDS.md (ids, types, defaults, paste-ready JSON + CasparCG componentData; a production's
+      root file indexes every graphic by its playout layer). REMAINING (owner, real hardware + backend): the checklist's
       §1-§6 RE-TEST against a build carrying those fixes - CasparCG 2.3.x + OBS through both
       doors (incl. the launcher + controller path), the soak, the live recovery drills, one
       live-suite run, and the timed walks.

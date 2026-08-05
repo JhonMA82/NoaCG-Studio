@@ -166,6 +166,12 @@ export function addGraphicToShow(
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
+    // The playout layer (docs/PLAYOUT_DASHBOARD.md §5). A REPLACEMENT keeps whatever the
+    // operator chose — re-adding an edited graphic must not silently move it off its layer
+    // mid-show. A NEW graphic takes the next free number from 20 up, so no two graphics of a
+    // production ever start on one layer: two on the same layer replace each other on air, and
+    // there is no reason to begin from a state the operator then has to repair.
+    layer: existing >= 0 ? graphicLayer(show.graphics[existing]) : nextFreeLayer(show.graphics),
   };
   if (existing >= 0) show.graphics[existing] = graphic;
   else {
@@ -199,12 +205,26 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
 /** The mutator envelope, once: resolve the LIVE (non-tombstoned) record, run the mutation,
  *  stamp + persist only when it reports a change, return the visible list. Hand-rolling this
  *  per mutator is how four of the first five cue mutators forgot the tombstone guard. */
-function patchShow(showId: string, mutate: (show: Show) => boolean): Show[] {
+/**
+ * One write against one show, stamped with ONE timestamp.
+ *
+ * The mutator receives that timestamp because a stamp of its own would be a DIFFERENT
+ * millisecond: `setShowOutputSlug` set `publishedAt = nowIso()` here and the write below then
+ * set `updatedAt = nowIso()` again, so a clock tick between two adjacent statements left
+ * `updatedAt > publishedAt` — and the production page reads exactly that comparison as "the
+ * production changed after the last publish". Publishing could therefore tell the operator to
+ * publish again, immediately, about a change nobody made. Rare enough to pass in isolation
+ * almost always, which is how it survived until a loaded suite hit the boundary.
+ */
+function patchShow(showId: string, mutate: (show: Show, at: string) => boolean): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId && !s.deleted);
-  if (show && mutate(show)) {
-    show.updatedAt = nowIso();
-    saveAll(all);
+  if (show) {
+    const at = nowIso();
+    if (mutate(show, at)) {
+      show.updatedAt = at;
+      saveAll(all);
+    }
   }
   return all.filter((s) => !s.deleted);
 }
@@ -291,10 +311,11 @@ export function setShowLook(showId: string, look: ProjectBrand | undefined): Sho
 /** Record (or clear, with undefined) a show's browser-output slug after (un)publishing.
  *  Publishing also stamps publishedAt; clearing removes it (nothing is live any more). */
 export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
-  return patchShow(showId, (show) => {
+  return patchShow(showId, (show, at) => {
     if (slug) {
       show.outputSlug = slug;
-      show.publishedAt = nowIso();
+      // The SAME instant the write is stamped with, so a freshly published record reads clean.
+      show.publishedAt = at;
     } else {
       delete show.outputSlug;
       delete show.publishedAt;
@@ -304,6 +325,69 @@ export function setShowOutputSlug(showId: string, slug: string | undefined): Sho
 }
 
 /** Move a graphic one slot up or down the rundown. */
+// ── Playout layers (docs/PLAYOUT_DASHBOARD.md §5) ──────────────────────────────────────────
+//
+// A pool graphic airs on a layer NUMBER the operator types, not on one derived from its
+// position in the pool. CasparCG offers 1-100 and a teaching install's rundowns live around
+// 20, so counting starts there: the first graphic is 20, the next 21, and so on. Distinct by
+// construction (owner decision, 2026-08-05) — two graphics on one layer replace each other on
+// air, and nothing is gained by starting from a state the operator has to repair. The number
+// stays fully editable; nobody has to think about it.
+
+/** Where the count starts, and what a record saved before the field reads as. */
+export const DEFAULT_PLAYOUT_LAYER = 20;
+/** The range CasparCG accepts, and therefore the range the control offers. */
+export const MIN_PLAYOUT_LAYER = 1;
+export const MAX_PLAYOUT_LAYER = 100;
+
+/** A pool graphic's layer — the stored number, or the default for a record saved before the
+ *  field existed (additive-optional read, root AGENTS.md rule 6). */
+export function graphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
+  const n = Number(graphic.layer);
+  return Number.isFinite(n) && n >= MIN_PLAYOUT_LAYER && n <= MAX_PLAYOUT_LAYER
+    ? Math.round(n)
+    : DEFAULT_PLAYOUT_LAYER;
+}
+
+/** The lowest layer no graphic of the pool is using, from the default upward — what the
+ *  duplicate-layer warning offers as its one-click fix. */
+export function nextFreeLayer(graphics: Pick<SavedGraphic, 'layer'>[]): number {
+  const used = new Set(graphics.map(graphicLayer));
+  for (let n = DEFAULT_PLAYOUT_LAYER; n <= MAX_PLAYOUT_LAYER; n++) if (!used.has(n)) return n;
+  for (let n = MIN_PLAYOUT_LAYER; n < DEFAULT_PLAYOUT_LAYER; n++) if (!used.has(n)) return n;
+  return DEFAULT_PLAYOUT_LAYER;
+}
+
+/**
+ * Which pool graphics SHARE a layer, keyed by that layer. Two graphics on one layer evict each
+ * other the moment both are taken - in CasparCG, in SPX, and in the browser output alike - so
+ * the surface says so rather than letting it be found live (docs/PLAYOUT_DASHBOARD.md §5).
+ * Defaulting everything to one number is the deliberate choice; this is what keeps it honest.
+ */
+export function duplicateLayers(graphics: SavedGraphic[]): Map<number, SavedGraphic[]> {
+  const byLayer = new Map<number, SavedGraphic[]>();
+  for (const g of graphics) {
+    const layer = graphicLayer(g);
+    byLayer.set(layer, [...(byLayer.get(layer) ?? []), g]);
+  }
+  return new Map([...byLayer].filter(([, gs]) => gs.length > 1));
+}
+
+/** Set one pool graphic's playout layer. Out-of-range values clamp rather than refuse — the
+ *  control is a number input and a half-typed "1" must not be rejected mid-keystroke. */
+export function setShowGraphicLayer(showId: string, graphicId: string, layer: number): Show[] {
+  const all = loadAllShows();
+  const show = all.find((s) => s.id === showId && !s.deleted);
+  const graphic = show?.graphics.find((g) => g.id === graphicId);
+  if (show && graphic) {
+    const clamped = Math.min(MAX_PLAYOUT_LAYER, Math.max(MIN_PLAYOUT_LAYER, Math.round(layer) || DEFAULT_PLAYOUT_LAYER));
+    graphic.layer = clamped;
+    show.updatedAt = nowIso();
+    saveAll(all);
+  }
+  return all.filter((s) => !s.deleted);
+}
+
 export function moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId);

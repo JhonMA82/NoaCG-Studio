@@ -68,7 +68,7 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   await createHairline(page);
   const zip = await downloadTarget(page, 'H2R Graphics export');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline/README.md', 'hairline/hairline.html']);
+  expect(names.sort()).toEqual(['hairline/FIELDS.md', 'hairline/README.md', 'hairline/hairline.html']);
 
   const html = await zip.file('hairline/hairline.html')!.async('string');
   // The GDD block H2R parses into editable inputs — property keys match the element ids.
@@ -132,6 +132,7 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.sort()).toEqual([
+    'hairline/FIELDS.md',
     'hairline/GETTING-ON-AIR.md',
     'hairline/README.md',
     'hairline/Start controller.cmd',
@@ -163,7 +164,35 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   await createHairline(page);
   const zip = await downloadTarget(page, 'CasparCG export');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline/GETTING-ON-AIR.md', 'hairline/README.md', 'hairline/hairline.html']);
+  expect(names.sort()).toEqual([
+    'hairline/FIELDS.md',
+    'hairline/GETTING-ON-AIR.md',
+    'hairline/README.md',
+    'hairline/hairline.html',
+  ]);
+
+  // FIELDS.md is what makes a CasparCG client usable: the client sends ids, and only the
+  // package can say which id is the name and which the title (acceptance round 2, 2026-08-05).
+  const fields = await zip.file('hairline/FIELDS.md')!.async('string');
+  expect(fields).toContain('| `f0` | Name |');
+  expect(fields).toContain('| `f1` | Title |');
+  expect(fields).toContain('<componentData id="f0">');
+  // The CasparCG CLIENT's own walkthrough, carrying THIS graphic's name, layer and defaults —
+  // a student who has never sent a CG command cannot turn `CG 1-20 ADD …` into "which box do
+  // I type the name in" (owner, 2026-08-05: they use the default CasparCG Client).
+  expect(fields).toContain('## In the CasparCG Client');
+  expect(fields).toContain('locate\n   `hairline`');
+  expect(fields).toMatch(/Set the video layer to \d+/);
+  // The key/value grid is pre-filled from this graphic's own defaults, keyed by ID.
+  expect(fields).toMatch(/\| Key \| Value \|/);
+  expect(fields).toMatch(/\| `f0` \| .+ \|/);
+  // The AMCP form survives below it — another client, a script, a bug report.
+  expect(fields).toContain('CasparCG classic XML');
+  // And the guide only ever describes what is actually in the folder — a CasparCG package
+  // carries no relay on purpose, so it must not name the overlay flavour's launcher.
+  const guide = await zip.file('hairline/GETTING-ON-AIR.md')!.async('string');
+  expect(guide).toContain('FIELDS.md');
+  expect(guide).not.toContain('Start controller.cmd');
 
   const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('CasparCG data shim');

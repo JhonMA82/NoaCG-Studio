@@ -125,25 +125,28 @@ export function createOutputStage(
     postPreviewCmd(frames.get(graphic)?.contentWindow, cmd);
   };
 
-  payload.graphics.forEach((spec, layer) => {
+  payload.graphics.forEach((spec, index) => {
+    // The OPERATOR'S layer number (docs/PLAYOUT_DASHBOARD.md §5) — the same one the exported
+    // package declares, so a production stacks identically in the browser output and on a
+    // CasparCG server. A payload published before the field falls back to its array position,
+    // which is what this used to be.
+    const layer = Number.isFinite(spec.layer) ? Number(spec.layer) : index + 1;
     const iframe = document.createElement('iframe');
     // The same sandbox posture as every preview surface: published template code must never
     // reach the app origin (no allow-same-origin, ever — see preview/previewProtocol.ts).
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('title', spec.key);
-    // The layer number the production authored, stated rather than implied. Payload order IS
-    // the stack (index 0 furthest back), and appending in that order would already paint it
-    // correctly — but only for as long as nothing ever inserts, replaces or re-appends a frame.
-    // An explicit z-index makes the stack a property of the layer instead of a property of the
-    // loop, which is what a production reordering its graphics is entitled to rely on.
-    iframe.dataset.layer = String(layer + 1);
+    // The layer number the production authored, stated rather than implied. An explicit
+    // z-index makes the stack a property of the LAYER instead of a property of the append
+    // loop, which is what a production changing a graphic's layer is entitled to rely on.
+    iframe.dataset.layer = String(layer);
     iframe.style.cssText = [
       'position:absolute',
       'left:0',
       'top:0',
       `width:${spec.resolution.width}px`,
       `height:${spec.resolution.height}px`,
-      `z-index:${layer + 1}`,
+      `z-index:${layer}`,
       'border:0',
       'background:transparent',
     ].join(';');

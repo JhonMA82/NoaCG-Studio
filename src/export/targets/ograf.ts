@@ -16,6 +16,7 @@ import { stripRealtimeControl } from '../../control/realtimeControl';
 import type { Ftype, SpxField, SpxTemplate } from '../../model/types';
 import { RENDER_RUNTIME_JS, GSAP_DETACH_JS } from '../../render/runtimeScript';
 import { addReferencedFonts, projectFormatReadme, slug } from '../common';
+import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget, GraphicUsage } from '../registry';
 
 export const OGRAF_SCHEMA_URL = 'https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json';
@@ -519,6 +520,16 @@ export async function addOgrafPackage(
 
   root.file(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
   root.file('graphic.mjs', graphicModule(template));
+  // The ID table travels with every package (LiveOS inherits it here too): an OGraf host's
+  // data keys ARE these field ids, and only the package can say what each one means.
+  root.file(
+    'FIELDS.md',
+    fieldReferenceMd(
+      template,
+      'These ids are the keys of the OGraf data object — the same names the manifest schema ' +
+        'declares, and what `updateAction({ data })` carries.',
+    ),
+  );
   root.file('lib/gsap.min.js', gsapSource);
   if (templateUsesLottie(template)) root.file('lib/lottie.min.js', lottieSource);
   await addReferencedFonts(root, template);

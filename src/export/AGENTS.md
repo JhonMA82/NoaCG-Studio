@@ -41,6 +41,31 @@ export-time reflow, stretching, or cropping.
   them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is
   origin-scoped, so the panel pairs only over one http(s) origin in one browser - never over
   file:// (private opaque origins) and never into OBS/vMix/CasparCG's own engine.
+  **IT ONLY DESCRIBES WHAT THE CALLER ACTUALLY BUNDLED** (`onAirGuideMd({ localController })`,
+  acceptance round 2): one text served every flavour, so a CasparCG or SPX package - which
+  carries no relay ON PURPOSE - told its reader to double-click a "Start controller.cmd" that
+  was never written into it. A guide that names a missing file reads as a broken export. The
+  no-launcher flavours instead say what DOES steer them and point at the overlay target for a
+  double-click operator page; the launcher FILENAMES appear only in packages that carry them,
+  which is what `e2e/exports.spec.ts` asserts by absence.
+- **fieldReference.ts** - FIELDS.md, the package's DATA CONTRACT: the ID/field/type/default
+  table plus dropdown values, filelist/checkbox/hidden notes, the steps line, buttons, and
+  paste-ready JSON + CasparCG `componentData` payloads built from the graphic's OWN ids.
+  `casparClientStepsMd` is the **CasparCG Client** walkthrough (the official SVT client, which
+  is what the owner's students use): find the template in the Library, drag it into the
+  rundown, set the video layer to the number the graphic declares, fill the key/value grid with
+  IDS not names, then Play/Update/Next/Stop. It carries THAT graphic's own template name, layer
+  and default values, so the steps are followed rather than adapted - a student who has never
+  sent a CG command cannot turn `CG 1-20 ADD …` into "which box do I type the name in". The
+  AMCP form stays below it for another client, a script, or a bug report. It ships in the two
+  packages a CasparCG server actually receives (the CasparCG target and the SPX folder package,
+  which the README tells you to drop into an SPX **or** CasparCG templates directory) and
+  nowhere else - on a host that shows the fields by name, the steps would be noise.
+  **Every package ships it** - all six single-graphic targets and both production builders -
+  because a playout client speaks ids (`{"f0": "…"}`) and nothing on its screen says which id
+  is the title. `showFieldReferenceMd` is the production edition: an index of every graphic by
+  its playout layer, then one table each. One generator for all of them, so a package's
+  documented ids can never disagree with the ids it ships.
 - **localControl.ts + local-relay/** - the LOCAL-CONTROL bundle the overlay flavors ship
   (single overlay + the production overlay package): relay.ps1 (Windows PowerShell 5.1) and
   relay.py (python3), TWO stdlib implementations of ONE versioned protocol (v1: /relay/ping,

@@ -50,6 +50,13 @@ test('default studio: a saved graphic opens onto its control page, not the edito
   await page.getByTestId('home-nav-graphics').click();
   await page.locator('.lib-row', { hasText: 'Seeded lower third' }).getByTestId('open-graphic').click();
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+
+  // The row's NAME is the same door (acceptance round 2, 2026-08-05: a production's title
+  // opens it, so a graphic's title must too — one handler behind both).
+  await page.getByTestId('control-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.lib-row', { hasText: 'Seeded lower third' }).getByTestId('open-graphic-name').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
 });
 
 test('the Settings toggle restores the editor doors without a reload', async ({ page }) => {

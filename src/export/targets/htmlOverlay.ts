@@ -13,6 +13,7 @@ import { hasRealtimeControl } from '../../control/realtimeControl';
 import { localReceiverJs } from '../../control/localReceiver';
 import { addLocalControlBundle } from '../localControl';
 import { onAirGuideMd } from '../onAirGuide';
+import { fieldReferenceMd } from '../fieldReference';
 import type { ExportContext, ExportTarget } from '../registry';
 
 /** The autoplay block appended after the template's JS. Teachable ES5, same voice as the
@@ -143,7 +144,16 @@ export const htmlOverlayTarget: ExportTarget = {
     // picker sends the embedded bytes rather than a path that resolves at neither end.
     addControlPanel(root, template, { inlineAssets: true, entries: ctx?.entries });
     root.file('README.md', overlayReadme(template));
-    root.file('GETTING-ON-AIR.md', onAirGuideMd());
+    root.file(
+      'FIELDS.md',
+      fieldReferenceMd(
+        template,
+        'The bundled control panel shows these by name, so you never type an id here — the table ' +
+          'is for anything that drives the graphic from outside (a CasparCG client, your own script).',
+      ),
+    );
+    // This flavour DOES bundle the relay + launchers below, so the guide may describe them.
+    root.file('GETTING-ON-AIR.md', onAirGuideMd({ localController: true }));
     addLocalControlBundle(root, {
       v: 1,
       show: { name: template.name },

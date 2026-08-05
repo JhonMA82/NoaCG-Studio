@@ -101,6 +101,15 @@ CG 1-20 STOP
 Field data arrives through the usual `templateData` shim, in either JSON or XML form. The file
 needs no network at all — fonts and images are inlined.
 
+### Which field is which (FIELDS.md)
+
+A CasparCG client sends values by **id** — `f0`, `f1`, … — and nothing on its screen says what
+they mean. So every exported package (all six targets, and both production flavours) ships
+**FIELDS.md**: each field's id, its name, its type and its default, plus paste-ready JSON and
+`componentData` payloads built from that graphic's own ids. A production package's root
+FIELDS.md lists every graphic with the playout layer it was assigned. Keep it open beside the
+client; it is the only place the two vocabularies meet.
+
 ## 4. OBS Studio
 
 1. **Sources → + → Browser**.

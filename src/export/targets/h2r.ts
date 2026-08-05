@@ -9,6 +9,7 @@ import JSZip from 'jszip';
 import type { SpxField, SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { slug } from '../common';
+import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
 
 /** Map one SPX DataField to a GDD property (H2R's editable-input schema). The shape mirrors
@@ -112,6 +113,14 @@ export const h2rTarget: ExportTarget = {
     };
     root.file(`${name}.html`, await composeSelfContainedHtml(withGdd, [H2R_TOGGLE_SHIM]));
     root.file('README.md', h2rReadme(template));
+    root.file(
+      'FIELDS.md',
+      fieldReferenceMd(
+        template,
+        'H2R shows these as named inputs from the embedded GDD, so you never type an id there — ' +
+          'the table is for anything that drives the graphic from outside.',
+      ),
+    );
     return zip;
   },
 };

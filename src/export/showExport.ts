@@ -29,6 +29,7 @@ import { saveAs } from 'file-saver';
 import { slug } from './common';
 import { buildStarterInto } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
+import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldReference';
 import { addLocalControlBundle } from './localControl';
 import { EXPORT_TARGETS } from './registry';
 import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanelHtml';
@@ -44,7 +45,7 @@ import {
 } from '../model/library';
 import type { SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
-import type { Show } from '../model/shows';
+import { graphicLayer, type Show } from '../model/shows';
 
 /** Kept for API compatibility with callers/specs that passed backend coordinates; the
  *  production package no longer bakes any hosted receiver (rule 1 above), so the value is
@@ -53,15 +54,17 @@ export interface ShowExportOptions {
   hostedBackend?: { ref: string; key: string } | null;
 }
 
-/** First layer assigned to a production package's templates. Pool order = paint order
- *  (index 0 furthest back), so ascending layers preserve the stack in SPX/CasparCG. Real
- *  SPX packs give each template its own layer for exactly this reason. */
-const BASE_LAYER = 5;
-/** SPX's web playout renderer offers layers 1-20; stay inside it. */
-const MAX_LAYER = 20;
-
-export function showGraphicLayer(index: number): number {
-  return Math.min(BASE_LAYER + index, MAX_LAYER);
+/**
+ * The playout layer a pool graphic's package declares — the number the OPERATOR chose on the
+ * production dashboard (docs/PLAYOUT_DASHBOARD.md §5), not one derived from pool position.
+ *
+ * It used to be `5 + index`, capped at 20. That guaranteed distinct layers (the round-1 fix for
+ * every template declaring playlayer 7 and evicting its neighbour) but it made the layer an
+ * accident of ordering, adjustable only with ↑/↓ arrows. Now the number is stored, typed, and
+ * defaulted to 20; the dashboard flags a duplicate rather than the export inventing uniqueness.
+ */
+export function showGraphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
+  return graphicLayer(graphic);
 }
 
 /** One template, re-declared onto its own playout layer (definition block + parsed settings). */
@@ -74,12 +77,7 @@ function withPlayoutLayer(template: SpxTemplate, layer: number): SpxTemplate {
  *  the fallback), NO hosted receiver (rule 1), its own playout layer (rule 2), and — on a slug
  *  collision inside the package — a suffixed NAME, so every per-target packager that derives
  *  paths from slug(template.name) lands each graphic in its own folder/file. */
-function exportTemplateFor(
-  graphic: SavedGraphic,
-  index: number,
-  library: GraphicDoc[],
-  usedSlugs: Set<string>,
-): SpxTemplate {
+function exportTemplateFor(graphic: SavedGraphic, library: GraphicDoc[], usedSlugs: Set<string>): SpxTemplate {
   let template = templateForSavedGraphic(graphic, library);
   let name = graphic.name;
   let n = 2;
@@ -87,7 +85,7 @@ function exportTemplateFor(
   usedSlugs.add(slug(name));
   if (name !== template.name) template = { ...template, name };
   template = { ...template, js: stripHostedReceiver(template.js) };
-  return withPlayoutLayer(template, showGraphicLayer(index));
+  return withPlayoutLayer(template, showGraphicLayer(graphic));
 }
 
 /** The values a serverless flavor bakes as on-load data: the operator's ACTIVE entry on the
@@ -107,16 +105,16 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   const library = loadGraphics();
   const usedSlugs = new Set<string>();
   const folderNames: string[] = [];
-  let index = 0;
+  const fieldGraphics: ProductionFieldGraphic[] = [];
   for (const graphic of show.graphics) {
-    const template = exportTemplateFor(graphic, index, library, usedSlugs);
+    const template = exportTemplateFor(graphic, library, usedSlugs);
     const name = slug(template.name);
     folderNames.push(name);
+    fieldGraphics.push({ template, layer: showGraphicLayer(graphic), file: `${name}/${name}.html` });
     await buildStarterInto(root.folder(name)!, template, {
       entries: entriesForSavedGraphic(graphic, library),
       fileName: `${name}.html`,
     });
-    index++;
   }
   root.file(
     'show_controlpanel.html',
@@ -126,12 +124,24 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
     ),
   );
   root.file('GETTING-ON-AIR.md', onAirGuideMd());
+  // ONE table for the whole production: which graphic is on which layer, and every field ID it
+  // answers to. The package is driven by SPX or a CasparCG client here, and both speak ids.
+  root.file(
+    'FIELDS.md',
+    showFieldReferenceMd(show.name, fieldGraphics, {
+      usage:
+        'In an SPX rundown the fields appear by name and you never type an id. A CasparCG ' +
+        'client sends the ids below directly — that is what these tables are for, and each ' +
+        "graphic below carries the CasparCG Client's own steps.",
+      clientSteps: true,
+    }),
+  );
   root.file(
     'README.md',
     `# ${show.name} — show package\n\nGenerated by NoaCG Studio.\n\n` +
       `Each folder is one plug-and-play SPX template (rundown order, each on its own playout\n` +
       `layer so they never evict each other):\n\n` +
-      folderNames.map((name, i) => `- ${name}/${name}.html  (layer ${showGraphicLayer(i)})`).join('\n') +
+      folderNames.map((name, i) => `- ${name}/${name}.html  (layer ${showGraphicLayer(show.graphics[i])})`).join('\n') +
       `\n\n## Operating the show (show_controlpanel.html)\n` +
       `Serve this folder over http (SPX's template server, or any local web server), run each\n` +
       `graphic's own .html as a browser source FROM THAT ADDRESS, and open show_controlpanel.html\n` +
@@ -141,6 +151,9 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
       `Opening the files straight from disk (file://) does NOT connect the panel — browsers give\n` +
       `every local file its own private origin. In an SPX or CasparCG rundown you do not need the\n` +
       `panel: the host is the controller there. See GETTING-ON-AIR.md for the full setup guide.\n` +
+      `\n## The fields (FIELDS.md)\n` +
+      `Every graphic's fields with the ID a playout client sends them under (f0, f1, …). Keep it\n` +
+      `open beside a CasparCG client — the client shows ids, FIELDS.md says what they mean.\n` +
       `\nExtract this folder into your SPX/CasparCG templates directory as-is.\n`,
   );
   return zip;
@@ -178,6 +191,20 @@ const FLAVOR_NOTES: Record<string, string> = {
   liveos: 'Each folder is one LiveOS-ready OGraf graphic — NetOn.Live owns loading and control.',
 };
 
+/** Per-flavour line in the production's FIELDS.md — WHERE these ids get typed. */
+const FIELD_USAGE_NOTES: Record<string, string> = {
+  'html-overlay':
+    'The bundled controller and control panel show these by name, so you never type an id there. ' +
+    'The tables are for anything driving the graphics from outside.',
+  casparcg:
+    'Each graphic below carries the **CasparCG Client** steps for its own template and layer. ' +
+    'Driving it another way? The AMCP form is `CG 1-<layer> ADD 1 "<graphic>" 1 ' +
+    '"<templateData>…"`, then `CG 1-<layer> PLAY` / `NEXT` / `STOP`.',
+  h2r: 'H2R shows these as named inputs from each graphic\'s embedded GDD.',
+  ograf: 'These ids are the keys of the OGraf data object each graphic\'s manifest declares.',
+  liveos: 'These ids are the keys of the OGraf data object NetOn.Live sends to each graphic.',
+};
+
 /** Build the whole production for one registry target. 'spx' keeps its dedicated builder
  *  (aggregated panel + per-folder starters); every other id runs the generic merge. */
 export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZip> {
@@ -190,9 +217,8 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
   const library = loadGraphics();
   const usedSlugs = new Set<string>();
   const panelGraphics: { template: SpxTemplate; entries: ReturnType<typeof entriesForSavedGraphic> }[] = [];
-  let index = 0;
   for (const graphic of show.graphics) {
-    const template = exportTemplateFor(graphic, index, library, usedSlugs);
+    const template = exportTemplateFor(graphic, library, usedSlugs);
     const entries = entriesForSavedGraphic(graphic, library);
     const sub = await target.build(template, {
       entries,
@@ -203,7 +229,6 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
       if (!file.dir) root.file(path, await file.async('uint8array'));
     }
     panelGraphics.push({ template, entries });
-    index++;
   }
 
   // The overlay flavor is the LOCAL-CONTROL package (the OBS/vMix door): the aggregated
@@ -233,7 +258,7 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
         graphics: panelGraphics.map(({ template, entries }, i) => ({
           ...emitGraphic(template, null, { inlineAssets: true, entries }),
           file: `${slug(template.name)}/${slug(template.name)}.html`,
-          layer: showGraphicLayer(i),
+          layer: showGraphicLayer(show.graphics[i]),
         })),
         cues,
         width: first?.resolution.width ?? 1920,
@@ -246,17 +271,36 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
       graphics: panelGraphics.map(({ template }, i) => ({
         name: template.name,
         file: `${slug(template.name)}/${slug(template.name)}.html`,
-        layer: showGraphicLayer(i),
+        layer: showGraphicLayer(show.graphics[i]),
       })),
     });
   }
-  root.file('GETTING-ON-AIR.md', onAirGuideMd());
+  // Only the overlay flavour above actually bundled the relay + launchers, so only its guide
+  // may describe them (the acceptance finding: a CasparCG package's guide named a
+  // "Start controller.cmd" that was never written into it).
+  root.file('GETTING-ON-AIR.md', onAirGuideMd({ localController: targetId === 'html-overlay' }));
+  root.file(
+    'FIELDS.md',
+    showFieldReferenceMd(
+      show.name,
+      panelGraphics.map(({ template }, i) => ({
+        template,
+        layer: showGraphicLayer(show.graphics[i]),
+        file: `${slug(template.name)}/${slug(template.name)}.html`,
+      })),
+      // Only the CasparCG flavour gets the CLIENT walkthrough: on the others the fields appear
+      // by name in the host's own UI and nobody types an id, so the steps would be noise.
+      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg' },
+    ),
+  );
   root.file(
     'README.md',
     `# ${show.name} — production package (${target.label})\n\nGenerated by NoaCG Studio.\n\n` +
       `One sub-package per graphic, rundown order:\n\n` +
-      panelGraphics.map(({ template }, i) => `- ${slug(template.name)}/  (layer ${showGraphicLayer(i)})`).join('\n') +
-      `\n\n${FLAVOR_NOTES[targetId] ?? ''}\n`,
+      panelGraphics.map(({ template }, i) => `- ${slug(template.name)}/  (layer ${showGraphicLayer(show.graphics[i])})`).join('\n') +
+      `\n\n${FLAVOR_NOTES[targetId] ?? ''}\n\n` +
+      `**FIELDS.md** lists every graphic's fields with the ID a playout client sends them under\n` +
+      `(f0, f1, …) — the file to keep open beside a CasparCG client.\n`,
   );
   return zip;
 }

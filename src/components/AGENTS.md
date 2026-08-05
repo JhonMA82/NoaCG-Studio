@@ -508,16 +508,33 @@ e2e/layout.spec.ts.
   (docs/GOALS.md "Student release" step 8: create/pick a production + "+ Add current" + the
   link to its page - the layer stack, export, publishing and links all live on
   ProductionPage, so two surfaces cannot drift); adds the Google-Sheets live-data block.
-- **HostedControlPage** - the `?control=<slug>` operator page (routed in App.tsx like ?chat=):
-  one card per graphic off the stored panel spec - event buttons with structural-guard
-  greying, shared staged fields (local echo + debounced control_stage), explicit take, state
-  chip from the graphics' own reports, and the graphic's saved ENTRIES as a READ-ONLY
-  switcher (published in the panel spec; picking one stages its values for every operator,
-  ▶ Play entry takes and plays, a hand edit drops the selection - authoring stays in
+- **HostedControlPage** - the `?control=<slug>` operator page (routed in App.tsx like ?chat=).
+  It renders **THE PLAYOUT DASHBOARD** (docs/PLAYOUT_DASHBOARD.md), the one design the in-app
+  production page and the exported controller also render: PVW + PGM monitors, the verb bar,
+  the selected-cue editor, the cue rundown with layer badges, the layer chips. It was a FORM
+  before - no monitors at all, one tall card per graphic down a narrow column - so an operator
+  could see neither what they were about to air nor what was on it, and a student who learned
+  the exported controller could not operate this.
+  **Both monitors are real and cost the backend nothing**: the published payload already
+  carries every graphic's code, so PREVIEW is a local `PayloadStage` this page drives itself
+  and PROGRAM is a second one driven by the shared LOG - which is what makes it show a take
+  from somebody else's device. On boot it replays each live layer's last REPORTED data into
+  the PROGRAM stage, or a production that has been on air all afternoon opens with an empty
+  monitor beside a row marked ON AIR. That replay is safe HERE and was not in an exported
+  package (the round-1 "flashes in and disappears"): this stage drives nothing but itself.
+  Field edits still go to the SHARED staging buffer (local echo + debounced control_stage) and
+  air only on an explicit take; event buttons still grey by structural guard; the graphic's
+  saved ENTRIES stay a READ-ONLY picker in the editor head (authoring stays in
   GraphicControlPage). Login-optional by design (the slug is the capability); offline builds
   answer the route honestly, which is also why the page's UI is covered by the maintainer's
   live checklist rather than the offline e2e suite (e2e/hosted-control.spec.ts pins the
   publish-side spec build).
+- **home/PayloadStage** - ONE monitor component: `createOutputStage` over an `OutputPayload`,
+  the same two functions the published output URL is built from, fed the same
+  `ControlSendItem[]` the verbs send. Both monitors on both surfaces are one of these, which
+  is what makes a monitor unable to disagree with air without the renderer itself being wrong.
+  **home/ProgramStage** is the app-side wrapper that builds the payload from the local show
+  first (it was the rehearsal stage; rehearsal is retired - docs/PLAYOUT_DASHBOARD.md §6).
 - **StylePanel** - reads/writes the :root style contract (src/templates/AGENTS.md): colours,
   SHAPE, typeface swap, zone re-anchoring, post-creation typeface import (an imported face
   still lands in template.assets and shows in the Assets panel's list). The controls

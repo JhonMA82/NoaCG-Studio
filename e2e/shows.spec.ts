@@ -37,13 +37,13 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  // Both graphics as LAYERS, front to back: the newest addition is on top, so it heads the
-  // list and carries the higher number (docs/CLOUD_PLAYOUT.md §5).
-  const layers = page.locator('[data-testid^="pool-"]');
+  // Both graphics as LAYERS, listed front to back — highest number first. Layers are numbers
+  // now, distinct on arrival from 20 up (docs/PLAYOUT_DASHBOARD.md §5).
+  const layers = page.locator('.pd-layer-chip');
   await expect(layers).toHaveCount(2);
-  await expect(layers.nth(0)).toContainText('L2');
+  await expect(layers.nth(0)).toContainText('L21');
   await expect(layers.nth(0)).toContainText('Arena Quiz');
-  await expect(layers.nth(1)).toContainText('L1');
+  await expect(layers.nth(1)).toContainText('L20');
   await expect(layers.nth(1)).toContainText('Hairline');
 
   // Export: the target picker (SPX is the remembered default), one folder per graphic + the
@@ -193,6 +193,7 @@ test('production export packages for the other registry targets through the same
     const quiz = variantsFor('quiz')[0].create({});
     const graphics = [third, quiz].map((template, i) => ({
       id: `g-${i}`, name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template,
+      layer: 20 + i,
     }));
     const show = { id: 'b0b0b0b0-c1c1-4d2d-8e3e-f4f4f4f4f4f4', name: 'Flavor Show', graphics, updatedAt: '2026-01-01T00:00:00.000Z', hostedSlug: 'x' };
 
@@ -208,6 +209,13 @@ test('production export packages for the other registry targets through the same
     // The lower third's own file, named by its slug inside its own folder.
     const casparHtmlPath = caspar.names.find((n) => /^flavor_show\/([^/]+)\/\1\.html$/.test(n))!;
     const casparHtml = await caspar.zip.file(casparHtmlPath)!.async('string');
+    // The aggregated field reference: one table per graphic, each on its own layer, with the
+    // IDs a playout client sends. And the GUIDE ONLY DESCRIBES WHAT IS IN THE FOLDER — the
+    // CasparCG flavor bundles no launcher, so it must not name one (acceptance round 2).
+    const casparFields = await caspar.zip.file('flavor_show/FIELDS.md')!.async('string');
+    const overlayFields = await overlay.zip.file('flavor_show/FIELDS.md')!.async('string');
+    const casparGuide = await caspar.zip.file('flavor_show/GETTING-ON-AIR.md')!.async('string');
+    const overlayGuideText = await overlay.zip.file('flavor_show/GETTING-ON-AIR.md')!.async('string');
     return {
       casparNames: caspar.names,
       overlayHasShowPanel: overlay.names.includes('flavor_show/show_controlpanel.html'),
@@ -215,6 +223,12 @@ test('production export packages for the other registry targets through the same
       ografManifests: ograf.names.filter((n) => n.endsWith('.ograf.json')).length,
       casparHtml,
       casparReceiverFree: !casparHtml.includes('== HOSTED CONTROL'),
+      casparFields,
+      overlayFields,
+      ografHasFields: ograf.names.includes('flavor_show/FIELDS.md'),
+      casparGuideNamesLauncher: casparGuide.includes('Start controller.cmd'),
+      overlayGuideNamesLauncher: overlayGuideText.includes('Start controller.cmd'),
+      overlayHasLauncher: overlay.names.includes('flavor_show/Start controller.cmd'),
     };
   });
 
@@ -225,6 +239,25 @@ test('production export packages for the other registry targets through the same
   expect(result.overlayGuide).toBe(true);
   expect(result.ografManifests).toBe(2);
   expect(result.casparReceiverFree).toBe(true);
+
+  // Every flavor ships the field/ID reference, and the production one indexes each graphic by
+  // its own playout layer.
+  expect(result.ografHasFields).toBe(true);
+  expect(result.casparFields).toContain('| ID | Field | Type | Default value |');
+  expect(result.casparFields).toContain('| `f0` |');
+  expect(result.casparFields).toMatch(/\|\s*20\s*\|.+\|\s*\d+\s*\|/); // the layer index row
+  // Each graphic carries the CasparCG CLIENT's steps for ITS OWN layer — the production is
+  // where "which number goes in the video layer box" actually differs per graphic.
+  expect(result.casparFields.match(/## In the CasparCG Client/g)).toHaveLength(2);
+  expect(result.casparFields).toContain('Set the video layer to 20');
+  expect(result.casparFields).toContain('Set the video layer to 21');
+  // The overlay flavour drives its graphics from the bundled controller, so the client steps
+  // would be noise there — they ship only where a CasparCG server receives the package.
+  expect(result.overlayFields).not.toContain('In the CasparCG Client');
+  // A guide names the launcher only where the launcher is.
+  expect(result.overlayHasLauncher).toBe(true);
+  expect(result.overlayGuideNamesLauncher).toBe(true);
+  expect(result.casparGuideNamesLauncher).toBe(false);
 
   // The CasparCG flavor plays like the host drives it.
   const view = await page.context().newPage();
@@ -254,8 +287,11 @@ test('a production package never carries the hosted receiver, and each graphic g
     const { slug } = await import('/src/export/slug.ts');
     const third = variantsFor('lower-third')[0].create({});
     const ticker = variantsFor('ticker')[0].create({});
+    // Layers are the numbers the OPERATOR chose (docs/PLAYOUT_DASHBOARD.md §5) — addGraphicToShow
+    // hands out 20, 21, … so a hand-built pool states the same thing explicitly.
     const graphics = [third, ticker].map((template, i) => ({
       id: `g-${i}`, name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template,
+      layer: 20 + i,
     }));
     const base = { id: 'a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4', name: 'Baked Show', graphics, updatedAt: '2026-01-01T00:00:00.000Z' };
     const backend = { ref: 'testref', key: 'sb_publishable_testkey' };
@@ -277,8 +313,8 @@ test('a production package never carries the hosted receiver, and each graphic g
     return {
       anyReceiver: jsPaths.some((p) => texts[p].includes('== HOSTED CONTROL')),
       snapshotClean: graphics.every((g) => !g.template.js.includes('== HOSTED CONTROL')),
-      // Distinct ascending layers from pool order — every generated template used to say
-      // playlayer '7', so two templates in one SPX rundown evicted each other.
+      // The package declares the STORED layer number, verbatim — every generated template used
+      // to say playlayer '7', so two templates in one SPX rundown evicted each other.
       thirdLayer: layerOf(third.name),
       tickerLayer: layerOf(ticker.name),
       guideShipped: Object.keys(texts).some((n) => n.endsWith('GETTING-ON-AIR.md')),
@@ -286,8 +322,8 @@ test('a production package never carries the hosted receiver, and each graphic g
   });
   expect(result.anyReceiver).toBe(false);
   expect(result.snapshotClean).toBe(true);
-  expect(result.thirdLayer).toEqual({ play: '5', web: '5' });
-  expect(result.tickerLayer).toEqual({ play: '6', web: '6' });
+  expect(result.thirdLayer).toEqual({ play: '20', web: '20' });
+  expect(result.tickerLayer).toEqual({ play: '21', web: '21' });
   expect(result.guideShipped).toBe(true);
 });
 
@@ -349,18 +385,25 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  // Front to back: Arena Quiz went in last, so it starts on top. Bringing the BACK layer
-  // forward puts Hairline on top and renumbers both.
-  const layers = page.locator('[data-testid^="pool-"]');
+  // Arena Quiz went in last, so it took the next free number and heads the front-to-back list.
+  // Restacking is TYPING a number, not walking arrows (docs/PLAYOUT_DASHBOARD.md §5).
+  const layers = page.locator('.pd-layer-chip');
   await expect(layers.nth(0)).toContainText('Arena Quiz');
-  await expect(layers.nth(0)).toContainText('L2');
-  await layers.nth(1).getByTestId('layer-forward').click();
+  await expect(layers.nth(0)).toContainText('L21');
+  await page
+    .getByTestId('cue-list')
+    .locator('.pd-cue')
+    .filter({ hasText: 'Hairline' })
+    .first()
+    .getByTestId('select-cue')
+    .click();
+  await page.getByTestId('graphic-layer').fill('30');
   await expect(layers.nth(0)).toContainText('Hairline');
-  await expect(layers.nth(0)).toContainText('L2');
+  await expect(layers.nth(0)).toContainText('L30');
   await expect(layers.nth(1)).toContainText('Arena Quiz');
-  await expect(layers.nth(1)).toContainText('L1');
+  await expect(layers.nth(1)).toContainText('L21');
 
-  await layers.nth(0).getByTitle(/Remove this graphic/).click();
+  await layers.nth(0).getByRole('button', { name: /^Remove / }).click();
   await expect(layers).toHaveCount(1);
 
   // Deleting the production is a Home action (two-step, on its row).

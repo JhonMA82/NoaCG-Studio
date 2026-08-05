@@ -180,7 +180,7 @@ test('the production controller: preview shows the cue without airing it, Take a
   const ctl = await context.newPage();
   await routeOrigin(ctl, origin, serve);
   await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
-  await expect(ctl.locator('#status')).toContainText('local relay connected');
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
   await expect(ctl.locator('.cue')).toHaveCount(2);
 
   // → Preview: the PVW monitor's copy plays with Anna; AIR stays dark.
@@ -210,6 +210,32 @@ test('the production controller: preview shows the cue without airing it, Take a
   await ctl.locator('#v-take').click();
   await expect(air.locator('#f0')).toHaveText('Ben Bergman', { timeout: 6000 });
   await expect(ctl.locator('.cue', { hasText: 'Ben' })).toHaveClass(/on-air/);
+
+  // The dashboard's shared vocabulary reached the exported page too
+  // (docs/PLAYOUT_DASHBOARD.md): every cue row states the LAYER its graphic airs on, and the
+  // layer chips list the stack front to back.
+  await expect(ctl.locator('.cue').first().locator('.sub')).toContainText(/^L\d+ · /);
+  await expect(ctl.locator('.chip').first()).toContainText(/^L\d+/);
+
+  // SPACE is Take here as well — and never while a field has focus, which is the guard that
+  // matters: the cue's fields are on this same surface.
+  //
+  // The guard is checked by what the SPACE DID, not by what did not change: "the other cue is
+  // still on air" passes on its first poll, before a broken guard's take could possibly have
+  // landed, so it proves nothing (it passed with the guard deleted). A space that reaches the
+  // input cannot race — a broken guard calls preventDefault and the character never arrives.
+  await ctl.locator('.cue', { hasText: 'Anna' }).click();
+  const field = ctl.locator('.field input').first();
+  await field.click();
+  await field.fill('Anna');
+  await ctl.keyboard.press('Space');
+  await ctl.keyboard.type('A');
+  await expect(field).toHaveValue('Anna A');
+
+  // Focus off the fields: now SPACE takes the selected cue.
+  await ctl.locator('.verbs').click({ position: { x: 5, y: 5 } });
+  await ctl.keyboard.press('Space');
+  await expect(ctl.locator('.cue', { hasText: 'Anna' })).toHaveClass(/on-air/);
 
   // ■■ All out clears air.
   await ctl.locator('#v-allout').click();
