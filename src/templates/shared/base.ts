@@ -14,9 +14,12 @@ import {
   fontById,
   fontFaceCss,
   fontStack,
+  numericFaceFor,
+  numericFontFaceCss,
   numericFontStack,
+  type BundledFont,
 } from '../../model/fonts';
-import { type ThemeTokens, tokenVarsCss } from '../../model/themeTokens';
+import { TOKEN_VARS, type ThemeTokens, tokenVarsCss } from '../../model/themeTokens';
 import type { ResolvedOptions, Zone9 } from '../../model/wizard';
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
@@ -40,6 +43,11 @@ export function resolveHeadingFont(o: ResolvedOptions): { face: string; stack: s
  */
 export function resolveNumericStack(o: ResolvedOptions): string {
   return numericFontStack(o.customFont ?? fontById(o.fontId));
+}
+
+/** The bundled face those numbers need shipped, or null when they just follow the heading. */
+export function resolveNumericFace(o: ResolvedOptions): BundledFont | null {
+  return numericFaceFor(o.customFont ?? fontById(o.fontId));
 }
 
 // ── Size math ────────────────────────────────────────────────────────────────
@@ -148,10 +156,18 @@ export function rootVarsCss(
     opts.typeScale === false
       ? ''
       : `\n  --type-scale: ${o.typeScale};                  /* text-only size multiplier (on top of --scale) */`;
-  // `--font-numeric` is the one token that follows the CHOSEN font rather than the family, so
-  // the family default is replaced here with the answer for the face actually in use.
+  // `--font-numeric` is the one token that follows the CHOSEN typeface rather than the family,
+  // so the family default is replaced here with the answer for the face actually in use.
   const tokens = opts.tokens && { ...opts.tokens, fontNumeric: resolveNumericStack(o) };
   const tokenLines = tokens && opts.consumerCss ? tokenVarsCss(tokens, opts.consumerCss) : '';
+  // When that answer is a bundled SIBLING rather than the heading face, its bytes have to ship
+  // too. Emitted here because this is the one place that knows the token was declared at all -
+  // a design that reads no numbers gets neither the variable nor the extra font file.
+  const numericFace = tokenLines.includes(TOKEN_VARS.fontNumeric) ? resolveNumericFace(o) : null;
+  const numericFaceBlock =
+    numericFace && !opts.consumerCss?.includes(`fonts/${numericFace.file}`)
+      ? `\n\n${numericFontFaceCss(numericFace)}`
+      : '';
   return `/* ── Style contract: change these variables to retint the whole graphic. ── */
 :root {
   --accent: ${o.palette.accent};           /* the one accent color */
@@ -160,7 +176,7 @@ export function rootVarsCss(
   --panel-bg: ${o.palette.panel};  /* the panel behind the text */
   --font-heading: ${headingStack};  /* the graphic's typeface */
   --scale: ${scale};                  /* whole-graphic size multiplier (also handles resolution) */${typeScaleLine}${tokenLines ? `\n${tokenLines}` : ''}
-}`;
+}${numericFaceBlock}`;
 }
 
 /** Reset + transparent canvas at the output resolution. */

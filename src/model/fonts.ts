@@ -50,6 +50,22 @@ export interface BundledFont {
    * in the catalog - Oswald is the sport family's display face, set at 700 - still jiggled.
    */
   tabularFigures: boolean;
+  /**
+   * The bundled face this one's LIVE NUMBERS are set in, when its own digits cannot hold a
+   * width. Declared only on the six faces that need it (`tabularFigures: false`).
+   *
+   * Paired by hand rather than derived, because the useful pairing is a judgement a heuristic
+   * gets wrong: the nearest match by registry order gives a scoreboard the wrong width, and
+   * the nearest by fallback stack gives Oswald a face that only exists at weight 400. Each
+   * pairing below shares a style family with its partner and keeps its voice — a serif stays
+   * a serif, a condensed sport face stays condensed.
+   *
+   * A face with no pairing (an imported one) falls back to {@link MONO_STACK}: numbers that
+   * cannot jiggle, in a typeface nobody chose. That is the last resort, not the rule — a
+   * monospaced code face on a sport slab reads as a terminal, and JetBrains Mono's slashed
+   * zero cannot be turned off (measured: no `zero`/`ss19`/`ss20` setting changes the glyph).
+   */
+  numericFallbackId?: string;
 }
 
 /**
@@ -58,19 +74,48 @@ export interface BundledFont {
  */
 export const MONO_STACK = '"JetBrains Mono", Consolas, "Courier New", monospace';
 
+/** What a caller has to know about a typeface to work out its numbers. */
+export interface NumericSource {
+  tabularFigures?: boolean;
+  numericFallbackId?: string;
+}
+
+/**
+ * The BUNDLED face a graphic's live numbers must be set in, or null when the heading face can
+ * hold a width itself and the numbers simply follow it.
+ *
+ * A non-null answer means a second `@font-face` has to ship with the graphic, exactly as the
+ * house family's label face already does - `templates/shared/base.ts` emits it and the export
+ * writers pick it up from the `url("fonts/…")` reference like any other bundled file.
+ */
+export function numericFaceFor(font: NumericSource): BundledFont | null {
+  if (font.tabularFigures) return null;
+  if (!font.numericFallbackId) return null;
+  return FONTS.find((f) => f.id === font.numericFallbackId) ?? null;
+}
+
 /**
  * What `--font-numeric` resolves to for a chosen heading face.
  *
- * A live number must hold its width as it changes (docs/DESIGN_LANGUAGE.md §1). Where the
- * graphic's own typeface can do that, it should - the numbers belong to the design. Where it
- * cannot, the figures fall back to the mono stack rather than twitching on every tick: a
- * countdown in the wrong typeface is a smaller compromise than a countdown that moves.
+ * A live number must hold its width as it changes (docs/DESIGN_LANGUAGE.md §1). Three answers,
+ * in order of how much of the design's voice they keep:
  *
- * Call this EVERYWHERE `--font-heading` is written. A look or a font swap applied after
+ * 1. **The heading face**, where its own digits are already even. The numbers belong to the
+ *    design and nothing is added to the export.
+ * 2. **Its paired sibling** (`numericFallbackId`) - a bundled face that shares a style family,
+ *    keeps the voice, and can hold a width. Costs one more woff2 in the package.
+ * 3. **The mono stack**, only when there is no pairing to reach for - an imported typeface
+ *    nobody has measured against a partner. Numbers that cannot jiggle, in a face nobody
+ *    chose; a monospaced code face on a sport slab reads as a terminal, so this is the last
+ *    resort rather than the rule.
+ *
+ * Call this EVERYWHERE `--font-heading` is written. A look or a typeface swap applied after
  * creation that updates one without the other silently reverts the numerals.
  */
-export function numericFontStack(font: { tabularFigures?: boolean }): string {
-  return font.tabularFigures ? 'var(--font-heading)' : MONO_STACK;
+export function numericFontStack(font: NumericSource): string {
+  if (font.tabularFigures) return 'var(--font-heading)';
+  const face = numericFaceFor(font);
+  return face ? fontStack(face) : MONO_STACK;
 }
 
 export const FONTS: BundledFont[] = [
@@ -133,6 +178,7 @@ export const FONTS: BundledFont[] = [
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'Condensed broadcast workhorse — big names, tight space.',
     tabularFigures: false,
+    numericFallbackId: 'saira',  // the sport family's data face — semi-condensed like Oswald, and 400-900 so a heavy scoreline still has a weight to reach
   },
   {
     id: 'bebas-neue',
@@ -157,6 +203,7 @@ export const FONTS: BundledFont[] = [
     fallback: 'Georgia, "Times New Roman", serif',
     blurb: 'Editorial display serif — mastheads, culture, title cards.',
     tabularFigures: false,
+    numericFallbackId: 'source-serif-4',  // the editorial serif that can hold a width — a serif design keeps a serif number
   },
   {
     id: 'source-serif-4',
@@ -187,6 +234,7 @@ export const FONTS: BundledFont[] = [
     fallback: 'Arial, sans-serif',
     blurb: 'American newsroom grotesque — headlines with heritage.',
     tabularFigures: false,
+    numericFallbackId: 'archivo',  // the same grotesque voice one notch sturdier; shares editorial and minimal
   },
   {
     id: 'sora',
@@ -217,6 +265,7 @@ export const FONTS: BundledFont[] = [
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'One heavy condensed shout — scorelines and stings.',
     tabularFigures: false,
+    numericFallbackId: 'saira',  // Anton exists at one weight only, so its numbers borrow the sport family's data face
   },
   {
     id: 'big-shoulders',
@@ -227,6 +276,7 @@ export const FONTS: BundledFont[] = [
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'Condensed display with attitude — posters and openers.',
     tabularFigures: false,
+    numericFallbackId: 'saira',  // condensed display paired with the condensed data face beside it
   },
   {
     id: 'saira',
@@ -247,6 +297,7 @@ export const FONTS: BundledFont[] = [
     fallback: 'Arial, sans-serif',
     blurb: 'Friendly geometric — quiet, current, versatile.',
     tabularFigures: false,
+    numericFallbackId: 'outfit',  // the geometric sibling — shares glass and minimal, and the same round voice
   },
 ];
 
@@ -284,6 +335,42 @@ export function labelFontFaceCss(font: BundledFont): string {
   font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */
   font-display: swap;          /* show fallback text until the font loads */
 }`;
+}
+
+/**
+ * The `@font-face` for a graphic's NUMERIC face — the third kind of bundled face, beside the
+ * heading one and a family's design-owned label face.
+ *
+ * Worded differently from both on purpose: the Style panel swaps the FIRST "Bundled
+ * open-source font" block, and neither the label face nor this one may be caught by that
+ * match. This one is derived, not chosen — swapping the heading typeface can change it.
+ */
+export function numericFontFaceCss(font: BundledFont): string {
+  return `/* Numeric face (bundled OFL file — ships with the export, offline at playout).
+   The graphic's own typeface cannot hold a digit's width, so its live numbers are set in
+   this one instead. Change --font-numeric below to overrule it. */
+@font-face {
+  font-family: "${font.family}";
+  src: url("fonts/${font.file}") format("woff2");
+  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */
+  font-display: swap;          /* show fallback text until the font loads */
+}`;
+}
+
+/**
+ * Make sure a stylesheet carries the `@font-face` its `--font-numeric` needs.
+ *
+ * The write path for `--font-numeric` runs post-creation too — a typeface swap in the Style
+ * panel, a saved look applied to an existing graphic — and pointing the numbers at a face
+ * whose bytes never ship is the dangling-reference failure that degrades SILENTLY: the export
+ * carries a `url("fonts/…")` nothing wrote, `font-display: swap` renders the fallback, and the
+ * graphic simply comes up in the wrong typeface at playout. Idempotent: a face already
+ * referenced is left alone.
+ */
+export function ensureNumericFontFace(css: string, font: NumericSource): string {
+  const face = numericFaceFor(font);
+  if (!face || css.includes(`fonts/${face.file}`)) return css;
+  return `${numericFontFaceCss(face)}\n\n${css}`;
 }
 
 // The OFL itself, vendored at src/assets/OFL.txt and imported here so the licence TRAVELS with

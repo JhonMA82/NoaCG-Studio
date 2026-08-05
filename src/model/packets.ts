@@ -20,6 +20,7 @@ import {
   fontFaceCss,
   fontFormatForExt,
   fontStack,
+  ensureNumericFontFace,
   numericFontStack,
   type CustomFont,
 } from './fonts';
@@ -290,6 +291,7 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
       css = css.replace(FONT_BLOCK_RE, customFontFaceCss(brand.customFont));
       setIf('font-heading', customFontStack(brand.customFont));
       setIf('font-numeric', numericFontStack(brand.customFont));
+      css = ensureNumericFontFace(css, brand.customFont);
       // The look carries its font file — bundle it into this template too.
       assets = [...assets.filter((a) => a.path !== brand.customFont!.asset.path), brand.customFont.asset];
     } else if (brand.fontId) {
@@ -297,6 +299,9 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
       css = css.replace(FONT_BLOCK_RE, fontFaceCss(font));
       setIf('font-heading', fontStack(font));
       setIf('font-numeric', numericFontStack(font));
+      // A sibling numeric face has to ship with the look, or the retinted graphic points at a
+      // font file the package never writes.
+      css = ensureNumericFontFace(css, font);
     }
   }
 

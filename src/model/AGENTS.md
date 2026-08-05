@@ -49,8 +49,16 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   declaration was not the rule (DESIGN_LANGUAGE §1). Measured ACROSS a face's weight range -
   Oswald's digits are even at 400 and span 16% of the em at 700, the weight every sport
   scoreboard sets them at. An imported face is measured at import
-  (`registerAndMeasureFont`); an absent flag reads as "cannot", so an older saved project's
-  numbers fall back to mono rather than jiggling.
+  (`registerAndMeasureFont`); an absent flag reads as "cannot".
+  Each non-tabular face also declares **`numericFallbackId`** - the bundled sibling its numbers
+  are set in instead, sharing a style family so the voice survives (Oswald -> Saira, Playfair ->
+  Source Serif 4, DM Sans -> Outfit). Paired by hand, because every heuristic picked badly: by
+  registry order a scoreboard gets the wrong width, by fallback stack Oswald gets a face that
+  only exists at weight 400. Mono is the last resort, for an imported face with no pairing.
+  A sibling has to SHIP: `ensureNumericFontFace` injects its `@font-face` on the post-creation
+  write paths (a typeface swap, a look applied to an existing graphic), and
+  `templates/shared/base.ts` emits it at build - otherwise the export references bytes nobody
+  wrote and `font-display: swap` hides it until playout.
 - **styleVocabulary.ts** - the WORDS and ranges the two style surfaces render: the role label
   for each `:root` variable (a user-facing name, never CSS jargon), the group it belongs to,
   which tokens are lengths and over what range, the shadow presets, and the two size ladders.

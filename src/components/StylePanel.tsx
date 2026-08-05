@@ -8,6 +8,7 @@ import {
   customFontStack,
   fontFaceCss,
   fontStack,
+  ensureNumericFontFace,
   numericFontStack,
   type CustomFont,
 } from '../model/fonts';
@@ -68,9 +69,13 @@ export default function StylePanel() {
     let css = template.css.replace(FONT_BLOCK_RE, fontFaceCss(font));
     if (getCssVariable(css, 'font-heading')) css = setCssVariable(css, 'font-heading', fontStack(font));
     // Live numbers follow the heading face only where it can hold their width — swapping one
-    // without the other is how a countdown silently starts twitching (model/fonts.ts).
-    if (getCssVariable(css, 'font-numeric'))
+    // without the other is how a countdown silently starts twitching (model/fonts.ts). When
+    // they land on a bundled SIBLING instead, its @font-face has to come with them, or the
+    // export points at bytes nobody wrote and the graphic quietly plays out in the fallback.
+    if (getCssVariable(css, 'font-numeric')) {
       css = setCssVariable(css, 'font-numeric', numericFontStack(font));
+      css = ensureNumericFontFace(css, font);
+    }
     setCss(css);
     setNote(`Typeface switched to ${font.family} (see the @font-face rule in the CSS).`);
   };
@@ -82,8 +87,10 @@ export default function StylePanel() {
     addAsset(custom.asset);
     let css = template.css.replace(FONT_BLOCK_RE, customFontFaceCss(custom));
     if (getCssVariable(css, 'font-heading')) css = setCssVariable(css, 'font-heading', customFontStack(custom));
-    if (getCssVariable(css, 'font-numeric'))
+    if (getCssVariable(css, 'font-numeric')) {
       css = setCssVariable(css, 'font-numeric', numericFontStack(custom));
+      css = ensureNumericFontFace(css, custom);
+    }
     setCss(css);
     setNote(
       `Imported "${custom.family}" — embedded in the template and its export (see the @font-face rule).`,

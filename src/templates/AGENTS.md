@@ -620,11 +620,17 @@ size, a raw multiplier — **S 0.85 · M 1 · L 1.2**, declared once in
 0.8 · 1 · 1.25). Nothing but `font-size` consumes `--type-scale`.
 
 **`--font-numeric` is the one token that follows the CHOSEN typeface rather than the family**
-(`src/templates/shared/numerals.ts`, DESIGN_LANGUAGE §1): it resolves to the heading face
-where that face has tabular figures and to a monospaced stack where it does not, so a live
-number never changes width as its digits change. Every site that writes `--font-heading` must
-write this too — `model/fonts.ts` `numericFontStack` is the one resolver, and
-`scripts/numerals.mjs` is the gate.
+(`src/templates/shared/numerals.ts`, DESIGN_LANGUAGE §1), so a live number never changes width
+as its digits change: the heading face where its digits are even, that face's paired bundled
+SIBLING where they are not, a monospaced stack only when there is no pairing. Every site that
+writes `--font-heading` must write this too — `model/fonts.ts` `numericFontStack` is the one
+resolver and `scripts/numerals.mjs` is the gate.
+
+A sibling means a SECOND bundled `@font-face`, like a family's label face. `rootVarsCss` emits
+it, and only when the token was actually declared — a design that shows no live number gets
+neither the variable nor the extra font file (measured: sb01 bundles saira + oswald, gt01
+bundles inter alone). The export writers need no change: they collect fonts by scanning the CSS
+for `url("fonts/…")`.
 EXCEPTION: an imported design declares NO `--type-scale` (`rootVarsCss(..., { typeScale:
 false })`) — each placed line sizes itself from its own rule, and the Style panel keys its
 "Text size" section on the var's presence, so declaring it would show a dead knob.

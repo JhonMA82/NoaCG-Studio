@@ -66,9 +66,21 @@ user-facing facet names rather than CSS jargon (`docs/TEMPLATE_TAXONOMY_PROPOSAL
   The second declaration alone is not the rule - **it silently does nothing on a typeface
   without the feature**, and six of the seventeen bundled faces are in that class (Oswald,
   Playfair Display, Libre Franklin, Anton, Big Shoulders, DM Sans; DM Sans's digits vary by 41%
-  of the em). `--font-numeric` resolves to the graphic's own heading face where that face can
-  hold a number's width and to the mono stack where it cannot, so a design keeps its voice
-  wherever it honestly can and gives it up only where the alternative is a moving graphic.
+  of the em). `--font-numeric` gives three answers, in order of how much of the design's voice
+  they keep:
+
+  1. **The graphic's own typeface**, where its digits are already even. Nothing is added.
+  2. **Its paired sibling** - a bundled face that shares a style family and can hold a width
+     (Oswald's numbers are set in Saira, Playfair's in Source Serif 4, DM Sans's in Outfit).
+     A serif keeps a serif number, a condensed sport face keeps a condensed one. Costs one more
+     woff2 in the package, shipped exactly as a family's label face already is.
+  3. **A monospaced stack**, only where there is no pairing to reach for - an imported typeface
+     nobody has measured against a partner.
+
+  Mono is the LAST resort, not the rule: a code face on a sport slab reads as a terminal, and
+  JetBrains Mono's slashed zero cannot be turned off (measured - no `zero`, `ss19` or `ss20`
+  setting changes the glyph). The house `noacg` family is the deliberate exception, since a
+  mono label face is its voice already.
 
   Evenness is measured ACROSS a face's weight range, not at one weight: Oswald's digits are
   perfectly even at 400 and span 16% of the em at 700, which is the weight every sport
