@@ -130,6 +130,7 @@ export const sb04: TemplateVariant = defineScoreboardVariant(
   line-height: 1;                  /* the figure fills its chip */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The divider — an accent colon between the two chips. */

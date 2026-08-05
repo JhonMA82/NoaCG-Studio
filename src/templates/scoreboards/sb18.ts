@@ -93,6 +93,7 @@ ${colourHolderHtml('f5', '#002868')}
   color: var(--text-color);        /* white on the club colour — the safest pairing here */
   text-shadow: 0 calc(1px * var(--scale)) calc(3px * var(--scale)) rgba(0, 0, 0, 0.5);  /* legible on a light club colour too */
   font-variant-numeric: tabular-nums;  /* digits share one width across successive cards */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "90+4'" stays on one line */
 }
 

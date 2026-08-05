@@ -9,6 +9,28 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
 
 ---
 
+## 0. Words we use
+
+The product is a design tool, so its own vocabulary has to be right. Two terms get confused
+everywhere, including in this codebase's history:
+
+- **Typeface** — the FAMILY. Inter, Oswald, Playfair Display. It is what a designer chooses.
+- **Font** — that family at a particular size, weight and style. "Inter Bold 24px" is a font;
+  "Inter" is a typeface.
+
+So a control that picks a family is labelled **Typeface**, and "font size" and "font weight"
+stay exactly as they are — those are correct usage, because a size and a weight are what turn a
+typeface into a font. **"Font family" never appears in UI copy**: it is the CSS property's name,
+not the user's word for the thing.
+
+This is a copy rule, not a feature. Code identifiers, CSS custom properties (`--font-heading`)
+and test ids keep their existing names — renaming those would be churn with no reader on the
+other end. It joins the product's other settled vocabulary: the operator verbs
+(`docs/CONTROL_LAYER.md`), "production" rather than rundown (`docs/CLOUD_PLAYOUT.md`), and
+user-facing facet names rather than CSS jargon (`docs/TEMPLATE_TAXONOMY_PROPOSAL.md`).
+
+---
+
 ## 1. Typography
 
 - **One family per graphic** (two max: heading + label). Pick from the bundled fonts registry.
@@ -29,6 +51,33 @@ Values below are for a **1920×1080 canvas**; scale linearly for other resolutio
   on any violation, so a design that wants a quieter voice gets it through weight, color and
   tracking, never through size. If a design cannot make its hierarchy work above the floor, the
   design is too dense - cut a line rather than shrink one.
+- **A live number never changes the shape of its graphic.** A clock, a countdown, a score, a
+  tally, a percentage and a count-up all repaint several times a second; with proportional
+  figures "11:11" is narrower than "00:00", so the box twitches on every tick. That is the most
+  visible way an on-air graphic reads as amateur, and it is why clocks have been monospaced on
+  television since captions were burned in. Every changing figure therefore carries BOTH halves
+  of the numerals contract (`src/templates/shared/numerals.ts`):
+
+  ```css
+  font-family: var(--font-numeric);    /* a face whose digits are all one width */
+  font-variant-numeric: tabular-nums;  /* ask that face for its tabular figures */
+  ```
+
+  The second declaration alone is not the rule - **it silently does nothing on a typeface
+  without the feature**, and six of the seventeen bundled faces are in that class (Oswald,
+  Playfair Display, Libre Franklin, Anton, Big Shoulders, DM Sans; DM Sans's digits vary by 41%
+  of the em). `--font-numeric` resolves to the graphic's own heading face where that face can
+  hold a number's width and to the mono stack where it cannot, so a design keeps its voice
+  wherever it honestly can and gives it up only where the alternative is a moving graphic.
+
+  Evenness is measured ACROSS a face's weight range, not at one weight: Oswald's digits are
+  perfectly even at 400 and span 16% of the em at 700, which is the weight every sport
+  scoreboard sets them at. `node scripts/numerals.mjs` renders the live-number categories,
+  substitutes each digit in turn and fails on any box that moves - it measures the defect
+  itself, so a declaration that no-ops fails exactly as a missing one does.
+
+  A figure typed once and never repainted - a year in a credits block, a rank in a results row -
+  is not covered by this and does not need it.
 - **Frame-anchored geometry does not follow the type.** A near-full-width strip, a 16:9 camera
   window, the `999px` pill idiom - these are sized against the 1920x1080 frame, so scaling them
   with the design pushes the graphic off screen. Scale the type and the padding around it; leave

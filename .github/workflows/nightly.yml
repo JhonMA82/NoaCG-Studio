@@ -152,11 +152,13 @@ jobs:
           # Run all of them even if an earlier one fails, so one night reports every catalog fault
           # rather than only the earliest one. They answer different questions: type-floor is
           # about SIZE, overflow-sweep about the BOX, field-coverage about whether an operator
-          # can reach the words at all.
+          # can reach the words at all, and numerals about whether a graphic holds still while
+          # its numbers change.
           status=0
           node scripts/type-floor.mjs || status=1
           node scripts/overflow-sweep.mjs --baseline || status=1
           node scripts/field-coverage.mjs || status=1
+          node scripts/numerals.mjs || status=1
           exit "$status"
 
   report:

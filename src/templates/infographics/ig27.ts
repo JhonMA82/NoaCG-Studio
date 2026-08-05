@@ -130,6 +130,7 @@ export const ig27: TemplateVariant = defineInfographicVariant(
   text-transform: uppercase;       /* "fri" reads as "FRI", whatever is typed */
   color: var(--text-dim);          /* dimmed — the clubs carry the row */
   font-variant-numeric: tabular-nums;  /* times align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "FRI 19:00" stays on one line */
 }
 
@@ -170,6 +171,7 @@ export const ig27: TemplateVariant = defineInfographicVariant(
   letter-spacing: normal;          /* a score is not tracked */
   color: var(--accent-ink);        /* dark on accent — the family's contrast pairing */
   font-variant-numeric: tabular-nums;  /* scores align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }`,
       fields: fixtureFields(rowsText, headingText, noteText),
 

@@ -124,6 +124,7 @@ export const ig03: TemplateVariant = defineInfographicVariant(
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* small and heavy — a rank, not a headline */
   font-weight: 800;                /* maximum punch at chip size */
   font-variant-numeric: tabular-nums;  /* ranks share one width down the tower */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--accent-ink);        /* the family's ink on an accent-filled chip */
 }
 
@@ -160,6 +161,7 @@ export const ig03: TemplateVariant = defineInfographicVariant(
   font-size: calc(21px * var(--scale) * var(--type-scale));  /* clearly subordinate to the code */
   font-weight: 600;                /* semibold — legible without competing */
   font-variant-numeric: tabular-nums;  /* digits share one width — gaps align as they tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-dim);          /* secondary figures dim - one accent dose per row */
   white-space: nowrap;             /* "+1 LAP" style gaps never wrap mid-word */
 }

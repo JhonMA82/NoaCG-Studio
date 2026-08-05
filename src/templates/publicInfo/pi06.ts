@@ -87,6 +87,7 @@ ${piMasks(o, [[0, 'public-info-kicker'], [1, 'public-info-body'], [2, 'public-in
   font-size: calc(38px * var(--scale) * var(--type-scale)); /* the largest text after the advice */
   font-weight: 700;                /* a number to be read aloud needs weight */
   font-variant-numeric: tabular-nums;   /* even digits across the number */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   line-height: 1.24;               /* comfortable across a wrap */
   color: var(--text-color);        /* full contrast: this is the line that gets acted on */
 }

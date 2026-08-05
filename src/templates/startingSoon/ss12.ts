@@ -113,6 +113,7 @@ export const ss12: TemplateVariant = defineStartingSoonVariant(
   line-height: 1.2;                /* shares the row's rhythm */
   letter-spacing: 0.03em;          /* digits get a little air */
   font-variant-numeric: tabular-nums;  /* fixed-width digits — the capsule never jitters */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

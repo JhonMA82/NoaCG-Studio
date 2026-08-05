@@ -10,6 +10,19 @@
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineFrameVariant } from './shared';
+import { sampleName } from '../shared/sampleNames';
+
+/**
+ * This design's sample words, declared ONCE. The builder needs its own fallbacks (a caller may
+ * pass fewer lines than the design draws for), and stating them a second time next to
+ * `suggestedLines` meant two copies of the same three strings drifting apart - the pack4
+ * content.ts precedent, at one design's scale.
+ */
+const SAMPLES = {
+  topic: 'Designing for broadcast',
+  presenter: sampleName('fr04'),
+  detail: 'Part 2 · Typography',
+};
 
 export const fr04: TemplateVariant = defineFrameVariant(
   {
@@ -20,9 +33,9 @@ export const fr04: TemplateVariant = defineFrameVariant(
     description: 'A screen-share surround: a large content window, a presenter inset, and a topic label.',
     maxLines: 3,
     suggestedLines: [
-      { title: 'Topic', sample: 'Designing for broadcast' },
-      { title: 'Presenter', sample: 'Sofia Lindqvist' },
-      { title: 'Detail', sample: 'Part 2 · Typography' },
+      { title: 'Topic', sample: SAMPLES.topic },
+      { title: 'Presenter', sample: SAMPLES.presenter },
+      { title: 'Detail', sample: SAMPLES.detail },
     ],
     logo: 'none',
     animationPresets: ['frame-fade', 'frame-draw', 'frame-slide'],
@@ -40,9 +53,9 @@ export const fr04: TemplateVariant = defineFrameVariant(
     uicolor: '2',
   },
   (o) => {
-    const topic = o.lines[0]?.sample || 'Designing for broadcast';
-    const presenter = o.lines[1]?.sample || 'Sofia Lindqvist';
-    const detail = o.lines[2]?.sample || 'Part 2 · Typography';
+    const topic = o.lines[0]?.sample || SAMPLES.topic;
+    const presenter = o.lines[1]?.sample || SAMPLES.presenter;
+    const detail = o.lines[2]?.sample || SAMPLES.detail;
     return {
       html: `    <div class="frame-box">
       <!-- The content window — the shared screen. Hairline edge, transparent interior. -->

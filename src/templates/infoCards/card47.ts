@@ -141,6 +141,7 @@ ${maskLines([
   line-height: 1.35;                /* body text gets room to breathe */
   letter-spacing: 0.06em;           /* condensed figures need air to be read one by one */
   font-variant-numeric: tabular-nums;  /* digits keep one width across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   padding-top: calc(12px * var(--scale));  /* air under the rule */
   margin-top: calc(14px * var(--scale));  /* region → detail: the slab's largest break */
   border-top: 1px solid rgba(255, 255, 255, 0.16);  /* a hairline divider — the family's one rule */

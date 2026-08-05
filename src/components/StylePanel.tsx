@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
 import { getCssVariable, listCssVariables, looksLikeColor, setCssVariable, toHex } from '../blocks/cssVars';
 import { setCssDeclaration } from '../blocks/edit';
@@ -6,16 +6,15 @@ import {
   FONTS,
   customFontFaceCss,
   customFontStack,
-  familyFromFileName,
   fontFaceCss,
-  fontFormatForExt,
   fontStack,
-  registerAppFont,
+  numericFontStack,
+  type CustomFont,
 } from '../model/fonts';
 import type { Zone9 } from '../model/wizard';
 import { detectPrefix } from '../model/structure';
 import { zoneDecls } from '../templates/lowerThirds/shared';
-import { fileToDataUrl } from '../assets/assetUtils';
+import FontPicker from './wizard/FontPicker';
 
 const ZONES: Zone9[] = [
   'top-left', 'top-center', 'top-right',
@@ -33,7 +32,6 @@ export default function StylePanel() {
   const setCss = useTemplateStore((s) => s.patchCss);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
   const addAsset = useTemplateStore((s) => s.addAsset);
-  const fontInput = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState<string | null>(null);
 
   const vars = listCssVariables(template.css);
@@ -46,6 +44,11 @@ export default function StylePanel() {
   const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}/;
   const canSwapFont = FONT_BLOCK_RE.test(template.css);
   const currentFamily = (template.css.match(/font-family:\s*"([^"]+)"/) || [])[1];
+  // The picker speaks font IDs; the template only records a family name, so map it back. A
+  // family the registry does not know is an imported one - 'custom' is what the picker calls it.
+  const currentFontId = currentFamily
+    ? (FONTS.find((f) => f.family === currentFamily)?.id ?? 'custom')
+    : null;
 
   // Position editing needs the standard structure root (`.{prefix}` with a rule to patch).
   const prefix = detectPrefix(template.html);
@@ -63,27 +66,27 @@ export default function StylePanel() {
     if (!font) return;
     let css = template.css.replace(FONT_BLOCK_RE, fontFaceCss(font));
     if (getCssVariable(css, 'font-heading')) css = setCssVariable(css, 'font-heading', fontStack(font));
+    // Live numbers follow the heading face only where it can hold their width — swapping one
+    // without the other is how a countdown silently starts twitching (model/fonts.ts).
+    if (getCssVariable(css, 'font-numeric'))
+      css = setCssVariable(css, 'font-numeric', numericFontStack(font));
     setCss(css);
-    setNote(`Font switched to ${font.family} (see the @font-face rule in the CSS).`);
+    setNote(`Typeface switched to ${font.family} (see the @font-face rule in the CSS).`);
   };
 
-  /** Import a font file post-creation: embed as an asset + swap the marked @font-face. */
-  const importFont = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const family = familyFromFileName(file.name);
-    const ext = file.name.split('.').pop() ?? 'woff2';
-    const base = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '-') || 'font';
-    const custom = {
-      family,
-      format: fontFormatForExt(ext),
-      asset: { path: `fonts/${base}.${ext.toLowerCase()}`, data: dataUrl },
-    };
-    registerAppFont(family, dataUrl);
+  /** Adopt a typeface the picker imported (an uploaded file or an installed one): embed its
+   *  bytes as an asset + swap the marked @font-face. The picker owns reading the file and
+   *  MEASURING its figures; this owns what that means for the open template. */
+  const applyImportedFont = (custom: CustomFont) => {
     addAsset(custom.asset);
     let css = template.css.replace(FONT_BLOCK_RE, customFontFaceCss(custom));
     if (getCssVariable(css, 'font-heading')) css = setCssVariable(css, 'font-heading', customFontStack(custom));
+    if (getCssVariable(css, 'font-numeric'))
+      css = setCssVariable(css, 'font-numeric', numericFontStack(custom));
     setCss(css);
-    setNote(`Imported "${family}" — embedded in the template and its export (see the @font-face rule).`);
+    setNote(
+      `Imported "${custom.family}" — embedded in the template and its export (see the @font-face rule).`,
+    );
   };
 
   const setZone = (zone: Zone9) => {
@@ -175,30 +178,19 @@ export default function StylePanel() {
 
       {canSwapFont && (
         <div className="panel-section">
-          <h3>Font</h3>
-          <div className="wz-fonts">
-            {FONTS.map((f) => (
-              <button
-                key={f.id}
-                className={`wz-font ${currentFamily === f.family ? 'selected' : ''}`}
-                onClick={() => swapFont(f.id)}
-                title={f.blurb}
-              >
-                <span className="wz-font-sample" style={{ fontFamily: `"${f.family}", ${f.fallback}` }}>Ag</span>
-                <span><strong>{f.family}</strong></span>
-              </button>
-            ))}
-          </div>
-          <input
-            ref={fontInput}
-            type="file"
-            accept=".woff2,.woff,.ttf,.otf"
-            style={{ display: 'none' }}
-            onChange={(e) => { if (e.target.files?.[0]) void importFont(e.target.files[0]); e.target.value = ''; }}
+          <h3>
+            Typeface <span className="muted">(every typeface — bundled or imported — ships inside the export)</span>
+          </h3>
+          {/* THE picker, shared with the wizard. This panel used to carry its own card grid,
+              which meant the editor was the one surface that could neither search the library
+              nor reach a typeface installed on this computer. */}
+          <FontPicker
+            value={currentFontId}
+            customFont={null}
+            onPick={(id) => id && swapFont(id)}
+            onCustomFont={(font) => void applyImportedFont(font)}
+            defaultLabel="Design typeface"
           />
-          <button style={{ marginTop: 8 }} onClick={() => fontInput.current?.click()}>
-            ⬆ Import font… <span className="muted">(embedded in template + export)</span>
-          </button>
         </div>
       )}
 

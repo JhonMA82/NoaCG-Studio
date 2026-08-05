@@ -161,6 +161,7 @@ export const sb01: TemplateVariant = defineScoreboardVariant(
   line-height: 1;                  /* the figure fills its chip, no dead leading */
   color: var(--accent-ink);        /* the family's ink on an accent-filled chip */
   font-variant-numeric: tabular-nums;  /* digits share one width - no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The divider: a heavy accent colon - the accent's only echo on the dark slab itself. */

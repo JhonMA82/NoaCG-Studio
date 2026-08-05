@@ -238,7 +238,7 @@ export interface BrowseOutcome {
 /** Ambient context that RANKS but is never a filter — the user did not choose it, so it
  *  earns no chip and clearing the filters does not clear it. */
 export interface BrowseContext {
-  /** The saved project brand's style family, when "Use current project's colors & font"
+  /** The saved project brand's style family, when "Use current project's colors & typeface"
    *  is on: the package's siblings lead (proposal §13.3). A small boost, deliberately
    *  weaker than a programme match — it must never outrank what the user asked for. */
   brandFamily?: StyleTag | null;

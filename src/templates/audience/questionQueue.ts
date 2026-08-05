@@ -13,6 +13,7 @@ import { paletteById, type ResolvedOptions, type TemplateVariant } from '../../m
 import type { StyleTag } from '../../model/fonts';
 import { kickerCss, labelFace, panelCss } from './familyCss';
 import { defineAudienceVariant, formLines, QUEUE_FORM } from './shared';
+import { NUMERIC_FIGURES } from '../shared/numerals';
 
 const FORM = QUEUE_FORM;
 const S = FORM.lines;
@@ -144,6 +145,14 @@ ${liveMark}
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
   text-transform: uppercase;       /* a broadcast readout is caps */
   color: var(--text-dim);          /* it is a note, not a headline */
+}
+/* THE TWO FIGURES, not the words between them. The readout keeps the family's label face and
+   its caps tracking; only the numbers take the numerals contract, because only the numbers
+   change - a moderator advancing the queue repaints "3 of 12" into "4 of 12" live, and
+   proportional digits move the whole row under it (templates/shared/numerals.ts). */
+.audience-queue-at,
+.audience-queue-of {
+  ${NUMERIC_FIGURES}
 }
 .audience-queue-at {
   color: var(--accent);            /* the live number wears the accent */

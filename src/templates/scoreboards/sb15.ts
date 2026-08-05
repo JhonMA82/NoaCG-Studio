@@ -173,6 +173,7 @@ ${clipOneLineCss('.scoreboard-team', 280)}
   line-height: 1;                  /* sits tight on the row */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The note — the event and the round, the quietest row on the card. */

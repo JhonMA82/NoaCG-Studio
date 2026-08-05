@@ -134,6 +134,7 @@ ${clipOneLineCss('.scoreboard-score', 130)}
   line-height: 1;                  /* the figure sits tight on the center line */
   color: var(--text-color);        /* white: on this design the ACCENT belongs to the clock */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The clock tile — an accent-underlined block closing the slab. */
@@ -168,6 +169,7 @@ ${clipOneLineCss('.scoreboard-phase', 150)}
   line-height: 1.05;               /* tight under the period label */
   color: var(--text-color);        /* white while there is time left */
   font-variant-numeric: tabular-nums;  /* the whole point: digits never shift width */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 ${clipOneLineCss('.scoreboard-clock', 150)}

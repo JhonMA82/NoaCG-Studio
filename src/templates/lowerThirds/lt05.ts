@@ -92,6 +92,7 @@ ${lineMasks(o)}
   line-height: 1.25;               /* normal leading for the small line */
   color: var(--text-dim);          /* secondary line dims - one accent dose per graphic */
   font-variant-numeric: tabular-nums;  /* digits share one width - stats align as they tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   margin-top: calc(4px * var(--scale));  /* small gap: name + stats read as one unit */
 }`,
     hasAccent: true,

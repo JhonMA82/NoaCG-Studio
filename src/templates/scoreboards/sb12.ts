@@ -119,6 +119,7 @@ ${colourHoldersHtml('f7', 'f8', '#d92b2b', '#1f4fd8')}
   font-weight: 600;                /* matches the status label */
   color: var(--text-dim);          /* dimmed — the score is what matters on a club stream */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The main row — club · scores · club, the scores holding the centre. */
@@ -192,6 +193,7 @@ ${clampTwoLinesCss('.scoreboard-team')}
   line-height: 1;                  /* the figure fills its column */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 .scoreboard-dash {
   font-size: calc(40px * var(--scale) * var(--type-scale));  /* a step under the figures */
@@ -229,6 +231,7 @@ ${clampTwoLinesCss('.scoreboard-team')}
   line-height: 1.2;                /* even rhythm down the column */
   color: var(--text-color);        /* primary text — these are still scores */
   font-variant-numeric: tabular-nums;  /* the columns line up across halves */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 /* An empty breakdown collapses its rule rather than leaving a stray keyline. */
 .scoreboard-periods:empty { display: none; }

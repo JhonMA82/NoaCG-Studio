@@ -165,6 +165,7 @@ export const ig23: TemplateVariant = defineInfographicVariant(
   line-height: 1.02;               /* no dead leading inside the hole */
   letter-spacing: -0.01em;         /* large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width — no jitter while counting */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   overflow-wrap: break-word;       /* an absurdly long figure breaks instead of escaping the ring */
   color: var(--text-color);        /* primary text color */
 }
@@ -173,6 +174,8 @@ export const ig23: TemplateVariant = defineInfographicVariant(
 .infographic-percent {
   font-size: calc(24px * var(--scale) * var(--type-scale));  /* clearly under the total */
   font-weight: 700;                /* bold — it is a figure, not a caption */
+  font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
   margin-top: calc(5px * var(--scale));  /* total and share read as one unit */
   color: var(--accent);            /* the accent's text moment */
@@ -183,6 +186,7 @@ export const ig23: TemplateVariant = defineInfographicVariant(
   font-size: calc(22px * var(--scale) * var(--type-scale));  /* caption scale under the ring */
   font-weight: 400;                /* regular — it is the quiet half of the meter */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   text-align: center;              /* the whole stack is centre-axis */
   margin-top: calc(19px * var(--scale));  /* air between the ring and the caption */
   color: var(--text-dim);          /* dimmed — never full white twice */

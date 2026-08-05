@@ -6,6 +6,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineVariant, lineMasks } from './shared';
+import { sampleName } from '../shared/sampleNames';
 
 export const lt52: TemplateVariant = defineVariant(
   {
@@ -16,7 +17,7 @@ export const lt52: TemplateVariant = defineVariant(
     description: 'The house strap mirrored: accent bar on the right, type ragged-left.',
     maxLines: 2,
     suggestedLines: [
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('lt52') },
       { title: 'Title', sample: 'Anchor · Evening News' },
     ],
     logo: 'none',

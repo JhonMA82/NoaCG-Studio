@@ -15,6 +15,7 @@ import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../../model/fonts';
 import { defineVariant } from '../shared';
 import { hasLine, slot } from './shared';
+import { sampleName } from '../../shared/sampleNames';
 
 export const ls31: TemplateVariant = defineVariant(
   {
@@ -25,7 +26,7 @@ export const ls31: TemplateVariant = defineVariant(
     description: 'A creator name over a row of handle chips — one chip per platform, each its own field.',
     maxLines: 5,
     suggestedLines: [
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('ls31') },
       { title: 'What they do', sample: 'Broadcast graphics, live every Tuesday' },
       { title: 'Handle 1', sample: '@noacg' },
       { title: 'Handle 2', sample: 'youtube.com/@noacg' },

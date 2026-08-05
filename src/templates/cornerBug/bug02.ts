@@ -169,6 +169,7 @@ ${bugLineMasks(o)}
   line-height: 1;                  /* one tight row of digits */
   letter-spacing: 0.06em;          /* a touch of air between figures */
   font-variant-numeric: tabular-nums;  /* every digit same width — no tick wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);  /* readable over bright footage */
 }

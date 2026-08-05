@@ -4,7 +4,7 @@ import {
   familyFromFileName,
   fontAssetPath,
   fontFormatForExt,
-  registerAppFont,
+  registerAndMeasureFont,
   type BundledFont,
   type CustomFont,
 } from '../../model/fonts';
@@ -25,7 +25,7 @@ interface Props {
   onPick: (fontId: string | null) => void;
   /** A new uploaded/local font (also selects it). */
   onCustomFont: (font: CustomFont) => void;
-  /** What "null" means where this picker sits (e.g. "Design font"). */
+  /** What "null" means where this picker sits (e.g. "Design typeface"). */
   defaultLabel?: string;
 }
 
@@ -53,7 +53,7 @@ interface LocalFontData {
 }
 type QueryLocalFonts = () => Promise<LocalFontData[]>;
 
-export default function FontPicker({ value, customFont, onPick, onCustomFont, defaultLabel = 'Design font' }: Props) {
+export default function FontPicker({ value, customFont, onPick, onCustomFont, defaultLabel = 'Design typeface' }: Props) {
   const [query, setQuery] = useState('');
   const [localFonts, setLocalFonts] = useState<LocalFontData[] | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -61,10 +61,13 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
   const fileInput = useRef<HTMLInputElement>(null);
 
   const q = query.trim().toLowerCase();
-  const fonts = useMemo(
-    () => (q ? FONTS.filter((f) => f.family.toLowerCase().includes(q) || f.blurb.toLowerCase().includes(q)) : FONTS),
-    [q],
-  );
+  const fonts = useMemo(() => {
+    // "font" is what most people still call a typeface, and the labels here deliberately do
+    // not (DESIGN_LANGUAGE §0). Correct vocabulary must not cost discoverability, so the word
+    // people type matches everything rather than nothing.
+    if (!q || q === 'font' || q === 'fonts' || q === 'typeface' || q === 'typefaces') return FONTS;
+    return FONTS.filter((f) => f.family.toLowerCase().includes(q) || f.blurb.toLowerCase().includes(q));
+  }, [q]);
   useEffect(() => {
     for (const f of fonts) ensureAppFontFace(f);
   }, [fonts]);
@@ -76,12 +79,16 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
     const ext = extOf(file.name);
     if (!['woff2', 'woff', 'ttf', 'otf'].includes(ext)) return;
     const data = await fileToDataUrl(file);
+    const family = familyFromFileName(file.name);
+    // Registers it for the builder UI AND measures its figures in one step — the flag decides
+    // whether this graphic's live numbers may be set in it (model/fonts.ts numericFontStack).
+    const tabularFigures = await registerAndMeasureFont(family, data);
     const font: CustomFont = {
-      family: familyFromFileName(file.name),
+      family,
       format: fontFormatForExt(ext),
       asset: { path: fontAssetPath(file.name), data },
+      tabularFigures,
     };
-    registerAppFont(font.family, data); // renders in the builder UI immediately
     onCustomFont(font);
   };
 
@@ -113,13 +120,14 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
         r.onerror = () => reject(r.error);
         r.readAsDataURL(blob);
       });
+      const tabularFigures = await registerAndMeasureFont(f.family, data);
       const font: CustomFont = {
         family: f.family,
         // The API serves SFNT bytes; ttf/otf both load via format('truetype'/'opentype').
         format: 'truetype',
         asset: { path: fontAssetPath(`${f.postscriptName || f.family}.ttf`), data },
+        tabularFigures,
       };
-      registerAppFont(font.family, data);
       onCustomFont(font);
     } catch {
       setLocalError(`Could not read "${f.family}" — try uploading its file instead.`);
@@ -133,7 +141,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
       <div className="row">
         <input
           className="grow"
-          placeholder="Search fonts…"
+          placeholder="Search typefaces…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           data-testid="font-search"
@@ -147,16 +155,16 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
           data-testid="font-upload-input"
         />
         <button onClick={() => fileInput.current?.click()} title="Upload a .woff2 / .woff / .ttf / .otf — embedded in the graphic and every export" data-testid="font-upload">
-          ⬆ Upload font…
+          ⬆ Upload typeface…
         </button>
         {canQueryLocal && (
-          <button onClick={() => void listLocal()} title="Pick a font installed on this computer (it gets embedded, so playout never depends on it being installed)">
+          <button onClick={() => void listLocal()} title="Pick a typeface installed on this computer (it gets embedded, so playout never depends on it being installed)">
             💻 Installed…
           </button>
         )}
       </div>
 
-      <div className="font-picker-list" role="listbox" aria-label="Font family">
+      <div className="font-picker-list" role="listbox" aria-label="Typeface">
         <button
           className={`font-option ${value === null ? 'selected' : ''}`}
           onClick={() => onPick(null)}
@@ -164,7 +172,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
           aria-selected={value === null}
         >
           <span className="font-option-name">{defaultLabel}</span>
-          <span className="hint">Inherit the graphic's own font</span>
+          <span className="hint">Inherit the graphic's own typeface</span>
         </button>
         {customFont && (
           <button
@@ -176,7 +184,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
             data-testid="font-option-custom"
           >
             <span className="font-option-name">{customFont.family}</span>
-            <span className="hint">Your font — embedded in the export</span>
+            <span className="hint">Your typeface — embedded in the export</span>
           </button>
         )}
         {fonts.map((f) => (
@@ -193,7 +201,7 @@ export default function FontPicker({ value, customFont, onPick, onCustomFont, de
             <span className="hint">{f.blurb} · weights {f.weights[0]}–{f.weights[1]}</span>
           </button>
         ))}
-        {fonts.length === 0 && <p className="hint">No bundled font matches “{query}”. Upload one instead?</p>}
+        {fonts.length === 0 && <p className="hint">No bundled typeface matches “{query}”. Upload one instead?</p>}
       </div>
 
       {localFonts && (

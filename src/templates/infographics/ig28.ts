@@ -132,6 +132,7 @@ export const ig28: TemplateVariant = defineInfographicVariant(
   text-transform: uppercase;       /* "thu" reads as "THU", whatever is typed */
   color: var(--text-dim);          /* dimmed — the names carry the row */
   font-variant-numeric: tabular-nums;  /* times align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "THU 18:00" stays on one line */
 }
 
@@ -167,6 +168,7 @@ export const ig28: TemplateVariant = defineInfographicVariant(
   font-weight: 800;                /* heavy at pill size so it reads through the softening */
   color: var(--text-color);        /* white inside the tinted pill */
   font-variant-numeric: tabular-nums;  /* scores align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }`,
       fields: fixtureFields(rowsText, headingText, noteText),
 

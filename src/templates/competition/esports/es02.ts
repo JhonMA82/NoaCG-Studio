@@ -129,6 +129,7 @@ ${scoreStructureCss(MARKUP)}
   line-height: 1;
   color: var(--accent);            /* amber figures */
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The logo slot — a void plate until the operator picks a file. */

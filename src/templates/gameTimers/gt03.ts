@@ -157,6 +157,7 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
     0 calc(6px * var(--scale)) 0 rgba(0,0,0,0.22),       /* the hard sticker offset */
     0 calc(10px * var(--scale)) calc(18px * var(--scale)) rgba(0,0,0,0.35);  /* soft depth */
   font-variant-numeric: tabular-nums;  /* every digit one width — no jiggle per tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   will-change: transform;          /* hint the browser: the tick bounce scales this */
 }
 

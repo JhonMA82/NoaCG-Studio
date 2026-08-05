@@ -18,7 +18,7 @@
 // is what lets one token cover a scaled length, a percentage and a keyword (`50%`, `999px`,
 // `none`) without the consuming rule needing to know which it got.
 
-import type { StyleTag } from './fonts';
+import { MONO_STACK, type StyleTag } from './fonts';
 
 /** A shadow slot that contributes nothing. `none` cannot be used: these tokens compose into
  *  comma-separated `box-shadow` lists, and `none, none` is not valid CSS. A zero-size
@@ -56,6 +56,14 @@ export interface ThemeTokens {
   accentInk: string;
   /** The label / kicker typeface. The heading font unless the family owns a second face. */
   fontLabel: string;
+  /**
+   * The typeface LIVE NUMBERS are set in - a clock, a countdown, a score, a tally, a count-up.
+   * Unlike every other token here this is not a family opinion: it follows the CHOSEN heading
+   * face, resolving to it when that face has tabular figures and to the mono stack when it does
+   * not (model/fonts.ts `numericFontStack`). The family default below is the honest starting
+   * point; `rootVarsCss` overrides it with the answer for the font actually in use.
+   */
+  fontNumeric: string;
   /** Label tracking. Small caps breathe; §8 gives the per-family range. */
   labelTracking: string;
   /** Label colour. */
@@ -76,6 +84,7 @@ export const TOKEN_VARS: Record<keyof ThemeTokens, string> = {
   accentGlow: '--accent-glow',
   accentInk: '--accent-ink',
   fontLabel: '--font-label',
+  fontNumeric: '--font-numeric',
   labelTracking: '--label-tracking',
   labelColor: '--label-color',
   displayWeight: '--display-weight',
@@ -92,6 +101,7 @@ export const TOKEN_COMMENTS: Record<keyof ThemeTokens, string> = {
   accentGlow: 'glow on accent elements only',
   accentInk: 'text colour on an accent-filled chip',
   fontLabel: 'the label/kicker typeface',
+  fontNumeric: 'the typeface live numbers are set in (equal-width digits)',
   labelTracking: 'label letter-spacing (small caps breathe)',
   labelColor: 'label colour',
   displayWeight: 'heading weight',
@@ -99,8 +109,9 @@ export const TOKEN_COMMENTS: Record<keyof ThemeTokens, string> = {
 };
 
 /** The house label face. A design-owned second typeface: the Style panel's heading-font swap
- *  never touches it (DESIGN_LANGUAGE §8), which is why it is a token and not --font-heading. */
-const MONO_LABEL = '"JetBrains Mono", Consolas, "Courier New", monospace';
+ *  never touches it (DESIGN_LANGUAGE §8), which is why it is a token and not --font-heading.
+ *  Same stack `--font-numeric` falls back to, declared once in model/fonts.ts. */
+const MONO_LABEL = MONO_STACK;
 
 /**
  * The four families. Values are DESIGN_LANGUAGE §8's, cross-checked against a census of what
@@ -155,6 +166,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     accentGlow: NO_SHADOW,
     accentInk: 'var(--panel-bg)',
     fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.16em',
     labelColor: 'var(--text-dim)',
     displayWeight: '700',
@@ -169,6 +181,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     accentGlow: NO_SHADOW,
     accentInk: 'var(--panel-bg)',
     fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.14em',
     labelColor: 'var(--text-color)',
     displayWeight: '800',
@@ -190,6 +203,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     // coloured chip washes out even when the hue is right.
     accentInk: '#0e1116',
     fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.14em',
     labelColor: 'var(--accent)',
     displayWeight: '700',
@@ -211,6 +225,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     accentGlow: NO_SHADOW,
     accentInk: 'var(--panel-bg)',
     fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.24em',
     labelColor: 'var(--accent)',
     displayWeight: '600',
@@ -231,6 +246,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     accentGlow: NO_SHADOW,
     accentInk: 'var(--panel-bg)',
     fontLabel: 'var(--font-heading)',
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.34em',
     labelColor: 'var(--text-dim)',
     displayWeight: '400',
@@ -245,6 +261,7 @@ export const FAMILY_TOKENS: Record<StyleTag, ThemeTokens> = {
     accentGlow: '0 0 calc(22px * var(--scale)) color-mix(in srgb, var(--accent) 60%, transparent)',
     accentInk: 'var(--panel-bg)',
     fontLabel: MONO_LABEL,
+    fontNumeric: 'var(--font-heading)',
     labelTracking: '0.2em',
     labelColor: 'var(--accent)',
     displayWeight: '700',
@@ -275,7 +292,10 @@ export function tokenVarsCss(tokens: ThemeTokens, consumerCss: string): string {
   const lines: string[] = [];
   for (const key of Object.keys(TOKEN_VARS) as (keyof ThemeTokens)[]) {
     const name = TOKEN_VARS[key];
-    if (!consumerCss.includes(`var(${name})`)) continue;
+    // `var(--x)` and `var(--x, fallback)` both count as reading it. Matching only the first
+    // form means a token used WITH a fallback is silently never declared - and then the
+    // fallback is what always renders, which looks exactly like the token not working.
+    if (!new RegExp(`var\\(\\s*${name}\\s*[,)]`).test(consumerCss)) continue;
     // padEnd aligns the short declarations; the trailing gap keeps a long value (a full
     // box-shadow) from running into its own comment.
     lines.push(`  ${name}: ${tokens[key]};`.padEnd(46) + `  /* ${TOKEN_COMMENTS[key]} */`);

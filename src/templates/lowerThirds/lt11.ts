@@ -6,6 +6,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineVariant, lineMasks } from './shared';
+import { sampleName } from '../shared/sampleNames';
 
 export const lt11: TemplateVariant = defineVariant(
   {
@@ -16,7 +17,7 @@ export const lt11: TemplateVariant = defineVariant(
     description: 'The NoaCG house strap: amber accent bar, void blur panel, mono kicker title.',
     maxLines: 2,
     suggestedLines: [
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('lt11') },
       { title: 'Title', sample: 'Anchor · Evening News' },
     ],
     logo: 'none',

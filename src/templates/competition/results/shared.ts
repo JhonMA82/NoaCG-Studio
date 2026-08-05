@@ -685,6 +685,7 @@ export function boardStructureCss(): string {
 .${P}-row-index {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;  /* the numbers line up down the board */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The value cells of a standings row, and the header labels above them: one grid, so the
@@ -702,6 +703,7 @@ export function boardStructureCss(): string {
   width: calc(64px * var(--scale));
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* A bracket column and its ties. */
@@ -776,6 +778,7 @@ export function towerStructureCss(): string {
 .${P}-row-time {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;
 }
 

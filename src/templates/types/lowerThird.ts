@@ -14,6 +14,7 @@ import { lt15 } from '../lowerThirds/lt15';
 import { lt25 } from '../lowerThirds/lt25';
 import { lt32 } from '../lowerThirds/lt32';
 import type { GraphicType } from './graphicType';
+import { sampleName } from '../shared/sampleNames';
 
 export const lowerThirdType: GraphicType = {
   id: 'lower-third',
@@ -31,7 +32,7 @@ export const lowerThirdType: GraphicType = {
     ],
   },
   fields: [
-    { key: 'name', label: 'Name', kind: 'text', value: 'Noa Haline', role: 'line' },
+    { key: 'name', label: 'Name', kind: 'text', value: sampleName('lower-third-type'), role: 'line' },
     { key: 'title', label: 'Title', kind: 'text', value: 'Anchor · Evening News', role: 'line' },
   ],
   // No branches, no parallel groups, no event overrides: the derived linear machine is

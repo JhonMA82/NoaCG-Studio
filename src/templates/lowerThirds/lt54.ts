@@ -8,6 +8,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineVariant, lineMasks } from './shared';
+import { sampleName } from '../shared/sampleNames';
 
 export const lt54: TemplateVariant = defineVariant(
   {
@@ -18,7 +19,7 @@ export const lt54: TemplateVariant = defineVariant(
     description: 'Name and mono role, the amber bar as a divider, then the channel mark.',
     maxLines: 2,
     suggestedLines: [
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('lt54') },
       { title: 'Title', sample: 'Anchor · Evening News' },
     ],
     logo: 'optional',

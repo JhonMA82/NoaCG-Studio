@@ -123,6 +123,7 @@ export const tk13: TemplateVariant = defineTickerVariant(
   padding: calc(4px * var(--scale)) calc(15px * var(--scale));
   background: rgba(255, 255, 255, 0.14); /* a lifted surface, not a second accent */
   font-variant-numeric: tabular-nums;   /* every digit same width — the column scans straight */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* full contrast: this is the fact people came for */
 }
 

@@ -132,6 +132,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
   line-height: 1.05;               /* no dead leading around the figure */
   letter-spacing: -0.01em;         /* large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 
@@ -141,6 +142,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
   font-size: calc(28px * var(--scale) * var(--type-scale));  /* clearly under the figure */
   font-weight: 700;                /* bold — still a headline of its own */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "10 / 12" never wraps */
   color: var(--accent);            /* the accent's text moment */
 }
@@ -218,6 +220,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
   font-weight: 700;                /* bold — it is a number to hit */
   line-height: 1.2;                /* compact under the dot */
   font-variant-numeric: tabular-nums;  /* equal-width digits down the row of nodes */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   margin-top: calc(13px * var(--scale));  /* air between the dot and its figure */
   color: var(--text-dim);          /* dimmed until the milestone is reached */
 }

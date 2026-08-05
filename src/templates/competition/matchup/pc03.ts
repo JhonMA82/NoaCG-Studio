@@ -138,6 +138,7 @@ export const pc03: TemplateVariant = defineMatchupVariant(
   line-height: 1;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 .${P}-stat-label {

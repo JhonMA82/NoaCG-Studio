@@ -131,6 +131,7 @@ export const ig29: TemplateVariant = defineInfographicVariant(
   text-transform: uppercase;       /* "sat" reads as "SAT", whatever is typed */
   color: var(--text-dim);          /* dimmed — the clubs carry the row */
   font-variant-numeric: tabular-nums;  /* times align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "SAT 15:00" stays on one line */
 }
 
@@ -163,6 +164,7 @@ export const ig29: TemplateVariant = defineInfographicVariant(
   font-weight: 700;                /* bold — the score is the point of a results board */
   color: var(--accent);            /* the results wear the accent */
   font-variant-numeric: tabular-nums;  /* scores align down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }`,
       fields: fixtureFields(rowsText, headingText, noteText),
 

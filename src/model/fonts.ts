@@ -34,6 +34,43 @@ export interface BundledFont {
   fallback: string;
   /** Short flavor line shown in the wizard. */
   blurb: string;
+  /**
+   * Whether this face renders EQUAL-WIDTH digits under `font-variant-numeric: tabular-nums`
+   * - either because it carries the `tnum` feature or because its figures are already even.
+   *
+   * MEASURED, never declared by hand: `node scripts/numerals.mjs --fonts` renders each digit
+   * at 200 px and reports the spread. Six of the bundled faces fail it - Oswald, Playfair
+   * Display, Libre Franklin, Anton, Big Shoulders, DM Sans - and on those a `tabular-nums`
+   * declaration is a silent no-op (DM Sans's digits vary by 41% of the em). That is the whole
+   * reason this flag exists rather than a blanket declaration: see `numericFontStack`.
+   *
+   * Measured ACROSS THE WEIGHT RANGE, and that is not a detail. A variable face can be even at
+   * one weight and uneven at another: Oswald's digits are perfectly even at 400 and span 16% of
+   * the em at 700. Measuring only the default weight called it tabular while every scoreboard
+   * in the catalog - Oswald is the sport family's display face, set at 700 - still jiggled.
+   */
+  tabularFigures: boolean;
+}
+
+/**
+ * The monospaced fallback for figures - the same stack the house family uses for its labels.
+ * A number set in it can never jiggle, whatever the heading typeface does.
+ */
+export const MONO_STACK = '"JetBrains Mono", Consolas, "Courier New", monospace';
+
+/**
+ * What `--font-numeric` resolves to for a chosen heading face.
+ *
+ * A live number must hold its width as it changes (docs/DESIGN_LANGUAGE.md §1). Where the
+ * graphic's own typeface can do that, it should - the numbers belong to the design. Where it
+ * cannot, the figures fall back to the mono stack rather than twitching on every tick: a
+ * countdown in the wrong typeface is a smaller compromise than a countdown that moves.
+ *
+ * Call this EVERYWHERE `--font-heading` is written. A look or a font swap applied after
+ * creation that updates one without the other silently reverts the numerals.
+ */
+export function numericFontStack(font: { tabularFigures?: boolean }): string {
+  return font.tabularFigures ? 'var(--font-heading)' : MONO_STACK;
 }
 
 export const FONTS: BundledFont[] = [
@@ -45,6 +82,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['minimal', 'glass', 'cinematic'],
     fallback: 'Arial, sans-serif',
     blurb: 'Neutral, crisp UI classic — never wrong.',
+    tabularFigures: true,
   },
   {
     id: 'space-grotesk',
@@ -54,6 +92,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['noacg', 'minimal', 'glass'],
     fallback: 'Arial, sans-serif',
     blurb: 'Modern grotesque with a technical edge — the NoaCG house display face.',
+    tabularFigures: true,
   },
   {
     id: 'jetbrains-mono',
@@ -63,6 +102,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['noacg'],
     fallback: 'Consolas, "Courier New", monospace',
     blurb: 'Technical monospace — labels, data, timecode (the NoaCG house label face).',
+    tabularFigures: true,
   },
   {
     id: 'manrope',
@@ -72,6 +112,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['glass', 'minimal', 'cinematic'],
     fallback: 'Arial, sans-serif',
     blurb: 'Soft, rounded, friendly — social/stream feel.',
+    tabularFigures: true,
   },
   {
     id: 'archivo',
@@ -81,6 +122,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['sport', 'minimal', 'editorial'],
     fallback: 'Arial, sans-serif',
     blurb: 'Sturdy grotesque; heavy weights hit hard.',
+    tabularFigures: true,
   },
   {
     id: 'oswald',
@@ -90,6 +132,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['sport', 'editorial'],
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'Condensed broadcast workhorse — big names, tight space.',
+    tabularFigures: false,
   },
   {
     id: 'bebas-neue',
@@ -99,6 +142,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['sport', 'cinematic'],
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'All-caps display impact; pair with a quiet body font.',
+    tabularFigures: true,
   },
   // ── The 2026-08 growth set (docs/GOALS.md "Student release" step 5): every style family
   // gets at least three strong faces, and the catalog gains its first serifs. All variable
@@ -112,6 +156,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['editorial', 'cinematic'],
     fallback: 'Georgia, "Times New Roman", serif',
     blurb: 'Editorial display serif — mastheads, culture, title cards.',
+    tabularFigures: false,
   },
   {
     id: 'source-serif-4',
@@ -121,6 +166,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['editorial'],
     fallback: 'Georgia, "Times New Roman", serif',
     blurb: 'Readable text serif — printed-page warmth for longer lines.',
+    tabularFigures: true,
   },
   {
     id: 'ibm-plex-sans',
@@ -130,6 +176,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['minimal', 'editorial'],
     fallback: 'Arial, sans-serif',
     blurb: 'Engineered grotesque — corporate clarity without coldness.',
+    tabularFigures: true,
   },
   {
     id: 'libre-franklin',
@@ -139,6 +186,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['editorial', 'minimal'],
     fallback: 'Arial, sans-serif',
     blurb: 'American newsroom grotesque — headlines with heritage.',
+    tabularFigures: false,
   },
   {
     id: 'sora',
@@ -148,6 +196,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['noacg', 'glass'],
     fallback: 'Arial, sans-serif',
     blurb: 'Geometric with a tech pulse — esports and product.',
+    tabularFigures: true,
   },
   {
     id: 'outfit',
@@ -157,6 +206,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['glass', 'minimal'],
     fallback: 'Arial, sans-serif',
     blurb: 'Clean geometric rounds — the modern stream look.',
+    tabularFigures: true,
   },
   {
     id: 'anton',
@@ -166,6 +216,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['sport', 'cinematic'],
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'One heavy condensed shout — scorelines and stings.',
+    tabularFigures: false,
   },
   {
     id: 'big-shoulders',
@@ -175,6 +226,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['cinematic', 'sport'],
     fallback: '"Arial Narrow", Arial, sans-serif',
     blurb: 'Condensed display with attitude — posters and openers.',
+    tabularFigures: false,
   },
   {
     id: 'saira',
@@ -184,6 +236,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['sport'],
     fallback: 'Arial, sans-serif',
     blurb: 'Semi-condensed technical family — sport data and names.',
+    tabularFigures: true,
   },
   {
     id: 'dm-sans',
@@ -193,6 +246,7 @@ export const FONTS: BundledFont[] = [
     styleTags: ['minimal', 'glass'],
     fallback: 'Arial, sans-serif',
     blurb: 'Friendly geometric — quiet, current, versatile.',
+    tabularFigures: false,
   },
 ];
 
@@ -291,6 +345,50 @@ export interface CustomFont {
   format: string;
   /** The font file as a data-URL asset at fonts/<file> — ships inside the export. */
   asset: AssetFile;
+  /**
+   * Whether this face renders equal-width digits — the imported counterpart of
+   * `BundledFont.tabularFigures`, measured by `measureTabularFigures` when the file lands.
+   *
+   * Optional because it is ADDITIVE: a template saved before this existed carries no flag, and
+   * an absent flag reads as "unknown". `numericFontStack` treats unknown as "cannot", so an
+   * older project's numbers fall back to the mono stack rather than silently jiggling.
+   */
+  tabularFigures?: boolean;
+}
+
+/**
+ * Measure whether a loaded font family renders equal-width digits. Browser-side and cheap
+ * (ten layout reads on a detached element), so every import surface can afford to ask.
+ *
+ * The face must already be registered with `document.fonts` — call `registerAppFont` first, or
+ * this measures the fallback and reports its figures instead of the imported one's.
+ */
+export function measureTabularFigures(family: string): boolean {
+  try {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    // At BOTH weights the catalog sets numbers in. Evenness is weight-dependent on a variable
+    // face - Oswald's digits are perfectly even at 400 and span 16% of the em at 700 - so a
+    // single-weight probe reports a face as tabular that visibly is not.
+    let even = true;
+    for (const weight of [400, 700]) {
+      el.style.cssText =
+        'position:fixed;left:-9999px;top:0;font-size:200px;white-space:pre;' +
+        `font-variant-numeric:tabular-nums;font-weight:${weight};font-family:"${family}"`;
+      const widths: number[] = [];
+      for (let d = 0; d <= 9; d++) {
+        el.textContent = String(d);
+        widths.push(el.getBoundingClientRect().width);
+      }
+      // Half a pixel at 200px type is layout rounding, not a visible jiggle.
+      if (Math.max(...widths) - Math.min(...widths) > 0.5) even = false;
+    }
+    el.remove();
+    return even;
+  } catch {
+    // No DOM (a test runner, a server build): unknown, which numericFontStack reads as "cannot".
+    return false;
+  }
 }
 
 /** Map a font file extension to its @font-face format() string. */
@@ -339,11 +437,28 @@ export function customFontStack(font: CustomFont): string {
  * Make an imported font renderable in the builder UI itself (pickers, live preview host).
  * Best-effort; the template preview works regardless because it inlines the asset.
  */
-export function registerAppFont(family: string, dataUrl: string): void {
+export function registerAppFont(family: string, dataUrl: string): Promise<void> {
   try {
     const face = new FontFace(family, `url(${dataUrl})`);
-    void face.load().then((f) => (document as Document & { fonts: FontFaceSet }).fonts.add(f));
+    return face
+      .load()
+      .then((f) => {
+        (document as Document & { fonts: FontFaceSet }).fonts.add(f);
+      })
+      .catch(() => {
+        /* non-fatal — UI falls back to the default font */
+      });
   } catch {
-    /* non-fatal — UI falls back to the default font */
+    return Promise.resolve();
   }
+}
+
+/**
+ * Register an imported font AND measure its figures in one step - the shape every import
+ * surface wants. Awaiting the registration matters: `measureTabularFigures` called before the
+ * face is in `document.fonts` measures the FALLBACK and reports its digits as the import's.
+ */
+export async function registerAndMeasureFont(family: string, dataUrl: string): Promise<boolean> {
+  await registerAppFont(family, dataUrl);
+  return measureTabularFigures(family);
 }

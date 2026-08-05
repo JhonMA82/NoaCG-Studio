@@ -111,6 +111,7 @@ ${refRow}${creditRow}    </div>`,
   line-height: 1.1;                 /* big text sits tight */
   letter-spacing: var(--display-tracking);  /* the family's display tracking */
   font-variant-numeric: tabular-nums;  /* even rhythm across chapter and verse figures */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);         /* primary text color */
 }
 

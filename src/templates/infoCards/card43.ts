@@ -203,6 +203,7 @@ ${maskLines([
   line-height: 1.05;                /* no dead leading around the figure */
   letter-spacing: -0.01em;          /* large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width as the bid climbs */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   margin-top: calc(5px * var(--scale));  /* label and figure read as one unit */
   color: var(--accent);             /* the accent's main moment in this card */
 }`,

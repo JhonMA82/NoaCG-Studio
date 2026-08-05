@@ -20,6 +20,7 @@
 // out of one it overflows. `duoSplit` + `duoGridCss` below are that rule, written once.
 
 import type { ResolvedOptions } from '../../../model/wizard';
+import { NUMERIC_FIGURES } from '../../shared/numerals';
 
 /**
  * One masked text line, placed BY INDEX into a named slot.
@@ -282,6 +283,8 @@ if (document.readyState === 'loading') {
 }`;
 }
 
-/** The tabular-figures rule every clock and stat readout in the pack shares: same-width
- *  digits so a ticking value never jitters the layout around it. */
-export const TABULAR_FIGURES = `font-variant-numeric: tabular-nums;  /* every digit the same width — no jitter on the tick */`;
+/** The rule every clock and stat readout in the pack shares: same-width digits so a ticking
+ *  value never jitters the layout around it. Re-exported from the ONE definition in
+ *  templates/shared/numerals.ts - a second copy is how the two come to disagree, and the
+ *  `tabular-nums` half alone is a no-op on a face without the feature. */
+export const TABULAR_FIGURES = NUMERIC_FIGURES;

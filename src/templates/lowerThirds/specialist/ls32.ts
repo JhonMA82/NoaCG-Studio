@@ -14,6 +14,7 @@
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { defineVariant } from '../shared';
 import { TABULAR_FIGURES, hasLine, slot } from './shared';
+import { sampleName } from '../../shared/sampleNames';
 
 export const ls32: TemplateVariant = defineVariant(
   {
@@ -25,7 +26,7 @@ export const ls32: TemplateVariant = defineVariant(
     maxLines: 4,
     suggestedLines: [
       { title: 'Handle', sample: 'noacg' },
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('ls32') },
       { title: 'Goal label', sample: 'Sub goal' },
       { title: 'Goal figure', sample: '240 / 500' },
     ],

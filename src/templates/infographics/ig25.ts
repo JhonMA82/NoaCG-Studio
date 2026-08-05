@@ -140,6 +140,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
   line-height: 1;                  /* condensed figures sit tight */
   letter-spacing: var(--display-tracking);  /* the family's display tracking */
   font-variant-numeric: tabular-nums;  /* digits keep one width across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 
@@ -149,6 +150,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
   font-weight: 700;                /* bold — still a headline of its own */
   letter-spacing: 0.04em;          /* condensed figures need air to be read one by one */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "10 / 12" never wraps */
   color: var(--accent);            /* the accent's text moment */
 }
@@ -220,6 +222,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
   line-height: 1.15;               /* compact under the marker */
   letter-spacing: 0.02em;          /* condensed figures need a little air */
   font-variant-numeric: tabular-nums;  /* equal-width digits along the rail */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   margin-top: calc(13px * var(--scale));  /* air between the marker and its figure */
   color: var(--text-dim);          /* dimmed until the milestone is reached */
 }

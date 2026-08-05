@@ -76,6 +76,7 @@ ${cardLineMasks(o)}
   line-height: 1.3;                /* one row in every realistic case */
   letter-spacing: 0.06em;          /* dates read better with a little air */
   font-variant-numeric: tabular-nums;  /* a run of these cards keeps its dates aligned */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-dim);          /* secondary text color */
 }
 

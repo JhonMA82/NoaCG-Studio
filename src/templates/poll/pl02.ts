@@ -147,6 +147,7 @@ export const pl02: TemplateVariant = definePollVariant(
   font-size: calc(29px * var(--scale) * var(--type-scale));  /* the number is the row's headline */
   font-weight: 700;                /* the number carries the row */
   font-variant-numeric: tabular-nums;  /* the figures line up as they count */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--accent);            /* the share wears the accent */
 }
 

@@ -99,6 +99,7 @@ export const gt06: TemplateVariant = defineGameTimerVariant(
   line-height: 1;                  /* one tight row of digits */
   letter-spacing: 0.01em;          /* a touch of air between figures */
   font-variant-numeric: tabular-nums;  /* every digit the same width — no jiggle */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* the brightest element on screen */
 }
 

@@ -114,6 +114,7 @@ export const ig13: TemplateVariant = defineInfographicVariant(
   font-size: calc(22px * var(--scale) * var(--type-scale));  /* same size as the label… */
   font-weight: 700;                /* …contrast through weight, not more fonts */
   font-variant-numeric: tabular-nums;  /* equal-width digits — figures align across rows */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

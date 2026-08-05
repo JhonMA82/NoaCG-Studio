@@ -124,6 +124,7 @@ ${slot(o, 2, 'lower-third-extra')}
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
   text-transform: uppercase;        /* MAIN STAGE · 22:40, whatever the operator types */
   font-variant-numeric: tabular-nums;  /* set times keep an even rhythm */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--label-color);        /* the family's label color */
   margin-top: calc(18px * var(--scale));  /* the stage line is its own beat */
 }`,

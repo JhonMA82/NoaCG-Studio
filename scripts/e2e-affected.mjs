@@ -151,7 +151,18 @@ const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
 // type-floor.mjs/overflow-sweep.mjs: it only needs to run when the catalog itself, or the
 // runtime bench it's calibrated against, could have changed.
-const CATALOG_TRIGGERS = [/^src\/templates\//, /^src\/blocks\//, /^src\/assets\//, /^src\/validation\/runtimeBench\.ts$/];
+// `src/model/fonts.ts` is here because a font change is a catalog-wide LOOK change: the
+// registry decides every design's default face, and `tabularFigures` decides what its live
+// numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
+// width budget silently moves under 430 designs at once.
+const CATALOG_TRIGGERS = [
+  /^src\/templates\//,
+  /^src\/blocks\//,
+  /^src\/assets\//,
+  /^src\/model\/fonts\.ts$/,
+  /^src\/model\/themeTokens\.ts$/,
+  /^src\/validation\/runtimeBench\.ts$/,
+];
 
 const args = process.argv.slice(2);
 // SPRINT FOCUS (docs/GOALS.md "Student release", scripts/e2e-lists.mjs): while the sprint

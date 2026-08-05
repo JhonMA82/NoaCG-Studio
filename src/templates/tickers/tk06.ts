@@ -109,6 +109,7 @@ export const tk06: TemplateVariant = defineTickerVariant(
   font-size: calc(26px * var(--scale) * var(--type-scale)); /* the strip's main voice */
   font-weight: 400;                /* regular mono — the deltas carry the color */
   font-variant-numeric: tabular-nums;   /* even digits across every item */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* the symbol in primary text color */
   margin-right: calc(56px * var(--scale)); /* generous air between instruments */
 }
@@ -127,6 +128,7 @@ export const tk06: TemplateVariant = defineTickerVariant(
   font-family: var(--font-label);  /* the family's label face */
   font-size: calc(24px * var(--scale) * var(--type-scale)); /* the quietest voice on the strip */
   font-variant-numeric: tabular-nums;   /* every digit same width — no tick wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-dim);          /* dimmed — the markets are the point, not the time */
 }`,
     // renderTickerItem(text): "SYMBOL +1.24%" — the trailing signed token becomes the

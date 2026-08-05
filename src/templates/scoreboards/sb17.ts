@@ -115,6 +115,7 @@ ${colourHolderHtml('f5', '#ef0107')}
   line-height: 1.2;                /* on the header's baseline */
   color: var(--text-dim);          /* dimmed — the minute is a stamp, not the headline */
   font-variant-numeric: tabular-nums;  /* digits share one width across successive cards */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "90+4'" stays on one line */
 }
 

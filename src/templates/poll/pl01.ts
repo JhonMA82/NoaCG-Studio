@@ -6,6 +6,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { definePollVariant, POLL_CONTENT } from './shared';
+import { NUMERIC_FIGURES } from '../shared/numerals';
 
 export const pl01: TemplateVariant = definePollVariant(
   {
@@ -128,7 +129,10 @@ export const pl01: TemplateVariant = definePollVariant(
 }
 .poll-row-value {
   flex-shrink: 0;                  /* the figure never wraps or squeezes */
-  font-family: var(--font-label);  /* the house mono label face — figures line up */
+  /* The live share, repainted on every vote - so it takes the numerals contract rather than
+     the label face. --font-label only resolves to a mono face in the house family; under the
+     other five it was the heading face and the row twitched (shared/numerals.ts). */
+  ${NUMERIC_FIGURES}
   font-size: calc(24px * var(--scale) * var(--type-scale));  /* the same size as its label */
   font-weight: 700;                /* the number carries the row */
   color: var(--accent);            /* the share wears the accent */

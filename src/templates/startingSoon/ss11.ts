@@ -106,6 +106,7 @@ export const ss11: TemplateVariant = defineStartingSoonVariant(
   line-height: 0.95;               /* very tight — a single row of huge digits */
   letter-spacing: -0.02em;         /* big figures tighten */
   font-variant-numeric: tabular-nums;  /* every digit the same width — no wobble per tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

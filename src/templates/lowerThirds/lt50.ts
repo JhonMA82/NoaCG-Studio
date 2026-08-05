@@ -4,6 +4,7 @@
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineVariant, lineMasks } from './shared';
+import { sampleName } from '../shared/sampleNames';
 
 export const lt50: TemplateVariant = defineVariant(
   {
@@ -13,7 +14,7 @@ export const lt50: TemplateVariant = defineVariant(
     styleTag: 'noacg',
     description: 'The house bar and void panel carrying a single name — the compact house strap.',
     maxLines: 1,
-    suggestedLines: [{ title: 'Name', sample: 'Noa Haline' }],
+    suggestedLines: [{ title: 'Name', sample: sampleName('lt50') }],
     logo: 'none',
     animationPresets: ['line-reveal', 'mask-wipe', 'slide-up', 'fade', 'slide-right'],
     defaultPalette: paletteById('noacg'),

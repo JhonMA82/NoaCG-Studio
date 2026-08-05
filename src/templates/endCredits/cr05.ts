@@ -105,6 +105,7 @@ export const cr05: TemplateVariant = defineCreditsVariant(
   font-weight: 500;                /* medium: the time is data, the item is the message */
   line-height: 1.3;                /* shares the row's rhythm */
   font-variant-numeric: tabular-nums;  /* fixed-width digits — the column cannot wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--accent);            /* the times carry the accent: they are what people scan for */
 }
 

@@ -124,6 +124,7 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
   line-height: 1;                  /* one tight row of digits */
   letter-spacing: 0.04em;          /* a touch of air between figures */
   font-variant-numeric: tabular-nums;  /* every digit the same width — no tick wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* the brightest element on the bar */
 }
 

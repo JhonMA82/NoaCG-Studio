@@ -118,6 +118,7 @@ ${bracketBodyCss()}
   line-height: 1.5;
   color: var(--text-color);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 .${P}-tie-side + .${P}-tie-side {

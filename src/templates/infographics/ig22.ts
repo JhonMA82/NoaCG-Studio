@@ -138,6 +138,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
   line-height: 1;                  /* no dead leading — the track sets the gap below */
   letter-spacing: -0.02em;         /* very large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width — no jitter while counting */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   overflow-wrap: break-word;       /* an absurdly long figure breaks instead of overflowing */
   color: var(--text-color);        /* primary text color */
 }
@@ -147,6 +148,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
   font-size: calc(42px * var(--scale) * var(--type-scale));  /* large, but clearly under the total */
   font-weight: 700;                /* bold — it is a headline figure of its own */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "100%" never wraps */
   color: var(--accent);            /* the accent's main text moment */
 }
@@ -179,6 +181,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
   font-size: calc(21px * var(--scale) * var(--type-scale));  /* caption scale under the track */
   font-weight: 400;                /* regular — it is the quiet half of the meter */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   margin-top: calc(13px * var(--scale));  /* small gap down from the track */
   color: var(--text-dim);          /* dimmed — never full white twice */
 }`,

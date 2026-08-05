@@ -339,9 +339,9 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   width budget (it doubles every text value), so run it too. It is excluded from the default
   `npm run test:e2e` suite - benching every catalog variant across every category is the single
   heaviest thing here, and (like the other two gates above) it only needs to run when the
-  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the four is left to
+  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the five is left to
   memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
-  runs it on that flag, and the NIGHTLY sweep runs all four unconditionally - so an unrun
+  runs it on that flag, and the NIGHTLY sweep runs all five unconditionally - so an unrun
   catalog gate is now caught by morning rather than never.
   The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
   meaningful visible string an operator cannot reach through a data field. It does not read the
@@ -354,6 +354,14 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   the picked file, and a value the runtime computes rather than anyone types (a wall clock).
   A `filelist` cannot be driven (there is no image to point at), so the run reports those
   variants as NOT DRIVEN rather than counting them as passes.
+  The fifth gate is about MOVEMENT: `node scripts/numerals.mjs` fails on any live number whose
+  box changes width as its digits change (DESIGN_LANGUAGE §1's numerals rule). Same doctrine as
+  field-coverage - it renders the live-number categories, substitutes every digit in turn and
+  measures, rather than grepping for `tabular-nums`. That distinction is the whole point: the
+  declaration is a NO-OP on a typeface without the feature, and six of the seventeen bundled
+  faces are in that class, so a source check would have passed every scoreboard in the catalog
+  while they all still jiggled. `--fonts` re-measures the registry's `tabularFigures` flags
+  (across each face's weight range - evenness is weight-dependent).
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

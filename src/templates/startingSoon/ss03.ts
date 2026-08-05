@@ -114,6 +114,7 @@ export const ss03: TemplateVariant = defineStartingSoonVariant(
   line-height: 1;                  /* the capsule's padding sets the height */
   letter-spacing: 0.04em;          /* digits get a little air */
   font-variant-numeric: tabular-nums;  /* every digit same width — no jiggle as seconds tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text — the accent stays in its small doses */
 }
 

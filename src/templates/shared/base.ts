@@ -8,7 +8,14 @@
 // adds its own structure contract (.lower-third / .info-card / .credits / .ticker) and motion module.
 
 import { DEFAULT_SETTINGS, type Resolution, type SpxSettings } from '../../model/types';
-import { customFontFaceCss, customFontStack, fontById, fontFaceCss, fontStack } from '../../model/fonts';
+import {
+  customFontFaceCss,
+  customFontStack,
+  fontById,
+  fontFaceCss,
+  fontStack,
+  numericFontStack,
+} from '../../model/fonts';
 import { type ThemeTokens, tokenVarsCss } from '../../model/themeTokens';
 import type { ResolvedOptions, Zone9 } from '../../model/wizard';
 
@@ -21,6 +28,18 @@ export function resolveHeadingFont(o: ResolvedOptions): { face: string; stack: s
   }
   const bundled = fontById(o.fontId);
   return { face: fontFaceCss(bundled), stack: fontStack(bundled) };
+}
+
+/**
+ * What `--font-numeric` resolves to for THIS graphic's chosen heading font: the heading face
+ * where it has tabular figures, the mono stack where it does not (model/fonts.ts).
+ *
+ * An imported font carries a MEASURED flag only if it was imported after the flag existed; an
+ * older one reads as unknown, which `numericFontStack` treats as "cannot" - so its numbers get
+ * the mono fallback rather than a face nobody checked.
+ */
+export function resolveNumericStack(o: ResolvedOptions): string {
+  return numericFontStack(o.customFont ?? fontById(o.fontId));
 }
 
 // ── Size math ────────────────────────────────────────────────────────────────
@@ -129,8 +148,10 @@ export function rootVarsCss(
     opts.typeScale === false
       ? ''
       : `\n  --type-scale: ${o.typeScale};                  /* text-only size multiplier (on top of --scale) */`;
-  const tokenLines =
-    opts.tokens && opts.consumerCss ? tokenVarsCss(opts.tokens, opts.consumerCss) : '';
+  // `--font-numeric` is the one token that follows the CHOSEN font rather than the family, so
+  // the family default is replaced here with the answer for the face actually in use.
+  const tokens = opts.tokens && { ...opts.tokens, fontNumeric: resolveNumericStack(o) };
+  const tokenLines = tokens && opts.consumerCss ? tokenVarsCss(tokens, opts.consumerCss) : '';
   return `/* ── Style contract: change these variables to retint the whole graphic. ── */
 :root {
   --accent: ${o.palette.accent};           /* the one accent color */

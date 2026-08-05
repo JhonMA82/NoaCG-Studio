@@ -140,7 +140,7 @@ test('a card\'s ⓘ opens its full detail without picking the template', async (
 
 test('the brand toggle ranks the package siblings first without filtering anything out', async ({ page }) => {
   // Create a glass graphic so the saved project brand is the glass family, then reopen the
-  // wizard and turn on "Use current project's colors & font" (proposal §13.3). The create
+  // wizard and turn on "Use current project's colors & typeface" (proposal §13.3). The create
   // rides the Advanced editor door (the footer shortcut is Skip to finish since step 6).
   await enableAdvancedMode(page);
   await toBrowseStep(page);

@@ -124,6 +124,7 @@ ${colourHoldersHtml('f7', 'f8', '#dc143c', '#0057b7')}
   font-weight: 700;                /* matches the status label's weight */
   color: var(--text-color);        /* primary white — the clock is read constantly */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The competitors, stacked as rows. */
@@ -208,6 +209,7 @@ ${clipOneLineCss('.scoreboard-team', 300)}
   line-height: 1;                  /* sits tight on the row */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The set columns — beneath the rows, above a keyline. */
@@ -239,6 +241,7 @@ ${clipOneLineCss('.scoreboard-team', 300)}
   line-height: 1.2;                /* even rhythm down the column */
   color: var(--text-color);        /* primary text — these are still scores */
   font-variant-numeric: tabular-nums;  /* the columns line up across sets */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 /* An empty set record collapses its rule rather than leaving a stray keyline. */
 .scoreboard-periods:empty { display: none; }

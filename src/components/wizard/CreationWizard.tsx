@@ -116,7 +116,7 @@ export default function CreationWizard() {
   // change — committed to the created project so the graphic carries the reasoning that made it.
   const [aiThread, setAiThread] = useState<AiThread | null>(null);
   const acceptedAiGeneration = useRef<string | null>(null);
-  // The saved project brand (the "Use current project's colors & font" toggle keeps new
+  // The saved project brand (the "Use current project's colors & typeface" toggle keeps new
   // graphics in the same package).
   const [brand, setBrand] = useState<ProjectBrand | null>(null);
   const [matchBrand, setMatchBrand] = useState(false);

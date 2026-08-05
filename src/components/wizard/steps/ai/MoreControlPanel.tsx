@@ -24,7 +24,7 @@ import type { AnimPresetId, AnimSpeed } from '../../../../model/wizard';
 import {
   familyFromFileName,
   fontFormatForExt,
-  registerAppFont,
+  registerAndMeasureFont,
   type CustomFont,
 } from '../../../../model/fonts';
 import { extOf, fileToDataUrl } from '../../../../assets/assetUtils';
@@ -378,12 +378,14 @@ function FontUpload({
     const ext = extOf(file.name);
     if (!['woff2', 'woff', 'ttf', 'otf'].includes(ext)) return;
     const data = await fileToDataUrl(file);
+    const family = familyFromFileName(file.name);
+    const tabularFigures = await registerAndMeasureFont(family, data);
     const font: CustomFont = {
-      family: familyFromFileName(file.name),
+      family,
       format: fontFormatForExt(ext),
       asset: { path: `fonts/${file.name}`, data },
+      tabularFigures,
     };
-    registerAppFont(font.family, data);
     onChoice({ ...choice, customFont: font });
   };
   return (
@@ -392,7 +394,7 @@ function FontUpload({
       {choice?.customFont ? (
         <span className="wz-file-chip">
           {choice.customFont.family}
-          <button type="button" style={{ marginLeft: 6, padding: '0 6px' }} onClick={() => onChoice(undefined)} title="Remove font">✕</button>
+          <button type="button" style={{ marginLeft: 6, padding: '0 6px' }} onClick={() => onChoice(undefined)} title="Remove typeface">✕</button>
         </span>
       ) : (
         <>
@@ -403,7 +405,7 @@ function FontUpload({
             style={{ display: 'none' }}
             onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }}
           />
-          <button type="button" onClick={() => input.current?.click()} disabled={disabled}>Upload font…</button>
+          <button type="button" onClick={() => input.current?.click()} disabled={disabled}>Upload typeface…</button>
         </>
       )}
       {choice?.customFont && (
@@ -427,10 +429,10 @@ function FontsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' 
     <>
       <p className="hint">
         The primary font is fully wired into the generated template (its file ships embedded).
-        Secondary and numeric fonts are embedded too and taught to the AI — the house style
+        Secondary and numeric typefaces are embedded too and taught to the AI — the house style
         carries one main face, so they apply where the design genuinely uses them.
       </p>
-      <label>Primary font</label>
+      <label>Primary typeface</label>
       <FontPicker
         value={primary?.customFont ? 'custom' : primary?.fontId ?? null}
         customFont={primary?.customFont ?? null}
@@ -452,13 +454,13 @@ function FontsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' 
         onCustomFont={(font) => onSpec({ ...spec, fonts: { ...fonts, primary: { ...primary, fontId: undefined, customFont: font } } })}
       />
       <FontUpload
-        label="Secondary font"
+        label="Secondary typeface"
         choice={fonts.secondary}
         onChoice={(secondary) => onSpec({ ...spec, fonts: { ...fonts, secondary } })}
         disabled={disabled}
       />
       <FontUpload
-        label="Numeric font"
+        label="Numeric typeface"
         choice={fonts.numeric}
         onChoice={(numeric) => onSpec({ ...spec, fonts: { ...fonts, numeric } })}
         disabled={disabled}
@@ -619,7 +621,7 @@ export default function MoreControlPanel(props: Props) {
       <Section title="Look & references" summary={lookBits.length ? lookBits.join(' · ') : null} open={open === 'look'} onToggle={() => toggle('look')}>
         <LookSection {...props} />
       </Section>
-      <Section title="Fonts" summary={fontBits.length ? fontBits.join(' · ') : null} open={open === 'fonts'} onToggle={() => toggle('fonts')}>
+      <Section title="Typefaces" summary={fontBits.length ? fontBits.join(' · ') : null} open={open === 'fonts'} onToggle={() => toggle('fonts')}>
         <FontsSection {...props} />
       </Section>
       <Section title="Animation" summary={animBits.length ? animBits.join(' · ') : null} open={open === 'anim'} onToggle={() => toggle('anim')}>

@@ -213,7 +213,7 @@ one-command reversible.
 | Emil | verdict-tier + Before/After/Why critique *structure* | authoring skill, §5 |
 | Impeccable | light-on-dark 3-axis compensation (line-height +0.05-0.1, tracking +0.01-0.02em, one weight step) | `MOTION_PRINCIPLES` + `DESIGN_LANGUAGE.md` §1 |
 | Impeccable | all-caps tracking floor (5-12% on short caps labels) | already partly present; tighten |
-| Impeccable | `tabular-nums` for scores, clocks, vote counts | `DESIGN_LANGUAGE.md`; scoreboard/ticker variants |
+| Impeccable | `tabular-nums` for scores, clocks, vote counts | **ADOPTED 2026-08-05** as `DESIGN_LANGUAGE.md` §1's numerals rule - and it needed a second half the source did not have: `tabular-nums` is a no-op on a face without the feature, so the rule pairs it with `--font-numeric` and `scripts/numerals.mjs` measures the box instead of grepping for the declaration |
 | Impeccable | colour-commitment axis (restrained / committed / full-palette / drenched) | **reference-card axis** (§6) - this is the highest-value single item |
 | Impeccable | display tracking floor `>= -0.04em` | `DESIGN_LANGUAGE.md` §1 |
 | Impeccable | dark-surface depth from surface lightness, not shadow | `MOTION_PRINCIPLES` lit-surface doctrine |

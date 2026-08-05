@@ -107,6 +107,7 @@ export const ig10: TemplateVariant = defineInfographicVariant(
   line-height: 1.1;                /* tight leading for big condensed digits */
   letter-spacing: var(--display-tracking);  /* the family's display tracking */
   font-variant-numeric: tabular-nums;  /* equal-width digits — times align across rows */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* a time never wraps mid-value */
   color: var(--text-color);        /* primary text color */
 }

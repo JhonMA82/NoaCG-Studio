@@ -20,6 +20,7 @@ import {
   fontFaceCss,
   fontFormatForExt,
   fontStack,
+  numericFontStack,
   type CustomFont,
 } from './fonts';
 import { loadBrand, type ProjectBrand } from './brand';
@@ -235,7 +236,17 @@ export function captureLookFromTemplate(template: SpxTemplate): ProjectBrand {
   if (!bundled && family) {
     const asset = template.assets.find((a) => isFontAsset(a.path));
     if (asset && typeof asset.data === 'string') {
-      customFont = { family, format: fontFormatForExt(extOf(asset.path)), asset };
+      // Whether this face carries tabular figures was MEASURED when it was imported, and the
+      // answer is already written into the template as `--font-numeric`: pointing at the
+      // heading face means it can hold a number's width, anything else means it could not.
+      // Reading it back beats re-measuring — the file may not be loaded on this device.
+      const numeric = getCssVariable(css, 'font-numeric');
+      customFont = {
+        family,
+        format: fontFormatForExt(extOf(asset.path)),
+        asset,
+        ...(numeric ? { tabularFigures: numeric.includes('--font-heading') } : {}),
+      };
     }
   }
 
@@ -272,15 +283,20 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
 
   let assets = template.assets;
   if (FONT_BLOCK_RE.test(css)) {
+    // `--font-numeric` follows the heading face wherever it is written: a look that swapped one
+    // without the other would leave a graphic's clock in a typeface nobody measured, and a
+    // number that changes width is the failure the token exists to prevent (model/fonts.ts).
     if (brand.customFont) {
       css = css.replace(FONT_BLOCK_RE, customFontFaceCss(brand.customFont));
       setIf('font-heading', customFontStack(brand.customFont));
+      setIf('font-numeric', numericFontStack(brand.customFont));
       // The look carries its font file — bundle it into this template too.
       assets = [...assets.filter((a) => a.path !== brand.customFont!.asset.path), brand.customFont.asset];
     } else if (brand.fontId) {
       const font = fontById(brand.fontId);
       css = css.replace(FONT_BLOCK_RE, fontFaceCss(font));
       setIf('font-heading', fontStack(font));
+      setIf('font-numeric', numericFontStack(font));
     }
   }
 

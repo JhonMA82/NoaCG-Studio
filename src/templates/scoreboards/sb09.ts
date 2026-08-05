@@ -131,6 +131,7 @@ ${colourHoldersHtml('f7', 'f8', '#f6a623', '#7dd3fc')}
   font-weight: 500;                /* one mono voice with the period label */
   color: var(--text-color);        /* primary white — the clock is read constantly */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The main row — crest+name · scores · name+crest, the scores holding the centre. */
@@ -210,6 +211,7 @@ ${clipOneLineCss('.scoreboard-team', 260)}
   line-height: 1;                  /* the figure fills its column */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 .scoreboard-dash {
   font-size: calc(38px * var(--scale) * var(--type-scale));  /* a step under the figures */
@@ -248,6 +250,7 @@ ${clipOneLineCss('.scoreboard-team', 260)}
   line-height: 1.15;               /* even rhythm down the column */
   color: var(--text-color);        /* primary text — these are still scores */
   font-variant-numeric: tabular-nums;  /* the columns line up across periods */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 /* An empty breakdown collapses its rule rather than leaving a stray keyline. */
 .scoreboard-periods:empty { display: none; }

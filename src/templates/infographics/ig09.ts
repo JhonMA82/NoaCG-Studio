@@ -108,6 +108,7 @@ export const ig09: TemplateVariant = defineInfographicVariant(
   font-weight: 700;                /* the glass families run heavier weights */
   line-height: 1.15;               /* tight leading */
   font-variant-numeric: tabular-nums;  /* equal-width digits — times align across rows */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* a time never wraps mid-value */
   color: var(--text-color);        /* primary text color */
 }

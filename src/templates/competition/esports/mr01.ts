@@ -97,6 +97,7 @@ export function sportMapDesign(
   font-weight: 600;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The map name. */

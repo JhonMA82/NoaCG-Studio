@@ -110,6 +110,7 @@ export const ig05: TemplateVariant = defineInfographicVariant(
   line-height: 1;                  /* no dead leading — the track sets the gap below */
   letter-spacing: -0.02em;         /* very large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width — no jitter while counting */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
   overflow-wrap: break-word;       /* an absurdly long figure breaks instead of overflowing */
 }
@@ -149,6 +150,7 @@ export const ig05: TemplateVariant = defineInfographicVariant(
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* footer scale — clearly under the big figure */
   font-weight: 700;                /* bold — it restates the headline number */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* a currency figure never wraps mid-number */
   color: var(--text-color);        /* primary text color */
 }
@@ -158,6 +160,7 @@ export const ig05: TemplateVariant = defineInfographicVariant(
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* same size as the raised figure… */
   font-weight: 400;                /* …contrast through weight, not more fonts */
   font-variant-numeric: tabular-nums;  /* equal-width digits across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "Goal: €250,000" never wraps mid-number */
   color: var(--text-dim);          /* dimmed — never full white twice */
 }`,

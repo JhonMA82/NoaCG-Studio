@@ -163,6 +163,7 @@ ${flip
   font-size: calc(28px * var(--scale) * var(--type-scale));  /* clearly above the name — instant hierarchy */
   font-weight: 700;                /* bold — the number is what viewers scan for */
   font-variant-numeric: tabular-nums;  /* equal-width digits — columns never wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary ink */
 }
 
@@ -174,6 +175,7 @@ ${flip
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* between name and value — clearly secondary */
   font-weight: 600;                /* firm enough to read at travel speed */
   font-variant-numeric: tabular-nums;  /* equal-width digits here too */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The direction arrow — smaller than its number, purely a glyph. */

@@ -110,6 +110,7 @@ export const tk14: TemplateVariant = defineTickerVariant(
   margin-right: calc(58px * var(--scale)); /* generous air between instruments */
   font-size: calc(28px * var(--scale) * var(--type-scale)); /* the strip's main voice */
   font-variant-numeric: tabular-nums;   /* even digits across every instrument */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

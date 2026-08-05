@@ -174,6 +174,7 @@ ${clipOneLineCss('.scoreboard-team', 270)}
   line-height: 1;                  /* the figure fills its column */
   color: var(--text-color);        /* white on the plate — the accent is the banner */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 .scoreboard-dash {
   font-size: calc(50px * var(--scale) * var(--type-scale));  /* a step under the figures */

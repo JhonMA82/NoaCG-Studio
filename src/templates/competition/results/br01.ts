@@ -112,6 +112,7 @@ ${bracketBodyCss()}
   text-transform: uppercase;
   color: var(--text-color);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The second side of a tie reads a step quieter — a bracket is scanned, not read. */

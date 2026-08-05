@@ -112,6 +112,7 @@ export const cr11: TemplateVariant = defineCreditsVariant(
   font-weight: 400;                /* the same light weight — nothing here is emphasised */
   line-height: 1.3;                /* shares the row's rhythm */
   font-variant-numeric: tabular-nums;  /* years line up down the column */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-dim);          /* secondary text color */
 }
 

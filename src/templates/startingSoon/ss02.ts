@@ -162,6 +162,7 @@ export const ss02: TemplateVariant = defineStartingSoonVariant(
   letter-spacing: 0.04em;          /* a touch of air between the digits */
   color: var(--text-color);        /* primary text */
   font-variant-numeric: tabular-nums;  /* every digit one width — no jitter per second */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* Time's up: the clock runtime adds .starting-soon-done to the root — flip the digits to volt. */

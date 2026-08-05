@@ -50,7 +50,7 @@ interface Props {
   onPickVariant: (variant: TemplateVariant) => void;
   /** The zero-result escape hatch: hand the search over to Create with AI. */
   onAi: () => void;
-  /** The saved brand's family when the footer's "Use current project's colors & font" is
+  /** The saved brand's family when the footer's "Use current project's colors & typeface" is
    *  on — ranks the package's siblings first without becoming a filter chip (§13.3). */
   brandFamily: StyleTag | null;
 }

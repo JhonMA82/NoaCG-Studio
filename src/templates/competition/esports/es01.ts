@@ -122,6 +122,7 @@ export const es01: TemplateVariant = defineEsportsVariant(
   line-height: 1;
   color: var(--accent);            /* the scores wear the accent… */
   font-variant-numeric: tabular-nums;  /* …and never jitter as they tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The logo slot's placeholder — a dim square until the operator picks a file. */

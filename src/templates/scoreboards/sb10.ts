@@ -119,6 +119,7 @@ ${colourHoldersHtml('f7', 'f8', '#0033a0', '#fcb514')}
   font-weight: var(--display-weight);  /* the family's heavy display weight */
   color: var(--text-color);        /* white while there is time left */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The main row: two colour-banded club blocks around the score plate. */
@@ -201,6 +202,7 @@ ${clipOneLineCss('.scoreboard-team', 300)}
   line-height: 1;                  /* the figure fills its column */
   color: var(--text-color);        /* white on the plate — the accent is the underline */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 .scoreboard-dash {
   font-size: calc(50px * var(--scale) * var(--type-scale));  /* a step under the figures */
@@ -242,6 +244,7 @@ ${clipOneLineCss('.scoreboard-team', 300)}
   line-height: 1.15;               /* even rhythm down the cell */
   color: var(--text-color);        /* primary text — these are still scores */
   font-variant-numeric: tabular-nums;  /* the cells line up across periods */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 /* An empty breakdown collapses its strip rather than leaving an empty band. */
 .scoreboard-periods:empty { display: none; }

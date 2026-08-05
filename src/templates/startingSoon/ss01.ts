@@ -90,6 +90,7 @@ export const ss01: TemplateVariant = defineStartingSoonVariant(
   line-height: 1;                  /* a single tight row of digits */
   letter-spacing: 0.02em;          /* a touch of air between the light figures */
   font-variant-numeric: tabular-nums; /* every digit same width — no width wobble per tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

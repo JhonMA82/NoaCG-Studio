@@ -1,5 +1,6 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { createProject } from './_create';
+import { sampleName } from '../src/templates/shared/sampleNames';
 
 // The NoaCG house family (styleTag 'noacg') — the brand-kit overlays rebuilt as first-class
 // catalog templates: one create + play + behavior spec per house mechanism (the standard
@@ -20,7 +21,10 @@ test('house strap: creates from the noacg family and plays', async ({ page }) =>
   await expect
     .poll(async () => frame(page).locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('1');
-  await expect(frame(page).locator('#f0')).toHaveText('Noa Haline');
+  // Bound to the roster, not to a literal: sample names are product copy that changes in one
+  // place (src/templates/shared/sampleNames.ts), and a spec restating one would fail the next
+  // time somebody edits the words rather than the behaviour.
+  await expect(frame(page).locator('#f0')).toHaveText(sampleName('lt11'));
   // The house label voice: the title line renders in the bundled mono face.
   await expect
     .poll(async () =>

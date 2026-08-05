@@ -8,6 +8,7 @@
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { defineVariant, lineMasks } from './shared';
+import { sampleName } from '../shared/sampleNames';
 
 export const lt51: TemplateVariant = defineVariant(
   {
@@ -18,7 +19,7 @@ export const lt51: TemplateVariant = defineVariant(
     description: 'The house bar turned horizontal across a centred void panel — name and mono role.',
     maxLines: 2,
     suggestedLines: [
-      { title: 'Name', sample: 'Noa Haline' },
+      { title: 'Name', sample: sampleName('lt51') },
       { title: 'Title', sample: 'Anchor · Evening News' },
     ],
     logo: 'none',

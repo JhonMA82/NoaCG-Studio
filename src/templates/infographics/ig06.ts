@@ -113,6 +113,7 @@ export const ig06: TemplateVariant = defineInfographicVariant(
   line-height: 1.15;               /* tight leading for the biggest text on the board */
   letter-spacing: -0.01em;         /* large digits tighten slightly */
   font-variant-numeric: tabular-nums;  /* equal-width digits — times align across rows */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* a time never wraps mid-value */
   color: var(--text-color);        /* primary text color */
 }

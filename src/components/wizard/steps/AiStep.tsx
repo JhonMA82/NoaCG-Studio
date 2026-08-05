@@ -70,7 +70,7 @@ import type { LiteStatusResponse } from '../../../ai/liteTypes';
 interface Props {
   format: ProjectFormatSelection;
   onFormat: (format: ProjectFormatSelection) => void;
-  /** Brand colors to honor (when "Use current project's colors & font" is on and a brand exists). */
+  /** Brand colors to honor (when "Use current project's colors & typeface" is on and a brand exists). */
   brandPalette: Palette | null;
   /** The current AI result shown in the live preview (null until the first generation). */
   result: SpxTemplate | null;

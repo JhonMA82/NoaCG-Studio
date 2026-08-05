@@ -19,6 +19,7 @@ import {
   textCssRule,
 } from './edit';
 import type { Ftype, SpxField, SpxTemplate } from '../model/types';
+import { NUMERIC_FIGURES } from '../templates/shared/numerals';
 
 import type { EditorTab } from '../store/templateStore';
 
@@ -258,6 +259,7 @@ export const BUILDING_BLOCKS: BuildingBlock[] = [
   font-size: 120px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }`,
         ),
       };
@@ -516,7 +518,7 @@ function startCountdown() {
   background: #111827;
 }
 .sr-name  { color: #fff; font-size: 28px; font-weight: 600; letter-spacing: 0.08em; }
-.sr-score { color: #fff; font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sr-score { color: #fff; font-size: 40px; font-weight: 800; font-family: var(--font-numeric); font-variant-numeric: tabular-nums; }
 .sr-sep   { color: rgba(255,255,255,0.4); font-size: 32px; }`,
         ),
       };
@@ -555,7 +557,11 @@ function startCountdown() {
         fontSize: 64,
         fontWeight: 800,
         ftype: 'number',
-        cssExtra: '  font-variant-numeric: tabular-nums;  /* equal-width digits so they don\'t jiggle */',
+        // The block goes into ANY template, so it may land somewhere with no --font-numeric
+        // declared. An unresolvable var() there leaves font-family inherited, exactly as this
+        // block behaved before the token existed - no regression, and a real guarantee inside
+        // a catalog design (templates/shared/numerals.ts).
+        cssExtra: `  ${NUMERIC_FIGURES.split('\n').join('\n  ')}`,
       }),
   },
   {

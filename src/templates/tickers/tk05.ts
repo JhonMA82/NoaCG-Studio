@@ -133,6 +133,7 @@ export function houseWire(o: ResolvedOptions): TickerDesign {
   font-family: var(--font-label);  /* the family's label face — the clock shares the label voice */
   font-size: calc(26px * var(--scale) * var(--type-scale)); /* quiet — present, not competing with stories */
   font-variant-numeric: tabular-nums;   /* every digit same width — no tick wobble */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }`,
     // renderTickerItem(text): one story + its accent dot. The live clock painter rides

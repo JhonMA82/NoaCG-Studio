@@ -152,6 +152,7 @@ ${maskLines([
   line-height: 1;                   /* no dead leading around the figure */
   letter-spacing: -0.01em;          /* very large glyphs tighten */
   font-variant-numeric: tabular-nums;  /* digits keep one width across updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--accent);             /* the accent's main moment in this card */
 }
 
@@ -160,6 +161,7 @@ ${maskLines([
   font-size: calc(29px * var(--scale) * var(--type-scale));  /* clearly subordinate to the price */
   font-weight: 400;                 /* regular — contrast through weight, not more fonts */
   font-variant-numeric: tabular-nums;  /* equal-width digits beside the price */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   text-decoration: line-through;    /* the broadcast shorthand for "was" */
   text-decoration-thickness: 2px;   /* visible over video at broadcast distance */
   color: var(--text-dim);           /* dimmed — never full white twice */

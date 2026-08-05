@@ -108,6 +108,7 @@ ${colourHolderHtml('f5', '#ba0c2f')}
   line-height: 1.2;                /* compact inside the chip */
   color: var(--text-color);        /* white on the club colour — the safest pairing here */
   font-variant-numeric: tabular-nums;  /* digits share one width across successive cards */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "90+4'" stays on one line */
 }
 

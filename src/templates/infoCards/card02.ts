@@ -94,6 +94,7 @@ ${cardLineMasks(o)}
   text-transform: uppercase;       /* stats match the heading's caps voice */
   color: var(--accent);            /* stat lines glow in the accent - bold sport dose */
   font-variant-numeric: tabular-nums;  /* digits share one width - stats align as they tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* Gaps: a clear break after the heading, then the stats stack tightly as one block. */

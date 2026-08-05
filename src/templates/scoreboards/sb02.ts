@@ -109,6 +109,7 @@ export const sb02: TemplateVariant = defineScoreboardVariant(
   font-weight: 700;                /* the heaviest element in the design */
   line-height: 1.1;                /* a touch of headroom for the on-air score pop */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter on updates */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }`,
     hasAccent: true,

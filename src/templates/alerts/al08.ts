@@ -97,6 +97,7 @@ ${alertLineMasks(o)}
   font-size: calc(20px * var(--scale) * var(--type-scale)); /* the quietest voice in the panel */
   font-weight: 600;                /* small caps need weight to hold */
   font-variant-numeric: tabular-nums;   /* every digit same width — no wobble on the minute */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   letter-spacing: var(--label-tracking);  /* tracked caps breathe */
   text-transform: uppercase;       /* reads as a stamp, not a sentence */
   color: var(--label-color);       /* the accent, in the glass family */

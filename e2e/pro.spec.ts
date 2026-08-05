@@ -45,7 +45,7 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   await page.getByTestId('more-control-toggle').click();
   await page.getByRole('button', { name: /^Lower third/ }).click();
   await page.getByRole('button', { name: /Data fields/ }).click();
-  await page.getByLabel('Example value').first().fill('Noa Haline');
+  await page.getByLabel('Example value').first().fill('Maya Chen');
   await page.getByLabel('Example value').nth(1).fill('Anchor · Evening News');
 
   await page.locator('.wz-step textarea').first().fill('Calm election-night strap, deep blue.');
@@ -86,7 +86,7 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   // reconstruction cover the whole unit and the raster is dropped: pure editable code.
   expect(shape.assetCount).toBe(0);
   expect(shape.fields).toEqual(expect.arrayContaining([
-    expect.objectContaining({ id: 'f0', title: 'Name', value: 'Noa Haline' }),
+    expect.objectContaining({ id: 'f0', title: 'Name', value: 'Maya Chen' }),
     expect.objectContaining({ id: 'f1', title: 'Title', value: 'Anchor · Evening News' }),
   ]));
   expect(shape.parts).toEqual(expect.arrayContaining([
@@ -264,7 +264,7 @@ test('pro: the quality gate is handed the FILLED template, not the one with an e
     const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
     const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
 
-    const brief = { brief: '', name: 'Noa Haline', title: 'Anchor', includeLogo: true };
+    const brief = { brief: '', name: 'Maya Chen', title: 'Anchor', includeLogo: true };
     const concept = await stubProConcept(brief);
     const looked: { src: boolean; screened: boolean }[] = [];
     const validate = async (t: { html: string }) => {
@@ -339,13 +339,13 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
       graphicType: 'lower-third',
       graphicTypeConfidence: 0.9,
       regions: [
-        { kind: 'text', bbox: norm(NAME), confidence: 0.9, treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Noa Haline' },
+        { kind: 'text', bbox: norm(NAME), confidence: 0.9, treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Maya Chen' },
         { kind: 'text', bbox: norm(TITLE), confidence: 0.9, treatment: 'rebuild-text', role: 'person-role', suggestedTitle: 'Title', sampleText: 'Anchor' },
       ],
       animation: { presetId: 'design-fade', speed: 1 },
       warnings: [],
     };
-    const brief = { name: 'Noa Haline', title: 'Anchor', includeLogo: false, style: '' };
+    const brief = { name: 'Maya Chen', title: 'Anchor', includeLogo: false, style: '' };
 
     const compileOn = async (flat: boolean) => {
       const dataUrl = draw(flat);

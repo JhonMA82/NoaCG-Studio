@@ -1137,8 +1137,8 @@ function PlacedFieldStyle({
               apart is exactly the confusion this panel exists to remove. */}
           <div className="inspector-group-label">Typography</div>
           <div className="inspector-row">
-            <span className="inspector-row-label" title="The line's typeface — bundled fonts ship inside the export">
-              Font
+            <span className="inspector-row-label" title="The line's typeface — bundled ones ship inside the export">
+              Typeface
             </span>
             <span className="inspector-row-edit">
               <select
@@ -1147,7 +1147,7 @@ function PlacedFieldStyle({
                 data-testid="inspector-style-font"
                 onChange={(e) => patchText({ fontId: e.target.value || null })}
               >
-                <option value="">Design font</option>
+                <option value="">Design typeface</option>
                 {textStyle.fontId === 'custom' && (
                   <option value="custom" disabled>
                     Custom — as written in the CSS

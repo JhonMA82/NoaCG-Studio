@@ -136,6 +136,7 @@ ${clipOneLineCss('.scoreboard-score', 130)}
   line-height: 1;                  /* sits tight on the center line */
   color: var(--text-color);        /* white — the accent stays in the bar and the dots */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The colon — a soft accent divider between the two scores. */
@@ -177,6 +178,7 @@ ${clipOneLineCss('.scoreboard-phase', 150)}
   line-height: 1.05;               /* tight under the label */
   color: var(--text-color);        /* primary white — the clock is read constantly */
   font-variant-numeric: tabular-nums;  /* the whole point: digits never shift width */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 ${clipOneLineCss('.scoreboard-clock', 150)}

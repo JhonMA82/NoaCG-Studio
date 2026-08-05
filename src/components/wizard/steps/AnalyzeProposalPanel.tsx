@@ -136,7 +136,7 @@ export default function AnalyzeProposalPanel({ art, draft, onDraft }: Props) {
   };
 
   const fontLabel = useMemo(
-    () => (fontId: string | null) => (fontId ? fontById(fontId).family : 'Design font'),
+    () => (fontId: string | null) => (fontId ? fontById(fontId).family : 'Design typeface'),
     [],
   );
 

@@ -94,6 +94,7 @@ ${colourHolderHtml('f5', '#d92b2b')}
   line-height: 1.2;                /* compact header leading */
   color: var(--accent);            /* the minute wears the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width across successive cards */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   white-space: nowrap;             /* "90+4'" stays on one line */
 }
 .scoreboard-event {

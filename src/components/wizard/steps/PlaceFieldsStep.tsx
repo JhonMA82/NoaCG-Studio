@@ -322,9 +322,9 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
 
           <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="save-field">
-              <span>Font</span>
+              <span>Typeface</span>
               <button onClick={() => setFontOpen(fontOpen === 'field' ? null : 'field')} data-testid="field-font" style={{ fontFamily: familyOf(selected) }}>
-                {selected.fontId ? FONTS.find((b) => b.id === selected.fontId)?.family : `Design font (${designFamily})`} ▾
+                {selected.fontId ? FONTS.find((b) => b.id === selected.fontId)?.family : `Design typeface (${designFamily})`} ▾
               </button>
             </label>
             <label className="save-field">
@@ -410,7 +410,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
               <FontPicker
                 value={selected.fontId}
                 customFont={draft.customFont}
-                defaultLabel={`Design font (${designFamily})`}
+                defaultLabel={`Design typeface (${designFamily})`}
                 onPick={(fontId) => { patchField(selected.id, { fontId }); setFontOpen(null); }}
                 onCustomFont={(font: CustomFont) => {
                   // An uploaded/installed font becomes the DESIGN default (it ships once,
@@ -427,7 +427,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
         <div className="panel-section">
           <div className="row" style={{ alignItems: 'flex-end', gap: 10 }}>
             <label className="save-field">
-              <span>Design font <span className="muted">(what every field inherits)</span></span>
+              <span>Design typeface <span className="muted">(what every field inherits)</span></span>
               <button onClick={() => setFontOpen(fontOpen === 'design' ? null : 'design')} style={{ fontFamily: `"${designFamily}"` }} data-testid="design-font">
                 {designFamily} ▾
               </button>

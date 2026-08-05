@@ -87,6 +87,7 @@ ${piMasks(o, [[0, 'public-info-kicker'], [1, 'public-info-body'], [2, 'public-in
   font-size: calc(21px * var(--scale) * var(--type-scale)); /* readable enough to copy down */
   font-weight: 600;                /* weight, not size, keeps a reference legible */
   font-variant-numeric: tabular-nums;   /* even digits — this line is mostly numbers */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* full contrast: it is meant to be written down */
 }
 

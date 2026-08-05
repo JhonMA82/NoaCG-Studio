@@ -226,16 +226,17 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
       </div>
 
       <div className="panel-section">
-        <h3>Font <span className="muted">(every font — bundled or imported — ships inside the export)</span></h3>
-        {/* The ONE font picker (shared with the import flow and the AI setup): searchable,
-            each family rendered in its own face, upload + this computer's installed fonts.
-            The card grid it replaced could never scale past a handful of faces. */}
+        <h3>Typeface <span className="muted">(every typeface — bundled or imported — ships inside the export)</span></h3>
+        {/* The ONE typeface picker (shared with the import flow, the AI setup and the editor's
+            Style panel): searchable, each family rendered in its own face, upload + this
+            computer's installed faces. The card grid it replaced could never scale past a
+            handful of them. */}
         <FontPicker
           value={draft.fontId}
           customFont={draft.customFont}
           onPick={(fontId) => onDraft({ fontId })}
           onCustomFont={(customFont) => onDraft({ customFont, fontId: 'custom' })}
-          defaultLabel={`Design font (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})`}
+          defaultLabel={`Design typeface (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})`}
         />
         {draft.customFont && activeFont === 'custom' && (
           <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
@@ -243,7 +244,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
               className="grow"
               value={draft.customFont.family}
               onChange={(e) => renameCustomFont(e.target.value)}
-              title="Font name used in the generated CSS"
+              title="Typeface name used in the generated CSS"
             />
           </div>
         )}

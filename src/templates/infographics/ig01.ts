@@ -61,6 +61,7 @@ export const ig01: TemplateVariant = defineInfographicVariant(
   line-height: 1;                  /* no dead leading — the rule sets the gap below */
   letter-spacing: -0.02em;         /* very large glyphs tighten */
   font-variant-numeric: tabular-nums; /* digits keep one width — no jitter while counting up */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
   overflow-wrap: break-word;       /* break a very long unbroken value */
   text-wrap: balance;              /* if it ever wraps, rows get even lengths */

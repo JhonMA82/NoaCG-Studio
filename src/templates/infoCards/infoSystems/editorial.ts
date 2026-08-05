@@ -646,6 +646,7 @@ ${systemMasks(o, [
   font-weight: 500;                /* set, not shouted */
   line-height: 1.25;               /* compact rows */
   font-variant-numeric: tabular-nums; /* values align */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary ink */
 }
 

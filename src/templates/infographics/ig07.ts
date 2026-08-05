@@ -260,6 +260,7 @@ ${row(2)}
   font-weight: 800;                /* heaviest weight — the counted number leads */
   line-height: 1;                  /* hugs the bar's center line */
   font-variant-numeric: tabular-nums;  /* digits keep one width — no jitter while counting */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* primary text color */
 }
 

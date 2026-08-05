@@ -220,7 +220,7 @@ export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch 
   return { ...selection, formatTouched: true };
 }
 
-/** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & font" toggle). */
+/** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & typeface" toggle). */
 export function brandPatch(brand: import('../../model/brand').ProjectBrand): DraftPatch {
   return {
     customPalette: brand.palette.id === 'custom' ? brand.palette : null,

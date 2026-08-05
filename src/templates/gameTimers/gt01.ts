@@ -78,6 +78,7 @@ export const gt01: TemplateVariant = defineGameTimerVariant(
   line-height: 1;                  /* the numerals sit tight under the hairline */
   letter-spacing: 0.02em;          /* big numerals get a touch of air */
   font-variant-numeric: tabular-nums;  /* every digit the same width — no jiggle */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
   color: var(--text-color);        /* the brightest element on screen */
   will-change: transform, opacity; /* hint the browser: presets fade this up */
 }

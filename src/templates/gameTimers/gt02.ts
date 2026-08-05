@@ -95,6 +95,7 @@ export const gt02: TemplateVariant = defineGameTimerVariant(
   letter-spacing: 0.02em;          /* a touch of air between the heavy digits */
   color: var(--text-color);        /* primary text while the clock runs */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jiggle each tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* ── Time's up: the clock runtime adds .game-timer-done on the root at zero. ── */

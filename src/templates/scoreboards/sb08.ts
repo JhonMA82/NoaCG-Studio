@@ -136,6 +136,7 @@ ${clampTwoLinesCss('.scoreboard-team')}
   line-height: 1.1;                /* tight on the row */
   color: var(--accent);            /* the scores wear the accent */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as scores tick */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* The footer — the period and the clock, deliberately the quietest row here. */
@@ -166,6 +167,7 @@ ${clampTwoLinesCss('.scoreboard-team')}
   line-height: 1.2;                /* on the footer's baseline */
   color: var(--text-dim);          /* dimmed — the score is what matters on a club stream */
   font-variant-numeric: tabular-nums;  /* digits share one width — no jitter as the clock ticks */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 
 /* ── Match state (the machine's groups add these to the root) ── */

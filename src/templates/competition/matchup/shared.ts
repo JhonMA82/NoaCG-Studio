@@ -402,6 +402,7 @@ export function h2hStructureCss(): string {
   width: calc(120px * var(--scale));
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;  /* figures line up down both columns */
+  font-family: var(--font-numeric);  /* a face whose digits are all one width */
 }
 .${P}-row-a { text-align: right; }
 .${P}-row-b { text-align: left; }
