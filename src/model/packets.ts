@@ -20,11 +20,14 @@ import {
   fontFaceCss,
   fontFormatForExt,
   fontStack,
+  ensureFontFace,
   ensureNumericFontFace,
+  fontByStack,
   numericFontStack,
   type CustomFont,
 } from './fonts';
 import { loadBrand, type ProjectBrand } from './brand';
+import { TOKEN_VARS } from './themeTokens';
 import type { SpxTemplate, TemplateType } from './types';
 import { extOf, isFontAsset } from '../assets/assetUtils';
 import { uuid } from './id';
@@ -278,7 +281,29 @@ export function captureLookFromTemplate(template: SpxTemplate): ProjectBrand {
     },
     fontId: bundled?.id ?? null,
     customFont,
+    tokens: captureShapeTokens(css),
   };
+}
+
+/**
+ * The SHAPE tokens this template declares, keyed by var name. Absent when it declares none —
+ * an undefined `tokens` and an empty one mean different things to a reader, and "this design
+ * had no shape to give" is the honest one.
+ *
+ * `--font-numeric` is skipped: it is DERIVED from the typeface in use, so carrying it would
+ * push this design's numeric face onto a target whose own face needs a different answer
+ * (model/fonts.ts `numericFontStack` decides that per graphic, and `applyLookToTemplate`
+ * already recomputes it from the font the look carries).
+ */
+function captureShapeTokens(css: string): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const varName of Object.values(TOKEN_VARS)) {
+    const name = varName.replace(/^--/, '');
+    if (name === 'font-numeric') continue;
+    const value = getCssVariable(css, name);
+    if (value !== null) out[name] = value;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /**
@@ -317,6 +342,19 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
       // font file the package never writes.
       css = ensureNumericFontFace(css, font);
     }
+  }
+
+  // The SHAPE half, applied LAST so the typeface swap above has already settled `--font-label`
+  // and `--font-numeric` before a carried kicker face overrides one of them.
+  //
+  // `setIf` is doing the load-bearing work: only a token the RECEIVING design already declares
+  // is written. A design that reads no `--panel-radius` must not acquire one from a look — it
+  // would be a variable nothing consumes, which is the dead-knob failure the whole token
+  // contract is built to avoid (templates/shared/base.ts `tokenVarsCss`).
+  for (const [name, value] of Object.entries(brand.tokens ?? {})) {
+    setIf(name, value);
+    // A carried kicker face may name a bundled family this template has never bundled.
+    if (name === 'font-label') css = ensureFontFace(css, fontByStack(value), '--font-label points at this face.');
   }
 
   return { ...template, css, assets };

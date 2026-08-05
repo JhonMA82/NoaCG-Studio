@@ -33,8 +33,9 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
     <>
       <h2><IconPalette size={18} /> Brand looks</h2>
       <p className="hint">
-        A look = colors + typeface captured as a named brand. Apply it to the graphic open in the
-        editor, or use it as the default for new graphics.
+        A look = colors + typeface + shape (corner radius, blur, edge, accent weight, tracking)
+        captured as a named brand. Apply it to the graphic open in the editor, or use it as the
+        default for new graphics. A design only takes the parts it actually uses.
       </p>
       <div className="row">
         <input

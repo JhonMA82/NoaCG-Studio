@@ -518,6 +518,54 @@ test('looks: capture the current look in Home, apply it to another graphic, surv
   await expect(page.locator('.editor-host .changed-line').first()).toBeVisible();
 });
 
+test('a look carries SHAPE, and never grafts a token onto a design that reads none', async ({ page }) => {
+  // Colour and typeface alone never made one design read as another's sibling: a glass card
+  // and a sport slab can share a palette and still look like two products, because what
+  // separates them is radius, blur, edge and accent weight. Driven through the model rather
+  // than the UI - the two halves below are properties of capture/apply, and the surface that
+  // calls them is already covered by the look test above.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  const out = await page.evaluate(async () => {
+    const { variantById, CATALOG } = await import('/src/templates/catalog.ts');
+    const { captureLookFromTemplate, applyLookToTemplate } = await import('/src/model/packets.ts');
+    const { getCssVariable } = await import('/src/blocks/cssVars.ts');
+
+    const source = variantById('lt08').create({}); // Frosted Card - glass: a real radius and blur
+    const look = captureLookFromTemplate(source);
+    const sourceRadius = getCssVariable(source.css, 'panel-radius');
+
+    // A design that DECLARES the token takes the look's value...
+    const taker = (CATALOG['lower-third'] ?? [])
+      .filter((v) => v.id !== 'lt08')
+      .map((v) => v.create({}))
+      .find((t) => {
+        const r = getCssVariable(t.css, 'panel-radius');
+        return r !== null && r !== sourceRadius;
+      });
+    // ...and one that declares NONE must not acquire it.
+    const abstainer = (CATALOG['lower-third'] ?? [])
+      .map((v) => v.create({}))
+      .find((t) => getCssVariable(t.css, 'panel-radius') === null);
+
+    return {
+      sourceRadius,
+      capturedNumeric: 'font-numeric' in (look.tokens ?? {}),
+      takerBefore: taker ? getCssVariable(taker.css, 'panel-radius') : null,
+      takerAfter: taker ? getCssVariable(applyLookToTemplate(taker, look).css, 'panel-radius') : null,
+      abstainerAfter: abstainer ? getCssVariable(applyLookToTemplate(abstainer, look).css, 'panel-radius') : 'NO-ABSTAINER',
+    };
+  });
+
+  expect(out.sourceRadius).toBeTruthy();
+  expect(out.takerBefore).not.toBe(out.sourceRadius); // the fixture is only meaningful if it starts different
+  expect(out.takerAfter).toBe(out.sourceRadius);
+  // The dead-knob rule: a design consuming no --panel-radius must not gain one from a look.
+  expect(out.abstainerAfter).toBeNull();
+  // --font-numeric is DERIVED from the typeface in use; carrying a captured one would push the
+  // source's numeric face onto a target whose own face needs a different answer.
+  expect(out.capturedNumeric).toBe(false);
+});
+
 test('the save dialog is sized by its content, not by the wizard it borrows styling from', async ({ page }) => {
   // It wears `.wz-modal`, which is sized for the wizard's full-height multi-step surface —
   // so a name field and two buttons used to sit in a 900px-tall box of empty panel.

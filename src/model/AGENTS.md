@@ -127,6 +127,16 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   the RETIRED package store's read seam: no UI reads or writes packages and the 'packet' sync
   kind is gone (rows stay inert); what remains is loadAllPackets + upsertPacket for
   library.ts's v1 extraction, and the `SavedGraphic` shape shows.ts pools reuse.
+  **A look carries SHAPE as well as colour** (`ProjectBrand.tokens`, additive optional - no
+  version bump, no migration): radius, blur, edge, lift, accent weight and glow, the kicker
+  face and both trackings, the heading weight. Colour and typeface alone never made one design
+  read as another's sibling - a glass card and a sport slab share a palette and still look like
+  two products, because what separates them is the shape. Two rules keep it honest: `setIf`
+  writes only a token the RECEIVING design already declares, so a look can never graft a
+  variable onto a design that consumes none (the dead-knob failure `tokenVarsCss` exists to
+  prevent); and `--font-numeric` is deliberately NOT captured, because it is DERIVED from the
+  typeface in use and carrying it would push the source's numeric face onto a target whose own
+  face needs a different answer. A carried `--font-label` goes through `ensureFontFace`.
 - **shows.ts** - the PRODUCTION unit (docs/CLOUD_PLAYOUT.md + docs/CONTROL_LAYER.md; the UI word
   is "production", the old "rundown"): the graphic POOL (name-keyed, one renderer instance each)
   plus the CUE rundown (`cues` - additive optional data rows over the pool, many

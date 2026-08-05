@@ -19,6 +19,28 @@ export interface ProjectBrand {
   /** The imported font (with its embedded data-URL asset), if one is in use. */
   customFont: CustomFont | null;
   /**
+   * The SHAPE half of the look: corner radius, backdrop blur, the panel's edge and lift,
+   * accent weight and glow, the kicker face and both trackings, the heading weight
+   * (model/themeTokens.ts `TOKEN_VARS`). Keyed by var name WITHOUT the leading dashes, the
+   * same key `listCssVariables` reports.
+   *
+   * A brand is meant to make one design look like another design's sibling, and colour plus
+   * typeface was never enough for that: a glass card and a sport slab share a palette and
+   * still read as two products, because what actually separates them is radius, blur, edge
+   * and accent weight. Those became editable in the Style surfaces before they could travel;
+   * this is what lets a saved look carry them.
+   *
+   * ADDITIVE OPTIONAL, so no version bumps and nothing migrates (root AGENTS.md rule 6): a
+   * brand written before this existed simply carries no shape and applies none. Only tokens
+   * the RECEIVING design declares are written, so a look never grafts a variable onto a
+   * design that reads no such thing.
+   *
+   * `--font-numeric` is deliberately NOT in here. It is derived from whichever typeface is in
+   * use (model/fonts.ts `numericFontStack`), so carrying a captured one would push the source
+   * design's numeric face onto a target whose own face needs a different answer.
+   */
+  tokens?: Record<string, string>;
+  /**
    * When this brand was last written (ISO). Stamped by saveBrand; used by Era-5 cloud sync for
    * last-write-wins. Optional so brands built elsewhere (wizard, captured looks) need no change —
    * saveBrand fills it in, loadBrand back-fills legacy records.
