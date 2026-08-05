@@ -608,12 +608,23 @@ measures.
 ## The :root style contract
 
 Every template exposes `--accent`, `--text-color`, `--text-dim`, `--panel-bg`, `--font-heading`,
-`--scale`, `--type-scale`. The Style panel reads/writes exactly these, swaps the marked
-`@font-face` block (bundled or imported), re-anchors the root element via `zoneDecls`, and can
-import a font post-creation. **Two size knobs:** every dimension is authored as
-`calc(Npx * var(--scale))` (whole-graphic size; resolution is folded into `--scale` by
-`computeScale`), and font sizes additionally multiply by `var(--type-scale)` (text-only size,
-a raw multiplier — S 0.9 · M 1 · L 1.15). Nothing but `font-size` consumes `--type-scale`.
+`--scale`, `--type-scale`, plus whichever SHAPE tokens its stylesheet reads
+(`src/model/themeTokens.ts`). Both style surfaces read/write exactly these through the ONE
+shared control set (`src/components/style/StyleControls.tsx` — see src/components/AGENTS.md),
+swap the marked `@font-face` block (bundled or imported), re-anchor the root element via
+`zoneDecls`, and can import a typeface post-creation. **Two size knobs:** every dimension is
+authored as `calc(Npx * var(--scale))` (whole-graphic size; resolution is folded into `--scale`
+by `computeScale`), and font sizes additionally multiply by `var(--type-scale)` (text-only
+size, a raw multiplier — **S 0.85 · M 1 · L 1.2**, declared once in
+`model/styleVocabulary.ts` `TYPE_SIZE_STEPS`; the graphic-size ladder beside it is
+0.8 · 1 · 1.25). Nothing but `font-size` consumes `--type-scale`.
+
+**`--font-numeric` is the one token that follows the CHOSEN typeface rather than the family**
+(`src/templates/shared/numerals.ts`, DESIGN_LANGUAGE §1): it resolves to the heading face
+where that face has tabular figures and to a monospaced stack where it does not, so a live
+number never changes width as its digits change. Every site that writes `--font-heading` must
+write this too — `model/fonts.ts` `numericFontStack` is the one resolver, and
+`scripts/numerals.mjs` is the gate.
 EXCEPTION: an imported design declares NO `--type-scale` (`rootVarsCss(..., { typeScale:
 false })`) — each placed line sizes itself from its own rule, and the Style panel keys its
 "Text size" section on the var's presence, so declaring it would show a dead knob.

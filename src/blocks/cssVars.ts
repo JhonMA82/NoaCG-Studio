@@ -22,6 +22,108 @@ export function looksLikeColor(value: string): boolean {
   return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) || /^(rgb|rgba|hsl|hsla)\(/i.test(value);
 }
 
+// ── Colour, with its alpha ───────────────────────────────────────────────────
+//
+// `toHex` above exists for `<input type="color">`, which has no concept of transparency. That
+// is fine for reading a swatch and wrong for writing one back: `--panel-bg` is an `rgba()` in
+// almost every design in the catalog, and round-tripping it through a hex swatch silently
+// turned a translucent panel opaque. So an editable colour is parsed WITH its alpha and
+// written back in the form it arrived in.
+
+export interface CssColor {
+  r: number;
+  g: number;
+  b: number;
+  /** 0-1. */
+  a: number;
+  /** How it was written, so a patch reads like the rest of the stylesheet. */
+  form: 'hex' | 'rgb';
+}
+
+/** Parse a colour value, alpha included. Anchored: a shadow list is not a colour. */
+export function parseCssColor(value: string): CssColor | null {
+  const v = value.trim();
+  const hex = /^#([0-9a-f]{3,8})$/i.exec(v);
+  if (hex) {
+    const d = hex[1];
+    const pair = (i: number) => (d.length <= 4 ? parseInt(d[i] + d[i], 16) : parseInt(d.slice(i * 2, i * 2 + 2), 16));
+    if (d.length !== 3 && d.length !== 4 && d.length !== 6 && d.length !== 8) return null;
+    const hasA = d.length === 4 || d.length === 8;
+    return { r: pair(0), g: pair(1), b: pair(2), a: hasA ? pair(3) / 255 : 1, form: 'hex' };
+  }
+  const fn = /^rgba?\(([^)]*)\)$/i.exec(v);
+  if (fn) {
+    // Both the legacy comma syntax and the modern space syntax, since either may be hand-typed.
+    const parts = fn[1].split(/[,/]/).flatMap((p) => p.trim().split(/\s+/)).filter(Boolean);
+    if (parts.length < 3) return null;
+    const n = (s: string) => (s.endsWith('%') ? (parseFloat(s) * 255) / 100 : parseFloat(s));
+    const [r, g, b] = parts.slice(0, 3).map(n);
+    if ([r, g, b].some((x) => Number.isNaN(x))) return null;
+    const rawA = parts[3];
+    const a = rawA === undefined ? 1 : rawA.endsWith('%') ? parseFloat(rawA) / 100 : parseFloat(rawA);
+    return { r: Math.round(r), g: Math.round(g), b: Math.round(b), a: Number.isNaN(a) ? 1 : a, form: 'rgb' };
+  }
+  return null;
+}
+
+/**
+ * Write a colour back in its own idiom: an opaque hex stays hex, a translucent one becomes
+ * `rgba()` rather than `#rrggbbaa` (the catalog is written in rgba, and generated code that
+ * matches what is already there is the house style).
+ */
+export function formatCssColor(c: CssColor): string {
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  const a = Math.max(0, Math.min(1, c.a));
+  if (a >= 1) {
+    if (c.form === 'rgb') return `rgb(${clamp(c.r)}, ${clamp(c.g)}, ${clamp(c.b)})`;
+    const h = (n: number) => clamp(n).toString(16).padStart(2, '0');
+    return `#${h(c.r)}${h(c.g)}${h(c.b)}`;
+  }
+  // Three decimals is what the catalog's own alphas use (0.92, 0.85, 0.10).
+  return `rgba(${clamp(c.r)}, ${clamp(c.g)}, ${clamp(c.b)}, ${+a.toFixed(3)})`;
+}
+
+/** WCAG relative luminance, on the sRGB channels alone (alpha is a compositing question). */
+function relativeLuminance(c: CssColor): number {
+  const ch = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+}
+
+/**
+ * The contrast ratio between two colours, 1-21.
+ *
+ * ADVISORY ONLY, and the UI must present it that way. The arithmetic sees two colour values;
+ * on-air readability also depends on the panel's transparency, the moving video behind it, any
+ * text shadow, the type size, and what a key-and-fill output does to the composite. A number is
+ * a useful sanity check for whoever is choosing the colours. A pass/fail badge would be a claim
+ * this calculation cannot support.
+ *
+ * A translucent foreground or background is composited over `over` first (default: the
+ * near-black a broadcast panel usually sits on), because comparing raw channel values of a 10%
+ * white panel would report a contrast nobody ever sees.
+ */
+export function contrastRatio(fg: CssColor, bg: CssColor, over: CssColor = BROADCAST_BACKDROP): number {
+  const flatten = (c: CssColor, under: CssColor): CssColor =>
+    c.a >= 1 ? c : {
+      r: c.r * c.a + under.r * (1 - c.a),
+      g: c.g * c.a + under.g * (1 - c.a),
+      b: c.b * c.a + under.b * (1 - c.a),
+      a: 1,
+      form: c.form,
+    };
+  const base = flatten(bg, over);
+  const top = flatten(fg, base);
+  const [l1, l2] = [relativeLuminance(top), relativeLuminance(base)].sort((a, b) => b - a);
+  return +((l1 + 0.05) / (l2 + 0.05)).toFixed(2);
+}
+
+/** What a translucent panel is assumed to sit on when nothing else is known. Video is not a
+ *  colour, so this is a stand-in, and it is one more reason the readout stays advisory. */
+export const BROADCAST_BACKDROP: CssColor = { r: 16, g: 18, b: 22, a: 1, form: 'rgb' };
+
 /** List every custom property declared in the first :root rule (in source order). */
 export function listCssVariables(css: string): { name: string; value: string }[] {
   const root = findRootBody(css);

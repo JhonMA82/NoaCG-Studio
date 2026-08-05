@@ -424,6 +424,46 @@ and rendered once here. The exported standalone controlpanel.html (control/contr
 renders the SAME descriptors in dependency-free vanilla JS because it ships without React - it is
 the one deliberate second renderer; keep it in step.
 
+## Style controls (style/) - ONE set, both surfaces
+
+**StyleControls.tsx** renders the `:root` style contract wherever a human edits it: the
+wizard's Style step and the editor's Style panel. It takes the DECLARED variables plus a
+setter, so neither surface owns an opinion about what exists - `tokenVarsCss` emits only the
+tokens a stylesheet actually reads, and a control appears for a variable that is there. Same
+no-dead-knobs doctrine as the imported design's absent `--type-scale`.
+
+Three things it fixed, all the same mistake in different places:
+- **Colours past the palette four were listed as raw variable names** ("accent ink", "panel
+  keyline"). The words now come from `model/styleVocabulary.ts`, the one translation table,
+  grouped by role; an unrecognised design-owned colour falls back to its humanised name
+  rather than being hidden.
+- **Nine of the twelve shape tokens had no control anywhere** - radius, blur, keyline, lift,
+  accent weight and glow, both trackings, the heading weight, the kicker typeface were
+  emitted into every graphic and reachable only by hand-editing the CSS.
+- **The editor's colour filter was looser than the wizard's**, so `--panel-shadow: 0 8px 24px
+  rgba(...)` rendered as a colour row whose swatch overwrote the whole shadow. Shadow slots
+  now take named presets, never a swatch or a free field.
+
+Two contracts to keep when adding a control:
+- **Token values are complete CSS values, never bare numbers** (`calc(16px * var(--scale))`,
+  `none`, `50%`). A length control edits the number INSIDE the expression via
+  `blocks/cssLength.ts` - overwriting the value would drop `var(--scale)` and the radius
+  would silently stop scaling with the graphic.
+- **A colour is parsed WITH its alpha** (`blocks/cssVars.ts` `parseCssColor` /
+  `formatCssColor`) and written back in the form it arrived in. `--panel-bg` is an `rgba()`
+  in nearly every design; a native `<input type="color">` has no alpha, so the old
+  swatch-plus-hex pairing turned a translucent panel opaque with nothing on screen to show it.
+
+**ColorField.tsx** is that control: swatch + feature-detected `EyeDropper` + text field +
+an opacity slider. Its `advisory` is a NUMBER with the caveat in its title, never a verdict -
+`contrastRatio` sees two colour values, while readability also depends on transparency, the
+moving video behind the graphic, text shadows, type size and key-and-fill output. A pass/fail
+badge would claim something the arithmetic cannot know.
+
+A token that FOLLOWS another (`--accent-ink: var(--panel-bg)`, three of the six families)
+resolves to the literal behind it so the row shows a real swatch, and says in its hint that
+picking a colour there breaks the link. That is what the pick means.
+
 ## Panels (the six tool panels - Data / Control / Style / Assets / AI / Export)
 
 On DESKTOP each is a dockable panel (AppShell renders them into the docks; see WorkspaceDock).
@@ -466,9 +506,13 @@ e2e/layout.spec.ts.
   answer the route honestly, which is also why the page's UI is covered by the maintainer's
   live checklist rather than the offline e2e suite (e2e/hosted-control.spec.ts pins the
   publish-side spec build).
-- **StylePanel** - reads/writes the :root style contract (src/templates/AGENTS.md): colors,
-  font swap, zone re-anchoring, post-creation font import (an imported font still lands in
-  template.assets and shows in the Assets panel's list).
+- **StylePanel** - reads/writes the :root style contract (src/templates/AGENTS.md): colours,
+  SHAPE, typeface swap, zone re-anchoring, post-creation typeface import (an imported face
+  still lands in template.assets and shows in the Assets panel's list). The controls
+  themselves are **style/StyleControls**, shared with the wizard's Style step - see below;
+  this panel is the store adapter around them. It renders the SAME `wizard/FontPicker` the
+  wizard does: it used to carry its own card grid, which made the editor the one surface
+  that could neither search the library nor reach a face installed on this computer.
 - **AssetsPanel** - the template's bundled files as folder-grouped ROWS (images, video loops
   .webm/.mp4 - hard-capped at MAX_VIDEO_ASSET_BYTES since assets ride the saved template as
   data URLs - Lottie .json gated by looksLikeLottie, fonts): DnD file import (one addAssets =

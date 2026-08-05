@@ -42,7 +42,21 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   taxonomy (taxonomy.ts + templates/templateMeta.ts + templates/search.ts). A variant carries
   only what it needs to BUILD itself; a second discovery model on the variant would drift from
   the first the moment either changed.
-- **fonts.ts** - bundled OFL fonts registry + CustomFont import helpers.
+- **fonts.ts** - bundled OFL typeface registry + CustomFont import helpers. Each face carries
+  **`tabularFigures`**, MEASURED by `scripts/numerals.mjs --fonts` and never declared by hand:
+  six of the seventeen bundled faces render uneven digits even under
+  `font-variant-numeric: tabular-nums`, which is why `numericFontStack` exists and why a blanket
+  declaration was not the rule (DESIGN_LANGUAGE §1). Measured ACROSS a face's weight range -
+  Oswald's digits are even at 400 and span 16% of the em at 700, the weight every sport
+  scoreboard sets them at. An imported face is measured at import
+  (`registerAndMeasureFont`); an absent flag reads as "cannot", so an older saved project's
+  numbers fall back to mono rather than jiggling.
+- **styleVocabulary.ts** - the WORDS and ranges the two style surfaces render: the role label
+  for each `:root` variable (a user-facing name, never CSS jargon), the group it belongs to,
+  which tokens are lengths and over what range, the shadow presets, and the two size ladders.
+  It exists because the wizard and the editor had each written those separately and disagreed -
+  most visibly the S/M/L ladders, where a graphic sized L in the wizard read as something else
+  the moment the Style panel opened.
 - **themeTokens.ts** - the SHAPE half of the `:root` style contract, and DESIGN_LANGUAGE §8's
   family table in code: panel blur/radius/shadow/keyline, accent weight/glow/ink, the label
   face + tracking + colour, display weight + tracking, with values for all four `StyleTag`

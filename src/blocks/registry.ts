@@ -561,7 +561,9 @@ function startCountdown() {
         // declared. An unresolvable var() there leaves font-family inherited, exactly as this
         // block behaved before the token existed - no regression, and a real guarantee inside
         // a catalog design (templates/shared/numerals.ts).
-        cssExtra: `  ${NUMERIC_FIGURES.split('\n').join('\n  ')}`,
+        // Only the FIRST line needs indenting: NUMERIC_FIGURES already carries the two spaces
+        // on its continuation line, matching the rule indentation every template uses.
+        cssExtra: `  ${NUMERIC_FIGURES}`,
       }),
   },
   {

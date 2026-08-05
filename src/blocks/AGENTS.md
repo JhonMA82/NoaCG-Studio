@@ -73,9 +73,27 @@ player's `<head>` script tag (mirrors the GSAP tag; preview/exports strip-inline
 identically, and only when used - see assets/lottieSupport.ts). Autoplay + loop in v1; the
 timeline animates the container like any block part.
 
-## cssVars.ts
+## cssVars.ts / cssLength.ts
 
-:root variable read/write helpers (the Style panel's patch layer).
+`:root` variable read/write helpers (the style surfaces' patch layer), plus the two value
+models the controls above them need.
+
+**Colour, WITH its alpha.** `parseCssColor`/`formatCssColor` are anchored (a shadow list is
+not a colour) and round-trip a value in the form it arrived in: an opaque hex stays hex, a
+translucent one stays `rgba()`. The older `toHex` remains, because `<input type="color">` has
+no concept of alpha - but it must never be the write path. It regex-SEARCHES for `rgba?(...)`
+anywhere in a value, which is how `--panel-shadow: 0 8px 24px rgba(0,0,0,.4)` came to render
+as a colour row whose swatch replaced the entire shadow, and how editing `--panel-bg` through
+a swatch silently turned a translucent panel opaque. `contrastRatio` composites a translucent
+colour over what is behind it first, and is ADVISORY by construction - see
+src/components/AGENTS.md for why the UI must not turn it into a verdict.
+
+**Length, INSIDE its expression.** `cssLength.ts` reads the first number out of a token value
+and writes a new one back between the same prefix and suffix, so `calc(16px * var(--scale))`
+keeps its multiplier and `blur(18px)` keeps its function. Overwriting the whole value would
+give a control that appears to adjust a radius and quietly stops it scaling with the graphic.
+A value with no number (`none`) returns null and is left alone - that is a real state, not a
+zero.
 
 ## designLayout.ts - placed-line design decisions (the imported-design surface)
 

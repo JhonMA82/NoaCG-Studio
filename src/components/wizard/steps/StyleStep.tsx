@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { FONTS, registerAppFont } from '../../../model/fonts';
 import { PALETTES, paletteById, type Palette, type TemplateVariant, type Zone9 } from '../../../model/wizard';
-import { listCssVariables, looksLikeColor, toHex } from '../../../blocks/cssVars';
+import { contrastRatio, listCssVariables, parseCssColor } from '../../../blocks/cssVars';
 import FontPicker from '../FontPicker';
+import StyleControls from '../../style/StyleControls';
+import ColorField from '../../style/ColorField';
+import { PALETTE_VARS, SIZE_STEPS, TYPE_SIZE_STEPS } from '../../../model/styleVocabulary';
 import type { DraftPatch, WizardDraft } from '../draft';
 
 interface Props {
   variant: TemplateVariant;
   draft: WizardDraft;
   onDraft: (patch: DraftPatch) => void;
-  /** The BUILT preview template's CSS - the source the "All design colors" rows enumerate
-   *  (every `:root` color var the design declares, beyond the palette's four roles). */
+  /** The BUILT preview template's CSS - the source the "Fine-tune this design" rows
+   *  enumerate (every `:root` variable the design declares, beyond the palette's four). */
   builtCss: string | null;
 }
 
-/** The four vars the Palette section already owns - the generic rows exclude them so one
- *  color never has two controls disagreeing about it. */
-const PALETTE_VARS = new Set(['accent', 'text-color', 'text-dim', 'panel-bg']);
 
 /** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
  *  Shared with the AI step's brand-colour rows (steps/ai/MoreControlPanel) — one conversion,
@@ -42,22 +42,11 @@ const ZONES: Zone9[] = [
   'bottom-left', 'bottom-center', 'bottom-right',
 ];
 
-// Wide enough apart that picking a size visibly commits to it — the old 0.85/1/1.2 ladder
-// read as three near-identical graphics (and the corpus review showed production runs a far
-// wider size range than we did).
-const SIZES: { label: string; scale: number }[] = [
-  { label: 'S', scale: 0.8 },
-  { label: 'M', scale: 1 },
-  { label: 'L', scale: 1.25 }, // the catalog-wide design-growth cap - 1.3 clipped card05's stress test
-];
-
-// Text sizes ride ON TOP of the graphic size (--type-scale × --scale), so the range is
-// tighter — L text on an L graphic must still sit comfortably inside its panel.
-const TYPE_SIZES: { label: string; scale: number }[] = [
-  { label: 'S', scale: 0.85 },
-  { label: 'M', scale: 1 },
-  { label: 'L', scale: 1.2 },
-];
+// Both ladders come from the ONE declaration in model/styleVocabulary.ts - the wizard and
+// the editor used to state them separately and disagree, so a graphic sized L here read as
+// something else the moment the Style panel was opened.
+const SIZES = SIZE_STEPS.map((s) => ({ label: s.l, scale: s.s }));
+const TYPE_SIZES = TYPE_SIZE_STEPS.map((s) => ({ label: s.l, scale: s.s }));
 
 /** What the collapsed "Size & position" disclosure says it is holding. Empty while everything
  *  sits at the design's own defaults — a summary that reads "Default" on a first visit is
@@ -75,13 +64,18 @@ function placementSummaryOf(draft: WizardDraft): string {
 
 /** Step 4 — colors, font, size, and position. */
 export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) {
-  // Every OTHER color the design declares in its :root (shape tokens, chart colors, a
-  // second accent) - editable right here, so no design color needs the editor
-  // (docs/GOALS.md "Student release" step 5). Values read from the BUILT css, which already
-  // carries the draft's overrides - the rows always show what the preview shows.
-  const designColors = builtCss
-    ? listCssVariables(builtCss).filter((v) => !PALETTE_VARS.has(v.name) && looksLikeColor(v.value))
-    : [];
+  // Everything ELSE the design declares in its :root - its other colours, and its shape
+  // (radius, blur, accent weight, tracking, weights, the kicker typeface) - editable right
+  // here, so nothing about a design's look needs the editor (docs/GOALS.md "Student release"
+  // step 5). Read from the BUILT css, which already carries the draft's overrides, so the rows
+  // always show what the preview shows. The size knobs and the heading typeface have their own
+  // sections below and are filtered out by StyleControls.
+  // The FULL list goes to StyleControls, not a pre-filtered one: it hides the palette four
+  // via `exclude`, but it still has to SEE them to resolve a token that FOLLOWS one. Three
+  // families set `--accent-ink: var(--panel-bg)`, and a row reading "var(--panel-bg)" tells a
+  // designer nothing about what colour that actually is.
+  const allVars = builtCss ? listCssVariables(builtCss) : [];
+  const designVars = allVars.filter((v) => !PALETTE_VARS.has(v.name));
   const overrideVar = (name: string, value: string) =>
     onDraft({ cssVarOverrides: { ...draft.cssVarOverrides, [name]: value } });
   const clearOverride = (name: string) => {
@@ -122,6 +116,25 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
     onDraft({ customPalette: { ...custom, [key]: value } as Palette });
   };
 
+  /** The advisory contrast line for a text role against the panel behind it. A NUMBER, never
+   *  a verdict: transparency, the video underneath, type size and key-and-fill output all
+   *  decide readability, and none of them is visible to this arithmetic. */
+  const customAdvisory = (
+    key: (typeof CUSTOM_KEYS)[number]['key'],
+  ): { text: string; title: string } | undefined => {
+    if (!custom || (key !== 'text' && key !== 'textDim')) return undefined;
+    const fg = parseCssColor(custom[key]);
+    const bg = parseCssColor(custom.panel);
+    if (!fg || !bg) return undefined;
+    return {
+      text: `${contrastRatio(fg, bg)}:1`,
+      title:
+        'Estimated contrast against the panel. A guide, not a readability verdict — ' +
+        'transparency, the moving video behind the graphic, text shadows, type size and ' +
+        'key-and-fill output all change what a viewer can actually read.',
+    };
+  };
+
   return (
     <div>
       <div className="panel-section">
@@ -155,72 +168,38 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
 
         {custom && (
           <div className="wz-custom-colors">
+            {/* The shared control, so a panel keeps its transparency: a native colour input
+                has no alpha, and `--panel-bg` is an rgba() in nearly every design we ship. */}
             {CUSTOM_KEYS.map(({ key, label, hint }) => (
-              <div className="field-row" key={key}>
-                <div className="field-meta">
-                  <label style={{ margin: 0 }}>{label}</label>
-                  <span className="field-id">{hint}</span>
-                </div>
-                <div className="row">
-                  <input
-                    type="color"
-                    style={{ width: 44, padding: 2 }}
-                    value={pickerHex(custom[key])}
-                    onChange={(e) => setCustom(key, e.target.value)}
-                  />
-                  <input
-                    className="grow"
-                    value={custom[key]}
-                    onChange={(e) => setCustom(key, e.target.value)}
-                    placeholder="#hex or rgba(…)"
-                  />
-                </div>
-              </div>
+              <ColorField
+                key={key}
+                label={label}
+                hint={hint}
+                value={custom[key]}
+                advisory={customAdvisory(key)}
+                onChange={(next) => setCustom(key, next)}
+              />
             ))}
           </div>
         )}
 
-        {/* Every OTHER color the design declares - the same generic :root enumeration the
-            editor's Style panel uses, here so no color needs the editor. Collapsed: the
-            palette answers the common case; this is the full control. */}
-        {designColors.length > 0 && (
+        {/* Everything else the design declares - its other colours AND its shape: corner
+            radius, backdrop blur, accent thickness, the trackings, the kicker typeface. The
+            same controls the editor's Style panel renders, so nothing about a design's look
+            needs the editor. Collapsed, because the palette answers the common case and this
+            is the full control for someone who wants it. */}
+        {designVars.length > 0 && (
           <details className="wz-style-more" data-testid="wz-design-colors">
             <summary>
-              All design colors <span className="muted">({designColors.length} more)</span>
+              Fine-tune this design <span className="muted">({designVars.length} more)</span>
             </summary>
-            {designColors.map((v) => {
-              const hex = toHex(v.value);
-              const overridden = v.name in draft.cssVarOverrides;
-              return (
-                <div className="field-row" key={v.name}>
-                  <div className="field-meta">
-                    <label style={{ margin: 0 }}>{v.name.replace(/-/g, ' ')}</label>
-                    <span className="field-id">--{v.name}</span>
-                  </div>
-                  <div className="row">
-                    {hex && (
-                      <input
-                        type="color"
-                        style={{ width: 44, padding: 2 }}
-                        value={hex}
-                        onChange={(e) => overrideVar(v.name, e.target.value)}
-                      />
-                    )}
-                    <input
-                      className="grow"
-                      value={v.value}
-                      onChange={(e) => overrideVar(v.name, e.target.value)}
-                      placeholder="#hex or rgba(…)"
-                    />
-                    {overridden && (
-                      <button onClick={() => clearOverride(v.name)} title="Back to the design's own value">
-                        ↺
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            <StyleControls
+              vars={allVars}
+              onSet={overrideVar}
+              isOverridden={(name) => name in draft.cssVarOverrides}
+              onReset={clearOverride}
+              exclude={PALETTE_VARS}
+            />
           </details>
         )}
       </div>

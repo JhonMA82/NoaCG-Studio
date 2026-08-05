@@ -219,3 +219,12 @@ export function IconControl(props: IconProps) {
     </Svg>
   );
 }
+
+/** Pick a colour from anywhere on screen (the Style surfaces' eyedropper). */
+export function IconEyedropper(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M17.5 3.5a2.1 2.1 0 0 1 3 3l-2.6 2.6 1 1-1.9 1.9-1-1L8.4 18.6l-3.6.9.9-3.6 7.6-7.6-1-1L14.2 5.4l1 1z" />
+    </Svg>
+  );
+}

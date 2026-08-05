@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
-import { getCssVariable, listCssVariables, looksLikeColor, setCssVariable, toHex } from '../blocks/cssVars';
+import { getCssVariable, listCssVariables, setCssVariable } from '../blocks/cssVars';
 import { setCssDeclaration } from '../blocks/edit';
 import {
   FONTS,
@@ -15,6 +15,8 @@ import type { Zone9 } from '../model/wizard';
 import { detectPrefix } from '../model/structure';
 import { zoneDecls } from '../templates/lowerThirds/shared';
 import FontPicker from './wizard/FontPicker';
+import StyleControls from './style/StyleControls';
+import { SIZE_STEPS as SIZES, TYPE_SIZE_STEPS as TYPE_SIZES } from '../model/styleVocabulary';
 
 const ZONES: Zone9[] = [
   'top-left', 'top-center', 'top-right',
@@ -35,7 +37,6 @@ export default function StylePanel() {
   const [note, setNote] = useState<string | null>(null);
 
   const vars = listCssVariables(template.css);
-  const colorVars = vars.filter((v) => looksLikeColor(v.value) || toHex(v.value) !== null);
   const scaleVar = vars.find((v) => v.name === 'scale');
   const typeScaleVar = vars.find((v) => v.name === 'type-scale');
 
@@ -101,44 +102,29 @@ export default function StylePanel() {
 
   return (
     <div>
-      <div className="panel-section">
-        <h3>Colors</h3>
-        {colorVars.length === 0 && (
+      {vars.length === 0 && (
+        <div className="panel-section">
           <p className="hint">
-            No <code className="inline">:root</code> color variables found. Wizard-made templates
-            keep their palette here; you can add your own, e.g.{' '}
+            No <code className="inline">:root</code> style variables found. Wizard-made templates
+            keep their palette and shape here; you can add your own, e.g.{' '}
             <code className="inline">--accent: #3aa0ff;</code>
           </p>
-        )}
-        {colorVars.map((v) => {
-          const hex = toHex(v.value);
-          return (
-            <div className="field-row" key={v.name}>
-              <div className="field-meta">
-                <label style={{ margin: 0 }}>{v.name.replace(/-/g, ' ')}</label>
-                <span className="field-id">--{v.name}</span>
-              </div>
-              <div className="row">
-                {hex && (
-                  <input
-                    type="color"
-                    style={{ width: 44, padding: 2 }}
-                    value={hex}
-                    onChange={(e) => setVar(v.name, e.target.value)}
-                  />
-                )}
-                <input className="grow" value={v.value} onChange={(e) => setVar(v.name, e.target.value)} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        </div>
+      )}
+      {/* Colours AND shape, from the one vocabulary. This panel used to render a flat list of
+          raw variable names filtered by a loose colour test — loose enough that
+          `--panel-shadow: 0 8px 24px rgba(0,0,0,.4)` appeared as a colour row whose swatch
+          overwrote the entire shadow declaration. */}
+      <StyleControls vars={vars} onSet={setVar} />
 
       {scaleVar && (
         <div className="panel-section">
           <h3>Size</h3>
           <div className="row" style={{ gap: 6 }}>
-            {[{ l: 'S', s: 0.85 }, { l: 'M', s: 1 }, { l: 'L', s: 1.2 }].map(({ l, s }) => {
+            {/* The SAME ladder the wizard offers (wizard/steps/StyleStep.tsx): the two used to
+                disagree, so a graphic sized L in the wizard read as between M and L here. The
+                wider spread won because the old one made three near-identical graphics. */}
+            {SIZES.map(({ l, s }) => {
               const resFactor = Math.min(template.resolution.width / 1920, template.resolution.height / 1080);
               return (
                 <button key={l} onClick={() => setVar('scale', String(+(s * resFactor).toFixed(3)))}>
@@ -161,7 +147,7 @@ export default function StylePanel() {
           <h3>Text size</h3>
           <div className="row" style={{ gap: 6 }}>
             {/* A raw multiplier on top of --scale — resolution is already folded into --scale. */}
-            {[{ l: 'S', s: 0.9 }, { l: 'M', s: 1 }, { l: 'L', s: 1.15 }].map(({ l, s }) => (
+            {TYPE_SIZES.map(({ l, s }) => (
               <button key={l} onClick={() => setVar('type-scale', String(s))}>
                 {l}
               </button>
