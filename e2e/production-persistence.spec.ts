@@ -25,7 +25,7 @@ async function seedProduction(page: Page, name = 'Class Show'): Promise<string> 
 
 /** The rundown's rows (the cue list's entries - selection, reorder, duplicate live here). */
 function cueRows(page: Page) {
-  return page.getByTestId('cue-list').locator('.control-entry');
+  return page.getByTestId('cue-list').locator('.pd-cue');
 }
 
 test('the rundown lifecycle persists: rename, duplicate, reorder, values - close, reopen, reload', async ({ page }) => {
@@ -38,12 +38,13 @@ test('the rundown lifecycle persists: rename, duplicate, reorder, values - close
   await page.getByTestId('cue-note').fill('after the intro');
   await page.getByTestId('cue-field-f0').fill('Anna Andersson');
   // Duplicate it, then rename the copy - two distinct rundown rows.
-  await cueRows(page).first().getByTitle('Duplicate this cue').click();
+  await cueRows(page).first().getByTestId('cue-menu').click();
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await expect(cueRows(page)).toHaveCount(2);
   await cueRows(page).nth(1).getByTestId('select-cue').click();
   await page.getByTestId('cue-label').fill('Ben Berg');
   // Reorder: move Ben above Anna.
-  await cueRows(page).nth(1).getByTitle('Move up').click();
+  await cueRows(page).nth(1).dragTo(cueRows(page).nth(0));
   await expect(cueRows(page).first()).toContainText('Ben Berg');
 
   // Close (Home) and reopen: everything held.
@@ -74,25 +75,31 @@ test('a refresh mid-edit loses nothing once the draft has settled', async ({ pag
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Typed just before the crash');
 });
 
-test('operator clarity: the editor names its cue, graphic and draft state; rehearsal shows live truthfully', async ({ page }) => {
+test('operator clarity: the editor says which cue it edits and where those edits go', async ({ page }) => {
   const id = await seedProduction(page);
   await page.goto(`/app#/production/${id}`);
 
-  // The heading answers "what am I editing" without inference: cue, graphic, draft state.
-  const heading = page.getByTestId('cue-editor-heading');
-  await expect(heading).toContainText('Guest Strap'); // the cue (seeded label = graphic name)
-  await expect(heading).toContainText('draft — airs on ⟳ Take');
+  // The head answers "what am I editing, and what happens to it" without inference
+  // (docs/PLAYOUT_DASHBOARD.md §2). Before a take that is the PREVIEW cue.
+  const editor = page.getByTestId('cue-editor');
+  await expect(editor).toContainText('EDITING PREVIEW CUE');
+  await expect(page.getByTestId('cue-label')).toHaveValue('Guest Strap'); // seeded label
+  await expect(editor).toContainText('changes air on ⟳ Take');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // Update is meaningless until something of this layer is on air, and says so by being dead.
+  await expect(page.getByTestId('verb-update')).toBeDisabled();
 
-  // Rehearse: the same verbs against a local stage - Take flips the chip AND the heading.
-  await page.getByTestId('toggle-rehearsal').click();
+  // Take: the editor follows the cue onto air and changes what it promises about edits.
   await page.getByTestId('verb-take').click();
-  await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
-  // Rehearsal names itself: the tally word must never let a rehearsal read as air.
-  await expect(heading).toContainText('LIVE IN REHEARSAL — ✎ Update pushes edits');
-  // Out clears the layer; the chip returns to honest silence.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Guest Strap');
+  await expect(editor).toContainText('EDITING ON-AIR CUE');
+  await expect(editor).toContainText('changes push live on ✎ Update');
+  await expect(page.getByTestId('verb-update')).toBeEnabled();
+
+  // Out clears the layer; the tally returns to honest silence and the editor to a draft.
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await expect(editor).toContainText('EDITING PREVIEW CUE');
 });
 
 test('the record survives republish-shaped edits: slugs stay, the unpublished-changes hint tells the truth', async ({ page }) => {
@@ -109,6 +116,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
 
   // Both capability links render from the stored slugs, and a freshly published record
   // carries no divergence warning.
+  await page.getByTestId('production-links-toggle').click();
   const links = page.getByTestId('production-links');
   await expect(links).toContainText('/output?production=test-output-slug');
   await expect(links).toContainText('?control=test-hosted-slug');

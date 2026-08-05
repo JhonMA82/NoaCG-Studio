@@ -166,10 +166,12 @@ export function addGraphicToShow(
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
-    // The playout layer: a REPLACEMENT keeps whatever the operator chose (re-adding an edited
-    // graphic must not silently move it off its layer mid-show); a new graphic starts on the
-    // default (docs/PLAYOUT_DASHBOARD.md §5).
-    layer: existing >= 0 ? graphicLayer(show.graphics[existing]) : DEFAULT_PLAYOUT_LAYER,
+    // The playout layer (docs/PLAYOUT_DASHBOARD.md §5). A REPLACEMENT keeps whatever the
+    // operator chose — re-adding an edited graphic must not silently move it off its layer
+    // mid-show. A NEW graphic takes the next free number from 20 up, so no two graphics of a
+    // production ever start on one layer: two on the same layer replace each other on air, and
+    // there is no reason to begin from a state the operator then has to repair.
+    layer: existing >= 0 ? graphicLayer(show.graphics[existing]) : nextFreeLayer(show.graphics),
   };
   if (existing >= 0) show.graphics[existing] = graphic;
   else {
@@ -312,10 +314,12 @@ export function setShowOutputSlug(showId: string, slug: string | undefined): Sho
 //
 // A pool graphic airs on a layer NUMBER the operator types, not on one derived from its
 // position in the pool. CasparCG offers 1-100 and a teaching install's rundowns live around
-// 20, so that is the default: a production with one graphic never thinks about it, and a
-// production that wants three up at once gives them three numbers.
+// 20, so counting starts there: the first graphic is 20, the next 21, and so on. Distinct by
+// construction (owner decision, 2026-08-05) — two graphics on one layer replace each other on
+// air, and nothing is gained by starting from a state the operator has to repair. The number
+// stays fully editable; nobody has to think about it.
 
-/** What a graphic airs on when nobody has chosen (owner decision, 2026-08-05). */
+/** Where the count starts, and what a record saved before the field reads as. */
 export const DEFAULT_PLAYOUT_LAYER = 20;
 /** The range CasparCG accepts, and therefore the range the control offers. */
 export const MIN_PLAYOUT_LAYER = 1;

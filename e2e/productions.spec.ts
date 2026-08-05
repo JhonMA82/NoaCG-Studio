@@ -1,5 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
+
+/** Drag cue row `from` onto row `to` — the rundown reorders by DRAG now, not by ↑/↓ buttons
+ *  (docs/PLAYOUT_DASHBOARD.md §4). Playwright's dragTo drives real HTML5 drag events, which is
+ *  what the row's dragstart/drop handlers listen for. */
+async function dragCue(page: Page, from: number, to: number): Promise<void> {
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await rows.nth(from).dragTo(rows.nth(to));
+}
 
 // Cloud playout (docs/CLOUD_PLAYOUT.md): the Productions area + the production page's cue
 // rundown + the output renderer's offline honesty. The wire paths (publish, the log, the
@@ -22,7 +30,7 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await expect(page.getByTestId('production-page')).toBeVisible();
 
   // Adding a graphic auto-created its first cue, seeded from the template's defaults (§2).
-  const cueRows = page.getByTestId('cue-list').locator('.control-entry');
+  const cueRows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(cueRows).toHaveCount(1);
   await expect(cueRows.first()).toContainText('Hairline');
 
@@ -43,25 +51,27 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await page.getByTestId('cue-label').fill('Ben Berg');
 
   // Reorder: Ben moves above Anna; order is the rundown.
-  const rows = page.getByTestId('cue-list').locator('.control-entry');
-  await rows.nth(1).getByTitle('Move up').click();
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await dragCue(page, 1, 0);
   await expect(rows.nth(0)).toContainText('Ben Berg');
   await expect(rows.nth(1)).toContainText('Anna Andersson');
 
   // Duplicate keeps the values and appends.
-  await rows.nth(0).getByTitle('Duplicate this cue').click();
+  await rows.nth(0).getByTestId('cue-menu').click();
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(2)).toContainText('Ben Berg copy');
 
-  // Offline: the verbs are disabled (no published log to drive) and publishing says why.
-  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  // Offline, publishing says why it cannot run — but the VERBS still work, because what they
+  // drive is the local program monitor right here (docs/PLAYOUT_DASHBOARD.md §6).
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.getByTestId('production-publish')).toBeDisabled();
-  await expect(page.locator('.control-page-main')).toContainText('runs offline');
+  await expect(page.getByTestId('production-publish')).toHaveAttribute('title', /runs offline/);
 
   // The cue survives a reload (persisted on the Show record).
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.getByTestId('cue-list').locator('.control-entry')).toHaveCount(3);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
 });
 
 test('Home Productions creates a production and opens its page; removing a graphic removes its cues', async ({ page }) => {
@@ -84,11 +94,11 @@ test('Home Productions creates a production and opens its page; removing a graph
   // Add the saved graphic from the library; its auto-cue appears.
   await page.getByTestId('add-graphic-pick').selectOption({ label: 'Anchor L3' });
   await page.getByTestId('add-graphic').click();
-  const rows = page.getByTestId('cue-list').locator('.control-entry');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(rows).toHaveCount(1);
 
   // Removing the pool graphic takes its cues with it — a cue over nothing cannot air.
-  await page.locator('[data-testid^="pool-"]').getByTitle(/Remove this graphic/).click();
+  await page.locator('[data-testid^="pool-"]').getByRole('button', { name: /^Remove / }).click();
   await expect(rows).toHaveCount(0);
   await expect(page.getByTestId('no-cues')).toBeVisible();
 });
@@ -107,11 +117,11 @@ test('the production page fits one 1080p screen, and the preview takes only the 
   await section.getByRole('button', { name: '+ Add current' }).click();
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.locator('.prod-preview-frame')).toBeVisible();
+  await expect(page.locator('.pd-pvw .pd-frame')).toBeVisible();
 
   const fit = await page.evaluate(() => {
-    const main = document.querySelector('.control-page-main')!;
-    const frame = document.querySelector('.prod-preview-frame')!.getBoundingClientRect();
+    const main = document.querySelector('.pd-main')!;
+    const frame = document.querySelector('.pd-pvw .pd-frame')!.getBoundingClientRect();
     const log = document.querySelector('[data-testid="action-log"]')!.getBoundingClientRect();
     return {
       // Nothing scrolls: not the column, not the document.
@@ -199,8 +209,11 @@ test('the /output page answers honestly offline and builds a stage from a payloa
   await expect(page.frameLocator('iframe[title="Lower third"]').locator('#f0')).toHaveText('Recovered after refresh');
 });
 
-test('the layer stack is authored front to back and is what the output stacks', async ({ page }) => {
-  // Two saved graphics, so the production has two layers to order.
+test('every graphic gets its own playout layer, typed, and it is what the output stacks', async ({ page }) => {
+  // docs/PLAYOUT_DASHBOARD.md §5. Layers used to be DERIVED from pool position and moved with
+  // ↑/↓ arrows, which made the layer an accident of ordering. They are now numbers: distinct by
+  // construction from 20 up, editable, and the SAME number the export declares and the browser
+  // output paints by.
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Bug');
@@ -226,53 +239,60 @@ test('the layer stack is authored front to back and is what the output stacks', 
   await addGraphic('Bug');
   await addGraphic('Anchor L3');
 
-  // Listed FRONT TO BACK, like every layer panel: the newest addition is on top, and the
-  // numbers fall as the eye travels down. The stored pool is the reverse — paint order.
-  const layers = page.locator('[data-testid^="pool-"]');
-  await expect(layers).toHaveCount(2);
-  await expect(layers.nth(0)).toContainText('L2');
-  await expect(layers.nth(0)).toContainText('Anchor L3');
-  await expect(layers.nth(1)).toContainText('L1');
-  await expect(layers.nth(1)).toContainText('Bug');
+  // Distinct on arrival: 20, then the next free number. Nothing to repair, nothing to warn about.
+  const layerOf = (name: string) =>
+    page.evaluate(async (n) => {
+      const { loadShows, graphicLayer } = await import('/src/model/shows.ts');
+      const g = loadShows()[0].graphics.find((x: { name: string }) => x.name === n)!;
+      return graphicLayer(g);
+    }, name);
+  expect(await layerOf('Bug')).toBe(20);
+  expect(await layerOf('Anchor L3')).toBe(21);
+  await expect(page.getByTestId('layer-clash')).toHaveCount(0);
 
-  const poolOrder = () =>
-    page.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      return loadShows()[0].graphics.map((g: { name: string }) => g.name);
-    });
-  // Paint order: index 0 is furthest back, which is the BOTTOM row on screen.
-  expect(await poolOrder()).toEqual(['Bug', 'Anchor L3']);
+  // The chips list front to back — the highest number paints over everything below it.
+  const chips = page.locator('.pd-layer-chip');
+  await expect(chips).toHaveCount(2);
+  await expect(chips.nth(0)).toContainText('L21');
+  await expect(chips.nth(0)).toContainText('Anchor L3');
+  await expect(chips.nth(1)).toContainText('L20');
 
-  // Send the front layer back: the list and the stored paint order both follow.
-  await layers.nth(0).getByTestId('layer-back').click();
-  await expect(layers.nth(0)).toContainText('Bug');
-  await expect(layers.nth(1)).toContainText('Anchor L3');
-  expect(await poolOrder()).toEqual(['Anchor L3', 'Bug']);
+  // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic.
+  await page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
+  await page.getByTestId('graphic-layer').fill('30');
+  await expect.poll(() => layerOf('Bug')).toBe(30);
+  await expect(chips.nth(0)).toContainText('L30');
 
-  // The ends of the stack cannot move past themselves.
-  await expect(layers.nth(0).getByTestId('layer-forward')).toBeDisabled();
-  await expect(layers.nth(1).getByTestId('layer-back')).toBeDisabled();
+  // A DUPLICATE can still be typed, and then the surface says so rather than letting it be
+  // found on air — with the next free number one click away.
+  await page.getByTestId('graphic-layer').fill('21');
+  await expect(page.getByTestId('layer-clash')).toContainText('share layer 21');
+  await expect(page.getByTestId('layer-clash')).toContainText('replace each other');
+  await page.getByTestId('layer-clash-fix').click();
+  await expect(page.getByTestId('layer-clash')).toHaveCount(0);
+  expect(await layerOf('Bug')).toBe(20);
 
-  // Bring it forward again — the inverse move restores the stack exactly.
-  await layers.nth(1).getByTestId('layer-forward').click();
-  expect(await poolOrder()).toEqual(['Bug', 'Anchor L3']);
-
-  // That pool order is what the PUBLISHED payload carries, and the payload's order is what the
-  // stage turns into z-indexes (asserted above) — the two halves of "the top row wins".
-  const payloadOrder = await page.evaluate(async () => {
+  // That number is what the PUBLISHED payload carries, and the payload's layer is what the
+  // stage turns into a z-index — the two halves of "the higher number wins".
+  const payload = await page.evaluate(async () => {
     const [{ buildOutputPayload }, { loadShows }] = await Promise.all([
       import('/src/control/hostedControl.ts'),
       import('/src/model/shows.ts'),
     ]);
-    const payload = await buildOutputPayload(loadShows()[0]);
-    return payload.graphics.map((g: { key: string }) => g.key);
+    const p = await buildOutputPayload(loadShows()[0]);
+    return p.graphics.map((g: { key: string; layer?: number }) => [g.key, g.layer]);
   });
-  expect(payloadOrder).toEqual(['Bug', 'Anchor L3']);
+  expect(payload).toEqual([
+    ['Bug', 20],
+    ['Anchor L3', 21],
+  ]);
 });
 
-test('rehearsal drives a local copy of the output, and every verb reaches it', async ({ page }) => {
-  // Rehearsal is the whole operator workflow WITHOUT the wire, so unlike everything else in
-  // §4 it runs offline — which is what lets this spec assert what actually reaches the screen.
+test('the program monitor is the real renderer, and every verb reaches it without a wire', async ({ page }) => {
+  // The verbs work on an UNPUBLISHED production: they drive the local PROGRAM monitor, which is
+  // the same createOutputStage the published output URL is built from. That is what makes the
+  // whole surface provable offline — and it is why Rehearse is gone (§6): preview is local and
+  // always available, so a separate practise mode was a second way to do what this already does.
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
@@ -295,45 +315,38 @@ test('rehearsal drives a local copy of the output, and every verb reaches it', a
     await page.getByTestId('add-graphic').click();
   }
 
-  // Unpublished and not rehearsing: the strip says so rather than claiming a mode, the verbs
-  // stay dead, and the cue preview is still what the box shows — this is authoring.
+  // Unpublished: the mode says so and publishing is unavailable offline — but the verbs are
+  // live, because the monitor they drive is right here. There is no rehearsal toggle to find.
   await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
-  await expect(page.getByTestId('verb-take')).toBeDisabled();
-  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
-
-  // Rehearsing is opt-in, and it is what makes the verbs usable before there is any wire.
-  await page.getByTestId('toggle-rehearsal').click();
-  await expect(page.getByTestId('production-mode')).toContainText('REHEARSE');
-  await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.getByTestId('production-publish')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 
-  // The rehearsal is the REAL renderer: one iframe per pool graphic, stacked as layers.
-  const stage = page.getByTestId('rehearsal-stage');
-  await expect(stage.locator('iframe')).toHaveCount(2);
+  // The monitor is the REAL renderer: one iframe per pool graphic, stacked as layers.
+  await expect(page.getByTestId('program-stage').locator('iframe')).toHaveCount(2);
 
-  const cueRows = page.getByTestId('cue-list').locator('.control-entry');
+  const cueRows = page.getByTestId('cue-list').locator('.pd-cue');
   const takeCue = async (i: number) => {
     await cueRows.nth(i).getByTestId('select-cue').click();
     await page.getByTestId('verb-take').click();
   };
 
-  // Take the lower third: its value reaches the rehearsal's own document, so this is the
-  // rendered graphic, not a claim about one. The cue is NAMED too — the action log reads
-  // cues by the name the operator wrote, so a cue left on its default name proves nothing.
+  // Take the lower third: its value reaches the monitor's own document, so this is the rendered
+  // graphic, not a claim about one. The cue is NAMED too — the log reads cues by the name the
+  // operator wrote, so a cue left on its default name would prove nothing.
   await cueRows.nth(0).getByTestId('select-cue').click();
   await page.getByTestId('cue-label').fill('Anna Andersson');
   await page.getByTestId('cue-field-f0').fill('Anna Andersson');
   await takeCue(0);
-  await expect(page.frameLocator('[data-testid="rehearsal-stage"] iframe[title="Anchor L3"]').locator('#f0')).toHaveText(
+  await expect(page.frameLocator('[data-testid="program-stage"] iframe[title="Anchor L3"]').locator('#f0')).toHaveText(
     'Anna Andersson',
   );
-  await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Anna Andersson');
 
-  // Take the ticker: BOTH layers are up. This is the multi-layer contract, and rehearsal is
-  // the only place the offline suite can see it end to end.
+  // Take the ticker: BOTH layers are up at once — the multi-layer contract.
   await takeCue(1);
-  await expect(page.getByTestId('live-cue-chip')).toContainText('L1');
-  await expect(page.getByTestId('live-cue-chip')).toContainText('L2');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Anna Andersson');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
   await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(2);
 
   // Out takes down the SELECTED cue's layer and leaves the other one up.
@@ -341,37 +354,68 @@ test('rehearsal drives a local copy of the output, and every verb reaches it', a
   await page.getByTestId('verb-out').click();
   await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(1);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
-  await expect(page.getByTestId('live-cue-chip')).not.toContainText('Anchor L3');
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('Anna Andersson');
 
-  // All out clears the frame.
+  // All out clears the frame. It lives in the HEADER, apart from the verbs, because a hand
+  // reaching for Take must never land on it.
   await page.getByTestId('verb-out-all').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(0);
 
-  // The ACTION LOG recorded all of it, newest first, in the operator's own words. Rehearsal
-  // keeps its own log through the same describeLogRow the wire rows go through, which is the
-  // only reason any of this is checkable without a backend.
+  // The ACTION LOG recorded all of it, newest first, in the operator's own words — through the
+  // same describeLogRow the wire rows go through, which is the only reason this is checkable
+  // without a backend.
   const log = page.getByTestId('action-log');
   await log.locator('summary').click();
   const rows = log.getByTestId('action-log-row');
-  // Newest first: the last thing done was the All out, which stops the ticker's layer.
   await expect(rows.first()).toContainText('Out');
   await expect(rows.first()).toContainText('Ticker crawl');
-  // The take is named by the CUE's label, never its id.
   await expect(log).toContainText('Took “Anna Andersson”');
   await expect(log).not.toContainText('Updated 0 fields');
 
-  // Rename a cue and take it IMMEDIATELY — no click in between to let the record catch up.
-  // The verb runs in the same tick as its own draft flush, so a log reading only the stored
-  // record names the cue as it was BEFORE the rename: the one moment the log is most likely
-  // to be read is the one it used to get wrong.
+  // Rename a cue and take it IMMEDIATELY — no click in between to let the record catch up. The
+  // verb runs in the same tick as its own draft flush, so a log reading only the stored record
+  // names the cue as it was BEFORE the rename: the one moment the log is most likely to be read
+  // is the one it used to get wrong.
   await cueRows.nth(0).getByTestId('select-cue').click();
   await page.getByTestId('cue-label').fill('Björn Berg');
   await page.getByTestId('verb-take').click();
   await expect(rows.first()).toContainText('Took “Björn Berg”');
 });
 
-test('a published production shows SHOW until the operator asks to rehearse', async ({ page }) => {
+test('the verbs answer their keyboard shortcuts, and never while a field has focus', async ({ page }) => {
+  // docs/PLAYOUT_DASHBOARD.md §2: the verb bar shows the keys that fire it. SPACE is Take — and
+  // the cue title and every field live on this same surface, so a space typed into a name must
+  // stay a space. That guard is the whole reason this spec exists.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill('Keys');
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  // Typing into the cue title: SPACE belongs to the text, not to Take.
+  await page.getByTestId('cue-label').click();
+  await page.getByTestId('cue-label').fill('Anna');
+  await page.keyboard.press('Space');
+  await page.keyboard.type('Andersson');
+  await expect(page.getByTestId('cue-label')).toHaveValue('Anna Andersson');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  // Focus off the fields: now SPACE takes.
+  await page.locator('.pd-monitors').click();
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Anna Andersson');
+
+  // And 0 plays it out again.
+  await page.keyboard.press('0');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+});
+
+test('a published production reads SHOW; an unpublished one says so and offers no rehearsal', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await page.getByTestId('dock-tab-control').click();
   const section = page.locator('.panel-section', { hasText: 'Productions' });
@@ -381,30 +425,22 @@ test('a published production shows SHOW until the operator asks to rehearse', as
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
+  // Unpublished says nothing about a renderer it does not have: a second "not published" beside
+  // the mode chip was noise, not status.
+  await expect(page.getByTestId('renderer-status')).toHaveCount(0);
+  await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 
-  // Offline builds cannot publish, so stand a slug in for one: what is under test is which
-  // mode a PUBLISHED production starts in, and that reads `hostedSlug` alone.
-  await page.evaluate(() => {
-    const list = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { hostedSlug?: string }[];
-    for (const s of list) s.hostedSlug = 'stand-in-slug';
-    localStorage.setItem('spx-gfx-shows', JSON.stringify(list));
+  // Fake a published record (the wire itself is backend-gated and lives on the live checklist).
+  await page.evaluate(async () => {
+    const { loadShows, setShowHostedSlug } = await import('/src/model/shows.ts');
+    setShowHostedSlug(loadShows()[0].id, 'demo-slug');
   });
   await page.reload();
-
-  // Published starts in SHOW — the behaviour that existed before rehearsal did, unchanged.
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW');
-  await expect(page.getByTestId('production-preview')).toContainText('nothing changes on air');
-  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
-
-  // Rehearsing is one click, and it is the strip that says so.
-  await page.getByTestId('toggle-rehearsal').click();
-  await expect(page.getByTestId('production-mode')).toContainText('REHEARSE');
-  await expect(page.getByTestId('production-mode')).toContainText('Nothing reaches the output URL');
-  await expect(page.getByTestId('rehearsal-stage')).toBeVisible();
-
-  await page.getByTestId('toggle-rehearsal').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW');
-  await expect(page.getByTestId('rehearsal-stage')).toHaveCount(0);
+  // Published: the heartbeat becomes a real question, so now it is asked.
+  await expect(page.getByTestId('renderer-status')).toBeVisible();
+  await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 });
 
 test('the action log reads commands as operator language, and drops the bookkeeping', async ({ page }) => {

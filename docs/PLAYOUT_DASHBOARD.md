@@ -86,18 +86,20 @@ and delete live behind the row's `⋯`, never as four permanent buttons that cru
 
 ## 5. Layers — an explicit number, not an ordering game
 
-**A pool graphic carries a layer NUMBER the operator types** (CasparCG layers 1–100).
-Default **20**. Most productions never touch it; a production that wants several graphics up at
-once gives them different numbers.
+**A pool graphic carries a layer NUMBER the operator types** (CasparCG layers 1–100), edited
+beside the graphic's content, where the decision is actually made.
 
-This replaces derived-from-pool-order layers and the ↑/↓ reorder buttons, which were confusing
-and which is why the number is now edited beside the graphic's content, where the operator
-already is.
+**They are DISTINCT by construction.** Counting starts at 20 — the first graphic is 20, the next
+21, the next 22 — because two graphics on one layer replace each other on air and there is no
+reason to begin from a state the operator then has to repair. Most productions never touch the
+number; one that wants a particular stack just types it.
 
-**Two graphics sharing a layer evict each other on air**, and the surface must SAY so rather
-than let it be discovered live: a duplicate layer number is flagged inline with a one-click fix
-that assigns the next free number. Defaulting every graphic to 20 is the owner's decision
-(2026-08-05) — the warning is what keeps it honest.
+This replaces derived-from-pool-order layers and the ↑/↓ reorder buttons, which made the layer
+an accident of ordering.
+
+A duplicate can still be typed deliberately, so **the surface says when one exists** rather than
+letting it be discovered live: the editor flags it inline with a one-click move to the next free
+number, and the layer chip wears the warning colour.
 
 ## 6. What is NOT here
 
