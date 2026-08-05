@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { acceptAiNotice } from './_ai-notice';
+import { enableAdvancedMode } from './_create';
 
 // AI mode (Create with AI): the normalized gateway endpoint is mocked at the network level, so these
 // specs verify the full app flow — settings gate, generation, the harness's validation +
@@ -191,6 +192,10 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
+  // These specs finish through the Finish step's EDITOR door, which has been Advanced-only
+  // since step 6 (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`) - the same
+  // opt-in every other editor-walking spec makes.
+  await enableAdvancedMode(page);
   await acceptAiNotice(page);
 });
 

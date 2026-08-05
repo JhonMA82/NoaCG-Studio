@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { acceptAiNotice } from './_ai-notice';
+import { enableAdvancedMode } from './_create';
 
 const STATUS = {
   profile: 'lite',
@@ -69,6 +70,9 @@ async function openLite(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
+  // Lite's walk ends in the editor, and that Finish door is Advanced-only since step 6
+  // (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`).
+  await enableAdvancedMode(page);
   await acceptAiNotice(page);
   await page.route('/api/ai/lite/status', (route) => route.fulfill({
     status: 200,

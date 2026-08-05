@@ -305,9 +305,18 @@ produced. Three things make the result usable rather than merely shorter, each m
 - **Each term is weighted by how RARE it is in the pool.** "lower", "third" and "name" match every
   lower third there is; summing raw scores collapsed the shortlist to catalog order once the
   distinctive words ran out (measured: 89 of 89 "matched the brief text").
-- **The cut is RELATIVE to the best match, and the list is never padded.** A worship brief's two
-  scripture designs score 29 and 11 and the next sixty score 2.2 - a nonzero score is not
-  relevance. A slot spent on an irrelevant design is worse than an empty one.
+- **The cut is RELATIVE to the best match.** A worship brief's two scripture designs score 29 and
+  11 and the next sixty score 2.2 - a nonzero score is not relevance. A slot spent on an
+  irrelevant design is worse than an empty one.
+- **Only matches ship, and the floor of four is filled in bands.** Designs a SELECTIVE term named
+  (one reaching fewer than half the pool) come first, then designs no term reached, then the
+  residue last. Measured over 40 briefs, 14 needed a top-up: filling by "scored anything at all"
+  spends those slots on the 2.2 residue in 13 of them, and filling by "scored nothing at all"
+  misses the 14th, where two designs a rare term named sit just below the cut. **The residue ranks
+  below an UNREACHED design deliberately** - a generic house strap is unreached because it has no
+  distinctive vocabulary, which makes it a neutral base to adapt, while 2.2 means only "has a name
+  field and is a lower third". `reason` states the split, so a shortlist never reads as four
+  answers when two of them are floor-filling.
 
 Everything degrades rather than empties: an over-tight field bucket is dropped, a query that
 matched nothing falls back to catalog order, and no resolvable anchor returns `FULL_CATALOG` -

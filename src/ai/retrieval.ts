@@ -255,6 +255,12 @@ export function shortlistFor(
   // discount): a term matching the whole pool weighs exactly zero, and "scripture" carries the
   // shortlist instead of tying with "third".
   const scores = new Map<string, number>();
+  // The designs a term NAMED, as opposed to merely brushed. A term matching most of the pool
+  // still carries a positive idf, so it leaves a score on nearly everything; a term matching a
+  // handful picks those out. Telling the two apart is the whole question in the top-up below,
+  // and the split is the same argument as the `idf <= 0` discard taken one step in: a term that
+  // does not name fewer candidates than it leaves out has not narrowed anything.
+  const signal = new Set<string>();
   let distinctive = 0;
   for (const term of terms) {
     const hits = browseTemplates({ ...NO_BROWSE_FILTERS, query: term }).best.filter((r) => inPool.has(r.variant.id));
@@ -262,7 +268,11 @@ export function shortlistFor(
     const idf = Math.log(pool.length / hits.length);
     if (idf <= 0) continue;
     distinctive += 1;
-    for (const r of hits) scores.set(r.variant.id, (scores.get(r.variant.id) ?? 0) + r.score * idf);
+    const selective = hits.length * 2 < pool.length;
+    for (const r of hits) {
+      scores.set(r.variant.id, (scores.get(r.variant.id) ?? 0) + r.score * idf);
+      if (selective) signal.add(r.variant.id);
+    }
   }
 
   // A design the field bucket agrees with leads the ones it does not, without excluding them:
@@ -298,11 +308,32 @@ export function shortlistFor(
   if (!terms.length) notes.push('no searchable terms in the brief');
   if (terms.length && !matched) notes.push('no design matched the brief text; ranked by catalog order');
 
+  // The floor still has to be filled, and WHICH designs fill it is a real choice. Measured over
+  // 40 briefs, 14 needed a top-up, and the two obvious rules are both wrong. Filling by "scored
+  // anything at all" spends the slots on the 2.2 residue in 13 of the 14 - it puts Squad Number
+  // and Player Stats under a worship brief, the exact defect the relevance cut exists to remove.
+  // Filling by "scored nothing at all" misses the 14th: on "squad number strap for a stadium
+  // match with the club crest", Track Cue (named by "number", 3 designs of 89) and Team Bar
+  // (named by "crest", 2 of 89) sit just below the cut and were passed over for House Handle,
+  // which no term reached at all.
+  //
+  // So the floor is filled in three bands, each exhausted before the next: designs a SELECTIVE
+  // term named, then designs no term reached, then the residue. Residue ranks BELOW an unreached
+  // design on purpose - a generic house strap is unreached because it has no distinctive
+  // vocabulary to match, which makes it a neutral base to adapt, while a 2.2 score means only
+  // "has a name field and is a lower third". Each band keeps `ranked` order, so the field bucket
+  // still leads within it.
+  const hitIds = new Set(hit.map((r) => r.variant.id));
+  const spare = ranked.filter((r) => !hitIds.has(r.variant.id));
+  const named = spare.filter((r) => signal.has(r.variant.id));
+  const rest = spare.filter((r) => !signal.has(r.variant.id));
   const chosen = matched
-    ? [...hit, ...ranked.filter((r) => !(scores.get(r.variant.id) ?? 0))].slice(
-        0,
-        Math.min(limit, Math.max(MIN_SHORTLIST, matched)),
-      )
+    ? [
+        ...hit,
+        ...named,
+        ...rest.filter((r) => !(scores.get(r.variant.id) ?? 0)),
+        ...rest.filter((r) => scores.get(r.variant.id)),
+      ].slice(0, Math.min(limit, Math.max(MIN_SHORTLIST, matched)))
     : ranked.slice(0, limit);
   // The design already in use leads, and can never be cut. It is measured against the ANCHOR
   // rather than the pool: a placement request may have narrowed the pool, and a refinement that
@@ -313,11 +344,18 @@ export function shortlistFor(
     ...chosen.map((r) => r.variant).filter((v) => v.id !== incumbent?.id),
   ].slice(0, Math.max(limit, incumbent ? 1 : 0));
   if (keep && !incumbent) notes.push(`${keep} is not one of this structure's designs`);
+  // A shortlist that is part matches and part floor-filling must say so: "4 of 89" reads as four
+  // answers, and two of them may be house designs nothing in the brief pointed at.
+  const filled = chosen.filter((r) => !hitIds.has(r.variant.id));
+  const near = filled.filter((r) => signal.has(r.variant.id)).length;
   const reason = [
     `${variants.length} of ${pool.length} designs carrying ${anchor}`,
     incumbent ? `keeping ${incumbent.id}` : null,
     matched
       ? `${matched} above the relevance cut on ${distinctive} distinguishing term${distinctive === 1 ? '' : 's'}`
+      : null,
+    matched && filled.length
+      ? `${filled.length} topped up (${near} named below the cut, ${filled.length - near} no term named)`
       : null,
     bucketUsable ? `field bucket ${bucket}` : null,
     ...notes,

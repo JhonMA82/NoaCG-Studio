@@ -66,6 +66,45 @@ test.describe('shortlist retrieval', () => {
     expect(r.worshipDigest).toBeLessThan(r.fullDigest / 10);
   });
 
+  test('the floor is topped up with designs the brief named, never with the residue', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(`(async () => {
+      const { shortlistFor } = await import('/src/ai/retrieval.ts');
+      const squad = shortlistFor(
+        'squad number strap for a stadium match with the club crest',
+        ${intent(['strap'], ['Squad number'])},
+      );
+      const worship = shortlistFor(
+        'worship service lower third with a scripture reference and the reader name',
+        ${intent(['strap'], ['Reader', 'Scripture reference'], ['calm'])},
+      );
+      return {
+        squad: squad.variants.map((v) => v.id), squadReason: squad.reason,
+        worship: worship.variants.map((v) => v.id), worshipReason: worship.reason,
+      };
+    })()`);
+    const r = res as {
+      squad: string[]; squadReason: string; worship: string[]; worshipReason: string;
+    };
+
+    // A shortlist is topped up to a floor of four, and WHICH designs fill it is the rule under
+    // test. Here three clear the cut - Squad Number 172, Club Crest 41, Number Badge 37 against a
+    // floor of 34 - so the fourth slot is a top-up. It goes to Track Cue, which "number" NAMED
+    // (that term reaches 3 designs of 89), and not to House Handle, the highest-ranked design no
+    // term reached at all. Fails if the top-up stops preferring a named design over an unreached
+    // one.
+    expect(r.squad).toEqual(['ls08', 'ls10', 'lt07', 'ls27']);
+    expect(r.squadReason).toContain('1 topped up (1 named below the cut, 0 no term named)');
+
+    // The other half of the rule, and why "prefer anything that scored above zero" is wrong: 80
+    // of these 89 lower thirds carry a 2.2 residue under this brief, earned purely for having a
+    // name field and being a lower third. Promoting that band puts Squad Number and Player Stats
+    // in a worship shortlist - the defect the relevance cut exists to remove - so an unreached
+    // house design outranks it. Fails if the residue is ever allowed to fill the floor.
+    expect(r.worship).toEqual(['ls15', 'ls14', 'lt14', 'lt55']);
+    expect(r.worshipReason).toContain('2 topped up (0 named below the cut, 2 no term named)');
+  });
+
   test('every shortlisted design carries the structure the brief asked for', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
