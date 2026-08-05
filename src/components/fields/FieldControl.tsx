@@ -152,14 +152,40 @@ export function FieldControl(props: FieldControlProps) {
         />
       );
 
-    case 'select':
+    case 'select': {
+      const options = d.options ?? [];
+      // A SHORT constrained choice (a quiz's A/B/C/D, a two-way switch) renders as segmented
+      // buttons — every option visible, one press to pick, which is what an operator under
+      // pressure needs. Longer lists keep the dropdown. Same kind, same semantics, purely
+      // presentation; the vanilla exports (controlPanelHtml.ts, productionControllerHtml.ts)
+      // apply the identical rule.
+      const segmented = options.length > 0 && options.length <= 5 && options.every((o) => o.label.length <= 4);
+      if (segmented) {
+        return (
+          <div className="ctl-segmented" role="radiogroup" data-testid={testId}>
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                className={String(value) === o.value ? 'on' : undefined}
+                aria-pressed={String(value) === o.value}
+                data-testid={testId ? `${testId}-opt-${o.value || 'none'}` : undefined}
+                onClick={() => onChange(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        );
+      }
       return (
         <select value={String(value)} data-testid={testId} onChange={(e) => onChange(e.target.value)}>
-          {(d.options ?? []).map((o) => (
+          {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       );
+    }
 
     case 'toggle':
       return (

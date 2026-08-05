@@ -79,6 +79,25 @@ export function eventButtons(js: string): ControlButton[] {
   return machine ? machineControls(machine) : [];
 }
 
+/** One group's states, for the recovery snap picker: every state is enterable by SNAP by
+ *  design (recovery, emergency jumps), so the list is the whole group, worn with the state
+ *  NAMES the author gave them. Empty without an explicit machine — same gate as the buttons:
+ *  on a plain linear template the picker would only duplicate ▶/»/■. */
+export interface MachineStateGroup {
+  id: string;
+  states: { id: string; name: string }[];
+}
+
+/** The machine's groups and states, for surfaces that offer a snap-to-state control. */
+export function machineStateGroups(js: string): MachineStateGroup[] {
+  const machine = parseAnimData(js)?.machine;
+  if (!machine) return [];
+  return machine.groups.map((g) => ({
+    id: g.id,
+    states: g.states.map((s) => ({ id: s.id, name: s.name ?? s.id })),
+  }));
+}
+
 /** Which states each event fires from, per group — a control surface greys a button the
  *  machine would drop (the same structural guard, precomputed so no graph code ships). */
 export function eventLegality(js: string): Record<string, Record<string, string[]>> {

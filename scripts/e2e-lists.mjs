@@ -27,6 +27,7 @@ export const FOCUS = [
   'offline.spec.ts',
   'package.spec.ts',
   'playout-drills.spec.ts',
+  'production-controls.spec.ts',
   'production-persistence.spec.ts',
   'productions.spec.ts',
   'project.spec.ts',

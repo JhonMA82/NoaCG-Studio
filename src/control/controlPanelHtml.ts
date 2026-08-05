@@ -192,6 +192,11 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
   textarea { min-height:96px; resize:vertical; }
   button { cursor:pointer; background:#243044; }
   button:hover { border-color:var(--accent); }
+  .seg { display:inline-flex; }
+  .seg button { border-radius:0; border-right-width:0; min-width:36px; }
+  .seg button:first-child { border-radius:6px 0 0 6px; }
+  .seg button:last-child { border-radius:0 6px 6px 0; border-right-width:1px; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:#0d1117; font-weight:600; }
   .step { width:44px; flex:0 0 auto; font-weight:700; }
   .num-input { text-align:center; }
   .events h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); margin:10px 0 6px; font-weight:600; }
@@ -380,10 +385,29 @@ GRAPHICS.forEach(function (g) {
       ta.oninput = function () { onChange(c.key, ta.value); };
       wrap.appendChild(ta);
     } else if (c.kind === 'select') {
-      var sel = el('select');
-      (c.options || []).forEach(function (o) { var opt = el('option', { value: o.value }, [o.label]); if (o.value === v) opt.selected = true; sel.appendChild(opt); });
-      sel.onchange = function () { onChange(c.key, sel.value); };
-      wrap.appendChild(sel);
+      var opts = c.options || [];
+      // The in-app control's rule, kept in step: a SHORT constrained choice (a quiz's A/B/C/D)
+      // renders as segmented buttons; longer lists keep the dropdown.
+      var segmented = opts.length > 0 && opts.length <= 5 && opts.every(function (o) { return String(o.label).length <= 4; });
+      if (segmented) {
+        var seg = el('div', { class: 'seg' });
+        opts.forEach(function (o) {
+          var b = el('button', { type: 'button' }, [o.label]);
+          if (o.value === v) b.className = 'on';
+          b.onclick = function () {
+            for (var n = seg.firstChild; n; n = n.nextSibling) n.className = '';
+            b.className = 'on';
+            onChange(c.key, o.value);
+          };
+          seg.appendChild(b);
+        });
+        wrap.appendChild(seg);
+      } else {
+        var sel = el('select');
+        opts.forEach(function (o) { var opt = el('option', { value: o.value }, [o.label]); if (o.value === v) opt.selected = true; sel.appendChild(opt); });
+        sel.onchange = function () { onChange(c.key, sel.value); };
+        wrap.appendChild(sel);
+      }
     } else if (c.kind === 'toggle') {
       var cb = el('input', { type: 'checkbox', style: 'width:auto' });
       cb.checked = (v === '1' || v === 'true');

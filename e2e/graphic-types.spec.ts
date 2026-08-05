@@ -263,7 +263,16 @@ test('the quiz board passes the Millionaire test: pick, change, lock, reveal', a
       wrongOnA: has('.quiz-option-1', 'quiz-wrong'),
     };
 
-    // Reset for the next question: data in, board clean.
+    // Data alone must NOT clear the verdict any more: the machine still says Reveal, and a
+    // live update repainting the board blank while the chip said Reveal was the recovery lie
+    // the production page's G9 fix removed - update() now repaints FROM the machine's state.
+    w.update(JSON.stringify({ f0: 'Which ocean is the largest?' }));
+    await sleep(120);
+    const dataAloneKeepsVerdict = has('.quiz-option-2', 'quiz-correct');
+
+    // Reset for the next question is TWO operations (schema §3): snap(null) is the visual
+    // half, update() the data half. Only both together give a clean board.
+    w.noacgSnap(null);
     w.update(JSON.stringify({ f0: 'Which ocean is the largest?', f6: '' }));
     await sleep(120);
     const reset = {
@@ -271,7 +280,7 @@ test('the quiz board passes the Millionaire test: pick, change, lock, reveal', a
       noReveal: !has('.quiz-option-2', 'quiz-correct'),
       unlocked: !has('.quiz', 'quiz-locked'),
     };
-    return { selectedC, movedToA, locked, dimApplied, afterIllegal, judged, reset };
+    return { selectedC, movedToA, locked, dimApplied, afterIllegal, judged, dataAloneKeepsVerdict, reset };
   })()`);
   expect(result).toMatchObject({
     selectedC: true,
@@ -281,6 +290,7 @@ test('the quiz board passes the Millionaire test: pick, change, lock, reveal', a
     // The late selection is dropped whole - the event AND its payload.
     afterIllegal: { state: 'locked', pick: 'A', stillA: true },
     judged: { correctOnB: true, wrongOnA: true },
+    dataAloneKeepsVerdict: true,
     reset: { noSelection: true, noReveal: true, unlocked: true },
   });
 });

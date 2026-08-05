@@ -228,7 +228,8 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
   // Stage an answer with Live OFF, then Select: the value must land ONLY as the event's
   // payload (the atomic multi-part change), never as a live update.
   await panel.locator('#live').uncheck();
-  await panel.locator('.field', { hasText: 'Selected answer' }).locator('select').selectOption('C');
+  // A short constrained choice renders as segmented buttons (the A/B/C/D row), not a dropdown.
+  await panel.locator('.field', { hasText: 'Selected answer' }).getByRole('button', { name: 'C', exact: true }).click();
   await expect(graphic.locator('#f6')).not.toHaveText('C');
   await select.click();
   await expect(graphic.locator('#f6')).toHaveText('C');
@@ -299,7 +300,8 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
   // On air: play, then select answer C via the event payload (staged with Live off).
   await panel.getByRole('button', { name: '▶ Play' }).click();
   await panel.locator('#live').uncheck();
-  await panel.locator('.field', { hasText: 'Selected answer' }).locator('select').selectOption('C');
+  // Segmented buttons, not a dropdown — the same constrained-choice rule as the app.
+  await panel.locator('.field', { hasText: 'Selected answer' }).getByRole('button', { name: 'C', exact: true }).click();
   await expect(panel.locator('.staged-chip')).toBeVisible(); // typed ≠ aired
   await panel.getByRole('button', { name: '⚡ Select answer' }).click();
   await expect(graphic.locator('#f6')).toHaveText('C');
@@ -326,7 +328,8 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
   // ── The PANEL refreshes: it resumes from its log — sent values in the fields, the last
   // known state on the chip, legality right (lock is legal from `selected`).
   await panel.reload({ waitUntil: 'load' });
-  await expect(panel.locator('.field', { hasText: 'Selected answer' }).locator('select')).toHaveValue('C');
+  // The segmented row recovers its selection from the log — C wears the active mark.
+  await expect(panel.locator('.field', { hasText: 'Selected answer' }).locator('.seg button.on')).toHaveText('C');
   await expect(panel.locator('.field', { hasText: 'Question' }).locator('input[type="text"]')).toHaveValue('Staged, not aired');
   await expect(panel.locator('.state-chip')).toContainText('selected');
   await expect(panel.getByRole('button', { name: '⚡ Lock it in' })).toBeEnabled();

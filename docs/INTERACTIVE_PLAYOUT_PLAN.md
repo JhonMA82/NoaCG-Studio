@@ -24,7 +24,7 @@ accepted by the owner) · Deferred.
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Investigation + grounded plan + this tracker | Implemented |
-| 1 | Control-panel truth for four pilots (production contextual controls) | Planned |
+| 1 | Control-panel truth for four pilots (production contextual controls) | Implemented |
 | 2 | Shared data foundation (datasets on Show + Data workspace) | Planned |
 | 3 | Quiz pilot | Planned |
 | 4 | Generic sports pilot | Not started |
@@ -138,20 +138,52 @@ audience/backend/data), the re-design concept review, an independent second-opin
 this tracker. Plan of record: the session plan of 2026-08-05 (owner-approved in principle);
 this file carries everything durable from it.
 
-### Phase 1 — Control-panel truth for four pilots. Status: Planned
+### Phase 1 — Control-panel truth for four pilots. Status: Implemented (awaiting owner Verified)
 **Goal:** the production dashboard renders honest, complete contextual controls for one
 ordinary lower third, one quiz board, one scorebug, one audience Q&A card — and the whole
 operator-to-output path is demonstrated visually.
 **Why:** G1 blocks every later workflow; the quiz/sports/poll machines are already authored
 but unreachable from the surface students use.
-**Scope:** surface machine state through `PayloadStage`/`ProgramStage`; the D1 event block +
-state chip + snap-recovery select; D2 presentation upgrades (+ both vanilla renderers); the
-G9 quiz-runtime recovery fix (repaint selection/lock/reveal from `noacgMachineState()` +
-fields after `update()`/snap instead of the unconditional clear); `e2e/production-controls.spec.ts`
-(+ mapping). **Out:** new backend, new routes, template machine changes beyond G9.
-**Verification:** automated gates + the Phase-1 visual pack (the four pilot cues operated on
-the real ProductionPage and `/output`: controls, Take/Update, actions + state chip, recovery,
-cue switch).
+**Implemented (2026-08-05):** machine state surfaced through `PayloadStage`/`ProgramStage`
+(`onState` prop over the stage's existing replies) and, when published, seeded from
+`control_shows.live` + followed via the log's `{t:'live'}` rows; the GRAPHIC ACTIONS block on
+ProductionPage (own panel outside the editor frame, "act on air" header, sections, structural
+greying via `isEventLegal`, state chip naming the current state, payloads riding from the
+edited cue); the "Snap to state…" recovery picker — the snap rides WITH an update of the cue's
+values, because recovery is both halves and a lone snap suppresses call-painted looks;
+`machineStateGroups` in `control/controlModel.ts`; the G9 fix (`paintQuizState()` in the quiz
+runtime — `update()` repaints selection/lock/verdict from `noacgMachineState()` + fields
+instead of the unconditional `clearReveal()`); segmented-select presentation for short
+constrained choices in `FieldControl` AND both vanilla renderers (`controlPanelHtml.ts`,
+`productionControllerHtml.ts` — kept in step per the one-control doctrine); number steppers
+added to the exported controller (it was the one renderer without them). Three
+`e2e/control.spec.ts` call sites updated for the segmented row.
+**Adversarial review round (20-agent workflow over the diff, same day) — all confirmed
+findings fixed before commit:** (1) reopening a published production replayed a bare `play()`
+into the local monitor, whose state reply then clobbered the wire-seeded machine state — boot
+recovery now replays the full recipe (data → snap to the reported state → data); (2) snap
+recovery sourced its data half from the PREVIEWED cue, airing unprepared content when a
+different cue was live — events and snaps now carry the ON-AIR cue's values only; (3) the quiz
+repaint replayed its pop/shake tweens on every live keystroke — painters now stamp a paint
+signature (state + the two letters) and a repeat paint is skipped; (4) the exported
+controller's missing number steppers; (5) a third `control.spec.ts` call site and the
+Millionaire spec still pinned the OLD update-clears-reveal behaviour — the Millionaire test
+now pins the two-operation reset (data alone keeps the verdict; snap(null)+update cleans);
+(6) the source catalog baseline re-recorded for the 12 quiz variants (render baseline held —
+the rest look did not move); (7) the snap spec assertion was vacuous (snap fires the TARGET
+state's own call) — it now proves the data half on `locked`, where the suppressed
+intermediate selection can only repaint through the riding update; (8) a quiz-runtime
+mapping row added to `e2e-affected.mjs`.
+**Verification:** `e2e/production-controls.spec.ts` (3 specs), control.spec 16/16,
+graphic-types + catalog-baseline green after the doctrine updates, sprint-focus affected
+suite green post-fixes (first run had 2 failures the review round caught — initially
+misread as green; corrected here), catalog tripwire 22 green, quiz l3-sweep 12/12, build
+green. **Visual pack delivered 2026-08-05** (12 frames + reproducible steps; offline mode —
+the local PROGRAM monitor is the same renderer as `/output`; live published `/output` proof
+lands in the Phase 3 pack).
+**Known cosmetic notes:** the quiz entrance state chip reads "Enter" (step name — Phase 3's
+beat renaming makes it "Question"); after "Back to start" the layer stays ON AIR over an
+empty program (correct visual-reset semantics; hint line if the owner wants one).
 
 ### Phase 2 — Shared data foundation. Status: Planned
 **Goal:** a production owns editable structured data, and an operator can load a row into a

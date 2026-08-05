@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { ControlSendItem, OutputPayload } from '../../control/hostedControl';
 import { createOutputStage, type OutputStage } from '../../output/stage';
+import type { PreviewMachineState } from '../../preview/previewProtocol';
 
 /**
  * A MONITOR over a rendered production (docs/PLAYOUT_DASHBOARD.md §2): `createOutputStage` over
@@ -19,10 +20,23 @@ export interface PayloadStageHandle {
 
 const PayloadStage = forwardRef<
   PayloadStageHandle,
-  { payload: OutputPayload | null; error?: string | null; emptyLabel?: string; testId?: string }
->(function PayloadStage({ payload, error, emptyLabel, testId }, ref) {
+  {
+    payload: OutputPayload | null;
+    error?: string | null;
+    emptyLabel?: string;
+    testId?: string;
+    /** Machine-state replies from the stage's documents (the stage already collects them —
+     *  posted after every applied command). A host that renders event buttons greys them
+     *  against this; omitting the prop costs nothing. */
+    onState?: (graphic: string, state: PreviewMachineState | null) => void;
+  }
+>(function PayloadStage({ payload, error, emptyLabel, testId, onState }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<OutputStage | null>(null);
+  // The stage is rebuilt per payload; the callback identity must not force that, so the
+  // subscription reads through a ref.
+  const onStateRef = useRef(onState);
+  onStateRef.current = onState;
 
   useEffect(() => {
     const root = host.current;
@@ -32,6 +46,7 @@ const PayloadStage = forwardRef<
       fit: () => ({ width: root.clientWidth, height: root.clientHeight }),
     });
     stage.current = built;
+    built.onState((graphic, state) => onStateRef.current?.(graphic, state));
     const ro = new ResizeObserver(() => built.rescale());
     ro.observe(root);
     return () => {

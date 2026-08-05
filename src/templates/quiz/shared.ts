@@ -280,7 +280,10 @@ function clearReveal() {
     options[i].classList.remove('quiz-wrong');
   }
   var root = document.querySelector('.quiz');
-  if (root) root.classList.remove('quiz-locked');
+  if (root) {
+    root.classList.remove('quiz-locked');
+    root.removeAttribute('data-noacg-paint'); // the paint signature died with the marks
+  }
 }
 
 // quizRow(letter): the option row a letter names, or null. A -> row 0, B -> row 1, …
@@ -290,12 +293,27 @@ function quizRow(letter) {
   return index === -1 ? null : (options[index] || null);
 }
 
+// The PAINT SIGNATURE: what the board currently shows, as one string — the machine state plus
+// the two letters that drive the marks. Every painter stamps it and clearReveal removes it,
+// so paintQuizState can tell a repeat (skip — no motion) from a real change (repaint).
+function quizPaintSig() {
+  var state = (typeof noacgMachineState === 'function') ? ((noacgMachineState().groups || {}).main || '') : '';
+  var pickedEl = document.getElementById('${id.selected}');
+  var correctEl = document.getElementById('${id.correct}');
+  return state + '|' + (correctEl ? correctEl.textContent : '') + '|' + (pickedEl ? pickedEl.textContent : '');
+}
+function markQuizPaint() {
+  var root = document.querySelector('.quiz');
+  if (root) root.setAttribute('data-noacg-paint', quizPaintSig());
+}
+
 // applySelection(): mark the contestant's pick, read from the hidden #${id.selected}. One state and this
 // value carry every answer — there is deliberately no state per option.
 function applySelection() {
   var options = document.querySelectorAll('.quiz-option');
   for (var i = 0; i < options.length; i++) options[i].classList.remove('quiz-sel');
   var row = quizRow(document.getElementById('${id.selected}').textContent);
+  markQuizPaint();
   if (!row) return;                // nothing picked yet, or an unknown letter
   row.classList.add('quiz-sel');
   gsap.fromTo(row, { scale: 1.04 }, { scale: 1, duration: 0.25 / motionSpeed(), ease: 'back.out(1.6)' });
@@ -306,6 +324,33 @@ function applySelection() {
 function applyLock() {
   var root = document.querySelector('.quiz');
   if (root) root.classList.add('quiz-locked');
+  markQuizPaint();
+}
+
+// paintQuizState(): repaint the board from the MACHINE's current state plus the fields. Both
+// update() and snap recovery land here, for one reason each: a data write must never erase a
+// selection the machine still holds (a live Update mid-lock used to wipe the lock visual while
+// the state chip still said "Locked in"), and a snap replays states with suppressed callbacks,
+// so the call-driven marks (selection, lock, reveal) have to be re-applied from the fields
+// afterwards — which the recovery sequence's trailing update() does by calling this. In the
+// entrance state (or with no machine at all) it paints the neutral board, exactly as the old
+// unconditional clearReveal() did.
+function paintQuizState() {
+  var state = '';
+  if (typeof noacgMachineState === 'function') {
+    state = (noacgMachineState().groups || {}).main || '';
+  }
+  // Idempotence: an update() arrives per KEYSTROKE from a live-typing control page, and the
+  // paint below carries motion (the verdict's pop, the pick's spring). Repaint only when the
+  // state or the letters actually changed — fixing a typo in the question must not make the
+  // correct row re-pop on air. Every painter stamps the signature; clearReveal removes it.
+  var root = document.querySelector('.quiz');
+  if (root && root.getAttribute('data-noacg-paint') === quizPaintSig()) return;
+  if (state === 'reveal') { revealAnswer(); return; }   // clears first, then paints + stamps
+  clearReveal();
+  if (state === 'selected' || state === 'locked') applySelection();
+  if (state === 'locked') applyLock();
+  if (state !== 'selected' && state !== 'locked') markQuizPaint(); // the neutral pose is a paint too
 }
 
 // update(data): SPX sends field values as JSON, e.g. {"f0":"…","f1":"${content.answers[0]}","${id.correct}":"${content.correct}"}.
@@ -317,7 +362,8 @@ function update(data) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  clearReveal();                   // new data means a new, not-yet-revealed question
+  paintQuizState();                // fresh data on a neutral board stays neutral; a board whose
+                                   // machine holds a pick, a lock or a verdict keeps showing it
 }
 
 // revealAnswer(): the money moment — read the correct letter from the hidden #${id.correct},
@@ -349,6 +395,7 @@ function revealAnswer() {
       gsap.fromTo(wrong, { x: -6 }, { x: 0, duration: 0.4 / motionSpeed(), ease: 'elastic.out(1, 0.4)' });
     }
   }
+  markQuizPaint();
 }
 
 // play(): take the quiz on air — start un-revealed, run the entrance timeline.

@@ -21,7 +21,14 @@ import {
   type ShowCue,
 } from '../../model/shows';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
-import { fieldDescriptors } from '../../control/controlModel';
+import {
+  eventButtons,
+  eventLegality,
+  fieldDescriptors,
+  isEventLegal,
+  machineStateGroups,
+  type ControlButton,
+} from '../../control/controlModel';
 import {
   clearAllCueBatches,
   clearCueItems,
@@ -38,6 +45,7 @@ import {
   withLiveCue,
   type ControlSendItem,
   type LiveCueMap,
+  type ResolvedControlShow,
 } from '../../control/hostedControl';
 import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../../control/eventLog';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
@@ -136,6 +144,20 @@ export default function ProductionPage({ id }: { id: string }) {
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
+  /** Each graphic's last reported MACHINE state, keyed by pool name. Two sources converge on
+   *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
+   *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
+   *  what happened before this page opened. The event buttons grey against this. */
+  const [machineStates, setMachineStates] = useState<Record<string, { groups: Record<string, string> } | null>>({});
+  const noteMachineState = useCallback(
+    (graphic: string, state: { groups: Record<string, string> } | null) => {
+      setMachineStates((m) => {
+        if (JSON.stringify(m[graphic] ?? null) === JSON.stringify(state)) return m;
+        return { ...m, [graphic]: state };
+      });
+    },
+    [],
+  );
   const [outputSeenAt, setOutputSeenAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [openedAt] = useState(() => Date.now());
@@ -200,7 +222,17 @@ export default function ProductionPage({ id }: { id: string }) {
       const resolved = await controlShowBySlug(hostedSlug);
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
+      // The boot-recovery effect below replays each live layer's last REPORT into the local
+      // monitor, so the reports must be in hand before liveCue commits and fires it.
+      liveReportsRef.current = resolved.live;
       setLiveCue(resolved.liveCue);
+      // Seed each graphic's machine state from its last published report — the page may be
+      // opening onto a production another operator drove mid-sequence.
+      for (const [graphic, report] of Object.entries(resolved.live)) {
+        if (report && typeof report === 'object' && 'state' in report) {
+          noteMachineState(graphic, (report as { state?: { groups: Record<string, string> } | null }).state ?? null);
+        }
+      }
       const history = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!alive) return;
       setWireLog((l) =>
@@ -216,11 +248,14 @@ export default function ProductionPage({ id }: { id: string }) {
         onRow: (row) => {
           const msg = row.msg;
           if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, row.graphic, msg.cue));
+          // A 'live' row is the renderer REPORTING what it applied — machine state included,
+          // which is what keeps the action buttons' greying honest about air.
+          else if (msg.t === 'live') noteMachineState(row.graphic, msg.state ?? null);
           // Mirror air locally: the PROGRAM monitor follows the wire, not just this page's own
           // buttons, so a take from another operator's phone shows here too. Only RENDERER
           // commands go through — 'staged' and 'live' are bookkeeping rows the stage has no
           // meaning for (staged data has not aired; a 'live' row is a graphic REPORTING).
-          else if (msg.t !== 'staged' && msg.t !== 'live') {
+          else if (msg.t !== 'staged') {
             programRef.current?.apply([{ graphic: row.graphic, msg }]);
           }
           const entry = describeLogRow(row, cueLabel);
@@ -244,15 +279,32 @@ export default function ProductionPage({ id }: { id: string }) {
   // BOOT RECOVERY for the PROGRAM monitor (docs/CLOUD_PLAYOUT.md's recovery discipline). The log
   // follower only sees rows that arrive AFTER this page opened, so reopening a production that
   // has been on air showed an empty PROGRAM box beside a rundown row marked ON AIR — the surface
-  // contradicting itself. Replay each live layer's last reported data. It drives nothing but the
-  // local monitor, which is why this is safe here and was not in an exported package.
+  // contradicting itself. Replay each live layer's last REPORT with the full recipe — data,
+  // snap to the reported state, data again — never a bare play(): the bare replay left the
+  // monitor at the entrance while air sat mid-sequence, and its state reply then OVERWROTE the
+  // wire-seeded truth, so the chip claimed the entrance state and greyed the one legal recovery
+  // event. (The trailing data write is what lets call-painted looks repaint — the G9 rule.)
+  // It drives nothing but the local monitor, which is why this is safe here and was not in an
+  // exported package.
   const recoveredRef = useRef(false);
+  const liveReportsRef = useRef<ResolvedControlShow['live'] | null>(null);
   useEffect(() => {
     if (recoveredRef.current) return;
     const up = Object.entries(liveCue).filter(([, cueId]) => !!cueId);
     if (up.length === 0) return;
     recoveredRef.current = true;
-    for (const [graphic] of up) programRef.current?.apply([{ graphic, msg: { t: 'play' } }]);
+    for (const [graphic] of up) {
+      const report = (liveReportsRef.current?.[graphic] ?? null) as {
+        data?: Record<string, string>;
+        state?: { groups: Record<string, string> } | null;
+      } | null;
+      const items: ControlSendItem[] = [];
+      if (report?.data) items.push({ graphic, msg: { t: 'update', data: report.data } });
+      if (report?.state?.groups) items.push({ graphic, msg: { t: 'snap', snap: report.state.groups } });
+      else items.push({ graphic, msg: { t: 'play' } });
+      if (report?.data) items.push({ graphic, msg: { t: 'update', data: report.data } });
+      programRef.current?.apply(items);
+    }
   }, [liveCue]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow
@@ -279,6 +331,13 @@ export default function ProductionPage({ id }: { id: string }) {
     [previewTemplate],
   );
   /* eslint-enable react-hooks/exhaustive-deps */
+  // The machine's side of the selected graphic (docs/CONTROL_LAYER.md): its ⚡ buttons, the
+  // structural guard they grey by, and its states for the recovery snap picker. All parsed
+  // from the same live template the PREVIEW composes, so the panel can never describe a
+  // different graphic than the monitor shows. Empty on a template with no explicit machine.
+  const events = useMemo(() => (previewTemplate ? eventButtons(previewTemplate.js) : []), [previewTemplate]);
+  const legality = useMemo(() => (previewTemplate ? eventLegality(previewTemplate.js) : {}), [previewTemplate]);
+  const stateGroups = useMemo(() => (previewTemplate ? machineStateGroups(previewTemplate.js) : []), [previewTemplate]);
   const settleData = selectedCue ? JSON.stringify(cueView(selectedCue).values) : '';
   const settlePreview = useCallback((data: string) => {
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
@@ -486,6 +545,66 @@ export default function ProductionPage({ id }: { id: string }) {
   const editingView = editingCue ? cueView(editingCue) : null;
   const canTake = !!selectedCue;
 
+  // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
+  // AIR the moment they are pressed, like ✎ Update, so they follow Update's legality: live
+  // only while the selected cue's graphic is up on its layer. ──
+  const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
+  const stateName = (groupId: string, stateId: string) =>
+    stateGroups.find((g) => g.id === groupId)?.states.find((s) => s.id === stateId)?.name ?? stateId;
+  const stateLabel = machineState
+    ? Object.entries(machineState.groups)
+        .map(([gid, sid]) => (Object.keys(machineState.groups).length > 1 ? `${gid}: ${stateName(gid, sid)}` : stateName(gid, sid)))
+        .join(' · ')
+    : null;
+  const eventSections: [string, ControlButton[]][] = [];
+  for (const b of events) {
+    const key = b.section ?? 'Actions';
+    const bucket = eventSections.find(([s]) => s === key);
+    if (bucket) bucket[1].push(b);
+    else eventSections.push([key, [b]]);
+  }
+
+  /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
+   *  is also the one being edited. Events and snaps act on the live graphic, so their values
+   *  must come from ITS cue — sourcing them from the previewed cue would air unprepared
+   *  content the operator never took (staged data airs only on an explicit take). */
+  const airValues = (): Record<string, string> => (airCue ? cueView(airCue).values : {});
+
+  /** Fire a machine event on the live graphic. Payload values ride from the ON-AIR cue, and
+   *  land only if the machine accepts the event (the structural guard). */
+  const fireEvent = async (button: ControlButton) => {
+    if (!selectedGraphic || !selectedLayerLive) return;
+    flushDraft();
+    const values = airValues();
+    const payload: Record<string, string> = {};
+    for (const key of button.payload ?? []) payload[key] = values[key] ?? '';
+    const msg = button.payload?.length
+      ? { t: 'event' as const, event: button.event, payload }
+      : { t: 'event' as const, event: button.event };
+    await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
+  };
+
+  /** Snap the live graphic straight to a state — recovery, never an animation. A null group
+   *  resets EVERY group to its initial. Recovery is BOTH halves (docs/STATE_MACHINE_SCHEMA.md:
+   *  reset is two operations), so the snap rides with an update of the ON-AIR cue's values:
+   *  the snap replays intermediate states with suppressed callbacks, and it is the trailing
+   *  data write that lets their call-painted looks (a quiz's selection under a lock) repaint
+   *  from the fields. */
+  const snapTo = async (groupId: string | null, stateId: string) => {
+    if (!selectedGraphic || !selectedLayerLive) return;
+    flushDraft();
+    const snap = groupId === null ? null : { [groupId]: stateId };
+    await runVerb(
+      [
+        [
+          { graphic: selectedGraphic, msg: { t: 'snap' as const, snap } },
+          { graphic: selectedGraphic, msg: { t: 'update' as const, data: airValues() } },
+        ],
+      ],
+      'Snap',
+    );
+  };
+
   return (
     <ProductionShell
       show={show}
@@ -576,7 +695,13 @@ export default function ProductionPage({ id }: { id: string }) {
             </h2>
             <div className="pd-screen">
               <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: '16 / 9' }}>
-                <ProgramStage ref={programRef} show={show} library={library} empty={liveLayers.length === 0} />
+                <ProgramStage
+                  ref={programRef}
+                  show={show}
+                  library={library}
+                  empty={liveLayers.length === 0}
+                  onState={noteMachineState}
+                />
               </div>
             </div>
           </div>
@@ -728,6 +853,87 @@ export default function ProductionPage({ id }: { id: string }) {
                 </button>
               </p>
             )}
+          </div>
+        )}
+
+        {/* GRAPHIC ACTIONS — the machine's own verbs, rendered from the metadata that travels
+            inside the template (docs/CONTROL_LAYER.md; the region docs/PLAYOUT_DASHBOARD.md §8
+            reserves). Deliberately OUTSIDE the editor's frame: fields up there edit a CUE and
+            air on ⟳ Take / ✎ Update, while these act on the LIVE graphic the moment they are
+            pressed — so they follow Update's legality and say so in their own header. */}
+        {events.length > 0 && selectedGraphic && (
+          <div className="pd-actions" data-testid="cue-actions">
+            <div className="pd-actions-head">
+              <span className="pd-actions-kicker">
+                ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
+              </span>
+              <span
+                className="pd-state-chip"
+                data-testid="machine-state-chip"
+                title="The live graphic's current state — what the greying is judged against"
+              >
+                {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
+              </span>
+              <div className="spacer" />
+              {stateGroups.length > 0 && (
+                <select
+                  className="pd-snap"
+                  value=""
+                  disabled={!selectedLayerLive}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) return;
+                    if (v === '::reset') void snapTo(null, '');
+                    else {
+                      const i = v.indexOf(':');
+                      void snapTo(v.slice(0, i), v.slice(i + 1));
+                    }
+                  }}
+                  title="Recovery: jump the live graphic straight to a state, no animation"
+                  data-testid="machine-snap"
+                >
+                  <option value="">Snap to state…</option>
+                  <option value="::reset">⟲ Back to start (visual reset)</option>
+                  {stateGroups.map((g) =>
+                    g.states.map((s) => (
+                      <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
+                        {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
+                      </option>
+                    )),
+                  )}
+                </select>
+              )}
+            </div>
+            {eventSections.map(([section, btns]) => (
+              <div key={section} className="pd-actions-section">
+                {(eventSections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
+                <div className="pd-actions-row">
+                  {btns.map((b) => {
+                    const legal = isEventLegal(legality, b.event, machineState);
+                    return (
+                      <button
+                        key={b.event}
+                        className={`pd-action${b.destructive ? ' destructive' : ''}`}
+                        disabled={!selectedLayerLive || !legal}
+                        title={
+                          !selectedLayerLive
+                            ? 'The graphic is not on air — Take the cue first'
+                            : !legal
+                              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+                              : b.payload?.length
+                                ? `Fires "${b.event}" on air with ${b.payload.join(', ')}`
+                                : `Fires "${b.event}" on air`
+                        }
+                        onClick={() => void fireEvent(b)}
+                        data-testid={`cue-action-${b.event}`}
+                      >
+                        ⚡ {b.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

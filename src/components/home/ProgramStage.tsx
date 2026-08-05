@@ -15,8 +15,17 @@ import type { Show } from '../../model/shows';
  */
 export type ProgramStageHandle = PayloadStageHandle;
 
-const ProgramStage = forwardRef<ProgramStageHandle, { show: Show; library: GraphicDoc[]; empty: boolean }>(
-  function ProgramStage({ show, library, empty }, ref) {
+const ProgramStage = forwardRef<
+  ProgramStageHandle,
+  {
+    show: Show;
+    library: GraphicDoc[];
+    empty: boolean;
+    /** Machine-state replies from the monitor's documents — see PayloadStage. */
+    onState?: (graphic: string, state: { groups: Record<string, string> } | null) => void;
+  }
+>(
+  function ProgramStage({ show, library, empty, onState }, ref) {
     const [payload, setPayload] = useState<OutputPayload | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +52,15 @@ const ProgramStage = forwardRef<ProgramStageHandle, { show: Show; library: Graph
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [poolSignature, library]);
 
-    return <PayloadStage ref={ref} payload={payload} error={error} emptyLabel={empty ? 'Nothing on air' : undefined} />;
+    return (
+      <PayloadStage
+        ref={ref}
+        payload={payload}
+        error={error}
+        emptyLabel={empty ? 'Nothing on air' : undefined}
+        onState={onState}
+      />
+    );
   },
 );
 

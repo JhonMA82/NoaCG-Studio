@@ -146,6 +146,17 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   input, textarea, select { width:100%; font:inherit; font-size:13px; color:var(--text); background:var(--bg);
     border:1px solid var(--line); border-radius:6px; padding:7px 9px; }
   textarea { min-height:70px; resize:vertical; }
+  .numrow { display:flex; gap:4px; }
+  .numrow input { flex:1 1 auto; min-width:0; }
+  .numrow .step { font:inherit; font-size:14px; color:var(--text); background:var(--panel-2);
+    border:1px solid var(--line); border-radius:6px; width:34px; flex:0 0 auto; cursor:pointer; }
+  .seg { display:inline-flex; }
+  .seg button { font:inherit; font-size:12.5px; color:var(--text); background:var(--bg);
+    border:1px solid var(--line); border-right-width:0; border-radius:0; min-width:36px;
+    padding:6px 11px; cursor:pointer; }
+  .seg button:first-child { border-radius:6px 0 0 6px; }
+  .seg button:last-child { border-radius:0 6px 6px 0; border-right-width:1px; }
+  .seg button.on { background:var(--amber); border-color:var(--amber); color:#14161a; font-weight:600; }
   .events { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
   .events button { font:inherit; font-size:12.5px; color:var(--text); background:var(--panel-2);
     border:1px solid var(--line); border-radius:6px; padding:6px 11px; cursor:pointer; }
@@ -509,30 +520,85 @@ function paintEditor() {
     // The field's ID rides with its name here too, so this page and FIELDS.md agree.
     label.textContent = c.key.toUpperCase() + ' · ' + c.label;
     box.appendChild(label);
-    var input;
-    if (c.kind === 'lines') { input = document.createElement('textarea'); }
-    else if (c.kind === 'select') {
-      input = document.createElement('select');
-      (c.options || []).forEach(function (o) {
-        var opt = document.createElement('option');
-        opt.value = o.value !== undefined ? o.value : o;
-        opt.textContent = o.label !== undefined ? o.label : o;
-        input.appendChild(opt);
-      });
-    } else {
-      input = document.createElement('input');
-      input.type = c.kind === 'number' ? 'number' : 'text';
-    }
-    input.value = values[c.key] !== undefined ? values[c.key] : '';
-    input.oninput = function () {
+    var commit = function (val) {
       if (!drafts[cue.id]) drafts[cue.id] = {};
-      drafts[cue.id][c.key] = input.value;
+      drafts[cue.id][c.key] = val;
       if (pgmLive[cue.graphic] === cue.id) updateLive();
       else if (pvwLive[cue.graphic] === cue.id) {
         // Live-edit the PREVIEW: typing refreshes the PVW monitor without touching air.
         send([{ graphic: cue.graphic, stream: 'preview', msg: { t: 'update', data: cueValues(cue) } }]);
       }
     };
+    var input;
+    if (c.kind === 'lines') { input = document.createElement('textarea'); }
+    else if (c.kind === 'select') {
+      var opts = c.options || [];
+      // The in-app control's rule, kept in step: a SHORT constrained choice (a quiz's A/B/C/D)
+      // renders as segmented buttons; longer lists keep the dropdown.
+      var segmented = opts.length > 0 && opts.length <= 5 && opts.every(function (o) {
+        return String(o.label !== undefined ? o.label : o).length <= 4;
+      });
+      if (segmented) {
+        var seg = document.createElement('div');
+        seg.className = 'seg';
+        var current = values[c.key] !== undefined ? values[c.key] : '';
+        opts.forEach(function (o) {
+          var val = o.value !== undefined ? o.value : o;
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = o.label !== undefined ? o.label : o;
+          if (val === current) b.className = 'on';
+          b.onclick = function () {
+            for (var n = seg.firstChild; n; n = n.nextSibling) n.className = '';
+            b.className = 'on';
+            commit(val);
+          };
+          seg.appendChild(b);
+        });
+        box.appendChild(seg);
+        fields.appendChild(box);
+        return;
+      }
+      input = document.createElement('select');
+      opts.forEach(function (o) {
+        var opt = document.createElement('option');
+        opt.value = o.value !== undefined ? o.value : o;
+        opt.textContent = o.label !== undefined ? o.label : o;
+        input.appendChild(opt);
+      });
+    } else if (c.kind === 'number') {
+      // The −/+ steppers the other two renderers carry (one-control doctrine): a score is
+      // bumped far more often than typed.
+      input = document.createElement('input');
+      input.type = 'number';
+      input.value = values[c.key] !== undefined ? values[c.key] : '';
+      input.oninput = function () { commit(input.value); };
+      var numRow = document.createElement('div');
+      numRow.className = 'numrow';
+      var makeStep = function (dir, label) {
+        var sb = document.createElement('button');
+        sb.type = 'button';
+        sb.className = 'step';
+        sb.textContent = label;
+        sb.onclick = function () {
+          var s = c.step != null ? c.step : 1;
+          input.value = String((parseFloat(input.value) || 0) + dir * s);
+          commit(input.value);
+        };
+        return sb;
+      };
+      numRow.appendChild(makeStep(-1, '−'));
+      numRow.appendChild(input);
+      numRow.appendChild(makeStep(1, '+'));
+      box.appendChild(numRow);
+      fields.appendChild(box);
+      return;
+    } else {
+      input = document.createElement('input');
+      input.type = 'text';
+    }
+    input.value = values[c.key] !== undefined ? values[c.key] : '';
+    input.oninput = function () { commit(input.value); };
     box.appendChild(input);
     fields.appendChild(box);
   });
