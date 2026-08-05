@@ -4286,6 +4286,15 @@ h2 + .lib-row,
 }
 .pd-field input { width: 100%; }
 .pd-field-layer { max-width: 130px; }
+.pd-editor-events { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pd-editor-events button { font-size: 12.5px; padding: 6px 11px; }
+
+/* The HOSTED page renders the same dashboard from the published payload (docs/
+   PLAYOUT_DASHBOARD.md). Two things differ, both because it is an OPERATOR surface over a
+   production it does not own: cues are authored in the app, so their titles are read here
+   rather than edited, and there is no builder shell to go home to. */
+.hosted-dashboard .pd-header { padding-left: 16px; }
+.pd-cue-title-static { font-size: 14px; font-weight: 600; }
 .pd-layer-clash { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 9px 0 0; }
 .pd-layer-clash button { font-size: 12px; padding: 4px 9px; }
 

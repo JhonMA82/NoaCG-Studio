@@ -241,6 +241,20 @@ export default function ProductionPage({ id }: { id: string }) {
     };
   }, [hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // BOOT RECOVERY for the PROGRAM monitor (docs/CLOUD_PLAYOUT.md's recovery discipline). The log
+  // follower only sees rows that arrive AFTER this page opened, so reopening a production that
+  // has been on air showed an empty PROGRAM box beside a rundown row marked ON AIR — the surface
+  // contradicting itself. Replay each live layer's last reported data. It drives nothing but the
+  // local monitor, which is why this is safe here and was not in an exported package.
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    const up = Object.entries(liveCue).filter(([, cueId]) => !!cueId);
+    if (up.length === 0) return;
+    recoveredRef.current = true;
+    for (const [graphic] of up) programRef.current?.apply([{ graphic, msg: { t: 'play' } }]);
+  }, [liveCue]);
+
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow
   // for a running timer.
   useEffect(() => {

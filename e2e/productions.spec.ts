@@ -397,13 +397,14 @@ test('the verbs answer their keyboard shortcuts, and never while a field has foc
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
-  // Typing into the cue title: SPACE belongs to the text, not to Take.
+  // Typing into the cue title: SPACE belongs to the text, not to Take. The check is what the
+  // space DID — the character arriving in the field. "Nothing went on air" would pass on its
+  // first poll, before a broken guard's take could possibly have landed, so it proves nothing.
   await page.getByTestId('cue-label').click();
   await page.getByTestId('cue-label').fill('Anna');
   await page.keyboard.press('Space');
   await page.keyboard.type('Andersson');
   await expect(page.getByTestId('cue-label')).toHaveValue('Anna Andersson');
-  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
   // Focus off the fields: now SPACE takes.
   await page.locator('.pd-monitors').click();

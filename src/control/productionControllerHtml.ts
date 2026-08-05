@@ -1,20 +1,21 @@
-// The PRODUCTION CONTROLLER — the shared operator surface an exported local-control package
-// opens (the launcher's landing page). One interface for the whole production: the cue
-// rundown with the take verbs, per-graphic capability modules (fields + state-machine event
-// buttons, from the SAME control generator every surface uses), a PREVIEW/PROGRAM monitor
-// pair, and the activity feed — all driven through the local relay's ordered log
+// The PRODUCTION CONTROLLER — the operator surface an exported local-control package opens
+// (the launcher's landing page), driven through the local relay's ordered log
 // (export/local-relay/, protocol v1).
 //
-// PREVIEW/PROGRAM (the broadcast workflow): "→ Preview" takes the selected cue onto the
-// PREVIEW stream — only the controller's PVW monitor follows it, so the operator checks the
-// graphic without airing anything. "⟳ Take" sends the same cue to the PROGRAM stream: the
-// OBS/vMix sources (loaded with ?stream=program) and the PGM monitor follow that one. Same
-// rows, one `stream` field apart — the relay log carries both.
+// It renders THE PLAYOUT DASHBOARD: docs/PLAYOUT_DASHBOARD.md is the binding design, shared
+// with the in-app production page and the hosted control page. The three used to be three
+// different products - this one had the monitors and a blue accent, the hosted one had no
+// monitors at all - and a student who learned one could not operate another. A change here
+// that is not in that doc is a divergence.
 //
-// Self-contained vanilla JS (no dependencies — it ships in a zip), same voice as
+// PREVIEW/PROGRAM: "→ Preview" takes the selected cue onto the PREVIEW stream - only this
+// page's PVW monitor follows it, so the operator checks the graphic without airing anything.
+// "⟳ TAKE" sends the same cue to the PROGRAM stream: the OBS/vMix sources (loaded with
+// ?stream=program) and the PGM monitor follow that one. Same rows, one `stream` field apart.
+//
+// Self-contained vanilla JS (no dependencies - it ships in a zip), same voice as
 // controlPanelHtml.ts, whose emitGraphic it reuses so the two generated surfaces cannot
-// disagree about a graphic's controls. The in-app production page stays the studio's
-// cockpit; this page is the same verbs for the exported package.
+// disagree about a graphic's controls.
 
 import type { EmittedGraphic } from './controlPanelHtml';
 
@@ -29,7 +30,7 @@ export interface EmittedCue {
 
 export interface ControllerPayload {
   show: string;
-  /** Pool order = paint order = layer order (index 0 furthest back). */
+  /** Each with the PLAYOUT LAYER its production assigned (docs/PLAYOUT_DASHBOARD.md §5). */
   graphics: (EmittedGraphic & { file: string; layer: number })[];
   cues: EmittedCue[];
   /** The design canvas the monitors letterbox into (the first graphic's, typically 1920×1080). */
@@ -53,73 +54,169 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(payload.show)} — production controller</title>
 <style>
-  :root { --bg:#10141b; --panel:#171d26; --line:#2a3444; --text:#e8ecf2; --dim:#8b95a5; --accent:#3aa0ff; --amber:#f6a623; --air:#ef4444; }
+  /* The dashboard's own tokens (docs/PLAYOUT_DASHBOARD.md). One accent: amber is preview and
+     brand, RED means on air and nothing else may claim it. This page used to carry a blue
+     accent and the system font, which made the downloaded package look like a different
+     product from the app that generated it. */
+  :root {
+    --bg:#0b0c0f; --panel:#14161c; --panel-2:#1a1d25; --line:#272b35;
+    --text:#e9ecf1; --dim:#8a91a0; --amber:#f6a623; --air:#ef4444; --ok:#4ade80;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, sans-serif; }
-  header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
-  header h1 { font-size:15px; margin:0; }
-  header .status { margin-left:auto; font-size:12px; color:var(--dim); }
-  main { display:grid; grid-template-columns: minmax(0, 1fr) 360px; gap:0; height: calc(100vh - 49px); }
-  .left { min-width:0; display:flex; flex-direction:column; overflow:auto; padding:14px 18px; gap:12px; }
-  .rundown { border-left:1px solid var(--line); overflow:auto; padding:14px 16px; }
-  /* The monitor pair: PVW (amber frame) beside PGM (red frame) — the broadcast convention. */
-  .monitors { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-  .monitor { position:relative; }
-  .monitor h2 { font-size:11px; letter-spacing:.14em; margin:0 0 6px; display:flex; gap:8px; align-items:center; }
-  .monitor .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--bg); color:var(--text); overflow:hidden;
+    font:14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  /* NO SCROLLBAR CHROME, anywhere (§3). A horizontal scrollbar here is a layout bug. */
+  .cues, .editor, .feed { scrollbar-width:none; }
+  .cues::-webkit-scrollbar, .editor::-webkit-scrollbar, .feed::-webkit-scrollbar { width:0; height:0; }
+
+  header { display:flex; align-items:center; gap:10px; height:50px; padding:0 14px;
+    border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font-size:14px; margin:0; font-weight:600; white-space:nowrap; }
+  header h1 span { color:var(--dim); font-weight:400; }
+  .mode { font-size:11px; font-weight:700; letter-spacing:.1em; padding:3px 10px; border-radius:99px;
+    color:var(--dim); border:1px solid var(--line); white-space:nowrap; }
+  .mode.on { color:var(--ok); background:rgba(74,222,128,.1); border-color:rgba(74,222,128,.4); }
+  .clock { font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; }
+  header .spacer { flex:1; }
+  header a { color:var(--dim); font-size:12px; text-decoration:none; border-bottom:1px solid var(--line); }
+  header a:hover { color:var(--text); }
+  /* All out sits apart from the verbs: it is the panic control, and a hand reaching for TAKE
+     must never land on it. */
+  .allout { font:inherit; font-size:13px; font-weight:600; color:var(--air); background:transparent;
+    border:1px solid rgba(239,68,68,.55); border-radius:7px; padding:7px 13px; cursor:pointer; white-space:nowrap; }
+  .allout:disabled { color:var(--dim); border-color:var(--line); cursor:default; }
+
+  main { display:grid; grid-template-columns: minmax(0,1fr) 380px; height: calc(100% - 50px); }
+  .stage { min-width:0; display:flex; flex-direction:column; gap:10px; padding:12px 14px; overflow:hidden; }
+  .rail { border-left:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+
+  /* Monitors: PREVIEW beside PROGRAM, equal, 16:9, sized by the column. */
+  .monitors { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:none; }
+  .monitor { display:flex; flex-direction:column; min-width:0; }
+  .monitor h2 { margin:0 0 5px; font-size:10.5px; letter-spacing:.16em; font-weight:700;
+    display:flex; align-items:center; gap:7px; min-width:0; }
+  .monitor .dot { width:7px; height:7px; border-radius:50%; flex:none; }
+  .monitor .what { font-weight:400; letter-spacing:0; font-size:12px; color:var(--dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .monitor .lay { margin-left:auto; font-size:10px; color:var(--dim); font-family:var(--mono); flex:none; }
   .mon-pvw h2 { color:var(--amber); } .mon-pvw .dot { background:var(--amber); }
   .mon-pgm h2 { color:var(--air); } .mon-pgm .dot { background:var(--air); }
-  .stage { position:relative; width:100%; aspect-ratio:${payload.width} / ${payload.height}; overflow:hidden; border-radius:6px;
-    background-color:#20262e;
-    background-image: linear-gradient(45deg,#2c333d 25%,transparent 25%), linear-gradient(-45deg,#2c333d 25%,transparent 25%),
-      linear-gradient(45deg,transparent 75%,#2c333d 75%), linear-gradient(-45deg,transparent 75%,#2c333d 75%);
-    background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0; }
-  .mon-pvw .stage { box-shadow: inset 0 0 0 2px rgba(246,166,35,.65); }
-  .mon-pgm .stage { box-shadow: inset 0 0 0 2px rgba(239,68,68,.75); }
-  .stage iframe { position:absolute; top:0; left:0; width:${payload.width}px; height:${payload.height}px; border:0;
+  .screen { position:relative; width:100%; aspect-ratio:${payload.width} / ${payload.height};
+    overflow:hidden; border-radius:7px;
+    background-color:#101318;
+    background-image: linear-gradient(45deg,#171b21 25%,transparent 25%), linear-gradient(-45deg,#171b21 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#171b21 75%), linear-gradient(-45deg,transparent 75%,#171b21 75%);
+    background-size:18px 18px; background-position:0 0,0 9px,9px -9px,-9px 0; }
+  .mon-pvw .screen { box-shadow: inset 0 0 0 2px rgba(246,166,35,.7); }
+  .mon-pgm .screen { box-shadow: inset 0 0 0 2px rgba(239,68,68,.8); }
+  .screen iframe { position:absolute; top:0; left:0; width:${payload.width}px; height:${payload.height}px; border:0;
     transform-origin: top left; pointer-events:none; background:transparent; }
-  .verbs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .verbs button { min-height:44px; padding:10px 16px; font:inherit; color:var(--text); background:#243044; border:1px solid var(--line); border-radius:6px; cursor:pointer; }
-  .verbs button:hover { border-color:var(--accent); }
+
+  /* The verbs, with the keys that fire them. */
+  .verbs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:none; }
+  .verbs button { min-height:44px; padding:0 16px; font:inherit; font-size:14px; color:var(--text);
+    background:var(--panel-2); border:1px solid var(--line); border-radius:7px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
+  .verbs button:hover:not(:disabled) { border-color:var(--dim); }
   .verbs button:disabled { opacity:.4; cursor:default; }
-  .verbs .pvw { border-color:rgba(246,166,35,.6); }
-  .verbs .take { background:var(--air); border-color:var(--air); color:#fff; font-weight:700; padding-inline:20px; }
-  .live-line { font-size:12px; color:var(--dim); }
-  .live-line .on { color:var(--air); font-weight:600; }
-  .live-line .pv { color:var(--amber); font-weight:600; }
-  .editor { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
-  .editor h3 { margin:0 0 8px; font-size:13px; }
-  .editor h3 .muted { color:var(--dim); font-weight:400; }
-  .editor.live { border-color:var(--air); box-shadow: inset 0 0 0 1px var(--air); }
-  .editor.pvw-live { border-color:rgba(246,166,35,.7); box-shadow: inset 0 0 0 1px rgba(246,166,35,.7); }
-  .field { padding:8px 0; border-bottom:1px solid var(--line); }
-  .field:last-child { border-bottom:none; }
-  .field > label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); margin-bottom:4px; }
-  input, textarea, select { width:100%; font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:7px 9px; }
-  textarea { min-height:84px; resize:vertical; }
-  .events { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .events button { font:inherit; color:var(--text); background:#243044; border:1px solid var(--line); border-radius:6px; padding:7px 12px; cursor:pointer; }
-  .events button:disabled { opacity:.4; cursor:default; }
-  .cue { display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; background:var(--panel); cursor:pointer; }
-  .cue .no { font-size:11px; color:var(--dim); min-width:18px; text-align:right; }
-  .cue .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .cue .g { color:var(--dim); font-size:12px; }
-  .cue.selected { border-color:var(--accent); }
-  .cue.on-air { border-color:var(--air); box-shadow: inset 0 0 0 1px var(--air); background:rgba(239,68,68,.08); }
-  .cue.on-pvw { border-color:rgba(246,166,35,.7); box-shadow: inset 0 0 0 1px rgba(246,166,35,.6); background:rgba(246,166,35,.06); }
-  .rundown h2 { font-size:13px; margin:0 0 8px; }
-  .rundown .hint { font-size:12px; color:var(--dim); }
-  .feed { font-size:12px; color:var(--dim); max-height:180px; overflow:auto; margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  .verbs kbd { font-family:var(--mono); font-size:10px; letter-spacing:.06em; padding:2px 5px;
+    border-radius:4px; background:rgba(255,255,255,.07); border:1px solid var(--line); color:var(--dim); }
+  .verbs .pvw { border-color:rgba(246,166,35,.55); color:#f8c675; }
+  .verbs .take { background:var(--air); border-color:var(--air); color:#fff; font-weight:700; padding:0 24px; }
+  .verbs .take:hover:not(:disabled) { background:#f05a5a; }
+  .verbs .take kbd { background:rgba(0,0,0,.22); border-color:rgba(255,255,255,.25); color:#fff; }
+  .onair-line { margin-left:auto; font-size:12px; color:var(--dim); white-space:nowrap; }
+  .onair-line b { color:var(--air); font-weight:600; }
+
+  /* The cue editor. */
+  .editor { flex:0 1 auto; min-height:0; overflow:auto; background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; padding:10px 13px; }
+  .editor.live { border-color:rgba(239,68,68,.75); box-shadow: inset 0 0 0 1px rgba(239,68,68,.4); }
+  .editor.pvw { border-color:rgba(246,166,35,.6); }
+  .ed-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
+  .ed-kicker { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--amber); white-space:nowrap; }
+  .editor.live .ed-kicker { color:var(--air); }
+  .ed-name { font-size:14px; font-weight:600; }
+  .ed-fate { font-size:12px; color:var(--dim); }
+  .fields { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:8px 14px; }
+  .field label { display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--dim); margin-bottom:3px; }
+  input, textarea, select { width:100%; font:inherit; font-size:13px; color:var(--text); background:var(--bg);
+    border:1px solid var(--line); border-radius:6px; padding:7px 9px; }
+  textarea { min-height:70px; resize:vertical; }
+  .events { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .events button { font:inherit; font-size:12.5px; color:var(--text); background:var(--panel-2);
+    border:1px solid var(--line); border-radius:6px; padding:6px 11px; cursor:pointer; }
+
+  /* Activity: one collapsed line. */
+  .feed { flex:0 1 auto; min-height:0; overflow:auto; font-size:12.5px; color:var(--dim); }
+  .feed summary { cursor:pointer; padding:2px 0; }
   .feed div { padding:1px 0; }
-  a { color:var(--accent); }
-  .nolisten { display:none; margin:0 18px; margin-top:10px; padding:10px 14px; border:1px solid #8a4a2a; border-radius:8px; background:#2d1c12; color:#f0c9a8; font-size:12px; }
+  .feed .t { font-family:var(--mono); font-size:11px; color:#5c6371; margin-right:8px; }
+
+  /* The cue rail. */
+  .rail-head { display:flex; align-items:center; gap:8px; padding:11px 14px 7px; flex:none; }
+  .rail-head h2 { font-size:13px; margin:0; }
+  .rail-head .n { font-size:11px; color:var(--dim); }
+  .cues { flex:1 1 0; min-height:0; overflow:auto; padding:0 12px 10px;
+    display:flex; flex-direction:column; gap:5px; }
+  .cue { display:flex; align-items:center; gap:8px; padding:8px 9px; border:1px solid var(--line);
+    border-radius:8px; background:var(--panel); cursor:pointer; min-width:0; }
+  .cue.selected { border-color:#3b4252; }
+  .cue.on-air { border-color:rgba(239,68,68,.85); background:rgba(239,68,68,.09); }
+  .cue.on-pvw { border-color:rgba(246,166,35,.7); background:rgba(246,166,35,.07); }
+  .cue .no { flex:none; min-width:14px; text-align:right; font-size:11px; color:var(--dim);
+    font-variant-numeric:tabular-nums; }
+  .cue.on-air .no { color:var(--air); }
+  .cue .body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .cue .nm { font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cue .sub { font-size:11.5px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag { font-size:9.5px; font-weight:700; letter-spacing:.08em; flex:none; padding:2px 6px; border-radius:4px; }
+  .tag.air { color:#fff; background:var(--air); }
+  .tag.pv { color:#1a1205; background:var(--amber); }
+
+  .rail-foot { flex:none; border-top:1px solid var(--line); padding:9px 12px 12px; }
+  .rail-foot h3 { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin:0 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 8px;
+    border:1px solid var(--line); border-radius:7px; font-size:12px; background:var(--panel);
+    overflow:hidden; white-space:nowrap; }
+  .chip b { font-family:var(--mono); font-size:10.5px; color:var(--dim); font-weight:600; }
+  .chip.live { border-color:rgba(239,68,68,.7); background:rgba(239,68,68,.08); }
+  .chip.live b { color:var(--air); }
+  .chip i { width:6px; height:6px; border-radius:50%; background:var(--air); }
+
+  .nolisten { display:none; margin:10px 14px 0; padding:10px 14px; border:1px solid #8a4a2a;
+    border-radius:8px; background:#2d1c12; color:#f0c9a8; font-size:12px; }
+
+  /* Phone (§3): one column, monitors still side by side, verbs pinned to the bottom. */
+  @media (max-width: 900px) {
+    body { overflow:auto; }
+    main { display:flex; flex-direction:column; height:auto; }
+    .rail { border-left:none; border-top:1px solid var(--line); }
+    .cues { max-height:46vh; flex:none; }
+    .editor, .feed { flex:none; overflow:visible; }
+    header { height:46px; padding:0 10px; }
+    .clock, header a { display:none; }
+    .monitor h2 { font-size:9px; letter-spacing:.1em; }
+    .monitor .what { display:none; }
+    .verbs { position:sticky; bottom:0; z-index:5; background:var(--bg); border-top:1px solid var(--line);
+      padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px)); margin:0 -14px; flex-wrap:nowrap; }
+    .verbs button { flex:1 1 0; justify-content:center; min-height:52px; padding:0 10px; }
+    .verbs kbd, .verbs .pvw, .verbs #v-update, .onair-line { display:none; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>${escapeHtml(payload.show)} <span style="color:var(--dim);font-weight:400">· production controller</span></h1>
+  <h1>${escapeHtml(payload.show)} <span>· controller</span></h1>
+  <span class="mode" id="mode">○ CONNECTING</span>
+  <span class="clock mono" id="clock">00:00:00</span>
+  <span class="spacer"></span>
   <a href="show_controlpanel.html" title="The per-graphic panel: every field and event button of every graphic">per-graphic panel →</a>
-  <span class="status" id="status">connecting…</span>
+  <button class="allout" id="v-allout" disabled title="Play every live layer off — clear the frame">■ All out</button>
 </header>
 <div class="nolisten" id="nolisten">
   <strong>The relay is not answering.</strong> Start this page through the bundled launcher
@@ -127,38 +224,53 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   commands to the graphics. Opened from disk or a plain web server, the verbs have no wire.
 </div>
 <main>
-  <section class="left">
+  <section class="stage">
     <div class="monitors">
       <div class="monitor mon-pvw">
-        <h2><span class="dot"></span> PREVIEW <span id="pvw-label" style="color:var(--dim);font-weight:400"></span></h2>
-        <div class="stage" id="stage-pvw"></div>
+        <h2><span class="dot"></span>PREVIEW <span class="what" id="pvw-label"></span></h2>
+        <div class="screen" id="stage-pvw"></div>
       </div>
       <div class="monitor mon-pgm">
-        <h2><span class="dot"></span> PROGRAM — ON AIR <span id="pgm-label" style="color:var(--dim);font-weight:400"></span></h2>
-        <div class="stage" id="stage-pgm"></div>
+        <h2><span class="dot"></span>PROGRAM — ON AIR <span class="what" id="pgm-label"></span>
+          <span class="lay" id="pgm-layer"></span></h2>
+        <div class="screen" id="stage-pgm"></div>
       </div>
     </div>
+
     <div class="verbs">
-      <button class="pvw" id="v-preview" title="Take the selected cue onto the PREVIEW monitor only — nothing airs">→ Preview</button>
-      <button class="take" id="v-take" title="Take the selected cue TO AIR (the program stream)">⟳ Take</button>
-      <button id="v-update" title="Push the selected cue's edited values to air without re-animating">✎ Update</button>
-      <button id="v-next" title="Advance the on-air graphic one step (SPX Continue)">» Next</button>
-      <button id="v-out" title="Play the selected cue's layer off air">■ Out</button>
-      <button id="v-allout" title="Clear every live layer">■■ All out</button>
-      <span class="live-line" id="live-line"></span>
+      <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW — nothing airs">→ Preview <kbd>P</kbd></button>
+      <button class="take" id="v-take" title="Air the previewed cue">⟳ TAKE <kbd>SPACE</kbd></button>
+      <button id="v-update" title="Push the edited values to air without re-animating">✎ Update <kbd>U</kbd></button>
+      <button id="v-next" title="Advance the on-air graphic one step (SPX Continue)">» Next <kbd>N</kbd></button>
+      <button id="v-out" title="Play the selected cue's layer off air">■ Out <kbd>0</kbd></button>
+      <span class="onair-line" id="live-line"></span>
     </div>
+
     <div class="editor" id="editor" style="display:none">
-      <h3 id="editor-title"></h3>
-      <div id="editor-fields"></div>
+      <div class="ed-head">
+        <span class="ed-kicker" id="ed-kicker"></span>
+        <span class="ed-name" id="ed-name"></span>
+        <span class="ed-fate" id="ed-fate"></span>
+      </div>
+      <div class="fields" id="editor-fields"></div>
       <div class="events" id="editor-events"></div>
     </div>
-    <div class="feed" id="feed"></div>
+
+    <details class="feed">
+      <summary>Activity <span id="feed-last"></span></summary>
+      <div id="feed"></div>
+    </details>
   </section>
-  <aside class="rundown">
-    <h2>Cue rundown</h2>
-    <p class="hint">Select a cue — it shows on PREVIEW via → Preview; ⟳ Take airs it. Several
-    graphics can be on air at once, one per layer.</p>
-    <div id="cues"></div>
+
+  <aside class="rail">
+    <div class="rail-head">
+      <h2>Cue rundown</h2><span class="n">${payload.cues.length}</span>
+    </div>
+    <div class="cues" id="cues"></div>
+    <div class="rail-foot">
+      <h3>Layers <span style="text-transform:none;letter-spacing:0">· higher number in front</span></h3>
+      <div class="chips" id="chips"></div>
+    </div>
   </aside>
 </main>
 <script>
@@ -174,15 +286,16 @@ function send(items) {
     body: JSON.stringify({ items: items }) }).catch(function () {});
 }
 
-// ── Monitors: every pool graphic stacked in layer order, per stream. The iframes are
+// ── Monitors: every pool graphic stacked by its LAYER number, per stream. The iframes are
 // ordinary package graphics addressed with ?stream=, so what PREVIEW shows is the real
 // runtime, not a simulation. ──
 function buildStage(hostId, stream) {
   var host = document.getElementById(hostId);
-  PAYLOAD.graphics.forEach(function (g, i) {
+  PAYLOAD.graphics.forEach(function (g) {
     var f = document.createElement('iframe');
     f.src = g.file + '?stream=' + stream;
-    f.style.zIndex = String(i + 1);
+    f.title = g.name;
+    f.style.zIndex = String(g.layer);
     host.appendChild(f);
   });
   function fit() {
@@ -201,6 +314,7 @@ var selectedId = PAYLOAD.cues.length ? PAYLOAD.cues[0].id : null;
 var drafts = {};   // cueId -> edited values overlay
 var pvwLive = {};  // graphic -> cueId on the preview stream
 var pgmLive = {};  // graphic -> cueId on the program stream
+var started = Date.now();
 function cueById(id) { for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === id) return PAYLOAD.cues[i]; return null; }
 function graphicByName(name) { for (var i = 0; i < PAYLOAD.graphics.length; i++) if (PAYLOAD.graphics[i].name === name) return PAYLOAD.graphics[i]; return null; }
 function cueValues(cue) {
@@ -212,13 +326,16 @@ function cueValues(cue) {
   for (var k2 in d) out[k2] = String(d[k2]);
   return out;
 }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
 function feed(text) {
   var el = document.getElementById('feed');
   var row = document.createElement('div');
-  row.textContent = new Date().toLocaleTimeString() + '  ' + text;
+  var t = new Date().toLocaleTimeString();
+  row.innerHTML = '<span class="t">' + t + '</span>' + esc(text);
   el.insertBefore(row, el.firstChild);
   while (el.children.length > 80) el.removeChild(el.lastChild);
+  document.getElementById('feed-last').textContent = ' · ' + t + '  ' + text;
 }
 
 // ── The verbs: each is ONE batch of protocol rows; the 'cue' meta row is what carries the
@@ -261,7 +378,7 @@ function allOut() {
     items.push({ graphic: g, stream: 'program', msg: { t: 'cue', cue: null } });
   }
   if (items.length) send(items);
-  feed('■■ All out');
+  feed('■ All out');
 }
 document.getElementById('v-preview').onclick = function () { takeTo('preview'); };
 document.getElementById('v-take').onclick = function () { takeTo('program'); };
@@ -269,6 +386,21 @@ document.getElementById('v-update').onclick = updateLive;
 document.getElementById('v-next').onclick = nextLive;
 document.getElementById('v-out').onclick = function () { outCue('program'); };
 document.getElementById('v-allout').onclick = allOut;
+
+// The verb KEYS (docs/PLAYOUT_DASHBOARD.md §2). Never while typing — the fields live on this
+// same surface, and a space inside a name must stay a space.
+document.addEventListener('keydown', function (e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var el = e.target;
+  var tag = el && el.tagName;
+  if (el && (el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
+  var key = String(e.key).toLowerCase();
+  var run = { p: function () { takeTo('preview'); }, ' ': function () { takeTo('program'); },
+    u: updateLive, n: nextLive, '0': function () { outCue('program'); } }[key];
+  if (!run) return;
+  e.preventDefault();
+  run();
+});
 
 // ── The log follow: the tally comes from the LOG (never assumed locally), so a second
 // controller window agrees with this one. Boot at the head — recovery is a re-take. ──
@@ -290,31 +422,54 @@ function poll() {
     .catch(function () {});
 }
 
-// ── Painting: rundown, tallies, the editor for the selected cue. ──
+// ── Painting: rundown, tallies, layer chips, the editor for the selected cue. ──
 function paint() {
   var host = document.getElementById('cues');
   host.innerHTML = '';
   PAYLOAD.cues.forEach(function (cue, i) {
-    var el = document.createElement('div');
+    var g = graphicByName(cue.graphic);
     var onAir = pgmLive[cue.graphic] === cue.id;
     var onPvw = pvwLive[cue.graphic] === cue.id;
+    var el = document.createElement('div');
     el.className = 'cue' + (cue.id === selectedId ? ' selected' : '') + (onAir ? ' on-air' : onPvw ? ' on-pvw' : '');
-    el.innerHTML = '<span class="no">' + (onAir ? '●' : (i + 1) + '.') + '</span>' +
-      '<span class="name">' + cue.label.replace(/</g, '&lt;') + ' <span class="g">· ' + cue.graphic.replace(/</g, '&lt;') + '</span></span>' +
-      (onAir ? '<span style="color:var(--air);font-size:11px;font-weight:700">ON AIR</span>' :
-        onPvw ? '<span style="color:var(--amber);font-size:11px;font-weight:700">PVW</span>' : '');
-    el.onclick = function () { selectedId = cue.id; paint(); };
+    el.innerHTML =
+      '<span class="no">' + (onAir ? '●' : (i + 1)) + '</span>' +
+      '<span class="body"><span class="nm">' + esc(cue.label) + '</span>' +
+      '<span class="sub">' + (g ? 'L' + g.layer + ' · ' : '') + esc(cue.note || cue.graphic) + '</span></span>' +
+      (onAir ? '<span class="tag air">ON AIR</span>' : onPvw ? '<span class="tag pv">PVW</span>' : '');
+    el.onclick = function () { selectedId = cue.id; takeTo('preview'); paint(); };
     host.appendChild(el);
   });
 
-  var pvwNames = [], pgmNames = [];
+  // Layer chips, front to back — the same stack the graphics really paint in.
+  var chips = document.getElementById('chips');
+  chips.innerHTML = '';
+  PAYLOAD.graphics.slice().sort(function (a, b) { return b.layer - a.layer; }).forEach(function (g) {
+    var live = !!pgmLive[g.name];
+    var chip = document.createElement('span');
+    chip.className = 'chip' + (live ? ' live' : '');
+    chip.title = g.name + ' airs on layer ' + g.layer;
+    chip.innerHTML = '<b>L' + g.layer + '</b> ' + esc(g.name) + (live ? '<i></i>' : '');
+    chips.appendChild(chip);
+  });
+
+  var pvwNames = [], pgmNames = [], pgmLayer = null;
   for (var a in pvwLive) { var c1 = cueById(pvwLive[a]); pvwNames.push(c1 ? c1.label : a); }
-  for (var b in pgmLive) { var c2 = cueById(pgmLive[b]); pgmNames.push(c2 ? c2.label : b); }
-  document.getElementById('pvw-label').textContent = pvwNames.length ? '· ' + pvwNames.join(' · ') : '';
-  document.getElementById('pgm-label').textContent = pgmNames.length ? '· ' + pgmNames.join(' · ') : '';
+  for (var b in pgmLive) {
+    var c2 = cueById(pgmLive[b]); pgmNames.push(c2 ? c2.label : b);
+    var gg = graphicByName(b); if (gg && (pgmLayer === null || gg.layer > pgmLayer)) pgmLayer = gg.layer;
+  }
+  var sel = cueById(selectedId);
+  document.getElementById('pvw-label').textContent = pvwNames.length ? pvwNames.join(' · ') : (sel ? sel.label : '');
+  document.getElementById('pgm-label').textContent = pgmNames.length ? pgmNames.join(' · ') : 'nothing on air';
+  document.getElementById('pgm-layer').textContent = pgmLayer === null ? '' : 'L' + pgmLayer;
   document.getElementById('live-line').innerHTML = pgmNames.length
-    ? '<span class="on">● ' + pgmNames.join(' · ').replace(/</g, '&lt;') + '</span>'
-    : '<span>○ nothing on air</span>';
+    ? 'on air: <b>● ' + esc(pgmNames.join(' · ')) + '</b>'
+    : '○ nothing on air';
+  document.getElementById('v-allout').disabled = pgmNames.length === 0;
+  document.getElementById('v-update').disabled = !(sel && pgmLive[sel.graphic] === sel.id);
+  document.getElementById('v-next').disabled = !(sel && pgmLive[sel.graphic]);
+  document.getElementById('v-out').disabled = !(sel && pgmLive[sel.graphic]);
 
   paintEditor();
 }
@@ -327,13 +482,12 @@ function paintEditor() {
   var g = graphicByName(cue.graphic);
   var onAir = pgmLive[cue.graphic] === cue.id;
   var onPvw = pvwLive[cue.graphic] === cue.id;
-  wrap.className = 'editor' + (onAir ? ' live' : onPvw ? ' pvw-live' : '');
-  document.getElementById('editor-title').innerHTML =
-    'Editing: ' + cue.label.replace(/</g, '&lt;') +
-    ' <span class="muted">· ' + cue.graphic.replace(/</g, '&lt;') + ' · ' +
-    (onAir ? '<span style="color:var(--air);font-weight:700">LIVE — ✎ Update pushes edits</span>'
-      : onPvw ? '<span style="color:var(--amber);font-weight:700">ON PREVIEW — ⟳ Take airs it</span>'
-      : 'draft — → Preview to check it, ⟳ Take to air it') + '</span>';
+  wrap.className = 'editor' + (onAir ? ' live' : onPvw ? ' pvw' : '');
+  document.getElementById('ed-kicker').textContent = onAir ? 'EDITING ON-AIR CUE' : 'EDITING PREVIEW CUE';
+  document.getElementById('ed-name').textContent = cue.label;
+  document.getElementById('ed-fate').textContent = onAir
+    ? 'changes push live on ✎ Update'
+    : 'changes air on ⟳ TAKE';
 
   var fields = document.getElementById('editor-fields');
   fields.innerHTML = '';
@@ -342,7 +496,8 @@ function paintEditor() {
     var box = document.createElement('div');
     box.className = 'field';
     var label = document.createElement('label');
-    label.textContent = c.label;
+    // The field's ID rides with its name here too, so this page and FIELDS.md agree.
+    label.textContent = c.key.toUpperCase() + ' · ' + c.label;
     box.appendChild(label);
     var input;
     if (c.kind === 'lines') { input = document.createElement('textarea'); }
@@ -373,7 +528,8 @@ function paintEditor() {
   });
 
   // The graphic's OPERATOR EVENTS (its state machine's buttons) — the capability module the
-  // machine declares; a graphic with none shows none.
+  // machine declares; a graphic with none shows none. Interactive graphics (polls, Q&A, chat)
+  // add their operator actions in this same region (docs/PLAYOUT_DASHBOARD.md §8).
   var events = document.getElementById('editor-events');
   events.innerHTML = '';
   (g ? g.events : []).forEach(function (e) {
@@ -392,6 +548,14 @@ function paintEditor() {
   });
 }
 
+function tick() {
+  var s = Math.floor((Date.now() - started) / 1000);
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  document.getElementById('clock').textContent =
+    pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+}
+setInterval(tick, 1000);
+
 // ── Boot: relay first (the controller is nothing without it), then follow the log. ──
 fetch('/relay/ping')
   .then(function (r) { return r.ok ? r.json() : null; })
@@ -399,11 +563,13 @@ fetch('/relay/ping')
     if (!d || !d.ok) throw new Error('no relay');
     relayOk = true;
     cursor = d.head || 0;
-    document.getElementById('status').textContent = 'local relay connected';
+    var mode = document.getElementById('mode');
+    mode.textContent = '● SHOW';
+    mode.className = 'mode on';
     setInterval(poll, 400);
   })
   .catch(function () {
-    document.getElementById('status').textContent = 'relay not reachable';
+    document.getElementById('mode').textContent = '○ NO RELAY';
     document.getElementById('nolisten').style.display = 'block';
   });
 paint();
