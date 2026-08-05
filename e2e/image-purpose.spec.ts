@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { acceptAiNotice } from './_ai-notice';
 import { mockClaude, useFakeAiKey } from './_video';
+import { enableAdvancedMode } from './_create';
 
 // What an uploaded picture is FOR (src/model/imagePurpose.ts). The step used to bundle every
 // dropped image into the graphic; four purposes now travel with the request, and the ones that
@@ -145,6 +146,10 @@ async function attach(page: Page, specs: { name: string; w: number; h: number; a
 }
 
 async function openAiStep(page: Page) {
+  // The Finish step's "open in the editor" door is ADVANCED-ONLY (docs/GOALS.md "Student
+  // release" step 4), and these tests read the created template through the editor's Assets
+  // panel. Without this the door never renders and the click waits out the whole timeout.
+  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
@@ -370,7 +375,10 @@ export default function Composition({ assets = {}, fields = {} }: { assets?: Rec
   // A video composition has no operator-swap control, so the binding choice must not appear.
   await expect(cards.nth(0).getByTestId('binding-swappable')).toHaveCount(0);
 
-  await page.getByRole('button', { name: /Create/ }).first().click();
+  // Scoped to the STEP: Home renders behind the wizard and its Productions section now has its
+  // own "＋ Create" (docs/GOALS.md "Student release" step 8), which `.first()` resolved to — a
+  // disabled button, so the click waited out the whole timeout.
+  await page.getByTestId('video-step').getByRole('button', { name: /Create/ }).first().click();
   await expect(page.getByTestId('video-shell')).toBeVisible({ timeout: 25_000 });
 
   // The Assets panel manages EVERY upload - it is the one surface that must not filter, or a
