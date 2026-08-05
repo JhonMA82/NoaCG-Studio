@@ -29,6 +29,37 @@ export interface ShowCue {
   note?: string;
 }
 
+/** One column of a production dataset. `key` is the stable id values are stored under;
+ *  `label` is what the operator reads AND what field binding matches against (a column named
+ *  like a field's title loads into that field — visible, deterministic, no mapping UI). */
+export interface DatasetColumn {
+  key: string;
+  label: string;
+}
+
+/** One row of a production dataset — column key -> value, all strings (the same currency as
+ *  cue values and SPX fields, so a row loads into a cue with no conversion layer). */
+export interface DatasetRow {
+  id: string;
+  values: Record<string, string>;
+}
+
+/**
+ * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
+ * bank, a match's teams, a roster — the show's working data, editable in the Data workspace
+ * and loaded into cues by DELIBERATE operator action, never a live wire. Lives inside the
+ * Show record (ADDITIVE OPTIONAL, rule 6): it syncs with the production, works offline, and
+ * needs no server table. `kind` only picks the starter columns and the workspace's wording —
+ * the shape is one honest table either way.
+ */
+export interface ShowDataset {
+  id: string;
+  name: string;
+  kind: 'quiz' | 'teams' | 'roster' | 'generic';
+  columns: DatasetColumn[];
+  rows: DatasetRow[];
+}
+
 export interface Show {
   id: string;
   name: string;
@@ -47,6 +78,9 @@ export interface Show {
   /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
    *  build reads and rewrites the record untouched; absent = no cues authored. */
   cues?: ShowCue[];
+  /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
+   *  ADDITIVE OPTIONAL like cues; absent = none authored. */
+  datasets?: ShowDataset[];
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -297,6 +331,149 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
     show.cues = show.cues.filter((c) => c.id !== cueId);
     return true;
   });
+}
+
+// ── Datasets (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3) ──────
+
+/** Each kind's starter columns. Labels matter: field binding matches a column's LABEL against
+ *  a field's TITLE (case-insensitive), so the quiz preset spells its columns exactly as the
+ *  quiz templates title their fields — a fresh quiz bank loads into every board with zero
+ *  setup. Teams/roster presets are authoring conveniences; their load story arrives with the
+ *  sports pilot (Phase 4). */
+const DATASET_PRESETS: Record<ShowDataset['kind'], { name: string; labels: string[] }> = {
+  quiz: { name: 'Quiz questions', labels: ['Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D', 'Correct answer'] },
+  teams: { name: 'Teams', labels: ['Team', 'Code', 'Colour'] },
+  roster: { name: 'Line-up', labels: ['Name', 'Number', 'Position'] },
+  generic: { name: 'Data table', labels: ['Column 1', 'Column 2', 'Column 3'] },
+};
+
+function datasetOf(show: Show, datasetId: string): ShowDataset | undefined {
+  return show.datasets?.find((d) => d.id === datasetId);
+}
+
+/** Create a dataset with its kind's starter columns and one empty row to type into. */
+export function addShowDataset(
+  showId: string,
+  kind: ShowDataset['kind'],
+  name?: string,
+): { shows: Show[]; datasetId: string | null } {
+  let datasetId: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const preset = DATASET_PRESETS[kind];
+    const columns = preset.labels.map((label, i) => ({ key: `c${i}`, label }));
+    const dataset: ShowDataset = { id: uuid(), name: name?.trim() || preset.name, kind, columns, rows: [{ id: uuid(), values: {} }] };
+    show.datasets = [...(show.datasets ?? []), dataset];
+    datasetId = dataset.id;
+    return true;
+  });
+  return { shows, datasetId };
+}
+
+export function renameShowDataset(showId: string, datasetId: string, name: string): Show[] {
+  return patchShow(showId, (show) => {
+    const ds = datasetOf(show, datasetId);
+    if (!ds) return false;
+    ds.name = name;
+    return true;
+  });
+}
+
+export function removeShowDataset(showId: string, datasetId: string): Show[] {
+  return patchShow(showId, (show) => {
+    if (!show.datasets?.some((d) => d.id === datasetId)) return false;
+    show.datasets = show.datasets.filter((d) => d.id !== datasetId);
+    return true;
+  });
+}
+
+export function addDatasetRow(showId: string, datasetId: string): { shows: Show[]; rowId: string | null } {
+  let rowId: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const ds = datasetOf(show, datasetId);
+    if (!ds) return false;
+    const row: DatasetRow = { id: uuid(), values: {} };
+    ds.rows = [...ds.rows, row];
+    rowId = row.id;
+    return true;
+  });
+  return { shows, rowId };
+}
+
+/** Patch one row's cells (column key -> value; merge, like cue values). */
+export function updateDatasetRow(
+  showId: string,
+  datasetId: string,
+  rowId: string,
+  values: Record<string, string>,
+): Show[] {
+  return patchShow(showId, (show) => {
+    const row = datasetOf(show, datasetId)?.rows.find((r) => r.id === rowId);
+    if (!row) return false;
+    row.values = { ...row.values, ...values };
+    return true;
+  });
+}
+
+export function removeDatasetRow(showId: string, datasetId: string, rowId: string): Show[] {
+  return patchShow(showId, (show) => {
+    const ds = datasetOf(show, datasetId);
+    if (!ds?.rows.some((r) => r.id === rowId)) return false;
+    ds.rows = ds.rows.filter((r) => r.id !== rowId);
+    return true;
+  });
+}
+
+export function addDatasetColumn(showId: string, datasetId: string, label: string): Show[] {
+  return patchShow(showId, (show) => {
+    const ds = datasetOf(show, datasetId);
+    if (!ds) return false;
+    // Keys are minted monotonically, never reused: values live under keys, so a removed
+    // column's data must not resurface under a later one's.
+    const next = ds.columns.reduce((max, c) => Math.max(max, Number(c.key.slice(1)) + 1 || 0), 0);
+    ds.columns = [...ds.columns, { key: `c${next}`, label: label.trim() || `Column ${ds.columns.length + 1}` }];
+    return true;
+  });
+}
+
+export function renameDatasetColumn(showId: string, datasetId: string, columnKey: string, label: string): Show[] {
+  return patchShow(showId, (show) => {
+    const col = datasetOf(show, datasetId)?.columns.find((c) => c.key === columnKey);
+    if (!col) return false;
+    col.label = label;
+    return true;
+  });
+}
+
+export function removeDatasetColumn(showId: string, datasetId: string, columnKey: string): Show[] {
+  return patchShow(showId, (show) => {
+    const ds = datasetOf(show, datasetId);
+    if (!ds?.columns.some((c) => c.key === columnKey)) return false;
+    ds.columns = ds.columns.filter((c) => c.key !== columnKey);
+    return true;
+  });
+}
+
+/**
+ * The BINDING: which of a template's fields a dataset row can fill, by matching column LABELS
+ * to field TITLES (trimmed, case-insensitive). Returns fieldId -> value for the matches only —
+ * unmatched columns are skipped, unmatched fields keep their cue values. Deterministic and
+ * fully visible (rename a column or a field title and the match changes with it); loading is
+ * always a deliberate operator action into a CUE, never a live wire to air.
+ */
+export function datasetValuesForFields(
+  dataset: ShowDataset,
+  row: DatasetRow,
+  fields: { key: string; label: string }[],
+): Record<string, string> {
+  const byLabel = new Map(dataset.columns.map((c) => [c.label.trim().toLowerCase(), c.key] as const));
+  const out: Record<string, string> = {};
+  for (const f of fields) {
+    const columnKey = byLabel.get(f.label.trim().toLowerCase());
+    if (columnKey === undefined) continue;
+    const v = row.values[columnKey];
+    if (v !== undefined) out[f.key] = v;
+  }
+  return out;
 }
 
 /** Set (or clear, with undefined) the production's unified look. */

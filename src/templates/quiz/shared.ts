@@ -294,8 +294,11 @@ function quizRow(letter) {
 }
 
 // The PAINT SIGNATURE: what the board currently shows, as one string — the machine state plus
-// the two letters that drive the marks. Every painter stamps it and clearReveal removes it,
-// so paintQuizState can tell a repeat (skip — no motion) from a real change (repaint).
+// the two letters that drive the marks. ONLY a FULL repaint may stamp it (paintQuizState, and
+// revealAnswer — which clears first): a partial painter certifying it would lie after a SNAP,
+// where the target state's own call fires (applyLock) but the previous state's classes remain
+// (snap clears inline styles, never classes) — a stamped signature then made the trailing
+// data write's repaint a no-op and the stale verdict stayed on air. clearReveal removes it.
 function quizPaintSig() {
   var state = (typeof noacgMachineState === 'function') ? ((noacgMachineState().groups || {}).main || '') : '';
   var pickedEl = document.getElementById('${id.selected}');
@@ -313,18 +316,17 @@ function applySelection() {
   var options = document.querySelectorAll('.quiz-option');
   for (var i = 0; i < options.length; i++) options[i].classList.remove('quiz-sel');
   var row = quizRow(document.getElementById('${id.selected}').textContent);
-  markQuizPaint();
   if (!row) return;                // nothing picked yet, or an unknown letter
   row.classList.add('quiz-sel');
   gsap.fromTo(row, { scale: 1.04 }, { scale: 1, duration: 0.25 / motionSpeed(), ease: 'back.out(1.6)' });
 }
 
 // applyLock(): the answer is locked in. The dimming says so; the MACHINE is what actually
-// makes it final, by simply having no "select" arrow leaving this state.
+// makes it final, by simply having no "select" arrow leaving this state. Neither this nor
+// applySelection stamps the paint signature — they are PARTIAL painters (see quizPaintSig).
 function applyLock() {
   var root = document.querySelector('.quiz');
   if (root) root.classList.add('quiz-locked');
-  markQuizPaint();
 }
 
 // paintQuizState(): repaint the board from the MACHINE's current state plus the fields. Both
@@ -350,7 +352,7 @@ function paintQuizState() {
   clearReveal();
   if (state === 'selected' || state === 'locked') applySelection();
   if (state === 'locked') applyLock();
-  if (state !== 'selected' && state !== 'locked') markQuizPaint(); // the neutral pose is a paint too
+  markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
 // update(data): SPX sends field values as JSON, e.g. {"f0":"…","f1":"${content.answers[0]}","${id.correct}":"${content.correct}"}.

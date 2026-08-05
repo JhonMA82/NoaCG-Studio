@@ -4,6 +4,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
   addShowCue,
+  datasetValuesForFields,
   duplicateLayers,
   graphicLayer,
   loadShows,
@@ -20,6 +21,7 @@ import {
   type Show,
   type ShowCue,
 } from '../../model/shows';
+import ProductionDataWorkspace from './ProductionDataWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   eventButtons,
@@ -117,7 +119,7 @@ function typingInto(target: EventTarget | null): boolean {
  * clears another layer. That is why `liveCue` is a MAP and why every verb but Take addresses the
  * selected cue's layer. The layer is a NUMBER the operator types (§5), defaulting to 20.
  */
-export default function ProductionPage({ id }: { id: string }) {
+export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' | null }) {
   const navigate = useRouter((s) => s.navigate);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
   // an edit from re-parsing every store on every render.
@@ -318,7 +320,6 @@ export default function ProductionPage({ id }: { id: string }) {
   // settle commands (rebuilding the document per edit re-parses GSAP and reloads every asset on
   // the most common gesture a rundown has). Local by construction — it never touches the wire. ──
   const previewIframe = useRef<HTMLIFrameElement>(null);
-  const previewStage = useRef<HTMLDivElement>(null);
   const poolGraphic = selectedCue ? graphicByPoolId.get(selectedCue.sourceId) ?? null : null;
   const previewKey = poolGraphic ? `${poolGraphic.id}:${poolGraphic.savedAt}` : '';
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -350,17 +351,20 @@ export default function ProductionPage({ id }: { id: string }) {
   // The frame sizes itself in CSS from the graphic's own aspect ratio; the measurement drives
   // ONE number, the inner scale. (Sizing the frame from the measurement made the observed box
   // depend on the value it produced — a late observer left a right-sized frame around a
-  // wrongly scaled graphic.)
+  // wrongly scaled graphic.) Keyed on the NODE, not the document: the Data tab unmounts this
+  // subtree, and an effect keyed on the unchanged previewDoc never measured the remounted
+  // frame — the observer's last tick on the detaching node had left stageW at 0, so the
+  // returning preview rendered a 1920px document unscaled and showed its empty corner.
   const [stageW, setStageW] = useState(0);
+  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    const el = previewStage.current;
-    if (!el) return;
-    const measure = () => setStageW(el.clientWidth);
+    if (!stageEl) return;
+    const measure = () => setStageW(stageEl.clientWidth);
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    ro.observe(stageEl);
     return () => ro.disconnect();
-  }, [previewDoc]);
+  }, [stageEl]);
   const fit = previewTemplate && stageW ? stageW / previewTemplate.resolution.width : 0;
 
   const selectCue = useCallback(
@@ -545,6 +549,19 @@ export default function ProductionPage({ id }: { id: string }) {
   const editingView = editingCue ? cueView(editingCue) : null;
   const canTake = !!selectedCue;
 
+  /** Rows the edited cue can load (D3's binding): any production dataset with at least one
+   *  column whose label matches a field title, each row labelled by its first non-empty cell
+   *  in column order — the question, the team, the name. */
+  const loadableRows: { value: string; label: string }[] = [];
+  for (const ds of show.datasets ?? []) {
+    const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
+    if (!descriptors.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
+    ds.rows.forEach((row, i) => {
+      const first = ds.columns.map((c) => row.values[c.key] ?? '').find((v) => v.trim() !== '');
+      loadableRows.push({ value: `${ds.id}:${row.id}`, label: `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}` });
+    });
+  }
+
   // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
   // AIR the moment they are pressed, like ✎ Update, so they follow Update's legality: live
   // only while the selected cue's graphic is up on its layer. ──
@@ -625,6 +642,8 @@ export default function ProductionPage({ id }: { id: string }) {
         if (key === 'next' && selectedLayerLive) void nextLive();
         if (key === 'out' && selectedLayerLive) void outLive();
       }}
+      sub={sub ?? null}
+      onTab={(tab) => navigate(tab === 'data' ? { view: 'production', id: show.id, sub: 'data' } : { view: 'production', id: show.id })}
       links={
         <ProductionLinks
           show={show}
@@ -642,6 +661,9 @@ export default function ProductionPage({ id }: { id: string }) {
         />
       }
     >
+      {sub === 'data' && <ProductionDataWorkspace show={show} setShows={setShows} />}
+      {sub !== 'data' && (
+      <>
       <section className="pd-main">
         <div className="pd-monitors">
           <div className="pd-monitor pd-pvw">
@@ -654,7 +676,7 @@ export default function ProductionPage({ id }: { id: string }) {
               {previewDoc && previewTemplate ? (
                 <div
                   className="pd-frame"
-                  ref={previewStage}
+                  ref={setStageEl}
                   style={{ aspectRatio: `${previewTemplate.resolution.width} / ${previewTemplate.resolution.height}` }}
                   data-testid="production-preview"
                 >
@@ -808,6 +830,33 @@ export default function ProductionPage({ id }: { id: string }) {
             </div>
 
             <div className="pd-fields">
+              {/* LOAD A DATA ROW (the Data workspace's other half): a table whose column names
+                  match this graphic's field titles offers its rows here. Loading fills the
+                  EDITED CUE's draft — data prepares, only Take (or ✎ Update, deliberately)
+                  airs. Unmatched columns are skipped; untouched fields keep their values. */}
+              {loadableRows.length > 0 && (
+                <label className="pd-field pd-field-load">
+                  <span>Load data row</span>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      const [datasetId, rowId] = v.split(':');
+                      const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
+                      const row = ds?.rows.find((r) => r.id === rowId);
+                      if (!ds || !row) return;
+                      editDraft({ values: datasetValuesForFields(ds, row, descriptors) });
+                    }}
+                    data-testid="cue-load-row"
+                  >
+                    <option value="">Pick a row from the production's data…</option>
+                    {loadableRows.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {descriptors.map((d) => (
                 <FieldRow
                   key={d.key}
@@ -1154,6 +1203,8 @@ export default function ProductionPage({ id }: { id: string }) {
           </button>
         </div>
       </aside>
+      </>
+      )}
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
     </ProductionShell>
   );
@@ -1169,6 +1220,8 @@ function ProductionShell({
   rendererFresh,
   outputSeenAt,
   liveLayers,
+  sub,
+  onTab,
   onHome,
   onBack,
   onAllOut,
@@ -1184,6 +1237,8 @@ function ProductionShell({
   rendererFresh: boolean;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
+  sub: 'data' | null;
+  onTab: (tab: 'playout' | 'data') => void;
   onHome: () => void;
   onBack: () => void;
   onAllOut: () => void;
@@ -1227,6 +1282,17 @@ function ProductionShell({
           {hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}
         </span>
         <span className="pd-clock mono">{elapsed(now - openedAt)}</span>
+        {/* The workspaces (docs/INTERACTIVE_PLAYOUT_PLAN.md D6): Playout is the operating
+            surface, Data the production's own tables. One shared record underneath — a row
+            typed on the Data tab is loadable into a cue the moment you switch back. */}
+        <nav className="pd-tabs" aria-label="Production workspaces">
+          <button className={sub === null ? 'on' : undefined} onClick={() => onTab('playout')} data-testid="tab-playout">
+            Playout
+          </button>
+          <button className={sub === 'data' ? 'on' : undefined} onClick={() => onTab('data')} data-testid="tab-data">
+            Data
+          </button>
+        </nav>
         <div className="spacer" />
         {/* The renderer heartbeat — only once published. Unpublished, the mode chip already
             says so and a second "not published" beside it is noise, not status. */}

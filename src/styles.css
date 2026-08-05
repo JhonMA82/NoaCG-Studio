@@ -4375,6 +4375,62 @@ h2 + .lib-row,
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
 
+/* The production workspaces: Playout | Data (docs/INTERACTIVE_PLAYOUT_PLAN.md D6). */
+.pd-tabs { display: inline-flex; margin-left: 10px; }
+.pd-tabs button {
+  font-size: 12.5px;
+  padding: 5px 14px;
+  border-radius: 0;
+  border-right-width: 0;
+}
+.pd-tabs button:first-child { border-radius: 6px 0 0 6px; }
+.pd-tabs button:last-child { border-radius: 0 6px 6px 0; border-right-width: 1px; }
+.pd-tabs button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14161a;
+  font-weight: 600;
+}
+
+/* The DATA workspace: the production's own tables. */
+.pd-data { flex: 1 1 auto; min-width: 0; overflow: auto; padding: 14px 16px; }
+.pd-data-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.pd-data-head h2 { margin: 0; font-size: 16px; }
+.pd-data-head .hint { max-width: 560px; margin: 0; }
+/* The kind picker is one control, not a toolbar row — unconstrained, flex-wrap handed it a
+   whole line of its own. */
+.pd-data-head select { flex: 0 0 auto; width: auto; max-width: 200px; }
+.pd-data-empty { margin-top: 18px; }
+.pd-dataset {
+  background: var(--bg-2, #14161c);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 13px;
+  margin-bottom: 14px;
+}
+.pd-dataset-head { display: flex; align-items: center; gap: 10px; }
+.pd-dataset-name { font-size: 14px; font-weight: 600; max-width: 280px; }
+.pd-dataset-delete.armed { border-color: #7a2a2a; color: #ef4444; }
+.pd-dataset-scroll { overflow-x: auto; margin-top: 8px; }
+.pd-table { border-collapse: collapse; width: 100%; }
+.pd-table th, .pd-table td { padding: 2px 4px 2px 0; text-align: left; }
+.pd-table th input {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim, #9aa1ad);
+  min-width: 110px;
+  width: 100%;
+}
+.pd-th { display: flex; align-items: center; gap: 2px; }
+.pd-col-delete { padding: 2px 6px; font-size: 11px; flex: 0 0 auto; }
+.pd-table td input { min-width: 110px; width: 100%; }
+.pd-td-actions button { padding: 3px 8px; font-size: 12px; }
+.pd-dataset-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pd-dataset-foot input { max-width: 200px; }
+.pd-field-load select { width: 100%; }
+
 /* Segmented select — the short constrained choice (A/B/C/D) as one row of buttons. The
    selected one wears the amber the whole app uses for "this is the active choice". */
 .ctl-segmented { display: inline-flex; gap: 0; }

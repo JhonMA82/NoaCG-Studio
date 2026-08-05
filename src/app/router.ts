@@ -12,6 +12,10 @@
 //   #/graphic/<id>         open that library graphic in the SPX editor (refresh restores it)
 //   #/control/<graphicId>  the graphic's control panel
 //   #/production/<id>      one production's page (pool, cues, links, operating)
+//   #/production/<id>/data the production's DATA workspace (datasets — quiz banks, teams,
+//                          rosters; docs/INTERACTIVE_PLAYOUT_PLAN.md D6). An unknown third
+//                          segment lands on the playout surface, so an old build (or a stale
+//                          link) degrades to the page that always exists.
 //   #/video                the video editor shell
 //   #/new[/<designId>]     the creation wizard (Back closes it); an optional trailing catalog
 //                          variant id preselects that design (docs/PRERENDER.md's template-page
@@ -26,7 +30,7 @@ export type Route =
   | { view: 'home'; section: string | null }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
-  | { view: 'production'; id: string }
+  | { view: 'production'; id: string; sub?: 'data' }
   | { view: 'video' }
   | { view: 'new'; design?: string | null };
 
@@ -43,7 +47,10 @@ export function parseRoute(hash: string): Route {
     case 'control':
       return parts[1] ? { view: 'control', id: parts[1] } : { view: 'home', section: 'graphics' };
     case 'production':
-      return parts[1] ? { view: 'production', id: parts[1] } : { view: 'home', section: 'productions' };
+      if (!parts[1]) return { view: 'home', section: 'productions' };
+      return parts[2] === 'data'
+        ? { view: 'production', id: parts[1], sub: 'data' }
+        : { view: 'production', id: parts[1] };
     case 'video':
       return { view: 'video' };
     case 'new':
@@ -64,7 +71,9 @@ export function routeHash(route: Route): string {
     case 'control':
       return `#/control/${encodeURIComponent(route.id)}`;
     case 'production':
-      return `#/production/${encodeURIComponent(route.id)}`;
+      return route.sub === 'data'
+        ? `#/production/${encodeURIComponent(route.id)}/data`
+        : `#/production/${encodeURIComponent(route.id)}`;
     case 'video':
       return '#/video';
     case 'new':

@@ -170,7 +170,7 @@ export default function App() {
   const surface =
     route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' ? <GraphicControlPage id={route.id} />
-    : route.view === 'production' ? <ProductionPage id={route.id} />
+    : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />
     : route.view === 'video' ? <VideoAppShell />
     : route.view === 'graphic' ? <AppShell />
     : route.view === 'new' && !advanced ? <HomePage key="home" route={{ view: 'home', section: null }} />

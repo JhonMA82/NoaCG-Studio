@@ -25,7 +25,7 @@ accepted by the owner) · Deferred.
 |---|---|---|
 | 0 | Investigation + grounded plan + this tracker | Implemented |
 | 1 | Control-panel truth for four pilots (production contextual controls) | Implemented |
-| 2 | Shared data foundation (datasets on Show + Data workspace) | Planned |
+| 2 | Shared data foundation (datasets on Show + Data workspace) | Implemented |
 | 3 | Quiz pilot | Planned |
 | 4 | Generic sports pilot | Not started |
 | 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
@@ -185,11 +185,34 @@ lands in the Phase 3 pack).
 beat renaming makes it "Question"); after "Back to start" the layer stays ON AIR over an
 empty program (correct visual-reset semantics; hint line if the owner wants one).
 
-### Phase 2 — Shared data foundation. Status: Planned
+### Phase 2 — Shared data foundation. Status: Implemented (awaiting owner Verified)
 **Goal:** a production owns editable structured data, and an operator can load a row into a
-cue deliberately. **Scope:** `datasets` on `Show` (D3), the `#/production/<id>/data`
-workspace (table + record editing), "load row into preview cue" binding, spec, visual pack.
-**Out:** CSV/JSON import (Phase 7), any auto-updating binding.
+cue deliberately.
+**Implemented (2026-08-05):** `ShowDataset` on the Show record (additive-optional `datasets`;
+columns carry stable keys + operator-facing labels; kinds quiz/teams/roster/generic pick
+starter columns only), the full mutator set through `patchShow`, and
+`datasetValuesForFields` — THE binding: column LABELS match field TITLES (trimmed,
+case-insensitive), deterministic and visible on both sides, no mapping UI. The Data workspace
+(`ProductionDataWorkspace`, route `#/production/<id>/data` via the router's new `sub`
+segment — unknown third segments degrade to Playout) edits tables inline: rename table/
+columns, add/remove rows + columns, two-step table delete. The Playout cue editor gains
+"Load data row" — rows from any table with ≥1 matching column, labelled by their first
+non-empty cell; loading fills the edited cue's DRAFT (data prepares, Take airs). Header tabs
+Playout | Data on the production shell.
+**Out:** CSV/JSON import (Phase 7), any auto-updating binding, teams/roster load ergonomics
+(Phase 4 — one row carries one team; a two-team scorebug needs an A/B load gesture).
+**Verification:** `e2e/production-data.spec.ts` (2 specs: the quiz-bank walk — author on Data,
+load into cue, preview updates, air only on Take, reload + deep-link persistence, row/table
+deletion; and the binding-by-words walk — generic table matches nothing until a column is
+renamed to a field title). Mapped in both runner lists. Focus suite 364/0 + tripwire 22/22
+with exit codes read directly. **Visual pack delivered 2026-08-05** (3 frames + steps).
+**Two defects the phase's own verification caught and fixed:** the quiz paint signature,
+stamped by a PARTIAL painter during a snap, made the post-snap repaint a no-op and left the
+stale verdict on air (partial painters no longer stamp; the spec's snap case now proves the
+data half on `locked`); and the preview came back UNSCALED after a Data-tab round trip — the
+scale measurement was keyed on the unchanged document, so the remounted frame was never
+measured (DOM assertions passed while the picture showed an empty corner; caught by the
+visual capture, fixed by measuring on node attach, pinned by a scale assertion).
 
 ### Phase 3 — Quiz pilot. Status: Planned
 **Goal:** the master sequence runs deliberately from the production page: Question → Answers
