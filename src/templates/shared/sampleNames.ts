@@ -23,14 +23,14 @@ export const RETIRED_SAMPLE_NAMES = ['Noa Haline'] as const;
  * `SAMPLE_NAMES[0]` is safe in a narrow strap, the later entries stress a wider one.
  */
 export const SAMPLE_NAMES = [
-  'Max Power',
+  'Ida Novak',
   'Nora Nova',
   'Lina Berg',
   'Kenji Sato',
   'Maya Chen',
   'Sofia Rossi',
   'Samir Khan',
-  'Oliver North',
+  'Hana Yilmaz',
   'Leo Martinez',
   'Amina Okafor',
 ] as const;
