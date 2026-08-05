@@ -128,12 +128,13 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   // answers to. The package is driven by SPX or a CasparCG client here, and both speak ids.
   root.file(
     'FIELDS.md',
-    showFieldReferenceMd(
-      show.name,
-      fieldGraphics,
-      'In an SPX rundown the fields appear by name and you never type an id. A CasparCG client ' +
-        'sends the ids below directly — that is what these tables are for.',
-    ),
+    showFieldReferenceMd(show.name, fieldGraphics, {
+      usage:
+        'In an SPX rundown the fields appear by name and you never type an id. A CasparCG ' +
+        'client sends the ids below directly — that is what these tables are for, and each ' +
+        "graphic below carries the CasparCG Client's own steps.",
+      clientSteps: true,
+    }),
   );
   root.file(
     'README.md',
@@ -196,8 +197,9 @@ const FIELD_USAGE_NOTES: Record<string, string> = {
     'The bundled controller and control panel show these by name, so you never type an id there. ' +
     'The tables are for anything driving the graphics from outside.',
   casparcg:
-    'Your CasparCG client sends these ids: `CG 1-<layer> ADD 1 "<graphic>" 1 "<templateData>…"`, ' +
-    'then `CG 1-<layer> PLAY` / `NEXT` / `STOP`. Each graphic has its own layer above.',
+    'Each graphic below carries the **CasparCG Client** steps for its own template and layer. ' +
+    'Driving it another way? The AMCP form is `CG 1-<layer> ADD 1 "<graphic>" 1 ' +
+    '"<templateData>…"`, then `CG 1-<layer> PLAY` / `NEXT` / `STOP`.',
   h2r: 'H2R shows these as named inputs from each graphic\'s embedded GDD.',
   ograf: 'These ids are the keys of the OGraf data object each graphic\'s manifest declares.',
   liveos: 'These ids are the keys of the OGraf data object NetOn.Live sends to each graphic.',
@@ -286,7 +288,9 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
         layer: showGraphicLayer(show.graphics[i]),
         file: `${slug(template.name)}/${slug(template.name)}.html`,
       })),
-      FIELD_USAGE_NOTES[targetId],
+      // Only the CasparCG flavour gets the CLIENT walkthrough: on the others the fields appear
+      // by name in the host's own UI and nobody types an id, so the steps would be noise.
+      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg' },
     ),
   );
   root.file(

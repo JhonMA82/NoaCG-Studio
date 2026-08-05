@@ -9,7 +9,7 @@ import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { slug } from '../common';
 import { onAirGuideMd } from '../onAirGuide';
-import { fieldReferenceMd } from '../fieldReference';
+import { casparClientStepsMd, dataFields, fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
 
 // Wraps the template's own update() so CasparCG XML payloads work too. Teachable ES5,
@@ -66,15 +66,13 @@ export const casparTarget: ExportTarget = {
         `Everything is inlined: no other files are needed at playout.\n\n` +
         `**FIELDS.md** lists every field with the ID your client sends it under (f0, f1, …).\n`,
     );
-    // The ID table is the file a CasparCG operator keeps open: the client speaks ids, and
-    // only this package can say which id is the title and which is the name.
+    // The ID table is the file a CasparCG operator keeps open: the client speaks ids, and only
+    // this package can say which id is the title and which is the name. It carries the CLIENT's
+    // own walkthrough (the official CasparCG Client), because a student who has never sent a CG
+    // command cannot turn `CG 1-20 ADD …` into "which box do I type the name in".
     root.file(
       'FIELDS.md',
-      fieldReferenceMd(
-        template,
-        `Load it with \`CG 1-${layer} ADD 1 "${name}" 1 "<templateData>…</templateData>"\`, then ` +
-          `\`CG 1-${layer} PLAY\` / \`NEXT\` / \`STOP\`. Your client fills the ids below.`,
-      ),
+      fieldReferenceMd(template, casparClientStepsMd(name, layer, dataFields(template))),
     );
     root.file('GETTING-ON-AIR.md', onAirGuideMd());
     return zip;

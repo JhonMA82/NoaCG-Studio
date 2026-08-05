@@ -51,6 +51,16 @@ export-time reflow, stretching, or cropping.
 - **fieldReference.ts** - FIELDS.md, the package's DATA CONTRACT: the ID/field/type/default
   table plus dropdown values, filelist/checkbox/hidden notes, the steps line, buttons, and
   paste-ready JSON + CasparCG `componentData` payloads built from the graphic's OWN ids.
+  `casparClientStepsMd` is the **CasparCG Client** walkthrough (the official SVT client, which
+  is what the owner's students use): find the template in the Library, drag it into the
+  rundown, set the video layer to the number the graphic declares, fill the key/value grid with
+  IDS not names, then Play/Update/Next/Stop. It carries THAT graphic's own template name, layer
+  and default values, so the steps are followed rather than adapted - a student who has never
+  sent a CG command cannot turn `CG 1-20 ADD …` into "which box do I type the name in". The
+  AMCP form stays below it for another client, a script, or a bug report. It ships in the two
+  packages a CasparCG server actually receives (the CasparCG target and the SPX folder package,
+  which the README tells you to drop into an SPX **or** CasparCG templates directory) and
+  nowhere else - on a host that shows the fields by name, the steps would be noise.
   **Every package ships it** - all six single-graphic targets and both production builders -
   because a playout client speaks ids (`{"f0": "…"}`) and nothing on its screen says which id
   is the title. `showFieldReferenceMd` is the production edition: an index of every graphic by

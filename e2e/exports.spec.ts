@@ -177,6 +177,17 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   expect(fields).toContain('| `f0` | Name |');
   expect(fields).toContain('| `f1` | Title |');
   expect(fields).toContain('<componentData id="f0">');
+  // The CasparCG CLIENT's own walkthrough, carrying THIS graphic's name, layer and defaults —
+  // a student who has never sent a CG command cannot turn `CG 1-20 ADD …` into "which box do
+  // I type the name in" (owner, 2026-08-05: they use the default CasparCG Client).
+  expect(fields).toContain('## In the CasparCG Client');
+  expect(fields).toContain('locate\n   `hairline`');
+  expect(fields).toMatch(/Set the video layer to \d+/);
+  // The key/value grid is pre-filled from this graphic's own defaults, keyed by ID.
+  expect(fields).toMatch(/\| Key \| Value \|/);
+  expect(fields).toMatch(/\| `f0` \| .+ \|/);
+  // The AMCP form survives below it — another client, a script, a bug report.
+  expect(fields).toContain('CasparCG classic XML');
   // And the guide only ever describes what is actually in the folder — a CasparCG package
   // carries no relay on purpose, so it must not name the overlay flavour's launcher.
   const guide = await zip.file('hairline/GETTING-ON-AIR.md')!.async('string');

@@ -120,8 +120,48 @@ function buttonsMd(template: SpxTemplate): string {
     .join('\n')}\n`;
 }
 
-/** FIELDS.md for ONE graphic. `usage` is the packaging flavour's own line about where these
- *  values get typed (a CasparCG client, an SPX rundown, the bundled panel …). */
+/**
+ * The walkthrough for the **CasparCG Client** — the official SVT client, which is what the
+ * owner's students actually sit in front of (2026-08-05). It is written against that client's
+ * own flow rather than as raw AMCP, because a student who has never sent a CG command has no
+ * way to turn `CG 1-20 ADD …` into "which box do I type the name in".
+ *
+ * The AMCP form stays below it: a different client, a script, or a bug report needs it.
+ */
+export function casparClientStepsMd(templateName: string, layer: number, fields: SpxField[]): string {
+  const examples = fields
+    .filter((f) => f.ftype !== 'filelist')
+    .slice(0, 3)
+    .map((f) => `   | \`${f.field}\` | ${cell(f.value) || '…'} |`);
+  return `## In the CasparCG Client
+
+1. **Find the template.** In the **Library**, open the **Templates** tree and locate
+   \`${templateName}\`. (If it is not there, copy the package into the server's template folder
+   and press the Library's refresh — the client lists what the SERVER can see, not your disk.)
+2. **Drag it into the rundown.** The item's settings appear below.
+3. **Set the video layer to ${layer}.** That is the layer this graphic declares. Two graphics
+   sharing a layer replace each other on air, which is why each one here has its own number.
+   Leave *Flash layer* at 1.
+4. **Fill the data grid.** The settings carry a small **key / value** table with **+** and **−**
+   buttons. Add one row per field you want to set, and put the **ID** in the key column — not
+   the field's name:
+
+   | Key | Value |
+   |---|---|
+${examples.length ? examples.join('\n') : '   | `f0` | … |'}
+
+   The names in the ID column of the table above are the only place those ids are explained.
+5. **Air it.** **Play** runs the entrance, **Update** pushes edited values to the graphic
+   already on air without replaying it, **Next** steps it, **Stop** plays it out.
+
+*Send as JSON* on or off both work — the template accepts either form.
+
+Saving a filled-in item into the client's **Data** library lets you reuse it: the keys are the
+same ids, so a stored data set built for this graphic keeps working after a re-export.`;
+}
+
+/** FIELDS.md for ONE graphic. `usage` is the packaging flavour's own section about where these
+ *  values get typed (the CasparCG Client, an SPX rundown, the bundled panel …). */
 export function fieldReferenceMd(template: SpxTemplate, usage?: string): string {
   return `# ${template.name} — data fields
 
@@ -147,18 +187,32 @@ export interface ProductionFieldGraphic {
 /** FIELDS.md for a WHOLE production package: the index first (which graphic is on which layer,
  *  in which file), then one table per graphic. The acceptance-round ask — "a markdown file that
  *  clearly shows all graphics and the fields and IDs they contain". */
-export function showFieldReferenceMd(showName: string, graphics: ProductionFieldGraphic[], usage?: string): string {
+export function showFieldReferenceMd(
+  showName: string,
+  graphics: ProductionFieldGraphic[],
+  opts?: {
+    /** The flavour's own line about where these values get typed. */
+    usage?: string;
+    /** CasparCG packages get the CLIENT walkthrough per graphic — with that graphic's own
+     *  template name and layer, so the steps can be followed rather than adapted. */
+    clientSteps?: boolean;
+  },
+): string {
   const index = graphics
     .map((g) => `| ${g.layer} | ${cell(g.template.name)} | \`${g.file}\` | ${dataFields(g.template).length} |`)
     .join('\n');
   const sections = graphics
     .map((g) => {
       const anchor = slug(g.template.name);
+      const steps = opts?.clientSteps
+        ? `${casparClientStepsMd(slug(g.template.name), g.layer, dataFields(g.template))}\n\n`
+        : '';
       return `## ${g.template.name}  <a id="${anchor}"></a>
 
 Layer ${g.layer} · \`${g.file}\`
 
-${fieldTableMd(g.template)}${stepsLine(g.template)}${payloadExamplesMd(g.template)}${buttonsMd(g.template)}`;
+${fieldTableMd(g.template)}${stepsLine(g.template)}
+${steps}${payloadExamplesMd(g.template)}${buttonsMd(g.template)}`;
     })
     .join('\n---\n\n');
 
@@ -174,7 +228,7 @@ ${index}
 
 Each graphic sits on its **own playout layer**, so several can be on air at once without
 evicting each other.
-${usage ? `\n${usage}\n` : ''}
+${opts?.usage ? `\n${opts.usage}\n` : ''}
 ---
 
 ${sections}`;
