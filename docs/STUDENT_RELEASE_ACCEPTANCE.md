@@ -94,6 +94,13 @@ two things around it did not, both fixed the same day:**
 - [ ] FIELDS.md against a real client: open a production package's `FIELDS.md` beside the
       CasparCG client, type into the ids it lists, and confirm each one lands in the field the
       table names.
+- [ ] **The hosted control page's own UI** (docs/PLAYOUT_DASHBOARD.md). It was rebuilt from a
+      per-graphic form into the dashboard - two monitors, verb bar, cue rundown - and the
+      offline suite cannot reach it (the route needs a configured backend, so this page has
+      always lived on this checklist). Publish a production, open the control link on a phone
+      AND a laptop at once, and confirm: both monitors render, PROGRAM recovers what is
+      already on air when the page opens cold, a take on one device moves the other's PROGRAM
+      monitor and tally, and a field typed on one appears staged on the other.
 - [ ] SPX export: import into a real SPX rundown; templates listed by their own names;
       play/continue/stop from SPX; two templates from one production on air together
       (distinct layers).
