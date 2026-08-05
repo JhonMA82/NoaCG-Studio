@@ -112,6 +112,33 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowOutputSlug(showId, 'test-output-slug');
   }, id);
+  // A freshly published record must read EXACTLY clean: publishing stamps `publishedAt` and
+  // `updatedAt` from one instant, so the page's `updatedAt > publishedAt` test is false. They
+  // used to be two separate `nowIso()` calls one statement apart, and a clock tick between them
+  // made a just-published production announce "changed after the last publish" — telling the
+  // operator to publish again, about a change nobody made. Asserted on the RECORD because the
+  // UI version of this only fails on the millisecond boundary that produced it.
+  // REPEATED on purpose. The broken version stamps the two fields from two `nowIso()` calls
+  // one statement apart, so it only diverges when the clock happens to tick between them —
+  // a single publish passes it almost every time. Publishing a few hundred times spans enough
+  // milliseconds that the boundary is crossed, which is what makes this assertion able to fail
+  // at all (verified by putting the second `nowIso()` back and watching it go red).
+  const stamps = await page.evaluate(async (showId) => {
+    const { loadShows, setShowOutputSlug } = await import('/src/model/shows.ts');
+    let divergent = 0;
+    for (let i = 0; i < 400; i++) {
+      setShowOutputSlug(showId, `slug-${i}`);
+      const s = loadShows().find((x) => x.id === showId);
+      if (s?.updatedAt !== s?.publishedAt) divergent++;
+    }
+    setShowOutputSlug(showId, 'test-output-slug'); // restore the slug the rest of the test uses
+    const s = loadShows().find((x) => x.id === showId);
+    return { divergent, publishedAt: s?.publishedAt ?? null, updatedAt: s?.updatedAt ?? null };
+  }, id);
+  expect(stamps.publishedAt).not.toBeNull();
+  expect(stamps.updatedAt).toBe(stamps.publishedAt);
+  expect(stamps.divergent).toBe(0);
+
   await page.goto(`/app#/production/${id}`);
 
   // Both capability links render from the stored slugs, and a freshly published record

@@ -205,12 +205,26 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
 /** The mutator envelope, once: resolve the LIVE (non-tombstoned) record, run the mutation,
  *  stamp + persist only when it reports a change, return the visible list. Hand-rolling this
  *  per mutator is how four of the first five cue mutators forgot the tombstone guard. */
-function patchShow(showId: string, mutate: (show: Show) => boolean): Show[] {
+/**
+ * One write against one show, stamped with ONE timestamp.
+ *
+ * The mutator receives that timestamp because a stamp of its own would be a DIFFERENT
+ * millisecond: `setShowOutputSlug` set `publishedAt = nowIso()` here and the write below then
+ * set `updatedAt = nowIso()` again, so a clock tick between two adjacent statements left
+ * `updatedAt > publishedAt` — and the production page reads exactly that comparison as "the
+ * production changed after the last publish". Publishing could therefore tell the operator to
+ * publish again, immediately, about a change nobody made. Rare enough to pass in isolation
+ * almost always, which is how it survived until a loaded suite hit the boundary.
+ */
+function patchShow(showId: string, mutate: (show: Show, at: string) => boolean): Show[] {
   const all = loadAllShows();
   const show = all.find((s) => s.id === showId && !s.deleted);
-  if (show && mutate(show)) {
-    show.updatedAt = nowIso();
-    saveAll(all);
+  if (show) {
+    const at = nowIso();
+    if (mutate(show, at)) {
+      show.updatedAt = at;
+      saveAll(all);
+    }
   }
   return all.filter((s) => !s.deleted);
 }
@@ -297,10 +311,11 @@ export function setShowLook(showId: string, look: ProjectBrand | undefined): Sho
 /** Record (or clear, with undefined) a show's browser-output slug after (un)publishing.
  *  Publishing also stamps publishedAt; clearing removes it (nothing is live any more). */
 export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
-  return patchShow(showId, (show) => {
+  return patchShow(showId, (show, at) => {
     if (slug) {
       show.outputSlug = slug;
-      show.publishedAt = nowIso();
+      // The SAME instant the write is stamped with, so a freshly published record reads clean.
+      show.publishedAt = at;
     } else {
       delete show.outputSlug;
       delete show.publishedAt;
