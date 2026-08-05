@@ -1,0 +1,119 @@
+import { test, expect, type Page } from '@playwright/test';
+import { createProject } from './_create';
+
+// THE QUIZ PILOT (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the controlled sequence a student
+// production runs — question on air, a HIDDEN contestant pick locked without showing, the
+// choice revealed as its own beat, the verdict, the audience percentages, and the next
+// question loaded from the production's own bank. All from the production dashboard, all
+// deliberate; data never airs itself.
+
+async function productionFor(page: Page, name: string): Promise<void> {
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill(name);
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await expect(section.locator('.status-ok')).toContainText('is in the production');
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
+test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience result — then the next question from the bank', async ({ page }) => {
+  test.setTimeout(120_000);
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Quiz Night');
+
+  // ── The question bank, authored on the Data tab. ──
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('add-dataset').click();
+  const dataset = page.locator('.pd-dataset');
+  const fill = async (rowIndex: number, cells: string[]) => {
+    const row = dataset.locator('tbody tr').nth(rowIndex);
+    for (let i = 0; i < cells.length; i++) await row.locator('td input').nth(i).fill(cells[i]);
+  };
+  await fill(0, ['Which planet is known as the Red Planet?', 'Venus', 'Mars', 'Pluto', 'Titan', 'B']);
+  await page.getByTestId('add-row').click();
+  await fill(1, ['Which ocean is the largest?', 'Atlantic', 'Indian', 'Pacific', 'Arctic', 'C']);
+  await page.getByTestId('tab-playout').click();
+
+  const chip = page.getByTestId('machine-state-chip');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+
+  // ↷ Next with nothing loaded yet = the bank's FIRST question, into the draft.
+  await page.getByTestId('cue-load-next').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which planet is known as the Red Planet?');
+
+  // ── On air. ──
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+
+  // The contestant says "B". The operator records it as DATA — the segmented row, then a
+  // live ✎ Update — and NOTHING paints: the pick is in the graphic, invisible.
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('#f6')).toHaveText('B');
+  await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(0);
+
+  // Lock it — straight from the question. The board shows LOCKED, still not which answer.
+  await page.getByTestId('cue-action-lock').click();
+  await expect(chip).toHaveText('Locked, choice hidden');
+  await expect(program.locator('.quiz')).toHaveClass(/quiz-locked/);
+  await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(0);
+  // A late change is structurally impossible: select's arrows leave question/selected only.
+  await expect(page.getByTestId('cue-action-select')).toBeDisabled();
+
+  // Reveal the choice — its own deliberate beat. NOW the pick shows, still locked.
+  await page.getByTestId('cue-action-revealChoice').click();
+  await expect(chip).toHaveText('Locked in');
+  await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
+  await expect(program.locator('.quiz')).toHaveClass(/quiz-locked/);
+
+  // The verdict. B is correct — the picked row lights as the winner.
+  await page.getByTestId('cue-action-judge').click();
+  await expect(chip).toHaveText('Reveal');
+  await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-correct/);
+
+  // Audience result: type the percentages, fire the beat — the chips appear on the rows.
+  // The numbers were DATA the whole time; the state is what shows them.
+  await page.getByTestId('cue-field-f7').fill('12 | 61 | 18 | 9');
+  await page.getByTestId('cue-action-audience').click();
+  await expect(chip).toHaveText('Audience result');
+  await expect(program.locator('.quiz-aud')).toHaveCount(4);
+  await expect(program.locator('.quiz-aud').nth(1)).toHaveText('61%');
+
+  // ── The NEXT question: ↷ Next loads row 2 into the DRAFT (air untouched), Take airs it
+  // clean — a fresh entrance is the reset, both halves at once. ──
+  await page.getByTestId('cue-load-next').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which ocean is the largest?');
+  await expect(program.locator('#f0')).not.toHaveText('Which ocean is the largest?');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Which ocean is the largest?');
+  await expect(chip).toHaveText('Question');
+  await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(0);
+  await expect(program.locator('.quiz-aud')).toHaveCount(0);
+  // The bank is exhausted — ↷ Next says so instead of wrapping silently.
+  await expect(page.getByTestId('cue-load-next')).toBeDisabled();
+});
+
+test('the TV-style flow still stands: select paints immediately, lock follows, verdict tells the wrong pick apart', async ({ page }) => {
+  await createProject(page, { name: 'House Quiz' });
+  await productionFor(page, 'Studio Quiz');
+
+  const chip = page.getByTestId('machine-state-chip');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+
+  // Select C on air (the millionaire drama: the pick shows the moment it is made)…
+  await page.getByTestId('cue-field-f6-opt-C').click();
+  await page.getByTestId('cue-action-select').click();
+  await expect(chip).toHaveText('Answer selected');
+  await expect(program.locator('.quiz-option').nth(2)).toHaveClass(/quiz-sel/);
+
+  // …lock, judge: C was wrong (B is correct) — the two rows wear different treatments.
+  await page.getByTestId('cue-action-lock').click();
+  await expect(chip).toHaveText('Locked in');
+  await page.getByTestId('cue-action-judge').click();
+  await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-correct/);
+  await expect(program.locator('.quiz-option').nth(2)).toHaveClass(/quiz-wrong/);
+});

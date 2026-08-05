@@ -219,11 +219,13 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
   await expect(panel.locator('#nolisten')).toBeHidden();
   await expect(panel.locator('#status')).toContainText('connected');
 
-  // Play → the walk enters the question waypoint; select becomes legal, lock stays out
-  // (its only arrow leaves `selected`) — the structural guard, mirrored as greying.
+  // Play → the walk enters the question waypoint; select and lock both become legal (the
+  // hidden-pick flow seals straight from the question) while revealChoice stays out — its
+  // only arrow leaves `sealed`. The structural guard, mirrored as greying.
   await panel.getByRole('button', { name: '▶ Play' }).click();
   await expect(select).toBeEnabled();
-  await expect(lock).toBeDisabled();
+  await expect(lock).toBeEnabled();
+  await expect(panel.getByRole('button', { name: '⚡ Reveal choice' })).toBeDisabled();
 
   // Stage an answer with Live OFF, then Select: the value must land ONLY as the event's
   // payload (the atomic multi-part change), never as a live update.

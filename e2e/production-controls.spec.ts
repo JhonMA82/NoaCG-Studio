@@ -40,14 +40,15 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await expect(lock).toBeDisabled();
   await expect(judge).toBeDisabled();
 
-  // TAKE. The machine enters the question state; the guard opens exactly the arrows that
-  // leave it: select and judge fire from the entrance, lock's only arrow leaves `selected`.
+  // TAKE. The machine enters the Question state; the guard opens exactly the arrows that
+  // leave it: select, judge, and lock (the hidden-pick flow seals straight from the
+  // question) — while revealChoice stays grey, its only arrow leaving `sealed`.
   await page.getByTestId('verb-take').click();
-  await expect(chip).not.toHaveText('not on air');
-  await expect(chip).not.toHaveText('no state reported yet');
+  await expect(chip).toHaveText('Question');
   await expect(select).toBeEnabled();
   await expect(judge).toBeEnabled();
-  await expect(lock).toBeDisabled();
+  await expect(lock).toBeEnabled();
+  await expect(page.getByTestId('cue-action-revealChoice')).toBeDisabled();
 
   // The Selected-answer dropdown renders as SEGMENTED buttons (short constrained choice).
   // Pick B in the cue editor, then fire Select — the value rides as the event's payload.

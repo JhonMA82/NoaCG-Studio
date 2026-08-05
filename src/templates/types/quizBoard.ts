@@ -51,6 +51,9 @@ export const quizBoardType: GraphicType = {
         { label: 'A', value: 'A' }, { label: 'B', value: 'B' }, { label: 'C', value: 'C' }, { label: 'D', value: 'D' },
       ],
     },
+    // Per-answer audience percentages in row order ("34 | 52 | 9 | 5") — the `audience`
+    // state's data (see answerBoard.ts).
+    { key: 'audienceResults', label: 'Audience results', kind: 'text', value: '', role: 'data' },
   ],
   machine: ANSWER_BOARD_MACHINE,
   controls: ANSWER_BOARD_CONTROLS,

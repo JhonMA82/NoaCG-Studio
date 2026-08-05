@@ -75,9 +75,10 @@ test('the transition card edits an arrow: event rename, illegal names refused, s
   await createProject(page, { category: 'quiz' });
   await openGraph(page);
   // The lock arrow (selected → locked). dispatchEvent: the visible stroke is 1.5px and the
-  // hit twin is a curve — a center click would miss both. (Indices count the PARSED order:
-  // the injected lifecycle play/stop edges sit at their canonical sort positions, 0 and 3.)
-  await page.getByTestId('mg-arrow-main-t-4').dispatchEvent('click');
+  // hit twin is a curve — a center click would miss both. (Indices count the PARSED order —
+  // the canonical sort by from-state, trigger, event: with the sealed/audience branches the
+  // selected → locked arrow sits at 6.)
+  await page.getByTestId('mg-arrow-main-t-6').dispatchEvent('click');
   await expect(page.getByTestId('mg-transition-card')).toContainText('Answer selected → Locked in');
 
   // Rename the event; one undoable apply lands in the code.
@@ -109,9 +110,9 @@ test('the transition card edits an arrow: event rename, illegal names refused, s
 test('a styled transition plays the arrow\'s change and lands exactly on the target pose', async ({ page }) => {
   await createProject(page, { category: 'quiz' });
   await openGraph(page);
-  // Style the enter → selected arrow (fade), then fire it in the live preview.
-  await page.getByTestId('mg-arrow-main-t-2').dispatchEvent('click');
-  await expect(page.getByTestId('mg-transition-card')).toContainText('Enter → Answer selected');
+  // Style the question → selected arrow (fade), then fire it in the live preview.
+  await page.getByTestId('mg-arrow-main-t-3').dispatchEvent('click');
+  await expect(page.getByTestId('mg-transition-card')).toContainText('Question → Answer selected');
   await awaitPreviewRebuild(page, () => page.getByTestId('mg-style').selectOption('fade'));
 
   // ONE evaluate call, like the interpreter's own dispatch sequence used to run against a
@@ -150,9 +151,9 @@ test('drawing an arrow from a port creates a transition; the walk\'s only edge r
   await createProject(page, { category: 'quiz' });
   await openGraph(page);
 
-  // Port drag: Enter → Locked in becomes a real operator arrow, selected for renaming.
-  await page.hover('[data-testid="mg-state-main-enter"]');
-  const port = await page.getByTestId('mg-port-main-enter').boundingBox();
+  // Port drag: Question → Locked in becomes a real operator arrow, selected for renaming.
+  await page.hover('[data-testid="mg-state-main-question"]');
+  const port = await page.getByTestId('mg-port-main-question').boundingBox();
   const target = await page.getByTestId('mg-state-main-locked').boundingBox();
   await awaitPreviewRebuild(page, async () => {
     await page.mouse.move(port!.x + port!.width / 2, port!.y + port!.height / 2);
@@ -160,19 +161,19 @@ test('drawing an arrow from a port creates a transition; the walk\'s only edge r
     await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
     await page.mouse.up();
   });
-  expect(await templateJs(page)).toContain('"from": "enter", "to": "locked", "trigger": "operator", "event": "go"');
-  await expect(page.getByTestId('mg-transition-card')).toContainText('Enter → Locked in');
+  expect(await templateJs(page)).toContain('"from": "question", "to": "locked", "trigger": "operator", "event": "go"');
+  await expect(page.getByTestId('mg-transition-card')).toContainText('Question → Locked in');
 
   // Delete it again through its card.
   await awaitPreviewRebuild(page, () => page.getByTestId('mg-delete-transition').click());
-  expect(await templateJs(page)).not.toContain('"from": "enter", "to": "locked"');
+  expect(await templateJs(page)).not.toContain('"from": "question", "to": "locked", "trigger": "operator", "event": "go"');
 
   // The only arrow behind a default-path edge cannot go — the walk must stay connected.
   await page.getByTestId('mg-arrow-main-walk-1').dispatchEvent('click');
-  await expect(page.getByTestId('mg-transition-card')).toContainText('Enter → Reveal');
+  await expect(page.getByTestId('mg-transition-card')).toContainText('Question → Reveal');
   await page.getByTestId('mg-delete-transition').click();
   await page.waitForTimeout(300);
-  expect(await templateJs(page)).toContain('"from": "enter", "to": "reveal"');
+  expect(await templateJs(page)).toContain('"from": "question", "to": "reveal"');
 });
 
 test('a state nothing can enter is marked where it was authored, and the mark clears', async ({ page }) => {
@@ -517,17 +518,21 @@ test('the timeline says how each step is really reached, timers included', async
 test('the editor greys an event the machine would drop', async ({ page }) => {
   await createProject(page, { category: 'quiz' });
   const select = page.getByTestId('sim-event-select');
+  const revealChoice = page.getByTestId('sim-event-revealChoice');
   const lock = page.getByTestId('sim-event-lock');
 
   // The preview settles on the entrance after every rebuild, so that is where this starts.
-  // From there `select` has an arrow and `lock` does not.
-  await expect.poll(() => machineState(page).then((s) => s.main)).toBe('enter');
+  // From there `select` (and `lock` — the hidden-pick flow seals from the question) have
+  // arrows; `revealChoice` does not — its only arrow leaves `sealed`.
+  await expect.poll(() => machineState(page).then((s) => s.main)).toBe('question');
   await expect(select).toBeEnabled();
-  await expect(lock).toBeDisabled();
+  await expect(lock).toBeEnabled();
+  await expect(revealChoice).toBeDisabled();
 
   await select.click();
   await expect.poll(() => machineState(page).then((s) => s.main)).toBe('selected');
   await expect(lock).toBeEnabled();
+  await expect(revealChoice).toBeDisabled();
 
   // Once locked, selecting again is structurally impossible — there is no select arrow out of
   // `locked`. The guard already dropped the press; the button now says so instead of taking

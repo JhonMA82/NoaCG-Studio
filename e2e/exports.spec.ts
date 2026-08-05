@@ -524,9 +524,12 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
   expect(actions.map((a) => [a.id, a.name])).toEqual([
     ['select', 'Select answer'],
     ['lock', 'Lock it in'],
+    ['revealChoice', 'Reveal choice'],
     ['judge', 'Reveal correct'],
+    ['audience', 'Show audience result'],
   ]);
   expect(Object.keys(actions[0].schema!.properties)).toEqual(['f6']); // selectedAnswer rides `select`
+  expect(Object.keys(actions[4].schema!.properties)).toEqual(['f7']); // audienceResults rides `audience`
 
   const files = new Map<string, string>();
   for (const name of Object.keys(zip.files)) {

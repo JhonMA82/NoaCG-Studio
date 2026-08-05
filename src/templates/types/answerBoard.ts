@@ -56,11 +56,17 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
       {
         id: 'locked',
         name: 'Locked in',
+        // Both painters: this state is entered from `selected` (pick already showing) AND from
+        // `sealed` via revealChoice (pick hidden until now) — either way, entering means "the
+        // pick is visible and final", so the entry paints the whole moment.
         timeline: {
           name: 'Lock',
           duration: 0.25,
           ease: 'in',
-          calls: [{ time: 0, call: 'applyLock' }],
+          calls: [
+            { time: 0, call: 'applySelection' },
+            { time: 0, call: 'applyLock' },
+          ],
           layers: {},
         },
         edges: [
@@ -72,15 +78,60 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
           { from: 'locked', to: { waypoint: 1 }, trigger: 'operator', event: 'next' },
         ],
       },
+      {
+        // THE HIDDEN-PICK FLOW (docs/INTERACTIVE_PLAYOUT_PLAN.md, quiz pilot): the operator
+        // types the contestant's answer into the field (data — nothing paints), locks it
+        // STRAIGHT from the question state, and reveals the choice as its own deliberate beat.
+        // A separate state, not a flag: "locked with the pick showing" and "locked with the
+        // pick hidden" are two different on-air moments, and which one you are in must never
+        // depend on how you got there.
+        id: 'sealed',
+        name: 'Locked, choice hidden',
+        timeline: {
+          name: 'Seal',
+          duration: 0.25,
+          ease: 'in',
+          calls: [{ time: 0, call: 'applyLock' }],
+          layers: {},
+        },
+        edges: [
+          { from: { waypoint: 0 }, to: 'sealed', trigger: 'operator', event: 'lock' },
+          { from: 'sealed', to: 'locked', trigger: 'operator', event: 'revealChoice' },
+          // The verdict inherently shows the pick (the wrong-pick treatment), so judging
+          // straight from sealed is legal — the choice reveal is optional drama, not a gate.
+          { from: 'sealed', to: { waypoint: 1 }, trigger: 'operator', event: 'judge' },
+          { from: 'sealed', to: { waypoint: 1 }, trigger: 'operator', event: 'next' },
+        ],
+      },
+      {
+        // THE AUDIENCE RESULT: per-answer percentages (one hidden field, "34 | 52 | 9 | 5")
+        // painted as chips on the rows — after the verdict, as its own operator beat. Off the
+        // default path, so SPX's dumb-stepping walk is untouched.
+        id: 'audience',
+        name: 'Audience result',
+        timeline: {
+          name: 'Audience',
+          duration: 0.3,
+          ease: 'out',
+          calls: [{ time: 0, call: 'applyAudienceResult' }],
+          layers: {},
+        },
+        edges: [
+          { from: { waypoint: 1 }, to: 'audience', trigger: 'operator', event: 'audience' },
+          { from: 'audience', to: { waypoint: -1 }, trigger: 'operator', event: 'next' },
+        ],
+      },
     ],
   },
 };
 
-/** The three buttons every answer board's control page carries. */
+/** The buttons every answer board's control page carries, in the sequence an operator runs. */
 export const ANSWER_BOARD_CONTROLS: TypeControlEvent[] = [
   { event: 'select', label: 'Select answer', section: 'Answer', order: 1, payload: ['selectedAnswer'] },
   { event: 'lock', label: 'Lock it in', section: 'Answer', order: 2 },
-  { event: 'judge', label: 'Reveal correct', section: 'Answer', order: 3 },
+  { event: 'revealChoice', label: 'Reveal choice', section: 'Answer', order: 3 },
+  { event: 'judge', label: 'Reveal correct', section: 'Answer', order: 4 },
+  { event: 'audience', label: 'Show audience result', section: 'Answer', order: 5, payload: ['audienceResults'] },
 ];
 
 /** Every answer board promises the same three parts, whatever its row count. */
@@ -108,6 +159,10 @@ function answerDropdowns(letters: string[]): GraphicType['fields'] {
       role: 'data',
       options: [{ label: '—', value: '' }, ...options],
     },
+    // Per-answer audience percentages in row order ("34 | 52 | 9 | 5"), painted as chips by
+    // the `audience` state. Data like the two above: filled by hand or, later, by the poll
+    // backend — the state is what shows it, never the arrival of the numbers.
+    { key: 'audienceResults', label: 'Audience results', kind: 'text', value: '', role: 'data' },
   ];
 }
 

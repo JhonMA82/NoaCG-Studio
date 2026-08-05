@@ -26,7 +26,7 @@ accepted by the owner) · Deferred.
 | 0 | Investigation + grounded plan + this tracker | Implemented |
 | 1 | Control-panel truth for four pilots (production contextual controls) | Implemented |
 | 2 | Shared data foundation (datasets on Show + Data workspace) | Implemented |
-| 3 | Quiz pilot | Planned |
+| 3 | Quiz pilot | Implemented |
 | 4 | Generic sports pilot | Not started |
 | 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
 | 6 | Poll + audience quiz answers | Not started |
@@ -214,17 +214,43 @@ scale measurement was keyed on the unchanged document, so the remounted frame wa
 measured (DOM assertions passed while the picture showed an empty corner; caught by the
 visual capture, fixed by measuring on node attach, pinned by a scale assertion).
 
-### Phase 3 — Quiz pilot. Status: Planned
-**Goal:** the master sequence runs deliberately from the production page: Question → Answers
-open → Answer selected → Locked → Choice revealed → Correct revealed → (Audience result) →
-Next question. **Scope:** extend the `answerBoard` type — answers-open beat, `lock` reachable
-from the entrance state (hidden pick via the field + Update), `revealChoice` state,
-audience-result field + state — all branches off the intact default path; the shared machine
-changes all three board types at once (by design). New call-driven states follow the G9
-repaint rule. The audience-result field must be drivable by `field-coverage.mjs` on the
-resting graphic or carry a written excuse in the script. Quiz question-bank dataset kind +
-"next question" (loads the PREVIEW cue, never airs). **Verification:** automated gates + quiz
-l3-sweep + catalog gates + the full sequence frame-by-frame on Preview, Program and `/output`.
+### Phase 3 — Quiz pilot. Status: Implemented (awaiting owner Verified)
+**Goal:** the controlled sequence runs deliberately from the production page — hidden pick,
+lock, choice reveal, verdict, audience result, next question from the bank.
+**Implemented (2026-08-05):** the `answerBoard` machine grew two states and stayed
+history-independent: `sealed` ("Locked, choice hidden" — `lock` fires straight from the
+Question state over a pick typed as DATA, nothing paints) with `revealChoice` → `locked`
+(whose entry now paints selection AND lock, correct from both routes); and `audience`
+("Audience result") off the Reveal waypoint — a third hidden field (`Audience results`,
+"34 | 52 | 9 | 5") painted as tabular per-row chips by the state, the percentages riding the
+`audience` event as payload. Five control buttons in sequence order. The TV-style flow
+(select paints immediately → lock → judge) is untouched; the SPX `next()` walk unchanged
+(both new states are branches; `settings.steps` stays 2). The entrance step is named
+**Question** (the chip cosmetic from Phase 1). ↷ Next on the load-row picker walks the
+question bank row by row into the PREVIEW draft; Take airs it clean (a fresh entrance is the
+reset, both halves). Live percentage edits refresh chips without re-popping the verdict
+(the paint signature carries the results text; partial painters never stamp).
+**Deliberately deferred, with reasons:** the answers-open beat — it moves the row entrances
+into a new walk step, which cascades into four catalog gates including a `field-coverage`
+mechanism change (rows hidden at rest read as unreachable), and the binding first-version
+criteria require the lock/reveal discipline, not that beat. Recorded as a follow-up; the
+concept's "Open answers" button stays wanted.
+**Verification:** `e2e/quiz-pilot.spec.ts` (2 specs: the full hidden-pick sequence + bank
+walk; the TV-style flow with the wrong-pick verdict) and **`e2e/configured/quiz-output.spec.ts`
+— a PERMANENT live spec**: published production, the REAL `/output` renderer over the real
+hosted log, the sealed sequence, a renderer reboot mid-lock recovering the sealed board
+(data → snap → data on the wire), audience chips, full cleanup. All five catalog gates exit 0
+(field-coverage passes without excuses — the results field drives its hidden holder); source
+baseline re-recorded (12 quiz variants); render baseline re-recorded once for the deliberate
+hidden-holder DOM growth (the diff listed only `#count` + the new holder per variant) and
+verified stable. Machine-shape consumers updated: exported-panel greying example,
+machine-graph arrow indices/names, the OGraf action list (now five, `audienceResults` riding
+`audience`), the Millionaire spec already on two-operation reset. **Visual pack delivered
+2026-08-05** (8 live frames, dashboard + output pairs). **Two real defects this phase's
+verification caught and fixed:** the links popover sat UNDER the shared menu backdrop
+(z 89 vs 40) — Copy URL / Publish changes / Unpublish were unclickable on every published
+production; and the live spec's first Take assertions were vacuous (markup defaults + a
+locally-fed chip) — replaced with a renderer-side computed-opacity poll.
 
 ### Phase 4 — Generic sports pilot. Status: Not started
 Score steppers, clock verbs from the production page, period/status/lineup coverage; verify

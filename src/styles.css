@@ -4174,7 +4174,9 @@ h2 + .lib-row,
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 40;
+  /* Above the shared .lib-menu-backdrop (z 89): at 40 the backdrop swallowed every click
+     inside the popover — Copy, Publish changes, Unpublish all just closed it. */
+  z-index: 90;
   width: min(520px, 90vw);
   padding: 12px 14px;
   background: var(--bg-2, #14161c);

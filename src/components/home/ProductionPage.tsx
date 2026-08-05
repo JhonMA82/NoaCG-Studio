@@ -142,6 +142,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
   /** Which cue the editor is pointed at: the one on PREVIEW (the default — edits air on Take),
    *  or the one already ON AIR on that layer, where ✎ Update pushes edits live (§2). */
   const [editTarget, setEditTarget] = useState<'preview' | 'air'>('preview');
+  /** Per cue, the last data row loaded into it (`datasetId:rowId`) — what ↷ Next advances from. */
+  const [lastLoaded, setLastLoaded] = useState<Record<string, string>>({});
 
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
@@ -561,6 +563,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
       loadableRows.push({ value: `${ds.id}:${row.id}`, label: `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}` });
     });
   }
+  /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so ↷ Next
+   *  walks the bank in order. */
+  const loadRow = (value: string) => {
+    if (!value || !editingCue) return;
+    const [datasetId, rowId] = value.split(':');
+    const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
+    const row = ds?.rows.find((r) => r.id === rowId);
+    if (!ds || !row) return;
+    editDraft({ values: datasetValuesForFields(ds, row, descriptors) });
+    setLastLoaded((m) => ({ ...m, [editingCue.id]: value }));
+  };
 
   // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
   // AIR the moment they are pressed, like ✎ Update, so they follow Update's legality: live
@@ -837,24 +850,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
               {loadableRows.length > 0 && (
                 <label className="pd-field pd-field-load">
                   <span>Load data row</span>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (!v) return;
-                      const [datasetId, rowId] = v.split(':');
-                      const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
-                      const row = ds?.rows.find((r) => r.id === rowId);
-                      if (!ds || !row) return;
-                      editDraft({ values: datasetValuesForFields(ds, row, descriptors) });
-                    }}
-                    data-testid="cue-load-row"
-                  >
-                    <option value="">Pick a row from the production's data…</option>
-                    {loadableRows.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  <div className="row">
+                    <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
+                      <option value="">Pick a row from the production's data…</option>
+                      {loadableRows.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {/* The running-order gesture: next question, next name — one press. Loads
+                        the row AFTER the one this cue last loaded (the first, before any). */}
+                    <button
+                      onClick={() => {
+                        const at = editingCue ? loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) : -1;
+                        const next = loadableRows[at + 1];
+                        if (next) loadRow(next.value);
+                      }}
+                      disabled={
+                        !editingCue ||
+                        loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) >= loadableRows.length - 1
+                      }
+                      title="Load the next row"
+                      data-testid="cue-load-next"
+                    >
+                      ↷ Next
+                    </button>
+                  </div>
                 </label>
               )}
               {descriptors.map((d) => (

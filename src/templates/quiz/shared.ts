@@ -182,6 +182,15 @@ function quizFields(content: QuizContent): SpxField[] {
       value: '',
       items: [{ text: '—', value: '' }, ...letterItems],
     },
+    // Per-answer audience percentages in row order ("34 | 52 | 9 | 5"), painted as row chips
+    // by the `audience` state. Data exactly like the two above — arriving numbers never show
+    // themselves; the operator's `audience` event does.
+    {
+      field: `f${letters.length + 3}`,
+      ftype: 'textfield',
+      title: 'Audience results',
+      value: '',
+    },
   ];
 }
 
@@ -220,6 +229,15 @@ function withRevealStep(ease: string) {
   };
 }
 
+/** Name the entrance step for what it shows: the QUESTION. The operator surfaces put the
+ *  current state's name on a chip, and the importer's generic entrance name told them
+ *  nothing — "Question" is what an operator mid-show needs to read there. */
+function withQuestionName(data: AnimData): AnimData {
+  const steps = [...data.steps];
+  if (steps[0]) steps[0] = { ...steps[0], name: 'Question' };
+  return { ...data, steps };
+}
+
 /** How the row count reads in a generated comment. */
 const ROW_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four' };
 
@@ -245,10 +263,10 @@ function assertRowsMatchAnswers(name: string, html: string, optionCount: number)
   );
 }
 
-/** The ids of the two hidden dropdown sources on a board of n answers. */
-function hiddenIds(content: QuizContent): { correct: string; selected: string } {
+/** The ids of the three hidden data sources on a board of n answers. */
+function hiddenIds(content: QuizContent): { correct: string; selected: string; results: string } {
   const n = content.answers.length;
-  return { correct: `f${n + 1}`, selected: `f${n + 2}` };
+  return { correct: `f${n + 1}`, selected: `f${n + 2}`, results: `f${n + 3}` };
 }
 
 /** The quiz runtime: the standard scaffold plus the Continue-driven answer reveal. */
@@ -278,10 +296,13 @@ function clearReveal() {
     options[i].classList.remove('quiz-dim');
     options[i].classList.remove('quiz-sel');
     options[i].classList.remove('quiz-wrong');
+    var chip = options[i].querySelector('.quiz-aud');
+    if (chip) chip.parentNode.removeChild(chip);
   }
   var root = document.querySelector('.quiz');
   if (root) {
     root.classList.remove('quiz-locked');
+    root.classList.remove('quiz-audience');
     root.removeAttribute('data-noacg-paint'); // the paint signature died with the marks
   }
 }
@@ -303,7 +324,9 @@ function quizPaintSig() {
   var state = (typeof noacgMachineState === 'function') ? ((noacgMachineState().groups || {}).main || '') : '';
   var pickedEl = document.getElementById('${id.selected}');
   var correctEl = document.getElementById('${id.correct}');
-  return state + '|' + (correctEl ? correctEl.textContent : '') + '|' + (pickedEl ? pickedEl.textContent : '');
+  var resultsEl = document.getElementById('${id.results}');
+  return state + '|' + (correctEl ? correctEl.textContent : '') + '|' + (pickedEl ? pickedEl.textContent : '')
+    + '|' + (resultsEl ? resultsEl.textContent : '');
 }
 function markQuizPaint() {
   var root = document.querySelector('.quiz');
@@ -329,6 +352,40 @@ function applyLock() {
   if (root) root.classList.add('quiz-locked');
 }
 
+// applyAudienceResult(): paint the per-answer percentages from #${id.results} ("34 | 52 | 9 | 5",
+// row order) as a chip on each option row. textContent only — the numbers may one day arrive
+// from an audience backend, and nothing that came from outside the studio runs as markup. An
+// empty slot removes its chip, so a partial result renders honestly. Stamps the signature: it
+// is the audience state's FULL paint (the verdict underneath was painted by revealAnswer).
+function applyAudienceResult() {
+  var src = document.getElementById('${id.results}');
+  var parts = String(src ? src.textContent : '').split('|');
+  var options = document.querySelectorAll('.quiz-option');
+  var any = false;
+  for (var i = 0; i < options.length; i++) {
+    var value = (parts[i] || '').trim();
+    var chip = options[i].querySelector('.quiz-aud');
+    if (!value) {
+      if (chip) chip.parentNode.removeChild(chip);
+      continue;
+    }
+    if (!chip) {
+      chip = document.createElement('span');
+      chip.className = 'quiz-aud';
+      options[i].appendChild(chip);
+    }
+    var text = /%$/.test(value) ? value : value + '%';
+    if (chip.textContent !== text) chip.textContent = text;
+    any = true;
+  }
+  var root = document.querySelector('.quiz');
+  if (root) {
+    if (any) root.classList.add('quiz-audience');
+    else root.classList.remove('quiz-audience');
+  }
+  markQuizPaint();
+}
+
 // paintQuizState(): repaint the board from the MACHINE's current state plus the fields. Both
 // update() and snap recovery land here, for one reason each: a data write must never erase a
 // selection the machine still holds (a live Update mid-lock used to wipe the lock visual while
@@ -348,10 +405,17 @@ function paintQuizState() {
   // correct row re-pop on air. Every painter stamps the signature; clearReveal removes it.
   var root = document.querySelector('.quiz');
   if (root && root.getAttribute('data-noacg-paint') === quizPaintSig()) return;
+  if (state === 'audience') {
+    // The verdict underneath repaints only if it is missing (a recovery); live percentage
+    // updates refresh the chips alone, so the correct row never re-pops per keystroke.
+    if (!document.querySelector('.quiz-correct')) revealAnswer();
+    applyAudienceResult();         // stamps
+    return;
+  }
   if (state === 'reveal') { revealAnswer(); return; }   // clears first, then paints + stamps
   clearReveal();
   if (state === 'selected' || state === 'locked') applySelection();
-  if (state === 'locked') applyLock();
+  if (state === 'locked' || state === 'sealed') applyLock();
   markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
@@ -466,6 +530,9 @@ ${design.html}
     <!-- Hidden selected-answer source — the contestant's pick (field ${id.selected}). It is DATA: one
          "selected" state plus this letter, never one state per answer. -->
     <div id="${id.selected}" class="noacg-data-source"></div>
+    <!-- Hidden audience-results source (field ${id.results}) — per-answer percentages in row
+         order, "34 | 52 | 9 | 5". The audience state paints them as row chips. -->
+    <div id="${id.results}" class="noacg-data-source"></div>
   </div>`,
   });
 
@@ -503,6 +570,23 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
   will-change: transform, opacity; /* the rows stagger in and pop on reveal */
 }
 
+/* ── Audience result chips — the per-answer percentages the audience state paints. The chip
+      anchors to its row's right edge; rows get position only while the result shows, so a
+      design's own layout is untouched the rest of the time. Numerals stay tabular so a live
+      count never changes width as its digits change. ── */
+.quiz-audience .quiz-option { position: relative; }
+.quiz-aud {
+  position: absolute;
+  right: calc(14px * var(--scale));
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-numeric, inherit);
+  font-variant-numeric: tabular-nums;
+  font-size: calc(21px * var(--scale) * var(--type-scale));
+  font-weight: 600;
+  opacity: 0.92;
+}
+
 /* ── Design ── */
 ${design.css}
 
@@ -537,7 +621,9 @@ ${dataSourceCss}
     fields,
     settings,
     assets: [...o.importedImages, ...(o.customFont ? [o.customFont.asset] : [])],
-    layers: fields.filter((f) => f.ftype === 'textfield').map((f) => ({
+    // The audience-results field is a hidden data source like the two dropdowns, not a drawn
+    // text line — it must not become a layer row.
+    layers: fields.filter((f) => f.ftype === 'textfield' && f.field !== id.results).map((f) => ({
       id: f.field,
       type: 'text' as const,
       label: f.title,
@@ -550,8 +636,9 @@ ${dataSourceCss}
   // Timeline v2: the preset's region becomes the NOACG_ANIM data block, and the operator's
   // Continue becomes a real middle step (the answer reveal) on top of it.
   // The reveal step must be inserted BEFORE a machine compiles, because the machine derives
-  // its default path from the final step list (shared/standard.ts composeRefine).
-  return convertToDataRegion(template, composeRefine(withRevealStep(ease.easeIn), refine));
+  // its default path from the final step list (shared/standard.ts composeRefine); the
+  // entrance rename rides the same chain so every consumer sees one step list.
+  return convertToDataRegion(template, composeRefine(withQuestionName, withRevealStep(ease.easeIn), refine));
 }
 
 /** The authoring API for quiz variant modules. */
