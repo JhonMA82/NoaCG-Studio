@@ -474,10 +474,16 @@ function paint() {
   paintEditor();
 }
 
+// Which cue the FIELDS were built for. paint() runs on every log poll (400 ms), and rebuilding
+// the inputs each time replaces the element the operator is typing into: a poll landing between
+// two keystrokes threw the half-typed value away and restored the cue's stored text. Only a
+// change of SELECTED CUE needs new inputs; a tally change needs the header and nothing else.
+var editorCueId = null;
+
 function paintEditor() {
   var wrap = document.getElementById('editor');
   var cue = cueById(selectedId);
-  if (!cue) { wrap.style.display = 'none'; return; }
+  if (!cue) { wrap.style.display = 'none'; editorCueId = null; return; }
   wrap.style.display = 'block';
   var g = graphicByName(cue.graphic);
   var onAir = pgmLive[cue.graphic] === cue.id;
@@ -488,6 +494,10 @@ function paintEditor() {
   document.getElementById('ed-fate').textContent = onAir
     ? 'changes push live on ✎ Update'
     : 'changes air on ⟳ TAKE';
+
+  // Same cue as last time: the header above is the whole update. Leave the inputs alone.
+  if (editorCueId === cue.id) return;
+  editorCueId = cue.id;
 
   var fields = document.getElementById('editor-fields');
   fields.innerHTML = '';
