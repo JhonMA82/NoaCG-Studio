@@ -4075,6 +4075,38 @@ h2 + .lib-row,
 /* ── The PRODUCTION page (#/production/<id>, docs/CLOUD_PLAYOUT.md §4-5). Shares the control
    page's two-column shell; the main column scrolls (links + preview + verbs + cue editor). ── */
 .control-page-main { min-width: 0; overflow: auto; padding: 14px 16px 30px; }
+
+/* ONE SCREEN (acceptance round 2, 2026-08-05: "I want the whole page to fit on one screen").
+   The production page is a COCKPIT, not a document: on a desktop the main column is a flex
+   stack that does not scroll, the strips take their natural height, and the PREVIEW takes
+   whatever is left. Fitting the preview on width alone gave it 862px of a 1027px column on a
+   1080p screen and pushed the verbs and the cue editor — the two things an operator drives —
+   below the fold.
+
+   Only the cue editor may scroll inside itself: its height follows the graphic's field count,
+   which is the one thing here the layout cannot bound. Phones keep the stacked, scrolling
+   column below (the 900px query further down). */
+@media (min-width: 901px) {
+  .production-page .control-page-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 14px;
+  }
+  /* Every strip is content-sized; without this flex's default shrink would squeeze them
+     instead of the one element that is meant to give way. */
+  .production-page .control-page-main > * { flex: none; }
+  /* Basis 0, not auto: the preview's height comes from the LEFTOVER space alone, never from
+     what is inside it (see .prod-preview-fit). */
+  .production-page .control-page-main > .prod-preview { flex: 1 1 0; min-height: 190px; }
+  .production-page .prod-preview-fit { flex: 1 1 0; aspect-ratio: auto; }
+  .production-page .control-page-main > [data-testid='cue-editor'] {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 40vh;
+    overflow: auto;
+  }
+}
 .prod-links { margin-bottom: 12px; }
 .prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
 .prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
@@ -4090,7 +4122,40 @@ h2 + .lib-row,
   border-radius: 6px;
   padding: 6px 8px;
 }
-.prod-preview { margin: 10px 0; }
+.prod-preview { margin: 10px 0; display: flex; flex-direction: column; min-height: 0; }
+/* The box the preview is ALLOWED — the room left over once the strips above and below have
+   taken theirs. Both modes centre themselves inside it and neither may grow it.
+   ITS HEIGHT MUST NOT DEPEND ON ITS CONTENT: the component measures this box and sizes the
+   frame from it, so a content-derived height is a feedback loop (the frame's own height feeds
+   the next measurement, and the preview settles a frame late — or, where ResizeObserver
+   delivers only once, never, leaving a stale scale that crops the graphic). Hence a 16:9
+   shape here and a zero flex-basis in the desktop cockpit query below: both derive the height
+   from something OUTSIDE the box. */
+.prod-preview-fit {
+  min-height: 0;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* CONTAIN, in CSS alone: full height of the box it is offered, width from the graphic's own
+   aspect ratio (set inline from the template's resolution), never wider than the box. The
+   component only measures this element to derive the iframe's scale. */
+.prod-preview-frame {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  border: 1px solid #26262c;
+  /* The broadcast PVW convention (amber = preview, red = air) — the same frame the exported
+     controller's PREVIEW monitor wears. */
+  box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.55);
+  border-radius: 8px;
+  background: #0a0a0c;
+}
+.prod-preview-caption { flex: none; margin: 4px 0 0; }
 /* REHEARSE vs SHOW (docs/CLOUD_PLAYOUT.md §4a). The strip is a STATE, not a control, so it is
    always present and always coloured — a mode you have to go looking for is a mode you can be
    wrong about. SHOW borrows the on-air green the live cue rows already use; rehearsal is the
@@ -4121,6 +4186,11 @@ h2 + .lib-row,
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  /* Contain, never fill: inside `.prod-preview-fit` it takes the full height it is offered and
+     lets the aspect ratio decide its width, so a rehearsal is exactly as big as a cue preview. */
+  height: 100%;
+  width: auto;
+  max-width: 100%;
   border: 1px solid #26262c;
   border-radius: 8px;
   background: #0a0a0c;

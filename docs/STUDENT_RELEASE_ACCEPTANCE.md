@@ -68,9 +68,32 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
   GETTING-ON-AIR.md. The full offline local-control answer (a bundled localhost service +
   launcher + the shared production controller) is the follow-up program in flight.
 
+**Round 2 findings (owner, 2026-08-05) — the CasparCG package PASSED on the real server;
+two things around it did not, both fixed the same day:**
+
+- The production zip had no `Start controller.cmd`, **and GETTING-ON-AIR.md told the reader to
+  double-click one.** Only the HTML-overlay flavour bundles the relay + launchers (SPX and
+  CasparCG carry none on purpose — the playout host is the controller there), but one guide
+  text served every flavour. A guide naming a missing file reads as a broken export. Fixed:
+  `onAirGuideMd({ localController })` describes only what the caller actually bundled, the
+  no-launcher flavours instead say what DOES steer them (the SPX rundown, a CasparCG client)
+  and point at the overlay target for a double-click operator page, and the launcher filename
+  now appears only in packages that carry it. The export dialog says per target who controls
+  the graphics. Pinned by `e2e/exports.spec.ts` + `e2e/shows.spec.ts`.
+- **Nothing in a package said which field id was which.** A CasparCG client sends `f0`, and
+  only the app knew `f0` was the title and `f1` the name. Fixed: every package — all six
+  single-graphic targets and both production builders — ships **FIELDS.md**
+  (`src/export/fieldReference.ts`): the ID/field/type/default table, dropdown values, image-slot
+  and step notes, and paste-ready JSON + CasparCG `componentData` payloads built from the
+  graphic's own ids. A production's root FIELDS.md indexes every graphic by its playout layer.
+
 - [ ] CasparCG export: load the package from disk on the real server (the README's
       channel-layer-BEFORE-ADD incantation), fonts render, fields update, plays clean —
-      including from a PUBLISHED production's package.
+      including from a PUBLISHED production's package. *(Round 2: PASSED for a production
+      package on the owner's server.)*
+- [ ] FIELDS.md against a real client: open a production package's `FIELDS.md` beside the
+      CasparCG client, type into the ids it lists, and confirm each one lands in the field the
+      table names.
 - [ ] SPX export: import into a real SPX rundown; templates listed by their own names;
       play/continue/stop from SPX; two templates from one production on air together
       (distinct layers).

@@ -93,6 +93,47 @@ test('Home Productions creates a production and opens its page; removing a graph
   await expect(page.getByTestId('no-cues')).toBeVisible();
 });
 
+test('the production page fits one 1080p screen, and the preview takes only the room left over', async ({ page }) => {
+  // Acceptance round 2, 2026-08-05: "the preview video is way too big — I want the whole page
+  // to fit on one screen". Fitting the preview on WIDTH alone gave it 862px of a 1027px column
+  // on a full-HD screen, so the verbs and the cue editor sat below the fold. The page is a
+  // cockpit: the strips take their natural height and the preview takes what is left.
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill('One Screen');
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.locator('.prod-preview-frame')).toBeVisible();
+
+  const fit = await page.evaluate(() => {
+    const main = document.querySelector('.control-page-main')!;
+    const frame = document.querySelector('.prod-preview-frame')!.getBoundingClientRect();
+    const log = document.querySelector('[data-testid="action-log"]')!.getBoundingClientRect();
+    return {
+      // Nothing scrolls: not the column, not the document.
+      columnOverflow: main.scrollHeight - main.clientHeight,
+      documentOverflow: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      // The LAST thing on the page is above the fold — that is what "one screen" means.
+      lastRowBottom: Math.round(log.bottom),
+      viewportHeight: window.innerHeight,
+      // The frame keeps the graphic's own aspect ratio, so nothing is cropped or stretched.
+      frameRatio: +(frame.width / frame.height).toFixed(2),
+      frameHeight: Math.round(frame.height),
+    };
+  });
+  expect(fit.columnOverflow).toBe(0);
+  expect(fit.documentOverflow).toBe(0);
+  expect(fit.lastRowBottom).toBeLessThanOrEqual(fit.viewportHeight);
+  expect(fit.frameRatio).toBe(1.78);
+  // Big enough to judge a graphic by, small enough to leave the operator's controls on screen.
+  expect(fit.frameHeight).toBeGreaterThan(240);
+  expect(fit.frameHeight).toBeLessThan(fit.viewportHeight * 0.62);
+});
+
 test('the /output page answers honestly offline and builds a stage from a payload', async ({ page }) => {
   // The offline build: the renderer names its state instead of spinning (never on real air —
   // this state only exists for a wrong URL or a build with no backend).

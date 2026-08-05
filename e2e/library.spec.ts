@@ -168,6 +168,22 @@ test('opening another graphic with unsaved changes asks first; Discard proceeds'
   await expect(page.locator('.tpl-name')).toHaveText('First graphic');
 });
 
+test('a graphic row opens from its NAME, the same door a production row offers', async ({ page }) => {
+  // Acceptance round 2, 2026-08-05: pressing a production's title opens it, so a graphic's
+  // title must too — reaching for "Open" on the far right of every row was the papercut.
+  await createProject(page, 'Hairline');
+  await saveAs(page, 'Named door');
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  const row = page.locator('.lib-row', { hasText: 'Named door' });
+
+  // This bootstrap runs in ADVANCED mode, where Open means the editor — so the name must mean
+  // the editor too (one handler behind both doors). The DEFAULT studio's half of the same
+  // contract is pinned in advanced-mode.spec.ts, the file that must not opt into Advanced.
+  await row.getByTestId('open-graphic-name').click();
+  await expect(page.locator('.tpl-name')).toHaveText('Named door');
+});
+
 test('a saved graphic\'s control panel: entries create, play with the active entry, persist', async ({ page }) => {
   await createProject(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');

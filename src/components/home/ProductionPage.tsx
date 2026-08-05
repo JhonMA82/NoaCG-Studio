@@ -286,6 +286,18 @@ export default function ProductionPage({ id }: { id: string }) {
   // resolution and scales down, so the preview shows the real composition — a lower third at
   // its true share of frame, not the top-left crop a 100%-width iframe of a 1920px document
   // would show.
+  //
+  // It fits into BOTH dimensions of the box the layout leaves it (acceptance round 2, 2026-08-05:
+  // "the preview video is way too big — the whole page should fit on one screen"). Fitting on
+  // WIDTH alone made the preview 862px of a 1027px column on a 1080p screen, so the verbs and
+  // the cue editor — the two things an operator actually drives — sat below the fold. The page
+  // is a cockpit: the preview takes the room that is left over, never the room it would like.
+  //
+  // The FRAME sizes itself in CSS (its aspect ratio is the graphic's own, its height the box it
+  // sits in), so the measurement drives ONE number — the inner scale. Sizing the frame from the
+  // measurement instead made the box depend on the very value it produced: the observer fed
+  // itself, and a late delivery left a frame clamped to the right size around an iframe still
+  // scaled for the old one, i.e. a cropped graphic.
   const [stageW, setStageW] = useState(0);
   useEffect(() => {
     const el = previewStage.current;
@@ -582,57 +594,52 @@ export default function ProductionPage({ id }: { id: string }) {
 
           {/* Preview — LOCAL, never the wire. In rehearsal the whole output stands here
               instead of one cue, because layering and stepping are what you rehearse. */}
+          {/* `.prod-preview-fit` is the MEASURED box — the room the column has left over after
+              the strips above and below have taken theirs. Both modes contain themselves inside
+              it, so switching to Rehearse cannot change the page's height. */}
           <div className="prod-preview" data-testid="production-preview">
-            {rehearsing ? (
-              <>
+            <div className="prod-preview-fit">
+              {rehearsing ? (
                 <RehearsalStage ref={rehearsalRef} show={show} library={library} empty={liveLayers.length === 0} />
-                <p className="hint" style={{ marginTop: 4 }}>
-                  A local copy of the production’s own output, driven by the verbs below.
-                </p>
-              </>
-            ) : previewDoc && previewTemplate ? (
-              <div
-                ref={previewStage}
-                style={{
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: fit ? previewTemplate.resolution.height * fit : undefined,
-                  aspectRatio: fit ? undefined : '16 / 9',
-                  border: '1px solid #26262c',
-                  // The broadcast PVW convention (amber = preview, red = air), same frame the
-                  // exported controller's PREVIEW monitor wears.
-                  boxShadow: 'inset 0 0 0 2px rgba(246, 166, 35, 0.55)',
-                  borderRadius: 8,
-                  background: '#0a0a0c',
-                }}
-              >
-                <iframe
-                  ref={previewIframe}
-                  title="Cue preview"
-                  sandbox="allow-scripts"
-                  srcDoc={previewDoc}
-                  onLoad={() => settlePreview(settleData)}
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    width: previewTemplate.resolution.width,
-                    height: previewTemplate.resolution.height,
-                    border: 0,
-                    transformOrigin: '0 0',
-                    transform: `scale(${fit || 1})`,
-                  }}
-                />
-              </div>
-            ) : (
-              <p className="hint">Add a cue to preview it here.</p>
-            )}
-            {!rehearsing && (
-              <p className="hint" style={{ marginTop: 4 }}>
-                <span className="status-warn">PREVIEW</span> — the selected cue, checked before
-                it airs; nothing changes on air until <strong>⟳ Take</strong>.
-              </p>
-            )}
+              ) : previewDoc && previewTemplate ? (
+                <div
+                  className="prod-preview-frame"
+                  ref={previewStage}
+                  // The graphic's OWN ratio, so a non-16:9 template keeps its shape here too.
+                  style={{ aspectRatio: `${previewTemplate.resolution.width} / ${previewTemplate.resolution.height}` }}
+                >
+                  <iframe
+                    ref={previewIframe}
+                    title="Cue preview"
+                    sandbox="allow-scripts"
+                    srcDoc={previewDoc}
+                    onLoad={() => settlePreview(settleData)}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      width: previewTemplate.resolution.width,
+                      height: previewTemplate.resolution.height,
+                      border: 0,
+                      transformOrigin: '0 0',
+                      transform: `scale(${fit || 1})`,
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="hint">Add a cue to preview it here.</p>
+              )}
+            </div>
+            <p className="hint prod-preview-caption">
+              {rehearsing ? (
+                'A local copy of the production’s own output, driven by the verbs below.'
+              ) : (
+                <>
+                  <span className="status-warn">PREVIEW</span> — the selected cue, checked before
+                  it airs; nothing changes on air until <strong>⟳ Take</strong>.
+                </>
+              )}
+            </p>
           </div>
 
           {/* The verbs. */}

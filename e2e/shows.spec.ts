@@ -208,6 +208,12 @@ test('production export packages for the other registry targets through the same
     // The lower third's own file, named by its slug inside its own folder.
     const casparHtmlPath = caspar.names.find((n) => /^flavor_show\/([^/]+)\/\1\.html$/.test(n))!;
     const casparHtml = await caspar.zip.file(casparHtmlPath)!.async('string');
+    // The aggregated field reference: one table per graphic, each on its own layer, with the
+    // IDs a playout client sends. And the GUIDE ONLY DESCRIBES WHAT IS IN THE FOLDER — the
+    // CasparCG flavor bundles no launcher, so it must not name one (acceptance round 2).
+    const casparFields = await caspar.zip.file('flavor_show/FIELDS.md')!.async('string');
+    const casparGuide = await caspar.zip.file('flavor_show/GETTING-ON-AIR.md')!.async('string');
+    const overlayGuideText = await overlay.zip.file('flavor_show/GETTING-ON-AIR.md')!.async('string');
     return {
       casparNames: caspar.names,
       overlayHasShowPanel: overlay.names.includes('flavor_show/show_controlpanel.html'),
@@ -215,6 +221,11 @@ test('production export packages for the other registry targets through the same
       ografManifests: ograf.names.filter((n) => n.endsWith('.ograf.json')).length,
       casparHtml,
       casparReceiverFree: !casparHtml.includes('== HOSTED CONTROL'),
+      casparFields,
+      ografHasFields: ograf.names.includes('flavor_show/FIELDS.md'),
+      casparGuideNamesLauncher: casparGuide.includes('Start controller.cmd'),
+      overlayGuideNamesLauncher: overlayGuideText.includes('Start controller.cmd'),
+      overlayHasLauncher: overlay.names.includes('flavor_show/Start controller.cmd'),
     };
   });
 
@@ -225,6 +236,17 @@ test('production export packages for the other registry targets through the same
   expect(result.overlayGuide).toBe(true);
   expect(result.ografManifests).toBe(2);
   expect(result.casparReceiverFree).toBe(true);
+
+  // Every flavor ships the field/ID reference, and the production one indexes each graphic by
+  // its own playout layer.
+  expect(result.ografHasFields).toBe(true);
+  expect(result.casparFields).toContain('| ID | Field | Type | Default value |');
+  expect(result.casparFields).toContain('| `f0` |');
+  expect(result.casparFields).toMatch(/\|\s*5\s*\|.+\|\s*\d+\s*\|/); // the layer index row
+  // A guide names the launcher only where the launcher is.
+  expect(result.overlayHasLauncher).toBe(true);
+  expect(result.overlayGuideNamesLauncher).toBe(true);
+  expect(result.casparGuideNamesLauncher).toBe(false);
 
   // The CasparCG flavor plays like the host drives it.
   const view = await page.context().newPage();

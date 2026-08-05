@@ -151,7 +151,16 @@ export default function GraphicRow({
             data-testid="rename-input"
           />
         ) : (
-          <strong>{g.name}</strong>
+          // The NAME is the row's own door, exactly as a production row's is — reaching for
+          // "Open" on the far right of every row was the same acceptance-round papercut twice.
+          <button
+            className="lib-name-link"
+            onClick={() => onOpen(g)}
+            title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" — preview, edit data, operate`}
+            data-testid="open-graphic-name"
+          >
+            <strong>{g.name}</strong>
+          </button>
         )}
         <span className="muted">
           {g.type}

@@ -16,6 +16,7 @@ import {
   spxReadme,
 } from '../common';
 import { onAirGuideMd } from '../onAirGuide';
+import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
 import type { ControlEntry } from '../../model/library';
 
@@ -51,6 +52,16 @@ export async function buildStarterInto(
   root.file('css/template.css', cssForSubfolder(template.css));
   root.file('js/template.js', template.js);
   root.file('README.md', spxReadme(template, fileName));
+  // The field/ID table, its own file: an operator at a CasparCG client reads ids, and nothing
+  // on that screen says which id is the title (docs: src/export/fieldReference.ts).
+  root.file(
+    'FIELDS.md',
+    fieldReferenceMd(
+      template,
+      'In an SPX rundown the fields appear by name and you never type an id. A CasparCG client ' +
+        'sends the ids below directly — that is what this table is for.',
+    ),
+  );
   addControlPanel(root, template, { entries: opts?.entries }); // operator page — open beside the graphic to drive it
   await addSharedAssets(root, template);
 }
