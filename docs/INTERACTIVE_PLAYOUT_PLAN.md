@@ -1,0 +1,290 @@
+# Interactive & Data-Driven Playout — plan and tracker
+
+The durable tracker for the interactive-playout program: a controlled quiz workflow, a generic
+sports controller, audience participation through a public production page, moderation of
+audience material, polls and audience quiz answers, a minimal production-owned Data Hub, and
+contextual per-cue controls inside the existing playout workflow. Update this file as phases
+move; it is the cross-session source of truth for this program.
+
+**Governing principle: data and audience activity may prepare or update graphics, but they
+never bypass the operator or the normal Preview/Take/Update/Next/Out workflow.** The existing
+playout dashboard (ProductionPage, HostedControlPage, the exported controller) stays the
+central operational surface; nothing here replaces it or builds a parallel cue, control,
+state, data, or playout system.
+
+Reviewed at plan stage by an independent fresh-context pass (2026-08-05): AGREE WITH
+CORRECTIONS; every corrected item is folded in below (G9 is the important one).
+
+## Status board
+
+States: Not started · Investigating · Planned · In progress · Blocked · **Implemented**
+(code + automated verification complete) · **Verified** (visible behaviour demonstrated and
+accepted by the owner) · Deferred.
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Investigation + grounded plan + this tracker | Implemented |
+| 1 | Control-panel truth for four pilots (production contextual controls) | Planned |
+| 2 | Shared data foundation (datasets on Show + Data workspace) | Planned |
+| 3 | Quiz pilot | Planned |
+| 4 | Generic sports pilot | Not started |
+| 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
+| 6 | Poll + audience quiz answers | Not started |
+| 7 | CSV/JSON import into the Data Hub | Not started |
+
+## Verification contract (owner requirement, 2026-08-05)
+
+A phase is never "working" because the code looks right, the build is green, tests pass,
+internal state exists, or a control event was sent. **Implemented** requires code plus the
+automated gates below. **Verified** requires a **visual acceptance pack**: screenshots or a
+short recording of the REAL running app (never a mockup) at the important stages, with the
+exact route, production, cue and action sequence written down so the owner can repeat it by
+hand — and the owner's acceptance. Where the phase touches them, the pack covers: the selected
+cue on the real ProductionPage; every intended editable control; Preview before Take; Program
+after Take; Update while on air; graphic-specific actions and state changes; Next; reload/snap
+recovery; cue switching without leaked values or state; the real `/output` renderer; the
+exported controller / CasparCG path. If the visible result differs from intent, looks
+incomplete, contains fake controls, or repaints wrongly, the phase stays unverified — green
+tests notwithstanding.
+
+Automated gates (supporting evidence): `npm run build`; `E2E_SPRINT_FOCUS=1 npm run
+test:e2e:affected`; a Playwright spec per new flow, mapped in `scripts/e2e-lists.mjs` in the
+same commit; `node scripts/l3-sweep.mjs <shots> quiz|poll|audience` after template changes;
+the catalog gates (`type-floor`, `overflow-sweep --baseline`, `field-coverage`, `numerals`,
+`test:e2e:catalog`) after catalog-affecting type edits — `numerals.mjs` specifically once
+scores become live number fields; `npm run test:local-relay` + `e2e/exports.spec.ts` where
+exports are touched.
+
+## What exists (investigated 2026-08-05 — reuse, do not rebuild)
+
+- **Production model** (`src/model/shows.ts`): pool + cues (a cue OWNS its `values`) + look +
+  `hostedSlug`/`outputSlug`; `patchShow` envelope; sync kind `'show'`; additive-optional
+  fields are the sanctioned extension pattern.
+- **Verbs as data** (`src/control/hostedControl.ts` `takeCueItems` etc.), one decision point
+  `runVerb` in ProductionPage; the one `control_events` log (0008/0029/0031/0033/0034) with
+  slug-keyed SECURITY DEFINER RPCs and the `followControlLog` recovery discipline.
+- **Contextual-controls architecture** (`docs/CONTROL_LAYER.md`): `machine.controls` travels
+  inside the template; `eventButtons`/`eventLegality`/`isEventLegal` render identical,
+  structurally-greyed buttons on five surfaces already.
+- **State machines** (`docs/STATE_MACHINE_SCHEMA.md`) + graphic types compiling machines
+  declaratively (`docs/GRAPHIC_TYPES.md`).
+- **Pilot template mass**: quiz qz01–12 (`select`/`lock`/`judge`), scoreboards sb01–20 with
+  the match clock (`clockStart/Stop/Reset`), audience pack (20 designs), poll pl01–04
+  (`close`/`result`/`call`), competition-pack rosters/standings.
+- **Audience send-in precedent**: `src/showchat/` + migration 0003 (anon submit with caps,
+  rate limit, profanity mask; 4-state moderation).
+
+### The gaps this program closes
+
+| # | Gap |
+|---|-----|
+| G1 | ProductionPage renders no machine event buttons — quiz/sports/poll actions unreachable from the production dashboard (`ProductionPage.tsx` fields region; `docs/PLAYOUT_DASHBOARD.md` §8 reserves the region) |
+| G2 | No production-scoped audience participation (showchat is a standalone `shows` row; no join page, poll votes, quiz answers, or tallies) |
+| G3 | `chatGraphicBlock` airs content by REST-polling inside the graphic — bypasses the log, the operator, and Preview/Program |
+| G4 | No Data Hub: no dataset concept, no CSV/JSON import, no grid editor |
+| G5 | No presenter view; capability model is binary (control = write, output = render) |
+| G6 | Quiz machine lacks an answers-open beat, a hidden-pick-then-reveal beat, and audience-result display |
+| G7 | Moderation cannot edit a submission (status only); nothing converts a submission into a cue |
+| G8 | Poll voting window is authored on the arrow, not per play; no re-open after reveal |
+| G9 | **Recovery defect (found in plan review):** `noacgSnap` replays with suppressed callbacks, so the quiz's call-driven `selected`/`locked` visuals do not survive snap recovery; and the quiz runtime's `update()` unconditionally `clearReveal()`s, so a live ✎ Update mid-lock wipes the lock visual while the machine still reports Locked |
+
+## Architecture decisions
+
+- **D1 — Contextual controls complete the existing vocabulary.** ProductionPage's cue editor
+  gains the machine event-button block (sections, payloads from the cue draft, structural
+  greying, a state chip, a permitted-state snap select for recovery) rendered by the same
+  `eventButtons`/`isEventLegal` as everywhere else. State source: `control_shows.live` when
+  published; ProgramStage state replies when local (`src/output/stage.ts` already collects
+  them — `PayloadStage` surfaces them). Events act ON AIR: legality follows ✎ Update's rule
+  (live only while the selected cue's graphic is up on its layer) and the buttons sit under
+  their own "acts on air" heading, outside the amber preview-editing frame.
+- **D2 — Reusable presentation, not per-template controllers.** `FieldControl` upgrades:
+  `select` with ≤5 short options renders as segmented buttons; `number` gets +/− steppers.
+  Sports scores become `number` fields. The two deliberate vanilla-JS second renderers
+  (`control/controlPanelHtml.ts`, `control/productionControllerHtml.ts`) are updated in step.
+- **D3 — Data Hub = additive-optional `datasets` on `Show`.** `{ id, name, kind
+  ('quiz'|'teams'|'roster'|'generic'), columns, rows }`, edited in the Data workspace, synced
+  inside the show doc, offline-capable. Bindings are deterministic operator actions ("load
+  row N into this cue"), never a live wire. *Known limit: doc sync is record-level LWW with
+  conflict copies; concurrent multi-person editing of one production can mint a conflict copy
+  (which drops the slugs). Acceptable at classroom scale; named, not hidden.*
+- **D4 — Audience backend = production-scoped tables + slug-keyed RPCs** (§ Audience backend
+  design). New capability slugs on `control_shows`: `join_slug` (public) + `presenter_slug`
+  (read-only). `/join` is a new tiny MPA entry (the `/output` build shape).
+- **D5 — Tallies never touch the renderer on their own.** Reveal = the operator writes counts
+  into fields via normal `update` + fires the machine's `result` event; "auto refresh" is an
+  operator-side toggle that resends updates through the log.
+- **D6 — Workspaces are hash sub-routes**: `#/production/<id>` (Playout, unchanged),
+  `#/production/<id>/audience`, `#/production/<id>/data`.
+- **D7 — QR codes**: a tiny vendored MIT encoder, app-side only; generated templates stay
+  dependency-free (the invitation graphic's QR arrives as an ordinary image-field data URL).
+- **D8 — Pilot machine changes are TYPE changes** (`answerBoard.ts`, `livePoll.ts`); the
+  default path stays intact so the SPX `next()` walk survives. No new state engine, no node
+  editor.
+
+**Conflict resolutions:** the shipped MachineGraph node editor stays what it is (Advanced
+mode; no new logic-authoring surface is built). The quiz's instant-paint `select` is kept AND
+a hidden path added (lock reachable from the entrance state; `revealChoice` paints later) —
+both flows coexist structurally. The new audience backend supersedes showchat FOR PRODUCTIONS;
+standalone showchat stays untouched until a separate owner decision. Concept translation: the
+blueprint mock shows quiz beats as four rundown cues; a literal cue-per-beat would replay
+`play()` per beat, so beats are EVENTS on one cue.
+
+## Phases
+
+### Phase 0 — Investigation + plan. Status: Implemented
+Three deep read-only maps (playout/production/control; template controls + state machines;
+audience/backend/data), the re-design concept review, an independent second-opinion pass, and
+this tracker. Plan of record: the session plan of 2026-08-05 (owner-approved in principle);
+this file carries everything durable from it.
+
+### Phase 1 — Control-panel truth for four pilots. Status: Planned
+**Goal:** the production dashboard renders honest, complete contextual controls for one
+ordinary lower third, one quiz board, one scorebug, one audience Q&A card — and the whole
+operator-to-output path is demonstrated visually.
+**Why:** G1 blocks every later workflow; the quiz/sports/poll machines are already authored
+but unreachable from the surface students use.
+**Scope:** surface machine state through `PayloadStage`/`ProgramStage`; the D1 event block +
+state chip + snap-recovery select; D2 presentation upgrades (+ both vanilla renderers); the
+G9 quiz-runtime recovery fix (repaint selection/lock/reveal from `noacgMachineState()` +
+fields after `update()`/snap instead of the unconditional clear); `e2e/production-controls.spec.ts`
+(+ mapping). **Out:** new backend, new routes, template machine changes beyond G9.
+**Verification:** automated gates + the Phase-1 visual pack (the four pilot cues operated on
+the real ProductionPage and `/output`: controls, Take/Update, actions + state chip, recovery,
+cue switch).
+
+### Phase 2 — Shared data foundation. Status: Planned
+**Goal:** a production owns editable structured data, and an operator can load a row into a
+cue deliberately. **Scope:** `datasets` on `Show` (D3), the `#/production/<id>/data`
+workspace (table + record editing), "load row into preview cue" binding, spec, visual pack.
+**Out:** CSV/JSON import (Phase 7), any auto-updating binding.
+
+### Phase 3 — Quiz pilot. Status: Planned
+**Goal:** the master sequence runs deliberately from the production page: Question → Answers
+open → Answer selected → Locked → Choice revealed → Correct revealed → (Audience result) →
+Next question. **Scope:** extend the `answerBoard` type — answers-open beat, `lock` reachable
+from the entrance state (hidden pick via the field + Update), `revealChoice` state,
+audience-result field + state — all branches off the intact default path; the shared machine
+changes all three board types at once (by design). New call-driven states follow the G9
+repaint rule. The audience-result field must be drivable by `field-coverage.mjs` on the
+resting graphic or carry a written excuse in the script. Quiz question-bank dataset kind +
+"next question" (loads the PREVIEW cue, never airs). **Verification:** automated gates + quiz
+l3-sweep + catalog gates + the full sequence frame-by-frame on Preview, Program and `/output`.
+
+### Phase 4 — Generic sports pilot. Status: Not started
+Score steppers, clock verbs from the production page, period/status/lineup coverage; verify
+score + clock through the log on `/output` AND on the exported controller (local relay).
+`numerals.mjs` after the score-field kind change. No sport-specific rules, stats, brackets,
+hardware, or external APIs.
+
+### Phase 5 — Audience questions/comments. Status: Planned (design done, below)
+Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable
+original vs editable broadcast version, anonymize, approve/reject, shortlist, mark
+used/answered, send-to-rundown creating a normal `ShowCue`) + presenter view + rehearsal
+(simulated submissions through the offline seam). Nothing viewer-written reaches Preview or
+Program without explicit approval — enforced by construction (no audience write path into the
+command log). Carried items to resolve at phase start: the open owner decisions below; the
+`/join/<name>` path-form rewrite (vercel rewrite + dev middleware — `cleanUrls` alone serves
+only `?p=`); vanity-slug lifecycle (unpublish deletes the `control_shows` row, freeing a
+hand-picked name to squatting until republish); fix `docs/PLAYOUT_DASHBOARD.md` §8's and root
+`AGENTS.md`'s stale `src/community/showchat/` path (showchat lives at `src/showchat/`).
+
+### Phase 6 — Poll + audience quiz answers. Status: Not started
+Join-page poll/quiz modes, vote intake + tally, the operator poll module (open/close/reveal/
+reset per D5), the audience-result feed into the quiz pilot. Results are never revealed
+merely because responses arrived.
+
+### Phase 7 — CSV/JSON import. Status: Not started
+Import quiz banks, teams, lineups into Data Hub datasets via a small shared quoted-CSV parser
+(`src/model/csv.ts`, no new dependency) + JSON. Imported data stays editable; no permanent
+file dependency.
+
+## Audience backend design (for Phases 5–6; designed 2026-08-05, review before building)
+
+Audience participation is a sibling capability plane on the existing `control_shows` row.
+Everything is browser → Supabase direct (zero Vercel functions), one migration
+(`supabase/migrations/0035_audience_participation.sql` — re-verify the number at
+implementation time; two branches minting the same number is a known trap), one new MPA entry.
+
+- **Three tables, not one:** `audience_submissions` (moderated text; immutable original
+  `author`/`body` + editable `broadcast_author`/`broadcast_body`; `anonymize`, `shortlisted`,
+  `used_at`/`skipped_at`/`moderated_at`; status `new/approved/rejected`; `device_token`),
+  `audience_rounds` (one opened poll or quiz question: `kind`, `question`, `options` jsonb
+  ≤8, `correct_option` — never returned to the join page, `opened_at`/`closed_at`), and
+  `audience_votes` (PK `(round_id, device_token)` — the PK IS the dedupe; upsert =
+  change-your-vote while open). Votes and submissions share almost no columns, votes need the
+  composite PK, and tallying needs its own index shape. Rounds are a table (not only jsonb)
+  so `audience_vote` can validate round-exists/belongs/open server-side.
+- **Guard triggers, 0003-style, defence in depth:** trim + hard truncate (author ≤40, body
+  ≤500), per-show 20/10 s + per-device 3/30 s submission caps, profanity mask reusing the
+  existing `chat_blocklist`; a vote guard bounding token length and per-show vote bursts.
+  Trigger functions revoked from client roles.
+- **`control_shows` grows the audience plane:** `join_slug` + `presenter_slug` (unique,
+  URL-safe base64 defaults, backfilled per-row) + `audience_state` jsonb
+  `{v, open, mode: waiting|question|comment|poll|quiz, round, presenter:{current,next},
+  brand, rev}`. Mode/open/presenter change via `audience_set_join` (allowlisted keys);
+  `round` changes only through `audience_open_round`/`audience_close_round` so the pointer
+  and the table can never disagree. `brand` is written at publish from `Show.look` (owner
+  RLS write inside `publishControlShow`).
+- **Eleven slug-keyed SECURITY DEFINER RPCs, zero anon table policies:**
+  `audience_join_by_slug`, `audience_submit`, `audience_vote` (join slug);
+  `audience_list`, `audience_update` (allowlisted patch keys — author/body/kind are NOT in
+  the allowlist, which is where immutability lives), `audience_set_join`,
+  `audience_open_round`, `audience_close_round`, `audience_tally`, `audience_rounds_list`
+  (control slug); `audience_presenter_by_slug` (presenter slug). Writes check
+  `feature_denied_for(owner, 'audience')`; the join resolve folds a denial into
+  `open = false`.
+- **Join capability discipline** — `audience_join_by_slug` must never return: the show id
+  (it is a log-reading capability under 0008's anon `using(true)` policy), any other slug,
+  `panel`/`staged`/`live`/`output`, `correct_option`, tallies, presenter pointers, or any
+  other submitter's anything. Errors stay generic.
+- **Polling, no realtime.** Decisive: realtime `postgres_changes` filters rows by the
+  SUBSCRIBER's RLS, and the anon hosted-operator page has (and must have) no SELECT policy
+  on a moderation table — slug authorization cannot be expressed to realtime. Join page polls
+  ~5 s with jitter + `visibilitychange` pause; operator inbox ~4 s; tally ~2 s while a round
+  is open. A `{t:'audience'}` nudge row in `control_events` was considered and rejected for
+  v1: every nudge counts against the shared 50-per-5-s burst budget and a submission storm
+  could block the operator's own Take.
+- **Tally = count-on-read** over the votes PK; no maintained counter column (hot-row
+  conflicts, drift risk, no benefit at this scale).
+- **Both operator surfaces use the control slug** (ProductionPage holds `hostedSlug`
+  locally; the anon HostedControlPage gets moderation parity free). "Make cue"
+  (submission → `addShowCue`) is cockpit-only; "stage tally to graphic" maps counts onto
+  poll-template fields via ordinary `control_stage`/`control_send` — the renderer never
+  learns votes exist.
+- **`/join` = 5th MPA entry** (`join.html` → `src/join/main.ts`; the output.html pattern:
+  vanilla TS, no React, code-split supabase client, noindex). `?pv=<presenter_slug>` on the
+  same entry serves the presenter view. A shared framework-free `src/audience/joinSurface.ts`
+  renderer is used by both the standalone page and the ProductionPage rehearsal preview, so
+  preview and reality cannot drift.
+- **Rehearsal/offline seam:** one `AudienceBackend` interface
+  (`src/audience/audienceTypes.ts`), two providers — `audienceData.ts` (Supabase) and
+  `localAudience.ts` (in-memory + a submission/vote simulator). Rehearse mode or an offline
+  build uses the local provider, which makes the whole audience workflow drivable by the
+  offline e2e suite.
+- **Entitlement: new key `audience`** (not a widening of `showchat` — the 0022 kill-switch
+  contract promises the admin page states exactly what a switch stops). One entry each in
+  `FEATURE_KEYS`/`FEATURE_LABELS`/`ENFORCED_FEATURE_KEYS`/`FEATURE_ENFORCEMENT_NOTES`.
+- **`Show` record:** additive-optional `joinSlug?`/`presenterSlug?` mirroring the existing
+  slugs (stripped from conflict copies), written by `publishControlShow`'s read-back.
+- **Vanity join names (owner decision):** `join_slug` defaults random at publish; the
+  operator can claim a readable name (`noacg.app/join/friday-night-live`) — global
+  uniqueness, reserved-word list, availability check, random fallback.
+
+**Owner decisions open for Phase 5:** retire-or-keep standalone showchat; change-your-vote
+(recommended) vs first-vote-sticks; presenter page in v1 vs schema-now-page-later
+(recommended); whether the join page may ever show tallies (v1: never — the reveal is a
+graphic); per-IP abuse caps beyond device tokens; question length cap (280 vs 500 —
+500 recommended).
+
+## Sequencing and deliberate deferrals
+
+- GOALS "Student release" step 10's remaining half is the owner's hardware re-test of the
+  CURRENT ProductionPage build, and Phase 1 modifies exactly that surface. This branch lands
+  only after that re-test verdict is in, so the acceptance target does not silently move.
+- Deferred by design (documented, not built): sport-specific controllers, external data
+  providers (Liquipedia, YouTube/Twitch, X, Sheets, webhooks — the future-connector doctrine
+  stays `docs/CLOUD_PLAYOUT.md` §7: connectors become producers into the one log, feeding the
+  Data Hub, never controlling output directly), scoreboard hardware, game telemetry, multiple
+  contestants, contestant answer devices, audience image/video uploads, automatic moderation,
+  unmoderated chat overlays, and any visual state/node editor beyond the shipped MachineGraph.
