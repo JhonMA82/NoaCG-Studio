@@ -954,7 +954,7 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 .color-field-dropper { padding: 6px 8px; flex: 0 0 auto; }
 .color-field-alpha { margin-top: 6px; gap: 8px; align-items: center; }
 .color-field-alpha > label { flex: 0 0 auto; margin: 0; }
-.color-field-alpha input[type='range'] { min-width: 0; }
+.color-field-alpha-input { flex: 1 1 auto; min-width: 0; }
 /* Tabular so the readout does not shift the slider as the number changes — the same rule the
    graphics themselves follow (docs/DESIGN_LANGUAGE.md §1). */
 .color-field-alpha-value,

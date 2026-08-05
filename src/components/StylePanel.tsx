@@ -8,7 +8,9 @@ import {
   customFontStack,
   fontFaceCss,
   fontStack,
+  ensureFontFace,
   ensureNumericFontFace,
+  fontByStack,
   numericFontStack,
   type CustomFont,
 } from '../model/fonts';
@@ -59,7 +61,13 @@ export default function StylePanel() {
     rootSelector !== null && new RegExp(`\\.${prefix}\\s*\\{`).test(template.css);
 
   const setVar = (name: string, value: string) => {
-    setCss(setCssVariable(template.css, name, value));
+    let css = setCssVariable(template.css, name, value);
+    // A variable may now point at a TYPEFACE (the kicker face, the numeric face). The wizard
+    // gets this from its build; here there is no build, so the face's bytes are ensured on the
+    // spot — otherwise the export references a font file nothing wrote and `font-display:
+    // swap` hides it until playout (model/fonts.ts ensureFontFace).
+    css = ensureFontFace(css, fontByStack(value), `--${name} points at this face.`);
+    setCss(css);
     setActiveTab('css'); // show the changed line in the editor
   };
 

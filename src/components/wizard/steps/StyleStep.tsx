@@ -238,6 +238,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
           control that moved it. */}
       <details
         className="wz-style-more"
+        data-testid="wz-size-position"
         open={placementTouched}
         onToggle={(e) => setPlacementTouched(e.currentTarget.open)}
       >

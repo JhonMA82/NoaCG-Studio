@@ -76,7 +76,7 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // Size and position are TUNING and sit behind a disclosure — palette and font are the two
   // choices this step leads with. Open it to reach the knobs (see components/CLAUDE.md).
-  await page.locator('.wz-style-more summary').click();
+  await page.getByTestId('wz-size-position').locator('summary').click();
   // Graphic size L scales the WHOLE graphic (the --scale contract), not just the text.
   // 1.25 / 1.2 are StyleStep's SIZES/TYPE_SIZES ladders (widened with the corpus review).
   await page.locator('.panel-section', { hasText: 'Graphic size' }).getByRole('button', { name: 'L', exact: true }).click();

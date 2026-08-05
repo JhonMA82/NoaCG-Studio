@@ -32,7 +32,7 @@ import type {
 } from '../../model/wizard';
 import { paletteById } from '../../model/wizard';
 import type { EasingId } from '../../model/easings';
-import type { CustomFont } from '../../model/fonts';
+import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -444,7 +444,13 @@ export function buildDraftTemplate(
     // Only vars the built design DECLARES: switching designs mid-wizard must not graft the
     // previous design's variable names onto one that never reads them.
     for (const [name, value] of overridden) {
-      if (getCssVariable(css, name) !== null) css = setCssVariable(css, name, value);
+      if (getCssVariable(css, name) === null) continue;
+      css = setCssVariable(css, name, value);
+      // An override may point a variable at a TYPEFACE (the kicker face, the numeric face).
+      // Setting the variable is only half of that: the face's bytes have to ship too, or the
+      // export references a font file nothing wrote and `font-display: swap` hides it until
+      // playout (model/fonts.ts ensureFontFace).
+      css = ensureFontFace(css, fontByStack(value), `--${name} points at this face.`);
     }
     template = { ...template, css };
   }

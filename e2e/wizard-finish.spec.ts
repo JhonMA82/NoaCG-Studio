@@ -197,7 +197,7 @@ test('style step: size and position collapse behind a disclosure', async ({ page
   await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
   await page.getByRole('button', { name: 'Next ›' }).click(); // Style
 
-  const more = page.locator('.wz-style-more');
+  const more = page.getByTestId('wz-size-position');
   await expect(more).toBeVisible();
   // A closed <details> is defeated by ANY author rule setting `display` on its children, and
   // both wizard disclosures wrap flex rows — so assert the CONTENT is really collapsed rather

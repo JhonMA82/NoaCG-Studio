@@ -55,10 +55,13 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   Source Serif 4, DM Sans -> Outfit). Paired by hand, because every heuristic picked badly: by
   registry order a scoreboard gets the wrong width, by fallback stack Oswald gets a face that
   only exists at weight 400. Mono is the last resort, for an imported face with no pairing.
-  A sibling has to SHIP: `ensureNumericFontFace` injects its `@font-face` on the post-creation
-  write paths (a typeface swap, a look applied to an existing graphic), and
-  `templates/shared/base.ts` emits it at build - otherwise the export references bytes nobody
-  wrote and `font-display: swap` hides it until playout.
+  **Any face a variable points at has to SHIP.** `ensureFontFace` is that guarantee and every
+  path that can retarget a typeface calls it: `templates/shared/base.ts` at build,
+  `ensureNumericFontFace` on a typeface swap or a look applied to an existing graphic, the
+  wizard's `buildDraftTemplate` for `cssVarOverrides` (applied AFTER the build, so the build
+  cannot cover them), and the editor's `setVar`. Skip it anywhere and the export references
+  bytes nobody wrote, which `font-display: swap` hides until playout. `fontByStack` reads a
+  `font-family` value back to its bundled record, which is what lets those paths ask.
 - **styleVocabulary.ts** - the WORDS and ranges the two style surfaces render: the role label
   for each `:root` variable (a user-facing name, never CSS jargon), the group it belongs to,
   which tokens are lengths and over what range, the shadow presets, and the two size ladders.

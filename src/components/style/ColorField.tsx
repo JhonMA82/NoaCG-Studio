@@ -43,6 +43,9 @@ interface Props {
   advisory?: { text: string; title: string };
   onReset?: () => void;
   disabled?: boolean;
+  /** Stable handle for specs. Text is not one: `--accent` is a substring of `--accent-ink`,
+   *  `--accent-weight` and `--accent-glow`, so a hasText filter matches four rows. */
+  testId?: string;
 }
 
 export default function ColorField({
@@ -54,6 +57,7 @@ export default function ColorField({
   advisory,
   onReset,
   disabled,
+  testId,
 }: Props) {
   const id = useId();
   const [text, setText] = useState<string | null>(null);
@@ -86,7 +90,7 @@ export default function ColorField({
   };
 
   return (
-    <div className="field-row color-field">
+    <div className="field-row color-field" data-testid={testId}>
       <div className="field-meta">
         <label htmlFor={id} style={{ margin: 0 }}>
           {label}
@@ -124,7 +128,15 @@ export default function ColorField({
           aria-label={`${label} value`}
           value={shown}
           disabled={disabled}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setText(next);
+            // Commit as soon as it reads as a colour, so the preview follows the typing — the
+            // whole point of picking a colour is watching the graphic change. A PARTIAL value
+            // is held in local state instead: committing "rgba(255,255,255,0." on the way to a
+            // real one would write nonsense into the stylesheet and spend an undo step on it.
+            if (parseCssColor(next)) onChange(next);
+          }}
           onBlur={() => {
             if (text !== null && text !== value) onChange(text);
             setText(null);
@@ -145,10 +157,13 @@ export default function ColorField({
           <label htmlFor={`${id}-a`} className="hint">
             Opacity
           </label>
+          {/* Deliberately NOT `.grow`: that is the shared layout utility the VALUE field uses,
+              and two of them in one row make `input.grow` ambiguous for anything selecting the
+              value — which is exactly what it meant to every existing spec. */}
           <input
             id={`${id}-a`}
             type="range"
-            className="grow"
+            className="color-field-alpha-input"
             min={0}
             max={100}
             step={1}

@@ -113,7 +113,7 @@ test('reset: the topbar button restores the original state, undoably', async ({ 
 
   // Edit the accent via the Style panel — the preview retints.
   await page.getByTestId('dock-tab-style').click();
-  await page.locator('.field-row', { hasText: '--accent' }).locator('input.grow').fill('#ff2d78');
+  await page.getByTestId('style-var-accent').locator('input.grow').fill('#ff2d78');
   await expect.poll(accent).toBe('rgb(255, 45, 120)');
 
   // Reset is a two-step inline confirm (arm, then confirm) — no blocking dialog.
@@ -186,7 +186,7 @@ test('style panel: accent retints the live preview', async ({ page }) => {
   await createFromCurrentStep(page);
 
   await page.getByTestId('dock-tab-style').click();
-  const accentRow = page.locator('.field-row', { hasText: '--accent' });
+  const accentRow = page.getByTestId('style-var-accent');
   // Wait out the debounced rebuild BEFORE reading inside the iframe: evaluating against a
   // document that is being replaced throws "execution context was destroyed", and a thrown
   // callback fails expect.poll outright instead of retrying.

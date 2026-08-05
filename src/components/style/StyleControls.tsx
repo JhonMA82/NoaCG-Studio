@@ -22,6 +22,7 @@ import {
   type StyleTerm,
 } from '../../model/styleVocabulary';
 import { contrastRatio, looksLikeColor, parseCssColor } from '../../blocks/cssVars';
+import { FONTS, fontByStack, fontStack } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';
 
@@ -112,6 +113,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
         hint={hint}
         varName={name}
         value={followed ? followed.color : value}
+        testId={`style-var-${name}`}
         advisory={advisoryFor(name)}
         disabled={disabled}
         onChange={(next) => onSet(name, next)}
@@ -122,10 +124,16 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
 
   const renderShadow = (name: string, value: string) => {
     const term = styleTerm(name);
-    const choices = SHADOW_CHOICES[name] ?? [];
-    const current = choices.find((c) => c.value === value.trim());
+    const presets = SHADOW_CHOICES[name] ?? [];
+    const matched = presets.find((c) => c.value === value.trim());
+    // A design whose shadow is its own — most of them, since a shadow is per-design far more
+    // than per-family — used to show four presets with NONE of them selected and a note
+    // saying "custom". That reads as a broken control. Its own value leads the row instead,
+    // selected, so the row says what is actually on and clicking a preset is a visible swap.
+    const choices = matched ? presets : [{ label: 'As designed', value: value.trim() }, ...presets];
+    const current = matched ?? choices[0];
     return (
-      <div className="field-row" key={name}>
+      <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
           <label style={{ margin: 0 }}>{term.label}</label>
           <span className="field-id">--{name}</span>
@@ -136,14 +144,19 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
             <button
               key={c.label}
               type="button"
-              className={`style-choice ${current?.label === c.label ? 'selected' : ''}`}
+              className={`style-choice ${current.value === c.value ? 'selected' : ''}`}
               disabled={disabled}
+              title={c.value}
               onClick={() => onSet(name, c.value)}
             >
               {c.label}
             </button>
           ))}
-          {!current && <span className="hint">Custom (edit it in the CSS)</span>}
+          {isOverridden?.(name) && onReset && (
+            <button type="button" title="Back to the design's own value" onClick={() => onReset(name)}>
+              ↺
+            </button>
+          )}
         </div>
       </div>
     );
@@ -155,7 +168,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     const len = parseCssLength(value);
     const off = spec.off !== undefined && !len;
     return (
-      <div className="field-row" key={name}>
+      <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
           <label style={{ margin: 0 }}>{term.label}</label>
           <span className="field-id">--{name}</span>
@@ -200,7 +213,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
   const renderWeight = (name: string, value: string) => {
     const term = styleTerm(name);
     return (
-      <div className="field-row" key={name}>
+      <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
           <label style={{ margin: 0 }}>{term.label}</label>
           <span className="field-id">--{name}</span>
@@ -222,12 +235,73 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     );
   };
 
+  /**
+   * A variable that names a TYPEFACE — the kicker face, the numeric face.
+   *
+   * A picker rather than a text field, but only over faces the app can actually ship: pointing
+   * one of these at a family we did not bundle would emit a `url("fonts/…")` nothing writes,
+   * and `font-display: swap` would hide that until playout. Both write paths ensure the
+   * `@font-face` (model/fonts.ts ensureFontFace); the choices here are what those paths can
+   * honour. A hand-written value we do not recognise is kept and shown, never silently
+   * replaced — the code is the source of truth.
+   */
+  const renderFontToken = (name: string, value: string) => {
+    const term = styleTerm(name);
+    // No separate "monospace" entry: MONO_STACK is byte-identical to `fontStack(jetbrains-mono)`,
+    // so the bundled list already contains it — and naming the face beats naming the category,
+    // since "Monospace" on a kicker row tells a designer nothing about what they are looking at.
+    const known = fontByStack(value);
+    const followsHeading = /^\s*var\(\s*--font-heading\s*\)\s*$/.test(value);
+    const current = followsHeading ? 'heading' : (known?.id ?? 'custom');
+    return (
+      <div className="field-row" key={name} data-testid={`style-var-${name}`}>
+        <div className="field-meta">
+          <label style={{ margin: 0 }}>{term.label}</label>
+          <span className="field-id">--{name}</span>
+          {term.hint && <span className="hint">{term.hint}</span>}
+        </div>
+        <div className="row">
+          <select
+            className="grow"
+            aria-label={term.label}
+            value={current}
+            disabled={disabled}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id === 'heading') return onSet(name, 'var(--font-heading)');
+              const face = FONTS.find((f) => f.id === id);
+              if (face) onSet(name, fontStack(face));
+            }}
+          >
+            <option value="heading">Follows the graphic's typeface</option>
+            {FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.family}
+                {name === 'font-numeric' && !f.tabularFigures ? ' — digits are not one width' : ''}
+              </option>
+            ))}
+            {current === 'custom' && (
+              <option value="custom" disabled>
+                {value.trim().slice(0, 40)} (written by hand)
+              </option>
+            )}
+          </select>
+          {isOverridden?.(name) && onReset && (
+            <button type="button" title="Back to the design's own value" onClick={() => onReset(name)}>
+              ↺
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   /** A variable with no control of its own kind still gets an honest text field: the design
    *  declared it, so hiding it would be worse than showing it plainly. */
   const renderText = (name: string, value: string) => {
     const term = styleTerm(name);
     return (
-      <div className="field-row" key={name}>
+      <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
           <label style={{ margin: 0 }}>{term.label}</label>
           <span className="field-id">--{name}</span>
@@ -255,6 +329,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     if (SHADOW_CHOICES[v.name]) return renderShadow(v.name, v.value);
     if (LENGTH_TOKENS[v.name]) return renderLength(v.name, v.value);
     if (v.name === 'display-weight') return renderWeight(v.name, v.value);
+    if (v.name === 'font-label' || v.name === 'font-numeric') return renderFontToken(v.name, v.value);
     if (looksLikeColor(v.value)) return renderColor(v.name, v.value);
     const followed = resolveVar(v.value);
     if (followed) return renderColor(v.name, v.value, followed);

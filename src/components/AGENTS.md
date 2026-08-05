@@ -464,6 +464,18 @@ A token that FOLLOWS another (`--accent-ink: var(--panel-bg)`, three of the six 
 resolves to the literal behind it so the row shows a real swatch, and says in its hint that
 picking a colour there breaks the link. That is what the pick means.
 
+Two rows are shaped by what would otherwise be a lie:
+- **A shadow row leads with the design's OWN value**, labelled "As designed" and selected,
+  whenever it matches no preset - which is most designs, since a shadow is per-design far more
+  than per-family. Four presets with none of them lit reads as a broken control.
+- **A typeface token** (`--font-label`, `--font-numeric`) is a picker over BUNDLED faces only.
+  Pointing one at a family we do not ship would emit a `url("fonts/…")` nothing writes, and
+  `font-display: swap` would hide that until playout. **Both write paths ensure the
+  `@font-face`** - the wizard's inside `buildDraftTemplate` (its overrides are applied after
+  the build, so the build cannot do it for them) and the editor's inside `setVar` (there is no
+  build at all). A hand-written value the registry does not know is kept and shown, never
+  silently replaced.
+
 ## Panels (the six tool panels - Data / Control / Style / Assets / AI / Export)
 
 On DESKTOP each is a dockable panel (AppShell renders them into the docks; see WorkspaceDock).

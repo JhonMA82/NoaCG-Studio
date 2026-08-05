@@ -158,7 +158,7 @@ test('style: a color change highlights the changed CSS lines', async ({ page }) 
   await createHairline(page);
   await showCode(page); // the highlight below lives in the code pane, which ships closed
   await page.getByTestId('dock-tab-style').click();
-  const accentRow = page.locator('.field-row', { hasText: '--accent' }).first();
+  const accentRow = page.getByTestId('style-var-accent');
   await accentRow.locator('input[type="color"]').evaluate((el) => {
     const input = el as HTMLInputElement;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;

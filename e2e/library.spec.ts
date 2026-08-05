@@ -470,7 +470,7 @@ test('looks: capture the current look in Home, apply it to another graphic, surv
   // Tweak the accent through the Style panel, then capture the look in Home.
   await page.getByTestId('dock-tab-style').click();
   await page
-    .locator('.field-row', { hasText: '--accent' })
+    .getByTestId('style-var-accent')
     .first()
     .locator('input.grow')
     .fill('#12e29a');

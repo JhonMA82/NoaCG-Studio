@@ -346,9 +346,21 @@ export function labelFontFaceCss(font: BundledFont): string {
  * match. This one is derived, not chosen — swapping the heading typeface can change it.
  */
 export function numericFontFaceCss(font: BundledFont): string {
-  return `/* Numeric face (bundled OFL file — ships with the export, offline at playout).
-   The graphic's own typeface cannot hold a digit's width, so its live numbers are set in
-   this one instead. Change --font-numeric below to overrule it. */
+  return supportingFontFaceCss(
+    font,
+    `The graphic's own typeface cannot hold a digit's width, so its live numbers are set in
+   this one instead. Change --font-numeric below to overrule it.`,
+  );
+}
+
+/**
+ * A SUPPORTING bundled face — one the graphic uses beside its heading typeface, because a
+ * variable points at it. `why` says which variable and what for, so the generated CSS explains
+ * its own second font file.
+ */
+export function supportingFontFaceCss(font: BundledFont, why: string): string {
+  return `/* Supporting face (bundled OFL file — ships with the export, offline at playout).
+   ${why} */
 @font-face {
   font-family: "${font.family}";
   src: url("fonts/${font.file}") format("woff2");
@@ -358,19 +370,39 @@ export function numericFontFaceCss(font: BundledFont): string {
 }
 
 /**
- * Make sure a stylesheet carries the `@font-face` its `--font-numeric` needs.
+ * The bundled face a `font-family` VALUE names, or null for one we did not bundle.
  *
- * The write path for `--font-numeric` runs post-creation too — a typeface swap in the Style
- * panel, a saved look applied to an existing graphic — and pointing the numbers at a face
- * whose bytes never ship is the dangling-reference failure that degrades SILENTLY: the export
- * carries a `url("fonts/…")` nothing wrote, `font-display: swap` renders the fallback, and the
- * graphic simply comes up in the wrong typeface at playout. Idempotent: a face already
+ * Matches the family name inside the stack, so it reads back a value this app wrote
+ * (`"Saira", Arial, sans-serif`) as well as one somebody typed by hand.
+ */
+export function fontByStack(value: string): BundledFont | null {
+  const family = (/^\s*"([^"]+)"/.exec(value) ?? /^\s*([^,]+)/.exec(value))?.[1]?.trim();
+  if (!family) return null;
+  return FONTS.find((f) => f.family === family) ?? null;
+}
+
+/**
+ * Make sure a stylesheet carries the `@font-face` for a bundled face it now references.
+ *
+ * THE RULE THIS EXISTS FOR: every path that can point a variable at a typeface has to ship
+ * that typeface's bytes. Pointing at one whose file never lands is the dangling-reference
+ * failure that degrades SILENTLY — the export carries a `url("fonts/…")` nothing wrote,
+ * `font-display: swap` quietly renders the fallback stack, and the graphic only comes up in
+ * the wrong typeface at playout, where nobody is watching the CSS. Idempotent: a face already
  * referenced is left alone.
  */
-export function ensureNumericFontFace(css: string, font: NumericSource): string {
-  const face = numericFaceFor(font);
+export function ensureFontFace(
+  css: string,
+  face: BundledFont | null,
+  why = 'A style variable points at this face, so its file ships with the graphic.',
+): string {
   if (!face || css.includes(`fonts/${face.file}`)) return css;
-  return `${numericFontFaceCss(face)}\n\n${css}`;
+  return `${supportingFontFaceCss(face, why)}\n\n${css}`;
+}
+
+/** The same guarantee for whatever `--font-numeric` resolved to. */
+export function ensureNumericFontFace(css: string, font: NumericSource): string {
+  return ensureFontFace(css, numericFaceFor(font));
 }
 
 // The OFL itself, vendored at src/assets/OFL.txt and imported here so the licence TRAVELS with
