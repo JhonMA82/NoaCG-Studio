@@ -23,9 +23,11 @@ const ProgramStage = forwardRef<
     empty: boolean;
     /** Machine-state replies from the monitor's documents — see PayloadStage. */
     onState?: (graphic: string, state: { groups: Record<string, string> } | null) => void;
+    /** A fresh stage exists and knows nothing about air — see PayloadStage.onReady. */
+    onReady?: () => void;
   }
 >(
-  function ProgramStage({ show, library, empty, onState }, ref) {
+  function ProgramStage({ show, library, empty, onState, onReady }, ref) {
     const [payload, setPayload] = useState<OutputPayload | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +61,7 @@ const ProgramStage = forwardRef<
         error={error}
         emptyLabel={empty ? 'Nothing on air' : undefined}
         onState={onState}
+        onReady={onReady}
       />
     );
   },

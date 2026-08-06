@@ -29,14 +29,29 @@ const PayloadStage = forwardRef<
      *  posted after every applied command). A host that renders event buttons greys them
      *  against this; omitting the prop costs nothing. */
     onState?: (graphic: string, state: PreviewMachineState | null) => void;
+    /**
+     * Fired every time a FRESH stage exists — first mount and every rebuild.
+     *
+     * A rebuilt stage is a blank renderer: it has never been told what is on air. The host is
+     * the only thing that knows, so it has to be told to say it again. Without this signal a
+     * host can only replay ONCE (on its own boot), which is why switching to the Data workspace
+     * and back emptied the PROGRAM monitor while the graphic was still live on CasparCG — the
+     * monitors unmounted with the workspace and came back with nothing replayed into them.
+     *
+     * Commands sent from here are safe immediately: `createOutputStage` queues everything until
+     * each graphic's document has loaded its listener.
+     */
+    onReady?: () => void;
   }
->(function PayloadStage({ payload, error, emptyLabel, testId, onState }, ref) {
+>(function PayloadStage({ payload, error, emptyLabel, testId, onState, onReady }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<OutputStage | null>(null);
   // The stage is rebuilt per payload; the callback identity must not force that, so the
   // subscription reads through a ref.
   const onStateRef = useRef(onState);
   onStateRef.current = onState;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const root = host.current;
@@ -70,6 +85,9 @@ const PayloadStage = forwardRef<
 
     const ro = new ResizeObserver(() => built.rescale());
     ro.observe(root);
+    // AFTER `stage.current` is set, so a host replaying on-air state through the imperative
+    // handle reaches the stage that just came up rather than the one that went away.
+    onReadyRef.current?.();
     return () => {
       window.clearInterval(poll);
       ro.disconnect();

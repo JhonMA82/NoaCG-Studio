@@ -197,3 +197,43 @@ test('a graphic with no sides never grows a side picker, and the quiz binding is
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which planet is red?');
   await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mars');
 });
+
+test('a graphic on air survives a Data-workspace round trip', async ({ page }) => {
+  // THE DEFECT (acceptance pass, 2026-08-06): "go to the Data tab while something is in
+  // program, come back to Playout, and the graphic is gone from the dashboard — it's still
+  // live on CasparCG." The workspace switch unmounts the monitors, and the rebuilt PROGRAM
+  // stage is a blank renderer nobody had told what was on air.
+  //
+  // The same shape as the Phase 2 defect on this exact round trip (the preview came back
+  // unscaled), which is why this asserts the RENDERED PICTURE inside the program iframe rather
+  // than the ON AIR chip beside it: the chip was right the whole time the monitor was empty.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Round Trip');
+
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  // A value the DESIGN does not ship. Taking the cue as-is proves nothing: a rebuilt stage
+  // renders the template's own default text, so an assertion against it passes on a monitor
+  // that was never told anything (this spec did exactly that in its first version).
+  const AIRED = 'Round Trip Sentinel';
+  await page.getByTestId('cue-field-f0').fill(AIRED);
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText(AIRED);
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('nothing on air');
+
+  await page.getByTestId('tab-data').click();
+  await expect(page.getByTestId('production-data')).toBeVisible();
+  await page.getByTestId('tab-playout').click();
+
+  // Back on Playout: the rundown still says ON AIR, and now so does the picture.
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('nothing on air');
+  await expect(program.locator('#f0')).toHaveText(AIRED);
+  // Not merely present in the markup — the entrance ran, so it is actually visible.
+  await expect
+    .poll(async () =>
+      program.locator('#f0').evaluate((el) => {
+        const box = el.closest('[class$="-box"]') ?? el;
+        return Number(getComputedStyle(box as Element).opacity);
+      }),
+    )
+    .toBeGreaterThan(0.9);
+});

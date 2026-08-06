@@ -171,6 +171,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
   const hostedSlug = show?.hostedSlug ?? null;
 
   const programRef = useRef<ProgramStageHandle>(null);
+  /**
+   * What each graphic was last SENT locally — the input to rebuilding the PROGRAM monitor after
+   * it is unmounted (the Data-workspace round trip). The wire report is a snapshot taken when
+   * this page resolved the published show and never moves again, and an unpublished production
+   * has no report at all, so after the first take this is the only current answer to "what is
+   * on air". Declared up here because the log follower below writes to it.
+   */
+  const airedRef = useRef<Record<string, { data?: Record<string, string> }>>({});
+  const rememberAired = useCallback((items: ControlSendItem[]) => {
+    for (const item of items) {
+      if (item.msg.t === 'update') {
+        airedRef.current[item.graphic] = { data: item.msg.data };
+      } else if (item.msg.t === 'stop') {
+        // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
+        // running any more.
+        delete airedRef.current[item.graphic];
+      }
+    }
+  }, []);
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
 
@@ -263,6 +282,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
           // commands go through — 'staged' and 'live' are bookkeeping rows the stage has no
           // meaning for (staged data has not aired; a 'live' row is a graphic REPORTING).
           else if (msg.t !== 'staged') {
+            rememberAired([{ graphic: row.graphic, msg }]);
             programRef.current?.apply([{ graphic: row.graphic, msg }]);
           }
           const entry = describeLogRow(row, cueLabel);
@@ -283,36 +303,54 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
     };
   }, [hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // BOOT RECOVERY for the PROGRAM monitor (docs/CLOUD_PLAYOUT.md's recovery discipline). The log
+  // RECOVERY for the PROGRAM monitor (docs/CLOUD_PLAYOUT.md's recovery discipline). The log
   // follower only sees rows that arrive AFTER this page opened, so reopening a production that
   // has been on air showed an empty PROGRAM box beside a rundown row marked ON AIR — the surface
-  // contradicting itself. Replay each live layer's last REPORT with the full recipe — data,
-  // snap to the reported state, data again — never a bare play(): the bare replay left the
-  // monitor at the entrance while air sat mid-sequence, and its state reply then OVERWROTE the
-  // wire-seeded truth, so the chip claimed the entrance state and greyed the one legal recovery
-  // event. (The trailing data write is what lets call-painted looks repaint — the G9 rule.)
+  // contradicting itself. Replay each live layer with the full recipe — data, snap to the
+  // reported state, data again — never a bare play(): the bare replay left the monitor at the
+  // entrance while air sat mid-sequence, and its state reply then OVERWROTE the wire-seeded
+  // truth, so the chip claimed the entrance state and greyed the one legal recovery event.
+  // (The trailing data write is what lets call-painted looks repaint — the G9 rule.)
   // It drives nothing but the local monitor, which is why this is safe here and was not in an
   // exported package.
-  const recoveredRef = useRef(false);
+  //
+  // THIS IS NOT ONLY A BOOT CONCERN, which is what the acceptance pass of 2026-08-06 found:
+  // switching to the Data workspace unmounts the monitors, and coming back builds a BLANK
+  // stage — so the graphic disappeared from PROGRAM while it was still live on CasparCG. It
+  // is the same shape as the Phase 2 defect on this exact round trip (the preview came back
+  // unscaled because the measurement was keyed on the unchanged document): the state lives
+  // outside the remounted thing and nothing re-established it. So the replay is keyed on the
+  // STAGE being fresh, not on the page being new.
   const liveReportsRef = useRef<ResolvedControlShow['live'] | null>(null);
-  useEffect(() => {
-    if (recoveredRef.current) return;
-    const up = Object.entries(liveCue).filter(([, cueId]) => !!cueId);
-    if (up.length === 0) return;
-    recoveredRef.current = true;
-    for (const [graphic] of up) {
-      const report = (liveReportsRef.current?.[graphic] ?? null) as {
-        data?: Record<string, string>;
-        state?: { groups: Record<string, string> } | null;
-      } | null;
+  // Read through refs: the replay must use the FRESHEST answer at the moment a stage comes up,
+  // and it must not re-run every time a take changes either of them.
+  const liveCueRef = useRef(liveCue);
+  liveCueRef.current = liveCue;
+  const machineStatesRef = useRef(machineStates);
+  machineStatesRef.current = machineStates;
+  const restoreProgram = useCallback(() => {
+    for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
+      if (!cueId) continue;
+      const report = (liveReportsRef.current?.[graphic] ?? null) as { data?: Record<string, string> } | null;
+      const data = airedRef.current[graphic]?.data ?? report?.data;
+      const groups = machineStatesRef.current[graphic]?.groups;
       const items: ControlSendItem[] = [];
-      if (report?.data) items.push({ graphic, msg: { t: 'update', data: report.data } });
-      if (report?.state?.groups) items.push({ graphic, msg: { t: 'snap', snap: report.state.groups } });
+      if (data) items.push({ graphic, msg: { t: 'update', data } });
+      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
       else items.push({ graphic, msg: { t: 'play' } });
-      if (report?.data) items.push({ graphic, msg: { t: 'update', data: report.data } });
+      if (data) items.push({ graphic, msg: { t: 'update', data } });
       programRef.current?.apply(items);
     }
-  }, [liveCue]);
+  }, []);
+  // The boot half: the wire resolve lands after the stage is already up, so the first time any
+  // layer is known to be live there is nothing to have signalled.
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    if (!Object.values(liveCue).some(Boolean)) return;
+    recoveredRef.current = true;
+    restoreProgram();
+  }, [liveCue, restoreProgram]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow
   // for a running timer.
@@ -389,7 +427,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
       if (!hostedSlug) {
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
-        for (const batch of batches) programRef.current?.apply(batch);
+        for (const batch of batches) {
+          rememberAired(batch);
+          programRef.current?.apply(batch);
+        }
         const at = new Date().toISOString();
         const entries = batches
           .flat()
@@ -410,7 +451,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
         return false;
       }
     },
-    [hostedSlug, cueLabel],
+    [hostedSlug, cueLabel, rememberAired],
   );
 
   if (!show) {
@@ -784,6 +825,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                   library={library}
                   empty={liveLayers.length === 0}
                   onState={noteMachineState}
+                  onReady={restoreProgram}
                 />
               </div>
             </div>
