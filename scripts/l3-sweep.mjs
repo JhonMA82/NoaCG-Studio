@@ -52,6 +52,21 @@ const results = await page.evaluate(async (CATEGORY) => {
     const isTicker = CATEGORY === 'ticker';
     // Clock categories share the countdown engine; their prefix differs.
     const clockPrefix = { 'starting-soon': 'starting-soon', 'game-timer': 'game-timer' }[CATEGORY] || null;
+    // ...but a clock is a DESIGN decision inside those categories, not a category contract.
+    // `clock: 'none'` is deliberate (src/templates/AGENTS.md): a technical pause cannot promise
+    // a time and a sign-off card is not waiting for anything, so those screens emit no clock
+    // field, no clock element and no clock RUNTIME.
+    //
+    // Read from EITHER signal on purpose. The element alone would be the obvious test and is
+    // the wrong one: a design that broke by losing its clock element would then look like a
+    // design that never wanted one, and this check would go quiet exactly when it should shout.
+    // The runtime is what states the intent - `clock: 'none'` emits no `startClock` at all -
+    // so a missing element beside a live runtime still runs the probe and still fails.
+    // Measured across all 19 designs in the two clock categories: element and runtime agree
+    // everywhere, absent together on ss08/ss09 alone.
+    const hasClock = clockPrefix
+      ? tpl.html.includes(`${clockPrefix}-clock`) || /function startClock\b/.test(tpl.js)
+      : false;
     const isScoreboard = CATEGORY === 'scoreboard';
     const isInfographic = CATEGORY === 'infographic';
     const isQuiz = CATEGORY === 'quiz';
@@ -63,7 +78,9 @@ const results = await page.evaluate(async (CATEGORY) => {
       ? CATEGORY : null;
     row.checks.masks = isCredits ? tpl.html.includes('credits-track')
       : isTicker ? tpl.html.includes('ticker-track')
-      : clockPrefix ? tpl.html.includes(`${clockPrefix}-clock`)
+      // A clock design's masked contract IS its clock; a clockless one still has to carry the
+      // category box, the same shape the audience branch below uses for its formless queue.
+      : clockPrefix ? (hasClock || tpl.html.includes(`${clockPrefix}-box`))
       : isInfographic ? tpl.html.includes('infographic-box') // designs own their fields — no mask contract
       : isVersus ? (tpl.html.includes('versus-box') && tpl.html.includes('versus-mask') && tpl.html.includes('id="f0"'))
       // An audience graphic's masked element is its MESSAGE, and the queue form has no mask at
@@ -128,11 +145,25 @@ const results = await page.evaluate(async (CATEGORY) => {
       if (r3.fatal || r3.errs.length) row.issues.push('steps: ' + (r3.fatal || r3.errs[0]));
     }
 
+    if (clockPrefix && !hasClock) {
+      // A design that ships no clock is not a design with a broken clock. Say so as a NOTE and
+      // run no clock check at all - a `false` would be a fault report and a `true` would claim
+      // a check that never ran. Same doctrine as field-coverage's NOT DRIVEN rows: the report
+      // is read by a human scanning for false, so a skipped check must be visibly absent.
+      row.clock = 'none - this design ships no countdown by design (clock: \'none\')';
+      out.push(row);
+      continue;
+    }
+
     if (clockPrefix) {
       // Clock categories: after play() the clock must render M:SS and actually tick down.
       const r7 = await runInFrame(tpl, async (w, d) => {
         w.play();
         const clock = d.querySelector(`.${clockPrefix}-clock`);
+        // A design reached this probe because it CLAIMS a clock (element or runtime). A missing
+        // element here is therefore a real fault, reported as one rather than as an opaque
+        // "cannot read properties of null".
+        if (!clock) return { missingElement: true };
         const first = clock.textContent;
         // startClock() fires after the entrance timeline, so the first tick can land ~1.7 s in.
         await new Promise((r) => setTimeout(r, 3000));
