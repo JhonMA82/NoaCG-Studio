@@ -156,8 +156,9 @@ try {
   if (runs.length > 0) {
     console.log('');
     console.log(
-      'A Playwright run is ACTIVE in another checkout of this repo. Starting a second one is ' +
-        'blocked (guard hook rule 4a); use the `:queued` form of any e2e script to wait for it:',
+      'Browser-driving work (a suite, a catalog sweep or a bench) is ACTIVE in another checkout ' +
+        'of this repo. Starting a second such job is blocked (guard hook rule 4a); use the ' +
+        '`:queued` form of any e2e script to wait for it:',
     );
     for (const run of runs) {
       console.log(`  - ${run.root} (pid ${run.pid}, ${run.label}${run.elapsedMin === null ? '' : `, ${run.elapsedMin} min in`})`);

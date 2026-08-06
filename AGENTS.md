@@ -316,17 +316,23 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   local run escalated to 103 files while CI quietly ran 34. When you add a spec, add
   its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
   with `createProject` (`e2e/_create.ts`).
-- **One e2e run per MACHINE, not per worktree.** Several worktrees are normally live and each
-  Playwright config asks for 4 workers, so two suites starting in the same minute ask a 16 GB
-  laptop for eight browser workers and two Vite servers - measured at 59 live
-  `chrome-headless-shell` processes, 10.9 GB held by the test tree and available RAM down to
-  35 MB, at which point every other app is being paged out. The guard hook refuses the second
-  run and names the checkout holding the first (`scripts/e2e-runs.mjs`, which scans processes
-  rather than keeping a lock file, so there is nothing stale to clear). Use the **`:queued`**
-  form of any e2e script to wait for the other run instead of failing, `node
-  scripts/e2e-runs.mjs --all` to see who is running, and `--orphans` / `--kill-orphans` to
-  reap browsers a killed run left behind. `NOACG_ALLOW_PARALLEL_E2E=1` in the command
-  overrides, for the rare case where the overlap is genuinely wanted.
+- **One browser-driving job per MACHINE, not per worktree.** A suite, a catalog sweep and a
+  bench are the same workload under different names - a dev server plus a pile of headless
+  Chromium - and several worktrees are normally live. Two starting in the same minute asks a
+  16 GB laptop for double everything: measured at 59 live `chrome-headless-shell` processes,
+  10.9 GB held by the test tree and available RAM down to 35 MB, at which point every other app
+  is being paged out. The guard hook refuses the second job and names the checkout holding the
+  first (`scripts/e2e-runs.mjs`, which scans processes rather than keeping a lock file, so
+  there is nothing stale to clear), and `e2e/_offline-guard.ts` WAITS instead - the universal
+  net, since a hook only sees tool calls, never your terminal. Use the **`:queued`** form of any
+  e2e script to wait rather than fail, `node scripts/e2e-runs.mjs --all` to see what is running,
+  and `--orphans` / `--kill-orphans` to reap browsers a killed run left behind.
+  `NOACG_ALLOW_PARALLEL_E2E=1` in the command overrides.
+  Anything the named list misses is still absorbed by the worker ladder
+  (`scripts/e2e-workers.mjs`): it reads FREE MEMORY when a run starts and takes fewer workers
+  when something heavy is already resident - another job, a build, or Premiere with a project
+  open. That is also the local worker count, which is why it is not a constant: 6 workers is
+  the fastest measured from ~5.6 GB free and the SLOWEST from ~4.5 GB.
 - **The pre-merge gate belongs to CI, not the laptop.** `ci.yml` runs on every branch push and
   does strictly more than a local run can (build, the affected plan sharded eight ways, the
   factory gates, the catalog tripwire when raised) in six to nine minutes, free, on a clean

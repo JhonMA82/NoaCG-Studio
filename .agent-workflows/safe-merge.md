@@ -253,7 +253,6 @@ real risk, meaning any of:
 
 - local `main` is diverged from or ahead-only of `origin/main` (the Hard safety rules cases);
 - the source worktree has uncommitted changes;
-- the merge is predicted to conflict;
 - `main` is checked out nowhere AND neither route to a `main` worktree is open - the gate did
   not report SAFE and a temporary `main` worktree could not be created. Neither of those alone
   is a risk: the root sitting on `<branch>` is reported SAFE and is the ordinary shape of a
@@ -266,6 +265,25 @@ In any of those cases, report the specific risk and wait. Absent them, do not pa
 later phases still enforce every Hard safety rule and abort on their own if reality
 disagrees (dirty verification, main moved, non-fast-forward), so a clean run needs no
 gate here.
+
+**REPORT, DO NOT STOP, WHEN THE ANSWER IS "PROCEED ANYWAY."** A stop is for a decision only
+the user can make - one where the two branches of the answer lead somewhere different. It is
+not for keeping them informed; that is what the report is. Standing instruction from the
+owner, 2026-08-06: "there is no point in stopping just to relay information if we are still
+going to continue as planned." So state the finding in the running report and carry on. In
+particular:
+
+- **A predicted conflict is not a stop.** It used to be listed above and no longer is. The
+  merge happens on the BRANCH with `main` untouched, Phase 3 resolves only what is
+  mechanically obvious, and anything semantic stops THERE with the hunks shown - which is a
+  stop with something to decide, at the moment there is something to decide. Predicting one
+  in Phase 1 and asking permission adds a round trip and no safety.
+- **`merge-order` `caution` is not a stop**, and never was. Report the number and continue;
+  someone has to go first. A `hold` still stops, because that one says a cheaper branch is
+  ready and this one is expensive for everyone else - a genuine ordering decision.
+
+None of this relaxes a Hard safety rule or any stop still listed above. Those exist because
+proceeding could lose work, publish something unintended, or promote an untested commit.
 
 ## Phase 2 - Prepare (reattach main if needed, update main, then integrate it INTO the branch)
 

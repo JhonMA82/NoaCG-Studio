@@ -41,7 +41,8 @@ function redact(value: string): string {
 }
 
 /**
- * Wait out any Playwright run in ANOTHER checkout of this repo before starting this one.
+ * Wait out any browser-driving job - a suite, a catalog sweep or a bench - in ANOTHER checkout
+ * of this repo before starting this one.
  *
  * The Claude Code guard hook refuses an overlapping run too, but it can only see commands that
  * go through a tool call - it cannot stop a developer typing `npm run test:e2e` in a terminal,
@@ -76,7 +77,7 @@ async function waitForOtherRuns(): Promise<void> {
     if (!announced) {
       announced = true;
       console.log(
-        `Queued behind a Playwright run in another checkout - starting when it finishes ` +
+        `Queued behind browser-driving work in another checkout - starting when it finishes ` +
           `(node scripts/e2e-runs.mjs --all to watch):\n${describeRuns(runs)}`,
       );
     }

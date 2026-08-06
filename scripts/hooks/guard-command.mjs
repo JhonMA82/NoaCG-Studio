@@ -110,32 +110,37 @@ if (isCommit) {
   }
 }
 
-// --- 4. E2E preflight ----------------------------------------------------------------------
+// --- 4. Heavy browser work: one job per MACHINE ----------------------------------------------
 
-if (invokesE2e(command)) {
-  // 4a. Nobody else's suite may already be running. Each config asks for 4 workers, so two
-  //     checkouts starting in the same minute asks a 16 GB laptop for eight parallel browser
-  //     workers and two Vite servers. Measured on this machine: 59 live browser shells,
-  //     10.9 GB held by the test processes alone, and available RAM down to 35 MB - at which
-  //     point every foreground app is being paged out and the whole box crawls. Neither run is
-  //     at fault; the overlap is, and no session can see it from inside its own checkout.
-  //     Serialising costs nothing: two suites sharing one box do not finish sooner than two
-  //     run back to back, they just make everything else unusable while they do it.
-  //     A command that already routes through the waiter serialises itself, so it is exempt:
-  //     blocking it would be refusing the very fix this rule recommends.
+// 4a. Nothing that drives a pile of headless Chromium may start while another such job is
+//     running - an e2e suite, a catalog sweep, or a bench, in ANY checkout. They are the same
+//     workload under different names: a dev server plus browsers, on a box measured to run out
+//     of memory at around six browser workers. Two at once produced 59 live browser shells,
+//     10.9 GB held by the test processes and available RAM down to 35 MB, at which point every
+//     foreground app is being paged out. Neither job is at fault; the overlap is, and no
+//     session can see it from inside its own checkout.
+//     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
+//     back to back, they only make everything else unusable while they do it.
+if (invokesE2e(command) || invokesSweep(command)) {
+  //   A command that already routes through the waiter serialises itself, so it is exempt:
+  //   blocking it would be refusing the very fix this rule recommends.
   const selfQueuing = /e2e-runs\.mjs\s+--wait/.test(command) || /\btest:e2e[\w:]*:queued\b/.test(command);
   const others = selfQueuing ? [] : activeRuns({ exclude: process.cwd() });
   if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
     deny(
-      `Blocked: a Playwright run is already active in another checkout of this repo:\n${describeRuns(others)}\n` +
-        'Two suites on one machine exhaust its RAM rather than sharing it, and both runs get slower ' +
-        'and flakier (see AGENTS.md "Verifying changes" gotchas).\n' +
+      `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
+        'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
+        'rather than sharing it (see AGENTS.md "Verifying changes" gotchas).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
-        'or queue this run behind it with `npm run test:e2e:queued` / `npm run test:e2e:affected:queued`.\n' +
+        'or queue an e2e run behind it with `npm run test:e2e:queued` / `npm run test:e2e:focus:queued`.\n' +
         'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
     );
   }
+}
 
+// 4b. The port check applies to e2e runs only - a sweep starts its own server on the same port
+//     but is not subject to reuseExistingServer's env-pinning trap.
+if (invokesE2e(command)) {
   const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
   const port = live ? livePort() : devPort();
   if (await isPortBusy(port, 750)) {
@@ -162,16 +167,40 @@ process.exit(0);
  * live. A quoted argument is never in that position, which is exactly the distinction we want.
  */
 function invokesE2e(text) {
+  return commandSegments(text).some(
+    (segment) =>
+      /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)?test:e2e[\w:]*(?:\s|$)/.test(segment) ||
+      /^(?:npx\s+)?playwright\s+test(?:\s|$)/.test(segment) ||
+      // The affected/focus entry point, invoked directly rather than through its npm script.
+      /^node\s+\S*e2e-affected\.mjs(?:\s|$)/.test(segment),
+  );
+}
+
+/**
+ * Does this command start a catalog SWEEP or a bench - the other things in this repo that spin
+ * up a dev server and a pile of headless Chromium? They compete with an e2e run for exactly the
+ * same memory, so they belong in the same mutual exclusion. Without this the guard serialised
+ * suite-against-suite and then let a sweep start alongside one, which costs the same.
+ */
+function invokesSweep(text) {
+  return commandSegments(text).some(
+    (segment) =>
+      /^node\s+\S*scripts[/\\](l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\w-]*|[\w-]*bench[\w-]*)\.mjs(?:\s|$)/.test(segment) ||
+      /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)(?:bench|video):[\w:]+(?:\s|$)/.test(segment),
+  );
+}
+
+/**
+ * A command line's segments, each reduced to the token an invocation would occupy. Matching a
+ * bare string anywhere in the text was wrong in a way that bit daily: `grep -n "npm run
+ * test:e2e" AGENTS.md` contains the phrase and starts nothing, and denying it teaches everyone
+ * to route around the guard. A quoted argument is never in first position, which is exactly the
+ * distinction wanted.
+ */
+function commandSegments(text) {
   return text
     .split(/&&|\|\||[;|\n]/)
-    .map((segment) => segment.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')) // drop env prefixes
-    .some(
-      (segment) =>
-        /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)?test:e2e[\w:]*(?:\s|$)/.test(segment) ||
-        /^(?:npx\s+)?playwright\s+test(?:\s|$)/.test(segment) ||
-        // The affected/focus entry point, invoked directly rather than through its npm script.
-        /^node\s+\S*e2e-affected\.mjs(?:\s|$)/.test(segment),
-    );
+    .map((segment) => segment.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')); // drop env prefixes
 }
 
 /** Run git with the given args in this checkout and return stdout as trimmed lines. */
