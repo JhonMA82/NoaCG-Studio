@@ -145,6 +145,46 @@ test('an operator can correct the clock on air by typing into it', async ({ page
   expect(r.after).not.toBe('43:12');
 });
 
+test('a score bump on air does not pull the running clock back', async ({ page }) => {
+  test.setTimeout(60_000);
+  await toApp(page);
+  // THE ON-AIR CASE THIS EXISTS FOR. Every Take, ✎ Update and Snap sends the cue's WHOLE value
+  // set over the wire (control/hostedControl.ts), so an operator adding a goal in the 64th
+  // minute resends the clock field too — carrying whatever was last typed into it, not what the
+  // clock has ticked to. Re-seeding from that is indistinguishable from a correction unless the
+  // runtime compares against the last value it RECEIVED: the element's own text is the ticked
+  // time, so it differs from the resent value on every single update.
+  //
+  // Measured before the fix: the clock jumped back to its typed value on every score change.
+  const result = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { w, d } = await boot('sb05');
+    const clock = () => d.querySelector('.scoreboard-clock').textContent;
+    // The operator sets the clock once, the way they would after a kick-off correction.
+    w.update(JSON.stringify({ f1: '0', f3: '0', f5: '20:00' }));
+    w.startMatchClock();
+    await sleep(2200);
+    const running = clock();                 // the clock has ticked past what was typed
+    // A goal. The score changes; the clock field rides along UNCHANGED, as the wire sends it.
+    w.update(JSON.stringify({ f1: '1', f3: '0', f5: '20:00' }));
+    const afterGoal = clock();
+    // A second update with the clock still unchanged must be just as harmless.
+    w.update(JSON.stringify({ f1: '1', f3: '1', f5: '20:00' }));
+    const afterSecond = clock();
+    // And a REAL correction must still take, or the fix would have broken the thing it guards.
+    w.update(JSON.stringify({ f1: '1', f3: '1', f5: '43:12' }));
+    const corrected = clock();
+    w.stopMatchClock();
+    return { running, afterGoal, afterSecond, corrected, score: d.querySelector('#f1').textContent };
+  })()`);
+  const r = result as Record<string, string>;
+  expect(r.running).not.toBe('20:00');       // it really was running, or the test proves nothing
+  expect(r.afterGoal).toBe(r.running);       // the goal left the clock exactly where it stood
+  expect(r.afterSecond).toBe(r.running);
+  expect(r.score).toBe('1');                 // and the score still arrived
+  expect(r.corrected).toBe('43:12');         // a genuine correction is still obeyed
+});
+
 test('a counting-down period stops itself at zero and says so', async ({ page }) => {
   test.setTimeout(60_000);
   await toApp(page);

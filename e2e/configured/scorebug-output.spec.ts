@@ -18,10 +18,13 @@ import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 //     reports what it was sent, never what its own clock ticked to, so recovery replays the
 //     field. Asserting "it resumed where it was" would be asserting a thing the design does not
 //     promise.
-//   - every Take/Update/Snap RE-SEEDS the running clock, because the wire carries the whole
-//     cue's values and the clock's value is one of them. So a score bumped on air pulls the
-//     clock back to the cue's clock field. The walk below therefore finishes with the clock
-//     rather than interleaving the two.
+//   - a Take/Update/Snap carrying an UNCHANGED clock value no longer re-seeds the running
+//     clock (shared/matchClock.ts). It used to, because the wire carries the whole cue's
+//     values and the clock's is one of them, so a score bumped on air pulled the clock back to
+//     the cue's clock field — an on-air fault, fixed and pinned by e2e/sports.spec.ts. The
+//     walk below still finishes with the clock, which now reads as ordinary tidiness rather
+//     than as working around that behaviour. A CHANGED value is still an operator correction
+//     and still re-seeds.
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 

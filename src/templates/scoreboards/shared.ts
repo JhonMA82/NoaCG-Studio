@@ -138,8 +138,10 @@ function update(data) {
     if (!el) continue;
     var changed = el.textContent !== String(fields[key]);  // textContent: exactly what the operator typed
     setFieldValue(el, fields[key]);
-    // A value typed into the CLOCK element is a correction to the running clock, not just
-    // text — re-seed the tick from it, or the next second would overwrite the fix.
+    // A CHANGED value in the CLOCK element is a correction to the running clock, not just
+    // text — re-seed the tick from it, or the next second would overwrite the fix. An
+    // UNCHANGED one is the wire resending the cue's whole value set (a score bump), and
+    // matchClockUpdate repaints the ticked time over what setFieldValue just wrote above.
     if (typeof matchClockUpdate === 'function') matchClockUpdate(key, fields[key]);
     if (changed && onAir && scoreIds.indexOf(key) !== -1) {
       // Pop the MASK (the span's parent), not the span: the span is clipped by the mask's

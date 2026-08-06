@@ -362,11 +362,24 @@ proxy the phase named as blocking esports, every hidden data holder in the catal
 `.noacg-data-source` rule (the scoreboards included — the boards' own copy of that rule is gone),
 and `e2e/catalog-baseline.spec.ts` gained the gate that fails on any inline-hidden holder.
 
-**Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
+**Live-arm behaviour to encode as correct rather than fight:** a reboot REWINDS the clock to the
 last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
-to), and every Take/Update/Snap re-seeds the running clock because the wire sends the whole
-`cue.values` — so a score bump on air pulls the clock back. Also `clockReset` returns to the
-design's baked `data-start`, not the cue's clock value; asserting otherwise would encode a bug.
+to), and `clockReset` returns to the design's baked `data-start`, not the cue's clock value;
+asserting otherwise in either case would encode a bug.
+
+**One of those three was NOT a trap, and is now fixed (2026-08-06).** "Every Take/Update/Snap
+re-seeds the running clock, so a score bump on air pulls the clock back" was filed here as
+something to work around. It is an on-air fault on the primary sports surface — an operator adds
+a goal in the 64th minute and the clock jumps back to whatever they last typed — and the phase
+that exists to make that surface dependable is the wrong place to accept it. The runtime now
+re-seeds only on a value the WIRE actually changed (`shared/matchClock.ts`); the element's own
+text could never make that distinction, because it holds the ticked time and so differs from a
+resend every second. Two write paths had to be closed, not one: the re-seed itself, and
+`setFieldValue` painting the stale text into the clock element before `matchClockUpdate` ever
+runs. Reproduced first, pinned by `e2e/sports.spec.ts` ("a score bump on air does not pull the
+running clock back"), with the existing correction test proving the guard did not break the
+thing it guards. The honest limit is written down in the runtime: re-sending an identical value
+is a no-op, so returning to a known time belongs to `clockReset`.
 
 ### Phase 5 — Audience questions/comments. Status: Planned (design done, below)
 Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable

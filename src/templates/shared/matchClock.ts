@@ -131,12 +131,39 @@ function resetMatchClock() {
 }
 
 // matchClockUpdate(key, value): called from update() for every field written. When the value
-// lands in the CLOCK element, re-seed the tick from it — otherwise the next tick would
-// overwrite the correction a second later and the operator's fix would look broken.
+// lands in the CLOCK element AND IS NOT THE ONE ALREADY RECEIVED, re-seed the tick from it —
+// otherwise the next tick would overwrite the correction a second later and the operator's fix
+// would look broken.
+//
+// THE "NOT ALREADY RECEIVED" HALF IS LOAD-BEARING, and re-seeding without it is an on-air fault.
+// Every Take, Update and Snap sends the cue's WHOLE value set (control/hostedControl.ts), so a
+// score bump in the 64th minute resends the clock field carrying whatever was last TYPED into
+// it. Re-seeding from that pulls a running clock back to its typed value on every goal.
+//
+// Comparing against the element's text cannot tell the two apart: the element holds the TICKED
+// time, so a resend differs from it every second. What distinguishes a correction is that the
+// value the wire carries CHANGED — that only happens when someone edited the field.
+//
+// The honest limit: re-sending a value identical to the last one received is a no-op, so an
+// operator cannot re-apply the same time twice. No control surface can express that anyway (the
+// field already holds that text, so there is no edit to send), and returning to a known value is
+// what resetMatchClock() is for.
+var matchClockSent = null;       // the last clock value the wire delivered, not the ticked time
+
 function matchClockUpdate(key, value) {
   var el = matchClockEl();
   if (!el || el.id !== key) return;
-  matchSeconds = parseMatchClock(value);
+  var incoming = String(value == null ? '' : value);
+  if (matchClockSent !== null && incoming === matchClockSent) {
+    // A resend, not an edit. update() has ALREADY written this stale text into the element
+    // (setFieldValue runs first, for every field alike), so returning quietly would still show
+    // the typed time until the next tick overwrote it — a visible jump backwards on a running
+    // clock, and a permanent wrong time on a held one. Paint the real value back.
+    if (matchClockReady) paintMatchClock();
+    return;
+  }
+  matchClockSent = incoming;
+  matchSeconds = parseMatchClock(incoming);
   matchClockReady = true;
   paintMatchClock();
 }

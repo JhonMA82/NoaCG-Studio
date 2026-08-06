@@ -139,6 +139,15 @@ exists for:
   the control page re-seeds the running clock. Every live clock drifts from the stadium's, and
   one that cannot be corrected stops being trusted. Without the re-seed, the next tick a second
   later would overwrite the correction and the fix would look broken.
+- **But only a CHANGED value re-seeds it.** Every Take, Update and Snap sends the cue's whole
+  value set, so a score bump in the 64th minute resends the clock field carrying whatever was
+  last typed — and re-seeding from that dragged the running clock back to that time on every
+  goal. The element's own text cannot tell the two apart (it holds the ticked time, so a resend
+  differs from it every second); what distinguishes a correction is that the value *the wire
+  carries* changed, which only happens when someone edits the field. The runtime remembers the
+  last value it received and ignores a repeat, re-painting the ticked time over the stale text
+  `update()` has already written. Consequence worth knowing: re-sending an identical value is a
+  no-op, so returning to a known time is `resetMatchClock`'s job, not an update's.
 - **Reset is a separate operation, and it never assumes zero.** `resetMatchClock` returns to the
   element's own `data-start`, so a period that runs from 12:00 resets to 12:00 — the same "reset
   is two operations" rule the state machine holds for visual state and data.
