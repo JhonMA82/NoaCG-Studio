@@ -47,8 +47,9 @@ exported controller / CasparCG path. If the visible result differs from intent, 
 incomplete, contains fake controls, or repaints wrongly, the phase stays unverified — green
 tests notwithstanding.
 
-Automated gates (supporting evidence): `npm run build`; `E2E_SPRINT_FOCUS=1 npm run
-test:e2e:affected`; a Playwright spec per new flow, mapped in `scripts/e2e-lists.mjs` in the
+Automated gates (supporting evidence): `npm run build`; `npm run test:e2e:focus` (or its
+`:queued` form when another worktree is running a suite); a Playwright spec per new flow,
+mapped in `scripts/e2e-lists.mjs` in the
 same commit; `node scripts/l3-sweep.mjs <shots> quiz|poll|audience` after template changes;
 the catalog gates (`type-floor`, `overflow-sweep --baseline`, `field-coverage`, `numerals`,
 `test:e2e:catalog`) after catalog-affecting type edits — `numerals.mjs` specifically once

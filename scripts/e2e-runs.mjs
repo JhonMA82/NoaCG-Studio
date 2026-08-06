@@ -114,12 +114,29 @@ const WORKER = /playwright[/\\]+lib[/\\]+worker[/\\]+workerProcessEntry\.js/;
  * `node ...cli.js`), so it identifies the worktree without parsing arguments.
  */
 export function rootOfCommand(command) {
-  // Anchored on a drive letter (Windows) or a leading slash (posix) and forbidden from crossing
-  // a quote, so it picks up the ARGUMENT's path rather than starting at the `"node"` that opens
-  // the command line. A checkout path may legitimately contain spaces, which is why the quote -
-  // not whitespace - is what bounds the token.
-  const match = /([A-Za-z]:[\\/][^"']*?|\/[^"']*?)[\\/]+node_modules[\\/]/.exec(command);
-  return match ? normalize(match[1].trim()) : null;
+  // Split into ARGUMENTS first, then look inside one, rather than running a regex across the
+  // whole command line. A single regex cannot get this right: a checkout path may contain
+  // spaces (so whitespace cannot bound the match), but if the pattern is allowed to cross
+  // whitespace it will happily span two unrelated arguments and glue them into a path that
+  // never existed - observed producing `.../sleeper.mjs 60000 C:/claude/NoaCG-Studio` from a
+  // command line whose real root was the second of those. Quoting is what actually resolves
+  // the ambiguity, and quoting is a property of the argument, not of the character stream.
+  for (const arg of splitArgs(command)) {
+    const at = arg.toLowerCase().indexOf('node_modules');
+    if (at <= 0) continue; // absent, or the argument IS node_modules with no root before it
+    const root = arg.slice(0, at).replace(/[\\/]+$/, '');
+    if (root) return normalize(root);
+  }
+  return null;
+}
+
+/**
+ * A command line's arguments. Quoted runs stay whole (so a path with spaces survives); anything
+ * else splits on whitespace. This is not a full shell parser and does not need to be - it only
+ * has to keep one filesystem path from bleeding into the next.
+ */
+function splitArgs(command) {
+  return command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((arg) => arg.replace(/^["']|["']$/g, '')) ?? [];
 }
 
 /** Which config a run is using, for a message that says WHAT is running, not just that something is. */
