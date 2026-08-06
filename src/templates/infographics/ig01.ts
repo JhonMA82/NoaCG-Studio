@@ -88,6 +88,9 @@ export const ig01: TemplateVariant = defineInfographicVariant(
   text-wrap: balance;              /* wrapped rows get even lengths */
 }`,
       fields: [
+        // TEXT, deliberately, where the other stat designs carry a number: this figure holds its
+        // own unit ("87%", "1.2M", "3.4x") and the count-up reads the leading number out of it.
+        // A number input cannot hold any of those, so the field would lose what it is for.
         { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Value', value: valueText },
         { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Label', value: labelText },
       ],

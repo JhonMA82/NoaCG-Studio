@@ -75,8 +75,8 @@ export const ig24: TemplateVariant = defineInfographicVariant(
       </div>
     </div>
     <!-- Hidden sources — SPX writes the milestone lines into f0 and the running figure into f1. -->
-    <div id="f0" style="display: none">${milestonesText}</div>
-    <div id="f1" style="display: none">${currentText}</div>`,
+    <div id="f0" class="noacg-data-source">${milestonesText}</div>
+    <div id="f1" class="noacg-data-source">${currentText}</div>`,
 
       css: `/* The accent bar — the house 8px amber edge with its one restrained glow. */
 .infographic-accent {
@@ -240,7 +240,9 @@ export const ig24: TemplateVariant = defineInfographicVariant(
 
       fields: [
         { field: 'f0', ftype: 'textarea', title: o.lines[0]?.title || 'Milestones', value: milestonesText },
-        { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Current', value: currentText },
+        // A NUMBER: the runtime parses this figure to decide which milestones have been passed,
+        // and a campaign's running total moves by a bump far more often than by a retype.
+        { field: 'f1', ftype: 'number', title: o.lines[1]?.title || 'Current', value: currentText },
         { field: 'f2', ftype: 'textfield', title: 'Label', value: 'MILESTONES' },
       ],
 

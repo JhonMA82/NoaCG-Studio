@@ -74,7 +74,7 @@ export function listBoardHtml(args: {
       <div id="infographic-rows"></div>
     </div>
     <!-- Hidden repeating source — SPX writes field f0 here; JS renders it. One item per line. -->
-    <div id="f0" style="display: none">${esc(args.rows)}</div>${args.extraSources ?? ''}`;
+    <div id="f0" class="noacg-data-source">${esc(args.rows)}</div>${args.extraSources ?? ''}`;
 }
 
 /** The hidden column-headings source the standings runtime renders its strip from. */

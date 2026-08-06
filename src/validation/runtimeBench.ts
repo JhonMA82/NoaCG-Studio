@@ -76,19 +76,31 @@ const OVERLAP_WARN = 0.05;
 // A long real-world name: the classic lower-third breaker (~60 chars).
 const STRESS_NAME = 'Alexandra Konstantopoulos-Vandermeulen, Senior Correspondent';
 /**
- * The stress value for a NUMBER field: three digits, CALIBRATED rather than picked.
+ * The stress value for a NUMBER field: one more digit than the design was authored around,
+ * never fewer than three, written as a 1 followed by 8s ("188", "1888888").
  *
- * A number widens by digit COUNT, so the default "0" has to be replaced, not doubled — the
- * text branch's `${v} ${v}` turns "0" into "0 0", which is a wider string but not a wider
- * NUMBER, and it is not what breaks a scorebug.
+ * A number widens by digit COUNT, so the default has to be REPLACED, not doubled — the text
+ * branch's `${v} ${v}` turns "0" into "0 0", which is a wider string but not a wider NUMBER,
+ * and it is not what breaks a scorebug.
  *
- * Three digits is the honest ceiling: it is an ordinary basketball score and about as far as
- * any sport's headline figure goes. Four was tried and rejected — it makes sb10's doubled club
- * name clip, but no match produces a four-digit score, so the gate would have been charging
- * every design width for a value that cannot occur. That measurement is worth keeping as the
- * known headroom: the match boards clear a realistic score and not much more.
+ * The three-digit floor is the scoreboard calibration, kept exactly: a score's default is "0",
+ * and three digits is an ordinary basketball score and about as far as any sport's headline
+ * figure goes. Four was tried there and rejected — it makes sb10's doubled club name clip,
+ * while no match produces a four-digit score, so the gate would have charged every design
+ * width for a value that cannot occur.
+ *
+ * A FIXED three digits is only right for a field whose default carries no magnitude. A
+ * fundraiser's total is authored at "124213" and a milestone figure at "18400"; stressing
+ * those to "188" would test a value three digits NARROWER than the design already shows, so
+ * converting them to number fields would have quietly relaxed the gate instead of tightening
+ * it. One extra digit is the honest ceiling for a figure like that — the campaign that passes
+ * ten times its sample — and it lands back on "188" for every field whose default is a single
+ * digit, which is why the scoreboard measurement above still holds.
  */
-const STRESS_NUMBER = '188';
+function stressNumber(value: string): string {
+  const digits = (value.match(/\d/g) ?? []).length;
+  return '1'.padEnd(Math.max(3, digits + 1), '8');
+}
 
 interface TemplateGlobals {
   play?: () => void;
@@ -530,7 +542,7 @@ function fieldValues(template: SpxTemplate, mode: 'marker' | 'default' | 'stress
         // gets GREENER while covering less, and no other catalog gate fills the hole
         // (type-floor measures font size, overflow-sweep runs at design defaults, and
         // numerals.mjs substitutes digits without ever changing how many there are).
-        v = STRESS_NUMBER;
+        v = stressNumber(v);
       } else if (f.ftype === 'textarea') {
         // Line-based data (credits, tickers, quiz options): double every line's length.
         v = v

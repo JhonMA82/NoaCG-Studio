@@ -46,6 +46,8 @@ import {
 import {
   baseSettings,
   computeScale,
+  DATA_SOURCE_CLASS,
+  dataSourceCss,
   documentHtml,
   maxTextWidthCss,
   resetCanvasCss,
@@ -356,7 +358,7 @@ ${design.html}${
         ? `
     <!-- Hidden queue source — SPX writes field ${hidden.field} here; the runtime renders it as rows.
          One entry per line, written "Question | Name | Source". Name and source are optional. -->
-    <div id="${hidden.field}" style="display: none">${hidden.value}</div>`
+    <div id="${hidden.field}" class="${DATA_SOURCE_CLASS}">${hidden.value}</div>`
         : ''
     }
   </div>`,
@@ -385,7 +387,7 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 }
 
 ${MESSAGE_CSS}
-
+${hidden ? `\n${dataSourceCss}\n` : ''}
 /* ── Design ── */
 ${design.css}
 `;

@@ -476,6 +476,15 @@ measures.
   **Hide a data holder with a CSS RULE, never an inline `style="display: none"`**: the editor's
   entrance reset clears inline props on the whole root subtree (PlayoutSimulator `resetGraphic`),
   so an inline-hidden holder comes back VISIBLE on the canvas. `STATUS_SOURCE_CSS` is the pattern.
+  The general form is `DATA_SOURCE_CLASS`/`dataSourceCss` (shared/base.ts) - the `.noacg-data-source`
+  class every category's assembler emits when its markup carries one. This is a CATALOG-WIDE
+  rule, not a corner-bug one: measured 2026-08-06, the fundraiser meters leaked their goal, the
+  milestone boards leaked the whole target list, the poll board leaked its options, every
+  audience queue leaked its pending questions and sixteen match boards leaked their club-colour
+  hex - all from the same inline `display: none`. `e2e/catalog-baseline.spec.ts` now fails on
+  any `<div id="fN" style="…display: none">` in the emitted HTML. An `<img id="fN">` is the one
+  exception and is excluded there: an empty image slot hides itself inline through
+  `setFieldValue`, and `resetGraphicInline` restates that after clearing.
 - **infographics/** - ig01…ig25 (prefix 'infographic'; design owns fields + runtimeExtraJs) +
   igPresets (count-up / bars-grow / ring-fill / rows-cascade / **goal-ring** / **milestone-run**)
   + **igMotion.ts** + **dataRuntimes.ts** (the rebuilds several designs of a type share:

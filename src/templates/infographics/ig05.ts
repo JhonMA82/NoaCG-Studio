@@ -170,8 +170,10 @@ export const ig05: TemplateVariant = defineInfographicVariant(
         labelColor: 'var(--accent)',
       },
       fields: [
-        { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Total', value: totalText },
-        { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Goal', value: goalText },
+        // Both figures are NUMBERS: the currency mark is a static span of its own and the
+        // runtime groups the thousands, so the operator types digits and nothing else.
+        { field: 'f0', ftype: 'number', title: o.lines[0]?.title || 'Total', value: totalText },
+        { field: 'f1', ftype: 'number', title: o.lines[1]?.title || 'Goal', value: goalText },
         { field: 'f2', ftype: 'textfield', title: 'Kicker', value: 'TOTAL RAISED' },
       ],
 

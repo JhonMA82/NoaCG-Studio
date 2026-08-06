@@ -72,8 +72,8 @@ export const ig25: TemplateVariant = defineInfographicVariant(
       </div>
     </div>
     <!-- Hidden sources — SPX writes the milestone lines into f0 and the running figure into f1. -->
-    <div id="f0" style="display: none">${milestonesText}</div>
-    <div id="f1" style="display: none">${currentText}</div>`,
+    <div id="f0" class="noacg-data-source">${milestonesText}</div>
+    <div id="f1" class="noacg-data-source">${currentText}</div>`,
 
       css: `/* The accent edge — a chunky bar fused to the slab's leaning left side. The lean is
    painted on ::before so nothing that tweens .infographic-accent can flatten it. */
@@ -241,7 +241,8 @@ export const ig25: TemplateVariant = defineInfographicVariant(
 
       fields: [
         { field: 'f0', ftype: 'textarea', title: o.lines[0]?.title || 'Milestones', value: milestonesText },
-        { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Current', value: currentText },
+        // A NUMBER, same contract as ig24: the runtime parses it against the milestone targets.
+        { field: 'f1', ftype: 'number', title: o.lines[1]?.title || 'Current', value: currentText },
         { field: 'f2', ftype: 'textfield', title: 'Label', value: 'CHANNEL TIERS' },
       ],
 

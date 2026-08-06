@@ -17,6 +17,7 @@
 // the source of truth and `e2e/graphic-types.spec.ts` compares the two on every run.
 
 import type { SpxField } from '../../model/types';
+import { DATA_SOURCE_CLASS } from '../shared/base';
 
 /** Escape a value for an HTML attribute or text node in generated markup. */
 function esc(value: string): string {
@@ -218,20 +219,20 @@ export function clampTwoLinesCss(selector: string): string {
 /** The two hidden club-colour holders the board runtimes lift onto the root. */
 export function colourHoldersHtml(aId: string, bId: string, aValue: string, bValue: string): string {
   return `      <!-- Club colours — hidden holders; the runtime lifts them onto the root as --team-a / --team-b. -->
-      <div id="${aId}" class="scoreboard-colour-a" style="display: none">${esc(aValue)}</div>
-      <div id="${bId}" class="scoreboard-colour-b" style="display: none">${esc(bValue)}</div>`;
+      <div id="${aId}" class="scoreboard-colour-a ${DATA_SOURCE_CLASS}">${esc(aValue)}</div>
+      <div id="${bId}" class="scoreboard-colour-b ${DATA_SOURCE_CLASS}">${esc(bValue)}</div>`;
 }
 
 /** A single hidden club-colour holder (the match-event card wears one team's colour). */
 export function colourHolderHtml(id: string, value: string): string {
   return `      <!-- Team colour — a hidden holder; the runtime lifts it onto the root as --team-a. -->
-      <div id="${id}" class="scoreboard-colour-a" style="display: none">${esc(value)}</div>`;
+      <div id="${id}" class="scoreboard-colour-a ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
 }
 
 /** The hidden period-breakdown source the match board's runtime renders from. */
 export function periodSourceHtml(id: string, value: string): string {
   return `      <!-- Period breakdown source — one "label | home | away" per line; JS renders it above. -->
-      <div id="${id}" class="scoreboard-periods-src" style="display: none">${esc(value)}</div>`;
+      <div id="${id}" class="scoreboard-periods-src ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
 }
 
 /**

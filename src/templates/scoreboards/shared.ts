@@ -38,6 +38,8 @@ import {
 import {
   baseSettings,
   computeScale,
+  DATA_SOURCE_CLASS,
+  dataSourceCss,
   documentHtml,
   maxTextWidthCss,
   resetCanvasCss,
@@ -252,7 +254,7 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
   overflow-wrap: break-word;       /* break very long unbroken team names */
   text-wrap: balance;              /* wrapped rows get even lengths */
 }
-
+${design.html.includes(DATA_SOURCE_CLASS) ? `\n${dataSourceCss}\n` : ''}
 /* ── Design ── */
 ${design.css}
 `;

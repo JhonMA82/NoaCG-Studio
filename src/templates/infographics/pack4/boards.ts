@@ -60,7 +60,7 @@ function boardHtml(comment: string, headingText: string, rowsText: string, sourc
     </div>
     <!-- Hidden ${sourceLabel} source — SPX writes field f0 here; the runtime renders it.
          One row per line. -->
-    <div id="f0" style="display: none">${rowsText}</div>`;
+    <div id="f0" class="noacg-data-source">${rowsText}</div>`;
 }
 
 /** Padding per family, shared by both boards. */

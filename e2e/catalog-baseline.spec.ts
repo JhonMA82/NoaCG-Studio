@@ -128,6 +128,45 @@ test('every catalog variant emits byte-identical code', async ({ page }, testInf
   ).toEqual([]);
 });
 
+// ── Hidden data holders: a CSS rule, never an inline style ──────────────────────────────
+
+/**
+ * A `<div id="fN">` the operator writes into and the runtime reads is hidden with the
+ * `.noacg-data-source` RULE (templates/shared/base.ts). Never with `style="display: none"`:
+ * the canvas returns a graphic to its resting state by clearing GSAP's inline properties over
+ * the whole root subtree (preview/simulatorRuntime.ts `resetGraphicInline`), which wipes the
+ * style attribute — and the holder then draws its raw value on screen. Measured before this
+ * gate existed: ig22/ig23 leaked their goal figure, ig24/ig25 leaked the milestone list AND
+ * the running total, the poll board leaked its options, and every audience queue leaked its
+ * pending questions. ig05, hidden by the rule, survived the same reset.
+ *
+ * An `<img id="fN">` is the deliberate exception and is NOT flagged: an empty image slot hides
+ * itself inline through setFieldValue, and `resetGraphicInline` restates exactly that after
+ * clearing (otherwise an empty logo would draw as a broken-image box).
+ */
+test('no catalog variant hides a data holder with an inline style', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const emitted = (await page.evaluate(EMIT)) as Emitted[];
+  expect(emitted.length).toBeGreaterThan(0);
+
+  const inlineHidden = /<(?!img\b)[a-z]+[^>]*\bid="f\d+"[^>]*style="[^"]*display:\s*none/gi;
+  const offenders: string[] = [];
+  for (const e of emitted) {
+    for (const match of e.html.match(inlineHidden) ?? []) {
+      offenders.push(`${e.id} (${e.category}): ${match.trim()}`);
+    }
+  }
+
+  expect(
+    offenders,
+    'A hidden data holder must carry class="noacg-data-source" — an inline display:none is ' +
+      'wiped by the canvas entrance reset and the value appears on air.',
+  ).toEqual([]);
+});
+
 // ── The render fingerprint — the gate tokenization must not move ────────────────────────
 
 interface Rendered {

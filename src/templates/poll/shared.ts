@@ -45,6 +45,8 @@ import {
 import {
   baseSettings,
   computeScale,
+  DATA_SOURCE_CLASS,
+  dataSourceCss,
   documentHtml,
   maxTextWidthCss,
   resetCanvasCss,
@@ -258,7 +260,7 @@ export function assemblePoll(
 ${design.html}
     <!-- Hidden options source — SPX writes field f1 here; pollRebuild() renders it as rows.
          One option per line, written "Label | count". -->
-    <div id="f1" style="display: none">${optionsText}</div>
+    <div id="f1" class="${DATA_SOURCE_CLASS}">${optionsText}</div>
   </div>`,
   });
 
@@ -293,6 +295,8 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 }
 
 ${BOARD_CSS}
+
+${dataSourceCss}
 
 /* ── Design ── */
 ${design.css}

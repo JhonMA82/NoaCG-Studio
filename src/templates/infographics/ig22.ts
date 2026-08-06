@@ -68,7 +68,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
       <div class="infographic-goal-line" id="infographic-goal-line"></div>
     </div>
     <!-- Hidden goal source — SPX writes field f1 here; the rebuild reads it. -->
-    <div id="f1" style="display: none">${goalText}</div>`,
+    <div id="f1" class="noacg-data-source">${goalText}</div>`,
 
       css: `/* The accent bar — the house 8px amber edge with its one restrained glow. */
 .infographic-accent {
@@ -187,8 +187,10 @@ export const ig22: TemplateVariant = defineInfographicVariant(
 }`,
 
       fields: [
-        { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Raised', value: raisedText },
-        { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Goal', value: goalText },
+        // Both figures are NUMBERS: the unit is its own field (f3) and the runtime groups the
+        // thousands, so these carry digits alone — and a running total is bumped, not retyped.
+        { field: 'f0', ftype: 'number', title: o.lines[0]?.title || 'Raised', value: raisedText },
+        { field: 'f1', ftype: 'number', title: o.lines[1]?.title || 'Goal', value: goalText },
         { field: 'f2', ftype: 'textfield', title: 'Label', value: 'TOTAL RAISED' },
         { field: 'f3', ftype: 'textfield', title: 'Unit', value: '€' },
       ],

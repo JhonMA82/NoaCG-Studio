@@ -180,7 +180,9 @@ export const ig04: TemplateVariant = defineInfographicVariant(
 }`,
 
       fields: [
-        { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Percentage', value: valueText },
+        // A NUMBER: the % sign is its own span, so this field carries digits alone — and a
+        // percentage is nudged up and down far more often than it is retyped.
+        { field: 'f0', ftype: 'number', title: o.lines[0]?.title || 'Percentage', value: valueText },
         { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Answer label', value: answerText },
         { field: 'f2', ftype: 'textfield', title: 'Question', value: QUESTION_SAMPLE },
       ],
