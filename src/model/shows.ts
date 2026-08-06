@@ -470,6 +470,56 @@ export function removeDatasetColumn(showId: string, datasetId: string, columnKey
 }
 
 /**
+ * IMPORT a parsed table as a NEW dataset (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 7).
+ *
+ * The file's header row becomes the COLUMN LABELS verbatim, which is the whole design: the
+ * binding is by name (`datasetValuesForFields`), so a spreadsheet whose columns are already
+ * called "Question" / "Answer A" binds to the quiz boards with no mapping step, and one whose
+ * columns are called something else says so instead of pretending. What lands is ORDINARY
+ * dataset rows — editable, synced with the production, with no link back to the file. There is
+ * deliberately no "re-import from source": a live file dependency would put the show's data
+ * somewhere the show does not travel.
+ *
+ * `kind` stays 'generic' unless the caller says otherwise, because kind only picks starter
+ * columns and an import brings its own.
+ */
+export function importShowDataset(
+  showId: string,
+  table: { header: string[]; rows: string[][] },
+  opts?: { name?: string; kind?: ShowDataset['kind'] },
+): { shows: Show[]; datasetId: string | null; error: string | null } {
+  const labels = table.header.map((h) => h.trim()).filter((h) => h !== '');
+  if (labels.length === 0) {
+    return { shows: loadShows(), datasetId: null, error: 'That file has no column names in its first row.' };
+  }
+  let datasetId: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    // Columns follow the header's ORDER and count; a header cell that was blank is dropped
+    // above, so its cells are dropped here too rather than landing under a nameless column
+    // nothing can ever bind or edit.
+    const keep = table.header.map((h, i) => [h.trim(), i] as const).filter(([h]) => h !== '');
+    const columns: DatasetColumn[] = keep.map(([label], i) => ({ key: `c${i}`, label }));
+    const rows: DatasetRow[] = table.rows.map((cells) => ({
+      id: uuid(),
+      values: Object.fromEntries(keep.map(([, from], i) => [`c${i}`, cells[from] ?? ''])),
+    }));
+    const dataset: ShowDataset = {
+      id: uuid(),
+      name: opts?.name?.trim() || 'Imported table',
+      kind: opts?.kind ?? 'generic',
+      // An import with no data rows still lands: the columns are the useful half and the
+      // operator can type into them. One empty row so there is something to type into.
+      rows: rows.length > 0 ? rows : [{ id: uuid(), values: {} }],
+      columns,
+    };
+    show.datasets = [...(show.datasets ?? []), dataset];
+    datasetId = dataset.id;
+    return true;
+  });
+  return { shows, datasetId, error: null };
+}
+
+/**
  * The BINDING: which of a template's fields a dataset row can fill, by matching column LABELS
  * to field TITLES (trimmed, case-insensitive). Returns fieldId -> value for the matches only —
  * unmatched columns are skipped, unmatched fields keep their cue values. Deterministic and

@@ -4477,6 +4477,24 @@ h2 + .lib-row,
 .pd-data-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pd-data-head h2 { margin: 0; font-size: 16px; }
 .pd-data-head .hint { max-width: 560px; margin: 0; }
+/* The import control is a LABEL wrapping a hidden file input, so it has to be dressed as a
+   button by hand - a bare file input renders as the browser's own chrome, which is the one
+   control on this surface that would not look like the product. */
+.pd-data-import {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  margin: 0;
+}
+.pd-data-import:hover { border-color: var(--accent); }
+.pd-data-import input { display: none; }
+.pd-data-note { margin: 0 0 12px; max-width: 760px; }
 /* The kind picker is one control, not a toolbar row — unconstrained, flex-wrap handed it a
    whole line of its own. */
 .pd-data-head select { flex: 0 0 auto; width: auto; max-width: 200px; }

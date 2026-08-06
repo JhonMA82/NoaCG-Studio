@@ -237,3 +237,78 @@ test('a graphic on air survives a Data-workspace round trip', async ({ page }) =
     )
     .toBeGreaterThan(0.9);
 });
+
+test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 walk from a file', async ({ page }) => {
+  // Phase 7. The parser's own edge cases (quoted commas, quoted newlines, doubled quotes,
+  // separators, JSON shapes) are unit-tested in scripts/csv.test.mjs; what is pinned HERE is
+  // the walk a user actually does — a file becomes a table, a row becomes a cue, the cue airs.
+  // The fixture carries a quoted comma on purpose, so a `split(',')` regression cannot pass.
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Import Night');
+
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('import-dataset').setInputFiles({
+    name: 'Quiz bank.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(
+      'Question,Answer A,Answer B,Answer C,Answer D,Correct answer\n' +
+        '"Which of these, exactly, is a planet?",Ganymede,Mars,Europa,Titan,B\n' +
+        'Which ocean is the largest?,Atlantic,Indian,Pacific,Arctic,C\n',
+    ),
+  });
+
+  // It reports what BOUND, not merely what arrived: a table that matches no field imports
+  // perfectly and does nothing.
+  const note = page.getByTestId('import-note');
+  await expect(note).toContainText('Imported 2 rows');
+  await expect(note).toContainText('Question');
+  await expect(note).toContainText('Correct answer');
+
+  // A real table, named after the file, editable like any other.
+  const dataset = page.locator('.pd-dataset');
+  await expect(dataset).toHaveCount(1);
+  await expect(dataset.getByTestId('dataset-name')).toHaveValue('Quiz bank');
+  await expect(dataset.locator('tbody tr')).toHaveCount(2);
+  // The quoted comma survived — one cell, not two columns.
+  await expect(dataset.locator('tbody tr').first().locator('td input').first()).toHaveValue(
+    'Which of these, exactly, is a planet?',
+  );
+
+  // ── Load a row into the cue and air it. ──
+  await page.getByTestId('tab-playout').click();
+  await page.getByTestId('cue-load-next').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which of these, exactly, is a planet?');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Which of these, exactly, is a planet?');
+  await expect(program.locator('#f2')).toHaveText('Mars');
+});
+
+test('an imported table whose columns match no field says so rather than looking successful', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'No Match');
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('import-dataset').setInputFiles({
+    name: 'sales.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Region;Revenue\nNorth;12\nSouth;9\n'),
+  });
+  const note = page.getByTestId('import-note');
+  // The semicolon export still parses as two columns — the separator is detected, not assumed.
+  await expect(page.getByTestId('col-c0')).toHaveValue('Region');
+  await expect(page.getByTestId('col-c1')).toHaveValue('Revenue');
+  await expect(note).toContainText('NO column matches');
+});
+
+test('a file that is not a table is refused with a reason', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Bad File');
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('import-dataset').setInputFiles({
+    name: 'notes.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"hello":"world"}'),
+  });
+  await expect(page.getByTestId('import-note')).toContainText('list of rows');
+  await expect(page.getByTestId('data-empty')).toBeVisible();
+});

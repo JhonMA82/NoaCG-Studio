@@ -8,10 +8,30 @@ import {
   removeShowDataset,
   renameDatasetColumn,
   renameShowDataset,
+  importShowDataset,
   updateDatasetRow,
   type Show,
   type ShowDataset,
 } from '../../model/shows';
+import { parseTableFile } from '../../model/csv';
+
+/**
+ * Which of an imported file's columns can actually BIND — the same match
+ * `datasetValuesForFields` performs, asked of every graphic in this production's pool.
+ *
+ * It is here rather than in the model because it answers a UI question ("was that import
+ * useful?"), and it deliberately reads the pool rather than the whole library: a table binds to
+ * the graphics this production runs, not to graphics it does not.
+ */
+function boundColumns(show: Show, header: string[]): string[] {
+  const titles = new Set<string>();
+  for (const g of show.graphics) {
+    for (const f of g.template.fields ?? []) {
+      if (f.title) titles.add(f.title.trim().toLowerCase());
+    }
+  }
+  return header.filter((h) => titles.has(h.trim().toLowerCase()));
+}
 
 /**
  * The production's DATA workspace (route `#/production/<id>/data` — the Data tab of the
@@ -32,7 +52,43 @@ export default function ProductionDataWorkspace({
   setShows: (shows: Show[]) => void;
 }) {
   const [newKind, setNewKind] = useState<ShowDataset['kind']>('quiz');
+  const [importNote, setImportNote] = useState<string | null>(null);
   const datasets = show.datasets ?? [];
+
+  /**
+   * IMPORT a CSV/TSV/JSON file as a new table (Phase 7). The file's header row becomes the
+   * column labels verbatim, because the binding IS the words — so a spreadsheet already using
+   * the graphic's field titles works with no mapping step, and one that is not says so.
+   *
+   * The result is ordinary editable rows with NO link back to the file: re-importing is a
+   * deliberate act, and a live file dependency would leave the production's data somewhere the
+   * production does not travel.
+   */
+  const importFile = async (file: File) => {
+    setImportNote(null);
+    const text = await file.text();
+    const parsed = parseTableFile(file.name, text);
+    if (parsed.error) {
+      setImportNote(parsed.error);
+      return;
+    }
+    const name = file.name.replace(/\.[^.]+$/, '');
+    const { shows, datasetId, error } = importShowDataset(show.id, parsed, { name });
+    if (error || !datasetId) {
+      setImportNote(error ?? 'The table could not be imported.');
+      return;
+    }
+    setShows(shows);
+    // Say what BOUND, not just what arrived. A table whose columns match no field on any of
+    // this production's graphics imports perfectly and does nothing, and an import that only
+    // reported "42 rows" would look like a success right up to the moment it was needed.
+    const bound = boundColumns(show, parsed.header);
+    setImportNote(
+      bound.length > 0
+        ? `✓ Imported ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'}. These columns match a field on this production's graphics: ${bound.join(', ')}.`
+        : `✓ Imported ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'} — but NO column matches a field title on this production's graphics, so no cue can load a row yet. Rename a column to match a field, or add the graphic that uses them.`,
+    );
+  };
 
   return (
     <section className="pd-data" data-testid="production-data">
@@ -57,7 +113,33 @@ export default function ProductionDataWorkspace({
         >
           ＋ New table
         </button>
+        {/* IMPORT (Phase 7). A label wrapping a hidden input, so the control is a real file
+            picker with no click-through indirection and no second button to keep in step. */}
+        <label className="pd-data-import">
+          <input
+            type="file"
+            accept=".csv,.tsv,.txt,.json,text/csv,application/json"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              // Clear the input so picking the SAME file twice fires again — re-importing after
+              // fixing a column name in the spreadsheet is the normal second act.
+              e.target.value = '';
+              if (file) void importFile(file);
+            }}
+            data-testid="import-dataset"
+          />
+          ⬆ Import CSV / JSON
+        </label>
       </div>
+
+      {importNote && (
+        <p
+          className={importNote.startsWith('✓') ? 'status-ok pd-data-note' : 'status-bad pd-data-note'}
+          data-testid="import-note"
+        >
+          {importNote}
+        </p>
+      )}
 
       {datasets.length === 0 && (
         <p className="hint pd-data-empty" data-testid="data-empty">

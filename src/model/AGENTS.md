@@ -88,6 +88,15 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   chip even at the right hue. Deliberately absent: density (unmeasured,
   genuinely per-design), the sport skew (`skewX(0deg)` is not inert - it makes a stacking
   context), and motion feel (it lives in the NOACG_ANIM block, not in CSS).
+- **csv.ts** - the shared CSV/TSV/JSON table READER (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 7),
+  no dependency. It is a real RFC-4180 state machine rather than a `split(',')` because a
+  spreadsheet export carries quoted commas, quoted NEWLINES and doubled quotes, and a split gets
+  all three wrong QUIETLY - the table looks imported and is wrong on air. Also: separator
+  detection (a semicolon export must not become one fat column), a UTF-8 BOM stripped before it
+  becomes part of the first column LABEL, and JSON in the two shapes people actually have -
+  anything else is refused with a reason, never coerced. `importShowDataset` (shows.ts) lands
+  the result as an ordinary editable dataset; there is deliberately no link back to the file.
+  Gate: `scripts/csv.test.mjs`, in the build.
 - **brand.ts** - ProjectBrand save/load (localStorage 'spx-gfx-brand'), captured on every wizard
   Create.
 - **aiThread.ts** - the Create-with-AI CONVERSATION a graphic was created from (the talk turns

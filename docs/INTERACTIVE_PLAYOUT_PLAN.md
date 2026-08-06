@@ -30,7 +30,7 @@ accepted by the owner) · Deferred.
 | 4 | Generic sports pilot | Implemented |
 | 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
 | 6 | Poll + audience quiz answers | Not started |
-| 7 | CSV/JSON import into the Data Hub | Not started |
+| 7 | CSV/JSON import into the Data Hub | Implemented |
 
 ## Verification contract (owner requirement, 2026-08-05)
 
@@ -398,10 +398,27 @@ Join-page poll/quiz modes, vote intake + tally, the operator poll module (open/c
 reset per D5), the audience-result feed into the quiz pilot. Results are never revealed
 merely because responses arrived.
 
-### Phase 7 — CSV/JSON import. Status: Not started
-Import quiz banks, teams, lineups into Data Hub datasets via a small shared quoted-CSV parser
-(`src/model/csv.ts`, no new dependency) + JSON. Imported data stays editable; no permanent
-file dependency.
+### Phase 7 — CSV/JSON import. Status: Implemented (awaiting owner Verified)
+**Implemented (2026-08-07).** `src/model/csv.ts` is the shared reader — no new dependency, RFC
+4180 with the tolerances real exports need: quoted commas, quoted NEWLINES, doubled quotes,
+CRLF or LF, a missing trailing newline, a UTF-8 BOM, and separator DETECTION (a European
+spreadsheet writes semicolons, and a user who exported one is not going to be told their file
+is malformed). JSON reads two real-world shapes — an array of objects (the union of keys, in
+first-seen order) and an array of arrays — and REFUSES anything else with a reason instead of
+coercing it. `importShowDataset` (model/shows.ts) lands the result as an ordinary editable
+dataset with **no link back to the file**: a live file dependency would leave a production's
+data somewhere the production does not travel.
+
+**The import reports what BOUND, not what arrived.** A table whose columns match no field title
+on any of this production's graphics imports perfectly and then does nothing, so the note names
+the matching columns — or says plainly that none match and no cue can load a row yet. That is
+the same by-the-words binding as everything else here (D3); nothing about it is new mechanism.
+
+**Verification:** `scripts/csv.test.mjs` (15 cases, in the BUILD GATE — the parser is pure text
+in, table out, and the cases that matter are the ones a `split(',')` gets silently wrong) plus
+three `e2e/production-data.spec.ts` walks: a quiz bank CSV imported, loaded into a cue and
+AIRED, with a quoted comma in the question so a split regression cannot pass; a semicolon file
+whose columns bind nothing saying so; and a JSON file that is not a table being refused.
 
 ## Acceptance round 2 — the owner's hands-on pass against real CasparCG (2026-08-06)
 
