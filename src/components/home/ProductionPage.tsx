@@ -177,18 +177,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
    * this page resolved the published show and never moves again, and an unpublished production
    * has no report at all, so after the first take this is the only current answer to "what is
    * on air". Declared up here because the log follower below writes to it.
+   *
+   * It is STATE as well as a ref, because the same fact answers a second question: whether the
+   * values in front of the operator have actually been SENT. An on-air cue whose draft has
+   * moved past what air is showing has to say so rather than wait to be noticed.
    */
-  const airedRef = useRef<Record<string, { data?: Record<string, string> }>>({});
+  const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  const airedRef = useRef(airedData);
+  airedRef.current = airedData;
   const rememberAired = useCallback((items: ControlSendItem[]) => {
-    for (const item of items) {
-      if (item.msg.t === 'update') {
-        airedRef.current[item.graphic] = { data: item.msg.data };
-      } else if (item.msg.t === 'stop') {
-        // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
-        // running any more.
-        delete airedRef.current[item.graphic];
+    setAiredData((prev) => {
+      let next = prev;
+      for (const item of items) {
+        if (item.msg.t === 'update') next = { ...next, [item.graphic]: item.msg.data };
+        else if (item.msg.t === 'stop' && next[item.graphic]) {
+          // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
+          // running any more.
+          next = { ...next };
+          delete next[item.graphic];
+        }
       }
-    }
+      return next;
+    });
   }, []);
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
@@ -332,7 +342,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       const report = (liveReportsRef.current?.[graphic] ?? null) as { data?: Record<string, string> } | null;
-      const data = airedRef.current[graphic]?.data ?? report?.data;
+      const data = airedRef.current[graphic] ?? report?.data;
       const groups = machineStatesRef.current[graphic]?.groups;
       const items: ControlSendItem[] = [];
       if (data) items.push({ graphic, msg: { t: 'update', data } });
@@ -540,6 +550,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
   const airCue = selectedLayerCueId ? cues.find((c) => c.id === selectedLayerCueId) ?? null : null;
   const editingCue = editTarget === 'air' && airCue ? airCue : selectedCue;
   const editingIsLive = !!editingCue && !!selectedGraphic && liveCue[selectedGraphic] === editingCue.id;
+  /** The SELECTED cue is the one on air (not merely something on its layer) - what SPACE
+   *  toggles off, and what makes ⟳ TAKE a deliberate re-take rather than a first airing. */
+  const selectedCueIsLive = !!selectedCue && selectedLayerCueId === selectedCue.id;
+  /**
+   * UNSENT CHANGES on the cue that is on air (acceptance pass, 2026-08-06: "there needs to be
+   * an alert when something changes and you need to send that update - I had problems with my
+   * CasparCG output but only because I hadn't sent an update").
+   *
+   * It compares the edited values against what was last SENT, never against the stored cue: the
+   * whole point of staged-vs-take is that those legitimately differ, and data still does NOT
+   * air by itself - this only says so out loud. A cue that has never been taken is not
+   * "unsent"; it is simply not on air, which the rundown already says.
+   */
+  const unsentFields =
+    editingIsLive && selectedGraphic && editingCue
+      ? Object.entries(cueView(editingCue).values)
+          .filter(([field, value]) => (airedData[selectedGraphic]?.[field] ?? '') !== value)
+          .map(([field]) => field)
+      : [];
+  const hasUnsent = unsentFields.length > 0;
 
   const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
     if (!editingCue) return;
@@ -738,7 +768,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
       onAllOut={() => void outAll()}
       onExport={() => setExportOpen(true)}
       onKey={(key) => {
-        if (key === 'take' && canTake && selectedCue) void takeCue(selectedCue);
+        // SPACE IS THE TOGGLE (acceptance pass, 2026-08-06: "you take with space and go out
+        // with - is it zero? It should go in and out with space"). One key, one gesture: the
+        // selected cue goes on, and the same key takes it off. A RE-TAKE - Take on a cue that
+        // is already live, which replays the entrance and is the graphic's reset - stays
+        // reachable by the ⟳ button itself, and the button says so when it means that. The KEY
+        // is the one that had to become predictable, because it is the one pressed without
+        // looking. `0` still means Out, from either state.
+        if (key === 'take') {
+          if (selectedCueIsLive) void outLive();
+          else if (canTake && selectedCue) void takeCue(selectedCue);
+        }
         if (key === 'preview' && selectedCue) selectCue(selectedCue.id);
         if (key === 'update' && editingIsLive) void updateLive();
         if (key === 'next' && selectedLayerLive) void nextLive();
@@ -848,19 +888,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
             className="pd-verb pd-verb-take"
             disabled={!canTake}
             onClick={() => selectedCue && void takeCue(selectedCue)}
-            title="Air the previewed cue"
+            title={
+              selectedCueIsLive
+                ? 'Re-take: play this cue’s entrance again from the start. SPACE takes it OFF air.'
+                : 'Air the previewed cue'
+            }
             data-testid="verb-take"
           >
-            ⟳ TAKE <kbd>SPACE</kbd>
+            {/* The key label FOLLOWS the toggle. Leaving SPACE on this button while the cue is
+                already live would name the one thing the key no longer does there. */}
+            {selectedCueIsLive ? '⟳ RE-TAKE' : <>⟳ TAKE <kbd>SPACE</kbd></>}
           </button>
           <button
-            className="pd-verb pd-verb-update"
+            className={`pd-verb pd-verb-update${hasUnsent ? ' pd-unsent' : ''}`}
             disabled={!editingIsLive}
             onClick={() => void updateLive()}
-            title="Send the edited values to the live layer, without replaying it"
+            title={
+              hasUnsent
+                ? `${unsentFields.length} edited value${unsentFields.length === 1 ? '' : 's'} has not been sent yet — air still shows the previous one`
+                : 'Send the edited values to the live layer, without replaying it'
+            }
             data-testid="verb-update"
           >
             ✎ Update <kbd>U</kbd>
+            {/* The DOT is the whole point of §3c: nothing here airs by itself, so the only way
+                an operator learns that air is behind their screen is if the surface says so. */}
+            {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
           </button>
           <button
             className="pd-verb"
@@ -879,6 +932,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
             data-testid="verb-out"
           >
             ■ Out <kbd>0</kbd>
+            {selectedCueIsLive && <kbd>SPACE</kbd>}
           </button>
           <span className="pd-onair-line" data-testid="live-cue-chip">
             {liveLayers.length === 0 ? (
@@ -910,8 +964,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                 aria-label="Cue name"
                 data-testid="cue-label"
               />
-              <span className="muted pd-editor-fate">
-                {editingIsLive ? 'changes push live on ✎ Update' : 'changes air on ⟳ Take'}
+              <span
+                className={hasUnsent ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
+                data-testid="cue-unsent"
+              >
+                {hasUnsent
+                  ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet — press ✎ Update`
+                  : editingIsLive
+                    ? 'changes push live on ✎ Update'
+                    : 'changes air on ⟳ Take'}
               </span>
               {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
                   line that names it rather than hidden from the operator entirely. */}

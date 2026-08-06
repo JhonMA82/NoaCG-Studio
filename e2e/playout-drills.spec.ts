@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
+import { parkFocusOffControls } from './_keys';
 
 // Recovery drills (docs/GOALS.md "Student release" step 10 — the agent-automatable half).
 // Each drill is a classroom failure that must be OBSERVED handled, not assumed: the ones
@@ -66,4 +67,72 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
     return loadGraphics().find((g) => g.name === 'Quota victim')?.template.css.includes('mid-crisis edit') ?? false;
   });
   expect(after).toBe(true);
+});
+
+/** Air a graphic from a fresh production and land on its dashboard. */
+async function productionOnAir(page: import('@playwright/test').Page, name: string): Promise<void> {
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill(name);
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
+test('SPACE puts the selected cue on air and takes it off again, and 0 still means Out', async ({ page }) => {
+  // Acceptance pass, 2026-08-06: "you take with space and go out with — is it zero? It should
+  // be take. Put something on and take takes it off. It should go in and out with space."
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionOnAir(page, 'Space Toggle');
+
+  const chip = page.getByTestId('live-cue-chip');
+  await parkFocusOffControls(page);
+  await page.keyboard.press(' ');
+  await expect(chip).not.toContainText('nothing on air');
+  // The buttons say what the key now does: the same press takes it off.
+  await expect(page.getByTestId('verb-take')).toContainText('RE-TAKE');
+  await expect(page.getByTestId('verb-out')).toContainText('SPACE');
+
+  await page.keyboard.press(' ');
+  await expect(chip).toContainText('nothing on air');
+  await expect(page.getByTestId('verb-take')).toContainText('TAKE');
+  await expect(page.getByTestId('verb-take')).not.toContainText('RE-TAKE');
+
+  // 0 keeps working, from either state — the toggle ADDS a gesture, it replaces none.
+  await page.keyboard.press(' ');
+  await expect(chip).not.toContainText('nothing on air');
+  await page.keyboard.press('0');
+  await expect(chip).toContainText('nothing on air');
+
+  // The explicit RE-TAKE stays reachable: the button, on a cue that is already live.
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('verb-take')).toContainText('RE-TAKE');
+  await page.getByTestId('verb-take').click();
+  await expect(chip).not.toContainText('nothing on air');
+});
+
+test('an edit to the cue that is on air says it has not been sent yet', async ({ page }) => {
+  // Acceptance pass, 2026-08-06: "there needs to be an alert when something changes and you
+  // need to send that update. I had problems with my CasparCG output but only because I hadn't
+  // sent an update, and the dashboard doesn't prompt me."
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionOnAir(page, 'Unsent');
+
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  const unsent = page.getByTestId('cue-unsent');
+  await expect(unsent).toContainText('changes push live on');
+
+  // Type into the live cue: air is now behind the screen, and the surface says so.
+  await page.getByTestId('cue-field-f0').fill('Not sent yet');
+  await expect(unsent).toContainText('not on air yet');
+  await expect(page.getByTestId('verb-update')).toHaveClass(/pd-unsent/);
+  // …and it is telling the truth — air still shows the previous value.
+  await expect(program.locator('#f0')).not.toHaveText('Not sent yet');
+
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('#f0')).toHaveText('Not sent yet');
+  await expect(unsent).toContainText('changes push live on');
+  await expect(page.getByTestId('verb-update')).not.toHaveClass(/pd-unsent/);
 });

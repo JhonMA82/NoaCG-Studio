@@ -57,8 +57,21 @@ Two columns, full height, nothing scrolls but the two lists.
 - **The verb bar shows its keyboard shortcuts** as chips: Preview `P`, TAKE `SPACE`, Update `U`,
   Next `N`, Out `0`. `■ All out` lives in the header, away from the others, because it is the
   panic control.
+- **`SPACE` is a TOGGLE: on air, off air** (owner decision, acceptance pass 2026-08-06 — "put
+  something on and take takes it off; it should go in and out with space"). It airs the selected
+  cue, and pressing it again while that same cue is live takes it off. The key label follows:
+  once the cue is live, `SPACE` moves onto `■ Out` and the take button reads **⟳ RE-TAKE**.
+  A RE-TAKE — Take on a cue that is already live, which replays the entrance and is the
+  graphic's own reset — stays reachable through that button, deliberately as a click rather
+  than as a key: it is the one an operator must mean, and `SPACE` is the one pressed without
+  looking. `0` means Out from either state.
 - **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
   switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
+- **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is
+  the staged-vs-take rule and it does not change — so the surface has to say when what is on
+  screen is ahead of what is on air: the fate line names how many changes are waiting and ✎
+  Update wears an amber dot. It compares against what was last SENT, never against the stored
+  cue, since those legitimately differ.
 - **Activity is one collapsed line** at the bottom; it expands.
 
 ## 3. Layout — phone
