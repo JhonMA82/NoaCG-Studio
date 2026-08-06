@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { SpxTemplate } from '../model/types';
-import { engineReports, scanEngineSupport, type EngineVerdict } from '../validation/engineSupport';
+import { engineReports, scanEngineSupport, type EngineFeature, type EngineVerdict } from '../validation/engineSupport';
 
 /**
  * WILL THIS GRAPHIC RENDER WHERE YOU ARE TAKING IT?
@@ -65,9 +65,12 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
                 <div className="issue warn" key={f.feature.id}>
                   <span className="rule">Chromium {f.feature.since}</span>
                   <strong>{f.feature.label}</strong>
-                  {f.feature.effect === 'kills-the-file'
-                    ? ' — an engine without it cannot read the file at all, so the layer airs blank.'
-                    : ' — an engine without it drops the whole declaration, so whatever it paints is simply missing.'}
+                  {/* THREE effects, three sentences. A cosmetic finding is listed for honesty —
+                      the engine really does drop it — but describing it in the same words as a
+                      missing panel would claim a design is broken on an engine where it is
+                      simply set slightly differently, which is the opposite of what this
+                      surface is for. */}
+                  {effectSentence(f.feature.effect)}
                   <div className="hint engine-source">
                     {f.feature.where.toUpperCase()} line {f.line}: <code>{f.source}</code>
                   </div>
@@ -84,6 +87,12 @@ export default function PlayoutCompatibility({ template }: { template: SpxTempla
       )}
     </div>
   );
+}
+
+function effectSentence(effect: EngineFeature['effect']): string {
+  if (effect === 'kills-the-file') return ' — an engine without it cannot read the file at all, so the layer airs blank.';
+  if (effect === 'cosmetic') return ' — a typographic refinement. An engine without it lays the text out slightly differently; nothing goes missing, so it does not decide the verdicts above.';
+  return ' — an engine without it drops the whole declaration, so whatever it paints is simply missing.';
 }
 
 function markFor(verdict: EngineVerdict): string {

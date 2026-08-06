@@ -3764,8 +3764,24 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 
 /* The failed-write dialog (StorageAlertDialog) reuses the save dialog's chassis and adds one
    thing: a MEASURED list of what is taking up the room. Its body can outgrow the viewport where
-   a name field never could, so this one scrolls rather than pushing its buttons off-screen. */
+   a name field never could, so this one scrolls. */
 [data-testid='storage-alert'] .save-dialog-body { overflow-y: auto; gap: 10px; }
+/* …and its ACTIONS are pinned to the bottom of that scroller. Measured on a 1280x720 viewport:
+   with four items listed, the dialog hit its 92vh cap and both buttons sat below the fold — a
+   dialog telling the user something went wrong, with no visible way to answer it. Sticky rather
+   than a fixed footer so a short dialog is unchanged; the background and the hairline are what
+   stop the list reading THROUGH the buttons as it scrolls under them. */
+[data-testid='storage-alert'] .save-dialog-body > .row {
+  position: sticky;
+  bottom: -18px; /* the body's own bottom padding, so nothing peeks below the buttons */
+  margin: 0 -18px -18px;
+  padding: 12px 18px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+}
+/* Size the dialog's own prose. `.status-bad` carries a colour and no size, so the error line
+   inherited the body's ~16px and shouted over the heading while every hint beside it sat at 12. */
+[data-testid='storage-alert'] .save-dialog-body > p { font-size: 13px; line-height: 1.5; margin: 0; }
 .storage-alert-list {
   list-style: none;
   margin: 0;
@@ -3794,13 +3810,19 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 /* PLAYOUT COMPATIBILITY (components/PlayoutCompatibility.tsx): one row per playout engine, with
    the verdict mark in its own fixed column so the eye can run down the marks alone. */
 .engine-verdicts { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+/* The verdict goes UNDER the engine name, not beside it. Measured in the export DOCK, which is
+   the narrow surface this actually lives on: side by side, a long verdict ("4 parts of the
+   design will be missing") squeezed the name column until three CasparCG rows all read
+   "CasparCG…" — and telling 2.3.0 from 2.3.3 from 2.4 is the entire job of this list. */
 .engine-verdicts li {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 8px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 1px 8px;
   font-size: 12px;
+  padding: 3px 0;
 }
+.engine-verdicts li + li { border-top: 1px solid var(--border); }
+.engine-say { grid-column: 2; }
 .engine-ok { color: var(--ok); font-size: 12px; }
 .engine-mark { font-weight: 700; text-align: center; }
 .engine-mark.fine { color: var(--ok); }
@@ -3808,9 +3830,12 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
    blank layer is the error state, and they are not degrees of the same thing. */
 .engine-mark.degraded { color: var(--warn); }
 .engine-mark.blank { color: var(--danger); }
-.engine-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-name { font-weight: 600; }
 .engine-say { color: var(--text-dim); }
-.engine-source code { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
+/* `anywhere`, not `break-all`: a declaration should break at a sensible point when it can and
+   only mid-token when it must — break-all split `linear-gradient(90de` / `g,` mid-word while
+   there was a comma two characters away. */
+.engine-source code { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
 
 /* The first-use AI disclosure notice — same borrowed `.wz-modal`, sized to its short text.
    It appears the moment an action would send content to an external AI provider (never for
