@@ -70,6 +70,30 @@ test('MENTIONING a command is not running one', () => {
   }
 });
 
+test('a here-document body is data, not commands', () => {
+  // Measured 2026-08-06: `git commit -F- <<'EOF'` was REFUSED because a paragraph of the commit
+  // message began "test:e2e:affected is the per-merge gate…". Segments split on newlines, so a
+  // line of prose sat where an invocation would. The quoted-argument rule cannot cover this -
+  // the text is on its own line, not inside quotes.
+  const commitWithMessage = [
+    "git commit -F- <<'EOF'",
+    'Make the affected-e2e runner report the worst run',
+    '',
+    'test:e2e:affected is the per-merge gate, and node scripts/type-floor.mjs is a catalog gate.',
+    'EOF',
+  ].join('\n');
+  assert.ok(!startsHeavyWork(commitWithMessage), commitWithMessage);
+
+  // The unquoted and indent-stripping spellings too, and a body naming a sweep.
+  assert.ok(!startsHeavyWork('cat <<EOF\nnpm run test:e2e\nEOF'));
+  assert.ok(!startsHeavyWork('cat <<-END\n\tnode scripts/l3-sweep.mjs shots quiz\n\tEND'));
+
+  // What the heredoc OPENED with is still a command, and so is anything after the terminator -
+  // stripping the body must not swallow either.
+  assert.ok(startsHeavyWork("npm run test:e2e && git commit -F- <<'EOF'\nmessage\nEOF"));
+  assert.ok(startsHeavyWork("git commit -F- <<'EOF'\nmessage\nEOF\nnpm run test:e2e"));
+});
+
 test('a command in a later shell segment still counts', () => {
   // The invocation is not always first: `cd x && npm run test:e2e` is the ordinary shape.
   assert.ok(invokesE2e('cd repo && npm run test:e2e'));

@@ -31,12 +31,43 @@ export const SWEEP_SCRIPTS =
   'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\\w-]*|[\\w-]*bench[\\w-]*';
 
 /**
+ * Drop every HERE-DOCUMENT body from a command line, leaving the command that opened it.
+ *
+ * A heredoc body is DATA, not commands, and the segmenter below splits on newlines - so a line
+ * of prose that happens to start with an invocation-shaped word reads as an invocation. That is
+ * the "too eager" failure mode this module was written to avoid, arriving by a route the quoted
+ * argument rule cannot cover. It is not hypothetical: `git commit -F- <<'EOF'` with a message
+ * whose paragraph opened "test:e2e:affected is the per-merge gate…" was refused as an attempt to
+ * start a second suite. A guard that blocks writing a commit message is a guard people learn to
+ * route around.
+ *
+ * Handles the three spellings that appear here - `<<TAG`, `<<'TAG'`/`<<"TAG"` and `<<-TAG` - and
+ * an unterminated body (the rest of the text) rather than falling back to scanning it.
+ */
+function stripHeredocBodies(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let terminator = null;
+  for (const line of lines) {
+    if (terminator !== null) {
+      // `<<-` allows the terminator to be indented; a plain `<<` requires it at column 0.
+      if (line.trim() === terminator) terminator = null;
+      continue;
+    }
+    out.push(line);
+    const opener = line.match(/<<-?\s*(['"]?)([A-Za-z_]\w*)\1/);
+    if (opener) terminator = opener[2];
+  }
+  return out.join('\n');
+}
+
+/**
  * A command line's segments, each trimmed to the token an invocation would occupy. Leading
  * `VAR=value` prefixes are stripped so `NOACG_ALLOW_PARALLEL_E2E=1 npm run test:e2e` is still
  * recognised as an npm invocation.
  */
 export function commandSegments(text) {
-  return text
+  return stripHeredocBodies(text)
     .split(/&&|\|\||[;|\n]/)
     .map((segment) => segment.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, ''));
 }
