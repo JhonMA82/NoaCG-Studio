@@ -37,14 +37,15 @@ the user has invoked it, and the adapter is only a pointer to this file anyway.
   every run.
 - Feature worktrees commonly live under `.claude/worktrees/<name>` on `claude/*` or `codex/*`
   branches, but paths and prefixes are never safety signals.
-- The verification gate is `npm run build` (typecheck + lint + build) **and**
-  `npm run test:e2e:affected` - both, every time. `build` alone is not enough: it does not
-  run a single e2e spec, and on 2026-07-30 four template packs landed in a row that each
-  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. The
-  affected run maps the branch's own diff to the specs that cover it (and raises the catalog
-  calibration gate when the catalog moved), so it costs minutes on a normal branch rather
-  than the whole suite - which is what made "just run build" tempting in the first place.
-- Standing permission exists to push verified work to `origin/main`.
+- The verification gate is a CI run green on **exactly the commit being promoted** (`ci.yml`
+  triggers on every branch push), and the local `npm run build` + `npm run test:e2e:focus:queued`
+  pair only when there is no such run. Phase 3 has the full rule. Whichever route runs, BOTH
+  halves are required - typecheck/lint AND e2e. `build` alone is not enough: it does not run a
+  single e2e spec, and on 2026-07-30 four template packs landed in a row that each passed it
+  while leaving `main` red for two hours on `catalog-baseline.spec.ts`. A gate that cannot fail
+  the way production fails is not a gate.
+- Standing permission exists to push verified work to `origin/main`, and to push the source
+  branch to `origin` so CI can verify it (a plain push of the branch, never `--force`).
 
 ## Hard safety rules (never break these, even if asked mid-flow)
 
@@ -252,7 +253,6 @@ real risk, meaning any of:
 
 - local `main` is diverged from or ahead-only of `origin/main` (the Hard safety rules cases);
 - the source worktree has uncommitted changes;
-- the merge is predicted to conflict;
 - `main` is checked out nowhere AND neither route to a `main` worktree is open - the gate did
   not report SAFE and a temporary `main` worktree could not be created. Neither of those alone
   is a risk: the root sitting on `<branch>` is reported SAFE and is the ordinary shape of a
@@ -265,6 +265,25 @@ In any of those cases, report the specific risk and wait. Absent them, do not pa
 later phases still enforce every Hard safety rule and abort on their own if reality
 disagrees (dirty verification, main moved, non-fast-forward), so a clean run needs no
 gate here.
+
+**REPORT, DO NOT STOP, WHEN THE ANSWER IS "PROCEED ANYWAY."** A stop is for a decision only
+the user can make - one where the two branches of the answer lead somewhere different. It is
+not for keeping them informed; that is what the report is. Standing instruction from the
+owner, 2026-08-06: "there is no point in stopping just to relay information if we are still
+going to continue as planned." So state the finding in the running report and carry on. In
+particular:
+
+- **A predicted conflict is not a stop.** It used to be listed above and no longer is. The
+  merge happens on the BRANCH with `main` untouched, Phase 3 resolves only what is
+  mechanically obvious, and anything semantic stops THERE with the hunks shown - which is a
+  stop with something to decide, at the moment there is something to decide. Predicting one
+  in Phase 1 and asking permission adds a round trip and no safety.
+- **`merge-order` `caution` is not a stop**, and never was. Report the number and continue;
+  someone has to go first. A `hold` still stops, because that one says a cheaper branch is
+  ready and this one is expensive for everyone else - a genuine ordering decision.
+
+None of this relaxes a Hard safety rule or any stop still listed above. Those exist because
+proceeding could lose work, publish something unintended, or promote an untested commit.
 
 ## Phase 2 - Prepare (reattach main if needed, update main, then integrate it INTO the branch)
 
@@ -308,33 +327,66 @@ branch - it is never where conflicts get resolved.
    continuing; never verify a half-finished merge.
 2. Pin the commit under test: `VERIFIED_SHA = git rev-parse <branch>` and state it. The exact
    commit that passes verification must be the exact commit that becomes `main`.
-3. Verify on the integrated branch, in the worktree, BOTH of:
+3. Verify the integrated branch. **CI is the primary gate; the local pair is the fallback.**
+
+   `ci.yml` triggers on every branch push, and what it runs is strictly MORE than a laptop
+   can: `npm run build`, the same affected plan sharded across eight runners, the factory
+   gates, and the catalog tripwire when the plan raises it - all on a clean checkout. It
+   finishes in six to nine minutes and costs nothing (the repo is public, so Actions minutes
+   are free). Running the same work locally instead buys no extra confidence and takes the
+   machine out of service while it happens.
+
+   **Route A - CI (prefer this).** Push the integrated branch and let the gate run there:
+
+       git push origin <branch>
+       gh run watch --exit-status $(gh run list --branch <branch> --commit <VERIFIED_SHA> \
+         --limit 1 --json databaseId --jq '.[0].databaseId')
+
+   Accept the run ONLY when all of these hold, and state in the report which run you are
+   citing:
+
+   - its head SHA is **exactly** `VERIFIED_SHA` - not the branch tip, not "the latest run on
+     this branch". The Phase 2 `git merge main` produced a new commit, so a run from before
+     it proves nothing about the tree being promoted;
+   - its conclusion is `success` (a cancelled or skipped run is not a pass);
+   - the `CI gate` job itself is green - that job is the one that requires every other, so a
+     green gate is the whole verdict in one place.
+
+   If no run exists for that SHA, or it is red, or you cannot positively confirm the SHA
+   matches, use Route B. A red CI run means fix-or-abort exactly as a red local gate does.
+
+   **Route B - locally, when CI is unavailable or you need an answer without pushing.**
+   Both of:
    - `npm run build` - typecheck, lint, bundle.
-   - `npm run test:e2e:affected` - the specs covering this branch's diff, plus the catalog
-     calibration gate when the catalog moved. Run it even when the change looks harmless:
-     "it's only templates" is exactly the branch that went red, and the script decides what
-     "affected" means, not the person merging. It escalates to the full suite by itself on a
-     shared-core or unmapped change, so a wide change is not a reason to skip it - it is the
-     reason it takes longer. It reports and skips cleanly when a diff touches nothing the
-     suite covers, so a docs-only branch costs seconds.
+   - `npm run test:e2e:focus:queued` during the student-release sprint, or
+     `npm run test:e2e:affected:queued` outside it - the specs covering this branch's diff,
+     plus the catalog calibration gate when the catalog moved. Run it even when the change
+     looks harmless: "it's only templates" is exactly the branch that went red, and the
+     script decides what "affected" means, not the person merging. It reports and skips
+     cleanly when a diff touches nothing the suite covers, so a docs-only branch costs
+     seconds.
 
-   Anything red means fix-or-abort - do not proceed to main. (Any fix creates a new commit;
-   re-record `VERIFIED_SHA` and re-run BOTH.) Playwright starts its own offline-pinned dev
-   server; a server already running on this checkout's port makes the guard hook refuse, so
-   stop that one first rather than letting the specs reuse it.
+     The `:queued` form waits for any Playwright run in ANOTHER checkout to finish before
+     starting (`scripts/e2e-runs.mjs`). Several worktrees are normally live and each config
+     asks for four workers, so two overlapping suites exhaust the machine's RAM instead of
+     sharing it - measured at 59 browser shells and 35 MB free. The `:focus` form runs the
+     34-file student-critical set where a bare `affected` run would escalate to all 103,
+     which is the difference between a few minutes and most of an hour on a core change.
 
-   If the branch has an open PR whose CI is green on exactly `VERIFIED_SHA`, that CI run is
-   stronger evidence than the local pair (it runs the same gates plus the full sharded suite
-   on a clean checkout) - say so and let it stand in for the affected run. It does NOT
-   substitute for anything if the commit moved afterwards.
+   Anything red on either route means fix-or-abort - do not proceed to main. Any fix creates
+   a new commit, so re-record `VERIFIED_SHA` and re-verify it, whichever route you used.
+   Playwright starts its own offline-pinned dev server; a server already running on this
+   checkout's port makes the guard hook refuse, so stop that one first rather than letting
+   the specs reuse it.
 
-   **A run you already did in this session counts too, under conditions worth checking one by
-   one.** A branch that changes `package.json` escalates to the whole suite, so re-running it
-   minutes later on a byte-identical commit costs a quarter of an hour to reproduce a result
-   you are holding. Cite the earlier run in place of a fresh one ONLY when ALL of these hold,
-   and say in the report which run you are citing and when it finished:
+   **A local run you already did in this session can stand in for Route B**, under conditions
+   worth checking one by one. A branch that changes `package.json` escalates to the whole
+   suite, so re-running it minutes later on a byte-identical commit costs a quarter of an hour
+   to reproduce a result you are holding. Cite the earlier run in place of a fresh one ONLY
+   when ALL of these hold, and say in the report which run you are citing and when it finished:
 
-   - it was `npm run test:e2e:affected` (whatever scope the mapper chose) and it finished GREEN;
+   - it was `npm run test:e2e:affected` or one of its `:focus` / `:queued` forms (whatever
+     scope the mapper chose) and it finished GREEN;
    - it ran in the SAME worktree, so the same `node_modules` and the same dev port;
    - it ran on exactly `VERIFIED_SHA` - AFTER the Phase 2 `git merge main`, never before it,
      because that merge produced a different tree;

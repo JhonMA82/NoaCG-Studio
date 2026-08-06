@@ -342,7 +342,12 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
  *  sports pilot (Phase 4). */
 const DATASET_PRESETS: Record<ShowDataset['kind'], { name: string; labels: string[] }> = {
   quiz: { name: 'Quiz questions', labels: ['Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D', 'Correct answer'] },
-  teams: { name: 'Teams', labels: ['Team', 'Code', 'Colour'] },
+  // ONE ROW IS ONE TEAM, and a two-team board has an A side and a B side — so these labels are
+  // the SIDELESS half of a scoreboard's field titles ("Team A" minus the side is "Team"), which
+  // is what lets the operator pick a side and load a row into it. Every column here binds a
+  // real field; 'Code' was dropped because a starter column that matches nothing teaches the
+  // wrong thing about how the binding works.
+  teams: { name: 'Teams', labels: ['Team', 'Score', 'Team colour', 'Team logo'] },
   roster: { name: 'Line-up', labels: ['Name', 'Number', 'Position'] },
   generic: { name: 'Data table', labels: ['Column 1', 'Column 2', 'Column 3'] },
 };

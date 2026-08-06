@@ -11,7 +11,20 @@
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
 // config) runs the full suite, because those files feed every flow.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { FOCUS } from './e2e-lists.mjs';
+
+/**
+ * True only when this file was RUN, not imported. `planFor` below is exported for tests, and
+ * without this guard importing it executes the CLI at the bottom - which, given no `--list` or
+ * `--json`, means spawning Playwright and the whole offline suite. That is not hypothetical:
+ * it happened on the first attempt to import this module, and a 150-test run had to be killed.
+ */
+const isEntrypoint =
+  Boolean(process.argv[1]) &&
+  resolve(process.argv[1]).replaceAll('\\', '/').toLowerCase() ===
+    resolve(fileURLToPath(import.meta.url)).replaceAll('\\', '/').toLowerCase();
 
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
@@ -133,6 +146,13 @@ const CORE = [
   // says its safety comes from.
   /^src\/assets\/gsap\.min\.js$/,
   /^e2e\/_/,
+  // The suite's own machinery, which lives under scripts/ but is imported by the Playwright
+  // configs and by the offline globalSetup: the port every spec connects to, the worker count,
+  // and the cross-checkout queue that runs before any test does. Naming them here rather than
+  // leaving them to the unmapped fallback records WHY they escalate - they are foundations, not
+  // files nobody got round to mapping. Their exception in IGNORE above is what lets them reach
+  // this list at all.
+  /^scripts\/(dev-port|port-registry|e2e-runs|e2e-workers)\.mjs$/,
   /^playwright\.config\.ts$/,
   /^(package|package-lock)\.json$/,
   /^vite\.config/,
@@ -151,10 +171,26 @@ const CORE = [
 // which is local-only and already ignored above. It ships no code and no spec loads it -
 // unlike benchmarks/creative/, whose brief bank creative-routing.spec.ts really does read.
 //
-// Add to this list only for a file that genuinely cannot change what a spec sees. The script's
-// safety comes from failing TOWARD running more (an unmapped path escalates), so a wrong entry
-// here silently runs FEWER specs - the one failure mode with no alarm attached.
-const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
+// `scripts/` is ignored WHOLESALE on the premise that it is local tooling the app never loads,
+// which makes the exception list load-bearing: anything under it that the SUITE ITSELF imports
+// must be named here, or a change to it runs no spec at all. The Playwright configs and the
+// offline globalSetup import dev-port (hence port-registry, which it imports in turn) for the
+// port, e2e-workers for the worker count, and e2e-runs for the cross-checkout queue. A fault in
+// any of those does not break one flow - it breaks every spec in the suite, which is the exact
+// profile of a file that must escalate. Measured the hard way on 2026-08-06: a commit rewriting
+// e2e-runs' checkout attribution, which globalSetup calls before a single test starts, produced
+// plan `mode: none` and a green gate that had run zero specs.
+//
+// Add to the IGNORE list only for a file that genuinely cannot change what a spec sees. The
+// script's safety comes from failing TOWARD running more (an unmapped path escalates), so a
+// wrong entry here silently runs FEWER specs - the one failure mode with no alarm attached.
+// `e2e-affected` and `e2e-lists` are here for a different reason than the rest: they cannot
+// break a spec, they decide WHICH specs run. Left ignored, the one change guaranteed to go
+// unverified is a change to the thing that chooses the verification - a mistake in this file
+// reports `mode: none`, the gate goes green, and nothing ran. Covering them costs one focus run.
+const SUITE_CRITICAL_SCRIPTS =
+  'renderDevPlugin|aiDevPlugin|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
@@ -165,6 +201,12 @@ const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin
 // numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
 // width budget silently moves under 430 designs at once.
 const CATALOG_TRIGGERS = [
+  // The gate's own config. It is the one file that can change what the tripwire MEASURES -
+  // its worker count, its timeouts, its offline pinning - while touching no catalog source at
+  // all, so no other rule here would ever raise it. Left unmapped it escalates to `full`
+  // instead, and under sprint focus a `full` escalation deliberately drops the catalog
+  // coupling: the change to the catalog gate would be the one change that never runs it.
+  /^playwright\.catalog\.config\.ts$/,
   /^src\/templates\//,
   /^src\/blocks\//,
   /^src\/assets\//,
@@ -173,22 +215,65 @@ const CATALOG_TRIGGERS = [
   /^src\/validation\/runtimeBench\.ts$/,
 ];
 
-const args = process.argv.slice(2);
-// SPRINT FOCUS (docs/GOALS.md "Student release", scripts/e2e-lists.mjs): while the sprint
-// runs, a CORE/unmapped escalation runs the student-critical focus set instead of the full
-// suite. Opt-in via env so nothing changes for a checkout that has not set it; --no-focus
-// forces the honest full escalation for a one-off. Mapped subsets are NOT intersected - they
-// are already small and precisely targeted, and intersecting would run zero relevant specs
-// for a paused-area fix. The nightly still runs everything.
-const sprintFocus = process.env.E2E_SPRINT_FOCUS === '1' && !args.includes('--no-focus');
-// --json prints the plan as one machine-readable object and runs nothing, which is how CI
-// decides between "skip the suite", "run these specs" and "run everything". It implies
-// --list, and it silences the human commentary: in this mode stdout is a data channel and a
-// stray progress line would corrupt it.
-const asJson = args.includes('--json');
-const listOnly = asJson || args.includes('--list');
-const baseArg = args.find((a) => !a.startsWith('--'));
-const log = asJson ? () => {} : console.log;
+/**
+ * THE CLASSIFICATION, as a pure function of a changed-file list.
+ *
+ * Split out from the CLI so it can be tested without a git repository and a real diff. That is
+ * not tidiness: this function decides how much of the suite runs, and its worst failure - saying
+ * "nothing to run" when something should have - is silent by construction. It shipped exactly
+ * that on 2026-08-06 (a change to files the Playwright configs import, hidden by the blanket
+ * `scripts/` exemption) and the gate went green having executed zero specs. A pure function is
+ * one that can be pinned with a list of realistic merges and an expected size for each.
+ *
+ * @param {string[]} changed        repo-relative paths, forward slashes
+ * @param {{ sprintFocus?: boolean }} [opts]
+ * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
+ *             unmapped: string[], focusApplied: boolean }}
+ */
+export function planFor(changed, { sprintFocus = false } = {}) {
+  const specs = new Set();
+  let full = false;
+  let catalog = false;
+  const unmapped = [];
+
+  for (const file of changed) {
+    if (IGNORE.some((r) => r.test(file))) continue;
+    if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
+    if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
+      specs.add(file.replace(/^e2e\//, ''));
+      continue;
+    }
+    if (CORE.some((r) => r.test(file))) {
+      full = true;
+      continue;
+    }
+    const rules = MAP.filter(([r]) => r.test(file));
+    if (rules.length === 0) {
+      unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
+      full = true;
+    } else {
+      for (const [, list] of rules) for (const s of list) specs.add(s);
+    }
+  }
+
+  // Under sprint focus, the escalation that would have run everything runs the focus set
+  // (union with whatever the mapped rules already named). The full->catalog coupling below is
+  // deliberately skipped for an intercepted run: a styles.css tweak stops paying the 25-minute
+  // catalog gate, while a direct CATALOG_TRIGGERS match above still raises the flag.
+  let focusApplied = false;
+  if (full && sprintFocus) {
+    full = false;
+    focusApplied = true;
+    for (const s of FOCUS) specs.add(s);
+  }
+  // A core/unmapped change gets the same conservative default the offline suite gets: assume it
+  // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
+  if (full) catalog = true;
+
+  const list = full ? [] : [...specs].sort();
+  const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
+  return { mode, specs: list, catalog, unmapped, focusApplied };
+}
 
 function git(...cmd) {
   return execFileSync('git', cmd, { encoding: 'utf8' }).trim();
@@ -200,107 +285,93 @@ function emitJson({ mode, specs, catalog, base, changed }) {
   process.stdout.write(`${JSON.stringify({ mode, specs, catalog, base, changed })}\n`);
 }
 
-const base = baseArg ?? git('merge-base', 'HEAD', 'main');
-const committed = git('diff', '--name-only', `${base}...HEAD`).split('\n');
-// Porcelain lines are `XY path` (a rename is `XY old -> new`); a global trim() would eat the
-// first line's leading status space, so strip the prefix by pattern, not by position.
-const working = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' })
-  .split('\n')
-  .map((l) => l.replace(/^.{2} /, '').replace(/^.* -> /, '').trim());
-const changed = [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
+/** Everything the CLI does: resolve the diff, classify it, report it, and run what it named. */
+function main() {
+  const args = process.argv.slice(2);
+  // SPRINT FOCUS (docs/GOALS.md "Student release", scripts/e2e-lists.mjs): while the sprint
+  // runs, a CORE/unmapped escalation runs the student-critical focus set instead of the full
+  // suite. Opt-in via env so nothing changes for a checkout that has not set it; --no-focus
+  // forces the honest full escalation for a one-off. Mapped subsets are NOT intersected - they
+  // are already small and precisely targeted, and intersecting would run zero relevant specs
+  // for a paused-area fix. The nightly still runs everything.
+  // `--focus` is the same switch as the env var, spelled so an npm script can carry it: Windows
+  // runs package scripts through cmd.exe, where the posix `VAR=1 cmd` prefix is a syntax error,
+  // so the env-only form could never be baked into `npm run` and every local run had to remember
+  // it by hand. It could not, which is why a core change on this laptop kept escalating to the
+  // full 103-file suite while CI - where ci.yml does set the env - ran the 34-file focus set.
+  const sprintFocus =
+    (process.env.E2E_SPRINT_FOCUS === '1' || args.includes('--focus')) && !args.includes('--no-focus');
+  // --json prints the plan as one machine-readable object and runs nothing, which is how CI
+  // decides between "skip the suite", "run these specs" and "run everything". It implies
+  // --list, and it silences the human commentary: in this mode stdout is a data channel and a
+  // stray progress line would corrupt it.
+  const asJson = args.includes('--json');
+  const listOnly = asJson || args.includes('--list');
+  const baseArg = args.find((a) => !a.startsWith('--'));
+  const log = asJson ? () => {} : console.log;
 
-if (changed.length === 0) {
-  if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: 0 });
-  log('e2e-affected: no changes vs', base, '- nothing to run.');
-  process.exit(0);
-}
+  const base = baseArg ?? git('merge-base', 'HEAD', 'main');
+  const committed = git('diff', '--name-only', `${base}...HEAD`).split('\n');
+  // Porcelain lines are `XY path` (a rename is `XY old -> new`); a global trim() would eat the
+  // first line's leading status space, so strip the prefix by pattern, not by position.
+  const working = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' })
+    .split('\n')
+    .map((l) => l.replace(/^.{2} /, '').replace(/^.* -> /, '').trim());
+  const changed = [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
 
-const specs = new Set();
-let full = false;
-let catalogAffected = false;
-const unmapped = [];
-for (const file of changed) {
-  if (IGNORE.some((r) => r.test(file))) continue;
-  if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalogAffected = true;
-  if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
-    specs.add(file.replace(/^e2e\//, ''));
-    continue;
+  if (changed.length === 0) {
+    if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: 0 });
+    log('e2e-affected: no changes vs', base, '- nothing to run.');
+    return 0;
   }
-  if (CORE.some((r) => r.test(file))) {
-    full = true;
-    continue;
+
+  const { mode, specs: plan, catalog: catalogAffected, unmapped, focusApplied } = planFor(changed, { sprintFocus });
+  const full = mode === 'full';
+
+  if (unmapped.length > 0) {
+    log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
+    for (const f of unmapped) log('  -', f);
   }
-  const rules = MAP.filter(([r]) => r.test(file));
-  if (rules.length === 0) {
-    // Unknown territory: be safe, run everything, and say why.
-    unmapped.push(file);
-    full = true;
-  } else {
-    for (const [, list] of rules) for (const s of list) specs.add(s);
+
+  if (focusApplied) {
+    log(`e2e-affected: SPRINT FOCUS - a core/unmapped change would run the full suite (103 files); running the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
   }
-}
-// Under sprint focus, the escalation that would have run everything runs the focus set
-// (union with whatever the mapped rules already named). The full->catalog coupling below is
-// deliberately skipped for an intercepted run: a styles.css tweak stops paying the 25-minute
-// catalog gate, while a direct CATALOG_TRIGGERS match above still raises the flag.
-let focusApplied = false;
-if (full && sprintFocus) {
-  full = false;
-  focusApplied = true;
-  for (const s of FOCUS) specs.add(s);
-}
-// A core/unmapped change gets the same conservative default the offline suite gets: assume it
-// could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
-if (full) catalogAffected = true;
+  if (full) {
+    log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
+  } else if (mode === 'none') {
+    if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: changed.length });
+    log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
+    return 0;
+  } else if (plan.length > 0) {
+    log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
+    for (const s of plan) log('  -', s);
+  }
+  if (catalogAffected) {
+    log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
+  }
 
-if (unmapped.length > 0) {
-  log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
-  for (const f of unmapped) log('  -', f);
-}
+  if (asJson) {
+    // `mode` is only ever none/subset/full; the catalog gate rides alongside as its own flag,
+    // because a catalog-only change needs that gate and no feature spec at all - and that case
+    // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
+    // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
+    // quietly run the whole suite.
+    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changed: changed.length });
+    return 0;
+  }
 
-const plan = full ? [] : [...specs].sort();
-if (focusApplied) {
-  log(`e2e-affected: SPRINT FOCUS - a core/unmapped change would run the full suite (96 files); running the ${plan.length}-spec student-critical set instead (E2E_SPRINT_FOCUS=1; nightly still runs everything).`);
-}
-if (full) {
-  log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
-} else if (plan.length === 0 && !catalogAffected) {
-  if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changed: changed.length });
-  log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
-  process.exit(0);
-} else if (plan.length > 0) {
-  log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
-  for (const s of plan) log('  -', s);
-}
-if (catalogAffected) {
-  log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
-}
+  if (listOnly) return 0;
 
-if (asJson) {
-  // `mode` is only ever none/subset/full; the catalog gate rides alongside as its own flag,
-  // because a catalog-only change needs that gate and no feature spec at all - and that case
-  // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
-  // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
-  // quietly run the whole suite.
-  emitJson({
-    mode: full ? 'full' : plan.length > 0 ? 'subset' : 'none',
-    specs: plan,
-    catalog: catalogAffected,
-    base,
-    changed: changed.length,
-  });
-  process.exit(0);
+  let status = 0;
+  if (plan.length > 0 || full) {
+    const result = spawnSync('npx', ['playwright', 'test', ...plan], { stdio: 'inherit', shell: true });
+    status = result.status ?? 1;
+  }
+  if (catalogAffected) {
+    const catalogResult = spawnSync('npx', ['playwright', 'test', '--config=playwright.catalog.config.ts'], { stdio: 'inherit', shell: true });
+    status = status || (catalogResult.status ?? 1);
+  }
+  return status;
 }
 
-if (listOnly) process.exit(0);
-
-let status = 0;
-if (plan.length > 0 || full) {
-  const result = spawnSync('npx', ['playwright', 'test', ...plan], { stdio: 'inherit', shell: true });
-  status = result.status ?? 1;
-}
-if (catalogAffected) {
-  const catalogResult = spawnSync('npx', ['playwright', 'test', '--config=playwright.catalog.config.ts'], { stdio: 'inherit', shell: true });
-  status = status || (catalogResult.status ?? 1);
-}
-process.exit(status);
+if (isEntrypoint) process.exit(main());

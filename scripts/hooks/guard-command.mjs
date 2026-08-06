@@ -7,8 +7,11 @@
 //  2. Commit messages follow the house rules (AGENTS.md "Git"): no Co-Authored-By trailers,
 //     no AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
-//  4. The e2e suites only start when their port is free - Playwright would otherwise reuse
-//     whatever server is already there, with whatever env it was started with.
+//  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
+//     several worktrees are normally live and each config asks for 4 workers, so two overlapping
+//     runs exhaust a 16 GB laptop rather than sharing it - and (b) their port is free, since
+//     Playwright would otherwise reuse whatever server is already there, with whatever env it
+//     was started with.
 //
 // The commit-message scan works on the raw command text (the message is embedded in it via
 // -m / heredoc / here-string), so it is quoting-style agnostic.
@@ -17,6 +20,8 @@ import { spawnSync } from 'node:child_process';
 import { readHookInput, deny } from './lib.mjs';
 import { devPort, livePort } from '../dev-port.mjs';
 import { isPortBusy } from '../port-probe.mjs';
+import { activeRuns, describeRuns } from '../e2e-runs.mjs';
+import { invokesE2e, invokesSweep } from '../command-match.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -106,9 +111,37 @@ if (isCommit) {
   }
 }
 
-// --- 4. E2E preflight ----------------------------------------------------------------------
+// --- 4. Heavy browser work: one job per MACHINE ----------------------------------------------
 
-if (/\btest:e2e\b/.test(command) || /\bplaywright\s+test\b/.test(command)) {
+// 4a. Nothing that drives a pile of headless Chromium may start while another such job is
+//     running - an e2e suite, a catalog sweep, or a bench, in ANY checkout. They are the same
+//     workload under different names: a dev server plus browsers, on a box measured to run out
+//     of memory at around six browser workers. Two at once produced 59 live browser shells,
+//     10.9 GB held by the test processes and available RAM down to 35 MB, at which point every
+//     foreground app is being paged out. Neither job is at fault; the overlap is, and no
+//     session can see it from inside its own checkout.
+//     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
+//     back to back, they only make everything else unusable while they do it.
+if (invokesE2e(command) || invokesSweep(command)) {
+  //   A command that already routes through the waiter serialises itself, so it is exempt:
+  //   blocking it would be refusing the very fix this rule recommends.
+  const selfQueuing = /e2e-runs\.mjs\s+--wait/.test(command) || /\btest:e2e[\w:]*:queued\b/.test(command);
+  const others = selfQueuing ? [] : activeRuns({ exclude: process.cwd() });
+  if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
+    deny(
+      `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
+        'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
+        'rather than sharing it (see AGENTS.md "Verifying changes" gotchas).\n' +
+        'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
+        'or queue an e2e run behind it with `npm run test:e2e:queued` / `npm run test:e2e:focus:queued`.\n' +
+        'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
+    );
+  }
+}
+
+// 4b. The port check applies to e2e runs only - a sweep starts its own server on the same port
+//     but is not subject to reuseExistingServer's env-pinning trap.
+if (invokesE2e(command)) {
   const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
   const port = live ? livePort() : devPort();
   if (await isPortBusy(port, 750)) {
@@ -125,6 +158,15 @@ if (/\btest:e2e\b/.test(command) || /\bplaywright\s+test\b/.test(command)) {
 
 process.exit(0);
 
+/**
+ * Does this command actually START an e2e run, as opposed to merely mentioning one?
+ *
+ * Matching the bare string anywhere in the text was wrong in a way that bites daily: `grep -n
+ * "npm run test:e2e" AGENTS.md` contains the phrase and starts nothing, and denying it teaches
+ * everyone to route around the guard. So the check is positional - the command is split on
+ * shell separators and each segment is tested at its FIRST token, where an invocation has to
+ * live. A quoted argument is never in that position, which is exactly the distinction we want.
+ */
 /** Run git with the given args in this checkout and return stdout as trimmed lines. */
 function gitLines(args) {
   const res = spawnSync('git', args, { encoding: 'utf8' });

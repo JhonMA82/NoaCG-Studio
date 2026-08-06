@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
+import { localWorkers } from './scripts/e2e-workers.mjs';
 
 // End-to-end UI-flow tests. These drive the real dev server, so they verify the app the way a
 // user experiences it. Run with `npm run test:e2e`.
@@ -38,14 +39,19 @@ export default defineConfig({
   // the dev server is stateless in the pinned offline mode, and the render specs stub their
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across
   // workers instead of leaving the largest file as the serial critical path.
-  // 4 workers is the measured sweet spot on a 16-core dev box. GitHub's smaller runners use
-  // one worker each and scale across eight independent shards instead: more than the same
-  // aggregate concurrency, without four browsers and one Vite server fighting over a single
-  // runner. Sharding is per-TEST, not per-file (verified against run 30539377062: of 97 spec
-  // files, exactly the 3 sitting on a shard boundary were split), so no single fat spec file
-  // can become the critical path however high the shard count goes.
+  // Local worker count is DERIVED FROM FREE MEMORY at load, not hardcoded - the constraint is
+  // memory, not cores, and how much is free is a property of the moment rather than of the
+  // machine (scripts/e2e-workers.mjs holds the measurements and the arithmetic). It always
+  // keeps a reserve back for whatever the developer is doing while the suite runs, prints the
+  // number and its reason so a run's duration stays explainable, and honours E2E_WORKERS.
+  //
+  // GitHub's smaller runners use one worker each and scale across eight independent shards
+  // instead: more than the same aggregate concurrency, without several browsers and one Vite
+  // server fighting over a single runner. Sharding is per-TEST, not per-file (verified against
+  // run 30539377062: of 97 spec files, exactly the 3 sitting on a shard boundary were split),
+  // so no single fat spec file can become the critical path however high the shard count goes.
   fullyParallel: true,
-  workers: isCi ? 1 : 4,
+  workers: isCi ? 1 : localWorkers(),
   retries: 0,
   // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
   // failure is readable in the live Actions log without downloading the combined report,
@@ -57,9 +63,27 @@ export default defineConfig({
   globalSetup: './e2e/_offline-guard.ts',
   use: {
     baseURL: base,
-    // There are deliberately no retries to disguise flakes, so collect diagnostics on the
+    // There are deliberately no retries to disguise flakes, so CI collects diagnostics on the
     // first failure rather than waiting for a retry that will never happen.
-    trace: 'retain-on-failure',
+    //
+    // Locally that setting is off, and it is the single largest local speed win measured here.
+    // `retain-on-failure` does not mean "record only failures" - the tracer runs for EVERY
+    // test, capturing snapshots, network and screenshots, and the artifact is DISCARDED when
+    // the test passes. On a green run that is pure cost. Same 119-test set, same machine,
+    // 4 workers, only this setting different:
+    //
+    //     retain-on-failure   229.2 s   85.7% avg CPU    320 MB free at the low point
+    //     off                 151.8 s   72.5% avg CPU    651 MB free
+    //
+    // 34% of the wall clock, on runs that pass - which is nearly all of them. The trade is
+    // that a local failure arrives without a trace, and the answer is to ask for one on the
+    // single spec that failed rather than to pay for 782 of them up front:
+    //
+    //     npx playwright test <spec> --trace on
+    //
+    // Screenshots stay on: they cost almost nothing (one capture, only when a test fails) and
+    // they are usually enough to tell "the app broke" from "the selector moved".
+    trace: isCi ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

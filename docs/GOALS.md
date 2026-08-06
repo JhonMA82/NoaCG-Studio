@@ -1294,8 +1294,9 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
 - [x] **1. Scope locked + guidance simplified** - this north star in GOALS.md and AGENTS.md;
       one goal, one plan, one roadmap.
 - [x] **2. Fast critical-path test loop** - the student-critical focus suite
-      (`E2E_SPRINT_FOCUS=1 npm run test:e2e:affected`) is the per-change gate; the full suite
-      stays the nightly safety net, its verdict separating focus failures from paused drift.
+      (`npm run test:e2e:focus`, or its `:queued` form when another worktree is running one)
+      is the per-change gate; the full suite stays the nightly safety net, its verdict
+      separating focus failures from paused drift.
 - [x] **3. Packages removed** - Production is the only workflow; kits create productions
       (pool + one seeded cue per graphic + the kit's look captured onto the record).
       (Audit 2026-08-04: the only server packet rows were the owner's four empty v2 folder

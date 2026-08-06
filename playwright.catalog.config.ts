@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
+import { localWorkers } from './scripts/e2e-workers.mjs';
 
 // The catalog-wide quality gate: e2e/catalog/catalog-bench.spec.ts's calibration tripwire benches
 // every catalog variant across every category. It's excluded from the default offline suite
@@ -16,12 +17,20 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 7_000 },
   fullyParallel: true,
-  workers: 4,
+  // Same memory-derived count as playwright.config.ts, and this is the gate that needs it most:
+  // it benches every catalog variant, so it runs longest and holds the machine for the whole of
+  // it. CI keeps a fixed 4 - a hosted runner's free memory says nothing useful about how much
+  // work it can take, and its load is not shared with anyone trying to use the machine.
+  workers: process.env.CI ? 4 : localWorkers(),
   retries: 0,
   reporter: [['list']],
+  // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
+  // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',
   use: {
     baseURL: base,
+    // `retries: 0` above means on-first-retry never fires, so this costs nothing either way -
+    // it is left as the honest description of when a trace would be wanted.
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

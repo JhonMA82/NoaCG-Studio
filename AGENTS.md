@@ -307,12 +307,37 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
   suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
   gate, and the mapper escalates to everything whenever it is unsure. **During the
-  student-release sprint, `E2E_SPRINT_FOCUS=1 npm run test:e2e:affected` is THE
-  student-critical suite command**: a core-file change runs the focus set
-  (scripts/e2e-lists.mjs, 34 specs) instead of all 96 files; the nightly still runs
-  everything and its verdict separates focus failures from paused-area drift. When you add a spec, add
+  student-release sprint, `npm run test:e2e:focus` is THE student-critical suite command**
+  (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs the
+  focus set (scripts/e2e-lists.mjs, 34 specs) instead of all 103 files; the nightly still runs
+  everything and its verdict separates focus failures from paused-area drift. Prefer the npm
+  script - the env-var spelling cannot be baked into a package script, because Windows runs
+  those through `cmd.exe` where a `VAR=1 cmd` prefix is a syntax error, which is why every
+  local run escalated to 103 files while CI quietly ran 34. When you add a spec, add
   its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
   with `createProject` (`e2e/_create.ts`).
+- **One browser-driving job per MACHINE, not per worktree.** A suite, a catalog sweep and a
+  bench are the same workload under different names - a dev server plus a pile of headless
+  Chromium - and several worktrees are normally live. Two starting in the same minute asks a
+  16 GB laptop for double everything: measured at 59 live `chrome-headless-shell` processes,
+  10.9 GB held by the test tree and available RAM down to 35 MB, at which point every other app
+  is being paged out. The guard hook refuses the second job and names the checkout holding the
+  first (`scripts/e2e-runs.mjs`, which scans processes rather than keeping a lock file, so
+  there is nothing stale to clear), and `e2e/_offline-guard.ts` WAITS instead - the universal
+  net, since a hook only sees tool calls, never your terminal. Use the **`:queued`** form of any
+  e2e script to wait rather than fail, `node scripts/e2e-runs.mjs --all` to see what is running,
+  and `--orphans` / `--kill-orphans` to reap browsers a killed run left behind.
+  `NOACG_ALLOW_PARALLEL_E2E=1` in the command overrides.
+  Anything the named list misses is still absorbed by the worker ladder
+  (`scripts/e2e-workers.mjs`): it reads FREE MEMORY when a run starts and takes fewer workers
+  when something heavy is already resident - another job, a build, or Premiere with a project
+  open. That is also the local worker count, which is why it is not a constant: 6 workers is
+  the fastest measured from ~5.6 GB free and the SLOWEST from ~4.5 GB.
+- **The pre-merge gate belongs to CI, not the laptop.** `ci.yml` runs on every branch push and
+  does strictly more than a local run can (build, the affected plan sharded eight ways, the
+  factory gates, the catalog tripwire when raised) in six to nine minutes, free, on a clean
+  checkout. safe-merge's Phase 3 prefers a CI run green on exactly the commit being promoted
+  and falls back to the local pair only when there isn't one.
 - **Logic checks without UI (fast path):** Vite serves source modules, so in a browser context you
   can `await import('/src/blocks/registry.ts?t=' + Date.now())`, apply blocks to
   `createBlankTemplate(...)`, run `validateTemplate`, and load `composeDocument(tpl)` into a hidden

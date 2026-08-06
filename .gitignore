@@ -83,8 +83,14 @@ shots-*/
 !.agents/skills/safe-merge/
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
+!.agents/skills/start/
 !.agents/skills/video-quality-round/
 skills-lock.json
+
+# Screenshot scratch for design reviews - kept locally on purpose, never committed. Untracked
+# it would leave the primary checkout permanently "dirty", which blocks the merge and worktree
+# workflows for every session sharing it.
+re-design/
 
 # Remotion deploy bundle (built by render-worker/bundle.mjs in the Vercel build step)
 render-worker/bundle/

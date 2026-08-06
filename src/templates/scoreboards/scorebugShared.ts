@@ -17,7 +17,6 @@
 // the source of truth and `e2e/graphic-types.spec.ts` compares the two on every run.
 
 import type { SpxField } from '../../model/types';
-import { DATA_SOURCE_CLASS } from '../shared/base';
 
 /** Escape a value for an HTML attribute or text node in generated markup. */
 function esc(value: string): string {
@@ -216,23 +215,44 @@ export function clampTwoLinesCss(selector: string): string {
 }`;
 }
 
+/**
+ * The data holders' hiding rule, in the STYLESHEET rather than on the elements.
+ *
+ * These three holders carry values the runtime reads and a viewer must never see: two club
+ * colours as raw hex, and the period breakdown as "Q1 | 24 | 19" lines. They used to be hidden
+ * with an inline `style="display: none"`, which looks equivalent and is not — the entrance
+ * reset clears inline props off the root AND every descendant (animRuntime's
+ * `noacgResetGraphic`), so the reset itself unhid them. That is not a corner case for a
+ * scoreboard: reset is the visual half of RECOVERY, so every output-renderer reboot mid-match
+ * put "#f6a623" and the period lines on air. The corner bugs learned this first and wrote it
+ * down (`cornerBug/statusParts.ts`); the sports pack had the same holders and missed it.
+ */
+export const SCOREBOARD_SOURCE_CSS = `/* Data holders — read by the runtime, never drawn.
+   The rule lives in the stylesheet on purpose: an inline display:none is wiped by the
+   entrance reset (it clears inline props), which is exactly what a recovery replays. */
+.scoreboard-colour-a,
+.scoreboard-colour-b,
+.scoreboard-periods-src {
+  display: none;                   /* input only: lifted onto the root / rendered as rows */
+}`;
+
 /** The two hidden club-colour holders the board runtimes lift onto the root. */
 export function colourHoldersHtml(aId: string, bId: string, aValue: string, bValue: string): string {
   return `      <!-- Club colours — hidden holders; the runtime lifts them onto the root as --team-a / --team-b. -->
-      <div id="${aId}" class="scoreboard-colour-a ${DATA_SOURCE_CLASS}">${esc(aValue)}</div>
-      <div id="${bId}" class="scoreboard-colour-b ${DATA_SOURCE_CLASS}">${esc(bValue)}</div>`;
+      <div id="${aId}" class="scoreboard-colour-a">${esc(aValue)}</div>
+      <div id="${bId}" class="scoreboard-colour-b">${esc(bValue)}</div>`;
 }
 
 /** A single hidden club-colour holder (the match-event card wears one team's colour). */
 export function colourHolderHtml(id: string, value: string): string {
   return `      <!-- Team colour — a hidden holder; the runtime lifts it onto the root as --team-a. -->
-      <div id="${id}" class="scoreboard-colour-a ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
+      <div id="${id}" class="scoreboard-colour-a">${esc(value)}</div>`;
 }
 
 /** The hidden period-breakdown source the match board's runtime renders from. */
 export function periodSourceHtml(id: string, value: string): string {
   return `      <!-- Period breakdown source — one "label | home | away" per line; JS renders it above. -->
-      <div id="${id}" class="scoreboard-periods-src ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
+      <div id="${id}" class="scoreboard-periods-src">${esc(value)}</div>`;
 }
 
 /**

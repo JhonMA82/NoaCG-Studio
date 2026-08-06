@@ -25,6 +25,8 @@
 
 import { chromium } from '@playwright/test';
 import { devPort } from '../scripts/dev-port.mjs';
+import { activeRuns, describeRuns } from '../scripts/e2e-runs.mjs';
+import { resolve } from 'node:path';
 
 /** Keys playwright.config.ts pins EMPTY. A non-empty value means the pin did not apply. */
 const MUST_BE_EMPTY = [
@@ -38,7 +40,53 @@ function redact(value: string): string {
   return value.length <= 8 ? '***' : `${value.slice(0, 4)}…${value.slice(-2)} (${value.length} chars)`;
 }
 
+/**
+ * Wait out any browser-driving job - a suite, a catalog sweep or a bench - in ANOTHER checkout
+ * of this repo before starting this one.
+ *
+ * The Claude Code guard hook refuses an overlapping run too, but it can only see commands that
+ * go through a tool call - it cannot stop a developer typing `npm run test:e2e` in a terminal,
+ * or a script invoking Playwright some way nobody predicted. globalSetup is the one place every
+ * entry point passes through, whatever started it, so the universal net belongs here.
+ *
+ * It WAITS rather than refusing, because at this point the run has already been asked for and
+ * queuing is what the caller wanted anyway: two suites on one 16 GB machine do not finish sooner
+ * than two run back to back (measured: 59 browser shells, 35 MB of free RAM, everything else on
+ * the box paging), they only make the wait miserable. The cap exists so a mis-detected process
+ * can never hang a run forever - past it we proceed and let the machine cope, which is exactly
+ * the old behaviour.
+ *
+ * Skipped under CI: each runner has one job, `activeRuns` would only ever see this run's own
+ * siblings on a shared machine, and a hosted gate must never sit waiting on a heuristic.
+ */
+const QUEUE_TIMEOUT_MS = 30 * 60_000;
+
+async function waitForOtherRuns(): Promise<void> {
+  if (process.env.CI) return;
+  const me = resolve(process.cwd());
+  const deadline = Date.now() + QUEUE_TIMEOUT_MS;
+  let announced = false;
+
+  for (let runs = activeRuns({ exclude: me }); runs.length > 0; runs = activeRuns({ exclude: me })) {
+    if (Date.now() > deadline) {
+      console.warn(
+        `Still waiting after ${QUEUE_TIMEOUT_MS / 60_000} min - starting anyway. Active elsewhere:\n${describeRuns(runs)}`,
+      );
+      return;
+    }
+    if (!announced) {
+      announced = true;
+      console.log(
+        `Queued behind browser-driving work in another checkout - starting when it finishes ` +
+          `(node scripts/e2e-runs.mjs --all to watch):\n${describeRuns(runs)}`,
+      );
+    }
+    await new Promise((done) => setTimeout(done, 5_000));
+  }
+}
+
 export default async function offlineGuard(): Promise<void> {
+  await waitForOtherRuns();
   const base = `http://localhost:${devPort()}`;
 
   const alreadyRunning = await fetch(base, { method: 'GET' })
