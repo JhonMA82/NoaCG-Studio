@@ -58,6 +58,7 @@ import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
 import ProductionExportDialog from './ProductionExportDialog';
 import { FieldRow } from '../fields/FieldControl';
+import { isImageAsset } from '../../assets/assetUtils';
 import BrandLogo from '../BrandLogo';
 import { copyLink } from './copyLink';
 import { IconDownload, IconLink, IconTv } from '../icons';
@@ -144,6 +145,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
   const [editTarget, setEditTarget] = useState<'preview' | 'air'>('preview');
   /** Per cue, the last data row loaded into it (`datasetId:rowId`) — what ↷ Next advances from. */
   const [lastLoaded, setLastLoaded] = useState<Record<string, string>>({});
+  /** Which side of a two-team board the next data-row load fills. */
+  const [loadSide, setLoadSide] = useState<'A' | 'B'>('A');
 
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
@@ -549,15 +552,54 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
 
   const descriptors = previewTemplate ? fieldDescriptors(previewTemplate.fields) : [];
   const editingView = editingCue ? cueView(editingCue) : null;
+  // The graphic's own picture assets, so an IMAGE field is actually pickable here. Without
+  // them the control renders a select whose only option is "None" — which is how a match
+  // board's two crest slots came to be unreachable from the cockpit while the hosted page
+  // could set them, exactly the divergence docs/PLAYOUT_DASHBOARD.md forbids. Derived the same
+  // way the published panel derives its own list (control/hostedControl.ts), so the two
+  // surfaces offer the same pictures.
+  // Uploading is deliberately NOT offered: an upload has to land in the saved graphic's
+  // assets, which is the editor's job, and adding it here would be a second write path into a
+  // document the production only references.
+  const cueImages = previewTemplate
+    ? previewTemplate.assets.filter((a) => isImageAsset(a.path)).map((a) => ({ value: a.path }))
+    : [];
   const canTake = !!selectedCue;
+
+  // THE SIDE GESTURE. A dataset row is ONE team, but a two-team board titles its fields
+  // "Team A" / "Score A" / "Team B" / … — so a row can never match them directly and the whole
+  // teams preset bound nothing. Dropping the standalone side token off the FIELD TITLE is what
+  // closes it, and it closes cleanly across the board's whole shape:
+  //
+  //     Team A → Team · Score A → Score · Team A colour → Team colour · Team A logo → Team logo
+  //     Period, Clock → unchanged, no column, skipped as before
+  //
+  // It is done HERE, at the call site, over an unchanged `datasetValuesForFields` — that
+  // function already takes {key,label} pairs, so rewriting the labels needs no model change, no
+  // persisted-format change and no migration. The plain literal match still runs first, so a
+  // column named exactly "Team A" keeps working and the quiz binding is untouched.
+  const SIDES = ['A', 'B'] as const;
+  const hasSides = descriptors.some((d) => SIDES.some((s) => new RegExp(`\\b${s}\\b`).test(d.label)));
+  /** A field title with its side token removed — "Team A colour" → "Team colour". */
+  const stripSide = (label: string, side: string) =>
+    label.replace(new RegExp(`\\s+${side}\\b`), '').replace(/\s{2,}/g, ' ').trim();
+  /** The descriptors a row is matched against: sideless for the CHOSEN side, and the other
+   *  side's fields removed entirely so loading team A can never overwrite team B. */
+  const sideDescriptors = (side: string) =>
+    descriptors
+      .filter((d) => !SIDES.some((s) => s !== side && new RegExp(`\\b${s}\\b`).test(d.label)))
+      .map((d) => ({ key: d.key, label: stripSide(d.label, side) }));
 
   /** Rows the edited cue can load (D3's binding): any production dataset with at least one
    *  column whose label matches a field title, each row labelled by its first non-empty cell
    *  in column order — the question, the team, the name. */
   const loadableRows: { value: string; label: string }[] = [];
+  const matchLabels = hasSides
+    ? SIDES.flatMap((s) => sideDescriptors(s)).concat(descriptors.map((d) => ({ key: d.key, label: d.label })))
+    : descriptors.map((d) => ({ key: d.key, label: d.label }));
   for (const ds of show.datasets ?? []) {
     const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
-    if (!descriptors.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
+    if (!matchLabels.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
     ds.rows.forEach((row, i) => {
       const first = ds.columns.map((c) => row.values[c.key] ?? '').find((v) => v.trim() !== '');
       loadableRows.push({ value: `${ds.id}:${row.id}`, label: `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}` });
@@ -571,7 +613,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
     const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
     const row = ds?.rows.find((r) => r.id === rowId);
     if (!ds || !row) return;
-    editDraft({ values: datasetValuesForFields(ds, row, descriptors) });
+    // A sided board loads into the CHOSEN side only; everything else matches as before. The
+    // plain titles go in as well and win where they exist, so a column named exactly "Team A"
+    // still binds literally.
+    const fields = hasSides
+      ? [...sideDescriptors(loadSide), ...descriptors.map((d) => ({ key: d.key, label: d.label }))]
+      : descriptors;
+    editDraft({ values: datasetValuesForFields(ds, row, fields) });
     setLastLoaded((m) => ({ ...m, [editingCue.id]: value }));
   };
 
@@ -849,7 +897,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                   airs. Unmatched columns are skipped; untouched fields keep their values. */}
               {loadableRows.length > 0 && (
                 <label className="pd-field pd-field-load">
-                  <span>Load data row</span>
+                  <span>
+                    Load data row
+                    {/* THE SIDE PICKER. Only a board with A/B fields shows it, and it says
+                        which side the next load fills — one row is one team, so without it a
+                        teams table can only ever describe half the graphic. */}
+                    {hasSides && (
+                      <span className="pd-side-pick" data-testid="cue-load-side">
+                        {SIDES.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={loadSide === s ? 'active' : ''}
+                            onClick={() => setLoadSide(s)}
+                            title={`Load the picked row into side ${s}`}
+                            data-testid={`cue-load-side-${s}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </span>
                   <div className="row">
                     <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
                       <option value="">Pick a row from the production's data…</option>
@@ -884,6 +953,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                   value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
                   onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
                   testIdPrefix="cue-field"
+                  images={cueImages}
+                  imageHint="Pictures come from the graphic itself — add one in the editor's Assets tab."
                 />
               ))}
               <label className="pd-field pd-field-note">
@@ -939,7 +1010,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
               <span
                 className="pd-state-chip"
                 data-testid="machine-state-chip"
-                title="The live graphic's current state — what the greying is judged against"
+                // A multi-group graphic's label is longer than the chip, so the full text has
+                // to stay reachable on hover — the chip truncates rather than reflowing.
+                title={
+                  !selectedLayerLive
+                    ? "The live graphic's current state — what the greying is judged against"
+                    : `${stateLabel ?? 'no state reported yet'} — the live graphic's current state, what the greying is judged against`
+                }
               >
                 {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
               </span>

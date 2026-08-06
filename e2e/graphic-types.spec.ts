@@ -85,6 +85,34 @@ test('every type conforms: parses, validates, binds its fields and events, and e
           if (!new RegExp('id="' + f.field + '"').test(tpl.html) && !new RegExp('id="' + f.field + '"').test(tpl.js))
             problems.push('field ' + f.field + ' has no element');
         }
+        // THE FIELD CONTRACT'S SECOND HALF. A type DECLARES its fields and the design EMITS
+        // them, and until this check the two could disagree freely: the count matched, every
+        // id existed, and a score declared as a number still shipped as a text box. The
+        // compiled fN ids are what payloads, control pages and every export bind to, so an
+        // ftype that drifts is a different control page wearing the same contract.
+        //
+        // TITLE is deliberately NOT compared: a design may relabel a field for its own
+        // vocabulary while the type, the field order and the operator flow stay identical —
+        // that is what mr04 Map Veto and rs04 Initiative Order ARE (docs/SPORTS_PACK.md §1,
+        // "only the editable programme data and labels differ"). VALUE is not compared either;
+        // TypeDesign.samples is each design's own starting text and the samples gate holds it.
+        //
+        // A role:'hidden' field is skipped, and the reason is a drift worth naming rather than
+        // hiding: ftypeFor maps that role straight to ftype 'hidden', but the role means
+        // "input-only, in a display:none holder" (graphicType.ts) — the operator still TYPES a
+        // countdown's minutes, so the emitted editable field is the correct half and the
+        // declaration is the wrong one. Nothing ships the wrong ftype today (the two such
+        // fields live in clocks.ts, whose categories hand-write their fields and never go
+        // through typeFieldsToSpx), so this is declarative drift, not an operator-visible bug.
+        for (let i = 0; i < Math.min(spxFields.length, tpl.fields.length); i++) {
+          const want = spxFields[i];
+          const got = tpl.fields[i];
+          if (want.field !== got.field)
+            problems.push('field ' + i + ': type compiles to ' + want.field + ', template emits ' + got.field);
+          if (type.fields[i] && type.fields[i].role === 'hidden') continue;
+          if (want.ftype !== got.ftype)
+            problems.push('field ' + got.field + ' (' + got.title + '): type declares ftype ' + want.ftype + ', template emits ' + got.ftype);
+        }
 
         out.push({ type: type.id, variant: variant.id, problems });
       }
@@ -361,10 +389,15 @@ test('the scoreboard passes the scorebug test: data moves nothing, parallel grou
     const dataMovedNothing = JSON.stringify(groups()) === before;
     const score = w.document.getElementById('f1').textContent;
 
-    // Three events for three different groups, dispatched in one tick. The serial queue
-    // resolves them in order, and each group answers only for itself.
+    // Two events for two different groups, dispatched in one tick. The serial queue resolves
+    // them in order, and each group answers only for itself.
+    //
+    // This used to fire a third, clockStart, against a clock group these four designs never
+    // earned: sb01-sb04 draw a score and no time, so the group's calls looked for a clock
+    // element that is not in the markup. It has been dropped from the type (the sports pack's
+    // scorebug and match board carry the real one), which is why the walk is two groups now —
+    // independence is what the check is about, and two independent groups prove it.
     w.noacgDispatch('flag');
-    w.noacgDispatch('clockStart');
     w.noacgDispatch('final');
     const settledState = groups();
     await sleep(300);
@@ -380,7 +413,7 @@ test('the scoreboard passes the scorebug test: data moves nothing, parallel grou
     dataMovedNothing: true,
     score: '14',
     // Pointers move synchronously at dispatch, before any animation settles.
-    settledState: { flag: 'shown', clock: 'running', result: 'final' },
+    settledState: { flag: 'shown', result: 'final' },
     repeatDropped: true,
     cleared: 'none',
     final: 'final',

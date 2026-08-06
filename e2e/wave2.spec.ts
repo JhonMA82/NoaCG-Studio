@@ -37,7 +37,10 @@ test('scoreboard: all four fields bind and a score change lands', async ({ page 
     .toBe('1');
   // Change Score A in the Data panel and push it with ⟳ Update.
   await page.getByTestId('dock-tab-data').click();
-  const scoreInput = page.locator('.panel-body .field-row', { hasText: 'Score A' }).locator('input').first();
+  // Score A is a number field: the stepper renders a value box AND an operator step-size box,
+  // so name the value one rather than relying on which comes first in the DOM.
+  const scoreInput = page.locator('.panel-body .field-row', { hasText: 'Score A' })
+    .locator('input.ctl-num:not([title="Step size"])');
   await scoreInput.fill('5');
   await page.locator('.panel-body').getByRole('button', { name: '⟳ Update' }).click();
   await expect(frame(page).locator('#f1')).toHaveText('5');

@@ -247,3 +247,106 @@ test('the production controller: preview shows the cue without airing it, Take a
   await ctl.close();
   await air.close();
 });
+
+test('a scorebug over the relay: the stepper bumps the score on air, and the clock verbs run it', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  // THE OFFLINE HALF of Phase 4's end-to-end proof. Everything above drives a lower third,
+  // whose whole behaviour is "show these words" - a scoreboard is the first exported graphic
+  // that has to keep RUNNING after the take, so this covers the two things that make it one:
+  // a score bumped from the controller's stepper, and the clock verbs actually starting and
+  // holding a clock inside the aired overlay. No Supabase, no hosted log - the bundled local
+  // relay, which is what a student running the exported package on one machine actually uses.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const b64 = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    // sb05 - the house scorebug: counts UP from 0:00, so a running clock is visibly moving
+    // rather than merely being reported as running.
+    const tpl = variantById('sb05').create({});
+    const { doc } = createGraphic(tpl, { name: 'House Scorebug' });
+    const show = shows.createShowNamed('Match Night');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc.id });
+    const fresh0 = shows.loadShows().find((s) => s.id === show.id);
+    shows.updateShowCue(show.id, fresh0.cues[0].id, {
+      label: 'Kick off',
+      values: { f0: 'ASHTON', f1: '0', f2: 'MARSKE', f3: '0', f4: '1H' },
+    });
+    const fresh = shows.loadShows().find((s) => s.id === show.id);
+    const zip = await buildShowZipFor(fresh, 'html-overlay');
+    return zip.generateAsync({ type: 'base64' });
+  });
+
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+  const files = new Map<string, string>();
+  for (const n of Object.keys(zip.files)) {
+    // Strip whatever folder the production's own name produced, rather than one hard-coded
+    // slug - the package is named after the show.
+    if (!zip.files[n].dir && /\.(html|json)$/.test(n)) {
+      files.set(n.replace(/^[^/]+\//, ''), await zip.file(n)!.async('string'));
+    }
+  }
+  const manifest = JSON.parse(files.get('payload.json')!) as { graphics: { file: string }[] };
+  const graphicFile = manifest.graphics[0].file;
+
+  const { serve } = relayServe(files);
+  const origin = 'http://sport-host.local';
+
+  // The OBS side: the overlay addressed as the program source. Managed, so it waits.
+  const air = await context.newPage();
+  await routeOrigin(air, origin, serve);
+  await air.goto(`${origin}/${graphicFile}?stream=program`, { waitUntil: 'load' });
+
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+  await ctl.locator('#v-take').click();
+  await expect(air.locator('#f0')).toHaveText('ASHTON', { timeout: 10_000 });
+  await expect.poll(async () => air.locator('.scoreboard').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+
+  // THE SCORE, bumped rather than typed. The exported controller renders the number field as
+  // −/value/+ (it is a third renderer and deliberately has no operator step-size box, unlike
+  // the two React surfaces), so locate the row by its label and press +.
+  const scoreRow = ctl.locator('.field', { hasText: 'Score A' });
+  const plus = scoreRow.locator('button.step', { hasText: '+' });
+  await plus.click();
+  // Pressing + STAGES the goal; it does not air it. That is the whole prepared-vs-published
+  // rule and it holds here exactly as on the other surfaces - nothing reaches air because it
+  // was typed, only because a verb was pressed.
+  await expect(scoreRow.locator('input[type="number"]')).toHaveValue('1');
+  await expect(air.locator('#f1')).toHaveText('0');
+  // ✎ Update pushes it to the live graphic without re-animating the board.
+  await ctl.locator('#v-update').click();
+  await expect(air.locator('#f1')).toHaveText('1', { timeout: 10_000 });
+  await plus.click();
+  await ctl.locator('#v-update').click();
+  await expect(air.locator('#f1')).toHaveText('2', { timeout: 10_000 });
+
+  // THE CLOCK. Its whole point is that it keeps moving with nobody touching it, so the only
+  // honest assertion is two reads separated by real seconds - a single frame proves nothing.
+  const clockNow = () => air.locator('.scoreboard-clock').textContent();
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Start clock' }).click();
+  const started = await clockNow();
+  await expect.poll(async () => (await clockNow()) !== started, { timeout: 15_000 }).toBe(true);
+
+  // Held is the other half, and the one an operator notices when it is wrong: after Stop the
+  // value must be the SAME across two reads several seconds apart.
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Stop clock' }).click();
+  await air.waitForTimeout(1200);            // let any in-flight tick land before sampling
+  const held = await clockNow();
+  await air.waitForTimeout(2500);
+  expect(await clockNow()).toBe(held);
+
+  // Reset returns to the design's own period start, which is what makes a second half one
+  // press - and it is 0:00 here because this design counts up from there.
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Reset to period start' }).click();
+  await expect.poll(async () => clockNow(), { timeout: 10_000 }).toBe('0:00');
+  // The score is DATA and no clock verb touches it: it survived all three.
+  await expect(air.locator('#f1')).toHaveText('2');
+
+  await ctl.close();
+  await air.close();
+});

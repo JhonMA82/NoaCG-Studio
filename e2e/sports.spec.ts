@@ -291,6 +291,11 @@ test('long club names never change a fixed strip’s height, and never leave the
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
     const LONG = 'Borussia Mönchengladbach Reserves II';
+    // A score widens by DIGIT COUNT, not by a long word, so it needs its own worst case — and
+    // it needs one at all only because the scores became number fields: a filter on textfield
+    // alone silently stopped stressing them, leaving a strip that grows on the first
+    // three-figure basketball score to pass this test forever.
+    const BIG_SCORE = '188';
     const FIXED_STRIPS = ['sb05', 'sb06', 'sb07'];
     const out = [];
     for (const id of ${JSON.stringify(SCOREBOARD_IDS)}) {
@@ -298,7 +303,10 @@ test('long club names never change a fixed strip’s height, and never leave the
       const box = d.querySelector('.scoreboard-box');
       const before = box.getBoundingClientRect();
       const payload = {};
-      for (const f of tpl.fields) if (f.ftype === 'textfield') payload[f.field] = LONG;
+      for (const f of tpl.fields) {
+        if (f.ftype === 'textfield') payload[f.field] = LONG;
+        else if (f.ftype === 'number') payload[f.field] = BIG_SCORE;
+      }
       w.update(JSON.stringify(payload));
       await sleep(150);
       const after = box.getBoundingClientRect();
@@ -317,6 +325,70 @@ test('long club names never change a fixed strip’s height, and never leave the
   // The three fixed strips must not move at all; the growing cards may, but only a little.
   expect(rows.filter((r) => r.fixed && r.grew !== 0).map((r) => `${r.id} grew ${r.grew}px`)).toEqual([]);
   expect(rows.filter((r) => r.grew > 140).map((r) => `${r.id} grew ${r.grew}px`)).toEqual([]);
+});
+
+test('recovery leaves no machinery on air: no colour hex, no period source, no stale full-time wash', async ({ page }) => {
+  test.setTimeout(120_000);
+  await toApp(page);
+  // THE RECOVERY DRILL, which is the whole point of a scoreboard being a long-running graphic:
+  // an output renderer reboots mid-match and rebuilds itself with data-then-snap. Two things
+  // have to survive that, and neither did.
+  //
+  //  1. The hidden holders. A board keeps its club colours and its period breakdown in holders
+  //     the runtime reads and the viewer must never see. Hiding them with an inline style is
+  //     not enough: the entrance reset clears inline props off every descendant, so the reset
+  //     itself is what puts "#f6a623" and "Q1 | 24 | 19" on air.
+  //  2. The state markers. A snap replays states with callbacks suppressed and skips any group
+  //     already at its initial, and the reset clears inline styles but never CLASSES - so the
+  //     full-time wash and the interval treatment outlive both, and a board recovered at 0-0
+  //     comes back still wearing FULL TIME.
+  const report = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const out = [];
+    for (const id of ['sb05', 'sb09', 'sb13']) {
+      const { w, d, frame } = await boot(id);
+      w.play();
+      await sleep(400);
+      // Take the match to full time, then through an interval treatment on the way there.
+      w.noacgDispatch('final');
+      await sleep(400);
+      // Recovery, both halves and in order: the data half, then the visual half.
+      w.update(JSON.stringify({ f1: '0', f3: '0' }));
+      w.noacgSnap(null);
+      w.update(JSON.stringify({ f1: '0', f3: '0' }));
+      await sleep(400);
+      const visibleText = (sel) => {
+        const el = d.querySelector(sel);
+        if (!el) return null;
+        const cs = w.getComputedStyle(el);
+        return cs.display === 'none' || cs.visibility === 'hidden' ? null : (el.textContent || '').trim();
+      };
+      // Read the ROOT's own class list. Matching against markup would be a false positive:
+      // the runtime's source names these classes, so a body-text search reports the fix itself.
+      const root = d.querySelector('.scoreboard');
+      const rootClasses = root ? String(root.className) : '';
+      out.push({
+        id,
+        colourA: visibleText('.scoreboard-colour-a'),
+        colourB: visibleText('.scoreboard-colour-b'),
+        periods: visibleText('.scoreboard-periods-src'),
+        markers: ['scoreboard-final', 'scoreboard-break', 'scoreboard-expired']
+          .filter((c) => rootClasses.split(/\\s+/).indexOf(c) !== -1),
+      });
+      frame.remove();
+    }
+    return out;
+  })()`);
+  const rows = report as Array<Record<string, unknown>>;
+  // Nothing the runtime keeps for itself may be readable on air after a recovery.
+  expect(rows.filter((r) => r.colourA !== null).map((r) => `${r.id}: colour A holder visible ("${r.colourA}")`)).toEqual([]);
+  expect(rows.filter((r) => r.colourB !== null).map((r) => `${r.id}: colour B holder visible ("${r.colourB}")`)).toEqual([]);
+  expect(rows.filter((r) => r.periods !== null).map((r) => `${r.id}: period source visible ("${r.periods}")`)).toEqual([]);
+  // And the visual half of reset has to actually reset the LOOK, not just the inline styles.
+  expect(
+    rows.filter((r) => (r.markers as string[]).length)
+      .map((r) => `${r.id}: state marker(s) survived the reset — ${(r.markers as string[]).join(', ')}`),
+  ).toEqual([]);
 });
 
 test('a missing crest shows the design’s placeholder, not a broken image', async ({ page }) => {

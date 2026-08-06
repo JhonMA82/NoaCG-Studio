@@ -108,7 +108,8 @@ function startMatchClock() {
   initMatchClock();
   if (matchClockTimer) return;                      // already running: starting twice is a no-op
   var el = matchClockEl();
-  if (el && el.getAttribute('data-count') === 'down' && matchSeconds === 0) return;  // nothing left to run
+  if (!el) return;                                  // no clock on this design: never start a timer for it
+  if (el.getAttribute('data-count') === 'down' && matchSeconds === 0) return;  // nothing left to run
   matchClockTimer = setInterval(tickMatchClock, 1000);
 }
 

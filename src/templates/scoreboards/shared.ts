@@ -28,6 +28,7 @@
 
 import type { SpxField, SpxTemplate } from '../../model/types';
 import { definitionScriptBlock } from '../../model/spxDefinition';
+import { SCOREBOARD_SOURCE_CSS } from './scorebugShared';
 import { resolveEasing } from '../../model/easings';
 import {
   resolveOptions,
@@ -98,12 +99,15 @@ export interface SbMeta {
   uicolor: string;
 }
 
-/** The four fixed scoreboard fields — every variant emits exactly these. */
+/** The four fixed scoreboard fields — every variant emits exactly these.
+ *  The scores are `number` so every control surface gives them +/− steppers: a score is bumped
+ *  far more often than it is typed, and adding a goal should be one press. See the field-kind
+ *  note on the scorebug contract in scorebugShared.ts for what that costs. */
 const SB_FIELDS: SpxField[] = [
   { field: 'f0', ftype: 'textfield', title: 'Team A', value: 'HOME' },
-  { field: 'f1', ftype: 'textfield', title: 'Score A', value: '0' },
+  { field: 'f1', ftype: 'number', title: 'Score A', value: '0' },
   { field: 'f2', ftype: 'textfield', title: 'Team B', value: 'AWAY' },
-  { field: 'f3', ftype: 'textfield', title: 'Score B', value: '0' },
+  { field: 'f3', ftype: 'number', title: 'Score B', value: '0' },
 ];
 
 /** The scoreboard runtime: the standard scaffold plus an on-air score-pop in update(). */
@@ -150,6 +154,37 @@ function update(data) {
   // Row-based boards (a period breakdown, a set-by-set line) re-render from their hidden
   // source; a plain scorebug defines no rebuild, so it is only called when it exists.
   if (typeof rebuildScoreboard === 'function') rebuildScoreboard();
+  paintMatchState();
+}
+
+// paintMatchState(): make the board's LOOK agree with the machine's state.
+//
+// The interval and full-time treatments are CLASSES on the root, and a class is the one thing
+// a visual reset does not touch: noacgResetGraphic clears inline props, and noacgSnap replays
+// states with callbacks suppressed AND skips any group already at its initial - so the call
+// that would have removed the class never runs. Left alone, a board recovered mid-match comes
+// back still wearing FULL TIME while the machine reports it live, which is the same recovery
+// lie the quiz board's repaint fixed (see paintQuizState in quiz/shared.ts).
+//
+// Repainting from the machine rather than clearing unconditionally is what makes it safe to
+// call on every update: a genuinely finished board keeps its treatment while an operator edits
+// the score, and only a board whose machine says otherwise loses it.
+function paintMatchState() {
+  if (typeof noacgMachineState !== 'function') return;   // a design with no machine has no state to paint
+  var root = document.querySelector('.scoreboard');
+  if (!root) return;
+  var groups = (noacgMachineState() || {}).groups || {};
+  var atBreak = false;
+  var atFinal = false;
+  // Read every group by VALUE, not by name: the two-team boards carry the interval and the
+  // result as separate parallel groups, the status card carries both in one - and both spell
+  // the states the same way, so neither shape needs a special case here.
+  for (var id in groups) {
+    if (groups[id] === 'interval') atBreak = true;
+    if (groups[id] === 'final') atFinal = true;
+  }
+  root.classList.toggle('scoreboard-break', atBreak && !atFinal);
+  root.classList.toggle('scoreboard-final', atFinal);
 }
 
 // play(): take the scoreboard on air — run the entrance timeline.
@@ -249,6 +284,9 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
   overflow-wrap: break-word;       /* break very long unbroken team names */
   text-wrap: balance;              /* wrapped rows get even lengths */
 }
+
+/* ── Data holders ── */
+${SCOREBOARD_SOURCE_CSS}
 
 /* ── Design ── */
 ${design.css}

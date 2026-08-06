@@ -34,7 +34,14 @@ const HARNESS = `
     const pay = 'Ada <img src=x onerror="parent.postMessage({ type: \\'escaped-probe\\', id: \\'' +
       variant.id + '\\' }, \\'*\\')">';
     const data = {};
-    for (const fl of tpl.fields) if (fl.ftype === 'textfield' || fl.ftype === 'textarea') data[fl.field] = pay;
+    // NUMBER fields are driven too. Nothing on the wire enforces that a number field carries a
+    // number: update() takes a JSON string from a control page, a hosted log row or an export,
+    // and a runtime that builds markup from the value is exposed whatever the field is DECLARED
+    // as. Filtering these out would have quietly dropped every score from the sweep the day
+    // scores stopped being textfields.
+    for (const fl of tpl.fields) {
+      if (fl.ftype === 'textfield' || fl.ftype === 'textarea' || fl.ftype === 'number') data[fl.field] = pay;
+    }
     try { f.contentWindow.update(JSON.stringify(data)); } catch (e) { void e; }
     // play() too: a rotator renders its item from the timeline, not from update().
     try { f.contentWindow.play(); } catch (e) { void e; }

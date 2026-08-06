@@ -75,6 +75,20 @@ const OVERLAP_WARN = 0.05;
 
 // A long real-world name: the classic lower-third breaker (~60 chars).
 const STRESS_NAME = 'Alexandra Konstantopoulos-Vandermeulen, Senior Correspondent';
+/**
+ * The stress value for a NUMBER field: three digits, CALIBRATED rather than picked.
+ *
+ * A number widens by digit COUNT, so the default "0" has to be replaced, not doubled — the
+ * text branch's `${v} ${v}` turns "0" into "0 0", which is a wider string but not a wider
+ * NUMBER, and it is not what breaks a scorebug.
+ *
+ * Three digits is the honest ceiling: it is an ordinary basketball score and about as far as
+ * any sport's headline figure goes. Four was tried and rejected — it makes sb10's doubled club
+ * name clip, but no match produces a four-digit score, so the gate would have been charging
+ * every design width for a value that cannot occur. That measurement is worth keeping as the
+ * known headroom: the match boards clear a realistic score and not much more.
+ */
+const STRESS_NUMBER = '188';
 
 interface TemplateGlobals {
   play?: () => void;
@@ -509,6 +523,14 @@ function fieldValues(template: SpxTemplate, mode: 'marker' | 'default' | 'stress
         // The first text field carries the classic 60-char name; the rest double.
         v = firstText ? STRESS_NAME : v ? `${v} ${v}` : STRESS_NAME;
         firstText = false;
+      } else if (f.ftype === 'number') {
+        // A NUMBER field is stressed by digit COUNT, which doubling cannot do — doubling "0"
+        // gives "0 0", and once a score stopped being a textfield the stress pass quietly
+        // stopped widening it at all. That failure is invisible in the worst way: the gate
+        // gets GREENER while covering less, and no other catalog gate fills the hole
+        // (type-floor measures font size, overflow-sweep runs at design defaults, and
+        // numerals.mjs substitutes digits without ever changing how many there are).
+        v = STRESS_NUMBER;
       } else if (f.ftype === 'textarea') {
         // Line-based data (credits, tickers, quiz options): double every line's length.
         v = v
