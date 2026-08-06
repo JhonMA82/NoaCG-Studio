@@ -323,9 +323,19 @@ invisible on screen.
   that matches nothing teaches the wrong thing. Read only at creation, so existing tables keep
   their columns. `lastLoaded` is already per-cue, so ↷ Next walks the table with no new state.
 
-**Still to do before this phase is even Implemented:** the live `/output` proof modelled on
-`e2e/configured/quiz-output.spec.ts`; the exported-controller proof over the local relay; and
-the visual acceptance pack.
+- **Both end-to-end arms.** `e2e/local-relay.spec.ts` gains the OFFLINE half: a scorebug aired
+  from the exported controller, a goal added with the stepper that STAGES and does not air (the
+  prepared-vs-published rule holding on the third renderer too), and the clock verbs proven by
+  two reads separated by real seconds — Start makes the number move, Stop leaves it identical,
+  Reset returns it to the period start, and the score survives all three because a clock verb is
+  a state change and a score is data. `e2e/configured/scorebug-output.spec.ts` is the LIVE half,
+  a permanent spec like the quiz one: published production, the real `/output` renderer over the
+  real hosted log, a score bump arriving, a renderer reboot at full time recovering the aired
+  score with the colour holders still hidden, and a clock proven running on the renderer itself
+  (the state chip cannot prove it — it is fed by the local monitor and would read "Clock running"
+  over a dead wire). Ten live frames land in `test-results/signed-in/`.
+
+**Still to do before this phase is Implemented:** owner acceptance of the visual pack.
 
 **Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
 last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
