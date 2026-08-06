@@ -83,6 +83,7 @@ shots-*/
 !.agents/skills/safe-merge/
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
+!.agents/skills/start/
 !.agents/skills/video-quality-round/
 skills-lock.json
 
