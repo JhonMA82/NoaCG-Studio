@@ -127,3 +127,73 @@ test('a table whose columns match nothing offers no load control, and columns ca
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Alexandra Riva');
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Correspondent');
 });
+
+test('a teams table loads one team into the side the operator picked, and leaves the other alone', async ({ page }) => {
+  test.setTimeout(120_000);
+  // ONE ROW IS ONE TEAM. A two-team board titles its fields "Team A" / "Score A" / "Team B" /
+  // …, so a teams row matches none of them literally and the preset used to bind nothing at
+  // all. The side picker is what closes that: the operator says which half of the board the
+  // next row fills, and the field titles are matched with their side token dropped.
+  await createProject(page, { name: 'House Match Board' });
+  await productionFor(page, 'Cup Final');
+
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('new-dataset-kind').selectOption('teams');
+  await page.getByTestId('add-dataset').click();
+  const dataset = page.locator('.pd-dataset');
+  await expect(dataset.getByTestId('dataset-name')).toHaveValue('Teams');
+  const fill = async (rowIndex: number, cells: string[]) => {
+    const row = dataset.locator('tbody tr').nth(rowIndex);
+    for (let i = 0; i < cells.length; i++) await row.locator('td input').nth(i).fill(cells[i]);
+  };
+  // Columns: Team · Score · Team colour · Team logo — every one the sideless half of a real
+  // field title, which is what makes them bindable at all.
+  await fill(0, ['Ashton United', '2', '#ff0000', '']);
+  await page.getByTestId('add-row').click();
+  await fill(1, ['Marske Town', '1', '#0000ff', '']);
+
+  await page.getByTestId('tab-playout').click();
+  const side = page.getByTestId('cue-load-side');
+  await expect(side).toBeVisible();          // a sided board, so the picker is offered
+
+  // Load the first team into side A. B must not move.
+  await page.getByTestId('cue-load-side-A').click();
+  await page.getByTestId('cue-load-row').selectOption({ label: 'Teams: Ashton United' });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ashton United');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('2');
+  // Side B still holds the design's own starting values — this board ships a sample score.
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('AWAY');
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('84');
+
+  // Now the second team into side B. A must survive it — this is the assertion that proves the
+  // other side's fields are excluded rather than merely unmatched.
+  await page.getByTestId('cue-load-side-B').click();
+  await page.getByTestId('cue-load-row').selectOption({ label: 'Teams: Marske Town' });
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Marske Town');
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('1');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ashton United');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('2');
+
+  // Loading is a DRAFT action: nothing reached air without a Take.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+});
+
+test('a graphic with no sides never grows a side picker, and the quiz binding is untouched', async ({ page }) => {
+  // The guard on the gesture: the picker is offered only where A/B fields exist, so a quiz
+  // board (whose titles carry "Answer A"… but no standalone side on the fields a row fills)
+  // must keep binding exactly as it did before the side rule existed.
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Quiz Night 2');
+
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('add-dataset').click();
+  const dataset = page.locator('.pd-dataset');
+  const row = dataset.locator('tbody tr').nth(0);
+  const cells = ['Which planet is red?', 'Venus', 'Mars', 'Pluto', 'Titan', 'B'];
+  for (let i = 0; i < cells.length; i++) await row.locator('td input').nth(i).fill(cells[i]);
+
+  await page.getByTestId('tab-playout').click();
+  await page.getByTestId('cue-load-row').selectOption({ index: 1 });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which planet is red?');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mars');
+});

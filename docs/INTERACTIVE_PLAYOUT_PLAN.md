@@ -310,12 +310,22 @@ four-group chip and the crest pickers), `production-data`, `snap-recovery`; cata
 for the CSS/JS); **the render baseline never moved**, which is the proof the holder fix is
 invisible on screen.
 
-**Still to do before this phase is even Implemented:** the A/B-side team load gesture in the Data
-workspace (one dataset row is one team; the recommended shape is a side-token strip at the
-ProductionPage call site over the UNCHANGED `datasetValuesForFields`, plus a two-button A|B
-control and a reshaped `teams` preset — no model or persisted-format change); the live
-`/output` proof modelled on `e2e/configured/quiz-output.spec.ts`; the exported-controller proof
-over the local relay; and the visual acceptance pack.
+- **The A/B-side team load gesture.** One dataset row is one team, but a two-team board titles
+  its fields "Team A" / "Score A" / "Team B" / … — so a teams row matched none of them and the
+  preset bound NOTHING. The fix is a side token dropped off the FIELD TITLE at the ProductionPage
+  call site ("Team A colour" → "Team colour"), over an UNCHANGED `datasetValuesForFields`: that
+  function already takes `{key,label}` pairs, so no model change, no persisted-format change and
+  no migration. The other side's fields are excluded from the match entirely, so loading team A
+  can never overwrite team B. The plain literal match still runs first (a column named exactly
+  "Team A" keeps binding) and a graphic with no sides never grows the picker, which is what keeps
+  the quiz binding untouched. The `teams` preset is reshaped to `Team · Score · Team colour ·
+  Team logo` — every column now binds a real field; `Code` was dropped because a starter column
+  that matches nothing teaches the wrong thing. Read only at creation, so existing tables keep
+  their columns. `lastLoaded` is already per-cue, so ↷ Next walks the table with no new state.
+
+**Still to do before this phase is even Implemented:** the live `/output` proof modelled on
+`e2e/configured/quiz-output.spec.ts`; the exported-controller proof over the local relay; and
+the visual acceptance pack.
 
 **Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
 last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
