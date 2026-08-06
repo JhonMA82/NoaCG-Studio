@@ -84,6 +84,11 @@ const MAP = [
   // nothing and says nothing - reads as "worked" to every other spec in the suite.
   [/^src\/(model\/(library|shows|prefs|storageHealth)|store\/(saveActions|storageAlert)|ai\/settings)/, ['storage-full.spec.ts']],
   [/^src\/components\/save\/StorageAlertDialog/, ['storage-full.spec.ts']],
+  // The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
+  // the local provider, so the offline suite really does cover it - which is why the seam was
+  // built before the backend.
+  [/^src\/audience\//, ['production-audience.spec.ts']],
+  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts']],
   [/^src\/components\/Canvas/, ['canvas-selection.spec.ts', 'canvas-keyframe.spec.ts', 'multi-select.spec.ts', 'wysiwyg.spec.ts', 'inline-edit.spec.ts', 'pasteboard.spec.ts', 'import-graphic.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/(StepTimeline|TimelineDock|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],

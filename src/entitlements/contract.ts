@@ -44,6 +44,11 @@ export const FEATURE_KEYS = [
   'community.publish',
   'control.hosted',
   'showchat',
+  // A NEW key, never a widening of `showchat`: the 0022 kill-switch contract promises the admin
+  // page states exactly what a switch stops, and these are two different surfaces - showchat is
+  // the standalone send-in page, `audience` is production-scoped audience participation
+  // (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
+  'audience',
   'templates.beta',
   'templates.internal',
 ] as const;
@@ -62,6 +67,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   'community.publish': 'Publish to the community gallery',
   'control.hosted': 'Hosted control pages',
   showchat: 'Audience send-in and show chat',
+  audience: 'Audience participation in a production',
   'templates.beta': 'Templates marked beta',
   'templates.internal': 'Templates marked internal',
 };
@@ -272,6 +278,7 @@ export const ANONYMOUS_PLAN: PlanShape = {
     'community.publish': false,
     'control.hosted': false,
     showchat: false,
+    audience: false,
     'templates.beta': false,
     'templates.internal': false,
   },
@@ -305,6 +312,7 @@ export const DEFAULT_SIGNED_IN_PLAN: PlanShape = {
     'community.publish': true,
     'control.hosted': true,
     showchat: true,
+    audience: true,
     'templates.beta': false,
     'templates.internal': false,
   },

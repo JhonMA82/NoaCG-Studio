@@ -25,12 +25,16 @@
 
 import { create } from 'zustand';
 
+/** The production shell's WORKSPACES (docs/INTERACTIVE_PLAYOUT_PLAN.md D6). Absent = Playout,
+ *  the operating surface; an unknown third segment degrades to it rather than 404ing. */
+export type ProductionSub = 'data' | 'audience';
+
 export type Route =
   | { view: 'editor' }
   | { view: 'home'; section: string | null }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
-  | { view: 'production'; id: string; sub?: 'data' }
+  | { view: 'production'; id: string; sub?: ProductionSub }
   | { view: 'video' }
   | { view: 'new'; design?: string | null };
 
@@ -48,8 +52,8 @@ export function parseRoute(hash: string): Route {
       return parts[1] ? { view: 'control', id: parts[1] } : { view: 'home', section: 'graphics' };
     case 'production':
       if (!parts[1]) return { view: 'home', section: 'productions' };
-      return parts[2] === 'data'
-        ? { view: 'production', id: parts[1], sub: 'data' }
+      return parts[2] === 'data' || parts[2] === 'audience'
+        ? { view: 'production', id: parts[1], sub: parts[2] }
         : { view: 'production', id: parts[1] };
     case 'video':
       return { view: 'video' };
@@ -71,8 +75,8 @@ export function routeHash(route: Route): string {
     case 'control':
       return `#/control/${encodeURIComponent(route.id)}`;
     case 'production':
-      return route.sub === 'data'
-        ? `#/production/${encodeURIComponent(route.id)}/data`
+      return route.sub
+        ? `#/production/${encodeURIComponent(route.id)}/${route.sub}`
         : `#/production/${encodeURIComponent(route.id)}`;
     case 'video':
       return '#/video';

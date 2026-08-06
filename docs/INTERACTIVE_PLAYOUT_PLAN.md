@@ -28,7 +28,7 @@ accepted by the owner) · Deferred.
 | 2 | Shared data foundation (datasets on Show + Data workspace) | Implemented |
 | 3 | Quiz pilot | Implemented |
 | 4 | Generic sports pilot | Implemented |
-| 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
+| 5 | Audience questions/comments (join page, moderation → cue, presenter) | Part built (offline half; backend not built) |
 | 6 | Poll + audience quiz answers | Not started |
 | 7 | CSV/JSON import into the Data Hub | Implemented |
 
@@ -381,7 +381,53 @@ running clock back"), with the existing correction test proving the guard did no
 thing it guards. The honest limit is written down in the runtime: re-sending an identical value
 is a no-op, so returning to a known time belongs to `clockReset`.
 
-### Phase 5 — Audience questions/comments. Status: Planned (design done, below)
+### Phase 5 — Audience questions/comments. Status: PART BUILT (the offline half; backend NOT built)
+
+**Built 2026-08-07 — the seam and the moderation surface, running on the local provider only.**
+
+- `src/audience/audienceTypes.ts` — THE one `AudienceBackend` interface, plus the caps
+  (`AUDIENCE_LIMITS`, question body 500 per the owner's ratified number) and `broadcastValues`,
+  the single answer to "what goes on air for this submission". **The interface has no method
+  that reaches the command log**, which is how "nothing viewer-written airs without an operator"
+  became structural rather than remembered: a provider is given nowhere to write.
+- `src/audience/localAudience.ts` — the in-memory provider with a submission/vote simulator,
+  enforcing the same caps, the same per-device rate limit, the same generic refusals and the
+  same immutability of the original as a server trigger would, so it is a faithful stand-in
+  rather than a more permissive one. `localAudienceFor(showId)` is a module-level registry, NOT
+  component state: the workspace unmounts on every trip to Playout, and an inbox that emptied
+  itself on a tab switch would be the PROGRAM monitor's round-trip defect wearing new clothes.
+  Nothing is persisted, deliberately — a rehearsal's material is other people's words in shape,
+  and a practice run has no business outliving the tab.
+- The **Audience workspace** (`#/production/<id>/audience`, the third tab): inbox with
+  inbox/approved/shortlist/all counts, the immutable original one click behind an editable
+  broadcast version, anonymise, approve/reject, shortlist, mark-used, and **send-to-rundown,
+  which creates an ordinary `ShowCue` and stops**. Field matching is by TITLE, the same
+  by-the-words binding a dataset row uses — no per-template special case.
+- Entitlement key **`audience`** — a new key, never a widening of `showchat`; in `FEATURE_KEYS`,
+  `FEATURE_LABELS` and both built-in plans, and deliberately NOT in `ENFORCED_FEATURE_KEYS`,
+  because nothing enforces it yet and that set's own contract says a key joins it in the same
+  change as its call site.
+
+**NOT built, and nothing pretends otherwise:** the Supabase backend (migration 0035, the three
+tables, the guard triggers, the eleven RPCs, the `control_shows` audience plane), the public
+`/join` MPA entry and `joinSurface.ts`, the presenter slug, and `Show.joinSlug`/`presenterSlug`.
+No SQL was written and nothing was applied to the live project. The workspace will not change
+when they land — it talks to the interface, which is the reason for building the seam first.
+
+**Owner decisions taken as ASSUMPTIONS for the work above** (the plan's six open questions,
+answered by the overnight brief and open to being overturned): standalone showchat kept
+untouched; change-your-vote rather than first-vote-sticks (the `(round, device)` key IS the
+dedupe, so an upsert while open is exactly that); presenter schema now, page later; the join
+page NEVER shows tallies; **no per-IP abuse caps in v1** — device tokens, the trigger caps and
+operator approval are the whole defence, which is a posture to ratify before a public join URL
+is real; question length 500.
+
+**Carried items (unchanged):** the `/join/<name>` path-form rewrite; vanity-slug lifecycle
+(unpublish frees a hand-picked name to squatting until republish); and the stale
+`src/community/showchat/` path in docs/PLAYOUT_DASHBOARD.md §8 and root `AGENTS.md` — showchat
+lives at `src/showchat/`.
+
+### Phase 5 — original scope (design below)
 Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable
 original vs editable broadcast version, anonymize, approve/reject, shortlist, mark
 used/answered, send-to-rundown creating a normal `ShowCue`) + presenter view + rehearsal

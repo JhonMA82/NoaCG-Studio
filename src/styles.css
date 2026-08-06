@@ -4495,6 +4495,44 @@ h2 + .lib-row,
 .pd-data-import:hover { border-color: var(--accent); }
 .pd-data-import input { display: none; }
 .pd-data-note { margin: 0 0 12px; max-width: 760px; }
+
+/* THE AUDIENCE WORKSPACE. One row per submission, and the row is built around the fact that
+   there are TWO texts in it: what was sent (evidence, never edited) and what would go on air
+   (the operator's). The broadcast version leads, because that is what the decision is about. */
+.pd-audience { padding: 16px 18px 24px; }
+.pd-aud-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.pd-aud-open { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; }
+.pd-aud-open input { width: auto; }
+.pd-aud-filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.pd-aud-filters button { font-size: 12px; padding: 4px 10px; }
+.pd-aud-filters button.active { border-color: var(--accent); background: rgba(246, 166, 35, 0.14); }
+.pd-aud-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pd-aud-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* A used row stays visible rather than vanishing: "we already asked that" is the fact an
+   operator needs, and a disappearing row cannot carry it. */
+.pd-aud-row.used { opacity: 0.62; }
+.pd-aud-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pd-aud-author { font-weight: 600; font-size: 13px; }
+.pd-aud-body { font-size: 13px; flex: 1 1 320px; }
+.pd-aud-used { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+.pd-aud-orig { font-size: 11px; padding: 2px 8px; }
+.pd-aud-original { margin: 0; font-style: italic; }
+.pd-aud-edit { display: flex; gap: 8px; flex-wrap: wrap; }
+.pd-aud-edit input:first-child { flex: 0 1 200px; }
+.pd-aud-edit input:last-child { flex: 1 1 320px; }
+.pd-aud-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pd-aud-actions label { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-size: 12px; }
+.pd-aud-actions label input { width: auto; }
+.pd-aud-actions button { font-size: 12px; padding: 4px 10px; }
+.pd-aud-actions button.active { border-color: var(--accent); color: var(--accent); }
 /* The kind picker is one control, not a toolbar row — unconstrained, flex-wrap handed it a
    whole line of its own. */
 .pd-data-head select { flex: 0 0 auto; width: auto; max-width: 200px; }

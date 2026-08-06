@@ -209,6 +209,13 @@ src/
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
   backend/     the OPTIONAL Supabase backend: config.ts isBackendConfigured is the ONE
                feature-detection point (unset env = pure offline mode); auth, sync, assets
+  audience/    the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE
+               `AudienceBackend` interface + the in-memory `localAudience` provider with a
+               submission simulator (rehearsal, offline builds, and what makes the whole
+               moderation workflow drivable by the offline e2e suite). The interface has NO
+               method that reaches the command log - that is how "nothing viewer-written airs
+               without an operator" is structural rather than remembered. The Supabase provider
+               and the public /join page are NOT built yet
   community/   shared templates (signed-in only), validated + benched at publish AND import;
                showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
   entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence

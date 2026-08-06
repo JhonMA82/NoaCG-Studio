@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from '../../app/router';
+import { useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
@@ -22,6 +22,7 @@ import {
   type ShowCue,
 } from '../../model/shows';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
+import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   eventButtons,
@@ -120,7 +121,7 @@ function typingInto(target: EventTarget | null): boolean {
  * clears another layer. That is why `liveCue` is a MAP and why every verb but Take addresses the
  * selected cue's layer. The layer is a NUMBER the operator types (§5), defaulting to 20.
  */
-export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' | null }) {
+export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
   // an edit from re-parsing every store on every render.
@@ -785,7 +786,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
         if (key === 'out' && selectedLayerLive) void outLive();
       }}
       sub={sub ?? null}
-      onTab={(tab) => navigate(tab === 'data' ? { view: 'production', id: show.id, sub: 'data' } : { view: 'production', id: show.id })}
+      onTab={(tab) => navigate(tab === 'playout' ? { view: 'production', id: show.id } : { view: 'production', id: show.id, sub: tab })}
       links={
         <ProductionLinks
           show={show}
@@ -804,7 +805,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
       }
     >
       {sub === 'data' && <ProductionDataWorkspace show={show} setShows={setShows} />}
-      {sub !== 'data' && (
+      {sub === 'audience' && <ProductionAudienceWorkspace show={show} setShows={setShows} />}
+      {!sub && (
       <>
       <section className="pd-main">
         <div className="pd-monitors">
@@ -1458,8 +1460,8 @@ function ProductionShell({
   rendererFresh: boolean;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
-  sub: 'data' | null;
-  onTab: (tab: 'playout' | 'data') => void;
+  sub: ProductionSub | null;
+  onTab: (tab: 'playout' | ProductionSub) => void;
   onHome: () => void;
   onBack: () => void;
   onAllOut: () => void;
@@ -1512,6 +1514,13 @@ function ProductionShell({
           </button>
           <button className={sub === 'data' ? 'on' : undefined} onClick={() => onTab('data')} data-testid="tab-data">
             Data
+          </button>
+          <button
+            className={sub === 'audience' ? 'on' : undefined}
+            onClick={() => onTab('audience')}
+            data-testid="tab-audience"
+          >
+            Audience
           </button>
         </nav>
         <div className="spacer" />
