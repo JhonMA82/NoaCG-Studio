@@ -129,6 +129,27 @@ If this surface replaces the production dashboard, it carries the dashboard's tw
 the **control page URL** (to operate from another device). They belong in the header's menu, one
 click from the operator, never on a page they have to navigate away to.
 
+## 7b. The ⚡ GRAPHIC ACTIONS block, in the operator's words
+
+Two of its controls were unreadable to their first real operator (acceptance pass, 2026-08-06),
+so both explain themselves ON the surface — a control that needs a document read to be understood
+is a control that will not be used.
+
+- **The ⚡ buttons fire the graphic's own beats on the layer that is on air, immediately.** They
+  are not cue verbs: nothing here waits for a Take. Where a beat needs data it carries values
+  from the selected cue, so the field is typed above first — and each button's tooltip names
+  that field by its OPERATOR TITLE, never as `f7`. That is what makes an action like the quiz's
+  **Show audience result** legible: it airs the "Audience results" field you typed above (a
+  hidden holder like "34 | 52 | 9 | 5"), painted as a chip on each answer row. The percentages
+  are DATA the whole time; the state is only what shows them.
+- **"Snap to state…" is the RECOVERY picker**, not a way to drive a graphic. It jumps the live
+  graphic straight to a state with NO animation, and it rides with a re-send of the cue's values
+  because recovery is two operations (`docs/STATE_MACHINE_SCHEMA.md`: reset the visual state and
+  reset the data are never conflated, and a lone snap replays intermediate states with
+  suppressed callbacks, so call-painted looks need the trailing data write). Use it when air and
+  the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
+  the ⚡ actions and » Next.
+
 ## 8. Built to grow (interactive graphics)
 
 The area under the monitors is deliberately not full. Interactive graphics — polls, Q&A, chat

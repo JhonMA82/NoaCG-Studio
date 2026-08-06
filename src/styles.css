@@ -4371,6 +4371,7 @@ h2 + .lib-row,
 /* UNSENT CHANGES. Nothing on this surface airs by itself, which is deliberate - so the only way
    an operator learns that the values in front of them are not the values on air is if the
    surface says it. Amber, not red: this is a state to act on, not a fault. */
+.pd-actions-help { margin: 2px 0 8px; font-size: 11px; line-height: 1.5; }
 .pd-unsent-note { color: var(--accent); font-weight: 600; }
 .pd-verb.pd-unsent { border-color: var(--accent); color: var(--text); position: relative; }
 .pd-unsent-dot {

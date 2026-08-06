@@ -1138,7 +1138,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                       void snapTo(v.slice(0, i), v.slice(i + 1));
                     }
                   }}
-                  title="Recovery: jump the live graphic straight to a state, no animation"
+                  title={
+                    'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
+                    'and re-sends this cue’s values with it — use it when air and the dashboard ' +
+                    'have got out of step (a renderer restart, a missed press). It is not how a ' +
+                    'graphic is normally driven: that is the ⚡ actions and » Next.'
+                  }
                   data-testid="machine-snap"
                 >
                   <option value="">Snap to state…</option>
@@ -1153,6 +1158,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                 </select>
               )}
             </div>
+            {/* INLINE HELP, because two of these controls were unreadable to their first real
+                operator (acceptance pass, 2026-08-06). It is one line and it says what the
+                block IS — a documented control the user has to leave the surface to understand
+                is a control they will not use. */}
+            <p className="hint pd-actions-help" data-testid="cue-actions-help">
+              These fire the graphic’s own beats on the layer that is on air, immediately —
+              they carry values from this cue, so type them above first.
+              {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
+            </p>
             {eventSections.map(([section, btns]) => (
               <div key={section} className="pd-actions-section">
                 {(eventSections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
@@ -1170,7 +1184,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                             : !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
                               : b.payload?.length
-                                ? `Fires "${b.event}" on air with ${b.payload.join(', ')}`
+                                ? // The payload in the OPERATOR'S words, not as `f7`. This is
+                                  // what makes an action self-explanatory: the acceptance pass
+                                  // could not tell what "Show audience result" would do, and
+                                  // the answer is "it shows the Audience results field, which
+                                  // you type above" — a field id says none of that.
+                                  `Fires "${b.event}" on air, carrying this cue's ${b.payload
+                                    .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
+                                    .join(', ')}`
                                 : `Fires "${b.event}" on air`
                         }
                         onClick={() => void fireEvent(b)}
