@@ -48,11 +48,27 @@ function dbg(key: string, value: string): void {
     .join('\n');
 }
 
+/**
+ * WHICH BROWSER ENGINE IS ACTUALLY RENDERING THIS. CasparCG's embedded CEF changed inside the
+ * 2.3 line, so "I run 2.3.x" does not say whether a design using `color-mix()` will paint — and
+ * the studio's compatibility report can only be as good as the number the operator brings to it.
+ * There is exactly one machine that knows, and it is this one, so it says so on the debug
+ * overlay. It costs nothing and settles a question that otherwise needs a changelog archaeology
+ * session per install.
+ */
+if (debugEl) {
+  const chrome = / (?:Chrome|Chromium)\/(\d+)/.exec(navigator.userAgent);
+  dbg('engine', chrome ? `Chromium ${chrome[1]}` : navigator.userAgent.slice(0, 60));
+}
+
 /** The wrong-URL / offline card. Never part of a live production's air. */
 function unavailable(reason: string): void {
   const card = document.createElement('div');
   card.style.cssText =
-    'position:fixed;inset:0;display:grid;place-items:center;background:#0a0a0c;color:#8a8a92;' +
+    // Longhands, not `inset` (Chromium 87): this card exists to explain a failure, and an old
+    // CasparCG CEF is exactly where one happens — a card that unpositions itself there would
+    // print its explanation into the corner of a live layer.
+    'position:fixed;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;background:#0a0a0c;color:#8a8a92;' +
     'font:15px/1.6 system-ui,sans-serif;text-align:center;';
   card.innerHTML = `<div><div style="font-size:18px;color:#c9c9cf;margin-bottom:6px">Output not available</div>${reason}</div>`;
   document.body.appendChild(card);

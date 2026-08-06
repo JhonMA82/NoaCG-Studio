@@ -3791,6 +3791,27 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .storage-alert-kind { color: var(--text-dim); font-size: 11px; }
 .storage-alert-bytes { font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
+/* PLAYOUT COMPATIBILITY (components/PlayoutCompatibility.tsx): one row per playout engine, with
+   the verdict mark in its own fixed column so the eye can run down the marks alone. */
+.engine-verdicts { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.engine-verdicts li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+.engine-ok { color: var(--ok); font-size: 12px; }
+.engine-mark { font-weight: 700; text-align: center; }
+.engine-mark.fine { color: var(--ok); }
+/* The two failures are told apart by COLOUR as well as glyph: a missing panel is a warning, a
+   blank layer is the error state, and they are not degrees of the same thing. */
+.engine-mark.degraded { color: var(--warn); }
+.engine-mark.blank { color: var(--danger); }
+.engine-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-say { color: var(--text-dim); }
+.engine-source code { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
+
 /* The first-use AI disclosure notice — same borrowed `.wz-modal`, sized to its short text.
    It appears the moment an action would send content to an external AI provider (never for
    the offline stub), so it must read as a calm disclosure, not an error. */

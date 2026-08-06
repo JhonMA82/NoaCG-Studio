@@ -70,6 +70,29 @@ an exported one, the same bar applies to what you write.
 
 If you can choose, run 2.4 or newer. If you cannot — 2.3.x is fully supported.
 
+### The graphic's own CSS is a separate question, and the studio now answers it
+
+Compiling the JavaScript down does not help a **stylesheet**. A CSS declaration an old engine
+does not understand is dropped in silence, and what it was painting simply is not there — a
+panel background, the spacing between rows, a chip behind each answer. Nothing errors, so the
+graphic looks like a design mistake rather than an engine limit. Two catalogue designs were
+found on air that way on 2026-08-06.
+
+So every export screen carries a **Playout compatibility** section: one line per playout system
+saying whether the graphic renders as designed there, and a "what exactly does it use?" list of
+the declarations involved, with the version each one needs. It is measured from the graphic's
+own emitted code, so it is right for a template you edited yourself too. It never blocks an
+export — a graphic that needs a newer engine is completely correct in OBS, vMix, SPX and
+CasparCG 2.4+.
+
+**Which CEF does my server actually have?** The 2.3 line shipped more than one, so the version
+number alone does not settle it. Load the production's output URL with `&debug=1` and read the
+`engine:` line on the status readout — that is the browser doing the rendering, reporting
+itself.
+
+Maintainers: `node scripts/engine-floor.mjs` sweeps the whole catalogue against a chosen engine
+(`--engine casparcg-24`, `--chromium 80`) and reports per design and per declaration.
+
 ### Playing the cloud output URL
 
 ```
@@ -166,6 +189,7 @@ Fonts travel in the folder, so a machine without the typeface installed still re
 | What you see | Usually means | Do this |
 |---|---|---|
 | Layer is on air, nothing renders, no error anywhere | CasparCG 2.3.x rejected the page's JavaScript | Check the server log for `SyntaxError`. If it is your own template code, remove `?.` and `??`. Upgrading to 2.4+ removes the constraint. |
+| Part of the graphic is missing — a panel, a background, the space between rows | The engine dropped a CSS declaration it does not know | Open the graphic's export screen and read **Playout compatibility**; it names the declaration and the version it needs. Upgrading the server, or picking another design, are the two real fixes. |
 | Black or white box behind the graphic | The host is forcing an opaque background | Clear any custom CSS setting a background; do not add a chroma key. |
 | Graphic looks soft, or is the wrong size | Source dimensions do not match the design | Set the browser source to the graphic's own resolution; resize the source, never the layer. |
 | Motion judders | Browser-source FPS does not match the channel | Set the source's FPS to the channel's. |

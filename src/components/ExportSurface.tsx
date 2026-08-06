@@ -6,6 +6,7 @@ import { slug } from '../export/common';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { isRenderConfigured } from '../render/config';
 import RenderPanel from './render/RenderPanel';
+import PlayoutCompatibility from './PlayoutCompatibility';
 import { graphicById } from '../model/library';
 import { trackEvent } from '../backend/events';
 import type { SpxTemplate } from '../model/types';
@@ -172,6 +173,11 @@ export default function ExportSurface({
           ))}
         </div>
       )}
+
+      {/* ABOVE the download button on purpose. The acceptance-pass rule is that a user cannot
+          export to a playout system without being told the design may not render there, and a
+          verdict under the button is a verdict read after the file is already downloading. */}
+      <PlayoutCompatibility template={template} />
 
       <button
         className="primary"

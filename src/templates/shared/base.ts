@@ -75,7 +75,15 @@ export function maxTextWidthCss(res: Resolution, maxPx: number): string {
   const resFactor = Math.min(res.width / 1920, res.height / 1080);
   const perScaleUnit = Math.round(maxPx / resFactor);
   const safeMax = Math.round(res.width - 2 * (res.width * 0.0625));
-  return `min(calc(${perScaleUnit}px * var(--scale)), ${safeMax}px)`;
+  // TWO declarations, not one. CSS `min()` arrived in Chromium 79 and CasparCG's older LTS
+  // builds are behind that, where a lone `min()` value makes the browser drop the whole
+  // max-width and the panel stops wrapping at the safe area entirely. The static safe-area cap
+  // goes first as the classic cascade fallback: an old engine keeps it and still wraps inside
+  // the frame, a current one takes the scaling version on the line below. This is ONE function
+  // and every category's auto-fit cap comes through it, which is why the whole catalogue clears
+  // that bar from here (src/validation/engineSupport.ts is what measures it).
+  return `${safeMax}px;  /* fallback: no CSS min() before Chromium 79 (older CasparCG) */
+  max-width: min(calc(${perScaleUnit}px * var(--scale)), ${safeMax}px)`;
 }
 
 // ── Positioning: 9 zones snapped to safe areas ───────────────────────────────

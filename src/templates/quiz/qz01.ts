@@ -67,7 +67,11 @@ export const qz01: TemplateVariant = defineQuizVariant(
 .quiz-box::before {
   content: '';                     /* pseudo-elements render only with content set */
   position: absolute;              /* fills the box exactly ... */
-  inset: 0;                        /* ... edge to edge */
+  top: 0; right: 0; bottom: 0; left: 0;  /* ... edge to edge. The four longhands rather than the
+                                      inset shorthand: inset needs Chromium 87, and an older
+                                      CasparCG CEF DROPS the whole declaration - which collapses
+                                      this slab to nothing and takes the card's background off
+                                      air (measured on a real 2.3.x server, 2026-08-06). */
   z-index: -1;                     /* paints behind the question and the rows */
   background: var(--panel-bg);     /* near-black slab behind everything */
   border-radius: var(--panel-radius);  /* the family's panel corner radius */
@@ -103,7 +107,14 @@ export const qz01: TemplateVariant = defineQuizVariant(
   margin-top: calc(24px * var(--scale));  /* clear break between question and answers */
   display: flex;                   /* a simple vertical stack ... */
   flex-direction: column;          /* ... one row per answer */
-  gap: calc(12px * var(--scale));  /* even air between the rows */
+}
+
+/* The air between rows as a MARGIN rather than a flex gap: gap in a flex container needs
+   Chromium 84, and an older CasparCG CEF drops it, stacking the four answers flush against
+   each other. An adjacent-sibling margin paints the same picture on every engine, and it also
+   costs the first row nothing - which is what the gap was buying. */
+.quiz-option + .quiz-option {
+  margin-top: calc(12px * var(--scale));  /* even air between the rows */
 }
 
 /* One answer row: the preset staggers these in and pops the winner, so the row itself is
@@ -120,8 +131,12 @@ export const qz01: TemplateVariant = defineQuizVariant(
 .quiz-option::before {
   content: '';                     /* painted layer - safe from every preset tween */
   position: absolute;              /* fills the row exactly ... */
-  inset: 0;                        /* ... edge to edge */
+  top: 0; right: 0; bottom: 0; left: 0;  /* ... edge to edge (longhands, not inset - see above) */
   z-index: -1;                     /* behind the letter block and the text */
+  background: rgba(255, 255, 255, 0.08);  /* fallback: no color-mix() before Chromium 111, and
+                                      without this the answer chips are simply absent on an
+                                      older CasparCG - which is exactly how this board went on
+                                      air as "just the blue line and the numbers" */
   background: color-mix(in srgb, var(--text-color) 8%, transparent);  /* faint on-palette tint */
   border-radius: 0;                /* hard corners - sport shape language */
   transform: skewX(-8deg);         /* the family lean, parallel to the card slab */
@@ -147,7 +162,7 @@ export const qz01: TemplateVariant = defineQuizVariant(
 .quiz-letter::before {
   content: '';                     /* painted layer behind the letter */
   position: absolute;              /* fills the block exactly ... */
-  inset: 0;                        /* ... edge to edge */
+  top: 0; right: 0; bottom: 0; left: 0;  /* ... edge to edge (longhands, not inset - see above) */
   z-index: -1;                     /* behind the letter glyph */
   background: var(--accent);       /* four small accent doses - sport uses accent boldly */
   transform: skewX(-8deg);         /* the family lean - fuses with the row chip's edge */

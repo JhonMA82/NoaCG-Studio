@@ -387,6 +387,15 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   faces are in that class, so a source check would have passed every scoreboard in the catalog
   while they all still jiggled. `--fonts` re-measures the registry's `tabularFigures` flags
   (across each face's weight range - evenness is weight-dependent).
+  The sixth gate is about the PLAYOUT BROWSER: `node scripts/engine-floor.mjs` builds every
+  design and reports the CSS/JS features an older engine cannot render, per design and per
+  declaration (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate). Same doctrine again -
+  it MEASURES the emitted code rather than keeping a list of designs known to be broken - and it
+  shares its scanner with the export screen's Playout-compatibility section
+  (`src/validation/engineSupport.ts`), so a gate and a user-facing warning cannot disagree. It
+  REPORTS and exits 0 by default: an old CasparCG CEF drops a modern declaration in silence, and
+  measured 2026-08-06 that is 179 of 430 designs at the Chromium 88 bar, so this is a standing
+  account of what the catalog costs on old hardware rather than a line it currently holds.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the

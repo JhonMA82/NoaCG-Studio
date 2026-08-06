@@ -71,7 +71,14 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
   flex-direction: column;          /* badge first, heading below */
   align-items: center;             /* everything centered on the anchor */
   text-align: center;              /* wrapped heading rows stay centered too */
-  gap: calc(20px * var(--scale));  /* air between the badge and the heading */
+}
+
+/* The air under the badge as a MARGIN, not a flex gap: gap in a flex container needs
+   Chromium 84 and an older CasparCG CEF drops it, which pushes the heading up against the
+   badge. Put on the heading rather than the badge so the badge's own box stays untouched by
+   the entrance pop that scales it. */
+.game-timer-box > .game-timer-mask {
+  margin-top: calc(20px * var(--scale));  /* air between the badge and the heading */
 }
 
 /* The badge: a fixed square anchoring the face, ring, dots, and clock. The idle wobble
@@ -93,7 +100,13 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
    a hard sticker offset — so the Style panel can retint it to any accent coherently. */
 .game-timer-face {
   position: absolute;              /* sits inside the drain ring's track */
-  inset: calc(30px * var(--scale));  /* disc edge meets the ring (r=180 in the viewBox) */
+  /* The four longhands, not the inset shorthand: inset needs Chromium 87, and an older
+     CasparCG CEF drops the whole declaration - which leaves this disc unpositioned and takes
+     the sunny face off air entirely. */
+  top: calc(30px * var(--scale));    /* disc edge meets the ring (r=180 in the viewBox) */
+  right: calc(30px * var(--scale));
+  bottom: calc(30px * var(--scale));
+  left: calc(30px * var(--scale));
   border-radius: 50%;              /* a perfect disc */
   background:
     radial-gradient(circle at 35% 28%, rgba(255,255,255,0.4), rgba(255,255,255,0) 62%),
@@ -105,7 +118,7 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
    second and this transition glides each step — the ring EMPTIES as time runs out. */
 .game-timer-ring {
   position: absolute;              /* the SVG fills the badge square exactly */
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;  /* longhands, not inset - see the face above */
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);       /* the drain starts from 12 o'clock */
@@ -145,7 +158,7 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
    scales this element, so it gets the will-change hint. */
 .game-timer-clock {
   position: absolute;              /* centered over the whole badge… */
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;  /* longhands, not inset - see the face above */
   display: flex;                   /* …with flexbox doing the centering */
   align-items: center;
   justify-content: center;
