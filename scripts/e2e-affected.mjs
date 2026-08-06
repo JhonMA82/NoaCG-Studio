@@ -275,6 +275,63 @@ export function planFor(changed, { sprintFocus = false } = {}) {
   return { mode, specs: list, catalog, unmapped, focusApplied };
 }
 
+/**
+ * THE RUN LIST, as a pure function of a plan. One entry per Playwright invocation this command
+ * is responsible for: the mapped/full suite, and the catalog calibration tripwire, which is a
+ * SEPARATE config and therefore a separate process.
+ *
+ * @param {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean }} plan
+ * @returns {{ name: string, args: string[] }[]}
+ */
+export function runsFor({ mode, specs, catalog }) {
+  const runs = [];
+  // An empty spec list handed to Playwright is not "no tests", it is EVERY test - which is why
+  // `full` names the suite with no arguments and `subset` only ever runs with a non-empty list.
+  if (mode === 'full' || specs.length > 0) {
+    runs.push({ name: 'suite', args: ['playwright', 'test', ...specs] });
+  }
+  if (catalog) {
+    runs.push({ name: 'catalog gate', args: ['playwright', 'test', '--config=playwright.catalog.config.ts'] });
+  }
+  return runs;
+}
+
+/**
+ * Run everything the plan named and report the FIRST FAILURE's status, never the last run's.
+ *
+ * This command can spawn two Playwright processes, and the catalog gate is the one that usually
+ * goes second. Returning only its status would mean a failing suite followed by a passing gate
+ * exits 0 - a green light over a red run, on the command that IS the per-merge gate
+ * (docs/DEPLOYMENT.md). Both runs still execute on a failure: the gate's verdict is information
+ * worth having even once the suite has gone red, and skipping it would turn one red run into two
+ * round trips.
+ *
+ * `runOne` is injected so this is testable without spawning Playwright - the point being that a
+ * defect here is silent by construction, exactly like `planFor`'s.
+ *
+ * @param {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean }} plan
+ * @param {(run: { name: string, args: string[] }) => number|null|undefined} runOne
+ * @returns {{ status: number, runs: { name: string, args: string[], status: number }[] }}
+ */
+export function runPlan(plan, runOne) {
+  const runs = [];
+  let status = 0;
+  for (const run of runsFor(plan)) {
+    // A spawn that was killed by a signal, or never started, reports a null status. That is a
+    // failure, not a pass - the one case where "no exit code" must not read as zero.
+    const code = runOne(run) ?? 1;
+    runs.push({ ...run, status: code });
+    if (code !== 0 && status === 0) status = code;
+  }
+  return { status, runs };
+}
+
+/** The one-line verdict, naming each run - so a red overall status says WHICH run went red. */
+export function summariseRuns(runs, status) {
+  const parts = runs.map((r) => `${r.name} ${r.status === 0 ? 'passed' : `FAILED (exit ${r.status})`}`);
+  return `e2e-affected: ${parts.join('; ')}. Overall: ${status === 0 ? 'passed' : `FAILED (exit ${status})`}.`;
+}
+
 function git(...cmd) {
   return execFileSync('git', cmd, { encoding: 'utf8' }).trim();
 }
@@ -362,15 +419,11 @@ function main() {
 
   if (listOnly) return 0;
 
-  let status = 0;
-  if (plan.length > 0 || full) {
-    const result = spawnSync('npx', ['playwright', 'test', ...plan], { stdio: 'inherit', shell: true });
-    status = result.status ?? 1;
-  }
-  if (catalogAffected) {
-    const catalogResult = spawnSync('npx', ['playwright', 'test', '--config=playwright.catalog.config.ts'], { stdio: 'inherit', shell: true });
-    status = status || (catalogResult.status ?? 1);
-  }
+  const { status, runs } = runPlan(
+    { mode, specs: plan, catalog: catalogAffected },
+    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true }).status,
+  );
+  if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));
   return status;
 }
 
