@@ -21,6 +21,7 @@ import { readHookInput, deny } from './lib.mjs';
 import { devPort, livePort } from '../dev-port.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
+import { invokesE2e, invokesSweep } from '../command-match.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -166,43 +167,6 @@ process.exit(0);
  * shell separators and each segment is tested at its FIRST token, where an invocation has to
  * live. A quoted argument is never in that position, which is exactly the distinction we want.
  */
-function invokesE2e(text) {
-  return commandSegments(text).some(
-    (segment) =>
-      /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)?test:e2e[\w:]*(?:\s|$)/.test(segment) ||
-      /^(?:npx\s+)?playwright\s+test(?:\s|$)/.test(segment) ||
-      // The affected/focus entry point, invoked directly rather than through its npm script.
-      /^node\s+\S*e2e-affected\.mjs(?:\s|$)/.test(segment),
-  );
-}
-
-/**
- * Does this command start a catalog SWEEP or a bench - the other things in this repo that spin
- * up a dev server and a pile of headless Chromium? They compete with an e2e run for exactly the
- * same memory, so they belong in the same mutual exclusion. Without this the guard serialised
- * suite-against-suite and then let a sweep start alongside one, which costs the same.
- */
-function invokesSweep(text) {
-  return commandSegments(text).some(
-    (segment) =>
-      /^node\s+\S*scripts[/\\](l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\w-]*|[\w-]*bench[\w-]*)\.mjs(?:\s|$)/.test(segment) ||
-      /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)(?:bench|video):[\w:]+(?:\s|$)/.test(segment),
-  );
-}
-
-/**
- * A command line's segments, each reduced to the token an invocation would occupy. Matching a
- * bare string anywhere in the text was wrong in a way that bit daily: `grep -n "npm run
- * test:e2e" AGENTS.md` contains the phrase and starts nothing, and denying it teaches everyone
- * to route around the guard. A quoted argument is never in first position, which is exactly the
- * distinction wanted.
- */
-function commandSegments(text) {
-  return text
-    .split(/&&|\|\||[;|\n]/)
-    .map((segment) => segment.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')); // drop env prefixes
-}
-
 /** Run git with the given args in this checkout and return stdout as trimmed lines. */
 function gitLines(args) {
   const res = spawnSync('git', args, { encoding: 'utf8' });

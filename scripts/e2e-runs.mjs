@@ -30,6 +30,7 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SWEEP_SCRIPTS } from './command-match.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -106,25 +107,18 @@ function posixNodeProcesses() {
 const RUNNER = /@playwright[/\\]+test[/\\]+cli\.js["']?\s+.*\btest\b/;
 
 /**
- * The other things in this repo that drive a real browser, and therefore compete for the same
- * memory an e2e run needs. 36 scripts under `scripts/` call `chromium.launch()`; these are the
- * ones a person or an agent actually runs by hand - the catalog quality gates named in
- * AGENTS.md, the factory, the render smokes, and the `*-bench` family.
+ * A running catalog sweep or bench - the other things in this repo that drive a real browser,
+ * and therefore compete for the same memory an e2e run needs. The suite is not only in
+ * competition with ITSELF: a sweep and a Playwright run are the same workload wearing different
+ * names, a dev server plus a pile of headless Chromium, on a box measured to run out of memory
+ * at around six browser workers.
  *
- * They matter because the suite is not only in competition with ITSELF. A catalog sweep and a
- * Playwright run are the same workload wearing different names: a dev server plus a pile of
- * headless Chromium, on a box measured to run out of memory at around six browser workers.
- * Before this, the guard serialised suite-against-suite and cheerfully allowed suite-against-
- * sweep, which costs exactly as much.
- *
- * Deliberately a NAMED list rather than "any script that imports chromium": most of those 36
- * are one-off analysis tools nobody runs during normal work, and blocking them would train
- * people to route around the guard. Anything missed here is still absorbed by the worker
- * ladder (scripts/e2e-workers.mjs), which reads free memory when a run starts and takes fewer
- * workers when something heavy is already resident - whatever that something is.
+ * The list of scripts comes from `scripts/command-match.mjs`, which the guard hook also uses to
+ * recognise the COMMAND that starts one. Two copies of that fact would drift, and a sweep known
+ * to one side and not the other is a silent hole - refused when you try to start it while the
+ * detector calls the machine idle, or the reverse.
  */
-const SWEEP =
-  /scripts[/\\]+(l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\w-]*|[\w-]*bench[\w-]*)\.mjs/;
+const SWEEP = new RegExp(`scripts[/\\\\]+(${SWEEP_SCRIPTS})\\.mjs`);
 
 /** A worker or browser spawned BY a run. Never counted as a run; used only by --orphans. */
 const WORKER = /playwright[/\\]+lib[/\\]+worker[/\\]+workerProcessEntry\.js/;
