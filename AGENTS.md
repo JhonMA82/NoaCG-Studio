@@ -309,7 +309,7 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   gate, and the mapper escalates to everything whenever it is unsure. **During the
   student-release sprint, `E2E_SPRINT_FOCUS=1 npm run test:e2e:affected` is THE
   student-critical suite command**: a core-file change runs the focus set
-  (scripts/e2e-lists.mjs, ~28 specs) instead of all 96 files; the nightly still runs
+  (scripts/e2e-lists.mjs, 34 specs) instead of all 96 files; the nightly still runs
   everything and its verdict separates focus failures from paused-area drift. When you add a spec, add
   its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
   with `createProject` (`e2e/_create.ts`).

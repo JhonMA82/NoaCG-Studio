@@ -140,6 +140,21 @@ const PROBE = `(async (onlyIds) => {
             rec.gates.fields.push('field ' + f.field + ' has no id="' + f.field + '" element');
           }
         }
+        // The declared ftype against the emitted one. The count matching is not the contract:
+        // a score DECLARED as a number and EMITTED as a text box passes every other check here
+        // and still ships the wrong control. TITLE is not compared - a design may relabel a
+        // field for its own vocabulary (mr04, rs04) - and a role:'hidden' field is skipped
+        // because ftypeFor maps that role to ftype 'hidden' while the role actually means
+        // "input-only", i.e. the operator still types it (see e2e/graphic-types.spec.ts).
+        for (let i = 0; i < Math.min(declared.length, tpl.fields.length); i += 1) {
+          if (type.fields[i]?.role === 'hidden') continue;
+          if (declared[i].ftype !== tpl.fields[i].ftype) {
+            rec.gates.fields.push(
+              'field ' + tpl.fields[i].field + ' (' + tpl.fields[i].title + '): the type declares ftype ' +
+                declared[i].ftype + ', the design emits ' + tpl.fields[i].ftype,
+            );
+          }
+        }
 
         // ── machine + motion ───────────────────────────────────────────────────────────
         const data = parseAnimData(tpl.js);
