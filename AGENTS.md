@@ -307,12 +307,31 @@ correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`
   (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
   suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
   gate, and the mapper escalates to everything whenever it is unsure. **During the
-  student-release sprint, `E2E_SPRINT_FOCUS=1 npm run test:e2e:affected` is THE
-  student-critical suite command**: a core-file change runs the focus set
-  (scripts/e2e-lists.mjs, ~28 specs) instead of all 96 files; the nightly still runs
-  everything and its verdict separates focus failures from paused-area drift. When you add a spec, add
+  student-release sprint, `npm run test:e2e:focus` is THE student-critical suite command**
+  (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs the
+  focus set (scripts/e2e-lists.mjs, 34 specs) instead of all 103 files; the nightly still runs
+  everything and its verdict separates focus failures from paused-area drift. Prefer the npm
+  script - the env-var spelling cannot be baked into a package script, because Windows runs
+  those through `cmd.exe` where a `VAR=1 cmd` prefix is a syntax error, which is why every
+  local run escalated to 103 files while CI quietly ran 34. When you add a spec, add
   its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
   with `createProject` (`e2e/_create.ts`).
+- **One e2e run per MACHINE, not per worktree.** Several worktrees are normally live and each
+  Playwright config asks for 4 workers, so two suites starting in the same minute ask a 16 GB
+  laptop for eight browser workers and two Vite servers - measured at 59 live
+  `chrome-headless-shell` processes, 10.9 GB held by the test tree and available RAM down to
+  35 MB, at which point every other app is being paged out. The guard hook refuses the second
+  run and names the checkout holding the first (`scripts/e2e-runs.mjs`, which scans processes
+  rather than keeping a lock file, so there is nothing stale to clear). Use the **`:queued`**
+  form of any e2e script to wait for the other run instead of failing, `node
+  scripts/e2e-runs.mjs --all` to see who is running, and `--orphans` / `--kill-orphans` to
+  reap browsers a killed run left behind. `NOACG_ALLOW_PARALLEL_E2E=1` in the command
+  overrides, for the rare case where the overlap is genuinely wanted.
+- **The pre-merge gate belongs to CI, not the laptop.** `ci.yml` runs on every branch push and
+  does strictly more than a local run can (build, the affected plan sharded eight ways, the
+  factory gates, the catalog tripwire when raised) in six to nine minutes, free, on a clean
+  checkout. safe-merge's Phase 3 prefers a CI run green on exactly the commit being promoted
+  and falls back to the local pair only when there isn't one.
 - **Logic checks without UI (fast path):** Vite serves source modules, so in a browser context you
   can `await import('/src/blocks/registry.ts?t=' + Date.now())`, apply blocks to
   `createBlankTemplate(...)`, run `validateTemplate`, and load `composeDocument(tpl)` into a hidden

@@ -145,6 +145,39 @@ try {
   // Best-effort awareness only - must never block session start.
 }
 
+// What the e2e suite is doing to this MACHINE right now, which no per-checkout signal shows.
+// Two things are worth knowing before a session starts running specs: someone else's suite is
+// live (starting a second one exhausts the box rather than sharing it - see the guard hook's
+// rule 4a), or a previous run was killed and left browsers behind holding RAM with nothing
+// left to reap them. Both are invisible from inside one worktree and both cost real memory.
+try {
+  const { activeRuns, orphanProcesses } = await import('../e2e-runs.mjs');
+  const runs = activeRuns({ exclude: root });
+  if (runs.length > 0) {
+    console.log('');
+    console.log(
+      'A Playwright run is ACTIVE in another checkout of this repo. Starting a second one is ' +
+        'blocked (guard hook rule 4a); use the `:queued` form of any e2e script to wait for it:',
+    );
+    for (const run of runs) {
+      console.log(`  - ${run.root} (pid ${run.pid}, ${run.label}${run.elapsedMin === null ? '' : `, ${run.elapsedMin} min in`})`);
+    }
+  } else {
+    const { workers, shells } = orphanProcesses();
+    const heldMb = shells.reduce((sum, s) => sum + s.mb, 0);
+    if (workers.length + shells.length > 0) {
+      console.log('');
+      console.log(
+        `Leftover from a killed or crashed Playwright run: ${workers.length} worker(s) and ` +
+          `${shells.length} browser shell(s) holding ~${heldMb} MB. No run is active, so nothing ` +
+          'will reap them. Clear with `node scripts/e2e-runs.mjs --kill-orphans`.',
+      );
+    }
+  }
+} catch {
+  // Same contract as above: awareness only, never a reason to fail session start.
+}
+
 process.exit(0);
 
 /** Run git with the given args in `cwd` and return stdout as trimmed lines. */

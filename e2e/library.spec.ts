@@ -415,8 +415,15 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
   await page.getByTestId('home-nav-graphics').click();
   await expect(card).toBeVisible();
   await expect.poll(async () => (await framing()).cardW).toBeLessThan(wide.cardW);
+  // Poll the value actually being asserted, exactly as the wide case above does. Resizing the
+  // card and reframing the graphic inside it are two steps, not one: the box shrinks on layout,
+  // and preview/frameGraphic.ts re-measures and re-zooms afterwards. Polling only `cardW` and
+  // then reading `fill` therefore waits for the first step and asserts on the second, so a fast
+  // enough run samples the intermediate frame where the card is already narrow and the graphic
+  // is still whole-canvas - measured at fill 0.213 against this 0.6 floor. It survived this long
+  // because everything else was slow enough to hide it.
+  await expect.poll(async () => (await framing()).fill, { timeout: 5000 }).toBeGreaterThan(0.6);
   const narrow = await framing();
-  expect(narrow.fill).toBeGreaterThan(0.6);
   expect(narrow.spill).toBeLessThan(4);
 });
 

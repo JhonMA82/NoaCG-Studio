@@ -13,9 +13,21 @@
 # authenticated flows remain maintainer-only.
 name: CI
 
+# Every branch, not only main. The gate here is STRICTER than anything a laptop runs before a
+# merge (build + the sharded affected suite + the factory gates + the catalog tripwire, on a
+# clean checkout) and it costs nothing: this repo is public, so Actions minutes are free and
+# unmetered. Before this, a branch push triggered nothing at all, so the entire verification
+# burden fell on the developer's machine - measured at 59 concurrent browser shells and 35 MB
+# of free RAM on a 16 GB laptop, for an answer GitHub produces in six to nine minutes on
+# hardware nobody is trying to work on.
+#
+# `'**'` is branches only, never tags. A same-repo pull request therefore gets two runs (one for
+# the branch push, one for the PR); that is accepted rather than worked around, because the
+# alternatives all mean per-job `if:` conditions that make the gate harder to read than a
+# duplicate run is to ignore. `pull_request` stays because a FORK's branch never pushes here.
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
 
 # Superseded runs cancel on branches and PRs, but never on main: a landed commit must keep

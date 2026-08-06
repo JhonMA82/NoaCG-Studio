@@ -159,6 +159,12 @@ const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin
 // numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
 // width budget silently moves under 430 designs at once.
 const CATALOG_TRIGGERS = [
+  // The gate's own config. It is the one file that can change what the tripwire MEASURES -
+  // its worker count, its timeouts, its offline pinning - while touching no catalog source at
+  // all, so no other rule here would ever raise it. Left unmapped it escalates to `full`
+  // instead, and under sprint focus a `full` escalation deliberately drops the catalog
+  // coupling: the change to the catalog gate would be the one change that never runs it.
+  /^playwright\.catalog\.config\.ts$/,
   /^src\/templates\//,
   /^src\/blocks\//,
   /^src\/assets\//,
@@ -174,7 +180,13 @@ const args = process.argv.slice(2);
 // forces the honest full escalation for a one-off. Mapped subsets are NOT intersected - they
 // are already small and precisely targeted, and intersecting would run zero relevant specs
 // for a paused-area fix. The nightly still runs everything.
-const sprintFocus = process.env.E2E_SPRINT_FOCUS === '1' && !args.includes('--no-focus');
+// `--focus` is the same switch as the env var, spelled so an npm script can carry it: Windows
+// runs package scripts through cmd.exe, where the posix `VAR=1 cmd` prefix is a syntax error,
+// so the env-only form could never be baked into `npm run` and every local run had to remember
+// it by hand. It could not, which is why a core change on this laptop kept escalating to the
+// full 103-file suite while CI - where ci.yml does set the env - ran the 34-file focus set.
+const sprintFocus =
+  (process.env.E2E_SPRINT_FOCUS === '1' || args.includes('--focus')) && !args.includes('--no-focus');
 // --json prints the plan as one machine-readable object and runs nothing, which is how CI
 // decides between "skip the suite", "run these specs" and "run everything". It implies
 // --list, and it silences the human commentary: in this mode stdout is a data channel and a

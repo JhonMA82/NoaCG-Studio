@@ -7,8 +7,11 @@
 //  2. Commit messages follow the house rules (AGENTS.md "Git"): no Co-Authored-By trailers,
 //     no AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
-//  4. The e2e suites only start when their port is free - Playwright would otherwise reuse
-//     whatever server is already there, with whatever env it was started with.
+//  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
+//     several worktrees are normally live and each config asks for 4 workers, so two overlapping
+//     runs exhaust a 16 GB laptop rather than sharing it - and (b) their port is free, since
+//     Playwright would otherwise reuse whatever server is already there, with whatever env it
+//     was started with.
 //
 // The commit-message scan works on the raw command text (the message is embedded in it via
 // -m / heredoc / here-string), so it is quoting-style agnostic.
@@ -17,6 +20,7 @@ import { spawnSync } from 'node:child_process';
 import { readHookInput, deny } from './lib.mjs';
 import { devPort, livePort } from '../dev-port.mjs';
 import { isPortBusy } from '../port-probe.mjs';
+import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -108,7 +112,30 @@ if (isCommit) {
 
 // --- 4. E2E preflight ----------------------------------------------------------------------
 
-if (/\btest:e2e\b/.test(command) || /\bplaywright\s+test\b/.test(command)) {
+if (invokesE2e(command)) {
+  // 4a. Nobody else's suite may already be running. Each config asks for 4 workers, so two
+  //     checkouts starting in the same minute asks a 16 GB laptop for eight parallel browser
+  //     workers and two Vite servers. Measured on this machine: 59 live browser shells,
+  //     10.9 GB held by the test processes alone, and available RAM down to 35 MB - at which
+  //     point every foreground app is being paged out and the whole box crawls. Neither run is
+  //     at fault; the overlap is, and no session can see it from inside its own checkout.
+  //     Serialising costs nothing: two suites sharing one box do not finish sooner than two
+  //     run back to back, they just make everything else unusable while they do it.
+  //     A command that already routes through the waiter serialises itself, so it is exempt:
+  //     blocking it would be refusing the very fix this rule recommends.
+  const selfQueuing = /e2e-runs\.mjs\s+--wait/.test(command) || /\btest:e2e[\w:]*:queued\b/.test(command);
+  const others = selfQueuing ? [] : activeRuns({ exclude: process.cwd() });
+  if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
+    deny(
+      `Blocked: a Playwright run is already active in another checkout of this repo:\n${describeRuns(others)}\n` +
+        'Two suites on one machine exhaust its RAM rather than sharing it, and both runs get slower ' +
+        'and flakier (see AGENTS.md "Verifying changes" gotchas).\n' +
+        'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
+        'or queue this run behind it with `npm run test:e2e:queued` / `npm run test:e2e:affected:queued`.\n' +
+        'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
+    );
+  }
+
   const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
   const port = live ? livePort() : devPort();
   if (await isPortBusy(port, 750)) {
@@ -124,6 +151,28 @@ if (/\btest:e2e\b/.test(command) || /\bplaywright\s+test\b/.test(command)) {
 }
 
 process.exit(0);
+
+/**
+ * Does this command actually START an e2e run, as opposed to merely mentioning one?
+ *
+ * Matching the bare string anywhere in the text was wrong in a way that bites daily: `grep -n
+ * "npm run test:e2e" AGENTS.md` contains the phrase and starts nothing, and denying it teaches
+ * everyone to route around the guard. So the check is positional - the command is split on
+ * shell separators and each segment is tested at its FIRST token, where an invocation has to
+ * live. A quoted argument is never in that position, which is exactly the distinction we want.
+ */
+function invokesE2e(text) {
+  return text
+    .split(/&&|\|\||[;|\n]/)
+    .map((segment) => segment.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')) // drop env prefixes
+    .some(
+      (segment) =>
+        /^(?:(?:npm|pnpm)\s+run\s+|yarn\s+)?test:e2e[\w:]*(?:\s|$)/.test(segment) ||
+        /^(?:npx\s+)?playwright\s+test(?:\s|$)/.test(segment) ||
+        // The affected/focus entry point, invoked directly rather than through its npm script.
+        /^node\s+\S*e2e-affected\.mjs(?:\s|$)/.test(segment),
+    );
+}
 
 /** Run git with the given args in this checkout and return stdout as trimmed lines. */
 function gitLines(args) {

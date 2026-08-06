@@ -130,12 +130,21 @@ Vercel build for every non-`main` branch unless the head commit message contains
 - Vercel deploys `main` without waiting for CI: a bad merge can be live for the minutes
   until the gate reddens. The repo-side fix would be deploy-on-workflow-success (CI-driven
   `vercel deploy --prebuilt` or Vercel's "only deploy when checks pass" project setting);
-  adopt it if a red-but-deployed `main` ever causes real damage. The safe-merge flow now runs
-  `npm run build` **and** `npm run test:e2e:affected` before anything lands, so `main` should
-  be red only when a merge race slips through - and both alarm classes above catch it within
-  minutes. That second command is new for a reason: until 2026-07-30 the flow gated on `build`
-  alone, which runs no e2e spec at all, and four template packs landed in a row that each
-  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. A gate that
-  cannot fail the way production fails is not a gate.
+  adopt it if a red-but-deployed `main` ever causes real damage. The safe-merge flow verifies
+  the exact commit it promotes before anything lands, so `main` should be red only when a
+  merge race slips through - and both alarm classes above catch it within minutes. Its gate
+  covers e2e for a reason: until 2026-07-30 the flow gated on `build` alone, which runs no
+  e2e spec at all, and four template packs landed in a row that each passed it while leaving
+  `main` red for two hours on `catalog-baseline.spec.ts`. A gate that cannot fail the way
+  production fails is not a gate.
+- **That verification now happens in CI, not on the developer's machine.** `ci.yml` triggers
+  on every branch push (not just `main`), so safe-merge's Phase 3 waits for the run whose head
+  SHA is exactly the commit being promoted and cites it, falling back to the local
+  `npm run build` + `npm run test:e2e:focus:queued` pair only when no such run exists. This is
+  more coverage, not less: CI adds the factory gates and runs the affected plan across eight
+  shards on a clean checkout, in six to nine minutes of somebody else's compute. The local
+  pair was costing far longer than that and taking the machine out of service while it ran -
+  measured on a Ryzen 7 5800H / 16 GB laptop at 59 concurrent browser shells and 35 MB of
+  free RAM, which is a paging laptop, not a test run.
 - The drift check trusts `version.json`; if the endpoint is unreachable the check alerts
   rather than guessing.

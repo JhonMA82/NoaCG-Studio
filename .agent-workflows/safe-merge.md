@@ -308,33 +308,66 @@ branch - it is never where conflicts get resolved.
    continuing; never verify a half-finished merge.
 2. Pin the commit under test: `VERIFIED_SHA = git rev-parse <branch>` and state it. The exact
    commit that passes verification must be the exact commit that becomes `main`.
-3. Verify on the integrated branch, in the worktree, BOTH of:
+3. Verify the integrated branch. **CI is the primary gate; the local pair is the fallback.**
+
+   `ci.yml` triggers on every branch push, and what it runs is strictly MORE than a laptop
+   can: `npm run build`, the same affected plan sharded across eight runners, the factory
+   gates, and the catalog tripwire when the plan raises it - all on a clean checkout. It
+   finishes in six to nine minutes and costs nothing (the repo is public, so Actions minutes
+   are free). Running the same work locally instead buys no extra confidence and takes the
+   machine out of service while it happens.
+
+   **Route A - CI (prefer this).** Push the integrated branch and let the gate run there:
+
+       git push origin <branch>
+       gh run watch --exit-status $(gh run list --branch <branch> --commit <VERIFIED_SHA> \
+         --limit 1 --json databaseId --jq '.[0].databaseId')
+
+   Accept the run ONLY when all of these hold, and state in the report which run you are
+   citing:
+
+   - its head SHA is **exactly** `VERIFIED_SHA` - not the branch tip, not "the latest run on
+     this branch". The Phase 2 `git merge main` produced a new commit, so a run from before
+     it proves nothing about the tree being promoted;
+   - its conclusion is `success` (a cancelled or skipped run is not a pass);
+   - the `CI gate` job itself is green - that job is the one that requires every other, so a
+     green gate is the whole verdict in one place.
+
+   If no run exists for that SHA, or it is red, or you cannot positively confirm the SHA
+   matches, use Route B. A red CI run means fix-or-abort exactly as a red local gate does.
+
+   **Route B - locally, when CI is unavailable or you need an answer without pushing.**
+   Both of:
    - `npm run build` - typecheck, lint, bundle.
-   - `npm run test:e2e:affected` - the specs covering this branch's diff, plus the catalog
-     calibration gate when the catalog moved. Run it even when the change looks harmless:
-     "it's only templates" is exactly the branch that went red, and the script decides what
-     "affected" means, not the person merging. It escalates to the full suite by itself on a
-     shared-core or unmapped change, so a wide change is not a reason to skip it - it is the
-     reason it takes longer. It reports and skips cleanly when a diff touches nothing the
-     suite covers, so a docs-only branch costs seconds.
+   - `npm run test:e2e:focus:queued` during the student-release sprint, or
+     `npm run test:e2e:affected:queued` outside it - the specs covering this branch's diff,
+     plus the catalog calibration gate when the catalog moved. Run it even when the change
+     looks harmless: "it's only templates" is exactly the branch that went red, and the
+     script decides what "affected" means, not the person merging. It reports and skips
+     cleanly when a diff touches nothing the suite covers, so a docs-only branch costs
+     seconds.
 
-   Anything red means fix-or-abort - do not proceed to main. (Any fix creates a new commit;
-   re-record `VERIFIED_SHA` and re-run BOTH.) Playwright starts its own offline-pinned dev
-   server; a server already running on this checkout's port makes the guard hook refuse, so
-   stop that one first rather than letting the specs reuse it.
+     The `:queued` form waits for any Playwright run in ANOTHER checkout to finish before
+     starting (`scripts/e2e-runs.mjs`). Several worktrees are normally live and each config
+     asks for four workers, so two overlapping suites exhaust the machine's RAM instead of
+     sharing it - measured at 59 browser shells and 35 MB free. The `:focus` form runs the
+     34-file student-critical set where a bare `affected` run would escalate to all 103,
+     which is the difference between a few minutes and most of an hour on a core change.
 
-   If the branch has an open PR whose CI is green on exactly `VERIFIED_SHA`, that CI run is
-   stronger evidence than the local pair (it runs the same gates plus the full sharded suite
-   on a clean checkout) - say so and let it stand in for the affected run. It does NOT
-   substitute for anything if the commit moved afterwards.
+   Anything red on either route means fix-or-abort - do not proceed to main. Any fix creates
+   a new commit, so re-record `VERIFIED_SHA` and re-verify it, whichever route you used.
+   Playwright starts its own offline-pinned dev server; a server already running on this
+   checkout's port makes the guard hook refuse, so stop that one first rather than letting
+   the specs reuse it.
 
-   **A run you already did in this session counts too, under conditions worth checking one by
-   one.** A branch that changes `package.json` escalates to the whole suite, so re-running it
-   minutes later on a byte-identical commit costs a quarter of an hour to reproduce a result
-   you are holding. Cite the earlier run in place of a fresh one ONLY when ALL of these hold,
-   and say in the report which run you are citing and when it finished:
+   **A local run you already did in this session can stand in for Route B**, under conditions
+   worth checking one by one. A branch that changes `package.json` escalates to the whole
+   suite, so re-running it minutes later on a byte-identical commit costs a quarter of an hour
+   to reproduce a result you are holding. Cite the earlier run in place of a fresh one ONLY
+   when ALL of these hold, and say in the report which run you are citing and when it finished:
 
-   - it was `npm run test:e2e:affected` (whatever scope the mapper chose) and it finished GREEN;
+   - it was `npm run test:e2e:affected` or one of its `:focus` / `:queued` forms (whatever
+     scope the mapper chose) and it finished GREEN;
    - it ran in the SAME worktree, so the same `node_modules` and the same dev port;
    - it ran on exactly `VERIFIED_SHA` - AFTER the Phase 2 `git merge main`, never before it,
      because that merge produced a different tree;

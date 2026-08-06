@@ -16,12 +16,19 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 7_000 },
   fullyParallel: true,
-  workers: 4,
+  // Same memory-bound reasoning as playwright.config.ts, and this is the gate that needs it
+  // most: it benches every catalog variant, so it runs longest and holds the machine hostage
+  // for the whole of it. Overridable with E2E_WORKERS on a box with more RAM.
+  workers: process.env.CI ? 4 : Number(process.env.E2E_WORKERS) || 3,
   retries: 0,
   reporter: [['list']],
+  // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
+  // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',
   use: {
     baseURL: base,
+    // `retries: 0` above means on-first-retry never fires, so this costs nothing either way -
+    // it is left as the honest description of when a trace would be wanted.
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
