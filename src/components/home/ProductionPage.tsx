@@ -58,6 +58,7 @@ import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
 import ProductionExportDialog from './ProductionExportDialog';
 import { FieldRow } from '../fields/FieldControl';
+import { isImageAsset } from '../../assets/assetUtils';
 import BrandLogo from '../BrandLogo';
 import { copyLink } from './copyLink';
 import { IconDownload, IconLink, IconTv } from '../icons';
@@ -549,6 +550,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
 
   const descriptors = previewTemplate ? fieldDescriptors(previewTemplate.fields) : [];
   const editingView = editingCue ? cueView(editingCue) : null;
+  // The graphic's own picture assets, so an IMAGE field is actually pickable here. Without
+  // them the control renders a select whose only option is "None" — which is how a match
+  // board's two crest slots came to be unreachable from the cockpit while the hosted page
+  // could set them, exactly the divergence docs/PLAYOUT_DASHBOARD.md forbids. Derived the same
+  // way the published panel derives its own list (control/hostedControl.ts), so the two
+  // surfaces offer the same pictures.
+  // Uploading is deliberately NOT offered: an upload has to land in the saved graphic's
+  // assets, which is the editor's job, and adding it here would be a second write path into a
+  // document the production only references.
+  const cueImages = previewTemplate
+    ? previewTemplate.assets.filter((a) => isImageAsset(a.path)).map((a) => ({ value: a.path }))
+    : [];
   const canTake = !!selectedCue;
 
   /** Rows the edited cue can load (D3's binding): any production dataset with at least one
@@ -884,6 +897,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
                   value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
                   onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
                   testIdPrefix="cue-field"
+                  images={cueImages}
+                  imageHint="Pictures come from the graphic itself — add one in the editor's Assets tab."
                 />
               ))}
               <label className="pd-field pd-field-note">
@@ -939,7 +954,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: 'data' |
               <span
                 className="pd-state-chip"
                 data-testid="machine-state-chip"
-                title="The live graphic's current state — what the greying is judged against"
+                // A multi-group graphic's label is longer than the chip, so the full text has
+                // to stay reachable on hover — the chip truncates rather than reflowing.
+                title={
+                  !selectedLayerLive
+                    ? "The live graphic's current state — what the greying is judged against"
+                    : `${stateLabel ?? 'no state reported yet'} — the live graphic's current state, what the greying is judged against`
+                }
               >
                 {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
               </span>

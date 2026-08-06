@@ -4356,12 +4356,23 @@ h2 + .lib-row,
   color: #ef4444;
   letter-spacing: 0.06em;
 }
+/* The machine's current state. A quiz has ONE group and reads "Locked in"; a scorebug has
+   four and reads "main: Enter · clock: At period start · play: In play · result: Live" - about
+   65 characters. The chip was written against the one-group case, so it had no width bound at
+   all and a sports cue stretched the actions header until it pushed the row out of shape.
+   Cap it, keep it on one line, and mark a truncation honestly (the full text is in the title
+   attribute) rather than letting it silently reflow the panel. */
 .pd-state-chip {
   font-size: 12px;
   color: var(--accent);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 1px 10px;
+  max-width: 100%;
+  min-width: 0;                    /* a flex item refuses to shrink below content without this */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pd-snap { font-size: 12px; max-width: 220px; }
 .pd-actions-section h4 {

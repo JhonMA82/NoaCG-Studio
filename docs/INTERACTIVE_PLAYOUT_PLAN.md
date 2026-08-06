@@ -252,11 +252,76 @@ verification caught and fixed:** the links popover sat UNDER the shared menu bac
 production; and the live spec's first Take assertions were vacuous (markup defaults + a
 locally-fed chip) — replaced with a renderer-side computed-opacity poll.
 
-### Phase 4 — Generic sports pilot. Status: Not started
+### Phase 4 — Generic sports pilot. Status: In progress
 Score steppers, clock verbs from the production page, period/status/lineup coverage; verify
 score + clock through the log on `/output` AND on the exported controller (local relay).
 `numerals.mjs` after the score-field kind change. No sport-specific rules, stats, brackets,
 hardware, or external APIs.
+
+**Landed so far (2026-08-06), four commits:**
+- **The field-type gate first** (`76330d71`). A type declares its fields and each design emits
+  them, and NOTHING compared the two beyond counting — the count matched, every `id="fN"`
+  existed, and a score declared as a number could still ship as a text box. So the gate went in
+  before the change it had to see: `e2e/graphic-types.spec.ts` + `scripts/factory.mjs` now
+  compare the emitted ftype against `typeFieldsToSpx`. Titles are deliberately excluded (a
+  design may relabel for its own vocabulary — mr04, rs04). Mutation-tested both ways.
+  It also found `sports.spec.ts` mapped to NO runner list at all: 13 tests over the match
+  clock, the colour lift and the period rebuild only ever ran in the nightly. Now mapped.
+- **Scores are `number` fields** (`218a773f`) across sb01–sb20 — the two sports types and both
+  field-contract builders, which is the dual declaration the gate above now holds together.
+  The CLOCK deliberately stays text (`matchClockUpdate` parses on `':'`). Accepted cost, written
+  down: no composite score ("3 (4)", "241/6"). esports (`es01–es04`) is deliberately EXCLUDED —
+  different pack, and it is the one path where `lineCount` uses a textfield count as a proxy for
+  an fN index range.
+- **The stress that would have gone missing, restored in the same commit.** `runtimeBench`
+  doubles text to widen it, which cannot widen a number ("0" → "0 0"), so the calibration
+  tripwire silently stopped stressing scores the moment they stopped being textfields — a gate
+  getting GREENER while covering less, and nothing else covers it (type-floor measures font
+  size, overflow-sweep runs at design defaults, `numerals.mjs` substitutes digits without
+  changing how many there are). Calibrated to three digits: four trips sb10's doubled club name,
+  but no sport produces a four-digit score. `template-escaping.spec.ts` and the fixed-strip test
+  had the identical hole and are fixed with it.
+- **Three scoreboard recovery defects** (`41e9a003`), all found by driving the drill rather than
+  reasoning about it, each red independently before its fix and re-checked by disabling it:
+  (1) the club-colour and period holders hid INLINE, and the entrance reset clears inline props
+  off every descendant — so recovery itself printed `#f6a623` and `Q1 | 24 | 19` on air. They
+  hide in the stylesheet now (the rule `cornerBug/statusParts.ts` already wrote down).
+  (2) `.scoreboard-final` / `-break` are CLASSES, which the visual reset never touches and a
+  snap skips for a group already at its initial — a board recovered mid-match came back wearing
+  FULL TIME while the machine said live. `update()` repaints them from the machine (the quiz's
+  `paintQuizState` precedent), so a genuinely finished board keeps its treatment.
+  (3) sb01–sb04 draw no clock but their type declared a clock group and Start/Stop buttons; the
+  count-direction guard is skipped when there is no element, so one press left a 1 s interval
+  running for the life of the graphic. Group and buttons dropped; `startMatchClock` now refuses
+  outright without a clock element.
+- **Production-page reachability**: image fields were passed no picture list on the cockpit at
+  all, so a match board's two crest slots were settable from the hosted page and NOT from the
+  production page — the divergence `docs/PLAYOUT_DASHBOARD.md` forbids. Fixed, deriving the list
+  exactly as `hostedControl.ts` does (no upload: that write path belongs to the editor). The
+  state chip had no width bound because the quiz has ONE group and a scorebug has four
+  (~65 characters), so a sports cue stretched the actions header.
+
+**Verification so far:** build green; `graphic-types` (ftype gate, mutation-tested);
+`sports` incl. the new recovery drill; `control`, `wave2`, `template-escaping`,
+`production-controls` (incl. a new match-board test covering clockReset, the interval pair, the
+four-group chip and the crest pickers), `production-data`, `snap-recovery`; catalog tripwire
+22/22; `type-floor`, `field-coverage`, `numerals`, `overflow-sweep --baseline` and the scoreboard
+`l3-sweep` all exit 0. Source catalog baseline re-recorded twice (16 boards for the ftype, all 20
+for the CSS/JS); **the render baseline never moved**, which is the proof the holder fix is
+invisible on screen.
+
+**Still to do before this phase is even Implemented:** the A/B-side team load gesture in the Data
+workspace (one dataset row is one team; the recommended shape is a side-token strip at the
+ProductionPage call site over the UNCHANGED `datasetValuesForFields`, plus a two-button A|B
+control and a reshaped `teams` preset — no model or persisted-format change); the live
+`/output` proof modelled on `e2e/configured/quiz-output.spec.ts`; the exported-controller proof
+over the local relay; and the visual acceptance pack.
+
+**Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
+last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
+to), and every Take/Update/Snap re-seeds the running clock because the wire sends the whole
+`cue.values` — so a score bump on air pulls the clock back. Also `clockReset` returns to the
+design's baked `data-start`, not the cue's clock value; asserting otherwise would encode a bug.
 
 ### Phase 5 — Audience questions/comments. Status: Planned (design done, below)
 Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable
