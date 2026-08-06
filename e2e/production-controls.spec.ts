@@ -19,6 +19,38 @@ async function productionFor(page: Page, name: string): Promise<void> {
   await expect(page.getByTestId('production-page')).toBeVisible();
 }
 
+test('the production page re-asks for machine state, so a change it did not cause still reaches the chip', async ({ page }) => {
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Quiz Night');
+
+  const chip = page.getByTestId('machine-state-chip');
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+
+  // DRIVE THE MACHINE BEHIND THE PAGE'S BACK. The stage posts one `{cmd:'state'}` after each
+  // command it applies, so the page's picture of the machine is only ever as fresh as its own
+  // last command. Anything that moves the graphic WITHOUT going through this page — a timer
+  // arrow firing in the runtime, another operator's device driving the shared log, or simply a
+  // reply that lost the race with the entrance it was asking about — leaves the chip stale,
+  // and the ⚡ buttons are greyed against that same stale state (`isEventLegal`).
+  //
+  // The /output renderer has re-asked every second since it shipped (src/output/main.ts); this
+  // surface had no poll at all, which is why a state that arrived wrong stayed wrong until the
+  // operator pressed something else. Measured as a red quiz-pilot run whose chip read "Off"
+  // through eighteen consecutive polls with no correction ever arriving.
+  const handle = await page.locator('[data-testid="program-stage"] iframe').elementHandle();
+  const frame = await handle!.contentFrame();
+  await frame!.evaluate(() => {
+    (window as unknown as { noacgDispatch: (e: string, p?: unknown) => void }).noacgDispatch(
+      'select',
+      { f6: 'B' },
+    );
+  });
+
+  // Nobody told the page. It has to ask again — and the chip is what says it did.
+  await expect(chip).toHaveText('Answer selected', { timeout: 5_000 });
+});
+
 test('quiz actions on the production page: greying, select/lock, live update keeps the lock, snap recovers the verdict', async ({ page }) => {
   await createProject(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');

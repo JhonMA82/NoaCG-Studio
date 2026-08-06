@@ -533,6 +533,14 @@ e2e/layout.spec.ts.
   the same two functions the published output URL is built from, fed the same
   `ControlSendItem[]` the verbs send. Both monitors on both surfaces are one of these, which
   is what makes a monitor unable to disagree with air without the renderer itself being wrong.
+  **It RE-ASKS for machine state once a second**, as `/output` always has (src/output/main.ts).
+  The stage posts one `{cmd:'state'}` per applied command, so a host's picture of the machine
+  was otherwise only as fresh as its OWN last command: a timer arrow firing in the runtime,
+  another device driving the shared log, or a reply that lost the race with the entrance it
+  asked about all left it stale indefinitely - and the ⚡ buttons grey against that state
+  (`isEventLegal`), so the dashboard offered the wrong moves until something else was pressed.
+  The guard is the SUBSCRIBER (`onState`), not mount-time config, so a preview monitor nobody
+  reads state from costs one boolean per second. Pinned by e2e/production-controls.spec.ts.
   **home/ProgramStage** is the app-side wrapper that builds the payload from the local show
   first (it was the rehearsal stage; rehearsal is retired - docs/PLAYOUT_DASHBOARD.md §6).
 - **StylePanel** - reads/writes the :root style contract (src/templates/AGENTS.md): colours,

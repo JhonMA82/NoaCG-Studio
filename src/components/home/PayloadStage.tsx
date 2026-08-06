@@ -47,9 +47,31 @@ const PayloadStage = forwardRef<
     });
     stage.current = built;
     built.onState((graphic, state) => onStateRef.current?.(graphic, state));
+
+    // RE-ASK FOR MACHINE STATE, once a second, exactly as the published /output renderer has
+    // always done (src/output/main.ts). The stage posts a single `{cmd:'state'}` after each
+    // command it applies, so without this a host's picture of the machine is only ever as
+    // fresh as its OWN last command — and anything that moves the graphic otherwise leaves it
+    // stale indefinitely: a timer arrow firing inside the runtime, another operator's device
+    // driving the shared log, or a reply that lost the race with the entrance it asked about.
+    //
+    // That is not a cosmetic staleness. The host greys its ⚡ event buttons against this state
+    // (`isEventLegal`), so a wrong answer here makes the production dashboard offer the wrong
+    // moves until the operator happens to press something. The renderer self-corrected within
+    // a second; the app-side monitors did not, which is the asymmetry this closes.
+    //
+    // `requestState` drops the ask for a graphic that has not loaded, so this is safe from the
+    // first tick. The guard is the SUBSCRIBER, not mount-time config: a monitor nobody is
+    // reading state from (every PREVIEW stage) does no work beyond one boolean per second.
+    const poll = window.setInterval(() => {
+      if (!onStateRef.current) return;
+      for (const graphic of built.graphics) built.requestState(graphic);
+    }, 1000);
+
     const ro = new ResizeObserver(() => built.rescale());
     ro.observe(root);
     return () => {
+      window.clearInterval(poll);
       ro.disconnect();
       stage.current = null;
       built.destroy();
