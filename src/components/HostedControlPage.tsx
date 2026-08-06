@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { eventButtons, eventLegality, fieldDescriptors, isEventLegal } from '../control/controlModel';
+import {
+  eventButtons,
+  eventLegality,
+  fieldDescriptors,
+  isEventLegal,
+  machineStateGroups,
+} from '../control/controlModel';
 import {
   clearAllCuesOnWire,
   clearCueOnWire,
@@ -487,9 +493,20 @@ function HostedCueEditor({
     onPreview({ ...currentValues(), ...data });
   };
 
+  // The chip names states the way the AUTHOR named them, exactly as the in-app cockpit does
+  // (ProductionPage's `stateName`). This page used to print the raw state ids off the wire, so
+  // the same graphic on the same dashboard design read "sealed" here and "Locked, choice
+  // hidden" there — and this is the surface a student operates WITHOUT the app, where the id
+  // is the one vocabulary nobody has seen. The names travel inside the template already
+  // (`machine.controls`), so nothing new is fetched or published to say them.
+  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
+  const stateName = (groupId: string, stateId: string) =>
+    stateGroups.find((g) => g.id === groupId)?.states.find((s) => s.id === stateId)?.name ?? stateId;
   const stateLabel = liveState
     ? Object.entries(liveState.groups)
-        .map(([gid, sid]) => (Object.keys(liveState.groups).length > 1 ? `${gid}: ${sid}` : sid))
+        .map(([gid, sid]) =>
+          Object.keys(liveState.groups).length > 1 ? `${gid}: ${stateName(gid, sid)}` : stateName(gid, sid),
+        )
         .join(' · ')
     : null;
 
