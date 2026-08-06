@@ -349,12 +349,18 @@ one path where `lineCount` uses a textfield count as a proxy for an fN index ran
 after that proxy is fixed); no sport-specific rules, stats, brackets, hardware or external feeds,
 per the phase's own scope line.
 
-**A follow-up this phase's new gate exposed and did not fix:** `ftypeFor` maps `role: 'hidden'`
-straight to SPX ftype `hidden`, but the role means "input-only, in a display:none holder" — the
-operator still TYPES a countdown's minutes. Nothing ships the wrong value today (the only two such
-fields belong to categories that write their fields by hand), so it is declarative drift; the new
-assertion skips those fields with the reason written down, and removing the skip is the
-regression test for whoever fixes it.
+**The follow-up this phase's new gate exposed — now CLOSED (2026-08-06).** `ftypeFor` mapped
+`role: 'hidden'` straight to SPX ftype `hidden`, conflating two different things: the role means
+"input-only, in a display:none holder" (the operator still TYPES a countdown's minutes), while
+the ftype takes a field away from every operator surface. The ftype now comes from the field's
+`kind` for every role, the conformance spec's skip is gone (removing it was the regression test),
+and the two durations that were declared as numbers all along became numbers in practice — so the
+countdown and holding-screen durations get +/− steppers on all four control surfaces, the same
+argument that made the scores numbers. Landed with the rest of the field-declaration work: the
+esports series score became a number, `visibleTextFields` replaced the `ftype === 'textfield'`
+proxy the phase named as blocking esports, every hidden data holder in the catalog moved onto the
+`.noacg-data-source` rule (the scoreboards included — the boards' own copy of that rule is gone),
+and `e2e/catalog-baseline.spec.ts` gained the gate that fails on any inline-hidden holder.
 
 **Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
 last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
