@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+// Validate every GitHub Actions workflow against the Actions schema, locally, in the build gate.
+//
+// Why this exists: a workflow file is the one thing in this repository that ONLY GitHub could
+// check. `npm run build` never looked at `.github/`, so an edit there was verified by pushing and
+// watching - which works right up until it doesn't. On 2026-08-06 an Actions incident throttled
+// webhook delivery to ~15%; two pushes of a `ci.yml` change produced no run at all, and there was
+// no way left to find out whether the file was even well-formed.
+//
+// The validator is not a YAML parser with extra steps. Measured against deliberate mutations of
+// our own ci.yml, it catches a misspelled key (`runs-onnn`), a wrong-typed value
+// (`timeout-minutes: notanumber`), and - the one that matters most here - a `needs:` naming a job
+// that does not exist. That last class is exactly what editing the CI gate's dependency set can
+// introduce, and nothing else we run would see it.
+//
+// It is a devDependency rather than an `npx --yes` call on purpose: `npm run build` must not need
+// the network. GPL-3.0-only, used as a build-time CLI and never bundled - compatible with this
+// project's AGPL-3.0.
+import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const workflowDir = path.join(repoRoot, '.github', 'workflows');
+
+// Run the CLI's own module with this Node, not the `node_modules/.bin` shim. On Windows that
+// shim is a `.cmd`, and Node refuses to spawn a batch file without `shell: true` (EINVAL) - and
+// reaching for a shell to fix that puts every path through cmd.exe quoting for no gain.
+const cli = path.join(repoRoot, 'node_modules', '@action-validator', 'cli', 'cli.mjs');
+
+let files;
+try {
+  files = readdirSync(workflowDir)
+    .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+    .sort();
+} catch (error) {
+  console.error(`Cannot read ${workflowDir}: ${error.message}`);
+  process.exit(1);
+}
+
+// An empty workflow directory is a mistake, not a pass. Every CI answer this repo relies on -
+// the per-change gate, the nightly sweep, the deployment watch - lives in these files, so a run
+// that validates nothing must say so loudly rather than exit 0.
+if (files.length === 0) {
+  console.error(`No workflow files found in ${workflowDir} - expected at least one.`);
+  process.exit(1);
+}
+
+let failed = 0;
+for (const name of files) {
+  const target = path.join(workflowDir, name);
+  const result = spawnSync(process.execPath, [cli, target], { cwd: repoRoot, encoding: 'utf8' });
+  if (result.error) {
+    console.error(`Could not run action-validator: ${result.error.message}`);
+    console.error('Is @action-validator/cli installed? Try `npm install`.');
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    failed += 1;
+    console.error(`\n.github/workflows/${name} is invalid:`);
+    // The validator reports as JSON on stdout; print it as-is rather than reformatting, so the
+    // paths and line numbers it gives are the ones a search will find.
+    process.stderr.write(`${(result.stdout || result.stderr || '').trim()}\n`);
+  }
+}
+
+if (failed > 0) {
+  console.error(`\nWorkflow validation failed: ${failed} of ${files.length} file(s).`);
+  process.exit(1);
+}
+
+console.log(`Workflows OK: ${files.length} validated (${files.join(', ')}).`);

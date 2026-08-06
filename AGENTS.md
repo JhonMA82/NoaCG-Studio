@@ -50,6 +50,7 @@ npm run dev      # Vite dev server (landing at /, THE STUDIO AT /app: home, wiza
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
+npm run check:workflows      # what only GitHub could check: .github/workflows/*.yml (in build)
 npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
 ```
 
@@ -300,6 +301,13 @@ commands, Codex skills under `.agents/skills/`, metadata, explicit-invocation sa
 scripts, and the configured instruction-size budget. It self-discovers `AGENTS.md` and shared
 workflow files, so a new nested area or shared command needs no separate registration - only
 correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
+
+Its second step, `scripts/check-workflows.mjs`, validates every `.github/workflows/*.yml` against
+the GitHub Actions schema. That used to be the one thing only GitHub could check, which is fine
+until it isn't: during the 2026-08-06 Actions outage, webhook delivery was throttled hard enough
+that two pushes of a `ci.yml` change produced no run at all. It catches a misspelled key, a
+wrong-typed value, and a `needs:` naming a job that does not exist - the last being exactly what
+editing the CI gate's dependency set can introduce.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
