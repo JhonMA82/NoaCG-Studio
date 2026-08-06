@@ -28,7 +28,6 @@
 
 import type { SpxField, SpxTemplate } from '../../model/types';
 import { definitionScriptBlock } from '../../model/spxDefinition';
-import { SCOREBOARD_SOURCE_CSS } from './scorebugShared';
 import { resolveEasing } from '../../model/easings';
 import {
   resolveOptions,
@@ -39,6 +38,8 @@ import {
 import {
   baseSettings,
   computeScale,
+  DATA_SOURCE_CLASS,
+  dataSourceCss,
   documentHtml,
   maxTextWidthCss,
   resetCanvasCss,
@@ -285,9 +286,7 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
   text-wrap: balance;              /* wrapped rows get even lengths */
 }
 
-/* ── Data holders ── */
-${SCOREBOARD_SOURCE_CSS}
-
+${design.html.includes(DATA_SOURCE_CLASS) ? `\n${dataSourceCss}\n` : ''}
 /* ── Design ── */
 ${design.css}
 `;
