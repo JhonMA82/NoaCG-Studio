@@ -98,12 +98,15 @@ export interface SbMeta {
   uicolor: string;
 }
 
-/** The four fixed scoreboard fields — every variant emits exactly these. */
+/** The four fixed scoreboard fields — every variant emits exactly these.
+ *  The scores are `number` so every control surface gives them +/− steppers: a score is bumped
+ *  far more often than it is typed, and adding a goal should be one press. See the field-kind
+ *  note on the scorebug contract in scorebugShared.ts for what that costs. */
 const SB_FIELDS: SpxField[] = [
   { field: 'f0', ftype: 'textfield', title: 'Team A', value: 'HOME' },
-  { field: 'f1', ftype: 'textfield', title: 'Score A', value: '0' },
+  { field: 'f1', ftype: 'number', title: 'Score A', value: '0' },
   { field: 'f2', ftype: 'textfield', title: 'Team B', value: 'AWAY' },
-  { field: 'f3', ftype: 'textfield', title: 'Score B', value: '0' },
+  { field: 'f3', ftype: 'number', title: 'Score B', value: '0' },
 ];
 
 /** The scoreboard runtime: the standard scaffold plus an on-air score-pop in update(). */

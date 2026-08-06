@@ -291,6 +291,11 @@ test('long club names never change a fixed strip’s height, and never leave the
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
     const LONG = 'Borussia Mönchengladbach Reserves II';
+    // A score widens by DIGIT COUNT, not by a long word, so it needs its own worst case — and
+    // it needs one at all only because the scores became number fields: a filter on textfield
+    // alone silently stopped stressing them, leaving a strip that grows on the first
+    // three-figure basketball score to pass this test forever.
+    const BIG_SCORE = '188';
     const FIXED_STRIPS = ['sb05', 'sb06', 'sb07'];
     const out = [];
     for (const id of ${JSON.stringify(SCOREBOARD_IDS)}) {
@@ -298,7 +303,10 @@ test('long club names never change a fixed strip’s height, and never leave the
       const box = d.querySelector('.scoreboard-box');
       const before = box.getBoundingClientRect();
       const payload = {};
-      for (const f of tpl.fields) if (f.ftype === 'textfield') payload[f.field] = LONG;
+      for (const f of tpl.fields) {
+        if (f.ftype === 'textfield') payload[f.field] = LONG;
+        else if (f.ftype === 'number') payload[f.field] = BIG_SCORE;
+      }
       w.update(JSON.stringify(payload));
       await sleep(150);
       const after = box.getBoundingClientRect();

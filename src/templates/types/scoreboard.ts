@@ -44,9 +44,9 @@ export const scoreboardType: GraphicType = {
   // an operator typing a new score changes a number on air and nothing else moves.
   fields: [
     { key: 'teamA', label: 'Team A', kind: 'text', value: 'HOME', role: 'line' },
-    { key: 'scoreA', label: 'Score A', kind: 'text', value: '0', role: 'line' },
+    { key: 'scoreA', label: 'Score A', kind: 'number', value: '0', role: 'line' },
     { key: 'teamB', label: 'Team B', kind: 'text', value: 'AWAY', role: 'line' },
-    { key: 'scoreB', label: 'Score B', kind: 'text', value: '0', role: 'line' },
+    { key: 'scoreB', label: 'Score B', kind: 'number', value: '0', role: 'line' },
   ],
   machine: {
     parallel: [

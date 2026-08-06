@@ -179,12 +179,22 @@ const MATCH_CONTROLS: TypeControlEvent[] = [
   { event: 'final', label: 'Full time', section: 'Match', order: 6, destructive: true },
 ];
 
-/** The six visible lines every two-team board shares, as the type's logical fields. */
+/**
+ * The four visible lines every two-team board shares, as the type's logical fields.
+ *
+ * THE SCORES ARE NUMBERS, and that is a control decision rather than a typing one: a score is
+ * bumped far more often than it is typed, so the field renderers give a `number` field +/−
+ * steppers and an operator adds a goal with one press instead of selecting "1" and typing "2".
+ * The cost is real and accepted — a number input cannot hold a composite score ("3 (4)" for a
+ * shootout, "241/6" for cricket), so those belong in the period or note line, or in a design
+ * that declares its own fields. The CLOCK stays a text field for the same reason inverted:
+ * `matchClockUpdate` parses it on ':' and "43:12" is not a number.
+ */
 const TEAM_LINES: TypeField[] = [
   { key: 'teamA', label: 'Team A', kind: 'text', value: 'HOME', role: 'line' },
-  { key: 'scoreA', label: 'Score A', kind: 'text', value: '0', role: 'line' },
+  { key: 'scoreA', label: 'Score A', kind: 'number', value: '0', role: 'line' },
   { key: 'teamB', label: 'Team B', kind: 'text', value: 'AWAY', role: 'line' },
-  { key: 'scoreB', label: 'Score B', kind: 'text', value: '0', role: 'line' },
+  { key: 'scoreB', label: 'Score B', kind: 'number', value: '0', role: 'line' },
 ];
 
 /** The two club colours. `color` is a reserved SPX field type, and a club colour is exactly

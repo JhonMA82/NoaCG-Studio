@@ -52,13 +52,21 @@ export interface ScorebugSamples {
  * typed). The two colours are `color` fields — one of the few places the broadcast field
  * policy's reserved types are the honest answer, because a club colour IS a constrained choice
  * and a hex string in a plain text box is not.
+ *
+ * THE SCORES ARE `number`, AND THE CLOCK IS NOT. Both halves of that are deliberate. A score is
+ * bumped far more often than it is typed, so every control surface renders a number field with
+ * +/− steppers and awarding a goal is one press instead of a select-and-retype under pressure.
+ * The clock cannot follow it: `matchClockUpdate` parses the value on ':' and no number input
+ * can hold "43:12". The cost of the score decision is real and accepted — a number input cannot
+ * carry a composite score like a shootout's "3 (4)" or cricket's "241/6", which belong in the
+ * period or note line, or in a design that declares its own fields.
  */
 export function scorebugFields(s: ScorebugSamples = {}): SpxField[] {
   return [
     { field: 'f0', ftype: 'textfield', title: 'Team A', value: s.teamA ?? 'HOME' },
-    { field: 'f1', ftype: 'textfield', title: 'Score A', value: s.scoreA ?? '0' },
+    { field: 'f1', ftype: 'number', title: 'Score A', value: s.scoreA ?? '0' },
     { field: 'f2', ftype: 'textfield', title: 'Team B', value: s.teamB ?? 'AWAY' },
-    { field: 'f3', ftype: 'textfield', title: 'Score B', value: s.scoreB ?? '0' },
+    { field: 'f3', ftype: 'number', title: 'Score B', value: s.scoreB ?? '0' },
     { field: 'f4', ftype: 'textfield', title: 'Period', value: s.period ?? '1H' },
     { field: 'f5', ftype: 'textfield', title: 'Clock', value: s.clock ?? '0:00' },
     { field: 'f6', ftype: 'color', title: 'Team A colour', value: s.colourA ?? '#f6a623' },
@@ -86,9 +94,9 @@ export interface MatchBoardSamples extends ScorebugSamples {
 export function matchBoardFields(s: MatchBoardSamples = {}): SpxField[] {
   return [
     { field: 'f0', ftype: 'textfield', title: 'Team A', value: s.teamA ?? 'HOME' },
-    { field: 'f1', ftype: 'textfield', title: 'Score A', value: s.scoreA ?? '0' },
+    { field: 'f1', ftype: 'number', title: 'Score A', value: s.scoreA ?? '0' },
     { field: 'f2', ftype: 'textfield', title: 'Team B', value: s.teamB ?? 'AWAY' },
-    { field: 'f3', ftype: 'textfield', title: 'Score B', value: s.scoreB ?? '0' },
+    { field: 'f3', ftype: 'number', title: 'Score B', value: s.scoreB ?? '0' },
     { field: 'f4', ftype: 'textfield', title: 'Period', value: s.period ?? '1H' },
     { field: 'f5', ftype: 'textfield', title: 'Clock', value: s.clock ?? '0:00' },
     { field: 'f6', ftype: 'textarea', title: 'Period breakdown', value: s.periods ?? 'Q1 | 0 | 0' },
@@ -119,9 +127,9 @@ export interface MatchStatusSamples extends ScorebugSamples {
 export function matchStatusFields(s: MatchStatusSamples = {}): SpxField[] {
   return [
     { field: 'f0', ftype: 'textfield', title: 'Team A', value: s.teamA ?? 'HOME' },
-    { field: 'f1', ftype: 'textfield', title: 'Score A', value: s.scoreA ?? '0' },
+    { field: 'f1', ftype: 'number', title: 'Score A', value: s.scoreA ?? '0' },
     { field: 'f2', ftype: 'textfield', title: 'Team B', value: s.teamB ?? 'AWAY' },
-    { field: 'f3', ftype: 'textfield', title: 'Score B', value: s.scoreB ?? '0' },
+    { field: 'f3', ftype: 'number', title: 'Score B', value: s.scoreB ?? '0' },
     { field: 'f4', ftype: 'textfield', title: 'Status', value: s.status ?? 'HALF TIME' },
     { field: 'f5', ftype: 'textfield', title: 'Note', value: s.note ?? 'Matchday 24' },
     { field: 'f6', ftype: 'color', title: 'Team A colour', value: s.colourA ?? '#f6a623' },

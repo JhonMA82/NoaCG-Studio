@@ -5,8 +5,15 @@ import { readFileSync } from 'node:fs';
 
 // Era 4: control panels. The modular engine turns a graphic's SPX fields into an operator
 // panel — text → input, number → stepper, textarea → line list, image → picker — with no
-// per-template code. (Scoreboard scores are textfields by design, so operators can type
-// "0 - 0"; a genuine number field, added below, gets the stepper.)
+// per-template code.
+//
+// SCOREBOARD SCORES ARE NUMBER FIELDS, and this note used to say the opposite. They were
+// textfields so an operator could type a composite score like "0 - 0", which reads sensibly
+// until you watch someone work: a score is bumped far more often than it is typed, and the
+// stepper turns awarding a goal into one press instead of a select-and-retype under pressure.
+// The composite case moves to the period or note line, or to a design that declares its own
+// fields. The clock deliberately did NOT follow — it parses on ':' and no number input holds
+// "43:12" (src/templates/scoreboards/scorebugShared.ts carries the full reasoning).
 
 async function createScoreboard(page: Page) {
   await createProject(page, { category: 'Scoreboards', name: 'Match Strip' });
@@ -16,8 +23,11 @@ test('control tab live-drives the preview from a field control', async ({ page }
   await createScoreboard(page);
   await page.getByTestId('dock-tab-control').click();
 
-  // Score A (f1) is a bound text field; editing it drives the preview live (Live is on).
-  await page.locator('.field-row', { hasText: 'Score A' }).locator('input').first().fill('7');
+  // Score A (f1) is a bound NUMBER field; editing it drives the preview live (Live is on).
+  // Name the value box rather than taking the first input: a stepper renders the value AND an
+  // operator step-size box, so `input` alone passed here by DOM order rather than by intent.
+  await page.locator('.field-row', { hasText: 'Score A' })
+    .locator('input.ctl-num:not([title="Step size"])').fill('7');
   const frame = page.frameLocator('iframe.preview-frame');
   await expect(frame.locator('#f1')).toHaveText('7');
 
@@ -371,7 +381,10 @@ test('round-trip: the exported control panel drives the exported graphic over th
   await panel.goto('http://cp-rt.local/controlpanel.html', { waitUntil: 'load' });
 
   // Drive from the control panel: type a score (Live is on → posts immediately), then Play.
-  await panel.locator('.field', { hasText: 'Score A' }).locator('input[type="text"]').fill('7');
+  // The score is a number field, so the panel renders a stepper — the value box and a step-size
+  // box share the class, so exclude the one that sets the increment.
+  await panel.locator('.field', { hasText: 'Score A' })
+    .locator('input.num-input:not([title="step size"])').fill('7');
   await panel.getByRole('button', { name: '▶ Play' }).click();
 
   // The graphic reacted over the channel.
