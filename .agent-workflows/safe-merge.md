@@ -353,7 +353,42 @@ branch - it is never where conflicts get resolved.
      green gate is the whole verdict in one place.
 
    If no run exists for that SHA, or it is red, or you cannot positively confirm the SHA
-   matches, use Route B. A red CI run means fix-or-abort exactly as a red local gate does.
+   matches, use Route B. A red CI run means fix-or-abort exactly as a red local gate does -
+   but first make sure it IS red, in the sense below.
+
+   **Before believing a red run: was it a verdict, or was it damaged?** A CI run can come back
+   `failure` without any of this repository's code having been executed, and the two look
+   identical in `gh run list`. Telling them apart takes one command:
+
+       gh api repos/{owner}/{repo}/actions/runs/<RUN_ID>/jobs \
+         --jq '.jobs[] | select(.conclusion != "success")
+               | {name, conclusion, steps: [.steps[] | {name, conclusion}]}'
+
+   A failing job is **damaged, not failing**, when it shows any of:
+
+   - `steps: []` - the job never started; it was killed while queued;
+   - the only failed step is `Set up job` - runner acquisition failed, before checkout;
+   - `cancelled` on a job nobody cancelled, especially several jobs cancelled in the same
+     second (that is a whole-run kill, not independent timeouts);
+   - a wall time far past its own `timeout-minutes`. That clock only runs while a job is
+     EXECUTING, so it cannot cut a job short that is stuck in the queue - a queued job can sit
+     indefinitely, and its reported start time is when it entered the queue, not when it ran.
+
+   Corroborate with `curl -s https://www.githubstatus.com/api/v2/status.json` (and
+   `.../incidents/unresolved.json` for the detail). Actions being degraded is not a rare
+   event: on 2026-08-06 a critical Actions incident ran for over five hours and produced three
+   damaged runs here, two of them on `main`, which filed the rolling red-main issue against a
+   commit that had passed every code-testing job twice.
+
+   **A damaged run is not a red run - it is NO run.** It carries no verdict about the commit,
+   so it is not fix-or-abort and there is nothing to fix: Route A simply did not produce an
+   answer, and you fall through to Route B. Say so explicitly in the report - name the run,
+   the damaged job and the incident - so the landing is never later mistaken for one that
+   ignored a red gate.
+
+   Do not sit and re-run into an ongoing outage. A re-run of a damaged run is free to try
+   once; if it also queues without starting, that is confirmation, not a reason to keep
+   waiting. Route B is the answer during an outage, and it is a complete one.
 
    **Route B - locally, when CI is unavailable or you need an answer without pushing.**
    Both of:

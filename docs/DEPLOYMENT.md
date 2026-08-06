@@ -22,6 +22,12 @@ that path. Binding: keep it updated when the pipeline changes.
    E2E job entirely, the gate counts that skip as a pass - but the plan job itself is
    *required*, so a crashed planner can never be mistaken for "nothing to test".
 
+   **What can red the gate is only what tests code:** build, the plan, the factory gates, the
+   E2E shards and the catalog tripwire. `Combined E2E report` merges the shards' artifacts into
+   a browsable HTML report, runs no test, and is deliberately outside the gate's `needs` - its
+   failure costs you a report, not a verdict, and it adds no coverage (a shard producing no
+   blob report already fails in the shard). See "A red run that is not a verdict" below.
+
    On `main`, in-progress runs are never cancelled by a newer push (branches/PRs still
    cancel), so every `main` HEAD ends with a real verdict. A red gate names the failing job in
    an error annotation; Playwright's `github` reporter annotates the exact failing tests.
@@ -76,6 +82,34 @@ settings, on by default). **Drill:** to prove the alarm path works, push a `main
 with a deliberately broken test (or run the drift job via *Actions → deploy-verify → Run
 workflow* while production is behind) and watch the rolling issue appear; revert and watch
 it close.
+
+## A red run that is not a verdict (GitHub Actions is degraded)
+
+A run can come back `failure` without a single line of this repository having executed, and in
+`gh run list` that looks exactly like a real failure. Check before you go hunting for a bug:
+
+    gh api repos/{owner}/{repo}/actions/runs/<RUN_ID>/jobs \
+      --jq '.jobs[] | select(.conclusion != "success")
+            | {name, conclusion, steps: [.steps[] | {name, conclusion}]}'
+
+The job was **damaged, not failing**, if it shows `steps: []` (killed while queued), a lone
+failed `Set up job` step (runner acquisition, before checkout), a `cancelled` nobody asked for -
+especially several jobs cancelled in the same second, which is a whole-run kill - or a wall time
+past its own `timeout-minutes`. That last one is the counter-intuitive part: **`timeout-minutes`
+only runs while a job is EXECUTING**, so it cannot cut short a job stuck in the queue, and the
+reported start time is when the job entered the queue, not when it ran.
+
+Confirm against `curl -s https://www.githubstatus.com/api/v2/status.json` (detail in
+`.../incidents/unresolved.json`). This is not rare: on **2026-08-06** a critical Actions incident
+ran over five hours and damaged three runs here, two on `main`, filing `CI is red on main`
+against a commit that had passed every code-testing job twice. It also cancelled a
+`deploy-verify` drift job, which files a *different* rolling issue for the same non-reason.
+
+**A damaged run carries no verdict.** There is nothing to fix and nothing to revert. Re-run it
+once; if the re-run also queues without starting, that is confirmation, not a reason to wait.
+The rolling issue is self-closing, so it clears on the next healthy run - comment on it rather
+than closing it by hand, so the record says why it was open. safe-merge Phase 3 has the matching
+rule for a landing: a damaged Route A run is no run, so it falls through to Route B.
 
 ## The serverless function budget (the >12 functions error)
 
