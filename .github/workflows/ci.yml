@@ -290,6 +290,9 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # CONVENIENCE, NOT A GATE. This job runs no test and asserts nothing about the code: it
+  # stitches the shards' blob reports into one browsable HTML report. It is deliberately absent
+  # from the `gate` job's `needs` below, and the reason is written there.
   e2e-report:
     name: Combined E2E report
     # Nothing to merge when the plan ran no specs: there are no blob reports, and the merge
@@ -299,15 +302,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Checkout stays (it costs a couple of seconds and gives us the lockfile); the `npm ci`
+      # that used to follow it does not. Merging blob reports needs exactly one package, so
+      # installing this repository's entire dependency tree to reach it was ~40 s of work per
+      # run for a job that tests nothing. The version is read from the lockfile rather than
+      # from an installed tree, so the merger is exactly the Playwright the shards wrote those
+      # blobs with - a mismatch there is the one way this step can fail for a real reason.
+      # `setup-node` goes with it: the runner image's own Node is enough to parse one JSON file
+      # and run one `npx`, and this job builds nothing that could depend on the version.
       - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
         with:
-          node-version: 24
-          cache: npm
+          sparse-checkout: package-lock.json
+          sparse-checkout-cone-mode: false
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Resolve the Playwright version from the lockfile
+        id: playwright-version
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")"
+          echo "Merging with @playwright/test@${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Download shard reports
         uses: actions/download-artifact@v5
@@ -317,7 +331,7 @@ jobs:
           merge-multiple: true
 
       - name: Merge shard reports
-        run: npx playwright merge-reports --reporter=html ./all-blob-reports
+        run: npx --yes "@playwright/test@${{ steps.playwright-version.outputs.version }}" merge-reports --reporter=html ./all-blob-reports
 
       - name: Upload combined E2E report
         uses: actions/upload-artifact@v4
@@ -330,7 +344,21 @@ jobs:
   gate:
     name: CI gate
     if: ${{ !cancelled() }}
-    needs: [build, plan, e2e, e2e-catalog, factory, e2e-report]
+    # `e2e-report` is deliberately NOT here. Everything else in this list runs the repository's
+    # code and can therefore be wrong about it; the report job merges artifacts and runs no
+    # test, so its failure says only that nobody gets a browsable HTML report. It adds no
+    # coverage either: a shard that produced no blob report already fails IN THE SHARD, via
+    # `if-no-files-found: error` on its upload, and the shards are required below.
+    #
+    # This is not a relaxation of the strictness below - that stands, and should. For a job
+    # that tests code, "died on infrastructure" is genuinely indistinguishable from "found a
+    # fault", so the doctrine is to fail toward noise. For a job that tests nothing, both
+    # readings say the same thing about the commit: nothing at all. On 2026-08-06 a GitHub
+    # Actions outage killed this job twice on `main` (runs 31113465980 and 31123645874) while
+    # every code-testing job passed, and both times the gate went red and filed the rolling
+    # red-main issue against a commit nothing was wrong with. A gate whose verdict can be
+    # flipped by a job with no opinion about the code is reporting on the wrong thing.
+    needs: [build, plan, e2e, e2e-catalog, factory]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -347,7 +375,6 @@ jobs:
           E2E_RESULT: ${{ needs.e2e.result }}
           CATALOG_RESULT: ${{ needs.e2e-catalog.result }}
           FACTORY_RESULT: ${{ needs.factory.result }}
-          REPORT_RESULT: ${{ needs.e2e-report.result }}
         run: |
           status=0
           fail() {
@@ -373,7 +400,6 @@ jobs:
           require "Factory gates" "$FACTORY_RESULT"
           optional "E2E shards" "$E2E_RESULT"
           optional "Catalog calibration gate" "$CATALOG_RESULT"
-          optional "Combined E2E report" "$REPORT_RESULT"
           exit "$status"
 
       # Fail-loud on main, the weekly-audit pattern: ONE rolling issue, one comment per
