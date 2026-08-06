@@ -9,6 +9,7 @@ import CreationWizard from './components/wizard/CreationWizard';
 import GraphicControlPage from './components/home/GraphicControlPage';
 import ProductionPage from './components/home/ProductionPage';
 import PasswordRecoveryDialog from './components/auth/PasswordRecoveryDialog';
+import StorageAlertDialog from './components/save/StorageAlertDialog';
 import { useAuthUi } from './components/auth/authUi';
 import { isBackendConfigured } from './backend/config';
 import { useDocKindStore } from './store/docKindStore';
@@ -190,6 +191,11 @@ export default function App() {
       {/* The password-reset link can land on ANY route, so its dialog mounts once here
           (renders nothing offline — step 9). */}
       <PasswordRecoveryDialog />
+      {/* A failed write to browser storage is announced HERE, not by whichever surface hit it:
+          the wizard closes itself the moment a create replaces the route, so an inline message
+          would unmount before it could be read (the "add to production dumps you in the canvas"
+          defect). */}
+      <StorageAlertDialog />
     </>
   );
 }

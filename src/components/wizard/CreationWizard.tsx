@@ -52,7 +52,8 @@ import { trackEvent } from '../../backend/events';
 import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
 import { captureLookFromTemplate } from '../../model/packets';
-import { addGraphicToShow, createShowNamed, loadShows, setShowLook, type Show } from '../../model/shows';
+import { addGraphicToShow, createShowNamed, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
+import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import { useAdvancedMode } from '../useAdvancedMode';
 import type { TemplatePack } from '../../templates/packs';
@@ -64,6 +65,22 @@ import type { StyleTag } from '../../model/fonts';
 // Every catalog-shaped flow ends on FINISH: the graphic is named there, and the wizard's one
 // branch is taken — open it in the editor, or go straight to its export packages without the
 // editor ever being involved (steps/FinishStep.tsx + components/ExportWindow.tsx).
+/**
+ * A Finish door whose SAVE failed. Every such door reaches a surface the wizard no longer owns
+ * (applyGenerated replaces the route, which closes the wizard), so the report has to come from
+ * the app-level dialog - an inline message here would unmount before anyone read it. The
+ * outcome line says where the work actually is, which is the part a "storage is full" string
+ * alone never answers.
+ */
+function reportFailedCreateSave(name: string, error: string | null): void {
+  raiseStorageAlert({
+    action: `Saving “${name}”`,
+    error: error ?? 'The graphic could not be saved.',
+    outcome:
+      'It is still open in the editor — free some room, then press Save. You can still export it from here without saving.',
+  });
+}
+
 const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
@@ -448,6 +465,7 @@ export default function CreationWizard() {
       closeGallery();
       // REPLACE, not navigate - the createAndExport back-stack reasoning.
       if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
+      else reportFailedCreateSave(aiName(), saved.error);
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
@@ -532,6 +550,7 @@ export default function CreationWizard() {
       // REPLACE, not navigate: applyGenerated already replaced the route with the editor's,
       // and pushing over it would leave Back landing a default-mode user in the editor.
       if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
+      else reportFailedCreateSave(draftName(variant, draft), saved.error);
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
@@ -549,14 +568,55 @@ export default function CreationWizard() {
    */
   const addToProduction = (dest: ProductionDest, name: string) => {
     const saved = saveGraphicAs(name, { kind: 'standalone' });
-    if (!saved.ok) return;
+    if (!saved.ok) {
+      // NEVER a silent return. `applyDraftProject` has already replaced the route with the
+      // editor's, which closes the wizard (App.tsx's route-agreement effect) - so by now there
+      // is no wizard left to show an inline message, and swallowing the error left the user
+      // standing in the canvas with no production, no saved graphic and nothing said. That is
+      // the acceptance-pass blocker of 2026-08-06.
+      raiseStorageAlert({
+        action: `Adding “${name}” to a production`,
+        error: saved.error ?? 'The graphic could not be saved.',
+        outcome:
+          'Your graphic is still open and unsaved — free some room, then press Save and add it from Home.',
+      });
+      return;
+    }
     const s = useTemplateStore.getState();
-    const show =
-      dest.kind === 'existing' ? loadShows().find((x) => x.id === dest.id) : createShowNamed(dest.name);
+    let created: string | null = null;
+    let show: Show | undefined;
+    if (dest.kind === 'existing') {
+      show = loadShows().find((x) => x.id === dest.id);
+    } else {
+      const made = createShowNamedChecked(dest.name);
+      show = made.show;
+      created = made.error;
+    }
     // A picked production deleted mid-wizard (another tab/device): fall back to a new one
     // named after the graphic rather than dropping the work on the floor.
-    const target = show ?? createShowNamed(name);
-    addGraphicToShow(target.id, s.template, { graphicId: s.saved.graphicId ?? undefined });
+    if (!show) {
+      const made = createShowNamedChecked(name);
+      show = made.show;
+      created = made.error;
+    }
+    const target = show;
+    if (created) {
+      raiseStorageAlert({
+        action: `Creating the production “${target.name}”`,
+        error: created,
+        outcome: `“${name}” is saved in your library — free some room, then add it to a production from Home.`,
+      });
+      return;
+    }
+    const pooled = addGraphicToShow(target.id, s.template, { graphicId: s.saved.graphicId ?? undefined });
+    if (pooled.error) {
+      raiseStorageAlert({
+        action: `Adding “${name}” to “${target.name}”`,
+        error: pooled.error,
+        outcome: `“${name}” is saved in your library — free some room, then add it to the production from Home.`,
+      });
+      return;
+    }
     if (!target.look) setShowLook(target.id, captureLookFromTemplate(s.template));
     closeGallery();
     useRouter.getState().replace({ view: 'production', id: target.id });

@@ -3,7 +3,8 @@ import { useRouter } from '../../app/router';
 import { syncSampleData } from '../../store/templateStore';
 import { useExportUi } from '../ExportWindow';
 import { deleteGraphic, duplicateGraphic, updateGraphic, type GraphicDoc } from '../../model/library';
-import { addGraphicToShow, createShowNamed, loadShows, productionsContaining } from '../../model/shows';
+import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../model/shows';
+import { raiseStorageAlert } from '../../store/storageAlert';
 import { useAdvancedMode } from '../useAdvancedMode';
 import GraphicThumb from './GraphicThumb';
 import RowMenu, { type RowMenuItem } from './RowMenu';
@@ -54,13 +55,43 @@ export default function GraphicRow({
   const [addedTo, setAddedTo] = useState<string | null>(null);
   const productions = addOpen ? loadShows() : [];
   const containing = addOpen ? new Set(productionsContaining(g.id).map((s) => s.id)) : new Set<string>();
-  const addTo = (showId: string) => {
+  /** Returns whether the graphic actually reached the production. A FAILED add used to leave
+   *  the ✓ off and say nothing else, so on a full quota the button simply did nothing - the
+   *  acceptance pass reported it as "I can't add anything to even ongoing productions". */
+  const addTo = (showId: string, showName?: string): boolean => {
     const { error } = addGraphicToShow(showId, g.template, { graphicId: g.id });
-    if (!error) {
-      setAddedTo(showId);
-      setTimeout(() => setAddedTo((c) => (c === showId ? null : c)), 2000);
+    if (error) {
+      raiseStorageAlert({
+        action: `Adding “${g.name}” to ${showName ? `“${showName}”` : 'the production'}`,
+        error,
+        outcome: 'The graphic itself is unchanged in your library.',
+      });
+      onChanged();
+      return false;
     }
+    setAddedTo(showId);
+    setTimeout(() => setAddedTo((c) => (c === showId ? null : c)), 2000);
     onChanged();
+    return true;
+  };
+
+  /** Create a production and put this graphic in it - both halves checked, because on a full
+   *  quota the row never persists and the navigation would land on a production that is not
+   *  there. */
+  const addToNewProduction = (rawName: string) => {
+    const { show, error } = createShowNamedChecked(rawName);
+    if (error) {
+      raiseStorageAlert({
+        action: `Creating the production “${show.name}”`,
+        error,
+        outcome: 'The graphic itself is unchanged in your library.',
+      });
+      return;
+    }
+    const ok = addTo(show.id, show.name);
+    setNewProdName('');
+    setAddOpen(false);
+    if (ok) navigate({ view: 'production', id: show.id });
   };
 
   const commitRename = () => {
@@ -190,7 +221,7 @@ export default function GraphicRow({
                   <button
                     key={s.id}
                     role="menuitem"
-                    onClick={() => addTo(s.id)}
+                    onClick={() => addTo(s.id, s.name)}
                     title={containing.has(s.id) ? 'Already in this production — adds/updates its copy' : `Add to "${s.name}"`}
                   >
                     <IconTv />
@@ -204,25 +235,13 @@ export default function GraphicRow({
                     placeholder="New production…"
                     onChange={(e) => setNewProdName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newProdName.trim()) {
-                        const show = createShowNamed(newProdName);
-                        addTo(show.id);
-                        setNewProdName('');
-                        setAddOpen(false);
-                        navigate({ view: 'production', id: show.id });
-                      }
+                      if (e.key === 'Enter' && newProdName.trim()) addToNewProduction(newProdName);
                     }}
                     data-testid="add-to-new-production-name"
                   />
                   <button
                     disabled={!newProdName.trim()}
-                    onClick={() => {
-                      const show = createShowNamed(newProdName);
-                      addTo(show.id);
-                      setNewProdName('');
-                      setAddOpen(false);
-                      navigate({ view: 'production', id: show.id });
-                    }}
+                    onClick={() => addToNewProduction(newProdName)}
                     data-testid="add-to-new-production"
                   >
                     Create

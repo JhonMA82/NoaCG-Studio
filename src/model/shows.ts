@@ -150,9 +150,17 @@ export function createShow(name: string): Show[] {
   return loadShows();
 }
 
-/** Create a production and return the RECORD itself - the wizard's kit and Finish doors need
- *  the new id to navigate to, and `createShow` above only returns the list. */
-export function createShowNamed(name: string): Show {
+/**
+ * Create a production and return the RECORD itself - the wizard's kit and Finish doors need
+ * the new id to navigate to, and `createShow` above only returns the list.
+ *
+ * `createShowNamedChecked` is the form that reports a FAILED write, and every caller that then
+ * navigates to the new production should use it: on a full quota the row never persists, so the
+ * very next `addGraphicToShow` reports "That show no longer exists" - true, but a description of
+ * a symptom rather than of what went wrong. `createShowNamed` stays for the callers that go on
+ * to make a checked write anyway (their own error is the one that matters).
+ */
+export function createShowNamedChecked(name: string): { show: Show; error: string | null } {
   const show: Show = {
     id: uuid(),
     name: name.trim() || 'Untitled production',
@@ -162,8 +170,11 @@ export function createShowNamed(name: string): Show {
   };
   const all = loadAllShows();
   all.push(show);
-  saveAll(all);
-  return show;
+  return { show, error: saveAll(all) };
+}
+
+export function createShowNamed(name: string): Show {
+  return createShowNamedChecked(name).show;
 }
 
 /** Insert or replace a whole show by id (the storage seam's put('show'), incl. tombstones). */

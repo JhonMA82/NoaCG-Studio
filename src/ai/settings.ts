@@ -257,7 +257,13 @@ export function saveAiSettings(patch: Partial<AiSettings>): void {
     fallbacks: validRoutes(patch.fallbacks ?? current.fallbacks),
     configuredProviders: validProviders(patch.configuredProviders ?? current.configuredProviders),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  } catch {
+    // Storage full or unavailable. These are non-secret provider/model PREFERENCES; losing one
+    // costs a re-pick, while throwing here would take down whichever surface saved them (the
+    // prefs.ts case, measured 2026-08-06 - a full quota unmounted the whole app).
+  }
 }
 
 export function aiConfigured(settings: AiSettings = loadAiSettings()): boolean {

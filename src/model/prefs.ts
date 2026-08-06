@@ -39,5 +39,14 @@ export function loadPrefs(): UserPrefs {
 }
 
 export function savePrefs(patch: Partial<UserPrefs>): void {
-  localStorage.setItem(PREFS_KEY, JSON.stringify({ ...loadPrefs(), ...patch }));
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ ...loadPrefs(), ...patch }));
+  } catch {
+    // Storage full or unavailable. A preference is a CONVENIENCE - the remembered export
+    // target, a panel's visibility - and losing one costs a click; throwing costs the whole
+    // app, because this is called from render-adjacent paths with no error boundary above
+    // them. Measured 2026-08-06: with the quota exhausted, opening the export window threw
+    // here and unmounted the entire React tree, so the "storage is full" dialog that had just
+    // been raised went down with it.
+  }
 }

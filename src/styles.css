@@ -3762,6 +3762,35 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 }
 .save-field input, .save-field select { width: 100%; }
 
+/* The failed-write dialog (StorageAlertDialog) reuses the save dialog's chassis and adds one
+   thing: a MEASURED list of what is taking up the room. Its body can outgrow the viewport where
+   a name field never could, so this one scrolls rather than pushing its buttons off-screen. */
+[data-testid='storage-alert'] .save-dialog-body { overflow-y: auto; gap: 10px; }
+.storage-alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.storage-alert-list li {
+  display: grid;
+  /* Name takes the room; the kind and the size are as wide as their content, so the numbers
+     line up in one column and two candidates can be compared at a glance. */
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-3);
+  font-size: 12px;
+}
+.storage-alert-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.storage-alert-kind { color: var(--text-dim); font-size: 11px; }
+.storage-alert-bytes { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
 /* The first-use AI disclosure notice — same borrowed `.wz-modal`, sized to its short text.
    It appears the moment an action would send content to an external AI provider (never for
    the offline stub), so it must read as a calm disclosure, not an error. */

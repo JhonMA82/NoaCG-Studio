@@ -36,6 +36,7 @@ export const FOCUS = [
   'project-format.spec.ts',
   'shows.spec.ts',
   'snap-recovery.spec.ts',
+  'storage-full.spec.ts',
   'sync.spec.ts',
   'template-deep-link.spec.ts',
   'wizard-entry-fit.spec.ts',

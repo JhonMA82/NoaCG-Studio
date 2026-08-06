@@ -6,7 +6,8 @@ import {
   setGraphicsFolder,
   type GraphicDoc,
 } from '../../../model/library';
-import { addGraphicToShow, createShowNamed, loadShows, productionsContaining } from '../../../model/shows';
+import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../../model/shows';
+import { raiseStorageAlert } from '../../../store/storageAlert';
 import GraphicRow from '../GraphicRow';
 import { IconFolder, IconPlus, IconTrash, IconTv } from '../../icons';
 
@@ -120,20 +121,51 @@ export default function GraphicsSection({
     onChanged();
   };
 
+  /** Pool every selected graphic, stopping at the FIRST failure and saying how far it got - a
+   *  bulk add that reported "✓ Added 12" after storing three would be worse than the silence it
+   *  replaces. Returns how many actually landed. */
+  const poolAll = (showId: string, showName: string, list: GraphicDoc[]): number => {
+    let added = 0;
+    for (const g of list) {
+      const { error } = addGraphicToShow(showId, g.template, { graphicId: g.id });
+      if (error) {
+        raiseStorageAlert({
+          action: `Adding ${list.length} graphics to “${showName}”`,
+          error,
+          outcome:
+            added === 0
+              ? 'Nothing was added. Your graphics are unchanged in the library.'
+              : `${added} of ${list.length} were added before storage ran out; the rest are unchanged in your library.`,
+        });
+        return added;
+      }
+      added += 1;
+    }
+    return added;
+  };
+
   const addAllTo = (showId: string, showName: string) => {
-    for (const g of selectedListed) addGraphicToShow(showId, g.template, { graphicId: g.id });
-    setNote(`✓ Added ${selectedListed.length} to "${showName}".`);
+    const added = poolAll(showId, showName, selectedListed);
+    if (added === selectedListed.length) setNote(`✓ Added ${added} to "${showName}".`);
     setProdOpen(false);
     clearSelection();
     onChanged();
   };
 
   const createProductionFrom = (list: GraphicDoc[], name: string) => {
-    const show = createShowNamed(name);
+    const { show, error } = createShowNamedChecked(name);
+    if (error) {
+      raiseStorageAlert({
+        action: `Creating the production “${show.name}”`,
+        error,
+        outcome: 'Your graphics are unchanged in the library.',
+      });
+      return;
+    }
     // The kit flow's primitive: one production, every graphic pooled in list order.
-    for (const g of list) addGraphicToShow(show.id, g.template, { graphicId: g.id });
+    const added = poolAll(show.id, show.name, list);
     onChanged();
-    navigate({ view: 'production', id: show.id });
+    if (added > 0) navigate({ view: 'production', id: show.id });
   };
 
   return (
