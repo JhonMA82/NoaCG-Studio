@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
+import { expectMachineState } from './_stage';
 
 // THE QUIZ PILOT (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the controlled sequence a student
 // production runs — question on air, a HIDDEN contestant pick locked without showing, the
@@ -45,7 +46,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
 
   // ── On air. ──
   await page.getByTestId('verb-take').click();
-  await expect(chip).toHaveText('Question');
+  await expectMachineState(page, 'Question');
 
   // The contestant says "B". The operator records it as DATA — the segmented row, then a
   // live ✎ Update — and NOTHING paints: the pick is in the graphic, invisible.
@@ -88,7 +89,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await expect(program.locator('#f0')).not.toHaveText('Which ocean is the largest?');
   await page.getByTestId('verb-take').click();
   await expect(program.locator('#f0')).toHaveText('Which ocean is the largest?');
-  await expect(chip).toHaveText('Question');
+  await expectMachineState(page, 'Question');
   await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(0);
   await expect(program.locator('.quiz-aud')).toHaveCount(0);
   // The bank is exhausted — ↷ Next says so instead of wrapping silently.
@@ -102,7 +103,7 @@ test('the TV-style flow still stands: select paints immediately, lock follows, v
   const chip = page.getByTestId('machine-state-chip');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await page.getByTestId('verb-take').click();
-  await expect(chip).toHaveText('Question');
+  await expectMachineState(page, 'Question');
 
   // Select C on air (the millionaire drama: the pick shows the moment it is made)…
   await page.getByTestId('cue-field-f6-opt-C').click();
