@@ -27,7 +27,7 @@ accepted by the owner) · Deferred.
 | 1 | Control-panel truth for four pilots (production contextual controls) | Implemented |
 | 2 | Shared data foundation (datasets on Show + Data workspace) | Implemented |
 | 3 | Quiz pilot | Implemented |
-| 4 | Generic sports pilot | Not started |
+| 4 | Generic sports pilot | Implemented |
 | 5 | Audience questions/comments (join page, moderation → cue, presenter) | Planned (design done) |
 | 6 | Poll + audience quiz answers | Not started |
 | 7 | CSV/JSON import into the Data Hub | Not started |
@@ -252,7 +252,7 @@ verification caught and fixed:** the links popover sat UNDER the shared menu bac
 production; and the live spec's first Take assertions were vacuous (markup defaults + a
 locally-fed chip) — replaced with a renderer-side computed-opacity poll.
 
-### Phase 4 — Generic sports pilot. Status: In progress
+### Phase 4 — Generic sports pilot. Status: Implemented (awaiting owner Verified)
 Score steppers, clock verbs from the production page, period/status/lineup coverage; verify
 score + clock through the log on `/output` AND on the exported controller (local relay).
 `numerals.mjs` after the score-field kind change. No sport-specific rules, stats, brackets,
@@ -335,7 +335,25 @@ invisible on screen.
   (the state chip cannot prove it — it is fed by the local monitor and would read "Clock running"
   over a dead wire). Ten live frames land in `test-results/signed-in/`.
 
-**Still to do before this phase is Implemented:** owner acceptance of the visual pack.
+**Visual pack delivered 2026-08-06** (12 frames + `PACK.md` with reproducible steps, in
+`shots/phase4/`; frames 7-12 are the real published `/output` renderer). The recovery frame is the
+one that matters: the board reloaded at full time comes back with its aired score and NO club
+colour hex or period source on screen — that leak was live on every board before this branch.
+One frame is deliberately absent and said so in the pack: the exported controller over the local
+relay has no screenshot, because the capture stub served the package files but not the relay log
+endpoint. Its BEHAVIOUR is proven by `e2e/local-relay.spec.ts` plus the conformance run.
+
+**Deliberately NOT done, with reasons:** esports scores stay textfields (different pack, and the
+one path where `lineCount` uses a textfield count as a proxy for an fN index range — fold it in
+after that proxy is fixed); no sport-specific rules, stats, brackets, hardware or external feeds,
+per the phase's own scope line.
+
+**A follow-up this phase's new gate exposed and did not fix:** `ftypeFor` maps `role: 'hidden'`
+straight to SPX ftype `hidden`, but the role means "input-only, in a display:none holder" — the
+operator still TYPES a countdown's minutes. Nothing ships the wrong value today (the only two such
+fields belong to categories that write their fields by hand), so it is declarative drift; the new
+assertion skips those fields with the reason written down, and removing the skip is the
+regression test for whoever fixes it.
 
 **Two live-arm traps to encode as correct rather than fight:** a reboot REWINDS the clock to the
 last operator-typed value (the renderer reports what it forwarded, never what the clock ticked
