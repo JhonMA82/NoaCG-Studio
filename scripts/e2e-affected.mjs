@@ -127,6 +127,13 @@ const CORE = [
   // says its safety comes from.
   /^src\/assets\/gsap\.min\.js$/,
   /^e2e\/_/,
+  // The suite's own machinery, which lives under scripts/ but is imported by the Playwright
+  // configs and by the offline globalSetup: the port every spec connects to, the worker count,
+  // and the cross-checkout queue that runs before any test does. Naming them here rather than
+  // leaving them to the unmapped fallback records WHY they escalate - they are foundations, not
+  // files nobody got round to mapping. Their exception in IGNORE above is what lets them reach
+  // this list at all.
+  /^scripts\/(dev-port|port-registry|e2e-runs|e2e-workers)\.mjs$/,
   /^playwright\.config\.ts$/,
   /^(package|package-lock)\.json$/,
   /^vite\.config/,
@@ -145,10 +152,26 @@ const CORE = [
 // which is local-only and already ignored above. It ships no code and no spec loads it -
 // unlike benchmarks/creative/, whose brief bank creative-routing.spec.ts really does read.
 //
-// Add to this list only for a file that genuinely cannot change what a spec sees. The script's
-// safety comes from failing TOWARD running more (an unmapped path escalates), so a wrong entry
-// here silently runs FEWER specs - the one failure mode with no alarm attached.
-const IGNORE = [/^docs\//, /\.md$/, /^scripts\/(?!.*(renderDevPlugin|aiDevPlugin|build-player-host))/, /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
+// `scripts/` is ignored WHOLESALE on the premise that it is local tooling the app never loads,
+// which makes the exception list load-bearing: anything under it that the SUITE ITSELF imports
+// must be named here, or a change to it runs no spec at all. The Playwright configs and the
+// offline globalSetup import dev-port (hence port-registry, which it imports in turn) for the
+// port, e2e-workers for the worker count, and e2e-runs for the cross-checkout queue. A fault in
+// any of those does not break one flow - it breaks every spec in the suite, which is the exact
+// profile of a file that must escalate. Measured the hard way on 2026-08-06: a commit rewriting
+// e2e-runs' checkout attribution, which globalSetup calls before a single test starts, produced
+// plan `mode: none` and a green gate that had run zero specs.
+//
+// Add to the IGNORE list only for a file that genuinely cannot change what a spec sees. The
+// script's safety comes from failing TOWARD running more (an unmapped path escalates), so a
+// wrong entry here silently runs FEWER specs - the one failure mode with no alarm attached.
+// `e2e-affected` and `e2e-lists` are here for a different reason than the rest: they cannot
+// break a spec, they decide WHICH specs run. Left ignored, the one change guaranteed to go
+// unverified is a change to the thing that chooses the verification - a mistake in this file
+// reports `mode: none`, the gate goes green, and nothing ran. Covering them costs one focus run.
+const SUITE_CRITICAL_SCRIPTS =
+  'renderDevPlugin|aiDevPlugin|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
