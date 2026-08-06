@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
+import { localWorkers } from './scripts/e2e-workers.mjs';
 
 // The catalog-wide quality gate: e2e/catalog/catalog-bench.spec.ts's calibration tripwire benches
 // every catalog variant across every category. It's excluded from the default offline suite
@@ -16,10 +17,11 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 7_000 },
   fullyParallel: true,
-  // Same memory-bound reasoning as playwright.config.ts, and this is the gate that needs it
-  // most: it benches every catalog variant, so it runs longest and holds the machine hostage
-  // for the whole of it. Overridable with E2E_WORKERS on a box with more RAM.
-  workers: process.env.CI ? 4 : Number(process.env.E2E_WORKERS) || 3,
+  // Same memory-derived count as playwright.config.ts, and this is the gate that needs it most:
+  // it benches every catalog variant, so it runs longest and holds the machine for the whole of
+  // it. CI keeps a fixed 4 - a hosted runner's free memory says nothing useful about how much
+  // work it can take, and its load is not shared with anyone trying to use the machine.
+  workers: process.env.CI ? 4 : localWorkers(),
   retries: 0,
   reporter: [['list']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than

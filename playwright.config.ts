@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
+import { localWorkers } from './scripts/e2e-workers.mjs';
 
 // End-to-end UI-flow tests. These drive the real dev server, so they verify the app the way a
 // user experiences it. Run with `npm run test:e2e`.
@@ -38,24 +39,11 @@ export default defineConfig({
   // the dev server is stateless in the pinned offline mode, and the render specs stub their
   // API per-page. fullyParallel spreads the big spec files (timeline-v2 is ~40 tests) across
   // workers instead of leaving the largest file as the serial critical path.
-  // 3 workers locally, and the constraint is MEMORY, not cores. Measured on the reference dev
-  // laptop (Ryzen 7 5800H, 8C/16T, 16 GB) over one fixed 119-test set, traces off, otherwise
-  // idle - wall time first, then the minimum free RAM reached during the run:
-  //
-  //     6 workers   157.1 s    401 MB free   7.1 GB held by the test tree
-  //     4 workers   151.8 s    651 MB free   5.5 GB
-  //     3 workers   159.7 s   2472 MB free   4.5 GB
-  //
-  // Six is SLOWER than four, which is the whole finding: the box runs out of RAM before it
-  // runs out of cores, and past that point another worker only buys more paging. Four is the
-  // fastest number and leaves 651 MB, at which point Windows is evicting the developer's other
-  // applications to fund the test run - which is what "the laptop is unusable while tests run"
-  // actually was. Three costs 5% of a 2.5-minute run and hands back 1.8 GB. That trade is
-  // deliberate: the suite is something you run WHILE working, so its job is to finish soon
-  // without taking the machine away, not to win a benchmark by one lap.
-  //
-  // Raise it with E2E_WORKERS on a machine with more memory - the number is calibrated to
-  // 16 GB, not to this project.
+  // Local worker count is DERIVED FROM FREE MEMORY at load, not hardcoded - the constraint is
+  // memory, not cores, and how much is free is a property of the moment rather than of the
+  // machine (scripts/e2e-workers.mjs holds the measurements and the arithmetic). It always
+  // keeps a reserve back for whatever the developer is doing while the suite runs, prints the
+  // number and its reason so a run's duration stays explainable, and honours E2E_WORKERS.
   //
   // GitHub's smaller runners use one worker each and scale across eight independent shards
   // instead: more than the same aggregate concurrency, without several browsers and one Vite
@@ -63,7 +51,7 @@ export default defineConfig({
   // run 30539377062: of 97 spec files, exactly the 3 sitting on a shard boundary were split),
   // so no single fat spec file can become the critical path however high the shard count goes.
   fullyParallel: true,
-  workers: isCi ? 1 : Number(process.env.E2E_WORKERS) || 3,
+  workers: isCi ? 1 : localWorkers(),
   retries: 0,
   // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
   // failure is readable in the live Actions log without downloading the combined report,
