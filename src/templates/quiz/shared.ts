@@ -406,9 +406,15 @@ function paintQuizState() {
   var root = document.querySelector('.quiz');
   if (root && root.getAttribute('data-noacg-paint') === quizPaintSig()) return;
   if (state === 'audience') {
-    // The verdict underneath repaints only if it is missing (a recovery); live percentage
-    // updates refresh the chips alone, so the correct row never re-pops per keystroke.
-    if (!document.querySelector('.quiz-correct')) revealAnswer();
+    // The verdict underneath repaints when it is MISSING (a recovery) or when it is on the
+    // WRONG ROW — an operator who typed the answer key wrong has to be able to correct it on
+    // air, and this state used to refuse: the guard asked only whether a verdict existed, so a
+    // changed correct letter left the mark sitting on the old answer while the field said
+    // otherwise (found 2026-08-06). Comparing the marked row against the letter keeps the
+    // reason the guard exists — a live percentage edit still refreshes the chips alone, so
+    // nothing re-pops per keystroke.
+    var marked = document.querySelector('.quiz-option.quiz-correct');
+    if (!marked || marked !== quizRow(document.getElementById('${id.correct}').textContent)) revealAnswer();
     applyAudienceResult();         // stamps
     return;
   }

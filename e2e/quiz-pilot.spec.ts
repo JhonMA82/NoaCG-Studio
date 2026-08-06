@@ -82,6 +82,24 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await expect(program.locator('.quiz-aud')).toHaveCount(4);
   await expect(program.locator('.quiz-aud').nth(1)).toHaveText('61%');
 
+  // THE ANSWER KEY IS CORRECTABLE ON AIR, in this state too (acceptance pass, 2026-08-06:
+  // "it shows the wrong correct answer"). The audience state repainted its verdict only when
+  // one was MISSING, so a corrected letter left the mark on the old row while the field said
+  // otherwise. A percentage edit must still leave the verdict alone — that is why the guard
+  // exists — so both halves are pinned here.
+  await page.getByTestId('cue-field-f5-opt-D').click();
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('.quiz-option').nth(3)).toHaveClass(/quiz-correct/);
+  await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(1);
+  await expect(program.locator('.quiz-aud').nth(1)).toHaveText('61%');
+  await page.getByTestId('cue-field-f7').fill('12 | 55 | 18 | 15');
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('.quiz-aud').nth(1)).toHaveText('55%');
+  await expect(program.locator('.quiz-option').nth(3)).toHaveClass(/quiz-correct/);
+  // Put the key back so the bank walk below starts from the authored answer.
+  await page.getByTestId('cue-field-f5-opt-B').click();
+  await page.getByTestId('verb-update').click();
+
   // ── The NEXT question: ↷ Next loads row 2 into the DRAFT (air untouched), Take airs it
   // clean — a fresh entrance is the reset, both halves at once. ──
   await page.getByTestId('cue-load-next').click();
