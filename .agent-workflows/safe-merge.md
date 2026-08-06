@@ -37,14 +37,15 @@ the user has invoked it, and the adapter is only a pointer to this file anyway.
   every run.
 - Feature worktrees commonly live under `.claude/worktrees/<name>` on `claude/*` or `codex/*`
   branches, but paths and prefixes are never safety signals.
-- The verification gate is `npm run build` (typecheck + lint + build) **and**
-  `npm run test:e2e:affected` - both, every time. `build` alone is not enough: it does not
-  run a single e2e spec, and on 2026-07-30 four template packs landed in a row that each
-  passed it while leaving `main` red for two hours on `catalog-baseline.spec.ts`. The
-  affected run maps the branch's own diff to the specs that cover it (and raises the catalog
-  calibration gate when the catalog moved), so it costs minutes on a normal branch rather
-  than the whole suite - which is what made "just run build" tempting in the first place.
-- Standing permission exists to push verified work to `origin/main`.
+- The verification gate is a CI run green on **exactly the commit being promoted** (`ci.yml`
+  triggers on every branch push), and the local `npm run build` + `npm run test:e2e:focus:queued`
+  pair only when there is no such run. Phase 3 has the full rule. Whichever route runs, BOTH
+  halves are required - typecheck/lint AND e2e. `build` alone is not enough: it does not run a
+  single e2e spec, and on 2026-07-30 four template packs landed in a row that each passed it
+  while leaving `main` red for two hours on `catalog-baseline.spec.ts`. A gate that cannot fail
+  the way production fails is not a gate.
+- Standing permission exists to push verified work to `origin/main`, and to push the source
+  branch to `origin` so CI can verify it (a plain push of the branch, never `--force`).
 
 ## Hard safety rules (never break these, even if asked mid-flow)
 
