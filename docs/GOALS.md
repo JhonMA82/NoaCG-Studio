@@ -1372,6 +1372,15 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       §1-§6 RE-TEST against a build carrying those fixes - CasparCG 2.3.x + OBS through both
       doors (incl. the launcher + controller path), the soak, the live recovery drills, one
       live-suite run, and the timed walks.
+      **What the re-test now targets (2026-08-06):** the interactive-playout program's Phases
+      1-4 have LANDED on `main` (docs/INTERACTIVE_PLAYOUT_PLAN.md), so the ProductionPage the
+      owner will sit in front of is the one carrying the per-cue contextual controls, the
+      shared data foundation, the quiz pilot and the generic sports pilot - not the surface
+      round 2 was run against. That is deliberate: waiting for the verdict before landing
+      would have held four finished phases behind one hardware session, and the checklist's
+      §1-§6 exercise the export and playout doors, which those phases do not change. It does
+      mean the re-test now doubles as the first real-hardware sighting of the contextual
+      controls, so run it against a production whose rundown includes a scorebug cue.
 
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate

@@ -464,9 +464,17 @@ graphic); per-IP abuse caps beyond device tokens; question length cap (280 vs 50
 
 ## Sequencing and deliberate deferrals
 
-- GOALS "Student release" step 10's remaining half is the owner's hardware re-test of the
-  CURRENT ProductionPage build, and Phase 1 modifies exactly that surface. This branch lands
-  only after that re-test verdict is in, so the acceptance target does not silently move.
+- **What actually happened, and it is the opposite of what this bullet used to say.** The plan
+  was written expecting Phase 1 to wait: GOALS "Student release" step 10's remaining half is the
+  owner's hardware re-test of the ProductionPage, Phase 1 modifies exactly that surface, so the
+  branch would land only after the verdict, keeping the acceptance target still. **Phases 1-4
+  landed FIRST** (2026-08-05/06), before the re-test. Holding four finished phases behind one
+  hardware session bought nothing the re-test itself does not give: the checklist's §1-§6 drive
+  the export and playout DOORS, which none of these phases change. The consequence to carry
+  forward is that the re-test is now also the first real-hardware sighting of the contextual
+  controls, so it must be run against a production whose rundown includes a scorebug cue -
+  recorded in GOALS step 10 so the next session cannot read the two docs and get opposite
+  answers.
 - Deferred by design (documented, not built): sport-specific controllers, external data
   providers (Liquipedia, YouTube/Twitch, X, Sheets, webhooks — the future-connector doctrine
   stays `docs/CLOUD_PLAYOUT.md` §7: connectors become producers into the one log, feeding the
