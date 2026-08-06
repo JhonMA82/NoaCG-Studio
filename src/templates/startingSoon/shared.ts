@@ -282,7 +282,10 @@ export function assembleStartingSoon(
     value: line.sample,
   }));
   if (clock !== 'none') {
-    fields.push({ field: minutesId, ftype: 'textfield', title: 'Countdown (minutes)', value: minutesValue });
+    // A NUMBER field, so the countdown gets steppers on every control surface (gameTimers/
+    // shared.ts carries the same decision). The START TIME below stays a text field — "19:30"
+    // is not a number, and the clock runtime parses it on the colon.
+    fields.push({ field: minutesId, ftype: 'number', title: 'Countdown (minutes)', value: minutesValue });
   }
   if (clock === 'start-time') {
     fields.push({

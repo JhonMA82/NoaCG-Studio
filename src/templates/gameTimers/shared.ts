@@ -142,7 +142,9 @@ export function assembleGameTimer(meta: GameTimerMeta, design: GameTimerDesign, 
   const labelText = o.lines[0]?.sample || LABEL_SAMPLE;
   const fields: SpxField[] = [
     { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Label', value: labelText },
-    { field: 'f1', ftype: 'textfield', title: 'Timer (minutes)', value: MINUTES_SAMPLE },
+    // A duration is adjusted far more often than it is retyped, so it is a NUMBER field: every
+    // control surface renders a stepper. The value still lands in the hidden holder below.
+    { field: 'f1', ftype: 'number', title: 'Timer (minutes)', value: MINUTES_SAMPLE },
   ];
 
   const settings = baseSettings(meta, o, { steps: '1' });

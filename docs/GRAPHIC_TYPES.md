@@ -66,6 +66,13 @@ Those two ordering rules are enforced at compile time with a throw, because gett
 desyncs the ids from the assembler that emits them, and a runtime surprise is worse than a
 build failure.
 
+**`role` says where the value lives; `kind` says what control it gets** — including for
+`hidden`, whose holder is `display:none` because the raw value would be meaningless on air, not
+because the operator is shut out of it. (SPX's own `hidden` *ftype* is the other thing: it takes
+a field away from every operator surface. A type never compiles to it.) So a countdown's
+duration is a `number`, and the operator gets steppers rather than a text box — a round is
+lengthened by a minute far more often than it is retyped.
+
 Fields compile to `SpxField`, and the existing adapter turns those into the `FieldDescriptor`
 every editing surface renders. One direction only: declaring descriptors would need a second
 compiler that could disagree with the first.

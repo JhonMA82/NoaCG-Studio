@@ -77,7 +77,8 @@ test('every type conforms: parses, validates, binds its fields and events, and e
           }
         }
 
-        // Every non-hidden field the type declared must have its element in the markup.
+        // Every field the type declared must have its element in the markup — a hidden-role
+        // value's display:none holder counts, which is the whole point of that role.
         const spxFields = typeFieldsToSpx(type.fields);
         if (spxFields.length !== tpl.fields.length)
           problems.push('field count: type declares ' + spxFields.length + ', template emits ' + tpl.fields.length);
@@ -97,19 +98,16 @@ test('every type conforms: parses, validates, binds its fields and events, and e
         // "only the editable programme data and labels differ"). VALUE is not compared either;
         // TypeDesign.samples is each design's own starting text and the samples gate holds it.
         //
-        // A role:'hidden' field is skipped, and the reason is a drift worth naming rather than
-        // hiding: ftypeFor maps that role straight to ftype 'hidden', but the role means
-        // "input-only, in a display:none holder" (graphicType.ts) — the operator still TYPES a
-        // countdown's minutes, so the emitted editable field is the correct half and the
-        // declaration is the wrong one. Nothing ships the wrong ftype today (the two such
-        // fields live in clocks.ts, whose categories hand-write their fields and never go
-        // through typeFieldsToSpx), so this is declarative drift, not an operator-visible bug.
+        // role:'hidden' fields are compared like every other one. They used to be skipped,
+        // because ftypeFor short-circuited that role to SPX's 'hidden' ftype — which takes a
+        // field away from the operator — while the role only means "in a display:none holder".
+        // A countdown's duration is typed by the operator, so the ftype now comes from the
+        // field's kind for every role, and this loop is what keeps the two sides in step.
         for (let i = 0; i < Math.min(spxFields.length, tpl.fields.length); i++) {
           const want = spxFields[i];
           const got = tpl.fields[i];
           if (want.field !== got.field)
             problems.push('field ' + i + ': type compiles to ' + want.field + ', template emits ' + got.field);
-          if (type.fields[i] && type.fields[i].role === 'hidden') continue;
           if (want.ftype !== got.ftype)
             problems.push('field ' + got.field + ' (' + got.title + '): type declares ftype ' + want.ftype + ', template emits ' + got.ftype);
         }

@@ -78,8 +78,11 @@ export const countdownType: GraphicType = {
   fields: [
     { key: 'label', label: 'Label', kind: 'text', value: 'ROUND 1', role: 'line' },
     // The duration is an operator VALUE, not a state: a timer's length has to be typed, and
-    // timer-transition durations are authored data the operator cannot reach.
-    { key: 'minutes', label: 'Timer (minutes)', kind: 'number', value: '3', role: 'hidden', min: 0, max: 180 },
+    // timer-transition durations are authored data the operator cannot reach. `hidden` is the
+    // ROLE (it lives in a display:none holder — a bare "3" painted on air means nothing), and
+    // `number` is the control: a round is lengthened by a minute far more often than it is
+    // retyped, so every operator surface gives it steppers.
+    { key: 'minutes', label: 'Timer (minutes)', kind: 'number', value: '3', role: 'hidden' },
   ],
   machine: { parallel: [clockGroup()] },
   controls: CLOCK_CONTROLS,
@@ -163,7 +166,8 @@ export const holdingScreenType: GraphicType = {
   fields: [
     { key: 'title', label: 'Title', kind: 'text', value: 'STARTING SOON', role: 'line' },
     { key: 'show', label: 'Show name', kind: 'text', value: 'The Late Line', role: 'line' },
-    { key: 'minutes', label: 'Countdown (minutes)', kind: 'number', value: '5', role: 'hidden', min: 0, max: 180 },
+    // Same contract as the countdown type's duration: hidden holder, number control.
+    { key: 'minutes', label: 'Countdown (minutes)', kind: 'number', value: '5', role: 'hidden' },
   ],
   machine: { parallel: [clockGroup()] },
   controls: CLOCK_CONTROLS,

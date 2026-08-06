@@ -85,12 +85,17 @@ export interface TypeStructure {
  * A field, named LOGICALLY. `fN` ids are positional and get assigned at compile time, so a
  * type never writes one down and inserting a field renumbers nothing it references.
  *
- * `role` routes the field into the plumbing that already exists for its shape:
+ * `role` routes the field into the plumbing that already exists for its shape — it is about
+ * WHERE the value lives in the markup, never about who may edit it:
  *  - `line`   a visible text line (fieldsFromOptions numbers these f0..n-1, so they compile first);
  *  - `data`   an operator value with its own element (a score, a rows source);
  *  - `hidden` input-only, in a display:none holder (a countdown's minutes);
  *  - `logo`   the image slot (shared/logoSlot.ts owns the markup, and computes its id from the
  *             count of everything else — so these compile LAST).
+ *
+ * The CONTROL a field gets comes from `kind` alone, for every role. A duration sits in a
+ * display:none holder because printing "5" on the graphic would be meaningless, not because
+ * the operator is not the one who types it — they are, which is what "input-only" means.
  */
 export interface TypeField {
   key: string;
@@ -99,16 +104,20 @@ export interface TypeField {
   value: string;
   role: 'line' | 'data' | 'hidden' | 'logo';
   options?: FieldOption[];
-  min?: number;
-  max?: number;
-  step?: number;
 }
 
-/** SPX ftype for a field kind. The broadcast field policy (src/templates/CLAUDE.md) keeps
- *  dropdown/checkbox/color for genuinely constrained choices — a type opting into one is
- *  making that claim deliberately. */
+/**
+ * SPX ftype for a field kind. The broadcast field policy (src/templates/CLAUDE.md) keeps
+ * dropdown/checkbox/color for genuinely constrained choices — a type opting into one is
+ * making that claim deliberately.
+ *
+ * `role` is deliberately NOT read here. It used to short-circuit to ftype `hidden` for the
+ * hidden role, which conflated two different things: SPX's `hidden` ftype takes a field AWAY
+ * from the operator (controlModel.ts skips it on every operator surface), while the role only
+ * says the value has no visible element of its own. A countdown's duration is typed by the
+ * operator like any other value, so it compiles to its kind's control.
+ */
 function ftypeFor(field: TypeField): SpxField['ftype'] {
-  if (field.role === 'hidden') return 'hidden';
   switch (field.kind) {
     case 'lines': return 'textarea';
     case 'number': return 'number';
