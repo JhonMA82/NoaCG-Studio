@@ -309,9 +309,10 @@ ${design.css}
   const preset = compPresetById(o.animation.presetId);
   // 'auto' uses the preset's hand-tuned ease pair; a named easing preset overrides both phases.
   const ease = resolveEasing(o.animation.easing, preset.autoEase);
+  const lines = visibleTextFields(design);
   const cfg: PresetConfig = {
     prefix: cat.prefix,
-    lineCount: design.fields.filter((f) => f.ftype === 'textfield').length,
+    lineCount: lines.length,
     hasAccent: design.hasAccent,
     steps: false, // the pack's presses are authored middle steps, never line reveals
     speed: o.animation.speed,
@@ -335,16 +336,14 @@ ${design.css}
       fields: design.fields,
       settings,
       assets: [...o.importedImages, ...(o.customFont ? [o.customFont.asset] : [])],
-      layers: design.fields
-        .filter((f) => f.ftype === 'textfield')
-        .map((f) => ({
-          id: f.field,
-          type: 'text' as const,
-          label: f.title,
-          fieldId: f.field,
-          text: f.value,
-          styles: {},
-        })),
+      layers: lines.map((f) => ({
+        id: f.field,
+        type: 'text' as const,
+        label: f.title,
+        fieldId: f.field,
+        text: f.value,
+        styles: {},
+      })),
     },
     // Ordering: the design's own steps are authored FIRST, so a type's machine compiles
     // against the final step list (its default path has to be the walk the graphic really has).
@@ -389,6 +388,25 @@ export function defineCompetitionVariant(
  * Fields step. Compiling them here is what keeps that step honest: the ids stay exactly what
  * `typeFieldsToSpx` assigned, and only the label and sample of a `line` field move.
  */
+/**
+ * The design's fields that are WORDS ON SCREEN — what the presets count and what the block
+ * tools list as text layers.
+ *
+ * Two things this is careful about, both learned by getting them wrong. A `number` field is a
+ * visible line like any other: a series score is drawn in a mask beside the team name, and
+ * filtering on `textfield` alone dropped it from the layer list the moment it stopped being
+ * typed as text. And a field whose element is a `.noacg-data-source` holder is NOT on screen
+ * at all — the phase words, the map index, the highlighted row — so listing those as text
+ * layers offered the block tools an element nobody can see.
+ */
+export function visibleTextFields(design: CompDesign): SpxField[] {
+  const hidden = new RegExp(`id="(f\\d+)"[^>]*class="[^"]*\\b${DATA_SOURCE_CLASS}\\b`, 'g');
+  const holders = new Set([...design.html.matchAll(hidden)].map((m) => m[1]));
+  return design.fields.filter(
+    (f) => (f.ftype === 'textfield' || f.ftype === 'number') && !holders.has(f.field),
+  );
+}
+
 export function compFieldsFor(typeFields: TypeField[], o: ResolvedOptions): SpxField[] {
   const fields = typeFieldsToSpx(typeFields);
   let lineIndex = 0;

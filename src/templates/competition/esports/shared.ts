@@ -52,9 +52,11 @@ export const P = ESPORTS_CATEGORY.prefix;
  */
 export const SCORE_FIELDS: TypeField[] = [
   { key: 'teamA', label: 'Team A', kind: 'text', value: 'TEAM LIQUID', role: 'line' },
-  { key: 'scoreA', label: 'Score A', kind: 'text', value: '1', role: 'line' },
+  // The two series scores are NUMBERS: maps won is a whole number with no unit, and it is
+  // bumped by one at the end of every map — the scoreboard's argument, on a smaller board.
+  { key: 'scoreA', label: 'Score A', kind: 'number', value: '1', role: 'line' },
   { key: 'teamB', label: 'Team B', kind: 'text', value: 'NAVI', role: 'line' },
-  { key: 'scoreB', label: 'Score B', kind: 'text', value: '1', role: 'line' },
+  { key: 'scoreB', label: 'Score B', kind: 'number', value: '1', role: 'line' },
   { key: 'stage', label: 'Stage / map', kind: 'text', value: 'MAP 3 · MIRAGE', role: 'line' },
   { key: 'series', label: 'Series format', kind: 'text', value: 'BEST OF 5', role: 'data' },
   { key: 'logoA', label: 'Team A logo', kind: 'image', value: '', role: 'data' },

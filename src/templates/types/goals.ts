@@ -136,10 +136,11 @@ export const goalMeterType: GraphicType = {
     ],
   },
   fields: [
-    { key: 'raised', label: 'Raised', kind: 'text', value: '124213', role: 'line' },
-    // Plain numbers in both, deliberately: a currency mark typed into them would defeat the
-    // count-up's parse, which is why the unit is a field of its own below.
-    { key: 'goal', label: 'Goal', kind: 'text', value: '250000', role: 'line' },
+    { key: 'raised', label: 'Raised', kind: 'number', value: '124213', role: 'line' },
+    // NUMBER fields in both, deliberately: a currency mark typed into them would defeat the
+    // count-up's parse, which is why the unit is a field of its own below — and a running
+    // total is bumped far more often than it is retyped, so the control is a stepper.
+    { key: 'goal', label: 'Goal', kind: 'number', value: '250000', role: 'line' },
     { key: 'label', label: 'Label', kind: 'text', value: 'TOTAL RAISED', role: 'data' },
     // Blank for a subscriber or sign-up goal; a currency mark for an appeal.
     { key: 'unit', label: 'Unit', kind: 'text', value: '€', role: 'data' },
@@ -212,7 +213,8 @@ export const milestoneTrackType: GraphicType = {
     // One "Label | target" per line — the same source shape the agenda and poll boards use, so
     // an operator who can fill one can fill all three.
     { key: 'milestones', label: 'Milestones', kind: 'lines', value: 'Warm-up | 5000\nHalfway | 15000\nStretch | 30000\nDream | 50000', role: 'line' },
-    { key: 'current', label: 'Current', kind: 'text', value: '18400', role: 'line' },
+    // A NUMBER, like the goal meter's figures: the runtime parses it against the tier targets.
+    { key: 'current', label: 'Current', kind: 'number', value: '18400', role: 'line' },
     { key: 'label', label: 'Label', kind: 'text', value: 'MILESTONES', role: 'data' },
   ],
   machine: {},

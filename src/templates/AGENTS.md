@@ -599,6 +599,11 @@ measures.
   plus a `winner` field, one `judged` state plus a `verdict`, one `spotlight` plus a row number.
   A design whose Continue press fires a runtime call declares `revealSteps`, which is what keeps
   SPX's `steps` DERIVED (the quiz precedent).
+  **What counts as a LINE is `visibleTextFields`, not the ftype**: a `number` field is a line
+  when it is drawn in a mask (the series score) and is not one when its element is a
+  `.noacg-data-source` holder (the map index, the highlighted row, the phase words). Filtering
+  on `ftype === 'textfield'` conflated the two and dropped a field from the layer list the
+  moment it stopped being typed as text.
   DATA BLOCKS via convertToDataRegion + a refinement (§3c above): the Continue reveal is a real
   middle step that CALLS revealAnswer() (adds .quiz-correct/.quiz-dim + pops the winner;
   update() clears the reveal). Each answer ROW carries `quiz-option` (the shared look) AND
