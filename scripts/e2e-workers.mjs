@@ -3,26 +3,31 @@
 // WHY THIS IS NOT A CONSTANT. The limit on a developer laptop is MEMORY, not cores, and the
 // amount of memory available is not a property of the machine - it is a property of the moment.
 // Measured on the reference box (Ryzen 7 5800H, 8C/16T, 16 GB), one fixed 119-test set, traces
-// off, from ~4.5 GB free at rest - wall time, then the lowest free memory reached during the run:
+// off - wall time, then the lowest free memory reached during the run:
 //
-//     6 workers   157.1 s    401 MB free
-//     4 workers   151.8 s    651 MB free
-//     3 workers   159.7 s   2472 MB free
+//     from ~4.5 GB free              from ~5.6 GB free
+//     3 workers   159.7 s   2472 MB
+//     4 workers   151.8 s    651 MB  4 workers   137.7 s   1488 MB
+//     6 workers   157.1 s    401 MB  6 workers   125.7 s   1669 MB
+//                                    8 workers   145.7 s    293 MB
 //
-// Six is SLOWER than four: past the memory ceiling another worker buys paging, not parallelism.
-// And 651 MB free is not a test run any more - at that point Windows is evicting the editor,
-// the browser and everything else to fund it, which is the "my laptop is unusable while tests
-// run" complaint in one number.
+// Read the two columns together, because either alone gives the wrong rule. From 4.5 GB, six
+// workers is SLOWER than four - which looked like "four is the ceiling". From 5.6 GB, six is the
+// FASTEST of the three and leaves more headroom than four did in the other column. Six did not
+// change; the memory available to it did. Eight is slower in both worlds and takes the box down
+// to 293 MB, which is the state where everything else on the machine starts paging.
 //
-// A hardcoded 3 answered that for one machine on one afternoon. It is wrong the moment the
-// conditions move, in both directions: open Premiere and a video project and 3 is too many;
-// close everything, or run on a 32 GB desktop, and 3 leaves the box idle. So the number is
-// derived from free memory at the moment the config loads.
+// So the rule is not a maximum worker count. It is: SPEND UP TO THE MEMORY CEILING AND STOP.
+// A fixed number cannot express that - it is wrong in both directions as conditions move. Open
+// Premiere with a project and three is too many; close everything and three leaves the box idle.
+// Hence a count derived from free memory at the moment the config loads.
 //
-// THE RESERVE IS THE POINT. `RESERVE_MB` is memory this never spends - the headroom the person
-// at the keyboard keeps for the work they are doing WHILE the suite runs. Tests get what is
-// left over, and if that is only enough for one worker then one worker is the honest answer.
-// A slow suite is an annoyance; a machine that stops responding costs the whole session.
+// THE RESERVE IS THE POINT, and it is deliberately modest. The brief here was explicit: the
+// tests are the priority for this machine, and the headroom only has to be enough to keep email
+// and a browser responsive - not to keep a second heavy application comfortable. So the ladder
+// spends aggressively and holds back roughly 1.2-1.5 GB. If that is only enough for one worker,
+// one worker is the honest answer: a slow suite is an annoyance, a machine that stops responding
+// costs the whole session.
 
 import { freemem } from 'node:os';
 
@@ -38,12 +43,16 @@ import { freemem } from 'node:os';
  * First row that fits wins; anything below the last row gets a single worker.
  */
 const LADDER = [
-  // 4 was the fastest count measured, but from 4535 MB it left only 651 MB - unusable. It needs
-  // roughly a gigabyte more headroom than that before it is a reasonable choice.
-  { minFreeMb: 5500, workers: 4 },
-  // The benchmarked anchor: 4535 MB free, 3 workers, 2472 MB still free at the low point.
-  { minFreeMb: 4200, workers: 3 },
-  { minFreeMb: 3000, workers: 2 },
+  // 6 workers consumed ~4.1 GB at peak (5794 free -> 1669 free) and was the fastest run measured
+  // on this machine. 5300 is that consumption plus the reserve.
+  { minFreeMb: 5300, workers: 6 },
+  // 4 consumed ~3.1 GB from 4549 free, leaving 1488. On a busier box the same count reached
+  // 3.9 GB, which is why this sits above 4.1 rather than at it.
+  { minFreeMb: 4200, workers: 4 },
+  // The original anchor: 4535 free, 3 workers, 2472 still free - comfortable, and the right
+  // answer once something big is already resident.
+  { minFreeMb: 3300, workers: 3 },
+  { minFreeMb: 2600, workers: 2 },
 ];
 
 /**
@@ -53,10 +62,11 @@ const LADDER = [
 const FLOOR_FREE_MB = 1800;
 
 /**
- * Never more than the ladder's top, whatever the machine has. Four was the fastest number
- * measured here and six was SLOWER, so there is no evidence that going higher helps - and this
- * module's job is to apply what was measured, not to extrapolate past it. Raise it deliberately
- * with E2E_WORKERS on a machine where more has actually been shown to pay.
+ * Never more than the ladder's top. Eight workers was measured SLOWER than six from the same
+ * starting memory (145.7 s against 125.7 s) while driving free memory to 293 MB, so this is a
+ * measured ceiling rather than a cautious guess - going higher costs time AND the machine. On a
+ * box with substantially more RAM the honest move is to measure again, not to assume; E2E_WORKERS
+ * pins any number in the meantime.
  */
 const MAX_WORKERS = LADDER[0].workers;
 
