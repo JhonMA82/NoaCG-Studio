@@ -403,6 +403,66 @@ Import quiz banks, teams, lineups into Data Hub datasets via a small shared quot
 (`src/model/csv.ts`, no new dependency) + JSON. Imported data stays editable; no permanent
 file dependency.
 
+## Acceptance round 2 — the owner's hands-on pass against real CasparCG (2026-08-06)
+
+The first time Phases 1–4 met real hardware and a real operator. What it found, and what was
+done about it that night. **The passes are recorded too, because they are the parts nothing
+needs to re-check:** the match-clock fix holds (a score bump no longer disturbs a running
+clock), the state chip and button greying held with no drift over 30 s, "Reveal choice" was
+correctly greyed on a template that does not support it, and recovery leaked no machinery onto
+the CasparCG output — no colour hex, no period source line.
+
+**P0 — "add to production" opened the canvas instead.** Every door that saves swallowed the
+storage layer's error, so a full localStorage quota looked like the product ignoring the click.
+Fixed by announcing a failed write from an app-level dialog (the wizard has already closed
+itself by then), by measuring and naming what is taking up the room, and by guarding two
+unguarded `localStorage.setItem` calls that were taking the whole React tree down under a full
+quota. `e2e/storage-full.spec.ts` drives all three doors against a genuinely exhausted quota.
+
+**P0 — two catalogue designs rendered wrong on CasparCG.** An older CEF drops a modern CSS
+declaration in silence. The deliverable is the WARNING, and it is measured, not listed:
+`src/validation/engineSupport.ts` scans a template's emitted code and reports per playout
+engine; every export screen shows the verdict above the download button;
+`scripts/engine-floor.mjs` sweeps the catalogue. Arena Quiz and Sunny Pop are fixed by hand,
+and one shared fallback (the auto-fit cap's `min()`) lifts the whole catalogue over the
+Chromium 79 bar. **Measured at the Chromium 88 bar: 422 of 430 designs affected before, 179
+after — and every one of those 179 is `color-mix()`.** That remainder is deliberately NOT fixed
+here: a fallback needs a resolved colour per use across 91 source files, which is its own pass
+with the sweep as its gate. The engine table names CasparCG 2.3's early and late builds
+separately, because this repo holds two observations from 2.3.x servers that cannot describe
+one engine — and `/output?debug=1` now prints the engine it is actually rendering with, so the
+question is answerable rather than argued.
+
+**P1 — the PROGRAM monitor lost the graphic after a Data-tab round trip.** The workspace switch
+unmounts the monitors and the replay of what is live was a one-shot on the page's own boot. Now
+keyed on the STAGE being fresh; the page also remembers what it last SENT, since the wire report
+is a resolve-time snapshot and an unpublished production has none.
+
+**P1 — the quiz's correct answer could not be corrected while the audience result was up.** The
+audience state repainted its verdict only when one was MISSING. Reproduced first; the reveal
+state was already correct, so this is the case that was actually broken.
+
+**P1 — nothing said an edit had not been sent.** The on-air cue's fate line now counts the
+waiting changes and ✎ Update wears an amber dot, compared against what was last SENT.
+**Staged-vs-take is unchanged: data still never airs by itself.**
+
+**P1 — SPACE is a toggle** (on air / off air), with the key labels following it and an explicit
+⟳ RE-TAKE on the button. `0` still means Out. Recorded in docs/PLAYOUT_DASHBOARD.md §2.
+
+**P1 — the ⚡ actions and "Snap to state…" explain themselves on the surface** (§7b of the same
+doc), including what the quiz's audience percentages are and why a snap re-sends the cue's
+values.
+
+**NOT REPRODUCED, carried forward: "I broke the link to CasparCG somehow — it showed an error
+that the URL doesn't work or has changed."** No repro, no diagnosis, no fix attempted; guessing
+at a fix for an unobserved fault is how a real one gets papered over. What is known: the output
+URL is a capability slug on `control_shows`, and UNPUBLISHING deletes that row, which does kill
+a live renderer's URL by design (docs/PLAYOUT_INTEGRATION.md §7 already says so). A republish
+mints a NEW slug, so any URL loaded into CasparCG before it stops working — that is the one
+mechanism in the product that matches the description, and it is worth confirming against the
+owner's session before treating it as a defect. Anyone touching publish/unpublish should look
+for a second way the slug can change under a live renderer.
+
 ## Audience backend design (for Phases 5–6; designed 2026-08-05, review before building)
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
