@@ -389,10 +389,15 @@ test('the scoreboard passes the scorebug test: data moves nothing, parallel grou
     const dataMovedNothing = JSON.stringify(groups()) === before;
     const score = w.document.getElementById('f1').textContent;
 
-    // Three events for three different groups, dispatched in one tick. The serial queue
-    // resolves them in order, and each group answers only for itself.
+    // Two events for two different groups, dispatched in one tick. The serial queue resolves
+    // them in order, and each group answers only for itself.
+    //
+    // This used to fire a third, clockStart, against a clock group these four designs never
+    // earned: sb01-sb04 draw a score and no time, so the group's calls looked for a clock
+    // element that is not in the markup. It has been dropped from the type (the sports pack's
+    // scorebug and match board carry the real one), which is why the walk is two groups now —
+    // independence is what the check is about, and two independent groups prove it.
     w.noacgDispatch('flag');
-    w.noacgDispatch('clockStart');
     w.noacgDispatch('final');
     const settledState = groups();
     await sleep(300);
@@ -408,7 +413,7 @@ test('the scoreboard passes the scorebug test: data moves nothing, parallel grou
     dataMovedNothing: true,
     score: '14',
     // Pointers move synchronously at dispatch, before any animation settles.
-    settledState: { flag: 'shown', clock: 'running', result: 'final' },
+    settledState: { flag: 'shown', result: 'final' },
     repeatDropped: true,
     cleared: 'none',
     final: 'final',

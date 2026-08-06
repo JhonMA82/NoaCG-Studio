@@ -84,26 +84,14 @@ export const scoreboardType: GraphicType = {
           },
         ],
       },
-      // The CLOCK: running or held. Pure lifecycle — the states carry only their calls,
-      // because stopping a clock is an effect, not a movement.
-      {
-        id: 'clock',
-        initial: 'stopped',
-        states: [
-          {
-            id: 'stopped',
-            name: 'Clock stopped',
-            timeline: { name: 'Clock stop', duration: 0.1, ease: 'out', calls: [{ time: 0, call: 'stopMatchClock' }], layers: {} },
-            edges: [{ from: 'running', to: 'stopped', trigger: 'operator', event: 'clockStop' }],
-          },
-          {
-            id: 'running',
-            name: 'Clock running',
-            timeline: { name: 'Clock start', duration: 0.1, ease: 'in', calls: [{ time: 0, call: 'startMatchClock' }], layers: {} },
-            edges: [{ from: 'stopped', to: 'running', trigger: 'operator', event: 'clockStart' }],
-          },
-        ],
-      },
+      // NO CLOCK GROUP HERE, deliberately. This type's four designs (sb01-sb04) draw a score
+      // and no time, so the Start/Stop clock buttons it used to declare were controls that
+      // could not do anything: the machine's calls looked up a `.scoreboard-clock` element that
+      // is not in the markup. Worse than inert — `startMatchClock` reached its
+      // `setInterval` because the count-direction guard in front of it is skipped when there is
+      // no element, so pressing Start left a one-second timer running for the life of the
+      // graphic, painting nothing. The sports pack's own scorebug and match board (which DO
+      // draw a clock, `types/sportsBugs.ts`) carry the three-state clock group instead.
       // The RESULT: live, or final. One way only — a match does not un-finish.
       {
         id: 'result',
@@ -129,9 +117,7 @@ export const scoreboardType: GraphicType = {
   controls: [
     { event: 'flag', label: 'Flag', section: 'Flag', order: 1 },
     { event: 'clearFlag', label: 'Clear flag', section: 'Flag', order: 2 },
-    { event: 'clockStart', label: 'Start clock', section: 'Clock', order: 3 },
-    { event: 'clockStop', label: 'Stop clock', section: 'Clock', order: 4 },
-    { event: 'final', label: 'Full time', section: 'Result', order: 5 },
+    { event: 'final', label: 'Full time', section: 'Result', order: 3 },
   ],
   capabilities: {
     maxLines: 1,
