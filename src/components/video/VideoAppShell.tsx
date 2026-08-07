@@ -25,6 +25,7 @@ import VideoExportPanel from './VideoExportPanel';
 import SavedVideoProjects from './SavedVideoProjects';
 import { modalOpen } from '../spaceKey';
 import { upsertSavedVideoProject } from '../../model/videoProject';
+import { commitDurableWrites } from '../../model/durableStore';
 import { useRouter } from '../../app/router';
 import { useDocKindStore } from '../../store/docKindStore';
 
@@ -116,10 +117,15 @@ export default function VideoAppShell() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
+  // Confirmed before it says so: the durable store accepts a write and reports a refusal a
+  // moment later (model/durableStore.ts), so the boolean alone would flash "✓ Saved" for a save
+  // that did not land - the same twin fix as SavedVideoProjects' own Save.
   const saveToList = () => {
-    const ok = upsertSavedVideoProject(project);
-    setSaveNote(ok ? '✓ Saved' : '✗ Storage full');
-    setTimeout(() => setSaveNote(null), 2500);
+    const accepted = upsertSavedVideoProject(project);
+    void (accepted ? commitDurableWrites() : Promise.resolve('refused')).then((failure) => {
+      setSaveNote(failure ? '✗ Storage full' : '✓ Saved');
+      setTimeout(() => setSaveNote(null), 2500);
+    });
   };
 
   const panel = (

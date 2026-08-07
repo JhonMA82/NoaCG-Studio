@@ -8,6 +8,7 @@ import {
   listSavedVideoProjects,
   upsertSavedVideoProject,
 } from '../../model/videoProject';
+import { commitDurableWrites } from '../../model/durableStore';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { useModalGate } from '../spaceKey';
 
@@ -27,10 +28,16 @@ export default function SavedVideoProjects({ onClose }: Props) {
 
   const refresh = () => setItems(listSavedVideoProjects());
 
+  // An EXPLICIT save has to report what actually happened. The durable store accepts a write
+  // and confirms it a moment later (model/durableStore.ts), so the boolean alone would say
+  // Saved for a write that was refused; `commitDurableWrites` waits for the real answer and
+  // claims it, which is also what keeps this message rather than the app-level dialog's.
   const saveCurrent = () => {
-    const ok = upsertSavedVideoProject(project);
-    setNote(ok ? `Saved "${project.name}".` : 'Could not save - browser storage is full.');
-    refresh();
+    const accepted = upsertSavedVideoProject(project);
+    void (accepted ? commitDurableWrites() : Promise.resolve('refused')).then((failure) => {
+      setNote(failure ? 'Could not save - browser storage is full.' : `Saved "${project.name}".`);
+      refresh();
+    });
   };
 
   return (

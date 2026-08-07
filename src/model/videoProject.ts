@@ -82,9 +82,16 @@ export function loadCurrentVideoProject(): VideoProject | null {
 }
 
 /**
- * Persist the working video project. Returns false when storage is full (base64 video
- * assets can blow the localStorage quota) so the shell can warn instead of losing work
- * silently - unlike SPX's saveProject, which fails silently on much smaller documents.
+ * Persist the working video project.
+ *
+ * The boolean means ACCEPTED, not landed. The durable store takes a write and confirms it a
+ * moment later (durableStore.ts), so `false` here is only the degraded localStorage path
+ * refusing outright; a refusal from IndexedDB arrives afterwards. The shell's "could not save"
+ * warning therefore waits on `commitDurableWrites()` in store/videoProjectStore.ts - trusting
+ * this return value alone made a project that failed to save look saved.
+ *
+ * It still says more than SPX's `saveProject`, which fails silently: video assets are base64
+ * and big, so losing a write here loses noticeably more work.
  */
 export function saveCurrentVideoProject(project: VideoProject): boolean {
   try {
