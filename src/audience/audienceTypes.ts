@@ -160,6 +160,11 @@ export interface ObservableAudience extends AudienceBackend {
   /** Rehearsal only — present on the local provider, absent on the real one, so a surface
    *  offers the simulator exactly when it is meaningful. */
   simulate?(count?: number): unknown;
+  /** Rehearsal votes onto the open round, by option index. Same rule as `simulate`: absent on
+   *  the real provider, because a live production has an audience instead. It is what lets an
+   *  operator watch a tally move before a show — and what lets the offline suite drive a vote
+   *  all the way onto a graphic without a backend. */
+  simulateVotes?(counts: number[]): unknown;
 }
 
 /**

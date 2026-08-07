@@ -557,11 +557,24 @@ for a second way the slug can change under a live renderer.
 > classroom NATs a whole room behind one address. Change-your-vote, the 500-character question
 > and the presenter-slug-now design were taken as recommended.
 >
+> **PHASE 6's vote half is BUILT (2026-08-07)** — the round controls are in
+> `ProductionAudienceWorkspace`: compose a poll or quiz, open it (the MODE travels with the
+> round, and returns to what the room was asked for before it when the round closes), watch the
+> tally poll at ~2 s while it is open, and stage the counts. Staging maps them onto the poll
+> board's own `Label | count` idiom through `pollFieldMap`, matched BY TITLE like a dataset row
+> and a moderated question — so the exit is an ordinary CUE and the renderer never learns votes
+> exist. Re-staging updates that cue rather than adding a row per refresh, and CLOSING finalises
+> it ("voting closed" plus the final counts), because closing is the moment before the reveal
+> and staging needs an open round. A pool with no vote board is refused by name rather than
+> having a question written into a presenter's name field. `simulateVotes` is the rehearsal
+> counterpart of `simulate`, present only on the local provider, which is what lets the offline
+> suite drive a vote all the way onto a cue (`e2e/production-audience.spec.ts`).
+>
 > **Deliberately not built yet:** the vanity-name CLAIM UI (the database enforces the shape,
-> the reserved words and uniqueness; nothing yet lets an operator pick one), the poll/quiz
-> operator controls (Phase 6 — `openRound`/`closeRound`/`tally` exist on both providers and are
-> unreached by any button), staging a tally onto a graphic, and the presenter view beyond the
-> read-only page the presenter slug already serves.
+> the reserved words and uniqueness; nothing yet lets an operator pick one), the presenter
+> pointers (`audience_set_join` accepts `presenter.current`/`next` and `/join?pv=` renders them;
+> nothing sets them), and the presenter view beyond the read-only page the presenter slug
+> already serves.
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
 Everything is browser → Supabase direct (zero Vercel functions), one migration

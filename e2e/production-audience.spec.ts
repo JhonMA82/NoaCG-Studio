@@ -139,3 +139,87 @@ test('an unknown production workspace degrades to Playout rather than a dead sur
   await expect(page.getByTestId('production-verbs')).toBeVisible();
   await expect(page.getByTestId('production-audience')).toHaveCount(0);
 });
+
+test('the vote reaches air the same way a question does: open, count, stage a cue, take it', async ({ page }) => {
+  // PHASE 6 (docs/INTERACTIVE_PLAYOUT_PLAN.md). The plane could already open rounds, count
+  // votes and tally them — nothing called any of it. What is pinned here is the whole walk,
+  // and above all its ENDING: counts become an ordinary cue's field values, so the renderer
+  // never learns votes exist and nothing goes out without a Take.
+  await createProject(page, { category: 'Polls', name: 'House Vote' });
+  await productionFor(page, 'Derby Night');
+  await page.getByTestId('tab-audience').click();
+
+  await page.getByTestId('audience-round-question').fill('Who wins the derby?');
+  await page.getByTestId('audience-round-options').fill('The home side\nThe visitors\nA draw');
+  await page.getByTestId('audience-round-open').click();
+  await expect(page.getByTestId('audience-round-live')).toHaveText('Who wins the derby?');
+
+  // The MODE follows the vote, and says so. A select whose value is not among its options
+  // renders as the first one — which had this reading "Questions" over an open poll.
+  await expect(page.getByTestId('audience-mode')).toHaveValue('poll');
+  await expect(page.getByTestId('audience-mode')).toBeDisabled();
+
+  // Votes land and the tally moves (it polls while the round is open).
+  await page.getByTestId('audience-simulate-votes').click();
+  await expect(page.getByTestId('audience-tally-0')).toHaveText('2', { timeout: 10_000 });
+  await expect(page.getByTestId('audience-tally-1')).toHaveText('1');
+
+  // STAGING WRITES A CUE AND STOPS. The values are the poll board's own `Label | count` idiom,
+  // the same one a hand-typed rehearsal uses.
+  await page.getByTestId('audience-round-stage').click();
+  const staged = async () =>
+    page.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const cue = loadShows()[0].cues?.find((c) => c.label.startsWith('Vote —'));
+      return cue ? { label: cue.label, values: cue.values } : null;
+    });
+  const first = await staged();
+  expect(first?.values.f0).toBe('Who wins the derby?');
+  expect(first?.values.f1).toBe('The home side | 2\nThe visitors | 1\nA draw | 1');
+  expect(first?.values.f2).toContain('4 votes');
+  expect(first?.values.f2).toContain('voting open');
+
+  // Re-staging UPDATES that cue rather than adding another — a rundown must not fill with a row
+  // per refresh.
+  const cueCount = async () =>
+    page.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return (loadShows()[0].cues ?? []).filter((c) => c.label.startsWith('Vote —')).length;
+    });
+  await page.getByTestId('audience-simulate-votes').click();
+  await expect(page.getByTestId('audience-tally-0')).toHaveText('4', { timeout: 10_000 });
+  await page.getByTestId('audience-round-stage').click();
+  expect(await cueCount()).toBe(1);
+
+  // CLOSING finalises the same cue. Without this the board still said "voting open" beside its
+  // final numbers and there was no way to correct it: staging needs an open round.
+  await page.getByTestId('audience-round-close').click();
+  await expect(page.getByTestId('audience-round-open')).toBeVisible(); // composer back
+  await expect.poll(async () => (await staged())?.values.f2).toContain('voting closed');
+  expect(await cueCount()).toBe(1);
+
+  // The room goes back to what it was asked for before the vote — a phone left in poll mode
+  // would show the vote heading over an empty card.
+  await expect(page.getByTestId('audience-mode')).toHaveValue('question');
+  await expect(page.getByTestId('audience-mode')).toBeEnabled();
+});
+
+test('a vote with nowhere to go says so instead of writing a cue nobody can read', async ({ page }) => {
+  // The pool holds a name strap, not a vote board. Staging a tally into it would put a question
+  // in a presenter's name field — so the surface refuses and names the missing thing.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'No Board');
+  await page.getByTestId('tab-audience').click();
+
+  await page.getByTestId('audience-round-question').fill('Anything?');
+  await page.getByTestId('audience-round-options').fill('Yes\nNo');
+  await page.getByTestId('audience-round-open').click();
+  await page.getByTestId('audience-round-stage').click();
+
+  await expect(page.getByTestId('audience-note')).toContainText('no question/options fields');
+  const votes = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].cues ?? []).filter((c) => c.label.startsWith('Vote —')).length;
+  });
+  expect(votes).toBe(0);
+});

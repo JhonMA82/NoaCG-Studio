@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { addShowCue, type Show } from '../../model/shows';
+import { addShowCue, updateShowCue, type Show } from '../../model/shows';
 import {
+  AUDIENCE_LIMITS,
   broadcastValues,
   type AudienceBackend,
   type AudienceMode,
+  type AudienceRound,
   type AudienceSubmission,
+  type AudienceTally,
   type ObservableAudience,
 } from '../../audience/audienceTypes';
 import { localAudienceFor } from '../../audience/localAudience';
@@ -37,6 +40,54 @@ import { isBackendConfigured } from '../../backend/config';
  * which is what the seam was built for; the one visible difference is that the "simulate
  * arrivals" button exists only where simulating is meaningful.
  */
+/**
+ * Which of a graphic's fields hold a vote — matched BY TITLE, the same by-the-words binding a
+ * dataset row and a moderated question already use, so a vote board needs no mapping UI and no
+ * per-template special case. `null` means this graphic is not one: a production's pool usually
+ * holds straps and bugs too, and staging a tally into a name strap would be worse than saying
+ * there is nowhere to put it.
+ *
+ * The count line is OPTIONAL because it is the one field a board can honestly do without — the
+ * bars already carry the numbers — while a question with no options, or options with no
+ * question, is not a vote board at all.
+ */
+function pollFieldMap(fields: { field: string; title?: string }[]): { question: string; options: string; count: string | null } | null {
+  const byTitle = (...wanted: string[]): string | null => {
+    for (const f of fields) {
+      const title = (f.title ?? '').trim().toLowerCase();
+      if (wanted.some((w) => title === w)) return f.field;
+    }
+    return null;
+  };
+  const question = byTitle('question', 'poll question', 'prompt');
+  const options = byTitle('options', 'answers', 'choices');
+  if (!question || !options) return null;
+  return { question, options, count: byTitle('vote count', 'votes', 'count', 'total') };
+}
+
+/**
+ * A round's counts as ordinary FIELD VALUES. One function, so staging mid-vote and finalising
+ * on close cannot describe the same numbers two different ways.
+ *
+ * The options line is the poll board's own `Label | count` idiom - the format a hand-typed
+ * rehearsal uses - which is exactly why the renderer never has to learn that votes exist.
+ */
+function tallyValues(
+  round: AudienceRound,
+  tally: AudienceTally,
+  map: { question: string; options: string; count: string | null },
+  closed: boolean,
+): Record<string, string> {
+  const values: Record<string, string> = {
+    [map.question]: round.question,
+    [map.options]: round.options.map((label, i) => `${label} | ${tally.counts[i] ?? 0}`).join('\n'),
+  };
+  if (map.count) {
+    values[map.count] = `${tally.total} ${tally.total === 1 ? 'vote' : 'votes'} · voting ${closed ? 'closed' : 'open'}`;
+  }
+  return values;
+}
+
 export default function ProductionAudienceWorkspace({
   show,
   setShows,
@@ -67,6 +118,21 @@ export default function ProductionAudienceWorkspace({
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewHost = useRef<HTMLDivElement | null>(null);
   const preview = useRef<JoinSurfaceHandle | null>(null);
+
+  // ── The VOTE half (Phase 6) ───────────────────────────────────────────────────────────────
+  // A round is one question put to the room. The composer below builds it, `openRound` puts it
+  // in front of every phone, the tally is counted on read while it is open, and the only way
+  // any of it reaches air is the same one a question takes: a CUE the operator takes.
+  const [round, setRound] = useState<AudienceRound | null>(null);
+  const [tally, setTally] = useState<AudienceTally | null>(null);
+  const [kind, setKind] = useState<'poll' | 'quiz'>('poll');
+  const [question, setQuestion] = useState('');
+  const [optionsText, setOptionsText] = useState('');
+  const [correct, setCorrect] = useState(0);
+  /** Which cue each round is staged onto, so re-staging updates instead of piling rows up. */
+  const stagedCue = useRef<Record<string, string>>({});
+  /** What the room was being asked for before a vote took the mode over. */
+  const modeBeforeRound = useRef<AudienceMode>('question');
 
   /**
    * WHAT VIEWERS SEE, rendered by the SAME function the public page renders (the plan's own
@@ -133,7 +199,156 @@ export default function ProductionAudienceWorkspace({
     };
   }, [backend]);
 
+  // THE OPEN ROUND, and its counts while it is open. Two intervals rather than one because
+  // they answer different questions at different rates (the plan's own numbers): which round is
+  // open changes only when the operator says so and rides the provider's change signal, while a
+  // tally moves every time a phone is tapped and is polled at ~2 s. Nothing polls once the round
+  // is closed - a closed round's counts are final, so asking again could only cost battery.
+  useEffect(() => {
+    let alive = true;
+    const readRound = () =>
+      void backend.getState().then(
+        (state) => {
+          if (alive) setRound(state.round);
+        },
+        () => {},
+      );
+    readRound();
+    const off = backend.onChange(readRound);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [backend]);
+
+  useEffect(() => {
+    if (!round || round.closedAt) {
+      setTally(null);
+      return;
+    }
+    let alive = true;
+    const read = () =>
+      void backend.tally(round.id).then(
+        (t) => {
+          if (alive) setTally(t);
+        },
+        () => {},
+      );
+    read();
+    const timer = setInterval(read, 2_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [backend, round]);
+
   const patch = (id: string, p: Parameters<AudienceBackend['update']>[1]) => void backend.update(id, p);
+
+  /** The composer's options, one per line, capped where the schema caps them. */
+  const composedOptions = optionsText
+    .split('\n')
+    .map((o) => o.trim())
+    .filter(Boolean)
+    .slice(0, AUDIENCE_LIMITS.options);
+
+  /**
+   * Put the question in front of every phone. The MODE travels with it for the same reason the
+   * door's does: the join page renders a round only in `poll`/`quiz` mode, so opening one
+   * without switching would leave every viewer looking at a question nobody could see.
+   */
+  const openRound = () => {
+    if (!question.trim() || composedOptions.length < 2) return;
+    backend
+      .openRound({
+        kind,
+        question: question.trim(),
+        options: composedOptions,
+        correctOption: kind === 'quiz' ? Math.min(correct, composedOptions.length - 1) : null,
+      })
+      .then(async (opened) => {
+        setRound(opened);
+        // Remembered so closing can put the room back where it was, rather than leaving every
+        // phone on "Cast your vote" with nothing to vote on.
+        modeBeforeRound.current = mode;
+        setMode(kind);
+        await backend.setState({ mode: kind, open: true });
+        setOpen(true);
+        setNote(`✓ Voting is open on “${opened.question}”. Nothing is on air yet.`);
+      })
+      .catch((err: Error) => setNote(`Could not open the vote: ${err.message}`));
+  };
+
+  /**
+   * Stop the vote — and FINALISE the cue it was staged onto, because closing is usually the
+   * moment before the reveal. Without this the staged board still read "voting open" beside its
+   * final numbers, and there was no way to correct it: staging needs an open round, and by then
+   * there isn't one.
+   */
+  const closeRound = () => {
+    if (!round) return;
+    const closing = round;
+    const back = modeBeforeRound.current;
+    backend
+      .closeRound(closing.id)
+      .then(async () => {
+        const final = await backend.tally(closing.id).catch(() => tally);
+        const cueId = stagedCue.current[closing.id];
+        const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
+        if (cue && final) {
+          const target = show.graphics.find((g) => g.id === cue.sourceId);
+          const map = target ? pollFieldMap(target.template.fields ?? []) : null;
+          if (map) setShows(updateShowCue(show.id, cue.id, { values: tallyValues(closing, final, map, true) }));
+        }
+        setRound(null);
+        // The room goes back to what it was asked for before the vote. Leaving it in poll mode
+        // would show every phone the vote heading over an empty card, because the join surface
+        // draws a round only while there IS one.
+        setMode(back);
+        await backend.setState({ mode: back });
+        setNote(
+          cue
+            ? 'Voting is closed. The staged cue now carries the final counts — Take it when you want them on air.'
+            : 'Voting is closed. Nothing was staged, so nothing changed on the rundown.',
+        );
+      })
+      .catch((err: Error) => setNote(`Could not close the vote: ${err.message}`));
+  };
+
+  /**
+   * THE VOTE'S ONE EXIT, and it is the same shape as a question's: counts become an ordinary
+   * cue's field VALUES, and an operator takes it. The renderer never learns votes exist — a
+   * poll board is a graphic that draws whatever numbers are in its fields, exactly as it does
+   * for a hand-typed rehearsal, so nothing about it has to change for a live vote.
+   *
+   * Re-staging while the round is open UPDATES the same cue rather than adding another, so a
+   * rundown does not fill with a row per refresh; the operator re-takes to move the numbers on
+   * air. Which one gets updated is remembered per round.
+   */
+  const stageTally = () => {
+    if (!round || !tally) return;
+    const target = show.graphics.find((g) => pollFieldMap(g.template.fields ?? []) !== null) ?? show.graphics[0];
+    if (!target) {
+      setNote('This production has no graphics yet — add a vote board, then stage the counts to it.');
+      return;
+    }
+    const map = pollFieldMap(target.template.fields ?? []);
+    if (!map) {
+      setNote(`“${target.name}” has no question/options fields to put a vote in — add a vote board to this production.`);
+      return;
+    }
+    const values = tallyValues(round, tally, map, false);
+    const existing = stagedCue.current[round.id];
+    const cue = existing ? show.cues?.find((c) => c.id === existing) : undefined;
+    if (cue) {
+      setShows(updateShowCue(show.id, cue.id, { values }));
+      setNote(`✓ Updated the cue for “${target.name}” with ${tally.total} ${tally.total === 1 ? 'vote' : 'votes'}. Take it to move the numbers on air.`);
+      return;
+    }
+    const made = addShowCue(show.id, target.id, { label: `Vote — ${round.question.slice(0, 32)}`, values });
+    setShows(made.shows);
+    if (made.cueId) stagedCue.current[round.id] = made.cueId;
+    setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it — nothing has gone out.`);
+  };
 
   const shown = useMemo(() => {
     const ordered = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -224,8 +439,14 @@ export default function ProductionAudienceWorkspace({
           />
           Accepting messages
         </label>
+        {/* An open VOTE owns the mode, so the control says so instead of claiming the room is
+            being asked for questions while every phone shows a ballot. A select whose value is
+            not among its options renders as its first one, which is how this read "Questions"
+            over an open poll - the option has to exist for the control to be honest. */}
         <select
           value={mode}
+          disabled={!!round}
+          title={round ? 'A vote is open — close it to ask for questions again.' : undefined}
           onChange={(e) => {
             const next = e.target.value as AudienceMode;
             setMode(next);
@@ -235,6 +456,7 @@ export default function ProductionAudienceWorkspace({
         >
           <option value="question">Questions</option>
           <option value="comment">Comments</option>
+          {round && <option value={round.kind}>{round.kind === 'quiz' ? 'Quiz — voting' : 'Poll — voting'}</option>}
         </select>
         <div className="spacer" />
         {/* REHEARSAL, and only where it means something. The local provider can invent
@@ -251,6 +473,130 @@ export default function ProductionAudienceWorkspace({
           <span className="hint" data-testid="audience-live">
             Live — viewers send from the audience link (Links ▸ Audience link).
           </span>
+        )}
+      </div>
+
+      {/* THE VOTE. One question at a time, because that is what a room can answer: opening a
+          round closes any previous one server-side, so the panel is either composing or
+          running and never both. The counts are shown here and NOWHERE ELSE the audience can
+          reach - the join page never shows a tally, in v1 or after, because the reveal is a
+          graphic, on air, at the operator's moment. */}
+      <div className="pd-aud-round" data-testid="audience-round">
+        {!round ? (
+          <>
+            <div className="pd-aud-round-head">
+              <h3>Put a question to the room</h3>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as 'poll' | 'quiz')}
+                data-testid="audience-round-kind"
+              >
+                <option value="poll">Poll — no right answer</option>
+                <option value="quiz">Quiz — one right answer</option>
+              </select>
+            </div>
+            <input
+              type="text"
+              value={question}
+              maxLength={AUDIENCE_LIMITS.body}
+              placeholder="What should we play next?"
+              onChange={(e) => setQuestion(e.target.value)}
+              data-testid="audience-round-question"
+            />
+            <textarea
+              value={optionsText}
+              rows={4}
+              placeholder={'One option per line\nAt least two, at most eight'}
+              onChange={(e) => setOptionsText(e.target.value)}
+              data-testid="audience-round-options"
+            />
+            {kind === 'quiz' && composedOptions.length > 1 && (
+              <label className="pd-aud-correct">
+                Right answer
+                <select
+                  value={Math.min(correct, composedOptions.length - 1)}
+                  onChange={(e) => setCorrect(Number(e.target.value))}
+                  data-testid="audience-round-correct"
+                >
+                  {composedOptions.map((o, i) => (
+                    <option key={o + String(i)} value={i}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className="pd-aud-round-actions">
+              <button
+                className="primary"
+                disabled={!question.trim() || composedOptions.length < 2}
+                onClick={openRound}
+                data-testid="audience-round-open"
+              >
+                Open voting
+              </button>
+              <span className="hint">
+                {composedOptions.length < 2
+                  ? 'Two options at least — a vote with one answer is not a vote.'
+                  : `${composedOptions.length} options. Opening it switches every phone to this question.`}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="pd-aud-round-head">
+              <h3 data-testid="audience-round-live">{round.question}</h3>
+              <span className="hint">{round.kind === 'quiz' ? 'Quiz' : 'Poll'} · voting open</span>
+            </div>
+            <ul className="pd-aud-tally" data-testid="audience-tally">
+              {round.options.map((option, i) => {
+                const count = tally?.counts[i] ?? 0;
+                const share = tally && tally.total > 0 ? Math.round((count / tally.total) * 100) : 0;
+                return (
+                  <li key={option + String(i)}>
+                    {/* The full option on hover: a long one ellipsizes to keep the bars in a
+                        column, and an operator still has to be able to tell which is which. */}
+                    <span className="pd-aud-tally-label" title={option}>
+                      {option}
+                      {round.correctOption === i && <span className="pd-aud-correct-mark"> ✓</span>}
+                    </span>
+                    {/* The bar is a picture of the same number beside it, never instead of it:
+                        an operator reads the count and glances at the shape. */}
+                    <span className="pd-aud-tally-bar" aria-hidden="true">
+                      <span style={{ width: `${share}%` }} />
+                    </span>
+                    <span className="pd-aud-tally-count" data-testid={`audience-tally-${i}`}>
+                      {count}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="pd-aud-round-actions">
+              <button className="primary" onClick={stageTally} data-testid="audience-round-stage">
+                Stage counts to a graphic
+              </button>
+              <button onClick={closeRound} data-testid="audience-round-close">
+                Close voting
+              </button>
+              {/* Rehearsal votes, on the same terms as simulated arrivals: only where
+                  simulating means anything, and never on a production with a real room. */}
+              {backend.simulateVotes && (
+                <button
+                  onClick={() =>
+                    backend.simulateVotes?.(round.options.map((_, i) => (i === 0 ? 2 : 1)))
+                  }
+                  data-testid="audience-simulate-votes"
+                >
+                  ⟳ Simulate votes
+                </button>
+              )}
+              <span className="hint">
+                {tally?.total ?? 0} {(tally?.total ?? 0) === 1 ? 'vote' : 'votes'} so far. Staging
+                writes a cue — nothing is on air until you Take it.
+              </span>
+            </div>
+          </>
         )}
       </div>
 
