@@ -143,6 +143,20 @@ for each of the one or two lines. Server semantic validation enforces requested 
 custom-palette contrast before deterministic compilation. Do not widen the category or
 variant allowlist without the versioned lower-third benchmark and human visual review.
 
+**A chassis's fit metadata is MEASURED where it can be, and `supportingLineChars` is the
+precedent.** It was `textCapacity: 'medium' | 'high'`, authored by hand, and the first
+production round (docs/AI_LITE_PLAN.md §1) found it ranked the designs almost backwards: both
+"medium" entries measure widest, and the loudest "high" holds the fewest characters of all six.
+The cause is invisible in the source and obvious in the render - three of these designs set
+their supporting line in tracked uppercase, which costs about a third of the characters a reader
+expects. **No gate in the tree can see the consequence**, because a wrapped line does not escape
+its frame: overflow-sweep and the runtime bench's stress pass both ask that question, and
+type-floor measures font size. So the number comes from
+`node scripts/lite-line-capacity.mjs --check` - run it after any change to a Lite chassis, its
+stylesheet, or the bundled fonts - and a claim ABOVE the measurement fails as the defect it is,
+while one more than four characters below fails as stale. An adjective is what a chassis is
+allowed to say only where nothing can measure it.
+
 Lite's continuous improvement signal is content-free: the server ledger keeps only the
 resolved chassis, broad intent facet, accepted/discarded outcome, and optional enumerated
 discard reason. Aggregate per-intent chassis outcomes enter the trusted prompt only after the

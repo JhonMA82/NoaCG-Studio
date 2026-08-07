@@ -1,6 +1,7 @@
 // How much text a lower third's SUPPORTING line actually holds on ONE line.
 //
 //   node scripts/lite-line-capacity.mjs            # the six audited NoaCG Lite chassis
+//   node scripts/lite-line-capacity.mjs --check    # GATE: measured vs what LITE_CATALOG claims
 //   node scripts/lite-line-capacity.mjs --all      # every lower third in the catalog
 //   node scripts/lite-line-capacity.mjs --json out.json
 //
@@ -29,22 +30,10 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 
-// The six audited Lite chassis (src/ai/liteContract.ts LITE_CATALOG), with the capacity word
-// each one currently advertises to the model. Duplicated deliberately: this script must be
-// able to report the CLAIM against the measurement, and importing the TS contract into a .mjs
-// gate would buy nothing but a build step.
-const LITE_CHASSIS = [
-  { id: 'lt11', name: 'House Strap', claims: 'high' },
-  { id: 'lt02', name: 'Underline', claims: 'high' },
-  { id: 'lt05', name: 'Angle Slab', claims: 'medium' },
-  { id: 'lt15', name: 'Frost Strap', claims: 'medium' },
-  { id: 'lt25', name: 'Masthead', claims: 'high' },
-  { id: 'lt32', name: 'Scrim', claims: 'high' },
-];
-
 // Real role wording, not filler: `Xxxxx` repeated measures a width no operator ever types, and
 // tracked uppercase makes per-character width vary enough that the alphabet matters. These are
-// the job titles the frozen fixture bank already uses, longest last.
+// the job titles the frozen fixture bank already uses, longest last. They report WHERE a design
+// starts wrapping in practice; they do not set the ceiling (see PROBE).
 const ROLES = [
   'Head Coach',
   'Creative Director',
@@ -57,10 +46,25 @@ const ROLES = [
   'International Development Policy Research Fellow',
 ];
 
+// The bisect string, and it must be LONGER than any design can hold or the answer is the
+// probe's length rather than the design's. The first pass bisected the bank's longest role and
+// three designs reported exactly 48 - the string, not a measurement. Still real role wording,
+// because per-character width is what is being measured and tracked uppercase has no stable
+// average; the prefix is quoted in the output so a number can be reproduced.
+const PROBE =
+  'International Development Policy Research Fellow and Senior Adviser '
+  + 'to the Directorate of Climate Programmes and Regional Partnerships';
+
 const args = process.argv.slice(2);
 const jsonAt = args.indexOf('--json');
 const jsonOut = jsonAt >= 0 ? args[jsonAt + 1] : null;
 const ALL = args.includes('--all');
+const CHECK = args.includes('--check');
+
+// How far the declared number may lag the measurement before the gate complains. Asymmetric on
+// purpose: a claim ABOVE the measurement is the defect this exists to catch (the model is told
+// text will fit, and it wraps on air), while a claim below it only makes the model cautious.
+const STALE_SLACK = 4;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
@@ -71,11 +75,17 @@ await page.evaluate(async () => {
   window.__cat = await import('/src/templates/catalog.ts');
   window.__comp = await import('/src/preview/composeDocument.ts');
   window.__struct = await import('/src/model/structure.ts');
+  window.__lite = await import('/src/ai/liteContract.ts');
 });
 
+// The audited chassis and what each CLAIMS come from LITE_CATALOG itself, never from a copy
+// kept here: a gate whose expected values live beside it is checking its own homework, and the
+// duplicate is what would go stale the next time a chassis is audited in.
 const targets = ALL
-  ? (await page.evaluate(() => (window.__cat.CATALOG['lower-third'] || []).map((v) => ({ id: v.id, name: v.name, claims: '?' }))))
-  : LITE_CHASSIS;
+  ? (await page.evaluate(() => (window.__cat.CATALOG['lower-third'] || []).map((v) => ({ id: v.id, name: v.name, claims: null }))))
+  : (await page.evaluate(() => window.__lite.LITE_CATALOG.map((e) => ({
+      id: e.variantId, name: e.name, claims: e.supportingLineChars ?? null,
+    }))));
 
 await page.evaluate(() => {
   /**
@@ -86,7 +96,7 @@ await page.evaluate(() => {
    * answer per fragment and a design that pads or line-clamps its own line would report a
    * number that has nothing to do with what a viewer sees.
    */
-  window.__capacity = async (id, roles) => {
+  window.__capacity = async (id, roles, probe) => {
     document.body.innerHTML = '';
     const variant = window.__cat.variantById(id);
     const template = variant.create({});
@@ -124,26 +134,34 @@ await page.evaluate(() => {
     const rows = [];
     for (const role of roles) rows.push({ role, chars: role.length, ...(await measure(role)) });
 
-    // The break-even point: the longest single-line string, found by bisecting a real role
-    // rather than by dividing a width by an average glyph. Tracked uppercase has no stable
-    // average - that is the whole reason the authored capacity word was wrong.
-    const longest = roles[roles.length - 1];
+    // The break-even point: the longest single-line string, found by bisecting the probe rather
+    // than by dividing a width by an average glyph. Tracked uppercase has no stable average -
+    // that is the whole reason the authored capacity word was wrong.
     let lo = 1;
-    let hi = longest.length;
+    let hi = probe.length;
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2);
-      const { lines } = await measure(longest.slice(0, mid).trim());
+      const { lines } = await measure(probe.slice(0, mid).trim());
       if (lines <= 1) lo = mid; else hi = mid - 1;
     }
-    const style = await measure(longest.slice(0, lo).trim());
+    // A design that never wrapped the whole probe has a ceiling ABOVE what was measured, and
+    // saying so is the difference between a measurement and the probe's own length.
+    const unbounded = lo >= probe.length;
+    const style = await measure(probe.slice(0, lo).trim());
     frame.remove();
-    return { id, maxSingleLineChars: lo, fontPx: style.fontPx, transform: style.transform, tracking: style.tracking, rows };
+    return {
+      id, maxSingleLineChars: lo, unbounded, sample: probe.slice(0, lo).trim(),
+      fontPx: style.fontPx, transform: style.transform, tracking: style.tracking, rows,
+    };
   };
 });
 
 const results = [];
 for (const target of targets) {
-  const r = await page.evaluate(([id, roles]) => window.__capacity(id, roles), [target.id, ROLES]);
+  const r = await page.evaluate(
+    ([id, roles, probe]) => window.__capacity(id, roles, probe),
+    [target.id, ROLES, PROBE],
+  );
   results.push({ ...target, ...r });
 }
 await browser.close();
@@ -151,21 +169,51 @@ await browser.close();
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(results, null, 1));
 
 console.log('Supporting-line capacity, measured at 1920x1080 with default options.\n');
-console.log('chassis  name            claims  1-line max  size  transform  tracking   wraps at');
+console.log('chassis  name            claims  measured  size  transform  tracking   first wrap in the role bank');
 for (const r of results) {
   if (r.error) { console.log(`${r.id.padEnd(8)} ${String(r.name).padEnd(15)} ERROR: ${r.error}`); continue; }
   const firstWrap = r.rows.find((row) => row.lines > 1);
   console.log(
-    `${r.id.padEnd(8)} ${String(r.name).padEnd(15)} ${String(r.claims).padEnd(7)} ` +
-    `${String(r.maxSingleLineChars).padEnd(11)} ${String(r.fontPx).padEnd(5)} ` +
+    `${r.id.padEnd(8)} ${String(r.name).padEnd(15)} ${String(r.claims ?? '-').padEnd(7)} ` +
+    `${String(r.unbounded ? `>${r.maxSingleLineChars}` : r.maxSingleLineChars).padEnd(9)} ${String(r.fontPx).padEnd(5)} ` +
     `${String(r.transform).padEnd(10)} ${String(r.tracking).padEnd(10)} ` +
-    (firstWrap ? `${firstWrap.chars} chars ("${firstWrap.role}")` : 'no wrap in the bank'),
+    (firstWrap ? `${firstWrap.chars} chars ("${firstWrap.role}")` : 'never wrapped'),
   );
 }
 
-const worst = results.filter((r) => !r.error).sort((a, b) => a.maxSingleLineChars - b.maxSingleLineChars);
-if (worst.length) {
-  console.log(`\nTightest: ${worst[0].id} at ${worst[0].maxSingleLineChars} characters. ` +
-    `Widest: ${worst[worst.length - 1].id} at ${worst[worst.length - 1].maxSingleLineChars}.`);
-  console.log('A capacity word in LITE_CATALOG that disagrees with this column is telling the model something untrue.');
+const measured = results.filter((r) => !r.error);
+const ranked = [...measured].sort((a, b) => a.maxSingleLineChars - b.maxSingleLineChars);
+if (ranked.length) {
+  console.log(`\nTightest: ${ranked[0].id} at ${ranked[0].maxSingleLineChars} characters. ` +
+    `Widest: ${ranked[ranked.length - 1].id} at ${ranked[ranked.length - 1].maxSingleLineChars}.`);
+}
+
+if (!CHECK) {
+  console.log('Run with --check to gate LITE_CATALOG.supportingLineChars against these numbers.');
+  process.exitCode = measured.length === results.length ? 0 : 1;
+} else {
+  // The gate. A claim ABOVE the measurement is the defect: the model is told the text will fit
+  // and it wraps on air, which no other gate in the tree can see (a wrapped line does not
+  // escape its frame, so overflow-sweep and the runtime bench both pass it).
+  const problems = [];
+  for (const r of measured) {
+    if (typeof r.claims !== 'number') {
+      problems.push(`${r.id}: declares no supportingLineChars (measured ${r.maxSingleLineChars}).`);
+    } else if (r.claims > r.maxSingleLineChars) {
+      problems.push(`${r.id}: claims ${r.claims} characters, holds ${r.maxSingleLineChars}. `
+        + `The model is being told text will fit that wraps on air.`);
+    } else if (r.claims < r.maxSingleLineChars - STALE_SLACK) {
+      problems.push(`${r.id}: claims ${r.claims} characters and holds ${r.maxSingleLineChars} `
+        + `- stale by more than ${STALE_SLACK}, so the design is being under-used.`);
+    }
+  }
+  const failedToMeasure = results.filter((r) => r.error).map((r) => `${r.id}: ${r.error}`);
+  for (const line of [...failedToMeasure, ...problems]) console.log(`  x ${line}`);
+  if (problems.length || failedToMeasure.length) {
+    console.log(`\n${problems.length + failedToMeasure.length} problem(s). Update supportingLineChars in `
+      + 'src/ai/liteContract.ts to the measured column, or fix the design.');
+    process.exitCode = 1;
+  } else {
+    console.log(`\nLITE_CATALOG agrees with the render on all ${measured.length} chassis.`);
+  }
 }

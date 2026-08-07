@@ -108,24 +108,32 @@ What the model *did* do was believe `LITE_CATALOG`, which is the only capacity i
 has. `scripts/lite-line-capacity.mjs` renders each chassis, drives the real supporting field
 through `update()`, and reads the painted result back - the field-coverage technique, inverted:
 
-| chassis | advertises | measured 1-line max | transform | tracking |
+| chassis | advertised | measured 1-line max | transform | tracking |
 |---|---|---|---|---|
 | lt32 Scrim | **high** | **28 chars** | uppercase | 6.8px |
 | lt11 House Strap | **high** | **39** | uppercase | 4.84px |
 | lt25 Masthead | high | 47 | uppercase | 4.8px |
-| lt02 Underline | high | ≥48 | uppercase | 0.92px |
-| lt05 Angle Slab | **medium** | **≥48** | none | normal |
-| lt15 Frost Strap | **medium** | **≥48** | none | normal |
+| lt05 Angle Slab | **medium** | **55** | none | normal |
+| lt02 Underline | high | 58 | uppercase | 0.92px |
+| lt15 Frost Strap | **medium** | **66** | none | normal |
 
-*(≥48 means the longest role in the frozen bank is 48 characters and never wrapped there, so 48
-is a floor on those three, not a measurement of their ceiling.)*
+*(The first pass bisected the frozen bank's longest role and reported exactly 48 for three
+designs - the probe's length, not a measurement. The probe is now longer than any design can
+hold, which is what turned "≥48" into 55, 58 and 66.)*
 
-**The metadata is anti-correlated with reality for three of six entries.** The two designs
-advertising `medium` are the widest measured; the design advertising `high` most loudly holds
-the *fewest* characters of all six - 28, against 48. Tracked uppercase costs roughly a third of
-the characters a reader expects, and `lt32` pays the most for it (widest tracking, smallest
-size). The model was told to send long text to `lt11` and `lt32`, which is exactly backwards,
-and the frames are what that instruction produces.
+**The metadata was anti-correlated with reality.** Both designs advertising `medium` measure
+widest - `lt15` holds **66 characters, 2.4x** the `lt32` that advertised `high` loudest and
+holds 28. Tracked uppercase costs roughly a third of the characters a reader expects, and
+`lt32` pays most for it (widest tracking, smallest size). The model was told to send long text
+to `lt11` and `lt32`, which is exactly backwards, and the frames are what that instruction
+produces.
+
+**Fixed 2026-08-07.** `textCapacity: 'medium' | 'high'` is gone; `supportingLineChars` carries
+the measured number, the digest states it with its unit, and the prompt's capacity clause names
+it instead of asking for "realistic text capacity". Prompt version `lite-lower-third-v4`.
+`node scripts/lite-line-capacity.mjs --check` is the gate, mutation-tested in both directions -
+a claim above the measurement fails as a lie, a claim more than 4 characters below it fails as
+stale.
 
 ### A hazard the round did not trigger, stated as a hazard
 
@@ -255,11 +263,11 @@ which is the argument for making the machine reject more before a human ever loo
 
 Each step is free unless marked, and each is independently landable.
 
-1. **Correct the capacity metadata.** Replace `LITE_CATALOG`'s hand-authored `textCapacity`
-   word with the measured one-line character count, and state the number in the digest rather
-   than an adjective. `scripts/lite-line-capacity.mjs` produces it; wire it as a gate so the
-   claim cannot drift from the render again. *(Fixes the round's headline defect at its
-   source.)*
+1. ~~**Correct the capacity metadata.**~~ **DONE 2026-08-07.** `supportingLineChars` replaces
+   the adjective, the digest states the number with its unit, the prompt's capacity clause names
+   it (a replacement, not an added line - §6c), prompt version `lite-lower-third-v4`, and
+   `scripts/lite-line-capacity.mjs --check` gates the claim against the render. What it does NOT
+   do is stop a too-long value wrapping once an operator types one - that is step 2.
 2. **Give the supporting line a fitting strategy.** `templates/shared/textFit.ts` already
    condenses a placed line to its slot and is used by imported designs. A tracked-uppercase
    role is exactly the case it exists for. Decide per design: shrink-to-fit, or accept a wrap

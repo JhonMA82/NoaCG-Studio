@@ -24,7 +24,23 @@ export interface LiteCatalogEntry {
   bestFor: readonly string[];
   avoidFor: readonly string[];
   visualWeight: 'light' | 'medium' | 'heavy';
-  textCapacity: 'medium' | 'high';
+  /**
+   * How many characters the SUPPORTING line holds on one line, MEASURED at 1920x1080 with
+   * default options - never an adjective, and never authored by hand.
+   *
+   * It was `textCapacity: 'medium' | 'high'` until 2026-08-07, and the word was wrong in the
+   * direction that matters: both designs calling themselves `medium` measured widest (lt15 at
+   * 66), while the one calling itself `high` loudest held the fewest of all six (lt32 at 28).
+   * The model chose a chassis on that word, so a long job title went to the two tightest
+   * designs and wrapped onto three lines in the first production round - and no gate could see
+   * it, because a wrapped line does not escape its frame.
+   *
+   * The cause is that these designs set their supporting line in TRACKED UPPERCASE in their own
+   * CSS, which costs roughly a third of the characters a reader expects. That is invisible in
+   * the source and obvious in the render, which is why this number comes from
+   * `scripts/lite-line-capacity.mjs --check` and is gated against it.
+   */
+  supportingLineChars: number;
   fieldPattern: string;
   motionCharacter: string;
 }
@@ -48,7 +64,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['news', 'corporate', 'public service', 'general interviews'],
       avoidFor: ['delicate documentary supers', 'playful or highly decorative briefs'],
       visualWeight: 'medium',
-      textCapacity: 'high',
+      supportingLineChars: 39,
       fieldPattern: 'primary name or headline, then role or supporting context',
       motionCharacter: 'controlled newsroom reveal; accent leads, text follows',
     },
@@ -62,7 +78,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['universities', 'interviews', 'corporate', 'clean editorial programmes'],
       avoidFor: ['high-energy sports', 'busy footage without a quiet text area'],
       visualWeight: 'light',
-      textCapacity: 'high',
+      supportingLineChars: 58,
       fieldPattern: 'primary name or subject, then restrained descriptor',
       motionCharacter: 'precise line draw followed by a calm text reveal',
     },
@@ -76,7 +92,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['sports', 'esports', 'competitive events', 'high-energy segments'],
       avoidFor: ['long academic titles', 'solemn public information', 'quiet documentary work'],
       visualWeight: 'heavy',
-      textCapacity: 'medium',
+      supportingLineChars: 55,
       fieldPattern: 'short primary identity, then team role or event context',
       motionCharacter: 'fast snap-stinger with a clean settle; never bouncy',
     },
@@ -90,7 +106,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['technology', 'streaming', 'creative interviews', 'modern events'],
       avoidFor: ['very bright flat backgrounds', 'hard-news urgency', 'dense supporting copy'],
       visualWeight: 'medium',
-      textCapacity: 'medium',
+      supportingLineChars: 66,
       fieldPattern: 'person or subject name, then short role or descriptor',
       motionCharacter: 'soft resolved entrance with restrained depth; no excessive blur',
     },
@@ -104,7 +120,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['public news', 'documentary', 'universities', 'culture and current affairs'],
       avoidFor: ['esports', 'game shows', 'sponsor-heavy promotional graphics'],
       visualWeight: 'light',
-      textCapacity: 'high',
+      supportingLineChars: 47,
       fieldPattern: 'editorial subject or person, then role, source, or location',
       motionCharacter: 'rule draws first, then type enters in reading order',
     },
@@ -118,7 +134,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       bestFor: ['documentary', 'arts', 'film', 'human-interest interviews'],
       avoidFor: ['score updates', 'dense data', 'high-energy calls to action'],
       visualWeight: 'light',
-      textCapacity: 'high',
+      supportingLineChars: 28,
       fieldPattern: 'person or subject name, then quiet role or location',
       motionCharacter: 'slow confident fade and short travel; no overshoot',
     },
@@ -519,7 +535,11 @@ export function liteCatalogDigest(): string {
       `best:${entry.bestFor.join(',')}`,
       `avoid:${entry.avoidFor.join(',')}`,
       `weight:${entry.visualWeight}`,
-      `capacity:${entry.textCapacity}`,
+      // A NUMBER, not an adjective: "high" and "medium" ranked these designs almost exactly
+      // backwards (see supportingLineChars), and a word cannot express that lt15 holds 2.4x
+      // what lt32 does. The unit is stated because the model has to compare its own copy
+      // against it.
+      `capacity:supporting line holds ${entry.supportingLineChars} characters on one line`,
       `fields:${entry.fieldPattern}`,
       `motion:${entry.motionCharacter}`,
       `logo:${entry.logo ? 'yes' : 'no'}`,
@@ -581,7 +601,12 @@ export function liteSystemPrompt(
     'Line titles describe what an operator edits, such as Name, Role, Team, Headline, Event, or Location. Line samples are the actual on-air copy.',
     'Omit palette when the request supplies no exact brand colors. Do not invent a bespoke palette.',
     'Bespoke palette values need at least 4.5:1 primary-text contrast and 3:1 secondary-text contrast against the panel.',
-    'Prioritize legibility, intentional hierarchy, generous spacing, realistic text capacity, correct lower-third conventions, and motion that follows reading order.',
+    // "realistic text capacity" was the whole of this teaching until 2026-08-07, and it could
+    // not work: the only capacity fact the model had was an adjective that ranked the designs
+    // backwards. It now names the digest's number instead - a REPLACEMENT rather than another
+    // line, because §6c measured that every line added to this prompt degraded the axis it
+    // targeted along with the ones it did not.
+    'Prioritize legibility, intentional hierarchy, generous spacing, correct lower-third conventions, and motion that follows reading order. Keep the supporting line within the chosen chassis\'s stated character capacity so it stays on one line; when the requested copy is longer, choose a chassis that holds it rather than letting it wrap.',
     'A requested visual style should select and tune the nearest compatible chassis, not make the request unsupported.',
     ...(options?.skin ? skinPromptLines() : []),
     'Catalog:',
