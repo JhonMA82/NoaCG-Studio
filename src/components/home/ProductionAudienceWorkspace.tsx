@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { addShowCue, type Show } from '../../model/shows';
 import {
   broadcastValues,
@@ -8,6 +8,11 @@ import {
   type ObservableAudience,
 } from '../../audience/audienceTypes';
 import { localAudienceFor } from '../../audience/localAudience';
+import {
+  mountJoinSurface,
+  type JoinSurfaceClient,
+  type JoinSurfaceHandle,
+} from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { isBackendConfigured } from '../../backend/config';
 
@@ -59,6 +64,40 @@ export default function ProductionAudienceWorkspace({
   const [filter, setFilter] = useState<'inbox' | 'approved' | 'shortlist' | 'all'>('inbox');
   const [note, setNote] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewHost = useRef<HTMLDivElement | null>(null);
+  const preview = useRef<JoinSurfaceHandle | null>(null);
+
+  /**
+   * WHAT VIEWERS SEE, rendered by the SAME function the public page renders (the plan's own
+   * requirement: preview and reality cannot drift if there is only one renderer). It is
+   * READ-ONLY — the two write methods refuse — because an operator's own preview must never be
+   * able to put words in the audience's mouth.
+   *
+   * Live, it reads through the production's JOIN slug, which the studio holds locally: what is
+   * shown is then literally what a phone gets, not a reconstruction of it.
+   */
+  const previewClient = useMemo<JoinSurfaceClient>(() => {
+    const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
+    const refuse = async () => ({ ok: false, error: 'This is your preview — send from a phone to test it.' });
+    return {
+      load: () => viewer.joinView('preview-operator-device'),
+      submit: refuse,
+      vote: refuse,
+    };
+  }, [backend, live, show.joinSlug]);
+
+  useEffect(() => {
+    const host = previewHost.current;
+    if (!previewOpen || !host) return;
+    // Polling is OFF: this surface already has a change signal (the provider's own), and a
+    // second timer inside the studio would ask the same questions twice.
+    preview.current = mountJoinSurface(host, previewClient, { poll: false });
+    return () => {
+      preview.current?.destroy();
+      preview.current = null;
+    };
+  }, [previewOpen, previewClient]);
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +110,9 @@ export default function ProductionAudienceWorkspace({
         // away and the inbox keeps showing the last thing that was true.
         () => {},
       );
+      // One change signal drives both halves of this screen, so the viewer preview can never
+      // be showing a door the inbox says is open.
+      preview.current?.refresh();
     };
     refresh();
     // The door's own state lives with the production, not in this component: an operator who
@@ -165,10 +207,15 @@ export default function ProductionAudienceWorkspace({
             onChange={(e) => {
               const next = e.target.checked;
               setOpen(next);
-              // The door is the one control here with a real consequence for people outside
-              // the room, so a refusal is reported and the switch springs back rather than
-              // leaving an operator believing they had opened it.
-              backend.setState({ open: next }).catch((err: Error) => {
+              // The MODE travels with the door. The dropdown shows a choice from the moment
+              // this screen opens, but the production's own state starts at `waiting` — so
+              // opening without sending it left the viewer page saying "standing by" beside
+              // an operator screen that said "Questions".
+              //
+              // The door is also the one control here with a real consequence for people
+              // outside the room, so a refusal is reported and the switch springs back rather
+              // than leaving an operator believing they had opened it.
+              backend.setState({ open: next, mode }).catch((err: Error) => {
                 setOpen(!next);
                 setNote(`Could not ${next ? 'open' : 'close'} the audience: ${err.message}`);
               });
@@ -206,6 +253,23 @@ export default function ProductionAudienceWorkspace({
           </span>
         )}
       </div>
+
+      {/* THE VIEWER'S VIEW. Same renderer as the public page, read-only, folded away by
+          default: an operator wants it when setting up and never during a show. */}
+      <details
+        className="pd-aud-preview"
+        open={previewOpen}
+        onToggle={(e) => setPreviewOpen((e.currentTarget as HTMLDetailsElement).open)}
+        data-testid="audience-preview-details"
+      >
+        <summary>What viewers see</summary>
+        {/* The mount host is a CHILD of the frame, never the frame itself: mounting adds the
+            join page's own `.nj` class, whose max-width and auto margins would otherwise beat
+            the frame's and float the preview into the middle of the workspace. */}
+        <div className="pd-aud-preview-frame">
+          <div ref={previewHost} data-testid="audience-preview" />
+        </div>
+      </details>
 
       <div className="pd-aud-filters" data-testid="audience-filters">
         {([

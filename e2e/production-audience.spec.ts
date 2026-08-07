@@ -96,6 +96,41 @@ test('the audience workspace survives a workspace round trip and a reload', asyn
   await expect(page.getByTestId('audience-empty')).toBeVisible();
 });
 
+test('the viewer preview is the join page itself, and it follows the operator', async ({ page }) => {
+  await createProject(page, { name: 'House Q&A' });
+  await productionFor(page, 'Preview');
+  await page.getByTestId('tab-audience').click();
+
+  await page.getByTestId('audience-preview-details').locator('summary').click();
+  const preview = page.getByTestId('audience-preview');
+  // Closed is the honest starting state, and the preview says so in the words a viewer reads.
+  await expect(preview).toContainText('Not taking part right now');
+
+  // Opening the door changes what the room sees — the mode travels with it, so the preview can
+  // never sit on "standing by" while the operator's own screen says Questions.
+  await page.getByTestId('audience-open').check();
+  await expect(preview.locator('.nj-send')).toBeVisible();
+  await expect(preview).toContainText('Send us your question');
+
+  await page.getByTestId('audience-mode').selectOption('comment');
+  await expect(preview).toContainText('Your message');
+
+  // READ-ONLY: an operator's preview must not be able to put words in the audience's mouth.
+  await preview.locator('textarea').fill('Not from the operator, thanks');
+  await preview.locator('.nj-send').click();
+  await expect(preview).toContainText('send from a phone');
+  await expect(page.locator('.pd-aud-row')).toHaveCount(0);
+});
+
+test('the public join page answers honestly on an offline build', async ({ page }) => {
+  // The page is a capability URL, so every "nothing here" answer is the SAME answer — but an
+  // offline build is not a capability question at all, and saying so beats showing a form that
+  // could never send anything.
+  await page.goto('/join/friday-night-live');
+  await expect(page.locator('#join')).toContainText('runs offline');
+  await expect(page.locator('form, textarea')).toHaveCount(0);
+});
+
 test('an unknown production workspace degrades to Playout rather than a dead surface', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Degrade');

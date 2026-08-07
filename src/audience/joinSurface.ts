@@ -59,7 +59,9 @@ const CSS = `
 .nj-count.over { color:var(--nj-accent); opacity:1; }
 .nj-send { width:100%; margin-top:12px; padding:14px; font:inherit; font-weight:700; font-size:16px;
   color:#151006; background:var(--nj-accent); border:0; border-radius:10px; cursor:pointer; }
-.nj-send[disabled] { opacity:.45; cursor:default; }
+/* A disabled send is its own colour, not the accent at 45%: a washed-out amber slab reads as a
+   broken button rather than as one waiting for something to be typed. */
+.nj-send[disabled] { background:rgba(255,255,255,.08); color:rgba(244,244,245,.5); cursor:default; }
 .nj-opts { display:grid; gap:10px; }
 .nj-opt { display:flex; align-items:center; gap:10px; width:100%; text-align:left; font:inherit; font-size:16px;
   color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14);
@@ -210,7 +212,12 @@ export function mountJoinSurface(
     const round = view?.state.round;
     if (!round) return;
     const card = el('div', 'nj-card');
-    if (round.question) card.appendChild(el('p', 'nj-label', round.question));
+    // The operator's prompt above and the round's own question are usually the same sentence,
+    // and printing it twice reads as a rendering fault rather than as emphasis.
+    const heading = (view?.state.prompt ?? '').trim();
+    if (round.question && round.question.trim() !== heading) {
+      card.appendChild(el('p', 'nj-label', round.question));
+    }
     const list = el('div', 'nj-opts');
     round.options.forEach((option, index) => {
       const button = el('button', 'nj-opt');

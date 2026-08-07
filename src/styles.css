@@ -4528,6 +4528,27 @@ h2 + .lib-row,
 .pd-aud-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .pd-aud-open { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; }
 .pd-aud-open input { width: auto; }
+/* The what-are-we-asking-for select is a two-word choice, not a text field: without a width it
+   inherits the global `width: 100%` and eats the whole bar, pushing everything after it onto a
+   second line. */
+.pd-aud-bar select { width: auto; min-width: 170px; }
+/* The viewer preview: the PUBLIC page's own renderer, dropped into the studio behind a
+   disclosure. It brings its own colours (the production's published brand), so the frame
+   around it stays neutral and just gives it a phone's worth of width to lay out in. */
+.pd-aud-preview { margin-bottom: 12px; }
+.pd-aud-preview > summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 4px 0; }
+.pd-aud-preview[open] > summary { color: var(--text); }
+.pd-aud-preview-frame {
+  max-width: 380px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0b0b0d;
+  overflow: hidden;
+}
+/* The join surface is a PAGE (it fills a phone and pads for a thumb); inside the studio it is a
+   panel, so it gives back the full-height stretch and the bottom safe area. */
+.pd-aud-preview-frame > .nj { min-height: 0; padding: 16px 14px 18px; }
 .pd-aud-filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 .pd-aud-filters button { font-size: 12px; padding: 4px 10px; }
 .pd-aud-filters button.active { border-color: var(--accent); background: rgba(246, 166, 35, 0.14); }
