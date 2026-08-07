@@ -349,6 +349,39 @@ export function presenterPageUrl(presenterSlug: string): string {
   return `${window.location.origin}/join?pv=${encodeURIComponent(presenterSlug)}`;
 }
 
+/**
+ * Claim a READABLE join name, so an operator can say "noacg dot app slash join slash friday
+ * night live" on air instead of spelling out base64.
+ *
+ * It is an ordinary owner UPDATE, not an RPC and not a migration: `control_shows_owner_all`
+ * (0008) already lets an owner write their own row, and publishing has always done exactly
+ * this. Every rule that makes a name safe is ON THE COLUMN in 0035 - the shape, the
+ * reserved-word list, and the unique index - and that migration says in its own comment why a
+ * second copy in TypeScript would be wrong. So this validates NOTHING itself; it asks, and
+ * translates whatever the database answers.
+ *
+ * THERE IS DELIBERATELY NO AVAILABILITY CHECK. The owner policy means a lookup could only ever
+ * see the caller's own rows, so "is this free?" is unanswerable without a function that reads
+ * everyone's - which would be an enumeration oracle over every production's public URL. Trying
+ * the claim IS the check, and a taken name comes back as a unique violation.
+ */
+export async function claimJoinName(showId: string, name: string): Promise<string | null> {
+  const wanted = name.trim();
+  if (!wanted) return 'Type a name first.';
+  const sb = await getSupabase();
+  if (!sb) return 'This build runs offline — publish the production first.';
+  const { error } = await sb.from('control_shows').update({ join_slug: wanted }).eq('id', showId);
+  if (!error) return null;
+  // 23505 unique_violation / 23514 check_violation are the two the constraints raise. The
+  // check covers BOTH the shape and the reserved list, and the database does not say which -
+  // so the message names both rather than guessing at one.
+  if (error.code === '23505') return `“${wanted}” is already taken — try another.`;
+  if (error.code === '23514') {
+    return `“${wanted}” cannot be used: 3–40 letters, numbers, - or _, and not a word the site reserves.`;
+  }
+  return error.message;
+}
+
 /** The signed-in owner's hosted control pages. */
 export async function myControlShows(): Promise<ControlShowRow[]> {
   const sb = await getSupabase();

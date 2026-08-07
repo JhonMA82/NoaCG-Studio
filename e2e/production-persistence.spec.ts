@@ -204,3 +204,49 @@ test('the audience and presenter links are offered separately, and only once the
   await expect(links).toContainText('Public — share it with the room');
   await expect(links).toContainText('presenter’s own phone or tablet');
 });
+
+test('the readable audience name: the database decides, and this build says so honestly', async ({ page }) => {
+  // The vanity name is the one URL that gets SAID OUT LOUD, so an operator can claim
+  // "friday-night-live" instead of spelling out base64 (docs/INTERACTIVE_PLAYOUT_PLAN.md).
+  //
+  // Every rule lives on the column in migration 0035 - the shape, the reserved-word list, the
+  // unique index - and the claim is an ordinary owner UPDATE, so the CLAIM ITSELF is backend
+  // work that belongs on the maintainer's live checklist. What is pinned here is the half an
+  // offline build owns: the control exists wherever an audience link does, it refuses an empty
+  // name without asking anyone, it reports the offline truth instead of pretending, and a
+  // verdict never outlives the name it was about.
+  const id = await seedProduction(page, 'Readable Name');
+  await page.goto(`/app#/production/${id}`);
+  await page.evaluate(async (showId) => {
+    const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    setShowHostedSlug(showId, 'test-hosted-slug');
+    setShowAudienceSlugs(showId, { joinSlug: 'aB3xK9zQ', presenterSlug: 'pv-test-slug' });
+    await commitDurableWrites();
+  }, id);
+  await page.reload();
+  await page.getByTestId('production-links-toggle').click();
+
+  const input = page.getByTestId('join-name-input');
+  const claim = page.getByTestId('join-name-claim');
+  const note = page.getByTestId('join-name-note');
+  await expect(input).toBeVisible();
+
+  // Empty is the ONE refusal that needs no server.
+  await claim.click();
+  await expect(note).toHaveText('Type a name first.');
+
+  // A real name offline says what is actually wrong - it does not claim success, and it does not
+  // pretend the name was taken.
+  await input.fill('friday-night-live');
+  await claim.click();
+  await expect(note).toContainText('offline');
+
+  // Typing again clears the verdict: a refusal left standing under a DIFFERENT name is a lie
+  // about the name now in the box.
+  await input.fill('another-name');
+  await expect(note).toHaveCount(0);
+
+  // The audience link is unchanged - nothing was claimed.
+  await expect(page.getByTestId('production-links')).toContainText('/join/aB3xK9zQ');
+});

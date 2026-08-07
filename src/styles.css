@@ -4882,6 +4882,12 @@ h2 + .lib-row,
 .prod-links { margin-bottom: 12px; }
 .prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
 .prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
+/* The readable-name row is the one row holding a CONTROL rather than a URL, and it has to sit
+   in the same rhythm as the four around it: the global `input` bottom margin made it 48px
+   against their 31, which reads as a mistake rather than as a different kind of row. `flex: 1`
+   for the same reason the mode selects needed a width - the global `width: 100%` would
+   otherwise take the whole row and push the button out. */
+.prod-link-row > input { flex: 1; min-width: 0; width: auto; margin: 0; }
 .prod-url {
   flex: 1;
   min-width: 0;

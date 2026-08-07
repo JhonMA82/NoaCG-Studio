@@ -43,6 +43,7 @@ import {
   hostedControlTail,
   joinPageUrl,
   presenterPageUrl,
+  claimJoinName,
   outputPageUrl,
   publishControlShow,
   sendHostedControlBatch,
@@ -141,6 +142,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [linksOpen, setLinksOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<'output' | 'control' | 'join' | 'presenter' | null>(null);
+  /** The readable audience name being typed, and what the database said about the last claim. */
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameNote, setNameNote] = useState<string | null>(null);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   const [addPick, setAddPick] = useState('');
   const [menuCueId, setMenuCueId] = useState<string | null>(null);
@@ -497,6 +501,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const rendererFresh = outputSeenAt ? now - Date.parse(outputSeenAt) < 90_000 : false;
   const clashes = duplicateLayers(show.graphics);
 
+  /**
+   * Claim the readable audience name. The database owns every rule (0035's shape constraint,
+   * reserved list and unique index), so this only asks and reports - and on success it adopts
+   * the name locally, because `joinUrl` is built from the stored slug and would otherwise keep
+   * showing the old one until a republish.
+   */
+  const claimName = async () => {
+    setBusy(true);
+    try {
+      const failure = await claimJoinName(show.id, nameDraft);
+      if (failure) {
+        setNameNote(failure);
+        return;
+      }
+      const claimed = nameDraft.trim();
+      setShows(setShowAudienceSlugs(show.id, { joinSlug: claimed, presenterSlug: show.presenterSlug }));
+      setNameDraft('');
+      setNameNote(`✓ The audience link is now /join/${claimed}`);
+    } catch (e) {
+      setNameNote((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const copy = (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
@@ -831,6 +860,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           controlUrl={controlUrl}
           joinUrl={joinUrl}
           presenterUrl={presenterUrl}
+          nameDraft={nameDraft}
+          nameNote={nameNote}
+          onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
+          onClaimName={() => void claimName()}
           copied={copied}
           unpublishedChanges={unpublishedChanges}
           onCopy={copy}
@@ -1628,6 +1661,10 @@ function ProductionLinks({
   controlUrl,
   joinUrl,
   presenterUrl,
+  nameDraft,
+  nameNote,
+  onNameDraft,
+  onClaimName,
   copied,
   unpublishedChanges,
   onCopy,
@@ -1643,6 +1680,10 @@ function ProductionLinks({
   controlUrl: string | null;
   joinUrl: string | null;
   presenterUrl: string | null;
+  nameDraft: string;
+  nameNote: string | null;
+  onNameDraft: (value: string) => void;
+  onClaimName: () => void;
   copied: 'output' | 'control' | 'join' | 'presenter' | null;
   unpublishedChanges: boolean;
   onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
@@ -1712,6 +1753,38 @@ function ProductionLinks({
                 <p className="hint">
                   Public — share it with the room. Viewers send questions and vote here; nothing they send
                   goes on air until you approve it and take it, on the Audience tab.
+                </p>
+                {/* A READABLE NAME, because this is the one URL that gets said out loud. The
+                    field validates nothing: every rule lives on the column in migration 0035,
+                    and the answer to "is it free?" is the claim itself (hostedControl
+                    claimJoinName says why there is no availability check). */}
+                <div className="prod-link-row">
+                  <span className="mono muted">Readable name</span>
+                  <input
+                    type="text"
+                    value={nameDraft}
+                    placeholder="friday-night-live"
+                    onChange={(e) => onNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') onClaimName();
+                    }}
+                    data-testid="join-name-input"
+                  />
+                  <button onClick={onClaimName} disabled={busy} data-testid="join-name-claim">
+                    Use this name
+                  </button>
+                </div>
+                {nameNote && (
+                  <p
+                    className={nameNote.startsWith('✓') ? 'status-ok' : 'status-bad'}
+                    data-testid="join-name-note"
+                  >
+                    {nameNote}
+                  </p>
+                )}
+                <p className="hint">
+                  Changing it makes the old audience link stop working — do it before you share it,
+                  not mid-show.
                 </p>
               </>
             )}
