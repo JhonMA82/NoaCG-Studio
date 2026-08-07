@@ -28,6 +28,19 @@ export interface RuntimeBenchOptions {
    * template (an import being modified) where that promise doesn't apply yet.
    */
   houseContract?: boolean;
+  /**
+   * Field ids whose element must render on ONE line - identity metadata (a person's role, an
+   * organization, a location), never a headline.
+   *
+   * Off unless a caller names fields, because wrapping is not a defect in general: a two-line
+   * headline over a one-line kicker is correct broadcast practice, and a hand-written template
+   * may wrap anything it likes. It IS a defect when the line carries identity, and the first
+   * production Lite round shipped a five-line "lower third" that way (docs/AI_LITE_PLAN.md §1).
+   *
+   * No other check can see it. A wrapped line does not escape its frame, so the overflow and
+   * clip checks below both pass it; the panel simply grows downward.
+   */
+  singleLineFields?: readonly string[];
 }
 
 /** Merge validation results: errors and warnings concatenate, ok = no errors anywhere. */
@@ -705,6 +718,37 @@ export async function benchTemplateRuntime(
     }
     call('update', JSON.stringify(fieldValues(template, 'default')));
     await wait(30);
+
+    // ── Identity lines stay on one line ─────────────────────────────────────────────
+    // Measured HERE, before play(): the root starts CSS-hidden at opacity 0, which preserves
+    // layout, so this is the settled geometry without racing an entrance that scales or clips
+    // its own lines mid-flight.
+    for (const field of opts.singleLineFields ?? []) {
+      const el = doc.getElementById(field);
+      if (!el) continue; // validateTemplate already warns about a missing id
+      const cs = win.getComputedStyle(el);
+      const lineHeight = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+      const rect = el.getBoundingClientRect();
+      if (!lineHeight || rect.height <= 0) continue;
+      // Line COUNT rather than a wrap detector: getClientRects() answers per fragment, and a
+      // design that pads its own line would report a number unrelated to what a viewer sees.
+      const lines = Math.round(rect.height / lineHeight);
+      if (lines > 1) {
+        // A WARNING, and the severity is measured rather than chosen. Raised as an error it
+        // flagged 11 of 18 generations in the 2026-08-07 comparison round - Lite has no repair
+        // loop on the grounded path, so that would have refused two thirds of requests outright
+        // for a graphic that is mediocre but airable. Nothing can currently ACT on this finding;
+        // it becomes an error the day something can (docs/AI_LITE_PLAN.md §1).
+        warnings.push(
+          issue(
+            'bench-line-wrap',
+            `Field ${field} carries identity (a name, role, organization or location) and wrapped ` +
+              `onto ${lines} lines at its own sample values - the graphic stops reading as a strap. ` +
+              `Choose a chassis whose stated character capacity holds this copy, or shorten it.`,
+          ),
+        );
+      }
+    }
 
     // ── Entrance + settled measurement with the field defaults ──────────────────────
     phase = 'play';

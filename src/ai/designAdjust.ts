@@ -79,9 +79,26 @@ export function applyDesignAdjustments(template: SpxTemplate, spec: DesignSpec):
   if (t?.scaleRatio && has('name') && has('title')) {
     // The heading anchors the scale; the body line moves to hit the requested ratio.
     const namePx = readScaledPx(css, `${prefix}-name`, 'font-size');
+    // THE SUPPORTING LINE MAY BE TIGHTENED, NEVER ENLARGED, and the ceiling is the size the
+    // design itself authored.
+    //
+    // Measured 2026-08-07 (docs/AI_LITE_PLAN.md §1a): the six audited lower thirds author
+    // heading:body ratios of 2.0 to 2.85, while this adjustment accepted 1.2 upwards - so the
+    // whole band below 2.0 could only make the body line BIGGER than its design intended, and
+    // a ratio of 1.2 nearly doubled it. That is not a taste question, it is a capacity one: at
+    // 1.2 the Masthead's supporting line goes from 20px to 48px and from 47 characters on one
+    // line to 19, which produced eleven wrapped identity lines in eighteen generations.
+    //
+    // The design's own proportion is therefore the cap, the same way `keepChassisZone` lets the
+    // design own its placement: where the catalog has already answered a question better than a
+    // prompt can, the platform keeps the answer. A ratio below the authored one now clamps to
+    // it rather than being honoured - the harness doctrine that every out-of-range value moves
+    // to the nearest legal one, rather than being silently discarded at compile.
+    const authoredTitlePx = readScaledPx(css, `${prefix}-title`, 'font-size');
     if (namePx) {
       const ratio = clamp(t.scaleRatio, 1.2, 2.6);
-      const titlePx = Math.round(clamp(namePx / ratio, 14, namePx * 0.92));
+      const ceiling = Math.min(namePx * 0.92, authoredTitlePx ?? namePx * 0.92);
+      const titlePx = Math.round(clamp(namePx / ratio, 14, ceiling));
       push(`.${prefix}-title`, `heading:body ratio ${ratio}`, [`font-size: calc(${titlePx}px * var(--scale))`]);
     }
   }
