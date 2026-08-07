@@ -51,11 +51,11 @@ function useCompactThumb(): boolean {
   return compact;
 }
 
-/** The `.lib-row` grid's fixed cell (docs/GOALS.md "Student release" step 8): every row the
- *  same height, non-16:9 graphics letterboxed on the void inside it. 16:9 at the grid's 168px
- *  column; keep in sync with the `.lib-row` rules in styles.css. */
-const FIXED_W = 168;
-const FIXED_H = 95;
+/** The list table's PREVIEW column (re-design/handoff.md §5c): every row the same height,
+ *  non-16:9 graphics letterboxed on the void inside it. 16:9 at the table's 100px column;
+ *  keep in sync with the `--lib-cols` template in styles.css. */
+const FIXED_W = 100;
+const FIXED_H = 56;
 const FIXED_W_COMPACT = 96;
 const FIXED_H_COMPACT = 54;
 

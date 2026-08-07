@@ -38,8 +38,8 @@ every section stays mounted and no preference is reachable only by clicking the 
   Inspector + the tool panels right, timeline roomy in the centre, bottom empty. Each dock renders
   only when it holds panels; the splitters resize the adjacent region. A tab can be MOVED to
   another dock or CLOSED via its ▾ menu; a dock's "+" re-adds any hidden panel (a closed panel
-  stays closed across reloads and is offered there). The DockState (panels/active/size) +
-  timelineSize persist via model/layout.ts (loadLayout migrates any non-v2 layout to the default).
+  stays closed across reloads). The DockState (panels/active/size) + timelineSize persist via
+  model/layout.ts (loadLayout migrates any non-v2 layout to the default).
   The dock component is **WorkspaceDock**; the panel bodies come from AppShell's `renderPanel`
   (the tool panels wrapped in `.panel-body`); MOBILE keeps the fused preview column + SidePanel.
   A NEW selection (any surface) reveals the Inspector - activates its tab, or re-docks it if it
@@ -369,17 +369,15 @@ every section stays mounted and no preference is reachable only by clicking the 
   setSlotSize), one undoable apply per edit. The tab exists only while a placed field is
   selected (a non-placed selection falls back to Properties without clobbering the stored
   choice). A placed field's look is DESIGN, never keyframes - the same doctrine as its drag.
-  The Animations tab leads with the layer's LIFECYCLE rows - **Appears** (with ▶ Play / an
-  existing step by name / "in a new step »" via createStepFromLayer) and **Disappears** (with
-  ■ Out / an early exit via animEdit setLayerHide) - the same transforms the canvas chip and
-  the timeline block edges write, shown for the default path only. Below them it names which
-  steps move the layer and holds the preset
-  picker (preset + In/Out/Both + easing dropdown + per-direction duration + per-direction
-  DELAY - a hold before the motion: the apply shifts the written keyframes later within the
-  step and the layer holds its first pose through the wait, no keyframe knowledge needed +
-  Apply - blocks/presetApply.ts); Apply is a CLEAN SWAP of the targeted direction's motion
-  (it never blends with the previous preset), re-parks the preview at the playhead, and a
-  target line under it names WHICH step each direction will actually edit. On an imported
+  The Animations tab leads with the layer's LIFECYCLE rows - **Appears** (▶ Play / an existing
+  step by name / "in a new step »" via createStepFromLayer) and **Disappears** (■ Out / an
+  early exit via animEdit setLayerHide) - the same transforms the canvas chip and the timeline
+  block edges write, shown for the default path only. Below them it names which steps move the
+  layer and holds the preset picker (preset + In/Out/Both + easing + per-direction duration and
+  DELAY - a hold before the motion, written as shifted keyframes so no keyframe knowledge is
+  needed - blocks/presetApply.ts). Apply is a CLEAN SWAP of the targeted direction's motion (it
+  never blends with the previous preset), re-parks the preview at the playhead, and a target
+  line under it names WHICH step each direction will actually edit. On an imported
   design (the placed-design shape, code-derived) Animations is the DEFAULT tab - the artwork
   brought its look, so per-layer motion is what the Inspector is for there; a manual tab
   choice afterwards sticks. Legacy templates get a
@@ -473,7 +471,7 @@ Two rows are shaped by what would otherwise be a lie:
 On DESKTOP each is a dockable panel (AppShell renders them into the docks; see WorkspaceDock).
 **SidePanel** is now the MOBILE surface only: a SEVEN-tab strip - **Inspector** leads, then the
 six tool panels. The Inspector belongs there because the mobile stack has no docks, so the strip
-is the only route to the surface where a selected layer is styled and animated. It renders RAW
+is the only route to the surface where a layer is styled and animated. It renders RAW
 (it brings its own padding + scrolling, like the desktop dock's
 renderPanel); the tool panels keep the shared `.panel-body`. A new selection does NOT auto-switch
 the mobile tab (AppShell's reveal effect is desktop-only: on a phone a tab swap under the fold
@@ -576,8 +574,8 @@ e2e/layout.spec.ts.
   exported `syncSampleData`, so what a target bakes never depends on which door was used.
   **render/RenderPanel** takes the same three props; ProRes/sequence gate on `needsSignIn` like
   AI does, its measured In/Hold/Out breakdown re-runs when the template or sample data changes,
-  and job state lives in src/render/renderJobStore.ts (sessionStorage resume). Contracts in
-  src/render/AGENTS.md; specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
+  and job state lives in src/render/renderJobStore.ts. Contracts in src/render/AGENTS.md;
+  specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
 - **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**
   (AI key/model + workflow defaults from model/prefs.ts).
 
@@ -591,9 +589,10 @@ both routed (src/app/router.ts) so browser Back/Forward walk between surfaces.
 IndexedDB behind a synchronous mirror (model/durableStore.ts), which ACCEPTS a write and
 confirms it a moment later - so the value a model mutator returns means accepted, not landed.
 A surface that tells the user anything about the outcome must `await commitDurableWrites()`
-first; it resolves to the failure message, or null, and CLAIMS the failure so this surface's
-own wording ("Adding "Clean Clock" to a production") is what the user reads instead of the
-generic app-level dialog. Every surface that reports an outcome does this today (grep
+first; it resolves to the failure message, or null, and CLAIMING it is what puts this
+surface's own wording in front of the user instead of the generic app-level dialog. An e2e
+SEED that reloads after writing owes the same await. Every surface that reports one does it
+today (grep
 `commitDurableWrites`), and every one of them was first written trusting the synchronous
 answer and reporting success for a write that was refused. Two rules follow from it: a flow
 that CONTINUES on success (create the graphic,
@@ -618,47 +617,55 @@ await entirely, because the app-level dialog already announces unclaimed failure
   the whole card the door, no per-row controls. The library ROWS and every verb on them belong
   to the Graphics section, so a spec wanting a `.lib-row` opens the section first (one such
   walk, `e2e/render.spec.ts`, was caught only by CI - a Home change does not map to it).
-  A graphic is `home/GraphicRow`, rendering in TWO containers off one `view` prop:
-  `.lib-row--grid` (card) or `.lib-row--list` (dense row), both carrying Open, the
-  "+ Production" popover and the `home/RowMenu` ⋯ overflow (control panel / export / rename /
-  duplicate / publish / two-step delete). The choice is `prefs.libraryView`, per device.
+  A graphic is `home/GraphicRow` in TWO containers off one `view` prop (`prefs.libraryView`,
+  per device): `.lib-row--grid` is a CARD, `.lib-row--list` a row of the §5c TABLE - preview |
+  name | type | edited | folder | actions, where `.lib-thead` and every row share ONE
+  `--lib-cols` template whose two trailing columns are FIXED, because the heading cells are
+  empty and `max-content` collapsed them to nothing, sliding every heading right of the values
+  under it. Both carry Open, the "+ Production" popover and the `home/RowMenu` ⋯ overflow
+  (control panel / export / rename / duplicate / publish / two-step delete).
   **SELECTION HAS NO CHECKBOXES** (handoff §5b): the item takes the click, shift-click extends
   over the VISIBLE order, a press on the container's own background clears, and `.lib-select`
-  is a PIP reporting state rather than a control column beside every row - still a real button,
-  so it stays keyboard-reachable and is what a shift-click lands on. The bulk bar floats at the
-  BOTTOM, not sticky at the top, where the verbs sat a whole library away from the ticked rows.
+  is a PIP reporting state rather than a control column beside every row - INVISIBLE at rest
+  (by opacity, so it keeps its space, its focus order and its click target; an outline on every
+  resting row is that checkbox column drawn faintly), and still what a shift-click lands on.
+  The bulk bar renders AFTER the items, which is what lets `sticky; bottom` float it over the
+  list - above them its natural place is the top, so it never lifts off.
+  FOLDERS are one thing in two presentations: CARDS in the card grid (drop targets, ⋯ =
+  rename / production / remove) and the chip row in the table. Every folder verb is
+  `setGraphicsFolder` over its members - there is no folder record - so a folder holding
+  nothing cannot persist, and a newly named one lives in component state until something is
+  moved into it.
   Icons are inline SVG from `components/icons.tsx` - no
   pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
   gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
 - **home/sections/ProductionsSection** - production CARDS: a production has a state, a size and
   a set of graphics, and a one-line row showed none of them. Name + published badge, stats, a
   strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes
-  one. Published tints GREEN, never amber - amber is preview and red is on air (Brand §3).
+  one. Published tints GREEN - amber is preview and red is on air (Brand §3).
 - **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
   preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
-  recipe - update, buildInTimeline().progress(1, true), update again; a template with no builder
-  contract falls back to its own play(), since a card has no Play button beside it). A LIVE
-  render, deliberately not a picture stored on GraphicDoc: no persisted-format change, no
-  migration, nothing extra to sync, and it can never disagree with the template it previews.
-  The iframe mounts only when the card scrolls into view (IntersectionObserver). The box is
-  fixed-width and keeps the template's aspect. It is FRAMED ON THE GRAPHIC, not on the canvas
+  recipe; a template with no builder contract falls back to its own play(), since a card has no
+  Play button beside it). A LIVE render, deliberately not a picture stored on GraphicDoc: no
+  persisted-format change, no migration, nothing extra to sync, and it can never disagree with
+  the template it previews. The iframe mounts only when the card scrolls into view
+  (IntersectionObserver). It is FRAMED ON THE GRAPHIC, not on the canvas
   (preview/frameGraphic.ts, shared with the wizard's picker cards): a lower third is a band
   across a fraction of a 1920×1080 frame, and at 144px the whole-canvas view was an unreadable
   smear of one. Measured after the settle, so nothing is framed mid-air.
 - **home/GraphicControlPage** - `#/control/<graphicId>`: the saved graphic's operator
   panel, and the surface that AIRS (the editor's Rehearse tab is the preview-only twin) -
-  live graphic + transport + machine event buttons (GREYED by controlModel
-  `isEventLegal` against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the
-  editor's Rehearse panel, the event strip and the hosted page do — this surface shipped without
-  it, so every button looked pressable whether or not the graphic would drop the press) + a
-  STATE CHIP naming the graphic's current state (the fact the greying is judged against, so a
-  button is never greyed without the surface saying why) + ENTRIES (named data
-  rows: add/duplicate/rename/delete/select-active, ▶ Play with an entry, ★ make an entry
-  the template's default data via setFieldDefault) + the downloadable controlpanel.html
-  with entries baked in (control/controlPanelHtml.ts opts.entries renders an entry
-  switcher). Entry mutations compose through a read-fresh `patch(cur => …)` - two edits in
-  one tick must never overwrite each other. An entry's ✕ is ARMED (two-step, like Home's
-  graphic delete): typed-in data with no undo behind it, on a row someone drives live.
+  live graphic + transport + machine event buttons (GREYED by controlModel `isEventLegal`
+  against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the editor's
+  Rehearse panel, the event strip and the hosted page do) + a STATE CHIP naming the current
+  state (the fact the greying is judged against, so a button is never greyed without the
+  surface saying why) + ENTRIES (named data rows: add/duplicate/rename/delete/select-active,
+  ▶ Play with an entry, ★ make an entry the template's default data via setFieldDefault) +
+  the downloadable controlpanel.html with entries baked in (control/controlPanelHtml.ts
+  opts.entries renders an entry switcher). Entry mutations compose through a read-fresh
+  `patch(cur => …)` - two edits in one tick must never overwrite each other. An entry's ✕ is
+  ARMED (two-step, like Home's graphic delete): typed-in data with no undo behind it, on a row
+  someone drives live.
 - **AuthStatus** now routes 🏠 Home from the account menu (initials avatar fallback); the
   topbar's always-visible 🏠 Home button is the no-account door to the same place.
 

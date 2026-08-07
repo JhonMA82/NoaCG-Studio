@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useRouter } from '../../../app/router';
 import {
   deleteGraphics,
@@ -11,7 +11,8 @@ import { raiseStorageAlert } from '../../../store/storageAlert';
 import { loadPrefs, savePrefs } from '../../../model/prefs';
 import { commitDurableWrites } from '../../../model/durableStore';
 import GraphicRow from '../GraphicRow';
-import { IconFolder, IconGrid, IconList, IconPlus, IconTrash, IconTv } from '../../icons';
+import RowMenu, { type RowMenuItem } from '../RowMenu';
+import { IconFolder, IconGrid, IconList, IconPencil, IconPlus, IconTrash, IconTv } from '../../icons';
 
 /**
  * The full Graphics section (docs/SAVED_CONTENT_MODEL.md): the flat library with the two
@@ -58,6 +59,16 @@ export default function GraphicsSection({
         : graphics.filter((g) => (folderFilter === '' ? !g.folder : g.folder === folderFilter)),
     [graphics, folderFilter],
   );
+
+  // A folder the user has NAMED but not filled yet. Folders are a name on their graphics, so
+  // an empty one has nothing to persist; it lives here until something lands in it (the same
+  // ephemeral-empty-folder rule the Assets panel follows) and is gone on reload.
+  const [draftFolders, setDraftFolders] = useState<string[]>([]);
+  const allFolders = useMemo(
+    () => [...new Set([...folders, ...draftFolders])].sort((a, b) => a.localeCompare(b)),
+    [folders, draftFolders],
+  );
+  const countIn = (folder: string) => graphics.filter((g) => g.folder === folder).length;
 
   // ── Selection: ids + the last toggled index, for shift ranges over the visible order. ──
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -129,6 +140,80 @@ export default function GraphicsSection({
     clearSelection();
     onChanged();
   };
+
+  // ── The FOLDERS band's own verbs (grid view). Every one of them is setGraphicsFolder over
+  //    the folder's members — there is no folder record to rename, delete, or orphan. ──
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [folderName, setFolderName] = useState('');
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const idsIn = (folder: string) => graphics.filter((g) => g.folder === folder).map((g) => g.id);
+
+  const commitFolderRename = (from: string) => {
+    const to = folderName.trim();
+    setRenamingFolder(null);
+    if (!to || to === from) return;
+    const error = setGraphicsFolder(idsIn(from), to);
+    setDraftFolders((d) => d.map((f) => (f === from ? to : f)));
+    if (folderFilter === from) setFolderFilter(to);
+    if (error) setNote(error);
+    onChanged();
+  };
+
+  const removeFolder = (folder: string) => {
+    const error = setGraphicsFolder(idsIn(folder), undefined);
+    setDraftFolders((d) => d.filter((f) => f !== folder));
+    if (folderFilter === folder) setFolderFilter(null);
+    setNote(error ?? `✓ Removed the folder "${folder}". Its graphics are unfiled, not deleted.`);
+    onChanged();
+  };
+
+  const commitNewFolder = () => {
+    const name = newFolder.trim();
+    setNewFolderOpen(false);
+    setNewFolder('');
+    if (!name) return;
+    // With a selection standing, naming a folder is the same gesture as filing into it.
+    if (selectedListed.length > 0) moveTo(name);
+    else setDraftFolders((d) => (d.includes(name) ? d : [...d, name]));
+  };
+
+  /** A graphic dropped on a folder card. Dropping one that is part of the standing selection
+   *  moves the WHOLE selection - dragging one of six ticked rows means all six, the way a file
+   *  manager does it - and dropping an unticked one moves just that graphic. */
+  const dropInto = (e: DragEvent, folder: string) => {
+    e.preventDefault();
+    setDropTarget(null);
+    const id = e.dataTransfer.getData('application/x-noacg-graphic');
+    if (!id) return;
+    const moving = selected.has(id) ? ids() : [id];
+    const error = setGraphicsFolder(moving, folder);
+    setNote(error ?? `✓ Moved ${moving.length} to "${folder}".`);
+    clearSelection();
+    onChanged();
+  };
+
+  const folderMenu = (folder: string): RowMenuItem[] => [
+    {
+      label: 'Rename',
+      icon: <IconPencil />,
+      onClick: () => { setFolderName(folder); setRenamingFolder(folder); },
+      testid: 'rename-folder',
+    },
+    {
+      label: 'Create production from it',
+      icon: <IconTv />,
+      onClick: () => void createProductionFrom(graphics.filter((g) => g.folder === folder), folder),
+      testid: 'folder-card-to-production',
+    },
+    {
+      label: 'Remove folder',
+      icon: <IconTrash />,
+      onClick: () => removeFolder(folder),
+      testid: 'remove-folder',
+    },
+  ];
 
   /** Pool every selected graphic, stopping at the FIRST failure and saying how far it got - a
    *  bulk add that reported "✓ Added 12" after storing three would be worse than the silence it
@@ -211,9 +296,82 @@ export default function GraphicsSection({
         </div>
       </div>
 
-      {/* Folder chips, derived from the data — an emptied folder disappears by itself. The
-          Unfiled chip appears only when folders exist at all (until then it IS "All"). */}
-      {folders.length > 0 && (
+      {/* FOLDERS. Two presentations of one thing (re-design/handoff.md §5b/§5c): the card grid
+          gets CARDS, because a folder is a container you put things into and a card is a place
+          to drop them; the table gets the chips, where a second grid above a grid would push
+          the first row of data off the fold. Both derive from the data, so an emptied folder
+          disappears by itself. */}
+      {/* The band stands whether or not a folder exists yet — the dashed card IS how the first
+          one is made, and hiding it until one exists leaves the feature reachable only from a
+          bulk-bar menu that needs a selection first. It stands down on an empty library, where
+          there is nothing to file. */}
+      {view === 'grid' && graphics.length > 0 && (
+        <>
+          <div className="lib-band-head">
+            <h3>Folders</h3>
+            <span className="hint">drag graphics here, or select them and use Folder</span>
+          </div>
+          <div className="lib-folder-cards" data-testid="folder-cards">
+            {allFolders.map((f) => (
+              <div
+                key={f}
+                className={`lib-folder-card${folderFilter === f ? ' active' : ''}${dropTarget === f ? ' dropping' : ''}`}
+                onClick={() => { setFolderFilter(folderFilter === f ? null : f); clearSelection(); }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(f); }}
+                onDragLeave={() => setDropTarget((t) => (t === f ? null : t))}
+                onDrop={(e) => dropInto(e, f)}
+                data-testid={`folder-card-${f}`}
+              >
+                <span className="lib-folder-mark"><IconFolder /></span>
+                <div className="lib-info">
+                  {renamingFolder === f ? (
+                    <input
+                      autoFocus
+                      value={folderName}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => setFolderName(e.target.value)}
+                      onBlur={() => commitFolderRename(f)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitFolderRename(f);
+                        if (e.key === 'Escape') setRenamingFolder(null);
+                      }}
+                      data-testid="folder-rename-input"
+                    />
+                  ) : (
+                    <strong>{f}</strong>
+                  )}
+                  <span className="muted">{countIn(f)} graphic{countIn(f) === 1 ? '' : 's'}</span>
+                </div>
+                <RowMenu items={folderMenu(f)} />
+              </div>
+            ))}
+            {/* The dashed card. A folder is only a NAME on its graphics (model/library.ts), so
+                a brand-new one has no record to write yet — it lives here until something is
+                moved into it, exactly as an empty asset folder does in the Assets panel. */}
+            <div className="lib-folder-card lib-folder-new" data-testid="new-folder-card">
+              {newFolderOpen ? (
+                <input
+                  autoFocus
+                  value={newFolder}
+                  placeholder="Folder name…"
+                  onChange={(e) => setNewFolder(e.target.value)}
+                  onBlur={() => commitNewFolder()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitNewFolder();
+                    if (e.key === 'Escape') { setNewFolderOpen(false); setNewFolder(''); }
+                  }}
+                  data-testid="new-folder-name"
+                />
+              ) : (
+                <button className="link-inline" onClick={() => setNewFolderOpen(true)} data-testid="new-folder">
+                  + New folder
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+      {view === 'list' && folders.length > 0 && (
         <div className="lib-folders" data-testid="folder-chips">
           <button className={`lib-folder-chip${folderFilter === null ? ' active' : ''}`} onClick={() => { setFolderFilter(null); clearSelection(); }}>
             All ({graphics.length})
@@ -253,7 +411,43 @@ export default function GraphicsSection({
 
       {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="bulk-note">{note}</p>}
 
-      {/* The bulk bar: appears with the first selection, sticky over the list. */}
+      {/* Clicking the empty space around the items clears the selection — the third gesture
+          of the selection model, and the one that makes the other two safe to try. */}
+      <div
+        className={view === 'grid' ? 'lib-grid' : 'lib-list'}
+        onClick={(e) => { if (e.target === e.currentTarget) clearSelection(); }}
+      >
+        {/* The table's column headings (re-design/handoff.md §5c). Decorative: this is a grid
+            of divs, not a <table>, so a header row conveys nothing to a screen reader that the
+            cells do not already say — every cell carries its own testid and readable text. */}
+        {view === 'list' && listed.length > 0 && (
+          <div className="lib-thead" aria-hidden="true" data-testid="library-thead">
+            <span>Preview</span>
+            <span>Name</span>
+            <span>Type</span>
+            <span>Edited</span>
+            <span>Folder</span>
+            <span />
+            <span />
+          </div>
+        )}
+        {listed.map((g, i) => (
+          <GraphicRow
+            key={g.id}
+            g={g}
+            view={view}
+            onOpen={onOpen}
+            onChanged={onChanged}
+            onPublish={onPublish}
+            selected={selected.has(g.id)}
+            onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
+          />
+        ))}
+      </div>
+
+      {/* The bulk bar comes AFTER the items, which is what makes `position: sticky; bottom`
+          float it over the bottom of the viewport: a sticky element only lifts off when its
+          natural place is out of view, and above the list its natural place is the top. */}
       {selectedListed.length > 0 && (
         <div className="lib-bulkbar" data-testid="bulk-bar">
           <strong>{selectedListed.length} selected</strong>
@@ -356,26 +550,6 @@ export default function GraphicsSection({
           <button onClick={clearSelection} title="Clear the selection" data-testid="bulk-clear">✕</button>
         </div>
       )}
-
-      {/* Clicking the empty space around the items clears the selection — the third gesture
-          of the selection model, and the one that makes the other two safe to try. */}
-      <div
-        className={view === 'grid' ? 'lib-grid' : 'lib-list'}
-        onClick={(e) => { if (e.target === e.currentTarget) clearSelection(); }}
-      >
-        {listed.map((g, i) => (
-          <GraphicRow
-            key={g.id}
-            g={g}
-            view={view}
-            onOpen={onOpen}
-            onChanged={onChanged}
-            onPublish={onPublish}
-            selected={selected.has(g.id)}
-            onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
-          />
-        ))}
-      </div>
     </>
   );
 }

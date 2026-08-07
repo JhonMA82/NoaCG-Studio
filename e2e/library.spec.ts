@@ -596,3 +596,41 @@ test('the save dialog is sized by its content, not by the wizard it borrows styl
   expect(box.height).toBeLessThan(420);
   expect(box.height).toBeLessThan(viewport.height * 0.6);
 });
+
+test('the list view is a real table: headings over their own columns, and the toggle sticks', async ({ page }) => {
+  await createProject(page, 'Hairline');
+  await saveAs(page, 'Opening Strap');
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+
+  // The card grid is the default and carries no table chrome.
+  await expect(page.getByTestId('library-thead')).toHaveCount(0);
+  await page.getByTestId('library-view-list').click();
+  await expect(page.getByTestId('library-thead')).toBeVisible();
+
+  // Every heading sits over the cell it names (re-design/handoff.md §5c). The heading row and
+  // the graphic rows are two separate grids sharing one column template, so this is the thing
+  // that can silently drift — and `toBeVisible()` would say nothing about it.
+  const row = page.locator('.lib-row--list').first();
+  const head = page.getByTestId('library-thead');
+  for (const [index, cell] of [[2, 'row-type'], [3, 'row-edited']] as const) {
+    const headBox = (await head.locator('span').nth(index).boundingBox())!;
+    const cellBox = (await row.getByTestId(cell).boundingBox())!;
+    expect(Math.abs(headBox.x - cellBox.x)).toBeLessThan(2);
+  }
+  await expect(row.getByTestId('row-type')).toHaveText('lower-third');
+  await expect(row.getByTestId('row-folder')).toHaveText('—');
+
+  // The choice is a device preference, so it survives a reload rather than resetting to cards.
+  await page.reload();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('library-thead')).toBeVisible();
+
+  // Selecting marks the row and floats the bar BELOW the list — a bar above the rows puts the
+  // verbs at the other end of a long library from the things being ticked.
+  await row.getByTestId('select-graphic').click();
+  const bar = (await page.getByTestId('bulk-bar').boundingBox())!;
+  const rowBox = (await row.boundingBox())!;
+  expect(bar.y).toBeGreaterThan(rowBox.y);
+  await expect(row).toHaveClass(/selected/);
+});

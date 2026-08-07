@@ -11,8 +11,13 @@ async function seedLibrary(page: Page, names: string[]): Promise<void> {
   await page.evaluate(async (list: string[]) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const tpl = variantsFor('lower-third')[0].create({});
     for (const name of list) createGraphic(tpl, { name });
+    // The durable store ACCEPTS a write and confirms it a moment later, so a seed that
+    // reloads straight after creating can reload before the records land — which is exactly
+    // what these specs were doing, and why one of them failed roughly every other run.
+    await commitDurableWrites();
   }, names);
   await page.goto('/app#/home/graphics');
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -43,6 +48,9 @@ test('multi-select: checkbox + shift-click range, select all, and one-confirm bu
 
 test('flat folders: bulk move, chips filter, unfile, and the folder view becomes a production', async ({ page }) => {
   await seedLibrary(page, ['Strap A', 'Strap B', 'Ticker C']);
+  // Folders are CARDS in the card grid and CHIPS in the table (re-design/handoff.md §5b/§5c);
+  // this walk is the chip half, so it starts by switching the view.
+  await page.getByTestId('library-view-list').click();
   const boxes = page.getByTestId('select-graphic');
 
   // Move two into a NEW folder from the bulk bar.
@@ -57,7 +65,8 @@ test('flat folders: bulk move, chips filter, unfile, and the folder view becomes
   await page.getByTestId('folder-chip-Match Night').click();
   await expect(page.getByTestId('select-graphic')).toHaveCount(2);
 
-  // The folder survives a reload (additive-optional field, persisted with the record).
+  // The folder survives a reload (additive-optional field, persisted with the record). So
+  // does the VIEW — it is a device preference (model/prefs.ts), not session state.
   await page.reload();
   await expect(page.getByTestId('home-page')).toBeVisible();
   await page.getByTestId('folder-chip-Match Night').click();
@@ -76,6 +85,47 @@ test('flat folders: bulk move, chips filter, unfile, and the folder view becomes
   await page.getByTestId('bulk-move-folder').click();
   await page.getByTestId('bulk-unfile').click();
   await expect(page.getByTestId('folder-chips')).toHaveCount(0);
+});
+
+test('folder CARDS: name one, drag a graphic into it, filter by it, and rename it', async ({ page }) => {
+  await seedLibrary(page, ['Strap A', 'Strap B', 'Ticker C']);
+
+  // A folder is only a name on its graphics, so an empty one has nothing to persist — the
+  // dashed card names it and holds it until something lands in it. The band stands with no
+  // folders at all, because that card is how the first one is made.
+  await expect(page.getByTestId('folder-cards')).toBeVisible();
+  await expect(page.locator('[data-testid^="folder-card-"]')).toHaveCount(0);
+  await page.getByTestId('new-folder').click();
+  await page.getByTestId('new-folder-name').fill('Match Night');
+  await page.getByTestId('new-folder-name').press('Enter');
+  const card = page.getByTestId('folder-card-Match Night');
+  await expect(card).toContainText('0 graphics');
+
+  // Drag a card onto it. ONE DataTransfer carries the gesture, so the row's real dragstart
+  // handler is what writes the id the drop then reads — Playwright's dragTo carries no
+  // payload, and a hand-written payload would test the drop against a fiction.
+  const source = page.locator('.lib-row--grid').first();
+  const dt = await page.evaluateHandle(() => new DataTransfer());
+  await source.dispatchEvent('dragstart', { dataTransfer: dt });
+  await card.dispatchEvent('drop', { dataTransfer: dt });
+  await expect(card).toContainText('1 graphic');
+  await expect(page.getByTestId('bulk-note')).toContainText('Moved 1');
+
+  // The card filters, exactly as the chip does.
+  await card.click();
+  await expect(page.locator('.lib-row--grid')).toHaveCount(1);
+  await expect(page.getByTestId('folder-to-production')).toBeVisible();
+  await card.click(); // clicking the active folder clears the filter
+  await expect(page.locator('.lib-row--grid')).toHaveCount(3);
+
+  // Renaming a folder rewrites the name on its members — there is no folder record.
+  await card.getByTestId('row-menu').click();
+  await page.getByTestId('rename-folder').click();
+  await page.getByTestId('folder-rename-input').fill('Cup Final');
+  await page.getByTestId('folder-rename-input').press('Enter');
+  await expect(page.getByTestId('folder-card-Cup Final')).toContainText('1 graphic');
+  await page.reload();
+  await expect(page.getByTestId('folder-card-Cup Final')).toContainText('1 graphic');
 });
 
 test('bulk add to a NEW production pools the selection and lands on its page', async ({ page }) => {
