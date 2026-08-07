@@ -14,9 +14,12 @@ import { engineReports, scanEngineSupport, type EngineFeature, type EngineVerdic
  * disclosure when it has bad news. What it reports is MEASURED from the graphic's own emitted
  * code (validation/engineSupport.ts), not looked up in a list of design names.
  *
- * It is deliberately not a gate. A graphic that needs Chromium 111 is perfectly correct in OBS,
- * vMix, SPX and CasparCG 2.4+; blocking its export would be wrong, and would also be the third
- * different meaning of a disabled Export button on one screen.
+ * It is deliberately not a gate. A graphic that needs Chromium 111 is perfectly correct in SPX, a
+ * current OBS (127) and CasparCG 2.4+ — it is only wrong on engines below that, which is what the
+ * per-engine list is for. Blocking its export would be wrong, and would also be the third
+ * different meaning of a disabled Export button on one screen. The build-time line lives
+ * elsewhere: `scripts/engine-floor.mjs --fail` gates the CATALOGUE at SUPPORTED_FLOOR, while this
+ * surface reports on whatever the user has actually made, including their own edits.
  */
 export default function PlayoutCompatibility({ template }: { template: SpxTemplate }) {
   const support = useMemo(() => scanEngineSupport(template), [template]);

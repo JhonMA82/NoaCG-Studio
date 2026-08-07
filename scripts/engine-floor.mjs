@@ -1,11 +1,17 @@
 // The BROWSER-ENGINE FLOOR sweep: builds every catalog variant and reports, per design, every
 // CSS or JS feature that a given playout engine's browser is too old to understand.
 //
-// WHY IT EXISTS. CasparCG 2.3.x — the common LTS and teaching install — embeds a ~Chromium 63
-// CEF. A declaration it does not know is DROPPED, silently and completely: the 2026-08-06
-// acceptance pass found the Arena Quiz board on air as "just the blue line and the numbers",
-// because every painted panel on it is positioned with `inset: 0` (Chromium 87) and every answer
-// chip is filled with `color-mix()` (111). Nothing warned, because nothing was looking.
+// WHY IT EXISTS. A playout application embeds its own copy of Chromium, frozen at whatever the
+// host app shipped with, and a declaration it does not know is DROPPED — silently and
+// completely. The 2026-08-06 acceptance pass found the Arena Quiz board on air as "just the blue
+// line and the numbers", because every answer chip is filled with `color-mix()` (Chromium 111)
+// and that server's engine had never heard of it. Nothing warned, because nothing was looking.
+//
+// WHAT IT GATES ON. `SUPPORTED_FLOOR` in src/validation/engineSupport.ts — Chromium 117, which
+// is CasparCG 2.4, the server the maintainer's school runs productions on. That is the default
+// bar here, so a bare run answers the question that actually matters. Everything else measured
+// (a current OBS at 127, CasparCG 2.5 at 142) sits above it; the 2.3 rows sit below it and are
+// reported honestly rather than hidden.
 //
 // It MEASURES rather than listing known-bad designs, for the same reason field-coverage.mjs
 // renders instead of grepping for `id="fN"`: a hand-maintained list of names is wrong the day
@@ -15,17 +21,16 @@
 // its verdict from, so the gate and the user-facing warning can never disagree.
 //
 // Usage (dev server must be running for this checkout — scripts/dev-port.mjs):
-//   node scripts/engine-floor.mjs                       # every design, against CasparCG 2.3.x
-//   node scripts/engine-floor.mjs --engine casparcg-24  # against another engine
-//   node scripts/engine-floor.mjs --chromium 80         # against a bare Chromium version
-//   node scripts/engine-floor.mjs quiz                  # one category
-//   node scripts/engine-floor.mjs --json out.json       # machine-readable report
-//   node scripts/engine-floor.mjs --fail                # exit 1 when anything is unsupported
+//   node scripts/engine-floor.mjs                        # every design, against the FLOOR
+//   node scripts/engine-floor.mjs --engine casparcg-233  # against another engine
+//   node scripts/engine-floor.mjs --chromium 80          # against a bare Chromium version
+//   node scripts/engine-floor.mjs quiz                   # one category
+//   node scripts/engine-floor.mjs --json out.json        # machine-readable report
+//   node scripts/engine-floor.mjs --fail                 # exit 1 when anything is unsupported
 //
-// It REPORTS by default and exits 0. That is deliberate: most of the catalog is currently
-// unsupported on a 2.3.x engine, so a gate that failed on the first finding would be red from
-// the moment it landed and would teach nothing. `--fail` is there for the day the catalog is
-// clean enough to hold a line.
+// It still REPORTS by default and exits 0, so pointing it at an engine BELOW the floor stays a
+// question you can ask without failing anything. `--fail` is the gate, and the nightly catalog
+// job runs it at the default bar — the catalogue clears 117 today, so the line is holdable.
 
 import { chromium as playwrightChromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
@@ -40,7 +45,9 @@ const flag = (name) => {
 };
 const only = argv.find((a, i) => !a.startsWith('-') && !flagValueAt.has(i)) ?? null;
 const jsonPath = flag('--json');
-const engineId = flag('--engine') ?? 'casparcg-233';
+// No --engine given means "the bar we actually hold": SUPPORTED_FLOOR, resolved in the browser
+// alongside the engine table so the number has exactly one home.
+const engineId = flag('--engine');
 const chromiumFlag = flag('--chromium');
 const shouldFail = argv.includes('--fail');
 
@@ -59,6 +66,10 @@ await page.evaluate(async () => {
 const bar = await page.evaluate(
   ({ engineId, chromiumFlag }) => {
     if (chromiumFlag) return { label: `Chromium ${chromiumFlag}`, chromium: Number(chromiumFlag) };
+    if (!engineId) {
+      const floor = window.__eng.PLAYOUT_ENGINES.find((e) => e.chromium === window.__eng.SUPPORTED_FLOOR);
+      return { label: `the supported floor${floor ? ` — ${floor.label}` : ''}`, chromium: window.__eng.SUPPORTED_FLOOR };
+    }
     const engine = window.__eng.PLAYOUT_ENGINES.find((e) => e.id === engineId);
     return engine ? { label: engine.label, chromium: engine.chromium } : null;
   },

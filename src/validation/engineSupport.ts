@@ -14,13 +14,19 @@
 // designs are known to be broken. A list would be wrong the day after it was written; the scan
 // is right by construction because it reads the emitted code.
 //
-// WHAT IT IS NOT. It is not a validator and it never blocks an export: a graphic that needs
-// Chromium 111 is completely correct in SPX's own renderer and CasparCG 2.4+. It is NOT correct
-// in OBS or vMix — measured 2026-08-07, OBS 30 and vMix 27 embed a Chromium 103 CEF, so the
-// same 179 designs lose their `color-mix()` fills there that lose them on CasparCG 2.3. An
-// embedded engine is frozen at the host app's build; only SPX is exempt, because it renders in
-// the operator's own auto-updating browser. The output is a VERDICT PER TARGET ENGINE, so the
-// user is told before they take it to air rather than finding out on a dark layer.
+// WHAT IT IS NOT. It is not a validator and it never blocks an export. The output is a VERDICT
+// PER TARGET ENGINE, so the user is told before they take it to air rather than finding out on
+// a dark layer — including for engines below the supported floor, which are reported honestly
+// rather than hidden.
+//
+// THE FLOOR IS A MACHINE, NOT AN AUDIENCE GUESS (`SUPPORTED_FLOOR`, and
+// docs/PLAYOUT_COMPATIBILITY.md). Earlier revisions of this module aimed at CasparCG 2.3 and at
+// a guessed OBS/vMix bar. Measured 2026-08-07 on real installs: a current OBS reports Chromium
+// 127 and CasparCG 2.5 reports 142, so the binding constraint is not either of those — it is
+// CasparCG 2.4 (117), the server the maintainer's school actually runs productions on. The
+// catalogue's own ceiling is 111 (`color-mix()`), which clears 117 with room. What the floor
+// buys is the three CSS features ABOVE it — relative colour syntax (119), the unprefixed mask
+// shorthand (120) and light-dark() (123) — one of which has already put a design on air wrong.
 //
 // HONEST LIMITS, stated because a compatibility report that overclaims is worse than none:
 //  - It is a lexical scan. It reads the emitted CSS and JS with comments and string literals
@@ -120,29 +126,46 @@ export interface PlayoutEngine {
 }
 
 /**
- * The engines worth a verdict. The CasparCG rows come from its changelog
- * (docs/PLAYOUT_INTEGRATION.md §3); only 2.3.2 has been run on hardware here.
+ * THE SUPPORTED FLOOR: the oldest browser engine a catalogue template must render correctly on.
  *
- * **2.3.x is two rows, not one, and that is a measurement rather than caution.** The CEF changed
- * inside the 2.3 line, and this repo holds two observations from real servers that cannot both
- * describe one engine:
+ * 117 is CasparCG 2.4 — not an audience estimate, but the server the maintainer's school runs
+ * productions on, which makes it the oldest engine anyone here has to satisfy. Everything else
+ * measured on 2026-08-07 sits above it: a current OBS reports 127, CasparCG 2.5 reports 142, and
+ * SPX renders in the operator's own browser. The catalogue's own ceiling is 111 (`color-mix()`),
+ * so it clears this today with six versions to spare.
+ *
+ * Moving this number is a decision about which machines are supported, so it lives here, once —
+ * `scripts/engine-floor.mjs` gates on it and docs/PLAYOUT_COMPATIBILITY.md explains it.
+ */
+export const SUPPORTED_FLOOR = 117;
+
+/**
+ * The engines worth a verdict, from oldest to newest.
+ *
+ * `measured` rows were read off a real install through the output page's `&debug=1` readout,
+ * which prints the engine's own user-agent version. Everything else comes from a changelog and
+ * should be treated as approximate until someone points a real machine at that URL.
+ *
+ * **The two CasparCG 2.3 rows are INFERENCES, and they are bounds rather than values.** The CEF
+ * changed inside the 2.3 line, and this repo holds two observations from real servers that
+ * cannot both describe one engine:
  *  - vite.config.ts lowers the whole app's build target to es2017 because a 2.3.2 server could
- *    not PARSE optional chaining — that engine is older than Chromium 80.
+ *    not PARSE optional chaining — that engine is BELOW Chromium 80.
  *  - The 2026-08-06 acceptance pass found the Arena Quiz board missing only its `color-mix()`
  *    answer chips while every panel positioned with `inset` (87) and spaced with flex `gap`
- *    (84) rendered correctly — that engine is at least 88.
- * Both are true of "CasparCG 2.3.x"; neither is true of a single number. So the table names the
- * early line (~75) and the late line (88) separately and the report shows both, because guessing
- * one would either cry wolf over the whole catalogue or promise a design will render when it
- * will not.
+ *    (84) rendered correctly — that engine is AT OR ABOVE 88.
+ * Both are true of "CasparCG 2.3.x"; neither is true of a single number. They are kept as
+ * separate rows, below the floor, so the report stays honest about a machine we do not support
+ * rather than silently omitting it.
  */
 export const PLAYOUT_ENGINES: PlayoutEngine[] = [
-  { id: 'casparcg-230', label: 'CasparCG 2.3.0–2.3.2', chromium: 75, note: 'the older LTS build' },
-  { id: 'casparcg-233', label: 'CasparCG 2.3.3+', chromium: 88, note: 'the later 2.3 LTS build' },
-  { id: 'casparcg-24', label: 'CasparCG 2.4.x', chromium: 117 },
-  { id: 'casparcg-25', label: 'CasparCG 2.5.x', chromium: 142 },
-  { id: 'obs', label: 'OBS Studio 30+', chromium: 103 },
-  { id: 'vmix', label: 'vMix 27+', chromium: 103 },
+  { id: 'casparcg-230', label: 'CasparCG 2.3.0–2.3.2', chromium: 75, note: 'inferred, below the supported floor' },
+  { id: 'casparcg-233', label: 'CasparCG 2.3.3+', chromium: 88, note: 'inferred, below the supported floor' },
+  { id: 'obs-30', label: 'OBS Studio 30.x', chromium: 103, note: 'an OBS not updated since 2023 — below the floor' },
+  { id: 'vmix', label: 'vMix 27+', chromium: 103, note: 'changelog only, never measured here' },
+  { id: 'casparcg-24', label: 'CasparCG 2.4.x', chromium: SUPPORTED_FLOOR, note: 'THE SUPPORTED FLOOR' },
+  { id: 'obs', label: 'OBS Studio (current)', chromium: 127, note: 'measured 2026-08-07' },
+  { id: 'casparcg-25', label: 'CasparCG 2.5.x', chromium: 142, note: 'measured 2026-08-07' },
   { id: 'browser', label: 'A current browser', chromium: null, note: 'SPX’s own renderer, and the studio preview' },
 ];
 
@@ -182,17 +205,41 @@ function maskJs(js: string): string {
     .replace(/"(?:\\.|[^"\\\n])*"/g, (m) => `"${' '.repeat(Math.max(0, m.length - 2))}"`);
 }
 
-/**
- * The property a CSS line declares, or null if the line is not a declaration.
- *
- * A vendor prefix is stripped, because to the cascade's fallback idiom `-webkit-mask-image` and
- * `mask-image` are the SAME property: the prefixed spelling written first is kept by an engine
- * that cannot parse the standard one below it, which is exactly the fix. Without this the
- * scanner reports the fixed designs as broken and the report argues with itself.
- */
+/** The property a CSS line declares, verbatim, or null if the line is not a declaration. */
 function declaredProperty(line: string): string | null {
   const m = /^\s*([-\w]+)\s*:/.exec(line);
-  return m ? m[1].toLowerCase().replace(/^-(?:webkit|moz|ms|o)-/, '') : null;
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * Standard properties whose `-webkit-` spelling is genuinely OLDER, and therefore usable as a
+ * fallback for it.
+ *
+ * This is a list rather than a prefix-strip, and the difference is load-bearing. An earlier
+ * version stripped any vendor prefix when comparing property names, which silently credited
+ * `-webkit-backdrop-filter` as a fallback for `backdrop-filter` — but Chromium shipped both
+ * spellings at 76, so on an engine below that NEITHER works and the "fallback" is worth
+ * nothing. The catalogue has 141 of those pairs; crediting them would have blinded the scanner
+ * to `backdrop-filter` across 178 designs while changing nothing on air.
+ *
+ * Adding a row here needs evidence that the prefixed form actually predates the standard one.
+ * The mask family qualifies: `-webkit-mask-image` has worked since Chromium 1, the unprefixed
+ * shorthand only since 120.
+ */
+const OLDER_WHEN_PREFIXED: ReadonlySet<string> = new Set([
+  'mask',
+  'mask-image',
+  'mask-composite',
+  'mask-mode',
+  'mask-size',
+  'mask-repeat',
+  'mask-position',
+]);
+
+/** Can `prev` stand in for `prop` — the same property, or a genuinely older prefixed spelling? */
+function coversProperty(prev: string, prop: string): boolean {
+  if (prev === prop) return true;
+  return OLDER_WHEN_PREFIXED.has(prop) && prev === `-webkit-${prop}`;
 }
 
 /**
@@ -205,18 +252,31 @@ function declaredProperty(line: string): string | null {
  * the catalogue.
  *
  * "Covered" is deliberately narrow: the immediately preceding declaration in the same block must
- * name the SAME property and must not itself use anything modern. That is the only pattern the
- * cascade actually guarantees, and a looser rule would start excusing real gaps.
+ * name the SAME property (or a genuinely older prefixed spelling of it) and must not itself use
+ * anything modern. That is the only pattern the cascade actually guarantees, and a looser rule
+ * would start excusing real gaps.
+ *
+ * A CUSTOM PROPERTY IS NEVER COVERED, and that is the subtlest rule here. `--x: <old>` followed
+ * by `--x: <modern>` looks exactly like the idiom and is not it: custom properties are raw token
+ * streams, so an old engine ACCEPTS the modern one and it wins the cascade. The failure lands
+ * later, at `box-shadow: var(--x)` — per CSS Variables Level 1 §3.3 a property containing a
+ * syntactically valid `var()` is assumed valid at parse time and only checked after
+ * substitution, and a declaration that turns out invalid then is "invalid at computed-value
+ * time": the property takes its inherited or initial value rather than the previously cascaded
+ * one. So the pair provides nothing, the graphic is still wrong, and crediting it would make
+ * this scanner certify a design that goes to air dark. `--accent-glow` is exactly this shape and
+ * is read by 73 templates.
  */
 function hasFallback(lines: string[], at: number): boolean {
   const prop = declaredProperty(lines[at]);
   if (!prop) return false;
+  if (prop.startsWith('--')) return false; // see above: a custom-property pair is not a fallback
   for (let i = at - 1; i >= 0; i -= 1) {
     const prev = lines[i];
     if (!prev.trim()) continue; // blank (or a blanked-out comment) is not a declaration
     if (/[{}]/.test(prev)) return false; // left the rule block without finding one
     const prevProp = declaredProperty(prev);
-    if (prevProp !== prop) return false; // the line before it is a different property
+    if (!prevProp || !coversProperty(prevProp, prop)) return false;
     return !ENGINE_FEATURES.some((f) => f.where === 'css' && f.test.test(prev));
   }
   return false;

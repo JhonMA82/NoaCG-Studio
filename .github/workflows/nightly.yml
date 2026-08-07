@@ -152,13 +152,19 @@ jobs:
           # Run all of them even if an earlier one fails, so one night reports every catalog fault
           # rather than only the earliest one. They answer different questions: type-floor is
           # about SIZE, overflow-sweep about the BOX, field-coverage about whether an operator
-          # can reach the words at all, and numerals about whether a graphic holds still while
-          # its numbers change.
+          # can reach the words at all, numerals about whether a graphic holds still while its
+          # numbers change, and engine-floor about whether the PLAYOUT BROWSER can render it —
+          # at SUPPORTED_FLOOR (Chromium 117, CasparCG 2.4), the oldest server we promise to
+          # work on. That last one is a real gate now rather than a report: the catalogue clears
+          # 117 today, and the features above it (relative colour 119, the unprefixed mask
+          # shorthand 120, light-dark 123) drop silently on air, so nothing else would catch a
+          # new template reaching for one.
           status=0
           node scripts/type-floor.mjs || status=1
           node scripts/overflow-sweep.mjs --baseline || status=1
           node scripts/field-coverage.mjs || status=1
           node scripts/numerals.mjs || status=1
+          node scripts/engine-floor.mjs --fail || status=1
           exit "$status"
 
   report:

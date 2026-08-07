@@ -54,9 +54,9 @@ CasparCG plays a web page through its **HTML producer**.
 
 | Server | Bundled browser engine | Consequence |
 |---|---|---|
-| **2.3.x** (the common LTS / teaching install) | CEF from the Chromium 6x era | **Old.** It rejects JavaScript syntax that every current browser accepts. See below. |
-| **2.4.x** | CEF 117 | Modern enough; nothing special to do. |
-| **2.5.x** | CEF 142 | Current. |
+| **2.3.x** (the older LTS / teaching install) | CEF from the Chromium 6x-8x era | **Old, and no longer supported.** It rejects JavaScript syntax that every current browser accepts, and drops modern CSS silently. See below. |
+| **2.4.x** | CEF 117 | **The oldest version NoaCG supports.** Nothing special to do. |
+| **2.5.x** | CEF 142 | Current (measured 2026-08-07). |
 
 **On 2.3.x, a page that is too modern does not degrade — it dies silently.** The layer goes on
 air showing nothing, and the reason is a `SyntaxError` in a log you have to go looking for. We
@@ -82,8 +82,10 @@ So every export screen carries a **Playout compatibility** section: one line per
 saying whether the graphic renders as designed there, and a "what exactly does it use?" list of
 the declarations involved, with the version each one needs. It is measured from the graphic's
 own emitted code, so it is right for a template you edited yourself too. It never blocks an
-export — a graphic that needs a newer engine is completely correct in OBS, vMix, SPX and
-CasparCG 2.4+.
+export — a graphic that needs Chromium 111 is completely correct in SPX, in a current OBS
+(measured at Chromium 127) and in CasparCG 2.4+. It is **not** correct on an OBS or vMix that
+has not been updated since 2023, both of which embed a Chromium 103 engine. The per-system list
+on that screen is what tells you which case you are in.
 
 **Which CEF does my server actually have?** The 2.3 line shipped more than one, so the version
 number alone does not settle it. Load the production's output URL with `&debug=1` and read the
