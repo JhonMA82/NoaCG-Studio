@@ -526,6 +526,24 @@ begin
      not in ('waiting', 'question', 'comment', 'poll', 'quiz') then
     raise exception 'not an audience state patch';
   end if;
+  -- The presenter pointers are CAST to uuid when the presenter view resolves them, so a
+  -- malformed pointer written here would break that page later, far from the cause. Two
+  -- submission ids or nothing.
+  if p_patch ? 'presenter' then
+    if jsonb_typeof(p_patch->'presenter') <> 'object' then
+      raise exception 'not an audience state patch';
+    end if;
+    for v_key in select jsonb_object_keys(p_patch->'presenter') loop
+      if v_key not in ('current', 'next') then
+        raise exception 'not an audience state patch';
+      end if;
+      if jsonb_typeof(p_patch->'presenter'->v_key) not in ('null', 'string')
+         or coalesce(p_patch->'presenter'->>v_key, '') !~
+            '^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$' then
+        raise exception 'not an audience state patch';
+      end if;
+    end loop;
+  end if;
   update public.control_shows s
     set audience_state = s.audience_state
       || (p_patch - 'prompt')
