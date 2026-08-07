@@ -782,21 +782,37 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onAllOut={() => void outAll()}
       onExport={() => setExportOpen(true)}
       onKey={(key) => {
-        // SPACE IS THE TOGGLE (acceptance pass, 2026-08-06: "you take with space and go out
-        // with - is it zero? It should go in and out with space"). One key, one gesture: the
-        // selected cue goes on, and the same key takes it off. A RE-TAKE - Take on a cue that
-        // is already live, which replays the entrance and is the graphic's reset - stays
-        // reachable by the ⟳ button itself, and the button says so when it means that. The KEY
-        // is the one that had to become predictable, because it is the one pressed without
-        // looking. `0` still means Out, from either state.
+        // SPACE IS THE TOGGLE, and so is the button under it (acceptance pass 2026-08-06: "it
+        // should go in and out with space"; operator feedback 2026-08-07: the key and the
+        // button disagreed - SPACE took a live cue OFF while the button beside it re-took).
+        // One control, one gesture, the SPX way: the selected cue goes on, and the same
+        // control takes it off. RE-TAKE is a SECONDARY action with its own key, never the
+        // primary control wearing a different meaning while a cue happens to be live - that
+        // is the state an operator is least able to check before pressing.
+        // `0` still means Out, from either state.
         if (key === 'take') {
           if (selectedCueIsLive) void outLive();
           else if (canTake && selectedCue) void takeCue(selectedCue);
         }
+        // Re-take: play a live cue's entrance again from the start. Only meaningful on a cue
+        // that IS live - on anything else it would just be Take under a second name.
+        if (key === 'retake' && selectedCueIsLive && selectedCue) void takeCue(selectedCue);
         if (key === 'preview' && selectedCue) selectCue(selectedCue.id);
         if (key === 'update' && editingIsLive) void updateLive();
         if (key === 'next' && selectedLayerLive) void nextLive();
         if (key === 'out' && selectedLayerLive) void outLive();
+        // Walk the rundown. Selecting a cue is the same act as clicking it - it goes to
+        // PREVIEW, nothing airs - so an operator can line the next item up and take it
+        // without touching the mouse.
+        if (key === 'select-prev' || key === 'select-next') {
+          if (!cues.length) return;
+          const at = cues.findIndex((c) => c.id === (selectedCue?.id ?? ''));
+          const step = key === 'select-next' ? 1 : -1;
+          // From nothing selected, Down lands on the first cue and Up on the last.
+          const next = at < 0 ? (step > 0 ? 0 : cues.length - 1) : Math.min(cues.length - 1, Math.max(0, at + step));
+          selectCue(cues[next].id);
+          document.querySelector(`[data-testid="cue-${cues[next].id}"]`)?.scrollIntoView({ block: 'nearest' });
+        }
       }}
       sub={sub ?? null}
       onTab={(tab) => navigate(tab === 'playout' ? { view: 'production', id: show.id } : { view: 'production', id: show.id, sub: tab })}
@@ -900,20 +916,39 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           >
             → Preview <kbd>P</kbd>
           </button>
+          {/* THE TOGGLE. The button IS the key: on when the cue is off, off when it is on.
+              It used to re-take here while SPACE took the cue off air — one surface, two
+              behaviours, and the button's own label ("RE-TAKE") was what an operator read
+              while their finger was on the key that did the opposite. */}
           <button
-            className="pd-verb pd-verb-take"
-            disabled={!canTake}
-            onClick={() => selectedCue && void takeCue(selectedCue)}
+            className={`pd-verb pd-verb-take${selectedCueIsLive ? ' pd-verb-live' : ''}`}
+            disabled={selectedCueIsLive ? !selectedLayerLive : !canTake}
+            onClick={() => {
+              if (selectedCueIsLive) void outLive();
+              else if (selectedCue) void takeCue(selectedCue);
+            }}
             title={
               selectedCueIsLive
-                ? 'Re-take: play this cue’s entrance again from the start. SPACE takes it OFF air.'
+                ? 'Take this cue OFF air — the same thing SPACE does'
                 : 'Air the previewed cue'
             }
             data-testid="verb-take"
           >
-            {/* The key label FOLLOWS the toggle. Leaving SPACE on this button while the cue is
-                already live would name the one thing the key no longer does there. */}
-            {selectedCueIsLive ? '⟳ RE-TAKE' : <>⟳ TAKE <kbd>SPACE</kbd></>}
+            {selectedCueIsLive ? <>■ TAKE OFF <kbd>SPACE</kbd></> : <>⟳ TAKE <kbd>SPACE</kbd></>}
+          </button>
+          {/* RE-TAKE is secondary: replaying the entrance of a cue that is already on air. It
+              never becomes the primary button. It is always PRESENT and greys out when it does
+              not apply, like every other verb on this bar — a control that appears and
+              disappears would move Update, Next and Out sideways at the exact moment a cue
+              goes live, which is when an operator is least looking at the bar. */}
+          <button
+            className="pd-verb pd-verb-secondary"
+            disabled={!selectedCueIsLive}
+            onClick={() => selectedCue && void takeCue(selectedCue)}
+            title="Re-take: play this cue’s entrance again from the start"
+            data-testid="verb-retake"
+          >
+            ⟳ Re-take <kbd>R</kbd>
           </button>
           <button
             className={`pd-verb pd-verb-update${hasUnsent ? ' pd-unsent' : ''}`}
@@ -947,8 +982,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             title={selectedGraphic ? `Play ${selectedGraphic} off — the other layers stay up` : 'Play this layer off'}
             data-testid="verb-out"
           >
+            {/* SPACE belongs to the toggle above, and only there. This button is about the
+                selected LAYER, which is not always the selected cue's. */}
             ■ Out <kbd>0</kbd>
-            {selectedCueIsLive && <kbd>SPACE</kbd>}
           </button>
           <span className="pd-onair-line" data-testid="live-cue-chip">
             {liveLayers.length === 0 ? (
@@ -1480,7 +1516,7 @@ function ProductionShell({
   onBack: () => void;
   onAllOut: () => void;
   onExport: () => void;
-  onKey: (key: 'preview' | 'take' | 'update' | 'next' | 'out') => void;
+  onKey: (key: 'preview' | 'take' | 'retake' | 'update' | 'next' | 'out' | 'select-prev' | 'select-next') => void;
   links: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -1492,9 +1528,20 @@ function ProductionShell({
       const map: Record<string, Parameters<typeof onKey>[0]> = {
         p: 'preview',
         ' ': 'take',
+        // RE-TAKE is a key of its own, never the toggle wearing a second meaning. It replays a
+        // live cue's entrance, which is a different intention from "put this on" and from
+        // "take it off", and an operator with a finger on SPACE must never discover which of
+        // the three they got.
+        r: 'retake',
         u: 'update',
         n: 'next',
         '0': 'out',
+        // Walking the rundown from the keyboard is what makes the whole surface operable
+        // without a mouse — and, since a Stream Deck is a keyboard emulator, what makes these
+        // verbs reachable from one. Form controls keep their own arrows (`typingInto` covers
+        // input, textarea, select and contenteditable), so a layer number still steps normally.
+        arrowup: 'select-prev',
+        arrowdown: 'select-next',
       };
       const verb = map[e.key.toLowerCase()];
       if (!verb) return;

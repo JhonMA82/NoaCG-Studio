@@ -509,8 +509,12 @@ state was already correct, so this is the case that was actually broken.
 waiting changes and ✎ Update wears an amber dot, compared against what was last SENT.
 **Staged-vs-take is unchanged: data still never airs by itself.**
 
-**P1 — SPACE is a toggle** (on air / off air), with the key labels following it and an explicit
-⟳ RE-TAKE on the button. `0` still means Out. Recorded in docs/PLAYOUT_DASHBOARD.md §2.
+**P1 — SPACE is a toggle** (on air / off air). `0` still means Out. Recorded in
+docs/PLAYOUT_DASHBOARD.md §2. **Corrected 2026-08-07** after a production: the toggle was the
+key only, while the button beside it re-took, so the same surface had two behaviours and the
+button's label ("RE-TAKE") described neither the press nor what a hand on SPACE was about to
+do. The BUTTON is now the toggle too, re-take moved to its own secondary button and key (`R`),
+and `↑`/`↓` walk the rundown so the surface runs from the keyboard alone.
 
 **P1 — the ⚡ actions and "Snap to state…" explain themselves on the surface** (§7b of the same
 doc), including what the quiz's audience percentages are and why a snap re-sends the cue's

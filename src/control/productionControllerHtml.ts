@@ -127,6 +127,9 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .verbs .take { background:var(--air); border-color:var(--air); color:#fff; font-weight:700; padding:0 24px; }
   .verbs .take:hover:not(:disabled) { background:#f05a5a; }
   .verbs .take kbd { background:rgba(0,0,0,.22); border-color:rgba(255,255,255,.25); color:#fff; }
+  /* The toggle's OFF half: not the take red, because red means "this puts something on air". */
+  .verbs .take.live { background:#2a2a30; border-color:rgba(255,255,255,.32); color:#f4f4f5; }
+  .verbs .take.live:hover:not(:disabled) { background:#35353d; }
   .onair-line { margin-left:auto; font-size:12px; color:var(--dim); white-space:nowrap; }
   .onair-line b { color:var(--air); font-weight:600; }
 
@@ -251,6 +254,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     <div class="verbs">
       <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW — nothing airs">→ Preview <kbd>P</kbd></button>
       <button class="take" id="v-take" title="Air the previewed cue">⟳ TAKE <kbd>SPACE</kbd></button>
+      <button id="v-retake" disabled title="Re-take: play this cue's entrance again from the start">⟳ Re-take <kbd>R</kbd></button>
       <button id="v-update" title="Push the edited values to air without re-animating">✎ Update <kbd>U</kbd></button>
       <button id="v-next" title="Advance the on-air graphic one step (SPX Continue)">» Next <kbd>N</kbd></button>
       <button id="v-out" title="Play the selected cue's layer off air">■ Out <kbd>0</kbd></button>
@@ -391,8 +395,37 @@ function allOut() {
   if (items.length) send(items);
   feed('■ All out');
 }
+// THE TOGGLE. One control puts the selected cue on air and takes it off again - the SPX
+// gesture - and the button says which of the two it is about to do. Re-take (replaying a live
+// cue's entrance) is a separate control with its own key, never this one wearing a second
+// meaning while a cue happens to be live.
+function toggleProgram() {
+  var cue = cueById(selectedId);
+  if (!cue) return;
+  if (pgmLive[cue.graphic] === cue.id) outCue('program');
+  else takeTo('program');
+}
+function retake() {
+  var cue = cueById(selectedId);
+  if (cue && pgmLive[cue.graphic] === cue.id) takeTo('program');
+}
+// Walk the rundown from the keyboard: selecting is the same act as clicking a row, so it goes
+// to PREVIEW and nothing airs. With the toggle above, a whole production can be run from the
+// keys alone - which is also what makes a Stream Deck (a keyboard emulator) work here.
+function stepSelection(by) {
+  if (!PAYLOAD.cues.length) return;
+  var at = -1;
+  for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === selectedId) at = i;
+  var next = at < 0 ? (by > 0 ? 0 : PAYLOAD.cues.length - 1) : Math.min(PAYLOAD.cues.length - 1, Math.max(0, at + by));
+  selectedId = PAYLOAD.cues[next].id;
+  takeTo('preview');
+  paint();
+  var el = document.getElementById('cue-' + selectedId);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
 document.getElementById('v-preview').onclick = function () { takeTo('preview'); };
-document.getElementById('v-take').onclick = function () { takeTo('program'); };
+document.getElementById('v-take').onclick = toggleProgram;
+document.getElementById('v-retake').onclick = retake;
 document.getElementById('v-update').onclick = updateLive;
 document.getElementById('v-next').onclick = nextLive;
 document.getElementById('v-out').onclick = function () { outCue('program'); };
@@ -406,8 +439,9 @@ document.addEventListener('keydown', function (e) {
   var tag = el && el.tagName;
   if (el && (el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
   var key = String(e.key).toLowerCase();
-  var run = { p: function () { takeTo('preview'); }, ' ': function () { takeTo('program'); },
-    u: updateLive, n: nextLive, '0': function () { outCue('program'); } }[key];
+  var run = { p: function () { takeTo('preview'); }, ' ': toggleProgram, r: retake,
+    u: updateLive, n: nextLive, '0': function () { outCue('program'); },
+    arrowup: function () { stepSelection(-1); }, arrowdown: function () { stepSelection(1); } }[key];
   if (!run) return;
   e.preventDefault();
   run();
@@ -442,6 +476,9 @@ function paint() {
     var onAir = pgmLive[cue.graphic] === cue.id;
     var onPvw = pvwLive[cue.graphic] === cue.id;
     var el = document.createElement('div');
+    // The id is what the arrow keys scroll into view — a rundown longer than its box would
+    // otherwise move the selection somewhere the operator cannot see.
+    el.id = 'cue-' + cue.id;
     el.className = 'cue' + (cue.id === selectedId ? ' selected' : '') + (onAir ? ' on-air' : onPvw ? ' on-pvw' : '');
     el.innerHTML =
       '<span class="no">' + (onAir ? '●' : (i + 1)) + '</span>' +
@@ -478,6 +515,16 @@ function paint() {
     ? 'on air: <b>● ' + esc(pgmNames.join(' · ')) + '</b>'
     : '○ nothing on air';
   document.getElementById('v-allout').disabled = pgmNames.length === 0;
+  // The toggle's two faces, painted from the same fact the key reads.
+  var selLive = !!(sel && pgmLive[sel.graphic] === sel.id);
+  var take = document.getElementById('v-take');
+  take.innerHTML = selLive ? '■ TAKE OFF <kbd>SPACE</kbd>' : '⟳ TAKE <kbd>SPACE</kbd>';
+  take.className = selLive ? 'take live' : 'take';
+  take.title = selLive ? 'Take this cue OFF air — the same thing SPACE does' : 'Air the previewed cue';
+  take.disabled = !sel;
+  // Greyed, never removed: a verb that appeared would shove the ones after it sideways at the
+  // moment a cue goes live.
+  document.getElementById('v-retake').disabled = !selLive;
   document.getElementById('v-update').disabled = !(sel && pgmLive[sel.graphic] === sel.id);
   document.getElementById('v-next').disabled = !(sel && pgmLive[sel.graphic]);
   document.getElementById('v-out').disabled = !(sel && pgmLive[sel.graphic]);

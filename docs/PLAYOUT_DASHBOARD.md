@@ -54,17 +54,24 @@ Two columns, full height, nothing scrolls but the two lists.
 
 - **Monitors are 16:9 and sized by the column**, side by side, equal. PVW wears the amber frame,
   PGM the red one. PGM's header carries the layer badge of what is up.
-- **The verb bar shows its keyboard shortcuts** as chips: Preview `P`, TAKE `SPACE`, Update `U`,
-  Next `N`, Out `0`. `■ All out` lives in the header, away from the others, because it is the
-  panic control.
-- **`SPACE` is a TOGGLE: on air, off air** (owner decision, acceptance pass 2026-08-06 — "put
-  something on and take takes it off; it should go in and out with space"). It airs the selected
-  cue, and pressing it again while that same cue is live takes it off. The key label follows:
-  once the cue is live, `SPACE` moves onto `■ Out` and the take button reads **⟳ RE-TAKE**.
-  A RE-TAKE — Take on a cue that is already live, which replays the entrance and is the
-  graphic's own reset — stays reachable through that button, deliberately as a click rather
-  than as a key: it is the one an operator must mean, and `SPACE` is the one pressed without
-  looking. `0` means Out from either state.
+- **The verb bar shows its keyboard shortcuts** as chips: Preview `P`, TAKE `SPACE`, Re-take `R`,
+  Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown. `■ All out` lives in the header,
+  away from the others, because it is the panic control.
+- **The TAKE control is a TOGGLE, and the button IS the key** (owner decision, acceptance pass
+  2026-08-06 — "put something on and take takes it off; it should go in and out with space" —
+  corrected 2026-08-07 after a production: `SPACE` took a live cue OFF while the button beside
+  it RE-TOOK, so one surface had two behaviours and the label read wrong to a hand already on
+  the key). Following SPX, one control turns a graphic on and off: it reads **⟳ TAKE `SPACE`**
+  off air and **■ TAKE OFF `SPACE`** while that cue is live, and the click does exactly what the
+  press does. `0` means Out from either state.
+- **RE-TAKE is a SECONDARY control** — Take on a cue that is already live, which replays the
+  entrance and is the graphic's own reset. Its own button and its own key (`R`), never the
+  primary button's live state. Like every other verb it stays in place and greys out when it
+  does not apply, so nothing on the bar moves sideways at the moment a cue goes live.
+- **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW; nothing
+  airs). With the toggle, that makes the whole surface operable from the keys alone — which is
+  also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
+  dedicated plugin (WebSocket, live button state) is a separate project and is not started.
 - **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
   switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
 - **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is

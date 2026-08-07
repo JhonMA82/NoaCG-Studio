@@ -90,14 +90,20 @@ test('SPACE puts the selected cue on air and takes it off again, and 0 still mea
   await parkFocusOffControls(page);
   await page.keyboard.press(' ');
   await expect(chip).not.toContainText('nothing on air');
-  // The buttons say what the key now does: the same press takes it off.
-  await expect(page.getByTestId('verb-take')).toContainText('RE-TAKE');
-  await expect(page.getByTestId('verb-out')).toContainText('SPACE');
+  // THE BUTTON IS THE KEY (operator feedback 2026-08-07: SPACE took a live cue off while the
+  // button beside it re-took). The primary control now says what the press will do, and it is
+  // the same thing either way round.
+  await expect(page.getByTestId('verb-take')).toContainText('TAKE OFF');
+  await expect(page.getByTestId('verb-take')).toContainText('SPACE');
+  await expect(page.getByTestId('verb-out')).not.toContainText('SPACE');
 
   await page.keyboard.press(' ');
   await expect(chip).toContainText('nothing on air');
   await expect(page.getByTestId('verb-take')).toContainText('TAKE');
-  await expect(page.getByTestId('verb-take')).not.toContainText('RE-TAKE');
+  await expect(page.getByTestId('verb-take')).not.toContainText('TAKE OFF');
+  // Re-take is greyed on a cue that is off air — there is nothing to replay. It stays in
+  // place rather than disappearing, so no verb ever moves under a finger.
+  await expect(page.getByTestId('verb-retake')).toBeDisabled();
 
   // 0 keeps working, from either state — the toggle ADDS a gesture, it replaces none.
   await page.keyboard.press(' ');
@@ -105,11 +111,48 @@ test('SPACE puts the selected cue on air and takes it off again, and 0 still mea
   await page.keyboard.press('0');
   await expect(chip).toContainText('nothing on air');
 
-  // The explicit RE-TAKE stays reachable: the button, on a cue that is already live.
+  // RE-TAKE is a SECONDARY control with its own key. It replays the entrance and leaves the
+  // cue on air — which is what tells it apart from the toggle beside it.
   await page.keyboard.press(' ');
-  await expect(page.getByTestId('verb-take')).toContainText('RE-TAKE');
-  await page.getByTestId('verb-take').click();
+  const retake = page.getByTestId('verb-retake');
+  await expect(retake).toBeEnabled();
+  await retake.click();
   await expect(chip).not.toContainText('nothing on air');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('r');
+  await expect(chip).not.toContainText('nothing on air');
+  // …and the toggle still turns it off, right after a re-take.
+  await page.keyboard.press(' ');
+  await expect(chip).toContainText('nothing on air');
+});
+
+test('the rundown walks with the arrow keys, so a cue can be played out from the keyboard alone', async ({ page }) => {
+  // Operator feedback 2026-08-07: a Stream Deck is a keyboard emulator, so arrow keys plus the
+  // existing verbs ARE Stream Deck support — but only if the selection itself is reachable.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionOnAir(page, 'Arrows');
+
+  // A second cue, so there is somewhere to walk to.
+  await page.getByTestId('add-cue').click();
+  await expect(page.locator('.pd-cue')).toHaveCount(2);
+
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ArrowDown');
+  const selected = page.locator('.pd-cue.selected');
+  await expect(selected).toHaveCount(1);
+  const second = await selected.textContent();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.pd-cue.selected')).not.toHaveText(second ?? '');
+
+  // The ends hold rather than wrapping: an operator pressing up at the top must not land on
+  // the last item of the rundown and take THAT.
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.pd-cue').first()).toHaveClass(/selected/);
+
+  // And the keyboard alone airs it.
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('nothing on air');
 });
 
 test('an edit to the cue that is on air says it has not been sent yet', async ({ page }) => {
