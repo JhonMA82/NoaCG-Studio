@@ -86,6 +86,26 @@ export function maxTextWidthCss(res: Resolution, maxPx: number): string {
   max-width: min(calc(${perScaleUnit}px * var(--scale)), ${safeMax}px)`;
 }
 
+/**
+ * A `mask-image` declaration and its prefixed twin, in that order.
+ *
+ * Same doctrine as the auto-fit cap above, for the same reason. The unprefixed mask shorthand
+ * is Chromium 120, which is newer than EVERY embedded playout engine we ship to — OBS 30 and
+ * vMix 27 render with a Chromium 103 CEF, and even CasparCG 2.4 is on 117. On all of them the
+ * declaration is dropped in silence and the masked texture appears at full extent instead of
+ * fading out. `-webkit-mask-image` has been supported since Chromium 1 and is still honoured by
+ * current engines, so writing it first costs one line and nothing else: an old engine keeps it,
+ * a current one takes the standard spelling below. The standard property stays because it is
+ * the one Firefox implements, and SPX renders in the operator's own browser.
+ *
+ * One function, so a category that adds a mask cannot forget the twin — the failure mode is
+ * invisible on every machine that develops this catalogue.
+ */
+export function maskImageCss(value: string, comment: string): string {
+  return `-webkit-mask-image: ${value};  /* the prefixed twin: no unprefixed mask before Chromium 120 (every embedded playout engine) */
+  mask-image: ${value};  /* ${comment} */`;
+}
+
 // ── Positioning: 9 zones snapped to safe areas ───────────────────────────────
 
 export interface ZoneDecl {

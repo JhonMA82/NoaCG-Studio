@@ -27,6 +27,7 @@ import {
   dataSourceCss,
   documentHtml,
   ESCAPE_HTML_JS,
+  maskImageCss,
   resetCanvasCss,
   resolveHeadingFont,
   rootVarsCss,
@@ -112,7 +113,7 @@ function creditsBackgroundCss(family: TemplateVariant['styleTag']): string {
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: calc(120px * var(--scale)) calc(120px * var(--scale));  /* slow visual rhythm */
-  mask-image: linear-gradient(90deg, #000, transparent 74%);  /* texture stays quieter by the list edge */
+  ${maskImageCss('linear-gradient(90deg, #000, transparent 74%)', 'texture stays quieter by the list edge')}
   opacity: ${family === 'sport' || family === 'noacg' ? '0.62' : '0.3'};  /* stronger for broadcast-control families */
 }`;
 }

@@ -15,9 +15,12 @@
 // is right by construction because it reads the emitted code.
 //
 // WHAT IT IS NOT. It is not a validator and it never blocks an export: a graphic that needs
-// Chromium 111 is completely correct in OBS, vMix, SPX's own renderer and CasparCG 2.4+. The
-// output is a VERDICT PER TARGET ENGINE, so the user is told before they take it to air rather
-// than finding out on a dark layer.
+// Chromium 111 is completely correct in SPX's own renderer and CasparCG 2.4+. It is NOT correct
+// in OBS or vMix — measured 2026-08-07, OBS 30 and vMix 27 embed a Chromium 103 CEF, so the
+// same 179 designs lose their `color-mix()` fills there that lose them on CasparCG 2.3. An
+// embedded engine is frozen at the host app's build; only SPX is exempt, because it renders in
+// the operator's own auto-updating browser. The output is a VERDICT PER TARGET ENGINE, so the
+// user is told before they take it to air rather than finding out on a dark layer.
 //
 // HONEST LIMITS, stated because a compatibility report that overclaims is worse than none:
 //  - It is a lexical scan. It reads the emitted CSS and JS with comments and string literals
@@ -179,10 +182,17 @@ function maskJs(js: string): string {
     .replace(/"(?:\\.|[^"\\\n])*"/g, (m) => `"${' '.repeat(Math.max(0, m.length - 2))}"`);
 }
 
-/** The property a CSS line declares, or null if the line is not a declaration. */
+/**
+ * The property a CSS line declares, or null if the line is not a declaration.
+ *
+ * A vendor prefix is stripped, because to the cascade's fallback idiom `-webkit-mask-image` and
+ * `mask-image` are the SAME property: the prefixed spelling written first is kept by an engine
+ * that cannot parse the standard one below it, which is exactly the fix. Without this the
+ * scanner reports the fixed designs as broken and the report argues with itself.
+ */
 function declaredProperty(line: string): string | null {
   const m = /^\s*([-\w]+)\s*:/.exec(line);
-  return m ? m[1].toLowerCase() : null;
+  return m ? m[1].toLowerCase().replace(/^-(?:webkit|moz|ms|o)-/, '') : null;
 }
 
 /**

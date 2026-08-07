@@ -35,6 +35,7 @@ import {
   computeScale,
   dataSourceCss,
   documentHtml,
+  maskImageCss,
   maxTextWidthCss,
   resetCanvasCss,
   resolveHeadingFont,
@@ -163,7 +164,7 @@ function holdingBackgroundCss(family: TemplateVariant['styleTag']): string {
     linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.024) 1px, transparent 1px);
   background-size: calc(96px * var(--scale)) calc(96px * var(--scale));  /* broad, quiet rhythm */
-  mask-image: linear-gradient(90deg, transparent, #000 34%, #000 100%);  /* keep the text side calm */
+  ${maskImageCss('linear-gradient(90deg, transparent, #000 34%, #000 100%)', 'keep the text side calm')}
   opacity: ${family === 'sport' || family === 'noacg' ? '0.72' : '0.36'};  /* stronger for control-room families */
 }`;
 }
