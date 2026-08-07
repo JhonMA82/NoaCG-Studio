@@ -88,7 +88,9 @@ test('Home lists the library; Back walks the history; an old package link lands 
 
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
-  await expect(page.locator('.lib-row', { hasText: 'Presenter lower third' })).toBeVisible();
+  // The DASHBOARD carries a shelf of recent graphics; the library ROWS belong to the Graphics
+  // section, which is where the ⋯ menu and the per-row doors live.
+  await expect(page.getByTestId('shelf-graphic').filter({ hasText: 'Presenter lower third' })).toBeVisible();
 
   // Graphics section → the row's ⋯ menu → the control panel → Back returns to Home
   // (history is real). The per-graphic control panel lives one step from every row.
@@ -162,6 +164,7 @@ test('opening another graphic with unsaved changes asks first; Discard proceeds'
   await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
 
   await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click(); // the library rows live in the section
   await page.locator('.lib-row', { hasText: 'First graphic' }).getByTestId('open-graphic').click();
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-discard').click();
@@ -347,6 +350,7 @@ test('a Home card shows the real graphic, parked at its settled on-air state', a
   await saveAs(page, 'Presenter lower third');
 
   await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click(); // the library rows live in the section
   const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
   await expect(row.getByTestId('graphic-thumb')).toBeVisible();
 
@@ -381,6 +385,7 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
   await createProject(page, 'Hairline');
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click(); // the library rows live in the section
 
   const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
   const card = row.getByTestId('graphic-thumb');

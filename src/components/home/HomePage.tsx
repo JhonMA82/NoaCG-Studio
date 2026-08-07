@@ -31,7 +31,8 @@ import SaveDialogs from '../save/SaveDialogs';
 import SettingsDialog from '../SettingsDialog';
 import { useAdvancedMode } from '../useAdvancedMode';
 import { copyLink } from './copyLink';
-import GraphicRow from './GraphicRow';
+import { activeValues } from './GraphicRow';
+import GraphicThumb from './GraphicThumb';
 import GraphicsSection from './sections/GraphicsSection';
 import ProductionsSection from './sections/ProductionsSection';
 import VideosSection, { VideoList } from './sections/VideosSection';
@@ -141,9 +142,6 @@ export default function HomePage({ route }: { route: Route }) {
     ? (g: GraphicDoc) => setPublish({ name: g.name, template: g.template, gate: publishGate(g.template) })
     : undefined;
 
-  const graphicRows = (list: GraphicDoc[]) =>
-    list.map((g) => <GraphicRow key={g.id} g={g} onOpen={openGraphic} onChanged={refresh} onPublish={onPublish} />);
-
   const searchRow = (
     <div className="home-search row">
       <input
@@ -233,17 +231,40 @@ export default function HomePage({ route }: { route: Route }) {
                 </button>
               )}
 
-              <h2 style={{ marginTop: 20 }}><IconGrid size={18} /> Graphics</h2>
+              {/* A SHELF, not eight full rows (re-design/handoff.md §5a). The dashboard's job
+                  is "pick up where you left off", which a graphic answers by being recognised —
+                  so the thumbnail leads and the row's controls stand down. Everything you can
+                  DO to a graphic is one click away in the section, which the link opens. */}
+              <div className="home-shelf-head">
+                <h2><IconGrid size={18} /> Recent graphics</h2>
+                <div className="spacer" />
+                {filtered.length > 0 && (
+                  <button className="link-inline" onClick={() => navigate({ view: 'home', section: 'graphics' })}>
+                    All {filtered.length} graphic{filtered.length === 1 ? '' : 's'} →
+                  </button>
+                )}
+              </div>
               {searchRow}
               {filtered.length === 0 && videos.length === 0 && productions.length === 0 && (
                 <EmptyHint onNew={() => navigate({ view: 'new' })} />
               )}
-              {graphicRows(filtered.slice(0, 8))}
-              {filtered.length > 8 && (
-                <button className="link-inline" onClick={() => navigate({ view: 'home', section: 'graphics' })}>
-                  View all {filtered.length} graphics →
-                </button>
-              )}
+              <div className="home-shelf">
+                {filtered.slice(0, 6).map((g) => (
+                  <button
+                    key={g.id}
+                    className="home-shelf-card"
+                    onClick={() => openGraphic(g)}
+                    title={advanced ? `Open "${g.name}" in the editor` : `Open "${g.name}" — preview, edit data, operate`}
+                    data-testid="shelf-graphic"
+                  >
+                    <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
+                    <span className="home-shelf-name">{g.name}</span>
+                    <span className="muted">
+                      {g.type} · {new Date(g.updatedAt).toLocaleDateString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
               {videos.length > 0 && (
                 <>

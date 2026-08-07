@@ -10,8 +10,10 @@ import GraphicThumb from './GraphicThumb';
 import RowMenu, { type RowMenuItem } from './RowMenu';
 import { IconControl, IconCopy, IconDownload, IconGlobe, IconPencil, IconPlus, IconTrash, IconTv } from '../icons';
 
-/** A saved graphic's thumbnail shows the data an operator last selected, when there is one. */
-function activeValues(g: GraphicDoc): Record<string, string> | undefined {
+/** A saved graphic's thumbnail shows the data an operator last selected, when there is one.
+ *  Exported because the dashboard's shelf renders the same graphic and must show it the same
+ *  way — two answers to "what does this card show" is how the two surfaces come to disagree. */
+export function activeValues(g: GraphicDoc): Record<string, string> | undefined {
   return g.entries.find((e) => e.id === g.activeEntryId)?.values;
 }
 

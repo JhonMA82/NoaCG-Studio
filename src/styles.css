@@ -4486,6 +4486,43 @@ h2 + .lib-row,
 .lib-live { color: #4ade80; }
 .lib-create-row { margin-bottom: 10px; }
 
+/* ── THE DASHBOARD'S GRAPHICS SHELF (re-design/handoff.md §5a) ────────────────────────────
+   Six graphics, recognised rather than read: thumbnail first, name under it, no controls.
+   The dashboard answers "pick up where you left off"; everything you can DO to a graphic
+   lives one click away in the section, so repeating each row's three buttons here was eight
+   rows of chrome for a question nobody asked on this screen. */
+.home-shelf-head { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.home-shelf-head h2 { margin: 0; }
+.home-shelf-head .spacer { flex: 1; }
+.home-shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.home-shelf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid var(--hairline-2);
+  border-radius: 5px;
+  background: var(--bg-panel);
+}
+.home-shelf-card:hover { border-color: var(--accent); background: var(--bg-panel); }
+.home-shelf-card .gfx-thumb { width: 100%; }
+.home-shelf-name {
+  padding: 9px 11px 0;
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-shelf-card .muted { padding: 2px 11px 10px; font-size: 11px; }
+
 /* ── PRODUCTION CARDS (re-design/handoff.md §5a) ──────────────────────────────────────── */
 .prod-grid {
   display: grid;

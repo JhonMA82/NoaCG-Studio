@@ -190,7 +190,9 @@ test('mobile: Home leads with Productions and a dashboard is two taps from open'
   const open = page.getByTestId('open-production');
   const openBox = (await open.boundingBox())!;
   expect(openBox.height).toBeGreaterThanOrEqual(44);
-  const firstGraphic = await page.locator('.lib-row', { hasText: 'Phone strap' }).first().boundingBox();
+  // The dashboard shows graphics as a SHELF of cards now, not library rows — the assertion
+  // is unchanged: productions lead, so the door to one sits above the first graphic.
+  const firstGraphic = await page.getByTestId('shelf-graphic').first().boundingBox();
   expect(openBox.y).toBeLessThan(firstGraphic!.y);
 
   // Tap 2 lands on the production dashboard.
