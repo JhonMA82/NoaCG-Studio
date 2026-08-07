@@ -3,6 +3,7 @@ import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
 import { elementPoint } from './_canvas';
 import { enableAdvancedMode, createProject } from './_create';
+import { durableValue } from './_storage';
 
 // The canvas TEXT TOOLS (the stage toolbar's T / area-text switch, placed designs): the T
 // tool clicks point text onto the artwork and types it directly on the canvas; the area
@@ -246,7 +247,9 @@ test('tool-created text survives a reload as a real field of the saved project',
 
   // The project autosaves on an 800 ms debounce — wait for the write, then reload.
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('spx-gfx-project')?.includes('Persistent')))
+    // The DURABLE copy, not the app's own read: a reload restores what the database holds
+    // (e2e/_storage.ts durableValue).
+    .poll(async () => (await durableValue(page, 'spx-gfx-project'))?.includes('Persistent') ?? false)
     .toBe(true);
   await page.reload();
   // The restored project opens directly — no wizard over a returning user's work.

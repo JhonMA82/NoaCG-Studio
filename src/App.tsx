@@ -16,6 +16,7 @@ import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
 import { useRouter } from './app/router';
 import { openGraphicById, useSaveUi } from './store/saveActions';
+import { raiseStorageAlert } from './store/storageAlert';
 import { isAdvancedMode, useAdvancedMode } from './components/useAdvancedMode';
 
 export default function App() {
@@ -145,6 +146,28 @@ export default function App() {
       useAuthUi.getState().openSignIn('Your session expired — sign in again to keep syncing. Everything you made is safe on this device.');
     window.addEventListener('spx-session-expired', onExpired);
     return () => window.removeEventListener('spx-session-expired', onExpired);
+  }, []);
+
+  // A DURABLE WRITE that failed after the fact (model/durableStore.ts). Persisting to IndexedDB
+  // is confirmed a moment after the call returns, so a refusal cannot come back as that call's
+  // return value the way a localStorage quota error did - it arrives here instead, and it must
+  // still be loud. The same dialog, raised from the event, is what keeps "a save either happened
+  // or said so" true now that the write is asynchronous. The next write throws synchronously
+  // (the store's sticky full flag), so the ordinary in-line error paths take over from here.
+  useEffect(() => {
+    const onStorageError = (e: Event) => {
+      const detail = (e as CustomEvent<{ key?: string; message?: string }>).detail;
+      raiseStorageAlert({
+        action: 'Saving to this browser',
+        error: detail?.message ?? 'Your work could not be saved to browser storage.',
+        outcome: 'Your work is still open here — export it or free some room, then save again.',
+      });
+      // The topbar must not keep reading "Saved" for a write that did not land.
+      const s = useTemplateStore.getState();
+      if (s.saved.status !== 'failed') s.setSaved({ ...s.saved, dirty: true, status: 'failed' });
+    };
+    window.addEventListener('spx-storage-error', onStorageError);
+    return () => window.removeEventListener('spx-storage-error', onStorageError);
   }, []);
 
   // Public show-chat send-in page: <app-url>?chat=<slug>. Anyone with the link may submit;

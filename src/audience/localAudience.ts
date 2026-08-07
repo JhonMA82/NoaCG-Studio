@@ -91,7 +91,13 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   /** submissionId -> the device that sent it. Kept OUT of `AudienceSubmission` so no operator
    *  surface can render it: the operator moderates words, not devices. */
   const senderOf = new Map<string, string>();
-  let state: AudienceState = { open: false, mode: 'waiting', round: null, prompt: 'Send us your question' };
+  let state: AudienceState = {
+    open: false,
+    mode: 'waiting',
+    round: null,
+    prompt: 'Send us your question',
+    presenter: { current: null, next: null },
+  };
   let seq = options.seed ?? 0;
   const listeners: Array<() => void> = [];
   const changed = () => listeners.forEach((cb) => cb());

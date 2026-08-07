@@ -208,6 +208,12 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       return {
         ok: validation.ok,
         ruleCodes: validation.errors.map((error) => error.rule),
+        // Warnings are recorded SEPARATELY and were not recorded at all until 2026-08-07.
+        // That gap turned a severity change into a fake improvement: `bench-line-wrap` moved
+        // from error to warning between two rounds, the wrap count read 11 then 0, and nothing
+        // in the artifacts said the second round had simply stopped counting. A finding that
+        // exists but is not written down is indistinguishable from a finding that went away.
+        warningCodes: validation.warnings.map((warning) => warning.rule),
         category: spec.category,
         variantId: spec.variantId,
         skinApplied,
@@ -280,6 +286,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
     return {
       ok: measured.ok,
       ruleCodes: measured.ruleCodes,
+      warningCodes: measured.warningCodes ?? [],
       category: measured.category,
       variantId: measured.variantId,
       motionSettled,
@@ -510,6 +517,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       entranceDurationMs: measured.entranceDurationMs,
       exitDurationMs: measured.exitDurationMs,
       ruleCodes: measured.ruleCodes,
+      warningCodes: measured.warningCodes ?? [],
       latencyMs: Date.now() - started,
       costUsd,
       inputTokens: generated.usage?.inputTokens ?? 0,

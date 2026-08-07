@@ -7,6 +7,7 @@
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
+import { durable } from './durableStore';
 import { uuid } from './id';
 
 export interface SavedProject {
@@ -43,7 +44,7 @@ function notifyDataChanged(): void {
 
 export function loadProject(): SavedProject | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = durable.getItem(STORAGE_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as SavedProject;
     if (!p.template || !p.id) return null;
@@ -82,7 +83,7 @@ export function saveProject(
       // Same rule for the conversation: carry it over on a plain autosave, clear on explicit null.
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rec));
+    durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();
   } catch {
     // Storage full or unavailable — non-fatal.
@@ -92,7 +93,7 @@ export function saveProject(
 /** Write a whole SavedProject to the slot (used by the sync engine's put('project') on a pull). */
 export function upsertProject(project: SavedProject): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    durable.setItem(STORAGE_KEY, JSON.stringify(project));
     notifyDataChanged();
   } catch {
     // Non-fatal.
@@ -101,7 +102,7 @@ export function upsertProject(project: SavedProject): void {
 
 export function clearProject(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    durable.removeItem(STORAGE_KEY);
     notifyDataChanged();
   } catch {
     // Non-fatal.

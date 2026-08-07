@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorageAlert } from '../../store/storageAlert';
 import { formatBytes, measureStorage } from '../../model/storageHealth';
+import { storageEstimate } from '../../model/durableStore';
 import { useRouter } from '../../app/router';
 import { useModalGate } from '../spaceKey';
 
@@ -26,6 +27,21 @@ export default function StorageAlertDialog() {
   // write failed, and re-measuring under the user would make the list move as they read it.
   const report = useMemo(() => (alert ? measureStorage() : null), [alert]);
   const pressedOnBackdrop = useRef(false);
+
+  // How much room the BROWSER says there is. There is no synchronous quota API, so this
+  // arrives just after the dialog opens and the sentence below stands without it - a missing
+  // estimate is a real answer ("we cannot tell you"), never a number we invent.
+  const [room, setRoom] = useState<{ usage: number; quota: number } | null>(null);
+  useEffect(() => {
+    if (!alert) return;
+    let live = true;
+    void storageEstimate().then((e) => {
+      if (live) setRoom(e);
+    });
+    return () => {
+      live = false;
+    };
+  }, [alert]);
 
   useEffect(() => {
     if (!alert) return;
@@ -70,8 +86,10 @@ export default function StorageAlertDialog() {
           {alert.outcome && <p className="hint">{alert.outcome}</p>}
 
           <p className="hint" data-testid="storage-alert-total">
-            Browser storage currently holds {formatBytes(report.totalBytes)} of NoaCG data. Most
-            browsers allow about 5 MB per site.
+            Browser storage currently holds {formatBytes(report.totalBytes)} of NoaCG data.
+            {room
+              ? ` This browser reports ${formatBytes(room.usage)} used of about ${formatBytes(room.quota)} available to this site.`
+              : ' This browser will not say how much room is left.'}
           </p>
 
           {biggest.length > 0 && (

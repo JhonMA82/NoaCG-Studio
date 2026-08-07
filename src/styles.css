@@ -5266,6 +5266,38 @@ h2 + .lib-row,
    inherits the global `width: 100%` and eats the whole bar, pushing everything after it onto a
    second line. */
 .pd-aud-bar select { width: auto; min-width: 170px; }
+/* THE VOTE PANEL. It sits between the door and the inbox because that is its place in the
+   operator's evening: open the room, ask it something, read the answer, put the answer on air.
+   A card rather than another bar - it is the one block here that changes shape (composer vs
+   running round) and a bar that grew a textarea would shove the inbox off the screen. */
+.pd-aud-round {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 12px 14px 14px;
+  margin-bottom: 12px;
+}
+.pd-aud-round-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.pd-aud-round-head h3 { margin: 0; font-size: 14px; font-weight: 650; flex: 1; min-width: 0; }
+/* Same reason as .pd-aud-bar select: the global `width: 100%` would give a two-word choice the
+   whole row and push the question title onto a line of its own. */
+.pd-aud-round-head select { width: auto; min-width: 190px; }
+.pd-aud-round textarea { resize: vertical; min-height: 76px; }
+.pd-aud-round input,
+.pd-aud-round textarea { margin-bottom: 8px; }
+.pd-aud-correct { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+.pd-aud-correct select { width: auto; min-width: 160px; }
+.pd-aud-round-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pd-aud-round-actions .hint { flex: 1 1 220px; min-width: 0; }
+.pd-aud-tally { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Label, bar, count - the count is fixed-width and tabular so the numbers hold a column while
+   they change, which is the whole reason a live tally is readable at a glance. */
+.pd-aud-tally li { display: grid; grid-template-columns: minmax(0, 1fr) 40% 3.5em; align-items: center; gap: 10px; }
+.pd-aud-tally-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.pd-aud-correct-mark { color: var(--accent); font-weight: 700; }
+.pd-aud-tally-bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.pd-aud-tally-bar > span { display: block; height: 100%; background: var(--accent); transition: width 240ms ease; }
+.pd-aud-tally-count { font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
 /* The viewer preview: the PUBLIC page's own renderer, dropped into the studio behind a
    disclosure. It brings its own colours (the production's published brand), so the frame
    around it stays neutral and just gives it a phone's worth of width to lay out in. */
@@ -5578,6 +5610,12 @@ h2 + .lib-row,
 .prod-links { margin-bottom: 12px; }
 .prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
 .prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
+/* The readable-name row is the one row holding a CONTROL rather than a URL, and it has to sit
+   in the same rhythm as the four around it: the global `input` bottom margin made it 48px
+   against their 31, which reads as a mistake rather than as a different kind of row. `flex: 1`
+   for the same reason the mode selects needed a width - the global `width: 100%` would
+   otherwise take the whole row and push the button out. */
+.prod-link-row > input { flex: 1; min-width: 0; width: auto; margin: 0; }
 .prod-url {
   flex: 1;
   min-width: 0;

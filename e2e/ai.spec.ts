@@ -2,6 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { acceptAiNotice } from './_ai-notice';
 import { enableAdvancedMode } from './_create';
+import { durableValue } from './_storage';
 
 // AI mode (Create with AI): the normalized gateway endpoint is mocked at the network level, so these
 // specs verify the full app flow — settings gate, generation, the harness's validation +
@@ -911,12 +912,17 @@ test('the conversation that produced an AI graphic travels with it, and survives
 
   // It rode the autosave slot, so a fresh session restores it — the whole point of (c) over a
   // session-only thread.
-  await page.waitForFunction(() => {
-    const raw = localStorage.getItem('spx-gfx-project');
-    if (!raw) return false;
-    const p = JSON.parse(raw) as { aiThread?: { messages?: unknown[] } };
-    return !!p.aiThread?.messages?.length;
-  });
+  // Wait for the slot to be DURABLE, not merely accepted: a reload restores what the database
+  // holds, and the app's own read answers from the durable store's mirror a moment earlier
+  // (e2e/_storage.ts durableValue explains the gap and why this reads past the app).
+  await expect
+    .poll(async () => {
+      const raw = await durableValue(page, 'spx-gfx-project');
+      if (!raw) return false;
+      const p = JSON.parse(raw) as { aiThread?: { messages?: unknown[] } };
+      return !!p.aiThread?.messages?.length;
+    })
+    .toBe(true);
   await page.reload();
   await page.getByTestId('dock-tab-ai').click();
   await expect(page.getByTestId('ai-origin')).toContainText('halftime of a local derby');

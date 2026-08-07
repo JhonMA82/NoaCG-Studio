@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { armStorageFailure, fillStorage } from './_storage';
 
 // WHAT HAPPENS WHEN BROWSER STORAGE IS FULL.
 //
@@ -9,49 +10,14 @@ import { test, expect, type Page } from '@playwright/test';
 // The user was left standing in the canvas with no production, no saved graphic and nothing
 // said.
 //
-// So these specs exhaust the REAL quota rather than stubbing `setItem`: the failure under test
-// is the browser refusing a write, and a stub would also have to be injected into the preview
-// iframe to be faithful. What is pinned is not the wording — it is that a failed write is always
-// ANNOUNCED, and that the announcement says where the work went.
-
-/**
- * Fill localStorage until the browser refuses even a tiny write.
- *
- * The step-down is not decoration and the first version of this helper was wrong without it: a
- * single chunk size stops at the first failure, which can leave nearly a whole chunk of
- * HEADROOM behind — and a lower third serialises to well under 256 KB, so the save under test
- * simply succeeded and the spec failed against working code. Filling to the last few bytes is
- * what makes "storage is full" mean the same thing here as it does after an evening of saving.
- */
-async function fillStorage(page: Page): Promise<void> {
-  const remaining = await page.evaluate(() => {
-    let written = 0;
-    for (const size of [256 * 1024, 32 * 1024, 4 * 1024, 512, 64]) {
-      const chunk = 'x'.repeat(size);
-      for (let i = 0; i < 400; i += 1) {
-        try {
-          localStorage.setItem(`__e2e-fill-${size}-${i}`, chunk);
-          written += size;
-        } catch {
-          break;
-        }
-      }
-    }
-    if (written === 0) throw new Error('localStorage refused the very first write — nothing to measure');
-    // How much is still writable: 0 means the next real save has nowhere to go.
-    try {
-      localStorage.setItem('__e2e-probe', 'x'.repeat(4096));
-      localStorage.removeItem('__e2e-probe');
-      return 4096;
-    } catch {
-      return 0;
-    }
-  });
-  expect(remaining, 'the fill left room for a real save — the spec would pass vacuously').toBe(0);
-}
+// What is pinned is not the wording — it is that a failed write is always ANNOUNCED, and that
+// the announcement says where the work went. The refusal itself is now injected rather than
+// provoked (e2e/_storage.ts says why: the documents moved to IndexedDB, whose quota is measured
+// in gigabytes and cannot be filled in a test).
 
 /** Walk Entry → Browse → pick a design → Finish, exactly as wizard-finish.spec.ts does. */
 async function toFinishStep(page: Page): Promise<void> {
+  await armStorageFailure(page);
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -108,6 +74,7 @@ test('a full quota never parks the user in the canvas silently: the export door 
 
 test('a full quota never parks the user in the canvas silently: Home’s + Production says so', async ({ page }) => {
   // Save a graphic the ordinary way first, then fill the quota and try to pool it from Home.
+  await armStorageFailure(page);
   await page.goto('/app');
   await page.evaluate(async () => {
     const { createGraphic } = await import('/src/model/library.ts');

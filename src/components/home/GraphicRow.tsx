@@ -5,6 +5,7 @@ import { useExportUi } from '../ExportWindow';
 import { deleteGraphic, duplicateGraphic, updateGraphic, type GraphicDoc } from '../../model/library';
 import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../model/shows';
 import { raiseStorageAlert } from '../../store/storageAlert';
+import { commitDurableWrites } from '../../model/durableStore';
 import { useAdvancedMode } from '../useAdvancedMode';
 import GraphicThumb from './GraphicThumb';
 import RowMenu, { type RowMenuItem } from './RowMenu';
@@ -64,8 +65,12 @@ export default function GraphicRow({
   /** Returns whether the graphic actually reached the production. A FAILED add used to leave
    *  the ✓ off and say nothing else, so on a full quota the button simply did nothing - the
    *  acceptance pass reported it as "I can't add anything to even ongoing productions". */
-  const addTo = (showId: string, showName?: string): boolean => {
-    const { error } = addGraphicToShow(showId, g.template, { graphicId: g.id });
+  const addTo = async (showId: string, showName?: string): Promise<boolean> => {
+    const { error: written } = addGraphicToShow(showId, g.template, { graphicId: g.id });
+    // The durable store confirms a write after the call returns, so "did it land?" is one
+    // await (model/durableStore.ts). Claiming the failure keeps THIS message, which names the
+    // graphic and the production, instead of the generic app-level announcement.
+    const error = written ?? (await commitDurableWrites());
     if (error) {
       raiseStorageAlert({
         action: `Adding “${g.name}” to ${showName ? `“${showName}”` : 'the production'}`,
@@ -84,8 +89,9 @@ export default function GraphicRow({
   /** Create a production and put this graphic in it - both halves checked, because on a full
    *  quota the row never persists and the navigation would land on a production that is not
    *  there. */
-  const addToNewProduction = (rawName: string) => {
-    const { show, error } = createShowNamedChecked(rawName);
+  const addToNewProduction = async (rawName: string) => {
+    const { show, error: written } = createShowNamedChecked(rawName);
+    const error = written ?? (await commitDurableWrites());
     if (error) {
       raiseStorageAlert({
         action: `Creating the production “${show.name}”`,
@@ -94,7 +100,7 @@ export default function GraphicRow({
       });
       return;
     }
-    const ok = addTo(show.id, show.name);
+    const ok = await addTo(show.id, show.name);
     setNewProdName('');
     setAddOpen(false);
     if (ok) navigate({ view: 'production', id: show.id });
@@ -246,7 +252,7 @@ export default function GraphicRow({
                   <button
                     key={s.id}
                     role="menuitem"
-                    onClick={() => addTo(s.id, s.name)}
+                    onClick={() => void addTo(s.id, s.name)}
                     title={containing.has(s.id) ? 'Already in this production — adds/updates its copy' : `Add to "${s.name}"`}
                   >
                     <IconTv />
@@ -260,13 +266,13 @@ export default function GraphicRow({
                     placeholder="New production…"
                     onChange={(e) => setNewProdName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newProdName.trim()) addToNewProduction(newProdName);
+                      if (e.key === 'Enter' && newProdName.trim()) void addToNewProduction(newProdName);
                     }}
                     data-testid="add-to-new-production-name"
                   />
                   <button
                     disabled={!newProdName.trim()}
-                    onClick={() => addToNewProduction(newProdName)}
+                    onClick={() => void addToNewProduction(newProdName)}
                     data-testid="add-to-new-production"
                   >
                     Create

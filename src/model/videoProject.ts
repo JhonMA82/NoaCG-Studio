@@ -5,6 +5,7 @@
 // the AssetFile shape are already sync-ready); the code notes where it plugs in.
 
 import type { VideoProject } from './videoTypes';
+import { durable } from './durableStore';
 
 /** The current working video project - autosaved so a reload restores it. One slot. */
 const CURRENT_KEY = 'spx-gfx-video-project';
@@ -63,7 +64,7 @@ function normalizeVideoProject(p: VideoProject): VideoProject {
  */
 export function hasCurrentVideoProject(): boolean {
   try {
-    return localStorage.getItem(CURRENT_KEY) !== null;
+    return durable.getItem(CURRENT_KEY) !== null;
   } catch {
     return false;
   }
@@ -71,7 +72,7 @@ export function hasCurrentVideoProject(): boolean {
 
 export function loadCurrentVideoProject(): VideoProject | null {
   try {
-    const raw = localStorage.getItem(CURRENT_KEY);
+    const raw = durable.getItem(CURRENT_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as unknown;
     return isVideoProject(p) ? normalizeVideoProject(p) : null;
@@ -81,13 +82,20 @@ export function loadCurrentVideoProject(): VideoProject | null {
 }
 
 /**
- * Persist the working video project. Returns false when storage is full (base64 video
- * assets can blow the localStorage quota) so the shell can warn instead of losing work
- * silently - unlike SPX's saveProject, which fails silently on much smaller documents.
+ * Persist the working video project.
+ *
+ * The boolean means ACCEPTED, not landed. The durable store takes a write and confirms it a
+ * moment later (durableStore.ts), so `false` here is only the degraded localStorage path
+ * refusing outright; a refusal from IndexedDB arrives afterwards. The shell's "could not save"
+ * warning therefore waits on `commitDurableWrites()` in store/videoProjectStore.ts - trusting
+ * this return value alone made a project that failed to save look saved.
+ *
+ * It still says more than SPX's `saveProject`, which fails silently: video assets are base64
+ * and big, so losing a write here loses noticeably more work.
  */
 export function saveCurrentVideoProject(project: VideoProject): boolean {
   try {
-    localStorage.setItem(
+    durable.setItem(
       CURRENT_KEY,
       JSON.stringify({ ...project, updatedAt: new Date().toISOString() }),
     );
@@ -100,7 +108,7 @@ export function saveCurrentVideoProject(project: VideoProject): boolean {
 
 export function clearCurrentVideoProject(): void {
   try {
-    localStorage.removeItem(CURRENT_KEY);
+    durable.removeItem(CURRENT_KEY);
     notifyDataChanged();
   } catch {
     // Non-fatal.
@@ -111,7 +119,7 @@ export function clearCurrentVideoProject(): void {
 
 function readSaved(): SavedVideoRecord[] {
   try {
-    const raw = localStorage.getItem(SAVED_KEY);
+    const raw = durable.getItem(SAVED_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw) as unknown;
     if (!Array.isArray(list)) return [];
@@ -125,7 +133,7 @@ function readSaved(): SavedVideoRecord[] {
 
 function writeSaved(list: SavedVideoRecord[]): boolean {
   try {
-    localStorage.setItem(SAVED_KEY, JSON.stringify(list));
+    durable.setItem(SAVED_KEY, JSON.stringify(list));
     notifyDataChanged();
     return true;
   } catch {

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
 import { finishIntoEditor, enableAdvancedMode } from './_create';
+import { durableValue } from './_storage';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
@@ -27,9 +28,12 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   await page.keyboard.type('<!-- autosave-marker-42 -->');
   await page.waitForTimeout(1200); // let the 800ms autosave debounce fire
 
-  // It persisted to localStorage.
-  const saved = await page.evaluate(() => localStorage.getItem('spx-gfx-project'));
-  expect(saved).toContain('autosave-marker-42');
+  // It persisted to the durable store (IndexedDB), and the test that follows is a RELOAD - so
+  // what has to be true is that the DATABASE holds it, not that the app's mirror does
+  // (e2e/_storage.ts durableValue).
+  await expect
+    .poll(async () => (await durableValue(page, 'spx-gfx-project'))?.includes('autosave-marker-42') ?? false)
+    .toBe(true);
 
   // Reload → the working template is restored, and the user lands STRAIGHT in it: no wizard
   // over a returning user's work (the wizard auto-opens only when there is no project).

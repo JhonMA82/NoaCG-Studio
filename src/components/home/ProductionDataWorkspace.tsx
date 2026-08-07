@@ -13,6 +13,7 @@ import {
   type Show,
   type ShowDataset,
 } from '../../model/shows';
+import { commitDurableWrites } from '../../model/durableStore';
 import { parseTableFile } from '../../model/csv';
 
 /**
@@ -74,8 +75,13 @@ export default function ProductionDataWorkspace({
     }
     const name = file.name.replace(/\.[^.]+$/, '');
     const { shows, datasetId, error } = importShowDataset(show.id, parsed, { name });
-    if (error || !datasetId) {
-      setImportNote(error ?? 'The table could not be imported.');
+    // The durable store answers a refusal after the call returns (model/durableStore.ts), so
+    // this waits for it before claiming the table is in. There is deliberately no link back to
+    // the file, so an import that quietly did not persist would have to be done again from
+    // scratch - and the operator would only find out at the moment they needed the rows.
+    const failure = error ?? (await commitDurableWrites());
+    if (failure || !datasetId) {
+      setImportNote(failure ?? 'The table could not be imported.');
       return;
     }
     setShows(shows);

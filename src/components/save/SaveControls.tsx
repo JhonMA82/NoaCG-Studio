@@ -17,7 +17,9 @@ export default function SaveControls() {
   const wrapRef = useRef<HTMLSpanElement>(null);
 
   const save = () => {
-    if (saveCurrentGraphic() === 'needs-name') openSaveDialog('first');
+    void saveCurrentGraphic().then((r) => {
+      if (r === 'needs-name') openSaveDialog('first');
+    });
   };
 
   // Ctrl/Cmd+S — capture phase so the browser's own save-page dialog never appears; works
@@ -28,7 +30,9 @@ export default function SaveControls() {
       if ((e.key === 's' || e.key === 'S') && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         if (modalOpen()) return;
-        if (saveCurrentGraphic() === 'needs-name') useSaveUi.getState().openSaveDialog('first');
+        void saveCurrentGraphic().then((r) => {
+          if (r === 'needs-name') useSaveUi.getState().openSaveDialog('first');
+        });
       }
     };
     window.addEventListener('keydown', onKey, true);

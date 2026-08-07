@@ -9,6 +9,7 @@ import {
   importLook,
   type SavedLook,
 } from '../../../model/packets';
+import { commitDurableWrites } from '../../../model/durableStore';
 import { saveBrand } from '../../../model/brand';
 import { slug } from '../../../export/common';
 import { IconDownload, IconPalette, IconUpload } from '../../icons';
@@ -25,7 +26,11 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
   const onImportLook = async (file: File | undefined) => {
     if (!file) return;
     const { error } = importLook(await file.text());
-    setNote(error ?? '✓ Look imported.');
+    // Confirmed before it says "imported" - the durable store reports a refusal after the call
+    // returns (model/durableStore.ts). A look is a file the user still has, so this is the
+    // mildest of the four, but a note that lies is a note that lies.
+    const failure = error ?? (await commitDurableWrites());
+    setNote(failure ?? '✓ Look imported.');
     onChanged();
   };
 

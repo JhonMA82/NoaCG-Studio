@@ -557,11 +557,49 @@ for a second way the slug can change under a live renderer.
 > classroom NATs a whole room behind one address. Change-your-vote, the 500-character question
 > and the presenter-slug-now design were taken as recommended.
 >
-> **Deliberately not built yet:** the vanity-name CLAIM UI (the database enforces the shape,
-> the reserved words and uniqueness; nothing yet lets an operator pick one), the poll/quiz
-> operator controls (Phase 6 — `openRound`/`closeRound`/`tally` exist on both providers and are
-> unreached by any button), staging a tally onto a graphic, and the presenter view beyond the
-> read-only page the presenter slug already serves.
+> **PHASE 6's vote half is BUILT (2026-08-07)** — the round controls are in
+> `ProductionAudienceWorkspace`: compose a poll or quiz, open it (the MODE travels with the
+> round, and returns to what the room was asked for before it when the round closes), watch the
+> tally poll at ~2 s while it is open, and stage the counts. Staging maps them onto the poll
+> board's own `Label | count` idiom through `pollFieldMap`, matched BY TITLE like a dataset row
+> and a moderated question — so the exit is an ordinary CUE and the renderer never learns votes
+> exist. Re-staging updates that cue rather than adding a row per refresh, and CLOSING finalises
+> it ("voting closed" plus the final counts), because closing is the moment before the reveal
+> and staging needs an open round. A pool with no vote board is refused by name rather than
+> having a question written into a presenter's name field. `simulateVotes` is the rehearsal
+> counterpart of `simulate`, present only on the local provider, which is what lets the offline
+> suite drive a vote all the way onto a cue (`e2e/production-audience.spec.ts`).
+>
+> **The PRESENTER POINTERS are BUILT (2026-08-07)** — `AudienceState.presenter` is now part of
+> the interface, both providers carry it, and each inbox row has a 🎤 Now / ⇢ Next toggle.
+> They are IDS, so what a presenter reads follows every later edit to the broadcast version; a
+> copy would go stale in their hand. Both slots always travel together because 0035 replaces the
+> whole `presenter` object on write, and the composing read is a REF, not the rendered value —
+> two presses in one beat (queue Next, then move Now) otherwise blanked the slot a presenter was
+> reading, the same hazard `GraphicControlPage`'s read-fresh `patch` exists for. The pointers
+> reach no rundown and no command log: a producer queues three questions the show never gets to,
+> and pointing at one must not put it in front of anyone. The join resolve hard-codes them empty
+> — they are on the capability discipline's own list, so a server that one day sent them still
+> could not reach a viewer.
+>
+> **The PRESENTER LINK and the VANITY NAME are BUILT (2026-08-07).** The production page's
+> Links panel now carries all four capability URLs, each described by WHO IT IS FOR — the one
+> mistake that matters is reading the wrong one out on air — and each appears only once a
+> publish has minted its slug. Beside the audience link is the readable-name field:
+> `claimJoinName` (control/hostedControl.ts) is an ordinary owner UPDATE under 0008's
+> `control_shows_owner_all`, not an RPC and not a migration, because every rule that makes a
+> name safe is already ON THE COLUMN in 0035 and that migration says in its own comment why a
+> second copy in TypeScript would be wrong. It therefore validates nothing itself: it asks, and
+> translates `23505` (taken) and `23514` (bad shape or a reserved word) into words. **There is
+> deliberately no availability check** — the owner policy means a lookup could only see the
+> caller's own rows, and a function that read everyone's would be an enumeration oracle over
+> every production's public URL. Trying the claim IS the check.
+>
+> **Deliberately not built yet:** the presenter view beyond the read-only page the presenter
+> slug already serves. The offline suite pins only what an offline build owns — the controls
+> exist, an empty name is refused, the offline truth is reported, a verdict never outlives the
+> name it was about — because both `presenterBySlug` and the claim itself are server work. Both
+> belong on the maintainer's live checklist.
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
 Everything is browser → Supabase direct (zero Vercel functions), one migration
