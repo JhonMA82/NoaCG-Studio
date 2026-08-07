@@ -162,3 +162,45 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   }, id);
   expect(after).toEqual({ hosted: 'test-hosted-slug', output: 'test-output-slug' });
 });
+
+test('the audience and presenter links are offered separately, and only once they exist', async ({ page }) => {
+  // Three capability URLs with three different audiences, and the one mistake that matters is
+  // reading the wrong one out on air. The PRESENTER link had no surface at all: the pointers
+  // that drive it shipped with nothing to give a presenter (docs/INTERACTIVE_PLAYOUT_PLAN.md
+  // Phase 6), so `presenterPageUrl` was exported and called by nobody.
+  const id = await seedProduction(page, 'Link Shapes');
+  await page.goto(`/app#/production/${id}`);
+
+  // Before publish there is no links panel at all, only the Publish button - there is no
+  // audience plane yet, and a URL that would not resolve is worse than none.
+  await expect(page.getByTestId('production-publish')).toBeVisible();
+  await expect(page.getByTestId('production-links-toggle')).toHaveCount(0);
+
+  await page.evaluate(async (showId) => {
+    const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    setShowHostedSlug(showId, 'test-hosted-slug');
+    setShowAudienceSlugs(showId, { joinSlug: 'friday-night-live', presenterSlug: 'pv-test-slug' });
+    // Wait for the database, not just the mirror. The reload below restores what is ON DISK,
+    // and a `goto` fired the instant this returns tears the document down mid-transaction -
+    // which is exactly how this test first failed, showing NOT PUBLISHED against slugs the
+    // app had already accepted.
+    await commitDurableWrites();
+  }, id);
+  // RELOAD, not goto: the page is already on this exact URL, and a same-URL goto does not
+  // re-render, so the surface would still be showing the unpublished record it read on arrival.
+  await page.reload();
+  await page.getByTestId('production-links-toggle').click();
+  const links = page.getByTestId('production-links');
+
+  // Each renders in its own form: the audience one is the readable vanity path an operator
+  // reads out, the presenter one its own query capability.
+  await expect(links).toContainText('/join/friday-night-live');
+  await expect(links).toContainText('?pv=pv-test-slug');
+  await expect(page.getByTestId('copy-presenter-url')).toBeVisible();
+
+  // And they are described by WHO THEY ARE FOR, so the public one can never be mistaken for the
+  // presenter's - the whole reason they are two rows rather than one.
+  await expect(links).toContainText('Public — share it with the room');
+  await expect(links).toContainText('presenter’s own phone or tablet');
+});

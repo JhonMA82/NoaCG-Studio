@@ -42,6 +42,7 @@ import {
   followControlLog,
   hostedControlTail,
   joinPageUrl,
+  presenterPageUrl,
   outputPageUrl,
   publishControlShow,
   sendHostedControlBatch,
@@ -139,7 +140,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [exportOpen, setExportOpen] = useState(false);
   const [linksOpen, setLinksOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState<'output' | 'control' | 'join' | null>(null);
+  const [copied, setCopied] = useState<'output' | 'control' | 'join' | 'presenter' | null>(null);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   const [addPick, setAddPick] = useState('');
   const [menuCueId, setMenuCueId] = useState<string | null>(null);
@@ -488,12 +489,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The PUBLIC audience URL. Only a production published against a server carrying migration
    *  0035 has one, so it stays absent rather than showing a link that would not resolve. */
   const joinUrl = show.joinSlug ? joinPageUrl(show.joinSlug) : null;
+  /** The PRESENTER's own page — a third capability, minted at publish beside the join slug and
+   *  absent for the same reason when the server predates 0035. */
+  const presenterUrl = show.presenterSlug ? presenterPageUrl(show.presenterSlug) : null;
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const unpublishedChanges = !!show.publishedAt && show.updatedAt > show.publishedAt;
   const rendererFresh = outputSeenAt ? now - Date.parse(outputSeenAt) < 90_000 : false;
   const clashes = duplicateLayers(show.graphics);
 
-  const copy = (kind: 'output' | 'control' | 'join', text: string) => {
+  const copy = (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
       setCopied(kind);
@@ -826,6 +830,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           outputUrl={outputUrl}
           controlUrl={controlUrl}
           joinUrl={joinUrl}
+          presenterUrl={presenterUrl}
           copied={copied}
           unpublishedChanges={unpublishedChanges}
           onCopy={copy}
@@ -1622,6 +1627,7 @@ function ProductionLinks({
   outputUrl,
   controlUrl,
   joinUrl,
+  presenterUrl,
   copied,
   unpublishedChanges,
   onCopy,
@@ -1636,9 +1642,10 @@ function ProductionLinks({
   outputUrl: string | null;
   controlUrl: string | null;
   joinUrl: string | null;
-  copied: 'output' | 'control' | 'join' | null;
+  presenterUrl: string | null;
+  copied: 'output' | 'control' | 'join' | 'presenter' | null;
   unpublishedChanges: boolean;
-  onCopy: (kind: 'output' | 'control' | 'join', text: string) => void;
+  onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
   onPublish: () => void;
   onUnpublish: () => void;
 }) {
@@ -1705,6 +1712,26 @@ function ProductionLinks({
                 <p className="hint">
                   Public — share it with the room. Viewers send questions and vote here; nothing they send
                   goes on air until you approve it and take it, on the Audience tab.
+                </p>
+              </>
+            )}
+            {/* The PRESENTER link is a third capability with a third audience: not the operator's
+                control page and emphatically not the public one. It carries no moderation and no
+                tally — only the two questions the Audience tab points at, in the presenter's own
+                hand. Listed after the audience link and described by who it is FOR, because the
+                one mistake that matters here is reading the wrong URL out on air. */}
+            {presenterUrl && (
+              <>
+                <div className="prod-link-row">
+                  <span className="mono muted">Presenter link</span>
+                  <code className="prod-url">{presenterUrl}</code>
+                  <button onClick={() => onCopy('presenter', presenterUrl)} data-testid="copy-presenter-url">
+                    {copied === 'presenter' ? '✓ Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="hint">
+                  For the presenter&rsquo;s own phone or tablet — it shows what they are on now and what
+                  comes next, and nothing else. Choose those with 🎤 Now and ⇢ Next on the Audience tab.
                 </p>
               </>
             )}
