@@ -160,7 +160,11 @@ export default function WizardPreview({ template, replayKey = 0, demoOut = false
 
   return (
     <div className="wz-preview">
-      <div className="wz-stage" ref={stageRef}>
+      {/* The stage is the PROJECT's own frame, not whatever space is left over: a 16:9 (or
+          9:16, or 1:1) screen centred in the column, so what the reader judges has the shape
+          it will air in. The aspect comes from the template because the format is the user's
+          choice — CSS cannot know it (re-design/handoff.md §2). */}
+      <div className="wz-stage" ref={stageRef} style={{ aspectRatio: `${width} / ${height}` }}>
         <iframe
           ref={frameRef}
           title="Wizard live preview"

@@ -171,7 +171,7 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   await expect(page.getByTestId('ai-adapted-from')).toContainText('lower third');
 
   // ── 5. What lands in the editor is customized, valid and editable ───────────
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByTestId('wz-finish-editor')).toBeVisible();
   await page.getByTestId('wz-finish-editor').click();
   await awaitPreviewRebuild(page);

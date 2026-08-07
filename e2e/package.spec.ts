@@ -32,8 +32,8 @@ function frame(page: Page): FrameLocator {
 
 test('custom colors: a hex typed in the wizard lands in the generated :root', async ({ page }) => {
   await toVariantStep(page, 'Lower thirds', 'Hairline');
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
   await page.locator('[data-palette="custom"]').click();
   const accentRow = page.locator('.wz-custom-colors .field-row', { hasText: 'Accent' });
   await accentRow.locator('input.grow').fill('#ff2d78');
@@ -47,8 +47,8 @@ test('custom colors: a hex typed in the wizard lands in the generated :root', as
 
 test('imported font: embedded, applied, and bundled into the export', async ({ page }) => {
   await toVariantStep(page, 'Lower thirds', 'Hairline');
-  await page.getByRole('button', { name: 'Next ›' }).click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
 
   // Import a real font file (reuse a bundled woff2 as the "user file").
   const buf = await page.evaluate(async () => {
@@ -75,8 +75,8 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
 test('project brand: match toggle carries the look to another variant', async ({ page }) => {
   // First creation with a custom accent saves the brand.
   await toVariantStep(page, 'Lower thirds', 'Hairline');
-  await page.getByRole('button', { name: 'Next ›' }).click();
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.locator('[data-palette="custom"]').click();
   await page
     .locator('.wz-custom-colors .field-row', { hasText: 'Accent' })

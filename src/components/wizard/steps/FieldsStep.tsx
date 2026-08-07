@@ -133,18 +133,18 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
 
       {variant.logo !== 'none' && (
         <div className="panel-section">
-          <h3>Logo <span className="muted">(a real SPX image field — swap the file at playout)</span></h3>
-          <label className="row" style={{ gap: 8, alignItems: 'center', cursor: variant.logo === 'built-in' ? 'default' : 'pointer' }}>
+          <h3>Logo <span className="muted">a real SPX image field — swap the file at playout</span></h3>
+          {/* The one checkbox row (re-design/handoff.md §6). */}
+          <label className="dlg-check" style={{ cursor: variant.logo === 'built-in' ? 'default' : 'pointer' }}>
             <input
               type="checkbox"
-              style={{ width: 'auto' }}
               checked={logoOn}
               disabled={variant.logo === 'built-in'}
               onChange={(e) => onDraft({ logoEnabled: e.target.checked })}
             />
-            <span>
-              <strong>Include a logo slot</strong>
-              <span className="hint" style={{ display: 'block' }}>
+            <span className="dlg-check-text">
+              <span className="dlg-check-title">Include a logo slot</span>
+              <span className="dlg-check-desc">
                 {variant.logo === 'built-in'
                   ? 'This design always carries its logo slot — upload yours or pick a file later in SPX.'
                   : 'Adds an image field to the design; leave it empty for a clean placeholder.'}

@@ -56,7 +56,7 @@ async function toFinishStep(page: Page): Promise<void> {
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
-  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next ›' }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 }
 

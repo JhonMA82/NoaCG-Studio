@@ -1160,13 +1160,23 @@ kbd {
 }
 .wz-header h2 { margin: 0; font-size: 18px; white-space: nowrap; }
 /* THE HEADER RULE (handoff §6), stated once for every dialog rather than per borrower.
-   `.wz-header` has no justify-content, so the free space has to be absorbed by exactly ONE
-   child. Two auto margins would SPLIT it and park the wizard's step dots mid-header, which
-   is why the second rule cancels rather than adds: whichever comes first — the dots, or the
-   close button itself — takes the space, and the ✕ ends up hard right either way.
-   Previously only two named dialogs did this, so Settings' ✕ sat one gap after its subtitle. */
+   `.wz-header` has no justify-content, so the free space is absorbed by exactly ONE child:
+   the close button. Everything between the title and the ✕ (the wizard's step counter) is
+   pushed right along with it. Previously only two named dialogs pushed their ✕ at all, so
+   Settings' sat one gap after its subtitle, mid-header. */
 .wz-header > .gallery-close { margin-left: auto; }
-.wz-header > .wz-dots ~ .gallery-close { margin-left: 0; }
+.wz-header > .wz-stepcount ~ .gallery-close { margin-left: 0; }
+/* How far along, in the mono label voice. */
+.wz-stepcount {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.wz-stepcount b { color: var(--accent); font-weight: 500; }
 /* The subtitle yields before the ✕ ever moves: it truncates, the button does not shrink. */
 .wz-header .wz-header-sub {
   margin: 0;
@@ -1322,21 +1332,100 @@ kbd {
   font-size: 12px;
   letter-spacing: 0.06em;
 }
-.wz-dots { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+/* ── THE STEP RAIL (re-design/handoff.md §2) ──────────────────────────────────────────────
+   Vertical, 216px, so every step can carry a second line saying what it is FOR. As a
+   horizontal strip of pills it could only ever show six words, and on a phone those six
+   wrapped to four rows before any content appeared. */
+.wz-rail {
+  flex: 0 0 216px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  border-right: 1px solid var(--hairline);
+  background: var(--bg-app);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.wz-dots { display: flex; flex-direction: column; gap: 2px; }
 .wz-dot {
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 999px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 5px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-dim);
+  text-align: left;
+  font-size: 14px;
 }
-.wz-dot span { opacity: 0.65; margin-right: 2px; }
-.wz-dot.done { color: var(--text); }
-.wz-dot.active { border-color: var(--accent); color: var(--text); background: rgba(246, 166, 35, 0.08); }
-.wz-dot:disabled { opacity: 0.45; cursor: default; }
+/* The step's mark: its number, or a green ✓ once it is behind you. */
+.wz-dot-num {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+.wz-dot-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wz-dot-label { font-weight: 600; color: inherit; }
+.wz-dot-sub { font-size: 12px; color: var(--text-faint); }
+.wz-dot:hover:not(:disabled) { background: var(--bg-panel); border-color: transparent; color: var(--text); }
+.wz-dot.done { color: var(--text-mid); }
+.wz-dot.done .wz-dot-num { color: var(--state-ok); border-color: var(--state-ok-line); background: var(--state-ok-bg); }
+.wz-dot.active { color: var(--text); background: var(--bg-panel-2); border-color: var(--hairline-2); }
+.wz-dot.active .wz-dot-num { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+.wz-dot:disabled { opacity: 0.5; cursor: default; }
 
+/* The rail's foot: the authored frame, read back for the whole walk. */
+.wz-rail-foot { margin-top: auto; padding: 16px 12px 4px; border-top: 1px solid var(--hairline); }
+.wz-rail-format { margin: 8px 0 4px; font-size: 13px; color: var(--text); }
+.wz-rail-change {
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+}
+.wz-rail-change:hover { background: transparent; border-color: transparent; text-decoration: underline; }
+
+/* rail | form column | preview. The form column owns its own footer, so Next sits under the
+   form it advances rather than under the graphic beside it. */
 .wz-body { flex: 1; display: flex; min-height: 0; }
+.wz-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* A wizard section heading is a mono microcap with its note beside it, not one shouted line.
+   The steps reuse `.panel-section`, whose h3 uppercases everything inside — so the note
+   ("one accent + neutrals…") was being SHOUTED along with the title. Scoped to the wizard;
+   the editor's own panels keep their heading. */
+.wz-step .panel-section > h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+  margin: 0 0 12px;
+}
+.wz-step .panel-section > h3 .muted {
+  margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-dim);
+  text-align: right;
+}
 /* The step scroller keeps a REAL scrollbar (the standard properties — Chromium ignores the
    ::-webkit pseudo elements once scrollbar-width is set), and a sticky bottom fade appears
    while more content hides below the fold (data-overflow, set by CreationWizard). */
@@ -1364,64 +1453,129 @@ kbd {
    to edit at ~520px while previewing at ~700px). */
 .wz-body-working .wz-side { flex: 0 0 34%; }
 .wz-side {
-  flex: 0 0 50%;                    /* the preview deserves half the modal */
-  border-left: 1px solid var(--border);
+  flex: 0 0 45%;                    /* the preview's share of what the rail leaves */
+  border-left: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: var(--bg-deepest);
 }
 .wz-footer {
   display: flex;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--hairline);
+  flex: 0 0 auto;
 }
+.wz-footer .spacer { flex: 1; }
+/* "Skip to finish" is a quiet escape, not a competing action: it reads as a link beside the
+   one amber button, so the primary path stays unmistakable. */
+.wz-footer .wz-skip {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.wz-footer .wz-skip:hover:not(:disabled) { color: var(--text); background: transparent; }
+
+/* THE FORM COLUMN'S MEASURE. With the preview beside it the form is a single column of
+   controls and must not sprawl (handoff §2: 440-600px); with no preview — the Start step's
+   card grid, Browse's template wall — the step gets the room instead. */
+.wz-body.with-preview .wz-step > * { max-width: 660px; }
+.wz-body.with-preview .wz-footer { max-width: 700px; }
 
 /* Live preview */
-.wz-preview { display: flex; flex-direction: column; height: 100%; }
+.wz-preview { display: flex; flex-direction: column; height: 100%; background: var(--bg-deepest); }
+/* The stage is centred in whatever room the column has, at the project's aspect (set inline
+   by WizardPreview) — never stretched to fill the column. */
+.wz-preview > .wz-stage {
+  flex: 0 1 auto;
+  margin: auto;
+  width: 100%;
+  max-height: 100%;
+  border: 1px solid var(--hairline-2);
+  border-radius: 5px;
+}
+/* A FLAT STAGE (re-design/handoff.md §2). The chequerboard was there to say "this is
+   transparent", but it says it in every frame of every step — a busy pattern competing with
+   the design being judged, on the one surface whose whole job is judging it. The graphic's
+   own drop shadow already separates it from the ground. */
 .wz-stage {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background-color: #20262e;
-  background-image:
-    linear-gradient(45deg, #2c333d 25%, transparent 25%),
-    linear-gradient(-45deg, #2c333d 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #2c333d 75%),
-    linear-gradient(-45deg, transparent 75%, #2c333d 75%);
-  background-size: 24px 24px;
-  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  background: var(--bg-deepest);
 }
 .wz-stage iframe {
   position: absolute; top: 50%; left: 50%; border: 0; background: transparent;
   box-shadow: 0 10px 50px rgba(0,0,0,0.55);
   transition: transform 0.25s ease;  /* the zoom toggle glides instead of jumping */
 }
+/* The action-safe area, 5% in — drawn on the STAGE rather than in the document, so it costs
+   the preview nothing and can never reach an export. */
+.wz-stage::after {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  border: 1px dashed rgba(232, 237, 242, 0.12);
+  pointer-events: none;
+}
 .wz-preview-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--hairline);
+  background: var(--bg-app);
+}
+/* Transport buttons speak the mono label voice, like every other technical control. */
+.wz-preview-bar button {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border-radius: 4px;
+}
+.wz-preview-bar .muted {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
 }
 
 /* Wizard header brand line */
-.wz-title { display: inline-flex; align-items: center; gap: 10px; }
+.wz-title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .wz-title-sep { color: var(--border); }
-.wz-title-step { font-size: 14px; color: var(--text-dim); font-weight: 500; }
+.wz-title-step { font-size: 14px; color: var(--text); font-weight: 500; white-space: nowrap; }
+/* The design being built, once one is chosen — dimmer than the mode, and the first thing to
+   ellipsize, so a long catalog name can never push the step counter or the ✕ off the row. */
+.wz-title-doc {
+  font-size: 14px;
+  color: var(--text-dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Step 0: the home hero + entry cards */
 .wz-entry-wrap { display: flex; flex-direction: column; align-items: center; }
 /* The whole step must fit a 768px-tall laptop without scrolling — every vertical margin here
    is budgeted. If you grow one, take the height from another. (The Recent strip's removal
    paid for the desktop-first hero sizes above.) */
-.wz-hero { text-align: center; max-width: 880px; padding: 16px 16px 0; }
+.wz-hero { text-align: center; max-width: 880px; padding: 10px 16px 0; }
 .wz-hero-title {
   font-size: 30px;
   font-weight: 600;
   line-height: 1.08;
   letter-spacing: -0.01em;
-  margin: 10px 0 8px;
+  /* 6px, not 10: the 2x2 card grid above costs 10px of the 768px budget, and the budget is
+     paid from somewhere rather than overrun (e2e/wizard-entry-fit.spec.ts measures it). */
+  margin: 6px 0 8px;
 }
 .wz-hero-title span { color: var(--amber); }
 .wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0 auto; max-width: 760px; }
@@ -1436,22 +1590,29 @@ kbd {
   padding: 3px 11px;
 }
 
-.wz-entry { display: flex; gap: 14px; padding: 10px 0 0; justify-content: center; flex-wrap: wrap; }
+/* TWO BY TWO (re-design/handoff.md §2a). One row of narrow cards made four tall ragged
+   columns of text; two rows of wide ones read as four choices. It also retires the fixed
+   240px width budget: the cards now SHARE the column, so the rail taking 216px off the step
+   costs a little card width instead of wrapping the row and overflowing the step.
+   e2e/wizard-entry-fit.spec.ts remains the guard on the step's HEIGHT. */
+.wz-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 0 0;
+  width: 100%;
+  max-width: 1180px;
+}
 .wz-entry-card {
-  /* The width budget: every card of the entry row must fit ONE row at 1366px, where the
-     row gets 1259px - a second row spends the Entry step's height budget (see .wz-hero).
-     FIVE cards (Pro folded into Create with AI as a tier): 5x240 + 4x14 gap = 1256 holds.
-     Adding a card means re-spending this budget, not just appending (six cards at 240
-     wrapped and overflowed the step by 48px until they were narrowed).
-     e2e/wizard-entry-fit.spec.ts is the guard. */
-  width: 240px;
+  width: auto;
   padding: 16px 18px;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: 5px;
   line-height: 1.4;
+  background: var(--bg-panel);
   transition: border-color 0.14s, background 0.14s, transform 0.14s;
 }
 .wz-entry-card:hover { border-color: var(--accent); background: var(--bg-2); transform: translateY(-2px); }
@@ -1688,7 +1849,11 @@ kbd {
 .project-format-picker:disabled .project-format-description { opacity: 1; }
 .project-format-capability { margin: 9px 0 0; color: var(--accent); }
 .wz-variant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.wz-variant { padding: 0; overflow: hidden; border-radius: 8px; text-align: left; }
+/* Beside the live preview the form column is ~660px, which `auto-fill` fills with three
+   cramped cards. Two is the reference's grid (handoff §2b) and the width a design needs to
+   read as itself. */
+.wz-body.with-preview .wz-variant-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wz-variant { padding: 0; overflow: hidden; border-radius: 5px; text-align: left; background: var(--bg-panel); }
 .wz-variant.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .wz-mini { aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #14181f; pointer-events: none; }
 /* Anchored at the card's centre; MiniPreview supplies the size and the transform, because the
@@ -1823,8 +1988,38 @@ kbd {
 }
 .wz-browse-programme { margin-bottom: 12px; }
 .wz-browse-programme select { min-width: 200px; }
-.wz-browse-tiles { margin-bottom: 12px; }
-.wz-browse-tiles .wz-cat { padding: 9px 12px; gap: 0; }
+/* NOT A 22-CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid,
+   which at 22 categories stacked eleven rows deep and pushed the actual templates off the
+   screen — on the step whose whole job is picking one. They are chips now, in a bounded
+   strip that scrolls on its own: the same 22 targets (every spec still clicks them by name,
+   and the tile set is still derived from the taxonomy), about a fifth of the height. */
+.wz-browse-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.wz-browse-tiles .wz-cat {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  gap: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--bg-panel);
+}
+.wz-browse-tiles .wz-cat-head { gap: 8px; }
+.wz-browse-tiles .wz-cat-head strong { font-weight: 500; }
+/* The count reads as data, not as a badge competing with the name. */
+.wz-browse-tiles .wz-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  border: none;
+  padding: 0;
+  background: none;
+}
+.wz-browse-tiles .wz-cat.selected { border-color: var(--accent); background: var(--accent-bg); }
+.wz-browse-tiles .wz-cat.selected .wz-count { color: var(--accent); }
 .wz-filter-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
 /* A closed <details> hides its non-summary children through a UA rule — and ANY author rule
    setting `display` on those children silently beats it. Both wizard disclosures wrap rows
@@ -1838,8 +2033,22 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-browse-more summary { cursor: pointer; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
 .wz-browse-more .wz-filter-row { margin: 4px 0 8px; }
 /* Canvas format sits OUTSIDE .wz-browse-filters (it narrows nothing), so it needs the rule
-   the filter block used to give it: separated from the search field above it. */
-.wz-browse-format { margin-top: 12px; }
+   the filter block used to give it: separated from the search field above it. It is a
+   SETTING, not a facet, so it reads quietly — the rail's foot carries the read-back that
+   answers "what frame am I authoring" for the rest of the walk. */
+.wz-browse-format { margin: 12px 0; padding: 8px 12px 10px; border: 1px solid var(--hairline); border-radius: 5px; background: none; }
+.wz-browse-format legend {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+.wz-browse-format .project-format-fields { gap: 8px; }
+.wz-browse-format label { font-size: 11px; gap: 3px; color: var(--text-faint); }
+.wz-browse-format select { font-size: 12px; padding: 5px 7px; }
 .wz-browse-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .wz-browse-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wz-browse-count { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
@@ -1917,10 +2126,27 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-finish-name { width: 100%; max-width: 420px; font-size: 15px; }
 /* The read-back. A definition list rather than a table: these are label/value pairs, and the
    grid keeps every value on one column edge so the block scans vertically. */
-.wz-finish-summary { display: grid; gap: 6px; margin: 0; }
-.wz-finish-summary > div { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; }
+/* The read-back reads as a TABLE (re-design/handoff.md §2f): one row per decision, hairline
+   separated, with the way back to it in a fixed right column so the Edit links line up. */
+.wz-finish-summary { display: grid; margin: 0; border: 1px solid var(--hairline); border-radius: 5px; }
+.wz-finish-summary > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 14px;
+}
+.wz-finish-summary > div + div { border-top: 1px solid var(--hairline); }
 .wz-finish-summary dt { font-size: 12px; color: var(--text-dim); }
 .wz-finish-summary dd { margin: 0; font-size: 13px; }
+.wz-finish-edit {
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.wz-finish-edit:hover { color: var(--accent); background: transparent; border-color: transparent; text-decoration: underline; }
 /* The two doors share the row evenly. The basis has to be small enough that BOTH fit beside
    the live preview: the step pane is ~563px of content on a 1280-wide laptop, so a 280px
    basis wrapped them into a column and pushed Export 34px below the fold — the one control
@@ -3594,20 +3820,35 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
      viewport keeps the preview real; the step scrolls in what is left. */
   .wz-side { flex: 0 0 38vh; border-left: none; border-top: 1px solid var(--border); }
   .wz-header { padding: 12px 14px; gap: 10px; }
-  /* The step rail keeps NUMBERS for every step and the word only for the one you are on.
-     Six labelled pills wrapped to four rows and took ~290px of an 812px screen before a
-     single control appeared — the header was the biggest thing on the page. */
+  /* THE RAIL LIES DOWN. A phone has no 216px of width to give a permanent column, so the
+     rail becomes a scrolling strip of chips above the step: numbers for every step, the word
+     only for the one you are on, and the sub-line dropped entirely. Six labelled pills
+     wrapped to four rows and took ~290px of an 812px screen before a single control
+     appeared — the header was the biggest thing on the page. */
+  .wz-rail {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--hairline);
+    overflow-x: auto;
+  }
+  .wz-dots { flex-direction: row; gap: 2px; }
+  .wz-dot { grid-template-columns: auto; gap: 6px; padding: 5px 8px; white-space: nowrap; }
+  .wz-dot-num { width: 20px; height: 20px; }
+  .wz-dot-sub { display: none; }
   .wz-dot-label { display: none; }
+  .wz-dot.active { display: inline-grid; grid-template-columns: auto auto; }
   .wz-dot.active .wz-dot-label { display: inline; }
-  /* The row KEEPS wrapping - forcing nowrap just ran the last numbers off the screen edge.
-     What buys the single row is space, not a wrap ban: the mode caption ("New project") is
-     ~110px of a 375px header saying what the user just chose two taps ago, while the active
-     pill already names where they are. The brand mark stays. */
-  .wz-title-step, .wz-title-sep { display: none; }
-  .wz-dots { gap: 2px; }
-  /* nowrap on the PILL, though: the active one is the only two-word item in the row, and left
-     to wrap it broke onto "6 / Finish" and grew into a tall blob beside the flat numbers. */
-  .wz-dot { padding: 5px 8px; white-space: nowrap; }
+  /* The format read-back rides along at the end of the strip rather than claiming a row. */
+  .wz-rail-foot { margin: 0 0 0 auto; padding: 0 0 0 10px; border-top: none; border-left: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; }
+  .wz-rail-foot .dlg-caption { display: none; }
+  .wz-rail-format { margin: 0; font-size: 12px; white-space: nowrap; }
+  /* The mode caption ("New graphic") is ~110px of a 375px header saying what the user chose
+     two taps ago, while the active chip already names where they are. The brand mark stays. */
+  .wz-title-step, .wz-title-sep, .wz-title-doc { display: none; }
   .wz-entry { padding: 16px 4px; }
   .wz-entry-card { width: 100%; }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */

@@ -121,7 +121,7 @@ test('structured setup: pinned category + user fields + intensity land in the cr
   expect(design!.userText).toContain('Location');
 
   // Create with AI ends on the shared Finish step now — Next, then the editor door.
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-editor').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
 

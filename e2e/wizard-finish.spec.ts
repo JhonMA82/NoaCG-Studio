@@ -16,7 +16,7 @@ async function toFinishStep(page: Page, variantName = 'Hairline') {
   await page.locator('.wz-variant', { hasText: variantName }).first().click();
   // Fields → Style → Animation → Finish. The rail is 1:1 with the step index, so walking it
   // with Next is what a user does and what proves the new step is reachable.
-  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next ›' }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 }
 
@@ -30,7 +30,7 @@ test('finish: the production door leads, export follows, and the editor door nee
   await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
   // The footer shortcuts stand down here — the door cards ARE the actions.
   await expect(page.getByTestId('wz-skip-to-finish')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Next ›' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next →' })).toHaveCount(0);
 
   // With nothing saved yet the picker offers exactly "new production".
   await expect(page.getByTestId('wz-finish-production')).toHaveValue('new');
@@ -194,8 +194,8 @@ test('style step: size and position collapse behind a disclosure', async ({ page
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-variant').first().click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
 
   const more = page.getByTestId('wz-size-position');
   await expect(more).toBeVisible();

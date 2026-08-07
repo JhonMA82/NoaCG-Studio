@@ -72,8 +72,8 @@ async function openTextStep(page: Page) {
     buffer: lowerThirdPng(1920, 1080),
   });
   await expect(page.locator('.asset-card')).toContainText('1920 × 1080');
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Design -> Prepare
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Prepare -> Text
+  await page.getByRole('button', { name: 'Next →' }).click(); // Design -> Prepare
+  await page.getByRole('button', { name: 'Next →' }).click(); // Prepare -> Text
   await expect(page.getByTestId('place-stage')).toBeVisible();
 }
 

@@ -25,7 +25,7 @@ async function openExportWindowViaFinish(page: Page, name: string) {
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
-  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next ›' }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-name').fill(name);
   await page.getByTestId('wz-finish-export').click();
   await expect(page.getByTestId('export-window')).toBeVisible();

@@ -267,7 +267,7 @@ test('a reference is never bundled into the created template', async ({ page }) 
   await page.locator('.wz-step textarea').fill('A slate for a guest name.');
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', { timeout: 25_000 });
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-editor').click();
 
   // Read the bundled assets through the ASSETS PANEL, not through an imported store module:
@@ -305,7 +305,7 @@ test('a design that "improves" an as-is picture is held back', async ({ page }) 
 
   // Reported in the user's terms, naming the rule the design broke rather than a CSS property.
   await expect(page.locator('.wz-step')).toContainText('use it as it is', { timeout: 40_000 });
-  await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });
 
 // ── Video: the same four purposes, a different pipeline ──────────────────────

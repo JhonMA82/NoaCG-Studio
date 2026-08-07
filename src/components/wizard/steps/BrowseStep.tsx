@@ -277,12 +277,14 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
           results (browseTemplates never reads aspect), so it sits OUTSIDE the filter block
           and stays visible when the mobile drawer is shut. Inside it, changing 9:16 meant
           opening a control labelled "Filters" to make a decision that filters nothing. */}
+      {/* No description line: the rail's foot now carries the format read-back for the whole
+          walk, so repeating "choose the authored canvas" above it is one sentence of chrome
+          on the step whose job is picking a design. */}
       <ProjectFormatPicker
         value={draftFormatSelection(draft)}
         onChange={(selection) => onDraft(formatDraftPatch(selection))}
         idPrefix="browse-format"
         className="wz-browse-format"
-        description="Choose the authored canvas before selecting a design."
       />
 
       {/* Mobile-only drawer toggle (CSS hides it above the breakpoint). */}

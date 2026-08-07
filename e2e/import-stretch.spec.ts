@@ -23,7 +23,7 @@ async function dropCard(page: Page) {
     mimeType: 'image/png',
     buffer: framedCardPng(1000, 600),
   });
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
 }
 
 /** The artwork surface's box — awaited until the <img> inside has actually laid out

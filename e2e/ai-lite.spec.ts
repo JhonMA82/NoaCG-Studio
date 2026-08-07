@@ -135,7 +135,7 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-alternatives')).toHaveCount(0);
   await expect.poll(() => outcomes).toContain('usable');
 
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await awaitPreviewRebuild(page, async () => {
     await page.getByTestId('wz-finish-editor').click();
     await expect(page.getByTestId('creation-wizard')).toBeHidden();
@@ -195,7 +195,7 @@ test('Lite explains an unsupported package request without calling a code or fal
   await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
   await expect(page.locator('.wz-step .status-bad')).toContainText('Lite creates one graphic at a time.');
   await expect(page.locator('.wz-step .status-bad')).toContainText('Describe the single most important graphic');
-  await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
   expect(generationCalls).toBe(1);
   expect(genericCalls).toBe(0);
 });

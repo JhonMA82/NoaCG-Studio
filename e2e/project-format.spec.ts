@@ -48,7 +48,7 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
 
     if (index === cases.length - 1) {
       for (let step = 0; step < 4; step++) {
-        await page.getByRole('button', { name: 'Next ›' }).click();
+        await page.getByRole('button', { name: 'Next →' }).click();
       }
       await expect(page.locator('.wz-finish-summary')).toContainText(
         `16:9 · ${format.width}×${format.height} · ${format.fps} fps`,
@@ -81,7 +81,7 @@ test('aspect changes select a valid resolution and route switches preserve the c
 
   await page.getByTestId('browse-format-aspect').selectOption('16:9');
   await pickFormat(page, 'browse-format', 'landscape-2160p', 60);
-  await page.getByRole('button', { name: '‹ Back' }).click();
+  await page.getByRole('button', { name: '← Back' }).click();
   await page.locator('[data-entry="ai"]').click();
   await expect(page.getByTestId('ai-format-resolution')).toHaveValue('landscape-2160p');
   await expect(page.getByTestId('ai-format-fps')).toHaveValue('60');
@@ -253,7 +253,7 @@ test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page 
   });
   expect(requestFormat).toEqual({ resolution: { width: 3840, height: 2160 }, fps: 60 });
 
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.locator('.wz-finish-summary')).toContainText('3840×2160 · 60 fps');
   await awaitPreviewRebuild(page, () => page.getByTestId('wz-finish-editor').click());
   await expect.poll(() => templateFacts(page)).toMatchObject({ width: 3840, height: 2160, fps: 60 });

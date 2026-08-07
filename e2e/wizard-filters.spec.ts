@@ -194,7 +194,7 @@ test('field plan: a ticker offers a rows editor, never line add/remove', async (
   await toBrowseStep(page);
   await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Tickers' }).click();
   await page.locator('.wz-variant', { hasText: 'News Strip' }).first().click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
 
   // The items line renders as ROWS over the one textarea-backed source field.
   const rowsEditor = page.getByTestId('list-rows-editor');
@@ -216,7 +216,7 @@ test('field plan: a quiz board is a fixed contract - fields edit, structure does
   await toBrowseStep(page);
   await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Quiz' }).click();
   await page.locator('.wz-variant', { hasText: 'Arena Quiz' }).first().click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
 
   // Titles and samples stay editable; add/remove is gone (it was a silent no-op).
   await expect(page.locator('.wz-line-row').first()).toBeVisible();

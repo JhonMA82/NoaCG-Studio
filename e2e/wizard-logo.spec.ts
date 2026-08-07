@@ -20,7 +20,7 @@ async function toFieldsStep(page: Page, category: string, variantName: string) {
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: category }).click();
   await page.locator('.wz-variant', { hasText: variantName }).click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
 }
 
 async function createdTemplate(page: Page) {

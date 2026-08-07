@@ -138,7 +138,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
   return (
     <div>
       <div className="panel-section">
-        <h3>Palette <span className="muted">(one accent + neutrals — retint anytime via the CSS variables)</span></h3>
+        <h3>Palette <span className="muted">one accent + neutrals — retint anytime via the CSS variables</span></h3>
         <div className="wz-palettes">
           {palettes.map((p) => (
             <button
@@ -205,7 +205,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
       </div>
 
       <div className="panel-section">
-        <h3>Typeface <span className="muted">(every typeface — bundled or imported — ships inside the export)</span></h3>
+        <h3>Typeface <span className="muted">every typeface — bundled or imported — ships inside the export</span></h3>
         {/* The ONE typeface picker (shared with the import flow, the AI setup and the editor's
             Style panel): searchable, each family rendered in its own face, upload + this
             computer's installed faces. The card grid it replaced could never scale past a
@@ -245,7 +245,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
         <summary>Size &amp; position{placementSummary && <span className="muted"> — {placementSummary}</span>}</summary>
         <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
           <div className="panel-section">
-            <h3>Graphic size <span className="muted">(everything, together)</span></h3>
+            <h3>Graphic size <span className="muted">everything, together</span></h3>
             <div className="row" style={{ gap: 6 }}>
               {SIZES.map((s) => (
                 <button
@@ -265,7 +265,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
           </div>
 
           <div className="panel-section">
-            <h3>Text size <span className="muted">(type inside it)</span></h3>
+            <h3>Text size <span className="muted">type inside it</span></h3>
             <div className="row" style={{ gap: 6 }}>
               {TYPE_SIZES.map((s) => (
                 <button
@@ -284,7 +284,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
           </div>
 
           <div className="panel-section">
-            <h3>Position <span className="muted">(zones snap to safe areas)</span></h3>
+            <h3>Position <span className="muted">zones snap to safe areas</span></h3>
             <div className="wz-zones">
               {ZONES.map((z) => (
                 <button

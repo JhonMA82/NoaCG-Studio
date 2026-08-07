@@ -67,7 +67,7 @@ test('import graphic: the wizard is a setup flow — create lands in the editor,
   // needs no preparation, which is what the rest of this test walks.
   await expect(page.locator('.wz-dots .wz-dot')).toHaveCount(6);
   await expect(page.locator('.wz-dots .wz-dot').last()).toHaveText(/Finish/);
-  await expect(page.getByRole('button', { name: 'Next ›' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Next →' })).toHaveCount(1);
 
   // Creating HERE (never visiting Prepare) must yield exactly the bare fixed-mode
   // template it always did — the assertions below pin that fast path.

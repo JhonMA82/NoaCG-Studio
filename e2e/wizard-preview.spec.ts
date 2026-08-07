@@ -12,7 +12,7 @@ async function openWizardTo(page: Page, step: 'fields' | 'style' | 'animation') 
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
   const hops = { fields: 1, style: 2, animation: 3 }[step];
-  for (let i = 0; i < hops; i++) await page.getByRole('button', { name: 'Next ›' }).click();
+  for (let i = 0; i < hops; i++) await page.getByRole('button', { name: 'Next →' }).click();
 }
 
 function preview(page: Page): FrameLocator {

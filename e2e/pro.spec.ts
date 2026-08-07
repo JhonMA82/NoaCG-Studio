@@ -35,7 +35,7 @@ test('pro: a tier of Create with AI - offline says so, no model pickers, Next wa
   await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ai-pro-settings').getByText('OpenRouter key', { exact: true })).toBeVisible();
   // Nothing to finish yet.
-  await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });
 
 test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
@@ -61,7 +61,7 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation');
 
   // Finish: name it and take the editor door.
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
   await page.getByTestId('wz-finish-name').fill('Election Night Strap');
   await page.getByTestId('wz-finish-editor').click();
@@ -129,7 +129,7 @@ test('pro: an as-is upload is bundled into the logo slot it asked the concept fo
     "Your uploaded mark was bundled as images/mark.png and set as the Logo slot's value.",
   );
 
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-name').fill('Marked Strap');
   await page.getByTestId('wz-finish-editor').click();
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Marked Strap');

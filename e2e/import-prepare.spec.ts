@@ -21,7 +21,7 @@ async function dropCard(page: Page, buffer: Buffer, name = 'card.png') {
 
 /** Design step -> Prepare step, and open the erase surface. */
 async function toEraseSurface(page: Page) {
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('baked-yes').click();
   await expect(page.getByTestId('erase-surface')).toBeVisible();
 }

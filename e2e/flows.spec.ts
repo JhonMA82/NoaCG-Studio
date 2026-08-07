@@ -69,7 +69,7 @@ test('wizard: blank project escape hatch', async ({ page }) => {
 
 test('wizard: field titles flow into the Data panel', async ({ page }) => {
   await toVariantStep(page, 'Underline');
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
   const rows = page.locator('.wz-line-row');
   await rows.first().locator('input').first().fill('Guest name');
   await createFromCurrentStep(page);
@@ -80,9 +80,9 @@ test('wizard: field titles flow into the Data panel', async ({ page }) => {
 
 test('wizard: steps mode reveals lines on Next', async ({ page }) => {
   await toVariantStep(page, 'Soft Stack'); // three suggested lines
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Animation
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click(); // Animation
   await page.locator('.wz-step input[type="checkbox"]').check();
   await createFromCurrentStep(page);
 

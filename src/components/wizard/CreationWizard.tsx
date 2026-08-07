@@ -34,7 +34,7 @@ import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
 import BlankStep from './steps/BlankStep';
-import FinishStep, { aiSummaryRows, catalogSummaryRows } from './steps/FinishStep';
+import FinishStep, { aiSummaryRows, catalogSummaryRows, type SummaryStepKey } from './steps/FinishStep';
 import { useExportUi } from '../ExportWindow';
 import type { SpxTemplate } from '../../model/types';
 import { clearSpecDraft, type GenerationSpec } from '../../model/generationSpec';
@@ -47,7 +47,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter } from '../../app/router';
 import { saveGraphicAs } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
-import { DEFAULT_VIDEO_FORMAT } from '../../model/projectFormat';
+import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
 import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
@@ -94,6 +94,20 @@ const STEP_TITLES_KIT = ['Start', 'Kit'];
 // works. Text and Animation are optional stops: Create is available from the Design step on
 // (docs/IMPORT_MVP.md).
 const STEP_TITLES_DESIGN = ['Start', 'Design', 'Prepare', 'Text', 'Animation', 'Finish'];
+
+/* What each step is FOR, in the reader's words — the second line of every rail entry
+   (re-design/handoff.md §2). A title alone says where you are; the sub says what the step
+   will ask you. Parallel to the arrays above, index for index, so the two cannot drift.
+   The vocabulary follows docs/DESIGN_LANGUAGE.md §0: a family is a TYPEFACE, never a font. */
+const STEP_SUBS: Record<string, string[]> = {
+  template: ['Choose mode', 'Pick a design', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name & save'],
+  import: ['Choose mode', 'Add pictures', 'Pick a design', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name & save'],
+  ai: ['Choose mode', 'Describe it', 'Name & save'],
+  video: ['Choose mode', 'Brief & format'],
+  blank: ['Choose mode', 'Format & name'],
+  kit: ['Choose mode', 'Pick a show'],
+  design: ['Choose mode', 'Your artwork', 'Erase & scale', 'Place fields', 'In & out motion', 'Name & save'],
+};
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -666,6 +680,104 @@ export default function CreationWizard() {
   const railPos = stepIndexes.indexOf(step);
   const goToStep = (delta: number) => setStep(stepIndexes[railPos + delta] ?? step);
 
+  /* Finish's read-back rows are clickable: each goes back to the step it was decided on.
+     The row names its decision, not a step NUMBER, because import mode carries an extra
+     Images step and every later index shifts by one (animStep above says the same thing). */
+  const editSummaryStep = (key: SummaryStepKey) => {
+    const browse = mode === 'import' ? 2 : 1;
+    setStep({ design: browse, format: browse, fields: browse + 1, look: browse + 2, motion: animStep }[key]);
+  };
+
+  // The rail's format read-back. The real CONTROL stays in the step that owns it, so this is
+  // a reminder plus the way back: reveal the picker where it already lives, or go to the step
+  // that carries it. Duplicating the control would give the same decision two homes — the
+  // mistake the AI step's second reference uploader made (src/components/AGENTS.md).
+  const formatSummary = formatProjectSummary(draftResolution(draft), draft.fps);
+  const revealFormatPicker = () => {
+    const picker = document.querySelector<HTMLElement>('.wz-step [data-testid$="-format-aspect"]');
+    if (picker) {
+      picker.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      picker.focus();
+      return;
+    }
+    setStep(stepIndexes[1] ?? step);
+  };
+
+  /* The step footer. It belongs to the CENTRE COLUMN, not to the whole sheet: the preview
+     beside it carries its own transport, and a footer spanning both put Next under the
+     graphic rather than under the form it advances (re-design/handoff.md §2). */
+  const wizardFooter = (
+    <div className="wz-footer">
+      {step > 0 && <button className="wz-back" onClick={() => goToStep(-1)}>← Back</button>}
+      {brand && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
+        <label className="wz-match" title="Reuse this project's palette and typeface so the new graphic belongs to the same package">
+          <input
+            type="checkbox"
+            checked={matchBrand}
+            onChange={(e) => {
+              setMatchBrand(e.target.checked);
+              patch(
+                e.target.checked
+                  ? brandPatch(brand)
+                  : { paletteId: null, customPalette: null, fontId: null },
+              );
+            }}
+          />
+          Colors &amp; typeface from this project
+        </label>
+      )}
+      <div className="spacer" />
+      {/* TEMPLATE MODE's quiet shortcut is "Skip to finish" (docs/GOALS.md "Student
+          release" step 6): remaining steps keep their defaults and the Finish step's
+          doors decide where the graphic goes - it no longer creates straight into the
+          editor, which default mode does not even surface. It stands down ON Finish,
+          whose door cards ARE the actions.
+          DESIGN/IMPORT keep the classic "Create project" (create from any step - a
+          design needing no erase, fields, or animation choice creates immediately);
+          KIT stands down for the same reason as Finish: its own Create IS the action. */}
+      {mode === 'template' && step >= 1 && step < finishStep && (
+        <button
+          className="wz-skip"
+          disabled={!draft.variantId}
+          onClick={() => setStep(finishStep)}
+          title="Happy with the defaults? Jump straight to naming it and choosing where it goes"
+          data-testid="wz-skip-to-finish"
+        >
+          Skip to finish
+        </button>
+      )}
+      {(mode === 'design' || mode === 'import') && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
+        <button
+          disabled={!previewTemplate}
+          onClick={create}
+          title={
+            mode === 'design'
+              ? 'Create the project with everything chosen so far — refine anything later in the editor'
+              : 'Create the project now — remaining steps keep their defaults'
+          }
+        >
+          Create project
+        </button>
+      )}
+      {/* AI's Create step advances to Finish once a valid result stands — the two doors
+          (open in the editor / export) live there, same as every catalog mode. */}
+      {mode === 'ai' && step === 1 && (
+        <button
+          className="primary wz-next"
+          disabled={!aiResult?.valid}
+          onClick={() => goToStep(1)}
+          title={aiResult && !aiResult.valid ? 'The result has validation errors — refine or regenerate first' : undefined}
+        >
+          Next →
+        </button>
+      )}
+      {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
+        <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
+          Next →
+        </button>
+      )}
+    </div>
+  );
 
   // Ordering: imported images put logo-slot designs first; a matched brand puts its
   // style family first (so the package's siblings lead).
@@ -690,7 +802,9 @@ export default function CreationWizard() {
           `.wz-wizard` (the full-screen override) + its own test id for anything that must
           name THIS dialog and not one of those. */}
       <div className="wz-modal wz-wizard" data-testid="creation-wizard">
-        {/* Header: title + step dots */}
+        {/* Header: what is being made, how far along, and the way out. The step LIST moved to
+            the left rail (re-design/handoff.md §2) — six labelled pills across the top could
+            never say what a step was FOR, and they wrapped to four rows on a phone. */}
         <div className="wz-header">
           <div className="wz-title">
             {/* The brand is the Home door on every topbar — the wizard's included. */}
@@ -710,38 +824,15 @@ export default function CreationWizard() {
                 : mode === 'video' ? 'Video with AI'
                 : mode === 'kit' ? 'Start from a kit'
                 : mode === 'design' ? 'Import graphic'
-                : 'New project'}
+                : 'New graphic'}
             </span>
+            {/* Once a design is chosen it names the thing being built, so the header answers
+                "what am I working on" without the reader looking at the preview. */}
+            {variant && <span className="wz-title-doc">· {variant.name}</span>}
           </div>
-          <div className="wz-dots">
-            {stepTitles.map((t, i) => {
-              const s = stepIndexes[i];
-              return (
-                <button
-                  key={t}
-                  className={`wz-dot ${s === step ? 'active' : ''} ${s < step ? 'done' : ''}`}
-                  // Backward always. FORWARD jumps unlock in template mode once a design is
-                  // picked (docs/GOALS.md "Student release" step 6): every later step holds
-                  // a tasteful default, so "the template is good enough" must not cost four
-                  // Next presses. Other modes keep their sequential walks - their steps
-                  // build state a jump would skip.
-                  disabled={
-                    s > step
-                      ? !(mode === 'template' && !!draft.variantId)
-                      : s > (mode === 'template' ? 1 : 2) && !draft.variantId
-                  }
-                  onClick={() => setStep(s)}
-                  title={t}
-                >
-                  {/* The label is its own element so a PHONE can drop it from every step but
-                      the active one: six labelled pills wrap to four rows and ate ~290px of an
-                      812px screen before any content appeared. Numbers still name the step,
-                      and the one you are on keeps its word. */}
-                  <span>{i + 1}</span> <span className="wz-dot-label">{t}</span>
-                </button>
-              );
-            })}
-          </div>
+          <span className="wz-stepcount">
+            Step <b>{railPos + 1}</b> / {stepTitles.length}
+          </span>
           <button className="gallery-close" onClick={closeGallery} title="Cancel (keep current project)">✕</button>
         </div>
 
@@ -754,6 +845,56 @@ export default function CreationWizard() {
             mode === 'design' && step === 3 ? ' wz-body-working' : ''
           }`}
         >
+          {/* THE RAIL (handoff §2): where you are, what each step is for, and the project
+              format pinned at its foot. Vertical, so a step can carry a second line. */}
+          <nav className="wz-rail" aria-label="Creation steps">
+            <div className="wz-dots">
+              {stepTitles.map((t, i) => {
+                const s = stepIndexes[i];
+                const done = s < step;
+                return (
+                  <button
+                    key={t}
+                    className={`wz-dot ${s === step ? 'active' : ''} ${done ? 'done' : ''}`}
+                    // Backward always. FORWARD jumps unlock in template mode once a design is
+                    // picked (docs/GOALS.md "Student release" step 6): every later step holds
+                    // a tasteful default, so "the template is good enough" must not cost four
+                    // Next presses. Other modes keep their sequential walks - their steps
+                    // build state a jump would skip.
+                    disabled={
+                      s > step
+                        ? !(mode === 'template' && !!draft.variantId)
+                        : s > (mode === 'template' ? 1 : 2) && !draft.variantId
+                    }
+                    onClick={() => setStep(s)}
+                    title={t}
+                  >
+                    <span className="wz-dot-num" aria-hidden="true">{done ? '✓' : i + 1}</span>
+                    {/* The label is its own element so a PHONE can drop the sub-line and lay
+                        the rail out as a horizontal strip of numbered chips. */}
+                    <span className="wz-dot-text">
+                      <span className="wz-dot-label">{t}</span>
+                      <span className="wz-dot-sub">{STEP_SUBS[mode]?.[i] ?? ''}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* The authored frame, read back where it stays visible for the whole walk. The
+                CONTROL itself stays in the step that owns it (the Browse step's picker, the
+                AI and blank steps' own) — one control, one home; this is the reminder plus
+                the way back to it. */}
+            {step > 0 && mode !== 'kit' && (
+              <div className="wz-rail-foot">
+                <p className="dlg-caption">Project format</p>
+                <p className="wz-rail-format">{formatSummary}</p>
+                <button className="wz-rail-change" onClick={revealFormatPicker}>Change ▾</button>
+              </div>
+            )}
+          </nav>
+
+          <div className="wz-main">
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
             {step === 0 && (
               <EntryStep
@@ -991,6 +1132,7 @@ export default function CreationWizard() {
                 namePlaceholder={variant.name}
                 onName={(name) => patch({ name })}
                 summary={catalogSummaryRows(variant, draft)}
+                onEditStep={editSummaryStep}
                 productions={finishProductions}
                 defaultProductionId={contextProductionId}
                 onAddToProduction={createAndAddToProduction}
@@ -1020,6 +1162,8 @@ export default function CreationWizard() {
             )}
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
+          {wizardFooter}
+          </div>
 
           {showPreview && (mode === 'ai' ? aiResult : mode === 'blank' ? blankPreview : previewTemplate) && (
             <aside className="wz-side">
@@ -1037,81 +1181,6 @@ export default function CreationWizard() {
               />
             </aside>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="wz-footer">
-          <div className="row" style={{ gap: 14, alignItems: 'center' }}>
-            {step > 0 && <button onClick={() => goToStep(-1)}>‹ Back</button>}
-            {brand && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
-              <label className="wz-match" title="Reuse this project's palette and font so the new graphic belongs to the same package">
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto' }}
-                  checked={matchBrand}
-                  onChange={(e) => {
-                    setMatchBrand(e.target.checked);
-                    patch(
-                      e.target.checked
-                        ? brandPatch(brand)
-                        : { paletteId: null, customPalette: null, fontId: null },
-                    );
-                  }}
-                />
-                Use current project's colors &amp; font
-              </label>
-            )}
-          </div>
-          <div className="row" style={{ gap: 8 }}>
-            {/* AI's Create step advances to Finish once a valid result stands — the two doors
-                (open in the editor / export) live there, same as every catalog mode. */}
-            {mode === 'ai' && step === 1 && (
-              <button
-                className="primary wz-next"
-                disabled={!aiResult?.valid}
-                onClick={() => goToStep(1)}
-                title={aiResult && !aiResult.valid ? 'The result has validation errors — refine or regenerate first' : undefined}
-              >
-                Next ›
-              </button>
-            )}
-            {/* TEMPLATE MODE's quiet shortcut is "Skip to finish" (docs/GOALS.md "Student
-                release" step 6): remaining steps keep their defaults and the Finish step's
-                doors decide where the graphic goes - it no longer creates straight into the
-                editor, which default mode does not even surface. It stands down ON Finish,
-                whose door cards ARE the actions.
-                DESIGN/IMPORT keep the classic "Create project" (create from any step - a
-                design needing no erase, fields, or animation choice creates immediately);
-                KIT stands down for the same reason as Finish: its own Create IS the action. */}
-            {mode === 'template' && step >= 1 && step < finishStep && (
-              <button
-                disabled={!draft.variantId}
-                onClick={() => setStep(finishStep)}
-                title="Happy with the defaults? Jump straight to naming it and choosing where it goes"
-                data-testid="wz-skip-to-finish"
-              >
-                Skip to finish ›
-              </button>
-            )}
-            {(mode === 'design' || mode === 'import') && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
-              <button
-                disabled={!previewTemplate}
-                onClick={create}
-                title={
-                  mode === 'design'
-                    ? 'Create the project with everything chosen so far — refine anything later in the editor'
-                    : 'Create the project now — remaining steps keep their defaults'
-                }
-              >
-                Create project
-              </button>
-            )}
-            {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
-              <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
-                Next ›
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

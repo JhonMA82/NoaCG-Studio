@@ -369,7 +369,7 @@ async function dropCard(page: Page, buffer: Buffer) {
 
 /** Design step -> Prepare, open the erase surface, and drag a rect over it (image fractions). */
 async function eraseRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: number) {
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('baked-yes').click();
   const surface = page.getByTestId('erase-surface');
   await expect(surface).toBeVisible();
@@ -479,7 +479,7 @@ test('import graphic: a JPEG or WebP design imports exactly like a PNG', async (
     // Measured and accepted, with no format complaint anywhere on the step.
     await expect(page.locator('.asset-card')).toContainText('1280 × 720');
     await expect(page.locator('.wz-step')).not.toContainText('not an image');
-    await page.getByRole('button', { name: '‹ Back' }).click();
+    await page.getByRole('button', { name: '← Back' }).click();
   }
 });
 

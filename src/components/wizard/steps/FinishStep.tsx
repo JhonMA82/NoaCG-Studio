@@ -8,10 +8,17 @@ import { isRenderConfigured } from '../../../render/config';
 import { formatProjectSummary } from '../../../model/projectFormat';
 import { draftResolution, type WizardDraft } from '../draft';
 
+/** Which earlier step a summary row was decided on — the target of its Edit link. Named
+ *  rather than numbered because the step INDEX differs by mode (import mode carries an extra
+ *  Images step before Template), and only the wizard knows the mode. */
+export type SummaryStepKey = 'design' | 'format' | 'fields' | 'look' | 'motion';
+
 /** One "here is what you chose" line — the read-back the branch is taken in view of. */
 export interface SummaryRow {
   label: string;
   value: string;
+  /** Present when the row can be gone back and changed (re-design/handoff.md §2f). */
+  step?: SummaryStepKey;
 }
 
 /** Where the production door sends the graphic: an existing production, or a new one. */
@@ -24,6 +31,9 @@ interface Props {
   onName: (name: string) => void;
   /** The read-back rows — catalog choices, or the AI result's shape. */
   summary: SummaryRow[];
+  /** Go back to the step a row was decided on. Absent = the rows are read-only (the AI
+   *  result has no configuring steps behind it to return to). */
+  onEditStep?: (step: SummaryStepKey) => void;
   /** The saved productions on offer (live list, loaded by the wizard when Finish shows). */
   productions: Show[];
   /** Preselect: the production the wizard was opened FOR (its page's "+ New graphic"),
@@ -61,17 +71,18 @@ export function catalogSummaryRows(variant: TemplateVariant, draft: WizardDraft)
   const outPreset = outId && outId !== presetId ? ALL_PRESETS.find((p) => p.id === outId)?.name ?? outId : null;
 
   const rows: SummaryRow[] = [
-    { label: 'Design', value: variant.name },
-    { label: 'Project format', value: formatProjectSummary(res, draft.fps) },
+    { label: 'Design', value: variant.name, step: 'design' },
+    { label: 'Project format', value: formatProjectSummary(res, draft.fps), step: 'format' },
   ];
   if (draft.lines.length > 0) {
     rows.push({
       label: 'Fields',
       value: `${draft.lines.length} text ${draft.lines.length === 1 ? 'line' : 'lines'}`,
+      step: 'fields',
     });
   }
-  rows.push({ label: 'Look', value: `${palette.name} · ${font}` });
-  rows.push({ label: 'Motion', value: outPreset ? `${preset} in · ${outPreset} out` : preset });
+  rows.push({ label: 'Look', value: `${palette.name} · ${font}`, step: 'look' });
+  rows.push({ label: 'Motion', value: outPreset ? `${preset} in · ${outPreset} out` : preset, step: 'motion' });
   return rows;
 }
 
@@ -116,6 +127,7 @@ export default function FinishStep({
   namePlaceholder,
   onName,
   summary,
+  onEditStep,
   productions,
   defaultProductionId,
   onAddToProduction,
@@ -165,6 +177,12 @@ export default function FinishStep({
             <div key={r.label}>
               <dt>{r.label}</dt>
               <dd>{r.value}</dd>
+              {/* Each decision is one click from the step it was made on — a read-back you
+                  cannot act on makes the reader walk Back through four steps to change one
+                  line (re-design/handoff.md §2f). */}
+              {r.step && onEditStep && (
+                <button className="wz-finish-edit" onClick={() => onEditStep(r.step!)}>Edit</button>
+              )}
             </div>
           ))}
         </dl>

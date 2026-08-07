@@ -121,9 +121,9 @@ test('wizard: direction control mixes a different exit preset at create', async 
   await page.locator('[data-entry="template"]').click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
   await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Fields
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Animation
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click(); // Animation
   // Default direction: one matched style for the entrance AND the exit.
   await expect(page.locator('.wz-step button.active', { hasText: 'In and out' })).toBeVisible();
   // Switch only the exit; the direction hint reflects the mix. The slide family is one

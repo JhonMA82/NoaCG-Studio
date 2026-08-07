@@ -91,7 +91,7 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
     <div>
       {phaseApply && (
         <div className="panel-section">
-          <h3>Direction <span className="muted">(what your style choice applies to)</span></h3>
+          <h3>Direction <span className="muted">what your style choice applies to</span></h3>
           <div className="row" style={{ gap: 6 }}>
             {DIRECTIONS.map((d) => (
               <button
@@ -191,7 +191,7 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
 
       <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
         <div className="panel-section">
-          <h3>Speed <span className="muted">(entrance and exit)</span></h3>
+          <h3>Speed <span className="muted">entrance and exit</span></h3>
           <div className="row" style={{ gap: 6 }}>
             {SPEEDS.map((s) => (
               <button
@@ -206,7 +206,7 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
         </div>
 
         <div className="panel-section" style={{ minWidth: 260 }}>
-          <h3>Easing <span className="muted">(the feel of the motion)</span></h3>
+          <h3>Easing <span className="muted">the feel of the motion</span></h3>
           <select
             value={draft.animation.easing}
             onChange={(e) => onDraft({ animation: { easing: e.target.value as EasingId } })}
@@ -238,16 +238,17 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
 
       {stepsApply && (
         <div className="panel-section">
-          <label className="row" style={{ gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+          {/* The one checkbox row, by the one rule (re-design/handoff.md §6): box first, cap
+              aligned with the title, description stacked under it, whole label clickable. */}
+          <label className="dlg-check">
             <input
               type="checkbox"
-              style={{ width: 'auto' }}
               checked={draft.animation.steps ?? variant.defaultSteps ?? false}
               onChange={(e) => onDraft({ animation: { steps: e.target.checked } })}
             />
-            <span>
-              <strong>Reveal in steps</strong>
-              <span className="hint" style={{ display: 'block' }}>
+            <span className="dlg-check-text">
+              <span className="dlg-check-title">Reveal in steps</span>
+              <span className="dlg-check-desc">
                 ▶ Play shows only the first line; each press of » Next (SPX <em>Continue</em>)
                 reveals one more. Test it with the » Next button after creating.
               </span>

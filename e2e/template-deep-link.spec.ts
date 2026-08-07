@@ -27,9 +27,9 @@ test('deep link: a valid variant id opens the wizard preselected on Fields', asy
 
   // The rest of the wizard still works normally from here: Style → Animation → Finish reads
   // back the same design.
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Style
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Animation
-  await page.getByRole('button', { name: 'Next ›' }).click(); // Finish
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
+  await page.getByRole('button', { name: 'Next →' }).click(); // Animation
+  await page.getByRole('button', { name: 'Next →' }).click(); // Finish
   await expect(page.locator('.wz-finish-summary')).toContainText('Hairline');
 
   // A direct reload of the same URL reaches the identical state (survives refresh).

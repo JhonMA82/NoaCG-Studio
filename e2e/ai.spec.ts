@@ -177,7 +177,7 @@ async function openAiStep(page: Page) {
  * door (the classic ending — the name reaches the topbar, nothing is saved yet).
  */
 async function finishInEditor(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-editor').click();
 }
 
@@ -250,14 +250,14 @@ test('finish: Create with AI reaches the shared Finish step, gated on a valid re
   await page.route('/api/ai/generate', (route: Route) => route.fulfill(toolResponse(route, VALID_TEMPLATE)));
   await openAiStep(page);
   // Before a result exists there is nothing to finish — the branch gate is shut.
-  await expect(page.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 
   await page.locator('.wz-step textarea').fill('A simple test slate');
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   // A valid result opens the gate; Next lands on the same Finish step every catalog mode ends on.
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.locator('.wz-dot').last()).toHaveText(/Finish/);
   await expect(page.getByTestId('wz-finish-editor')).toBeVisible();
   await expect(page.getByTestId('wz-finish-export')).toBeVisible();
@@ -267,7 +267,7 @@ test('finish: Create with AI reaches the shared Finish step, gated on a valid re
 
   // Back returns to the Create step with the result — and its whole thread — intact (AiStep is
   // kept mounted across the move, so nothing lifted-out is lost).
-  await page.getByRole('button', { name: '‹ Back' }).click();
+  await page.getByRole('button', { name: '← Back' }).click();
   await expect(page.locator('.change-preview strong')).toHaveText('Test Slate');
 });
 
@@ -281,7 +281,7 @@ test('finish: the Create-with-AI export door saves the graphic and opens the exp
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-name').fill('Election Night Slate');
   await page.getByTestId('wz-finish-export').click();
 
@@ -897,7 +897,7 @@ test('the conversation that produced an AI graphic travels with it, and survives
   await page.getByRole('button', { name: '✦ Generate' }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // Next → the Finish step's "open in the editor" door (the same ending every AI create takes).
-  await page.getByRole('button', { name: 'Next ›' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-editor').click();
   // The picked grounded direction becomes the project (harness on assembles from the catalog).
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded One');
