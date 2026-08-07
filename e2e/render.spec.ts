@@ -183,6 +183,9 @@ test('the standalone export window carries the render section, measured off the 
   await expect(page.getByTestId('save-dialog')).toBeHidden();
 
   await page.getByTestId('open-home').click();
+  // The dashboard shows a shelf of recent graphics; the library ROWS and their ⋯ menus belong
+  // to the Graphics section, which is where this door is reached from.
+  await page.getByTestId('home-nav-graphics').click();
   const row = page.locator('.lib-row', { hasText: 'Saved Render Target' });
   await row.getByTestId('row-menu').click();
   await row.getByTestId('export-graphic').click();
