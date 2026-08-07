@@ -430,12 +430,17 @@ test('save, reload and reopen keeps a severity machine and a language machine in
   const saved = (await page.evaluate(`(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const out = {};
     for (const id of ['al01', 'pi08', 'tk18']) {
       const tpl = variantById(id).create({});
       const { doc } = createGraphic(tpl, { name: id });
       out[id] = doc.id;
     }
+    // The durable store ACCEPTS a write and confirms it a moment later, so reloading straight
+    // after createGraphic can reload before the records land — this test was failing roughly
+    // one run in three, sometimes on a missing doc and sometimes on a stale one.
+    await commitDurableWrites();
     return out;
   })()`)) as Record<string, string>;
 
