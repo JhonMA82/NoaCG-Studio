@@ -443,6 +443,12 @@ editing the CI gate's dependency set can introduce.
   either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
+- **A spec that saves off the UI and then reloads must WAIT for the disk.** A durable write is
+  accepted synchronously and lands a moment later (durableStore.ts), so a `reload`/`goto` fired
+  the instant a mutator returns aborts what has not committed, and the next page is missing the
+  last write or two - which one varies. `settleDurableWrites` before tearing the page down;
+  `awaitDurableReady` after a reload whose read is an `evaluate` (`e2e/_durable.ts`). A UI
+  assertion needs neither: the shell cannot render before hydration resolves.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
   it focused, and Space belongs to a focused button by design (spaceKey.ts) - so the press lands on
   that button, not on the surface under test. Which one answers can even depend on a timer the spec

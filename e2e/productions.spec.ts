@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
+import { settleDurableWrites } from './_durable';
 
 /** Drag cue row `from` onto row `to` — the rundown reorders by DRAG now, not by ↑/↓ buttons
  *  (docs/PLAYOUT_DASHBOARD.md §4). Playwright's dragTo drives real HTML5 drag events, which is
@@ -436,6 +437,9 @@ test('a published production reads SHOW; an unpublished one says so and offers n
     const { loadShows, setShowHostedSlug } = await import('/src/model/shows.ts');
     setShowHostedSlug(loadShows()[0].id, 'demo-slug');
   });
+  // Wait for the database, not just the mirror - a reload fired now aborts the write that
+  // publishes the record, and the page comes back still saying NOT PUBLISHED (e2e/_durable.ts).
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW');
