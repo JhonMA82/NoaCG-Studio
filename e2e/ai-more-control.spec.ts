@@ -162,10 +162,10 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
 
   // Close the wizard entirely and come back: the draft survives (localStorage). This file
   // runs in Advanced mode (openAiStep), so the close rewinds to the EDITOR - reopen through
-  // its "+ New project" like a user would.
+  // its "+ New graphic" like a user would.
   await page.locator('.gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await page.getByRole('button', { name: '+ New project' }).click();
+  await page.getByRole('button', { name: '+ New graphic' }).click();
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
   // A non-empty draft opens the panel by itself, summarizing the picked category.

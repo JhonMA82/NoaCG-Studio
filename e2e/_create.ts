@@ -141,7 +141,7 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
 }
 
 /**
- * Open the creation wizard from the topbar's "+ New project", clearing the unsaved-changes
+ * Open the creation wizard from the topbar's "+ New graphic", clearing the unsaved-changes
  * guard when it interposes.
  *
  * Creating REPLACES the working document, so the SPX topbar routes that button through
@@ -152,7 +152,7 @@ export async function createProject(page: Page, spec: string | CreateSpec = 'Hai
  * project (or the video shell, which never guards) goes straight to the wizard.
  */
 export async function startNewProject(page: Page): Promise<void> {
-  await page.getByRole('button', { name: '+ New project' }).click();
+  await page.getByRole('button', { name: '+ New graphic' }).click();
   const guard = page.getByTestId('confirm-switch');
   const wizard = page.getByTestId('creation-wizard');
   await expect(guard.or(wizard)).toBeVisible();

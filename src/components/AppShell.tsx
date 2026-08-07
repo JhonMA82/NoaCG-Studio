@@ -396,7 +396,7 @@ export default function AppShell() {
           onClick={() => useSaveUi.getState().requestSwitch(() => navigate({ view: 'new' }))}
           title="Start a new project from a template"
         >
-          + New project
+          + New graphic
         </button>
         <button
           className="home-btn"
@@ -487,7 +487,7 @@ export default function AppShell() {
         })()
       )}
 
-      {/* Creation wizard overlay — shown on startup and via "New project". */}
+      {/* Creation wizard overlay — shown on startup and via "New graphic". */}
 
       {/* Save dialogs: first-save naming + the unsaved-changes guard. */}
       <SaveDialogs />

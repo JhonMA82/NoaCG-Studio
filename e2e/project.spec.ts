@@ -8,7 +8,7 @@ import { durableValue } from './_storage';
 // from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
 // studio boots to Home/wizard instead; advanced-mode.spec.ts pins that split). Only a
 // first-ever visit (no autosaved project) opens the wizard; a returning user lands straight
-// back in the restored graphic, and "+ New project" / #/new open the wizard on demand.
+// back in the restored graphic, and "+ New graphic" / #/new open the wizard on demand.
 
 test('project autosave: the working graphic survives a reload', async ({ page }) => {
   await enableAdvancedMode(page);

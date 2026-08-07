@@ -201,7 +201,7 @@ export default function VideoAppShell() {
           📁 My videos
         </button>
         <button onClick={() => openGallery()} title="Start a new project">
-          + New project
+          + New graphic
         </button>
         <button
           onClick={() => {
