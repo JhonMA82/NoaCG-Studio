@@ -135,6 +135,57 @@ it instead of asking for "realistic text capacity". Prompt version `lite-lower-t
 a claim above the measurement fails as a lie, a claim more than 4 characters below it fails as
 stale.
 
+## 1a. The A/B round: the capacity fix did not work, and the real cause is `scaleRatio`
+
+Same 6 briefs x 3 runs, same model, same fixture bank; only the platform moved (v4 digest,
+capacity clause, wrap check). **18 generations, $0.0053.** Artifacts:
+`lite-bench-out/round-2026-08-07b/`.
+
+| | round A (`v3-baseline`) | round B (`v4-capacity`) |
+|---|---|---|
+| mean capacity of the chassis CHOSEN | 48.6 chars | **49.3 chars** |
+| `long-name` (needs ~48) | lt11, lt11, lt11 | lt11, lt25, lt11 |
+| `multilingual` | lt02, lt25, lt02 | lt25, lt25, lt25 |
+| identity lines that wrapped | 0 reported | **11 of 18** |
+| machine-usable | 18/18 | 7/18 |
+
+**+0.7 characters is noise** - round A varied its own chassis on two of six briefs. The design
+the round failed on, `long-name`, still picks the 39-character `lt11` in two runs of three.
+Telling the model the truth about capacity changed the metadata and not the behaviour, and the
+claim in the commit that landed it ("fixes the round's headline defect at its source") was
+wrong. **The A/B is the only reason that is known.**
+
+**Why it could not have worked, measured afterwards.** `applyDesignAdjustments` rewrites the
+very property `supportingLineChars` measures. The supporting line's size is derived from the
+spec's `typography.scaleRatio` - `clamp(namePx / ratio, 14, namePx * 0.92)` - so the number the
+digest states describes the design *as authored* and the pipeline then overwrites it:
+
+| chassis | as authored | `scaleRatio: 1.2` | `scaleRatio: 2.6` |
+|---|---|---|---|
+| lt25 Masthead | 20px / **47 chars** | 48px / **19** | 22px / 42 |
+| lt02 Underline | 23px / 58 | 47px / **28** | 22px / 61 |
+| lt11 House Strap | 22px / 39 | 45px / **19** | 21px / 42 |
+| lt32 Scrim | 20px / 28 | 45px / **14** | 21px / 26 |
+
+A ratio of **1.2 - the legal minimum, and unbounded in the schema until this change** - nearly
+doubles the supporting line and cuts capacity by 2-3x. That is the `university-speaker` frame
+exactly: a 38-character role against a capacity of 19.
+
+**So `scaleRatio` is the lever, not the chassis word**, and step 3 moves from hazard-closing to
+the actual fix. Two things were also ruled out by measurement rather than argument: `sizeScale`
+does NOT change capacity (the auto-fit cap is expressed per scale unit, so box and type scale
+together - 58 chars at 1.0, 1.2 and 1.4 alike), and the wrap is not a per-design limit (every
+design wraps at the same 806px shared cap).
+
+**`bench-line-wrap` is therefore a WARNING, and that severity is measured too.** As an error it
+failed 11 of 18; Lite has no repair loop on the grounded path, so it would have refused two
+thirds of requests for a graphic that is mediocre but airable. It becomes an error the day
+something can act on it.
+
+**What the round is worth keeping for:** the check itself. Round A scored 18/18 machine-usable
+with zero rule codes while three of six frames carried the defect. Round B names 11 of 18. The
+gate is the deliverable; the metadata correction is true and inert.
+
 ### A hazard the round did not trigger, stated as a hazard
 
 `designAdjust.ts` derives the supporting line's size as `clamp(namePx / ratio, 14, …)` - a
@@ -263,11 +314,11 @@ which is the argument for making the machine reject more before a human ever loo
 
 Each step is free unless marked, and each is independently landable.
 
-1. ~~**Correct the capacity metadata.**~~ **DONE 2026-08-07.** `supportingLineChars` replaces
-   the adjective, the digest states the number with its unit, the prompt's capacity clause names
-   it (a replacement, not an added line - §6c), prompt version `lite-lower-third-v4`, and
-   `scripts/lite-line-capacity.mjs --check` gates the claim against the render. What it does NOT
-   do is stop a too-long value wrapping once an operator types one - that is step 2.
+1. ~~**Correct the capacity metadata.**~~ **DONE 2026-08-07 - and MEASURED NOT TO WORK. Read §1a
+   before building on it.** `supportingLineChars` replaces the adjective, the digest states the
+   number with its unit, the prompt's capacity clause names it, prompt version
+   `lite-lower-third-v4`, and `scripts/lite-line-capacity.mjs --check` gates the claim against
+   the render. The metadata is now true. It did not change what the model picks.
 2. ~~**Give the supporting line a fitting strategy.**~~ **INVESTIGATED 2026-08-07, and the
    obvious lever is blocked - shrink-to-fit cannot fix this.** Two measurements killed it:
    - **`textFit` shrinks by font-size, and lt25 and lt32 set their supporting line at 20px -
@@ -299,9 +350,13 @@ Each step is free unless marked, and each is independently landable.
    the same 20px floor the catalog is. Deliberately NOT in `runtimeBench` - a user who chooses
    graphic size S is not making an error, so this is a generation-quality rule, not an export
    gate.
-4. **Close the schema gaps.** `typography.scaleRatio` gets `minimum`/`maximum` matching the
-   code clamp; `designAdjust`'s 14px floor becomes the category floor. A description is not a
-   constraint.
+4. **Close the schema gaps.** `typography.scaleRatio` now carries `minimum`/`maximum` matching
+   the code clamp (landed with §1a). What is NOT done, and is now the highest-value item on this
+   list: the low end of that range is legal and is what produces the wraps, so the open question
+   is whether a supporting line may be sized at 0.92x the name at all on a two-line strap, or
+   whether the range should start nearer 1.6. That is a measurable question - re-run the A/B with
+   the range narrowed and read the wrap count. `designAdjust`'s 14px floor still needs to become
+   the category floor.
 5. **Retire the two dead axes.** Fold Lite onto `keepChassisZone` and delete the two zone
    prompt lines; drop `animation.presetId` from the Lite schema. Both are measured dead, and
    both shorten a prompt whose length is itself a measured hazard.

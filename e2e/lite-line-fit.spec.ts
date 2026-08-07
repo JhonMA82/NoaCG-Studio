@@ -52,7 +52,10 @@ async function rulesFor(
           flourish: null,
         } as unknown as Decision;
       const result = await mod.compileLiteDecision(decision, {} as Context);
-      return result.validation.errors.map((error) => error.rule);
+      // Warnings, not errors - see the severity note in runtimeBench. Both lists are read so
+      // the spec keeps passing if the severity is ever raised, and fails if the finding stops
+      // being raised at all, which is the thing worth pinning.
+      return [...result.validation.errors, ...result.validation.warnings].map((f) => f.rule);
     },
     [role, sample] as const,
   );

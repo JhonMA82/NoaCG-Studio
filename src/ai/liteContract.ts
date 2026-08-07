@@ -242,7 +242,12 @@ const specSchema: Record<string, unknown> = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        scaleRatio: { type: 'number' },
+        // BOUNDED, because the compile clamps to exactly this range and a description is not a
+        // constraint - the shown-but-illegal shape narrowVariantTool exists to prevent. It is
+        // also the lever that decides whether a supporting line fits: measured 2026-08-07, a
+        // ratio of 1.2 nearly doubles that line's size and cuts lt25's one-line capacity from
+        // 47 characters to 19, which is what actually produced the round's wraps.
+        scaleRatio: { type: 'number', minimum: 1.2, maximum: 2.6 },
         headingWeight: { type: 'string', enum: ['regular', 'semibold', 'bold', 'black'] },
         kickerCase: { type: 'string', enum: ['caps', 'as-written'] },
         tracking: { type: 'string', enum: ['tight', 'normal', 'wide'] },

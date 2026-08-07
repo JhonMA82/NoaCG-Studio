@@ -734,7 +734,12 @@ export async function benchTemplateRuntime(
       // design that pads its own line would report a number unrelated to what a viewer sees.
       const lines = Math.round(rect.height / lineHeight);
       if (lines > 1) {
-        errors.push(
+        // A WARNING, and the severity is measured rather than chosen. Raised as an error it
+        // flagged 11 of 18 generations in the 2026-08-07 comparison round - Lite has no repair
+        // loop on the grounded path, so that would have refused two thirds of requests outright
+        // for a graphic that is mediocre but airable. Nothing can currently ACT on this finding;
+        // it becomes an error the day something can (docs/AI_LITE_PLAN.md §1).
+        warnings.push(
           issue(
             'bench-line-wrap',
             `Field ${field} carries identity (a name, role, organization or location) and wrapped ` +
