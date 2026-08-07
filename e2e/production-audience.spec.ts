@@ -223,3 +223,54 @@ test('a vote with nowhere to go says so instead of writing a cue nobody can read
   });
   expect(votes).toBe(0);
 });
+
+test('the presenter pointers: queue what is read now and next, without airing anything', async ({ page }) => {
+  // PHASE 6 (docs/INTERACTIVE_PLAYOUT_PLAN.md). `audience_set_join` accepted presenter.current
+  // and .next and `/join?pv=<slug>` rendered them, but nothing set them. What is pinned here is
+  // the operator half - the half the offline suite can drive - and above all that pointing at a
+  // question TELLS A PERSON WHAT TO SAY and airs nothing: no cue appears on the rundown.
+  await createProject(page, { name: 'House Q&A' });
+  await productionFor(page, 'Autocue');
+  await page.getByTestId('tab-audience').click();
+  await page.getByTestId('audience-simulate').click();
+  const rows = page.locator('.pd-aud-row');
+  await expect(rows).toHaveCount(3);
+
+  const now = (i: number) => rows.nth(i).getByTestId('audience-presenter-now');
+  const next = (i: number) => rows.nth(i).getByTestId('audience-presenter-next');
+
+  // Two presses in one beat. This is the case that used to blank a slot: both handlers composed
+  // off the RENDERED pointers, so the second overwrote the first and a presenter's "now" went
+  // empty while they were reading it.
+  await now(0).click();
+  await next(1).click();
+  await expect(now(0)).toHaveClass(/active/);
+  await expect(next(1)).toHaveClass(/active/);
+
+  // Moving "now" to another row leaves "next" alone - the two slots are independent, even though
+  // they travel to the server as one object.
+  await now(2).click();
+  await expect(now(0)).not.toHaveClass(/active/);
+  await expect(now(2)).toHaveClass(/active/);
+  await expect(next(1)).toHaveClass(/active/);
+
+  // NOTHING AIRED. The pointers reach no rundown and no command log - a producer queues three
+  // questions the show never gets to, and that must not put anything in front of anyone.
+  const cues = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows().find((s) => s.name === 'Autocue')?.cues ?? []).length;
+  });
+  expect(cues).toBe(1); // just the one seeded when the graphic was pooled
+
+  // They belong to the PRODUCTION, not this component: a trip to Playout and back must not
+  // leave a presenter's tablet showing what the operator's screen says is empty.
+  await page.getByTestId('tab-playout').click();
+  await expect(page.getByTestId('production-verbs')).toBeVisible();
+  await page.getByTestId('tab-audience').click();
+  await expect(now(2)).toHaveClass(/active/);
+  await expect(next(1)).toHaveClass(/active/);
+
+  // The same press clears the slot - an autocue you cannot empty is worse than none.
+  await now(2).click();
+  await expect(now(2)).not.toHaveClass(/active/);
+});

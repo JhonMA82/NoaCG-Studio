@@ -133,7 +133,13 @@ function one<T>(data: unknown): T | null {
 }
 
 /** The state the join page starts from and falls back to: a closed door, honestly described. */
-const CLOSED: AudienceState = { open: false, mode: 'waiting', round: null, prompt: '' };
+const CLOSED: AudienceState = {
+  open: false,
+  mode: 'waiting',
+  round: null,
+  prompt: '',
+  presenter: { current: null, next: null },
+};
 
 export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAudience {
   const listeners: Array<() => void> = [];
@@ -182,12 +188,22 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     rounds.find((r) => !r.closedAt) ?? null;
 
   const stateFrom = (raw: unknown, rounds: AudienceRound[]): AudienceState => {
-    const s = (raw ?? {}) as { open?: boolean; mode?: AudienceState['mode']; prompt?: string };
+    const s = (raw ?? {}) as {
+      open?: boolean;
+      mode?: AudienceState['mode'];
+      prompt?: string;
+      presenter?: { current?: unknown; next?: unknown };
+    };
+    // The pointers come back as submission ids or nulls. An empty string is the same thing as
+    // null here (0035 stores `''` for "cleared" on the way in), and normalizing it once means
+    // no surface has to know that.
+    const pointer = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
     return {
       open: s.open === true,
       mode: s.mode ?? 'waiting',
       prompt: s.prompt ?? '',
       round: openRoundOf(rounds),
+      presenter: { current: pointer(s.presenter?.current), next: pointer(s.presenter?.next) },
     };
   };
 
@@ -212,6 +228,11 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
           open: row.state?.open === true,
           mode: row.state?.mode ?? 'waiting',
           prompt: row.state?.prompt ?? '',
+          // The presenter pointers are on the capability discipline's own list of things a join
+          // resolve must never return (docs/INTERACTIVE_PLAYOUT_PLAN.md). 0035 does not send
+          // them; hard-coding empty here means a server that one day did would still not reach
+          // a viewer's page - the same belt-and-braces as the answer key on the next line.
+          presenter: { current: null, next: null },
           // The server never sends the answer key; this restates that rather than trusting it.
           round: round
             ? {
@@ -304,6 +325,12 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       if (patch.open !== undefined) wire.open = patch.open;
       if (patch.mode !== undefined) wire.mode = patch.mode;
       if (patch.prompt !== undefined) wire.prompt = patch.prompt;
+      // 0035's allowlist takes `presenter` as an OBJECT of id-or-null, and validates each value
+      // against the uuid shape before it is stored - so a cleared pointer travels as null, never
+      // as the empty string the read side tolerates.
+      if (patch.presenter !== undefined) {
+        wire.presenter = { current: patch.presenter.current, next: patch.presenter.next };
+      }
       const raw = await operator<unknown>(() =>
         sb.rpc('audience_set_join', { p_slug: control(), p_patch: wire }),
       );

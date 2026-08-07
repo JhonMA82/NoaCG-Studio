@@ -73,6 +73,22 @@ export interface AudienceTally {
   total: number;
 }
 
+/**
+ * Which submissions the PRESENTER is holding: what they are reading now, and what comes next.
+ *
+ * Ids, not text, because the broadcast version keeps being edited while a question sits in the
+ * queue — a pointer follows those edits and a copy would go stale in someone's hand. It is
+ * deliberately a third thing from the rundown: pointing at a question is telling a person what
+ * to say, not putting anything on air, and `/join?pv=<slug>` resolves it under its own slug so
+ * a presenter's tablet never holds an operator capability.
+ *
+ * `null` on either side is a real state (nothing queued), not an absence.
+ */
+export interface PresenterPointers {
+  current: string | null;
+  next: string | null;
+}
+
 /** What the join page is showing, and what the operator controls. */
 export interface AudienceState {
   open: boolean;
@@ -81,6 +97,9 @@ export interface AudienceState {
   round: AudienceRound | null;
   /** What the join page says above its input — the operator's own words. */
   prompt: string;
+  /** What the presenter is reading now and next. NEVER returned to the join page (the
+   *  capability discipline in docs/INTERACTIVE_PLAYOUT_PLAN.md lists it by name). */
+  presenter: PresenterPointers;
 }
 
 /**
@@ -139,7 +158,7 @@ export interface AudienceBackend {
     id: string,
     patch: Partial<Pick<AudienceSubmission, 'broadcastAuthor' | 'broadcastBody' | 'anonymize' | 'status' | 'shortlisted' | 'usedAt'>>,
   ): Promise<void>;
-  setState(patch: Partial<Pick<AudienceState, 'open' | 'mode' | 'prompt'>>): Promise<AudienceState>;
+  setState(patch: Partial<Pick<AudienceState, 'open' | 'mode' | 'prompt' | 'presenter'>>): Promise<AudienceState>;
   getState(): Promise<AudienceState>;
   openRound(round: Omit<AudienceRound, 'id' | 'openedAt' | 'closedAt'>): Promise<AudienceRound>;
   closeRound(roundId: string): Promise<void>;

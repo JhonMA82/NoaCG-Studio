@@ -570,11 +570,23 @@ for a second way the slug can change under a live renderer.
 > counterpart of `simulate`, present only on the local provider, which is what lets the offline
 > suite drive a vote all the way onto a cue (`e2e/production-audience.spec.ts`).
 >
+> **The PRESENTER POINTERS are BUILT (2026-08-07)** — `AudienceState.presenter` is now part of
+> the interface, both providers carry it, and each inbox row has a 🎤 Now / ⇢ Next toggle.
+> They are IDS, so what a presenter reads follows every later edit to the broadcast version; a
+> copy would go stale in their hand. Both slots always travel together because 0035 replaces the
+> whole `presenter` object on write, and the composing read is a REF, not the rendered value —
+> two presses in one beat (queue Next, then move Now) otherwise blanked the slot a presenter was
+> reading, the same hazard `GraphicControlPage`'s read-fresh `patch` exists for. The pointers
+> reach no rundown and no command log: a producer queues three questions the show never gets to,
+> and pointing at one must not put it in front of anyone. The join resolve hard-codes them empty
+> — they are on the capability discipline's own list, so a server that one day sent them still
+> could not reach a viewer.
+>
 > **Deliberately not built yet:** the vanity-name CLAIM UI (the database enforces the shape,
-> the reserved words and uniqueness; nothing yet lets an operator pick one), the presenter
-> pointers (`audience_set_join` accepts `presenter.current`/`next` and `/join?pv=` renders them;
-> nothing sets them), and the presenter view beyond the read-only page the presenter slug
-> already serves.
+> the reserved words and uniqueness; nothing yet lets an operator pick one), and the presenter
+> view beyond the read-only page the presenter slug already serves. The offline suite pins the
+> OPERATOR half only — `presenterBySlug` is a Supabase RPC, so the tablet's own page stays on
+> the maintainer's live checklist.
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
 Everything is browser → Supabase direct (zero Vercel functions), one migration

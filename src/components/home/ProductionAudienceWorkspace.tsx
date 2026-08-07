@@ -8,6 +8,7 @@ import {
   type AudienceRound,
   type AudienceSubmission,
   type AudienceTally,
+  type PresenterPointers,
   type ObservableAudience,
 } from '../../audience/audienceTypes';
 import { localAudienceFor } from '../../audience/localAudience';
@@ -123,6 +124,17 @@ export default function ProductionAudienceWorkspace({
   // A round is one question put to the room. The composer below builds it, `openRound` puts it
   // in front of every phone, the tally is counted on read while it is open, and the only way
   // any of it reaches air is the same one a question takes: a CUE the operator takes.
+  /** What the presenter's own page is showing (`/join?pv=<slug>`), by submission id. */
+  const [presenter, setPresenter] = useState<PresenterPointers>({ current: null, next: null });
+  /** The same pointers, readable SYNCHRONOUSLY. Two presses in one tick - queue a question as
+   *  Next, then immediately move Now onto another - both composed off the rendered value and
+   *  the second overwrote the first, blanking a slot a presenter was already reading. Same
+   *  hazard, same answer, as GraphicControlPage's read-fresh `patch`. */
+  const presenterRef = useRef<PresenterPointers>({ current: null, next: null });
+  const applyPresenter = (next: PresenterPointers) => {
+    presenterRef.current = next;
+    setPresenter(next);
+  };
   const [round, setRound] = useState<AudienceRound | null>(null);
   const [tally, setTally] = useState<AudienceTally | null>(null);
   const [kind, setKind] = useState<'poll' | 'quiz'>('poll');
@@ -189,6 +201,10 @@ export default function ProductionAudienceWorkspace({
         if (!alive) return;
         setOpen(state.open);
         if (state.mode !== 'waiting') setMode(state.mode);
+        // Same reason as the door above: the pointers belong to the PRODUCTION, so an operator
+        // who queued a question, went to Playout and came back must not find both slots empty
+        // while a presenter's tablet is still showing them.
+        applyPresenter(state.presenter);
       },
       () => {},
     );
@@ -243,6 +259,28 @@ export default function ProductionAudienceWorkspace({
   }, [backend, round]);
 
   const patch = (id: string, p: Parameters<AudienceBackend['update']>[1]) => void backend.update(id, p);
+
+  /**
+   * Point the presenter at a submission, or clear that slot by pressing the same one again.
+   *
+   * The pointers are IDS, so what the presenter reads follows every later edit to the broadcast
+   * version - a copy taken now would go stale in their hand while the operator was still tidying
+   * the wording. Both slots always travel together because 0035 replaces the whole `presenter`
+   * object on write; sending one key would silently blank the other.
+   *
+   * This reaches no rundown and no command log. A presenter holding a question is not the same
+   * event as that question going on air, and the two must stay separable - a producer routinely
+   * queues three questions the show never gets to.
+   */
+  const pointPresenter = (slot: 'current' | 'next', id: string) => {
+    const prev = presenterRef.current;
+    const next: PresenterPointers = { ...prev, [slot]: prev[slot] === id ? null : id };
+    applyPresenter(next);
+    backend.setState({ presenter: next }).catch((err: Error) => {
+      applyPresenter(prev); // springs back rather than lying about what a live tablet shows
+      setNote(`Could not update the presenter view: ${err.message}`);
+    });
+  };
 
   /** The composer's options, one per line, capped where the schema caps them. */
   const composedOptions = optionsText
@@ -717,6 +755,26 @@ export default function ProductionAudienceWorkspace({
                   </button>
                   <button onClick={() => patch(row.id, { status: 'rejected' })} data-testid="audience-reject">
                     ✕ Reject
+                  </button>
+                  {/* THE PRESENTER'S AUTOCUE. Pointing at a question tells a person what to
+                      say; it airs nothing, which is why it sits beside Approve rather than
+                      next to "Send to rundown". Each is a TOGGLE, so the same press clears it -
+                      an autocue you cannot empty is worse than none. */}
+                  <button
+                    className={presenter.current === row.id ? 'active' : ''}
+                    onClick={() => pointPresenter('current', row.id)}
+                    title="Show this to the presenter as what they are on now"
+                    data-testid="audience-presenter-now"
+                  >
+                    🎤 Now
+                  </button>
+                  <button
+                    className={presenter.next === row.id ? 'active' : ''}
+                    onClick={() => pointPresenter('next', row.id)}
+                    title="Show this to the presenter as what comes next"
+                    data-testid="audience-presenter-next"
+                  >
+                    ⇢ Next
                   </button>
                   <div className="spacer" />
                   <button className="primary" onClick={() => sendToRundown(row)} data-testid="audience-send">
