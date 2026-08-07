@@ -7,6 +7,15 @@
 // so a handful of image-heavy graphics can exhaust a ~5 MB origin quota in one evening. That is
 // the failure the acceptance pass hit, and it silently blocked every save.
 //
+// THE FOUR MULTIPLIERS, since this is where they are written down: an uploaded image is base64
+// (+33%), localStorage stores UTF-16 so every character costs two bytes (×2), a library record
+// keeps the Reset baseline (×2), and the template's own HTML/CSS/JS is only 30–60 KB of any of
+// it. One of the four is closed: an image larger than the frame is shrunk AT IMPORT
+// (`assets/imageImport.ts`), so a 4000px press-kit crest no longer arrives at full size. The
+// other three are open — the baseline could be a recipe for a catalog graphic, and IndexedDB
+// replaces localStorage (not Supabase: same layer, gigabytes instead of ~5 MB, and Blobs are
+// stored natively so neither the base64 nor the UTF-16 multiplier applies).
+//
 // This module only READS. Nothing here deletes anything — the dialog it feeds names candidates
 // and the user removes them through the surfaces that already own deletion (Home's library rows,
 // the saved-videos modal, a production's own page).

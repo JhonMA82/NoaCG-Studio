@@ -19,6 +19,7 @@ import {
   splitAssetPath,
   uniqueAssetPath,
 } from '../assets/assetUtils';
+import { describeImageImport, importImageFile } from '../assets/imageImport';
 import type { AssetFile } from '../model/types';
 import { useInsertTemplateUi } from './InsertTemplateDialog';
 
@@ -301,6 +302,9 @@ export default function AssetsPanel() {
     if (list.length === 0) return;
     const accepted: AssetFile[] = [];
     const rejected: string[] = [];
+    /** Images that were larger than the frame and got shrunk — SAID OUT LOUD, because the
+     *  file that lands is not byte-for-byte the file that was picked. */
+    const shrunk: string[] = [];
     // Collect against a growing list so two same-named files in one import de-dupe.
     const existing = [...assets];
     for (const file of list) {
@@ -321,8 +325,13 @@ export default function AssetsPanel() {
         rejected.push(`"${file.name}" — only images, video loops (.webm/.mp4), and Lottie .json files import here (fonts: Style panel)`);
         continue;
       }
-      const data = await fileToDataUrl(file);
-      const asset = { path: uniqueAssetPath(file.name, existing), data };
+      // An image bigger than the frame is shrunk to fit it (assets/imageImport.ts). Everything
+      // else — video, Lottie — goes through untouched.
+      const imported = isImageAsset(file.name)
+        ? await importImageFile(file, Math.max(template.resolution.width, template.resolution.height))
+        : { data: await fileToDataUrl(file), note: null };
+      if (imported.note) shrunk.push(`"${file.name}" ${describeImageImport(imported.note)}`);
+      const asset = { path: uniqueAssetPath(file.name, existing), data: imported.data };
       accepted.push(asset);
       existing.push(asset);
     }
@@ -330,11 +339,12 @@ export default function AssetsPanel() {
       addAssets(accepted);
       setSelectedPath(accepted[accepted.length - 1].path);
     }
+    const resized = shrunk.length > 0 ? ` Resized to fit the frame: ${shrunk.join('; ')}.` : '';
     setNote(
       rejected.length > 0
         ? `✗ ${rejected.join('; ')}`
         : accepted.length > 0
-          ? `Added ${accepted.length} asset${accepted.length > 1 ? 's' : ''}. Drag one onto the canvas to place it.`
+          ? `Added ${accepted.length} asset${accepted.length > 1 ? 's' : ''}. Drag one onto the canvas to place it.${resized}`
           : null,
     );
   };

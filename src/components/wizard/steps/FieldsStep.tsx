@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
+import { uniqueAssetPath } from '../../../assets/assetUtils';
+import { importImageFile } from '../../../assets/imageImport';
 import { fieldPlanOf, type TemplateVariant } from '../../../model/wizard';
 import type { DraftPatch, WizardDraft } from '../draft';
 
@@ -37,7 +38,9 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
 
   /** Upload a custom logo: embed it as a data-URL asset and point the slot at it. */
   const uploadLogo = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
+    // Shrunk to the frame at the door (assets/imageImport.ts) - a club crest exported for
+    // print is routinely 4000px wide, and every pixel past 1920 costs storage for nothing.
+    const dataUrl = (await importImageFile(file)).data;
     const path = uniqueAssetPath(file.name, draft.importedImages);
     onDraft({
       importedImages: [...draft.importedImages, { path, data: dataUrl }],

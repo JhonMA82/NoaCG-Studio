@@ -19,6 +19,7 @@ import { insertImageElement, insertVideoElement } from '../blocks/assetOps';
 import { insertLottieElement } from '../blocks/lottieInsert';
 import { probeAsset } from '../assets/assetInfo';
 import { MAX_VIDEO_ASSET_BYTES, fileToDataUrl, isImageAsset, isLottieAsset, isVideoAsset, uniqueAssetPath } from '../assets/assetUtils';
+import { importImageFile } from '../assets/imageImport';
 import { ASSET_DRAG_TYPE } from './AssetsPanel';
 import CanvasSelection, { type CanvasRect } from './CanvasSelection';
 import { partLocked } from './partLocks';
@@ -1863,7 +1864,11 @@ export default function CanvasInteraction({ iframeRef, width, height, padX = 0, 
       let next = template;
       let lastSelector: string | null = null;
       for (const [i, file] of osFiles.entries()) {
-        const data = await fileToDataUrl(file);
+        // Same door policy as the Assets panel: an image larger than the frame is shrunk to
+        // fit it before it becomes a data URL in the saved template.
+        const data = isImageAsset(file.name)
+          ? (await importImageFile(file, Math.max(template.resolution.width, template.resolution.height))).data
+          : await fileToDataUrl(file);
         const asset = { path: uniqueAssetPath(file.name, next.assets), data };
         next = { ...next, assets: [...next.assets, asset] };
         const info = await probeAsset(asset);

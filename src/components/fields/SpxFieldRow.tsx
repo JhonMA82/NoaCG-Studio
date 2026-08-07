@@ -7,7 +7,8 @@
 // itself speaks the shared FieldValue vocabulary (model/fieldModel.ts).
 
 import { useTemplateStore } from '../../store/templateStore';
-import { fileToDataUrl, isImageAsset, uniqueAssetPath } from '../../assets/assetUtils';
+import { isImageAsset, uniqueAssetPath } from '../../assets/assetUtils';
+import { importImageFile } from '../../assets/imageImport';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { FieldRow, type FieldImage } from './FieldControl';
 
@@ -32,7 +33,10 @@ export default function SpxFieldRow({ descriptor, live = false }: { descriptor: 
   const upload = (file: File) => {
     void (async () => {
       const path = uniqueAssetPath(file.name, assets);
-      addAsset({ path, data: await fileToDataUrl(file) });
+      // An operator picking a logo usually picks whatever file they have, which is often a
+      // press-kit image several times the size of the frame. It is shrunk to fit here, at the
+      // door, rather than carried at full size through every save and sync of the graphic.
+      addAsset({ path, data: (await importImageFile(file)).data });
       set(path);
     })();
   };
