@@ -601,6 +601,21 @@ PACKAGES are fully RETIRED (docs/GOALS.md "Student release" step 3): every save 
 in the flat library and the one grouping is a PRODUCTION (model/shows.ts). Save and Home are
 both routed (src/app/router.ts) so browser Back/Forward walk between surfaces.
 
+**NEVER REPORT A SAVE THE STORAGE LAYER HAS NOT AGREED TO.** The saved documents live in
+IndexedDB behind a synchronous mirror (model/durableStore.ts), which ACCEPTS a write and
+confirms it a moment later - so the value a model mutator returns means accepted, not landed.
+A surface that tells the user anything about the outcome must `await commitDurableWrites()`
+first; it resolves to the failure message, or null, and CLAIMS the failure so this surface's
+own wording ("Adding "Clean Clock" to a production") is what the user reads instead of the
+generic app-level dialog. Eleven callers do this today - ControlPanel, GraphicControlPage,
+GraphicRow, ProductionDataWorkspace, GraphicsSection, LooksSection, SavedVideoProjects,
+VideoAppShell, CreationWizard, store/saveActions, store/videoProjectStore - and every one of
+them was first written trusting the synchronous answer and reporting success for a write that
+was refused. Two rules follow from it: a flow that CONTINUES on success (create the graphic,
+then the production, then navigate) must await BEFORE the next step, or it builds half a thing
+on a save that did not happen; and a background autosave that reports nothing may skip the
+await entirely, because the app-level dialog already announces unclaimed failures.
+
 - **save/SaveControls** - the topbar Save button + honest status (Not saved / Unsaved
   changes / Saving… / Saved / Save failed) + the ▾ menu (Save As, open saved) + global
   Ctrl/Cmd+S (capture phase, works inside Monaco, stands down under modals).
