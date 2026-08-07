@@ -52,6 +52,10 @@ npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes;
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
 npm run check:workflows      # what only GitHub could check: .github/workflows/*.yml (in build)
+npm run check:vercel-config  # what only Vercel could check: vercel.json's routes (in build) -
+npm run check:function-budget # ...and api/'s function count. BOTH are refused BEFORE a
+                             # deployment exists, so they show nowhere on Vercel, only in the
+                             # GitHub commit status. Each froze production once (docs/DEPLOYMENT.md)
 npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
 ```
 
