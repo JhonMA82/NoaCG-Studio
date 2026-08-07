@@ -69,13 +69,16 @@ troubleshooting a stuck server). `.claude/launch.json` and `.claude/dev-port.jso
 from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
 everything. `npm run test:ports` covers the allocator.
 
-**Four pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
+**Five pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
 shim so old root `?chat=`/`?template=` share links land on `/app` with their query); `app.html` is
 the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
 in production); `admin.html` is the PRIVATE admin surface at `/admin` - unlinked from everything,
 `noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**);
 `output.html` is the browser-output RENDERER at `/output?production=<slug>` - the transparent
-capability-URL page a production client (CasparCG/OBS/vMix) loads once (**`docs/CLOUD_PLAYOUT.md`**).
+capability-URL page a production client (CasparCG/OBS/vMix) loads once (**`docs/CLOUD_PLAYOUT.md`**);
+`join.html` is the PUBLIC audience page at `/join/<name>` (also `/join?p=<slug>`, and
+`?pv=<slug>` for the presenter view) - the capability URL a viewer's phone opens, vanilla TS,
+`noindex` (**`docs/INTERACTIVE_PLAYOUT_PLAN.md`** Phase 5).
 E2E specs navigate to `/app`.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
@@ -211,12 +214,15 @@ src/
   backend/     the OPTIONAL Supabase backend: config.ts isBackendConfigured is the ONE
                feature-detection point (unset env = pure offline mode); auth, sync, assets
   audience/    the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE
-               `AudienceBackend` interface + the in-memory `localAudience` provider with a
-               submission simulator (rehearsal, offline builds, and what makes the whole
-               moderation workflow drivable by the offline e2e suite). The interface has NO
-               method that reaches the command log - that is how "nothing viewer-written airs
-               without an operator" is structural rather than remembered. The Supabase provider
-               and the public /join page are NOT built yet
+               `AudienceBackend` interface + TWO providers - `localAudience` (in memory, with a
+               submission simulator: rehearsal, offline builds, and what makes the whole
+               moderation workflow drivable by the offline e2e suite) and `audienceData`
+               (Supabase, over migration 0035's eleven slug-keyed SECURITY DEFINER RPCs, POLLED
+               not realtime - slug authorization cannot be expressed to postgres_changes).
+               The interface has NO method that reaches the command log - that is how "nothing
+               viewer-written airs without an operator" is structural rather than remembered.
+               `joinSurface.ts` is the framework-free renderer BOTH the public page and the
+               operator's read-only preview mount, so the two cannot drift
   community/   shared templates (signed-in only), validated + benched at publish AND import;
                showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
   entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence

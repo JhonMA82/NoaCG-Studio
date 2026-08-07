@@ -526,7 +526,26 @@ mechanism in the product that matches the description, and it is worth confirmin
 owner's session before treating it as a defect. Anyone touching publish/unpublish should look
 for a second way the slug can change under a live renderer.
 
-## Audience backend design (for Phases 5–6; designed 2026-08-05, review before building)
+## Audience backend design (for Phases 5–6; designed 2026-08-05, BUILT 2026-08-07)
+
+> **STATUS 2026-08-07 — built to this design, not a second one.** Migration
+> `0035_audience_participation.sql`, the Supabase provider (`src/audience/audienceData.ts`), the
+> public page (`join.html` → `src/join/main.ts`) and the shared renderer
+> (`src/audience/joinSurface.ts`) are on the branch; `Show.joinSlug`/`presenterSlug` are written
+> by `publishControlShow`'s read-back and stripped from sync conflict copies; `audience` joined
+> `ENFORCED_FEATURE_KEYS` in the same change as its enforcing call site. Zero Vercel functions
+> were added (api/ stayed at ten entries).
+>
+> **Resolved by the owner while building:** no per-IP caps in v1 — the defence is the device
+> token, the trigger caps and operator approval, and no IP is stored or hashed, because a
+> classroom NATs a whole room behind one address. Change-your-vote, the 500-character question
+> and the presenter-slug-now design were taken as recommended.
+>
+> **Deliberately not built yet:** the vanity-name CLAIM UI (the database enforces the shape,
+> the reserved words and uniqueness; nothing yet lets an operator pick one), the poll/quiz
+> operator controls (Phase 6 — `openRound`/`closeRound`/`tally` exist on both providers and are
+> unreached by any button), staging a tally onto a graphic, and the presenter view beyond the
+> read-only page the presenter slug already serves.
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
 Everything is browser → Supabase direct (zero Vercel functions), one migration
@@ -598,11 +617,13 @@ implementation time; two branches minting the same number is a known trap), one 
   operator can claim a readable name (`noacg.app/join/friday-night-live`) — global
   uniqueness, reserved-word list, availability check, random fallback.
 
-**Owner decisions open for Phase 5:** retire-or-keep standalone showchat; change-your-vote
-(recommended) vs first-vote-sticks; presenter page in v1 vs schema-now-page-later
-(recommended); whether the join page may ever show tallies (v1: never — the reveal is a
-graphic); per-IP abuse caps beyond device tokens; question length cap (280 vs 500 —
-500 recommended).
+**Owner decisions, settled 2026-08-07:** change-your-vote (the votes PK is `(round, device)`
+and a vote is an upsert); the question cap is 500; the join page never shows a tally, in v1 or
+after — the reveal is a graphic, on air, at the operator's moment; NO per-IP caps, and no IP
+stored or hashed at all (see the top of this section for the reasoning); the presenter slug and
+its read-only page both ship, while everything that would DRIVE it is Phase 6. Still open:
+retire-or-keep the standalone showchat surface, now that a production has its own audience
+plane and its own `audience` kill switch.
 
 ## Sequencing and deliberate deferrals
 
