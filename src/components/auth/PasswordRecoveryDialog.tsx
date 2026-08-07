@@ -54,7 +54,10 @@ export default function PasswordRecoveryDialog() {
   return (
     <div className="auth-gate auth-overlay">
       <div className="auth-card" role="dialog" aria-modal="true" aria-label="Set a new password" data-testid="password-recovery">
-        <button className="auth-close" onClick={() => setOpen(false)} title="Close">✕</button>
+        <div className="auth-head">
+          <div className="spacer" />
+          <button className="gallery-close" onClick={() => setOpen(false)} title="Close">✕</button>
+        </div>
         <div className="auth-logo"><BrandLogo size={44} stacked /></div>
         {done ? (
           <>

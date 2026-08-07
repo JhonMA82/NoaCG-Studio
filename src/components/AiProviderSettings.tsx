@@ -116,11 +116,14 @@ export default function AiProviderSettings({ settings, onChange, fixedProvider, 
   };
 
   return (
-    <>
+    /* Label column | control column (re-design/handoff.md §6). The key row's button nests its
+       own grid inside the control cell, so "Store key" can never wrap under the field. */
+    <div className="dlg-rows">
       {!fixedProvider && (
-        <>
-          <label>Provider</label>
+        <div className="dlg-row">
+          <label htmlFor="ai-provider">Provider</label>
           <select
+            id="ai-provider"
             value={settings.provider}
             onChange={(event) => {
               setKey('');
@@ -132,14 +135,16 @@ export default function AiProviderSettings({ settings, onChange, fixedProvider, 
               <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>
             ))}
           </select>
-          <p className="hint">{AI_PROVIDERS.find((p) => p.id === settings.provider)?.blurb}</p>
-        </>
+          <p className="dlg-hint">{AI_PROVIDERS.find((p) => p.id === settings.provider)?.blurb}</p>
+        </div>
       )}
 
       {showModel && (
-        <>
-          <label style={{ marginTop: 8 }}>Model</label>
+        <div className="dlg-row">
+          <label htmlFor="ai-model">Model</label>
           <input
+            id="ai-model"
+            className="mono"
             list={`ai-models-${provider}`}
             value={settings.model}
             onChange={(event) => onChange({ model: event.target.value.trim() })}
@@ -155,7 +160,7 @@ export default function AiProviderSettings({ settings, onChange, fixedProvider, 
               .filter((model) => !discovered.some((item) => item.id === model.id))
               .map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
           </datalist>
-          <p className="hint">
+          <p className="dlg-hint">
             {selectedDiscovered
               ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
                   selectedDiscovered.inputModalities.join(', ')
@@ -163,37 +168,41 @@ export default function AiProviderSettings({ settings, onChange, fixedProvider, 
               : curatedModels.find((model) => model.id === settings.model)?.blurb
                 ?? 'Any model id supported by this provider.'}
           </p>
-        </>
+        </div>
       )}
 
-      <label style={{ marginTop: 8 }}>
-        {fixedProvider ? `${AI_PROVIDERS.find((p) => p.id === provider)?.label ?? provider} key` : 'User-provided key'}
-      </label>
-      <div className="row" style={{ flexWrap: 'wrap', alignItems: 'stretch' }}>
-        <input
-          type="password"
-          autoComplete="off"
-          placeholder="Paste a provider key"
-          value={key}
-          style={{ flex: '1 1 180px', minWidth: 0 }}
-          disabled={busy || settings.keyStorageAvailable === false}
-          onChange={(event) => setKey(event.target.value)}
-        />
-        <button disabled={busy || !key.trim()} onClick={() => void saveKey()}>Store key</button>
-        {current?.userKey && <button disabled={busy} onClick={() => void removeKey()}>Remove</button>}
+      <div className="dlg-row">
+        <label htmlFor="ai-user-key">
+          {fixedProvider ? `${AI_PROVIDERS.find((p) => p.id === provider)?.label ?? provider} key` : 'Key'}
+        </label>
+        <div className="dlg-pair">
+          <input
+            id="ai-user-key"
+            type="password"
+            autoComplete="off"
+            placeholder="Paste a provider key"
+            value={key}
+            disabled={busy || settings.keyStorageAvailable === false}
+            onChange={(event) => setKey(event.target.value)}
+          />
+          <span className="row" style={{ gap: 8 }}>
+            <button disabled={busy || !key.trim()} onClick={() => void saveKey()}>Store key</button>
+            {current?.userKey && <button disabled={busy} onClick={() => void removeKey()}>Remove</button>}
+          </span>
+        </div>
+        <p className="dlg-hint">
+          {settings.keyStorageAvailable === false
+            ? 'This server has not configured encrypted user-key storage.'
+            : current?.userKey
+              ? 'A user key is stored in an encrypted HttpOnly cookie. It cannot be read by the app.'
+              : current?.managedKey
+                ? current.requiresSignIn
+                  ? 'A NoaCG-managed key is available after sign-in.'
+                  : 'Blank key = NoaCG-managed server key. Any model id the provider supports.'
+                : 'The key is sent once to this server and is never saved in browser-readable storage.'}
+        </p>
+        {message && <p className="dlg-hint" role="status">{message}</p>}
       </div>
-      <p className="hint">
-        {settings.keyStorageAvailable === false
-          ? 'This server has not configured encrypted user-key storage.'
-          : current?.userKey
-            ? 'A user key is stored in an encrypted HttpOnly cookie. It cannot be read by the app.'
-            : current?.managedKey
-              ? current.requiresSignIn
-                ? 'A NoaCG-managed key is available after sign-in.'
-                : 'This route uses a NoaCG-managed server key.'
-              : 'The key is sent once to this server and is never saved in browser-readable storage.'}
-      </p>
-      {message && <p className="hint" role="status">{message}</p>}
-    </>
+    </div>
   );
 }

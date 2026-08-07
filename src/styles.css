@@ -36,6 +36,24 @@ input, select, textarea {
   font-size: 13px;
   width: 100%;
 }
+/* A TICK BOX IS NOT A TEXT FIELD (re-design/handoff.md §6). The rule above was written for
+   inputs you type into and caught these too: a 15px box asked to be 100% wide then fought
+   its own flex row for the space, which is how "Advanced mode" ended up with its checkbox
+   floating in the middle of the dialog and its label wrapped against the far edge. Sized
+   and drawn here instead, so every checkbox and radio in the app is the same object. */
+input[type='checkbox'],
+input[type='radio'] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+  border-radius: 3px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+input[type='radio'] { border-radius: 50%; }
 /* Native select popups: paint options EXPLICITLY. `color-scheme: dark` alone proved
    unreliable on some Windows/Chromium builds (white popup, light-grey text — unreadable);
    explicit option colors hold wherever option styling is honored at all. */
@@ -115,7 +133,8 @@ label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 
 .brand-lockup--stacked { flex-direction: column; gap: 0.5em; text-align: center; }
 .brand-lockup__type { display: flex; flex-direction: column; line-height: 1; }
 .brand-wordmark {
-  font-family: var(--font-ui);
+  /* The lockup is the LOGO, not chrome — it keeps Space Grotesk when the UI face changes. */
+  font-family: var(--font-display);
   font-size: 0.66em;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -1139,13 +1158,170 @@ kbd {
   padding: 18px 28px;
   border-bottom: 1px solid var(--border);
 }
-.wz-header h2 { margin: 0; font-size: 18px; }
-/* `.wz-header` has no justify-content: the WIZARD's ✕ only lands on the right edge because
-   `.wz-dots` between them carries margin-left:auto and eats the free space. A header with just
-   a title and a close button has nothing doing that, so the ✕ sat one 20px gap from the title,
-   mid-header. Push it over for those two. */
-.save-dialog .wz-header .gallery-close,
-.export-window .wz-header .gallery-close { margin-left: auto; }
+.wz-header h2 { margin: 0; font-size: 18px; white-space: nowrap; }
+/* THE HEADER RULE (handoff §6), stated once for every dialog rather than per borrower.
+   `.wz-header` has no justify-content, so the free space has to be absorbed by exactly ONE
+   child. Two auto margins would SPLIT it and park the wizard's step dots mid-header, which
+   is why the second rule cancels rather than adds: whichever comes first — the dots, or the
+   close button itself — takes the space, and the ✕ ends up hard right either way.
+   Previously only two named dialogs did this, so Settings' ✕ sat one gap after its subtitle. */
+.wz-header > .gallery-close { margin-left: auto; }
+.wz-header > .wz-dots ~ .gallery-close { margin-left: 0; }
+/* The subtitle yields before the ✕ ever moves: it truncates, the button does not shrink. */
+.wz-header .wz-header-sub {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ══ SHARED DIALOG ANATOMY (re-design/handoff.md §6) ══════════════════════════════════════
+   Four shapes every dialog in the product is built from. They live here, once, because the
+   defects §6 names are not any one dialog's bug — they are what happens when six dialogs
+   each invent a header and a checkbox row. */
+
+/* A microcap section heading: mono, tracked, over a hairline. */
+.dlg-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* THE CHECKBOX ROW. Box first, then title over description, the WHOLE label clickable.
+   `align-items: flex-start` + the 1px nudge cap-aligns the box with the first line of the
+   title instead of centring it against a two-line block. */
+.dlg-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.dlg-check:hover { border-color: var(--border-strong); }
+.dlg-check > input { margin-top: 1px; }
+.dlg-check-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dlg-check-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.dlg-check-desc { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-dim); }
+
+/* THE FORM ROW: label column | control column. A hint belongs to the CONTROL, so it indents
+   to the control column rather than starting under the label. */
+.dlg-rows { display: flex; flex-direction: column; gap: 12px; }
+.dlg-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+}
+.dlg-row > label,
+.dlg-row > .dlg-row-label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.dlg-row > .dlg-hint { grid-column: 2; margin: 0; font-size: 12px; color: var(--text-dim); }
+/* An input+button pair nests its own grid so the button can never wrap under the field.
+   `stretch` keeps the button the same height as the field beside it — a shorter button
+   floating in a taller row is the same misalignment the checkbox rule above is about. */
+.dlg-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.dlg-pair--wide { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.dlg-pair > button,
+.dlg-pair > .row > button { white-space: nowrap; }
+.dlg-pair > .row { display: flex; align-items: stretch; }
+
+/* THE FOOTER: one row, secondary left, primary right, never stacked. */
+.dlg-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--hairline);
+  flex: 0 0 auto;
+}
+.dlg-foot .spacer { flex: 1; }
+/* The same row INSIDE a padded body (a save prompt has no separate footer strip): it keeps
+   the rule — one row, secondary left, primary right — without a second frame of padding. */
+.dlg-foot--inline { padding: 4px 0 0; border-top: none; }
+
+/* A label the layout does not draw but a screen reader still needs. */
+.sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── SETTINGS (handoff §6, screen 6a) ─────────────────────────────────────────────────────
+   820x620 with a section nav, replacing one undifferentiated wall of scroll. The nav JUMPS;
+   every section stays mounted, so nothing here is reachable only by clicking the right tab. */
+.wz-modal.settings-modal {
+  width: min(820px, 94vw);
+  /* 84vh rather than 90: at 1366x768 the sheet must stay well under the viewport, which
+     e2e/configured/signed-in-ux.spec.ts pins as "a short preferences form is not a
+     full-height sheet of empty space". */
+  height: min(620px, 84vh);
+  max-width: 820px;
+}
+.settings-body { display: grid; grid-template-columns: 170px minmax(0, 1fr); flex: 1; min-height: 0; }
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 12px;
+  border-right: 1px solid var(--hairline);
+  background: var(--bg-app);
+}
+.settings-nav .spacer { flex: 1; }
+.settings-nav button {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.settings-nav button:hover { color: var(--text); background: var(--bg-panel); border-color: transparent; }
+.settings-nav button.active { color: var(--text); background: var(--bg-panel-2); border-color: var(--hairline-2); font-weight: 600; }
+/* Sign out is pinned at the nav's foot: it is the one destructive-ish control here, and it
+   belongs to the account rather than to whichever section is on screen. */
+.settings-nav button[data-testid='account-sign-out'] {
+  text-align: center;
+  border-color: var(--border);
+  color: var(--text-mid);
+}
+.settings-content { overflow-y: auto; padding: 22px 26px 32px; min-height: 0; }
+.settings-content > section + section { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--hairline); }
+.settings-content .dlg-caption { margin-bottom: 14px; }
+.settings-content .hint { margin: 0 0 10px; }
+.settings-identity { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 15px; }
+.settings-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
 .wz-dots { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
 .wz-dot {
   font-size: 13px;
@@ -1819,15 +1995,30 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 .gallery-header .hint { margin: 3px 0 0; }
 .gallery-settings { margin-left: auto; display: flex; gap: 12px; align-items: center; }
 .gallery-settings select { width: auto; }
+/* Same header rule as `.wz-header` (handoff §6) for the sheets built on `.gallery-header`:
+   the ✕ is last and hard right, unless a control cluster before it already took the space. */
+.gallery-header > .gallery-close { margin-left: auto; }
+.gallery-header > .gallery-settings ~ .gallery-close { margin-left: 0; }
+/* ── THE CLOSE BUTTON (re-design/handoff.md §6) ───────────────────────────────────────────
+   A 32px bordered square, always the last thing in the header row, always at the far right.
+   The eye finds ✕ by CORNER, not by reading — so a close button that follows the title text
+   (which is what a borderless glyph with no auto margin does) costs the user their spatial
+   memory of where it lives, and it moves every time the title's length changes. */
 .gallery-close {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: transparent;
-  border: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
   color: var(--text-dim);
-  font-size: 16px;
-  padding: 6px 8px;
-  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1;
 }
-.gallery-close:hover { color: var(--text); background: transparent; border-color: transparent; }
+.gallery-close:hover { color: var(--text); background: var(--bg-3); border-color: var(--border-strong); }
 
 .gallery-body { flex: 1; overflow: auto; padding: 16px 20px; }
 
@@ -2096,17 +2287,9 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   padding: 28px 26px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
 }
-.auth-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  font-size: 14px;
-  padding: 4px 8px;
-}
-.auth-close:hover { color: var(--text); background: transparent; border-color: transparent; }
+/* One header row holding nothing but the spacer and the ✕ — see SignInDialog. */
+.auth-head { display: flex; align-items: center; gap: 12px; margin: -8px -6px 2px; }
+.auth-head .spacer { flex: 1; }
 .auth-logo { display: flex; justify-content: center; margin: 4px 0 14px; }
 .auth-tag { text-align: center; font-size: 14px; color: var(--text); margin: 0; }
 .auth-sub { margin: 6px 0 20px; font-size: 13px; text-align: center; }

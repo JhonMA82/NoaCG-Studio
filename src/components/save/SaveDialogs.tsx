@@ -89,8 +89,9 @@ function SaveDialog() {
             them to a <strong>production</strong> — its page holds the rundown and the links.
           </p>
           {error && <p className="status-bad">{error}</p>}
-          <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <div className="dlg-foot dlg-foot--inline">
             <button onClick={close}>Cancel</button>
+            <div className="spacer" />
             <button className="primary" onClick={confirm} data-testid="save-confirm">Save</button>
           </div>
         </div>
@@ -158,8 +159,9 @@ function ConfirmSwitchDialog() {
           <p>
             “{name}” has unsaved changes. Save them before continuing?
           </p>
-          <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <div className="dlg-foot dlg-foot--inline">
             <button onClick={closeConfirm} data-testid="switch-cancel">Cancel</button>
+            <div className="spacer" />
             <button onClick={discard} data-testid="switch-discard">Discard changes</button>
             <button className="primary" onClick={saveThen} data-testid="switch-save">
               {graphicId ? 'Save & continue' : 'Save first…'}

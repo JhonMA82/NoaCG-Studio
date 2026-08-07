@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { loadAiSettings, saveAiSettings } from '../ai/settings';
 import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
@@ -17,7 +17,22 @@ interface Props {
  * Account/app settings (reached from the topbar account menu). Preferences are stored in
  * this browser; provider keys are held only by the server. Style defaults live where the
  * work happens so this dialog stays small on purpose.
+ *
+ * SHAPE (re-design/handoff.md §6, screen 6a): a fixed 820x620 sheet — section nav on the
+ * left, one scrolling column of sections on the right. The nav JUMPS rather than switches:
+ * every section stays mounted, which is what keeps a preference reachable by search, by
+ * keyboard, and by a spec, and what stops the dialog resizing as sections change.
  */
+
+/** The sections, in the order they are stacked. `id` doubles as the scroll anchor. */
+const SECTIONS = [
+  { id: 'account', nav: 'Account', caption: 'Account' },
+  { id: 'ai', nav: 'AI', caption: 'AI' },
+  { id: 'workflow', nav: 'Workflow', caption: 'Workflow defaults' },
+  { id: 'brand', nav: 'Brand & style', caption: 'Brand & style defaults' },
+] as const;
+type SectionId = (typeof SECTIONS)[number]['id'];
+
 /**
  * The Account section (docs/GOALS.md "Student release" step 9): email display, password
  * change, sign out — the essentials a student needs without leaving Settings. Renders NOTHING
@@ -39,8 +54,7 @@ function AccountSection({ onClose }: { onClose: () => void }) {
 
   if (status === 'signed-out') {
     return (
-      <div className="panel-section" data-testid="settings-account">
-        <h3>Account</h3>
+      <div data-testid="settings-account">
         <p className="hint">Not signed in. An account adds cloud sync, publishing, and hosted control pages — creating and exporting never needs one.</p>
         <button className="primary" onClick={() => { onClose(); openSignIn(); }}>Sign in</button>
       </div>
@@ -64,13 +78,19 @@ function AccountSection({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const initials = (user?.email ?? '?').slice(0, 2).toUpperCase();
+
   return (
-    <div className="panel-section" data-testid="settings-account">
-      <h3>Account</h3>
-      <p data-testid="account-email"><strong>{user?.email ?? 'Signed in'}</strong></p>
+    <div data-testid="settings-account">
+      <div className="settings-identity">
+        <span className="settings-avatar" aria-hidden="true">{initials}</span>
+        <strong data-testid="account-email">{user?.email ?? 'Signed in'}</strong>
+      </div>
       <form onSubmit={(e) => void changePassword(e)}>
-        <label htmlFor="account-new-pass">Change password</label>
-        <div className="row">
+        <label className="sr-label" htmlFor="account-new-pass">Change password</label>
+        {/* One row, three cells: the two fields share the space and Save never wraps under
+            them (handoff §6 — an input+button pair nests its own grid). */}
+        <div className="dlg-pair dlg-pair--wide">
           <input
             id="account-new-pass"
             type="password"
@@ -97,9 +117,6 @@ function AccountSection({ onClose }: { onClose: () => void }) {
         </div>
       </form>
       {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="account-note">{note}</p>}
-      <div className="row" style={{ marginTop: 8 }}>
-        <button onClick={() => { void signOut(); onClose(); }} data-testid="account-sign-out">Sign out</button>
-      </div>
     </div>
   );
 }
@@ -107,8 +124,12 @@ function AccountSection({ onClose }: { onClose: () => void }) {
 export default function SettingsDialog({ onClose }: Props) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
+  const scroller = useRef<HTMLDivElement>(null);
   const [ai, setAi] = useState(loadAiSettings);
   const [prefs, setPrefs] = useState(loadPrefs);
+  const [active, setActive] = useState<SectionId>('account');
+  const { backendConfigured, status } = useAuthState();
+  const signedIn = backendConfigured && status === 'signed-in';
 
   const saveAi = (patch: Parameters<typeof saveAiSettings>[0]) => {
     saveAiSettings(patch);
@@ -119,6 +140,39 @@ export default function SettingsDialog({ onClose }: Props) {
     setPrefs(loadPrefs());
   };
 
+  // Which section the reader is in. Derived from the scroll position rather than from the
+  // last nav click, so scrolling past a heading moves the mark the way the reader expects.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      const line = el.scrollTop + 40;
+      // Only sections that actually rendered are candidates — offline there is no Account
+      // section, so falling back to SECTIONS[0] would mark a nav entry that is not there and
+      // leave the real first entry unmarked.
+      let current: SectionId | null = null;
+      for (const section of SECTIONS) {
+        const node = el.querySelector<HTMLElement>(`[data-section='${section.id}']`);
+        if (!node) continue;
+        if (current === null || node.offsetTop <= line) current = section.id;
+      }
+      if (current) setActive(current);
+    };
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const jump = (id: SectionId) => {
+    const node = scroller.current?.querySelector<HTMLElement>(`[data-section='${id}']`);
+    node?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    setActive(id);
+  };
+
+  // The Account section renders nothing offline, so its nav entry goes with it — a nav item
+  // that jumps to an empty anchor is a broken control, not a disabled feature.
+  const sections = SECTIONS.filter((s) => s.id !== 'account' || backendConfigured);
+
   return (
     <div
       className="gallery-backdrop"
@@ -128,64 +182,94 @@ export default function SettingsDialog({ onClose }: Props) {
         pressedOnBackdrop.current = false;
       }}
     >
-      <div className="wz-modal pk-modal settings-modal" data-testid="settings">
+      <div className="wz-modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings" data-testid="settings">
         <div className="wz-header">
-          <div>
-            <h2>Settings</h2>
-            <p className="hint">Preferences stay in this browser. Provider keys stay server-side.</p>
-          </div>
-          <button className="gallery-close" onClick={onClose} title="Close">×</button>
+          <h2>Settings</h2>
+          <p className="hint wz-header-sub">Preferences stay in this browser. Provider keys stay server-side.</p>
+          <button className="gallery-close" onClick={onClose} title="Close">✕</button>
         </div>
 
-        <div className="pk-body">
-          <AccountSection onClose={onClose} />
+        <div className="settings-body">
+          <nav className="settings-nav" aria-label="Settings sections">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                className={active === section.id ? 'active' : ''}
+                onClick={() => jump(section.id)}
+                data-testid={`settings-nav-${section.id}`}
+              >
+                {section.nav}
+              </button>
+            ))}
+            <div className="spacer" />
+            {signedIn && (
+              <button onClick={() => { void signOut(); onClose(); }} data-testid="account-sign-out">Sign out</button>
+            )}
+          </nav>
 
-          <div className="panel-section">
-            <h3>AI</h3>
-            <AiProviderSettings settings={ai} onChange={saveAi} />
-          </div>
+          <div className="settings-content" ref={scroller}>
+            {backendConfigured && (
+              <section data-section="account">
+                <p className="dlg-caption">Account</p>
+                <AccountSection onClose={onClose} />
+              </section>
+            )}
 
-          <div className="panel-section">
-            <h3>Workflow defaults</h3>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={useAdvancedMode((s) => s.advanced)}
-                onChange={(event) => useAdvancedMode.getState().setAdvanced(event.target.checked)}
-                data-testid="advanced-mode-toggle"
-              />
-              Advanced mode — show the code editor
-            </label>
-            <p className="hint">
-              Off, the studio is wizard → production → playout. On, every &quot;Open in the
-              editor&quot; door returns: canvas, timeline, and code. Direct graphic links open
-              the editor either way.
-            </p>
-            <label htmlFor="set-export-target">Default export target</label>
-            <select
-              id="set-export-target"
-              value={prefs.defaultExportTarget || EXPORT_TARGETS[0].id}
-              onChange={(event) => savePref({ defaultExportTarget: event.target.value })}
-            >
-              {EXPORT_TARGETS.map((target) => (
-                <option key={target.id} value={target.id}>{target.label}</option>
-              ))}
-            </select>
-            <p className="hint">
-              Preselected in the Export tab (picking a target there updates this too - it
-              remembers your last choice).
-            </p>
-          </div>
+            <section data-section="ai">
+              <p className="dlg-caption">AI</p>
+              <AiProviderSettings settings={ai} onChange={saveAi} />
+            </section>
 
-          <div className="panel-section">
-            <h3>Brand &amp; style defaults</h3>
-            <p className="hint">
-              Your visual defaults live where the work happens: the <strong>project brand</strong> is
-              captured on every wizard Create (reapply it with the wizard&apos;s &quot;Use current
-              project&apos;s colors &amp; font&quot; toggle), and named <strong>brand looks</strong> -
-              palette + font, shareable as files - live under Home / Brand looks. Imported fonts
-              and logos travel inside each graphic and its export.
-            </p>
+            <section data-section="workflow">
+              <p className="dlg-caption">Workflow defaults</p>
+              {/* The checkbox row, by the one rule (handoff §6): box first, title over
+                  description, the whole label clickable. */}
+              <label className="dlg-check">
+                <input
+                  type="checkbox"
+                  checked={useAdvancedMode((s) => s.advanced)}
+                  onChange={(event) => useAdvancedMode.getState().setAdvanced(event.target.checked)}
+                  data-testid="advanced-mode-toggle"
+                />
+                <span className="dlg-check-text">
+                  <span className="dlg-check-title">Advanced mode — show the code editor</span>
+                  <span className="dlg-check-desc">
+                    Off, the studio is wizard → production → playout. On, every “Open in the
+                    editor” door returns: canvas, timeline, and code. Direct graphic links open
+                    the editor either way.
+                  </span>
+                </span>
+              </label>
+
+              <div className="dlg-rows">
+                <div className="dlg-row">
+                  <label htmlFor="set-export-target">Export target</label>
+                  <select
+                    id="set-export-target"
+                    value={prefs.defaultExportTarget || EXPORT_TARGETS[0].id}
+                    onChange={(event) => savePref({ defaultExportTarget: event.target.value })}
+                  >
+                    {EXPORT_TARGETS.map((target) => (
+                      <option key={target.id} value={target.id}>{target.label}</option>
+                    ))}
+                  </select>
+                  <p className="dlg-hint">
+                    Preselected in the Export tab — picking a target there updates this too.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section data-section="brand">
+              <p className="dlg-caption">Brand &amp; style defaults</p>
+              <p className="hint">
+                Your visual defaults live where the work happens: the <strong>project brand</strong> is
+                captured on every wizard Create (reapply it with the wizard&apos;s &quot;Use current
+                project&apos;s colors &amp; typeface&quot; toggle), and named <strong>brand looks</strong> -
+                palette + typeface, shareable as files - live under Home / Brand looks. Imported
+                typefaces and logos travel inside each graphic and its export.
+              </p>
+            </section>
           </div>
         </div>
       </div>

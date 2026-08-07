@@ -109,7 +109,13 @@ export default function SignInDialog() {
       }}
     >
       <div className="auth-card" role="dialog" aria-modal="true" aria-label="Sign in">
-        <button className="auth-close" onClick={close} title="Close (keep working without an account)">✕</button>
+        {/* The ✕ sits in a real header ROW, not absolutely positioned over the card
+            (re-design/handoff.md §6): an out-of-flow button overlaps whatever grows under it,
+            and it is the one control here whose position must never depend on the content. */}
+        <div className="auth-head">
+          <div className="spacer" />
+          <button className="gallery-close" onClick={close} title="Close (keep working without an account)">✕</button>
+        </div>
         <div className="auth-logo"><BrandLogo size={44} stacked /></div>
         <p className="auth-tag">{reason ?? 'Sign in to save your work across devices, share to the community, and use AI.'}</p>
         <p className="muted auth-sub">Creating and exporting graphics never needs an account.</p>
