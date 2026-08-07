@@ -10,30 +10,60 @@ import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContain
 import { raiseStorageAlert } from '../../../store/storageAlert';
 import { loadPrefs, savePrefs } from '../../../model/prefs';
 import { commitDurableWrites } from '../../../model/durableStore';
+import type { TemplateType } from '../../../model/types';
 import GraphicRow from '../GraphicRow';
 import RowMenu, { type RowMenuItem } from '../RowMenu';
 import { IconFolder, IconGrid, IconList, IconPencil, IconPlus, IconTrash, IconTv } from '../../icons';
 
+type SortKey = 'newest' | 'oldest' | 'name';
+
+/** Plurals the rule below gets wrong. Everything else humanises from its own id, so a new
+ *  TemplateType needs no entry here — and one that reads badly gets a line, not a registry. */
+const TYPE_PLURAL: Partial<Record<TemplateType, string>> = {
+  quiz: 'Quizzes',
+  'public-info': 'Public info',
+  'starting-soon': 'Starting soon',
+};
+
+/** `lower-third` -> `Lower thirds`, for a chip that has to read as English. */
+function typeLabel(type: TemplateType): string {
+  const named = TYPE_PLURAL[type];
+  if (named) return named;
+  const words = type.split('-');
+  const last = words[words.length - 1];
+  words[words.length - 1] = /(s|x|ch|sh)$/.test(last) ? (last.endsWith('s') ? last : `${last}es`) : `${last}s`;
+  const text = words.join(' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /**
- * The full Graphics section (docs/SAVED_CONTENT_MODEL.md): the flat library with the two
- * organisation tools the dashboard's top-8 deliberately does not carry —
+ * The full Graphics section (docs/SAVED_CONTENT_MODEL.md): the flat library with the
+ * organisation tools the dashboard's shelf deliberately does not carry —
  *
- * - FLAT FOLDERS (GraphicDoc.folder, one level): chips derived from the data filter the
- *   list; a folder view can become a production in one click. Folders are the light sorting
- *   layer, deliberately not the retired packages — no export unit, no embedded copies.
- * - MULTI-SELECT: checkbox + shift-click range over the VISIBLE order, with one bulk bar
+ * - ONE HEADER ROW (re-design/handoff.md §5b): title, search, sort, view toggle; then the
+ *   TYPE chips, derived from the library so only types someone has appear.
+ * - FLAT FOLDERS (GraphicDoc.folder, one level): cards in the card grid, chips in the table;
+ *   a folder view can become a production in one click. Folders are the light sorting layer,
+ *   deliberately not the retired packages — no export unit, no embedded copies.
+ * - MULTI-SELECT: pip + shift-click range over the VISIBLE order, with one bulk bar
  *   (delete, move to folder, add to production, new production from selection). Selection is
  *   UI state over ids; every mutation goes through the model layer's bulk helpers so N rows
  *   cost one storage write.
  */
 export default function GraphicsSection({
   graphics,
+  query,
+  onQuery,
   onOpen,
   onChanged,
   onPublish,
 }: {
-  /** Already search-filtered by HomePage — this section applies the folder filter on top. */
+  /** Already search-filtered by HomePage — this section applies type, folder and sort on top. */
   graphics: GraphicDoc[];
+  /** The search box lives in this section's header row, but the query filters in HomePage
+   *  (the dashboard searches with the same one), so it arrives as a controlled value. */
+  query: string;
+  onQuery: (next: string) => void;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
   onPublish?: (g: GraphicDoc) => void;
@@ -48,17 +78,34 @@ export default function GraphicsSection({
   };
   /** null = All; '' = the virtual Unfiled chip; a name = that folder. */
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  /** null = every type. The chips are DERIVED from the library, so only types someone
+   *  actually has appear - a fixed strip would offer 24 filters, most of them empty. */
+  const [typeFilter, setTypeFilter] = useState<TemplateType | null>(null);
+  const [sort, setSort] = useState<SortKey>('newest');
+  const types = useMemo(() => {
+    const counts = new Map<TemplateType, number>();
+    for (const g of graphics) counts.set(g.type, (counts.get(g.type) ?? 0) + 1);
+    return [...counts].sort((a, b) => b[1] - a[1] || typeLabel(a[0]).localeCompare(typeLabel(b[0])));
+  }, [graphics]);
   // `graphics` is the refresh signal, not an input: graphicFolders() reads the model layer
   // fresh, and the prop changing is what says the library changed (HomePage's rev idiom).
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   const folders = useMemo(() => graphicFolders(), [graphics]);
-  const listed = useMemo(
-    () =>
-      folderFilter === null
-        ? graphics
-        : graphics.filter((g) => (folderFilter === '' ? !g.folder : g.folder === folderFilter)),
-    [graphics, folderFilter],
-  );
+  /** Type, then folder, then sort. The order matters for the CHIP COUNTS: they count the
+   *  whole (search-filtered) library, so picking one never renumbers the others under the
+   *  pointer, while the folder counts follow the type in view. */
+  const listed = useMemo(() => {
+    let out = typeFilter ? graphics.filter((g) => g.type === typeFilter) : graphics;
+    if (folderFilter !== null) {
+      out = out.filter((g) => (folderFilter === '' ? !g.folder : g.folder === folderFilter));
+    }
+    const by: Record<SortKey, (a: GraphicDoc, b: GraphicDoc) => number> = {
+      newest: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
+      oldest: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
+      name: (a, b) => a.name.localeCompare(b.name),
+    };
+    return [...out].sort(by[sort]);
+  }, [graphics, typeFilter, folderFilter, sort]);
 
   // A folder the user has NAMED but not filled yet. Folders are a name on their graphics, so
   // an empty one has nothing to persist; it lives here until something lands in it (the same
@@ -288,11 +335,28 @@ export default function GraphicsSection({
 
   return (
     <>
-      {/* GRID or LIST (re-design/handoff.md §5b/§5c). The toggle swaps only the item
-          container — chrome, selection, folders and the bulk bar are identical either way,
-          which is what keeps this a view preference rather than a second screen. */}
+      {/* ONE header row (re-design/handoff.md §5b): what this is, what to find in it, how to
+          order it, how to look at it. GRID or LIST swaps only the item container — chrome,
+          selection, folders and the bulk bar are identical either way, which is what keeps
+          this a view preference rather than a second screen. */}
       <div className="lib-viewbar">
+        <h2><IconGrid size={18} /> Graphics <span className="muted">({graphics.length})</span></h2>
+        <input
+          className="lib-search"
+          placeholder="Search graphics…"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          data-testid="home-search"
+        />
         <div className="spacer" />
+        <label className="lib-sort">
+          Sort
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} data-testid="library-sort">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name A–Z</option>
+          </select>
+        </label>
         <div className="lib-viewtoggle" role="group" aria-label="Library view">
           <button
             className={view === 'grid' ? 'active' : ''}
@@ -320,6 +384,30 @@ export default function GraphicsSection({
           to drop them; the table gets the chips, where a second grid above a grid would push
           the first row of data off the fold. Both derive from the data, so an emptied folder
           disappears by itself. */}
+      {/* TYPE chips, derived from the library. One type is no filter at all, so they appear
+          from two — a strip reading "All 6 · Lower thirds 6" narrows nothing and costs a row. */}
+      {types.length > 1 && (
+        <div className="lib-typechips" data-testid="type-chips">
+          <button
+            className={`lib-type-chip${typeFilter === null ? ' active' : ''}`}
+            onClick={() => { setTypeFilter(null); clearSelection(); }}
+            data-testid="type-chip-all"
+          >
+            All <span className="lib-chip-count">{graphics.length}</span>
+          </button>
+          {types.map(([type, count]) => (
+            <button
+              key={type}
+              className={`lib-type-chip${typeFilter === type ? ' active' : ''}`}
+              onClick={() => { setTypeFilter(typeFilter === type ? null : type); clearSelection(); }}
+              data-testid={`type-chip-${type}`}
+            >
+              {typeLabel(type)} <span className="lib-chip-count">{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* The band stands whether or not a folder exists yet — the dashed card IS how the first
           one is made, and hiding it until one exists leaves the feature reachable only from a
           bulk-bar menu that needs a selection first. It stands down on an empty library, where

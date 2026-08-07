@@ -285,15 +285,19 @@ export default function HomePage({ route }: { route: Route }) {
 
           {section === 'graphics' && (
             <>
-              <h2><IconGrid size={18} /> Graphics <span className="muted">({filtered.length})</span></h2>
-              {searchRow}
-              {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
+              {/* The section's whole header - title, search, sort, view - is ONE row inside
+                  GraphicsSection (re-design/handoff.md §5b): the toggle and the sort belong
+                  to the list that answers them, and a title on one line with the search on
+                  the next is what pushed the first graphic off the fold. */}
               <GraphicsSection
                 graphics={filtered}
+                query={query}
+                onQuery={setQuery}
                 onOpen={openGraphic}
                 onChanged={refresh}
                 onPublish={onPublish}
               />
+              {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
               {communityOn && mySubs.length > 0 && (
                 <div className="panel-section" style={{ marginTop: 14 }}>
                   <h3>My community templates</h3>

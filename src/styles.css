@@ -4577,8 +4577,22 @@ h2 + .lib-row,
    The toggle swaps ONLY the item container. Everything else — folders, the bulk bar, the
    selection model, the row's own menu — is identical in both, which is what makes this a
    view preference rather than a second screen to maintain. */
-.lib-viewbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+/* ── THE SECTION HEADER (re-design/handoff.md §5b): title · search — sort · view ─────────
+   One row. The title on one line with the search on the next spent two bands of height on
+   chrome before the first graphic, which on a laptop is most of the fold. */
+.lib-viewbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.lib-viewbar h2 { margin: 0; flex: 0 0 auto; }
+/* The search takes real width but never grows into the sort — the row's slack belongs to the
+   spacer, which is what keeps Sort and the toggle pinned right at every window size. */
+.lib-search { flex: 0 1 390px; min-width: 0; }
 .lib-viewbar .spacer { flex: 1; }
+.lib-sort { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-faint); }
+.lib-sort select { min-width: 120px; }
+
+/* TYPE chips: the same pill as a folder chip, with the count in the mono voice. */
+.lib-typechips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.lib-chip-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); margin-left: 4px; }
+.lib-type-chip.active .lib-chip-count { color: var(--accent); }
 .lib-viewtoggle { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
 .lib-viewtoggle button {
   display: inline-grid;
@@ -4785,7 +4799,8 @@ h2 + .lib-row,
 .lib-folder-new:hover .link-inline { color: var(--accent); }
 
 .lib-folders { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
-.lib-folder-chip {
+.lib-folder-chip,
+.lib-type-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4796,7 +4811,8 @@ h2 + .lib-row,
   background: transparent;
   color: var(--text-dim);
 }
-.lib-folder-chip.active { border-color: var(--accent); color: var(--text); background: rgba(246, 166, 35, 0.08); }
+.lib-folder-chip.active,
+.lib-type-chip.active { border-color: var(--accent); color: var(--text); background: rgba(246, 166, 35, 0.08); }
 .lib-folder-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 /* The bulk bar sticks over the list while a selection exists — actions stay reachable on a
    long library without scrolling back up. */
@@ -5868,6 +5884,11 @@ h2 + .lib-row,
   .lib-folder-cards { grid-template-columns: 1fr; }
   /* No drag on a touch screen, so the hint would name a gesture this device does not have. */
   .lib-band-head .hint { display: none; }
+  /* The header row wraps here: the search gets its own full-width line under the title, and
+     sort + view share the one below it. */
+  .lib-viewbar { flex-wrap: wrap; }
+  .lib-search { flex: 1 1 100%; order: 3; }
+  .lib-viewbar .spacer { flex: 1 0 auto; }
   .lib-row > .gfx-thumb, .lib-row-icon { grid-area: thumb; }
   .lib-info { grid-area: info; }
   .lib-actions { grid-area: actions; flex-wrap: wrap; }

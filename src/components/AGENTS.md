@@ -87,7 +87,7 @@ every section stays mounted and no preference is reachable only by clicking the 
   threw at load was a silently broken canvas unless the Export panel happened to be open. The
   badge is pointer-events: none (a label, never a control) and clears itself because every
   rebuild starts by resetting previewError. Pinned by e2e/preview-error.spec.ts.
-- **CanvasGuides**.
+- **CanvasGuides** - the alignment guides drawn over the stage.
 - **spaceKey.ts - WHO OWNS A KEY.** Several components listen on `window` for the same keys.
   They are SIBLINGS ON ONE NODE, so `stopPropagation` cannot reach across and the order they
   fire in is only the order they subscribed - which an unrelated `useEffect` dep can change.
@@ -95,8 +95,8 @@ every section stays mounted and no preference is reachable only by clicking the 
   its own. `spacePansCanvas()` is true when the CANVAS is the active surface, the pointer is
   over the stage, and nothing is being typed into; PreviewFrame arms the pan on it and
   StepTimeline plays when it is false. `activeSurface` (store) flips on a pointerdown on the
-  stage or the timeline strip - panels and dialogs deliberately leave it alone, so a trip to
-  the Inspector keeps whichever of the two you were in; it defaults to 'canvas'.
+  stage or the timeline strip - panels and dialogs leave it alone, so a trip to the Inspector
+  keeps whichever of the two you were in; it defaults to 'canvas'.
   `editorShortcutsLive()` gates every document-editing shortcut on "no modal, not typing", and
   `useModalGate(open)` is how a modal declares itself - **pass `open` explicitly for a surface
   that stays mounted and renders null when closed** (the wizard and the sign-in dialog both
@@ -127,12 +127,11 @@ every section stays mounted and no preference is reachable only by clicking the 
   scale/rotate handles for the ROOT's --scale handle. The artwork's size IS the composition's
   size - every placed field is `calc(Npx * var(--scale))` against it - so one --scale patch
   moves artwork and fields together, where a scale KEYFRAME on the artwork alone would leave
-  every field behind. Keyframing its scale still lives in the Inspector's Properties tab.
+  every field behind.
   LAYER SCALE/ROTATE HANDLES (data-block, a single selected non-root layer): a corner scale
   handle + a top rotate handle on the selection box; dragging previews live via GSAP and, on
-  release, keys `scale` / `rotation` at the playhead (keyframePlace + setKeyframe + spliceAnimData,
-  ONE undoable apply, re-parked) - pivoting around the layer's transform-origin (the Inspector
-  pivot). Escape springs it back. The root keeps its own --scale corner handle.
+  release, keys `scale` / `rotation` at the playhead (ONE undoable apply, re-parked), pivoting
+  around the layer's transform-origin. The root keeps its own --scale corner handle.
   THROUGH THE LENS: this file keyframes at the PLAYHEAD, and the playhead belongs to whichever
   timeline is open - so its `dataModel` is `lensRead(…, timelineTarget)` and every write folds
   back through `projectedJs` (blocks/timelineLens.ts), never raw `parseAnimData`/`writeAnimData`.
@@ -147,11 +146,10 @@ every section stays mounted and no preference is reachable only by clicking the 
   the zone drag, unselected layers don't drag on their own, and legacy templates keep the
   classic gestures exactly. Pinned by e2e/canvas-keyframe.spec.ts.
   PLACEMENT DRAG (imported designs): a selected PLACED line - one whose wrapper id has a CSS
-  rule with left/top px values (blocks/designLayout.ts placedLines; the imported-design shape,
-  code-derived, never category) - drags as PLACEMENT, not motion: live inline left/top preview
-  in the rule's own idiom, ONE undoable placeLine CSS patch on release, Escape clears the
-  previews. Placed lines are excluded from the keyframe drag entirely, so a multi-select drag
-  never keys motion for them; catalog templates (mask divs without ids) never match. A single
+  rule with left/top px values (blocks/designLayout.ts placedLines, code-derived, never
+  category) - drags as PLACEMENT, not motion: live inline left/top preview in the rule's own
+  idiom, ONE undoable placeLine CSS patch on release. Placed lines are excluded from the
+  keyframe drag entirely, so a multi-select drag never keys motion for them. A single
   selected placed FIELD swaps the keyframe scale/rotate handles for a SIZE corner handle - a
   text line's font-size, or an image slot's wrapper box (aspect preserved) - one CSS patch on
   release (design, never a scale keyframe). A placed field whose element is HIDDEN (an empty
@@ -164,10 +162,9 @@ every section stays mounted and no preference is reachable only by clicking the 
   (a diamond click usually leaves its layer selected too — only one may act). Pinned by
   e2e/import-graphic.spec.ts + e2e/canvas-keyframe.spec.ts.
   DIRECT GRAB + LOCKS (imported designs): a press on a PLACED field grabs it - selects it and
-  starts its placement drag in ONE gesture, no select-then-drag round trip (the release then
-  skips the climb, since that click already made its selection). Scoped to placed fields on
-  purpose: their drag is a design decision costing one undo, while a keyframe layer's drag
-  WRITES MOTION, so selection stays the deliberate step there and catalog templates are
+  starts its placement drag in ONE gesture, no select-then-drag round trip. Scoped to placed
+  fields on purpose: their drag is a design decision costing one undo, while a keyframe layer's
+  drag WRITES MOTION, so selection stays the deliberate step there and catalog templates are
   untouched. **partLocks.ts** owns what "locked" MEANS and which parts start that way, so the
   overlay and the Inspector can never disagree: store `partLocks` + `setPartLock` hold only
   EXPLICIT toggles, `partLocked()` falls back to `defaultPartLock()` for everything else. A
@@ -325,12 +322,12 @@ every section stays mounted and no preference is reachable only by clicking the 
   implies an affordance it lacks). All three are code-owned; the tooltips say so.
   MEASURED MOTION (`dynamics`, docs/DYNAMIC_MOTION_SCOPE.md) draws its own rows below the layer
   rows as hatched OPEN-ENDED bars naming the builder - its real length is measured from the
-  operator's content at play time, so any fixed width would be a lie, and its target
-  (`#ticker-track`) is deliberately not a registry part. LOOPS (`loops[selector][prop]`) draw a
-  repeat TAIL from the looping track's LAST keyframe - the keyframes ARE the pass and stay
-  editable; a finite repeat ends where the data says and caps, an endless one clamps to the
-  canvas without a cap. LIFECYCLE CALLS (`calls`, TIMELINE_V2_PLAN §3b) get a `lifecycle` row of
-  PINS naming the function: a side effect has no duration, so it is drawn unlike a diamond.
+  operator's content at play time, so any fixed width would be a lie, and its target is
+  deliberately not a registry part. LOOPS (`loops[selector][prop]`) draw a repeat TAIL from the
+  looping track's LAST keyframe - the keyframes ARE the pass and stay editable; a finite repeat
+  ends where the data says and caps, an endless one clamps to the canvas without a cap.
+  LIFECYCLE CALLS (`calls`, TIMELINE_V2_PLAN §3b) get a `lifecycle` row of PINS naming the
+  function: a side effect has no duration, so it is drawn unlike a diamond.
   KEYFRAME SETS (the gestures are docs/TIMELINE_INTERACTION_MODEL.md's): click and shift-click
   build a set, a drag moves the whole set with magnetic snap, and Delete / ←→ / Ctrl+C,V,D act
   on it. A drag on the empty rows area draws the SAME amber marquee the canvas lasso uses
@@ -382,9 +379,8 @@ every section stays mounted and no preference is reachable only by clicking the 
   brought its look, so per-layer motion is what the Inspector is for there; a manual tab
   choice afterwards sticks. Legacy templates get a
   read-only shell (the timeline's convert chip arms editing). It is a dockable panel (default:
-  the active tab of the RIGHT dock) - shown/hidden/resized/moved like any panel; any NEW
-  selection reveals it (activates its tab, or re-docks it if closed - an explicit close holds
-  while the selection is unchanged, see AppShell).
+  the active tab of the RIGHT dock); any NEW selection reveals it, and an explicit close holds
+  while the selection is unchanged (see AppShell).
 - **LegacyTimeline** (Phase 8) - the READ-ONLY chart of a legacy region the importer REFUSES:
   measured motion written inline (`x: -track.scrollWidth`), or a loop it would have to guess at.
   Such a template can never be auto-converted, and regenerating it would discard its owner's
@@ -394,8 +390,7 @@ every section stays mounted and no preference is reachable only by clicking the 
   break, registry-part rows spanning every section. A live playhead follows the simulator; clicking
   a section or dragging the scrub parks the preview there - reading the code, never writing it. Row
   LABELS are shared-selection handles, as everywhere.
-  It offers NO editing affordance (Phase 8 deleted the patchers): no bar drags, resize grips,
-  enters-from drawer, preset picker, ease chips or steps toggle - the note says why and the JS
+  It offers NO editing affordance (Phase 8 deleted the patchers) - the note says why and the JS
   tab is where you edit it. Its ONE write is **"start over with a preset"**, which emits that
   preset as DATA (presetRegistry.emitPresetRegion -> importer -> data block): the way out of
   unconvertible code leads FORWARD, never to another legacy region, and undo restores the
@@ -452,9 +447,9 @@ an opacity slider. Its `advisory` is a NUMBER with the caveat in its title, neve
 moving video behind the graphic, text shadows, type size and key-and-fill output. A pass/fail
 badge would claim something the arithmetic cannot know.
 
-A token that FOLLOWS another (`--accent-ink: var(--panel-bg)`, three of the six families)
-resolves to the literal behind it so the row shows a real swatch, and says in its hint that
-picking a colour there breaks the link. That is what the pick means.
+A token that FOLLOWS another (`--accent-ink: var(--panel-bg)`) resolves to the literal behind
+it so the row shows a real swatch, and its hint says that picking a colour there breaks the
+link - which is what the pick means.
 
 Two rows are shaped by what would otherwise be a lie:
 - **A shadow row leads with the design's OWN value**, labelled "As designed" and selected,
@@ -553,14 +548,13 @@ e2e/layout.spec.ts.
   graphic…"** opens InsertTemplateDialog - the catalog browser in INSERT mode over
   blocks/templateInsert.ts (whose merge contract is src/blocks/AGENTS.md's) - offering two
   choices: PLACEMENT (from the start / as a new next step) and "Its lines" (reveal together /
-  step by step). Both are code-derived from one donor build per card: templates needing their
-  own runtime are greyed with the reason, and the lines choice stands down for a category whose
-  designs have no stepped build at all. Pinned by e2e/assets.spec.ts, e2e/asset-workflow.spec.ts
-  + e2e/template-insert.spec.ts.
+  step by step). Both are code-derived from one donor build per card, so a template needing its
+  own runtime is greyed with the reason. Pinned by e2e/assets.spec.ts,
+  e2e/asset-workflow.spec.ts + e2e/template-insert.spec.ts.
 - **AIPromptPanel**; **ExportSurface** + its two hosts. The surface holds everything export
-  DOES - the six zip targets, the inline validation gate, and (when `isRenderConfigured()`)
-  the render section - and reads NO store: template, sampleData and `graphicId` all arrive as
-  props, because the same screen has to serve a graphic that is not the open project.
+  DOES - the six zip targets, the validation gate, and (when `isRenderConfigured()`) the render
+  section - and reads NO store: template, sampleData and `graphicId` arrive as props, because
+  the same screen has to serve a graphic that is not the open project.
   **ExportPanel** is the dock panel, a thin store adapter that also feeds the verdict back via
   `setValidation`. **ExportWindow** is the standalone modal (`useExportUi.openExport(request)`,
   the store co-located with the component like InsertTemplateDialog's): export is not a reward
@@ -576,8 +570,7 @@ e2e/layout.spec.ts.
   AI does, its measured In/Hold/Out breakdown re-runs when the template or sample data changes,
   and job state lives in src/render/renderJobStore.ts. Contracts in src/render/AGENTS.md;
   specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
-- **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**
-  (AI key/model + workflow defaults from model/prefs.ts).
+- **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**.
 
 ## Save + Home (docs/SAVED_CONTENT_MODEL.md)
 
@@ -617,6 +610,12 @@ await entirely, because the app-level dialog already announces unclaimed failure
   the whole card the door, no per-row controls. The library ROWS and every verb on them belong
   to the Graphics section, so a spec wanting a `.lib-row` opens the section first (one such
   walk, `e2e/render.spec.ts`, was caught only by CI - a Home change does not map to it).
+  **The Graphics section's header is ONE row** (handoff §5b): title, search, sort, view
+  toggle - a title on one line with the search on the next spent two bands of the fold on
+  chrome. The search box lives there but the QUERY is HomePage's, since the dashboard searches
+  with the same one. Under it, TYPE chips derived from the library (only types someone
+  actually has; counts are of the whole search-filtered set, so picking one never renumbers
+  the others), and they appear from two types - one type is not a filter.
   A graphic is `home/GraphicRow` in TWO containers off one `view` prop (`prefs.libraryView`,
   per device): `.lib-row--grid` is a CARD, `.lib-row--list` a row of the §5c TABLE - preview |
   name | type | edited | folder | actions, where `.lib-thead` and every row share ONE
@@ -662,10 +661,9 @@ await entirely, because the app-level dialog already announces unclaimed failure
   surface saying why) + ENTRIES (named data rows: add/duplicate/rename/delete/select-active,
   ▶ Play with an entry, ★ make an entry the template's default data via setFieldDefault) +
   the downloadable controlpanel.html with entries baked in (control/controlPanelHtml.ts
-  opts.entries renders an entry switcher). Entry mutations compose through a read-fresh
-  `patch(cur => …)` - two edits in one tick must never overwrite each other. An entry's ✕ is
-  ARMED (two-step, like Home's graphic delete): typed-in data with no undo behind it, on a row
-  someone drives live.
+  opts.entries). Entry mutations compose through a read-fresh `patch(cur => …)` - two edits in
+  one tick must never overwrite each other. An entry's ✕ is ARMED (two-step, like Home's
+  graphic delete): typed-in data with no undo behind it, on a row someone drives live.
 - **AuthStatus** now routes 🏠 Home from the account menu (initials avatar fallback); the
   topbar's always-visible 🏠 Home button is the no-account door to the same place.
 
@@ -727,11 +725,10 @@ to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-p
 **VideoExportPanel** (mounts **VideoRenderPanel** when isRenderConfigured() - the engine's
 manifest kind ('remotion' compiledJs+inputProps, or 'hyperframes' composed documentHtml)
 through the shared render service, with an upload-budget meter; plus the engine's source
-download - the .tsx module, or a standalone composition.html with the bundled GSAP inlined
-so it stays plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
+download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
 (explicit saves; the current slot autosaves separately). The shell binds the same global
-undo/redo keys as AppShell with the same Monaco/form-field guard. AI chat gates on
-`needsSignIn` (hosted mode) exactly like AIPromptPanel; everything else stays open.
+undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
+exactly like AIPromptPanel; everything else stays open.
 
 ## Wizard (wizard/)
 
@@ -839,8 +836,8 @@ continuation (mode 'import') keeps the old ImportStep -> TemplateStep flow and i
 catalog flow's later steps sit one index earlier (`animStep`), and FINISH follows Animation
 in every mode (`finishStep = animStep + 1`).
 
-**Import graphic** (mode 'design', steps/ImportDesignStep + PrepareDesignStep +
-PlaceFieldsStep + the shared AnimationStep) is a SETUP flow, not a second editor:
+**Import graphic** (mode 'design': ImportDesignStep + PrepareDesignStep + PlaceFieldsStep +
+the shared AnimationStep) is a SETUP flow, not a second editor:
 Start -> Design (choose project format, then drop the image - any raster format the browser
 decodes, rejecting only a file with no intrinsic pixel size, since every downstream number
 comes from that measurement; live preview from the moment it lands; Create is available from
@@ -874,13 +871,12 @@ tabs. FieldsStep/StyleStep carry NO imported-design branches any more - design m
 reaches them. Contract: docs/IMPORT_MVP.md; E2E: e2e/import-graphic.spec.ts +
 e2e/import-prepare.spec.ts + e2e/import-stretch.spec.ts.
 
-The steps are driven by each variant's declared CAPABILITIES (model/wizard.ts): the Template
-step filters the card grid with style/logo/line-capacity chips; the Fields step offers up to
-`maxLines` text lines plus the logo toggle + custom upload on a `logo: 'optional'` design
-(built-in slots show it checked and locked); the Style step has TWO size knobs (Graphic size ->
---scale, Text size -> --type-scale); the Animation step renders the slide family as ONE card
-with a direction-of-travel picker. WizardPreview cancels pending lifecycle-demo timers when a
-debounced srcdoc commits (a stale stop() must never blank the fresh document), pushes field
+The steps are driven by each variant's declared CAPABILITIES (model/wizard.ts): the Fields step
+offers up to `maxLines` text lines plus the logo toggle + custom upload on a `logo: 'optional'`
+design (built-in slots show it checked and locked); the Style step has TWO size knobs (Graphic
+size -> --scale, Text size -> --type-scale); the Animation step renders the slide family as ONE
+card with a direction-of-travel picker. WizardPreview cancels pending lifecycle-demo timers when
+a debounced srcdoc commits (a stale stop() must never blank the fresh document), pushes field
 values from a latest-template ref, and gates the auto-entrance on `document.fonts.ready`
 (capped) so a font choice shows on the entrance itself. Pinned by e2e/wizard-preview.spec.ts,
 wizard-logo.spec.ts, and wizard-filters.spec.ts.
@@ -909,17 +905,15 @@ result's `spec` back on refine so spec-level refinement re-assembles determinist
 
 **"More control"** (steps/ai/MoreControlPanel.tsx) is the OPTIONAL structured setup beside
 the prompt: an accordion editing ONE `GenerationSpec` (model/generationSpec.ts) - category
-(the 20-entry registry in src/ai/spec/categories.ts, or "Let AI decide" with the inferred
-pick surfaced editable on the result card), data fields (suggested per category from the
-GraphicType's own declarations, reorderable), look (style/mood/avoid, exact brand colours,
-plus a READ-ONLY count of what is attached - it used to own a second reference uploader, which
-is how one gesture ended up with two homes; uploading happens once, in the drop zone), fonts
-(primary through the shared FontPicker, secondary/numeric uploads), and
-animation (presets filtered to the category, intensity cards, transition style, speed/
-easing/steps). Collapsed sections show summary chips and keep their values; the spec
-persists as a cross-session draft and, on Create, lands on the store's `aiSpec` (saved with
-the project). A prompt-only user never touches it - an empty spec injects nothing (pinned by
-e2e/ai-more-control.spec.ts).
+(src/ai/spec/categories.ts, or "Let AI decide" with the inferred pick surfaced editable on the
+result card), data fields (suggested per category from the GraphicType's own declarations),
+look (style/mood/avoid, exact brand colours, plus a READ-ONLY count of what is attached -
+uploading happens once, in the drop zone), fonts (primary through the shared FontPicker,
+secondary/numeric uploads), and animation (presets filtered to the category, intensity,
+transition style, speed/easing/steps). Collapsed sections show summary chips and keep their
+values; the spec persists as a cross-session draft and, on Create, lands on the store's
+`aiSpec` (saved with the project). A prompt-only user never touches it - an empty spec injects
+nothing (pinned by e2e/ai-more-control.spec.ts).
 
 **The step has THREE execution tiers** (`AiSettings.tier`, picked under ⚙ AI settings - the
 one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro**, and **Custom provider**. The
@@ -1004,8 +998,7 @@ Lite instead labels the same failure as a NoaCG platform defect and spends no co
 call.
 
 An **example brief is armed before it replaces a brief the user wrote** (two-step, like every
-other destructive click here): the chip reads "Replace your brief?" until confirmed, and
-typing disarms it. Pinned by e2e/ai.spec.ts.
+other destructive click here); typing disarms it. Pinned by e2e/ai.spec.ts.
 
 **ONE thread, ONE composer.** `turns` is a single transcript (`.ai-thread`): talk turns plus
 `past` turns, which are earlier generations kept whole (their directions, their originals,
