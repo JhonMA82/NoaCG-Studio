@@ -1,0 +1,401 @@
+// The DURABLE STORE - where the heavy saved documents actually live.
+//
+// WHY THIS EXISTS. localStorage caps an origin at roughly 5 MB, and a saved graphic is far
+// bigger than its code: an uploaded image is a base64 data URL (+33%), localStorage stores
+// UTF-16 so every character costs two bytes (x2), and a library record keeps the Reset
+// baseline, a second copy of the same template (x2). A 150 KB logo therefore costs ~820 KB of
+// the quota, the library fills after about ten graphics, and every save from then on fails.
+// That is a real failure the owner hit in use, not a theoretical limit.
+//
+// IndexedDB replaces localStorage - the same layer (the browser, offline-first, no account),
+// with a quota measured in gigabytes rather than megabytes. It does NOT replace the Supabase
+// backend, which is the server layer an account unlocks; the product wants both.
+//
+// THE SHAPE. IndexedDB is asynchronous and localStorage is not, and the whole app reads these
+// documents synchronously - from React renders, from module scope (templateStore reads the
+// autosaved project as it loads), from the sync engine. So this module keeps a synchronous
+// in-memory MIRROR and persists behind it:
+//
+//   read   - answered from the mirror, synchronously, exactly like localStorage
+//   write  - updates the mirror synchronously, then queues a serialized IndexedDB put
+//   hydrate- once, before the app mounts (src/main.tsx), so no read ever races the mirror
+//
+// Every model module keeps the signatures it had. What changes is WHEN a write's success is
+// known: not on return, but a moment later. So a refusal cannot come back as that call's return
+// value, and it is announced instead - `spx-storage-error`, which App.tsx turns into the same
+// "Could not save" dialog and failed save status a synchronous quota error used to produce. Two
+// rules keep that honest rather than merely loud:
+//
+//   - a refused write ROLLS THE MIRROR BACK, so the app never spends the session showing an
+//     edit that no reload will reproduce ("the library keeps the last good copy" is true
+//     immediately, not only after a refresh);
+//   - every write is ATTEMPTED. An earlier refusal never blocks a later save - that is what
+//     makes freeing space recover without a reload, and a "the store is full" latch that
+//     short-circuits the next write deadlocks exactly the write that would clear it.
+//
+// The `try { setItem } catch { return 'Browser storage is full...' }` branches in the model
+// modules therefore no longer fire against IndexedDB; they remain the live path in the
+// degraded localStorage fallback below, where setItem really does throw.
+//
+// WHAT LIVES HERE, AND WHAT DOES NOT. Only the heavy documents move: the graphics library,
+// productions, the working graphic and video slots, the saved videos, looks, and the retired
+// packet store (which a legacy migration still reads). Small device preferences - prefs,
+// layout, doc kind, brand, AI settings, sync metadata - stay in localStorage: they are
+// kilobytes, they are read before hydration by design, and the E2E suite seeds several of
+// them through `addInitScript`, which cannot reach IndexedDB.
+//
+// DEGRADING HONESTLY. A browser with no IndexedDB (private modes, locked-down embedders) or a
+// database written by a NEWER build (a higher version number, which `open` rejects) falls back
+// to localStorage for everything - the old ~5 MB ceiling, but never a crash and never eaten
+// data. An older build reading a migrated profile finds the localStorage keys gone and starts
+// empty rather than corrupt; the IndexedDB copy is untouched and returns when the newer build
+// does. That is the reason the migration is one-way and marked, not a mirror kept in sync.
+
+const DB_NAME = 'noacg-studio';
+/** Format version. A breaking change to how records are stored bumps this and migrates in
+ *  `upgradeDatabase`; a newer database than this build understands is refused (see above). */
+const DB_VERSION = 1;
+const STORE = 'kv';
+const MIGRATED_KEY = '__migrated-from-localstorage';
+
+/**
+ * The keys this store owns. Everything else stays in localStorage. Kept explicit rather than
+ * derived from an `spx-gfx-` prefix so moving a key is a deliberate decision with the
+ * hydration-order consequence thought through, never a side effect of naming.
+ */
+export const DURABLE_KEYS = [
+  'spx-gfx-graphics', // the graphics library (model/library.ts)
+  'spx-gfx-shows', // productions (model/shows.ts)
+  'spx-gfx-project', // the working graphic slot (model/project.ts)
+  'spx-gfx-video-project', // the working video slot (model/videoProject.ts)
+  'spx-gfx-video-saved', // saved videos (model/videoProject.ts)
+  'spx-gfx-looks', // brand looks (model/packets.ts)
+  'spx-gfx-packets', // the retired package store, still read by library.ts's v1 migration
+] as const;
+
+export type DurableKey = (typeof DURABLE_KEYS)[number];
+
+const durableKeySet: ReadonlySet<string> = new Set<string>(DURABLE_KEYS);
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+/** The synchronous mirror. Authoritative once hydrated. */
+const mirror = new Map<string, string>();
+
+/** Null until hydration decides. `false` = degraded to localStorage (see the header). */
+let db: IDBDatabase | null = null;
+let hydrated = false;
+let usingIndexedDb = false;
+
+/** One serialized write chain, so two saves of the same key can never land out of order. */
+let writeChain: Promise<void> = Promise.resolve();
+
+/** The newest write queued per key, so a failure knows whether it is still the current one. */
+const latestWrite = new Map<string, number>();
+let writeSeq = 0;
+
+function reportError(key: string, message: string): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('spx-storage-error', { detail: { key, message } }));
+}
+
+// ── The localStorage fallback (also the pre-hydration path) ──────────────────
+
+function lsGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function lsSet(key: string, value: string): void {
+  // Deliberately NOT caught: the caller's quota branch is the whole point.
+  localStorage.setItem(key, value);
+}
+
+function lsRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Nothing to do - the key is already unreachable.
+  }
+}
+
+// ── IndexedDB plumbing ───────────────────────────────────────────────────────
+
+function upgradeDatabase(target: IDBDatabase): void {
+  if (!target.objectStoreNames.contains(STORE)) target.createObjectStore(STORE);
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    let request: IDBOpenDBRequest;
+    try {
+      request = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('indexedDB.open failed'));
+      return;
+    }
+    request.onupgradeneeded = () => upgradeDatabase(request.result);
+    request.onsuccess = () => resolve(request.result);
+    // A VersionError lands here: the profile was written by a newer build, so this one
+    // degrades to localStorage rather than downgrading anybody's data.
+    request.onerror = () => reject(request.error ?? new Error('indexedDB.open was refused'));
+    request.onblocked = () => reject(new Error('indexedDB.open is blocked by another tab'));
+  });
+}
+
+function idbReadAll(target: IDBDatabase): Promise<Map<string, string>> {
+  return new Promise((resolve, reject) => {
+    const out = new Map<string, string>();
+    const tx = target.transaction(STORE, 'readonly');
+    const cursorRequest = tx.objectStore(STORE).openCursor();
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      const key = cursor.key;
+      const value = cursor.value as unknown;
+      if (typeof key === 'string' && typeof value === 'string') out.set(key, value);
+      cursor.continue();
+    };
+    tx.oncomplete = () => resolve(out);
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB read failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB read was aborted'));
+  });
+}
+
+/** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
+ *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
+function idbWrite(target: IDBDatabase, entries: [string, string | null][]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let tx: IDBTransaction;
+    try {
+      tx = target.transaction(STORE, 'readwrite');
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('IndexedDB is unavailable'));
+      return;
+    }
+    const store = tx.objectStore(STORE);
+    try {
+      for (const [key, value] of entries) {
+        if (value === null) store.delete(key);
+        else store.put(value, key);
+      }
+    } catch (e) {
+      // A synchronous throw from put() (a quota refusal can surface this way) aborts the
+      // whole batch, which is what keeps a multi-key migration all-or-nothing.
+      try {
+        tx.abort();
+      } catch {
+        // Already aborting.
+      }
+      reject(e instanceof Error ? e : new Error('IndexedDB write failed'));
+      return;
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write was aborted'));
+  });
+}
+
+function isQuotaError(e: unknown): boolean {
+  return e instanceof Error && (e.name === 'QuotaExceededError' || /quota/i.test(e.message));
+}
+
+// ── Hydration + the one-way move off localStorage ────────────────────────────
+
+let hydration: Promise<void> | null = null;
+
+/**
+ * Load the durable documents into the synchronous mirror, moving them out of localStorage the
+ * first time. Call ONCE before anything imports a model module that reads at load time
+ * (src/main.tsx awaits this before importing App). Idempotent, and it never rejects: a browser
+ * that cannot give us IndexedDB degrades to localStorage instead of failing to boot.
+ */
+export function hydrateDurableStore(): Promise<void> {
+  if (!hydration) hydration = runHydration();
+  return hydration;
+}
+
+async function runHydration(): Promise<void> {
+  if (typeof indexedDB === 'undefined') {
+    finishDegraded();
+    return;
+  }
+  let opened: IDBDatabase;
+  try {
+    opened = await openDatabase();
+  } catch {
+    finishDegraded();
+    return;
+  }
+  try {
+    const stored = await idbReadAll(opened);
+    if (!stored.has(MIGRATED_KEY)) await migrateFromLocalStorage(opened, stored);
+    for (const key of DURABLE_KEYS) {
+      const value = stored.get(key);
+      if (typeof value === 'string') mirror.set(key, value);
+    }
+    db = opened;
+    usingIndexedDb = true;
+    hydrated = true;
+  } catch {
+    try {
+      opened.close();
+    } catch {
+      // Closing a database that never opened cleanly is not worth reporting.
+    }
+    finishDegraded();
+    return;
+  }
+  // Best-effort: ask the browser not to evict this origin under storage pressure. Ignored
+  // where unsupported, and a refusal changes nothing - eviction was already the status quo.
+  try {
+    void navigator.storage?.persist?.();
+  } catch {
+    // Not available; nothing to fall back to.
+  }
+}
+
+/** IndexedDB is unusable here: keep reading and writing localStorage, ceiling and all. */
+function finishDegraded(): void {
+  db = null;
+  usingIndexedDb = false;
+  hydrated = true;
+}
+
+/**
+ * The one-way move. Copy every durable key present in localStorage into IndexedDB in ONE
+ * transaction, and only once it has committed remove them from localStorage - so a failure
+ * part-way leaves the original data exactly where it was. The marker makes it run once; it is
+ * written in the same transaction as the copy, so a marked database always has the data.
+ */
+async function migrateFromLocalStorage(
+  target: IDBDatabase,
+  stored: Map<string, string>,
+): Promise<void> {
+  const moving: [string, string][] = [];
+  for (const key of DURABLE_KEYS) {
+    const value = lsGet(key);
+    // A key already in IndexedDB wins: it is the newer copy by construction (this build wrote
+    // it), and a stale localStorage leftover must never overwrite it.
+    if (value !== null && !stored.has(key)) moving.push([key, value]);
+  }
+  await idbWrite(target, [...moving, [MIGRATED_KEY, new Date().toISOString()]]);
+  stored.set(MIGRATED_KEY, 'done');
+  for (const [key, value] of moving) {
+    stored.set(key, value);
+    lsRemove(key);
+  }
+}
+
+// ── The seam the model modules use ───────────────────────────────────────────
+
+/**
+ * localStorage's shape, backed by the durable store. The model modules changed one identifier
+ * each; everything about their error handling still works, because `setItem` throws on a
+ * refused write exactly as localStorage does.
+ */
+export const durable = {
+  getItem(key: string): string | null {
+    if (!durableKeySet.has(key)) return lsGet(key);
+    if (!hydrated || !usingIndexedDb) return lsGet(key);
+    return mirror.get(key) ?? null;
+  },
+
+  setItem(key: string, value: string): void {
+    if (!durableKeySet.has(key) || !hydrated || !usingIndexedDb) {
+      lsSet(key, value);
+      return;
+    }
+    const previous = mirror.get(key) ?? null;
+    mirror.set(key, value);
+    queueWrite(key, value, previous);
+  },
+
+  removeItem(key: string): void {
+    if (!durableKeySet.has(key) || !hydrated || !usingIndexedDb) {
+      lsRemove(key);
+      return;
+    }
+    const previous = mirror.get(key) ?? null;
+    mirror.delete(key);
+    queueWrite(key, null, previous);
+  },
+
+  /** Every durable key currently holding a value - what `storageHealth` measures. */
+  keys(): string[] {
+    if (!hydrated || !usingIndexedDb) return DURABLE_KEYS.filter((k) => lsGet(k) !== null);
+    return [...mirror.keys()];
+  },
+};
+
+/**
+ * Persist one change behind the mirror. `previous` is what the mirror held before the caller
+ * overwrote it: a write that is REFUSED must not leave the mirror holding data no reload will
+ * ever produce, or the app would spend the rest of the session showing an edit that does not
+ * exist - "the library keeps the last good copy" has to be true immediately, not only after a
+ * refresh. The rollback is skipped when a NEWER write for the same key has been queued since,
+ * because that one owns the mirror now.
+ */
+function queueWrite(key: string, value: string | null, previous: string | null): void {
+  const target = db;
+  if (!target) return;
+  writeSeq += 1;
+  const seq = writeSeq;
+  latestWrite.set(key, seq);
+  writeChain = writeChain.then(async () => {
+    try {
+      await idbWrite(target, [[key, value]]);
+    } catch (e) {
+      if (latestWrite.get(key) === seq) {
+        if (previous === null) mirror.delete(key);
+        else mirror.set(key, previous);
+        // The surfaces that just rendered the accepted value have to re-read the real one.
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('spx-data-changed'));
+        }
+      }
+      if (isQuotaError(e)) {
+        reportError(
+          key,
+          'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.',
+        );
+      } else {
+        reportError(key, 'Your work could not be saved to browser storage.');
+      }
+    }
+  });
+}
+
+/**
+ * Wait for every queued write to reach the database. The app does not need this - the writes
+ * land on their own - but a test that asserts what survives a reload does, and so does a
+ * caller that wants to know a save is durable before it reports success.
+ */
+export function flushDurableStore(): Promise<void> {
+  return writeChain;
+}
+
+/** True when the durable documents are actually in IndexedDB (false = the degraded fallback). */
+export function isDurableStoreActive(): boolean {
+  return hydrated && usingIndexedDb;
+}
+
+/**
+ * How much room there is, as the browser reports it. Asynchronous by nature (there is no
+ * synchronous quota API), so the storage dialog reads it once when it opens. `null` where the
+ * browser will not say, which is a real answer: "we cannot tell you", not "unlimited".
+ */
+export async function storageEstimate(): Promise<{ usage: number; quota: number } | null> {
+  try {
+    const estimate = await navigator.storage?.estimate?.();
+    if (!estimate || typeof estimate.usage !== 'number' || typeof estimate.quota !== 'number') {
+      return null;
+    }
+    return { usage: estimate.usage, quota: estimate.quota };
+  } catch {
+    return null;
+  }
+}

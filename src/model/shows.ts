@@ -8,6 +8,7 @@
 import type { SpxTemplate } from './types';
 import type { SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
+import { durable } from './durableStore';
 import { uuid } from './id';
 
 /**
@@ -121,7 +122,7 @@ function notifyDataChanged(): void {
 
 function saveAll(list: Show[]): string | null {
   try {
-    localStorage.setItem(SHOWS_KEY, JSON.stringify(list));
+    durable.setItem(SHOWS_KEY, JSON.stringify(list));
     notifyDataChanged();
     return null;
   } catch {
@@ -134,7 +135,7 @@ function saveAll(list: Show[]): string | null {
  *  never looks freshly edited just because a newer build read it). */
 export function loadAllShows(): Show[] {
   try {
-    const list = JSON.parse(localStorage.getItem(SHOWS_KEY) ?? '[]') as Show[];
+    const list = JSON.parse(durable.getItem(SHOWS_KEY) ?? '[]') as Show[];
     return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
   } catch {
     return [];

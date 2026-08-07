@@ -5,6 +5,7 @@
 // the AssetFile shape are already sync-ready); the code notes where it plugs in.
 
 import type { VideoProject } from './videoTypes';
+import { durable } from './durableStore';
 
 /** The current working video project - autosaved so a reload restores it. One slot. */
 const CURRENT_KEY = 'spx-gfx-video-project';
@@ -63,7 +64,7 @@ function normalizeVideoProject(p: VideoProject): VideoProject {
  */
 export function hasCurrentVideoProject(): boolean {
   try {
-    return localStorage.getItem(CURRENT_KEY) !== null;
+    return durable.getItem(CURRENT_KEY) !== null;
   } catch {
     return false;
   }
@@ -71,7 +72,7 @@ export function hasCurrentVideoProject(): boolean {
 
 export function loadCurrentVideoProject(): VideoProject | null {
   try {
-    const raw = localStorage.getItem(CURRENT_KEY);
+    const raw = durable.getItem(CURRENT_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as unknown;
     return isVideoProject(p) ? normalizeVideoProject(p) : null;
@@ -87,7 +88,7 @@ export function loadCurrentVideoProject(): VideoProject | null {
  */
 export function saveCurrentVideoProject(project: VideoProject): boolean {
   try {
-    localStorage.setItem(
+    durable.setItem(
       CURRENT_KEY,
       JSON.stringify({ ...project, updatedAt: new Date().toISOString() }),
     );
@@ -100,7 +101,7 @@ export function saveCurrentVideoProject(project: VideoProject): boolean {
 
 export function clearCurrentVideoProject(): void {
   try {
-    localStorage.removeItem(CURRENT_KEY);
+    durable.removeItem(CURRENT_KEY);
     notifyDataChanged();
   } catch {
     // Non-fatal.
@@ -111,7 +112,7 @@ export function clearCurrentVideoProject(): void {
 
 function readSaved(): SavedVideoRecord[] {
   try {
-    const raw = localStorage.getItem(SAVED_KEY);
+    const raw = durable.getItem(SAVED_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw) as unknown;
     if (!Array.isArray(list)) return [];
@@ -125,7 +126,7 @@ function readSaved(): SavedVideoRecord[] {
 
 function writeSaved(list: SavedVideoRecord[]): boolean {
   try {
-    localStorage.setItem(SAVED_KEY, JSON.stringify(list));
+    durable.setItem(SAVED_KEY, JSON.stringify(list));
     notifyDataChanged();
     return true;
   } catch {

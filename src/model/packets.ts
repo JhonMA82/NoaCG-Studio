@@ -30,6 +30,7 @@ import { loadBrand, type ProjectBrand } from './brand';
 import { TOKEN_VARS } from './themeTokens';
 import type { SpxTemplate, TemplateType } from './types';
 import { extOf, isFontAsset } from '../assets/assetUtils';
+import { durable } from './durableStore';
 import { uuid } from './id';
 
 // ── Packets (graphics collections) ───────────────────────────────────────────
@@ -115,7 +116,7 @@ function notifyDataChanged(): void {
 
 function loadList<T>(key: string): T[] {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? '[]') as T[];
+    return JSON.parse(durable.getItem(key) ?? '[]') as T[];
   } catch {
     return [];
   }
@@ -124,7 +125,7 @@ function loadList<T>(key: string): T[] {
 /** Persist; returns an error message when the browser storage quota is hit. */
 function saveList(key: string, list: unknown): string | null {
   try {
-    localStorage.setItem(key, JSON.stringify(list));
+    durable.setItem(key, JSON.stringify(list));
     notifyDataChanged();
     return null;
   } catch {

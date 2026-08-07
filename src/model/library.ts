@@ -5,13 +5,17 @@
 // Control-panel ENTRIES (named data rows an operator switches between) live ON the graphic,
 // so they save, reopen, and sync with it.
 //
-// Storage follows the packet conventions exactly: localStorage list, `updatedAt` LWW,
-// soft-delete tombstones, sync kind 'graphic' (supabase migration 0009).
+// Storage follows the packet conventions exactly: one durable list, `updatedAt` LWW,
+// soft-delete tombstones, sync kind 'graphic' (supabase migration 0009). The list lives in the
+// DURABLE STORE (model/durableStore.ts - IndexedDB behind a synchronous mirror), not in
+// localStorage: a library record carries data-URL assets and the Reset baseline, so ten
+// image-carrying graphics used to exhaust the ~5 MB origin quota and block every save.
 
 import type { SpxTemplate, TemplateType } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import { loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
+import { durable } from './durableStore';
 import { uuid } from './id';
 
 /** One named, saved data row for a graphic's control panel ("Anna Andersson — Presenter"). */
@@ -73,7 +77,7 @@ function notifyDataChanged(): void {
 
 function saveAll(list: GraphicDoc[]): string | null {
   try {
-    localStorage.setItem(GRAPHICS_KEY, JSON.stringify(list));
+    durable.setItem(GRAPHICS_KEY, JSON.stringify(list));
     notifyDataChanged();
     return null;
   } catch {
@@ -98,7 +102,7 @@ function normalize(doc: GraphicDoc): GraphicDoc {
 export function loadAllGraphics(): GraphicDoc[] {
   migrateEmbeddedGraphics();
   try {
-    const list = JSON.parse(localStorage.getItem(GRAPHICS_KEY) ?? '[]') as GraphicDoc[];
+    const list = JSON.parse(durable.getItem(GRAPHICS_KEY) ?? '[]') as GraphicDoc[];
     return list.map(normalize);
   } catch {
     return [];
@@ -237,7 +241,7 @@ export function purgeOldGraphicTombstones(beforeIso: string): void {
 /** The raw stored list without triggering the migration (internal, and for the migration itself). */
 function rawGraphics(): GraphicDoc[] {
   try {
-    const list = JSON.parse(localStorage.getItem(GRAPHICS_KEY) ?? '[]') as GraphicDoc[];
+    const list = JSON.parse(durable.getItem(GRAPHICS_KEY) ?? '[]') as GraphicDoc[];
     return list.map(normalize);
   } catch {
     return [];

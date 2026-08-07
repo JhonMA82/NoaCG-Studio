@@ -1,24 +1,28 @@
 // What is actually IN browser storage, measured — so a "storage is full" message can name the
 // things worth removing instead of asking the user to guess.
 //
-// Everything durable in an offline build lives in localStorage: the graphics library, the
-// productions, the video projects, the working slots. A template rides its assets as data URLs
-// and a library record additionally carries its BASELINE (a second copy of the same template),
-// so a handful of image-heavy graphics can exhaust a ~5 MB origin quota in one evening. That is
-// the failure the acceptance pass hit, and it silently blocked every save.
+// Everything durable in an offline build lives in the DURABLE STORE (model/durableStore.ts):
+// the graphics library, the productions, the video projects, the working slots, the looks. A
+// template rides its assets as data URLs and a library record additionally carries its BASELINE
+// (a second copy of the same template), so a handful of image-heavy graphics used to exhaust a
+// ~5 MB localStorage quota in one evening. That is the failure the acceptance pass hit, and it
+// silently blocked every save.
 //
 // THE FOUR MULTIPLIERS, since this is where they are written down: an uploaded image is base64
-// (+33%), localStorage stores UTF-16 so every character costs two bytes (×2), a library record
-// keeps the Reset baseline (×2), and the template's own HTML/CSS/JS is only 30–60 KB of any of
-// it. One of the four is closed: an image larger than the frame is shrunk AT IMPORT
-// (`assets/imageImport.ts`), so a 4000px press-kit crest no longer arrives at full size. The
-// other three are open — the baseline could be a recipe for a catalog graphic, and IndexedDB
-// replaces localStorage (not Supabase: same layer, gigabytes instead of ~5 MB, and Blobs are
-// stored natively so neither the base64 nor the UTF-16 multiplier applies).
+// (+33%), a stored string costs two bytes per character (×2), a library record keeps the Reset
+// baseline (×2), and the template's own HTML/CSS/JS is only 30–60 KB of any of it. Two are now
+// closed: an image larger than the frame is shrunk AT IMPORT (`assets/imageImport.ts`), so a
+// 4000px press-kit crest no longer arrives at full size, and the documents moved OFF
+// localStorage into IndexedDB — the same layer (the browser, offline, no account), with a quota
+// in gigabytes instead of megabytes, which is what makes the remaining two multipliers a matter
+// of tidiness rather than a wall. The numbers below therefore stay useful for naming what is
+// big; `storageEstimate()` (durableStore.ts) is what says how much room is actually left.
 //
 // This module only READS. Nothing here deletes anything — the dialog it feeds names candidates
 // and the user removes them through the surfaces that already own deletion (Home's library rows,
 // the saved-videos modal, a production's own page).
+
+import { DURABLE_KEYS, durable } from './durableStore';
 
 const GRAPHICS_KEY = 'spx-gfx-graphics';
 const SHOWS_KEY = 'spx-gfx-shows';
@@ -51,7 +55,7 @@ function entryBytes(key: string, value: string): number {
 
 function readRaw(key: string): string {
   try {
-    return localStorage.getItem(key) ?? '';
+    return durable.getItem(key) ?? '';
   } catch {
     return '';
   }
@@ -88,16 +92,22 @@ function namedItems(raw: string, kind: StorageItem['kind']): StorageItem[] {
 }
 
 /**
- * Measure what is stored right now. Safe to call from a render — it reads a handful of keys and
- * parses them; there is no upper bound worth worrying about because the whole origin is capped
- * at a few megabytes by definition.
+ * Measure what is stored right now — the durable documents plus the small `spx-gfx-*`
+ * preferences still kept in localStorage, so the total is what this profile actually costs.
+ * Safe to call from a render: it reads a handful of keys and parses them.
  */
 export function measureStorage(): StorageReport {
   let totalBytes = 0;
+  for (const key of DURABLE_KEYS) {
+    totalBytes += entryBytes(key, readRaw(key));
+  }
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
       if (!key || !key.startsWith('spx-gfx-')) continue;
+      // A durable key still IN localStorage is the degraded fallback (no IndexedDB here), and
+      // the loop above already counted it — counting it twice would overstate every total.
+      if ((DURABLE_KEYS as readonly string[]).includes(key)) continue;
       totalBytes += entryBytes(key, localStorage.getItem(key) ?? '');
     }
   } catch {
@@ -132,9 +142,12 @@ export function measureStorage(): StorageReport {
   return { totalBytes, areas, items };
 }
 
-/** Human bytes, one decimal past a megabyte so two candidates never read as the same size. */
+/** Human bytes, one decimal past a megabyte so two candidates never read as the same size. It
+ *  reaches GB because it now also formats the BROWSER'S QUOTA, which on a desktop profile is
+ *  measured in gigabytes - "2812.6 MB" is a number nobody reads as "plenty of room". */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
