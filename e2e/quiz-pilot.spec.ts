@@ -105,7 +105,10 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await page.getByTestId('cue-load-next').click();
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which ocean is the largest?');
   await expect(program.locator('#f0')).not.toHaveText('Which ocean is the largest?');
-  await page.getByTestId('verb-take').click();
+  // RE-TAKE, not TAKE: the primary control is a toggle, so on a layer that is already live it
+  // means "take it off" (and says so). Airing the next question over a live one is a re-take —
+  // it sends the loaded values and replays the entrance, which is the reset both halves need.
+  await page.getByTestId('verb-retake').click();
   await expect(program.locator('#f0')).toHaveText('Which ocean is the largest?');
   await expectMachineState(page, 'Question');
   await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(0);

@@ -64,9 +64,10 @@ Two columns, full height, nothing scrolls but the two lists.
   the key). Following SPX, one control turns a graphic on and off: it reads **⟳ TAKE `SPACE`**
   off air and **■ TAKE OFF `SPACE`** while that cue is live, and the click does exactly what the
   press does. `0` means Out from either state.
-- **RE-TAKE is a SECONDARY control** — Take on a cue that is already live, which replays the
-  entrance and is the graphic's own reset. Its own button and its own key (`R`), never the
-  primary button's live state. Like every other verb it stays in place and greys out when it
+- **RE-TAKE is a SECONDARY control** — Take on a cue that is already live: it sends the cue's
+  current values and replays the entrance, which is the graphic's own reset. That makes it the
+  gesture for airing the NEXT row onto a layer that is already up (load the row, `R`), which is
+  how the quiz bank walks. Its own button and its own key, never the primary button's live state. Like every other verb it stays in place and greys out when it
   does not apply, so nothing on the bar moves sideways at the moment a cue goes live.
 - **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW; nothing
   airs). With the toggle, that makes the whole surface operable from the keys alone — which is
