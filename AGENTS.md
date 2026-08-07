@@ -19,7 +19,8 @@ control-room, one amber "on-air" accent, restrained glow (`NoaCG-Brand-Kit/BRAND
 **Free forever for the core; the only paid surface is hosted AI without a BYO key; the current
 goal is users/adoption, not revenue.** Binding docs, read before generating or judging templates:
 **`docs/DESIGN_LANGUAGE.md`** (taste + motion + code style) and **`docs/GOALS.md`** (north star +
-milestones - keep it checked off as work lands).
+what is NOT done - when a goal lands, move it verbatim to `docs/GOALS_ARCHIVE.md` and delete it
+from GOALS.md, which stays under ~200 lines).
 
 **Current push (2026-08): the STUDENT RELEASE** - the binding 10-step roadmap is the "Student
 release" section of `docs/GOALS.md`. The primary workflow is WIZARD-FIRST: choose a template or
