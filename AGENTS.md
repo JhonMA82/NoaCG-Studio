@@ -51,6 +51,9 @@ npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes;
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
 npm run check:workflows      # what only GitHub could check: .github/workflows/*.yml (in build)
+npm run check:vercel-config  # what only Vercel could check: vercel.json's routes (in build) -
+                             # a bad pattern is rejected BEFORE a deployment exists, so it shows
+                             # nowhere but the GitHub commit status (docs/DEPLOYMENT.md)
 npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
 ```
 

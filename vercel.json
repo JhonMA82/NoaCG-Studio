@@ -32,7 +32,7 @@
       ]
     },
     {
-      "source": "/join(/(.*))?",
+      "source": "/join/:path*",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
       ]

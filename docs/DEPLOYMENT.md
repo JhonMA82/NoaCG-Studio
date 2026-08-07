@@ -135,6 +135,18 @@ in its `_lib` router), never as a new top-level file, unless it genuinely needs 
   TS2550 on `.at()`), an api file is using a library surface newer than the root lib -
   fix the code, do not widen the lib.
 - **The function count** (above): "No more than 12 Serverless Functions" in the build log.
+- **An invalid route pattern in `vercel.json` leaves NO trace on Vercel at all.** Config is
+  validated *before* a deployment is created, so there is no failed build, no deployment row,
+  and a project page that looks idle and healthy - production just keeps serving the last
+  commit that deployed. On 2026-08-07 the header source `/join(/(.*))?` (an unnamed group
+  inside an optional group - not valid path-to-regexp, though it reads like the `/(.*)` rules
+  beside it) stopped eight consecutive `main` commits this way. The only signal is the
+  **`Vercel` commit status** on GitHub: `gh api repos/miwco/NoaCG-Studio/commits/<sha>/status`
+  → `"description": "Deployment failed."` with a `vercel.link/...` target URL naming the class.
+  `gh run list` never shows it, because no workflow of ours deploys.
+  **`npm run check:vercel-config` now runs this locally in the build gate**
+  (`scripts/check-vercel-config.mjs`, over Vercel's own `@vercel/routing-utils`), so this class
+  cannot reach `main` again; `scripts/check-vercel-config.test.mjs` mutation-tests the gate.
 - Build log access: `vercel.com/miwcos-projects/noacg-studio` → the deployment → Build Logs,
   or the Vercel MCP `get_deployment_build_logs`.
 
@@ -152,10 +164,12 @@ Vercel build for every non-`main` branch unless the head commit message contains
 1. **The rolling issues** (above) - if the machinery works, the answer is already filed.
 2. `gh run list --limit 15` - is `main` red (which gate?), or green but undeployed?
 3. Vercel dashboard / MCP `list_deployments` - is there a production deployment for the
-   commit at all (missing = webhook/ignoreCommand problem), and did it ERROR (open build
-   logs; check the two traps above)?
-4. `curl https://noacg-studio.vercel.app/version.json` - what commit is actually live?
-5. E2E-red-without-a-code-fault has four known non-code causes (stale dev server, parallel
+   commit at all, and did it ERROR (open build logs; check the traps above)?
+4. **No deployment row for the commit?** Read the `Vercel` commit status on GitHub before
+   suspecting the webhook - a rejected `vercel.json` fails there, silently and invisibly on
+   Vercel's side (trap above). `ignoreCommand` is the other cause, but it never skips `main`.
+5. `curl https://noacg-studio.vercel.app/version.json` - what commit is actually live?
+6. E2E-red-without-a-code-fault has four known non-code causes (stale dev server, parallel
    sessions on one checkout, HMR ghost modules, offline pin vs a manual server) - reproduce
    locally with `npm run test:e2e -- <spec>` before assuming the code broke.
 
