@@ -41,9 +41,13 @@ export default function ProjectFormatPicker({
     >
       <legend>Project format</legend>
       {description && <p className="hint project-format-description">{description}</p>}
+      {/* Each label's TEXT is its own element so a surface can hide the wording without
+          hiding the control it wraps — the Browse step does exactly that, because the
+          wizard's rail already captions the format and the options say what they are
+          ("16:9 Landscape", "25 fps"). Everywhere else it renders as before. */}
       <div className="project-format-fields">
         <label>
-          Authored aspect ratio
+          <span className="project-format-label">Authored aspect ratio</span>
           <select
             value={value.aspectId}
             data-testid={`${idPrefix}-aspect`}
@@ -57,7 +61,7 @@ export default function ProjectFormatPicker({
           </select>
         </label>
         <label>
-          Canvas resolution
+          <span className="project-format-label">Canvas resolution</span>
           <select
             value={normalizedValue}
             data-testid={`${idPrefix}-resolution`}
@@ -72,7 +76,7 @@ export default function ProjectFormatPicker({
           </select>
         </label>
         <label>
-          Project frame rate
+          <span className="project-format-label">Project frame rate</span>
           <select
             value={value.fps}
             data-testid={`${idPrefix}-fps`}

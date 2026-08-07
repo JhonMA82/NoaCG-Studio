@@ -2097,19 +2097,35 @@ details:not([open]) > *:not(summary) { display: none; }
    the filter block used to give it: separated from the search field above it. It is a
    SETTING, not a facet, so it reads quietly — the rail's foot carries the read-back that
    answers "what frame am I authoring" for the rest of the walk. */
-.wz-browse-format { margin: 12px 0; padding: 8px 12px 10px; border: 1px solid var(--hairline); border-radius: 5px; background: none; }
-.wz-browse-format legend {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  padding: 0 4px;
+/* ONE ROW, not a card. Browse is the step for picking a DESIGN; the frame it will be authored
+   at is a setting that has to stay reachable (e2e/wizard-finish.spec.ts pins it outside the
+   filter disclosure on a phone, because it narrows nothing), not a panel competing with the
+   templates. The wizard's rail already captions it and reads it back for the whole walk, so
+   here the three controls stand alone: their options say what they are, and the wording each
+   one needs stays in the DOM for a screen reader. ~90px of chrome becomes ~34. */
+.wz-browse-format {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 14px;
+  padding: 0;
+  border: none;
+  background: none;
 }
-.wz-browse-format .project-format-fields { gap: 8px; }
-.wz-browse-format label { font-size: 11px; gap: 3px; color: var(--text-faint); }
-.wz-browse-format select { font-size: 12px; padding: 5px 7px; }
+.wz-browse-format legend,
+.wz-browse-format .project-format-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.wz-browse-format .project-format-fields { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.wz-browse-format .project-format-fields label { flex: 1 1 0; min-width: 0; gap: 0; }
+.wz-browse-format select { font-size: 12px; padding: 5px 8px; }
 .wz-browse-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .wz-browse-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wz-browse-count { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
@@ -2174,6 +2190,14 @@ details:not([open]) > *:not(summary) { display: none; }
   .wz-browse-lead { flex-direction: column; align-items: stretch; }
   .wz-browse-lead .spacer { display: none; }
   .wz-browse-drawer-btn { justify-content: center; width: 100%; }
+  /* THE TYPE STRIP SCROLLS ON ITS OWN. Twenty-two chips wrap to twelve rows on a 390px
+     screen: measured 512px tall, which put the first design 293px BELOW the fold — the wall
+     this redesign removed, back on the surface where it costs most. Capped to about four
+     rows with its own scroll, so the step still opens on templates. */
+  .wz-browse-tiles { max-height: 150px; overflow-y: auto; padding-right: 4px; }
+  /* Three format selects in one row is a desktop measure; stacked they stay legible. */
+  .wz-browse-format .project-format-fields { flex-wrap: wrap; }
+  .wz-browse-format .project-format-fields label { flex: 1 1 45%; }
 }
 
 .wz-anim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
@@ -3900,16 +3924,22 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
     overflow-x: auto;
   }
   .wz-dots { flex-direction: row; gap: 2px; }
-  .wz-dot { grid-template-columns: auto; gap: 6px; padding: 5px 8px; white-space: nowrap; }
+  /* `width: 100%` is the vertical rail's rule; left standing in a horizontal strip the chips
+     shrink to min-content and the active one's LABEL renders outside its own box, over the
+     numbers after it. Measured at 390px: the strip ran 484px wide with "Browse" sitting on
+     top of chips 4, 5 and 6. */
+  .wz-dot { width: auto; flex: 0 0 auto; grid-template-columns: auto; gap: 6px; padding: 5px 8px; white-space: nowrap; }
   .wz-dot-num { width: 20px; height: 20px; }
   .wz-dot-sub { display: none; }
   .wz-dot-label { display: none; }
   .wz-dot.active { display: inline-grid; grid-template-columns: auto auto; }
   .wz-dot.active .wz-dot-label { display: inline; }
-  /* The format read-back rides along at the end of the strip rather than claiming a row. */
-  .wz-rail-foot { margin: 0 0 0 auto; padding: 0 0 0 10px; border-top: none; border-left: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; }
-  .wz-rail-foot .dlg-caption { display: none; }
-  .wz-rail-format { margin: 0; font-size: 12px; white-space: nowrap; }
+  /* The format read-back stands down on a phone. In the strip it needed ~212px the row does
+     not have — measured, it ran 84px past the screen edge and sat there half-clipped — and it
+     is a REMINDER, not a control: the steps that let you change the format (Browse, Create
+     with AI, blank) all carry the real picker, and no phone user had this line before the
+     rail existed. Better absent than truncated. */
+  .wz-rail-foot { display: none; }
   /* The mode caption ("New graphic") is ~110px of a 375px header saying what the user chose
      two taps ago, while the active chip already names where they are. The brand mark stays. */
   .wz-title-step, .wz-title-sep, .wz-title-doc { display: none; }
