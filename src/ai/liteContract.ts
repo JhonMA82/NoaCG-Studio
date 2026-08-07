@@ -239,7 +239,27 @@ const specSchema: Record<string, unknown> = {
       properties: {
         presetId: { type: 'string', maxLength: 80 },
         easing: { type: 'string', maxLength: 80 },
-        speed: { type: 'number', enum: [0.75, 1, 1.5] },
+        // BOUNDS, NOT AN ENUM, and the reason is a hard provider limit rather than taste:
+        // Google's structured-output schema accepts `enum` only on a STRING, so a numeric
+        // enum makes Gemini refuse the whole request ("Invalid value at
+        // ...animation.speed.enum[0] (TYPE_STRING), 0.75"). That refusal is total - not a
+        // degraded answer, a 400 before any generation - and it took every Lite call down
+        // when the managed transport moved to a gateway that routes this model to Google.
+        //
+        // Nothing is lost. `designSpec.ts` already accepts only 0.75, 1 and 1.5 and drops
+        // anything else to "no speed override", so the enum was restating a clamp that
+        // outranked it anyway. The three values are taught in the PROMPT, where the model
+        // actually reads them, and the bounds keep the server-side schema check meaningful.
+        speed: {
+          type: 'number',
+          minimum: 0.75,
+          maximum: 1.5,
+          // The three legal values move HERE rather than into a prompt line, because §6c
+          // measured that every line added to the system prompt degraded the axis it targeted
+          // along with the ones it did not. A property description is read by the model and
+          // costs no prompt line.
+          description: 'Motion speed. Use exactly 0.75 (slower), 1 (default), or 1.5 (faster); any other value is ignored.',
+        },
         steps: { type: 'boolean' },
       },
     },

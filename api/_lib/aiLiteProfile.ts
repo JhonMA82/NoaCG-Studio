@@ -122,10 +122,21 @@ export function liteProfile(): LiteProfile {
     process.env.AI_LITE_PRIMARY_MODEL,
     { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
   );
+  // NOT qwen3-coder-next, and the reason is arithmetic rather than taste. Lite refuses to
+  // start unless the worst case of BOTH routes together fits `AI_LITE_MAX_COST_USD` (0.007),
+  // and that model costs 0.50/1.20 per million on this gateway against 0.11/0.80 on
+  // OpenRouter - so its worst case alone is 0.0078 and every generation died on
+  // `cost_ceiling` before reaching a model. A previous session hit the identical failure with
+  // the identical route on OpenRouter (docs/AI_LITE_PLAN.md) and repointed the fallback; the
+  // model it moved to has no gateway equivalent, so this picks the cheapest ALREADY-AUDITED
+  // catalog entry instead: 0.05/0.20, open-weight (the §15.1 preference), 0.0009 worst case.
+  //
+  // A fallback's bar is "produces a usable spec when the primary fails", not "wins a bench" -
+  // but if it ever becomes the primary, that is a promotion and needs the paid round.
   const fallback = envRoute(
     process.env.AI_LITE_FALLBACK_PROVIDER,
     process.env.AI_LITE_FALLBACK_MODEL,
-    { provider: 'vercel', model: 'alibaba/qwen3-coder-next' },
+    { provider: 'vercel', model: 'openai/gpt-oss-20b' },
   );
   const judgeRoute = envRoute(
     process.env.AI_LITE_JUDGE_PROVIDER,
@@ -150,11 +161,16 @@ export function liteProfile(): LiteProfile {
     //     cause of eleven wrapped identity lines in eighteen (docs/AI_LITE_PLAN.md §1a).
     // v6: scaleRatio goes back to UNBOUNDED on the wire - the gateway rejects an out-of-range
     //     number, and on a clamped field that spends an attempt to do what the clamp does free.
+    // v7: animation.speed stops being a NUMERIC ENUM. Google's structured-output schema allows
+    //     `enum` only on a string, so Gemini refused the entire request - a 400 before any
+    //     generation, which took every Lite call down the moment the managed transport routed
+    //     this model to Google. Bounds replace it and the three legal values moved into the
+    //     property description; designSpec.ts already dropped anything outside them.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v6').trim().slice(0, 64) || 'lite-lower-third-v6',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v7').trim().slice(0, 64) || 'lite-lower-third-v7',
     primary,
     fallback,
     prices,

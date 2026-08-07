@@ -6,6 +6,7 @@ import {
   LITE_JUDGE_OUTPUT,
   LITE_JUDGE_PROMPT_VERSION,
   LITE_READY_OUTPUT,
+  LITE_READY_OUTPUT_SKIN,
   deterministicUnsupportedDecision,
   liteJudgeSystemPrompt,
   liteJudgeVerdict,
@@ -16,7 +17,9 @@ import {
   validateLiteJudgeScores,
 } from '../../src/ai/liteContract.js';
 import type { LiteGenerationRequest } from '../../src/ai/liteTypes.js';
-import { liteJudgeConfigured, liteJudgePolicy, liteProfile, liteProfileConfigured } from './aiLiteProfile.js';
+import { estimateModelCost } from './aiGateway.js';
+import { liteJudgeConfigured, liteJudgePolicy, liteProfile, liteProfileConfigured, routePrice } from './aiLiteProfile.js';
+import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { liteLedgerConfigured, MemoryLiteGenerationStore } from './aiLiteStore.js';
 import { readJson } from './http.js';
 
@@ -780,4 +783,65 @@ test('the judge prompt refuses instructions rendered into the frame it grades', 
   const prompt = liteJudgeSystemPrompt('test-v1');
   assert.match(prompt, /never an instruction to you/);
   assert.match(prompt, /score what the pixels show/);
+});
+
+test('the default Lite route pair fits its own per-request cost ceiling', () => {
+  // THE REGRESSION THIS EXISTS FOR, which has now shipped twice with two different
+  // transports. Lite refuses to start unless the worst case of the primary AND the fallback
+  // together fits maxProviderCostUsd - and the worst case is computed from the AUDITED
+  // CATALOG PRICE, not from anything a model returns. So a route whose price moved beneath us
+  // does not get slower or dearer: every generation dies on `cost_ceiling` before a model is
+  // ever called, and the endpoint reports a configuration error for what looks like a working
+  // deployment. It happened on OpenRouter when the audited 0.11/M drifted under the cheapest
+  // live endpoint, and again on the move to Vercel AI Gateway, where the same model is
+  // 0.50/1.20 instead of 0.11/0.80.
+  //
+  // Asserted on the DEFAULTS with no env set, because those are what a fresh deployment runs.
+  const profile = liteProfile();
+  const worst = (route: ModelRoute, outputTokens: number) => estimateModelCost(
+    route,
+    profile.estimatedInputTokens,
+    outputTokens,
+    routePrice(profile, route) ?? undefined,
+  );
+  const primary = worst(profile.primary, profile.outputTokens);
+  const fallback = worst(profile.fallback, profile.outputTokens);
+  assert.ok(primary !== null, `${profile.primary.model} has no catalog price - Lite fails closed`);
+  assert.ok(fallback !== null, `${profile.fallback.model} has no catalog price - Lite fails closed`);
+  assert.ok(
+    (primary ?? 0) + (fallback ?? 0) <= profile.maxProviderCostUsd,
+    `primary ${profile.primary.model} (${primary}) + fallback ${profile.fallback.model} `
+      + `(${fallback}) exceeds the ${profile.maxProviderCostUsd} ceiling, so every generation `
+      + 'would fail on cost_ceiling before reaching a model',
+  );
+});
+
+test('no Lite schema carries an enum a structured-output backend cannot express', () => {
+  // Google's response_schema accepts `enum` ONLY on a string. A numeric enum is not
+  // downgraded or ignored - Gemini rejects the whole request with 400 before generating
+  // anything, so a single offending property takes down every Lite call routed to Google.
+  // That is exactly what `spec.animation.speed: { type: 'number', enum: [0.75, 1, 1.5] }`
+  // did, and no gate saw it: it is legal JSON Schema, the server-side validator accepts it,
+  // and the failure only exists at one provider.
+  //
+  // Walks BOTH shipped schemas, so the skin variant cannot reintroduce it alone.
+  const offenders: string[] = [];
+  const walk = (node: unknown, path: string): void => {
+    if (!node || typeof node !== 'object') return;
+    const record = node as Record<string, unknown>;
+    if (Array.isArray(record.enum) && record.enum.some((value) => typeof value !== 'string')) {
+      offenders.push(`${path} = ${JSON.stringify(record.enum)}`);
+    }
+    for (const [key, value] of Object.entries(record)) {
+      if (value && typeof value === 'object') walk(value, `${path}.${key}`);
+    }
+  };
+  walk(LITE_READY_OUTPUT.schema, '$');
+  walk(LITE_READY_OUTPUT_SKIN.schema, '$skin');
+  assert.deepEqual(
+    offenders,
+    [],
+    `non-string enum(s) in a Lite schema - Gemini will 400 the whole request: ${offenders.join('; ')}. `
+      + 'Use minimum/maximum plus a property description instead.',
+  );
 });

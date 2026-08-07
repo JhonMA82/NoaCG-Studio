@@ -127,3 +127,8 @@ supabase/.temp/cli-latest
 # change to scripts/e2e-affected.mjs (which then escalates to the full suite).
 /.tmp-api-runtime-*/
 .env*
+
+# Local Lite test rig: a real bearer token, never committed.
+.lite-token
+lite-payload.tmp.json
+*.tmp.mjs
