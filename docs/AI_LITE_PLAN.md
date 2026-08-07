@@ -268,10 +268,32 @@ Each step is free unless marked, and each is independently landable.
    it (a replacement, not an added line - §6c), prompt version `lite-lower-third-v4`, and
    `scripts/lite-line-capacity.mjs --check` gates the claim against the render. What it does NOT
    do is stop a too-long value wrapping once an operator types one - that is step 2.
-2. **Give the supporting line a fitting strategy.** `templates/shared/textFit.ts` already
-   condenses a placed line to its slot and is used by imported designs. A tracked-uppercase
-   role is exactly the case it exists for. Decide per design: shrink-to-fit, or accept a wrap
-   where a wrap is correct (`story-headline`).
+2. ~~**Give the supporting line a fitting strategy.**~~ **INVESTIGATED 2026-08-07, and the
+   obvious lever is blocked - shrink-to-fit cannot fix this.** Two measurements killed it:
+   - **`textFit` shrinks by font-size, and lt25 and lt32 set their supporting line at 20px -
+     exactly the category type floor.** Zero headroom on precisely the two designs that need
+     it. The remaining four have 9-26%, which buys a handful of characters.
+   - **Every design wraps at the same 806px**, which is the SHARED auto-fit cap
+     (`computeMaxTextWidth`, min(42% of frame, safe area)) rather than any per-design limit. So
+     there is no free width to recover either - and 42% already sits above the catalog's own
+     20.8-30.5% width band, so raising it would make straps wider than the catalog believes a
+     lower third should be.
+
+   What is left is genuinely the designs' honest capacity, which is what step 1 now tells the
+   model. **The residual risk is the OPERATOR typing a value longer than the chassis holds, and
+   the answer there is to MEASURE it rather than to silently reflow.** Shipped: the runtime
+   bench's `singleLineFields` option raises `bench-line-wrap` when a line carrying IDENTITY
+   wraps, and `LITE_SINGLE_LINE_ROLES` decides which lines those are - a `person-role` or
+   `location` must hold one line, a `story-headline` may wrap, and that discriminator is a field
+   Lite's schema has always required. Pinned three ways in `e2e/lite-line-fit.spec.ts`: it fires
+   on the long role, stays quiet when the copy fits, and stays quiet on the SAME long copy
+   declared as a headline.
+
+   **Not yet wired into production**, and deliberately: the browser's injected validator is
+   built in `components/wizard/steps/AiStep.tsx`, which another session owns this week. The
+   seam is ready - `productionSpxValidator(source, protectedAssets, singleLineFields)` - and
+   `compileLiteDecision` already passes it, so the benchmark path is covered. Handing the AiStep
+   one-liner over is the whole remaining task.
 3. **Gate the ADJUSTED result.** The catalog gates certify a design as authored; add the type
    floor to the AI validator composition (`productionSpxValidator`) so a generation is held to
    the same 20px floor the catalog is. Deliberately NOT in `runtimeBench` - a user who chooses

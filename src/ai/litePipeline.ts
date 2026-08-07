@@ -15,8 +15,8 @@ import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
 import { mergeAssetIntegrity } from './assetIntegrity';
-import { liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
-import type { LiteSkinPatch } from './liteTypes';
+import { LITE_SINGLE_LINE_ROLES, liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
+import type { LiteLowerThirdLineRole, LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
 import type { SpxTemplate } from '../model/types';
@@ -64,11 +64,37 @@ export function assembleGroundedTemplate(
 export function productionSpxValidator(
   source?: SpxTemplate | null,
   protectedAssets: string[] = [],
+  /** Field ids that carry IDENTITY and must not wrap - see `singleLineIdentityFields`. Empty
+   *  for every caller that has no spec to read roles from, which is today's behaviour exactly. */
+  singleLineFields: readonly string[] = [],
 ): SpxValidator {
-  const base: SpxValidator = async (t) => mergeResults(validateTemplate(t), await benchTemplateRuntime(t));
+  const base: SpxValidator = async (t) =>
+    mergeResults(validateTemplate(t), await benchTemplateRuntime(t, { singleLineFields }));
   const safe = withSafetyChecks(base, source ?? null);
   if (!protectedAssets.length) return safe;
   return async (t) => mergeAssetIntegrity(await safe(t), t, protectedAssets);
+}
+
+/**
+ * Which of the assembled template's fields must render on one line, read off the spec's own
+ * declared line ROLES (`LITE_SINGLE_LINE_ROLES`).
+ *
+ * The mapping is positional because the assemblers are: `spec.lines[i]` becomes the i-th
+ * text-bearing DataField, which is the same binding `applySpecLocks` and the digest rely on. It
+ * is derived from the ASSEMBLED template rather than assumed to be `f0`/`f1`, so a design whose
+ * first field is a logo slot still lines up.
+ */
+export function singleLineIdentityFields(spec: DesignSpec, template: SpxTemplate): string[] {
+  const textFields = template.fields.filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea');
+  // `role` is required on a LITE decision's lines and simply absent on a harness DesignSpec, so
+  // it is read as optional rather than cast across: an absent role means "not a Lite result",
+  // and the check then declares no fields and changes nothing. Widening DesignSpec to carry a
+  // Lite-only field would be the other way to type this, and it would put a server contract's
+  // vocabulary into the shared spec every other path also compiles.
+  const roles = (Array.isArray(spec.lines) ? spec.lines : []) as readonly { role?: string }[];
+  return textFields
+    .filter((_f, i) => LITE_SINGLE_LINE_ROLES.has(roles[i]?.role as LiteLowerThirdLineRole))
+    .map((f) => f.field);
 }
 
 /**
@@ -183,7 +209,9 @@ export async function compileLiteDecision(
     skinRejectionRules = attempt.rejectionRules;
   }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx);
-  const validation = demoteSpecFields(await productionSpxValidator()(template));
+  const validation = demoteSpecFields(
+    await productionSpxValidator(null, [], singleLineIdentityFields(spec, template))(template),
+  );
   return {
     spec, template, validation, diversity,
     skinApplied: false, skinOutcome,

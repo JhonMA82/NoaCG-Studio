@@ -161,6 +161,21 @@ const intentKinds: LiteLowerThirdIntentKind[] = [
   'person', 'story', 'event', 'team', 'organization', 'promotion',
 ];
 
+/**
+ * Roles whose line must stay on ONE line, because they carry IDENTITY: a name, a job title, an
+ * organization, a place. Wrapping one turns a strap into a card and stops it reading as a lower
+ * third - the defect the first production round produced three times in six frames.
+ *
+ * The complement is deliberate rather than an oversight. A `story-headline` legitimately runs to
+ * two lines over a one-line kicker (that frame was the round's best result), and a
+ * `call-to-action` or `supporting-context` is prose. Lite already declares the semantic role of
+ * every line, so this needs no new information from anyone - it reads a field the schema has
+ * always required.
+ */
+export const LITE_SINGLE_LINE_ROLES: ReadonlySet<LiteLowerThirdLineRole> = new Set([
+  'person-name', 'person-role', 'organization', 'team-name', 'event-name', 'location', 'social-handle',
+]);
+
 const specSchema: Record<string, unknown> = {
   type: 'object',
   required: ['fit', 'reason', 'name', 'summary', 'category', 'variantId', 'intent', 'lines'],
