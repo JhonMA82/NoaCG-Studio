@@ -1486,7 +1486,12 @@ kbd {
 /* On a step whose left pane is a working surface, the preview yields — you cannot place text
    accurately on a canvas smaller than the passive picture of it beside it (the Text step used
    to edit at ~520px while previewing at ~700px). */
-.wz-body-working .wz-side { flex: 0 0 34%; }
+/* On a step whose left pane is a working surface the preview yields — you cannot place text
+   accurately on a canvas smaller than the passive picture of it beside it. The rail now takes
+   216px off the row before either pane sees it, so 34% left the placement canvas at 589px
+   against the 700px floor e2e/import-graphic.spec.ts holds. A clamp gives the preview a
+   sensible minimum without letting it take the working room back on a wide screen. */
+.wz-body-working .wz-side { flex: 0 0 clamp(280px, 24%, 460px); }
 .wz-side {
   flex: 0 0 45%;                    /* the preview's share of what the rail leaves */
   border-left: 1px solid var(--hairline);
@@ -1518,6 +1523,11 @@ kbd {
    card grid, Browse's template wall — the step gets the room instead. */
 .wz-body.with-preview .wz-step > * { max-width: 660px; }
 .wz-body.with-preview .wz-footer { max-width: 700px; }
+/* ...except where the left pane is a WORKING SURFACE. On the Import flow's Text step fields
+   are dragged onto the artwork itself, so capping it to a form's measure would have text
+   placed on a downscaled picture of the design — the defect `.wz-body-working` exists to
+   prevent, and what e2e/import-graphic.spec.ts measures. */
+.wz-body.with-preview.wz-body-working .wz-step > * { max-width: none; }
 
 /* Live preview */
 .wz-preview { display: flex; flex-direction: column; height: 100%; background: var(--bg-deepest); }
@@ -4543,11 +4553,14 @@ h2 + .lib-row,
 .lib-row--grid .lib-select[aria-pressed='true'] { background: var(--accent); }
 /* Name + metadata over the actions, in one footer strip under the picture. */
 .lib-row--grid .lib-info { padding: 10px 12px; border-top: 1px solid var(--hairline); }
-.lib-row--grid .lib-actions { padding: 0 12px 10px; }
+/* The right padding is the ⋯'s lane. Without it the actions run under the absolutely
+   positioned overflow menu, and a click on "+ Production" lands on the ⋯ instead — which is
+   what took e2e/storage-full.spec.ts red on CI while every local run was green. */
+.lib-row--grid .lib-actions { padding: 0 48px 10px 12px; }
 .lib-row--grid .lib-actions button { flex: 0 0 auto; }
-/* A card is narrow: the "+ Production" popover's label would wrap, so the row's secondary
-   actions collapse to the menu the card already carries. */
-.lib-row--grid .lib-menu-host { margin-left: auto; }
+/* The actions stay LEFT. Pushing the "+ Production" host to the right edge put it exactly
+   under the absolute ⋯ — the collision above. */
+.lib-row--grid .lib-actions .lib-menu-host { margin-left: 0; }
 
 /* A selectable ROW grows a leading PIP column (the base grid is 4 columns). */
 .lib-row--list { cursor: pointer; }
