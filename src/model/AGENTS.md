@@ -2,6 +2,30 @@
 
 Loaded alongside the root AGENTS.md when working in this directory (Claude reads it via this directory's CLAUDE.md import; Codex reads it directly). Keep it accurate.
 
+- **durableStore.ts** - WHERE THE SAVED DOCUMENTS LIVE, and the one place that decides it:
+  IndexedDB behind a synchronous in-memory mirror. It replaced localStorage, whose ~5 MB origin
+  quota filled after about ten graphics (base64 +33% x UTF-16 x2 x the duplicated Reset
+  baseline: a 150 KB logo cost ~820 KB); a desktop profile now reports gigabytes. It does NOT
+  replace the Supabase backend - that is the server layer an account unlocks, and the product
+  wants both. `DURABLE_KEYS` is the explicit list of what moved (graphics, shows, both working
+  slots, saved videos, looks, the retired packet store); it is a list rather than an
+  `spx-gfx-` prefix rule so moving a key stays a decision with its hydration-order consequence
+  thought through. Everything else - prefs, layout, doc kind, brand, AI settings, sync metadata
+  - stays in localStorage: kilobytes, read before hydration by design, and seeded by E2E init
+  scripts that cannot reach IndexedDB.
+  Three contracts every save path depends on. **Reads are synchronous** (the mirror), so no
+  signature in this directory changed; the ONE async step is boot, and `src/main.tsx` must
+  hydrate BEFORE importing App, because store/templateStore.ts reads the autosaved project at
+  module scope. **A write is confirmed after the call returns**, so a refusal is not that
+  call's return value: a caller that branches on it awaits `commitDurableWrites()`, which
+  CLAIMS the message (the claim protocol - awaiting the chain resumes on a microtask, the
+  generic announcement is scheduled as a macrotask, so a claimer always wins) and reports it in
+  its own words; unclaimed failures reach App.tsx as `spx-storage-error`. **A refused write
+  rolls the mirror back** and never latches - the library must not go on serving an edit no
+  reload would reproduce, and a "the store is full" flag that short-circuits the next write
+  deadlocks exactly the write that would clear it. A browser with no IndexedDB, or one holding
+  a database written by a NEWER build, degrades to localStorage with the old ceiling rather
+  than crashing or downgrading anybody's data.
 - **types.ts** - SpxTemplate (html/css/js + parsed definition - the canonical unit), AssetFile,
   DEFAULT_SETTINGS, plus compatibility re-exports from projectFormat.ts.
 - **projectFormat.ts** - the ONE authored-format registry: stable resolution preset IDs,
@@ -124,7 +148,7 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   the category REGISTRY that interprets it is src/ai/spec/categories.ts. Version-1 migrate-on-read
   via normalizeSpec; an unknown version degrades to "no spec", never a crash.
 - **library.ts** - the FLAT graphics LIBRARY (docs/SAVED_CONTENT_MODEL.md): every durably
-  saved graphic is ONE `GraphicDoc` with a STABLE uuid ('spx-gfx-graphics', sync kind
+  saved graphic is ONE `GraphicDoc` with a STABLE uuid (durable key 'spx-gfx-graphics', sync kind
   'graphic', supabase migration 0009) - template + baseline + the control panel's `entries`
   (`ControlEntry` named data rows) + `activeEntryId`, plus the AI provenance `aiSpec` +
   `aiThread` (both ADDITIVE OPTIONAL - version stays 1). `packageId` is DEPRECATED inert data

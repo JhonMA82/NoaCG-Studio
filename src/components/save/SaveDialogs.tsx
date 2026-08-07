@@ -49,13 +49,14 @@ function SaveDialog() {
   }, [close]);
 
   const confirm = () => {
-    const res = saveGraphicAs(name.trim() || template.name, { kind: 'standalone' });
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    close();
-    dialog.then?.();
+    void saveGraphicAs(name.trim() || template.name, { kind: 'standalone' }).then((res) => {
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      close();
+      dialog.then?.();
+    });
   };
 
   return (
@@ -121,10 +122,11 @@ function ConfirmSwitchDialog() {
   const saveThen = () => {
     const proceed = confirm.proceed;
     if (graphicId) {
-      if (saveCurrentGraphic() === 'saved') {
+      void saveCurrentGraphic().then((r) => {
+        if (r !== 'saved') return;
         settleConfirm();
         proceed();
-      }
+      });
     } else {
       // Never saved: settle the guard and hand the continuation to the save dialog.
       settleConfirm();

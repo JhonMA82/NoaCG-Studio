@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
 import { parkFocusOffControls } from './_keys';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // Recovery drills (docs/GOALS.md "Student release" step 10 — the agent-automatable half).
 // Each drill is a classroom failure that must be OBSERVED handled, not assumed: the ones
@@ -11,6 +12,7 @@ import { parkFocusOffControls } from './_keys';
 // here is the one drill that is fully offline: storage exhaustion.
 
 test('storage full: a save fails LOUDLY, the library keeps the last good copy, freeing space recovers', async ({ page }) => {
+  await armStorageFailure(page);
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
 
   // Save once — the baseline copy that must survive everything below.
@@ -19,29 +21,16 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
-  // Fill localStorage until it refuses, then keep shrinking the step so almost nothing is
-  // left — the classroom failure is a device already stuffed with graphics and fonts.
-  // Padding rides ONE well-known key so cleanup is exact. (Replacing an existing key only
-  // needs the DELTA, so the edit below is deliberately large enough not to fit.)
-  await page.evaluate(() => {
-    const grow = (step: number) => {
-      for (;;) {
-        try {
-          localStorage.setItem('spx-e2e-filler', (localStorage.getItem('spx-e2e-filler') ?? '') + 'x'.repeat(step));
-        } catch {
-          return; // full at this granularity — the last successful set stays stored
-        }
-      }
-    };
-    grow(4 * 1024 * 1024);
-    grow(256 * 1024);
-    grow(16 * 1024);
-    grow(2 * 1024);
-  });
+  // From here the browser refuses every durable write — the classroom failure is a device
+  // already stuffed with graphics and fonts (e2e/_storage.ts explains why this is injected
+  // rather than provoked now that the documents live in IndexedDB).
+  await fillStorage(page);
 
-  // Edit (large enough that the rewrite cannot fit in the sliver left), then try to save.
-  // The status must say FAILED — a silent failure is the one outcome this drill exists to
-  // rule out — and the stored record must still be the last good copy, not a torn write.
+  // Edit, then try to save. The status must say FAILED — a silent failure is the one outcome
+  // this drill exists to rule out — and the stored record must still be the last good copy,
+  // not a torn write. That second half is what the durable store's mirror rollback buys: the
+  // write is taken optimistically and confirmed a moment later, so without the rollback the
+  // library would go on serving an edit that never reached the disk.
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
@@ -58,8 +47,10 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
   expect(stored.exists).toBe(true);
   expect(stored.carriesEdit).toBe(false); // the last GOOD copy, not a torn write
 
-  // Freeing space recovers without a reload: the same Ctrl+S lands the edit.
-  await page.evaluate(() => localStorage.removeItem('spx-e2e-filler'));
+  // Freeing space recovers without a reload: the same Ctrl+S lands the edit. (An earlier
+  // refusal must never latch — a "the store is full" flag that short-circuits the next write
+  // would deadlock exactly the write that would clear it.)
+  await freeStorage(page);
   await page.keyboard.press('Control+s');
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
   const after = await page.evaluate(async () => {

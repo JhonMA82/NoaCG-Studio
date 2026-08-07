@@ -27,8 +27,12 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   await page.keyboard.type('<!-- autosave-marker-42 -->');
   await page.waitForTimeout(1200); // let the 800ms autosave debounce fire
 
-  // It persisted to localStorage.
-  const saved = await page.evaluate(() => localStorage.getItem('spx-gfx-project'));
+  // It persisted to the durable store (IndexedDB behind a synchronous mirror - read it through
+  // the model, never the raw key, which is exactly why that module owns the storage decision).
+  const saved = await page.evaluate(async () => {
+    const { loadProject } = await import('/src/model/project.ts');
+    return JSON.stringify(loadProject());
+  });
   expect(saved).toContain('autosave-marker-42');
 
   // Reload → the working template is restored, and the user lands STRAIGHT in it: no wizard

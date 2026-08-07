@@ -16,7 +16,27 @@ User
 └── Video  (model/videoProject.ts — unchanged)
 ```
 
-- **`GraphicDoc`** (`model/library.ts`, localStorage `spx-gfx-graphics`, sync kind
+- **Where all of this is STORED: the durable store** (`model/durableStore.ts`) — IndexedDB
+  behind a synchronous in-memory mirror, holding the seven heavy keys (graphics, shows, the
+  working graphic and video slots, saved videos, looks, the retired packet store). It replaced
+  localStorage, whose ~5 MB origin quota filled after about ten graphics: an uploaded image is
+  base64 (+33%), localStorage stores UTF-16 (×2) and a library record keeps the Reset baseline
+  (×2), so a 150 KB logo cost ~820 KB. A desktop profile now reports gigabytes. Three
+  consequences worth knowing before touching a save path:
+  - **Reads stay synchronous** (the mirror), so no model or component signature changed. The
+    ONE asynchronous step is boot: `src/main.tsx` hydrates before importing App, because module
+    scope reads the autosaved project as it loads.
+  - **A write is confirmed a moment AFTER the call returns**, so a refusal cannot be that
+    call's return value. A caller that wants to branch on it awaits `commitDurableWrites()`,
+    which CLAIMS the failure and reports it in its own words; anything unclaimed is announced
+    generically by App.tsx a tick later. A refused write rolls the mirror back, so the library
+    never serves an edit no reload would reproduce, and no failure ever latches — an earlier
+    refusal must not block the write that would prove there is room again.
+  - **Small preferences stay in localStorage** (prefs, layout, doc kind, brand, AI settings,
+    sync metadata): kilobytes, read before hydration by design, and seeded by E2E init scripts
+    that cannot reach IndexedDB. A browser without IndexedDB falls back to localStorage
+    entirely, old ceiling and all, rather than failing to boot.
+- **`GraphicDoc`** (`model/library.ts`, durable key `spx-gfx-graphics`, sync kind
   `'graphic'`) is the durable unit: `{ id, name, packageId, template, baseline?,
   entries, activeEntryId, createdAt, updatedAt, deleted? }`. The id is a stable UUID —
   renaming never breaks references. `entries` are the control panel's named data rows
@@ -26,7 +46,7 @@ User
 - **Packages are retired.** The `'packet'` sync kind is gone (existing cloud/local rows stay
   inert; nothing reads or destroys them), all package UI and writers are removed, and
   `#/package/*` lands on Home. The ONE surviving packet path is library.ts's v1 extraction:
-  a pre-library packet found in localStorage still gets its embedded graphics migrated into
+  a pre-library packet found in the durable store still gets its embedded graphics migrated into
   the library on read (convergent; the packet is rewritten `graphics: [] + version: 2`).
 - **Shows** (`model/shows.ts`) are the PRODUCTION unit (user-facing word: production): the
   graphic pool + the cue rundown + the production LOOK + the published capability slugs —

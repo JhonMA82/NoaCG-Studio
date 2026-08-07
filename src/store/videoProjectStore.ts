@@ -11,6 +11,7 @@ import type { ReferencePurpose } from '../model/imagePurpose';
 import type { VideoChatMessage, VideoInput, VideoProject } from '../model/videoTypes';
 import { createDefaultVideoProject, withVideoSource } from '../model/videoTypes';
 import { loadCurrentVideoProject, saveCurrentVideoProject } from '../model/videoProject';
+import { commitDurableWrites } from '../model/durableStore';
 
 export type VideoPanelTab = 'chat' | 'content' | 'settings' | 'assets' | 'export';
 
@@ -253,17 +254,25 @@ export const useVideoProjectStore = create<VideoProjectState>((set) => ({
 }));
 
 // Autosave the working video project (debounced) whenever the document changes, mirroring
-// templateStore's autosaver. A failed save (quota - video assets are big) raises a visible
-// flag instead of losing work silently.
+// templateStore's autosaver. A failed save (video assets are big) raises a visible flag
+// instead of losing work silently.
+//
+// The write is CONFIRMED, not assumed: the durable store takes it optimistically and reports a
+// refusal a moment later (model/durableStore.ts), so `saveCurrentVideoProject` returning true
+// only means it was accepted. `commitDurableWrites` waits for the real answer and claims it -
+// which is also what keeps the shell's own warning the thing the user sees, rather than the
+// app-level "Could not save" dialog talking over it about a background autosave.
 let videoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 useVideoProjectStore.subscribe((state, prev) => {
   if (state.project === prev.project) return;
   if (videoSaveTimer) clearTimeout(videoSaveTimer);
   videoSaveTimer = setTimeout(() => {
-    const ok = saveCurrentVideoProject(useVideoProjectStore.getState().project);
-    const failedNow = !ok;
-    if (useVideoProjectStore.getState().autosaveFailed !== failedNow) {
-      useVideoProjectStore.getState().setAutosaveFailed(failedNow);
-    }
+    const accepted = saveCurrentVideoProject(useVideoProjectStore.getState().project);
+    void (accepted ? commitDurableWrites() : Promise.resolve('refused')).then((failure) => {
+      const failedNow = !!failure;
+      if (useVideoProjectStore.getState().autosaveFailed !== failedNow) {
+        useVideoProjectStore.getState().setAutosaveFailed(failedNow);
+      }
+    });
   }, 800);
 });

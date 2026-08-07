@@ -94,9 +94,43 @@ let writeChain: Promise<void> = Promise.resolve();
 const latestWrite = new Map<string, number>();
 let writeSeq = 0;
 
+/**
+ * A failure nobody has looked at yet. THE CLAIM PROTOCOL: a caller that cares which save failed
+ * - "Adding “Clean Clock” to a production" says far more than "a write failed" - awaits
+ * `commitDurableWrites()` and CLAIMS the message, reporting it in its own words. Everything
+ * else (autosaves, background writes) leaves it unclaimed, and it is announced generically a
+ * tick later. The ordering is what makes this reliable rather than a race: awaiting the write
+ * chain resumes on a MICROTASK, while the announcement is scheduled as a MACROTASK, so a
+ * claimer always gets there first.
+ */
+let unclaimedFailure: { key: string; message: string } | null = null;
+
+/** Hold the failure open for one macrotask so a caller can claim it, then announce what is left. */
 function reportError(key: string, message: string): void {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent('spx-storage-error', { detail: { key, message } }));
+  unclaimedFailure = { key, message };
+  setTimeout(() => {
+    if (!unclaimedFailure) return;
+    const failure = unclaimedFailure;
+    unclaimedFailure = null;
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('spx-storage-error', { detail: failure }));
+  }, 0);
+}
+
+/**
+ * Wait for the writes just queued to reach the database, and CLAIM any failure among them.
+ * Returns the message when something was refused (the caller reports it in its own words, and
+ * no generic announcement follows), or null when everything landed.
+ *
+ * This is what a surface calls when it would otherwise have branched on a synchronous quota
+ * error: write, `await commitDurableWrites()`, and act on the answer - which is the same
+ * decision it used to make, one await later.
+ */
+export async function commitDurableWrites(): Promise<string | null> {
+  await writeChain;
+  const failure = unclaimedFailure;
+  unclaimedFailure = null;
+  return failure?.message ?? null;
 }
 
 // ── The localStorage fallback (also the pre-hydration path) ──────────────────

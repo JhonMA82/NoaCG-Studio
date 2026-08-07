@@ -412,8 +412,10 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await row.getByRole('button', { name: 'Delete Reorder Show' }).click();
   await row.getByRole('button', { name: 'Delete?' }).click();
   await expect(page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' })).toHaveCount(0);
-  const stored = await page.evaluate(() => {
-    const list = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { deleted?: boolean; graphics: unknown[] }[];
+  const stored = await page.evaluate(async () => {
+    // Through the model, not the raw key: the productions live in the durable store now.
+    const { loadAllShows } = await import('/src/model/shows.ts');
+    const list = loadAllShows();
     return { live: list.filter((s) => !s.deleted).length, payloads: list.map((s) => s.graphics.length) };
   });
   expect(stored.live).toBe(0); // tombstoned, payload stripped

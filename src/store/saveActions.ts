@@ -17,6 +17,7 @@ import {
   type GraphicDoc,
 } from '../model/library';
 import { saveProject } from '../model/project';
+import { commitDurableWrites } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 
@@ -36,13 +37,20 @@ export type SaveDestination = { kind: 'standalone' };
 /**
  * Save the working template into its linked library record. Returns 'needs-name' when the
  * document has never been saved — the caller opens the save dialog instead.
+ *
+ * ASYNC because the durable store confirms a write a moment after taking it
+ * (model/durableStore.ts): `commitDurableWrites` waits for that confirmation and CLAIMS any
+ * failure, so this still answers 'failed' for a save that did not land — the caller makes the
+ * same decision it always did, one await later, rather than being told 'saved' and corrected
+ * by a dialog afterwards.
  */
-export function saveCurrentGraphic(): 'saved' | 'needs-name' | 'failed' {
+export async function saveCurrentGraphic(): Promise<'saved' | 'needs-name' | 'failed'> {
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
   const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread });
-  if (!doc || error) {
+  const failure = error ?? (await commitDurableWrites());
+  if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
     if (!doc) {
       s.setSaved({ graphicId: null, dirty: true, status: 'idle' });
@@ -57,7 +65,7 @@ export function saveCurrentGraphic(): 'saved' | 'needs-name' | 'failed' {
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. */
-export function saveGraphicAs(name: string, _dest: SaveDestination): { ok: boolean; error: string | null } {
+export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null }> {
   const s = useTemplateStore.getState();
   const { doc, error } = createGraphic(s.template, {
     name,
@@ -66,9 +74,10 @@ export function saveGraphicAs(name: string, _dest: SaveDestination): { ok: boole
     aiSpec: s.aiSpec,
     aiThread: s.aiThread,
   });
-  if (error) {
+  const failure = error ?? (await commitDurableWrites());
+  if (failure) {
     s.setSaved({ ...s.saved, status: 'failed' });
-    return { ok: false, error };
+    return { ok: false, error: failure };
   }
   // The working template adopts the saved name so the topbar and the record agree.
   if (doc.template.name !== s.template.name) {

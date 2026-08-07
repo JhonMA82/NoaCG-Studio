@@ -53,6 +53,7 @@ import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
 import { captureLookFromTemplate } from '../../model/packets';
 import { addGraphicToShow, createShowNamed, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
+import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import { useAdvancedMode } from '../useAdvancedMode';
@@ -458,9 +459,9 @@ export default function CreationWizard() {
    *  createAndExport). The save is not optional — an export-only creation that vanished would
    *  cost the whole AI generation to reproduce. A failed save deliberately stays in the editor. */
   const createFromAiAndExport = () => {
-    void applyAiProject().then((template) => {
+    void applyAiProject().then(async (template) => {
       if (!template) return;
-      const saved = saveGraphicAs(aiName(), { kind: 'standalone' });
+      const saved = await saveGraphicAs(aiName(), { kind: 'standalone' });
       const s = useTemplateStore.getState();
       closeGallery();
       // REPLACE, not navigate - the createAndExport back-stack reasoning.
@@ -479,7 +480,7 @@ export default function CreationWizard() {
   const createFromAiAndAddToProduction = (dest: ProductionDest) => {
     void applyAiProject().then((template) => {
       if (!template) return;
-      addToProduction(dest, aiName());
+      void addToProduction(dest, aiName());
     });
   };
 
@@ -540,9 +541,9 @@ export default function CreationWizard() {
    * just be a library missing the graphic with nothing saying why.
    */
   const createAndExport = () => {
-    void applyDraftProject().then((template) => {
+    void applyDraftProject().then(async (template) => {
       if (!template || !variant) return;
-      const saved = saveGraphicAs(draftName(variant, draft), { kind: 'standalone' });
+      const saved = await saveGraphicAs(draftName(variant, draft), { kind: 'standalone' });
       // Read AFTER the save: it renames the working template to the record's name, which is
       // what the export slugs the zip and the SPX/CasparCG template folder from.
       const s = useTemplateStore.getState();
@@ -566,8 +567,8 @@ export default function CreationWizard() {
    * the production page - the road to air. A FAILED save stays in the editor exactly like the
    * export door: the topbar's failed status is visible there and Save can be retried.
    */
-  const addToProduction = (dest: ProductionDest, name: string) => {
-    const saved = saveGraphicAs(name, { kind: 'standalone' });
+  const addToProduction = async (dest: ProductionDest, name: string) => {
+    const saved = await saveGraphicAs(name, { kind: 'standalone' });
     if (!saved.ok) {
       // NEVER a silent return. `applyDraftProject` has already replaced the route with the
       // editor's, which closes the wizard (App.tsx's route-agreement effect) - so by now there
@@ -589,15 +590,18 @@ export default function CreationWizard() {
       show = loadShows().find((x) => x.id === dest.id);
     } else {
       const made = createShowNamedChecked(dest.name);
-      show = made.show;
-      created = made.error;
+      // The durable store confirms a write after the call returns, so every "did that land?"
+      // question here is one await (model/durableStore.ts's claim protocol) - claiming the
+      // failure is also what keeps THIS message, which names the production, rather than the
+      // generic announcement the app makes for an unclaimed one.
+      created = made.error ?? (await commitDurableWrites());
     }
     // A picked production deleted mid-wizard (another tab/device): fall back to a new one
     // named after the graphic rather than dropping the work on the floor.
     if (!show) {
       const made = createShowNamedChecked(name);
       show = made.show;
-      created = made.error;
+      created = made.error ?? (await commitDurableWrites());
     }
     const target = show;
     if (created) {
@@ -609,10 +613,11 @@ export default function CreationWizard() {
       return;
     }
     const pooled = addGraphicToShow(target.id, s.template, { graphicId: s.saved.graphicId ?? undefined });
-    if (pooled.error) {
+    const pooledError = pooled.error ?? (await commitDurableWrites());
+    if (pooledError) {
       raiseStorageAlert({
         action: `Adding “${name}” to “${target.name}”`,
-        error: pooled.error,
+        error: pooledError,
         outcome: `“${name}” is saved in your library — free some room, then add it to the production from Home.`,
       });
       return;
@@ -625,7 +630,7 @@ export default function CreationWizard() {
   const createAndAddToProduction = (dest: ProductionDest) => {
     void applyDraftProject().then((template) => {
       if (!template || !variant) return;
-      addToProduction(dest, draftName(variant, draft));
+      void addToProduction(dest, draftName(variant, draft));
     });
   };
 

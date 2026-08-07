@@ -8,6 +8,7 @@ import {
 } from '../../../model/library';
 import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../../model/shows';
 import { raiseStorageAlert } from '../../../store/storageAlert';
+import { commitDurableWrites } from '../../../model/durableStore';
 import GraphicRow from '../GraphicRow';
 import { IconFolder, IconPlus, IconTrash, IconTv } from '../../icons';
 
@@ -124,10 +125,14 @@ export default function GraphicsSection({
   /** Pool every selected graphic, stopping at the FIRST failure and saying how far it got - a
    *  bulk add that reported "✓ Added 12" after storing three would be worse than the silence it
    *  replaces. Returns how many actually landed. */
-  const poolAll = (showId: string, showName: string, list: GraphicDoc[]): number => {
+  const poolAll = async (showId: string, showName: string, list: GraphicDoc[]): Promise<number> => {
     let added = 0;
     for (const g of list) {
-      const { error } = addGraphicToShow(showId, g.template, { graphicId: g.id });
+      const { error: written } = addGraphicToShow(showId, g.template, { graphicId: g.id });
+      // Confirmed per graphic (model/durableStore.ts's claim protocol): "stop at the first
+      // failure and say how far it got" only means anything if each add is actually known to
+      // have landed before the next one is attempted.
+      const error = written ?? (await commitDurableWrites());
       if (error) {
         raiseStorageAlert({
           action: `Adding ${list.length} graphics to “${showName}”`,
@@ -144,16 +149,17 @@ export default function GraphicsSection({
     return added;
   };
 
-  const addAllTo = (showId: string, showName: string) => {
-    const added = poolAll(showId, showName, selectedListed);
+  const addAllTo = async (showId: string, showName: string) => {
+    const added = await poolAll(showId, showName, selectedListed);
     if (added === selectedListed.length) setNote(`✓ Added ${added} to "${showName}".`);
     setProdOpen(false);
     clearSelection();
     onChanged();
   };
 
-  const createProductionFrom = (list: GraphicDoc[], name: string) => {
-    const { show, error } = createShowNamedChecked(name);
+  const createProductionFrom = async (list: GraphicDoc[], name: string) => {
+    const { show, error: written } = createShowNamedChecked(name);
+    const error = written ?? (await commitDurableWrites());
     if (error) {
       raiseStorageAlert({
         action: `Creating the production “${show.name}”`,
@@ -163,7 +169,7 @@ export default function GraphicsSection({
       return;
     }
     // The kit flow's primitive: one production, every graphic pooled in list order.
-    const added = poolAll(show.id, show.name, list);
+    const added = await poolAll(show.id, show.name, list);
     onChanged();
     if (added > 0) navigate({ view: 'production', id: show.id });
   };
@@ -200,7 +206,7 @@ export default function GraphicsSection({
             Folder · {listed.length} graphic{listed.length === 1 ? '' : 's'}
           </span>
           <button
-            onClick={() => createProductionFrom(listed, folderFilter)}
+            onClick={() => void createProductionFrom(listed, folderFilter)}
             disabled={listed.length === 0}
             title={`One production named "${folderFilter}" with every graphic of this folder`}
             data-testid="folder-to-production"
@@ -237,7 +243,7 @@ export default function GraphicsSection({
                 <div className="lib-menu-backdrop" onClick={() => setProdOpen(false)} />
                 <div className="lib-menu" role="menu" data-testid="bulk-production-menu">
                   {loadShows().map((s) => (
-                    <button key={s.id} role="menuitem" onClick={() => addAllTo(s.id, s.name)}>
+                    <button key={s.id} role="menuitem" onClick={() => void addAllTo(s.id, s.name)}>
                       <IconTv /> {s.name}
                     </button>
                   ))}
@@ -247,13 +253,13 @@ export default function GraphicsSection({
                       placeholder="New production…"
                       onChange={(e) => setNewProdName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newProdName.trim()) createProductionFrom(selectedListed, newProdName.trim());
+                        if (e.key === 'Enter' && newProdName.trim()) void createProductionFrom(selectedListed, newProdName.trim());
                       }}
                       data-testid="bulk-new-production-name"
                     />
                     <button
                       disabled={!newProdName.trim()}
-                      onClick={() => createProductionFrom(selectedListed, newProdName.trim())}
+                      onClick={() => void createProductionFrom(selectedListed, newProdName.trim())}
                       data-testid="bulk-new-production"
                     >
                       Create

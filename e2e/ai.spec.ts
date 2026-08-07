@@ -911,11 +911,9 @@ test('the conversation that produced an AI graphic travels with it, and survives
 
   // It rode the autosave slot, so a fresh session restores it — the whole point of (c) over a
   // session-only thread.
-  await page.waitForFunction(() => {
-    const raw = localStorage.getItem('spx-gfx-project');
-    if (!raw) return false;
-    const p = JSON.parse(raw) as { aiThread?: { messages?: unknown[] } };
-    return !!p.aiThread?.messages?.length;
+  await page.waitForFunction(async () => {
+    const { loadProject } = await import('/src/model/project.ts');
+    return !!loadProject()?.aiThread?.messages?.length;
   });
   await page.reload();
   await page.getByTestId('dock-tab-ai').click();
