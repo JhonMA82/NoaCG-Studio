@@ -590,6 +590,7 @@ export default function CreationWizard() {
       show = loadShows().find((x) => x.id === dest.id);
     } else {
       const made = createShowNamedChecked(dest.name);
+      show = made.show;
       // The durable store confirms a write after the call returns, so every "did that land?"
       // question here is one await (model/durableStore.ts's claim protocol) - claiming the
       // failure is also what keeps THIS message, which names the production, rather than the

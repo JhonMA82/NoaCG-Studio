@@ -87,8 +87,20 @@ let db: IDBDatabase | null = null;
 let hydrated = false;
 let usingIndexedDb = false;
 
-/** One serialized write chain, so two saves of the same key can never land out of order. */
-let writeChain: Promise<void> = Promise.resolve();
+/**
+ * Writes that have been HANDED TO the database and not yet settled.
+ *
+ * The transaction is opened SYNCHRONOUSLY inside `setItem` rather than chained behind a
+ * promise, and that is a durability decision, not a style one: a promise chain defers the
+ * transaction by at least a microtask, and a reload in that window loses the write while the
+ * mirror - and therefore the whole app - has already reported it saved. Measured, that window
+ * was wide enough for a spec to observe a saved project and find it gone after `page.reload()`.
+ *
+ * Ordering survives the change because IndexedDB already guarantees it: readwrite transactions
+ * over the same object store run in the order they were created. So two saves of one key still
+ * land in order, without this module keeping a queue to make it so.
+ */
+const pending = new Set<Promise<void>>();
 
 /** The newest write queued per key, so a failure knows whether it is still the current one. */
 const latestWrite = new Map<string, number>();
@@ -99,8 +111,8 @@ let writeSeq = 0;
  * - "Adding “Clean Clock” to a production" says far more than "a write failed" - awaits
  * `commitDurableWrites()` and CLAIMS the message, reporting it in its own words. Everything
  * else (autosaves, background writes) leaves it unclaimed, and it is announced generically a
- * tick later. The ordering is what makes this reliable rather than a race: awaiting the write
- * chain resumes on a MICROTASK, while the announcement is scheduled as a MACROTASK, so a
+ * tick later. The ordering is what makes this reliable rather than a race: awaiting the pending
+ * writes resumes on a MICROTASK, while the announcement is scheduled as a MACROTASK, so a
  * claimer always gets there first.
  */
 let unclaimedFailure: { key: string; message: string } | null = null;
@@ -127,7 +139,7 @@ function reportError(key: string, message: string): void {
  * decision it used to make, one await later.
  */
 export async function commitDurableWrites(): Promise<string | null> {
-  await writeChain;
+  await flushDurableStore();
   const failure = unclaimedFailure;
   unclaimedFailure = null;
   return failure?.message ?? null;
@@ -379,28 +391,27 @@ function queueWrite(key: string, value: string | null, previous: string | null):
   writeSeq += 1;
   const seq = writeSeq;
   latestWrite.set(key, seq);
-  writeChain = writeChain.then(async () => {
-    try {
-      await idbWrite(target, [[key, value]]);
-    } catch (e) {
-      if (latestWrite.get(key) === seq) {
-        if (previous === null) mirror.delete(key);
-        else mirror.set(key, previous);
-        // The surfaces that just rendered the accepted value have to re-read the real one.
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('spx-data-changed'));
-        }
-      }
-      if (isQuotaError(e)) {
-        reportError(
-          key,
-          'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.',
-        );
-      } else {
-        reportError(key, 'Your work could not be saved to browser storage.');
+  // Opened NOW - see `pending` above for why the transaction must not wait for a microtask.
+  const write = idbWrite(target, [[key, value]]).catch((e: unknown) => {
+    if (latestWrite.get(key) === seq) {
+      if (previous === null) mirror.delete(key);
+      else mirror.set(key, previous);
+      // The surfaces that just rendered the accepted value have to re-read the real one.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('spx-data-changed'));
       }
     }
+    if (isQuotaError(e)) {
+      reportError(
+        key,
+        'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.',
+      );
+    } else {
+      reportError(key, 'Your work could not be saved to browser storage.');
+    }
   });
+  pending.add(write);
+  void write.finally(() => pending.delete(write));
 }
 
 /**
@@ -408,8 +419,10 @@ function queueWrite(key: string, value: string | null, previous: string | null):
  * land on their own - but a test that asserts what survives a reload does, and so does a
  * caller that wants to know a save is durable before it reports success.
  */
-export function flushDurableStore(): Promise<void> {
-  return writeChain;
+export async function flushDurableStore(): Promise<void> {
+  // A settling write can start another (a rollback never does, but a caller reacting to
+  // `spx-data-changed` might), so drain until the set is empty rather than snapshotting once.
+  while (pending.size > 0) await Promise.all([...pending]);
 }
 
 /** True when the durable documents are actually in IndexedDB (false = the degraded fallback). */

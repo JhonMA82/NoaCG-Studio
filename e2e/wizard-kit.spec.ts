@@ -50,16 +50,20 @@ test('a kit creates every graphic into one production and lands on its page', as
   await expect(page).toHaveURL(/#\/production\//);
   await expect(page.locator('.wz-modal')).toHaveCount(0);
 
-  const saved = await page.evaluate(() => {
+  const saved = await page.evaluate(async () => {
     const showId = location.hash.split('/').pop();
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+    // Through the model, not the raw key: the saved documents live in the durable store
+    // (IndexedDB behind a synchronous mirror - src/model/durableStore.ts).
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const shows = loadShows() as unknown as {
       id: string;
       name: string;
       look?: { palette?: { accent?: string } };
       graphics: { name: string; graphicId?: string; template: { html: string; js: string; fields?: unknown[] } }[];
       cues?: { sourceId: string }[];
     }[];
-    const library = JSON.parse(localStorage.getItem('spx-gfx-graphics') ?? '[]') as {
+    const library = loadGraphics() as unknown as {
       id: string;
       name: string;
       packageId: string | null;
@@ -218,9 +222,10 @@ test('the Esports kit builds and downloads as one complete Volt tournament packa
   await page.getByTestId('kit-create').click();
   await expect(page).toHaveURL(/#\/production\//);
 
-  const productionReport = await page.evaluate(() => {
+  const productionReport = await page.evaluate(async () => {
     const showId = location.hash.split('/').pop();
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const shows = loadShows() as unknown as {
       id: string;
       graphics: { name: string; template: { css: string } }[];
     }[];

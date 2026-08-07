@@ -55,3 +55,44 @@ export async function freeStorage(page: Page): Promise<void> {
     (window as unknown as Record<string, unknown>)[flag] = false;
   }, FLAG);
 }
+
+/**
+ * What is ACTUALLY ON DISK for a durable key - read straight out of IndexedDB, past the app
+ * entirely.
+ *
+ * A spec that is about to reload must wait on THIS, not on `loadProject()`. The model reads the
+ * durable store's synchronous mirror, which holds a write from the instant it is accepted, while
+ * the database has it a moment later - so polling the model proves the app knows, never that a
+ * fresh session would. That gap cost a real failure: `ai.spec.ts` watched the autosave slot fill,
+ * reloaded, and got the first-visit wizard over an empty studio.
+ *
+ * Going through the raw database rather than a module export also sidesteps the ghost-instance
+ * trap: a dynamic import in an evaluate can resolve a SECOND, unhydrated copy of the store
+ * (AGENTS.md "Verifying changes" gotchas), whose answer would be an empty and very convincing lie.
+ */
+export async function durableValue(page: Page, key: string): Promise<string | null> {
+  return page.evaluate(
+    (k) =>
+      new Promise<string | null>((resolve) => {
+        let request: IDBOpenDBRequest;
+        try {
+          request = indexedDB.open('noacg-studio', 1);
+        } catch {
+          resolve(null);
+          return;
+        }
+        request.onerror = () => resolve(null);
+        request.onsuccess = () => {
+          const db = request.result;
+          try {
+            const get = db.transaction('kv', 'readonly').objectStore('kv').get(k);
+            get.onsuccess = () => resolve(typeof get.result === 'string' ? get.result : null);
+            get.onerror = () => resolve(null);
+          } catch {
+            resolve(null); // no store yet - nothing has been written
+          }
+        };
+      }),
+    key,
+  );
+}
