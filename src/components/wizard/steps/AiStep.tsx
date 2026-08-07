@@ -261,6 +261,14 @@ export default function AiStep({
   const liteMode = tier === 'lite';
   const proMode = tier === 'pro';
   const liteActive = liteMode && Boolean(liteStatus?.available);
+
+  /* The one-line read-back beside the ⚙ button (re-design/handoff.md §3a): which tier is
+     running and, on the tier where models are the user's own, what it will call. A managed
+     tier deliberately names no model — that is the point of it. */
+  const settingsSummary =
+    tier === 'lite' ? 'NoaCG Lite · included'
+    : tier === 'pro' ? 'NoaCG Pro · image-guided'
+    : [settings.provider, settings.model].filter(Boolean).join(' · ');
   // Pro's standard routes ride OpenRouter; without a key there the flow runs the
   // deterministic offline stub (and says so), exactly like the custom tier's stub provider.
   const proRemote = settings.configuredProviders.includes('openrouter');
@@ -273,10 +281,13 @@ export default function AiStep({
   // configured needs the setup in front of them, a Lite visitor does not.
   const [showSettings, setShowSettings] = useState(false);
   const settingsAutoOpened = useRef(false);
+
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
     settingsAutoOpened.current = true;
-    if (!liteStatus?.enabled && loadAiSettings().tier !== 'pro' && !aiConfigured()) setShowSettings(true);
+    if (!liteStatus?.enabled && loadAiSettings().tier !== 'pro' && !aiConfigured()) {
+      setShowSettings(true);
+    }
   }, [liteStatus]);
   const [prompt, setPrompt] = useState('');
   // ONE list of uploads, each carrying what it is FOR (model/imagePurpose.ts). The step used
@@ -1300,7 +1311,6 @@ export default function AiStep({
               >
                 <input
                   type="checkbox"
-                  style={{ width: 'auto' }}
                   checked={settings.useHarness}
                   onChange={(e) => saveSetting({ useHarness: e.target.checked })}
                   disabled={!!busy}
@@ -1318,8 +1328,16 @@ export default function AiStep({
               </button>
             )}
             {/* Always offered: the settings panel is where the execution TIER is chosen,
-                so a Lite or Pro user has to be able to reach it too. */}
-            <button onClick={() => setShowSettings((s) => !s)}>⚙ AI settings</button>
+                so a Lite or Pro user has to be able to reach it too. The button carries a
+                one-line read-back of what is configured (handoff §3a), so the common case
+                needs no click at all. */}
+            <div className="ai-settings-host">
+              <button onClick={() => setShowSettings((s) => !s)} aria-expanded={showSettings}>
+                ⚙ AI settings
+              </button>
+              {/* What it currently resolves to, so the common case needs no click at all. */}
+              <span className="ai-settings-summary">{settingsSummary}</span>
+            </div>
           </div>
 
           {/* What a run like this has cost lately. Shown only once this browser has done
@@ -1358,8 +1376,14 @@ export default function AiStep({
           )}
 
           {showSettings && (
-            <div className="panel-section" style={{ marginTop: 10 }} data-testid="ai-settings">
-              <h3>AI settings</h3>
+            <div
+              className="panel-section ai-settings-sheet"
+              data-testid="ai-settings"
+            >
+              <div className="wz-header ai-settings-head">
+                <h2>AI settings</h2>
+                <button className="gallery-close" onClick={() => setShowSettings(false)} title="Close">✕</button>
+              </div>
               {/* THE EXECUTION TIER. Lite and Pro are managed experiences of this same
                   creation workflow — no model picking; Custom is the deliberate advanced
                   route where provider, key, and models are the user's own. */}
@@ -1412,6 +1436,7 @@ export default function AiStep({
               )}
             </div>
           )}
+
 
           {busy && <p className="hint" style={{ marginTop: 10 }}>⏳ {busy}</p>}
           {error && <p className="status-bad" style={{ marginTop: 10 }}>✗ {error}</p>}

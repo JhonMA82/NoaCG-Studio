@@ -810,6 +810,41 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
    overlay on it would misreport what was chosen. */
 .ai-swatch.picked { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
 
+/* AI SETTINGS (re-design/handoff.md §3): the button carries a one-line read-back of what is
+   actually configured, so the common case needs no click, and the panel it opens is a
+   bordered SHEET rather than a run of bare rows in the step.
+   NOT the reference's popover, deliberately: this panel opens ITSELF whenever nothing is
+   configured, which is exactly when every other control on the step is live and waiting. A
+   floating sheet there covers the controls it exists to make work — measured, as two Pro
+   specs going red. Making it float needs the step restructured around it, which is behaviour
+   this session does not own. */
+.ai-settings-host { display: inline-flex; align-items: center; gap: 10px; }
+.ai-settings-summary {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+.ai-settings-sheet {
+  width: min(560px, 100%);
+  margin-top: 12px;
+  padding: 0 16px 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--hairline-2);
+  border-radius: 6px;
+}
+/* Its header follows the same rule as every dialog's: title, spacer, 32px ✕, hard right. */
+.ai-settings-head {
+  margin: 0 -16px 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.ai-settings-head h2 { font-size: 14px; }
+
 /* The AI execution-tier picker (AI settings): Lite / Pro / Custom as radio cards. */
 .ai-tier { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .ai-tier-option {
