@@ -95,6 +95,15 @@ const MAP = [
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
   [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts']],
+  // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
+  // above, because they are the same surface from the other side: those specs drive the Export
+  // panel, so they are what renders these components at all. Unmapped, each of them escalated a
+  // one-component edit to the whole suite - measured 2026-08-07, when a comment fix in
+  // PlayoutCompatibility.tsx ran 759 specs to prove nothing.
+  // NOTE: no spec asserts the compatibility panel's CONTENT yet (its `playout-compat` testids
+  // are unused). These specs mount it, so a crash or a render fault is caught; a wrong VERDICT
+  // is not. That gap wants a spec, not a wider mapping.
+  [/^src\/components\/(ExportSurface|PlayoutCompatibility)/, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
   [/^src\/components\/auth\//, ['auth.spec.ts', 'sync.spec.ts']],
   [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts']],
   [/^src\/community\//, ['community.spec.ts']],
@@ -199,9 +208,21 @@ const CORE = [
 // break a spec, they decide WHICH specs run. Left ignored, the one change guaranteed to go
 // unverified is a change to the thing that chooses the verification - a mistake in this file
 // reports `mode: none`, the gate goes green, and nothing ran. Covering them costs one focus run.
+// `.github/` is CI configuration. No spec can observe it: Playwright drives a local dev server
+// and never reads a workflow file, so running one spec - let alone all 103 - proves exactly
+// nothing about a change to it. Its real gate is `scripts/check-workflows.mjs`, which validates
+// every workflow against the GitHub Actions schema and runs FIRST in `npm run build`.
+//
+// The one entry that looks like an exception is not one. `ci.yml` sets `E2E_SPRINT_FOCUS=1`, so
+// it decides WHICH specs run - the same category as `e2e-affected`/`e2e-lists`, which are
+// deliberately NOT ignored above. The difference is that escalating cannot catch the fault:
+// running the full suite locally tells you nothing about whether a workflow's env block is
+// right. Nothing is given up by ignoring it, because nothing was being gained. Measured
+// 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
+// 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
   'renderDevPlugin|aiDevPlugin|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
-const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/];
+const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
