@@ -186,6 +186,37 @@ something can act on it.
 with zero rule codes while three of six frames carried the defect. Round B names 11 of 18. The
 gate is the deliverable; the metadata correction is true and inert.
 
+## 1b. Round C, and the number that measured nothing
+
+A third round (`v5-ratio-ceiling`, 18 generations, $0.0052) tested the fix §1a pointed at:
+`applyDesignAdjustments` may no longer enlarge the supporting line past the size its design
+authored. Verified deterministically first, across all six chassis - at `scaleRatio: 1.2`, which
+previously produced 45-48px, every design now emits its authored size, so **no chassis can be
+enlarged at all**.
+
+The round then reported machine-usable **7/18 → 17/18** and wrapped identity lines **11 → 0**.
+
+**That second number is worthless, and it is worth writing down why.** `bench-line-wrap` moved
+from error to warning between round B and round C, and `scripts/ai-lite-eval.mjs` recorded
+`ruleCodes` from `validation.errors` ONLY. So round B counted the findings and round C stopped
+counting them. Nothing in the artifacts said so - the count simply went to zero, in exactly the
+direction the change was hoping for.
+
+It was caught by opening a frame. Round C's `long-name` is lt25, reported clean, and its role is
+plainly on two lines. Reproducing that decision directly through `compileLiteDecision` raises
+**two** `bench-line-wrap` findings. So:
+
+- **The ratio ceiling is verified to do what it says** (no design can be enlarged) and is NOT
+  verified to remove wraps. A 47-character role on lt25's 47-character capacity still wraps.
+- **Round C's true wrap count is unknown** and cannot be recovered from its artifacts.
+- `warningCodes` is now recorded beside `ruleCodes`, so the next round can be read at all.
+
+The lesson generalises past this instrument: **changing a finding's SEVERITY changes what the
+instrument counts, and a metric that reads errors will report the change as an improvement.**
+Round A had already shown the mirror image - 18/18 machine-usable with zero rule codes while
+three of six frames carried the defect. Both times the artifacts agreed with each other and
+disagreed with the picture, and both times only a rendered frame settled it.
+
 ### A hazard the round did not trigger, stated as a hazard
 
 `designAdjust.ts` derives the supporting line's size as `clamp(namePx / ratio, 14, …)` - a
@@ -350,13 +381,17 @@ Each step is free unless marked, and each is independently landable.
    the same 20px floor the catalog is. Deliberately NOT in `runtimeBench` - a user who chooses
    graphic size S is not making an error, so this is a generation-quality rule, not an export
    gate.
-4. **Close the schema gaps.** `typography.scaleRatio` now carries `minimum`/`maximum` matching
-   the code clamp (landed with §1a). What is NOT done, and is now the highest-value item on this
-   list: the low end of that range is legal and is what produces the wraps, so the open question
-   is whether a supporting line may be sized at 0.92x the name at all on a two-line strap, or
-   whether the range should start nearer 1.6. That is a measurable question - re-run the A/B with
-   the range narrowed and read the wrap count. `designAdjust`'s 14px floor still needs to become
-   the category floor.
+4. **Close the schema gaps.** DONE: `typography.scaleRatio` carries `minimum`/`maximum` in both
+   schemas, and the supporting line can no longer be enlarged past its authored size (§1b).
+   **What is left is the part the rounds have not answered** - a role longer than the chassis
+   holds still wraps, because the capacity is genuinely spent (§1a: the 806px cap, and no shrink
+   headroom at the 20px floor). The remaining levers are the design's own tracked uppercase and
+   its tracking, which are catalog work rather than AI work. `designAdjust`'s 14px floor still
+   needs to become the category floor.
+
+   **Before the next round, re-read the instrument.** `warningCodes` now records what
+   `ruleCodes` does not; a round run before that is not comparable on any warning-severity
+   finding.
 5. **Retire the two dead axes.** Fold Lite onto `keepChassisZone` and delete the two zone
    prompt lines; drop `animation.presetId` from the Lite schema. Both are measured dead, and
    both shorten a prompt whose length is itself a measured hazard.

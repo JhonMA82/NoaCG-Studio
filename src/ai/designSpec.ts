@@ -187,7 +187,18 @@ const SPEC_INPUT_SCHEMA: Record<string, unknown> = {
         type: 'object',
         additionalProperties: false,
         properties: {
-          scaleRatio: { type: 'number', description: 'Heading:body size ratio, ~1.4 quiet … ~2.4 dramatic.' },
+          // Bounded to what the compile clamps to, because a description is not a constraint.
+          // The old wording also had the scale backwards: measured across the six audited lower
+          // thirds, the designs themselves author 2.0-2.85, so a LOW ratio is the dramatic one -
+          // it enlarges the body line toward the heading. `applyDesignAdjustments` now caps that
+          // at the size the design authored (docs/AI_LITE_PLAN.md §1a).
+          scaleRatio: {
+            type: 'number',
+            minimum: 1.2,
+            maximum: 2.6,
+            description: 'Heading:body size ratio. The catalog authors 2.0-2.85; lower tightens the '
+              + 'gap, and the body line is never enlarged past the size its design authored.',
+          },
           headingWeight: { type: 'string', enum: ['regular', 'semibold', 'bold', 'black'] },
           kickerCase: { type: 'string', enum: ['caps', 'as-written'] },
           tracking: { type: 'string', enum: ['tight', 'normal', 'wide'] },

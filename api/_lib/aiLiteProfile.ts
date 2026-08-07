@@ -140,11 +140,14 @@ export function liteProfile(): LiteProfile {
     // v3: the strap contract restated as shape rather than prohibition (see skinPromptLines).
     // v4: the catalog digest states the supporting line's MEASURED character capacity instead
     //     of an adjective that ranked the designs backwards, and the capacity clause names it.
+    // v5: typography.scaleRatio carries the bounds its compile clamps to, and the supporting
+    //     line can no longer be enlarged past the size its design authored - measured as the
+    //     cause of eleven wrapped identity lines in eighteen (docs/AI_LITE_PLAN.md §1a).
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v4').trim().slice(0, 64) || 'lite-lower-third-v4',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v5').trim().slice(0, 64) || 'lite-lower-third-v5',
     primary,
     fallback,
     prices,
