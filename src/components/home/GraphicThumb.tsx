@@ -64,6 +64,7 @@ export default function GraphicThumb({
   values,
   label,
   fixedBox = false,
+  fill = false,
 }: {
   template: SpxTemplate;
   /** Field values to show (an entry's row); anything missing falls back to the definition default. */
@@ -71,6 +72,10 @@ export default function GraphicThumb({
   label: string;
   /** Fixed 16:9 box (uniform library rows) instead of following the template's aspect. */
   fixedBox?: boolean;
+  /** CARD mode: a 16:9 box the caller's width decides. The framing math needs real pixels,
+   *  so the box measures itself rather than being told — a card in an `auto-fill` grid has
+   *  no width anyone here can know. */
+  fill?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -79,9 +84,24 @@ export default function GraphicThumb({
 
   const [box, setBox] = useState<GraphicBox | null>(null);
 
-  const boxW = fixedBox ? (compact ? FIXED_W_COMPACT : FIXED_W) : compact ? THUMB_W_COMPACT : THUMB_W;
+  // In `fill` mode the box's width comes from the layout, so it is MEASURED. 240 is only the
+  // first-paint guess; the observer below corrects it before the iframe is framed.
+  const [measured, setMeasured] = useState(240);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!fill || !el || typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(() => setMeasured(el.clientWidth || 240));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fill]);
+
+  const boxW = fill
+    ? measured
+    : fixedBox ? (compact ? FIXED_W_COMPACT : FIXED_W) : compact ? THUMB_W_COMPACT : THUMB_W;
   const { width, height } = template.resolution;
-  const boxH = fixedBox ? (compact ? FIXED_H_COMPACT : FIXED_H) : Math.round(boxW * (height / width));
+  const boxH = fill || fixedBox
+    ? (fill ? Math.round(boxW * 9 / 16) : compact ? FIXED_H_COMPACT : FIXED_H)
+    : Math.round(boxW * (height / width));
 
   // Mount the iframe only when the card reaches the viewport — a library of a hundred graphics
   // must not parse a hundred copies of GSAP to show the eight rows a user can actually see.
@@ -140,7 +160,7 @@ export default function GraphicThumb({
     <div
       ref={boxRef}
       className="gfx-thumb"
-      style={{ width: boxW, height: boxH }}
+      style={fill ? { width: '100%', aspectRatio: '16 / 9' } : { width: boxW, height: boxH }}
       data-testid="graphic-thumb"
       aria-hidden="true"
     >

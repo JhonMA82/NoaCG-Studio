@@ -88,6 +88,12 @@ export default function HomePage({ route }: { route: Route }) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const filtered = q ? graphics.filter((g) => g.name.toLowerCase().includes(q)) : graphics;
+  const sectionCounts: Record<Section, number> = {
+    productions: productions.length,
+    graphics: graphics.length,
+    videos: videos.length,
+    looks: looks.length,
+  };
 
   // Community publishing: only surfaces with a configured backend AND a signed-in account —
   // the offline app grows zero community UI.
@@ -191,7 +197,12 @@ export default function HomePage({ route }: { route: Route }) {
               onClick={() => navigate({ view: 'home', section: s.id })}
               data-testid={`home-nav-${s.id}`}
             >
-              <span aria-hidden="true">{s.icon}</span> {s.label}
+              <span aria-hidden="true">{s.icon}</span>
+              <span className="home-nav-label">{s.label}</span>
+              {/* How much is in there, read from the live lists — the question "do I have
+                  any productions yet" is answered in the nav rather than by visiting it
+                  (re-design/handoff.md §5). */}
+              <span className="home-nav-count">{sectionCounts[s.id]}</span>
             </button>
           ))}
         </nav>

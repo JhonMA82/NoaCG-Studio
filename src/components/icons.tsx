@@ -65,6 +65,15 @@ export function IconGrid(props: IconProps) {
   );
 }
 
+/** The library's dense table view — the ▦/☰ toggle's other half. */
+export function IconList(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Svg>
+  );
+}
+
 /** Video projects. */
 export function IconFilm(props: IconProps) {
   return (

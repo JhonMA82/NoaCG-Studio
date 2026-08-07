@@ -8,8 +8,9 @@ import {
 } from '../../../model/library';
 import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../../model/shows';
 import { raiseStorageAlert } from '../../../store/storageAlert';
+import { loadPrefs, savePrefs } from '../../../model/prefs';
 import GraphicRow from '../GraphicRow';
-import { IconFolder, IconPlus, IconTrash, IconTv } from '../../icons';
+import { IconFolder, IconGrid, IconList, IconPlus, IconTrash, IconTv } from '../../icons';
 
 /**
  * The full Graphics section (docs/SAVED_CONTENT_MODEL.md): the flat library with the two
@@ -36,6 +37,13 @@ export default function GraphicsSection({
   onPublish?: (g: GraphicDoc) => void;
 }) {
   const navigate = useRouter((s) => s.navigate);
+  // Cards or table. Device-level and remembered (model/prefs.ts) — which one is right
+  // depends on the library's size and the screen, so it is a setting, not a session state.
+  const [view, setViewState] = useState<'grid' | 'list'>(() => loadPrefs().libraryView);
+  const setView = (next: 'grid' | 'list') => {
+    setViewState(next);
+    savePrefs({ libraryView: next });
+  };
   /** null = All; '' = the virtual Unfiled chip; a name = that folder. */
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
   // `graphics` is the refresh signal, not an input: graphicFolders() reads the model layer
@@ -170,6 +178,33 @@ export default function GraphicsSection({
 
   return (
     <>
+      {/* GRID or LIST (re-design/handoff.md §5b/§5c). The toggle swaps only the item
+          container — chrome, selection, folders and the bulk bar are identical either way,
+          which is what keeps this a view preference rather than a second screen. */}
+      <div className="lib-viewbar">
+        <div className="spacer" />
+        <div className="lib-viewtoggle" role="group" aria-label="Library view">
+          <button
+            className={view === 'grid' ? 'active' : ''}
+            aria-pressed={view === 'grid'}
+            onClick={() => setView('grid')}
+            title="Cards"
+            data-testid="library-view-grid"
+          >
+            <IconGrid />
+          </button>
+          <button
+            className={view === 'list' ? 'active' : ''}
+            aria-pressed={view === 'list'}
+            onClick={() => setView('list')}
+            title="List"
+            data-testid="library-view-list"
+          >
+            <IconList />
+          </button>
+        </div>
+      </div>
+
       {/* Folder chips, derived from the data — an emptied folder disappears by itself. The
           Unfiled chip appears only when folders exist at all (until then it IS "All"). */}
       {folders.length > 0 && (
@@ -316,17 +351,25 @@ export default function GraphicsSection({
         </div>
       )}
 
-      {listed.map((g, i) => (
-        <GraphicRow
-          key={g.id}
-          g={g}
-          onOpen={onOpen}
-          onChanged={onChanged}
-          onPublish={onPublish}
-          selected={selected.has(g.id)}
-          onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
-        />
-      ))}
+      {/* Clicking the empty space around the items clears the selection — the third gesture
+          of the selection model, and the one that makes the other two safe to try. */}
+      <div
+        className={view === 'grid' ? 'lib-grid' : 'lib-list'}
+        onClick={(e) => { if (e.target === e.currentTarget) clearSelection(); }}
+      >
+        {listed.map((g, i) => (
+          <GraphicRow
+            key={g.id}
+            g={g}
+            view={view}
+            onOpen={onOpen}
+            onChanged={onChanged}
+            onPublish={onPublish}
+            selected={selected.has(g.id)}
+            onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
+          />
+        ))}
+      </div>
     </>
   );
 }

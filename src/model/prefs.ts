@@ -20,6 +20,10 @@ export interface UserPrefs {
    *  reachable only by a direct #/graphic link. Device-level on purpose - it is a UI
    *  complexity preference, not project data. Read live via components/useAdvancedMode. */
   advancedMode: boolean;
+  /** How the graphics library is laid out: cards you can SEE, or a dense table you can scan.
+   *  Per device and remembered, because which one is right depends on the library's size and
+   *  on the screen, not on the graphic (re-design/handoff.md §5b/§5c). */
+  libraryView: 'grid' | 'list';
 }
 
 const DEFAULTS: UserPrefs = {
@@ -28,6 +32,9 @@ const DEFAULTS: UserPrefs = {
   renderSettings: null,
   commentVisibility: 'normal',
   advancedMode: false,
+  // Grid by default: a graphic is a picture, and the thing that identifies it is what it
+  // looks like, not its name.
+  libraryView: 'grid',
 };
 
 export function loadPrefs(): UserPrefs {

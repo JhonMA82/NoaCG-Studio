@@ -409,10 +409,16 @@ test('a Home card frames on the GRAPHIC, at both card sizes, without cropping it
   expect(wide.spill).toBeLessThan(4);
   expect(wide.centred).toBeLessThan(4);
 
-  // The compact card (phone) shrinks the box and the framing follows — the same graphic, smaller,
-  // still framed rather than cropped or left as a speck.
+  // The compact card (phone, LIST view) shrinks the box and the framing follows — the same
+  // graphic, smaller, still framed rather than cropped or left as a speck.
+  //
+  // The view toggle is part of the walk now: the library's default is the CARD grid, where a
+  // phone gets ONE column and the thumbnail is therefore BIGGER than the dashboard's, not
+  // smaller. The list view is where the compact fixed box lives, so that is where the
+  // shrink-and-reframe behaviour this test is about can be observed at all.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('home-nav-graphics').click();
+  await page.getByTestId('library-view-list').click();
   await expect(card).toBeVisible();
   await expect.poll(async () => (await framing()).cardW).toBeLessThan(wide.cardW);
   // Poll the value actually being asserted, exactly as the wide case above does. Resizing the

@@ -29,6 +29,7 @@ export default function GraphicRow({
   onPublish,
   selected,
   onToggleSelect,
+  view = 'list',
 }: {
   g: GraphicDoc;
   onOpen: (g: GraphicDoc) => void;
@@ -39,6 +40,9 @@ export default function GraphicRow({
    *  shift-click range logic lives with the LIST, which knows the visible order. */
   selected?: boolean;
   onToggleSelect?: (shiftKey: boolean) => void;
+  /** Card ('grid') or table row ('list') — the same item, two containers, one behaviour
+   *  (re-design/handoff.md §5b/§5c). Defaults to the row every other section renders. */
+  view?: 'grid' | 'list';
 }) {
   const navigate = useRouter((s) => s.navigate);
   const openExport = useExportUi((s) => s.openExport);
@@ -151,23 +155,42 @@ export default function GraphicRow({
 
   return (
     <div
-      className={`lib-row${onToggleSelect ? ' selectable' : ''}${selected ? ' selected' : ''}`}
+      className={`lib-row lib-row--${view}${onToggleSelect ? ' selectable' : ''}${selected ? ' selected' : ''}`}
       data-testid={`graphic-row-${g.id}`}
+      // Clicking the item selects it, the way a file manager does — but only on the item's
+      // own background, never through a control inside it. The pip and the row are the same
+      // gesture, so shift-click ranges work from either.
+      onClick={(e) => {
+        if (!onToggleSelect) return;
+        if ((e.target as HTMLElement).closest('button, input, a')) return;
+        onToggleSelect(e.shiftKey);
+      }}
     >
       {onToggleSelect && (
-        <input
-          type="checkbox"
+        // A PIP, not a checkbox (re-design/handoff.md §5). A library of graphics is picked
+        // from the way files are: the row is the target and the mark reports the state. A
+        // column of tick boxes puts a permanent control beside every row for an action most
+        // visits never take. It stays a real button — keyboard-reachable, and the thing a
+        // shift-click lands on — so range selection works exactly as before.
+        <button
           className="lib-select"
-          checked={!!selected}
-          // onClick, not onChange: shiftKey has to ride along for range selection.
+          aria-pressed={!!selected}
           onClick={(e) => onToggleSelect(e.shiftKey)}
-          onChange={() => {}}
           title="Select (Shift-click selects a range)"
           aria-label={`Select ${g.name}`}
           data-testid="select-graphic"
-        />
+        >
+          <span aria-hidden="true">✓</span>
+        </button>
       )}
-      <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fixedBox />
+      {/* A card's thumbnail fills its width; a row's is the grid's fixed 168px cell. */}
+      <GraphicThumb
+        template={g.template}
+        values={activeValues(g)}
+        label={g.name}
+        fixedBox={view === 'list'}
+        fill={view === 'grid'}
+      />
       <div className="lib-info">
         {renaming ? (
           <input
