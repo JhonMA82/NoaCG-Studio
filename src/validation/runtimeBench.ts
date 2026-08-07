@@ -41,6 +41,16 @@ export interface RuntimeBenchOptions {
    * clip checks below both pass it; the panel simply grows downward.
    */
   singleLineFields?: readonly string[];
+  /**
+   * Smallest font size, in CSS pixels at 1920x1080, that a text-bearing FIELD may render at.
+   *
+   * Off unless a caller names one, because a hand-written template may set any size it likes.
+   * It matters on the AI path for a reason no other gate covers: scripts/type-floor.mjs
+   * certifies every catalog design AS AUTHORED, and `designAdjust` then rewrites those exact
+   * font sizes afterwards - so the certified number is not the number that reaches air. This
+   * measures the ADJUSTED, rendered result (src/validation/typeFloor.ts).
+   */
+  typeFloorPx?: number;
 }
 
 /** Merge validation results: errors and warnings concatenate, ok = no errors anywhere. */
@@ -745,6 +755,35 @@ export async function benchTemplateRuntime(
             `Field ${field} carries identity (a name, role, organization or location) and wrapped ` +
               `onto ${lines} lines at its own sample values - the graphic stops reading as a strap. ` +
               `Choose a chassis whose stated character capacity holds this copy, or shorten it.`,
+          ),
+        );
+      }
+    }
+
+    // ── Text is big enough to read on air ───────────────────────────────────────────
+    // Measured at the same settled, pre-play moment as the wrap check above, and for the same
+    // reason: an entrance that scales its own lines would report a size nobody ever sees.
+    //
+    // Scoped to FIELDS, not to every text node. A field is operator-facing copy that must be
+    // legible at broadcast distance; a design's own decorative micro-label is a deliberate
+    // authored choice the catalog gate already passed. Widening this to all text would flag
+    // designs that are correct.
+    if (opts.typeFloorPx) {
+      for (const field of template.fields) {
+        const el = doc.getElementById(field.field);
+        if (!el || !(el.textContent ?? '').trim()) continue;
+        const cs = win.getComputedStyle(el);
+        // Hidden holders carry values, not type - an input-only field (a countdown duration)
+        // legitimately renders at whatever size, because it renders nowhere.
+        if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+        const px = parseFloat(cs.fontSize);
+        if (!px || px >= opts.typeFloorPx) continue;
+        warnings.push(
+          issue(
+            'bench-type-floor',
+            `Field ${field.field} renders at ${Math.round(px)}px, under the ${opts.typeFloorPx}px `
+              + `floor for this category - it is too small to read on air at broadcast distance. `
+              + `The design was authored above the floor; a size adjustment took it below.`,
           ),
         );
       }

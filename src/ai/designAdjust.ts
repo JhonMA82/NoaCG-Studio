@@ -11,6 +11,7 @@
 // The pinned contracts (:root vars, auto-fit caps, zones, the ANIMATION region) are never
 // touched; adjusted output must still pass the runtime bench (pinned in e2e/bench.spec.ts).
 
+import { typeFloorFor } from '../validation/typeFloor';
 import type { SpxTemplate } from '../model/types';
 import { detectPrefix } from '../model/structure';
 import type { DesignSpec } from './designSpec';
@@ -98,7 +99,16 @@ export function applyDesignAdjustments(template: SpxTemplate, spec: DesignSpec):
     if (namePx) {
       const ratio = clamp(t.scaleRatio, 1.2, 2.6);
       const ceiling = Math.min(namePx * 0.92, authoredTitlePx ?? namePx * 0.92);
-      const titlePx = Math.round(clamp(namePx / ratio, 14, ceiling));
+      // The floor is the CATEGORY's, not a hard 14. A lower third answers to 20px
+      // (src/validation/typeFloor.ts), and 14 let this adjustment take a supporting line six
+      // points under the number scripts/type-floor.mjs certifies every shipped design against -
+      // silently, because that gate measures the design AS AUTHORED and this runs afterwards.
+      //
+      // `ceiling` can legitimately sit below the floor on a small design; Math.min keeps the
+      // clamp well-formed there and the live bench reports the result either way, so an
+      // impossible request surfaces as a finding rather than as a backwards clamp.
+      const floor = Math.min(typeFloorFor(spec.category), ceiling);
+      const titlePx = Math.round(clamp(namePx / ratio, floor, ceiling));
       push(`.${prefix}-title`, `heading:body ratio ${ratio}`, [`font-size: calc(${titlePx}px * var(--scale))`]);
     }
   }

@@ -13,6 +13,7 @@
 //
 // The floor is measured on COMPUTED font-size with --scale and --type-scale at their defaults,
 // so it is the real rendered size, not the authored literal.
+import { readFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
@@ -24,7 +25,20 @@ import { devPort } from './dev-port.mjs';
  * both compression and a phone-sized viewport. Corner bugs are the one honest exception:
  * a persistent station mark is small by construction, so it gets 16, which still reads.
  */
-const FLOOR = { 'corner-bug': 16, default: 20 };
+// The floors come from src/validation/typeFloor.ts, read through the dev server this script
+// already drives, so this gate and the live bench that re-measures the ADJUSTED result cannot
+// hold two different numbers. Parsed rather than imported because this is .mjs and that is .ts:
+// one regex over one tiny declaration, and it fails loudly if the shape ever moves.
+const FLOOR = (() => {
+  const source = readFileSync(new URL('../src/validation/typeFloor.ts', import.meta.url), 'utf8');
+  const body = source.match(/TYPE_FLOOR_PX[^=]*=s*{([^}]*)}/)?.[1];
+  const table = {};
+  for (const [, key, value] of (body ?? '').matchAll(/'?([a-z-]+)'?s*:s*(d+)/g)) table[key] = Number(value);
+  if (!table.default) {
+    throw new Error('could not read TYPE_FLOOR_PX from src/validation/typeFloor.ts - has its shape changed?');
+  }
+  return table;
+})();
 const floorFor = (cat) => FLOOR[cat] ?? FLOOR.default;
 
 /**

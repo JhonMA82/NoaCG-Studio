@@ -23,6 +23,7 @@ import type { SpxTemplate } from '../model/types';
 import { ltc01 } from '../templates/lowerThirds/skinCanvas';
 import type { ValidationResult } from '../validation/validateTemplate';
 import { validateTemplate } from '../validation/validateTemplate';
+import { typeFloorFor } from '../validation/typeFloor';
 import { benchTemplateRuntime, mergeResults } from '../validation/runtimeBench';
 
 export interface GroundedAssembly {
@@ -67,9 +68,15 @@ export function productionSpxValidator(
   /** Field ids that carry IDENTITY and must not wrap - see `singleLineIdentityFields`. Empty
    *  for every caller that has no spec to read roles from, which is today's behaviour exactly. */
   singleLineFields: readonly string[] = [],
+  /** Category whose type floor the RENDERED result is held to. Null keeps today's behaviour
+   *  for every caller that has no category to read - the floor is opt-in, like the wrap check. */
+  typeFloorCategory: string | null = null,
 ): SpxValidator {
   const base: SpxValidator = async (t) =>
-    mergeResults(validateTemplate(t), await benchTemplateRuntime(t, { singleLineFields }));
+    mergeResults(validateTemplate(t), await benchTemplateRuntime(t, {
+      singleLineFields,
+      ...(typeFloorCategory ? { typeFloorPx: typeFloorFor(typeFloorCategory) } : {}),
+    }));
   const safe = withSafetyChecks(base, source ?? null);
   if (!protectedAssets.length) return safe;
   return async (t) => mergeAssetIntegrity(await safe(t), t, protectedAssets);
@@ -210,7 +217,7 @@ export async function compileLiteDecision(
   }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx);
   const validation = demoteSpecFields(
-    await productionSpxValidator(null, [], singleLineIdentityFields(spec, template))(template),
+    await productionSpxValidator(null, [], singleLineIdentityFields(spec, template), spec.category ?? null)(template),
   );
   return {
     spec, template, validation, diversity,
