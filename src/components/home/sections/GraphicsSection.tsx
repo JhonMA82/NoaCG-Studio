@@ -132,13 +132,27 @@ export default function GraphicsSection({
     onChanged();
   };
 
-  const moveTo = (folder: string | undefined) => {
-    const error = setGraphicsFolder(ids(), folder);
-    setNote(error ?? `✓ Moved ${selectedListed.length} to ${folder ? `"${folder}"` : 'Unfiled'}.`);
+  /** Every folder write goes through here. The durable store ACCEPTS a write and confirms it a
+   *  moment later (model/durableStore.ts), so the synchronous answer means accepted, not
+   *  landed — and each of these verbs then tells the user what happened. */
+  const claim = async (action: string, written: string | null, ok: string) => {
+    const error = written ?? (await commitDurableWrites());
+    if (error) raiseStorageAlert({ action, error, outcome: 'Your graphics are unchanged in the library.' });
+    else setNote(ok);
+    onChanged();
+  };
+
+  const moveTo = async (folder: string | undefined) => {
+    const count = selectedListed.length;
+    const written = setGraphicsFolder(ids(), folder);
     setFolderOpen(false);
     setNewFolder('');
     clearSelection();
-    onChanged();
+    await claim(
+      `Moving ${count} graphics to ${folder ? `“${folder}”` : 'Unfiled'}`,
+      written,
+      `✓ Moved ${count} to ${folder ? `"${folder}"` : 'Unfiled'}.`,
+    );
   };
 
   // ── The FOLDERS band's own verbs (grid view). Every one of them is setGraphicsFolder over
@@ -150,23 +164,25 @@ export default function GraphicsSection({
 
   const idsIn = (folder: string) => graphics.filter((g) => g.folder === folder).map((g) => g.id);
 
-  const commitFolderRename = (from: string) => {
+  const commitFolderRename = async (from: string) => {
     const to = folderName.trim();
     setRenamingFolder(null);
     if (!to || to === from) return;
-    const error = setGraphicsFolder(idsIn(from), to);
+    const written = setGraphicsFolder(idsIn(from), to);
     setDraftFolders((d) => d.map((f) => (f === from ? to : f)));
     if (folderFilter === from) setFolderFilter(to);
-    if (error) setNote(error);
-    onChanged();
+    await claim(`Renaming the folder “${from}”`, written, `✓ Renamed "${from}" to "${to}".`);
   };
 
-  const removeFolder = (folder: string) => {
-    const error = setGraphicsFolder(idsIn(folder), undefined);
+  const removeFolder = async (folder: string) => {
+    const written = setGraphicsFolder(idsIn(folder), undefined);
     setDraftFolders((d) => d.filter((f) => f !== folder));
     if (folderFilter === folder) setFolderFilter(null);
-    setNote(error ?? `✓ Removed the folder "${folder}". Its graphics are unfiled, not deleted.`);
-    onChanged();
+    await claim(
+      `Removing the folder “${folder}”`,
+      written,
+      `✓ Removed the folder "${folder}". Its graphics are unfiled, not deleted.`,
+    );
   };
 
   const commitNewFolder = () => {
@@ -175,23 +191,26 @@ export default function GraphicsSection({
     setNewFolder('');
     if (!name) return;
     // With a selection standing, naming a folder is the same gesture as filing into it.
-    if (selectedListed.length > 0) moveTo(name);
+    if (selectedListed.length > 0) void moveTo(name);
     else setDraftFolders((d) => (d.includes(name) ? d : [...d, name]));
   };
 
   /** A graphic dropped on a folder card. Dropping one that is part of the standing selection
    *  moves the WHOLE selection - dragging one of six ticked rows means all six, the way a file
    *  manager does it - and dropping an unticked one moves just that graphic. */
-  const dropInto = (e: DragEvent, folder: string) => {
+  const dropInto = async (e: DragEvent, folder: string) => {
     e.preventDefault();
     setDropTarget(null);
     const id = e.dataTransfer.getData('application/x-noacg-graphic');
     if (!id) return;
     const moving = selected.has(id) ? ids() : [id];
-    const error = setGraphicsFolder(moving, folder);
-    setNote(error ?? `✓ Moved ${moving.length} to "${folder}".`);
+    const written = setGraphicsFolder(moving, folder);
     clearSelection();
-    onChanged();
+    await claim(
+      `Moving ${moving.length} graphics to “${folder}”`,
+      written,
+      `✓ Moved ${moving.length} to "${folder}".`,
+    );
   };
 
   const folderMenu = (folder: string): RowMenuItem[] => [
@@ -210,7 +229,7 @@ export default function GraphicsSection({
     {
       label: 'Remove folder',
       icon: <IconTrash />,
-      onClick: () => removeFolder(folder),
+      onClick: () => void removeFolder(folder),
       testid: 'remove-folder',
     },
   ];
@@ -319,20 +338,20 @@ export default function GraphicsSection({
                 onClick={() => { setFolderFilter(folderFilter === f ? null : f); clearSelection(); }}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(f); }}
                 onDragLeave={() => setDropTarget((t) => (t === f ? null : t))}
-                onDrop={(e) => dropInto(e, f)}
+                onDrop={(e) => void dropInto(e, f)}
                 data-testid={`folder-card-${f}`}
               >
                 <span className="lib-folder-mark"><IconFolder /></span>
-                <div className="lib-info">
+                <div className="lib-folder-info">
                   {renamingFolder === f ? (
                     <input
                       autoFocus
                       value={folderName}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => setFolderName(e.target.value)}
-                      onBlur={() => commitFolderRename(f)}
+                      onBlur={() => void commitFolderRename(f)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitFolderRename(f);
+                        if (e.key === 'Enter') void commitFolderRename(f);
                         if (e.key === 'Escape') setRenamingFolder(null);
                       }}
                       data-testid="folder-rename-input"
@@ -508,11 +527,11 @@ export default function GraphicsSection({
                 <div className="lib-menu-backdrop" onClick={() => setFolderOpen(false)} />
                 <div className="lib-menu" role="menu" data-testid="bulk-folder-menu">
                   {folders.map((f) => (
-                    <button key={f} role="menuitem" onClick={() => moveTo(f)}>
+                    <button key={f} role="menuitem" onClick={() => void moveTo(f)}>
                       <IconFolder /> {f}
                     </button>
                   ))}
-                  <button role="menuitem" onClick={() => moveTo(undefined)} data-testid="bulk-unfile">
+                  <button role="menuitem" onClick={() => void moveTo(undefined)} data-testid="bulk-unfile">
                     Remove from folder
                   </button>
                   <div className="lib-menu-new">
@@ -521,11 +540,11 @@ export default function GraphicsSection({
                       placeholder="New folder…"
                       onChange={(e) => setNewFolder(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newFolder.trim()) moveTo(newFolder.trim());
+                        if (e.key === 'Enter' && newFolder.trim()) void moveTo(newFolder.trim());
                       }}
                       data-testid="bulk-new-folder-name"
                     />
-                    <button disabled={!newFolder.trim()} onClick={() => moveTo(newFolder.trim())} data-testid="bulk-new-folder">
+                    <button disabled={!newFolder.trim()} onClick={() => void moveTo(newFolder.trim())} data-testid="bulk-new-folder">
                       Move
                     </button>
                   </div>

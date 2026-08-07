@@ -4766,8 +4766,11 @@ h2 + .lib-row,
 .lib-folder-card.active { border-color: var(--accent); background: var(--accent-bg); }
 /* The drop state has to be unmistakable while a graphic is in the air over it. */
 .lib-folder-card.dropping { border-color: var(--accent); background: var(--accent-tint); }
-.lib-folder-card .lib-info strong { font-size: 13px; }
-.lib-folder-card .lib-info .muted { font-size: 11.5px; }
+/* Its OWN class, never `.lib-info`: the phone media query gives that one a grid-area in the
+   ROW layout, which this card does not have — the name jumped to a line of its own there. */
+.lib-folder-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lib-folder-info strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-folder-info .muted { font-size: 11.5px; }
 .lib-folder-mark { display: inline-flex; color: var(--accent); }
 /* The dashed "+ New folder" card: same box, no fill — it is a place, not a thing yet. */
 .lib-folder-new {
@@ -5859,7 +5862,12 @@ h2 + .lib-row,
     grid-template-areas: 'thumb info menu' 'actions actions actions';
   }
   .lib-thead, .lib-cell { display: none; }
+  /* The actions have their own full-width line here, so the table's right-alignment would
+     strand them against the edge with half a row of empty space beside them. */
+  .lib-list .lib-row--list .lib-actions { justify-content: flex-start; }
   .lib-folder-cards { grid-template-columns: 1fr; }
+  /* No drag on a touch screen, so the hint would name a gesture this device does not have. */
+  .lib-band-head .hint { display: none; }
   .lib-row > .gfx-thumb, .lib-row-icon { grid-area: thumb; }
   .lib-info { grid-area: info; }
   .lib-actions { grid-area: actions; flex-wrap: wrap; }
