@@ -536,6 +536,18 @@ for a second way the slug can change under a live renderer.
 > `ENFORCED_FEATURE_KEYS` in the same change as its enforcing call site. Zero Vercel functions
 > were added (api/ stayed at ten entries).
 >
+> **APPLIED to production 2026-08-07** (`supabase db push`, the CLI route, ledger verified before
+> and after; advisors re-recorded — 25 new findings, all in already-accepted classes) and then
+> TESTED against it with the anon key on a throwaway production. That test is the only reason
+> `0036_audience_open_round_fix.sql` exists: opening a round failed at RUNTIME on an ambiguous
+> `closed_at`, with every structural check green. What the live run proves — the join resolve
+> returns the production name, the state, the brand and only THIS device's own submissions, with
+> no show id, no other slug, no answer key and no tally; a join slug is refused as an operator
+> capability and a presenter slug is refused as a join slug; the three tables answer an anon
+> SELECT with nothing; the per-device cap bites on the fourth message inside thirty seconds;
+> `audience_update` refuses `body` and accepts `broadcast_body`; and a second vote from one device
+> REPLACES the first (tally `[0,1,0]`, total 1) while an out-of-range option is refused.
+>
 > **Resolved by the owner while building:** no per-IP caps in v1 — the defence is the device
 > token, the trigger caps and operator approval, and no IP is stored or hashed, because a
 > classroom NATs a whole room behind one address. Change-your-vote, the 500-character question

@@ -1,357 +1,482 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-08-03",
-  "count": 70,
+  "recordedAt": "2026-08-07",
+  "count": 95,
   "entries": {
+    "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_close_round(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_close_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_join_by_slug_p_join_slug text, p_device text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_join_by_slug(p_join_slug text, p_device text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_join_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_list_p_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_list(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_open_round_p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_open_round(p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_open_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_presenter_by_slug(p_presenter_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_presenter_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_rounds_list_p_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_rounds_list(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_rounds_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_set_join_p_slug text, p_patch jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_set_join(p_slug text, p_patch jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_set_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_tally_p_slug text, p_round uuid": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_tally(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_tally`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_update_p_slug text, p_id uuid, p_patch jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_update(p_slug text, p_id uuid, p_patch jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_update`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_output_report_p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_report(p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_report(p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_report`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_output_seen_p_output_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_seen(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_seen(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_seen`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_output_tail_p_output_slug text, p_after bigint": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_tail(p_output_slug text, p_after bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_tail(p_output_slug text, p_after bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_report_p_slug text, p_graphic text, p_data jsonb, p_state jsonb": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_report(p_slug text, p_graphic text, p_data jsonb, p_state jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_report(p_slug text, p_graphic text, p_data jsonb, p_state jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_report`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_send_many_p_slug text, p_items jsonb": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_send_many(p_slug text, p_items jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_send_many(p_slug text, p_items jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_send_many`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_send_p_slug text, p_graphic text, p_msg jsonb": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_send(p_slug text, p_graphic text, p_msg jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_send(p_slug text, p_graphic text, p_msg jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_send`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_show_by_slug_p_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_show_by_slug(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_show_by_slug(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_show_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_stage_p_slug text, p_graphic text, p_data jsonb": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_stage(p_slug text, p_graphic text, p_data jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_stage(p_slug text, p_graphic text, p_data jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_stage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_tail_p_slug text, p_graphic text, p_after bigint": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_tail(p_slug text, p_graphic text, p_after bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_tail(p_slug text, p_graphic text, p_after bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_tail`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_public_system_notice_": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.public_system_notice()` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.public_system_notice()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/public_system_notice`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_show_accepts_p_show uuid": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.show_accepts(p_show uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.show_accepts(p_show uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/show_accepts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_show_by_slug_p_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.show_by_slug(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.show_by_slug(p_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/show_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "auth_leaked_password_protection": {
       "name": "auth_leaked_password_protection",
       "level": "WARN",
-      "detail": "Leaked password protection is currently disabled."
+      "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security."
     },
     "authenticated_security_definer_function_executable_public_admin_user_suspended_p_user uuid": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.admin_user_suspended(p_user uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.admin_user_suspended(p_user uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/admin_user_suspended`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_close_round(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_close_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_join_by_slug_p_join_slug text, p_device text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_join_by_slug(p_join_slug text, p_device text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_join_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_list_p_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_list(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_open_round_p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_open_round(p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_open_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_presenter_by_slug(p_presenter_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_presenter_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_rounds_list_p_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_rounds_list(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_rounds_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_set_join_p_slug text, p_patch jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_set_join(p_slug text, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_set_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_tally_p_slug text, p_round uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_tally(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_tally`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_update_p_slug text, p_id uuid, p_patch jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_update(p_slug text, p_id uuid, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_update`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_get_p_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.community_get(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.community_get(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_get`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_list_p_kind text, p_category text, p_limit integer, p_offset integer": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.community_list(p_kind text, p_category text, p_limit integer, p_offset integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.community_list(p_kind text, p_category text, p_limit integer, p_offset integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_report_p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_report(p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_report(p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_report`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_seen_p_output_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_seen(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_seen(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_seen`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_tail_p_output_slug text, p_after bigint": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_output_tail(p_output_slug text, p_after bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_output_tail(p_output_slug text, p_after bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_report_p_slug text, p_graphic text, p_data jsonb, p_state jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_report(p_slug text, p_graphic text, p_data jsonb, p_state jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_report(p_slug text, p_graphic text, p_data jsonb, p_state jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_report`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_send_many_p_slug text, p_items jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_send_many(p_slug text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_send_many(p_slug text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_send_many`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_send_p_slug text, p_graphic text, p_msg jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_send(p_slug text, p_graphic text, p_msg jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_send(p_slug text, p_graphic text, p_msg jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_send`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_show_by_slug_p_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_show_by_slug(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_show_by_slug(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_show_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_stage_p_slug text, p_graphic text, p_data jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_stage(p_slug text, p_graphic text, p_data jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_stage(p_slug text, p_graphic text, p_data jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_stage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_tail_p_slug text, p_graphic text, p_after bigint": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.control_tail(p_slug text, p_graphic text, p_after bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.control_tail(p_slug text, p_graphic text, p_after bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_tail`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_feature_denied_p_key text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.feature_denied(p_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.feature_denied(p_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/feature_denied`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_is_moderator_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.is_moderator()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.is_moderator()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_moderator`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_is_suspended_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.is_suspended()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.is_suspended()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_suspended`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_public_system_notice_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.public_system_notice()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.public_system_notice()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/public_system_notice`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_show_accepts_p_show uuid": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.show_accepts(p_show uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.show_accepts(p_show uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/show_accepts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_show_by_slug_p_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.show_by_slug(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function."
+      "detail": "Function `public.show_by_slug(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/show_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "multiple_permissive_policies_public_community_templates_authenticated_SELECT": {
       "name": "multiple_permissive_policies",
       "level": "WARN",
-      "detail": "Table `public.community_templates` has multiple permissive policies for role `authenticated` for action `SELECT`."
+      "detail": "Table \\`public.community_templates\\` has multiple permissive policies for role \\`authenticated\\` for action \\`SELECT\\`. Policies include \\`{community_moderator_read,community_owner_all}\\`"
     },
     "multiple_permissive_policies_public_community_templates_authenticated_UPDATE": {
       "name": "multiple_permissive_policies",
       "level": "WARN",
-      "detail": "Table `public.community_templates` has multiple permissive policies for role `authenticated` for action `UPDATE`."
+      "detail": "Table \\`public.community_templates\\` has multiple permissive policies for role \\`authenticated\\` for action \\`UPDATE\\`. Policies include \\`{community_moderate,community_owner_all}\\`"
     },
     "rls_enabled_no_policy_public_admin_audit_log": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.admin_audit_log` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.admin_audit_log\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_admin_users": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.admin_users` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.admin_users\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_ai_consents": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.ai_consents` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.ai_consents\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_ai_gateway_requests": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.ai_gateway_requests` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.ai_gateway_requests\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_ai_generations": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.ai_generations` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.ai_generations\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_allowlist": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.allowlist` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.allowlist\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_audience_rounds": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.audience_rounds\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_audience_submissions": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.audience_submissions\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_audience_votes": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.audience_votes\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_chat_blocklist": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.chat_blocklist` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.chat_blocklist\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_funnel_events": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.funnel_events` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.funnel_events\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_moderators": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.moderators` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.moderators\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_plans": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.plans` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.plans\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_system_settings": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.system_settings` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.system_settings\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_template_admin": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.template_admin` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.template_admin\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_user_accounts": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.user_accounts` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.user_accounts\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_user_feedback": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.user_feedback` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.user_feedback\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_user_grants": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.user_grants` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.user_grants\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_user_plans": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
-      "detail": "Table `public.user_plans` has RLS enabled, but no policies exist"
+      "detail": "Table \\`public.user_plans\\` has RLS enabled, but no policies exist"
     },
     "unindexed_foreign_keys_public_admin_users_admin_users_created_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.admin_users` has a foreign key `admin_users_created_by_fkey` without a covering index."
+      "detail": "Table \\`public.admin_users\\` has a foreign key \\`admin_users_created_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_community_reports_community_reports_reporter_id_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.community_reports` has a foreign key `community_reports_reporter_id_fkey` without a covering index."
+      "detail": "Table \\`public.community_reports\\` has a foreign key \\`community_reports_reporter_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_community_templates_community_templates_reviewed_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.community_templates` has a foreign key `community_templates_reviewed_by_fkey` without a covering index."
+      "detail": "Table \\`public.community_templates\\` has a foreign key \\`community_templates_reviewed_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_plans_plans_updated_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.plans` has a foreign key `plans_updated_by_fkey` without a covering index."
+      "detail": "Table \\`public.plans\\` has a foreign key \\`plans_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_system_settings_system_settings_updated_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.system_settings` has a foreign key `system_settings_updated_by_fkey` without a covering index."
+      "detail": "Table \\`public.system_settings\\` has a foreign key \\`system_settings_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_template_admin_template_admin_updated_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.template_admin` has a foreign key `template_admin_updated_by_fkey` without a covering index."
+      "detail": "Table \\`public.template_admin\\` has a foreign key \\`template_admin_updated_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_user_accounts_user_accounts_changed_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.user_accounts` has a foreign key `user_accounts_changed_by_fkey` without a covering index."
+      "detail": "Table \\`public.user_accounts\\` has a foreign key \\`user_accounts_changed_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_user_feedback_user_feedback_reviewed_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.user_feedback` has a foreign key `user_feedback_reviewed_by_fkey` without a covering index."
+      "detail": "Table \\`public.user_feedback\\` has a foreign key \\`user_feedback_reviewed_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_user_feedback_user_feedback_user_id_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.user_feedback` has a foreign key `user_feedback_user_id_fkey` without a covering index."
+      "detail": "Table \\`public.user_feedback\\` has a foreign key \\`user_feedback_user_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_user_grants_user_grants_created_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.user_grants` has a foreign key `user_grants_created_by_fkey` without a covering index."
+      "detail": "Table \\`public.user_grants\\` has a foreign key \\`user_grants_created_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unindexed_foreign_keys_public_user_plans_user_plans_assigned_by_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
-      "detail": "Table `public.user_plans` has a foreign key `user_plans_assigned_by_fkey` without a covering index."
+      "detail": "Table \\`public.user_plans\\` has a foreign key \\`user_plans_assigned_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
     "unused_index_public_admin_audit_log_admin_audit_actor_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `admin_audit_actor_idx` on table `public.admin_audit_log` has not been used"
+      "detail": "Index \\`admin_audit_actor_idx\\` on table \\`public.admin_audit_log\\` has not been used"
     },
     "unused_index_public_ai_generations_ai_generations_status_expires_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `ai_generations_status_expires_idx` on table `public.ai_generations` has not been used"
+      "detail": "Index \\`ai_generations_status_expires_idx\\` on table \\`public.ai_generations\\` has not been used"
     },
     "unused_index_public_community_templates_community_kind_status_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `community_kind_status_idx` on table `public.community_templates` has not been used"
+      "detail": "Index \\`community_kind_status_idx\\` on table \\`public.community_templates\\` has not been used"
     },
     "unused_index_public_render_jobs_render_jobs_active": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `render_jobs_active` on table `public.render_jobs` has not been used"
+      "detail": "Index \\`render_jobs_active\\` on table \\`public.render_jobs\\` has not been used"
     },
     "unused_index_public_template_admin_template_admin_visibility_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `template_admin_visibility_idx` on table `public.template_admin` has not been used"
+      "detail": "Index \\`template_admin_visibility_idx\\` on table \\`public.template_admin\\` has not been used"
     },
     "unused_index_public_user_feedback_user_feedback_status_created_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `user_feedback_status_created_idx` on table `public.user_feedback` has not been used"
+      "detail": "Index \\`user_feedback_status_created_idx\\` on table \\`public.user_feedback\\` has not been used"
     },
     "unused_index_public_user_plans_user_plans_expiry_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `user_plans_expiry_idx` on table `public.user_plans` has not been used"
+      "detail": "Index \\`user_plans_expiry_idx\\` on table \\`public.user_plans\\` has not been used"
     },
     "unused_index_public_user_plans_user_plans_plan_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index `user_plans_plan_idx` on table `public.user_plans` has not been used"
+      "detail": "Index \\`user_plans_plan_idx\\` on table \\`public.user_plans\\` has not been used"
     }
   }
 }
