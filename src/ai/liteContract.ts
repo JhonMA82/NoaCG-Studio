@@ -226,6 +226,12 @@ const specSchema: Record<string, unknown> = {
       },
     },
     fontId: { type: 'string', maxLength: 80 },
+    // NOTE, deliberately not changed: this carries the same shape `scaleRatio` was just taken
+    // out of - bounded on the wire AND clamped at compile (`clampNumber` against
+    // `AssembleOptions.sizeScaleRange`), so an out-of-range value costs an attempt rather than
+    // being corrected for free. It is left as it is because nothing has MEASURED it firing,
+    // and 0.7-1.4 is a wide range a design decision rarely leaves. Revisit it with evidence,
+    // not by symmetry (docs/AI_LITE_PLAN.md §1b).
     sizeScale: { type: 'number', minimum: 0.7, maximum: 1.4 },
     animation: {
       type: 'object',
@@ -242,12 +248,26 @@ const specSchema: Record<string, unknown> = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        // BOUNDED, because the compile clamps to exactly this range and a description is not a
-        // constraint - the shown-but-illegal shape narrowVariantTool exists to prevent. It is
-        // also the lever that decides whether a supporting line fits: measured 2026-08-07, a
-        // ratio of 1.2 nearly doubles that line's size and cuts lt25's one-line capacity from
-        // 47 characters to 19, which is what actually produced the round's wraps.
-        scaleRatio: { type: 'number', minimum: 1.2, maximum: 2.6 },
+        // DELIBERATELY UNBOUNDED ON THE WIRE, even though the compile clamps to 1.2-2.6.
+        //
+        // `minimum`/`maximum` were added here on 2026-08-07 and taken out the same day. The
+        // gateway's validator REJECTS an out-of-range number (api/_lib/aiGateway.ts) - correctly,
+        // since for most fields an out-of-range value is wrong and a retryable malformed response
+        // is better than failing later. But this field is CLAMPED, so nothing is ever discarded:
+        // a bound converts a free correction into a spent attempt out of a budget of two, and
+        // exhausting it returns `generation_failed` to the user instead of a graphic. That is the
+        // harness's clamp-don't-reject rule, and it decides this case.
+        //
+        // The shown-but-illegal defect the bounds were meant to close is a MISMATCH - a model
+        // told one range while the compile applies another - and that is closed by the two
+        // agreeing, not by refusing the response. The range therefore lives in the description
+        // and in the clamp.
+        scaleRatio: {
+          type: 'number',
+          description: 'Heading:body size ratio, 1.2-2.6 (values outside it clamp). The catalog '
+            + 'authors 2.0-2.85; lower tightens the gap, and the body line is never enlarged past '
+            + 'the size its design authored.',
+        },
         headingWeight: { type: 'string', enum: ['regular', 'semibold', 'bold', 'black'] },
         kickerCase: { type: 'string', enum: ['caps', 'as-written'] },
         tracking: { type: 'string', enum: ['tight', 'normal', 'wide'] },

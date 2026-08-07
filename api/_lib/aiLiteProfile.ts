@@ -143,11 +143,13 @@ export function liteProfile(): LiteProfile {
     // v5: typography.scaleRatio carries the bounds its compile clamps to, and the supporting
     //     line can no longer be enlarged past the size its design authored - measured as the
     //     cause of eleven wrapped identity lines in eighteen (docs/AI_LITE_PLAN.md §1a).
+    // v6: scaleRatio goes back to UNBOUNDED on the wire - the gateway rejects an out-of-range
+    //     number, and on a clamped field that spends an attempt to do what the clamp does free.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v5').trim().slice(0, 64) || 'lite-lower-third-v5',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v6').trim().slice(0, 64) || 'lite-lower-third-v6',
     primary,
     fallback,
     prices,

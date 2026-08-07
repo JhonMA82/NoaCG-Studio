@@ -231,11 +231,28 @@ five other briefs are clean. That is the honest shape of the fix: it stops the p
 **One regression to watch, and it may be ours.** `esports-player` returned `generation_failed`
 in run 3 of BOTH v5 rounds, and in neither v3 nor v4 round - 2 of 2 under the new contract, 0 of
 2 before it. `generation_failed` is REPAIR_FAILED, a semantic exhaustion rather than transport
-(§9), so it is a quality signal. The plausible mechanism is this change: `scaleRatio` gained
-`minimum`/`maximum`, which turns a value the compile used to CLAMP silently into a response the
-structured-output validator refuses. That trade cuts against the harness's own clamp-don't-reject
-doctrine, and it is one fixture at n=2 - suggestive, not proven. **Do not unbind the schema on
-this evidence; establish first whether the server rejects or clamps an out-of-range ratio.**
+(§9), so it is a quality signal.
+
+**The mechanism was then established rather than assumed, and it is real.** `schemaAccepts` in
+`api/_lib/aiGateway.ts` REJECTS an out-of-range number; the rejection becomes a retryable
+`malformed_response`, retried inside a budget of two attempts, and exhausting it returns
+`generation_failed` to the user. So `minimum`/`maximum` on `scaleRatio` converted a value the
+compile had always CLAMPED into one that can spend the whole budget and deliver nothing.
+
+That is the harness's clamp-don't-reject rule deciding the case, so the bounds came out again the
+same day (prompt version `lite-lower-third-v6`). Two things worth separating:
+
+- **The mechanism is proven; the attribution is not.** Nothing recorded which value
+  `esports-player` actually emitted, so whether this is what failed it stays n=2 on one fixture.
+  Removing the bound is right on doctrine regardless, and a later round can confirm the failure
+  goes away.
+- **The shown-but-illegal defect the bounds were meant to close is a MISMATCH** - a model told
+  one range while the compile applies another - and agreement closes it. Refusing the response is
+  a different thing, and on a clamped field it is a strictly worse one.
+
+`sizeScale` carries the identical shape (bounded 0.7-1.4 on the wire, clamped at compile) and was
+deliberately left alone: nothing has measured it firing, and 0.7-1.4 is a wide range. Revisit it
+with evidence rather than by symmetry.
 
 The lesson generalises past this instrument: **changing a finding's SEVERITY changes what the
 instrument counts, and a metric that reads errors will report the change as an improvement.**
