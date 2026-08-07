@@ -44,8 +44,10 @@ test('category, style, and capability facets AND together; clear-all restores th
   await page.locator('.wz-filter', { hasText: 'Elegant & glass' }).click();
   await expect(cards).toHaveCount(n.ltGlass);
 
-  // Capabilities live under More filters and are STRICT (has logo upload = has it).
-  await page.locator('.wz-browse-more summary').click();
+  // Capabilities live behind the Filters disclosure and are STRICT (has logo upload = has it).
+  // ONE disclosure now, at every width — the specialist facets used to sit in a `More filters`
+  // details nested inside a phone-only drawer.
+  await page.locator('.wz-browse-drawer-btn').click();
   await page.locator('.wz-browse-more .wz-filter', { hasText: 'Logo upload' }).click();
   await expect(cards).toHaveCount(n.ltGlassLogo);
   await expect(page.locator('.wz-variant', { hasText: 'Frosted Card' })).toBeVisible();
@@ -62,6 +64,9 @@ test('category, style, and capability facets AND together; clear-all restores th
 test('programme selection ranks into Best for / Also works without hiding anything', async ({ page }) => {
   await toBrowseStep(page);
   const n = await catalogCounts(page);
+  // The programme selects live behind the Filters disclosure, collapsed by default at every
+  // width now — only search, the type strip and the style chips lead the step.
+  await page.locator('.wz-browse-drawer-btn').click();
   await page.locator('.wz-browse-programme select').last().selectOption('church-service');
   // Ranking, never exclusion: every template still shows, split across the two sections.
   await expect(page.locator('.wz-browse-section', { hasText: 'Best for church service' })).toBeVisible();
@@ -88,6 +93,8 @@ test('an impossible combination shows the honest empty state with its escape hat
   // nothing AND stays empty however the catalog grows — unlike the old "Bold & on-air + logo
   // slot", which a new noacg design (lt53 House Board, lt54 House Ident) filled exactly.
   await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Lower thirds' }).click();
+  // The field-count buckets are behind the Filters disclosure now.
+  await page.locator('.wz-browse-drawer-btn').click();
   await page.getByRole('button', { name: '↻ Repeating' }).click();
   await expect(page.locator('.wz-variant')).toHaveCount(0);
   await expect(page.locator('.wz-browse-empty')).toBeVisible();
@@ -107,7 +114,9 @@ test('on a phone the facets collapse into the filter drawer; results stay one fl
   await expect(drawer).toBeHidden();
   await expect(page.locator('.wz-browse-search')).toBeVisible();
   await expect(page.locator('.wz-variant').first()).toBeVisible();
-  // Open, filter by a category tile, close — the filter holds and the badge counts it.
+  // Open it, filter by a category tile — the tile is OUTSIDE the drawer now, because "what
+  // kind of graphic" is the step's first question — then close: the filter holds and the
+  // badge counts it.
   await toggle.click();
   await expect(drawer).toBeVisible();
   await page.locator('.wz-browse-tiles .wz-cat', { hasText: 'Lower thirds' }).click();
@@ -164,7 +173,7 @@ test('the brand toggle ranks the package siblings first without filtering anythi
 
 test('facet values without catalog mass render no chip', async ({ page }) => {
   await toBrowseStep(page);
-  await page.locator('.wz-browse-more summary').click();
+  await page.locator('.wz-browse-drawer-btn').click();
   // No preset ships intensity "none", so that chip must not exist (proposal §10).
   await expect(page.locator('.wz-filter', { hasText: 'Motion: none' })).toHaveCount(0);
   // And only categories with content render tiles. This used to name the one category that

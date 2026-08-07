@@ -30,7 +30,7 @@ async function createHairline(page: Page): Promise<string[]> {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  // On a phone the category tiles live inside the closed filter drawer — open it first.
+  // The category tiles sit outside the filter disclosure now; opening it is harmless.
   const drawerToggle = page.locator('.wz-browse-drawer-btn');
   if (await drawerToggle.isVisible()) await drawerToggle.click();
   await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();

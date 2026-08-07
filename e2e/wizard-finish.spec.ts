@@ -214,17 +214,20 @@ test('style step: size and position collapse behind a disclosure', async ({ page
   await expect(more.locator('summary')).toContainText('top left');
 });
 
-test('browse step: More filters actually collapses', async ({ page }) => {
+test('browse step: the filter disclosure actually collapses', async ({ page }) => {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
 
-  const more = page.locator('.wz-browse-more');
-  const rows = more.locator('.wz-filter-row');
-  // Regression: these rows rendered permanently, disclosure or not — which is exactly the
-  // stacked-height problem the disclosure was added to solve.
+  // ONE disclosure now, at every width — the specialist facets used to sit in a `More filters`
+  // <details> nested inside a phone-only drawer, so a desktop reader met five rows of facets
+  // before the first design. This still measures the same regression it always did: the rows
+  // are `display: flex`, and any author rule setting `display` on a disclosure's children
+  // beats the UA rule that hides them — which is how "collapsed" once rendered in full.
+  const rows = page.locator('.wz-browse-more .wz-filter-row');
+  // Measured HEIGHT, not toBeVisible(): visibility is blind to a collapsed ancestor.
   expect(await rows.first().evaluate((el) => el.getBoundingClientRect().height)).toBe(0);
-  await more.locator('summary').click();
+  await page.locator('.wz-browse-drawer-btn').click();
   expect(await rows.first().evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThan(0);
 });
 

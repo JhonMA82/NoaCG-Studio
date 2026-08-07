@@ -199,12 +199,11 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
   // One detail panel open at a time — the grid stays readable and Escape has one target.
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  // On a phone the facet controls stack ~1300px tall before the first result card, so they
-  // collapse behind a drawer toggle (proposal §12.1); desktop always shows them (CSS ignores
-  // the closed state above the breakpoint). Search, active chips and results stay visible.
-  const [filtersOpen, setFiltersOpen] = useState(
-    () => !window.matchMedia('(max-width: 768px)').matches,
-  );
+  // The facet controls collapse behind ONE toggle, at every width (re-design/handoff.md §2b).
+  // They used to stack five rows deep before the first result card on desktop and ~1300px on a
+  // phone, where only the phone got a drawer. Search, the type strip, the style chips, the
+  // active chips and the results stay visible either way.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const tiles = useMemo(() => browsableCategories(), []);
   const intensities = useMemo(() => offeredIntensities(), []);
@@ -287,14 +286,54 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         className="wz-browse-format"
       />
 
-      {/* Mobile-only drawer toggle (CSS hides it above the breakpoint). */}
-      <button
-        className="wz-browse-drawer-btn"
-        aria-expanded={filtersOpen}
-        onClick={() => setFiltersOpen((o) => !o)}
-      >
-        ☰ Filters{drawerCount > 0 ? ` (${drawerCount})` : ''} {filtersOpen ? '▴' : '▾'}
-      </button>
+      {/* Category tiles with live counts — only categories with catalog content. Outside the
+          disclosure: "what kind of graphic" is the first question the step asks, so it is not
+          something to go and open. */}
+      <div className="wz-cat-grid wz-browse-tiles">
+        {tiles.map((tile) => (
+          <button
+            key={tile.category}
+            className={`wz-cat ${filters.category === tile.category ? 'selected' : ''}`}
+            onClick={() => set({ category: filters.category === tile.category ? null : tile.category })}
+          >
+            <div className="wz-cat-head">
+              <strong>{tile.name}</strong>
+              <span className="wz-count">{tile.count}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* THE LEAD ROW (re-design/handoff.md §2b): what a designer actually reaches for —
+          the type strip above, the style families here — and ONE way in to everything else.
+          The tiles and the style chips stay out of the disclosure on purpose: they are the
+          two facets that answer "what kind of graphic" and "what should it feel like", and
+          burying either behind a control labelled Filters costs a click on every visit. */}
+      <div className="wz-browse-lead">
+        <div className="wz-filter-row" role="group" aria-label="Filter by style">
+          {(Object.keys(STYLE_FAMILY_LABELS) as StyleTag[]).map((t) => (
+            <button
+              key={t}
+              className={`wz-filter ${filters.style === t ? 'active' : ''}`}
+              onClick={() => set({ style: filters.style === t ? null : t })}
+            >
+              {STYLE_FAMILY_LABELS[t]}
+            </button>
+          ))}
+        </div>
+        <div className="spacer" />
+        {/* ONE disclosure, at every width. It used to be two nested ones — a mobile-only
+            drawer holding a "More filters" details — so a desktop reader met five rows of
+            facets before the first design, and a phone reader had to open two things to
+            reach a capability. */}
+        <button
+          className="wz-browse-drawer-btn"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((o) => !o)}
+        >
+          {filtersOpen ? '▾' : '▸'} Filters{drawerCount > 0 ? ` (${drawerCount})` : ''}
+        </button>
+      </div>
 
       <div className="wz-browse-filters" data-open={filtersOpen || undefined}>
       {/* What are you making? (optional; ranks, never hides) */}
@@ -334,24 +373,8 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         </label>
       </div>
 
-      {/* Category tiles with live counts — only categories with catalog content. */}
-      <div className="wz-cat-grid wz-browse-tiles">
-        {tiles.map((tile) => (
-          <button
-            key={tile.category}
-            className={`wz-cat ${filters.category === tile.category ? 'selected' : ''}`}
-            onClick={() => set({ category: filters.category === tile.category ? null : tile.category })}
-          >
-            <div className="wz-cat-head">
-              <strong>{tile.name}</strong>
-              <span className="wz-count">{tile.count}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Primary facet chips: fields + style. */}
-      <div className="wz-filter-row" role="group" aria-label="Filter templates">
+      {/* How many operator inputs the design carries. */}
+      <div className="wz-filter-row" role="group" aria-label="Filter by field count">
         {FIELD_BUCKETS.map((b) => (
           <button
             key={b}
@@ -361,21 +384,11 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
             {BUCKET_LABEL[b]}
           </button>
         ))}
-        <span className="wz-filter-sep" aria-hidden="true" />
-        {(Object.keys(STYLE_FAMILY_LABELS) as StyleTag[]).map((t) => (
-          <button
-            key={t}
-            className={`wz-filter ${filters.style === t ? 'active' : ''}`}
-            onClick={() => set({ style: filters.style === t ? null : t })}
-          >
-            {STYLE_FAMILY_LABELS[t]}
-          </button>
-        ))}
       </div>
 
-      {/* Specialist facets under progressive disclosure (proposal §12.1). */}
-      <details className="wz-browse-more">
-        <summary>More filters</summary>
+      {/* The specialist facets, once nested inside a second `More filters` details of their
+          own. One disclosure is enough — this whole block already is one. */}
+      <div className="wz-browse-more">
         <div className="wz-filter-row">
           {structures.map((s: StructureId) => (
             <button
@@ -421,7 +434,7 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
             </button>
           ))}
         </div>
-      </details>
+      </div>
       </div>
 
       {/* Active chips + count + sort. */}

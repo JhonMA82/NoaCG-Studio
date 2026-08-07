@@ -2075,8 +2075,24 @@ kbd {
 details:not([open]) > *:not(summary) { display: none; }
 
 .wz-browse-more { margin: 0 0 10px; }
-.wz-browse-more summary { cursor: pointer; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
 .wz-browse-more .wz-filter-row { margin: 4px 0 8px; }
+
+/* THE LEAD ROW: style chips on the left, the one Filters disclosure on the right. */
+.wz-browse-lead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.wz-browse-lead .spacer { flex: 1; }
+.wz-browse-lead .wz-filter-row { margin: 0; }
+/* ONE disclosure at EVERY width (handoff §2b), not a phone-only drawer wrapping a desktop
+   `More filters` details. Collapsed by default: five rows of facets between the search box
+   and the first design is the storefront asking questions before it shows anything. */
+.wz-browse-filters { display: none; }
+.wz-browse-filters[data-open] {
+  display: block;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  background: var(--bg-app);
+}
 /* Canvas format sits OUTSIDE .wz-browse-filters (it narrows nothing), so it needs the rule
    the filter block used to give it: separated from the search field above it. It is a
    SETTING, not a facet, so it reads quietly — the rail's foot carries the read-back that
@@ -2136,25 +2152,28 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-variant-detail p { margin: 0; }
 .wz-variant-detail ul { margin: 0; padding-left: 14px; }
 .wz-variant-detail code { font-family: ui-monospace, monospace; color: var(--accent); }
-/* The mobile filter drawer (TEMPLATE_TAXONOMY_PROPOSAL §12.1): on a phone the facet
-   controls collapse behind a toggle so results are one flick away, not ~1300px down.
-   Desktop ignores the closed state entirely — the button never renders there. */
-.wz-browse-drawer-btn { display: none; }
+/* The filter disclosure's toggle (TEMPLATE_TAXONOMY_PROPOSAL §12.1, re-design/handoff §2b):
+   quiet and inline beside the style chips — a facet drawer is a detour, not a heading. */
+.wz-browse-drawer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: transparent;
+  white-space: nowrap;
+}
+.wz-browse-drawer-btn:hover { color: var(--text); background: var(--bg-panel); border-color: var(--border-strong); }
+.wz-browse-drawer-btn[aria-expanded='true'] { color: var(--text); border-color: var(--border-strong); }
 @media (max-width: 768px) {
   .project-format-fields { grid-template-columns: 1fr; }
-  .wz-browse-drawer-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    justify-content: center;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 10px;
-  }
-  .wz-browse-filters { display: none; }
-  .wz-browse-filters[data-open] { display: block; }
+  /* On a phone the style chips and the toggle each take the full width rather than sharing
+     a row that would put the toggle off the screen edge. */
+  .wz-browse-lead { flex-direction: column; align-items: stretch; }
+  .wz-browse-lead .spacer { display: none; }
+  .wz-browse-drawer-btn { justify-content: center; width: 100%; }
 }
 
 .wz-anim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
