@@ -63,6 +63,15 @@ that path. Binding: keep it updated when the pipeline changes.
    - a **drift check** four times a day alerts when production does not contain the newest
      `main` commit older than 90 minutes - the belt for "no deployment was even created".
 
+   The drift check is a belt, not the alarm: it found the 2026-08-07 config refusal about seven
+   hours after it started, because it runs four times a day and GitHub dispatches a schedule
+   1-2 h late. So CI's **`Vercel accepted the commit`** job (`ci.yml`, `main` only) asks the
+   same question in the run that is already happening: it polls the `Vercel` commit status for
+   up to five minutes and reds the run with the refusal's own words. A missing verdict is not a
+   refusal - it says so and leaves the case to the drift belt. It is deliberately **outside the
+   CI gate**: a deploy fault is not a code fault, and the production rolling issue belongs to
+   deploy-verify.
+
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
 Five self-closing rolling issues, all following the weekly-audit pattern (one open issue,
@@ -126,6 +135,13 @@ that need their own runtime config in `vercel.json` (`api/ai/generate.ts`,
 `api/me/entitlement.ts`). **A new endpoint goes INSIDE an existing catch-all** (a new route
 in its `_lib` router), never as a new top-level file, unless it genuinely needs its own
 `functions` entry - and then check the count first.
+
+**`npm run check:function-budget` now counts them in the build gate**
+(`scripts/check-function-budget.mjs`), implementing Vercel's routing rule rather than an
+approximation: everything under `api/` is a function except paths with an `_` segment and
+`.d.ts` files. It prints the headroom on every build (10 of 12 today) and fails over the cap,
+so the count cannot climb back to 29 unnoticed. `scripts/check-function-budget.test.mjs`
+tests the rule against a fixture tree, since `api/` alone only ever exercises today's shape.
 
 ## Traps that already cost days (check these FIRST on a failing Vercel build)
 
