@@ -141,7 +141,7 @@ advisories against the version it names rather than trusting a green `npm audit`
 
 ### Pinned model ids — `scripts/check-model-ids.mjs`
 
-Every OpenRouter id hard-coded in `src/ai/` and `api/_lib/` (`PRO_STANDARD_ROUTES`, the Lite
+Every managed-gateway id hard-coded in `src/ai/` and `api/_lib/` (`PRO_STANDARD_ROUTES`, the Lite
 profile, `aiModelCatalog`, the settings picker), checked against the live public listing.
 
 **This is the only staleness in the stack that fails in production rather than in a build.**
@@ -156,7 +156,7 @@ The listing endpoint is public: no key, no tokens.
 The video harness already syncs its own catalog (`npm run video:models:sync`); this covers the
 SPX/Lite/Pro routes, which had nothing watching them.
 
-**All four providers are covered, but only two without a key.** OpenRouter and Hugging Face are
+**All four providers are covered, but only two without a key.** The Vercel AI Gateway listing and Hugging Face are
 public and always checked. OpenAI and Anthropic need a key, taken from the real environment or
 from the checkout's `.env` through `scripts/read-dotenv.mjs` (the one definition of that, shared
 with the advisor check); without one they are reported **NOT CHECKED** and never counted as ok — "could
@@ -165,7 +165,7 @@ by design and a permanent red there trains everyone to ignore it.
 
 So the weekly job checks 12 of 16 ids; a local `npm run check:models` checks all 16.
 
-This split exists because the gap bit once. The check began OpenRouter-only and caught
+This split exists because the gap bit once. The check began gateway-only and caught
 `openai/gpt-5.6`; the second dead id was one entry above it in the same file, on the direct-OpenAI
 provider the check could not see, and only a manual listing call settled it.
 
@@ -173,8 +173,8 @@ Two things it took a mutation test to get right, both worth keeping in mind if y
 the Hugging Face Hub answers an unauthenticated request for a nonexistent repo with **401, not
 404** (it will not leak which private names are taken), so treating only 404 as missing reported
 a dead id as UNCHECKED; and `settings.ts` must not also be scanned for slashed route literals,
-because `openai/gpt-oss-120b` is a Hugging Face repo id in one entry and an OpenRouter route in
-another — attributing every slashed id to OpenRouter would report a HF-only model as gone from a
+because `openai/gpt-oss-120b` is a Hugging Face repo id in one entry and a gateway route in
+another — attributing every slashed id to the gateway would report a HF-only model as gone from a
 listing it was never in.
 
 ### Things with no version at all — the `MANUAL_REVIEW` table

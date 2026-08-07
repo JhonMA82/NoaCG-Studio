@@ -9,7 +9,7 @@ import {
 } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
 import {
-  liteOpenRouterPolicy,
+  liteGatewayPolicy,
   liteProfile,
   liteProfileForUser,
   routePrice,
@@ -142,16 +142,16 @@ function policyFor(
   route: ModelRoute,
   maxAttempts: number,
 ): GatewayExecutionPolicy {
-  const openRouterRoute = route.provider === 'openrouter'
+  const gatewayRoute = route.provider === 'vercel'
     ? route
-    : [profile.primary, profile.fallback].find((candidate) => candidate.provider === 'openrouter');
-  const openRouter = openRouterRoute ? liteOpenRouterPolicy(profile, openRouterRoute) : undefined;
-  if (openRouterRoute && !openRouter) throw new Error('OpenRouter routing policy is not configured.');
+    : [profile.primary, profile.fallback].find((candidate) => candidate.provider === 'vercel');
+  const gateway = gatewayRoute ? liteGatewayPolicy(profile, gatewayRoute) : undefined;
+  if (gatewayRoute && !gateway) throw new Error('The gateway routing policy is not configured.');
   return {
     maxAttempts,
     retryLimit: 0,
     timeoutMs: profile.timeoutMs,
-    ...(openRouter ? { openRouter } : {}),
+    ...(gateway ? { gateway } : {}),
   };
 }
 

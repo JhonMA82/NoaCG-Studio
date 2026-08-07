@@ -574,8 +574,8 @@ test('the overview carries no user content of any kind', async ({ page }) => {
 
 const MODEL_ROWS = [
   {
-    key: 'openrouter:vendor/approved-one',
-    provider: 'openrouter',
+    key: 'vercel:vendor/approved-one',
+    provider: 'vercel',
     model: 'vendor/approved-one',
     name: 'Approved One',
     contextLength: 131_072,
@@ -595,8 +595,8 @@ const MODEL_ROWS = [
     isNew: false,
   },
   {
-    key: 'openrouter:vendor/fresh',
-    provider: 'openrouter',
+    key: 'vercel:vendor/fresh',
+    provider: 'vercel',
     model: 'vendor/fresh',
     name: 'Fresh Candidate',
     contextLength: 262_144,
@@ -616,8 +616,8 @@ const MODEL_ROWS = [
     isNew: true,
   },
   {
-    key: 'openrouter:vendor/expensive',
-    provider: 'openrouter',
+    key: 'vercel:vendor/expensive',
+    provider: 'vercel',
     model: 'vendor/expensive',
     name: 'Expensive Flagship',
     contextLength: 200_000,
@@ -639,10 +639,10 @@ const MODEL_ROWS = [
 ];
 
 const MODELS_BODY = {
-  provider: 'openrouter',
+  provider: 'vercel',
   syncedAt: '2026-07-31T06:00:00Z',
   models: MODEL_ROWS,
-  rule: { provider: 'openrouter', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
+  rule: { provider: 'vercel', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
   missingApproved: [] as string[],
   discoveryFailed: false,
 };
@@ -681,12 +681,16 @@ test('ZDR is shown as audited only where an audit exists', async ({ page }) => {
   await page.getByRole('button', { name: 'Models', exact: true }).click();
   await page.getByRole('button', { name: /^Everything listed/ }).click();
 
-  await expect(page.locator('tr[data-model="vendor/approved-one"]')).toContainText('audited: yes');
-  // The unapproved candidate must read "not audited". A "no" would be an equally unfounded
-  // claim in the other direction.
+  const approved = page.locator('tr[data-model="vendor/approved-one"]');
+  await expect(approved).toContainText('verified');
+  // ...and not the "not verified" that contains it as a substring - the two pills differ by a
+  // word, so a bare toContainText passes for either.
+  await expect(approved).not.toContainText('not verified');
+  // The unapproved candidate must read "not audited". Either verification verdict would be an
+  // equally unfounded claim: both assert a check was made, and none was.
   const fresh = page.locator('tr[data-model="vendor/fresh"]');
   await expect(fresh).toContainText('not audited');
-  await expect(fresh).not.toContainText('audited: no');
+  await expect(fresh).not.toContainText('not verified');
 
   // An ineligible route says WHY, in words, rather than leaving a blank cell.
   await expect(page.locator('tr[data-model="vendor/expensive"]')).toContainText('over the funded price ceiling');
@@ -721,11 +725,11 @@ test('a provider outage costs the models section only, and says so', async ({ pa
 });
 
 test('an approved route the provider stopped listing is reported as an outage', async ({ page }) => {
-  await stubModels(page, { ...MODELS_BODY, missingApproved: ['openrouter:vendor/vanished'] });
+  await stubModels(page, { ...MODELS_BODY, missingApproved: ['vercel:vendor/vanished'] });
   await page.goto('/admin');
   await page.getByRole('button', { name: 'Models', exact: true }).click();
 
-  await expect(page.locator('.admin-problem')).toContainText('openrouter:vendor/vanished');
+  await expect(page.locator('.admin-problem')).toContainText('vercel:vendor/vanished');
   await expect(page.locator('.admin-problem')).toContainText('fails closed');
 });
 
@@ -735,8 +739,8 @@ test('an approved route the provider stopped listing is reported as an outage', 
 // stay visibly separate from "traffic is going here right now".
 function modelRow(over: Record<string, unknown> = {}) {
   return {
-    key: 'openrouter:vendor/mid',
-    provider: 'openrouter',
+    key: 'vercel:vendor/mid',
+    provider: 'vercel',
     model: 'vendor/mid',
     name: 'Mid',
     contextLength: 128_000,
@@ -766,16 +770,16 @@ test('the models table opens in reading order and sorts only when asked', async 
   await page.route('**/api/admin/models', (route) =>
     route.fulfill({
       json: {
-        provider: 'openrouter',
+        provider: 'vercel',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [
-          modelRow({ key: 'openrouter:vendor/dear', model: 'vendor/dear', inputPerMillion: 9, contextLength: 8000 }),
-          modelRow({ key: 'openrouter:vendor/cheap', model: 'vendor/cheap', inputPerMillion: 0.1, contextLength: 32_000 }),
+          modelRow({ key: 'vercel:vendor/dear', model: 'vendor/dear', inputPerMillion: 9, contextLength: 8000 }),
+          modelRow({ key: 'vercel:vendor/cheap', model: 'vendor/cheap', inputPerMillion: 0.1, contextLength: 32_000 }),
           // No published price. It is unmeasured, not cheap - it must never head an ascending
           // price sort, which would read as "the cheapest".
-          modelRow({ key: 'openrouter:vendor/unpriced', model: 'vendor/unpriced', inputPerMillion: null }),
+          modelRow({ key: 'vercel:vendor/unpriced', model: 'vendor/unpriced', inputPerMillion: null }),
           modelRow({
-            key: 'openrouter:vendor/live',
+            key: 'vercel:vendor/live',
             model: 'vendor/live',
             inputPerMillion: 1,
             approved: true,
@@ -785,7 +789,7 @@ test('the models table opens in reading order and sorts only when asked', async 
             usedBy: [{ task: 'NoaCG Lite', slot: 'primary' }],
           }),
         ],
-        rule: { provider: 'openrouter', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
+        rule: { provider: 'vercel', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
         missingApproved: [],
         discoveryFailed: false,
       },
@@ -832,10 +836,10 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await page.route('**/api/admin/models', (route) =>
     route.fulfill({
       json: {
-        provider: 'openrouter',
+        provider: 'vercel',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [modelRow()],
-        rule: { provider: 'openrouter', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
+        rule: { provider: 'vercel', inputPerMillion: 1, outputPerMillion: 5, newModelDays: 30 },
         missingApproved: [],
         discoveryFailed: false,
       },
@@ -844,11 +848,11 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await page.route('**/api/admin/models?output=image', (route) =>
     route.fulfill({
       json: {
-        provider: 'openrouter',
+        provider: 'vercel',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [
-          { key: 'openrouter:vendor/draw', provider: 'openrouter', model: 'vendor/draw', name: 'Draw', imageOutputPerMillion: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [{ task: 'NoaCG Pro concept' }] },
-          { key: 'openrouter:vendor/quiet', provider: 'openrouter', model: 'vendor/quiet', name: 'Quiet', imageOutputPerMillion: null, inputPerMillion: null, available: true, createdAt: null, isNew: false, usedBy: [] },
+          { key: 'vercel:vendor/draw', provider: 'vercel', model: 'vendor/draw', name: 'Draw', imagePriceUsd: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [{ task: 'NoaCG Pro concept' }] },
+          { key: 'vercel:vendor/quiet', provider: 'vercel', model: 'vendor/quiet', name: 'Quiet', imagePriceUsd: null, inputPerMillion: null, available: true, createdAt: null, isNew: false, usedBy: [] },
         ],
         discoveryFailed: false,
       },

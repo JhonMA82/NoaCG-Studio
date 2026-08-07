@@ -77,7 +77,7 @@ const smokeSource = String.raw`
       available: provider.available,
       requiresSignIn: provider.requiresSignIn,
     })),
-    ['anthropic', 'openai', 'openrouter', 'huggingface'].map((id) => ({
+    ['anthropic', 'openai', 'vercel', 'huggingface'].map((id) => ({
       id,
       userKey: false,
       managedKey: true,
@@ -95,7 +95,7 @@ const smokeSource = String.raw`
         origin: 'https://noacg.test',
       },
       body: JSON.stringify({
-        provider: 'openrouter',
+        provider: 'vercel',
         key: 'user-key-placeholder',
       }),
     }),
@@ -103,7 +103,7 @@ const smokeSource = String.raw`
   assert.equal(credentialsResponse.status, 200);
   assert.deepEqual(await credentialsResponse.json(), {
     ok: true,
-    provider: 'openrouter',
+    provider: 'vercel',
     configured: true,
   });
 
@@ -128,7 +128,7 @@ const smokeSource = String.raw`
   assert.equal(JSON.stringify(liteStatus).includes('qwen'), false);
 
   process.env.AI_LITE_ENABLED = 'true';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   process.env.SUPABASE_URL = 'https://example.supabase.co';
   process.env.SUPABASE_ANON_KEY = 'public-anon-placeholder';
   const incompleteLiteStatusResponse = await liteStatusHandler.fetch(
@@ -206,7 +206,7 @@ test('Vercel-style JavaScript artifacts load and execute every Creative AI funct
         AI_KEY_ENCRYPTION_SECRET: 'test-encryption-secret-with-at-least-32-characters',
         ANTHROPIC_API_KEY: 'provider-key-placeholder-anthropic',
         OPENAI_API_KEY: 'provider-key-placeholder-openai',
-        OPENROUTER_API_KEY: 'provider-key-placeholder-openrouter',
+        AI_GATEWAY_API_KEY: 'provider-key-placeholder-gateway',
         HUGGINGFACE_API_KEY: 'provider-key-placeholder-huggingface',
       }),
     },

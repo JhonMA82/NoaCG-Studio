@@ -76,8 +76,10 @@ function rule30d(): number {
   return eligibilityRule().newModelDays * 86_400_000;
 }
 
+/** Discovery reads the gateway's own listing, which is public - the credential only scopes it
+ *  to the team. Either form works, same precedence as `managedAiKey`. */
 function providerKey(): string | undefined {
-  const key = (process.env.OPENROUTER_API_KEY ?? '').trim();
+  const key = (process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || '').trim();
   return key || undefined;
 }
 
@@ -113,7 +115,7 @@ export default {
               provider: model.provider,
               model: model.id,
               name: model.name,
-              imageOutputPerMillion: model.imageOutputPerMillion ?? null,
+              imagePriceUsd: model.imagePriceUsd ?? null,
               inputPerMillion: model.inputPerMillion,
               // Not a verdict - a recorded audit. Same discipline as the text table: 'audited'
               // only where an audit exists, 'unknown' otherwise, never an inferred no.

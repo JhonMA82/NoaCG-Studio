@@ -273,7 +273,7 @@ export function ModelsSection() {
                 <td className="admin-num">{context(row.contextLength)}</td>
                 <td>
                   {row.zdr === 'audited' ? (
-                    <Pill tone={row.zdrAvailable ? 'ok' : 'danger'}>{row.zdrAvailable ? 'audited: yes' : 'audited: no'}</Pill>
+                    <Pill tone={row.zdrAvailable ? 'ok' : 'danger'}>{row.zdrAvailable ? 'verified' : 'not verified'}</Pill>
                   ) : (
                     <Pill tone="muted">not audited</Pill>
                   )}
@@ -323,8 +323,8 @@ function ImageModels() {
   const rows = useMemo(() => {
     const all = [...(data?.models ?? [])];
     return all.sort((a: AdminImageModelRow, b: AdminImageModelRow) => {
-      const left = a.imageOutputPerMillion;
-      const right = b.imageOutputPerMillion;
+      const left = a.imagePriceUsd;
+      const right = b.imagePriceUsd;
       if (left === null && right === null) return a.model.localeCompare(b.model);
       if (left === null) return 1;
       if (right === null) return -1;
@@ -341,9 +341,10 @@ function ImageModels() {
         (<span className="admin-mono">PRO_STANDARD_ROUTES</span>), not chosen per generation, so a Pro user never
         picks a model. <strong>No eligibility verdict is shown here</strong>: the funded-route ceiling was set against
         text generation, and no ceiling for image work has been decided, so there is nothing to check these against
-        yet. Prices are per million <strong>output image tokens</strong>, as the provider publishes them; a price per
-        image would need the token count one image costs, which varies by model and resolution and is not published,
-        so it is not shown rather than estimated.
+        yet. The price column is what the gateway publishes <strong>per generated image</strong>, and only dedicated
+        image models publish one. A multimodal language model that answers with an image — which is what the Pro
+        concept route is — bills through its ordinary output tokens instead, so it reads <em>not published</em> here
+        and its real cost is in the token columns rather than missing.
       </p>
 
       {data && data.discoveryFailed ? (
@@ -359,7 +360,7 @@ function ImageModels() {
               <th scope="col">Route</th>
               <th scope="col" className="admin-num" aria-sort={sortDesc ? 'descending' : 'ascending'}>
                 <button type="button" className="admin-sort" onClick={() => setSortDesc((value) => !value)}>
-                  Image out / M
+                  Per image
                   <span aria-hidden="true">{sortDesc ? ' ▼' : ' ▲'}</span>
                 </button>
               </th>
@@ -381,11 +382,11 @@ function ImageModels() {
                   </span>
                   <InUse uses={row.usedBy} />
                 </th>
-                <td className="admin-num">{imagePrice(row.imageOutputPerMillion)}</td>
+                <td className="admin-num">{imagePrice(row.imagePriceUsd)}</td>
                 <td className="admin-num">{price(row.inputPerMillion)}</td>
                 <td>
                   {row.zdr === 'audited' ? (
-                    <Pill tone={row.zdrAvailable ? 'ok' : 'danger'}>{row.zdrAvailable ? 'audited: yes' : 'audited: no'}</Pill>
+                    <Pill tone={row.zdrAvailable ? 'ok' : 'danger'}>{row.zdrAvailable ? 'verified' : 'not verified'}</Pill>
                   ) : (
                     <Pill tone="muted">not audited</Pill>
                   )}

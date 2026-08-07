@@ -17,7 +17,7 @@ const ENV = [
   'SUPABASE_SECRET_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'IP_HASH_SALT',
-  'OPENROUTER_API_KEY',
+  'AI_GATEWAY_API_KEY',
   'AI_KEY_ENCRYPTION_SECRET',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
@@ -112,7 +112,7 @@ test('a pro-tagged call follows the same recognised-account-only gate as video',
     method: 'POST',
     headers: { 'x-forwarded-for': uniqueIp(), authorization: 'Bearer stale-or-unverifiable' },
     body: JSON.stringify({
-      route: { provider: 'openrouter', model: 'vendor/image-model' },
+      route: { provider: 'vercel', model: 'vendor/image-model' },
       request: { system: 'You are a test.', messages: [{ role: 'user', content: 'hi' }], expect: 'image' },
       surface: 'pro',
     }),
@@ -140,11 +140,11 @@ const LEDGER_BODY: AiGatewayRequestBody = {
 test('the ledger entry is content-free accounting: route, key source, usage, outcome - never text', () => {
   const result: ModelResult = {
     output: 'secret generated output',
-    provider: 'openrouter',
+    provider: 'vercel',
     model: 'z-ai/glm-5',
     attempts: [
       { route: { provider: 'anthropic', model: 'claude-sonnet-5' }, attempts: 2 },
-      { route: { provider: 'openrouter', model: 'z-ai/glm-5' }, attempts: 1 },
+      { route: { provider: 'vercel', model: 'z-ai/glm-5' }, attempts: 1 },
     ],
     usage: {
       inputTokens: 100,
@@ -158,14 +158,14 @@ test('the ledger entry is content-free accounting: route, key source, usage, out
   const entry = gatewayLedgerEntry({
     userId: 'user-1',
     ipHash: 'ip-hash-1',
-    body: { ...LEDGER_BODY, fallbacks: [{ provider: 'openrouter', model: 'z-ai/glm-5' }] },
-    userKeys: { openrouter: 'sk-user-key' },
+    body: { ...LEDGER_BODY, fallbacks: [{ provider: 'vercel', model: 'z-ai/glm-5' }] },
+    userKeys: { vercel: 'sk-user-key' },
     result,
   });
 
   // The executed route is charged, and the user's own key marks it 'byo'.
   assert.equal(entry.task, 'byo-generate');
-  assert.equal(entry.provider, 'openrouter');
+  assert.equal(entry.provider, 'vercel');
   assert.equal(entry.model, 'z-ai/glm-5');
   assert.equal(entry.keySource, 'byo');
   assert.equal(entry.outcome, 'ok');
@@ -269,47 +269,46 @@ async function capturePayload(body: unknown, headers: Record<string, string> = {
 }
 
 const PRO_CALL = {
-  route: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+  route: { provider: 'vercel', model: 'google/gemini-3.1-flash-image' },
   request: { system: 'You generate concepts.', messages: [{ role: 'user', content: 'a lower third' }], expect: 'image' },
   surface: 'pro',
 };
 
 test('a managed Pro call leaves the process asking for zero data retention', async () => {
-  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  process.env.AI_GATEWAY_API_KEY = 'test-managed-key';
   const sent = await capturePayload(PRO_CALL);
 
-  const provider = sent.provider as Record<string, unknown> | undefined;
-  assert.ok(provider, 'the Pro surface must attach a provider routing block');
-  assert.equal(provider.zdr, true);
-  assert.equal(provider.data_collection, 'deny');
-  // Without this the ZDR pin is decorative: OpenRouter would serve the non-ZDR endpoint the
-  // moment the audited one is unavailable, which is the exact case the pin exists for.
-  assert.equal(provider.allow_fallbacks, false);
-  // False on purpose - `modalities` is not a listed provider parameter, so requiring parameters
-  // on an image request narrows the endpoint set to nothing.
-  assert.equal(provider.require_parameters, false);
-  // An empty allowlist would read as "no endpoint permitted" and refuse every route.
-  assert.equal('only' in provider, false);
+  const options = sent.providerOptions as Record<string, unknown> | undefined;
+  const gateway = options?.gateway as Record<string, unknown> | undefined;
+  assert.ok(gateway, 'the Pro surface must attach a gateway routing block');
+  assert.equal(gateway.zeroDataRetention, true);
+  // The gateway serves a ZDR request only from providers under a verified ZDR agreement, so
+  // "deny collection" and "no silent fallback off the audited endpoint" are properties of the
+  // route it picks - there is nothing left to pin, which is why those keys are gone.
+  assert.equal(gateway.sort, 'cost');
+  assert.deepEqual(gateway.tags, ['surface:pro']);
+  // An empty allowlist would read as "no provider permitted" and refuse every route.
+  assert.equal('only' in gateway, false);
 });
 
 test('an untagged call is unchanged - the policy is opt-in per surface', async () => {
-  // The mutation guard for the test above: if `provider` appeared on every managed call, the
+  // The mutation guard for the test above: if `providerOptions` appeared on every managed call, the
   // assertions there would pass for a reason that has nothing to do with the Pro surface.
-  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  process.env.AI_GATEWAY_API_KEY = 'test-managed-key';
   const sent = await capturePayload({ ...PRO_CALL, surface: undefined });
-  assert.equal('provider' in sent, false, 'an untagged call must carry no routing directives');
+  assert.equal('providerOptions' in sent, false, 'an untagged call must carry no routing directives');
 });
 
 test('a BYO Pro call is NOT policied - a user key is not ours to route', async () => {
   // The line api/ai/generate.ts already draws for the disabled-route switch: somebody spending
   // their own money on a model they chose does not get our routing opinions attached.
   process.env.AI_KEY_ENCRYPTION_SECRET = 'a'.repeat(64);
-  process.env.OPENROUTER_API_KEY = 'test-managed-key';
+  process.env.AI_GATEWAY_API_KEY = 'test-managed-key';
   const cookie = userAiKeysCookie(
     new Request('https://noacg.test/api/ai/credentials', { headers: { origin: 'https://noacg.test' } }),
-    { openrouter: 'user-supplied-key' },
+    { vercel: 'user-supplied-key' },
   ).split(';')[0];
 
   const sent = await capturePayload(PRO_CALL, { cookie });
-  assert.equal('provider' in sent, false, 'a BYO call must not carry our routing directives');
+  assert.equal('providerOptions' in sent, false, 'a BYO call must not carry our routing directives');
 });

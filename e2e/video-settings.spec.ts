@@ -107,18 +107,18 @@ test('a project of unknown provenance warns about nothing', async ({ page }) => 
   await expect(page.getByTestId('video-settings-drift')).toHaveCount(0);
 });
 
-test('offers live OpenRouter models that satisfy the full video contract', async ({ page }) => {
+test('offers live gateway models that satisfy the full video contract', async ({ page }) => {
   await mockClaude(page, [moduleFor('Catalog')]);
   await createVideoProject(page);
-  await page.route('**/api/ai/models?provider=openrouter', async (route) => {
+  await page.route('**/api/ai/models?provider=vercel', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
-        provider: 'openrouter',
+        provider: 'vercel',
         syncedAt: '2026-07-28T00:00:00.000Z',
         models: [
           {
-            provider: 'openrouter',
+            provider: 'vercel',
             id: 'vendor/video-coder',
             name: 'Video Coder',
             description: 'A model suitable for complete compositions.',
@@ -135,10 +135,10 @@ test('offers live OpenRouter models that satisfy the full video contract', async
             available: true,
             createdAt: '2026-07-01T00:00:00.000Z',
             revision: 'vendor/video-coder-20260701',
-            source: 'openrouter-models-api',
+            source: 'vercel-ai-gateway',
           },
           {
-            provider: 'openrouter',
+            provider: 'vercel',
             id: 'vendor/tiny-context',
             name: 'Tiny Context',
             description: '',
@@ -155,7 +155,7 @@ test('offers live OpenRouter models that satisfy the full video contract', async
             available: true,
             createdAt: null,
             revision: null,
-            source: 'openrouter-models-api',
+            source: 'vercel-ai-gateway',
           },
         ],
       }),
@@ -164,9 +164,9 @@ test('offers live OpenRouter models that satisfy the full video contract', async
   await page.evaluate(async () => {
     const { saveAiSettings } = await import('/src/ai/settings.ts');
     saveAiSettings({
-      provider: 'openrouter',
+      provider: 'vercel',
       model: 'vendor/video-coder',
-      configuredProviders: ['openrouter'],
+      configuredProviders: ['vercel'],
     });
   });
 

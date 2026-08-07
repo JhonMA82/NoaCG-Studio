@@ -1,8 +1,9 @@
-// Live provider-model DISCOVERY for GET /api/ai/models: normalizes OpenRouter's Models
-// API and Hugging Face's Inference Providers router into one shape the browser picker
-// and the video benchmark read. This is a live listing, not an approval - the audited
+// Live provider-model DISCOVERY for GET /api/ai/models: normalizes Vercel AI Gateway's
+// models listing and Hugging Face's Inference Providers router into one shape the browser
+// picker and the video benchmark read. This is a live listing, not an approval - the audited
 // approved-route catalog that free-tier task profiles must reference is
 // api/_lib/aiModelCatalog.ts.
+import { AI_GATEWAY_BASE_URL } from './aiGateway.js';
 import type {
   AiDiscoveredModel,
   AiModelCatalogResponse,
@@ -49,52 +50,50 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-export function normalizedOpenRouter(value: unknown): AiDiscoveredModel | null {
+export function normalizedVercelGateway(value: unknown): AiDiscoveredModel | null {
   const model = object(value);
   const id = text(model.id);
   if (!id) return null;
-  const architecture = object(model.architecture);
+  const modalities = object(model.modalities);
   const pricing = object(model.pricing);
-  const topProvider = object(model.top_provider);
   const parameters = strings(model.supported_parameters);
-  const inputPerMillion = perMillion(pricing.prompt);
-  const outputPerMillion = perMillion(pricing.completion);
-  const expiration = text(model.expiration_date);
-  const expiresAt = expiration ? Date.parse(expiration) : Number.POSITIVE_INFINITY;
+  const tags = strings(model.tags);
+  const inputPerMillion = perMillion(pricing.input);
+  const outputPerMillion = perMillion(pricing.output);
+  const deprecated = text(model.deprecated_at);
+  const deprecatedAt = deprecated ? Date.parse(deprecated) : Number.POSITIVE_INFINITY;
   return {
-    provider: 'openrouter',
+    provider: 'vercel',
     id,
     name: text(model.name) || id,
     description: text(model.description),
-    contextLength: finite(model.context_length),
-    maxOutputTokens: finite(topProvider.max_completion_tokens),
+    contextLength: finite(model.context_window),
+    maxOutputTokens: finite(model.max_tokens),
     inputPerMillion,
     outputPerMillion,
-    inputModalities: strings(architecture.input_modalities),
-    supportsStructuredOutput:
-      parameters.includes('structured_outputs') || parameters.includes('response_format'),
-    supportsTools: parameters.includes('tools') && parameters.includes('tool_choice'),
+    inputModalities: strings(modalities.input),
+    // The gateway publishes CAPABILITY TAGS rather than a per-parameter support matrix, and
+    // there is no `structured_outputs` or `response_format` entry in `supported_parameters`
+    // to read - measured across the whole live listing, not assumed. `tool-use` is the honest
+    // signal available: it is exactly the capability the gateway's forced-function structured
+    // mode needs, and every model that decodes a JSON schema carries it. Reading a missing
+    // field would have marked all 322 models incapable and emptied the picker.
+    supportsStructuredOutput: tags.includes('tool-use'),
+    supportsTools: tags.includes('tool-use'),
     supportsSeed: parameters.includes('seed'),
-    free: id.endsWith(':free') || (inputPerMillion === 0 && outputPerMillion === 0),
-    openWeight: Boolean(text(model.hugging_face_id)),
-    available: !Number.isFinite(expiresAt) || expiresAt > Date.now(),
+    free: tags.includes('free') || (inputPerMillion === 0 && outputPerMillion === 0),
+    // Not published by the gateway - see the field's note in modelTypes.ts. False here means
+    // "not stated"; the audited catalog carries the promotion-time flag.
+    openWeight: false,
+    available: !Number.isFinite(deprecatedAt) || deprecatedAt > Date.now(),
     createdAt: isoFromEpoch(model.created),
-    revision: text(model.canonical_slug) || null,
-    // The generated-image side of the bill, per OUTPUT IMAGE TOKEN - so it scales like the
-    // prompt/completion prices above and is normalized the same way.
-    //
-    // It is `image_output`, NOT `image`: measured against the live listing, 38 of 40
-    // image-output models carry `image_output` and only 4 carry `image`, which is the price of
-    // an image the caller SENDS IN (vision). Where a model publishes both they disagree by up
-    // to ~835x (x-ai/grok-imagine-image-quality: image 0.01, image_output 0.0000120), so
-    // reading the wrong one does not degrade to a missing price - it prints a confident,
-    // wrong one.
-    //
-    // Deliberately NOT converted to a price per image: that needs the tokens one image costs,
-    // which varies by model and resolution and which the listing does not publish. Inventing
-    // that factor would be a money figure nobody verified.
-    imageOutputPerMillion: perMillion(pricing.image_output),
-    source: 'openrouter-models-api',
+    revision: null,
+    // Vercel publishes a price per GENERATED IMAGE, and only for dedicated image models. A
+    // multimodal language model answering with an image (the Pro concept route's shape) bills
+    // through its ordinary output tokens, so it correctly carries no value here rather than a
+    // zero that would read as free.
+    imagePriceUsd: finite(pricing.image),
+    source: 'vercel-ai-gateway',
   };
 }
 
@@ -158,17 +157,26 @@ async function fetchJson(url: string, key?: string): Promise<unknown> {
   return response.json();
 }
 
-async function openRouterModels(key: string | undefined, output: DiscoveryOutput): Promise<AiDiscoveredModel[]> {
-  // The text listing keeps its structured-output requirement (the harness forces schemas);
-  // the image listing asks only for image output - image models rarely declare
-  // structured_outputs and never need it.
-  const url = output === 'image'
-    ? 'https://openrouter.ai/api/v1/models?output_modalities=image'
-    : 'https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=structured_outputs';
-  const raw = object(await fetchJson(url, key));
+/** Whether a listing entry can answer in the modality the caller asked for. The gateway
+ *  serves one unfiltered listing (there is no server-side `output_modalities` query the way
+ *  OpenRouter had), so the split happens here - and it reads the model's declared output
+ *  modalities rather than its `type`, because the models that matter most to NoaCG are
+ *  `type: 'language'` entries that also emit images. */
+function answersIn(value: unknown, output: DiscoveryOutput): boolean {
+  const outputs = strings(object(object(value).modalities).output);
+  return output === 'image' ? outputs.includes('image') : outputs.includes('text');
+}
+
+async function vercelGatewayModels(key: string | undefined, output: DiscoveryOutput): Promise<AiDiscoveredModel[]> {
+  const raw = object(await fetchJson(`${AI_GATEWAY_BASE_URL}/models`, key));
   return list(raw.data)
-    .map(normalizedOpenRouter)
-    .filter((model): model is AiDiscoveredModel => model !== null);
+    .filter((entry) => object(entry).type === 'language' && answersIn(entry, output))
+    .map(normalizedVercelGateway)
+    .filter((model): model is AiDiscoveredModel => model !== null)
+    // A text listing still serves the harness, which forces a schema on every call, so an
+    // entry that cannot decode one has no place in the picker. The image listing keeps every
+    // image-capable model: an image request forces no schema and needs none.
+    .filter((model) => output === 'image' || model.supportsStructuredOutput);
 }
 
 async function huggingFaceModels(key?: string): Promise<AiDiscoveredModel[]> {
@@ -188,16 +196,16 @@ export async function discoverProviderModels(
   const cacheKey = `${provider}:${Boolean(key)}:${output}`;
   const found = cache.get(cacheKey);
   if (found && Date.now() - found.at < CACHE_MS) return found.value;
-  // Image-output discovery exists only where the gateway's image adapter does (OpenRouter);
+  // Image-output discovery exists only where the image adapter does (the Vercel gateway);
   // an empty list is the honest answer for every other provider.
-  if (provider !== 'openrouter' && provider !== 'huggingface') {
+  if (provider !== 'vercel' && provider !== 'huggingface') {
     return { provider, syncedAt: new Date().toISOString(), models: [] };
   }
-  if (output === 'image' && provider !== 'openrouter') {
+  if (output === 'image' && provider !== 'vercel') {
     return { provider, syncedAt: new Date().toISOString(), models: [] };
   }
-  const models = provider === 'openrouter'
-    ? await openRouterModels(key, output)
+  const models = provider === 'vercel'
+    ? await vercelGatewayModels(key, output)
     : await huggingFaceModels(key);
   const value = {
     provider,

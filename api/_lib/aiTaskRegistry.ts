@@ -40,7 +40,7 @@ export interface TaskRoutePolicy {
   primary: ModelRoute;
   fallbacks: ModelRoute[];
   prices: Record<string, ModelPrice>;
-  openRouterProviders: string[];
+  gatewayProviders: string[];
   requireZdr: boolean;
   structuredMode: 'json-schema' | 'tool';
   maxProviderCostUsd: number;
@@ -96,9 +96,9 @@ export function liteTaskProfile(profile: LiteProfile = liteProfile()): TaskProfi
       primary: profile.primary,
       fallbacks: [profile.fallback],
       prices: profile.prices,
-      openRouterProviders: profile.openRouterProviders,
+      gatewayProviders: profile.gatewayProviders,
       requireZdr: profile.requireZdr,
-      structuredMode: profile.openRouterStructuredMode,
+      structuredMode: profile.structuredMode,
       maxProviderCostUsd: profile.maxProviderCostUsd,
     },
     ledger: { kind: 'ai_generations', profile: profile.id },
@@ -133,7 +133,7 @@ export function importAnalysisTaskProfile(profile: ImportAnalysisProfile = impor
       // a second route enters as explicit configuration when it earns its place.
       fallbacks: [],
       prices: profile.prices,
-      openRouterProviders: profile.openRouterProviders,
+      gatewayProviders: profile.gatewayProviders,
       requireZdr: profile.requireZdr,
       structuredMode: 'json-schema',
       maxProviderCostUsd: profile.maxProviderCostUsd,
@@ -157,13 +157,13 @@ export function taskProfile(taskId: AiTaskId): TaskProfile {
 export const AI_TASK_IDS = Object.keys(TASKS) as AiTaskId[];
 
 function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
-  if (route.provider !== 'openrouter') return true;
+  if (route.provider !== 'vercel') return true;
   // A catalogued route that produces IMAGES cannot serve a registered task - every task here
   // sends a text request and reads a structured answer. The catalog held only text models
   // until the Pro concept route was audited into it, so this is the check that stops an env
   // edit from pointing Lite at an image model and discovering it on the first call.
   if (approvedModelRoute(route) && !approvedTextRoute(route)) return false;
-  return Boolean(policy.prices[modelRouteKey(route)]) && policy.openRouterProviders.length > 0;
+  return Boolean(policy.prices[modelRouteKey(route)]) && policy.gatewayProviders.length > 0;
 }
 
 /** True when the task's spend is NoaCG's own: those routes must be catalog-approved AND
@@ -179,11 +179,11 @@ function fundedRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   return fundedModelRoute(route, policy.prices[modelRouteKey(route)] ?? null);
 }
 
-/** The registry's fail-closed gate, generalizing liteProfileConfigured(): every
- *  OpenRouter route needs a current price and a provider allowlist, and every route
- *  NoaCG funds must be a catalog-approved entry that satisfies decision 5 (OpenRouter,
- *  under the funded-route price ceiling). Approval never keys off openWeights - that flag
- *  is promotion-time preference metadata (plan §15.1). */
+/** The registry's fail-closed gate, generalizing liteProfileConfigured(): every managed
+ *  gateway route needs a current price and a provider allowlist, and every route NoaCG funds
+ *  must be a catalog-approved entry that satisfies decision 5 (the Vercel AI Gateway
+ *  transport, under the funded-route price ceiling). Approval never keys off openWeights -
+ *  that flag is promotion-time preference metadata (plan §15.1). */
 export function taskConfigured(task: TaskProfile): boolean {
   const routes = [task.routePolicy.primary, ...task.routePolicy.fallbacks];
   if (!routes.every((route) => routeConfigured(task.routePolicy, route))) return false;

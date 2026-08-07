@@ -56,27 +56,27 @@ export function tokenMinter(fileEnv) {
  *
  *  A route with an EMPTY allowlist is not configured at all (taskConfigured), so a bench
  *  that injects a model but no allowlist fails closed before spending - which is what the
- *  vision suite did on its first attempt. Slugs are resolved from OpenRouter rather than
- *  slugified from the display name, because "Google" is `google-vertex` and a guessed slug
- *  matches nothing, which fails the same way for a different reason. */
+ *  vision suite did on its first attempt.
+ *
+ *  The name-to-slug lookup this used to need is GONE: OpenRouter's endpoints API reported a
+ *  display name ("Google") whose slug was something else (`google-vertex`), so a second
+ *  listing call had to translate it or the allowlist silently matched nothing. Vercel AI
+ *  Gateway reports `provider_name` as the slug itself, so there is nothing left to guess
+ *  wrong. */
 export async function providerAllowlistFor(model) {
   const get = async (url) => {
     const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     if (!response.ok) throw new Error(`${url} returned ${response.status}`);
     return response.json();
   };
-  const [providers, detail] = await Promise.all([
-    get('https://openrouter.ai/api/v1/providers'),
-    get(`https://openrouter.ai/api/v1/models/${model}/endpoints`),
-  ]);
-  const slugByName = new Map((providers.data ?? [])
-    .filter((p) => p.name && p.slug)
-    .map((p) => [p.name.toLowerCase(), p.slug]));
+  const detail = await get(`https://ai-gateway.vercel.sh/v1/models/${model}/endpoints`);
+  // Tool support, not `structured_outputs`: the gateway publishes no such parameter anywhere,
+  // and forced-function tool use is the capability the structured call actually rides on.
   const slugs = [...new Set((detail.data?.endpoints ?? [])
-    .filter((e) => (e.supported_parameters ?? []).includes('structured_outputs'))
-    .map((e) => slugByName.get((e.provider_name ?? '').toLowerCase()))
+    .filter((e) => (e.supported_parameters ?? []).includes('tools'))
+    .map((e) => e.provider_name)
     .filter(Boolean))];
-  if (!slugs.length) throw new Error(`no structured-output endpoint with a known slug for ${model}`);
+  if (!slugs.length) throw new Error(`no tool-capable endpoint for ${model}`);
   return slugs.join(',');
 }
 

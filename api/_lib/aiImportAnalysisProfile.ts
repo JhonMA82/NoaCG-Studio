@@ -8,7 +8,7 @@
 // only successes count against the success allowance (starts have their own, looser,
 // abuse-oriented caps).
 
-import type { ModelPrice, OpenRouterRoutingPolicy } from './aiGateway.js';
+import type { GatewayRoutingPolicy, ModelPrice } from './aiGateway.js';
 import { approvedModelPrices } from './aiModelCatalog.js';
 import { boolEnv, envRoute, intEnv, numberEnv } from './aiLiteProfile.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
@@ -20,7 +20,7 @@ export interface ImportAnalysisProfile {
   promptVersion: string;
   route: ModelRoute;
   prices: Record<string, ModelPrice>;
-  openRouterProviders: string[];
+  gatewayProviders: string[];
   requireZdr: boolean;
   maxProviderCostUsd: number;
   dailySuccesses: number;
@@ -37,12 +37,12 @@ export interface ImportAnalysisProfile {
   expiryMs: number;
 }
 
-function providerEndpoints(): string[] {
-  // Its own allowlist, falling back to Lite's: the audited OpenRouter endpoints are
-  // usually the same review, and a deployment that audited them once should not need
-  // to duplicate the list to turn this task on.
-  const own = (process.env.AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS ?? '').trim();
-  const source = own || (process.env.AI_LITE_OPENROUTER_PROVIDERS ?? '');
+function providerSlugs(): string[] {
+  // Its own allowlist, falling back to Lite's: the audited gateway providers are usually the
+  // same review, and a deployment that audited them once should not need to duplicate the
+  // list to turn this task on.
+  const own = (process.env.AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS ?? '').trim();
+  const source = own || (process.env.AI_LITE_GATEWAY_PROVIDERS ?? '');
   return source.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 8);
 }
 
@@ -57,12 +57,12 @@ export function importAnalysisProfile(): ImportAnalysisProfile {
     route: envRoute(
       process.env.AI_IMPORT_ANALYSIS_PROVIDER,
       process.env.AI_IMPORT_ANALYSIS_MODEL,
-      { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+      { provider: 'vercel', model: 'google/gemini-2.5-flash' },
     ),
     // The audited catalog snapshot only - no per-task price overrides: an unpriced or
     // uncatalogued route fails closed at the registry gate.
     prices: approvedModelPrices(),
-    openRouterProviders: providerEndpoints(),
+    gatewayProviders: providerSlugs(),
     requireZdr: boolEnv('AI_IMPORT_ANALYSIS_REQUIRE_ZDR', true),
     maxProviderCostUsd: numberEnv('AI_IMPORT_ANALYSIS_MAX_COST_USD', 0.01, 0.0001, 0.1),
     dailySuccesses: intEnv('AI_IMPORT_ANALYSIS_DAILY_SUCCESSES', 10, 0, 1000),
@@ -85,21 +85,18 @@ export function importAnalysisPrice(profile: ImportAnalysisProfile): ModelPrice 
   return profile.prices[`${profile.route.provider}:${profile.route.model}`] ?? null;
 }
 
-/** The OpenRouter privacy/price policy - the Lite judge pattern: ZDR, no data collection,
- *  no provider-picked fallback, audited endpoints only, price-capped at the route's own
- *  audited entry. */
-export function importAnalysisPolicy(profile: ImportAnalysisProfile): OpenRouterRoutingPolicy | undefined {
-  if (profile.route.provider !== 'openrouter') return undefined;
-  const price = importAnalysisPrice(profile);
-  if (!price || profile.openRouterProviders.length === 0) return undefined;
+/** The gateway privacy policy - the Lite judge pattern: zero data retention, audited
+ *  providers only, cheapest first, tagged for per-surface spend. The per-request price cap
+ *  OpenRouter enforced has no gateway equivalent; `maxProviderCostUsd` and the approved-catalog
+ *  snapshot carry it server-side (see liteGatewayPolicy for the full argument). */
+export function importAnalysisPolicy(profile: ImportAnalysisProfile): GatewayRoutingPolicy | undefined {
+  if (profile.route.provider !== 'vercel') return undefined;
+  if (!importAnalysisPrice(profile) || profile.gatewayProviders.length === 0) return undefined;
   return {
-    zdr: profile.requireZdr,
-    dataCollection: 'deny',
-    requireParameters: true,
-    allowProviderFallbacks: false,
-    only: profile.openRouterProviders,
-    maxInputPerMillion: price.inputPerMillion,
-    maxOutputPerMillion: price.outputPerMillion,
+    zeroDataRetention: profile.requireZdr,
+    only: profile.gatewayProviders,
+    sort: 'cost',
+    tags: ['surface:import-analysis'],
     structuredOutputMode: 'json-schema',
   };
 }

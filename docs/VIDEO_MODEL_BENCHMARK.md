@@ -39,7 +39,7 @@ benchmark.
 
 All credentials are server-only and must never use a `VITE_` prefix:
 
-- `OPENROUTER_API_KEY`
+- `AI_GATEWAY_API_KEY` (or the ambient `VERCEL_OIDC_TOKEN`)
 - `HUGGINGFACE_API_KEY`, or the conventional alias `HF_TOKEN`
 - `AI_KEY_ENCRYPTION_SECRET` to accept an optional user key through the encrypted HttpOnly cookie
 - `AI_TIMEOUT_MS` and `AI_RETRY_LIMIT` for bounded provider calls

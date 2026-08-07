@@ -1298,7 +1298,7 @@ test.describe('creative pilot (phase C)', () => {
       calls.push(tool);
       const answer = (output: unknown) => route.fulfill({
         contentType: 'application/json',
-        body: JSON.stringify({ output, usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 }, provider: 'openrouter', model: 'stub', attempts: [] }),
+        body: JSON.stringify({ output, usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 }, provider: 'vercel', model: 'stub', attempts: [] }),
       });
       if (tool === 'emit_concept_directions') return answer(CONCEPTS);
       if (tool === 'emit_creative_spec') return answer(BRACKET_SPEC);
@@ -1386,7 +1386,7 @@ test.describe('creative pilot (phase C)', () => {
       tools.push(tool);
       const answer = (output: unknown) => route.fulfill({
         contentType: 'application/json',
-        body: JSON.stringify({ output, usage: { inputTokens: 200, outputTokens: 80, totalTokens: 280 }, provider: 'openrouter', model: 'stub', attempts: [] }),
+        body: JSON.stringify({ output, usage: { inputTokens: 200, outputTokens: 80, totalTokens: 280 }, provider: 'vercel', model: 'stub', attempts: [] }),
       });
       if (tool === 'emit_structural_intent') {
         return answer({

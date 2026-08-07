@@ -109,7 +109,7 @@ for (const model of CANDIDATES) {
   const runDir = path.join(OUT, label);
   console.log(`\n=== ${model}`);
   const server = startServer({
-    VITE_AI_PROVIDER: 'openrouter',
+    VITE_AI_PROVIDER: 'vercel',
     VITE_AI_MODEL: model,
   });
   try {

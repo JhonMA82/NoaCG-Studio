@@ -15,7 +15,7 @@ plan §13):
 | `tiers` | Who may run it: `anonymous`, `free`, `byo`, `paid`. Lite is `['free']`. |
 | `limits` | Token budgets plus `maxImages` / `maxImageResolution` for vision tasks (Lite: 0 / null - logos ride the deterministic browser pipeline). |
 | `timeoutMs`, `maxAttempts`, `retryLimit` | The bounded execution policy handed to the gateway. |
-| `routePolicy` | Primary + explicit fallbacks, prices, OpenRouter endpoint allowlist, ZDR requirement, structured mode, per-call cost ceiling. |
+| `routePolicy` | Primary + explicit fallbacks, prices, gateway provider allowlist, ZDR requirement, structured mode, per-call cost ceiling. |
 | `ledger` | Which ledger the task writes and the row discriminator (`ai_generations` pins its values with a CHECK constraint - a new value ships its migration in the same commit). |
 
 The first registered task is **`lite-design-spec`**: a VIEW over `liteProfile()`, so the
@@ -38,7 +38,7 @@ consumes another's quotas or fleet budget). Quotas per ratified decision 3: 1 im
 The launch route is settled by the vision benchmark (plan §8) before the flag turns on.
 
 `taskConfigured(task)` is the fail-closed gate the Lite endpoints now call (generalizing
-`liteProfileConfigured()`): every OpenRouter route needs a current price and a provider
+`liteProfileConfigured()`): every managed gateway route needs a current price and a provider
 endpoint allowlist, and every free/anonymous-tier route must be a catalog-approved entry
 that is also **funded-eligible** (below). A misconfigured route refuses with
 `profile_not_configured` - never a silent fallback.
@@ -60,7 +60,7 @@ may adjust a price but cannot approve a route.
 route, but a superior proprietary model is never excluded for closed weights alone.
 
 **The funded-route rule IS a gate** (ratified decision, plan §15.5 - *who pays decides the
-route*). A route NoaCG funds must go through `FUNDED_ROUTE_PROVIDER` (`openrouter`) and
+route*). A route NoaCG funds must go through `FUNDED_ROUTE_PROVIDER` (`vercel`) and
 price at or under `FUNDED_ROUTE_PRICE_CEILING` (1.00 in / 5.00 out per million). OpenAI
 and Anthropic models are reachable only through a user's own sealed key, so they never
 enter this catalog. Two layers enforce it:
@@ -69,7 +69,7 @@ enter this catalog. Two layers enforce it:
   the audited snapshot, so an `AI_LITE_PRICING_JSON` override cannot move the free tier
   onto a route the project would not pay for.
 - A catalog test refuses any entry that could never serve a funded route, so a
-  non-OpenRouter or over-ceiling addition fails the build rather than only failing later
+  non-gateway or over-ceiling addition fails the build rather than only failing later
   at request time.
 
 Raise the ceiling deliberately (it is one constant plus its test), not to admit a single
@@ -84,7 +84,7 @@ listing, not an approval.
 1. Register the task id and its `TaskProfile` derivation in `aiTaskRegistry.ts`.
 2. Approve its routes in the catalog (benchmark first; open-weight preference at parity).
    A task with a free or anonymous tier can only be approved onto a funded-eligible
-   route - cheap and OpenRouter-reachable.
+   route - cheap and reachable through the managed Vercel AI Gateway transport.
 3. If it writes `ai_generations` with a new `profile` value, ship the CHECK-constraint
    migration in the same commit (root AGENTS.md non-negotiable 6) - and keep older
    deployments working: Lite deliberately stays on its 0010-era RPC names so the code

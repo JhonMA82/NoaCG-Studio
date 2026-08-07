@@ -23,18 +23,18 @@ import {
  *  tests below break ONE property at a time. */
 const OK_AMBIENT: Record<string, string> = {
   AI_LITE_ENABLED: 'true',
-  OPENROUTER_API_KEY: 'sk-test',
-  AI_LITE_OPENROUTER_PROVIDERS: 'deepinfra',
+  AI_GATEWAY_API_KEY: 'sk-test',
+  AI_LITE_GATEWAY_PROVIDERS: 'deepinfra',
 };
 
 /** Two approved, funded, distinct catalog routes - real entries, so the test measures the
  *  actual catalog rather than a fixture of it. */
 const INCUMBENT = 'google/gemini-2.5-flash-lite';
-const CANDIDATE = 'qwen/qwen3-30b-a3b-instruct-2507';
+const CANDIDATE = 'openai/gpt-oss-20b';
 
 const arm = (candidate: string, env: Record<string, string | undefined> = {}) => ({
   candidate,
-  env: { AI_LITE_PRIMARY_MODEL: candidate, AI_LITE_PRIMARY_PROVIDER: 'openrouter', ...env },
+  env: { AI_LITE_PRIMARY_MODEL: candidate, AI_LITE_PRIMARY_PROVIDER: 'vercel', ...env },
 });
 
 const codes = (report: { findings: { code: string }[] }) => report.findings.map((f) => f.code);
@@ -51,7 +51,7 @@ test('a saved model in the ambient environment cannot silently override a candid
   const notInjected = { candidate: CANDIDATE, env: {} };
   const overridden = benchPreflight(
     [{ candidate: INCUMBENT, env: {} }, notInjected],
-    { ...OK_AMBIENT, AI_LITE_PRIMARY_MODEL: INCUMBENT, AI_LITE_PRIMARY_PROVIDER: 'openrouter' },
+    { ...OK_AMBIENT, AI_LITE_PRIMARY_MODEL: INCUMBENT, AI_LITE_PRIMARY_PROVIDER: 'vercel' },
   );
   assert.equal(overridden.ok, false);
   assert.ok(codes(overridden).includes('candidate-overridden'));
@@ -61,7 +61,7 @@ test('a saved model in the ambient environment cannot silently override a candid
   // The mutation twin: the SAME ambient environment, with the arm injecting properly.
   const injected = benchPreflight(
     [arm(INCUMBENT), arm(CANDIDATE)],
-    { ...OK_AMBIENT, AI_LITE_PRIMARY_MODEL: INCUMBENT, AI_LITE_PRIMARY_PROVIDER: 'openrouter' },
+    { ...OK_AMBIENT, AI_LITE_PRIMARY_MODEL: INCUMBENT, AI_LITE_PRIMARY_PROVIDER: 'vercel' },
   );
   assert.equal(injected.ok, true, 'an injected route must outrank the saved one');
 });
@@ -93,7 +93,7 @@ test('a route missing from the approved catalog fails closed, and says so', () =
 });
 
 test('a missing provider allowlist is caught before the spend, not during it', () => {
-  const { AI_LITE_OPENROUTER_PROVIDERS: _dropped, ...noAllowlist } = OK_AMBIENT;
+  const { AI_LITE_GATEWAY_PROVIDERS: _dropped, ...noAllowlist } = OK_AMBIENT;
   const report = benchPreflight([arm(INCUMBENT), arm(CANDIDATE)], noAllowlist);
   assert.equal(report.ok, false);
   assert.ok(codes(report).includes('route-not-configured'));
@@ -171,7 +171,7 @@ test('credential and flag mistakes are reported together, not one per run', () =
 /** The vision incumbent and an approved open-weight vision candidate - real catalog
  *  entries, so the tests measure the actual catalog. */
 const VISION_INCUMBENT = 'google/gemini-2.5-flash';
-const VISION_CANDIDATE = 'mistralai/mistral-small-2603';
+const VISION_CANDIDATE = 'google/gemini-2.5-flash-lite';
 
 /** What ai-vision-run.mjs actually injects per candidate (minus the network-resolved
  *  allowlist, which the runner adds as armEnvExtra). Mirroring that injection is the
@@ -180,15 +180,15 @@ const visionArm = (candidate: string, env: Record<string, string | undefined> = 
   candidate,
   env: {
     AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
-    AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',
+    AI_IMPORT_ANALYSIS_PROVIDER: 'vercel',
     AI_IMPORT_ANALYSIS_MODEL: candidate,
     ...env,
   },
 });
 
 const VISION_AMBIENT: Record<string, string> = {
-  OPENROUTER_API_KEY: 'sk-test',
-  AI_LITE_OPENROUTER_PROVIDERS: 'deepinfra',
+  AI_GATEWAY_API_KEY: 'sk-test',
+  AI_LITE_GATEWAY_PROVIDERS: 'deepinfra',
 };
 
 test('import-analysis: correctly configured vision arms pass', () => {
@@ -225,7 +225,7 @@ test('import-analysis: an arm whose environment leaves the kill switch off is na
   // produces a uniform wall of refusals that reads like a bad model.
   const noFlag = {
     candidate: VISION_CANDIDATE,
-    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter', AI_IMPORT_ANALYSIS_MODEL: VISION_CANDIDATE },
+    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'vercel', AI_IMPORT_ANALYSIS_MODEL: VISION_CANDIDATE },
   };
   const report = benchPreflight([visionArm(VISION_INCUMBENT), noFlag], VISION_AMBIENT, importAnalysisPreflightTask);
   assert.equal(report.ok, false);
@@ -243,7 +243,7 @@ test('import-analysis: a saved route in .env cannot silently override a candidat
   const notInjected = { candidate: VISION_CANDIDATE, env: { AI_TASK_IMPORT_ANALYSIS_ENABLED: '1' } };
   const report = benchPreflight(
     [visionArm(VISION_INCUMBENT), notInjected],
-    { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter' },
+    { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'vercel' },
     importAnalysisPreflightTask,
   );
   assert.equal(report.ok, false);
@@ -254,7 +254,7 @@ test('import-analysis: a saved route in .env cannot silently override a candidat
   assert.equal(
     benchPreflight(
       [visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)],
-      { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter' },
+      { ...VISION_AMBIENT, AI_IMPORT_ANALYSIS_MODEL: VISION_INCUMBENT, AI_IMPORT_ANALYSIS_PROVIDER: 'vercel' },
       importAnalysisPreflightTask,
     ).ok,
     true,
@@ -263,19 +263,19 @@ test('import-analysis: a saved route in .env cannot silently override a candidat
 
 test('import-analysis: the allowlist falls back to Lite\'s, and the runner\'s own injection wins', () => {
   // No allowlist anywhere: refused, and the diagnosis names the task's own variable.
-  const bare = { OPENROUTER_API_KEY: 'sk-test' };
+  const bare = { AI_GATEWAY_API_KEY: 'sk-test' };
   const noAllowlist = benchPreflight([visionArm(VISION_INCUMBENT), visionArm(VISION_CANDIDATE)], bare, importAnalysisPreflightTask);
   assert.equal(noAllowlist.ok, false);
   assert.match(
     noAllowlist.findings.find((f) => f.code === 'route-not-configured')?.message ?? '',
-    /AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS/,
+    /AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS/,
   );
 
   // The runner injects a resolved allowlist per arm (armEnvExtra) - that alone suffices.
   const injected = benchPreflight(
     [
-      visionArm(VISION_INCUMBENT, { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: 'deepinfra' }),
-      visionArm(VISION_CANDIDATE, { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: 'mistral' }),
+      visionArm(VISION_INCUMBENT, { AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS: 'deepinfra' }),
+      visionArm(VISION_CANDIDATE, { AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS: 'mistral' }),
     ],
     bare,
     importAnalysisPreflightTask,
@@ -286,7 +286,7 @@ test('import-analysis: the allowlist falls back to Lite\'s, and the runner\'s ow
 test('import-analysis: an arm wrong in two ways gets both findings in one dry run', () => {
   const brokenTwice = {
     candidate: 'meta-llama/llama-4-scout',
-    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter', AI_IMPORT_ANALYSIS_MODEL: 'meta-llama/llama-4-scout' },
+    env: { AI_IMPORT_ANALYSIS_PROVIDER: 'vercel', AI_IMPORT_ANALYSIS_MODEL: 'meta-llama/llama-4-scout' },
   };
   const report = benchPreflight([brokenTwice], VISION_AMBIENT, importAnalysisPreflightTask);
   assert.ok(codes(report).includes('feature-disabled'));
@@ -304,11 +304,11 @@ test('the import-analysis incumbent is derived from the profile default, not cop
 });
 
 test('credential findings: a task that injects its own flag can skip the ambient flag check', () => {
-  const findings = benchCredentialFindings({ OPENROUTER_API_KEY: 'sk-test' }, { enabledFlag: null });
+  const findings = benchCredentialFindings({ AI_GATEWAY_API_KEY: 'sk-test' }, { enabledFlag: null });
   assert.deepEqual(findings, []);
   // The mutation twin: the default still demands Lite's flag.
   assert.ok(
-    benchCredentialFindings({ OPENROUTER_API_KEY: 'sk-test' }).some((f) => f.code === 'feature-disabled'),
+    benchCredentialFindings({ AI_GATEWAY_API_KEY: 'sk-test' }).some((f) => f.code === 'feature-disabled'),
   );
 });
 

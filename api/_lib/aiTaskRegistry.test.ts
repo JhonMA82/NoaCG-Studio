@@ -29,7 +29,7 @@ const ENV = [
   'AI_LITE_PRIMARY_MODEL',
   'AI_LITE_FALLBACK_PROVIDER',
   'AI_LITE_FALLBACK_MODEL',
-  'AI_LITE_OPENROUTER_PROVIDERS',
+  'AI_LITE_GATEWAY_PROVIDERS',
   'AI_LITE_PRICING_JSON',
   'AI_LITE_PROMPT_VERSION',
   'AI_LITE_SKIN_ENABLED',
@@ -37,7 +37,7 @@ const ENV = [
   'AI_TASK_IMPORT_ANALYSIS_ENABLED',
   'AI_IMPORT_ANALYSIS_PROVIDER',
   'AI_IMPORT_ANALYSIS_MODEL',
-  'AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS',
+  'AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -65,8 +65,8 @@ test('the registry re-expresses Lite as the lite-design-spec task profile', () =
   assert.equal(task.retryLimit, 0);
   assert.equal(task.limits.maxImages, 0);
   assert.equal(task.limits.maxImageResolution, null);
-  assert.deepEqual(task.routePolicy.primary, { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' });
-  assert.deepEqual(task.routePolicy.fallbacks, [{ provider: 'openrouter', model: 'qwen/qwen3-coder-next' }]);
+  assert.deepEqual(task.routePolicy.primary, { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' });
+  assert.deepEqual(task.routePolicy.fallbacks, [{ provider: 'vercel', model: 'alibaba/qwen3-coder-next' }]);
 
   // The skin experiment widens the structured contract, and the schema ref says so.
   process.env.AI_LITE_SKIN_ENABLED = '1';
@@ -75,23 +75,23 @@ test('the registry re-expresses Lite as the lite-design-spec task profile', () =
 
 test('the configured default routes pass the registry gate', () => {
   process.env.AI_LITE_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   const task = liteTaskProfile();
   assert.equal(taskConfigured(task), true);
 
   // Without the OpenRouter endpoint allowlist the route config half fails closed,
   // exactly as liteProfileConfigured always has.
-  delete process.env.AI_LITE_OPENROUTER_PROVIDERS;
+  delete process.env.AI_LITE_GATEWAY_PROVIDERS;
   assert.equal(taskConfigured(liteTaskProfile()), false);
 });
 
 test('a free-tier route outside the approved catalog fails closed even when priced', () => {
   process.env.AI_LITE_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
-  process.env.AI_LITE_PRIMARY_PROVIDER = 'openrouter';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_PRIMARY_PROVIDER = 'vercel';
   process.env.AI_LITE_PRIMARY_MODEL = 'vendor/unapproved-model';
   process.env.AI_LITE_PRICING_JSON = JSON.stringify({
-    'openrouter:vendor/unapproved-model': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
+    'vercel:vendor/unapproved-model': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
   });
   const profile = liteProfile();
   // The pricing override satisfies the pre-registry check - the catalog is what refuses.
@@ -100,11 +100,11 @@ test('a free-tier route outside the approved catalog fails closed even when pric
 });
 
 test('BYO/paid tiers are not catalog-gated; free and anonymous are', () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
-  process.env.AI_LITE_PRIMARY_PROVIDER = 'openrouter';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_PRIMARY_PROVIDER = 'vercel';
   process.env.AI_LITE_PRIMARY_MODEL = 'vendor/unapproved-model';
   process.env.AI_LITE_PRICING_JSON = JSON.stringify({
-    'openrouter:vendor/unapproved-model': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
+    'vercel:vendor/unapproved-model': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
   });
   const base = liteTaskProfile();
   const withTiers = (tiers: TaskProfile['tiers']): TaskProfile => ({ ...base, tiers });
@@ -136,34 +136,34 @@ test('the imported-graphic-analysis task is off by default and fails closed', ()
   assert.equal(task.limits.maxImages, 1);
   assert.deepEqual(task.limits.maxImageResolution, { width: 1920, height: 1080 });
   assert.deepEqual(task.ledger, { kind: 'ai_generations', profile: 'import-analysis' });
-  // No OpenRouter endpoint allowlist configured: closed.
+  // No gateway provider allowlist configured: closed.
   assert.equal(taskConfigured(task), false);
 
   process.env.AI_TASK_IMPORT_ANALYSIS_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider'; // the shared fallback list
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider'; // the shared fallback list
   const configured = taskProfile(IMPORT_ANALYSIS_TASK_ID);
   assert.equal(configured.enabled, true);
   assert.equal(taskConfigured(configured), true); // default route is a catalog vision entry
 
   // A route outside the approved catalog fails closed - no env can whitelist it.
-  process.env.AI_IMPORT_ANALYSIS_PROVIDER = 'openrouter';
+  process.env.AI_IMPORT_ANALYSIS_PROVIDER = 'vercel';
   process.env.AI_IMPORT_ANALYSIS_MODEL = 'vendor/unapproved-vision-model';
   assert.equal(taskConfigured(importAnalysisTaskProfile()), false);
 });
 
 test('openWeights is preference metadata, never an approval gate', () => {
-  const proprietary = approvedModelEntry({ provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' });
+  const proprietary = approvedModelEntry({ provider: 'vercel', model: 'google/gemini-2.5-flash-lite' });
   assert.ok(proprietary);
   assert.equal(proprietary.openWeights, false);
   // A closed-weight entry is approved all the same (ratified plan §15 decision 1).
   assert.equal(approvedModelRoute(proprietary.route), true);
 
-  const open = approvedModelEntry({ provider: 'openrouter', model: 'qwen/qwen3-coder-next' });
+  const open = approvedModelEntry({ provider: 'vercel', model: 'alibaba/qwen3-coder-next' });
   assert.ok(open);
   assert.equal(open.openWeights, true);
   assert.equal(approvedModelRoute(open.route), true);
 
-  assert.equal(approvedModelRoute({ provider: 'openrouter', model: 'vendor/unapproved-model' }), false);
+  assert.equal(approvedModelRoute({ provider: 'vercel', model: 'vendor/unapproved-model' }), false);
 });
 
 test('every catalog entry is complete enough for the free-route policy to price it', () => {
@@ -177,8 +177,14 @@ test('every catalog entry is complete enough for the free-route policy to price 
     }
     assert.ok(entry.capabilities.contextWindow > 0);
     assert.ok(entry.price.inputPerMillion >= 0 && entry.price.outputPerMillion >= 0);
-    assert.ok(entry.zdrAvailable, `${entry.route.model} must honour the ZDR-by-default policy`);
     assert.ok(entry.notes.length > 0);
+    // NOT asserted here any more: that every entry is ZDR-capable. Under OpenRouter that was
+    // a per-endpoint fact we audited into this table; under Vercel AI Gateway the gateway
+    // filters a ZDR request itself and refuses when no provider qualifies, so the doctrine is
+    // enforced at the request rather than recorded per row. What still guards it: the
+    // requireZdr-by-default test above, and the surface-policy test that the flag reaches the
+    // wire (api/_lib/aiGateway.test.ts). `zdrAvailable` is now a verification record, and
+    // asserting it true would have meant asserting a call nobody has made.
   }
 });
 
@@ -211,14 +217,14 @@ test('a catalogued IMAGE route cannot be pointed at a registered task', () => {
   // says nothing about the `image_output` price that dominates an image model's bill, and the
   // task would fail on its first structured-output read anyway. Both refusals are asserted,
   // because either one alone would let an env edit through.
-  const image = { provider: 'openrouter' as const, model: 'google/gemini-3.1-flash-image' };
+  const image = { provider: 'vercel' as const, model: 'google/gemini-3.1-flash-image' };
   assert.equal(approvedModelRoute(image), true, 'the audit did approve this route');
   assert.equal(approvedTextRoute(image), false);
   assert.equal(fundedModelRoute(image), false);
 
   process.env.AI_LITE_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
-  process.env.AI_LITE_PRIMARY_PROVIDER = 'openrouter';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_PRIMARY_PROVIDER = 'vercel';
   process.env.AI_LITE_PRIMARY_MODEL = 'google/gemini-3.1-flash-image';
   assert.equal(taskConfigured(liteTaskProfile()), false);
 });
@@ -244,17 +250,17 @@ test('the funded-route ceiling admits cheap models and refuses flagship pricing'
   // Sonnet-class proprietary pricing, the case the ceiling exists to refuse.
   assert.equal(fundedRoutePrice({ inputPerMillion: 3, outputPerMillion: 15 }), false);
   // An unapproved route is never funded, whatever it costs.
-  assert.equal(fundedModelRoute({ provider: 'openrouter', model: 'vendor/unapproved-model' }), false);
+  assert.equal(fundedModelRoute({ provider: 'vercel', model: 'vendor/unapproved-model' }), false);
 });
 
 test('an env price override above the ceiling fails the free tier closed', () => {
   process.env.AI_LITE_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   assert.equal(taskConfigured(liteTaskProfile()), true);
 
   // The route stays catalog-approved; only its declared price moves. The gate prices
   // against the task's OWN table, so this must refuse rather than trust the snapshot.
-  const primaryKey = modelRouteKey({ provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' });
+  const primaryKey = modelRouteKey({ provider: 'vercel', model: 'google/gemini-2.5-flash-lite' });
   process.env.AI_LITE_PRICING_JSON = JSON.stringify({
     [primaryKey]: { inputPerMillion: 3, outputPerMillion: 15 },
   });
@@ -272,12 +278,12 @@ test('the Lite price table is the catalog snapshot plus explicit env overrides',
     assert.deepEqual(profile.prices[key], price, `${key} price mirrors the catalog`);
   }
   process.env.AI_LITE_PRICING_JSON = JSON.stringify({
-    [modelRouteKey({ provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' })]:
+    [modelRouteKey({ provider: 'vercel', model: 'google/gemini-2.5-flash-lite' })]:
       { inputPerMillion: 0.2, outputPerMillion: 0.8 },
   });
   const overridden = liteProfile();
   assert.deepEqual(
-    overridden.prices['openrouter:google/gemini-2.5-flash-lite'],
+    overridden.prices['vercel:google/gemini-2.5-flash-lite'],
     { inputPerMillion: 0.2, outputPerMillion: 0.8 },
   );
 });

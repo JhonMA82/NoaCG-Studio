@@ -17,7 +17,7 @@ try {
   const moduleUrl = pathToFileURL(path.join(runtime.outputDir, 'api/_lib/aiModelDiscovery.js')).href;
   const { discoverProviderModels } = await import(moduleUrl);
   const [openrouter, huggingface] = await Promise.all([
-    discoverProviderModels('openrouter', process.env.OPENROUTER_API_KEY),
+    discoverProviderModels('vercel', process.env.AI_GATEWAY_API_KEY),
     discoverProviderModels(
       'huggingface',
       process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN,
@@ -27,7 +27,7 @@ try {
     schemaVersion: 1,
     syncedAt: new Date().toISOString(),
     sources: {
-      openrouter: 'https://openrouter.ai/api/v1/models',
+      vercel: 'https://ai-gateway.vercel.sh/v1/models',
       huggingface: 'https://router.huggingface.co/v1/models',
     },
     providers: { openrouter, huggingface },

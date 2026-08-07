@@ -150,14 +150,14 @@ export default {
       // refusal is an outcome worth counting, not a hole in the accounting.
       await guardSurface();
       // A tagged surface's MANAGED traffic carries a routing policy (api/_lib/aiSurfacePolicy.ts):
-      // zero data retention, data collection denied, no silent fallback off the ZDR endpoint.
+      // zero-data-retention routing, cheapest eligible provider, per-surface spend tags.
       // BYO is excluded by the same rule the disabled-route switch uses - a user spending their
       // own key on their own model is not ours to route - and "is this BYO" is decided here from
       // the presented keys rather than inside keyFor, because the policy is a property of the
       // whole request while keyFor answers per provider.
       const byoPrimary = Boolean(userKeys[body.route.provider]);
-      const openRouter = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
-      result = await executeGatewayRequest(body, { keyFor }, openRouter ? { openRouter } : undefined);
+      const gateway = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
+      result = await executeGatewayRequest(body, { keyFor }, gateway ? { gateway } : undefined);
     } catch (error) {
       failure = error instanceof GatewayError
         ? error

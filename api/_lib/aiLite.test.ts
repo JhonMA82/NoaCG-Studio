@@ -26,9 +26,9 @@ const ENV = [
   'AI_LITE_JUDGE_PROVIDER',
   'AI_LITE_JUDGE_MODEL',
   'AI_LITE_JUDGE_THRESHOLD',
-  'AI_LITE_OPENROUTER_PROVIDERS',
+  'AI_LITE_GATEWAY_PROVIDERS',
   'AI_LITE_REQUIRE_ZDR',
-  'AI_LITE_OPENROUTER_STRUCTURED_MODE',
+  'AI_LITE_GATEWAY_STRUCTURED_MODE',
   'AI_LITE_DAILY_STARTS',
   'AI_LITE_DAILY_SUCCESSES',
   'AI_LITE_FLEET_DAILY_SPEND_USD',
@@ -69,23 +69,23 @@ test('Lite profile is disabled and OpenRouter routing fails closed by default', 
   assert.equal(profile.enabled, false);
   assert.equal(liteProfileConfigured(profile), false);
   process.env.AI_LITE_ENABLED = '1';
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   const configured = liteProfile();
   assert.equal(configured.enabled, true);
   assert.equal(liteProfileConfigured(configured), true);
   assert.equal(configured.maxAttempts, 2);
   assert.equal(configured.maxProviderCostUsd, 0.007);
   assert.equal(configured.requireZdr, true);
-  assert.equal(configured.openRouterStructuredMode, 'json-schema');
+  assert.equal(configured.structuredMode, 'json-schema');
 });
 
 test('Lite permits an explicit server-only non-ZDR forced-tool route', () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/no-training-provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/no-training-provider';
   process.env.AI_LITE_REQUIRE_ZDR = '0';
-  process.env.AI_LITE_OPENROUTER_STRUCTURED_MODE = 'tool';
+  process.env.AI_LITE_GATEWAY_STRUCTURED_MODE = 'tool';
   const profile = liteProfile();
   assert.equal(profile.requireZdr, false);
-  assert.equal(profile.openRouterStructuredMode, 'tool');
+  assert.equal(profile.structuredMode, 'tool');
 });
 
 test('managed Lite requires a durable server ledger and private IP-hash salt', () => {
@@ -486,7 +486,7 @@ test('Lite semantic validation treats a professional title as a person role', ()
 });
 
 test('memory ledger enforces idempotency, concurrency, and successful-generation allowances', async () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   process.env.AI_LITE_DAILY_STARTS = '2';
   process.env.AI_LITE_DAILY_SUCCESSES = '1';
   const profile = liteProfile();
@@ -536,7 +536,7 @@ test('memory ledger enforces idempotency, concurrency, and successful-generation
 });
 
 test('fleet admission reserves worst-case session cost before provider reconciliation', async () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   process.env.AI_LITE_FLEET_DAILY_SPEND_USD = '0.01';
   const profile = liteProfile();
   const store = new MemoryLiteGenerationStore();
@@ -562,7 +562,7 @@ test('fleet admission reserves worst-case session cost before provider reconcili
 });
 
 test('judge admission gates ownership, liveness, the per-generation cap, and fleet spend', async () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   process.env.AI_LITE_JUDGE_MAX_PER_GENERATION = '1';
   const profile = liteProfile();
   const store = new MemoryLiteGenerationStore();
@@ -605,7 +605,7 @@ test('judge admission gates ownership, liveness, the per-generation cap, and fle
 });
 
 test('judge admission refuses once the daily fleet spend ceiling would be crossed', async () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   // Room for the generation's own worst-case booking, but not for a judgement on top.
   process.env.AI_LITE_FLEET_DAILY_SPEND_USD = '0.008';
   const profile = liteProfile();
@@ -628,7 +628,7 @@ test('judge admission refuses once the daily fleet spend ceiling would be crosse
 });
 
 test('content-free accepted and discarded outcomes become thresholded chassis priors', async () => {
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   process.env.AI_LITE_DAILY_STARTS = '20';
   process.env.AI_LITE_DAILY_SUCCESSES = '20';
   const profile = liteProfile();
@@ -681,23 +681,23 @@ test('the skin judge fails closed and prices its own route', () => {
   // Default: disabled.
   assert.equal(liteJudgeConfigured(liteProfile()), false);
 
-  // Enabled but no OpenRouter provider allowlist: still closed.
+  // Enabled but no gateway provider allowlist: still closed.
   process.env.AI_LITE_JUDGE_ENABLED = '1';
   assert.equal(liteJudgeConfigured(liteProfile()), false);
 
-  process.env.AI_LITE_OPENROUTER_PROVIDERS = 'audited/provider';
+  process.env.AI_LITE_GATEWAY_PROVIDERS = 'audited/provider';
   const configured = liteProfile();
   assert.equal(liteJudgeConfigured(configured), true);
-  // The policy caps prices at the JUDGE route's own entry, not the generation routes'.
+  // The judge carries its own spend tag, which is what separates judge cost from generation
+  // cost now that the per-route price caps have no gateway equivalent to ride on.
   const policy = liteJudgePolicy(configured);
-  assert.equal(policy?.zdr, true);
+  assert.equal(policy?.zeroDataRetention, true);
   assert.deepEqual(policy?.only, ['audited/provider']);
-  assert.equal(policy?.maxInputPerMillion, 0.30);
-  assert.equal(policy?.maxOutputPerMillion, 2.50);
+  assert.deepEqual(policy?.tags, ['surface:lite-judge']);
 
   // An unpriced judge model fails closed.
   process.env.AI_LITE_JUDGE_MODEL = 'someone/unpriced-vision-model';
-  process.env.AI_LITE_JUDGE_PROVIDER = 'openrouter';
+  process.env.AI_LITE_JUDGE_PROVIDER = 'vercel';
   assert.equal(liteJudgeConfigured(liteProfile()), false);
   assert.equal(liteJudgePolicy(liteProfile()), undefined);
 });

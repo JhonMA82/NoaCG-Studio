@@ -473,7 +473,7 @@ Generator unchanged (`lite-lower-third-v3`), judge at `lite-skin-judge-v6`.
 **16 of 18 generations returned `provider_rejected` and were never billed** - the documented
 OpenRouter failure on the ZDR-pinned Google route, but at **89%** against the ~20% seen
 historically. Runs 2 and 3 produced nothing at all. **This round does not measure the judge**
-and no rate in it should be quoted. Whether to widen `AI_LITE_OPENROUTER_PROVIDERS` is the
+and no rate in it should be quoted. Whether to widen `AI_LITE_GATEWAY_PROVIDERS` is the
 owner's policy call and was deliberately not touched.
 
 Two rows survived. They point in opposite directions, and at **n=1 each** neither is a

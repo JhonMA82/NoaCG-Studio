@@ -33,7 +33,7 @@ test('pro: a tier of Create with AI - offline says so, no model pickers, Next wa
   // A normal Pro user picks NO models: the tier's settings carry the key surface only.
   await expect(page.getByTestId('ai-pro-settings')).toBeVisible();
   await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('ai-pro-settings').getByText('OpenRouter key', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('ai-pro-settings').getByText('Vercel AI Gateway key', { exact: true })).toBeVisible();
   // Nothing to finish yet.
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });

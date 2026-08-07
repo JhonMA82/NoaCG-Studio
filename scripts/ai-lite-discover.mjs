@@ -32,8 +32,8 @@ try {
   const discovery = await load('api/_lib/aiModelDiscovery.js');
   const catalog = await load('api/_lib/aiModelCatalog.js');
 
-  const key = (process.env.OPENROUTER_API_KEY ?? '').trim() || undefined;
-  const listing = await discovery.discoverProviderModels('openrouter', key);
+  const key = (process.env.AI_GATEWAY_API_KEY ?? '').trim() || undefined;
+  const listing = await discovery.discoverProviderModels('vercel', key);
   const approved = new Set(
     catalog.APPROVED_MODEL_CATALOG.map((entry) => catalog.modelRouteKey(entry.route)),
   );
@@ -62,10 +62,10 @@ try {
     const perCall = estimatedCall(model);
     if (perCall > PER_CALL_CEILING_USD) { reject('estimated call over $0.007'); continue; }
     candidates.push({
-      route: { provider: 'openrouter', model: model.id },
+      route: { provider: 'vercel', model: model.id },
       name: model.name,
       openWeights: model.openWeight,
-      alreadyApproved: approved.has(`openrouter:${model.id}`),
+      alreadyApproved: approved.has(`vercel:${model.id}`),
       vision: model.inputModalities.includes('image'),
       contextLength: model.contextLength,
       maxOutputTokens: model.maxOutputTokens,

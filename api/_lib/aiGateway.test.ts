@@ -8,14 +8,13 @@ import {
 } from './aiGateway.js';
 import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.js';
 import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
-import { APPROVED_MODEL_CATALOG, FUNDED_ROUTE_PRICE_CEILING } from './aiModelCatalog.js';
+import { APPROVED_MODEL_CATALOG } from './aiModelCatalog.js';
 import type { AiGatewayRequestBody, AiProviderId } from '../../src/ai/modelTypes.js';
 
 const CONTROLLED_ENV = [
   'AI_KEY_ENCRYPTION_SECRET',
   'AI_MODEL_PRICING_JSON',
   'AI_RETRY_LIMIT',
-  'PUBLIC_APP_URL',
 ] as const;
 const originalEnv = new Map(CONTROLLED_ENV.map((name) => [name, process.env[name]]));
 
@@ -75,11 +74,10 @@ test('selects OpenAI Responses and normalizes usage and configured cost', async 
   assert.equal(result.provider, 'openai');
 });
 
-test('selects OpenRouter through its OpenAI-compatible endpoint', async () => {
-  delete process.env.PUBLIC_APP_URL;
+test('selects Vercel AI Gateway through its OpenAI-compatible endpoint', async () => {
   let calledUrl = '';
   let sentHeaders = new Headers();
-  const result = await executeGatewayRequest(body('openrouter', 'vendor/model'), {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), {
     keyFor,
     fetchImpl: async (input, init) => {
       calledUrl = String(input);
@@ -91,28 +89,17 @@ test('selects OpenRouter through its OpenAI-compatible endpoint', async () => {
     },
   });
 
-  assert.equal(calledUrl, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(calledUrl, 'https://ai-gateway.vercel.sh/v1/chat/completions');
+  assert.equal(sentHeaders.get('authorization'), 'Bearer server-side-test-key');
+  // The OpenRouter attribution headers are gone and nothing replaced them at the header
+  // level: per-surface attribution moved into `providerOptions.gateway.tags`, which is
+  // queryable in the spend report where a header never was.
   assert.equal(sentHeaders.get('http-referer'), null);
-  assert.equal(sentHeaders.get('x-title'), 'NoaCG Studio');
+  assert.equal(sentHeaders.get('x-title'), null);
   assert.equal(result.model, 'vendor/model');
+  // `usage.cost` survived the transport swap - verified against the live gateway, which
+  // returns it in the same place with the same meaning.
   assert.deepEqual(result.usage.estimatedCost, { amount: 0.002, currency: 'USD', source: 'provider' });
-});
-
-test('sends a configured public app URL as OpenRouter attribution', async () => {
-  process.env.PUBLIC_APP_URL = 'https://noacg-studio.vercel.app';
-  let sentHeaders = new Headers();
-  await executeGatewayRequest(body('openrouter', 'vendor/model'), {
-    keyFor,
-    fetchImpl: async (_input, init) => {
-      sentHeaders = new Headers(init?.headers);
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'ok' } }],
-        usage: { prompt_tokens: 1, completion_tokens: 1 },
-      }));
-    },
-  });
-
-  assert.equal(sentHeaders.get('http-referer'), 'https://noacg-studio.vercel.app');
 });
 
 test('selects Hugging Face through its OpenAI-compatible inference router', async () => {
@@ -141,9 +128,9 @@ test('selects Hugging Face through its OpenAI-compatible inference router', asyn
   assert.deepEqual(result.usage, { inputTokens: 7, outputTokens: 2, totalTokens: 9 });
 });
 
-test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and price controls', async () => {
+test('sends the managed gateway routing policy and normalizes the answer', async () => {
   let sent: Record<string, unknown> = {};
-  const result = await executeGatewayRequest(body('openrouter', 'vendor/model'), {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), {
     keyFor,
     fetchImpl: async (_input, init) => {
       sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -162,35 +149,86 @@ test('enforces managed OpenRouter privacy, endpoint, parameter, fallback, and pr
     maxAttempts: 1,
     retryLimit: 0,
     timeoutMs: 5000,
-    openRouter: {
-      zdr: true,
-      dataCollection: 'deny',
-      requireParameters: true,
-      allowProviderFallbacks: false,
-      only: ['audited/provider'],
-      maxInputPerMillion: 0.11,
-      maxOutputPerMillion: 0.8,
+    gateway: {
+      zeroDataRetention: true,
+      only: ['google'],
+      sort: 'cost',
+      tags: ['surface:lite'],
     },
   });
 
-  const provider = sent.provider as Record<string, unknown>;
-  const maxPrice = provider.max_price as Record<string, number>;
-  assert.deepEqual({ ...provider, max_price: undefined }, {
-    zdr: true,
-    data_collection: 'deny',
-    require_parameters: true,
-    allow_fallbacks: false,
-    only: ['audited/provider'],
-    max_price: undefined,
+  const providerOptions = sent.providerOptions as Record<string, unknown>;
+  assert.deepEqual(providerOptions.gateway, {
+    zeroDataRetention: true,
+    only: ['google'],
+    sort: 'cost',
+    tags: ['surface:lite'],
   });
-  assert.equal(maxPrice.prompt, 0.11);
-  assert.equal(maxPrice.completion, 0.8);
+  // Nothing OpenRouter-shaped is left on the wire. A stray `provider` block would be
+  // silently ignored by the gateway, which is exactly how a dead privacy directive survives
+  // a migration while still looking enforced from the source.
+  assert.equal(sent.provider, undefined);
   assert.equal(result.usage.cachedInputTokens, 12);
   assert.equal(result.usage.reasoningTokens, 3);
 });
 
+test('an empty provider allowlist is omitted rather than sent as "no provider is permitted"', async () => {
+  let sent: Record<string, unknown> = {};
+  await executeGatewayRequest(body('vercel', 'vendor/model'), {
+    keyFor,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }));
+    },
+  }, { gateway: { zeroDataRetention: true, only: [] } });
+
+  assert.deepEqual((sent.providerOptions as Record<string, unknown>).gateway, { zeroDataRetention: true });
+});
+
+test('a ZDR refusal is reported as its own code, not as a bad credential', async () => {
+  await assert.rejects(
+    executeGatewayRequest(body('vercel', 'vendor/model'), {
+      keyFor,
+      fetchImpl: async () => new Response(
+        JSON.stringify({
+          error: {
+            message: 'Zero Data Retention (ZDR) is only available for Pro and Enterprise plans.',
+            type: 'permission_denied',
+            param: { name: 'ZdrUnauthorizedError' },
+          },
+        }),
+        { status: 403 },
+      ),
+    }, { gateway: { zeroDataRetention: true } }),
+    (error: unknown) => {
+      const failure = error as { code: string; retryable: boolean; message: string };
+      assert.equal(failure.code, 'zdr_unavailable');
+      assert.equal(failure.retryable, false);
+      // NoaCG's own wording - the provider body is read to classify and never copied.
+      assert.ok(!failure.message.includes('Pro and Enterprise'));
+      return true;
+    },
+  );
+});
+
+test('an ordinary 403 still reads as a rejected credential', async () => {
+  await assert.rejects(
+    executeGatewayRequest(body('vercel', 'vendor/model'), {
+      keyFor,
+      fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'Forbidden' } }), { status: 403 }),
+    }),
+    (error: unknown) => {
+      assert.equal((error as { code: string }).code, 'provider_rejected');
+      return true;
+    },
+  );
+});
+
 test('supports forced-tool structured output through OpenRouter', async () => {
-  const structured = body('openrouter', 'vendor/tool-model');
+  const structured = body('vercel', 'vendor/tool-model');
   structured.request.structuredOutput = {
     name: 'result',
     description: 'A required title.',
@@ -226,14 +264,9 @@ test('supports forced-tool structured output through OpenRouter', async () => {
     maxAttempts: 1,
     retryLimit: 0,
     timeoutMs: 5000,
-    openRouter: {
-      zdr: false,
-      dataCollection: 'deny',
-      requireParameters: true,
-      allowProviderFallbacks: false,
-      only: ['audited/no-training-provider'],
-      maxInputPerMillion: 0.1,
-      maxOutputPerMillion: 0.2,
+    gateway: {
+      zeroDataRetention: false,
+      only: ['google'],
       structuredOutputMode: 'tool',
     },
   });
@@ -241,7 +274,11 @@ test('supports forced-tool structured output through OpenRouter', async () => {
   assert.equal('response_format' in sent, false);
   assert.equal(Array.isArray(sent.tools), true);
   assert.deepEqual(result.output, { title: 'Lower third' });
-  assert.equal((sent.provider as Record<string, unknown>).zdr, false);
+  const gateway = (sent.providerOptions as Record<string, unknown>).gateway as Record<string, unknown>;
+  assert.equal(gateway.zeroDataRetention, false);
+  // structuredOutputMode is OURS, not the gateway's: it picks how the schema is forced and
+  // must never be forwarded as a routing directive the gateway would reject.
+  assert.equal('structuredOutputMode' in gateway, false);
 });
 
 test('reports a missing key before making a provider request', async () => {
@@ -484,7 +521,7 @@ test('the surface discriminator is allowlisted, preserved, and optional', () => 
 test('an OpenRouter image request asks for the image modality and normalizes the answer', async () => {
   let sent: Record<string, unknown> = {};
   const imageBody: AiGatewayRequestBody = {
-    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    route: { provider: 'vercel', model: 'vendor/image-model' },
     request: {
       system: 'Render a broadcast lower third concept.',
       messages: [{ role: 'user', content: 'A calm news strap' }],
@@ -518,7 +555,7 @@ test('an OpenRouter image request asks for the image modality and normalizes the
 
 test('an image request answered without an image is a retryable malformed response', async () => {
   const imageBody: AiGatewayRequestBody = {
-    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    route: { provider: 'vercel', model: 'vendor/image-model' },
     request: {
       system: 'Render.',
       messages: [{ role: 'user', content: 'brief' }],
@@ -561,7 +598,7 @@ test('providers without an image API refuse expect:image instead of answering in
 
 test('the body validator holds the image-request contract', () => {
   const base = {
-    route: { provider: 'openrouter', model: 'vendor/image-model' },
+    route: { provider: 'vercel', model: 'vendor/image-model' },
     request: { system: 's', messages: [{ role: 'user', content: 'hi' }] },
   };
   const withExpect = {
@@ -615,86 +652,60 @@ test('seals user keys in a tamper-evident HttpOnly cookie', () => {
 
 // ── the tagged-surface routing policy (api/_lib/aiSurfacePolicy.ts) ─────────────────────
 
-test('a policied surface asks for ZDR, denies collection, and refuses a silent fallback', () => {
-  const policy = surfaceRoutePolicy('pro', { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' });
+test('a policied surface asks the gateway for zero-data-retention routing', () => {
+  const policy = surfaceRoutePolicy('pro', { provider: 'vercel', model: 'google/gemini-3.1-flash-image' });
   assert.ok(policy);
-  assert.equal(policy.zdr, true);
-  assert.equal(policy.dataCollection, 'deny');
-  // Without this the ZDR pin is decorative: OpenRouter would serve the non-ZDR endpoint the
-  // moment the audited one is unavailable, which is precisely the case the pin exists for.
-  assert.equal(policy.allowProviderFallbacks, false);
-  // False on purpose - an image request carries `modalities`, which is not a listed provider
-  // parameter, so requiring parameters narrows the endpoint set to nothing.
-  assert.equal(policy.requireParameters, false);
+  assert.equal(policy.zeroDataRetention, true);
+  // The three OpenRouter directives this replaced are gone, and their absence is the point:
+  // the gateway serves a ZDR request only from providers under a verified ZDR agreement, so
+  // "deny collection" and "no silent fallback" are properties of the route it picks rather
+  // than flags we have to remember to set.
   assert.equal(policy.only, undefined);
+  // Cheapest eligible provider - the nearest thing to the per-request price cap that died
+  // with max_price, and a preference rather than a bound.
+  assert.equal(policy.sort, 'cost');
+  // Spend is attributable per surface, which the old attribution headers never were.
+  assert.deepEqual(policy.tags, ['surface:pro']);
 });
 
 test('an unpoliced or untagged surface is left exactly as it was', () => {
-  assert.equal(surfaceRoutePolicy(undefined, { provider: 'openrouter', model: 'any/model' }), undefined);
-  // Video routes are user-selectable and unaudited: a no-fallback ZDR pin would refuse the
-  // ones with no ZDR endpoint, turning a privacy improvement into an outage.
-  assert.equal(surfaceRoutePolicy('video', { provider: 'openrouter', model: 'any/model' }), undefined);
-  // The directives are OpenRouter's vocabulary; another provider gets no policy rather than a
-  // translated one.
+  assert.equal(surfaceRoutePolicy(undefined, { provider: 'vercel', model: 'any/model' }), undefined);
+  // Video routes are user-selectable and unaudited: a ZDR pin would refuse whichever of them
+  // no ZDR provider serves, turning a privacy improvement into an outage.
+  assert.equal(surfaceRoutePolicy('video', { provider: 'vercel', model: 'any/model' }), undefined);
+  // The directives are the gateway's vocabulary; a DIRECT provider route (a user's own key
+  // straight to Anthropic) gets no policy rather than a translated one.
   assert.equal(surfaceRoutePolicy('pro', { provider: 'anthropic', model: 'any-model' }), undefined);
 });
 
-test('the policy caps price at the funded ceiling, not at the route\'s audited price', () => {
-  const policy = surfaceRoutePolicy('pro', { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' });
+test('no per-request price cap is sent, because the gateway has no field for one', () => {
+  const policy = surfaceRoutePolicy('pro', { provider: 'vercel', model: 'google/gemini-3.1-flash-image' });
   assert.ok(policy);
-  // Capping at the exact audited figure would refuse the route the day the provider moves a
-  // cent and Pro would simply stop; the ceiling still refuses one that became expensive.
-  assert.equal(policy.maxInputPerMillion, FUNDED_ROUTE_PRICE_CEILING.inputPerMillion);
-  assert.equal(policy.maxOutputPerMillion, FUNDED_ROUTE_PRICE_CEILING.outputPerMillion);
+  // Pinned deliberately rather than left to drift back: FUNDED_ROUTE_PRICE_CEILING used to
+  // ride on every managed call as OpenRouter's `max_price`. It now gates which routes may be
+  // CATALOGUED (fundedRoutePrice) and nothing refuses a call at request time, so a reviewer
+  // reading only the policy does not conclude the cap is still enforced on the wire.
+  assert.equal('maxInputPerMillion' in policy, false);
+  assert.equal('maxOutputPerMillion' in policy, false);
 });
 
-test('an empty endpoint allowlist is omitted rather than sent as "no endpoint permitted"', async () => {
-  let sent: Record<string, unknown> = {};
-  await executeGatewayRequest(body('openrouter', 'vendor/model'), {
-    keyFor,
-    fetchImpl: async (_input, init) => {
-      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'ok' } }],
-        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
-      }));
-    },
-  }, {
-    maxAttempts: 1,
-    retryLimit: 0,
-    openRouter: {
-      zdr: true,
-      dataCollection: 'deny',
-      requireParameters: false,
-      allowProviderFallbacks: false,
-      only: [],
-      maxInputPerMillion: 1,
-      maxOutputPerMillion: 5,
-    },
-  });
-  const provider = sent.provider as Record<string, unknown>;
-  assert.equal('only' in provider, false);
-  assert.equal(provider.zdr, true);
-});
-
-test('the ZDR-servable claim in the catalog is backed by a written audit', () => {
-  // A zdrAvailable:true entry is a privacy claim on the /admin Models page. It is an AUDITED
-  // fact (docs/ADMIN.md §9), so the entry has to say where the audit is - otherwise the badge
-  // is an assertion with nothing behind it.
+test('a ZDR-verified claim in the catalog is backed by a written audit', () => {
+  // A zdrAvailable:true entry is a privacy claim on the /admin Models page. It is a VERIFIED
+  // fact (docs/ADMIN.md §9), so the entry has to say where the verification is - otherwise the
+  // badge is an assertion with nothing behind it.
   for (const entry of APPROVED_MODEL_CATALOG) {
     if (!entry.zdrAvailable) continue;
-    assert.ok(
-      entry.notes.length > 0,
-      `${entry.route.model} claims ZDR with no audit note`,
-    );
+    assert.ok(entry.notes.length > 0, `${entry.route.model} claims ZDR with no audit note`);
   }
   const concept = APPROVED_MODEL_CATALOG.find((entry) => entry.route.model === 'google/gemini-3.1-flash-image');
-  assert.ok(concept, 'the Pro concept route must be catalogued now that its ZDR is claimed');
-  assert.equal(concept.zdrAvailable, true);
-  // The ZDR endpoint does not advertise structured_outputs; the non-ZDR one does. Recording
-  // the other endpoint's capability would describe a route the policy never takes.
+  assert.ok(concept, 'the Pro concept route must stay catalogued - the admin page marks it in use');
+  // FALSE across the whole catalog after the move to Vercel AI Gateway, and that is the honest
+  // state rather than an oversight: ZDR is a Pro/Enterprise gateway feature and this team is on
+  // Hobby, so no route has been observed serving under it. Nothing degrades quietly - a task
+  // requiring ZDR fails closed on `zdr_unavailable`. This assertion is what makes flipping one
+  // to true a deliberate act by whoever actually ran the verification.
+  assert.equal(concept.zdrAvailable, false);
   assert.equal(concept.capabilities.structuredOutput, false);
-  assert.match(concept.notes, /MODEL_ROUTE_AUDITS/);
 });
 
 // A structured result that arrived CORRECT but ENCODED (decodeStructuredOutput). Both shapes

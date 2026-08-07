@@ -5,7 +5,7 @@ const root = process.cwd();
 const requested = process.argv[2] ? [process.argv[2]] : ['src', 'e2e', 'scripts', 'docs'];
 const skip = new Set(['node_modules', '.git', '.vercel', 'bench-out', 'compare-out', 'video-bench-out']);
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.html', '.css', '.txt']);
-const publicKeyName = /\b(?:VITE_|NEXT_PUBLIC_)[A-Z0-9_]*(?:ANTHROPIC|OPENAI|OPENROUTER)[A-Z0-9_]*KEY\b/g;
+const publicKeyName = /\b(?:VITE_|NEXT_PUBLIC_)[A-Z0-9_]*(?:ANTHROPIC|OPENAI|AI_GATEWAY|HUGGINGFACE)[A-Z0-9_]*KEY\b/g;
 const providerSecret = /\b(?:sk-ant-[A-Za-z0-9_-]{24,}|sk-proj-[A-Za-z0-9_-]{24,}|sk-or-v1-[A-Za-z0-9_-]{24,})\b/g;
 
 async function files(directory) {

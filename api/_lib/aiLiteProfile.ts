@@ -1,4 +1,4 @@
-import type { ModelPrice, OpenRouterRoutingPolicy } from './aiGateway.js';
+import type { GatewayRoutingPolicy, ModelPrice } from './aiGateway.js';
 import { approvedModelPrices } from './aiModelCatalog.js';
 import type { AiProviderId, ModelRoute } from '../../src/ai/modelTypes.js';
 import { LITE_AI_CATEGORIES } from '../../src/ai/liteContract.js';
@@ -26,13 +26,18 @@ export const boolEnv = (name: string, fallback = false): boolean => {
 export function envRoute(providerName: string | undefined, modelName: string | undefined, fallback: ModelRoute): ModelRoute {
   const provider = providerName?.trim() as AiProviderId | undefined;
   const model = modelName?.trim();
-  return provider && ['anthropic', 'openai', 'openrouter'].includes(provider) && model
+  return provider && ['anthropic', 'openai', 'vercel'].includes(provider) && model
     ? { provider, model }
     : fallback;
 }
 
-function providerEndpoints(): string[] {
-  return (process.env.AI_LITE_OPENROUTER_PROVIDERS ?? '')
+/** The audited PROVIDER SLUGS a managed call may be served by (`google`, `vertex`, `bedrock`,
+ *  …). Vercel AI Gateway's `only` filter takes provider slugs where OpenRouter's took endpoint
+ *  names, so the list is shorter and coarser - but it still answers the question the audit is
+ *  about, which is who runs the weights and at what precision. Retention is no longer part of
+ *  this list's job: `zeroDataRetention` covers it, gateway-side. */
+function providerSlugs(): string[] {
+  return (process.env.AI_LITE_GATEWAY_PROVIDERS ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean)
@@ -68,9 +73,9 @@ export interface LiteProfile {
   primary: ModelRoute;
   fallback: ModelRoute;
   prices: Record<string, ModelPrice>;
-  openRouterProviders: string[];
+  gatewayProviders: string[];
   requireZdr: boolean;
-  openRouterStructuredMode: 'json-schema' | 'tool';
+  structuredMode: 'json-schema' | 'tool';
   maxProviderCostUsd: number;
   dailySuccesses: number;
   monthlySuccesses: number;
@@ -115,17 +120,17 @@ export function liteProfile(): LiteProfile {
   const primary = envRoute(
     process.env.AI_LITE_PRIMARY_PROVIDER,
     process.env.AI_LITE_PRIMARY_MODEL,
-    { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
+    { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
   );
   const fallback = envRoute(
     process.env.AI_LITE_FALLBACK_PROVIDER,
     process.env.AI_LITE_FALLBACK_MODEL,
-    { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
+    { provider: 'vercel', model: 'alibaba/qwen3-coder-next' },
   );
   const judgeRoute = envRoute(
     process.env.AI_LITE_JUDGE_PROVIDER,
     process.env.AI_LITE_JUDGE_MODEL,
-    { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+    { provider: 'vercel', model: 'google/gemini-2.5-flash' },
   );
   // The base table IS the approved-route catalog's audited price snapshot. Env
   // overrides may adjust a price, but they cannot approve a route - approval is the
@@ -153,9 +158,13 @@ export function liteProfile(): LiteProfile {
     primary,
     fallback,
     prices,
-    openRouterProviders: providerEndpoints(),
+    gatewayProviders: providerSlugs(),
+    // Still true by default, and now with teeth of a different kind: the gateway refuses a ZDR
+    // request outright on a plan without the feature, so leaving this on makes Lite fail closed
+    // rather than serve to a retaining provider. Turning it off stays what it always was - an
+    // explicit, audited, per-deployment decision (docs/AI_PROVIDER_GATEWAY.md).
     requireZdr: boolEnv('AI_LITE_REQUIRE_ZDR', true),
-    openRouterStructuredMode: process.env.AI_LITE_OPENROUTER_STRUCTURED_MODE?.trim() === 'tool'
+    structuredMode: process.env.AI_LITE_GATEWAY_STRUCTURED_MODE?.trim() === 'tool'
       ? 'tool'
       : 'json-schema',
     maxProviderCostUsd: numberEnv('AI_LITE_MAX_COST_USD', 0.007, 0.0001, 0.1),
@@ -220,55 +229,58 @@ export function routePrice(profile: LiteProfile, routeValue: ModelRoute): ModelP
   return profile.prices[`${routeValue.provider}:${routeValue.model}`] ?? null;
 }
 
-export function liteOpenRouterPolicy(profile: LiteProfile, routeValue: ModelRoute): OpenRouterRoutingPolicy | undefined {
-  if (routeValue.provider !== 'openrouter') return undefined;
-  const routePrices = [profile.primary, profile.fallback]
-    .filter((route) => route.provider === 'openrouter')
-    .map((route) => routePrice(profile, route))
-    .filter((price): price is ModelPrice => Boolean(price));
-  if (!routePrice(profile, routeValue) || routePrices.length === 0 || profile.openRouterProviders.length === 0) return undefined;
+/**
+ * The gateway routing policy for a managed Lite call.
+ *
+ * The per-request PRICE CAP is gone, and that is the one real loss in the OpenRouter move:
+ * `max_price` let the provider itself refuse a route that had become expensive, and Vercel AI
+ * Gateway has no equivalent field. What replaces it is `sort: 'cost'` - cheapest eligible
+ * provider first, a preference not a cap - plus the three server-side controls that were
+ * always there and are now load-bearing on their own: the approved-catalog price snapshot this
+ * profile is priced against, `fundedRoutePrice`'s ceiling, and `maxProviderCostUsd`, which is
+ * BOOKED before the call and reconciled after it. A price that moves under us now shows up as
+ * a ledger overrun rather than a refused request, so the catalog snapshot has to be refreshed
+ * deliberately rather than trusted to expire.
+ */
+export function liteGatewayPolicy(profile: LiteProfile, routeValue: ModelRoute): GatewayRoutingPolicy | undefined {
+  if (routeValue.provider !== 'vercel') return undefined;
+  if (!routePrice(profile, routeValue) || profile.gatewayProviders.length === 0) return undefined;
   return {
-    zdr: profile.requireZdr,
-    dataCollection: 'deny',
-    requireParameters: true,
-    allowProviderFallbacks: false,
-    only: profile.openRouterProviders,
-    maxInputPerMillion: Math.max(...routePrices.map((price) => price.inputPerMillion)),
-    maxOutputPerMillion: Math.max(...routePrices.map((price) => price.outputPerMillion)),
-    structuredOutputMode: profile.openRouterStructuredMode,
+    zeroDataRetention: profile.requireZdr,
+    only: profile.gatewayProviders,
+    sort: 'cost',
+    tags: ['surface:lite'],
+    structuredOutputMode: profile.structuredMode,
   };
 }
 
 export function liteProfileConfigured(profile: LiteProfile): boolean {
   const routes = [profile.primary, profile.fallback];
   return routes.every((item) => {
-    if (item.provider !== 'openrouter') return true;
-    return Boolean(routePrice(profile, item)) && profile.openRouterProviders.length > 0;
+    if (item.provider !== 'vercel') return true;
+    return Boolean(routePrice(profile, item)) && profile.gatewayProviders.length > 0;
   });
 }
 
-/** The judge fails closed exactly like the generation routes: enabled + priced + (for
- *  OpenRouter) allowlisted, or it does not run at all. */
+/** The judge fails closed exactly like the generation routes: enabled + priced + (for the
+ *  managed gateway) allowlisted, or it does not run at all. */
 export function liteJudgeConfigured(profile: LiteProfile): boolean {
   if (!profile.judgeEnabled) return false;
-  if (profile.judgeRoute.provider !== 'openrouter') return true;
-  return Boolean(routePrice(profile, profile.judgeRoute)) && profile.openRouterProviders.length > 0;
+  if (profile.judgeRoute.provider !== 'vercel') return true;
+  return Boolean(routePrice(profile, profile.judgeRoute)) && profile.gatewayProviders.length > 0;
 }
 
-/** The judge route's OpenRouter policy. Its price caps come from the judge route's OWN
- *  price entry - the generation routes' caps would refuse a costlier vision model. */
-export function liteJudgePolicy(profile: LiteProfile): OpenRouterRoutingPolicy | undefined {
-  if (profile.judgeRoute.provider !== 'openrouter') return undefined;
-  const price = routePrice(profile, profile.judgeRoute);
-  if (!price || profile.openRouterProviders.length === 0) return undefined;
+/** The judge route's gateway policy. It carries its own tag so vision-judge spend separates
+ *  from generation spend in the AI Gateway report, which is what the per-route price caps used
+ *  to distinguish before the gateway dropped them. */
+export function liteJudgePolicy(profile: LiteProfile): GatewayRoutingPolicy | undefined {
+  if (profile.judgeRoute.provider !== 'vercel') return undefined;
+  if (!routePrice(profile, profile.judgeRoute) || profile.gatewayProviders.length === 0) return undefined;
   return {
-    zdr: profile.requireZdr,
-    dataCollection: 'deny',
-    requireParameters: true,
-    allowProviderFallbacks: false,
-    only: profile.openRouterProviders,
-    maxInputPerMillion: price.inputPerMillion,
-    maxOutputPerMillion: price.outputPerMillion,
-    structuredOutputMode: profile.openRouterStructuredMode,
+    zeroDataRetention: profile.requireZdr,
+    only: profile.gatewayProviders,
+    sort: 'cost',
+    tags: ['surface:lite-judge'],
+    structuredOutputMode: profile.structuredMode,
   };
 }

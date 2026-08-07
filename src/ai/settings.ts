@@ -28,9 +28,9 @@ export interface AiProviderOption {
 }
 
 export const AI_PROVIDERS: AiProviderOption[] = [
-  { id: 'openrouter', label: 'OpenRouter', blurb: 'Open-weight models through OpenRouter’s OpenAI-compatible API - the NoaCG default.' },
-  { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models through the existing NoaCG harness.' },
-  { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models through the Responses API.' },
+  { id: 'vercel', label: 'Vercel AI Gateway', blurb: 'Hundreds of models through one OpenAI-compatible endpoint - the NoaCG default.' },
+  { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models direct from Anthropic, on your own key.' },
+  { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models direct through the Responses API, on your own key.' },
   {
     id: 'huggingface',
     label: 'Hugging Face',
@@ -62,7 +62,7 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'openai',
-    // Tiered exactly like the OpenRouter entry below, and dead in the same way: the direct API
+    // Tiered exactly like the gateway entry below, and dead in the same way: the direct API
     // lists gpt-5.6-luna / -sol / -terra and no bare `gpt-5.6`. Luna is the cost-efficient tier
     // - the cheapest suggestion for a route the user pays for with their own key.
     id: 'gpt-5.6-luna',
@@ -71,27 +71,27 @@ export const AI_MODELS: AiModelOption[] = [
     role: 'default',
   },
   {
-    provider: 'openrouter',
-    id: 'qwen/qwen3-coder-next',
+    provider: 'vercel',
+    id: 'alibaba/qwen3-coder-next',
     label: 'Qwen3 Coder Next',
     blurb: 'Open-weight default route for design and code.',
     role: 'default',
   },
   {
-    provider: 'openrouter',
-    id: 'qwen/qwen3-30b-a3b-instruct-2507',
-    label: 'Qwen3 30B A3B',
+    provider: 'vercel',
+    id: 'alibaba/qwen-3-30b',
+    label: 'Qwen3 30B',
     blurb: 'Fast, cheap open-weight route for structured planning stages.',
     role: 'fast',
   },
   {
-    provider: 'openrouter',
+    provider: 'vercel',
     // GPT-5.6 ships as named tiers rather than one id - luna (fast, cost-efficient), terra
-    // (balanced), sol (flagship), each with a `-pro` twin served at `reasoning.mode: pro`. The
-    // bare `openai/gpt-5.6` this suggestion used to name has never existed on OpenRouter, so
-    // picking it returned a provider error; scripts/check-model-ids.mjs now catches that class.
+    // (balanced), sol (flagship). A bare `openai/gpt-5.6` has never existed on any gateway, so
+    // picking it returned a provider error; scripts/check-model-ids.mjs catches that class
+    // against the live listing.
     id: 'openai/gpt-5.6-luna',
-    label: 'GPT-5.6 Luna via OpenRouter',
+    label: 'GPT-5.6 Luna',
     blurb: 'Proprietary route; any supported model id can be entered.',
   },
   {
@@ -131,7 +131,7 @@ export interface AiSettings {
   /** Optional provider sampling controls, primarily used by the versioned benchmark. */
   temperature: number | null;
   seed: number | null;
-  /** The NoaCG Pro concept-image model (an OpenRouter image-output model id). Non-secret,
+  /** The NoaCG Pro concept-image model (a gateway image-output model id). Non-secret,
    *  like every route preference here; null = not chosen yet. */
   proImageModel: string | null;
 }
@@ -149,11 +149,12 @@ export interface AiConfiguration {
   providers: AiProviderStatus[];
 }
 
-// The silent default - what an unset VITE_AI_PROVIDER resolves to - is an OPEN model via
-// OpenRouter, by policy: expensive proprietary routes (Claude, GPT) are chosen deliberately
-// (saved settings, env, or the picker), never because an environment variable is missing.
-export const DEFAULT_PROVIDER: AiProviderId = 'openrouter';
-export const DEFAULT_MODEL = 'qwen/qwen3-coder-next';
+// The silent default - what an unset VITE_AI_PROVIDER resolves to - is an OPEN model through
+// the Vercel AI Gateway, by policy: expensive proprietary routes (Claude, GPT) are chosen
+// deliberately (saved settings, env, or the picker), never because an environment variable is
+// missing.
+export const DEFAULT_PROVIDER: AiProviderId = 'vercel';
+export const DEFAULT_MODEL = 'alibaba/qwen3-coder-next';
 
 function env(name: string): string {
   return String((import.meta.env as Record<string, unknown>)[name] ?? '');

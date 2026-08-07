@@ -8,7 +8,7 @@
 // own catalog (`npm run video:models:sync`); the SPX/Lite/Pro routes are pinned in source
 // (PRO_STANDARD_ROUTES, the Lite profile, aiModelCatalog) and had nothing watching them.
 //
-// It began as an OpenRouter-only check and found `openai/gpt-5.6` dead there. The SECOND dead
+// It began as a gateway-only check and found `openai/gpt-5.6` dead there. The SECOND dead
 // id was in the same file one entry up — the direct-OpenAI suggestion, on a provider the check
 // could not see — and only a manual listing call settled it. Hence the provider split below: a
 // gap that hid a real defect once is a gap worth closing rather than documenting.
@@ -17,7 +17,8 @@
 //   node scripts/check-model-ids.mjs          # exit 1 if any reachable listing lacks a pinned id
 //   node scripts/check-model-ids.mjs --json   # machine-readable report on stdout
 //
-// KEYS: OpenRouter and Hugging Face are public and always checked. OpenAI and Anthropic need a
+// KEYS: the Vercel gateway listing and Hugging Face are public and always checked. OpenAI and
+// Anthropic need a
 // key, read from .env exactly as the bench runners read it. Without one the provider is reported
 // UNCHECKED and never counted as ok — "could not check" is not "clean" — but it does not fail
 // the run, because the weekly workflow is keyless by design and a permanent red there would just
@@ -45,10 +46,10 @@ const ROUTE_LITERAL = /\b(?:model|id):\s*'([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/[A-Z
 
 /**
  * The picker's own catalog (src/ai/settings.ts `AI_MODELS`), where each entry names its provider
- * explicitly. Read separately from the route scan because THIS is where a non-OpenRouter id can
+ * explicitly. Read separately from the route scan because THIS is where a non-gateway id can
  * live — a bare `gpt-5.6` has no slash and never matches ROUTE_LITERAL at all.
  */
-const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|openrouter|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
+const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|vercel|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
 
 const walk = (dir) => {
   const out = [];
@@ -69,9 +70,9 @@ const pin = (provider, id, file) => {
 };
 
 // settings.ts is deliberately EXCLUDED here and parsed by CATALOG_ENTRY below instead. Its
-// entries declare their own provider, and a slashed id is not proof of an OpenRouter route:
-// `openai/gpt-oss-120b` is a Hugging Face repo id in one entry and an OpenRouter route in
-// another. Scanning it both ways attributed every slashed id to OpenRouter, which would report
+// entries declare their own provider, and a slashed id is not proof of a gateway route:
+// `openai/gpt-oss-120b` is a Hugging Face repo id in one entry and a gateway route in
+// another. Scanning it both ways attributed every slashed id to the gateway, which would report
 // a Hugging-Face-only model as GONE from a listing it was never in.
 const CATALOG_FILE = 'src/ai/settings.ts';
 for (const dir of SEARCH_ROOTS) {
@@ -79,8 +80,8 @@ for (const dir of SEARCH_ROOTS) {
     const rel = relative(root, file).replaceAll('\\', '/');
     if (rel === CATALOG_FILE) continue;
     const text = readFileSync(file, 'utf8');
-    // Everywhere else in this codebase a slashed id in route position IS an OpenRouter route.
-    for (const [, id] of text.matchAll(ROUTE_LITERAL)) pin('openrouter', id, rel);
+    // Everywhere else in this codebase a slashed id in route position IS a gateway route.
+    for (const [, id] of text.matchAll(ROUTE_LITERAL)) pin('vercel', id, rel);
   }
 }
 {
@@ -100,12 +101,14 @@ const env = ambientEnv(root);
  * is exactly the same evidence a missing id in a listing is.
  */
 const PROVIDERS = {
-  openrouter: {
-    label: 'OpenRouter',
+  vercel: {
+    label: 'Vercel AI Gateway',
+    // Public: the gateway's models listing needs no credential, so this check keeps working
+    // in the keyless weekly workflow exactly as the OpenRouter one did.
     keyName: null,
     async list() {
-      const res = await fetch('https://openrouter.ai/api/v1/models');
-      if (!res.ok) throw new Error(`openrouter listing answered ${res.status}`);
+      const res = await fetch('https://ai-gateway.vercel.sh/v1/models');
+      if (!res.ok) throw new Error(`vercel ai gateway listing answered ${res.status}`);
       return new Set((await res.json()).data.map((m) => m.id));
     },
   },

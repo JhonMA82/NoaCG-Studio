@@ -11,7 +11,7 @@ transport beneath that system.
 2. The browser sends a provider-neutral request to `POST /api/ai/generate`.
 3. The server selects exactly the requested provider/model route.
 4. `api/_lib/aiGateway.ts` adapts the request to Anthropic Messages, OpenAI Responses, or
-   OpenRouter/Hugging Face OpenAI-compatible Chat Completions.
+   Vercel AI Gateway / Hugging Face OpenAI-compatible Chat Completions.
 5. The server normalizes text or structured output, errors, token usage, route attempts, and
    optional estimated-cost metadata before returning it to the unchanged harness.
 
@@ -39,10 +39,18 @@ never fails the generation. It is deliberately separate from Lite's `ai_generati
 gateway traffic cannot consume Lite's fleet-spend and concurrency budgets.
 
 Large provider catalogs are discovered server-side through `GET /api/ai/models`
-(`api/_lib/aiModelDiscovery.ts`). OpenRouter's Models API and Hugging Face's Inference
-Providers router supply ids, capabilities, limits, availability, and current prices.
-`docs/VIDEO_MODEL_BENCHMARK.md` defines the video compatibility filter and repeatable
-quality benchmark.
+(`api/_lib/aiModelDiscovery.ts`). Vercel AI Gateway's models listing and Hugging Face's
+Inference Providers router supply ids, capabilities, limits, availability, and current prices.
+The gateway listing is PUBLIC - a credential only scopes it to the team - so discovery keeps
+working in the keyless weekly audit. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video
+compatibility filter and repeatable quality benchmark.
+
+**The gateway publishes capability TAGS, not a parameter support matrix**, and one
+consequence is load-bearing: there is no `structured_outputs` or `response_format` entry in
+any model's `supported_parameters` (measured across the whole live listing). Structured
+capability is therefore read off the `tool-use` tag - exactly the capability the
+forced-function structured mode rides on. Reading the absent field instead would have marked
+every model incapable and emptied the picker.
 
 ## Task registry and approved-route catalog
 
@@ -134,15 +142,24 @@ profile); turning it off is an explicit, audited, per-task server decision.
 
 Browser-visible values are non-secret:
 
-- `VITE_AI_PROVIDER`: `anthropic`, `openai`, `openrouter`, or `huggingface`.
+- `VITE_AI_PROVIDER`: `vercel`, `anthropic`, `openai`, or `huggingface`.
 - `VITE_AI_MODEL`: an opaque model id for the selected provider.
 - `VITE_AI_FALLBACKS`: optional JSON array of ordered `{provider, model}` routes.
 
+`vercel` is the MANAGED transport - Vercel AI Gateway's OpenAI-compatible Chat Completions
+API at `https://ai-gateway.vercel.sh/v1`, and the only provider NoaCG funds. The other three
+are bring-your-own-key escape hatches: two direct provider APIs, plus one alternative gateway,
+for a route or capability Vercel does not carry.
+
 Managed keys are server-only:
 
+- `AI_GATEWAY_API_KEY`, **or** the `VERCEL_OIDC_TOKEN` a Vercel deployment is issued
+  automatically. OIDC is the intended production credential - it rotates without anyone
+  touching a secret - and an explicit key wins where both exist, matching the gateway's own
+  precedence. Locally, `vercel env pull` writes the token to `.env.local` and the dev server
+  loads it into `process.env` exactly as production does.
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
-- `OPENROUTER_API_KEY`
 - `HUGGINGFACE_API_KEY` (or the conventional `HF_TOKEN`)
 
 Optional user-provided keys require `AI_KEY_ENCRYPTION_SECRET` with at least 32 characters.
@@ -167,8 +184,9 @@ and retry limit (`AI_RETRY_LIMIT`, default 1, clamped to 0-2). Only transient ne
 timeout, rate-limit, and provider-availability failures retry. After a route is exhausted,
 an explicitly configured fallback may run.
 
-Usage is normalized to input, output, and total tokens. OpenRouter provider-reported cost is
-kept when present. Cached input and reasoning tokens are normalized when providers report
+Usage is normalized to input, output, and total tokens. Gateway-reported cost (`usage.cost`,
+the same field and the same meaning OpenRouter used - verified against a live call) is kept
+when present. Cached input and reasoning tokens are normalized when providers report
 them. Other estimates are emitted only when the operator supplies current prices
 through `AI_MODEL_PRICING_JSON`, keyed by `provider:model` with `inputPerMillion` and
 `outputPerMillion`. Missing pricing produces no estimate rather than a stale claim.
@@ -176,18 +194,54 @@ through `AI_MODEL_PRICING_JSON`, keyed by `provider:model` with `inputPerMillion
 Provider response bodies and credentials are never copied into errors or logs. User-facing
 errors use stable gateway codes and sanitized messages.
 
-For managed Lite OpenRouter calls the server also forces zero-data-retention routing,
-denies provider data collection, requires parameter support, disables provider-selected
-fallback, restricts routing to an audited endpoint allowlist, and applies a maximum input and
-output token price. Lite fails closed when the endpoint allowlist or current price entry is
-missing.
+### The managed routing policy, and what the gateway does not offer
+
+For managed calls the server sends `providerOptions.gateway`: zero-data-retention routing, an
+audited PROVIDER-SLUG allowlist, cheapest-provider-first, and a per-surface spend tag. Lite
+still fails closed when the allowlist or the current price entry is missing.
+
+Several OpenRouter directives have **no Vercel equivalent**, and their loss is a real
+behaviour change rather than a rename:
+
+| OpenRouter | Vercel AI Gateway | What carries it now |
+| --- | --- | --- |
+| `provider.zdr` | `gateway.zeroDataRetention` | Same guarantee, enforced gateway-side - see below |
+| `data_collection: 'deny'` | *(none)* | Subsumed: a ZDR request only reaches providers under a verified ZDR agreement |
+| `allow_fallbacks: false` | *(none)* | Subsumed by the same filtering, plus `only` where a surface pins its provider |
+| `require_parameters` | *(none)* | Nothing. It mattered because OpenRouter endpoints of one model differed; a gateway model slug resolves to providers serving one contract |
+| `max_price` | *(none)* | **The server alone.** The approved-catalog price snapshot, `fundedRoutePrice`'s ceiling, and each task's `maxProviderCostUsd` booking. `sort: 'cost'` asks for the cheapest eligible provider, which is a preference, not a cap |
+| `only` (endpoint names) | `gateway.only` (provider slugs) | Coarser, and no longer about retention - only about who runs the weights and at what precision |
+| `x-title` / `http-referer` | `gateway.tags` | Better: attribution is queryable per surface in the spend report, where a header never was |
+
+The `max_price` row is the one to keep in mind. A price that moved under us used to be refused
+by the provider at request time; now it surfaces as a ledger overrun instead, so the audited
+catalog snapshot has to be refreshed deliberately rather than trusted to expire.
+
+### Retention: ZDR is plan-gated, and NoaCG fails closed on it
+
+**Zero-data-retention routing is a Vercel Pro/Enterprise feature.** On a Hobby team the
+gateway answers `403 ZdrUnauthorizedError` to any request carrying `zeroDataRetention: true`.
+That refusal is classified as its own normalized code, `zdr_unavailable`, distinct from
+`provider_rejected` because the fix is a plan or an audited policy decision rather than a key.
+The provider body is READ to make that distinction and never copied into an error or a log.
+
+The consequence is deliberate and must not be softened: with ZDR required (the default), every
+managed Lite, import-analysis and Pro call on a Hobby plan **fails closed** rather than
+sending prompts to a provider that may retain them. Three server-only switches decide it, each
+an explicit and audited choice: `AI_LITE_REQUIRE_ZDR`, `AI_IMPORT_ANALYSIS_REQUIRE_ZDR`, and
+`AI_SURFACE_REQUIRE_ZDR` (NoaCG Pro). All default to on.
+
+Because no route has yet been observed serving under ZDR on this gateway, every `zdrAvailable`
+flag in the approved-route catalog is `false` - meaning "not verified", not "known bad". The
+/admin Models page shows that as *not verified*, and flipping one to true is reserved for
+whoever actually makes the verifying call.
 
 The `AI_LITE_*` settings documented in `.env.example` are private Vercel environment
 variables. `AI_LITE_ENABLED` defaults off. Production enablement also requires Supabase
 authentication, the `0010_ai_generations.sql` and `0011_ai_lite_quality_feedback.sql`
-migrations, a Supabase secret key, both managed
-route keys, an `IP_HASH_SALT` of at least 16 characters, and an audited OpenRouter endpoint
-list where applicable. Lite stays unavailable instead of falling back to an in-memory quota
+migrations, a Supabase secret key, a managed gateway credential, an `IP_HASH_SALT` of at
+least 16 characters, an audited gateway provider list, and - while `AI_LITE_REQUIRE_ZDR`
+stays on - a Vercel plan that includes ZDR. Lite stays unavailable instead of falling back to an in-memory quota
 ledger or the development IP-hash salt when that durable configuration is incomplete.
 
 `scripts/check-client-secrets.mjs` rejects provider key names with a public build prefix and
@@ -200,15 +254,17 @@ The established harness schemas are sent through:
 
 - Anthropic forced tools.
 - OpenAI Responses `text.format` JSON schema.
-- OpenRouter OpenAI-compatible `response_format` JSON schema.
+- Vercel AI Gateway OpenAI-compatible `response_format` JSON schema.
 
 Every parsed result is validated again on the server against the same schema before it reaches
 DesignSpec or template code. A missing field, wrong type, unknown field where
 `additionalProperties` is false, or malformed JSON is a normalized `malformed_response`.
 
-OpenRouter normally uses JSON Schema response formatting. An audited managed route may instead
-use a forced function tool when the model supports tools but not response formatting. The tool
-arguments pass through the same schema revalidation before reaching the harness.
+The gateway normally uses JSON Schema response formatting. An audited managed route may
+instead use a forced function tool when the model supports tools but not response formatting
+(`AI_LITE_GATEWAY_STRUCTURED_MODE=tool`). The tool arguments pass through the same schema
+revalidation before reaching the harness. `structuredOutputMode` is NoaCG's own field and is
+never forwarded to the gateway as a routing directive.
 
 The real-token Lite benchmark may use an explicitly enabled in-process ledger on a local
 non-production server. Deployed Lite always requires the durable server ledger; the evaluation

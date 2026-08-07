@@ -174,7 +174,7 @@ runs concept -> interpret -> compile -> validate on `PRO_STANDARD_ROUTES`
 (`pro/pipeline.ts`): the curated model choice measured in the 2026-07-31 paid round
 (~$0.07-0.08/generation), pinned so a normal Pro user never picks models - the custom tier
 is where model choice lives. Do not change the standard routes without re-running
-`npm run bench:pro` paid stages. Offline (no OpenRouter key) the deterministic stub
+`npm run bench:pro` paid stages. Offline (no gateway credential) the deterministic stub
 (`pro/stub.ts`) runs the identical flow, which keeps e2e/pro.spec.ts token-free.
 
 **An as-is upload is BUNDLED into the slot it asked for** (`pro/logoAsset.ts`
@@ -711,8 +711,13 @@ put it (a logo slot takes a mark; a full-frame still does not).
 ## Other files
 
 - `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser
-  client. The server adapters in `api/_lib/aiGateway.ts` implement Anthropic, OpenAI Responses,
-  OpenRouter, and compatible Hugging Face Inference Providers without branching the harness.
+  client. The server adapters in `api/_lib/aiGateway.ts` implement Vercel AI Gateway (the
+  MANAGED transport, and the only one NoaCG funds), plus Anthropic, OpenAI Responses and
+  compatible Hugging Face Inference Providers as bring-your-own-key routes - without branching
+  the harness. **ZDR is plan-gated on the gateway**, so a managed task that requires it fails
+  closed with `zdr_unavailable` on a Hobby plan rather than degrading quietly; the per-request
+  price cap OpenRouter enforced has no gateway equivalent and now lives entirely in the
+  approved-catalog snapshot and each task's cost booking (docs/AI_PROVIDER_GATEWAY.md).
   `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
   normalization stays in `api/_lib/aiModelDiscovery.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;

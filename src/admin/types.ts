@@ -460,13 +460,13 @@ export interface AdminImageModelRow {
   provider: string;
   model: string;
   name: string;
-  /** Price per million OUTPUT IMAGE TOKENS. Null is "not published", never "free".
+  /** Price in USD for ONE generated image. Null is "not published", never "free".
    *
-   *  NOT a price per image, and the column must not be labelled as one: a per-image figure
-   *  needs the token count one image costs, which varies by model and resolution and which the
-   *  provider does not publish. Per million keeps it in the same unit family as the text
-   *  prices, where it is at least comparable between models. */
-  imageOutputPerMillion: number | null;
+   *  Vercel AI Gateway publishes this figure directly (`pricing.image`) and only for dedicated
+   *  image models. A multimodal LANGUAGE model that answers with an image - which is what the
+   *  Pro concept route is - bills through its ordinary output tokens instead, so it correctly
+   *  shows null here and its cost is visible in the token columns. */
+  imagePriceUsd: number | null;
   /** Some image routes also bill tokens for the prompt; shown when published. */
   inputPerMillion: number | null;
   /** Same two fields, same meaning and same discipline as the text rows. This tab carries no

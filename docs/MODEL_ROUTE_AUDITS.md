@@ -1,5 +1,19 @@
 # Model route audits
 
+> **HISTORICAL FROM 2026-08-07.** Every audit recorded below was performed against
+> **OpenRouter**, whose per-endpoint listings answered "which endpoint of this model is
+> ZDR-servable". NoaCG moved its managed transport to **Vercel AI Gateway**, which answers
+> that question differently and later: it filters a `zeroDataRetention: true` request down to
+> providers under a verified ZDR agreement and refuses when none qualifies. There is no
+> per-model retention flag to read and nothing to pin by hand, so the METHOD below no longer
+> applies and none of these audits transfers to the new routes.
+>
+> Consequently every `zdrAvailable` flag in `APPROVED_MODEL_CATALOG` is now `false` - "not
+> verified", not "known bad" - and no new audit can be recorded until the Vercel team is on a
+> plan that includes ZDR (it is a Pro/Enterprise feature; a Hobby team gets a 403). A future
+> audit is one real call per route under ZDR, recorded here, and only then does a flag flip.
+> Keep the sections below: they are the record of what was true on the old transport.
+
 The register of hand-performed audits behind `APPROVED_MODEL_CATALOG`
 (`api/_lib/aiModelCatalog.ts`). `/admin` Models reports a route as **approved** only when it
 has an entry in that catalog, and the catalog's `zdrAvailable` flag is an **audited fact, never

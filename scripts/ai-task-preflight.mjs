@@ -49,8 +49,8 @@ export async function runTaskPreflight(plan) {
         // Each arm's env is EXACTLY what its runner injects - the injection contract is the
         // thing under test, so the two must never drift.
         + 'const arms = candidates.map((candidate) => ({ candidate, env: lite\n'
-        + "  ? { AI_LITE_PRIMARY_MODEL: candidate, AI_LITE_PRIMARY_PROVIDER: 'openrouter' }\n"
-        + "  : { AI_TASK_IMPORT_ANALYSIS_ENABLED: '1', AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',\n"
+        + "  ? { AI_LITE_PRIMARY_MODEL: candidate, AI_LITE_PRIMARY_PROVIDER: 'vercel' }\n"
+        + "  : { AI_TASK_IMPORT_ANALYSIS_ENABLED: '1', AI_IMPORT_ANALYSIS_PROVIDER: 'vercel',\n"
         + '      AI_IMPORT_ANALYSIS_MODEL: candidate, ...(plan.armEnvExtra?.[candidate] ?? {}) } }));\n'
         + 'const report = benchPreflight(arms, plan.ambient, taskDef);\n'
         + 'report.findings.push(...benchCredentialFindings(plan.ambient, '

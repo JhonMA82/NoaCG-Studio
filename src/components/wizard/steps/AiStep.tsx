@@ -269,9 +269,9 @@ export default function AiStep({
     tier === 'lite' ? 'NoaCG Lite · included'
     : tier === 'pro' ? 'NoaCG Pro · image-guided'
     : [settings.provider, settings.model].filter(Boolean).join(' · ');
-  // Pro's standard routes ride OpenRouter; without a key there the flow runs the
-  // deterministic offline stub (and says so), exactly like the custom tier's stub provider.
-  const proRemote = settings.configuredProviders.includes('openrouter');
+  // Pro's standard routes ride the Vercel AI Gateway; without a credential there the flow runs
+  // the deterministic offline stub (and says so), exactly like the custom tier's stub provider.
+  const proRemote = settings.configuredProviders.includes('vercel');
   const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
   // Every action on this step runs against a remote route when it runs at all (aiReady
   // gates the buttons; the stub is unreachable here), so the disclosure gate applies to
@@ -724,8 +724,8 @@ export default function AiStep({
     if (proMode) {
       // THE PRO TIER: the same brief, mapped deterministically onto the image-guided
       // pipeline (src/ai/pro/brief.ts) and run on the STANDARD routes - a normal Pro user
-      // never picks models (PRO_STANDARD_ROUTES documents the choice). Offline (no
-      // OpenRouter key) the deterministic stub runs the identical flow without tokens.
+      // never picks models (PRO_STANDARD_ROUTES documents the choice). Offline (no gateway
+      // credential) the deterministic stub runs the identical flow without tokens.
       // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
       // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
       const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
@@ -908,7 +908,7 @@ export default function AiStep({
         )}
         {proMode && !proRemote && (
           <p className="hint" data-testid="pro-offline-note">
-            No OpenRouter key is configured, so this runs the built-in offline concept — the
+            No AI Gateway key is configured, so this runs the built-in offline concept — the
             full flow, without any model calls. Add a key under ⚙ AI settings.
           </p>
         )}
@@ -1419,12 +1419,12 @@ export default function AiStep({
                     NoaCG Pro picks its own models for every stage — there is nothing to
                     configure. The standard route draws one visual concept and one design
                     interpretation per generation; the concept's real cost is shown on the
-                    result. Until a hosted Pro plan exists it runs on your own OpenRouter key.
+                    result. Until a hosted Pro plan exists it runs on your own AI Gateway key.
                   </p>
                   <AiProviderSettings
                     settings={settings}
                     onChange={saveSetting}
-                    fixedProvider="openrouter"
+                    fixedProvider="vercel"
                     showModel={false}
                   />
                 </div>

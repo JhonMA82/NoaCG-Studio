@@ -13,6 +13,10 @@ import {
 
 type Fetch = typeof fetch;
 
+/** Vercel AI Gateway's OpenAI-compatible base URL, shared by the request adapter and live
+ *  model discovery so the two cannot point at different gateways. */
+export const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
+
 export interface ProviderAdapter {
   id: AiProviderId;
   endpoint: string;
@@ -94,7 +98,7 @@ function parseStructured(text: string): unknown {
   } catch (error) {
     if (error instanceof GatewayError) throw error;
     // Retryable: sampled models produce this stochastically, and providers can error
-    // mid-stream (observed as OpenRouter finish_reason "error" with a truncated body) -
+    // mid-stream (first observed on OpenRouter as finish_reason "error" with a truncated body) -
     // a fresh attempt within the bounded budget usually succeeds.
     throw new GatewayError('malformed_response', 'The AI provider returned an invalid structured result.', 502, true);
   }
@@ -410,12 +414,16 @@ export const openAiAdapter: ProviderAdapter = {
   },
 };
 
-export const openRouterAdapter: ProviderAdapter = {
-  id: 'openrouter',
-  endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+/** Vercel AI Gateway, through its OpenAI-compatible Chat Completions API. The wire shape is
+ *  the one this adapter already spoke (messages, response_format, tools, `modalities`, and a
+ *  `usage` block carrying `cost`), so the transport swap from OpenRouter changed the endpoint,
+ *  the credential and the ROUTING VOCABULARY - not the parsing. `parseResponse` is shared with
+ *  the Hugging Face adapter for the same reason it always was. */
+export const vercelGatewayAdapter: ProviderAdapter = {
+  id: 'vercel',
+  endpoint: `${AI_GATEWAY_BASE_URL}/chat/completions`,
   createRequest(request, route, key, policy) {
-    const publicAppUrl = (process.env.PUBLIC_APP_URL ?? '').trim();
-    const structuredMode = policy?.openRouter?.structuredOutputMode ?? 'json-schema';
+    const structuredMode = policy?.gateway?.structuredOutputMode ?? 'json-schema';
     const body = {
       model: route.model,
       messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
@@ -453,20 +461,17 @@ export const openRouterAdapter: ProviderAdapter = {
             },
           }
         : {}),
-      ...(policy?.openRouter
+      ...(policy?.gateway
         ? {
-            provider: {
-              zdr: policy.openRouter.zdr,
-              data_collection: policy.openRouter.dataCollection,
-              require_parameters: policy.openRouter.requireParameters,
-              allow_fallbacks: policy.openRouter.allowProviderFallbacks,
-              // Omitted, not sent empty: `only: []` reads to OpenRouter as "no endpoint is
-              // permitted" and would refuse every route, where a surface with no allowlist
-              // means "any endpoint the other directives already narrowed to".
-              ...(policy.openRouter.only?.length ? { only: policy.openRouter.only } : {}),
-              max_price: {
-                prompt: policy.openRouter.maxInputPerMillion,
-                completion: policy.openRouter.maxOutputPerMillion,
+            providerOptions: {
+              gateway: {
+                zeroDataRetention: policy.gateway.zeroDataRetention,
+                // Omitted, not sent empty: `only: []` would read as "no provider is
+                // permitted" and refuse every route, where a surface with no allowlist means
+                // "any provider the other directives already narrowed to".
+                ...(policy.gateway.only?.length ? { only: policy.gateway.only } : {}),
+                ...(policy.gateway.sort ? { sort: policy.gateway.sort } : {}),
+                ...(policy.gateway.tags?.length ? { tags: policy.gateway.tags } : {}),
               },
             },
           }
@@ -477,8 +482,6 @@ export const openRouterAdapter: ProviderAdapter = {
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${key}`,
-        'x-title': 'NoaCG Studio',
-        ...(publicAppUrl ? { 'http-referer': publicAppUrl } : {}),
       },
       body: JSON.stringify(body),
     };
@@ -587,14 +590,14 @@ export const huggingFaceAdapter: ProviderAdapter = {
     };
   },
   parseResponse(value, request, route) {
-    return openRouterAdapter.parseResponse(value, request, route);
+    return vercelGatewayAdapter.parseResponse(value, request, route);
   },
 };
 
 export const AI_ADAPTERS: Record<AiProviderId, ProviderAdapter> = {
   anthropic: anthropicAdapter,
   openai: openAiAdapter,
-  openrouter: openRouterAdapter,
+  vercel: vercelGatewayAdapter,
   huggingface: huggingFaceAdapter,
 };
 
@@ -699,9 +702,26 @@ function configuredRetryLimit(): number {
   return Number.isFinite(value) ? Math.min(2, Math.max(0, Math.round(value))) : 1;
 }
 
-function providerFailure(status: number): GatewayError {
+/** A 403 on a ZDR request is a PLAN refusal, not a bad credential, and telling the two apart
+ *  matters: the first is fixed by upgrading the Vercel team (or by an explicit, audited
+ *  decision to stop requiring ZDR for that task), the second by rotating a key. The failure
+ *  body is READ to make the distinction and never copied - the message below is NoaCG's own,
+ *  so no provider body or credential can reach a log or a user (docs/AI_PROVIDER_GATEWAY.md). */
+function zdrRefusal(body: string): boolean {
+  return /ZdrUnauthorizedError|Zero Data Retention/i.test(body);
+}
+
+function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
   if (status === 429) return new GatewayError('rate_limited', 'The AI provider is busy. Try again shortly.', 429, true);
+  if (status === 403 && zdrRefusal(body)) {
+    return new GatewayError(
+      'zdr_unavailable',
+      'This route requires zero-data-retention routing, which the gateway plan does not include.',
+      502,
+      false,
+    );
+  }
   if (status === 401 || status === 403) {
     return new GatewayError('provider_rejected', 'The AI provider rejected its server-side credential.', 502, false);
   }
@@ -724,7 +744,11 @@ async function oneAttempt(
       ...adapter.createRequest(request, route, key, policy),
       signal: controller.signal,
     });
-    if (!response.ok) throw providerFailure(response.status);
+    if (!response.ok) {
+      // Bounded read: enough to classify the refusal, never enough to be worth logging.
+      const detail = await response.text().then((text) => text.slice(0, 2000)).catch(() => '');
+      throw providerFailure(response.status, detail);
+    }
     let data: unknown;
     try {
       data = await response.json();
@@ -748,29 +772,48 @@ export interface GatewayDependencies {
 }
 
 /**
- * The routing directives a MANAGED call sends to OpenRouter.
+ * The routing directives a MANAGED call sends to Vercel AI Gateway
+ * (`providerOptions.gateway` on the Chat Completions body).
  *
- * The two privacy-bearing fields stay pinned to one value each, because a policy that can
- * ask for data collection or silently fall back off the ZDR endpoint is not a privacy policy:
- * `dataCollection` is always 'deny', and `allowProviderFallbacks` is always false so a route
- * whose ZDR endpoint is down FAILS rather than being served by one that retains prompts.
+ * `zeroDataRetention` is the whole privacy policy now, and it is stronger than the three
+ * OpenRouter directives it replaces: the gateway routes a ZDR request ONLY to providers
+ * under a verified ZDR agreement, so there is no separate "deny data collection" knob to set
+ * and no way for a fallback to be served by a retaining provider. What that costs is stated
+ * rather than discovered: **ZDR is a Vercel Pro/Enterprise feature.** On a Hobby team the
+ * gateway answers 403 `ZdrUnauthorizedError`, which `providerFailure` reports as
+ * `zdr_unavailable` - so a task whose profile requires ZDR fails closed instead of quietly
+ * sending prompts to a retaining provider (docs/AI_PROVIDER_GATEWAY.md, "Retention").
  *
- * The two selection fields are per-surface, because they are about which endpoint answers
- * rather than what it may keep. `only` is an endpoint allowlist a surface may not have -
- * absent, OpenRouter picks within whatever the other directives already narrowed it to.
- * `requireParameters` filters to endpoints advertising every parameter in the request, which
- * is right for a structured-output text call and wrong for an image one: `modalities` is not
- * a listed provider parameter, so requiring parameters on an image request narrows the set to
- * nothing (docs/MODEL_ROUTE_AUDITS.md).
+ * `only` is a PROVIDER-SLUG allowlist (`google`, `vertex`, `bedrock`, …), not OpenRouter's
+ * endpoint list; absent, the gateway picks within whatever ZDR already narrowed it to. It
+ * still carries the audited-serving requirement Lite depends on - which provider answers
+ * decides quantization and precision, which no privacy directive covers.
+ *
+ * THREE OPENROUTER DIRECTIVES HAVE NO EQUIVALENT, and dropping them is a real behaviour
+ * change, not a rename:
+ *
+ *   - `max_price` (a per-request price ceiling the provider enforced). The gateway has no
+ *     such field. `sort: 'cost'` asks for the cheapest eligible provider first, which is a
+ *     preference rather than a cap, so the ceiling now lives entirely server-side: the
+ *     approved-route catalog's audited price snapshot, `fundedRoutePrice`, and each task's
+ *     `maxProviderCostUsd` booking. Those already existed; they are now the ONLY cap.
+ *   - `require_parameters` (serve only from endpoints advertising every request parameter).
+ *     No equivalent. It mattered on OpenRouter because endpoints of one model differed; a
+ *     gateway model slug resolves to providers serving the same contract.
+ *   - `allow_fallbacks: false`. Subsumed by ZDR filtering above, and by `only` where a
+ *     surface pins its provider.
  */
-export interface OpenRouterRoutingPolicy {
-  zdr: boolean;
-  dataCollection: 'deny';
-  requireParameters: boolean;
-  allowProviderFallbacks: false;
+export interface GatewayRoutingPolicy {
+  zeroDataRetention: boolean;
+  /** Provider slugs permitted to serve the request. */
   only?: string[];
-  maxInputPerMillion: number;
-  maxOutputPerMillion: number;
+  /** Cheapest eligible provider first - the nearest thing to a price ceiling the gateway
+   *  offers, and a preference rather than a cap. */
+  sort?: 'cost';
+  /** Cost-attribution labels for the AI Gateway spend report (`group_by=tag`). This is what
+   *  replaced OpenRouter's `x-title`/`http-referer` attribution headers, and unlike them it
+   *  is queryable per surface. */
+  tags?: string[];
   structuredOutputMode?: 'json-schema' | 'tool';
 }
 
@@ -779,7 +822,7 @@ export interface GatewayExecutionPolicy {
   maxAttempts?: number;
   retryLimit?: number;
   timeoutMs?: number;
-  openRouter?: OpenRouterRoutingPolicy;
+  gateway?: GatewayRoutingPolicy;
 }
 
 export interface ModelPrice {

@@ -18,7 +18,7 @@ const NOW = Date.parse('2026-07-31T12:00:00Z');
 
 function model(overrides: Partial<AiDiscoveredModel> = {}): AiDiscoveredModel {
   return {
-    provider: 'openrouter',
+    provider: 'vercel',
     id: 'vendor/cheap-model',
     name: 'Cheap Model',
     description: '',
@@ -35,7 +35,7 @@ function model(overrides: Partial<AiDiscoveredModel> = {}): AiDiscoveredModel {
     available: true,
     createdAt: '2026-07-20T00:00:00Z',
     revision: null,
-    source: 'openrouter-models-api',
+    source: 'vercel-ai-gateway',
     ...overrides,
   };
 }
@@ -147,11 +147,11 @@ test('nothing in a row can carry provider prose or a quality claim', () => {
 });
 
 test('an approved route the provider stopped listing is reported as missing', () => {
-  const approved = APPROVED_MODEL_CATALOG.filter((entry) => entry.route.provider === 'openrouter');
+  const approved = APPROVED_MODEL_CATALOG.filter((entry) => entry.route.provider === 'vercel');
   assert.ok(approved.length > 1, 'this test needs more than one approved OpenRouter route');
 
   const listed = model({ id: approved[0].route.model });
-  const missing = missingApprovedRoutes([listed], 'openrouter');
+  const missing = missingApprovedRoutes([listed], 'vercel');
   assert.ok(missing.indexOf(modelRouteKey(approved[0].route)) === -1);
   assert.ok(missing.indexOf(modelRouteKey(approved[1].route)) !== -1);
 
@@ -164,8 +164,8 @@ test('in-use marks the routes the task registry actually points at, and nothing 
   const spare = model({ id: 'vendor/live-fallback' });
   const idle = model({ id: 'vendor/nobody-calls-this' });
   const usedBy = new Map([
-    ['openrouter:vendor/live-primary', [{ task: 'NoaCG Lite', slot: 'primary' as const }]],
-    ['openrouter:vendor/live-fallback', [{ task: 'NoaCG Lite', slot: 'fallback' as const }]],
+    ['vercel:vendor/live-primary', [{ task: 'NoaCG Lite', slot: 'primary' as const }]],
+    ['vercel:vendor/live-fallback', [{ task: 'NoaCG Lite', slot: 'fallback' as const }]],
   ]);
 
   const rows = modelEligibility([live, spare, idle], { now: NOW, usedBy });
@@ -190,7 +190,7 @@ test('approved and in-use are independent facts', () => {
   const liveUnapproved = model({ id: 'vendor/hot-swap' });
   const rows = modelEligibility([approvedIdle, liveUnapproved], {
     now: NOW,
-    usedBy: new Map([['openrouter:vendor/hot-swap', [{ task: 'Import analysis', slot: 'primary' as const }]]]),
+    usedBy: new Map([['vercel:vendor/hot-swap', [{ task: 'Import analysis', slot: 'primary' as const }]]]),
   });
   const [approved, live] = rows;
   assert.equal(approved.approved, true);
@@ -204,7 +204,7 @@ test('a curated route carries no slot, so nothing invents a fallback it does not
   const pro = model({ id: 'google/gemini-3.1-flash-image' });
   const [row] = modelEligibility([pro], {
     now: NOW,
-    usedBy: new Map([['openrouter:google/gemini-3.1-flash-image', [{ task: 'NoaCG Pro concept' }]]]),
+    usedBy: new Map([['vercel:google/gemini-3.1-flash-image', [{ task: 'NoaCG Pro concept' }]]]),
   });
   assert.deepEqual(row.usedBy, [{ task: 'NoaCG Pro concept' }]);
   assert.equal(row.usedBy[0].slot, undefined);
@@ -217,7 +217,7 @@ test('one route can be used by several callers at once', () => {
   const [row] = modelEligibility([shared], {
     now: NOW,
     usedBy: new Map([
-      ['openrouter:google/gemini-2.5-flash', [
+      ['vercel:google/gemini-2.5-flash', [
         { task: 'NoaCG Lite', slot: 'fallback' as const },
         { task: 'Import analysis', slot: 'primary' as const },
         { task: 'NoaCG Pro interpret' },

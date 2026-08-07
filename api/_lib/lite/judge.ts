@@ -141,8 +141,8 @@ export default {
     if (worstCase === null || worstCase > profile.judgeMaxCostUsd) {
       return liteError('cost_ceiling', 'The configured judge route exceeds its cost ceiling.', 503);
     }
-    const openRouter = liteJudgePolicy(profile);
-    if (profile.judgeRoute.provider === 'openrouter' && !openRouter) {
+    const gateway = liteJudgePolicy(profile);
+    if (profile.judgeRoute.provider === 'vercel' && !gateway) {
       return liteError('profile_not_configured', 'The Lite skin judge is not enabled on this server.', 503);
     }
 
@@ -183,7 +183,7 @@ export default {
           maxAttempts: 2,
           retryLimit: 1,
           timeoutMs: profile.timeoutMs,
-          ...(openRouter ? { openRouter } : {}),
+          ...(gateway ? { gateway } : {}),
         },
       );
       const costUsd = result.usage.estimatedCost?.amount

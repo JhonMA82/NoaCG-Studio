@@ -13,6 +13,13 @@
 // listings - current prices, context windows, availability - come from the discovery
 // module (aiModelDiscovery.ts); the numbers here are the audited snapshot the policy
 // layer prices against, refreshed when a route is (re)promoted.
+//
+// RE-POINTED TO VERCEL AI GATEWAY (2026-08-07). Every slug, price, context window and
+// capability below was re-read from the live gateway listing, not translated by hand. Where
+// the SAME model is served the entry kept its promotion and only its slug and audited numbers
+// moved; where no equivalent slug exists the entry was REMOVED rather than re-pointed at a
+// lookalike, because a promotion is a bench result about one model and cannot be transferred
+// to another by name similarity. What that removed is recorded at the bottom of the list.
 
 import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
@@ -41,117 +48,106 @@ export interface ApprovedModelEntry {
   openWeights: boolean;
   capabilities: ApprovedModelCapabilities;
   price: ModelPrice;
-  /** Whether the route can honour zero-data-retention routing (Lite requires it). */
+  /**
+   * Whether a ZDR-served path for this route has been VERIFIED by a real call.
+   *
+   * It is a recorded audit result, never an inference, because a wrong "yes" here becomes a
+   * privacy claim on the /admin Models page that production does not honour. Under OpenRouter
+   * the audit was "which endpoint of this model is ZDR-servable"; under Vercel AI Gateway the
+   * gateway itself filters a `zeroDataRetention: true` request down to providers with a
+   * verified ZDR agreement and refuses when none qualifies - so the only thing left to audit
+   * is whether the route actually serves under it, which takes one real call on a
+   * ZDR-entitled plan.
+   *
+   * Every entry is currently FALSE: ZDR is a Vercel Pro/Enterprise feature and this project's
+   * team is on Hobby, where the gateway answers 403 `ZdrUnauthorizedError` for any ZDR
+   * request. Nothing degrades quietly - a task whose profile requires ZDR fails closed on
+   * `zdr_unavailable` (api/_lib/aiGateway.ts). Flip these to true, per route, on the pass that
+   * actually verifies them.
+   */
   zdrAvailable: boolean;
   notes: string;
 }
 
 export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   {
-    route: { provider: 'openrouter', model: 'google/gemini-2.5-flash-lite' },
+    route: { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
     outputs: 'text',
     openWeights: false,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
     price: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-    zdrAvailable: true,
-    notes: 'Lite design-spec primary. Proprietary incumbent; stands until the discovery funnel benches an open-weight equal (plan §7).',
+    zdrAvailable: false,
+    notes: 'Lite design-spec primary. Proprietary incumbent; stands until the discovery funnel '
+      + 'benches an open-weight equal (plan §7). Same model and same price on the gateway as on '
+      + 'OpenRouter, so the 2026-07-29 promotion transfers intact.',
   },
   {
-    route: { provider: 'openrouter', model: 'google/gemini-2.5-flash' },
+    route: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
     outputs: 'text',
     openWeights: false,
-    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
+    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_000_000 },
     price: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
-    zdrAvailable: true,
+    zdrAvailable: false,
     notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b), and the NoaCG Pro '
-      + 'INTERPRET route (PRO_STANDARD_ROUTES.interpret). Re-audited 2026-08-02 for the second '
-      + 'use: the zdrAvailable flag was established for the judge, where aiLiteProfile sends the '
-      + 'routing policy, and Pro reached the same model through the unpolicied generic gateway. '
-      + 'proSurfacePolicy() closes that; the ZDR (Google) endpoint carries structured_outputs, '
-      + 'which the interpret call needs and the judge already relied on.',
+      + 'INTERPRET route (PRO_STANDARD_ROUTES.interpret). Same model and price on the gateway; '
+      + 'the context window is the listing\'s 1,000,000 rather than the 1,048,576 the OpenRouter '
+      + 'entry recorded. The endpoint-level ZDR reasoning the old note carried no longer applies: '
+      + 'the gateway decides which provider serves a ZDR request, not us.',
   },
   {
-    route: { provider: 'openrouter', model: 'qwen/qwen3-coder-next' },
+    route: { provider: 'vercel', model: 'alibaba/qwen3-coder-next' },
     outputs: 'text',
     openWeights: true,
-    capabilities: { vision: false, coding: true, structuredOutput: true, contextWindow: 262_144 },
-    price: { inputPerMillion: 0.11, outputPerMillion: 0.80 },
-    zdrAvailable: true,
-    notes: 'Lite design-spec fallback; open-weight coding candidate for the code benches.',
+    capabilities: { vision: false, coding: true, structuredOutput: true, contextWindow: 256_000 },
+    // DEARER THAN THE OPENROUTER ENTRY IT REPLACES (0.11/0.80 there, 0.50/1.20 here) - the same
+    // model, billed by a different serving. Still inside the funded ceiling, and stated rather
+    // than carried over, because Lite's cost-per-generation arithmetic reads this table.
+    price: { inputPerMillion: 0.50, outputPerMillion: 1.20 },
+    zdrAvailable: false,
+    notes: 'Lite design-spec fallback; open-weight coding candidate for the code benches. Slug '
+      + 'moved from qwen/ to alibaba/ on the gateway.',
   },
   {
-    route: { provider: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+    route: { provider: 'vercel', model: 'google/gemini-3.1-flash-image' },
     outputs: 'image',
     openWeights: false,
-    // structuredOutput describes the endpoint ZDR ROUTING SELECTS, not the default listing.
-    // This model has two endpoints; only Google (Vertex) is ZDR-servable, and that one
-    // advertises `response_format` without `structured_outputs`. The concept call asks for an
-    // image and requests no structured output, so nothing here depends on it - but recording
-    // the other endpoint's capability would describe a route we never take.
+    // The gateway serves image output from a `type: 'language'` model through the ordinary
+    // chat-completions `modalities` field, and the concept call asks for no structured output,
+    // so nothing here depends on this flag.
     capabilities: { vision: true, coding: false, structuredOutput: false, contextWindow: 131_072 },
     price: { inputPerMillion: 0.50, outputPerMillion: 3.00 },
-    zdrAvailable: true,
-    notes: 'NoaCG Pro concept route (PRO_STANDARD_ROUTES.concept). Audited 2026-08-02, '
-      + 'docs/MODEL_ROUTE_AUDITS.md: ZDR-servable on the Google (Vertex) endpoint only, which '
-      + 'proSurfacePolicy() now pins by sending zdr + deny on every managed Pro call. The '
-      + 'image-output side is $60/M output image tokens and is measured against NO ceiling - '
-      + 'none has been decided for image work (docs/ADMIN.md §9).',
-  },
-  {
-    route: { provider: 'openrouter', model: 'mistralai/mistral-small-2603' },
-    outputs: 'text',
-    openWeights: true,
-    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
-    price: { inputPerMillion: 0.15, outputPerMillion: 0.60 },
-    zdrAvailable: true,
-    notes: 'Open-weight multimodal candidate for the Lite discovery funnel and the vision suite.',
-  },
-  {
-    route: { provider: 'openrouter', model: 'mistralai/mistral-small-24b-instruct-2501' },
-    outputs: 'text',
-    openWeights: true,
-    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 32_768 },
-    price: { inputPerMillion: 0.05, outputPerMillion: 0.08 },
-    zdrAvailable: true,
-    notes: 'Open-weight text/structured candidate for the Lite discovery funnel.',
+    zdrAvailable: false,
+    notes: 'NoaCG Pro concept route (PRO_STANDARD_ROUTES.concept). Same slug and same token '
+      + 'prices on the gateway. Its generated images bill through ordinary OUTPUT TOKENS here '
+      + 'rather than a separate image-token meter, and are measured against NO ceiling - none '
+      + 'has been decided for image work (docs/ADMIN.md §9).',
   },
 
-  // ── Benchmark candidates (bench:qualify 2026-07-29) ──────────────────────────
-  // Listed so the comparison can RUN, not because anything is promoted: a free-tier
-  // route must be catalog-approved before taskConfigured() will serve it at all, so a
-  // candidate cannot be measured from outside this list. Prices are the audited pinned-
-  // endpoint figures from that qualification pass; each cleared ZDR, structured output,
-  // the funded-route ceiling and endpoint stability. Promotion remains the owner's, via
-  // docs/AI_LITE_PROMOTION.md - drop any candidate that loses its bench round.
+  // ── Removed in the OpenRouter → Vercel AI Gateway move (2026-08-07) ──────────
+  // Four entries left the catalog because the gateway carries no equivalent slug, and a
+  // promotion cannot be transferred to a different model by name similarity:
+  //
+  //   mistralai/mistral-small-2603, mistralai/mistral-small-24b-instruct-2501,
+  //   google/gemma-3-12b-it, qwen/qwen3-30b-a3b-instruct-2507
+  //
+  // All four were BENCHMARK CANDIDATES rather than promoted routes - listed only so
+  // `bench:qualify` could reach them, since taskConfigured() refuses an uncatalogued route.
+  // The last was the leader of the 2026-07-29 Lite round and never promoted. Re-add
+  // replacements in the SAME change as the qualification run that justifies them (the gateway
+  // carries near neighbours - alibaba/qwen-3-30b, mistral/mistral-small, google/gemma-4-31b-it
+  // - but "near" is not what a bench result is about).
+  //
+  // `openai/gpt-oss-20b` survived the move at the same slug and the same price, and is kept
+  // here as the one open-weight funnel candidate that needs no re-qualification.
   {
-    route: { provider: 'openrouter', model: 'google/gemma-3-12b-it' },
-    outputs: 'text',
-    openWeights: true,
-    capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 131_072 },
-    price: { inputPerMillion: 0.05, outputPerMillion: 0.15 },
-    zdrAvailable: true,
-    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16. Also a vision-suite candidate.',
-  },
-  {
-    route: { provider: 'openrouter', model: 'openai/gpt-oss-20b' },
-    outputs: 'text',
-    openWeights: true,
-    capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
-    price: { inputPerMillion: 0.03, outputPerMillion: 0.14 },
-    zdrAvailable: true,
-    notes: 'Lite discovery-funnel candidate; pinned DeepInfra bf16.',
-  },
-  {
-    route: { provider: 'openrouter', model: 'qwen/qwen3-30b-a3b-instruct-2507' },
+    route: { provider: 'vercel', model: 'openai/gpt-oss-20b' },
     outputs: 'text',
     openWeights: true,
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
-    zdrAvailable: true,
-    notes: 'Lite discovery-funnel candidate and the LEADER of the 2026-07-29 round - the only '
-      + '24/24 machine-usable result, against 22/24 for the incumbent. Pinned StreamLake, which '
-      + 'does not report quantization: that weakens how much the result PROVES, not the model, '
-      + 'so re-pin to a declared-precision endpoint before any promotion rests on it.',
+    zdrAvailable: false,
+    notes: 'Lite discovery-funnel candidate. Same slug on the gateway; the audited price is the '
+      + 'gateway listing\'s 0.05/0.20 rather than the pinned-DeepInfra 0.03/0.14 recorded before.',
   },
   // No vision-suite candidates are listed. `meta-llama/llama-4-scout` and `qwen/qwen3.5-9b`
   // were approved for the 2026-07-29 import-analysis run and REMOVED again after it, because
@@ -196,12 +192,14 @@ export function approvedTextCatalog(): readonly ApprovedModelEntry[] {
 }
 
 // Decision 5 (plan §15): WHO PAYS DECIDES THE ROUTE. Free hosted surfaces are funded by
-// the project, not the user, so a route NoaCG pays for must be cheap and reachable
-// through the OpenRouter adapter - which is why no entry above names OpenAI or Anthropic
-// as its provider: those models are reachable only through a user's own sealed key.
+// the project, not the user, so a route NoaCG pays for must be cheap and reachable through
+// the Vercel AI Gateway adapter - which is why no entry above names OpenAI or Anthropic as
+// its provider: those are the DIRECT provider APIs, reachable only through a user's own
+// sealed key. (The same model served through the gateway is a `vercel` route and perfectly
+// fundable; the distinction is who holds the credential, not who made the model.)
 // Unlike `openWeights` this IS a gate: the registry refuses a free-tier route that breaks
 // it, and the catalog test refuses an entry that could never serve one.
-export const FUNDED_ROUTE_PROVIDER = 'openrouter';
+export const FUNDED_ROUTE_PROVIDER = 'vercel';
 
 /** The per-million ceiling a NoaCG-funded route may cost. Sits above every catalog entry
  *  (the dearest today is the vision judge at 0.30/2.50) with room for a better model, and

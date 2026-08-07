@@ -144,33 +144,21 @@ if (!CONFIRMED) {
   process.exit(0);
 }
 
-// Provider SLUGS, resolved from OpenRouter rather than guessed from the display name: the
-// endpoints API reports "Google", whose slug is `google-vertex`, so slugifying the label
-// would silently produce an allowlist that matches nothing and every call would be
-// rejected. A route with no allowlist is not configured at all (taskConfigured), so this
-// has to be right before anything is spent.
-const providerSlugs = new Map();
-try {
-  const listing = await (await fetch('https://openrouter.ai/api/v1/providers', {
-    signal: AbortSignal.timeout(20_000),
-  })).json();
-  for (const provider of listing.data ?? []) {
-    if (provider.name && provider.slug) providerSlugs.set(provider.name.toLowerCase(), provider.slug);
-  }
-} catch {
-  console.error('Could not read the OpenRouter provider list - cannot pin endpoints safely.');
-  process.exit(1);
-}
+// Vercel AI Gateway reports `provider_name` AS the slug, so the name-to-slug listing call
+// this used to make is gone along with the failure it existed to prevent (OpenRouter reported
+// "Google" for a provider whose slug was `google-vertex`, and slugifying the label produced an
+// allowlist matching nothing). A route with no allowlist is not configured at all
+// (taskConfigured), so this still has to be right before anything is spent.
 
 // The incumbent is not in the shortlist (it is proprietary, so the open-weight preference
-// ranks it last), and its Google route serves from two endpoints.
-const INCUMBENT_PROVIDERS = 'google-vertex,google-ai-studio';
+// ranks it last), and its Google route serves from two gateway providers.
+const INCUMBENT_PROVIDERS = 'google,vertex';
 
 function allowlistFor(item) {
   if (!item?.pinned?.provider) return INCUMBENT_PROVIDERS;
-  const slug = providerSlugs.get(item.pinned.provider.toLowerCase());
+  const slug = item.pinned.provider;
   if (!slug) {
-    console.error(`No OpenRouter slug for provider "${item.pinned.provider}" - refusing to guess.`);
+    console.error('A pinned endpoint with no provider slug - refusing to guess.');
     process.exit(1);
   }
   return slug;
@@ -203,11 +191,11 @@ function startServer(model, providerAllowlist) {
   const env = {
     ...process.env,
     AI_LITE_ENABLED: '1',
-    AI_LITE_PRIMARY_PROVIDER: 'openrouter',
+    AI_LITE_PRIMARY_PROVIDER: 'vercel',
     AI_LITE_PRIMARY_MODEL: model,
     AI_LITE_FALLBACK_PROVIDER: '',
     AI_LITE_FALLBACK_MODEL: '',
-    AI_LITE_OPENROUTER_PROVIDERS: providerAllowlist,
+    AI_LITE_GATEWAY_PROVIDERS: providerAllowlist,
   };
   const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore' });
   return child;

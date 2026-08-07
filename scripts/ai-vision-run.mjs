@@ -310,7 +310,7 @@ if (ARM !== 'model') {
     includeIncumbent: false,
     armEnvExtra: Object.fromEntries(candidates.map((model) => [
       model,
-      { AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: allowlists[model] },
+      { AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS: allowlists[model] },
     ])),
   });
   console.log('');
@@ -338,9 +338,9 @@ if (ARM !== 'model') {
     console.log(`  provider allowlist: ${providers}`);
     const server = startServer({
       AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
-      AI_IMPORT_ANALYSIS_PROVIDER: 'openrouter',
+      AI_IMPORT_ANALYSIS_PROVIDER: 'vercel',
       AI_IMPORT_ANALYSIS_MODEL: model,
-      AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS: providers,
+      AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS: providers,
       // The task's own quotas are sized for a USER (10 successes a day). A bench sweeps the
       // whole set in one go, so raise them here rather than reading a quota refusal as a
       // model failure - the hard stop that matters is the cost cap above.

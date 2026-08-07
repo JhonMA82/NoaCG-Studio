@@ -183,19 +183,19 @@ test.describe('creative routing (phase A)', () => {
             parts: [{ id: 'tree', role: 'bracket' }], fields: [], originalityRequested: false, beyondScope: false,
           },
           usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-          provider: 'openrouter', model, attempts: [],
+          provider: 'vercel', model, attempts: [],
         }),
       });
     });
     const session = await page.evaluate(async () => {
       const { saveAiSettings, defaultModelForProvider } = await import('/src/ai/settings.ts');
       const sessionModel = 'qwen/qwen3-coder-next';
-      saveAiSettings({ provider: 'openrouter', model: sessionModel, fallbacks: [] });
+      saveAiSettings({ provider: 'vercel', model: sessionModel, fallbacks: [] });
       const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
       // The run unwinds on the stopped design/coder calls; only the routing matters here.
       await claudeProvider.generate('A four-team playoff bracket.', ctx as never).catch(() => null);
-      return { sessionModel, fastModel: defaultModelForProvider('openrouter', 'fast') };
+      return { sessionModel, fastModel: defaultModelForProvider('vercel', 'fast') };
     });
     expect(session.fastModel).not.toBe(session.sessionModel); // the two roles are really distinct
     const intentCalls = calls.filter((c) => c.tool === 'emit_structural_intent');
@@ -306,7 +306,7 @@ test.describe('creative routing (phase A)', () => {
         body: JSON.stringify({
           output,
           usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-          provider: 'openrouter', model: body.route?.model ?? '', attempts: [],
+          provider: 'vercel', model: body.route?.model ?? '', attempts: [],
         }),
       });
       if (tool === 'emit_structural_intent') {
@@ -325,7 +325,7 @@ test.describe('creative routing (phase A)', () => {
     });
     const runs = await page.evaluate(async () => {
       const { saveAiSettings } = await import('/src/ai/settings.ts');
-      saveAiSettings({ provider: 'openrouter', model: 'qwen/qwen3-coder-next', fallbacks: [] });
+      saveAiSettings({ provider: 'vercel', model: 'qwen/qwen3-coder-next', fallbacks: [] });
       const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
       const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };

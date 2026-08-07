@@ -132,11 +132,11 @@ export const litePreflightTask: PreflightTask = {
     return {
       resolved: profile.primary,
       configured: taskConfigured(task),
-      providers: profile.openRouterProviders,
+      providers: profile.gatewayProviders,
       priced: Boolean(task.routePolicy.prices[modelRouteKey(profile.primary)]),
     };
   },
-  allowlistVar: 'AI_LITE_OPENROUTER_PROVIDERS',
+  allowlistVar: 'AI_LITE_GATEWAY_PROVIDERS',
 };
 
 /** imported-graphic-analysis - the vision task's separate model profile (AI_PLATFORM_PLAN
@@ -153,12 +153,12 @@ export const importAnalysisPreflightTask: PreflightTask = {
     return {
       resolved: profile.route,
       configured: taskConfigured(task),
-      providers: profile.openRouterProviders,
+      providers: profile.gatewayProviders,
       priced: Boolean(task.routePolicy.prices[modelRouteKey(profile.route)]),
       enabled: profile.enabled,
     };
   },
-  allowlistVar: 'AI_IMPORT_ANALYSIS_OPENROUTER_PROVIDERS (falling back to AI_LITE_OPENROUTER_PROVIDERS)',
+  allowlistVar: 'AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS (falling back to AI_LITE_GATEWAY_PROVIDERS)',
 };
 
 /** Why a route would not serve - the diagnosis, not just the verdict. A run that fails
@@ -175,15 +175,15 @@ function routeDiagnosis(
       + 'would fail closed. Add the audited entry in the same change as the run that justifies it.';
   }
   if (!providers.length) {
-    return `No OpenRouter provider allowlist (${allowlistVar} is empty), so every `
+    return `No gateway provider allowlist (${allowlistVar} is empty), so every `
       + 'call would be rejected before it reached a model.';
   }
   if (!priced) {
     return `${modelRouteKey(route)} has no price in the task's table, so the cost policy cannot admit it.`;
   }
   if (!fundedModelRoute(route)) {
-    return `${modelRouteKey(route)} is approved but not FUNDED-eligible (decision 5: OpenRouter, `
-      + 'under the funded-route price ceiling), so the free tier may not serve it.';
+    return `${modelRouteKey(route)} is approved but not FUNDED-eligible (decision 5: the Vercel `
+      + 'AI Gateway transport, under the funded-route price ceiling), so the free tier may not serve it.';
   }
   return null;
 }
@@ -320,11 +320,15 @@ export function benchCredentialFindings(
   const findings: PreflightFinding[] = [];
   const has = (key: string) => Boolean((ambient[key] ?? '').trim());
 
-  if (!has('OPENROUTER_API_KEY')) {
+  // Either credential serves: a static AI Gateway key, or the short-lived OIDC token
+  // `vercel env pull` writes for the linked project. A bench run has neither only when nobody
+  // has connected this checkout to the gateway at all, and then every arm fails identically.
+  if (!has('AI_GATEWAY_API_KEY') && !has('VERCEL_OIDC_TOKEN')) {
     findings.push({
       severity: 'error',
       code: 'missing-credentials',
-      message: 'OPENROUTER_API_KEY is not set - every generation would fail identically.',
+      message: 'Neither AI_GATEWAY_API_KEY nor VERCEL_OIDC_TOKEN is set - every generation '
+        + 'would fail identically. Run `vercel env pull` or set an AI Gateway key.',
     });
   }
   // The flag is read with boolEnv(..., false): absent means OFF, and an off profile serves

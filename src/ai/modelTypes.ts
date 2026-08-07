@@ -2,7 +2,12 @@
 // server adapters. Creative AI's higher-level AIProvider contract remains the product
 // seam; these types only normalize the model transport beneath the existing harness.
 
-export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'openrouter', 'huggingface'] as const;
+// `vercel` is the NoaCG-funded transport: Vercel AI Gateway's OpenAI-compatible Chat
+// Completions endpoint, authenticated by an AI Gateway key or the deployment's OIDC token.
+// It replaced OpenRouter as the managed gateway (docs/AI_PROVIDER_GATEWAY.md). The other
+// three remain the BRING-YOUR-OWN-KEY escape hatches: two direct provider APIs, plus one
+// alternative gateway, for a capability or a route Vercel does not carry.
+export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'vercel', 'huggingface'] as const;
 export type AiProviderId = (typeof AI_PROVIDER_IDS)[number];
 
 export function isAiProviderId(value: unknown): value is AiProviderId {
@@ -28,15 +33,21 @@ export interface AiDiscoveredModel {
   supportsTools: boolean;
   supportsSeed: boolean;
   free: boolean;
+  /** Promotion-time PREFERENCE metadata, never a gate. Vercel AI Gateway does not publish
+   *  open-weight status, so a `vercel` row is always false - meaning "not stated", not
+   *  "proprietary". The audited catalog's own `openWeights` flag stays the promotion signal
+   *  (api/_lib/aiModelCatalog.ts). */
   openWeight: boolean;
   available: boolean;
   createdAt: string | null;
   revision: string | null;
-  /** Price per million OUTPUT IMAGE TOKENS, where the provider publishes one. Additive and
-   *  optional: only image routes carry it, and a missing value means "not published", never
-   *  "free". Not a price per image - see the note in aiModelDiscovery.ts. */
-  imageOutputPerMillion?: number | null;
-  source: 'openrouter-models-api' | 'huggingface-router';
+  /** Price in USD for ONE generated image, where the provider publishes one. Additive and
+   *  optional: only dedicated image routes carry it, and a missing value means "not
+   *  published", never "free". Vercel publishes this per image (`pricing.image`); a
+   *  multimodal language model that answers with an image bills through its ordinary output
+   *  tokens instead and carries no value here. */
+  imagePriceUsd?: number | null;
+  source: 'vercel-ai-gateway' | 'huggingface-router';
 }
 
 export interface AiModelCatalogResponse {
@@ -61,8 +72,8 @@ export interface ModelRequest {
   messages: { role: 'user' | 'assistant'; content: ModelContentBlock[] | string }[];
   maxTokens?: number;
   /** Ask the route for a generated IMAGE instead of text. Only adapters whose provider
-   *  actually offers image output accept it (OpenRouter today); everything else refuses
-   *  with a normalized error rather than silently answering in the wrong modality.
+   *  actually offers image output accept it (the Vercel gateway today); everything else
+   *  refuses with a normalized error rather than silently answering in the wrong modality.
    *  Mutually exclusive with structuredOutput. */
   expect?: 'image';
   /** Force a schema-validated object result. */
@@ -123,6 +134,10 @@ export type AiGatewayErrorCode =
   | 'rate_limited'
   | 'timeout'
   | 'malformed_response'
+  /** The route asked for zero-data-retention routing and the gateway plan does not offer it
+   *  (Vercel AI Gateway makes ZDR a Pro/Enterprise feature). Distinct from
+   *  `provider_rejected` because the fix is a plan or an audited policy decision, not a key. */
+  | 'zdr_unavailable'
   | 'unavailable';
 
 export interface AiGatewayErrorBody {

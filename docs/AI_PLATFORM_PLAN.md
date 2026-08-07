@@ -583,12 +583,16 @@ sections 6, 7, and 9 above; GOALS.md carries the same wording):
    hosted product.
 5. **Who pays decides the route.** NoaCG Lite and every other free hosted surface are paid
    for by the project, not the user, and there is no revenue yet - so a route NoaCG pays for
-   must be a **cheap OpenRouter model**. OpenAI and Anthropic models are reachable **only
+   must be a **cheap model on the managed transport**, which since 2026-08-07 is Vercel AI
+   Gateway rather than OpenRouter. The DIRECT OpenAI and Anthropic APIs are reachable **only
    through the user's own sealed key** (decision 4); no managed NoaCG key is wired into a
-   hosted path for them. This is a cost constraint, not a quality judgement: it composes with
-   decision 1 rather than replacing it - benchmark whatever is worth benchmarking, but a
-   candidate cannot be promoted to a NoaCG-funded route unless it is cheap and reachable
-   through the gateway's OpenRouter adapter. Revisit when there is income.
+   hosted path for them. Note what that does and does not forbid: an Anthropic or OpenAI model
+   served *through the gateway* is an ordinary `vercel` route and perfectly fundable if it is
+   cheap - the constraint is about who holds the credential, not who made the model. This is a
+   cost constraint, not a quality judgement: it composes with decision 1 rather than replacing
+   it - benchmark whatever is worth benchmarking, but a candidate cannot be promoted to a
+   NoaCG-funded route unless it is cheap and reachable through the managed gateway adapter.
+   Revisit when there is income.
 
 ## 16. Open owner decisions (raised 2026-07-31, harness routing + evaluation work)
 

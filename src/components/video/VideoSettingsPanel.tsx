@@ -44,7 +44,7 @@ export default function VideoSettingsPanel() {
   useEffect(() => {
     let live = true;
     setDiscoveredModels([]);
-    if (globalAi.provider !== 'openrouter' && globalAi.provider !== 'huggingface') return;
+    if (globalAi.provider !== 'vercel' && globalAi.provider !== 'huggingface') return;
     void discoverAiModels(globalAi.provider)
       .then((catalog) => {
         if (live) setDiscoveredModels(catalog.models);

@@ -22,9 +22,9 @@ usability* - "compiles and benches clean", which a grey square also satisfies.
 Three things had to be true before a single generation could run, and only one was known:
 
 1. **`AI_LITE_ENABLED` alone is not enough.** `taskConfigured()` refuses any OpenRouter route
-   with an empty `AI_LITE_OPENROUTER_PROVIDERS`, so enabling alone moves the status endpoint
+   with an empty `AI_LITE_GATEWAY_PROVIDERS`, so enabling alone moves the status endpoint
    from `disabled` to `not-configured` and nothing else.
-2. **The pinned fallback could not be served at all.** `liteOpenRouterPolicy` derives
+2. **The pinned fallback could not be served at all.** `liteGatewayPolicy` derives
    `maxInputPerMillion` from the *audited catalog snapshot*, which prices
    `qwen/qwen3-coder-next` at 0.11/M in. Its cheapest live endpoint is parasail/bf16 at
    **0.12/M in**; every endpoint is dearer than the cap computed from our own stale figure, so

@@ -2,7 +2,7 @@
 // The NoaCG Pro lower-third benchmark (docs/NOACG_PRO_PLAN.md §9).
 //
 //   node scripts/pro-bench.mjs                       # FREE: fixtures (or the stub) only
-//   node scripts/pro-bench.mjs --generate --image-route=openrouter:<model> --max-cost=1
+//   node scripts/pro-bench.mjs --generate --image-route=vercel:<model> --max-cost=1
 //                                                    # PAID: real concept + interpretation
 //   node scripts/pro-bench.mjs --save-fixtures       # (with --generate) write results back
 //                                                    # as fixtures for future free runs
@@ -45,8 +45,8 @@ const imageRoute = value('image-route');
 const interpretRoute = value('interpret-route');
 
 if (paid) {
-  if (!imageRoute?.startsWith('openrouter:')) {
-    console.error('PAID mode needs an explicit --image-route=openrouter:<model> (the gateway\'s image adapter).');
+  if (!imageRoute?.startsWith('vercel:')) {
+    console.error('PAID mode needs an explicit --image-route=vercel:<model> (the gateway\'s image adapter).');
     process.exit(1);
   }
   if (!interpretRoute?.includes(':')) {

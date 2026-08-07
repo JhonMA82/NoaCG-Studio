@@ -77,18 +77,30 @@ export function clearUserAiKeysCookie(req: Request): string {
   return `${COOKIE_NAME}=; Path=/api/ai; HttpOnly; SameSite=Strict; Max-Age=0${secure}`;
 }
 
+/**
+ * The MANAGED credential for a provider - server environment only.
+ *
+ * `vercel` is the one with two sources, and the order is deliberate. A deployment on Vercel
+ * is issued a short-lived `VERCEL_OIDC_TOKEN` automatically and rotates it without anyone
+ * touching a secret, so OIDC is the intended production credential and the one to prefer
+ * where both exist. `AI_GATEWAY_API_KEY` is the static fallback: what a self-host, a CI job
+ * or a local `npm run dev` without `vercel env pull` can supply. An explicit key WINS over
+ * an ambient token, matching the gateway's own precedence, so naming a key is never
+ * silently ignored on a Vercel box.
+ */
 export function managedAiKey(provider: AiProviderId): string {
   const names: Record<AiProviderId, string> = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
-    openrouter: 'OPENROUTER_API_KEY',
+    vercel: 'AI_GATEWAY_API_KEY',
     huggingface: 'HUGGINGFACE_API_KEY',
   };
-  return (
-    process.env[names[provider]]
-    ?? (provider === 'huggingface' ? process.env.HF_TOKEN : '')
-    ?? ''
-  ).trim();
+  const conventionalFallback = provider === 'huggingface'
+    ? process.env.HF_TOKEN
+    : provider === 'vercel'
+      ? process.env.VERCEL_OIDC_TOKEN
+      : '';
+  return (process.env[names[provider]] || conventionalFallback || '').trim();
 }
 
 export function sameOrigin(req: Request): boolean {

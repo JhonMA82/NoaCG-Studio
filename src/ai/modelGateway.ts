@@ -61,10 +61,10 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
   const body: AiGatewayRequestBody = {
     request: {
       ...providerNeutralRequest,
-      ...(settings.temperature !== null && route.provider === 'openrouter'
+      ...(settings.temperature !== null && route.provider === 'vercel'
         ? { temperature: settings.temperature }
         : {}),
-      ...(settings.seed !== null && route.provider === 'openrouter'
+      ...(settings.seed !== null && route.provider === 'vercel'
         ? { seed: settings.seed }
         : {}),
       ...(settings.temperature !== null && route.provider === 'huggingface'

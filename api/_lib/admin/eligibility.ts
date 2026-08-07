@@ -34,12 +34,14 @@ import type {
  *  Long enough that a fortnight of not looking at the page does not hide anything. */
 export const NEW_MODEL_DAYS = 30;
 
-/** Zero-data-retention is an AUDITED fact on this project, not a discovered one. The
- *  OpenRouter models listing does not carry a per-model ZDR flag - retention is decided by
- *  the provider routing policy the request asks for (`zdr: true`, api/_lib/aiLiteProfile.ts),
- *  and whether a given model can actually be served under it is checked by hand at promotion
- *  time and recorded in the catalog. So a model outside the catalog reports `unknown` rather
- *  than a guess, because a wrong "yes" here would be a privacy claim nobody verified. */
+/** Zero-data-retention is an AUDITED fact on this project, not a discovered one. The gateway's
+ *  models listing carries no per-model ZDR flag - retention is decided by the routing policy
+ *  the request asks for (`zeroDataRetention: true`, api/_lib/aiLiteProfile.ts) and enforced by
+ *  the gateway, which serves such a request only from providers under a verified ZDR
+ *  agreement. Whether a given route actually serves that way is confirmed by a real call at
+ *  promotion time and recorded in the catalog. So a model outside the catalog reports
+ *  `unknown` rather than a guess, because a wrong "yes" here would be a privacy claim nobody
+ *  verified. */
 export type ZdrState = 'audited' | 'unknown';
 
 /**
@@ -52,8 +54,8 @@ export type ZdrState = 'audited' | 'unknown';
  * (docs/MODEL_ROUTE_AUDITS.md), and the row should say so.
  */
 export function auditedZdr(provider: string, id: string): { zdr: ZdrState; zdrAvailable: boolean | null } {
-  const entry = provider === 'openrouter'
-    ? approvedModelEntry({ provider: 'openrouter', model: id })
+  const entry = provider === FUNDED_ROUTE_PROVIDER
+    ? approvedModelEntry({ provider: FUNDED_ROUTE_PROVIDER, model: id })
     : null;
   return entry
     ? { zdr: 'audited', zdrAvailable: entry.zdrAvailable }
@@ -70,7 +72,7 @@ function priceKnown(model: AiDiscoveredModel): boolean {
 export function blockingReasons(model: AiDiscoveredModel): ModelBlockCode[] {
   const blocks: ModelBlockCode[] = [];
   // Decision 5 (docs/AI_PLATFORM_PLAN.md §15): who pays decides the route. A model NoaCG funds
-  // has to be reachable through the OpenRouter adapter.
+  // has to be reachable through the managed Vercel AI Gateway adapter.
   if (model.provider !== FUNDED_ROUTE_PROVIDER) blocks.push('not-funded-provider');
   if (!model.available) blocks.push('unavailable');
   if (!model.supportsStructuredOutput) blocks.push('no-structured-output');

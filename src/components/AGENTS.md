@@ -703,7 +703,7 @@ one-click "update the code", which goes through store.requestAi -> the CHAT pane
 so it lands as a normal turn and undoes like any other edit. The render preflight repeats the
 warning. `authoredFor: null` = provenance unknown (the starter, or a pre-existing saved project):
 warn about nothing). Its AI-model override uses the global provider and live server-side
-OpenRouter/Hugging Face catalog suggestions filtered for the full video structured-output/context
+Vercel AI Gateway / Hugging Face catalog suggestions filtered for the full video structured-output/context
 contract; the field still accepts an opaque id when discovery is unavailable and never receives
 a provider key),
 **VideoAssetsPanel** (data-URL assets, 3 MB/asset hard cap - the render manifest budget; uploads
@@ -918,13 +918,13 @@ The **NoaCG Pro** tier (docs/NOACG_PRO_PLAN.md §7) runs the image-guided pipeli
 SAME brief: `src/ai/pro/brief.ts` maps the prompt + GenerationSpec + uploads onto the v1
 `ProBrief`, generation runs concept -> interpret -> compile -> validate on the pinned
 `PRO_STANDARD_ROUTES` (a normal Pro user never picks models; the tier's settings show only
-the OpenRouter key surface via `AiProviderSettings fixedProvider/showModel`), and the result
+the AI Gateway key surface via `AiProviderSettings fixedProvider/showModel`), and the result
 card adds the concept image with its real provider-reported cost plus the per-region
 editability report (`data-testid="pro-report"`, keyed to the template via a WeakMap so a
 restored past result shows its own concept). Categories clamp to lower-third/auto (the Lite
 clamp pattern), spec-field findings demote to warnings (fixed contract, no repair loop -
 `demoteSpecFields`), refine/fix are stood down (regenerate is the honest move and the card
-says so), and with no OpenRouter key the tier says so and runs the offline stub - which is
+says so), and with no gateway credential the tier says so and runs the offline stub - which is
 what keeps e2e/pro.spec.ts token-free. A Pro create records activation mode 'pro' through
 the shared AI door (`aiResult.path`). The step passes the FIRST "use it as it is" upload
 into the pipeline as `logoMark`: `fillProLogoSlot` (src/ai/pro/logoAsset.ts) bundles it into

@@ -4,11 +4,20 @@
 //
 //   npm run bench:qualify [-- out-dir] [max-candidates]
 //
-// SPENDS NO TOKENS. Reads the public ZDR-filtered listing plus each candidate's endpoints.
+// SPENDS NO TOKENS. Reads the gateway's public per-model endpoints listing.
 //
-// The gates mirror the Lite OpenRouter policy (docs/AI_TASK_REGISTRY.md): zero-data
-// retention, a pinnable endpoint that really supports structured output, a confirmed price
-// under the per-call ceiling, and endpoint stability. Provider PINNING matters as much as
+// THE ZDR GATE IS GONE FROM THIS STAGE, and that is a capability difference rather than a
+// relaxation. OpenRouter published ZDR as a listing-level filter (`?zdr=true`), so a candidate
+// could be excluded before anyone looked at it. Vercel AI Gateway publishes no per-model
+// retention flag at all: it decides ZDR eligibility per REQUEST, routing only to providers
+// under a verified ZDR agreement and refusing when none qualifies. So the gate moved from
+// qualification to runtime - it is still enforced, just later and by the gateway - and this
+// stage now reports `zdr: 'decided-at-request'` instead of a filter result it cannot compute.
+// Confirm a candidate really serves under ZDR in the CONFIRM stage, with a real call.
+//
+// The remaining gates mirror the Lite policy (docs/AI_TASK_REGISTRY.md): a pinnable endpoint
+// that really supports structured output, a confirmed price under the per-call ceiling, and
+// endpoint stability. Provider PINNING matters as much as
 // the model id - docs/AI_LITE_PROMOTION.md makes candidate identity model + endpoint +
 // revision + parameters, because results from a different endpoint (a different
 // quantization, most of all) are not interchangeable just because the public name matches.
@@ -26,7 +35,7 @@ const MIN_UPTIME = 95;
 // benchmarked elsewhere - the promotion doc treats it as a separate candidate identity.
 const TRUSTED_QUANTIZATIONS = new Set(['fp32', 'fp16', 'bf16', 'fp8', 'unknown', null]);
 
-const key = (process.env.OPENROUTER_API_KEY ?? '').trim();
+const key = (process.env.AI_GATEWAY_API_KEY ?? '').trim();
 const headers = key ? { authorization: `Bearer ${key}` } : {};
 
 async function getJson(url) {
@@ -37,39 +46,36 @@ async function getJson(url) {
 
 const discover = JSON.parse(await readFile(path.join(OUT, 'discover.json'), 'utf8'));
 
-// ZDR is a LISTING-level fact on OpenRouter, not an endpoint field: the zdr=true filter is
-// the authoritative answer to "can this model be routed with zero data retention".
-const zdrListing = await getJson('https://openrouter.ai/api/v1/models?supported_parameters=structured_outputs&zdr=true');
-const zdrIds = new Set((zdrListing.data ?? []).map((model) => model.id));
-console.log(`${zdrIds.size} structured-output models offer zero-data-retention routing.`);
+console.log('ZDR is decided per request by the gateway and cannot be pre-filtered here - see the header note.');
 
 // Rank before truncating, and say what was dropped - a silent cap reads as full coverage.
 const ranked = [...discover.items].sort((a, b) => {
   if (a.openWeights !== b.openWeights) return a.openWeights ? -1 : 1; // §15.1 preference
   return a.estimatedCallUsd - b.estimatedCallUsd;
 });
-const considered = ranked.filter((c) => zdrIds.has(c.route.model));
-const droppedForZdr = ranked.length - considered.length;
+const considered = ranked;
 const examined = considered.slice(0, MAX_CANDIDATES);
-console.log(`${droppedForZdr} of ${ranked.length} shortlisted candidates fail the ZDR gate outright.`);
 if (considered.length > examined.length) {
-  console.log(`Examining the top ${examined.length} of ${considered.length} ZDR-capable candidates ` +
+  console.log(`Examining the top ${examined.length} of ${considered.length} candidates ` +
     `(open-weight first, then cheapest). Raise the cap: npm run bench:qualify -- <dir> <n>.`);
 }
 
 const results = [];
 for (const candidate of examined) {
   const row = { ...candidate, gates: {}, endpoints: [], pinned: null };
-  row.gates.zdr = true; // considered[] is already ZDR-filtered
+  row.gates.zdr = 'decided-at-request'; // not a pass - the gateway answers this per call
   try {
-    const detail = await getJson(`https://openrouter.ai/api/v1/models/${candidate.route.model}/endpoints`);
+    const detail = await getJson(`https://ai-gateway.vercel.sh/v1/models/${candidate.route.model}/endpoints`);
     const endpoints = (detail.data?.endpoints ?? []).map((endpoint) => ({
       provider: endpoint.provider_name,
       tag: endpoint.tag ?? null,
       quantization: endpoint.quantization ?? null,
       contextLength: endpoint.context_length ?? null,
       maxCompletionTokens: endpoint.max_completion_tokens ?? null,
-      structuredOutput: (endpoint.supported_parameters ?? []).includes('structured_outputs'),
+      // The gateway's endpoint listing carries no structured-output parameter (measured across
+      // the whole listing), so this reads TOOL support - the capability the forced-function
+      // structured mode actually needs.
+      structuredOutput: (endpoint.supported_parameters ?? []).includes('tools'),
       supportsSeed: (endpoint.supported_parameters ?? []).includes('seed'),
       uptime1d: endpoint.uptime_last_1d ?? null,
       inputPerMillion: Number(endpoint.pricing?.prompt ?? 0) * 1_000_000,

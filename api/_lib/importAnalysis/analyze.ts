@@ -133,8 +133,8 @@ export default {
     if (!managedAiKey(profile.route.provider)) {
       return liteError('profile_not_configured', 'Graphic analysis has no configured managed route.', 503);
     }
-    const openRouter = importAnalysisPolicy(profile);
-    if (profile.route.provider === 'openrouter' && !openRouter) {
+    const gateway = importAnalysisPolicy(profile);
+    if (profile.route.provider === 'vercel' && !gateway) {
       return liteError('profile_not_configured', 'Graphic analysis is not fully configured.', 503);
     }
     const callerIpHash = ipHash(req);
@@ -220,7 +220,7 @@ export default {
           maxAttempts: profile.maxAttempts,
           retryLimit: 1,
           timeoutMs: profile.timeoutMs,
-          ...(openRouter ? { openRouter } : {}),
+          ...(gateway ? { gateway } : {}),
         },
       ), profile);
       accounted = result;

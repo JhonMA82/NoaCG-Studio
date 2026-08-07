@@ -66,7 +66,7 @@ export default function AiProviderSettings({ settings, onChange, fixedProvider, 
     let live = true;
     setDiscovered([]);
     if (!showModel) return;
-    if (provider !== 'openrouter' && provider !== 'huggingface') return;
+    if (provider !== 'vercel' && provider !== 'huggingface') return;
     void discoverAiModels(provider)
       .then((catalog) => {
         if (live) setDiscovered(videoCompatibleModels(catalog.models));
