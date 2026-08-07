@@ -272,6 +272,10 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   // carrying the same slug could publish over it. The copy starts unpublished.
   delete body.hostedSlug;
   delete body.outputSlug;
+  // The audience capabilities belong to the original for the same reason: a copy carrying the
+  // join slug would take submissions for a production nobody is operating.
+  delete body.joinSlug;
+  delete body.presenterSlug;
   delete body.publishedAt;
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }

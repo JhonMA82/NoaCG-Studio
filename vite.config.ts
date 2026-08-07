@@ -8,13 +8,19 @@ import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
-// Four pages: index.html is the static public landing at "/", app.html is the editor at
+// Five pages: index.html is the static public landing at "/", app.html is the editor at
 // "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
-// a 404 for everyone the server does not recognise, see docs/ADMIN.md), and output.html is
-// the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3).
+// a 404 for everyone the server does not recognise, see docs/ADMIN.md), output.html is
+// the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3), and
+// join.html is the public AUDIENCE page at "/join" (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
 // and preview servers the same ones. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/admin', '/output'] as const;
+const CLEAN_PAGES = ['/app', '/admin', '/output', '/join'] as const;
+
+// `/join/<name>` — the READABLE join URL an operator reads out on air. Vercel serves it through
+// a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
+// in production. The page reads the name off the path itself.
+const PATH_PAGES = ['/join'] as const;
 
 function appCleanUrl(): Plugin {
   const prepare = (
@@ -28,6 +34,12 @@ function appCleanUrl(): Plugin {
     for (const page of CLEAN_PAGES) {
       if (req.url === page || req.url?.startsWith(page + '?')) {
         req.url = `${page}.html` + (req.url.slice(page.length) || '');
+        break;
+      }
+      // The path form keeps the name in the URL the page reads it from, so the request is
+      // rewritten to the entry WITHOUT the segment rather than to `${page}.html/<name>`.
+      if (PATH_PAGES.includes(page as (typeof PATH_PAGES)[number]) && req.url?.startsWith(page + '/')) {
+        req.url = `${page}.html`;
         break;
       }
     }
@@ -89,7 +101,13 @@ export default defineConfig(({ command, mode }) => {
       target: 'es2017',
       outDir: 'dist',
       rollupOptions: {
-        input: { landing: 'index.html', app: 'app.html', admin: 'admin.html', output: 'output.html' },
+        input: {
+          landing: 'index.html',
+          app: 'app.html',
+          admin: 'admin.html',
+          output: 'output.html',
+          join: 'join.html',
+        },
       },
     },
   };

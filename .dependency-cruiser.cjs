@@ -145,6 +145,35 @@ module.exports = {
       to: { path: '^src/(blocks|backend)/' },
     },
     {
+      comment:
+        '§3: control -> audience, audienceBrand only. Publishing carries the production look ' +
+        'into the audience plane (migration 0035 audience_state.brand) and the audience domain ' +
+        'owns that shape - a copy of the mapping inside the publish path would be a second ' +
+        'opinion about what a viewer page looks like, held by the module least likely to be ' +
+        'edited when the join page changes.',
+      from: { path: '^src/control/' },
+      to: { path: '^src/audience/audienceBrand\\.ts$' },
+    },
+    {
+      comment:
+        '§3: audience -> backend. The Supabase provider is eleven slug-keyed RPCs through ' +
+        'getSupabase(). It reaches no other domain, which is what keeps "nothing ' +
+        'viewer-written airs without an operator" structural: there is nowhere for it to ' +
+        'write a command.',
+      from: { path: '^src/audience/' },
+      to: { path: '^src/backend/' },
+    },
+    {
+      comment:
+        '§3: join -> audience, backend. The public join page (docs/INTERACTIVE_PLAYOUT_PLAN.md ' +
+        'Phase 5) is its own MPA entry: it reads the capability off the URL, mounts ' +
+        'audience/joinSurface over the Supabase provider, and feature-detects the backend. It ' +
+        'reads no store, no components, no templates and no control module - a viewer page must ' +
+        'not even be able to name the command log.',
+      from: { path: '^src/join/' },
+      to: { path: '^src/(audience|backend)/' },
+    },
+    {
       comment: '§3: community -> backend, validation',
       from: { path: '^src/community/' },
       to: { path: '^src/(backend|validation)/' },

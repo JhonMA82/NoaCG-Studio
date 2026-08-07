@@ -83,11 +83,29 @@ export interface AudienceState {
   prompt: string;
 }
 
+/**
+ * The production's look, as much of it as a join page needs: it is the one surface a viewer
+ * ever sees, and a plain white form beside a branded broadcast reads as somebody else's site.
+ * Written at publish from `Show.look` (an owner write, not something a viewer's page can set).
+ *
+ * ADDITIVE OPTIONAL on `JoinView` — the local rehearsal provider carries none and renders in
+ * the studio's own colours, which is honest: rehearsal is not air.
+ */
+export interface AudienceBrand {
+  accent: string;
+  text: string;
+  panel: string;
+  /** A full CSS `font-family` value, or null to use the page's own stack. */
+  font: string | null;
+}
+
 /** What a viewer sees when they resolve a join slug. Deliberately tiny: see the capability
  *  discipline in the plan — no show id, no other slug, no tallies, no correct answer. */
 export interface JoinView {
   productionName: string;
   state: AudienceState;
+  /** The production's colours, when it has published any. */
+  brand?: AudienceBrand | null;
   /** What THIS device has already sent, so the page can say "thanks" rather than inviting a
    *  double post. Never anyone else's. */
   mine: { id: string; body: string; createdAt: string }[];
@@ -127,6 +145,21 @@ export interface AudienceBackend {
   closeRound(roundId: string): Promise<void>;
   tally(roundId: string): Promise<AudienceTally>;
   rounds(): Promise<AudienceRound[]>;
+}
+
+/**
+ * A provider a LIVE surface can subscribe to. Both implementations answer it and neither
+ * surface has to know which it holds: the local one notifies from its own writes, the Supabase
+ * one from a poll (the plan's decisive rejection of realtime — `postgres_changes` filters rows
+ * by the SUBSCRIBER's RLS, and a slug-authorized page has no SELECT policy to filter by, so the
+ * authorization simply cannot be expressed to realtime).
+ */
+export interface ObservableAudience extends AudienceBackend {
+  /** Subscribe to any change. Returns the unsubscribe. */
+  onChange(cb: () => void): () => void;
+  /** Rehearsal only — present on the local provider, absent on the real one, so a surface
+   *  offers the simulator exactly when it is meaningful. */
+  simulate?(count?: number): unknown;
 }
 
 /**

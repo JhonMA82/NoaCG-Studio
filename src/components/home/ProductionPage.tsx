@@ -15,6 +15,7 @@ import {
   removeShowCue,
   removeShowGraphic,
   setShowGraphicLayer,
+  setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
   updateShowCue,
@@ -40,6 +41,7 @@ import {
   controlShowBySlug,
   followControlLog,
   hostedControlTail,
+  joinPageUrl,
   outputPageUrl,
   publishControlShow,
   sendHostedControlBatch,
@@ -137,7 +139,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [exportOpen, setExportOpen] = useState(false);
   const [linksOpen, setLinksOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState<'output' | 'control' | null>(null);
+  const [copied, setCopied] = useState<'output' | 'control' | 'join' | null>(null);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   const [addPick, setAddPick] = useState('');
   const [menuCueId, setMenuCueId] = useState<string | null>(null);
@@ -483,12 +485,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }
 
   const outputUrl = show.outputSlug ? outputPageUrl(show.outputSlug) : null;
+  /** The PUBLIC audience URL. Only a production published against a server carrying migration
+   *  0035 has one, so it stays absent rather than showing a link that would not resolve. */
+  const joinUrl = show.joinSlug ? joinPageUrl(show.joinSlug) : null;
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const unpublishedChanges = !!show.publishedAt && show.updatedAt > show.publishedAt;
   const rendererFresh = outputSeenAt ? now - Date.parse(outputSeenAt) < 90_000 : false;
   const clashes = duplicateLayers(show.graphics);
 
-  const copy = (kind: 'output' | 'control', text: string) => {
+  const copy = (kind: 'output' | 'control' | 'join', text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
       setCopied(kind);
@@ -508,6 +513,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const published = current ? await publishControlShow(current) : null;
       if (published) {
         setShowHostedSlug(show.id, published.slug);
+        // The audience capabilities are minted by the database and read back, never chosen
+        // here. A server without migration 0035 hands back nulls, which clears them — the
+        // production simply has no join link, and nothing else about publishing changes.
+        setShowAudienceSlugs(show.id, {
+          joinSlug: published.joinSlug,
+          presenterSlug: published.presenterSlug,
+        });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
         setLinksOpen(true);
         setNote('✓ Published. Load the output URL in your browser source once — it stays the same across re-publishes.');
@@ -526,6 +538,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       await unpublishControlShow(show.id);
       setShowHostedSlug(show.id, undefined);
+      setShowAudienceSlugs(show.id, undefined);
       setShows(setShowOutputSlug(show.id, undefined));
       setLiveCue({});
       setNote('Production unpublished — the control link and the output URL no longer work.');
@@ -796,6 +809,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           busy={busy}
           outputUrl={outputUrl}
           controlUrl={controlUrl}
+          joinUrl={joinUrl}
           copied={copied}
           unpublishedChanges={unpublishedChanges}
           onCopy={copy}
@@ -1560,6 +1574,7 @@ function ProductionLinks({
   busy,
   outputUrl,
   controlUrl,
+  joinUrl,
   copied,
   unpublishedChanges,
   onCopy,
@@ -1573,9 +1588,10 @@ function ProductionLinks({
   busy: boolean;
   outputUrl: string | null;
   controlUrl: string | null;
-  copied: 'output' | 'control' | null;
+  joinUrl: string | null;
+  copied: 'output' | 'control' | 'join' | null;
   unpublishedChanges: boolean;
-  onCopy: (kind: 'output' | 'control', text: string) => void;
+  onCopy: (kind: 'output' | 'control' | 'join', text: string) => void;
   onPublish: () => void;
   onUnpublish: () => void;
 }) {
@@ -1627,6 +1643,24 @@ function ProductionLinks({
               Operate from a phone or tablet, no account needed. Keep the link private: holding it is the
               permission to operate.
             </p>
+            {/* The AUDIENCE link is the one link here meant to be given away — read out on air,
+                put on a slide, printed on a QR code. It is listed last and described as public
+                so it can never be mistaken for the control page above it. */}
+            {joinUrl && (
+              <>
+                <div className="prod-link-row">
+                  <span className="mono muted">Audience link</span>
+                  <code className="prod-url">{joinUrl}</code>
+                  <button onClick={() => onCopy('join', joinUrl)} data-testid="copy-join-url">
+                    {copied === 'join' ? '✓ Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="hint">
+                  Public — share it with the room. Viewers send questions and vote here; nothing they send
+                  goes on air until you approve it and take it, on the Audience tab.
+                </p>
+              </>
+            )}
             {unpublishedChanges && (
               <p className="status-warn" data-testid="publish-freshness">
                 The production changed after the last publish — the output and control pages run the older

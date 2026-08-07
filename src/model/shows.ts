@@ -88,6 +88,14 @@ export interface Show {
   /** The browser-output URL's capability slug, once published (docs/CLOUD_PLAYOUT.md §3).
    *  ADDITIVE OPTIONAL, stripped from conflict copies exactly like hostedSlug. */
   outputSlug?: string;
+  /** The PUBLIC audience URL's capability slug (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5,
+   *  migration 0035) — what a viewer's phone opens at `/join/<slug>`. Minted by the database at
+   *  publish and read back, never chosen here. */
+  joinSlug?: string;
+  /** The PRESENTER view's own capability slug (`/join?pv=<slug>`) — a read-only window onto
+   *  what the operator has lined up, deliberately a different capability from the join link so
+   *  handing a presenter their page never hands them the audience's, or the reverse. */
+  presenterSlug?: string;
   /** When the hosted pages were last published (ISO). The output payload is PINNED at publish,
    *  so updatedAt > publishedAt means the renderer and operators run an older snapshot — the
    *  production page's "changes not yet published" hint reads exactly this. */
@@ -563,6 +571,28 @@ export function setShowOutputSlug(showId: string, slug: string | undefined): Sho
       delete show.outputSlug;
       delete show.publishedAt;
     }
+    return true;
+  });
+}
+
+/**
+ * Record (or clear, with undefined) the AUDIENCE capabilities after (un)publishing.
+ *
+ * Both slugs travel together because they are minted together, by the database, at publish: the
+ * app never chooses one, it reads back what was assigned. Kept separate from
+ * `setShowOutputSlug` so the audience plane can be absent from a production that has one -
+ * an older server has no 0035 columns to read back, and that must degrade to "no join link",
+ * never to a broken publish.
+ */
+export function setShowAudienceSlugs(
+  showId: string,
+  slugs: { joinSlug?: string | null; presenterSlug?: string | null } | undefined,
+): Show[] {
+  return patchShow(showId, (show) => {
+    if (slugs?.joinSlug) show.joinSlug = slugs.joinSlug;
+    else delete show.joinSlug;
+    if (slugs?.presenterSlug) show.presenterSlug = slugs.presenterSlug;
+    else delete show.presenterSlug;
     return true;
   });
 }

@@ -11,6 +11,7 @@
     "api/render/cleanup.ts": { "maxDuration": 300 }
   },
   "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
+  "rewrites": [{ "source": "/join/:name", "destination": "/join.html" }],
   "headers": [
     {
       "source": "/fonts/(.*)",
@@ -26,6 +27,12 @@
     },
     {
       "source": "/output",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
+    },
+    {
+      "source": "/join(/(.*))?",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
       ]

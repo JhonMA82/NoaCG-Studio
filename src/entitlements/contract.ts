@@ -103,6 +103,11 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
   'community.publish',
   'control.hosted',
   'showchat',
+  // The fourth RLS-enforced key, added in the SAME change as its call site (migration 0035):
+  // every audience RPC checks `feature_denied_for(owner, 'audience')` before it writes, and the
+  // join resolve folds a denial into `open = false` so a viewer sees a closed door rather than
+  // an error.
+  'audience',
 ]);
 
 /** Where an enforced key does not reach EVERY caller, in the words the admin page shows.
@@ -122,6 +127,8 @@ export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
   'control.hosted':
     'stops creating pages and stops every operator command on existing ones; the pages stay readable',
   showchat: 'stops new send-ins and moderation; messages already on air stay on air',
+  audience:
+    'stops the join page taking anything and stops moderation; the join link keeps working and says it is closed, and anything already on air stays on air',
 };
 
 // ── limits ─────────────────────────────────────────────────────────────────────────────

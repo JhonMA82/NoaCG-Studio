@@ -44,11 +44,13 @@ thin `CLAUDE.md` import.
 | 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl` |
 | 2 services | `video/` | video compile/validate/bridge pipeline | `compile`, `validate`, `playerBridge`, `videoFonts` |
 | 2 services | `community/`, `showchat/` | shared templates, audience send-in | `communityData`, `chatData` |
+| 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
 | 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
 | 3 app | `admin/` | the PRIVATE admin page: its own MPA entry (`admin.html` -> `/admin`), the wire types, the authorized fetch client (docs/ADMIN.md) | (top of the graph - nothing imports these) |
 | 3 app | `output/` | the browser-output RENDERER: its own MPA entry (`output.html` -> `/output`), a capability URL loaded by CasparCG/OBS/vMix (docs/CLOUD_PLAYOUT.md) | (top of the graph - nothing imports these) |
+| 3 app | `join/` | the public AUDIENCE page: its own MPA entry (`join.html` -> `/join`), the capability URL a viewer's phone opens. It reads the slug off the URL and mounts `audience/joinSurface` - every decision about what a viewer may see lives in `audience/` and in migration 0035 | (top of the graph - nothing imports these) |
 
 ## 3. Allowed edges (the ratchet)
 
@@ -70,7 +72,12 @@ here and not in §6 are wrong - fix the code, not the table.
 - `render` -> control, preview, showchat, backend (`getAccessToken` only)
 - `export` -> blocks, control (the panel/receiver generators are control's declared packaging seam);
   `export/targets/ograf.ts` -> `render/runtimeScript.ts` (the shared deterministic virtual clock)
-- `control` -> blocks, backend
+- `control` -> blocks, backend, audience (`audienceBrand` only - publishing carries the production's
+  look into the audience plane's own state, and the audience domain owns that shape; a copy of the
+  mapping in the publish path would be a second opinion about what a viewer's page looks like)
+- `audience` -> backend (the Supabase provider is eleven slug-keyed RPCs through `getSupabase()`;
+  it reaches no other domain, which is what keeps "nothing viewer-written airs without an
+  operator" structural - there is nowhere for it to write a command)
 - `community` -> backend, validation
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
   from `api/admin/*`, never from another domain)
@@ -78,6 +85,9 @@ here and not in §6 are wrong - fix the code, not the table.
 - `output` -> control, preview, backend (the renderer follows the hosted-control log through
   `control/hostedControl`, composes each published graphic through `preview/composeDocument`,
   and feature-detects the backend; it reads no store, no components, no templates)
+- `join` -> audience, backend (the join page mounts the shared join surface over the Supabase
+  audience provider and feature-detects the backend; it reads no store, no components, no
+  templates, and no control module - a viewer's page must not even be able to name the command log)
 - `app` -> (nothing)
 - `components` -> any lower domain, **through its seam column in §2**
 

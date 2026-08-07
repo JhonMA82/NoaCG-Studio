@@ -14,6 +14,9 @@ import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type Gra
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
+// The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
+// audience): publish is the courier, not the author.
+import { audienceBrandFor } from '../audience/audienceBrand';
 import type { ControlMessage } from './controlModel';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
@@ -262,16 +265,30 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
   return { v: 1, resolution, graphics, cues };
 }
 
+/** Every capability a publish hands back. The audience pair is nullable on purpose: a server
+ *  without migration 0035 simply has no such columns, which must degrade to "no join link"
+ *  rather than to a failed publish. */
+export interface PublishedCapabilities {
+  slug: string;
+  outputSlug: string | null;
+  joinSlug: string | null;
+  presenterSlug: string | null;
+}
+
 /** Publish (or update) a production's hosted pages: the operator panel spec (live-resolved,
  *  entries included) AND the pinned output payload, in one write (docs/CLOUD_PLAYOUT.md §2 —
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
- *  Returns both capability slugs, or null offline. */
-export async function publishControlShow(show: Show): Promise<{ slug: string; outputSlug: string | null } | null> {
+ *  Returns every capability slug, or null offline. */
+export async function publishControlShow(show: Show): Promise<PublishedCapabilities | null> {
   const sb = await getSupabase();
   if (!sb) return null;
   const library = loadGraphics();
   const output = await buildOutputPayload(show, library);
+  // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
+  // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
+  // re-publish mid-show. A whole-row write here would close the audience door every time
+  // somebody fixed a typo in a cue.
   const { error } = await sb.from('control_shows').upsert(
     { id: show.id, title: show.name, panel: buildPanelSpec(show, library), output },
     { onConflict: 'id' },
@@ -282,10 +299,54 @@ export async function publishControlShow(show: Show): Promise<{ slug: string; ou
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const [, readBack] = await Promise.all([
     sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff),
-    sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single(),
+    sb
+      .from('control_shows')
+      .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
+      .eq('id', show.id)
+      .single(),
   ]);
-  if (readBack.error) throw new Error(readBack.error.message);
-  return readBack.data as { slug: string; outputSlug: string | null };
+  // A server WITHOUT 0035 answers the audience columns with an error rather than with nulls,
+  // so the fallback re-reads the two columns that have always existed. Publishing a production
+  // must not start failing because an instance has not run the latest migration.
+  if (readBack.error) {
+    const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
+    if (legacy.error) throw new Error(legacy.error.message);
+    const row = legacy.data as { slug: string; outputSlug: string | null };
+    return { ...row, joinSlug: null, presenterSlug: null };
+  }
+  const row = readBack.data as {
+    slug: string;
+    outputSlug: string | null;
+    joinSlug: string | null;
+    presenterSlug: string | null;
+    audience_state: Record<string, unknown> | null;
+  };
+  // The brand travels at publish, merged into the state rather than replacing it — `open`,
+  // `mode` and the round pointer are the operator's, not the publisher's.
+  const brand = audienceBrandFor(show.look);
+  if (row.audience_state) {
+    await sb
+      .from('control_shows')
+      .update({ audience_state: { ...row.audience_state, brand } })
+      .eq('id', show.id);
+  }
+  return {
+    slug: row.slug,
+    outputSlug: row.outputSlug,
+    joinSlug: row.joinSlug,
+    presenterSlug: row.presenterSlug,
+  };
+}
+
+/** The public audience URL for a join slug — the readable path form, which is what an operator
+ *  reads out on air (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). */
+export function joinPageUrl(joinSlug: string): string {
+  return `${window.location.origin}/join/${encodeURIComponent(joinSlug)}`;
+}
+
+/** The presenter's read-only view — a DIFFERENT capability on the same entry. */
+export function presenterPageUrl(presenterSlug: string): string {
+  return `${window.location.origin}/join?pv=${encodeURIComponent(presenterSlug)}`;
 }
 
 /** The signed-in owner's hosted control pages. */

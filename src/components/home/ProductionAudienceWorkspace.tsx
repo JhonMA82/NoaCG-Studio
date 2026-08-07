@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addShowCue, type Show } from '../../model/shows';
-import { broadcastValues, type AudienceMode, type AudienceSubmission } from '../../audience/audienceTypes';
-import { localAudienceFor, type LocalAudience } from '../../audience/localAudience';
+import {
+  broadcastValues,
+  type AudienceBackend,
+  type AudienceMode,
+  type AudienceSubmission,
+  type ObservableAudience,
+} from '../../audience/audienceTypes';
+import { localAudienceFor } from '../../audience/localAudience';
+import { createSupabaseAudience } from '../../audience/audienceData';
+import { isBackendConfigured } from '../../backend/config';
 
 /**
  * The production's AUDIENCE workspace (route `#/production/<id>/audience`, the third tab of the
@@ -17,10 +25,12 @@ import { localAudienceFor, type LocalAudience } from '../../audience/localAudien
  * command log, so there is no path from a viewer's text to Program that does not pass through
  * an operator pressing Take.
  *
- * TODAY IT RUNS ON THE LOCAL PROVIDER ONLY (`createLocalAudience`) — rehearsal, teaching, and
- * the offline e2e suite. The Supabase provider and the public /join page are the same
- * interface's second implementation and are not built yet; this surface will not change when
- * they land, which is the point of having built the seam first.
+ * WHICH PROVIDER IT RUNS ON is decided by one fact: a PUBLISHED production on a build with a
+ * backend moderates its real audience through the Supabase provider (the operator's own control
+ * slug is the capability); anything else — unpublished, offline build, the e2e suite — runs the
+ * in-memory rehearsal provider with its simulator. The surface itself is identical either way,
+ * which is what the seam was built for; the one visible difference is that the "simulate
+ * arrivals" button exists only where simulating is meaningful.
  */
 export default function ProductionAudienceWorkspace({
   show,
@@ -29,11 +39,19 @@ export default function ProductionAudienceWorkspace({
   show: Show;
   setShows: (shows: Show[]) => void;
 }) {
-  // ONE provider per PRODUCTION, held above this component: the workspace unmounts on every
-  // trip to Playout or Data, and an inbox that emptied itself on a tab switch would be the
-  // PROGRAM monitor's round-trip defect wearing different clothes. Nothing durable — see
-  // localAudience.ts.
-  const backend = useMemo(() => localAudienceFor(show.id, show.name), [show.id, show.name]);
+  // ONE provider per PRODUCTION. The local one is held ABOVE this component (the workspace
+  // unmounts on every trip to Playout or Data, and an inbox that emptied itself on a tab
+  // switch would be the PROGRAM monitor's round-trip defect wearing different clothes; nothing
+  // durable — see localAudience.ts). The Supabase one holds no state to lose: its whole memory
+  // is the database, so a fresh instance per mount reads the same inbox.
+  const live = Boolean(show.hostedSlug) && isBackendConfigured();
+  const backend = useMemo<ObservableAudience>(
+    () =>
+      live && show.hostedSlug
+        ? createSupabaseAudience({ controlSlug: show.hostedSlug })
+        : localAudienceFor(show.id, show.name),
+    [live, show.hostedSlug, show.id, show.name],
+  );
 
   const [rows, setRows] = useState<AudienceSubmission[]>([]);
   const [mode, setMode] = useState<AudienceMode>('question');
@@ -45,11 +63,27 @@ export default function ProductionAudienceWorkspace({
   useEffect(() => {
     let alive = true;
     const refresh = () => {
-      void backend.list().then((list) => {
-        if (alive) setRows(list);
-      });
+      void backend.list().then(
+        (list) => {
+          if (alive) setRows(list);
+        },
+        // A failed read is not worth interrupting a show for: the next poll is four seconds
+        // away and the inbox keeps showing the last thing that was true.
+        () => {},
+      );
     };
     refresh();
+    // The door's own state lives with the production, not in this component: an operator who
+    // opened the audience before the interval, then came back through Playout, must not find
+    // a toggle claiming it is closed while phones are still sending.
+    void backend.getState().then(
+      (state) => {
+        if (!alive) return;
+        setOpen(state.open);
+        if (state.mode !== 'waiting') setMode(state.mode);
+      },
+      () => {},
+    );
     const off = backend.onChange(refresh);
     return () => {
       alive = false;
@@ -57,7 +91,7 @@ export default function ProductionAudienceWorkspace({
     };
   }, [backend]);
 
-  const patch = (id: string, p: Parameters<LocalAudience['update']>[1]) => void backend.update(id, p);
+  const patch = (id: string, p: Parameters<AudienceBackend['update']>[1]) => void backend.update(id, p);
 
   const shown = useMemo(() => {
     const ordered = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -129,8 +163,15 @@ export default function ProductionAudienceWorkspace({
             type="checkbox"
             checked={open}
             onChange={(e) => {
-              setOpen(e.target.checked);
-              void backend.setState({ open: e.target.checked });
+              const next = e.target.checked;
+              setOpen(next);
+              // The door is the one control here with a real consequence for people outside
+              // the room, so a refusal is reported and the switch springs back rather than
+              // leaving an operator believing they had opened it.
+              backend.setState({ open: next }).catch((err: Error) => {
+                setOpen(!next);
+                setNote(`Could not ${next ? 'open' : 'close'} the audience: ${err.message}`);
+              });
             }}
             data-testid="audience-open"
           />
@@ -141,7 +182,7 @@ export default function ProductionAudienceWorkspace({
           onChange={(e) => {
             const next = e.target.value as AudienceMode;
             setMode(next);
-            void backend.setState({ mode: next });
+            backend.setState({ mode: next }).catch((err: Error) => setNote(`Could not switch: ${err.message}`));
           }}
           data-testid="audience-mode"
         >
@@ -149,13 +190,21 @@ export default function ProductionAudienceWorkspace({
           <option value="comment">Comments</option>
         </select>
         <div className="spacer" />
-        {/* REHEARSAL. The public join page is not built yet, and until it is this is the only
-            way to exercise the workflow — which is also exactly what an operator wants before a
-            show. The simulated rows are marked as such in their own text, so a rehearsal can
-            never be mistaken for real material. */}
-        <button onClick={() => backend.simulate(3)} data-testid="audience-simulate">
-          ⟳ Simulate 3 arrivals
-        </button>
+        {/* REHEARSAL, and only where it means something. The local provider can invent
+            arrivals — which is exactly what an operator wants before a show, and what lets the
+            offline suite drive the whole workflow; the simulated rows say "(rehearsal)" in
+            their own text, so they can never be mistaken for real material. A LIVE production
+            has a real audience instead, so the button is absent rather than disabled: there is
+            nothing to enable. */}
+        {backend.simulate ? (
+          <button onClick={() => backend.simulate?.(3)} data-testid="audience-simulate">
+            ⟳ Simulate 3 arrivals
+          </button>
+        ) : (
+          <span className="hint" data-testid="audience-live">
+            Live — viewers send from the audience link (Links ▸ Audience link).
+          </span>
+        )}
       </div>
 
       <div className="pd-aud-filters" data-testid="audience-filters">
@@ -186,7 +235,9 @@ export default function ProductionAudienceWorkspace({
         <p className="hint pd-data-empty" data-testid="audience-empty">
           {open
             ? 'Nothing waiting. Messages appear here as they arrive.'
-            : 'Not accepting messages yet — turn it on above, or simulate a few to rehearse.'}
+            : backend.simulate
+              ? 'Not accepting messages yet — turn it on above, or simulate a few to rehearse.'
+              : 'Not accepting messages yet — turn it on above, then share the audience link.'}
         </p>
       ) : (
         <ul className="pd-aud-list" data-testid="audience-list">
