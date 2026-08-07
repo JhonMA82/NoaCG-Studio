@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import { useRouter } from '../../app/router';
 import { graphicById, newEntry, updateGraphic, type ControlEntry, type GraphicDoc } from '../../model/library';
+import { commitDurableWrites } from '../../model/durableStore';
 import { fieldDescriptors, eventButtons, eventLegality, isEventLegal } from '../../control/controlModel';
 import { renderControlPanelHtml } from '../../control/controlPanelHtml';
 import { composeDocument } from '../../preview/composeDocument';
@@ -188,6 +189,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
     const { doc: next, error } = updateGraphic(cur.id, make(cur));
     if (next) setDoc(next);
     if (error) setNote(error);
+    // A refusal arrives after the call returns (model/durableStore.ts), so the note has to wait
+    // for it. Entries are typed-in operator data with no undo behind them - a rename or a new
+    // row that silently did not persist is exactly what this surface must not do.
+    else void commitDurableWrites().then((failure) => failure && setNote(failure));
   };
 
   /** The values a push sends: the graphic's own defaults underlie the entry, exactly as

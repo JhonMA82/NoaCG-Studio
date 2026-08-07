@@ -18,6 +18,7 @@ import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
 import { slug } from '../export/common';
 import { addGraphicToShow, createShow, loadShows, type Show } from '../model/shows';
+import { commitDurableWrites } from '../model/durableStore';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
 import { useRouter } from '../app/router';
 
@@ -56,13 +57,18 @@ export default function ControlPanel() {
     setShowId(next[next.length - 1]?.id ?? '');
     setNewShowName('');
   };
-  const addCurrent = () => {
+  const addCurrent = async () => {
     if (!activeShow) return;
     // A saved document carries its library id into the show, so publishing the hosted control
     // page can find the graphic's saved entries (control/hostedControl.ts).
     const { shows: next, error } = addGraphicToShow(activeShow.id, template, { graphicId: savedGraphicId });
     setShows(next);
-    setShowNote(error ?? `✓ "${template.name}" is in the production (same name updates in place).`);
+    // Confirmed before it reports: the durable store accepts a write and answers a moment later
+    // (model/durableStore.ts), so the returned error alone would say the graphic is in the
+    // production when the write was refused. Claiming the failure also keeps THIS note, which
+    // names the graphic, instead of the app-level dialog's generic one.
+    const failure = error ?? (await commitDurableWrites());
+    setShowNote(failure ?? `✓ "${template.name}" is in the production (same name updates in place).`);
   };
 
   const controls = fieldDescriptors(template.fields); // operator view: hidden fields stay hidden
@@ -256,7 +262,7 @@ export default function ControlPanel() {
               ))}
             </select>
             {activeShow && (
-              <button className="primary" onClick={addCurrent} title="Add or update this graphic in the production">
+              <button className="primary" onClick={() => void addCurrent()} title="Add or update this graphic in the production">
                 + Add current
               </button>
             )}
