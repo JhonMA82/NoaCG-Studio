@@ -9,14 +9,25 @@
 # documented as "run them by hand after a catalog change", which in practice meant they ran
 # when somebody remembered. A gate nobody is scheduled to run is not a gate.
 #
-# Timed for the morning rather than the night's end: 02:00 UTC is 04:00-05:00 in Helsinki, so a
-# red result is already filed, attributed and waiting by the start of the day.
+# Timed to finish before the start of the day, which means scheduling against GitHub's delay
+# rather than against the wall clock. A scheduled event here is created 1-3.5 hours after its
+# cron minute and never catches up: measured 2026-08-07 over the three scheduled workflows in
+# this repo, `0 2` fired between 04:21 and 05:35 UTC on eight consecutive nights, and the other
+# two are just as late on off-peak minutes (deploy-verify 1h15m-2h22m, nightly-drift up to
+# 5h59m). So the minute is not the lever - the hour is, and it has to be early enough that even
+# the long tail lands before morning.
+#
+# 00:20 UTC is 03:20 in Helsinki: after the usual landing window (merges here cluster 21:00-
+# 00:00 UTC), and late enough that the delay pushes the real start to roughly 01:30-04:00 UTC,
+# i.e. 04:30-07:00 local. The delay costs nothing in coverage - a schedule event checks out the
+# default branch as of the moment it is created, not its cron minute, so a late event tests
+# MORE of the night's work, not less.
 
 name: nightly
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '20 0 * * *'
   workflow_dispatch: {}
 
 # One nightly at a time. A manual run while the scheduled one is in flight should queue behind
