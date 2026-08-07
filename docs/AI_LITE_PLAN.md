@@ -211,6 +211,32 @@ plainly on two lines. Reproducing that decision directly through `compileLiteDec
 - **Round C's true wrap count is unknown** and cannot be recovered from its artifacts.
 - `warningCodes` is now recorded beside `ruleCodes`, so the next round can be read at all.
 
+**Round D (`v5-measured`, 18 generations, $0.0052) is round C's configuration re-measured with
+that instrument.** The comparison that means something is B against D - each read at the
+severity its own finding carried:
+
+| round | wrapped identity lines | readable | machine-usable | `generation_failed` |
+|---|---|---|---|---|
+| A `v3-baseline` | 0 - the check did not exist | no | 18/18 | 0 |
+| B `v4-capacity` | **11** (errors) | errors only | 7/18 | 0 |
+| C `v5-ratio-ceiling` | 0 - counted nothing | **no** | 17/18 | 1 |
+| D `v5-measured` | **6** (warnings) | yes | 17/18 | 1 |
+
+**11 → 6.** The ceiling removes roughly half the wraps, and the residue is precise rather than
+scattered: **all six findings are `long-name`, in all three runs** - the deliberately hostile
+brief, whose 32-character name and 47-character role exceed every chassis in the allowlist. The
+five other briefs are clean. That is the honest shape of the fix: it stops the pipeline
+*creating* the problem, and it cannot invent width that does not exist (§1a).
+
+**One regression to watch, and it may be ours.** `esports-player` returned `generation_failed`
+in run 3 of BOTH v5 rounds, and in neither v3 nor v4 round - 2 of 2 under the new contract, 0 of
+2 before it. `generation_failed` is REPAIR_FAILED, a semantic exhaustion rather than transport
+(§9), so it is a quality signal. The plausible mechanism is this change: `scaleRatio` gained
+`minimum`/`maximum`, which turns a value the compile used to CLAMP silently into a response the
+structured-output validator refuses. That trade cuts against the harness's own clamp-don't-reject
+doctrine, and it is one fixture at n=2 - suggestive, not proven. **Do not unbind the schema on
+this evidence; establish first whether the server rejects or clamps an out-of-range ratio.**
+
 The lesson generalises past this instrument: **changing a finding's SEVERITY changes what the
 instrument counts, and a metric that reads errors will report the change as an improvement.**
 Round A had already shown the mirror image - 18/18 machine-usable with zero rule codes while
