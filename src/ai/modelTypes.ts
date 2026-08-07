@@ -138,6 +138,11 @@ export type AiGatewayErrorCode =
    *  (Vercel AI Gateway makes ZDR a Pro/Enterprise feature). Distinct from
    *  `provider_rejected` because the fix is a plan or an audited policy decision, not a key. */
   | 'zdr_unavailable'
+  /** The route asked for a data-retention policy (no-training, or zero retention) that no
+   *  provider of this model offers, so the gateway refused rather than serving from a
+   *  non-compliant one. Distinct from `zdr_unavailable`: a better plan will not fix it,
+   *  a different model might. */
+  | 'retention_unsatisfiable'
   | 'unavailable';
 
 export interface AiGatewayErrorBody {

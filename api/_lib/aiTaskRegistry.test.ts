@@ -178,13 +178,13 @@ test('every catalog entry is complete enough for the free-route policy to price 
     assert.ok(entry.capabilities.contextWindow > 0);
     assert.ok(entry.price.inputPerMillion >= 0 && entry.price.outputPerMillion >= 0);
     assert.ok(entry.notes.length > 0);
-    // NOT asserted here any more: that every entry is ZDR-capable. Under OpenRouter that was
-    // a per-endpoint fact we audited into this table; under Vercel AI Gateway the gateway
-    // filters a ZDR request itself and refuses when no provider qualifies, so the doctrine is
-    // enforced at the request rather than recorded per row. What still guards it: the
-    // requireZdr-by-default test above, and the surface-policy test that the flag reaches the
-    // wire (api/_lib/aiGateway.test.ts). `zdrAvailable` is now a verification record, and
-    // asserting it true would have meant asserting a call nobody has made.
+    // `zdrAvailable` means something different than it did under OpenRouter - there it was a
+    // per-endpoint fact we audited into this table, here it records that a real ZDR-requesting
+    // call was made and served (docs/MODEL_ROUTE_AUDITS.md, 2026-08-07). Asserting it stays
+    // meaningful: every catalogued route has been verified, and the gateway itself refuses a
+    // ZDR request no provider satisfies, so a lapse surfaces as an outage rather than as a
+    // quiet privacy regression.
+    assert.ok(entry.zdrAvailable, `${entry.route.model} must have a recorded ZDR verification`);
   }
 });
 

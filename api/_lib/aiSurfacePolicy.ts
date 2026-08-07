@@ -71,6 +71,11 @@ export function surfaceRoutePolicy(
     // read what it costs. Under OpenRouter this question never arose: ZDR routing was
     // available to any account, so the pin was free.
     zeroDataRetention: boolEnv('AI_SURFACE_REQUIRE_ZDR', true),
+    // Pinned on and deliberately NOT behind the switch above. It is free on every plan, so
+    // there is no cost to trade away - and Pro's concept call sends a named person and their
+    // role to an image model on NoaCG's key, which is the traffic least defensible to leave
+    // trainable. Turning ZDR off must not quietly turn this off with it.
+    disallowPromptTraining: true,
     sort: 'cost',
     tags: [`surface:${surface}`],
   };

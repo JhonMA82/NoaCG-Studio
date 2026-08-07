@@ -126,3 +126,4 @@ supabase/.temp/cli-latest
 # finally, but a killed run leaks one, and a leaked directory reads as an unmapped source
 # change to scripts/e2e-affected.mjs (which then escalates to the full suite).
 /.tmp-api-runtime-*/
+.env*

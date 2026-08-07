@@ -94,6 +94,9 @@ export function importAnalysisPolicy(profile: ImportAnalysisProfile): GatewayRou
   if (!importAnalysisPrice(profile) || profile.gatewayProviders.length === 0) return undefined;
   return {
     zeroDataRetention: profile.requireZdr,
+    // Pinned on for the reason Lite pins it: free on every plan, and the floor that survives
+    // when ZDR is out of reach. It matters most here - the prompt is somebody's artwork.
+    disallowPromptTraining: true,
     only: profile.gatewayProviders,
     sort: 'cost',
     tags: ['surface:import-analysis'],

@@ -206,8 +206,8 @@ behaviour change rather than a rename:
 | OpenRouter | Vercel AI Gateway | What carries it now |
 | --- | --- | --- |
 | `provider.zdr` | `gateway.zeroDataRetention` | Same guarantee, enforced gateway-side - see below |
-| `data_collection: 'deny'` | *(none)* | Subsumed: a ZDR request only reaches providers under a verified ZDR agreement |
-| `allow_fallbacks: false` | *(none)* | Subsumed by the same filtering, plus `only` where a surface pins its provider |
+| `data_collection: 'deny'` | `gateway.disallowPromptTraining` | Direct successor, and **free on every plan** - pinned on for every managed call, never configurable |
+| `allow_fallbacks: false` | *(none)* | Subsumed: a retention filter narrows the routing set BEFORE any fallback is chosen, so no non-compliant provider is left to fall back onto |
 | `require_parameters` | *(none)* | Nothing. It mattered because OpenRouter endpoints of one model differed; a gateway model slug resolves to providers serving one contract |
 | `max_price` | *(none)* | **The server alone.** The approved-catalog price snapshot, `fundedRoutePrice`'s ceiling, and each task's `maxProviderCostUsd` booking. `sort: 'cost'` asks for the cheapest eligible provider, which is a preference, not a cap |
 | `only` (endpoint names) | `gateway.only` (provider slugs) | Coarser, and no longer about retention - only about who runs the weights and at what precision |
@@ -217,31 +217,44 @@ The `max_price` row is the one to keep in mind. A price that moved under us used
 by the provider at request time; now it surfaces as a ledger overrun instead, so the audited
 catalog snapshot has to be refreshed deliberately rather than trusted to expire.
 
-### Retention: ZDR is plan-gated, and NoaCG fails closed on it
+### Retention: two filters, one free and one plan-gated
 
-**Zero-data-retention routing is a Vercel Pro/Enterprise feature.** On a Hobby team the
-gateway answers `403 ZdrUnauthorizedError` to any request carrying `zeroDataRetention: true`.
-That refusal is classified as its own normalized code, `zdr_unavailable`, distinct from
-`provider_rejected` because the fix is a plan or an audited policy decision rather than a key.
-The provider body is READ to make that distinction and never copied into an error or a log.
+Managed calls send both, and the gateway ANDs them.
 
-The consequence is deliberate and must not be softened: with ZDR required (the default), every
-managed Lite, import-analysis and Pro call on a Hobby plan **fails closed** rather than
-sending prompts to a provider that may retain them. Three server-only switches decide it, each
-an explicit and audited choice: `AI_LITE_REQUIRE_ZDR`, `AI_IMPORT_ANALYSIS_REQUIRE_ZDR`, and
-`AI_SURFACE_REQUIRE_ZDR` (NoaCG Pro). All default to on.
+**`disallowPromptTraining` is the floor, and it costs nothing.** It routes only to providers
+that do not train on the prompt - the direct successor to OpenRouter's `data_collection:
+'deny'` - and it is available on **every plan**, so it is pinned on for every managed call and
+is deliberately not configurable. Nothing can turn it off, including turning ZDR off.
 
-Because no route has yet been observed serving under ZDR on this gateway, every `zdrAvailable`
-flag in the approved-route catalog is `false` - meaning "not verified", not "known bad". The
-/admin Models page shows that as *not verified*, and flipping one to true is reserved for
-whoever actually makes the verifying call.
+**`zeroDataRetention` is the strict superset, and it is a Vercel Pro/Enterprise feature.** On
+a plan without it the gateway answers `403 ZdrUnauthorizedError`, classified as its own
+normalized code `zdr_unavailable` - distinct from `provider_rejected` because the fix is a plan
+or an audited policy decision rather than a key. The provider body is READ to make that
+distinction and never copied into an error or a log.
+
+Keeping the two separate is what makes the floor survive: a deployment that cannot have ZDR
+still gets no-training, instead of choosing between failing every call and sending prompts to
+a provider free to train on them.
+
+With ZDR required (the default), a plan that lacks it makes every managed Lite,
+import-analysis and Pro call **fail closed**. Three server-only switches decide that, each an
+explicit and audited choice: `AI_LITE_REQUIRE_ZDR`, `AI_IMPORT_ANALYSIS_REQUIRE_ZDR`, and
+`AI_SURFACE_REQUIRE_ZDR` (NoaCG Pro). All default to on. A filter that no provider of the
+requested model satisfies is a different failure - `400 no_providers_available`, reported as
+`retention_unsatisfiable` - because a better plan will not fix it, though a different model
+might.
+
+Every catalogued route was **verified serving under ZDR on 2026-08-07**, one real call each,
+recorded in `docs/MODEL_ROUTE_AUDITS.md`; `zdrAvailable` is that recorded result and nothing
+else. The /admin Models page shows *verified* / *not verified* accordingly, and flipping one to
+true stays reserved for whoever actually makes the verifying call.
 
 The `AI_LITE_*` settings documented in `.env.example` are private Vercel environment
 variables. `AI_LITE_ENABLED` defaults off. Production enablement also requires Supabase
 authentication, the `0010_ai_generations.sql` and `0011_ai_lite_quality_feedback.sql`
 migrations, a Supabase secret key, a managed gateway credential, an `IP_HASH_SALT` of at
 least 16 characters, an audited gateway provider list, and - while `AI_LITE_REQUIRE_ZDR`
-stays on - a Vercel plan that includes ZDR. Lite stays unavailable instead of falling back to an in-memory quota
+stays on - a Vercel plan that includes ZDR (Pro or Enterprise). Lite stays unavailable instead of falling back to an in-memory quota
 ledger or the development IP-hash salt when that durable configuration is incomplete.
 
 `scripts/check-client-secrets.mjs` rejects provider key names with a public build prefix and

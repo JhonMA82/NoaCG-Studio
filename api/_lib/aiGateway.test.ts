@@ -151,6 +151,7 @@ test('sends the managed gateway routing policy and normalizes the answer', async
     timeoutMs: 5000,
     gateway: {
       zeroDataRetention: true,
+      disallowPromptTraining: true,
       only: ['google'],
       sort: 'cost',
       tags: ['surface:lite'],
@@ -160,6 +161,7 @@ test('sends the managed gateway routing policy and normalizes the answer', async
   const providerOptions = sent.providerOptions as Record<string, unknown>;
   assert.deepEqual(providerOptions.gateway, {
     zeroDataRetention: true,
+    disallowPromptTraining: true,
     only: ['google'],
     sort: 'cost',
     tags: ['surface:lite'],
@@ -183,9 +185,12 @@ test('an empty provider allowlist is omitted rather than sent as "no provider is
         usage: { prompt_tokens: 1, completion_tokens: 1 },
       }));
     },
-  }, { gateway: { zeroDataRetention: true, only: [] } });
+  }, { gateway: { zeroDataRetention: true, disallowPromptTraining: true, only: [] } });
 
-  assert.deepEqual((sent.providerOptions as Record<string, unknown>).gateway, { zeroDataRetention: true });
+  assert.deepEqual(
+    (sent.providerOptions as Record<string, unknown>).gateway,
+    { zeroDataRetention: true, disallowPromptTraining: true },
+  );
 });
 
 test('a ZDR refusal is reported as its own code, not as a bad credential', async () => {
@@ -202,13 +207,40 @@ test('a ZDR refusal is reported as its own code, not as a bad credential', async
         }),
         { status: 403 },
       ),
-    }, { gateway: { zeroDataRetention: true } }),
+    }, { gateway: { zeroDataRetention: true, disallowPromptTraining: true } }),
     (error: unknown) => {
       const failure = error as { code: string; retryable: boolean; message: string };
       assert.equal(failure.code, 'zdr_unavailable');
       assert.equal(failure.retryable, false);
       // NoaCG's own wording - the provider body is read to classify and never copied.
       assert.ok(!failure.message.includes('Pro and Enterprise'));
+      return true;
+    },
+  );
+});
+
+test('a filter no provider satisfies is its own code - a plan will not fix it', async () => {
+  // 400 no_providers_available, which is what the gateway answers when the retention filters
+  // narrow the routing set to nothing. Distinct from the plan refusal above on purpose: that
+  // one is fixed by upgrading, this one by choosing a different model.
+  await assert.rejects(
+    executeGatewayRequest(body('vercel', 'vendor/model'), {
+      keyFor,
+      fetchImpl: async () => new Response(
+        JSON.stringify({
+          error: 'No providers available that disallow prompt training for model: vendor/model',
+          type: 'no_providers_available',
+          statusCode: 400,
+        }),
+        { status: 400 },
+      ),
+    }, { gateway: { zeroDataRetention: false, disallowPromptTraining: true } }),
+    (error: unknown) => {
+      const failure = error as { code: string; retryable: boolean };
+      assert.equal(failure.code, 'retention_unsatisfiable');
+      // Not retryable: the routing set will not change on a second identical attempt, and
+      // spending the budget to discover that twice is the mistake this flag prevents.
+      assert.equal(failure.retryable, false);
       return true;
     },
   );
@@ -266,6 +298,7 @@ test('supports forced-tool structured output through OpenRouter', async () => {
     timeoutMs: 5000,
     gateway: {
       zeroDataRetention: false,
+      disallowPromptTraining: true,
       only: ['google'],
       structuredOutputMode: 'tool',
     },
@@ -699,12 +732,12 @@ test('a ZDR-verified claim in the catalog is backed by a written audit', () => {
   }
   const concept = APPROVED_MODEL_CATALOG.find((entry) => entry.route.model === 'google/gemini-3.1-flash-image');
   assert.ok(concept, 'the Pro concept route must stay catalogued - the admin page marks it in use');
-  // FALSE across the whole catalog after the move to Vercel AI Gateway, and that is the honest
-  // state rather than an oversight: ZDR is a Pro/Enterprise gateway feature and this team is on
-  // Hobby, so no route has been observed serving under it. Nothing degrades quietly - a task
-  // requiring ZDR fails closed on `zdr_unavailable`. This assertion is what makes flipping one
-  // to true a deliberate act by whoever actually ran the verification.
-  assert.equal(concept.zdrAvailable, false);
+  // TRUE, and specifically because a real image generation was made under ZDR on 2026-08-07 -
+  // not because the route looks like it ought to qualify. This assertion is what keeps the flag
+  // a record of a call somebody made: the note beside it has to name the audit, and the audit
+  // has to exist.
+  assert.equal(concept.zdrAvailable, true);
+  assert.match(concept.notes, /ZDR verified/);
   assert.equal(concept.capabilities.structuredOutput, false);
 });
 

@@ -714,10 +714,13 @@ put it (a logo slot takes a mark; a full-frame still does not).
   client. The server adapters in `api/_lib/aiGateway.ts` implement Vercel AI Gateway (the
   MANAGED transport, and the only one NoaCG funds), plus Anthropic, OpenAI Responses and
   compatible Hugging Face Inference Providers as bring-your-own-key routes - without branching
-  the harness. **ZDR is plan-gated on the gateway**, so a managed task that requires it fails
-  closed with `zdr_unavailable` on a Hobby plan rather than degrading quietly; the per-request
-  price cap OpenRouter enforced has no gateway equivalent and now lives entirely in the
-  approved-catalog snapshot and each task's cost booking (docs/AI_PROVIDER_GATEWAY.md).
+  the harness. Retention is TWO filters, ANDed by the gateway: `disallowPromptTraining` is free
+  on every plan and pinned on for every managed call, and `zeroDataRetention` is the
+  Pro/Enterprise superset - so a task that requires ZDR fails closed with `zdr_unavailable`
+  rather than degrading quietly, and a deployment without the plan still keeps the no-training
+  floor. The per-request price cap OpenRouter enforced has no gateway equivalent and now lives
+  entirely in the approved-catalog snapshot and each task's cost booking
+  (docs/AI_PROVIDER_GATEWAY.md).
   `modelCatalog.ts` reads only the normalized server discovery endpoint; live catalog
   normalization stays in `api/_lib/aiModelDiscovery.ts`. Structured output, usage, costs, errors,
   retries, and explicit fallbacks normalize here. `cacheSystem` remains an Anthropic hint;

@@ -59,11 +59,11 @@ export interface ApprovedModelEntry {
    * is whether the route actually serves under it, which takes one real call on a
    * ZDR-entitled plan.
    *
-   * Every entry is currently FALSE: ZDR is a Vercel Pro/Enterprise feature and this project's
-   * team is on Hobby, where the gateway answers 403 `ZdrUnauthorizedError` for any ZDR
-   * request. Nothing degrades quietly - a task whose profile requires ZDR fails closed on
-   * `zdr_unavailable` (api/_lib/aiGateway.ts). Flip these to true, per route, on the pass that
-   * actually verifies them.
+   * Every entry below was verified on 2026-08-07 by one real ZDR-requesting call per route,
+   * recorded in docs/MODEL_ROUTE_AUDITS.md. Nothing degrades quietly if that ever stops being
+   * true: a task whose profile requires ZDR fails closed on `zdr_unavailable` (the plan lost
+   * the feature) or `retention_unsatisfiable` (no provider of that model qualifies), never by
+   * silently routing to a provider that retains.
    */
   zdrAvailable: boolean;
   notes: string;
@@ -76,10 +76,11 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     openWeights: false,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_048_576 },
     price: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-    zdrAvailable: false,
+    zdrAvailable: true,
     notes: 'Lite design-spec primary. Proprietary incumbent; stands until the discovery funnel '
       + 'benches an open-weight equal (plan §7). Same model and same price on the gateway as on '
-      + 'OpenRouter, so the 2026-07-29 promotion transfers intact.',
+      + 'OpenRouter, so the 2026-07-29 promotion transfers intact. ZDR verified 2026-08-07: '
+      + 'served by vertex (docs/MODEL_ROUTE_AUDITS.md).',
   },
   {
     route: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
@@ -87,12 +88,13 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     openWeights: false,
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_000_000 },
     price: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
-    zdrAvailable: false,
+    zdrAvailable: true,
     notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b), and the NoaCG Pro '
       + 'INTERPRET route (PRO_STANDARD_ROUTES.interpret). Same model and price on the gateway; '
       + 'the context window is the listing\'s 1,000,000 rather than the 1,048,576 the OpenRouter '
       + 'entry recorded. The endpoint-level ZDR reasoning the old note carried no longer applies: '
-      + 'the gateway decides which provider serves a ZDR request, not us.',
+      + 'the gateway decides which provider serves a ZDR request, not us. ZDR verified '
+      + '2026-08-07: served by vertex (docs/MODEL_ROUTE_AUDITS.md).',
   },
   {
     route: { provider: 'vercel', model: 'alibaba/qwen3-coder-next' },
@@ -103,9 +105,10 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     // model, billed by a different serving. Still inside the funded ceiling, and stated rather
     // than carried over, because Lite's cost-per-generation arithmetic reads this table.
     price: { inputPerMillion: 0.50, outputPerMillion: 1.20 },
-    zdrAvailable: false,
+    zdrAvailable: true,
     notes: 'Lite design-spec fallback; open-weight coding candidate for the code benches. Slug '
-      + 'moved from qwen/ to alibaba/ on the gateway.',
+      + 'moved from qwen/ to alibaba/ on the gateway. ZDR verified 2026-08-07: served by '
+      + 'bedrock (docs/MODEL_ROUTE_AUDITS.md).',
   },
   {
     route: { provider: 'vercel', model: 'google/gemini-3.1-flash-image' },
@@ -116,11 +119,12 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     // so nothing here depends on this flag.
     capabilities: { vision: true, coding: false, structuredOutput: false, contextWindow: 131_072 },
     price: { inputPerMillion: 0.50, outputPerMillion: 3.00 },
-    zdrAvailable: false,
+    zdrAvailable: true,
     notes: 'NoaCG Pro concept route (PRO_STANDARD_ROUTES.concept). Same slug and same token '
       + 'prices on the gateway. Its generated images bill through ordinary OUTPUT TOKENS here '
       + 'rather than a separate image-token meter, and are measured against NO ceiling - none '
-      + 'has been decided for image work (docs/ADMIN.md §9).',
+      + 'has been decided for image work (docs/ADMIN.md §9). ZDR verified 2026-08-07 on a real '
+      + 'image generation: served by vertex, $0.067 (docs/MODEL_ROUTE_AUDITS.md).',
   },
 
   // ── Removed in the OpenRouter → Vercel AI Gateway move (2026-08-07) ──────────
@@ -145,9 +149,11 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     openWeights: true,
     capabilities: { vision: false, coding: false, structuredOutput: true, contextWindow: 131_072 },
     price: { inputPerMillion: 0.05, outputPerMillion: 0.20 },
-    zdrAvailable: false,
+    zdrAvailable: true,
     notes: 'Lite discovery-funnel candidate. Same slug on the gateway; the audited price is the '
-      + 'gateway listing\'s 0.05/0.20 rather than the pinned-DeepInfra 0.03/0.14 recorded before.',
+      + 'gateway listing\'s 0.05/0.20 rather than the pinned-DeepInfra 0.03/0.14 recorded before. '
+      + 'ZDR verified 2026-08-07: six qualifying providers, served by togetherai '
+      + '(docs/MODEL_ROUTE_AUDITS.md).',
   },
   // No vision-suite candidates are listed. `meta-llama/llama-4-scout` and `qwen/qwen3.5-9b`
   // were approved for the 2026-07-29 import-analysis run and REMOVED again after it, because

@@ -247,6 +247,11 @@ export function liteGatewayPolicy(profile: LiteProfile, routeValue: ModelRoute):
   if (!routePrice(profile, routeValue) || profile.gatewayProviders.length === 0) return undefined;
   return {
     zeroDataRetention: profile.requireZdr,
+    // Pinned on, never configurable - the direct successor to OpenRouter's
+    // `data_collection: 'deny'`, which was pinned the same way. It costs nothing on any plan,
+    // and it is what a Hobby deployment still gets when the ZDR flag above cannot be honoured:
+    // no training on a student's brief, even where zero retention is out of reach.
+    disallowPromptTraining: true,
     only: profile.gatewayProviders,
     sort: 'cost',
     tags: ['surface:lite'],
@@ -278,6 +283,7 @@ export function liteJudgePolicy(profile: LiteProfile): GatewayRoutingPolicy | un
   if (!routePrice(profile, profile.judgeRoute) || profile.gatewayProviders.length === 0) return undefined;
   return {
     zeroDataRetention: profile.requireZdr,
+    disallowPromptTraining: true,
     only: profile.gatewayProviders,
     sort: 'cost',
     tags: ['surface:lite-judge'],

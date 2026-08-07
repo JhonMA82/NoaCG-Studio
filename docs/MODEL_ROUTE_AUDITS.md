@@ -1,18 +1,53 @@
 # Model route audits
 
-> **HISTORICAL FROM 2026-08-07.** Every audit recorded below was performed against
-> **OpenRouter**, whose per-endpoint listings answered "which endpoint of this model is
-> ZDR-servable". NoaCG moved its managed transport to **Vercel AI Gateway**, which answers
-> that question differently and later: it filters a `zeroDataRetention: true` request down to
-> providers under a verified ZDR agreement and refuses when none qualifies. There is no
-> per-model retention flag to read and nothing to pin by hand, so the METHOD below no longer
-> applies and none of these audits transfers to the new routes.
+> **TRANSPORT CHANGED 2026-08-07.** Every audit in the *OpenRouter* sections below was
+> performed against per-endpoint listings that answered "which endpoint of this model is
+> ZDR-servable". Vercel AI Gateway answers that differently and later: it filters a
+> `zeroDataRetention: true` request down to providers under a verified ZDR agreement and
+> refuses when none qualifies. There is no per-model retention flag to read and nothing to pin
+> by hand, so the old METHOD no longer applies and none of those audits transfers.
 >
-> Consequently every `zdrAvailable` flag in `APPROVED_MODEL_CATALOG` is now `false` - "not
-> verified", not "known bad" - and no new audit can be recorded until the Vercel team is on a
-> plan that includes ZDR (it is a Pro/Enterprise feature; a Hobby team gets a 403). A future
-> audit is one real call per route under ZDR, recorded here, and only then does a flag flip.
-> Keep the sections below: they are the record of what was true on the old transport.
+> The new method is one line long: **make the call and see whether it serves.** The
+> gateway-era audit is recorded immediately below. Keep the older sections - they are the
+> record of what was true on the old transport.
+
+## 2026-08-07 - Vercel AI Gateway, every catalogued route
+
+**What was measured.** One real `POST /v1/chat/completions` per route, carrying
+`providerOptions.gateway = { zeroDataRetention: true, disallowPromptTraining: true }`, on the
+team's own credential. The gateway reports what it did in
+`choices[0].message.provider_metadata.gateway.routing.planningReasoning`, which is the
+evidence quoted below - it names the providers considered and the ones that survived the
+filter, so a pass is not inferred from a 200 alone.
+
+| Route | Result | Served by | Gateway's own reasoning |
+|---|---|---|---|
+| `google/gemini-2.5-flash-lite` | ZDR OK | vertex | 2 attempts → 1 ZDR attempt; ZDR order: vertex |
+| `google/gemini-2.5-flash` | ZDR OK | vertex | ZDR order: vertex |
+| `alibaba/qwen3-coder-next` | ZDR OK | bedrock | served under ZDR + no-training |
+| `openai/gpt-oss-20b` | ZDR OK | togetherai | 6 qualifying providers: togetherai → fireworks → deepinfra → parasail → bedrock → groq |
+| `google/gemini-3.1-flash-image` | ZDR OK | vertex | ZDR order: vertex; real image generated, $0.067 |
+
+All five are recorded as `zdrAvailable: true` in `APPROVED_MODEL_CATALOG`.
+
+**What this does NOT establish.** Nothing about quality - that is the NoaCG benchmarks' job
+(`docs/AI_LITE_PROMOTION.md`). Nothing about which provider serves a FUTURE call: the routing
+set is re-evaluated per request, and `gpt-oss-20b` alone had six qualifying providers, so
+"served by togetherai" is an observation rather than a pin. And nothing about a provider's
+own published policy, which may differ from the agreement Vercel has negotiated.
+
+**What would invalidate it.** Losing the plan feature (ZDR is Pro/Enterprise; the same call on
+Hobby answered `403 ZdrUnauthorizedError`, which the gateway layer reports as
+`zdr_unavailable`), or a provider agreement lapsing until no provider of a model qualifies
+(`400 no_providers_available`, reported as `retention_unsatisfiable`). Both fail the request
+closed rather than routing to a retaining provider, so a lapsed audit shows up as an outage
+rather than as a quiet privacy regression.
+
+**Separately: no-training is free on every plan.** `disallowPromptTraining` is the direct
+successor to OpenRouter's `data_collection: 'deny'` and carries no plan gate, so it is pinned
+on for every managed call and is not configurable. Verified the same day on the then-Hobby
+plan, where ZDR was still refused: the no-training-only call served, reporting "all 2 attempts
+disallow prompt training". That is what makes the retention floor survive a plan downgrade.
 
 The register of hand-performed audits behind `APPROVED_MODEL_CATALOG`
 (`api/_lib/aiModelCatalog.ts`). `/admin` Models reports a route as **approved** only when it

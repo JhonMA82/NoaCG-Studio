@@ -466,6 +466,7 @@ export const vercelGatewayAdapter: ProviderAdapter = {
             providerOptions: {
               gateway: {
                 zeroDataRetention: policy.gateway.zeroDataRetention,
+                disallowPromptTraining: policy.gateway.disallowPromptTraining,
                 // Omitted, not sent empty: `only: []` would read as "no provider is
                 // permitted" and refuse every route, where a surface with no allowlist means
                 // "any provider the other directives already narrowed to".
@@ -711,9 +712,25 @@ function zdrRefusal(body: string): boolean {
   return /ZdrUnauthorizedError|Zero Data Retention/i.test(body);
 }
 
+/** No provider of this model satisfies the retention filters the request asked for. The
+ *  gateway refuses rather than serving from a non-compliant one, which is the whole point -
+ *  but it is a DIFFERENT problem from the plan gate above (a better plan will not fix it;
+ *  a different model might), so it gets its own code rather than being folded in. */
+function retentionUnsatisfiable(body: string): boolean {
+  return /no_providers_available/i.test(body);
+}
+
 function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
   if (status === 429) return new GatewayError('rate_limited', 'The AI provider is busy. Try again shortly.', 429, true);
+  if (status === 400 && retentionUnsatisfiable(body)) {
+    return new GatewayError(
+      'retention_unsatisfiable',
+      'No provider of this model meets the required data-retention policy.',
+      502,
+      false,
+    );
+  }
   if (status === 403 && zdrRefusal(body)) {
     return new GatewayError(
       'zdr_unavailable',
@@ -775,21 +792,33 @@ export interface GatewayDependencies {
  * The routing directives a MANAGED call sends to Vercel AI Gateway
  * (`providerOptions.gateway` on the Chat Completions body).
  *
- * `zeroDataRetention` is the whole privacy policy now, and it is stronger than the three
- * OpenRouter directives it replaces: the gateway routes a ZDR request ONLY to providers
- * under a verified ZDR agreement, so there is no separate "deny data collection" knob to set
- * and no way for a fallback to be served by a retaining provider. What that costs is stated
- * rather than discovered: **ZDR is a Vercel Pro/Enterprise feature.** On a Hobby team the
- * gateway answers 403 `ZdrUnauthorizedError`, which `providerFailure` reports as
- * `zdr_unavailable` - so a task whose profile requires ZDR fails closed instead of quietly
- * sending prompts to a retaining provider (docs/AI_PROVIDER_GATEWAY.md, "Retention").
+ * TWO retention directives, and they are deliberately not the same one:
+ *
+ *   - `disallowPromptTraining` is the direct successor to OpenRouter's
+ *     `data_collection: 'deny'` - route only to providers that do not train on the prompt.
+ *     It is FREE ON EVERY PLAN, so it is pinned on for every managed call and never made
+ *     configurable, exactly as `dataCollection: 'deny'` was pinned before it.
+ *   - `zeroDataRetention` is the strict superset: no retention at all. **It is a Vercel
+ *     Pro/Enterprise feature.** On a Hobby team the gateway answers 403
+ *     `ZdrUnauthorizedError`, which `providerFailure` reports as `zdr_unavailable` - so a
+ *     task whose profile requires ZDR fails closed instead of quietly sending prompts to a
+ *     retaining provider (docs/AI_PROVIDER_GATEWAY.md, "Retention").
+ *
+ * The gateway ANDs them, so a plan without ZDR still gets the no-training floor rather than
+ * nothing. Keeping them separate is what makes that true: folding both into one flag would
+ * have meant a Hobby deployment either failing every call or sending prompts to a provider
+ * free to train on them.
+ *
+ * A filter that no provider of the requested model satisfies fails with 400
+ * `no_providers_available` rather than falling back to one that does not - reported as
+ * `retention_unsatisfiable`, because a silent fallback is precisely what these ask to prevent.
  *
  * `only` is a PROVIDER-SLUG allowlist (`google`, `vertex`, `bedrock`, …), not OpenRouter's
  * endpoint list; absent, the gateway picks within whatever ZDR already narrowed it to. It
  * still carries the audited-serving requirement Lite depends on - which provider answers
  * decides quantization and precision, which no privacy directive covers.
  *
- * THREE OPENROUTER DIRECTIVES HAVE NO EQUIVALENT, and dropping them is a real behaviour
+ * TWO OPENROUTER DIRECTIVES HAVE NO EQUIVALENT, and dropping them is a real behaviour
  * change, not a rename:
  *
  *   - `max_price` (a per-request price ceiling the provider enforced). The gateway has no
@@ -800,11 +829,15 @@ export interface GatewayDependencies {
  *   - `require_parameters` (serve only from endpoints advertising every request parameter).
  *     No equivalent. It mattered on OpenRouter because endpoints of one model differed; a
  *     gateway model slug resolves to providers serving the same contract.
- *   - `allow_fallbacks: false`. Subsumed by ZDR filtering above, and by `only` where a
- *     surface pins its provider.
+ *
+ * `allow_fallbacks: false` is subsumed: a retention filter narrows the routing set BEFORE
+ * any fallback is chosen, so there is no non-compliant provider left to fall back onto.
  */
 export interface GatewayRoutingPolicy {
   zeroDataRetention: boolean;
+  /** Route only to providers that do not train on the prompt - OpenRouter's
+   *  `data_collection: 'deny'`, one field over, and free on every plan. */
+  disallowPromptTraining: boolean;
   /** Provider slugs permitted to serve the request. */
   only?: string[];
   /** Cheapest eligible provider first - the nearest thing to a price ceiling the gateway
