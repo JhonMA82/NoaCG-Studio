@@ -16,6 +16,10 @@ HTML broadcast graphics and exporting them to **many broadcast/streaming environ
 For TV channels, streamers, organizations, and universities, technical and non-technical users
 alike - it's used in teaching, but it is a production tool, not a code tutorial. Brand: dark
 control-room, one amber "on-air" accent, restrained glow (`NoaCG-Brand-Kit/BRAND-MANUAL.md`).
+The APP CHROME reads in bundled IBM Plex Sans (`--font-ui`), which diverges from the manual's
+Space Grotesk - that face is now the LOCKUP's (`--font-display`), and the mono label voice is
+bundled JetBrains Mono rather than IBM Plex Mono, because shipping a face means a CDN
+(non-negotiable #3) or an unvetted binary. The manual still owns the palette.
 **Free forever for the core; the only paid surface is hosted AI without a BYO key; the current
 goal is users/adoption, not revenue.** Binding docs, read before generating or judging templates:
 **`docs/DESIGN_LANGUAGE.md`** (taste + motion + code style) and **`docs/GOALS.md`** (north star +

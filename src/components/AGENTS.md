@@ -4,6 +4,31 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 store-side halves of these contracts are in src/store/AGENTS.md; the code patchers they call are
 in src/blocks/AGENTS.md.
 
+## Dialog anatomy (EVERY dialog, defined once in styles.css)
+
+re-design/handoff.md §6. Here rather than per sheet: these defects are what happens when six
+dialogs each invent a header and a checkbox row.
+
+- **HEADER** - one flex row, ✕ last: a 32px bordered square, hard right (`.gallery-close`).
+  The eye finds it by CORNER, so one that follows the title moves whenever the title's length
+  does. `.wz-header`/`.gallery-header` push it with `margin-left: auto`, cancelled when a
+  cluster before it (the wizard's step counter, a gallery's settings) already took the space -
+  two auto margins SPLIT it. The subtitle truncates; the button never shrinks. Never
+  absolutely-position it: out of flow it overlaps whatever grows under it, which is why the
+  auth cards grew a real `.auth-head` row.
+- **CHECKBOX ROW** (`.dlg-check`) - box first, title over description, whole label clickable,
+  cap-aligned to the first line. Checkboxes and radios are sized GLOBALLY: the "inputs are
+  100% wide" rule was written for fields you type into and caught them too, which is how
+  Settings' "Advanced mode" got its box mid-dialog and its label wrapped against the far edge.
+  Do not re-add a per-dialog `style={{ width: 'auto' }}`.
+- **FORM ROW** (`.dlg-row`) - `110px label | 1fr control`; an input+button pair nests a
+  `.dlg-pair` grid so the button never wraps under the field, and a hint indents to the
+  control column because it belongs to the control.
+- **FOOTER** (`.dlg-foot`) - one row, secondary left, primary right, never stacked.
+
+Settings is the worked example: 820x620, a section nav that JUMPS rather than switches, so
+every section stays mounted and no preference is reachable only by clicking the right tab.
+
 ## Shell & editor
 
 - **AppShell** - the workspace layout: a flexible DOCKABLE-PANEL model (model/layout.ts). The
@@ -34,10 +59,9 @@ in src/blocks/AGENTS.md.
   video shell's VideoCodeEditor): Normal / Dimmed / Hidden is a VIEW preference - comment spans
   come from Monaco's own tokenizer and are painted with DECORATIONS, so the code, the undo stack,
   the cursor and every export stay untouched, and hidden comments leave their blank line where it
-  was. It reapplies on every model swap (each tab is its own model, and a language's tokenizer
-  loads lazily - hence the bounded retry) and, in Hidden, temporarily reveals any comment holding
-  the selection, a diagnostic marker, or a find match. Persisted in model/prefs.ts. Pinned by
-  e2e/comments.spec.ts.
+  was. It reapplies on every model swap (a language's tokenizer loads lazily - hence the bounded
+  retry) and, in Hidden, temporarily reveals any comment holding the selection, a diagnostic
+  marker, or a find match. Persisted in model/prefs.ts. Pinned by e2e/comments.spec.ts.
 - **PreviewFrame** - the stage: the iframe + overlays live in a `.canvas-world` centred in the
   stage and translated by `pan`, scaled by fit × `zoom`. Zoom: the toolbar −/%/+ (the % resets
   to fit), Ctrl/Cmd+wheel (and trackpad pinch) toward the cursor, clamped 0.2–8×. Pan: HOLD
@@ -56,8 +80,8 @@ in src/blocks/AGENTS.md.
   every commit. Margin is not free — the stage fits the PADDED document, so a flat third of a
   frame on every side shrank the working canvas for the many templates that never leave it.
   Where the reach is unknowable the old flat pad stands: a legacy/unparsable region, MEASURED
-  motion, or PERCENT travel (`xPercent`/`yPercent` moves a layer by a fraction of its own size,
-  which the data does not carry). Pinned by e2e/pasteboard.spec.ts.
+  motion, or PERCENT travel (the data carries no size to resolve it against). Pinned by
+  e2e/pasteboard.spec.ts.
   A template RUNTIME ERROR is worn on the stage itself (`.preview-runtime-error`, from the
   store's previewError - the same fact the Export gate reports): before it, a template whose JS
   threw at load was a silently broken canvas unless the Export panel happened to be open. The
@@ -92,15 +116,13 @@ in src/blocks/AGENTS.md.
   ONE undoable applyTemplate and jumps the editor to the changed tab, highlighted; the root is
   detected via model/structure.ts detectPrefix.
   CURSORS name the gesture IN PROGRESS, never one that is merely possible: hover is the plain
-  arrow (the hover outline + name chip say what a click would select), an active move reads
-  `move`, handles keep their resize arrows, an armed tool its own, and the HAND belongs to
-  panning alone (PreviewFrame's `.panning` / `.panning-active` on the stage outrank
-  everything while a pan is armed). The rotate handle therefore carries an inline-SVG rotate
-  cursor - CSS has no keyword for one, and a hand there would say "drag me somewhere" for a
-  control that turns in place. It is percent-encoded with `charset=utf-8` and single-quoted
-  attributes; the raw `;utf8,<svg …>` form does NOT decode in Chromium, and a bad data URI
-  falls back SILENTLY, which is why e2e/import-canvas.spec.ts loads the URI as an image
-  rather than trusting the computed value.
+  arrow, an active move reads `move`, handles keep their resize arrows, an armed tool its own,
+  and the HAND belongs to panning alone (PreviewFrame's `.panning` / `.panning-active` on the
+  stage outrank everything while a pan is armed). The rotate handle therefore carries an
+  inline-SVG rotate cursor, percent-encoded with `charset=utf-8` and single-quoted attributes;
+  the raw `;utf8,<svg …>` form does NOT decode in Chromium, and a bad data URI falls back
+  SILENTLY, which is why e2e/import-canvas.spec.ts loads the URI as an image rather than
+  trusting the computed value.
   THE DESIGN UNIT (imported designs): `.{prefix}-art` and `.{prefix}-box` swap the keyframe
   scale/rotate handles for the ROOT's --scale handle. The artwork's size IS the composition's
   size - every placed field is `calc(Npx * var(--scale))` against it - so one --scale patch
@@ -120,12 +142,10 @@ in src/blocks/AGENTS.md.
   CANVAS POSITION KEYFRAMING (docs/TIMELINE_INTERACTION_MODEL.md, amendment 3): on a
   data-block template, dragging any SELECTED non-root layer moves the WHOLE selection (layers
   contained in another dragged layer are excluded - the parent's transform carries them) and,
-  on release, ONE undoable apply writes each layer's x/y keyframes at the parked playhead -
-  the drag itself arms, no Inspector setup. Live GSAP x/y preview while dragging (the same
-  animEdit + spliceAnimData path the Inspector edits through, re-parked after the rebuild);
-  Escape springs everything back. The root keeps the zone drag, unselected layers don't drag
-  on their own, and legacy templates keep the classic gestures exactly. Pinned by
-  e2e/canvas-keyframe.spec.ts.
+  on release, ONE undoable apply writes each layer's x/y keyframes at the parked playhead,
+  through the same animEdit + spliceAnimData path the Inspector edits through. The root keeps
+  the zone drag, unselected layers don't drag on their own, and legacy templates keep the
+  classic gestures exactly. Pinned by e2e/canvas-keyframe.spec.ts.
   PLACEMENT DRAG (imported designs): a selected PLACED line - one whose wrapper id has a CSS
   rule with left/top px values (blocks/designLayout.ts placedLines; the imported-design shape,
   code-derived, never category) - drags as PLACEMENT, not motion: live inline left/top preview
@@ -160,15 +180,13 @@ in src/blocks/AGENTS.md.
   header** (any part - the general home) and the **selection chip's padlock** (the artwork
   only, where the default is the surprising one). Locks are UI state, cleared on a
   whole-project swap.
-  The SELECTION model (multi, docs/TIMELINE_INTERACTION_MODEL.md): a click selects the
-  innermost TemplatePart under the point (registry-driven closest-ancestor hit test,
-  rect-containment fallback); clicking the sole selected part again climbs to its container;
-  SHIFT-click toggles membership; a drag on EMPTY canvas draws a lasso selecting every
-  rendered non-root part it touches (the root is excluded by design); hover previews the
-  name; Escape or empty canvas deselects. Selection is editor UI state ONLY - it lives in
-  store selectedParts (ordered, first = primary in selectedPart) so the timeline and the
-  Inspector track the same elements - never written into the template. Pinned by
-  e2e/multi-select.spec.ts.
+  The SELECTION model is docs/TIMELINE_INTERACTION_MODEL.md's: a click selects the innermost
+  TemplatePart under the point (registry-driven closest-ancestor hit test, rect-containment
+  fallback), clicking the sole selected part climbs to its container, SHIFT-click toggles, and
+  a drag on EMPTY canvas lassos every rendered non-root part it touches. Selection is editor
+  UI state ONLY - it lives in store selectedParts (ordered, first = primary in selectedPart) so
+  the timeline and the Inspector track the same elements - never written into the template.
+  Pinned by e2e/multi-select.spec.ts.
 - **CanvasSelection** - the presentational selection/hover overlay: amber outline + a chip
   speaking part.label - the registry's words, same as the timeline strip. Chips hint only
   actions that already exist: dblclick-to-edit on text lines, corner resize on the root. On
@@ -193,13 +211,11 @@ in src/blocks/AGENTS.md.
   line-height up so the click is the insertion point) + the inline editor opened on it
   immediately - committing empty (or Escape untyped) undoes the creation; Escape after typing
   commits (the Illustrator rule). The area tool DRAGS a rectangle that becomes a wrapping
-  text box: addPlacedLine at the rect origin + setLineFit 'wrap' with the dragged width,
-  pre-filled with lorem ipsum; its corner handle then resizes the BOX width (kind 'area' -
-  text rewraps), not the font-size. Both create real fields through the Data tab's exact
-  transform - next fN id, DataField, registry layer, timeline row, Inspector Style tab - and
-  disarm back to Select after creating. While the inline editor is open, typing MIRRORS live
-  into the preview element (type-on-canvas); cancel restores the template's text. Pinned by
-  e2e/text-tools.spec.ts.
+  text box: addPlacedLine at the rect origin + setLineFit 'wrap' with the dragged width; its
+  corner handle then resizes the BOX width (kind 'area'), not the font-size. Both create real
+  fields through the Data tab's exact transform and disarm back to Select after creating.
+  While the inline editor is open, typing MIRRORS live into the preview element; cancel
+  restores the template's text. Pinned by e2e/text-tools.spec.ts.
 
 ## Playout & timeline
 
@@ -231,11 +247,9 @@ in src/blocks/AGENTS.md.
   data-block templates only). Boxes carry the ▤ layer / ◇ graphic timeline badge
   (animMachine `timelineKind`, derived never stored - a timeline that only fires a lifecycle
   `call` counts as ◇, since its effect has no one layer to attribute it to; a POSE is a state
-  that does nothing at all on entry). The card's description composes TWO facts - what
-  entering does, and where the timeline lives (`stateContent`) - rather than gluing a kind
-  word to a suffix, which is how a state came to say "entering plays nothing · its own inline
-  timeline" in one breath; and it names a transition's ends the way the BOXES do, with the
-  ids (which never follow a rename, by design) one hover away. The main lane's "+ state" is a
+  that does nothing at all on entry). The card's description composes TWO facts through
+  `stateContent` - what entering does, and where the timeline lives - and names a transition's
+  ends the way the BOXES do, with the ids (which never follow a rename) one hover away. The main lane's "+ state" is a
   three-way menu (pose / step on the path / ▤ timeline from layer via
   blocks/layerTimeline.ts, shared with the Inspector's Animations-tab button); Delete
   removes the selection (arrow / branch state / middle waypoint through the step mutators +
@@ -270,16 +284,15 @@ in src/blocks/AGENTS.md.
   card, the foot chips, and the "+ state" menu (placed in frame coordinates by `framePoint`)
   — are siblings of the viewport, so they size against the dock and panning can't drag them
   away from what they describe. That is not cosmetic: while the diagram sized the surface, a
-  two-state lower third made the card 104px around 211px of content, putting the whole
-  Cut/Fade picker below an invisible fold, and hid every "▤ timeline from layer" entry.
+  two-state lower third made the card 104px around 211px of content, hiding the whole Cut/Fade
+  picker below an invisible fold.
   PROBLEM MARKS: a box whose state `validateMachine` has something to say about (animMachine
   `stateProblems` — unreachable, or a timer on a timeline that never ends) wears a coloured
   dot, and its card carries the finding phrased as the NEXT MOVE rather than the export
-  report's verdict (`problemAdvice`). The finding used to reach only the Export panel, so a
-  branch could carry a whole hand-built timeline and never be entered with nothing said where
-  it was authored. `boxWidth` takes an allowance for the dot — without it a two-word state
-  ellipsizes exactly when its name matters most. An off-path POSE now wears ○ like the rest
-  state; it was previously the one box on the graph with no mark at all.
+  report's verdict (`problemAdvice`) — the finding otherwise reaches only the Export panel,
+  a long way from where the machine was authored. `boxWidth` takes an allowance for the dot,
+  or a two-word state ellipsizes exactly when its name matters most. An off-path POSE wears ○
+  like the rest state.
   Gotchas: the box button must NOT have `overflow: hidden` — it would clip the connect port
   half off the right edge and eat its pointerdown (the name span does its own ellipsis); and
   `toBeVisible()` is blind to overflow clipping, so anything about reaching a control is
@@ -299,42 +312,31 @@ in src/blocks/AGENTS.md.
   proportionally), context menu Duplicate/Rename/Delete + the step's default ease, »+ adds a
   step, a hold popover edits the SPX `out` setting, a speed select scales everything; LAYER
   ROWS - every registry part gets a row - with aggregate keyframe diamonds, a ▸ caret that
-  EXPANDS the layer into per-property sub-rows (each track's own diamonds; drag/Delete/ease
-  scoped to that property via moveKeyframe/deleteKeyframe/setKeyframeEase's prop arg), and a
-  LAYER STATE BLOCK: the existence span (activation step -> the step it LEAVES: its `hides`
-  step, else the end of Out) with the keyframed entering/exiting phases emphasized - its LEFT
-  edge drags between step boundaries as the same activation move the gutter/chip make, and its
-  RIGHT edge drags to set an EARLY EXIT (blocks/animEdit setLayerHide writes the step's `hides`;
-  dragging to Out clears it). Setting a hide on a template whose interpreter predates the
-  feature re-emits the whole region so the exit actually plays.
+  EXPANDS the layer into per-property sub-rows (drag/Delete/ease scoped to that property via
+  moveKeyframe/deleteKeyframe/setKeyframeEase's prop arg), and a LAYER STATE BLOCK: the
+  existence span (activation step -> the step it LEAVES: its `hides` step, else the end of Out)
+  with the keyframed entering/exiting phases emphasized - its LEFT edge drags between step
+  boundaries as the same activation move the gutter/chip make, and its RIGHT edge drags to set
+  an EARLY EXIT (blocks/animEdit setLayerHide writes the step's `hides`; dragging to Out clears
+  it). Setting a hide on a template whose interpreter predates the feature re-emits the whole
+  region so the exit actually plays.
   THE THREE READ-ONLY SURFACES. Three things in the data are NOT keyframes you can grab, and each
   is SURFACED (so the timeline never silently hides motion) but never draggable (so it never
   implies an affordance it lacks). All three are code-owned; the tooltips say so.
-  - MEASURED MOTION (`dynamics`, docs/DYNAMIC_MOTION_SCOPE.md): its own rows BELOW the layer rows,
-    one per target, as a hatched OPEN-ENDED bar naming the builder (`tickerMarquee()`). It runs to
-    the end of the timeline because its real length is measured from the operator's content at play
-    time - any fixed width would be a lie. The target (`#ticker-track`) is intentionally NOT a
-    registry part, so it is not canvas-selectable.
-  - LOOPS (`loops[selector][prop]`, PRESET_MODEL_REVIEW gap 6): a repeat TAIL on the layer's own
-    row (and on its property sub-row when expanded), starting at the looping track's LAST keyframe -
-    the keyframes ARE the pass and stay editable; only the repeat is annotated. Labelled `↻∞` /
-    `↻×N` plus `⇄` for yoyo. Drawn from the data, so a FINITE repeat ends exactly where it really
-    ends (`last + repeat × (pass + repeatDelay)`) and closes with a cap; an endless one - or a
-    finite one that outlives the authored timeline, since a step's duration is a FLOOR not a cap -
-    clamps to the canvas and drops the cap, reading as "still going".
-  - LIFECYCLE CALLS (`calls`, TIMELINE_V2_PLAN §3b): their own `lifecycle` row, one PIN per call at
-    its moment, naming the function (`startClock()`). A side effect has no duration and nothing to
-    interpolate, so it is deliberately drawn unlike a keyframe diamond.
-  KEYFRAME SETS: click selects a diamond, shift-click builds a set,
-  dragging any selected diamond moves the WHOLE set (magnetic snap to playhead/step
-  edges/other keyframes within ~7px, Alt free, 0.05s grid fallback), Delete clears the set,
-  ←/→ nudges it, Ctrl/Cmd+C/V copies and pastes the group at the playhead, Ctrl/Cmd+D
-  duplicates it in place. A drag on the empty rows area draws the SAME amber marquee the canvas
-  lasso uses (.tlv2-lasso) and boxes every diamond it touches (x -> time, y -> the row bands;
-  shift adds; an expanded layer is boxed per-property); the ruler/clips band keeps its scrub.
-  A draggable
-  playhead with a grab cap + auto-follow scroll and deep zoom (up to 1000 px/s); Space plays
-  (never while typing).
+  MEASURED MOTION (`dynamics`, docs/DYNAMIC_MOTION_SCOPE.md) draws its own rows below the layer
+  rows as hatched OPEN-ENDED bars naming the builder - its real length is measured from the
+  operator's content at play time, so any fixed width would be a lie, and its target
+  (`#ticker-track`) is deliberately not a registry part. LOOPS (`loops[selector][prop]`) draw a
+  repeat TAIL from the looping track's LAST keyframe - the keyframes ARE the pass and stay
+  editable; a finite repeat ends where the data says and caps, an endless one clamps to the
+  canvas without a cap. LIFECYCLE CALLS (`calls`, TIMELINE_V2_PLAN §3b) get a `lifecycle` row of
+  PINS naming the function: a side effect has no duration, so it is drawn unlike a diamond.
+  KEYFRAME SETS (the gestures are docs/TIMELINE_INTERACTION_MODEL.md's): click and shift-click
+  build a set, a drag moves the whole set with magnetic snap, and Delete / ←→ / Ctrl+C,V,D act
+  on it. A drag on the empty rows area draws the SAME amber marquee the canvas lasso uses
+  (.tlv2-lasso) and boxes every diamond it touches; the ruler/clips band keeps its scrub. A
+  draggable playhead with a grab cap + auto-follow scroll and deep zoom (up to 1000 px/s);
+  Space plays (never while typing).
   Every edit is a pure data mutation (blocks/animEdit.ts) spliced back by
   blocks/animData.ts - ONE undoable apply each (a group drag/delete/paste chains mutations
   into one apply); playhead/scrub/selection never write history.
@@ -358,19 +360,15 @@ in src/blocks/AGENTS.md.
   numeric prop needs only a PROP_ROWS entry - no runtime/resolver/validation change; a new FILTER
   function needs only a FILTER_FUNCS entry in blocks/filterTrack.ts plus its PROP_ROWS row.
   A selected PLACED FIELD (an imported design's line or slot - blocks/designLayout.ts
-  placedLines, code-derived) additionally offers a **Style tab**: CONTENT rows (the field's
-  operator label via blocks/edit.ts setFieldTitle - definition title + layer metadata, the
-  registry renames the row/chip from it - and for text lines the shown text, the canvas
-  inline editor's pattern: setFieldDefault + the live sample value), numeric X/Y placement, and
-  for a text line the full typography set (font incl. bundled-face shipping, size, weight,
-  color, anchor, line-height, tracking) plus a FIT group (Shrink / Wrap / Free + the slot
-  width - what a long operator value does to the line), for an image slot its box - every
-  control a deterministic patch of the field's OWN rules via designLayout (setLineFit,
-  setLineTextStyle, placeLine,
-  setSlotSize), one undoable apply per edit, colors patching live like the Style panel. The
-  tab exists only while a placed field is selected (a non-placed selection falls back to
-  Properties without clobbering the stored choice). A placed field's look is DESIGN, never
-  keyframes - the same doctrine as its drag.
+  placedLines, code-derived) additionally offers a **Style tab**: CONTENT rows (the operator
+  label via blocks/edit.ts setFieldTitle, and for text lines the shown text through
+  setFieldDefault + the live sample value), numeric X/Y placement, the full typography set for
+  a text line plus a FIT group (Shrink / Wrap / Free + the slot width - what a long operator
+  value does to the line), and an image slot's box. Every control is a deterministic patch of
+  the field's OWN rules via designLayout (setLineFit, setLineTextStyle, placeLine,
+  setSlotSize), one undoable apply per edit. The tab exists only while a placed field is
+  selected (a non-placed selection falls back to Properties without clobbering the stored
+  choice). A placed field's look is DESIGN, never keyframes - the same doctrine as its drag.
   The Animations tab leads with the layer's LIFECYCLE rows - **Appears** (with ▶ Play / an
   existing step by name / "in a new step »" via createStepFromLayer) and **Disappears** (with
   ■ Out / an early exit via animEdit setLayerHide) - the same transforms the canvas chip and
@@ -398,13 +396,13 @@ in src/blocks/AGENTS.md.
   break, registry-part rows spanning every section. A live playhead follows the simulator; clicking
   a section or dragging the scrub parks the preview there - reading the code, never writing it. Row
   LABELS are shared-selection handles, as everywhere.
-  It offers NO editing affordance, because Phase 8 deleted the patchers that backed them: no bar
-  drags, no resize grips, no enters-from drawer, no preset picker, no ease chips, no steps toggle.
-  The note says why, and the JS tab is where you edit it. Its ONE write is **"start over with a
-  preset"**, which emits that preset as DATA (presetRegistry.emitPresetRegion -> importer ->
-  data block): the way out of unconvertible code leads FORWARD, never to another legacy region, and
-  undo restores the hand-written version. An unparsable region gets an honest one-liner plus that
-  same select; blank/imported templates get no strip at all.
+  It offers NO editing affordance (Phase 8 deleted the patchers): no bar drags, resize grips,
+  enters-from drawer, preset picker, ease chips or steps toggle - the note says why and the JS
+  tab is where you edit it. Its ONE write is **"start over with a preset"**, which emits that
+  preset as DATA (presetRegistry.emitPresetRegion -> importer -> data block): the way out of
+  unconvertible code leads FORWARD, never to another legacy region, and undo restores the
+  hand-written version. An unparsable region gets an honest one-liner plus that same select;
+  blank/imported templates get no strip at all.
 
 ## Field controls (fields/) - ONE control, every surface
 
@@ -432,17 +430,13 @@ setter, so neither surface owns an opinion about what exists - `tokenVarsCss` em
 tokens a stylesheet actually reads, and a control appears for a variable that is there. Same
 no-dead-knobs doctrine as the imported design's absent `--type-scale`.
 
-Three things it fixed, all the same mistake in different places:
-- **Colours past the palette four were listed as raw variable names** ("accent ink", "panel
-  keyline"). The words now come from `model/styleVocabulary.ts`, the one translation table,
-  grouped by role; an unrecognised design-owned colour falls back to its humanised name
-  rather than being hidden.
-- **Nine of the twelve shape tokens had no control anywhere** - radius, blur, keyline, lift,
-  accent weight and glow, both trackings, the heading weight, the kicker typeface were
-  emitted into every graphic and reachable only by hand-editing the CSS.
-- **The editor's colour filter was looser than the wizard's**, so `--panel-shadow: 0 8px 24px
-  rgba(...)` rendered as a colour row whose swatch overwrote the whole shadow. Shadow slots
-  now take named presets, never a swatch or a free field.
+Colour WORDS come from `model/styleVocabulary.ts`, the one translation table, grouped by role;
+an unrecognised design-owned colour falls back to its humanised name rather than being hidden.
+Every shape token has a control - radius, blur, keyline, lift, accent weight and glow, both
+trackings, the heading weight, the kicker typeface were once emitted into every graphic and
+reachable only by hand-editing the CSS. A shadow slot takes named presets, never a swatch or a
+free field: the editor's looser colour filter rendered `--panel-shadow: 0 8px 24px rgba(...)`
+as a colour row whose swatch overwrote the whole shadow.
 
 Two contracts to keep when adding a control:
 - **Token values are complete CSS values, never bare numbers** (`calc(16px * var(--scale))`,
@@ -471,19 +465,16 @@ Two rows are shaped by what would otherwise be a lie:
 - **A typeface token** (`--font-label`, `--font-numeric`) is a picker over BUNDLED faces only.
   Pointing one at a family we do not ship would emit a `url("fonts/…")` nothing writes, and
   `font-display: swap` would hide that until playout. **Both write paths ensure the
-  `@font-face`** - the wizard's inside `buildDraftTemplate` (its overrides are applied after
-  the build, so the build cannot do it for them) and the editor's inside `setVar` (there is no
-  build at all). A hand-written value the registry does not know is kept and shown, never
-  silently replaced.
+  `@font-face`** - the wizard's inside `buildDraftTemplate`, the editor's inside `setVar`. A
+  hand-written value the registry does not know is kept and shown, never silently replaced.
 
 ## Panels (the six tool panels - Data / Control / Style / Assets / AI / Export)
 
 On DESKTOP each is a dockable panel (AppShell renders them into the docks; see WorkspaceDock).
 **SidePanel** is now the MOBILE surface only: a SEVEN-tab strip - **Inspector** leads, then the
 six tool panels. The Inspector belongs there because the mobile stack has no docks, so the strip
-is the only route to a panel, and the Inspector is where a SELECTED layer is edited (properties,
-the placed-field Style tab, motion) - without it a phone can add fields but never style or
-animate them. It renders RAW (it brings its own padding + scrolling, like the desktop dock's
+is the only route to the surface where a selected layer is styled and animated. It renders RAW
+(it brings its own padding + scrolling, like the desktop dock's
 renderPanel); the tool panels keep the shared `.panel-body`. A new selection does NOT auto-switch
 the mobile tab (AppShell's reveal effect is desktop-only: on a phone a tab swap under the fold
 would be a surprise, not a reveal). There is no Motion tab: motion editing lives on the timeline
@@ -495,10 +486,9 @@ e2e/layout.spec.ts.
   placed-design template (designBoxInfo, code-derived) a text/number add goes through
   blocks/designLayout.ts addPlacedLine and an Image add through addPlacedImageSlot - a REAL
   placed field on the artwork; on a standard-contract CATALOG template a text/number add goes
-  through blocks/edit.ts addCatalogLine - a real line in the assembler's own mask idiom, right
-  after the last one. Both gates are code-derived, and both select the new layer on arrival so
-  the Inspector reveals. Long text, images off-design, and off-shape templates (fixed
-  contracts, data-driven categories) keep the definition-only add.
+  through blocks/edit.ts addCatalogLine - a real line in the assembler's own mask idiom. Both
+  gates are code-derived, and both select the new layer on arrival so the Inspector reveals.
+  Long text, images off-design, and off-shape templates keep the definition-only add.
 - **ControlPanel** - operator view from the control/ engine (the same shared field rows, `live`
   on, hidden fields skipped as SPX skips them); live-drives the preview via store.sendControl ->
   simulator; renders the state machine's EVENT BUTTONS (controlModel eventButtons - labels/
@@ -548,31 +538,27 @@ e2e/layout.spec.ts.
   still lands in template.assets and shows in the Assets panel's list). The controls
   themselves are **style/StyleControls**, shared with the wizard's Style step - see below;
   this panel is the store adapter around them. It renders the SAME `wizard/FontPicker` the
-  wizard does: it used to carry its own card grid, which made the editor the one surface
-  that could neither search the library nor reach a face installed on this computer.
+  wizard does, so both surfaces search the same library and reach the same installed faces.
 - **AssetsPanel** - the template's bundled files as folder-grouped ROWS (images, video loops
   .webm/.mp4 - hard-capped at MAX_VIDEO_ASSET_BYTES since assets ride the saved template as
   data URLs - Lottie .json gated by looksLikeLottie, fonts): DnD file import (one addAssets =
-  one undo step), rows are
-  drag SOURCES (`application/x-noacg-asset`, exported as ASSET_DRAG_TYPE) for the canvas drop
-  (CanvasInteraction) and for folder-header drops; folders are path segments (one level inside
-  the bucket) - moving/renaming goes through blocks/assetOps.ts moveAsset, which rewrites every
-  code reference in the SAME undoable apply, then patches stale sampleData values. Empty
-  user-created folders are ephemeral component state on purpose (assets sync as template JSON).
-  Each row carries a USAGE mark (reference count > 0: ✓ / n×) so it's obvious which assets the
-  graphic actually places - re-dragging a used asset adds another element instance, never a
+  one undo step), rows are drag SOURCES (`application/x-noacg-asset`, exported as
+  ASSET_DRAG_TYPE) for the canvas drop (CanvasInteraction) and for folder-header drops; folders
+  are path segments (one level inside the bucket) - moving/renaming goes through
+  blocks/assetOps.ts moveAsset, which rewrites every code reference in the SAME undoable apply,
+  then patches stale sampleData values. Empty user-created folders are ephemeral component
+  state on purpose (assets sync as template JSON). Each row carries a USAGE mark (reference
+  count > 0: ✓ / n×) - re-dragging a used asset adds another element instance, never a
   duplicate file. The Information section derives name/format/dimensions/aspect/size/alpha/
   Lottie timing/video duration + reference count per selection via src/assets/assetInfo.ts
   (async probe, cached) - the model stays { path, data }. The header's **"✚ Template
-  graphic…"** opens InsertTemplateDialog - the catalog browser in INSERT mode
-  (blocks/templateInsert.ts): a picked variant's graphic joins the current project (namespaced,
-  fields renumbered, :root scoped onto the inserted root, its whole step run merged - one undo
-  step) with two choices: PLACEMENT (from the start / as a new next step) and "Its lines"
-  (reveal together / step by step), the second building the donor with its line-by-line reveal
-  so every step of it joins the host's default path. Both are code-derived from one donor build
-  per card: templates needing their own runtime are greyed with the reason, and the lines choice
-  stands down for a category whose designs have no stepped build at all. Pinned by e2e/assets.spec.ts, e2e/asset-workflow.spec.ts +
-  e2e/template-insert.spec.ts.
+  graphic…"** opens InsertTemplateDialog - the catalog browser in INSERT mode over
+  blocks/templateInsert.ts (whose merge contract is src/blocks/AGENTS.md's) - offering two
+  choices: PLACEMENT (from the start / as a new next step) and "Its lines" (reveal together /
+  step by step). Both are code-derived from one donor build per card: templates needing their
+  own runtime are greyed with the reason, and the lines choice stands down for a category whose
+  designs have no stepped build at all. Pinned by e2e/assets.spec.ts, e2e/asset-workflow.spec.ts
+  + e2e/template-insert.spec.ts.
 - **AIPromptPanel**; **ExportSurface** + its two hosts. The surface holds everything export
   DOES - the six zip targets, the inline validation gate, and (when `isRenderConfigured()`)
   the render section - and reads NO store: template, sampleData and `graphicId` all arrive as
@@ -584,9 +570,9 @@ e2e/layout.spec.ts.
   ⬇ button on Home. It mounts ONCE in **App.tsx**, beside the routed surface - Home is a
   SIBLING of AppShell, not a child, and both open it, so mounting per shell would put two
   modals on screen. It closes on a route change (the request is a SNAPSHOT of one graphic and
-  must not outlive its surface - browser Back is the case), recording the opening route on the
-  effect's first run for a request so the wizard's batched close→navigate→open hop is not
-  mistaken for navigating away. Sample data for a non-open graphic goes through templateStore's
+  must not outlive its surface), recording the opening route on the effect's first run for a
+  request so the wizard's batched close→navigate→open hop is not mistaken for navigating away.
+  Sample data for a non-open graphic goes through templateStore's
   exported `syncSampleData`, so what a target bakes never depends on which door was used.
   **render/RenderPanel** takes the same three props; ProRes/sequence gate on `needsSignIn` like
   AI does, its measured In/Hold/Out breakdown re-runs when the template or sample data changes,
@@ -607,11 +593,10 @@ confirms it a moment later - so the value a model mutator returns means accepted
 A surface that tells the user anything about the outcome must `await commitDurableWrites()`
 first; it resolves to the failure message, or null, and CLAIMS the failure so this surface's
 own wording ("Adding "Clean Clock" to a production") is what the user reads instead of the
-generic app-level dialog. Eleven callers do this today - ControlPanel, GraphicControlPage,
-GraphicRow, ProductionDataWorkspace, GraphicsSection, LooksSection, SavedVideoProjects,
-VideoAppShell, CreationWizard, store/saveActions, store/videoProjectStore - and every one of
-them was first written trusting the synchronous answer and reporting success for a write that
-was refused. Two rules follow from it: a flow that CONTINUES on success (create the graphic,
+generic app-level dialog. Every surface that reports an outcome does this today (grep
+`commitDurableWrites`), and every one of them was first written trusting the synchronous
+answer and reporting success for a write that was refused. Two rules follow from it: a flow
+that CONTINUES on success (create the graphic,
 then the production, then navigate) must await BEFORE the next step, or it builds half a thing
 on a save that did not happen; and a background autosave that reports nothing may skip the
 await entirely, because the app-level dialog already announces unclaimed failures.
@@ -623,28 +608,43 @@ await entirely, because the app-level dialog already announces unclaimed failure
   and the unsaved-changes guard (Save & continue / Save first… / Discard /
   Cancel), mounted once per shell; both declare useModalGate.
 - **home/HomePage** - `#/home[/<section>]`, PRODUCTIONS-FIRST (docs/GOALS.md "Student
-  release" step 8): no section = the DASHBOARD (productions with their Open-dashboard door +
-  output-URL copy, then the top graphics with search, then recent videos); nav sections are
-  productions / graphics / videos / looks. The retired `recent` and `controls` sections land
-  on the dashboard - every graphic row reaches its control panel through its ⋯ menu. The
-  shell/nav/dashboard live here; the section bodies are `home/sections/*` and a graphic row
-  is `home/GraphicRow` (a `.lib-row` grid row - thumb, name, Open + "+ Production" popover,
-  and the `home/RowMenu` ⋯ overflow holding control panel / export / rename / duplicate /
-  publish / two-step delete). Icons are inline SVG from `components/icons.tsx` - no
+  release" step 8): no section = the DASHBOARD (productions as CARDS, then a SHELF of the six
+  most recent graphics, then recent videos); nav sections are productions / graphics / videos
+  / looks, each with its count. The retired `recent` and `controls` sections land on the
+  dashboard - every graphic row reaches its control panel through its ⋯ menu. The
+  shell/nav/dashboard live here; the section bodies are `home/sections/*`.
+  **THE DASHBOARD SHOWS, THE SECTION LISTS** (handoff §5a). Its question is "pick up where you
+  left off", which a graphic answers by being RECOGNISED - so a shelf card is thumbnail + name,
+  the whole card the door, no per-row controls. The library ROWS and every verb on them belong
+  to the Graphics section, so a spec wanting a `.lib-row` opens the section first (one such
+  walk, `e2e/render.spec.ts`, was caught only by CI - a Home change does not map to it).
+  A graphic is `home/GraphicRow`, rendering in TWO containers off one `view` prop:
+  `.lib-row--grid` (card) or `.lib-row--list` (dense row), both carrying Open, the
+  "+ Production" popover and the `home/RowMenu` ⋯ overflow (control panel / export / rename /
+  duplicate / publish / two-step delete). The choice is `prefs.libraryView`, per device.
+  **SELECTION HAS NO CHECKBOXES** (handoff §5b): the item takes the click, shift-click extends
+  over the VISIBLE order, a press on the container's own background clears, and `.lib-select`
+  is a PIP reporting state rather than a control column beside every row - still a real button,
+  so it stays keyboard-reachable and is what a shift-click lands on. The bulk bar floats at the
+  BOTTOM, not sticky at the top, where the verbs sat a whole library away from the ticked rows.
+  Icons are inline SVG from `components/icons.tsx` - no
   pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
   gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
+- **home/sections/ProductionsSection** - production CARDS: a production has a state, a size and
+  a set of graphics, and a one-line row showed none of them. Name + published badge, stats, a
+  strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes
+  one. Published tints GREEN, never amber - amber is preview and red is on air (Brand §3).
 - **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
   preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
   recipe - update, buildInTimeline().progress(1, true), update again; a template with no builder
   contract falls back to its own play(), since a card has no Play button beside it). A LIVE
   render, deliberately not a picture stored on GraphicDoc: no persisted-format change, no
   migration, nothing extra to sync, and it can never disagree with the template it previews.
-  The iframe mounts only when the card scrolls into view (IntersectionObserver), so a library
-  of a hundred graphics parses GSAP for the rows a user can actually see. The box is fixed-width
-  and keeps the template's aspect, so a non-16:9 graphic keeps its shape. It is FRAMED ON THE
-  GRAPHIC, not on the canvas (preview/frameGraphic.ts, shared with the wizard's picker cards):
-  a lower third is a band across a fraction of a 1920×1080 frame, and at 144px the whole-canvas
-  view was an unreadable smear of one. Measured after the settle, so nothing is framed mid-air.
+  The iframe mounts only when the card scrolls into view (IntersectionObserver). The box is
+  fixed-width and keeps the template's aspect. It is FRAMED ON THE GRAPHIC, not on the canvas
+  (preview/frameGraphic.ts, shared with the wizard's picker cards): a lower third is a band
+  across a fraction of a 1920×1080 frame, and at 144px the whole-canvas view was an unreadable
+  smear of one. Measured after the settle, so nothing is framed mid-air.
 - **home/GraphicControlPage** - `#/control/<graphicId>`: the saved graphic's operator
   panel, and the surface that AIRS (the editor's Rehearse tab is the preview-only twin) -
   live graphic + transport + machine event buttons (GREYED by controlModel
@@ -670,9 +670,8 @@ wizard flips that switch. Every panel follows the project's ENGINE ('remotion' |
 picked at creation): the code pane, the preview bridge, the validator, the render manifest, and
 the source download all branch on it, while chat/Content/Settings/Assets stay one surface.
 Layout: code pane (lazy Monaco, **VideoCodeEditor** - Composition.tsx with syntax-only TSX
-diagnostics from monacoSetup.ts, or composition.html for a HyperFrames project; typing goes
-through store.setSource) | splitter (model/videoLayout.ts `codeRatio` pref, independent of the
-SPX dockable workspace) | right column =
+diagnostics from monacoSetup.ts, or composition.html for HyperFrames; typing goes through
+store.setSource) | splitter (model/videoLayout.ts `codeRatio` pref) | right column =
 **VideoPlayerFrame** (the player stage; sandbox="allow-scripts" iframe either way - the
 prebuilt Remotion Player host driven by PlayerBridge, or the HyperFrames composed-srcdoc
 driver driven by HyperframesBridge (src/video/hyperframes/); bridgeRegistry holds whichever
@@ -690,10 +689,9 @@ uploaded assets by logical name - uploading itself lives in the Assets tab, whic
 manifest budget; per-field Reset comes from the shared row, "Reset all" from the panel. The panel
 also shows inputs INFERRED FROM THE CODE (model/videoInputInfer.ts): any `fields.<key> ?? default`
 the module reads but nobody declared, badged `code` - the code is the source of truth, so a pro
-who hand-writes a field gets the same control the AI would have declared. A declared input wins
-(it carries a label, select options, number bounds a fallback can't express); an inferred one is
-adopted into project.inputs on its first edit, which is why store.setInputValue takes the whole
-input, not just a key),
+who hand-writes a field gets the same control the AI would have declared. A declared input wins;
+an inferred one is adopted into project.inputs on its first edit, which is why
+store.setInputValue takes the whole input, not just a key),
 **VideoSettingsPanel**
 (undoable patchSettings; duration edits in seconds, fps changes preserve seconds. Settings drive
 the player and the renderer at once but NOT the composition's code, which was written against
@@ -702,10 +700,9 @@ reports any DRIFT (videoTypes.ts settingsDrift: duration, fps, frame size, trans
 one-click "update the code", which goes through store.requestAi -> the CHAT panel's one AI path,
 so it lands as a normal turn and undoes like any other edit. The render preflight repeats the
 warning. `authoredFor: null` = provenance unknown (the starter, or a pre-existing saved project):
-warn about nothing). Its AI-model override uses the global provider and live server-side
-OpenRouter/Hugging Face catalog suggestions filtered for the full video structured-output/context
-contract; the field still accepts an opaque id when discovery is unavailable and never receives
-a provider key),
+warn about nothing). Its AI-model override uses the global provider and live server-side catalog
+suggestions filtered for the full video structured-output/context contract; the field accepts an
+opaque id when discovery is unavailable and never receives a provider key),
 **VideoAssetsPanel** (data-URL assets, 3 MB/asset hard cap - the render manifest budget; uploads
 go through video/types.ts uniqueVideoAssetPath so an asset's LOGICAL NAME is settled once, into
 the immutable path - adding or deleting another asset must never rename one, because the code and
@@ -716,11 +713,10 @@ upload's PURPOSE (model/imagePurpose.ts) via store `setAssetUse` -> the additive
 where a reference is re-tagged or deleted. Everything else reads `video/types.ts`
 `compositionAssets`, which is what keeps reference material out of all four routes an asset can
 otherwise reach - `assets.<name>` in the code, the Content picker, the player's data-URL map,
-and the render manifest. Two traps live here: a zustand selector that BUILDS the filtered array
-returns a new reference every store write (memo the two stable parts instead), and
+and the render manifest. Two traps: a zustand selector that BUILDS the filtered array returns a
+new reference every store write (memo the two stable parts instead), and
 `createDefaultVideoProject` constructs the project field by field, so a new field must be added
-to its `Pick` or the wizard's choice is silently dropped - which it was, until
-e2e/image-purpose.spec.ts caught it),
+to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-purpose.spec.ts),
 **VideoExportPanel** (mounts **VideoRenderPanel** when isRenderConfigured() - the engine's
 manifest kind ('remotion' compiledJs+inputProps, or 'hyperframes' composed documentHtml)
 through the shared render service, with an upload-budget meter; plus the engine's source
@@ -734,18 +730,35 @@ undo/redo keys as AppShell with the same Monaco/form-field guard. AI chat gates 
 
 CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
 preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
-which generates the complete, commented template. FIVE entry cards (template, Create with AI,
-Import graphic, kit, blank) plus the separated video strip. Create with AI is the ONE AI door -
-NoaCG Pro is an execution TIER inside it, never a second card (the `.wz-entry-card` width
-budget in styles.css is re-spent whenever a card is added).
+which generates the complete, commented template. FOUR entry cards (template, Create with AI,
+Import graphic, kit) in a 2x2 grid, plus the separated video strip. Create with AI is the ONE
+AI door - NoaCG Pro is an execution TIER inside it, never a second card.
+
+**LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
+(`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
+tick, title, and a second line naming the decision the step asks for. As header pills they had
+room for six words and wrapped to four rows on a phone. The rail's foot reads the PROJECT
+FORMAT back for the whole walk while the control stays in the step that owns it (Browse, AI,
+blank) - one decision, one home. Under 768px the rail lies down as a scrolling chip strip and
+that read-back stands down (it needed ~212px the row lacks). The FOOTER belongs to the form
+column, so Next sits under the form it advances, not under the graphic beside it.
+
+Two measured constraints:
+- **The rail's 216px leaves the row before either pane sees it.** Where the left pane is a
+  WORKING surface (`.wz-body-working`, the Import flow's Text step) the measure cap lifts and
+  the preview clamps, or the placement canvas drops under the 700px floor
+  `e2e/import-graphic.spec.ts` holds.
+- **The Entry step's HEIGHT budget still binds** (`e2e/wizard-entry-fit.spec.ts`, 1366x768).
+  The 2x2 grid retired the fixed 240px card width - cards share the column instead of wrapping
+  the row - but cost 10px, taken back off the hero's title margin. Grow one, pay from another.
 
 **Deep-linked open** (`#/new/<variantId>`, docs/PRERENDER.md - a prerendered template page's
 CTA): the router's `design` param rides through `openGallery(designId)` into templateStore's
 `pendingDesignId`, which the wizard's open effect resolves via `variantById` and, on a hit,
 applies the SAME patch `BrowseStep`'s card click does before jumping straight to Fields (mode
 `'template'`, step 2) - never creating a project, since Finish is still the only door that does.
-An id that does not resolve (unknown, retired, or `imported-design` - which has its own setup
-flow and is never Browse-reachable) falls through to the ordinary Entry-step open.
+An id that does not resolve (unknown, retired, or `imported-design`) falls through to the
+ordinary Entry-step open.
 
 **Finish** (steps/FinishStep.tsx - the last step of every catalog-shaped mode, design included)
 is the wizard's ONE branch. It carries the graphic's NAME (`draft.name`, applied inside
@@ -755,17 +768,15 @@ doors:
 - **Open in the editor** - the classic ending. Creates and hands over; saving stays the
   user's move.
 - **Export it** - creates, SAVES to the library, closes onto `#/home/graphics`, and opens
-  ExportWindow. The editor is never revealed. The save is not optional: this door exists for
-  someone who is done, and a graphic that was configured, exported and dropped would cost
-  every wizard choice to reproduce. A FAILED save deliberately stays in the editor instead,
-  where the topbar's failed status is visible and Save can be retried.
+  ExportWindow. The editor is never revealed. The save is not optional: a graphic that was
+  configured, exported and dropped would cost every wizard choice to reproduce. A FAILED save
+  deliberately stays in the editor instead, where the topbar's failed status is visible.
 Both doors go through `applyDraftProject`, which is what keeps them byte-identical - the
 editor path formats through Prettier (`applyGenerated`), so an export path skipping it would
 ship different HTML for the same choices. The footer's quiet "Create project" shortcut stands
-down ON Finish (the cards are the actions) and works from every step before it, as always.
-The graphic's name matters most on the export door: it slugs the zip AND, for the SPX and
-CasparCG targets, the template FOLDER inside it - the name the operator reads in the playout
-server. Pinned by e2e/wizard-finish.spec.ts.
+down ON Finish and works from every step before it. The graphic's name slugs the zip AND, for
+the SPX and CasparCG targets, the template FOLDER inside it - the name the operator reads in
+the playout server. Pinned by e2e/wizard-finish.spec.ts.
 
 **A closed `<details>` needs an author rule here.** The UA hides a disclosure's non-summary
 children with `display: none`, which ANY author rule setting `display` on those children beats
@@ -793,15 +804,27 @@ button of the card button, never nested; one panel open at a time). The footer's
 toggle feeds `brandFamily` as browse CONTEXT, not a filter: the package's siblings rank
 first, no chip appears, Clear-all leaves it alone, and a genuine programme match always
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
-(IntersectionObserver — the whole catalog can be on one grid now). On ≤768px the facet
-controls collapse behind the `.wz-browse-drawer-btn` toggle (active-count badge; search,
-active chips and results stay visible — closed by default via a matchMedia initial state,
-and desktop CSS ignores the closed state entirely). The shared PROJECT FORMAT picker
-(`ProjectFormatPicker`, aspect / resolution / FPS, `.wz-browse-format`) sits OUTSIDE
-`.wz-browse-filters` and above the
-toggle: it is not a facet — `browseTemplates` never reads it, so nothing is narrowed — and
-inside the drawer it asked a phone user to open a control labelled "Filters" to make a
-decision that filters nothing. The same controlled picker appears before generation or
+(IntersectionObserver — the whole catalog can be on one grid now).
+
+**ONE disclosure, EVERY width, closed by default** (`.wz-browse-drawer-btn` +
+`.wz-browse-filters`, handoff §2b). It was two nested — a phone-only drawer wrapping a
+`More filters` `<details>` — so desktop met five rows of facets before the first design and a
+phone opened two things to reach a capability. LEADING the step: search, the category strip,
+the style families. Behind the toggle: programme, field counts, structures, capabilities,
+motion — with the active count on it, so a narrowed catalog never reads as an empty one. The
+category tiles stay OUTSIDE as compact CHIPS ("what kind of graphic" is the step's first
+question); as 230px cards they stacked eleven rows deep, and on a phone the strip scrolls in
+its own four-row box for the same reason. Its collapsed height is measured by
+`e2e/wizard-finish.spec.ts` for the reason above.
+
+The shared PROJECT FORMAT picker (`ProjectFormatPicker`, aspect / resolution / FPS,
+`.wz-browse-format`) sits OUTSIDE `.wz-browse-filters`: it is not a facet — `browseTemplates`
+never reads it — and inside the drawer it asked a phone user to open "Filters" to make a
+decision that filters nothing. On Browse it is three bare selects in ONE row, since the rail
+captions and reads back the format and the options say what they are; each label's text is
+hidden via `.project-format-label`, kept in the DOM for a screen reader. That span exists so a
+surface can hide the WORDING without hiding the control the label wraps — every other caller
+renders the picker unchanged. The same controlled picker appears before generation or
 placement in AI/Lite, Import Graphic, blank, video AI, and the older import/catalog
 continuation; draft selection survives route switches. Blank is a setup step, never an
 immediate default-format create. The import-images
@@ -811,8 +834,8 @@ in every mode (`finishStep = animStep + 1`).
 
 **Import graphic** (mode 'design', steps/ImportDesignStep + PrepareDesignStep +
 PlaceFieldsStep + the shared AnimationStep) is a SETUP flow, not a second editor:
-Start -> Design (choose project format, then drop the image - any raster format the browser decodes: PNG, JPEG, WebP,
-GIF, AVIF, rejecting only a file with no intrinsic pixel size, since every downstream number
+Start -> Design (choose project format, then drop the image - any raster format the browser
+decodes, rejecting only a file with no intrinsic pixel size, since every downstream number
 comes from that measurement; live preview from the moment it lands; Create is available from
 here on - every later step is an optional stop) -> Prepare -> Text -> Animation -> Create.
 The **Text step** (PlaceFieldsStep) places editable fields ON the artwork: T = click point
@@ -825,22 +848,19 @@ construction (browser-verified pixel-exact). The **FontPicker** (wizard/FontPick
 searchable) offers the bundled OFL library, upload (woff2/woff/ttf/otf -> CustomFont,
 embedded in template.assets + every export), and - Chromium only, permission-gated - Local
 Font Access, where a picked installed font is EMBEDDED exactly like an upload so playout
-never depends on the machine's fonts. The **Animation step** is the standard one
-(imported-design's fade/slide/pop/blur cards + in/out direction + speed + easing + the
-full-lifecycle demo).
+never depends on the machine's fonts. The **Animation step** is the standard one.
 The **Prepare step** carries the two artwork decisions: ERASE baked-in text (source-px rects
 drawn on DesignPrepCanvas -> assets/eraseRegion flat-fill; flat verdicts apply immediately,
-non-flat holds behind "Use it anyway"). Marks ACCUMULATE into `draft.designErases` - a design
-usually has a name AND a title - each run against the artwork as it stands; removing one
-REPLAYS the survivors from draft.designOriginal, which is what keeps fills from compounding
-(a fill cannot be undone in place). The erase MEASURES the ink it removes, split into LINES,
-and every line seeds a real field at create - the one amendment to "bare" - built from that
-line's own bounds, cap height, top, and the edge it was set from, never from the loose
-rectangle the user drew)
-and the SCALING MODE (fixed default / horizontal 9-slice stretch with draggable guides + a
-content-width demo slider that pushes sample text through WizardPreview's demoText prop into
-the real emitted runtime; with stretch and no erase the PREVIEW build adds one demo line that
-Create strips). The create hands off to the editor with the Data tab revealed
+non-flat holds behind "Use it anyway"). Marks ACCUMULATE into `draft.designErases`, each run
+against the artwork as it stands; removing one REPLAYS the survivors from
+draft.designOriginal, which is what keeps fills from compounding (a fill cannot be undone in
+place). The erase MEASURES the ink it removes, split into LINES, and every line seeds a real
+field at create from that line's own bounds, cap height, top, and the edge it was set from,
+never from the loose rectangle the user drew. The SCALING MODE is fixed default / horizontal
+9-slice stretch with draggable guides + a content-width demo slider that pushes sample text
+through WizardPreview's demoText prop into the real emitted runtime; with stretch and no erase
+the PREVIEW build adds one demo line that Create strips. The create hands off to the editor
+with the Data tab revealed
 (setActivePanel('data') + the store's panelRevealNonce). Fields, styling, and motion all live
 in the editor: the Data tab's placed add, the canvas gestures, the Inspector's Style/Animations
 tabs. FieldsStep/StyleStep carry NO imported-design branches any more - design mode never
@@ -868,15 +888,12 @@ image becomes an **UploadCard** (steps/ai/UploadCard.tsx) carrying WHAT IT IS FO
 it is / make one like this / take the look and feel / make it work over this
 (model/imagePurpose.ts, split into `images` + `references` by `splitByPurpose`). The purpose is
 a property of the PICTURE, not of the gesture, which is why it lives on the card rather than
-behind separate drop zones: a user does not know the vocabulary before dropping, and one drop
-can carry three intents. `guessPurpose` preselects (visibly, one click to correct) and only
+behind separate drop zones. `guessPurpose` preselects (visibly, one click to correct) and only
 ever guesses mark-or-not. An as-is card adds the fixed/swappable choice; VIDEO passes
-`showBinding={false}`, since a composition reaches a picture through a declared image input and
-"operators can swap it" would name a control it does not have. The as-is paths are handed to
-`productionSpxValidator` so the as-is screen rides the injected validator. The "Design around
-these with a catalog template" escape takes only the as-is assets and continues into the
-mode-'import' images -> category -> TemplateStep flow (ImportStep is now that slim continuation
-only). The step
+`showBinding={false}`, since a composition reaches a picture through a declared image input.
+The as-is paths are handed to `productionSpxValidator` so the as-is screen rides the injected
+validator. The "Design around these with a catalog template" escape takes only the as-is assets
+and continues into the mode-'import' images -> category -> TemplateStep flow. The step
 injects the harness's validator (`validateTemplate` + `benchTemplateRuntime` merged) into
 every provider call, streams `onProgress` stages into the busy line, shows the route badge
 (catalog design system / +flourish / custom) on the result card, and passes a grounded
@@ -903,36 +920,25 @@ default resolves to Lite when the server offers it, else Custom - exactly the pr
 behaviour. Lite and Pro are managed experiences of the SAME workflow (no model picking);
 Custom is the deliberate advanced surface carrying the full `AiProviderSettings`.
 
-With the **NoaCG Lite** tier active, the step is the smallest managed profile
-surface: one result, included/free-user copy, remaining allowance, lower-third-only routing,
-at most two fields, no image or logo input, and no style-reference upload. Provider/model
-settings, brainstorm, raw mode, three alternatives, "more like this", custom/import
-conversion, and code repair are hidden. A supported request calls the existing provider with
-`profile: 'lite'`; its returned DesignSpec still compiles and benches through the normal
-harness. An unsupported response shows the server's explanation and one simplification.
-Creating or exporting records acceptance by generation id; the id is transient and never
-enters the template or saved graphic. If Lite is disabled, the established advanced/BYO
-surface is unchanged.
+The PIPELINES behind Lite and Pro are src/ai/AGENTS.md's contract (and docs/NOACG_PRO_PLAN.md
+§7); what belongs here is what each tier does to this STEP.
 
-The **NoaCG Pro** tier (docs/NOACG_PRO_PLAN.md §7) runs the image-guided pipeline off the
-SAME brief: `src/ai/pro/brief.ts` maps the prompt + GenerationSpec + uploads onto the v1
-`ProBrief`, generation runs concept -> interpret -> compile -> validate on the pinned
-`PRO_STANDARD_ROUTES` (a normal Pro user never picks models; the tier's settings show only
-the OpenRouter key surface via `AiProviderSettings fixedProvider/showModel`), and the result
-card adds the concept image with its real provider-reported cost plus the per-region
-editability report (`data-testid="pro-report"`, keyed to the template via a WeakMap so a
-restored past result shows its own concept). Categories clamp to lower-third/auto (the Lite
-clamp pattern), spec-field findings demote to warnings (fixed contract, no repair loop -
-`demoteSpecFields`), refine/fix are stood down (regenerate is the honest move and the card
-says so), and with no OpenRouter key the tier says so and runs the offline stub - which is
-what keeps e2e/pro.spec.ts token-free. A Pro create records activation mode 'pro' through
-the shared AI door (`aiResult.path`). The step passes the FIRST "use it as it is" upload
-into the pipeline as `logoMark`: `fillProLogoSlot` (src/ai/pro/logoAsset.ts) bundles it into
-the logo slot the compile placed and sets it as the field's value, so an as-is mark that
-asked the concept for a logo area is actually IN it. Deterministic, no model call, and it
-happens BEFORE the injected validator - the as-is screen finds a protected picture by its
-`<img src>`, so filling afterwards would leave it screening a template nobody gets. The
-outcome line on the report says the slot was filled.
+**Lite** is the smallest managed surface: one result, included/free-user copy, remaining
+allowance, at most two fields, no image/logo input, no style reference. Provider and model
+settings, brainstorm, raw mode, three alternatives, "more like this", custom/import conversion
+and code repair are all hidden; an unsupported response shows the server's explanation and one
+simplification. Creating or exporting records acceptance by generation id, which is transient
+and never enters the template or the saved graphic. Lite disabled = the BYO surface unchanged.
+
+**Pro** shows the concept image with its provider-reported cost plus the per-region editability
+report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
+shows its own concept). Its settings carry the OpenRouter key surface only
+(`AiProviderSettings fixedProvider/showModel`) - a normal Pro user picks no models. Categories
+clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
+contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
+With no OpenRouter key the tier says so and runs the offline stub, which is what keeps
+e2e/pro.spec.ts token-free. The step passes the FIRST "use it as it is" upload in as
+`logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to
@@ -945,21 +951,28 @@ the validated conversion flow regardless of the checkbox. The default is pinned 
 e2e/ai.spec.ts ("the harness checkbox is on by default").
 
 AI settings use the shared `AiProviderSettings` surface for provider, opaque model id, and
-user-key submission. The component may hold a key only in its unsaved password-field state
+user-key submission (laid out on the shared `.dlg-row` grid, so its Store-key button can never
+wrap under the field). The component may hold a key only in its unsaved password-field state
 and must submit it to `/api/ai/credentials`; it must never pass a key through `AiSettings`,
 localStorage, query parameters, telemetry, logs, or rendered error detail. Model lists are
 provider-scoped suggestions, not an application-wide allowlist.
+
+The ⚙ button carries a one-line read-back of what will actually run (the tier, plus the model
+on the tier where models are the user's own), so the common case needs no click. **The panel is
+NOT a popover**, though the reference draws one: it opens ITSELF whenever nothing is configured
+- which is exactly when Generate, Attach and More control are all live and waiting - so a
+floating sheet covers the controls it exists to make work. Measured, as two Pro specs
+deadlocking: Playwright will not dispatch a click through a covering element, so the press that
+would dismiss it never arrives. Making it float means restructuring the step around it.
 
 **The directions SURVIVE a refinement.** `alternatives` (the current state of each
 direction) and `originals` (each as first generated) are parallel arrays; a refine replaces
 only `alternatives[selected]`, so the other directions stay pickable and **↺ Undo
 refinements** restores the proposed design without spending a generation. `stagePick` stages
 the pick for src/ai/preferences.ts on selection AND after every refinement — CHOSEN facets
-from the direction as it stands, SHOWN from the ORIGINALS, since that was the choice
-actually faced; a lone result stages nothing (counting it would score every facet as picked
-100% of the times shown). Refining used to CLEAR the stage, so users who improved a
-direction before creating it — the most engaged ones — trained the model with nothing.
-CreationWizard's `createFromAi` COMMITS whatever is staged.
+from the direction as it stands, SHOWN from the ORIGINALS, since that was the choice actually
+faced; a lone result stages nothing (counting it would score every facet as picked 100% of the
+times shown). CreationWizard's `createFromAi` COMMITS whatever is staged.
 
 **The result names the PROVEN DESIGN it was adapted from, and shows what it was chosen
 between** (docs/ADAPT_FIRST_PLAN.md §3 Stage U). "Adapted from a proven design" is a claim, so
@@ -987,18 +1000,15 @@ An **example brief is armed before it replaces a brief the user wrote** (two-ste
 other destructive click here): the chip reads "Replace your brief?" until confirmed, and
 typing disarms it. Pinned by e2e/ai.spec.ts.
 
-**ONE thread, ONE composer.** The step had two chat-shaped surfaces that could not see each
-other — a brainstorm panel producing a string the user copied into the prompt box, and a
-refine input inside the result card — and the generator read neither. Now `turns` is a single
-transcript (`.ai-thread`): talk turns plus `past` turns, which are earlier generations kept
-whole (their directions, their originals, which one was picked) with **↩ Bring back**;
-restoring archives whatever it displaces, so exploring a second idea never costs the first.
-The one textarea generates, talks (**🗨 Talk it through**) or refines — the primary button
-follows the state, and the "Refine it…" placeholder is retained so the composer answers to
-the same locator either way. `conversation()` feeds the bounded transcript into
-`GenerateContext` (src/ai/AGENTS.md), **📎 Attach** adds images to the turn (bundled, because
-`modify` now takes a context), and **✦ 3 more like this** re-runs the design stage seeded
-with the picked direction's spec.
+**ONE thread, ONE composer.** `turns` is a single transcript (`.ai-thread`): talk turns plus
+`past` turns, which are earlier generations kept whole (their directions, their originals,
+which one was picked) with **↩ Bring back**; restoring archives whatever it displaces, so
+exploring a second idea never costs the first. The one textarea generates, talks (**🗨 Talk it
+through**) or refines — the primary button follows the state, and the "Refine it…" placeholder
+is retained so the composer answers to the same locator either way. `conversation()` feeds the
+bounded transcript into `GenerateContext` (src/ai/AGENTS.md), **📎 Attach** adds images to the
+turn, and **✦ 3 more like this** re-runs the design stage seeded with the picked direction's
+spec.
 
 **The conversation TRAVELS with the created project.** AiStep reports its talk turns up via
 `onThread` on every change (so talk added AFTER the last result, before Create, is caught);
@@ -1014,19 +1024,18 @@ existing findings into six operator-facing rows; it adds no checks, which is wha
 read "not played, so not tested" on the raw one-shot path rather than claiming a bench that
 never ran. Rules no row claims are shown verbatim, never swallowed. Cost comes from
 `ai/runStats.ts` over the telemetry ring: a median expectation before Generate (null below two
-matching runs — no invented number for a first-time user) and actuals after, recorded on a RUN
-and never in `showChange`, since re-picking an alternative costs nothing. **No money is ever
-shown** — prices are not in this codebase and a stale one would be believed — and zero tokens
-prints as silence, because "0 tokens" is a measurement claim rather than the absence of one.
+matching runs) and actuals after, recorded on a RUN and never in `showChange`, since re-picking
+an alternative costs nothing. **No money is ever shown** — prices are not in this codebase and
+a stale one would be believed — and zero tokens prints as silence, because "0 tokens" is a
+measurement claim rather than the absence of one.
 
 **Brand is PROPOSED, never applied.** The strip (`.ai-brand`) offers colours read out of the
 first uploaded image — `src/assets/paletteExtract.ts`, deterministic arithmetic, no model call
 — and the install's saved looks (`loadLooks()`). Both write `spec.brandColors`, the lock
-`applySpecLocks` already honours over anything the AI picks, so brand needed no new plumbing
-to win. The pick stays the user's on purpose: nothing can tell whether the red in a crest is
-the identity or the shirt behind it. A filename chip uses **`.wz-file-chip`**, never
-`.wz-fid` — that one is the fixed 24px FIELD-ID badge, and borrowing it crushed every
-filename onto two lines.
+`applySpecLocks` already honours over anything the AI picks. The pick stays the user's on
+purpose: nothing can tell whether the red in a crest is the identity or the shirt behind it. A
+filename chip uses **`.wz-file-chip`**, never `.wz-fid` — that one is the fixed 24px FIELD-ID
+badge, and borrowing it crushed every filename onto two lines.
 
 Two ordering rules the transcript depends on: **archive the current result BEFORE recording
 the new request** (it is chronological — the standing result happened first), and **record
@@ -1038,10 +1047,9 @@ the rendered thread, not by reading the code.
 GENERATION-ENGINE picker (the VIDEO_ENGINES cards: Remotion preselected, HyperFrames tagged
 Experimental) + duration/aspect/fps/transparency + asset upload -> an INSTANT create
 (`createDefaultVideoProject`, the brief seeded as chat[0], the engine recorded on the
-project); generation runs in the video shell's chat, not the wizard. The step's
-reopen strip lists saved videos plus a "Continue" chip for the autosaved current video project
-(shown from the SPX shell). Creating/opening a video flips docKind to 'video'; every SPX create
-path (template/AI/blank/import) flips it back to 'spx'.
+project); generation runs in the video shell's chat, not the wizard. Its reopen strip lists
+saved videos plus a "Continue" chip for the autosaved current video project. Creating/opening a
+video flips docKind to 'video'; every SPX create path flips it back to 'spx'.
 
 **Sample data on create:** the wizard applies with
 `applyTemplate(template, { resetSampleData: true })` so a new project starts from ITS field
