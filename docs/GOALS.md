@@ -52,6 +52,10 @@ control, is the long-term differentiator.
   cost). **Bring-your-own-key is always free.**
 - **Users, not revenue.** Optimize for adoption and regular use. Money is a later consequence of a
   large, happy user base.
+- **No sign-in for its own sake.** The studio - create, customize, export, self-host - never asks
+  for an account. It is asked for only where it *buys* something the user wants: their graphics
+  and productions saved to their own Home across devices, the persistent cloud output URL, and
+  hosted AI allowance.
 
 ---
 
@@ -85,9 +89,12 @@ from ~80 places in the tree, so it never changes.*
       foundation, vote-to-air, presenter view, the audience join page - and **none of it has ever
       been looked at by a human**; geometry-only e2e coverage is not acceptance. A student-facing
       surface that has never been seen is the largest unmeasured risk in the release.
-- [ ] **The two known limitations students will hit.** Cloud publish needs an account (export does
-      not); restyling a design after save means recreating it in the wizard or using Advanced mode.
-      Both are accepted for this release - confirm they are survivable in a classroom, or fix.
+- [ ] **Decide which door the class runs on.** Two routes reach air and only one needs an account:
+      **export** (files, local relay and controller on the playout machine - no sign-in, and the
+      route round 2 proved on real hardware) and **cloud publish** (the persistent output URL and
+      phone control - gated on sign-in). The north star sentence describes the second. Pick one for
+      the two weeks; if it is cloud, the accounts exist before the class, not during it. Second
+      accepted limitation: restyling after save means recreating in the wizard or Advanced mode.
 
 ---
 
@@ -119,6 +126,10 @@ these are the commitments.
       sealed key.
 - [ ] **Bring your own key, always, for every tier.** The paid surface buys convenience, never
       capability.
+- [ ] **A school account earns more AI.** A verified address on a configured school domain
+      (`@arcada.fi` first) raises the allowance. No new concept needed: a domain match issues a
+      **grant**, which already outranks the plan and carries its own reason and expiry
+      (`src/entitlements/contract.ts`). The first honest reason to sign in that is not a paywall.
 
 ### Kits, not one graphic at a time
 Nobody making a show wants to create graphics one by one. Say which graphics the programme needs,
