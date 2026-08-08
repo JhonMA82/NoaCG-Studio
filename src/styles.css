@@ -2058,18 +2058,16 @@ kbd {
 }
 .wz-browse-programme { margin-bottom: 12px; }
 .wz-browse-programme select { min-width: 200px; }
-/* NOT A 22-CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid,
-   which at 22 categories stacked eleven rows deep and pushed the actual templates off the
-   screen — on the step whose whole job is picking one. They are chips now, in a bounded
-   strip that scrolls on its own: the same 22 targets (every spec still clicks them by name,
-   and the tile set is still derived from the taxonomy), about a fifth of the height. */
-/* THE CATEGORY STRIP IS CAPPED, at every width. It is 27 tiles, and it wraps to whatever the
-   step column gives it — which HALVES the moment a design is picked and the live preview takes
-   its half of the sheet. Measured at 1366x768: the strip went from 142px to 364px on the pick,
-   which is 58% of the visible step spent on category chips, and it pushed the first design card
-   from 373px down to 657px — off the bottom of a step whose whole job is "pick a design". The
-   phone has scrolled this strip in its own box since it existed; the desktop needed it for the
-   same reason and did not have it. Three rows, then scroll. */
+/* NOT A CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid, which
+   at 27 categories stacked eleven rows deep and pushed the actual templates off the screen —
+   on the step whose whole job is picking one. They are chips now, in a bounded strip that
+   scrolls on its own: the same targets (every spec still clicks them by name, and the tile set
+   is still derived from the taxonomy), a fraction of the height.
+   THE CAP APPLIES AT EVERY WIDTH, which it did not at first — only the phone had it. The strip
+   wraps to whatever the step column gives it, and that column HALVES the moment a design is
+   picked and the live preview takes its half of the sheet: measured at 1366x768, the strip went
+   from 142px to 364px on the pick, 58% of the visible step spent on chips, pushing the first
+   design card from 373px down to 657px and out of sight. Three rows, then scroll. */
 .wz-browse-tiles {
   display: flex;
   flex-wrap: wrap;
