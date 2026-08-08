@@ -56,7 +56,11 @@ Goal: leave the changed code simpler than the review left it, without changing w
 - `npm run build` (typecheck + lint + build) - the CI gate. The tree stays lint-clean; fix
   findings properly rather than adding eslint-disable comments.
 - If product code changed, `npm run test:e2e:affected` - it maps the changed files to their
-  covering specs and raises the catalog tripwire itself when relevant.
+  covering specs and raises the catalog tripwire itself when relevant. **If the branch has
+  taken `main` in since it was last verified, use `npm run test:e2e:integration` instead**: the
+  default base is then `main` itself, so a plain affected run covers only the branch's own files
+  and everything main brought in goes unchecked. A clean merge is not proof the combined state
+  holds (`docs/VERIFICATION.md`).
 - If the behavior is observable in the browser, observe it per the root `AGENTS.md` - never
   mark the check done on a green build alone.
 - On a failure: fix, re-run the failing gate, and finish with a full green pass. If a fix
