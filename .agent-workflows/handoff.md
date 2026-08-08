@@ -12,10 +12,10 @@ Optional focus from the user, if one was given at invocation.
 
 ## Output
 
-**The question this workflow answers is "what should be done next?"** Everything else is
-optional weight. No "what happened" summary, no hygiene checklist, no validation status
-section, no mention of other branches or worktrees (the user prunes those deliberately, in
-their own sessions).
+**The question this workflow answers is "what should be done next, and why is it worth doing?"**
+Everything else is optional weight. No "what happened" summary, no hygiene checklist, no
+validation status section, no mention of other branches or worktrees (the user prunes those
+deliberately, in their own sessions).
 
 ### 1. What's next
 
@@ -30,18 +30,47 @@ Scope it to THIS session's line of work - never "go merge branch X". Include:
   now wrong.
 - **Optional follow-ups**, clearly marked as optional so they are easy to skip.
 
+**Every item carries its WHY - the real problem it solves, or the goal it serves.** One clause
+is enough: the defect it fixes, the user it unblocks, or the section of `docs/GOALS.md` it moves.
+A next step is a CLAIM that doing it changes something real, and the session that picks it up has
+to be able to TEST that claim rather than obey it. Nothing here is work because it is on a list -
+a reader who judges that an item will not reach the goal is right to say so and skip it, and that
+judgement is only possible when the why is on the page. An item whose why cannot be written down
+is not a next step; drop it rather than dressing it up.
+
+Prefer the honest small why to the grand one. "The export door is untested on real hardware and
+the class runs on it" is useful. "Improves quality" is not a why.
+
 If there is genuinely nothing to do next, say so in one line. Don't invent work.
 
 ### 2. Pasteable prompt - only if work remains
 
 A single self-contained code block for a fresh Claude Code or Codex session: what was
-completed, repo/branch state if it matters, the remaining work, key constraints or decisions
-(point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks, the best next step. No
-transcript dump.
+completed, repo/branch state if it matters, the remaining work **and why each piece matters**,
+key constraints or decisions (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks,
+the best next step. No transcript dump. The block must stand alone - the user pastes it and
+nothing else, so anything the next session needs is inside it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is
 clean, and the last known verification command/result tied to that commit. If verification is
 missing or stale, say so as remaining work rather than running it during handoff.
+
+Four fields that cost one line each and are expensive to reconstruct once this chat is gone:
+
+- **Landed or not, as a fact** - whether the work reached `main` and `origin/main`, stated
+  plainly rather than in prose. A session whose story says "all merged" can still be holding
+  uncommitted work in its own worktree, and a reader cannot tell those apart from a summary.
+- **The files this branch touched** - `git diff --name-only main...HEAD`, about a dozen at most
+  with a count if there are more. Once the branch is merged this is the one input nobody can
+  recover, and it is what a check for two parallel sessions editing one file runs on. That
+  collision is the expensive one: git merges both edits cleanly and produces a tree describing
+  something neither session built.
+- **What this blocks, and what blocked it** - one line. This session knows it for free; anyone
+  planning around it otherwise has to read source to work it out.
+- **Constraints: point, don't reprint.** A rule already written in a repo file gets a POINTER
+  naming that file. Print only what exists nowhere but this chat - a measured finding, an option
+  ruled out and why, a trap that cost this session real time. Copying an area's `AGENTS.md` into
+  the prompt is how these get fat, and the copy goes stale while the file it came from does not.
 
 Skip this section entirely when nothing remains - don't pad it out to look complete.
 

@@ -77,6 +77,13 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'last known verification command/result tied to that commit',
       'Do not run verification during handoff.',
       'Create or update no files',
+      // A handoff exists so the NEXT session can judge the work, not obey a list. The why is
+      // what makes that judgement possible, and it is the first thing to go when a handoff is
+      // written in a hurry - so it is pinned. The other two are the fields a later session
+      // cannot reconstruct once the branch is merged and the chat is archived.
+      'Every item carries its WHY',
+      'The files this branch touched',
+      "Constraints: point, don't reprint.",
       // Handoff must stay read-only. Both halves pinned: it deletes nothing, and the cleanup
       // check it runs is the dry run, never `--apply`.
       '**Handoff deletes nothing.**',
