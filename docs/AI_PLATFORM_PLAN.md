@@ -3,7 +3,8 @@
 **Status: PLAN RATIFIED (2026-07-28).** Sections 1-3 and 5 are a verified audit of the tree
 at audit time; sections 4-14 are the reviewed design. The owner decisions in section 15 were
 ratified 2026-07-28 and supersede the corresponding proposals earlier in the document (marked
-in place). Build progress is tracked in `docs/GOALS.md` ("The AI platform"). Binding
+in place). What has been built is recorded in `docs/GOALS_ARCHIVE.md` ("The AI platform"); what
+is still open is the tier ladder in `docs/GOALS.md`. Binding
 neighbours: `docs/AI_PROVIDER_GATEWAY.md` (the gateway contract),
 `src/ai/AGENTS.md` (the SPX harness doctrine), `docs/AI_LITE_BENCHMARK.md` (the Lite bench),
 `docs/IMPORT_MVP.md` (the manual import contract this plan extends, never replaces).
@@ -558,7 +559,7 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
    by scorecard; enable for override users.
 
 **Owner decisions — RATIFIED 2026-07-28** (these supersede the corresponding proposals in
-sections 6, 7, and 9 above; GOALS.md carries the same wording):
+sections 6, 7, and 9 above; `docs/GOALS_ARCHIVE.md` carries the same wording):
 
 1. **Model policy: benchmark-first with an open-weight preference, not a hard mandate.**
    An open-weight model is used whenever it performs as well as or better than the
