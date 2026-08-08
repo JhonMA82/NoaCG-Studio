@@ -2,18 +2,19 @@
 
 Price was settled by `ROUND-2026-08-08-GATEWAY.md` and is not re-opened here. This round asks
 three different questions: **does the doctrine hold in code**, **does the product's own click
-path work**, and **what do the frames actually look like**. Five frozen-bank rounds were run —
-`quality-v7` (the configuration as found), `v8` (one variable changed), and `v9`/`v10`/`v11`,
-which are a schema tidy-up, the regression it caused, and its attribution — plus one real
-generation driven through the wizard as a user and taken all the way to a control page.
+path work**, and **what do the frames actually look like**. Six frozen-bank rounds were run —
+`quality-v7` (the configuration as found), `v8` (one variable changed), `v9`/`v10`/`v11` (a
+schema tidy-up, the regression it caused, and its attribution) and `v12` (the contract fix) —
+plus one real generation driven through the wizard as a user and taken to a control page.
 
-**Total real spend this session: $0.0511** — 4 walk generations ($0.0011) and five 30-brief
-banks: v7 ($0.0103), v8 ($0.0097), v9 ($0.0084), v10 ($0.0098), v11 ($0.0105). Budget was €5;
-about 1% of it was used. The three extra banks are §5.3: an attempted schema tidy-up, the
-regression it caused, and the two rounds that attributed and undid it.
+**Total real spend this session: $0.0611** — 4 walk generations ($0.0011) and six 30-brief
+banks: v7 ($0.0103), v8 ($0.0097), v9 ($0.0084), v10 ($0.0098), v11 ($0.0105), v12 ($0.0100).
+Budget was €5; about 1% of it was used. Three of those banks are §5.3 - an attempted schema
+tidy-up, the regression it caused, and the rounds that attributed and undid it - and v12 is the
+contract fix in §5.4.
 
-**The shipping configuration is `lite-lower-third-v11`**, and its result is v8's: 29 of 30
-machine-usable, one standing failure, zero schema rejections.
+**The shipping configuration is `lite-lower-third-v12`**: 29 of 30 machine-usable, zero schema
+rejections, and the fixture that had failed every round since the gateway one now passes.
 
 ---
 
@@ -95,7 +96,7 @@ The whole path works. Nothing about the graphic being AI-made changes what the o
 
 Every round: 30 fixtures (`ai-lite-lower-third-fixtures.mjs` v2), one result each, no
 cherry-picking, route `vercel:google/gemini-2.5-flash-lite`. v7 and v8 below are the two that
-establish the quality number; §5.3 is the v9-v11 series and reads at the same 29/30.
+establish the quality number; §5.3 is the v9-v11 series and §5.4 is v12, both reading at the same 29/30.
 
 | | gateway round (08-08) | **v7** | **v8** |
 |---|---|---|---|
@@ -112,11 +113,10 @@ predicted.** `multilingual` and `team-identity` now pass, which is the retry-to-
 change (`7d6e4a2a`) doing what it was measured to do. The prompt's `team-identity` reproduction
 the brief asked for therefore **could not be reproduced**: it is fixed, not open.
 
-**`call-to-action` is the standing failure — 2 rounds of 2, both `generation_failed`.** That is
-server semantic validation refusing a spec whose roles do not satisfy the brief, after both
-attempts. Fail-closed working; the model genuinely cannot satisfy the contract for that brief on
-this route. It is the one fixture worth a targeted look, and it is a *prompt/contract* question,
-not transport.
+**`call-to-action` was the standing failure — every round, `generation_failed` after both
+attempts.** It looked like the model being unable to satisfy a brief and it was a contract trap:
+the intent kind a call-to-action line forces had exactly one chassis able to serve it, and that
+chassis was the one the brief argued against. Diagnosed and fixed in §5.4.
 
 **The chassis spread stays healthy** — six designs, the most-used at 7 of 29 (24%). "Same layout,
 different colours" is not happening.
@@ -124,7 +124,7 @@ different colours" is not happening.
 ## 4. What the frames show that no rule code names
 
 Read before the gate output, as §5 of the plan requires. The gallery is
-`lite-eval-out/gallery-v11.html` (self-contained, needs-attention first) - the shipping configuration.
+`lite-eval-out/gallery-v12.html` (self-contained, needs-attention first) - the shipping configuration.
 
 **Most of it is good.** `university-speaker` (lt02) — *Dr. Anika Ramanathan / PROFESSOR OF
 ENVIRONMENTAL ENGINEERING* — is a strap you could air unedited. `news-anchor` (lt11) is a clean
@@ -236,9 +236,11 @@ makes the attribution clean rather than a story:
 | **v9** | **2** (`zone`, `presetId`) | **26/30** | **3** | 1 | 33 | $0.0084 |
 | **v10** | **1** (`presetId`) | 27/30 | 1 | 2 | 35 | $0.0098 |
 | **v11** | **0** | **29/30** | **0** | 1 | 33 | $0.0105 |
+| **v12** | 0 (+ §5.4's metadata fix) | **29/30** | **0** | 1 | 30 | $0.0100 |
 
-Every round's single `intent_variant_mismatch` is `call-to-action`, the standing failure since
-the gateway round. v11 restores v8's result exactly.
+v7-v11's single `intent_variant_mismatch` is `call-to-action`, the standing failure since the
+gateway round; v11 restores v8's result exactly. v12 fixes that fixture and its one remaining
+failure is `team-identity` on a different check — §5.4.
 
 The Lite spec object is `additionalProperties: false`. A property the model **still emits**
 becomes a schema refusal, a retry, and then a user-visible `generation_failed`. `presetId` was
@@ -271,7 +273,64 @@ than one round, then delete — or simply leave it instructed.** Pinned in
 `api/_lib/aiLite.test.ts` as a PRESENCE assertion on both fields, so a future tidy-up meets the
 reason before it meets the schema.
 
-### 5.4 `.env.example` pointed the fallback at a route the code no longer uses
+### 5.4 `call-to-action` was never the model's failure — an intent kind with one home
+
+The standing failure of every round since the gateway one — five of five, `generation_failed`
+after both attempts, always `intent_variant_mismatch`. It reads as the model being unable to
+satisfy a brief. It is not.
+
+`intentMatchesRoles` forces `kind: 'promotion'` for any `call-to-action` or `social-handle`
+line. **`promotion` was declared by exactly one of the six audited chassis:** `lt05 Angle Slab`,
+whose own digest entry the model reads as *"forward-leaning condensed sport slab"*, `bestFor`
+sports and high-energy segments, `avoidFor` solemn public information. The fixture asks for *"a
+concise programme lower third … confident and useful, not salesy."*
+
+So every taste signal in the digest pointed away from the only chassis the contract allowed. The
+model chose on taste — correctly — and server semantic validation refused it, twice. **The
+contract and the fit metadata pointed in opposite directions, and the contract won by refusing.**
+
+Four more designs now declare `promotion`. `lt32` Scrim does not, for a capacity reason rather
+than a taste one: it holds 28 characters on its supporting line, the tightest of the six, and a
+call to action plus a URL is the longest copy pair Lite is asked for.
+
+**The guard found a second instance in the same minute it was written.** `api/_lib/aiLite.test.ts`
+now refuses any intent kind servable by fewer than two chassis, and `team` was `lt05`-only too.
+That one failed more quietly because `intentMatchesRoles` lets a `team-name` line take
+`kind: 'person'` as well, and `person` is on every chassis — so `team-identity` came back
+intermittently rather than never, which is exactly the signature that gets written off as
+sampling. It failed in the gateway round, v9 and v10, and passed in v7, v8 and v11.
+
+**Measured: `call-to-action` passes in v12**, first time in six rounds. 29/30, 30 calls (no
+retries), $0.0100, `bench-line-wrap` unchanged at 3.
+
+The generalizable half, and it is this profile's third instance: **a hand-authored fit claim can
+be wrong in the direction that refuses work.** `textCapacity`'s adjectives ranked the designs
+almost backwards (§1 of the plan); `intentKinds` gave two intent kinds a single home. Neither is
+visible in a rendered frame, and neither gate could see it — the round just failed a fixture and
+the failure looked like the model's.
+
+**A second trap in the same function, diagnosed and NOT fixed here.** v12's one failure is
+`team-identity` on `intent_role_mismatch` — a different check, and one that has been firing
+intermittently all along (the gateway round, v9, v10 failed it; v7, v8, v11 passed). The cause is
+an ordering bug in `intentMatchesRoles`, which scans the emitted roles in a fixed priority order
+and returns on the first hit:
+
+```
+person-name → 'person' · story-headline → 'story' · event-name → 'event'
+team-name → 'team'|'person' · organization → 'organization'|'person' · CTA/handle → 'promotion'
+```
+
+The fixture is *"team name Helsinki Comets and supporting context Women's Championship Final"*,
+whose natural emit is roles `['team-name', 'event-name']` with `kind: 'team'`. `event-name` is
+tested **before** `team-name`, so the SUPPORTING line decides what the graphic must claim to be:
+a team strap with a competition kicker is only legal if it declares itself an `event` graphic.
+
+The fix is one line — judge the kind against the PRIMARY role (`emittedRoles[0]`, which the
+schema already pins to `intent.primaryRole`) instead of the first match in an arbitrary order.
+It is a semantic-validation change with real teeth, so it wants its own round rather than being
+folded into this one.
+
+### 5.5 `.env.example` pointed the fallback at a route the code no longer uses
 
 It still said `AI_LITE_FALLBACK_MODEL=alibaba/qwen3-coder-next` while the code default has been
 the primary again since `7d6e4a2a`. An operator copying the example got the configuration the
@@ -316,7 +375,7 @@ rather than `AI_GATEWAY_API_KEY`) and its ZDR plan entitlement.
 
 - `lite-eval-out/round-2026-08-08-quality/` — 30 × 4 lifecycle frames and a clip per fixture, per
   round, plus `quality-v7-metrics.json` and `quality-v8-metrics.json` (gitignored).
-- `lite-eval-out/gallery-v11.html` (the shipping configuration), plus `gallery-v8.html` and `gallery-v7.html` — self-contained review galleries.
+- `lite-eval-out/gallery-v12.html` (the shipping configuration), plus the v11, v8 and v7 galleries — self-contained review pages.
 - `lite-eval-out/walk/` — the wizard and control-page screenshots.
 - `lite-eval-out/tools/` — the parity walk, the wizard walk, the gallery builder, the probe.
 

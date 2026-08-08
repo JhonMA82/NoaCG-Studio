@@ -52,6 +52,37 @@ const entries = (
   variants: Omit<LiteCatalogEntry, 'aiCategory' | 'category' | 'maxLines'>[],
 ): LiteCatalogEntry[] => variants.map((variant) => ({ aiCategory, category, maxLines, ...variant }));
 
+/**
+ * `intentKinds` is a hand-authored fit claim, and it is capable of being WRONG in the direction
+ * that refuses work - which is how `call-to-action` failed every round from 2026-08-08's gateway
+ * round onwards, five of five.
+ *
+ * The mechanism: `intentMatchesRoles` forces `kind: 'promotion'` for any `call-to-action` or
+ * `social-handle` line, and `promotion` was listed by exactly ONE of the six chassis - `lt05`,
+ * whose own digest entry reads "forward-leaning condensed sport slab", `bestFor` sports and
+ * high-energy segments. The fixture asks for "a concise programme lower third … confident and
+ * useful, not salesy". Every taste signal in the digest points away from lt05 and the intent
+ * constraint pointed only at it, so the model chose on taste and the server refused it
+ * `intent_variant_mismatch`, twice, and returned `generation_failed`. **The contract and the fit
+ * metadata pointed in opposite directions, and the contract won by refusing.**
+ *
+ * A restrained call to action over a programme strap is ordinary broadcast work, so four more
+ * designs now declare it. `lt32` Scrim deliberately does not: it holds 28 characters on its
+ * supporting line, the tightest of the six, and a call to action plus a URL is the longest copy
+ * pair Lite is asked for - a capacity reason, not a taste one.
+ *
+ * The structural guard is in `api/_lib/aiLite.test.ts`: **no intent kind may be servable by only
+ * one chassis.** An intent with a single home is a brief that can only be answered by one design,
+ * whatever the design looks like - and this profile has now shipped that twice, counting
+ * `textCapacity`'s adjectives (docs/AI_LITE_PLAN.md §1).
+ *
+ * That guard found the SECOND instance the moment it was written: `team` was also lt05-only. It
+ * failed less loudly because `intentMatchesRoles` lets a `team-name` line take `kind: 'person'`
+ * as well, and `person` is on every chassis - so `team-identity` came back intermittently rather
+ * than never, which is exactly the signature that gets written off as sampling. `call-to-action`
+ * and `social-handle` map to `promotion` ALONE and had no such escape hatch. A club name over a
+ * competition kicker is as ordinary as the call to action, so the same four designs declare it.
+ */
 export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
   ...entries('lower-third', 'lower-third', 2, [
     {
@@ -60,7 +91,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Amber accent, dark broadcast-width panel, strong display name and mono supporting line.',
       style: 'noacg',
       logo: false,
-      intentKinds: ['person', 'story', 'event', 'organization'],
+      intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['news', 'corporate', 'public service', 'general interviews'],
       avoidFor: ['delicate documentary supers', 'playful or highly decorative briefs'],
       visualWeight: 'medium',
@@ -74,7 +105,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Panel-free typography with a restrained accent underline and generous whitespace.',
       style: 'minimal',
       logo: false,
-      intentKinds: ['person', 'story', 'event', 'organization'],
+      intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['universities', 'interviews', 'corporate', 'clean editorial programmes'],
       avoidFor: ['high-energy sports', 'busy footage without a quiet text area'],
       visualWeight: 'light',
@@ -102,7 +133,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Translucent glass strap with a soft accent edge and calm name-over-role hierarchy.',
       style: 'glass',
       logo: false,
-      intentKinds: ['person', 'event', 'organization'],
+      intentKinds: ['person', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['technology', 'streaming', 'creative interviews', 'modern events'],
       avoidFor: ['very bright flat backgrounds', 'hard-news urgency', 'dense supporting copy'],
       visualWeight: 'medium',
@@ -116,7 +147,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Editorial rule-led composition with a confident name and tracked supporting line.',
       style: 'editorial',
       logo: false,
-      intentKinds: ['person', 'story', 'event', 'organization'],
+      intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['public news', 'documentary', 'universities', 'culture and current affairs'],
       avoidFor: ['esports', 'game shows', 'sponsor-heavy promotional graphics'],
       visualWeight: 'light',

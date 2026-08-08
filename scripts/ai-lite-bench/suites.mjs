@@ -344,7 +344,12 @@ export const REPAIR_SUITE = [
     request: repairRequest('A promotional lower third with the call to action Subscribe now.'),
     decision: readyDecision({
       ...baseSpec(),
-      variantId: 'lt25',
+      // lt32 Scrim, not lt25: five of the six chassis serve `promotion` now, because declaring
+      // it on only one turned every call-to-action brief into a forced answer and then a refusal
+      // (benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.4). lt32 stays out on capacity - 28
+      // characters on its supporting line against a call to action plus a URL - which is what
+      // keeps this fixture able to exercise the check at all.
+      variantId: 'lt32',
       intent: { kind: 'promotion', primaryRole: 'call-to-action' },
       lines: [{ title: 'Call to action', sample: 'Subscribe now', role: 'call-to-action' }],
     }),

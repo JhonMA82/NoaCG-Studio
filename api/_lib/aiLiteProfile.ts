@@ -196,11 +196,17 @@ export function liteProfile(): LiteProfile {
     //     The rule, paid for twice: **a property under `additionalProperties: false` cannot be
     //     deleted while the model still emits it.** Teach it away, measure the rate reach zero
     //     across more than one round, then delete - or simply leave it instructed.
+    // v12: the `promotion` and `team` intent kinds each had exactly ONE chassis able to serve
+    //     them, and it was the loud sport slab both times. A `call-to-action` line forces
+    //     `kind: 'promotion'`, so the `call-to-action` fixture could only be answered by the one
+    //     design its own brief argued against - five rounds of five, `intent_variant_mismatch`
+    //     on both attempts. Four more chassis now declare both kinds, and
+    //     `api/_lib/aiLite.test.ts` refuses any intent kind with a single home.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v11').trim().slice(0, 64) || 'lite-lower-third-v11',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v12').trim().slice(0, 64) || 'lite-lower-third-v12',
     primary,
     fallback,
     prices,
