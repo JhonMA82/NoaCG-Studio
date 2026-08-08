@@ -176,11 +176,37 @@ export function liteProfile(): LiteProfile {
     //     generation, which took every Lite call down the moment the managed transport routed
     //     this model to Google. Bounds replace it and the three legal values moved into the
     //     property description; designSpec.ts already dropped anything outside them.
+    // v8: animation.presetId carries "omit this field" as its DESCRIPTION. The quality round
+    //     of 2026-08-08 measured it invalid on 9 of 29 generations - each one the chosen
+    //     chassis's own motion prose read back - all silently clamped away. The property stays
+    //     in the schema on purpose: this object is additionalProperties:false, so deleting it
+    //     would turn those nine emissions into rejections rather than into nothing.
+    // v9: deleted BOTH dead axes, and one of the two deletions was wrong. `animation.presetId`
+    //     was safe - v8 had already driven its emission rate to 0 of 29. `zone` was not: the
+    //     model emitted it on 47 generations of 47, and this schema refuses unknown properties,
+    //     so removing it turned an emission into a rejection. Measured: 29/30 -> 26/30, three
+    //     `malformed_response` where v7 and v8 had none.
+    // v10: `zone` back on the wire with "omit this field" in its DESCRIPTION - the treatment
+    //     that worked for `presetId` - while the COMPILE stopped reading it (`keepChassisZone`).
+    //     Recovered two of the three rejections; 27/30, with one `malformed_response` left.
+    // v11: `presetId` back too, same treatment. The residual could not be attributed from one
+    //     roll each, and "0 of 29 emissions" is not a measured rate of zero - so NEITHER dead
+    //     axis is deleted. Both stay on the wire, instructed, and ignored by the compile: a few
+    //     output tokens against a refused request and a user's whole generation.
+    //     The rule, paid for twice: **a property under `additionalProperties: false` cannot be
+    //     deleted while the model still emits it.** Teach it away, measure the rate reach zero
+    //     across more than one round, then delete - or simply leave it instructed.
+    // v12: the `promotion` and `team` intent kinds each had exactly ONE chassis able to serve
+    //     them, and it was the loud sport slab both times. A `call-to-action` line forces
+    //     `kind: 'promotion'`, so the `call-to-action` fixture could only be answered by the one
+    //     design its own brief argued against - five rounds of five, `intent_variant_mismatch`
+    //     on both attempts. Four more chassis now declare both kinds, and
+    //     `api/_lib/aiLite.test.ts` refuses any intent kind with a single home.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v7').trim().slice(0, 64) || 'lite-lower-third-v7',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v12').trim().slice(0, 64) || 'lite-lower-third-v12',
     primary,
     fallback,
     prices,

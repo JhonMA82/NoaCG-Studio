@@ -152,21 +152,65 @@ test('obviously unsupported requests are rejected before model inference', () =>
   })?.status, 'unsupported');
 });
 
-test('the managed model receives a ready-only lower-third schema', () => {
+test('the managed model receives a ready-only lower-third schema, and neither dead axis', () => {
   const schema = LITE_READY_OUTPUT.schema as {
     oneOf?: unknown;
     properties?: {
       status?: { enum?: unknown[] };
-      spec?: { properties?: { zone?: { enum?: unknown[] } } };
+      spec?: { properties?: Record<string, { properties?: Record<string, unknown> }> };
     };
   };
   assert.equal(schema.oneOf, undefined);
   assert.deepEqual(schema.properties?.status?.enum, ['ready']);
-  assert.deepEqual(schema.properties?.spec?.properties?.zone?.enum, [
-    'bottom-left',
-    'bottom-center',
-    'bottom-right',
-  ]);
+  // BOTH DEAD AXES STAY ON THE WIRE, and that is a measurement rather than an oversight.
+  // `zone` and `animation.presetId` are decisions the model no longer makes - it answered
+  // `bottom-left` 47 times of 47 and never once a legal preset id - and the compile ignores
+  // both (`keepChassisZone`, and `resolveDesign`'s preset check). Deleting them is the obvious
+  // tidy-up and it cost a round: this object refuses unknown properties, so a property the
+  // model still EMITS becomes a rejection rather than a no-op, and v9 fell 29/30 -> 26/30 on
+  // three `malformed_response` (benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.3).
+  //
+  // Asserted as PRESENCE so a future tidy-up meets the reason before it deletes them.
+  assert.ok(schema.properties?.spec?.properties?.zone, 'zone must stay on the wire - see above');
+  assert.ok(
+    schema.properties?.spec?.properties?.animation?.properties?.presetId,
+    'animation.presetId must stay on the wire - see above',
+  );
+  assert.ok(schema.properties?.spec?.properties?.animation?.properties?.speed);
+});
+
+test('no intent kind is servable by a single chassis', () => {
+  // The defect this closes, measured across five paid rounds: `intentMatchesRoles` forces
+  // `kind: 'promotion'` for a call-to-action line, and `promotion` was declared by exactly ONE
+  // of the six audited chassis - the loud sport slab, whose own `bestFor` and `avoidFor` tell
+  // the model not to use it for a restrained programme brief. So the `call-to-action` fixture
+  // could only be answered by the design its own brief argued against; the model chose on taste,
+  // server semantic validation refused `intent_variant_mismatch` on both attempts, and every
+  // round returned `generation_failed` (benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.5).
+  //
+  // ONE home for an intent is not a narrow fit, it is a brief with a forced answer. Two is the
+  // floor: it leaves the model a choice that taste can decide.
+  const homes = new Map<string, string[]>();
+  for (const entry of LITE_CATALOG) {
+    for (const kind of entry.intentKinds) {
+      homes.set(kind, [...(homes.get(kind) ?? []), entry.variantId]);
+    }
+  }
+  // Every kind the SCHEMA accepts must be reachable, or a legal spec is unbuildable.
+  const schema = LITE_READY_OUTPUT.schema as {
+    properties?: { spec?: { properties?: { intent?: { properties?: { kind?: { enum?: string[] } } } } } };
+  };
+  const kinds = schema.properties?.spec?.properties?.intent?.properties?.kind?.enum ?? [];
+  assert.ok(kinds.length > 0, 'the intent kind enum must be readable from the schema');
+  for (const kind of kinds) {
+    const serving = homes.get(kind) ?? [];
+    assert.ok(
+      serving.length >= 2,
+      `intent kind "${kind}" is served by ${serving.length} chassis (${serving.join(', ') || 'none'}) - `
+        + 'a brief with one legal answer cannot be answered on taste, so the model picks the design '
+        + 'the digest argues for and semantic validation refuses it',
+    );
+  }
 });
 
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {

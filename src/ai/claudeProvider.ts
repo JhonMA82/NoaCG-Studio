@@ -11,7 +11,9 @@
 // the user with its findings attached, never auto-applied.
 
 import { callModel, callModelDetailed, type ModelTool, type ContentBlock } from './modelGateway';
-import type { AiPath, AIProvider, AiTemplateChange, GenerateContext, GenerateOptions } from './provider';
+import type {
+  AiPath, AIProvider, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator,
+} from './provider';
 import { startAiRun, type AiRunKind, type AiRunRecorder } from './telemetry';
 import { parseDefinition } from '../model/spxDefinition';
 import { type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
@@ -31,7 +33,13 @@ import {
 import { FULL_CATALOG, shortlistFor, type Shortlist } from './retrieval';
 import { aiCategoryById } from './spec/categories';
 import { preferenceHint } from './preferences';
-import { assembleGroundedTemplate, attemptLiteSkin, normalizeLiteSpec } from './litePipeline';
+import {
+  assembleGroundedTemplate,
+  attemptLiteSkin,
+  normalizeLiteSpec,
+  productionSpxValidator,
+  singleLineIdentityFields,
+} from './litePipeline';
 import { applyPolish, POLISH_TOOL, type PolishPatch } from './polish';
 import { variantsFor } from '../templates/catalog';
 import type { TemplateVariant } from '../model/wizard';
@@ -42,7 +50,7 @@ import { ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 import { convertToDataRegion } from '../templates/shared/standard';
 import { specSections } from './spec/specPrompt';
 import { applySpecLocks, applySpecOutPreset, narrowedSpecTool } from './spec/specDesign';
-import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
+import { demoteSpecFields, ensureSpecFonts, withSpecChecks } from './spec/specValidate';
 import { generateLiteDesign, LiteRequestError, recordLiteOutcome } from './liteClient';
 import { findingsList, repairLoop } from './shared/repairLoop';
 import {
@@ -871,6 +879,37 @@ async function groundedResult(
   };
 }
 
+/**
+ * The validator a LITE result is held to.
+ *
+ * Lite validates under its own composition for the same reason it assembles under its own
+ * policy: two of `productionSpxValidator`'s options can only be answered from the DECISION,
+ * and the browser builds its injected validator (AiStep) long before a decision exists.
+ * Which lines must hold ONE line comes from the spec's declared roles
+ * (`singleLineIdentityFields`), and which category's type floor the ADJUSTED result is held
+ * to comes from `spec.category`. Left unset, `bench-line-wrap` and `bench-type-floor` were
+ * findings every Lite BENCHMARK measured and no user ever did - the benchmark reporting a
+ * stricter gate than the product runs, which is the inversion docs/AI_LITE_PLAN.md §1b names.
+ * Both are WARNINGS, so wiring them cannot fail a generation that used to pass; it only stops
+ * the product being blind to what the rounds are scored on.
+ *
+ * The two arguments AiStep does supply are always empty on this path - Lite takes no uploads
+ * (`limits.logos: 0`) and cannot convert an import - so composing from here loses nothing but
+ * the structured setup's own checks, which are re-applied.
+ */
+function liteValidator(spec: DesignSpec, ctx: GenerateContext | undefined): SpxValidator {
+  const base: SpxValidator = (template) => productionSpxValidator(null, [], {
+    singleLineFields: singleLineIdentityFields(spec, template),
+    typeFloorCategory: spec.category ?? null,
+    // The third is not spec-derived and is here for a different reason: Lite is the one path
+    // that gets NO structural check at all, because that check needs an intent and Lite runs
+    // no intent stage. Without this, nothing anywhere asks whether a Lite graphic's fields
+    // reach the screen - and the 2026-08-08 round produced a frame where one did not.
+    fieldPaints: true,
+  })(template);
+  return withSpecChecks(base, ctx?.spec) ?? base;
+}
+
 async function liteGroundedResult(
   prompt: string,
   context: GenerateContext,
@@ -913,7 +952,20 @@ async function liteGroundedResult(
     // schema allows sizeScale 0.7–1.4 and its prompt already carries the bottom-zone rule, so
     // moving either is a behaviour change its versioned benchmark has to re-baseline first
     // (docs/ADAPT_FIRST_PLAN.md §6.2). `profile` is stripped above, so this must be explicit.
-    change ??= await groundedResult(spec, context, { ...options, profile: undefined }, run, {});
+    change ??= await groundedResult(
+      spec,
+      context,
+      { ...options, profile: undefined, validate: liteValidator(spec, context) },
+      run,
+      // `keepChassisZone` since v9: the chassis is assembled at the zone it was DRAWN for, and
+      // `spec.zone` is not read even when the model sends one. Measured over two 30-brief
+      // rounds, the model answered `bottom-left` 47 times of 47 and every audited Lite chassis
+      // declares exactly that - so this changes no output and stops the model being asked.
+      // `sizeScaleRange` is deliberately still absent: Lite's own contract declares 0.7-1.4,
+      // which is `specToTemplate`'s permissive default, and narrowing it would re-open the
+      // shown-but-illegal mismatch ADAPT_FIRST_PLAN §3 Stage V records.
+      { keepChassisZone: true },
+    );
     const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
     await recordLiteOutcome({
       generationId: generated.generationId,

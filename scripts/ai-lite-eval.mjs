@@ -174,6 +174,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
       const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
       const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { variantById } = await import('/src/templates/catalog.ts');
       const context = {
         images: [],
         palette: null,
@@ -220,8 +221,31 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
         skinOutcome,
         skinRejectionRules: skinRejectionRules ?? null,
         fieldCount: template.fields.length,
-        zone: designSpec.zone ?? null,
-        animationPreset: designSpec.animation?.presetId ?? null,
+        // The zone the graphic actually SITS at. It used to read `designSpec.zone`, which the
+        // v9 schema no longer carries: placement folded onto the design's own `defaultZone`
+        // after two rounds measured the model answering `bottom-left` 47 times out of 47.
+        // Reading the retired field would have quietly turned this column into `null` on every
+        // row - the `warningCodes` failure again, a measurement that stops measuring and looks
+        // like a change.
+        zone: variantById(spec.variantId)?.defaultZone ?? null,
+        // Retired alongside `zone` in v9 and kept as an EXPLICIT null rather than deleted: a
+        // round comparing against v7 or v8 has to be able to tell "the model chose no preset"
+        // from "this runner stopped asking". `presetId` is no longer in the schema at all.
+        animationPreset: null,
+        // The COLOUR and PROPORTION decisions, recorded for the same reason warningCodes is:
+        // a round that cannot say what a frame was built from cannot diagnose the frame. The
+        // 2026-08-08 quality round produced one lt11 result whose second field painted no
+        // pixels at all - visible in the hold frame, invisible to every rule code - and the
+        // artifacts could not say whether a bespoke palette caused it, because none of this
+        // was written down. These are DESIGN parameters, not user content: the same class as
+        // variantId and zone, and nothing here carries a brief, a template, or a person's copy.
+        paletteId: designSpec.paletteId ?? null,
+        palette: designSpec.palette ?? null,
+        density: designSpec.density ?? null,
+        alignment: designSpec.alignment ?? null,
+        sizeScale: designSpec.sizeScale ?? null,
+        typography: designSpec.typography ?? null,
+        shape: designSpec.shape ?? null,
         entranceDurationMs,
         exitDurationMs,
         initialData: Object.fromEntries(designSpec.lines.map((line, index) => [`f${index}`, line.sample])),
@@ -296,6 +320,13 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
+      paletteId: measured.paletteId,
+      palette: measured.palette,
+      density: measured.density,
+      alignment: measured.alignment,
+      sizeScale: measured.sizeScale,
+      typography: measured.typography,
+      shape: measured.shape,
       entranceDurationMs: measured.entranceDurationMs,
       exitDurationMs: measured.exitDurationMs,
       phaseFiles: { entrance: entranceFile, hold: holdFile, update: updateFile, exit: exitFile },
@@ -514,6 +545,13 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
+      paletteId: measured.paletteId,
+      palette: measured.palette,
+      density: measured.density,
+      alignment: measured.alignment,
+      sizeScale: measured.sizeScale,
+      typography: measured.typography,
+      shape: measured.shape,
       entranceDurationMs: measured.entranceDurationMs,
       exitDurationMs: measured.exitDurationMs,
       ruleCodes: measured.ruleCodes,

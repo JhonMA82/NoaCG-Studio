@@ -53,11 +53,16 @@ export interface LiteDesignSpec {
   lines: { title: string; sample: string; role: LiteLowerThirdLineRole }[];
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
   useLogoSlot?: boolean;
+  /** Still on the wire, deliberately IGNORED by the compile since v9 - Lite assembles with
+   *  `keepChassisZone`, so placement is the chosen design's own `defaultZone`. It cannot be
+   *  deleted while the model still emits it (liteContract.ts). */
   zone?: string;
   paletteId?: string;
   palette?: { accent: string; text: string; textDim: string; panel: string };
   fontId?: string;
   sizeScale?: number;
+  /** `presetId` is still on the wire and still ignored by the compile, for the same reason
+   *  `zone` is - see liteContract.ts. Motion is the chosen design's own. */
   animation?: { presetId?: string; easing?: string; speed?: number; steps?: boolean };
   motionCharacter?: string;
   typography?: {

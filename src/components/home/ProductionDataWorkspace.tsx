@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { saveAs } from 'file-saver';
 import {
   addDatasetColumn,
   addDatasetRow,
   addShowDataset,
+  datasetPreset,
   removeDatasetColumn,
   removeDatasetRow,
   removeShowDataset,
@@ -14,7 +16,12 @@ import {
   type ShowDataset,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
-import { parseTableFile } from '../../model/csv';
+import { parseTableFile, serializeCsv } from '../../model/csv';
+
+/** A file name a spreadsheet will not argue with, from the table type's own name. */
+function templateFileName(label: string): string {
+  return `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'table'}-template.csv`;
+}
 
 /**
  * Which of an imported file's columns can actually BIND — the same match
@@ -96,6 +103,26 @@ export default function ProductionDataWorkspace({
     );
   };
 
+  /**
+   * The other half of import: a file to FILL IN. Picking a table type and downloading gives a
+   * spreadsheet with the right header row, so the round trip needs no guessing at what a column
+   * has to be called for a cue to load it.
+   *
+   * The header comes from `datasetPreset` — the same table `＋ New table` builds its columns
+   * from — so a downloaded template can never describe a shape the importer would refuse or the
+   * binding would ignore. CSV, not JSON: this file exists to be opened in a spreadsheet and
+   * typed into, which is what a header row is for; the JSON reader stays for exports out of
+   * other systems, and those are not files anyone fills in by hand.
+   */
+  const downloadTemplate = () => {
+    const preset = datasetPreset(newKind);
+    const blob = new Blob([serializeCsv(preset.labels)], { type: 'text/csv;charset=utf-8' });
+    saveAs(blob, templateFileName(preset.name));
+    setImportNote(
+      `✓ Downloaded ${templateFileName(preset.name)} — fill in a row per entry under those column names, then import it back.`,
+    );
+  };
+
   return (
     <section className="pd-data" data-testid="production-data">
       <div className="pd-data-head">
@@ -136,6 +163,11 @@ export default function ProductionDataWorkspace({
           />
           ⬆ Import CSV / JSON
         </label>
+        {/* Beside Import because they are one workflow read in either direction: take the shape
+            out, fill it in, bring it back. */}
+        <button onClick={downloadTemplate} data-testid="download-dataset-template">
+          ⬇ Blank CSV
+        </button>
       </div>
 
       {importNote && (

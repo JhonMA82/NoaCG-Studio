@@ -41,6 +41,26 @@ test('rejects a destination naming a segment its source never captures', () => {
   assert.equal(validateVercelConfig(mutated).length > 0, true);
 });
 
+test('rejects an internal .html destination while cleanUrls is on', () => {
+  // The exact regression: valid to the library, 404 in production, because cleanUrls serves the
+  // page at /join and the rewrite ran below the .html redirect.
+  const mutated = clone();
+  mutated.rewrites = [{ source: '/join/:name', destination: '/join.html' }];
+  const problems = validateVercelConfig(mutated);
+  assert.match(problems.join('\n'), /cleanUrls serves that page at "\/join"/);
+
+  // The fix passes, and an EXTERNAL destination is nobody's filesystem but its own.
+  mutated.rewrites = [{ source: '/join/:name', destination: '/join' }];
+  assert.deepEqual(validateVercelConfig(mutated), []);
+  mutated.rewrites = [{ source: '/x/:p', destination: 'https://example.com/:p.html' }];
+  assert.deepEqual(validateVercelConfig(mutated), []);
+
+  // …and without cleanUrls the .html path is exactly where the page lives, so it is fine.
+  mutated.cleanUrls = false;
+  mutated.rewrites = [{ source: '/join/:name', destination: '/join.html' }];
+  assert.deepEqual(validateVercelConfig(mutated), []);
+});
+
 test('/join and every name under it still carry the noindex header', () => {
   // Valid is not the same as correct: the pattern that replaced the broken one has to still cover
   // both shapes the audience page is served under - the bare /join?p=<slug> and the vanity

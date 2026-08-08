@@ -17,6 +17,7 @@ import { allOperatorEvents, allTimelines } from '../blocks/animMachine';
 import { detectPrefix } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
+import { unreachableFields } from './fieldPaint';
 
 export interface RuntimeBenchOptions {
   /** Hard cap on the whole bench run (iframe load + every phase). */
@@ -51,6 +52,25 @@ export interface RuntimeBenchOptions {
    * measures the ADJUSTED, rendered result (src/validation/typeFloor.ts).
    */
   typeFloorPx?: number;
+  /**
+   * Drive every text-bearing field to a sentinel in the settled on-air state and re-read the
+   * frame: which declared fields reach no pixels at all (src/validation/fieldPaint.ts).
+   *
+   * Off unless a caller asks, and NOT because it is expensive - because of what it can and
+   * cannot answer. It reads ONE state, the settled default path, so a field a later operator
+   * event reveals would read as unpainted; the harness path asks the same question through
+   * `structuralIntentCheck`, which knows the intent and can be told what to expect. NoaCG Lite
+   * turns it on because it ships single-step lower thirds, where the settled state IS the
+   * graphic - and because it is the one gate that would have caught the 2026-08-08 round's
+   * worst frame: a strap whose second field painted nothing, `update()` with fresh data
+   * changing nothing, and every rule code silent (benchmarks/lite/ROUND-2026-08-08-QUALITY.md
+   * §4). Widening Lite past one-step categories has to revisit this note before trusting it.
+   *
+   * A WARNING, like the two above: nothing in the pipeline can act on it, and a Lite grounded
+   * assembly has no repair loop, so refusing the result would spend a user's generation on a
+   * defect they can see and we cannot fix for them.
+   */
+  fieldPaints?: boolean;
 }
 
 /** Merge validation results: errors and warnings concatenate, ok = no errors anywhere. */
@@ -868,6 +888,28 @@ export async function benchTemplateRuntime(
     const flow = overflowIssues(leaves, exempt, win, { width, height }, 'with the default field values');
     errors.push(...flow.errors);
     warnings.push(...flow.warnings);
+
+    // ── Every declared field reaches the screen ──────────────────────────────────────
+    // Here rather than at the end, because this is the state the question is about: the
+    // settled on-air look with the whole default path walked. The drive REPLACES the frame's
+    // data, so the defaults go straight back before anything else is measured - the exit,
+    // replay and stress phases below must see exactly what they saw before this existed.
+    if (opts.fieldPaints) {
+      phase = 'field paint';
+      const unpainted = await unreachableFields(win.document, win as Window & { update?: (d: string) => void }, template, SETTLE_MS);
+      call('update', JSON.stringify(fieldValues(template, 'default')));
+      await wait(SETTLE_MS);
+      for (const name of unpainted) {
+        warnings.push(
+          issue(
+            'bench-field-unpainted',
+            `Field ${name} is declared and operator-editable, but its value reaches no pixels in the `
+              + 'settled graphic - typing into it changes nothing on air. Either the design draws it '
+              + 'nowhere, or a colour or size decision made it invisible.',
+          ),
+        );
+      }
+    }
 
     // ── Branch states: the default path is only half a machine ───────────────────────
     // A branching graphic's alert badge or selection highlight only ever appears after an

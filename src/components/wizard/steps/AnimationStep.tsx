@@ -56,6 +56,17 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
   const direction = phaseApply ? draft.animation.direction : 'both';
   const activeDirection = DIRECTIONS.find((d) => d.id === direction)!;
 
+  // The Slide family's state, read by BOTH its card and the Travel box beside it — the two
+  // are separate grid cells now, so this can no longer live inside the card's own render.
+  const isInSlide = isSlidePreset(inActive);
+  const isOutSlide = isSlidePreset(outActive);
+  const activeForPhase = direction === 'out' ? outActive : inActive;
+  const slideActive = isSlidePreset(activeForPhase) ? activeForPhase : null;
+  const slideSelected =
+    direction === 'in' ? isInSlide
+    : direction === 'out' ? isOutSlide
+    : isInSlide && isOutSlide && inActive === outActive;
+
   const pickPreset = (id: AnimPresetId) => {
     if (direction === 'both') {
       if (inActive === id && outActive === id) return onReplay();
@@ -126,48 +137,24 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
           </span>
         </h3>
         <div className="wz-anim-grid">
-          {hasSlide && (() => {
-            const isInSlide = isSlidePreset(inActive);
-            const isOutSlide = isSlidePreset(outActive);
-            const activeForPhase = direction === 'out' ? outActive : inActive;
-            const slideActive = isSlidePreset(activeForPhase) ? activeForPhase : null;
-            const selected =
-              direction === 'in' ? isInSlide
-              : direction === 'out' ? isOutSlide
-              : isInSlide && isOutSlide && inActive === outActive;
-            return (
-              <div className="wz-anim-cell">
-                <button
-                  className={`wz-anim ${selected ? 'selected' : ''}`}
-                  onClick={() => pickPreset(slideActive ?? SLIDE_FAMILY[0])}
-                >
-                  <strong>
-                    Slide
-                    {mixed && (isInSlide || isOutSlide) && (
-                      <span className="muted" style={{ fontWeight: 400 }}>
-                        {' '}· {isInSlide && isOutSlide ? 'in + out' : isInSlide ? 'in' : 'out'}
-                      </span>
-                    )}
-                  </strong>
-                  <span className="hint">
-                    Glides in from one side and slips back out the same way — pick the direction of travel below.
+          {hasSlide && (
+            <button
+              className={`wz-anim ${slideSelected ? 'selected' : ''}`}
+              onClick={() => pickPreset(slideActive ?? SLIDE_FAMILY[0])}
+            >
+              <strong>
+                Slide
+                {mixed && (isInSlide || isOutSlide) && (
+                  <span className="muted" style={{ fontWeight: 400 }}>
+                    {' '}· {isInSlide && isOutSlide ? 'in + out' : isInSlide ? 'in' : 'out'}
                   </span>
-                </button>
-                <div className="wz-anim-dirs" role="group" aria-label="Slide direction">
-                  {SLIDE_DIRS.map((d) => (
-                    <button
-                      key={d.id}
-                      className={slideActive === d.id ? 'active' : ''}
-                      onClick={() => pickPreset(d.id)}
-                      title={d.hint}
-                    >
-                      {d.arrow}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
+                )}
+              </strong>
+              <span className="hint">
+                Glides in from one side and slips back out the same way.
+              </span>
+            </button>
+          )}
           {presets.map((p) => {
             const isIn = inActive === p.id;
             const isOut = outActive === p.id;
@@ -186,6 +173,30 @@ export default function AnimationStep({ variant, draft, onDraft, onReplay }: Pro
               </button>
             );
           })}
+          {/* TRAVEL is its own cell (re-design/handoff.md §2e), not a strip hanging under the
+              Slide card. The preset grid leaves a hole — five presets in two columns — and the
+              arrows were spending vertical room beside it while that hole sat empty, on a step
+              measured at 235px of overflow with Speed, Easing and "Reveal in steps" below the
+              fold. Rendered last so it falls into the hole; it only exists when the design
+              offers Slide at all, and clicking an arrow still PICKS Slide in that direction,
+              exactly as it did under the card. */}
+          {hasSlide && (
+            <div className="wz-anim-travel" role="group" aria-label="Slide direction">
+              <p className="dlg-caption">Travel</p>
+              <div className="wz-anim-dirs">
+                {SLIDE_DIRS.map((d) => (
+                  <button
+                    key={d.id}
+                    className={slideActive === d.id ? 'active' : ''}
+                    onClick={() => pickPreset(d.id)}
+                    title={d.hint}
+                  >
+                    {d.arrow}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

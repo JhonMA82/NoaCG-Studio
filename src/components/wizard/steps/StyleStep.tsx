@@ -89,6 +89,18 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
   // prop: this component re-renders on every draft change, so an uncontrolled `open` would
   // spring the disclosure back open under a user who had just shut it.
   const [placementTouched, setPlacementTouched] = useState(() => placementSummaryOf(draft) !== '');
+  // THE TYPEFACE COLLAPSES (re-design/handoff.md §2d); ELEMENT COLORS DELIBERATELY DO NOT OPEN.
+  // The reference draws that section open, and it is right about the naming and the read-back —
+  // but its example design has four recolorable elements on single-line rows. Ours enumerates
+  // every `:root` variable the design declares: measured on House Strap, NINE rows at 1012px,
+  // which took the step from 89px of overflow to 778px. The rows are tall because our colour
+  // control carries an alpha slider, and that is not fat to trim - `--panel-bg` is an rgba() in
+  // nearly every design we ship, and a swatch-plus-hex pair silently turns a translucent panel
+  // opaque. So the section keeps its honest name and says how much is in it, and opens on ask.
+  // Both are controlled, because this component re-renders on every draft change and an
+  // uncontrolled `open` would spring a disclosure back under a user who had just shut it.
+  const [colorsOpen, setColorsOpen] = useState(false);
+  const [typefaceOpen, setTypefaceOpen] = useState(() => draft.fontId != null);
   // The variant's own style family first, then the rest.
   const palettes = [...PALETTES].sort(
     (a, b) => Number(b.styleTags.includes(variant.styleTag)) - Number(a.styleTags.includes(variant.styleTag)),
@@ -97,6 +109,14 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
   const activePalette = custom ? 'custom' : draft.paletteId ?? variant.defaultPalette.id;
   const activeFont = draft.fontId ?? variant.defaultFontId;
   const activeZone = draft.zone ?? variant.defaultZone;
+  /** What the collapsed Typeface row reads back — the face actually in use, so the choice is
+   *  never hidden without a trace. Unset means the design's own, named. */
+  const typefaceSummary =
+    draft.fontId == null
+      ? `Design typeface (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})`
+      : draft.fontId === 'custom'
+        ? draft.customFont?.family ?? 'Imported typeface'
+        : FONTS.find((f) => f.id === draft.fontId)?.family ?? 'Design typeface';
 
   /** Rename the imported font (updates the generated @font-face family). */
   const renameCustomFont = (family: string) => {
@@ -189,9 +209,20 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
             needs the editor. Collapsed, because the palette answers the common case and this
             is the full control for someone who wants it. */}
         {designVars.length > 0 && (
-          <details className="wz-style-more" data-testid="wz-design-colors">
+          <details
+            className="wz-style-more"
+            data-testid="wz-design-colors"
+            open={colorsOpen}
+            onToggle={(e) => setColorsOpen(e.currentTarget.open)}
+          >
+            {/* No COUNT in the value, deliberately. `designVars` is every non-palette variable
+                the design declares, but StyleControls applies its own filter on top (the size
+                knobs and the heading typeface have their own sections) — measured 12 against 9
+                rendered rows. Stating a number here would mean copying that filter's rule into
+                a second place for the sole purpose of disagreeing with it later. */}
             <summary>
-              Fine-tune this design <span className="muted">({designVars.length} more)</span>
+              Element colors
+              <span className="wz-style-more-value">hex or picker</span>
             </summary>
             <StyleControls
               vars={allVars}
@@ -204,8 +235,20 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
         )}
       </div>
 
-      <div className="panel-section">
-        <h3>Typeface <span className="muted">every typeface — bundled or imported — ships inside the export</span></h3>
+      {/* The typeface COLLAPSES to a row naming the face in use (handoff §2d). Expanded, the
+          searchable picker plus its list of families was the tallest thing on the step, for a
+          decision every design already answers well; the summary means the choice is never
+          hidden without a trace, which is the same rule "Size & position" follows below. */}
+      <details
+        className="wz-style-more"
+        data-testid="wz-typeface"
+        open={typefaceOpen}
+        onToggle={(e) => setTypefaceOpen(e.currentTarget.open)}
+      >
+        <summary>
+          Typeface
+          <span className="wz-style-more-value">{typefaceSummary}</span>
+        </summary>
         {/* The ONE typeface picker (shared with the import flow, the AI setup and the editor's
             Style panel): searchable, each family rendered in its own face, upload + this
             computer's installed faces. The card grid it replaced could never scale past a
@@ -227,7 +270,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
             />
           </div>
         )}
-      </div>
+      </details>
 
       {/* Size and placement under progressive disclosure (the Browse step's `More filters`
           idiom). Palette and font are the two choices a user came here to make; size, type
@@ -242,7 +285,10 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
         open={placementTouched}
         onToggle={(e) => setPlacementTouched(e.currentTarget.open)}
       >
-        <summary>Size &amp; position{placementSummary && <span className="muted"> — {placementSummary}</span>}</summary>
+        <summary>
+          Size &amp; position
+          <span className="wz-style-more-value">{placementSummary || 'default'}</span>
+        </summary>
         <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
           <div className="panel-section">
             <h3>Graphic size <span className="muted">everything, together</span></h3>

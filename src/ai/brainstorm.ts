@@ -4,6 +4,7 @@
 // it as a one-click fill for the prompt box.
 
 import { callModel } from './modelGateway';
+import { outputBudget } from './modelTypes';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -32,7 +33,10 @@ export async function brainstorm(history: ChatMessage[]): Promise<{ reply: strin
   const text = (await callModel({
     system: SYSTEM,
     messages: history.map((m) => ({ role: m.role, content: [{ type: 'text' as const, text: m.text }] })),
-    maxTokens: 700,
+    // A reply is 2-5 sentences plus the BRIEF line - a few hundred tokens. The old flat 700
+    // was sized for exactly that and left a reasoning route nothing to think in, which here
+    // costs the user a chat turn that comes back empty or cut off mid-sentence.
+    maxTokens: outputBudget(700),
   })) as string;
 
   const match = text.match(/^BRIEF:\s*(.+)$/ms);

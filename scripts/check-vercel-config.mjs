@@ -20,6 +20,9 @@
 // Measured against deliberate mutations of our own vercel.json, it rejects the pattern that caused
 // the outage, an unbalanced group, a redirect with no destination, and a rewrite whose source names
 // a segment its destination does not - see scripts/check-vercel-config.test.mjs.
+//
+// It also answers a second question the library cannot: whether a config Vercel ACCEPTS is one it
+// can SERVE. See internalHtmlDestinations below - that is the rule the audience link tripped.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,7 +66,43 @@ export function validateVercelConfig(config) {
   }
   if (normalized.error) return errorMessages(normalized.error);
 
-  return [];
+  return internalHtmlDestinations(config);
+}
+
+/**
+ * The second failure mode, and the one that broke the audience link: a config Vercel ACCEPTS and
+ * then cannot serve.
+ *
+ * `cleanUrls: true` stores every page at its extensionless path (`join.html` is served as
+ * `/join`) and adds a 308 from `/x.html` to `/x` in the REDIRECT phase. A rewrite runs after the
+ * filesystem handle with `check: true`, so its destination re-enters routing at the filesystem -
+ * below that redirect. A destination of `/join.html` therefore matches no file and no route, and
+ * the request 404s. `/join/friday-night-live` did exactly that on production from 2026-08-07
+ * until 2026-08-08 while `/join?p=<slug>` worked, which is why nothing else noticed.
+ *
+ * The routing library cannot see this: the pattern is valid, and whether the destination exists
+ * is a fact about the build output, not about the route table. So it is checked here.
+ */
+function internalHtmlDestinations(config) {
+  if (!config.cleanUrls) return [];
+  const problems = [];
+  for (const [kind, rules] of [
+    ['rewrite', config.rewrites],
+    ['redirect', config.redirects],
+  ]) {
+    for (const rule of rules ?? []) {
+      const destination = rule?.destination;
+      // Only INTERNAL destinations: a rewrite to another origin is that origin's filesystem.
+      if (typeof destination !== 'string' || !destination.startsWith('/')) continue;
+      const pathOnly = destination.split(/[?#]/)[0];
+      if (!pathOnly.endsWith('.html')) continue;
+      problems.push(
+        `${kind} "${rule.source}" points at "${destination}", but cleanUrls serves that page at ` +
+          `"${pathOnly.slice(0, -'.html'.length)}" — the destination 404s. Drop the .html.`,
+      );
+    }
+  }
+  return problems;
 }
 
 // A RouteApiError carries the per-entry messages in `errors` and repeats the first one in

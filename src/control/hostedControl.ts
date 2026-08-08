@@ -17,6 +17,7 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
+import { joinNameCandidates } from './joinName';
 import type { ControlMessage } from './controlModel';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
@@ -330,12 +331,36 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
       .update({ audience_state: { ...row.audience_state, brand } })
       .eq('id', show.id);
   }
+  // A production that has never had an audience slug gets a READABLE one derived from its name,
+  // here, on its first publish - so a link an operator can read out exists without anyone typing
+  // an ending. Only on the first publish: after that the name is a shared URL, and republishing
+  // to fix a typo in a cue must not move it (the Links panel says as much beside the field).
+  // `row.joinSlug` being non-null is also the proof that this server HAS the column: an instance
+  // that predates 0035 must not spend six failing round-trips on every publish.
+  const derive = !show.joinSlug && !!row.joinSlug;
+  const joinSlug = derive ? (await adoptDerivedJoinName(show)) ?? row.joinSlug : row.joinSlug;
   return {
     slug: row.slug,
     outputSlug: row.outputSlug,
-    joinSlug: row.joinSlug,
+    joinSlug,
     presenterSlug: row.presenterSlug,
   };
+}
+
+/**
+ * Claim the first free slug derived from the production's name, or null when none of the
+ * candidates is available and the random one the database minted has to stand.
+ *
+ * The retry IS the availability check (see `claimJoinName`), so this walks the candidates rather
+ * than asking which is free - and it stops at the first success, which is why a busy name lands
+ * as `friday-night-live-2` rather than as a number nobody chose.
+ */
+async function adoptDerivedJoinName(show: Show): Promise<string | null> {
+  for (const candidate of joinNameCandidates(show.name)) {
+    const failure = await claimJoinName(show.id, candidate);
+    if (!failure) return candidate;
+  }
+  return null;
 }
 
 /** The public audience URL for a join slug — the readable path form, which is what an operator

@@ -213,7 +213,7 @@ function hideStepLines(cfg: PresetConfig): string {
 const SLIDE_DIRECTIONS = {
   up: {
     name: 'Slide up',
-    description: 'In: the graphic rises into place from below, lines follow in sequence. Out: it sinks back down and fades. Quiet and universal.',
+    description: 'Rises into place from below and sinks back down to leave. Quiet and universal.',
     comment: 'the whole graphic rises in from below; text lines follow in sequence',
     boxFrom: 'y: 26',
     boxOut: 'y: 18',
@@ -222,7 +222,7 @@ const SLIDE_DIRECTIONS = {
   },
   down: {
     name: 'Slide down',
-    description: 'In: the graphic settles into place from above, lines follow. Out: it lifts back up and fades. Calm and headline-like.',
+    description: 'Settles in from above and lifts back up to leave. Calm and headline-like.',
     comment: 'the whole graphic settles in from above; text lines follow in sequence',
     boxFrom: 'y: -26',
     boxOut: 'y: -18',
@@ -231,7 +231,7 @@ const SLIDE_DIRECTIONS = {
   },
   left: {
     name: 'Slide left',
-    description: 'In: the graphic glides in leftward from the right edge. Out: it slips back out to the right. Lateral and smooth.',
+    description: 'Glides in from the right edge and slips back out that way. Lateral and smooth.',
     comment: 'the whole graphic glides in travelling left; text lines drift after it',
     boxFrom: 'x: 60',
     boxOut: 'x: 44',
@@ -240,7 +240,7 @@ const SLIDE_DIRECTIONS = {
   },
   right: {
     name: 'Slide right',
-    description: 'In: the graphic glides in rightward from the left edge. Out: it slips back out to the left. Lateral and smooth.',
+    description: 'Glides in from the left edge and slips back out that way. Lateral and smooth.',
     comment: 'the whole graphic glides in travelling right; text lines drift after it',
     boxFrom: 'x: -60',
     boxOut: 'x: -44',
@@ -305,7 +305,7 @@ export const ANIM_PRESETS: AnimPreset[] = [
   {
     id: 'line-reveal',
     name: 'Line reveal',
-    description: 'In: the accent line draws in, the panel follows it open, text slides up from behind its mask. Out: text drops back, the line retracts, the panel sweeps away. Elegant.',
+    description: 'The accent line draws in, the panel follows it open, text slides up from behind its mask.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Line reveal — the accent draws in, the panel follows it open, text slides up.
@@ -363,7 +363,7 @@ ${MARK_CLOSE}`,
   {
     id: 'mask-wipe',
     name: 'Mask wipe',
-    description: 'In: the panel wipes open left-to-right like a curtain. Out: it wipes shut the other way.',
+    description: 'The panel wipes open left-to-right like a curtain, and wipes shut the other way.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Mask wipe — the panel reveals via a clip-path wipe; text follows just behind.
@@ -403,7 +403,7 @@ ${MARK_CLOSE}`,
   {
     id: 'pop-spring',
     name: 'Pop spring',
-    description: 'In: pops up with a springy overshoot. Out: shrinks away cleanly, no bounce. Friendly, social-stream energy.',
+    description: 'Pops up with a springy overshoot and shrinks away cleanly. Social-stream energy.',
     autoEase: { easeIn: 'back.out(1.6)', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Pop spring — the card pops in with a springy overshoot (Back Out ease).
@@ -438,7 +438,7 @@ ${MARK_CLOSE}`,
   {
     id: 'snap-stinger',
     name: 'Snap stinger',
-    description: 'In: slams in from the left and snaps straight. Out: snaps away to the right, even faster. Sport-fast.',
+    description: 'Slams in from the left and snaps straight, then leaves even faster. Sport-fast.',
     autoEase: { easeIn: 'power4.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Snap stinger — slams in from the left with a skew that settles. Fast by design.
@@ -473,7 +473,7 @@ ${MARK_CLOSE}`,
   {
     id: 'blur-in',
     name: 'Blur in',
-    description: 'In: materialises out of a blur. Out: dissolves back into it. Soft, premium, glassy.',
+    description: 'Materialises out of a blur and dissolves back into it. Soft, premium, glassy.',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Blur in — the card materialises out of a blur (filter animates on the box only).
@@ -508,7 +508,7 @@ ${MARK_CLOSE}`,
   {
     id: 'fade',
     name: 'Fade',
-    description: 'In: a clean crossfade, no movement at all. Out: fades to nothing. The calmest choice.',
+    description: 'A clean crossfade, no movement at all. The calmest choice.',
     autoEase: { easeIn: 'sine.out', easeOut: 'sine.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Fade — a pure opacity dissolve, no movement. Calm, documentary, timeless.
@@ -543,7 +543,7 @@ ${MARK_CLOSE}`,
   {
     id: 'flip-3d',
     name: 'Flip 3D',
-    description: 'In: the card swings down from a 3D hinge along its top edge. Out: it folds forward and away. Dimensional.',
+    description: 'The card swings down from a 3D hinge along its top edge. Dimensional.',
     autoEase: { easeIn: 'power3.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}
 // Preset: Flip 3D — the card swings in on a 3D hinge along its top edge.

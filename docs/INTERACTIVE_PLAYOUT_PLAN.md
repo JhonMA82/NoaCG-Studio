@@ -679,6 +679,37 @@ its read-only page both ship, while everything that would DRIVE it is Phase 6. S
 retire-or-keep the standalone showchat surface, now that a production has its own audience
 plane and its own `audience` kill switch.
 
+## Backlog for the audience plane (owner-requested 2026-08-08, NOT built)
+
+Both came out of the owner's first hands-on pass at the audience link. They are recorded here
+rather than started, because the pass also found the link itself 404ing and the presenter view
+rendering unstyled, and the scope that was agreed was "a viewer opens the link on a phone and can
+take part" - nothing per-show, nothing automatic.
+
+- **Customising the audience page per show.** Today `joinSurface.ts` renders ONE layout for every
+  production; a publish carries only the four brand values (`audienceBrandFor` - accent, text,
+  panel, font family), and even those are partly a promise: the family NAME travels, but the join
+  page declares no `@font-face`, so a production branded in a bundled face renders in the phone's
+  default and nobody is told. So the first question is not "what should be customisable" but
+  "which of the four values actually arrive". Beyond that: a logo or title card above the prompt,
+  per-mode wording, a light theme for a daylit hall, and a QR/landing state for a link put on a
+  slide. **The constraint that shapes all of it:** the join page is a capability URL, so anything
+  customisable is something the RESOLVE has to return - and 0035's join resolve is deliberately
+  the narrowest thing that works (no show id, no other slug, no answer key, no tally, no presenter
+  pointers). Every new field is a new decision about what a stranger holding a guessed link may
+  learn, not a styling question.
+- **Automatic chat ingestion from YouTube, Twitch and other platforms into the audience plane.**
+  Pulling live chat in as submissions, so a production's inbox holds the room AND the stream. It
+  is the connector doctrine (`docs/CLOUD_PLAYOUT.md` §7) pointed at the audience plane rather than
+  at the Data Hub, and the structural rule survives it unchanged: a connector is a PRODUCER of
+  submissions, and `AudienceBackend` still has no method that reaches the command log, so an
+  ingested message goes on air the same way a phone's does - moderated, approved, taken. What it
+  needs that nothing here has: a server-side poller or webhook per platform (browser-to-Supabase
+  is the whole architecture today, zero Vercel functions - this breaks that), per-platform OAuth
+  the production owner grants, an author identity that is not a device token, and a volume story
+  the 3-per-30-seconds device cap was never sized for. Nothing about moderation changes; the
+  intake does.
+
 ## Sequencing and deliberate deferrals
 
 - **What actually happened, and it is the opposite of what this bullet used to say.** The plan

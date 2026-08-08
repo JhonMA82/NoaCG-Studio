@@ -1755,8 +1755,10 @@ function ProductionLinks({
                   goes on air until you approve it and take it, on the Audience tab.
                 </p>
                 {/* A READABLE NAME, because this is the one URL that gets said out loud. The
-                    field validates nothing: every rule lives on the column in migration 0035,
-                    and the answer to "is it free?" is the claim itself (hostedControl
+                    first publish already derived one from the production's name (control/
+                    joinName.ts), so this field is for CHANGING it rather than for having a link
+                    at all. It validates nothing: every rule lives on the column in migration
+                    0035, and the answer to "is it free?" is the claim itself (hostedControl
                     claimJoinName says why there is no availability check). */}
                 <div className="prod-link-row">
                   <span className="mono muted">Readable name</span>
@@ -1783,8 +1785,8 @@ function ProductionLinks({
                   </p>
                 )}
                 <p className="hint">
-                  Changing it makes the old audience link stop working — do it before you share it,
-                  not mid-show.
+                  The name above came from this production&rsquo;s name when you first published. Changing
+                  it makes the old audience link stop working — do it before you share it, not mid-show.
                 </p>
               </>
             )}

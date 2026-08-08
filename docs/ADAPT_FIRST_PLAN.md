@@ -315,8 +315,18 @@ No new paid stage is introduced.
    route. Any adapt-path number from before this lands is not comparable; the frozen *coder*
    control is untouched, so create-route numbers are unaffected. Free to re-measure with the
    routing bench; the quality read needs a paid round.
-2. **Fold Lite onto the platform zone rule** and delete its prompt instruction - needs a versioned
-   lower-third re-baseline (paid).
+2. ~~**Fold Lite onto the platform zone rule** and delete its prompt instruction~~ - **DONE
+   2026-08-08** (prompt version `lite-lower-third-v9`). The paid re-baseline this was waiting for
+   is what settled it: across two 30-brief rounds the Lite model answered `bottom-left` 47 times
+   out of 47. Lite now assembles with `keepChassisZone`, so placement is the chassis's own
+   `defaultZone` - which every audited Lite chassis declares as `bottom-left`, so nothing about
+   the output changed - and the prompt's bottom-zone line is gone.
+   **The `zone` FIELD stays in the Lite schema, deliberately.** Deleting it looked like the tidy
+   finish and cost a round: the Lite spec object is `additionalProperties: false`, so a property
+   the model still emits becomes a refusal rather than a no-op (29/30 → 26/30 on three
+   `malformed_response`). Moving a decision to the platform and removing it from the wire are
+   two different changes with two different risks - `benchmarks/lite/ROUND-2026-08-08-QUALITY.md`
+   §5.3.
 3. **Prove the shortlist beats the digest.** The honest experiment is one paid round, same briefs,
    same model, full digest vs shortlist, scored on chassis correctness and the human read. Not run
    here, and not to be run without an explicit cost approval.

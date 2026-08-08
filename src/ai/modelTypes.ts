@@ -67,9 +67,42 @@ export interface StructuredOutput {
   schema: Record<string, unknown>;
 }
 
+/**
+ * How much of an output budget a REASONING model can spend before it writes anything.
+ *
+ * Reasoning tokens are output tokens: they count against `maxTokens` and they come FIRST, so a
+ * budget sized for the answer alone truncates mid-answer with `finish_reason: length`. That
+ * reads as a bad model rather than a wrong number, which is what made it expensive to find -
+ * measured 2026-08-08 at 2,400-3,900 tokens of thinking per call on `google/gemini-2.5-flash`,
+ * where a 4,000 budget left about a hundred tokens for a 2,200-token document and destroyed
+ * five already-paid concept images (benchmarks/pro/round-2026-08-08/ROUND.md §3).
+ *
+ * Set to roughly twice the measured worst case: the number is a per-route unknown, and this is
+ * the wrong place to be precise.
+ */
+export const REASONING_HEADROOM_TOKENS = 8000;
+
+/**
+ * The `maxTokens` for a call whose ANSWER is at most `expectedOutputTokens`.
+ *
+ * Call this rather than writing a literal. The budget is not a price control - only tokens
+ * actually produced are billed - it is the ceiling a runaway answer hits, so the honest size is
+ * "what the answer needs, plus room to think". Passing the answer size keeps the intent legible:
+ * a reader can see what was expected, separately from the allowance no call site should have to
+ * reason about.
+ *
+ * The gateway already defaults an unspecified budget to 16,000, so every value this produces is
+ * inside territory the transport was handling anyway.
+ */
+export function outputBudget(expectedOutputTokens: number): number {
+  return expectedOutputTokens + REASONING_HEADROOM_TOKENS;
+}
+
 export interface ModelRequest {
   system: string;
   messages: { role: 'user' | 'assistant'; content: ModelContentBlock[] | string }[];
+  /** The output ceiling. Build it with `outputBudget(expectedAnswerTokens)` - a literal here is
+   *  how a call comes to have no room left to think in. */
   maxTokens?: number;
   /** Ask the route for a generated IMAGE instead of text. Only adapters whose provider
    *  actually offers image output accept it (the Vercel gateway today); everything else

@@ -80,33 +80,49 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
       </div>
       )}
 
+      {/* THE 2x2 GRID (re-design/handoff.md §2a). Every card is the same two blocks: a TITLE
+          ROW carrying the icon beside the title, then the description in a block of its own.
+          The icon used to be a third stacked line, which put each card's copy at a different
+          y and let the longest description make its whole grid row taller than the other
+          (measured at 1366x768: row 1 179px, row 2 138px). Card copy is kept to what the row
+          reserves — a card that needs a fourth line is a card that needs shorter copy. */}
       <div className="wz-entry">
         <button className="wz-entry-card wz-entry-card--primary" onClick={onTemplates} data-entry="template">
-          <span className="wz-entry-icon">▤</span>
-          <strong>Start from a template</strong>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">▤</span>
+            <strong>Start from a template</strong>
+          </span>
           <span className="hint">Pick a design, choose your fields, style, and animation — then tweak the code it writes, or never open it.</span>
         </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
-          <span className="wz-entry-icon">✦</span>
-          <strong>Create with AI</strong>
-          <span className="hint">Describe the graphic you need and NoaCG turns a proven broadcast design into a customized one — drop in a logo, brand stills, or an existing .html / SPX template to convert. Choose the Lite or Pro tier in AI settings; every result is live-tested and lands as clean, editable code.</span>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">✦</span>
+            <strong>Create with AI</strong>
+          </span>
+          <span className="hint">Describe the graphic you need and NoaCG turns a proven broadcast design into a customized one — drop in a logo, brand stills, or an existing .html / SPX template.</span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
-          <span className="wz-entry-icon">▦</span>
-          <strong>Import graphic</strong>
-          <span className="hint">Already designed it? Bring the finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece.</span>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">▦</span>
+            <strong>Import graphic</strong>
+          </span>
+          <span className="hint">Bring a finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece.</span>
         </button>
         <button className="wz-entry-card" onClick={onKit} data-entry="kit">
-          <span className="wz-entry-icon">▥</span>
-          <strong>Start from a kit</strong>
-          <span className="hint">Running a match, a service, an election night? Get the whole set of graphics that show needs, created together into one production — publish or export it as one.</span>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">▥</span>
+            <strong>Start from a kit</strong>
+          </span>
+          <span className="hint">A match, a service, an election night — the whole set of graphics a show needs, created together into one production.</span>
         </button>
         {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
             (docs/GOALS.md "Student release" step 4). */}
         {advanced && (
           <button className="wz-entry-card" onClick={onBlank} data-entry="blank">
-            <span className="wz-entry-icon">‹›</span>
-            <strong>Blank project</strong>
+            <span className="wz-entry-head">
+              <span className="wz-entry-icon">‹›</span>
+              <strong>Blank project</strong>
+            </span>
             <span className="hint">A minimal valid SPX template — pure code-first, no training wheels.</span>
           </button>
         )}

@@ -839,3 +839,54 @@ test('decoding widens what is UNDERSTOOD, never what is accepted', async () => {
     (error: unknown) => error instanceof GatewayError && /did not match the required structure/.test(error.message),
   );
 });
+
+test('a gateway answer cut off by the token limit says so instead of reading as a bad model', async () => {
+  // The failure this exists for: reasoning tokens are output tokens and come first, so a budget
+  // sized for the answer alone truncates mid-JSON. The Anthropic and OpenAI adapters have always
+  // reported their own truncation signal; the MANAGED transport did not, and the same response
+  // surfaced as "invalid structured result" with the body already discarded - an hour of
+  // instrumented diagnosis and five paid concept images (benchmarks/pro/round-2026-08-08).
+  const truncated: AiGatewayRequestBody = {
+    route: { provider: 'vercel', model: 'vendor/model' },
+    request: {
+      system: 'Interpret this design.',
+      messages: [{ role: 'user', content: 'brief' }],
+      structuredOutput: { name: 'emit', description: 'emit', schema: { type: 'object' } },
+    },
+  };
+  await assert.rejects(
+    executeGatewayRequest(truncated, {
+      keyFor,
+      fetchImpl: async () => new Response(JSON.stringify({
+        // Valid JSON as far as it goes, and half an object - exactly what a cut-off answer
+        // looks like. Without the finish_reason check this parses into a JSON error.
+        choices: [{ finish_reason: 'length', message: { content: '{"version": 1, "regions": [{"kind": "pane' } }],
+        usage: { prompt_tokens: 2651, completion_tokens: 3986, completion_tokens_details: { reasoning_tokens: 3841 } },
+      })),
+    }),
+    (error: unknown) => error instanceof GatewayError
+      && error.code === 'malformed_response'
+      // NOT retryable: a second attempt on the same budget truncates in the same place.
+      && error.retryable === false
+      && /cut off by the output token limit/.test(error.message),
+  );
+});
+
+test('a normal finish_reason still parses - the truncation guard is not swallowing good answers', async () => {
+  const ok: AiGatewayRequestBody = {
+    route: { provider: 'vercel', model: 'vendor/model' },
+    request: {
+      system: 'Interpret this design.',
+      messages: [{ role: 'user', content: 'brief' }],
+      structuredOutput: { name: 'emit', description: 'emit', schema: { type: 'object' } },
+    },
+  };
+  const result = await executeGatewayRequest(ok, {
+    keyFor,
+    fetchImpl: async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: 'stop', message: { content: '{"version":1}' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 20 },
+    })),
+  });
+  assert.deepEqual(result.output, { version: 1 });
+});

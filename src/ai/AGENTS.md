@@ -61,11 +61,38 @@ and simplification, never an automatic expensive fallback.
 
 **`litePipeline.ts` is the ONE grounded compile path** - normalizeLiteSpec +
 assembleGroundedTemplate (specToTemplate → applyDesignAdjustments → ensureSpecFonts →
-applySpecOutPreset) + productionSpxValidator (static + bench + safety screen, the same
-composition AiStep injects). claudeProvider is built FROM it, and the Lite benchmark
+applySpecOutPreset) + productionSpxValidator (static + bench + safety screen). claudeProvider
+is built FROM it, and the Lite benchmark
 runners (`scripts/ai-lite-*.mjs`, docs/AI_LITE_BENCHMARK.md) compile through the identical
 function - never re-inline the sequence anywhere; `scripts/ai-lite-bench.test.mjs` pins
 that no second copy exists.
+
+**Lite composes its OWN validator** (`claudeProvider.liteValidator`), for the same reason it
+passes its own `AssembleOptions`: `productionSpxValidator`'s `ProductionBenchOptions` can only be
+answered from the DECISION - which lines must hold one line (`singleLineIdentityFields`, off
+the spec's declared roles) and which category's type floor the ADJUSTED result is held to -
+and the browser builds its injected validator in AiStep long before a decision exists. While
+they were left unset, `bench-line-wrap` and `bench-type-floor` were findings every Lite
+BENCHMARK measured and no user ever did: the round scored a stricter gate than the product
+ran. All three are WARNINGS, so composing them in cannot fail a generation that used to pass. The
+two arguments AiStep does supply are always empty on this path (Lite takes no uploads and
+cannot convert an import), so nothing is lost but the structured setup's own checks, which
+`liteValidator` re-applies. Pinned by the provider case in `e2e/lite-line-fit.spec.ts`.
+
+**The third option is there for a different reason: Lite gets NO structural check at all.**
+`withStructuralFindings` returns early without a `StructuralIntent`, and Lite runs no intent
+stage - so the one question that measures whether a declared field REACHES THE SCREEN
+(`structuralIntentCheck`'s sentinel drive) never ran on the one path with no repair loop. The
+2026-08-08 quality round produced the frame that proves it matters: a strap that painted its
+name, reserved a band under it, drew nothing there, and answered `update()` with fresh data by
+changing nothing - `fieldCount: 2`, every rule code silent. The drive now lives in
+`validation/fieldPaint.ts`, shared by the structural check and the bench's opt-in
+`fieldPaints`, which `liteValidator` and `compileLiteDecision` both turn on. **It reads ONE
+state** (the settled default path), which is why it is opt-in rather than ambient: a field a
+later operator event reveals would read as unpainted, and Lite is safe today only because it
+ships single-step lower thirds. Widening Lite past those revisits that note first. Pinned by
+`e2e/lite-field-paint.spec.ts` (quiet on a real result, fires on a hidden field, off by
+default, and the default data is restored so the phases after it measure what they always did).
 
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider
@@ -375,10 +402,25 @@ or it would sit behind designs on the wrong side of the frame.
 `keepChassisZone` + `sizeScaleRange`), because **NoaCG Lite reaches that same function**
 (`liteGroundedResult` calls it with `profile` stripped, so nothing there can detect Lite) and
 Lite must keep compiling under its own declared contract: its schema allows `sizeScale` 0.7-1.4
-where the harness tool says 0.85-1.2, and its prompt already carries the bottom-zone rule.
-Moving either needs the paid re-baseline ADAPT_FIRST_PLAN §6.2 defers. Clamping every caller to
+where the harness tool says 0.85-1.2. Clamping every caller to
 the harness's numbers told the Lite model 1.35 was legal and then discarded it at compile - the
 shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over.
+
+**Lite OPTS IN to `keepChassisZone` now** (`lite-lower-third-v10`), which is the fold
+ADAPT_FIRST_PLAN §6.2 deferred behind a paid re-baseline - settled by the re-baseline it was
+waiting for: across two 30-brief rounds the model answered `bottom-left` 47 times of 47, every
+audited Lite chassis declares exactly that, and the prompt's bottom-zone line is gone. No output
+changed; the decision moved.
+
+**The `zone` PROPERTY stays in the Lite schema anyway, and that asymmetry is a measured rule.**
+Deleting it (and `animation.presetId`) looked free - both decisions are dead - and cost a round:
+the Lite spec object is `additionalProperties: false`, so a property the model still EMITS
+becomes a refusal rather than a no-op. 29/30 → 26/30 on three `malformed_response`
+(benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.3). **A property under
+`additionalProperties: false` cannot be deleted while the model still emits it** - teach it away
+in the property DESCRIPTION first (which took `presetId` from 9/29 emissions to 0/29), measure
+the rate reach zero across more than one round, then delete. Both fields are pinned by PRESENCE
+in `api/_lib/aiLite.test.ts`.
 
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather

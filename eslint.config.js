@@ -69,8 +69,17 @@ export default tseslint.config(
       'lite-bench-out*/',
       'lite-eval-out*/',
       'pro-bench-out*/',
+      'lite-on-pro-out*/',
+      'pro-machine-out*/',
       'video-bench-out*/',
       'video-benchmark-out/',
+      // Model-emitted code ARCHIVED beside a round's write-up, for the same reason as the
+      // out-directories above and one more: the artifact is evidence. The Pro round's saved
+      // template redeclares `noacgMachineState` (the model wrote one, the platform's
+      // interpreter writes another) - editing that away to please the linter would delete
+      // the finding the file exists to record.
+      'benchmarks/**/*.js',
+      'benchmarks/**/*.html',
     ],
   },
 

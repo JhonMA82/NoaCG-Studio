@@ -289,8 +289,8 @@ already decide nothing, so removing them costs no expressiveness that anyone has
 |---|---|---|---|
 | which chassis | model, from a 6-entry digest | **model, from a digest whose capacity words are measured** | the one judgement a small model makes well - given true facts |
 | line roles + copy | model | model | its strongest measured behaviour; role/intent agreement was clean across the round |
-| zone | model (`bottom-left` \| `-center` \| `-right`) | **platform** (`keepChassisZone`) | measured side agrees with declared zone 89/89 (ADAPT_FIRST §1.1); the model already only ever picks bottom-left, so the re-baseline risk §6.2 warned about is now measured as near-zero |
-| animation preset | model | **design default** | never exercised in 18 generations |
+| zone | ~~model~~ | **DONE v10: the design's own `defaultZone` (`keepChassisZone`). The field stays on the wire, ignored** | `bottom-left` on 47 of 47 across two rounds; measured side agrees with declared zone 89/89 (ADAPT_FIRST §1.1). Deleting the field costs a round - step 6.5 |
+| animation preset | ~~model~~ | **DONE: the design's default. The field stays on the wire, ignored** | never a legal value in 47 generations - null, or the chassis's own motion prose read back |
 | palette | model, contrast-clamped | model, unchanged | the clamp already works and brand colours are a real request |
 | `sizeScale`, `typography.scaleRatio`, density, tracking | model, clamped in code only | **model, clamped in the SCHEMA, and gated after compile** | see the §1 hazard: the code clamp and the advertised range disagree, and nothing measures the adjusted result |
 | everything else | platform | platform | unchanged |
@@ -414,16 +414,19 @@ Each step is free unless marked, and each is independently landable.
    on the long role, stays quiet when the copy fits, and stays quiet on the SAME long copy
    declared as a headline.
 
-   **Not yet wired into production**, and deliberately: the browser's injected validator is
-   built in `components/wizard/steps/AiStep.tsx`, which another session owns this week. The
-   seam is ready - `productionSpxValidator(source, protectedAssets, singleLineFields)` - and
-   `compileLiteDecision` already passes it, so the benchmark path is covered. Handing the AiStep
-   one-liner over is the whole remaining task.
-3. **Gate the ADJUSTED result.** The catalog gates certify a design as authored; add the type
-   floor to the AI validator composition (`productionSpxValidator`) so a generation is held to
-   the same 20px floor the catalog is. Deliberately NOT in `runtimeBench` - a user who chooses
-   graphic size S is not making an error, so this is a generation-quality rule, not an export
-   gate.
+   **WIRED INTO PRODUCTION 2026-08-08**, and not where this step expected. AiStep cannot
+   supply `singleLineFields`: the browser builds its injected validator before any decision
+   exists, and the fields are derived from the DECISION's declared roles against the ASSEMBLED
+   template. So the composition moved to the one place that has both - `claudeProvider`'s
+   `liteValidator`, beside the `AssembleOptions` override that exists for the identical reason.
+   Until then the wrap check was a finding every ROUND measured and no user ever saw.
+3. **Gate the ADJUSTED result.** DONE. `designAdjust` clamps to `typeFloorFor(category)`
+   rather than a hard 14px, and the live bench raises `bench-type-floor` on anything that
+   still renders under it (`e2e/lite-type-floor.spec.ts` pins both halves). It reaches
+   production through the same `liteValidator` composition as step 2 - before that it was
+   benchmark-only for the same reason. Deliberately NOT in `runtimeBench`'s defaults - a user
+   who chooses graphic size S is not making an error, so this is a generation-quality rule,
+   not an export gate.
 4. **Close the schema gaps.** DONE: `typography.scaleRatio` carries `minimum`/`maximum` in both
    schemas, and the supporting line can no longer be enlarged past its authored size (§1b).
    **What is left is the part the rounds have not answered** - a role longer than the chassis
@@ -435,9 +438,28 @@ Each step is free unless marked, and each is independently landable.
    **Before the next round, re-read the instrument.** `warningCodes` now records what
    `ruleCodes` does not; a round run before that is not comparable on any warning-severity
    finding.
-5. **Retire the two dead axes.** Fold Lite onto `keepChassisZone` and delete the two zone
-   prompt lines; drop `animation.presetId` from the Lite schema. Both are measured dead, and
-   both shorten a prompt whose length is itself a measured hazard.
+5. **Retire the two dead axes - ATTEMPTED 2026-08-08, and the deletion half is a measured
+   NO-GO.** Read `benchmarks/lite/ROUND-2026-08-08-QUALITY.md` §5.3 before trying again.
+
+   The decisions really are dead: `zone` came back `bottom-left` on 47 generations of 47 across
+   two rounds, and `animation.presetId` never once carried a legal value. **Moving them to the
+   platform worked** - Lite assembles with `keepChassisZone` now, so placement is the chassis's
+   own `defaultZone`, and that closes ADAPT_FIRST_PLAN §6.2's deferred fold with no output
+   change. The prompt lost its bottom-zone line.
+
+   **Deleting the schema properties did not work and cost a round.** The Lite spec object is
+   `additionalProperties: false`, so a property the model still EMITS becomes a refusal rather
+   than a no-op: v9 deleted both and fell 29/30 → 26/30 on three `malformed_response` where v7
+   and v8 had none. Restoring `zone` recovered two of the three (v10, 27/30); the residual could
+   not be attributed from one roll each, so v11 restored `presetId` too. Both now sit on the
+   wire with *"omit this field"* in their DESCRIPTION - which is what took `presetId`'s emission
+   rate from 9/29 to 0/29 in the first place - and are ignored by the compile.
+
+   **The rule that generalises: a property under `additionalProperties: false` cannot be deleted
+   while the model still emits it. Teach it away, measure the emission rate reach zero across
+   more than one round, then delete - or leave it instructed, which costs a few output tokens
+   against a refused request and a user's whole generation.** Pinned in
+   `api/_lib/aiLite.test.ts` by PRESENCE, so the next tidy-up meets the reason first.
 6. **Re-run the round** and compare against `lite-bench-out/round-2026-08-07/` - same briefs,
    same model, same prompt version, so the only variable is the platform. *(~$0.005.)*
 7. **Then, and only then, consider the route.** With a scorecard that measures frames rather

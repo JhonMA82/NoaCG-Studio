@@ -1,6 +1,6 @@
 ---
 name: start
-description: Warm a fresh session - read AGENTS.md + memory, then say "Ready." and nothing else
+description: Warm a fresh session - read the root AGENTS.md and nothing else, then say "Ready."
 ---
 
 Read `.agent-workflows/start.md` (relative to the repo root) now and follow it in full - that

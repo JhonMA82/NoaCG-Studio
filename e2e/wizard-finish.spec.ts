@@ -81,7 +81,10 @@ test('finish: skip-to-finish jumps from Browse once a design is picked', async (
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
   // The rail's forward dots unlocked too — Back to Style directly is one click.
   await page.locator('.wz-dot', { hasText: 'Style' }).click();
-  await expect(page.getByTestId('font-picker')).toBeVisible();
+  // The palette grid, not the typeface picker: what this asserts is "the rail landed on
+  // Style", and the picker now sits behind the collapsed Typeface row (handoff §2d), so a
+  // visibility check on it would be testing the disclosure rather than the jump.
+  await expect(page.locator('.wz-palettes')).toBeVisible();
   await page.locator('.wz-dot', { hasText: 'Finish' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 });
@@ -187,6 +190,28 @@ test('export window: navigating away closes it rather than stranding it over ano
     window.location.hash = '#/home/productions';
   });
   await expect(page.getByTestId('export-window')).toBeHidden();
+});
+
+test('finish: both doors are whole and above the fold on a short laptop', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await toFinishStep(page);
+
+  // The doors are the LAST thing on the step, so every block above them that spends a line
+  // pushes the only two controls the step exists for out of sight. Measured before the fix:
+  // 54px of overflow, the primary door's title cut through the middle — and `toBeVisible()`
+  // said yes to both, because an element clipped by a scrolling ancestor is still "visible".
+  expect(
+    await page.locator('.wz-step').evaluate((el) => el.scrollHeight - el.clientHeight),
+  ).toBe(0);
+
+  const port = (await page.locator('.wz-step').boundingBox())!;
+  for (const id of ['wz-finish-production-go', 'wz-finish-export']) {
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.y + box.height, `${id} clears the fold`).toBeLessThanOrEqual(port.y + port.height + 0.5);
+    // Whole, not merely started: a door showing its title and nothing else is the shipped bug.
+    const hint = (await page.getByTestId(id).locator('.hint').boundingBox())!;
+    expect(hint.y + hint.height, `${id}'s copy is not clipped`).toBeLessThanOrEqual(port.y + port.height + 0.5);
+  }
 });
 
 test('style step: size and position collapse behind a disclosure', async ({ page }) => {
