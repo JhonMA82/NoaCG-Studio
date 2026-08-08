@@ -957,7 +957,14 @@ async function liteGroundedResult(
       context,
       { ...options, profile: undefined, validate: liteValidator(spec, context) },
       run,
-      {},
+      // `keepChassisZone` since v9: the chassis is assembled at the zone it was DRAWN for, and
+      // `spec.zone` is not read even when the model sends one. Measured over two 30-brief
+      // rounds, the model answered `bottom-left` 47 times of 47 and every audited Lite chassis
+      // declares exactly that - so this changes no output and stops the model being asked.
+      // `sizeScaleRange` is deliberately still absent: Lite's own contract declares 0.7-1.4,
+      // which is `specToTemplate`'s permissive default, and narrowing it would re-open the
+      // shown-but-illegal mismatch ADAPT_FIRST_PLAN §3 Stage V records.
+      { keepChassisZone: true },
     );
     const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
     await recordLiteOutcome({

@@ -402,10 +402,25 @@ or it would sit behind designs on the wrong side of the frame.
 `keepChassisZone` + `sizeScaleRange`), because **NoaCG Lite reaches that same function**
 (`liteGroundedResult` calls it with `profile` stripped, so nothing there can detect Lite) and
 Lite must keep compiling under its own declared contract: its schema allows `sizeScale` 0.7-1.4
-where the harness tool says 0.85-1.2, and its prompt already carries the bottom-zone rule.
-Moving either needs the paid re-baseline ADAPT_FIRST_PLAN §6.2 defers. Clamping every caller to
+where the harness tool says 0.85-1.2. Clamping every caller to
 the harness's numbers told the Lite model 1.35 was legal and then discarded it at compile - the
 shown-but-illegal mismatch `narrowVariantTool` exists to prevent, one field over.
+
+**Lite OPTS IN to `keepChassisZone` now** (`lite-lower-third-v10`), which is the fold
+ADAPT_FIRST_PLAN §6.2 deferred behind a paid re-baseline - settled by the re-baseline it was
+waiting for: across two 30-brief rounds the model answered `bottom-left` 47 times of 47, every
+audited Lite chassis declares exactly that, and the prompt's bottom-zone line is gone. No output
+changed; the decision moved.
+
+**The `zone` PROPERTY stays in the Lite schema anyway, and that asymmetry is a measured rule.**
+Deleting it (and `animation.presetId`) looked free - both decisions are dead - and cost a round:
+the Lite spec object is `additionalProperties: false`, so a property the model still EMITS
+becomes a refusal rather than a no-op. 29/30 → 26/30 on three `malformed_response`
+(benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.3). **A property under
+`additionalProperties: false` cannot be deleted while the model still emits it** - teach it away
+in the property DESCRIPTION first (which took `presetId` from 9/29 emissions to 0/29), measure
+the rate reach zero across more than one round, then delete. Both fields are pinned by PRESENCE
+in `api/_lib/aiLite.test.ts`.
 
 **The anchor vocabulary is ONE table** (`templates/structuralAnchor.ts`): the family words,
 `resolveAnchor`, `structuralFit`, and what a variant satisfies. It lives in templates/ rather

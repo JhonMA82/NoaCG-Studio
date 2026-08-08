@@ -152,21 +152,31 @@ test('obviously unsupported requests are rejected before model inference', () =>
   })?.status, 'unsupported');
 });
 
-test('the managed model receives a ready-only lower-third schema', () => {
+test('the managed model receives a ready-only lower-third schema, and neither dead axis', () => {
   const schema = LITE_READY_OUTPUT.schema as {
     oneOf?: unknown;
     properties?: {
       status?: { enum?: unknown[] };
-      spec?: { properties?: { zone?: { enum?: unknown[] } } };
+      spec?: { properties?: Record<string, { properties?: Record<string, unknown> }> };
     };
   };
   assert.equal(schema.oneOf, undefined);
   assert.deepEqual(schema.properties?.status?.enum, ['ready']);
-  assert.deepEqual(schema.properties?.spec?.properties?.zone?.enum, [
-    'bottom-left',
-    'bottom-center',
-    'bottom-right',
-  ]);
+  // BOTH DEAD AXES STAY ON THE WIRE, and that is a measurement rather than an oversight.
+  // `zone` and `animation.presetId` are decisions the model no longer makes - it answered
+  // `bottom-left` 47 times of 47 and never once a legal preset id - and the compile ignores
+  // both (`keepChassisZone`, and `resolveDesign`'s preset check). Deleting them is the obvious
+  // tidy-up and it cost a round: this object refuses unknown properties, so a property the
+  // model still EMITS becomes a rejection rather than a no-op, and v9 fell 29/30 -> 26/30 on
+  // three `malformed_response` (benchmarks/lite/ROUND-2026-08-08-QUALITY.md §5.3).
+  //
+  // Asserted as PRESENCE so a future tidy-up meets the reason before it deletes them.
+  assert.ok(schema.properties?.spec?.properties?.zone, 'zone must stay on the wire - see above');
+  assert.ok(
+    schema.properties?.spec?.properties?.animation?.properties?.presetId,
+    'animation.presetId must stay on the wire - see above',
+  );
+  assert.ok(schema.properties?.spec?.properties?.animation?.properties?.speed);
 });
 
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {

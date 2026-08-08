@@ -2,12 +2,18 @@
 
 Price was settled by `ROUND-2026-08-08-GATEWAY.md` and is not re-opened here. This round asks
 three different questions: **does the doctrine hold in code**, **does the product's own click
-path work**, and **what do the frames actually look like**. Two frozen-bank rounds were run
-(`quality-v7` = the shipping configuration, `quality-v8` = one variable changed), plus one real
+path work**, and **what do the frames actually look like**. Five frozen-bank rounds were run —
+`quality-v7` (the configuration as found), `v8` (one variable changed), and `v9`/`v10`/`v11`,
+which are a schema tidy-up, the regression it caused, and its attribution — plus one real
 generation driven through the wizard as a user and taken all the way to a control page.
 
-**Total real spend this session: $0.0224** — 4 walk generations ($0.0011), the v7 bank
-($0.0103), the v8 bank ($0.0097). Budget was €5; 0.4% of it was used.
+**Total real spend this session: $0.0511** — 4 walk generations ($0.0011) and five 30-brief
+banks: v7 ($0.0103), v8 ($0.0097), v9 ($0.0084), v10 ($0.0098), v11 ($0.0105). Budget was €5;
+about 1% of it was used. The three extra banks are §5.3: an attempted schema tidy-up, the
+regression it caused, and the two rounds that attributed and undid it.
+
+**The shipping configuration is `lite-lower-third-v11`**, and its result is v8's: 29 of 30
+machine-usable, one standing failure, zero schema rejections.
 
 ---
 
@@ -85,10 +91,11 @@ The whole path works. Nothing about the graphic being AI-made changes what the o
 - The Finish step's third door (**Open in the editor**, Advanced-only) also sits below the fold
   at that height. The two primary doors are above it, so the ordering is right.
 
-## 3. The frozen bank, twice
+## 3. The frozen bank — where the quality number comes from
 
-Both rounds: 30 fixtures (`ai-lite-lower-third-fixtures.mjs` v2), one result each, no
-cherry-picking, route `vercel:google/gemini-2.5-flash-lite`.
+Every round: 30 fixtures (`ai-lite-lower-third-fixtures.mjs` v2), one result each, no
+cherry-picking, route `vercel:google/gemini-2.5-flash-lite`. v7 and v8 below are the two that
+establish the quality number; §5.3 is the v9-v11 series and reads at the same 29/30.
 
 | | gateway round (08-08) | **v7** | **v8** |
 |---|---|---|---|
@@ -117,7 +124,7 @@ different colours" is not happening.
 ## 4. What the frames show that no rule code names
 
 Read before the gate output, as §5 of the plan requires. The gallery is
-`lite-eval-out/gallery-v8.html` (self-contained, needs-attention first).
+`lite-eval-out/gallery-v11.html` (self-contained, needs-attention first) - the shipping configuration.
 
 **Most of it is good.** `university-speaker` (lt02) — *Dr. Anika Ramanathan / PROFESSOR OF
 ENVIRONMENTAL ENGINEERING* — is a strap you could air unedited. `news-anchor` (lt11) is a clean
@@ -208,7 +215,63 @@ clamped. Prompt version `lite-lower-third-v8`.
 Delete the property once a second round confirms zero emissions. That is the staged retirement;
 `zone` (bottom-left on 29 of 29, `enum`-constrained) is the same shape and the same argument.
 
-### 5.3 `.env.example` pointed the fallback at a route the code no longer uses
+### 5.3 Retiring the dead axes — and the deletion that cost a round
+
+With v8's evidence in hand, both dead axes were deleted in **v9**: `zone` (answered
+`bottom-left` on 47 generations out of 47 across the two rounds) and `animation.presetId`
+(emissions driven to 0/29 by the description change). The reasoning for `zone` was that the
+deletion is output-identical — `variant.create` resolves `options.zone ?? variant.defaultZone`
+and all six audited chassis declare `bottom-left`, so an absent zone compiles to exactly what
+was being supplied.
+
+**That reasoning was about the compile, and the compile was never the risk.**
+
+**Four rounds, and the series is monotonic in the number of properties deleted** — which is what
+makes the attribution clean rather than a story:
+
+| | properties deleted | machine-usable | `malformed_response` | `intent_*` | calls | cost |
+|---|---|---|---|---|---|---|
+| v7 | 0 | 29/30 | 0 | 1 | 32 | $0.0103 |
+| v8 | 0 | 29/30 | 0 | 1 | 30 | $0.0097 |
+| **v9** | **2** (`zone`, `presetId`) | **26/30** | **3** | 1 | 33 | $0.0084 |
+| **v10** | **1** (`presetId`) | 27/30 | 1 | 2 | 35 | $0.0098 |
+| **v11** | **0** | **29/30** | **0** | 1 | 33 | $0.0105 |
+
+Every round's single `intent_variant_mismatch` is `call-to-action`, the standing failure since
+the gateway round. v11 restores v8's result exactly.
+
+The Lite spec object is `additionalProperties: false`. A property the model **still emits**
+becomes a schema refusal, a retry, and then a user-visible `generation_failed`. `presetId` was
+safe to delete *because v8 had already driven its emission rate to zero*; `zone` was emitted
+every single time, which made it the most dangerous property in the schema to remove, not the
+safest. The rule had been written into `liteContract.ts` one edit earlier and was broken in the
+same change.
+
+**v10 applied the `presetId` treatment to `zone`:** the field back on the wire with *"omit this
+field"* in its description — no prompt line, and a model that ignores it is ignored rather than
+refused — while the **compile** stops reading it (Lite assembles with `keepChassisZone`, so
+placement is the design's own `defaultZone`). That recovered **two of the three** rejections:
+27/30, one `malformed_response` left, plus one new `intent_role_mismatch`.
+
+**v11 stopped deleting anything, and landed back on 29/30 with zero rejections.** v10 still
+differed from v8 in two more ways — `presetId` deleted, and the bottom-zone prompt line removed —
+and one roll each cannot separate those from sampling, so `presetId` went back under the same
+instructed-but-ignored treatment. **Neither dead axis is deleted.** The trade is explicit:
+keeping an instructed dead field costs a few output tokens; deleting one the model still emits
+costs a refused request and a user's whole generation.
+
+What the exercise DID land, and it is the part worth keeping: **placement moved from the model
+to the platform.** `keepChassisZone` is on for Lite, which closes `docs/ADAPT_FIRST_PLAN.md`
+§6.2's deferred fold — with no output change, since every audited chassis is drawn bottom-left
+and that is what the model was answering anyway.
+
+**The rule, paid for twice: a property under `additionalProperties: false` cannot be deleted
+while the model still emits it. Teach it away, measure the emission rate reach zero across more
+than one round, then delete — or simply leave it instructed.** Pinned in
+`api/_lib/aiLite.test.ts` as a PRESENCE assertion on both fields, so a future tidy-up meets the
+reason before it meets the schema.
+
+### 5.4 `.env.example` pointed the fallback at a route the code no longer uses
 
 It still said `AI_LITE_FALLBACK_MODEL=alibaba/qwen3-coder-next` while the code default has been
 the primary again since `7d6e4a2a`. An operator copying the example got the configuration the
@@ -253,7 +316,7 @@ rather than `AI_GATEWAY_API_KEY`) and its ZDR plan entitlement.
 
 - `lite-eval-out/round-2026-08-08-quality/` — 30 × 4 lifecycle frames and a clip per fixture, per
   round, plus `quality-v7-metrics.json` and `quality-v8-metrics.json` (gitignored).
-- `lite-eval-out/gallery-v8.html` and `gallery-v7.html` — self-contained review galleries.
+- `lite-eval-out/gallery-v11.html` (the shipping configuration), plus `gallery-v8.html` and `gallery-v7.html` — self-contained review galleries.
 - `lite-eval-out/walk/` — the wizard and control-page screenshots.
 - `lite-eval-out/tools/` — the parity walk, the wizard walk, the gallery builder, the probe.
 

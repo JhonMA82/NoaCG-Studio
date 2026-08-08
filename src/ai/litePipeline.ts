@@ -230,7 +230,9 @@ export async function compileLiteDecision(
     skinOutcome = `rejected-${attempt.rejection ?? 'patch'}`;
     skinRejectionRules = attempt.rejectionRules;
   }
-  const { template, diversity } = assembleGroundedTemplate(spec, ctx);
+  // `keepChassisZone` mirrors production's `liteGroundedResult` exactly - the benchmark and the
+  // product must not compile a spec differently, which is this module's whole reason to exist.
+  const { template, diversity } = assembleGroundedTemplate(spec, ctx, { keepChassisZone: true });
   const validation = demoteSpecFields(
     await productionSpxValidator(null, [], {
       singleLineFields: singleLineIdentityFields(spec, template),

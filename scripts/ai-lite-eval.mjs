@@ -174,6 +174,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
       const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
       const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { variantById } = await import('/src/templates/catalog.ts');
       const context = {
         images: [],
         palette: null,
@@ -220,8 +221,17 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
         skinOutcome,
         skinRejectionRules: skinRejectionRules ?? null,
         fieldCount: template.fields.length,
-        zone: designSpec.zone ?? null,
-        animationPreset: designSpec.animation?.presetId ?? null,
+        // The zone the graphic actually SITS at. It used to read `designSpec.zone`, which the
+        // v9 schema no longer carries: placement folded onto the design's own `defaultZone`
+        // after two rounds measured the model answering `bottom-left` 47 times out of 47.
+        // Reading the retired field would have quietly turned this column into `null` on every
+        // row - the `warningCodes` failure again, a measurement that stops measuring and looks
+        // like a change.
+        zone: variantById(spec.variantId)?.defaultZone ?? null,
+        // Retired alongside `zone` in v9 and kept as an EXPLICIT null rather than deleted: a
+        // round comparing against v7 or v8 has to be able to tell "the model chose no preset"
+        // from "this runner stopped asking". `presetId` is no longer in the schema at all.
+        animationPreset: null,
         // The COLOUR and PROPORTION decisions, recorded for the same reason warningCodes is:
         // a round that cannot say what a frame was built from cannot diagnose the frame. The
         // 2026-08-08 quality round produced one lt11 result whose second field painted no

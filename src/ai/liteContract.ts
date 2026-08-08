@@ -150,9 +150,6 @@ const safeColor = {
   pattern: '^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$',
   maxLength: 9,
 };
-const zones = [
-  'bottom-left', 'bottom-center', 'bottom-right',
-];
 const lineRoles: LiteLowerThirdLineRole[] = [
   'person-name', 'person-role', 'organization', 'team-name', 'story-headline',
   'event-name', 'location', 'social-handle', 'call-to-action', 'supporting-context',
@@ -212,7 +209,33 @@ const specSchema: Record<string, unknown> = {
         },
       },
     },
-    zone: { type: 'string', enum: zones },
+    // `zone` STAYS IN THE SCHEMA and is ignored by the compile - the same staged retirement
+    // `animation.presetId` went through, and this field is the reason that staging is a rule
+    // rather than a preference.
+    //
+    // The decision it once carried is dead: `bottom-left` on 18 of 18 in the 2026-08-07 round
+    // and 29 of 29 in each of the 2026-08-08 quality rounds. `variant.create` resolves
+    // `options.zone ?? variant.defaultZone` and all six audited chassis declare `bottom-left`,
+    // so an absent zone compiles to exactly what the model was supplying. That much was right,
+    // and it closes ADAPT_FIRST_PLAN §6.2's deferred fold.
+    //
+    // **Deleting the property was NOT, and v9 measured the cost: 29/30 -> 26/30, three
+    // `malformed_response` rejections where v7 and v8 had none.** The argument for deleting it
+    // was about the COMPILE - where the value goes when it is absent - and the compile was never
+    // the risk. The WIRE is: this object is `additionalProperties: false`, so a property the
+    // model still emits becomes a refusal, a retry, and then a user-visible failure. `presetId`
+    // was safe to delete precisely because v8 had driven its emission rate to zero first;
+    // `zone` was emitted on 47 generations out of 47, which made it the most dangerous property
+    // in the schema to remove, not the safest.
+    //
+    // So it is back, unconstrained on the wire and instructed in the DESCRIPTION - no prompt
+    // line, and a model that ignores it is merely ignored rather than refused. Delete it the day
+    // a round measures zero emissions, and not before. That is the whole rule.
+    zone: {
+      type: 'string',
+      maxLength: 40,
+      description: 'Omit this field. Placement comes from the chosen design, which is already drawn for its own corner of the frame; any value here is ignored.',
+    },
     paletteId: { type: 'string', maxLength: 80 },
     palette: {
       type: 'object',
@@ -237,22 +260,32 @@ const specSchema: Record<string, unknown> = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        // STAGED RETIREMENT, and the staging is the point. The 2026-08-07 round measured this
-        // field null on all 18 generations and the plan called it dead; the 2026-08-08 quality
-        // round found it null on 20 of 29 and carrying an INVALID value on the other 9 - every
-        // one of them the chosen chassis's own `motion:` prose read back ("controlled newsroom
-        // reveal" -> `controlled-newsroom-reveal`). `resolveDesign` requires the id to be in
-        // `variant.animationPresets`, so all 9 were silently dropped and the design's authored
-        // motion shipped: no wrong graphic, but a shown-but-illegal field and a telemetry axis
-        // that reads as a choice nobody made.
+        // `presetId` STAYS, ignored by the compile, for the same reason `zone` above does.
         //
-        // Deleting the property is NOT the free fix the plan assumed. This object is
-        // `additionalProperties: false`, so removing it converts an emission nine of twenty-nine
-        // generations make into a schema REJECTION - `malformed_response`, an attempt burnt out
-        // of a budget of two, and the numeric-enum failure mode of v7 all over again. So the
-        // instruction goes in the DESCRIPTION, where it costs no prompt line (the `speed`
-        // precedent below) and where a model that ignores it is still merely clamped. Delete the
-        // property only once a round measures zero emissions.
+        // The 2026-08-07 round measured it null on all 18 generations and the plan called it a
+        // dead axis to delete. The 2026-08-08 quality round found worse: null on 20 of 29 and
+        // carrying an INVALID value on the other 9 - every one the chosen chassis's own
+        // `motion:` digest prose read back ("controlled newsroom reveal" ->
+        // `controlled-newsroom-reveal`). `resolveDesign` requires the id to be in
+        // `variant.animationPresets`, so all nine were dropped and the design's own motion
+        // shipped: no wrong graphic, but a shown-but-illegal field and a telemetry axis reading
+        // as a choice nobody made.
+        //
+        // v8 put "omit this field" in the DESCRIPTION - no prompt line (the `speed` precedent
+        // below), and a model that ignores it is still merely clamped. Measured on the same 30
+        // briefs, one variable: emissions 9/29 -> 0/29, pass rate unchanged at 29/30, provider
+        // calls 32 -> 30. That worked.
+        //
+        // v9 then DELETED it, along with `zone`, and the round fell 29/30 -> 26/30 on three
+        // `malformed_response`. Restoring `zone` alone recovered two of the three; the residual
+        // could not be attributed to this field or to sampling from one roll each, and 0 of 29
+        // emissions is not a measured zero rate. **So neither property is deleted.** The cost of
+        // keeping a dead-but-instructed field is a few output tokens; the cost of deleting one
+        // the model still emits is a refused request and a user's generation.
+        //
+        // The rule, paid for twice: **a property under `additionalProperties: false` cannot be
+        // deleted while the model still emits it.** Teach it away, measure the emission rate
+        // reach zero across more than one round, then delete - or simply leave it instructed.
         presetId: {
           type: 'string',
           maxLength: 80,
@@ -670,7 +703,13 @@ export function liteSystemPrompt(
     'Choose one listed chassis. The platform compiles it deterministically into an editable broadcast graphic.',
     'Fit must be catalog and flourish must be the empty string. Use one or two realistic editable lines and identify the semantic role of each line.',
     'Length limits are hard: reason and summary are each ONE short sentence under 200 characters. Never write multi-sentence rationales anywhere.',
-    'This is a lower third, so keep it in a bottom zone. Use bottom-left unless the brief clearly supports bottom-center or bottom-right.',
+    // The line that used to sit here defended `spec.zone` ("keep it in a bottom zone; use
+    // bottom-left unless the brief clearly supports bottom-center or bottom-right"). It went in
+    // v9: placement is the DESIGN's own `defaultZone` now, which every audited chassis declares
+    // as bottom-left, so the model is not asked and the compile does not read the answer. The
+    // field itself stays on the wire for the reason written beside it. Prompt length is a
+    // measured hazard here (docs/AI_LITE_BENCHMARK.md §6c), so a rule the platform decides
+    // deterministically must not keep spending a line.
     'intent.primaryRole must exactly equal lines[0].role. When there are two lines, intent.secondaryRole is MANDATORY and must exactly equal lines[1].role - never omit it. Example: lines with roles person-name then person-role require intent {"kind":"person","primaryRole":"person-name","secondaryRole":"person-role"}.',
     'For a person lower third, the first line is the actual person name. Never substitute a faculty, employer, team, or programme for a requested person name. The second line is their role, organization, team, or location as requested.',
     'Job titles such as Producer, Director, Professor, Analyst, Correspondent, Officer, President, or Coach use role person-role. Never label a job title as a team name or generic context.',
