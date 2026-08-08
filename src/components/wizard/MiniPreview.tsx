@@ -25,11 +25,14 @@ import type { SpxTemplate } from '../../model/types';
  * contentDocument.
  */
 
-type Props =
-  | { variant: TemplateVariant; template?: never }
-  | { template: SpxTemplate; variant?: never };
+/** `lazy` forces the intersection gate onto a ready-made `template` too. The kit tray is the
+ *  one caller that needs it: a 36-graphic kit is 36 built templates in one horizontally
+ *  scrolling strip, which is exactly the page-long stall the gate exists to prevent. */
+type Props = ({ variant: TemplateVariant; template?: never } | { template: SpxTemplate; variant?: never }) & {
+  lazy?: boolean;
+};
 
-export default function MiniPreview({ variant, template: built }: Props) {
+export default function MiniPreview({ variant, template: built, lazy }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   // Mount the iframe only once the card scrolls into view (the GraphicThumb recipe): the
@@ -39,9 +42,9 @@ export default function MiniPreview({ variant, template: built }: Props) {
   // A ready-made `template` skips that gate. There are only ever a few of them, they cost no
   // build, and they sit below the fold of a scrolling step — waiting for an intersection
   // there means the cards a user scrolls down TO ARE the reason they scrolled, shown empty.
-  const [visible, setVisible] = useState(Boolean(built));
+  const [visible, setVisible] = useState(Boolean(built) && !lazy);
   useEffect(() => {
-    if (built) return;
+    if (built && !lazy) return;
     const el = cardRef.current;
     if (!el) return;
     const io = new IntersectionObserver((entries) => {
@@ -52,7 +55,7 @@ export default function MiniPreview({ variant, template: built }: Props) {
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [built]);
+  }, [built, lazy]);
   const template = useMemo(
     () => (visible ? (built ?? variant?.create() ?? null) : null),
     [built, variant, visible],

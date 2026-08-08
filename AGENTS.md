@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guidance for AI agents working in this repo. Keep it accurate - update it when architecture or
-conventions change. This root file holds the product identity, the non-negotiables, and the working
+conventions change. This root file holds the product identity, the non-negotiables and the working
 practices; **deep per-area contracts live in nested `AGENTS.md` files** (directories marked * in the
 map below, each paired with a thin `CLAUDE.md` that imports it) - read the relevant one before
 editing that area from outside it.
@@ -13,25 +13,24 @@ Be concise with all of your responses.
 **NoaCG Studio** - an **AI-assisted, multi-platform** browser tool for creating modern, premium
 HTML broadcast graphics and exporting them to **many broadcast/streaming environments**
 ("anything-goes export": SPX Graphics, CasparCG, OGraf, OBS/vMix overlays today; more over time).
-For TV channels, streamers, organizations, and universities, technical and non-technical users
-alike - it's used in teaching, but it is a production tool, not a code tutorial. Brand: dark
-control-room, one amber "on-air" accent, restrained glow (`NoaCG-Brand-Kit/BRAND-MANUAL.md`).
-The APP CHROME reads in bundled IBM Plex Sans (`--font-ui`), which diverges from the manual's
-Space Grotesk - that face is now the LOCKUP's (`--font-display`), and the mono label voice is
-bundled JetBrains Mono rather than IBM Plex Mono, because shipping a face means a CDN
-(non-negotiable #3) or an unvetted binary. The manual still owns the palette.
-**Free forever for the core; the only paid surface is hosted AI without a BYO key; the current
-goal is users/adoption, not revenue.** Binding docs, read before generating or judging templates:
-**`docs/DESIGN_LANGUAGE.md`** (taste + motion + code style) and **`docs/GOALS.md`** (north star +
-what is NOT done - when a goal lands, move it verbatim to `docs/GOALS_ARCHIVE.md` and delete it
-from GOALS.md, which stays under ~200 lines).
+For TV channels, streamers, organizations and universities, technical and non-technical users alike
+- it is used in teaching, but it is a production tool, not a code tutorial.
 
-**Current push (2026-08): the STUDENT RELEASE** - the binding 10-step roadmap is the "Student
-release" section of `docs/GOALS.md`. The primary workflow is WIZARD-FIRST: choose a template or
-pack, customize supported fields and branding manually, add it to a PRODUCTION, export or
-publish, operate live (CasparCG + OBS are the primary verification targets). The editor is
-being demoted to an Advanced mode over those steps; AI work is postponed until template-to-live
-is dependable. Prefer work that serves that north star.
+**Free forever for the core; the only paid surface is hosted AI without a BYO key; the current goal
+is users/adoption, not revenue.**
+
+Brand: dark control-room, one amber "on-air" accent, restrained glow. `NoaCG-Brand-Kit/BRAND-MANUAL.md`
+owns the palette and records which shipped typefaces diverge from it, and why.
+
+Binding docs, read before generating or judging templates: **`docs/DESIGN_LANGUAGE.md`** (taste +
+motion + code style) and **`docs/GOALS.md`** (north star + what is NOT done - a landed goal moves
+verbatim to `docs/GOALS_ARCHIVE.md`, and GOALS.md stays under ~200 lines).
+
+**Current push (2026-08): the STUDENT RELEASE**, whose binding roadmap is the "Student release"
+section of `docs/GOALS.md`. WIZARD-FIRST: choose a template or kit, customize fields and branding,
+add it to a PRODUCTION, export or publish, operate live (CasparCG + OBS are the primary
+verification targets). The editor is being demoted to an Advanced mode and AI work is postponed
+until template-to-live is dependable. Prefer work that serves that north star.
 
 **The pillars (keep every change true to these):**
 - **Best & easiest to create - and put on air** - premium output with the least friction; a
@@ -43,56 +42,44 @@ is dependable. Prefer work that serves that north star.
 - **Code is real & always available, view optional** - every visual/AI action writes real
   HTML/CSS/JS; **nothing hides behind a visual-only scene model**. No-code users keep the view
   hidden, pros work in it. Generated code is clean and commented; exports are always plug-and-play.
-  The wizard and every production write real code; the student release demotes only the VIEW
-  (the editor becomes Advanced mode), never the code.
+  The student release demotes only the VIEW (the editor becomes Advanced mode), never the code.
 
 ## Commands
 
 ```bash
 npm install
-npm run dev      # Vite dev server (landing at /, THE STUDIO AT /app: home, wizard,
-                 # productions - the editor is its Advanced surface)
+npm run dev      # Vite dev server (landing at /, THE STUDIO AT /app)
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
-npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
-npm run check:workflows      # what only GitHub could check: .github/workflows/*.yml (in build)
-npm run check:vercel-config  # what only Vercel could check: vercel.json's routes (in build) -
-npm run check:function-budget # ...and api/'s function count. BOTH are refused BEFORE a
-                             # deployment exists, so they show nowhere on Vercel, only in the
-                             # GitHub commit status. Each froze production once (docs/DEPLOYMENT.md)
-npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
+npm run test:worktree-safety  # Git-safety regression tests for shared workflows
+npm run check:workflows       # .github/workflows/*.yml against the Actions schema (in build)
+npm run check:vercel-config   # vercel.json routes (in build)
+npm run check:function-budget # api/'s function count (in build)
+npm run check:freshness       # vendored GSAP/Lottie + pinned model ids - REPORTS, weekly, not a gate
 ```
 
-**Freshness is TIME-driven, never commit-driven** (`docs/STACK_FRESHNESS.md`): `check:freshness`
-is not in the build gate, because its answer changes when upstream publishes. It runs weekly in
-`weekly-audit.yml` and REPORTS - nothing here auto-upgrades, since Remotion's three-file exact
-pin and the es2017 output floor can both be broken by a bump that passes every check.
+`check:vercel-config` and `check:function-budget` guard failures that are **invisible on Vercel**:
+both are refused BEFORE a deployment exists, so they show nowhere on the dashboard, only in the
+GitHub commit status. Each froze production once (`docs/DEPLOYMENT.md`).
 
-**The dev port is per-checkout** (`scripts/dev-port.mjs`, which prints it): 5174 in the main
-checkout (5175 for the live e2e suite), a RESERVED port from the 5180-5298 block in a linked
-worktree - Vite, both Playwright configs, the guard hooks and the dev scripts all read the same
-number, so parallel worktrees never fight over one server. It is RESERVED through a ticket, not
-merely hashed, so two worktrees that hash alike still both start (**`docs/DEV_PORTS.md`** -
-assignment, storage, troubleshooting a stuck server). `.claude/launch.json` and
-`.claude/dev-port.json` are GENERATED
-from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
-everything. `npm run test:ports` covers the allocator.
+**The dev port is per-checkout** and RESERVED through a ticket, not merely hashed, so two worktrees
+that hash alike still both start: 5174 in the main checkout (5175 for the live e2e suite), a
+reserved port from the 5180-5298 block in a linked worktree. `scripts/dev-port.mjs` prints it;
+Vite, both Playwright configs, the guard hooks and the dev scripts all read the same number.
+`.claude/launch.json` and `.claude/dev-port.json` are GENERATED from that reservation (gitignored -
+never hand-edit or commit them). `DEV_PORT=n` overrides everything. Details, storage and
+troubleshooting: **`docs/DEV_PORTS.md`**; `npm run test:ports` covers the allocator.
 
-**Five pages (Vite MPA):** `index.html` is the static landing at `/` (no React; carries a redirect
-shim so old root `?chat=`/`?template=` share links land on `/app` with their query); `app.html` is
-the editor at `/app` (clean URL from the `app-clean-url` plugin in dev/preview, Vercel `cleanUrls`
-in production); `admin.html` is the PRIVATE admin surface at `/admin` - unlinked from everything,
-`noindex`, and a plain 404 for everyone the server does not recognise (**`docs/ADMIN.md`**);
-`output.html` is the browser-output RENDERER at `/output?production=<slug>` - the transparent
-capability-URL page a production client (CasparCG/OBS/vMix) loads once (**`docs/CLOUD_PLAYOUT.md`**);
-`join.html` is the PUBLIC audience page at `/join/<name>` (also `/join?p=<slug>`, and
-`?pv=<slug>` for the presenter view) - the capability URL a viewer's phone opens, vanilla TS,
-`noindex` (**`docs/INTERACTIVE_PLAYOUT_PLAN.md`** Phase 5).
-E2E specs navigate to `/app`.
+**Five pages (Vite MPA).** Clean URLs come from the `app-clean-url` plugin in dev/preview and
+Vercel `cleanUrls` in production.
 
-There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
-Verify product changes with `npm run build` plus in-browser checks (below); never mark work done
-on a green build alone if the behaviour is observable.
+| URL | Entry | What it is |
+|---|---|---|
+| `/` | `index.html` | static landing, no React; carries a redirect shim so old root `?chat=`/`?template=` share links land on `/app` with their query |
+| `/app` | `app.html` | the studio: home, wizard, productions - the editor is its Advanced surface. E2E specs navigate here |
+| `/admin` | `admin.html` | PRIVATE admin surface - unlinked, `noindex`, a plain 404 for everyone the server does not recognise (`docs/ADMIN.md`) |
+| `/output?production=<slug>` | `output.html` | the transparent browser-output RENDERER a production client (CasparCG/OBS/vMix) loads once (`docs/CLOUD_PLAYOUT.md`) |
+| `/join/<name>` | `join.html` | PUBLIC audience page (also `/join?p=<slug>`, `?pv=<slug>` for the presenter view) - vanilla TS, `noindex` (`docs/INTERACTIVE_PLAYOUT_PLAN.md` Phase 5) |
 
 ## Non-negotiable principles (these override default behaviour)
 
@@ -130,9 +117,9 @@ Full reference: **`docs/SPX_TEMPLATE_FORMAT.md`** (derived from `example_project
 
 ## The state-machine model (what a graphic IS)
 
-Full reference: **`docs/STATE_MACHINE_SCHEMA.md`**. A graphic is data fields + one or more
-PARALLEL state groups, all inside the one `NOACG_ANIM` data block (format version 2) in the
-marked ANIMATION region - no second scene model, no parallel format. Essentials:
+Full reference: **`docs/STATE_MACHINE_SCHEMA.md`**. A graphic is data fields + one or more PARALLEL
+state groups, all inside the one `NOACG_ANIM` data block (format version 2) in the marked ANIMATION
+region - no second scene model, no parallel format. The rules that change behaviour:
 
 - A **state** is what the graphic looks like; its content is a timeline. A **transition** is an
   animated change, fired by an operator **event** or a **timer**. Guarding is STRUCTURAL - a
@@ -140,141 +127,78 @@ marked ANIMATION region - no second scene model, no parallel format. Essentials:
   language, ever.
 - **The default path** is the ordered walk `next` follows - the SPX/CasparCG compatibility
   contract. Every template, however complex, degrades to dumb-stepping along it. `steps` IS that
-  path: `defaultPath[i]`'s timeline is `steps[i]` (the positional binding), which is why the
-  multi-step reveal feature became the default path rather than being duplicated by it.
-- **Data updates never cause transitions.** `update()` writes fields; state changes come only
-  from events (a payload may ride an accepted event, which is what makes a multi-part change
-  atomic). **Parameterize with data, not states** - one `Selected` state plus a field, never
-  four near-identical states.
+  path: `defaultPath[i]`'s timeline is `steps[i]` (the positional binding).
+- **Data updates never cause transitions.** `update()` writes fields; state changes come only from
+  events (a payload may ride an accepted event, which is what makes a multi-part change atomic).
+  **Parameterize with data, not states** - one `Selected` state plus a field, never four
+  near-identical states.
 - **Every state is enterable two ways:** by transition (animated) or by SNAP (instant - recovery,
   emergency jumps, preview without playback). **Reset is two operations**, never conflated: reset
   visual state (snap every group to its initial) and reset data.
 - Events are processed SERIALLY through one queue per graphic, and that queue lives INSIDE the
-  template - so the determinism holds identically in the editor, in an exported overlay, and
-  under SPX.
-- **Control pages are GENERATED from the machine** (docs/CONTROL_LAYER.md): every operator
-  event becomes a button (labels/sections/payloads ride in the additive `machine.controls`
-  metadata), every field an input, legality = the structural guard mirrored as greying.
-  Staged data airs only on an explicit take; the event log is what makes refresh/crash
-  recovery possible (data half, then snap - reset is two operations, recovery is both).
+  template - so the determinism holds identically in the editor, in an exported overlay, and under
+  SPX.
+- **Control pages are GENERATED from the machine** (`docs/CONTROL_LAYER.md`): every event a button,
+  every field an input, legality = the structural guard mirrored as greying.
 - A template with no `machine` key IS the implicit one-group linear machine, derived on read and
-  never persisted: the whole existing catalog behaves exactly as before. A **graphic type**
-  (`docs/GRAPHIC_TYPES.md`) follows the same rule - it persists a machine only when the derived
-  one is wrong, which is why most types add nothing to what they emit.
+  never persisted, so the existing catalog behaves exactly as before. A **graphic type**
+  (`docs/GRAPHIC_TYPES.md`) persists a machine only when the derived one is wrong.
 
 ## Architecture map
 
-Directories marked * have their own `AGENTS.md` (with a thin `CLAUDE.md` importing it) holding
-the binding per-area contracts. The cross-domain rules -
-layers, allowed import edges, where new code goes, UI thinness, the grandfathered-debt list - are
-binding in **`docs/ARCHITECTURE.md`**; a change that adds a domain-to-domain edge updates that doc
-in the same PR.
+Directories marked * have their own `AGENTS.md` (with a thin `CLAUDE.md` importing it) holding the
+binding per-area contracts - read it before editing that area. The cross-domain rules - layers,
+allowed import edges, where new code goes, UI thinness, the grandfathered-debt list - are binding in
+**`docs/ARCHITECTURE.md`**; a change that adds a domain-to-domain edge updates that doc in the same
+PR.
 
 ```
-src/
-  app/         router.ts - HASH ROUTING for /app (docs/SAVED_CONTENT_MODEL.md §3): #/home,
-               #/graphic/<id>, #/control/<id>, #/production/<id>, #/video, #/new - real history
-               (Back/Forward walk surfaces, refresh restores); ?control=/?chat= query routes
-               stay in App.tsx
-  model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, looks;
-               library.ts (the FLAT graphics LIBRARY - docs/SAVED_CONTENT_MODEL.md: GraphicDoc
-               stable-id records + control ENTRIES + the legacy packet v1 extraction; sync kind
-               'graphic', supabase migration 0009; PACKAGES are RETIRED - the one grouping is a
-               production); shows.ts (the PRODUCTION unit - the graphic
-               pool + the CUE rundown + the production look + both hosted capability slugs,
-               docs/CLOUD_PLAYOUT.md +
-               docs/CONTROL_LAYER.md); structure.ts (element identity) + fieldModel.ts (the
-               FieldDescriptor contract)
-  templates/ * the wizard catalog: shared assemblers + 21 categories (11 core + frames = chrome
-               around a camera HOLE + transitions = a full-frame cover that clears itself on a
-               timer + the COMPETITION PACK's four - docs/COMPETITION_PACK.md + poll = the live
-               VOTE board + audience = viewer questions, Q&A, chat highlights, queues, requests
-               + the PUBLIC-SERVICE PACK's alerts + public info - docs/PUBLIC_SERVICE_PACK.md);
-               :root style contract;
-               types/ = the GRAPHIC TYPE registry (docs/GRAPHIC_TYPES.md) - what a graphic IS,
-               independent of its look; compiles into catalog variants, replacing by id
-  store/ *     templateStore.ts (zustand) - applyTemplate/undo choke point + editor UI state
-               + the save LINK (`saved`); saveActions.ts - Save/Save As/open + the
-               unsaved-changes guard over the library (useSaveUi)
-  preview/     composeDocument.ts - inlines CSS + GSAP + JS + assets into the iframe srcdoc
-  editor/      Monaco VIEW-only helpers, shared by the SPX and video code panes: comment
-               visibility (normal/dimmed/hidden) as tokenizer-derived DECORATIONS - it never
-               edits the code, so undo/cursors/export are untouched
-  blocks/ *    deterministic transforms: block registry, field editing, the Timeline v2 engine,
-               animMachine.ts (the STATE MACHINE's graph seam - docs/STATE_MACHINE_SCHEMA.md)
-               + machineEdit.ts (the NODE EDITOR's mutators; UI = components/MachineGraph.tsx)
-  ai/ *        the SPX GENERATION HARNESS: catalog-fit briefs assemble deterministically through
-               the wizard assemblers; off-catalog briefs go to the coder + a 2-round repair loop;
-               NoaCG Lite is the server-owned, one-result, catalog-only DesignSpec profile
-  ai/video/    the VIDEO motion harness: skills + reference cards -> Motion Director -> the
-               engine's coder -> bounded repair; engines 'remotion' and 'hyperframes'
-  video/       the video pipeline: compile.ts, validate.ts (static + live probe + readability at
-               two HOLD frames), textChecks.js (plain JS - it is INLINED into two opaque-origin
-               runtimes), videoFonts.ts (SINGLE SOURCE of fonts, so preview == render), hyperframes/
-  validation/  validateTemplate.ts (export + AI gate) + runtimeBench.ts (the live-iframe bench)
-  control/     the CONTROL LAYER (docs/CONTROL_LAYER.md): ONE generator - fields off shared
-               FieldDescriptors + event buttons off the state machine; the ControlMessage
-               protocol, three receivers (BroadcastChannel / Realtime / the hosted log),
-               the staged-vs-take model, and the hosted-control client (migration 0008)
-  export/ *    the export registry - 6 targets + whole-SHOW export (one aggregated control
-               page; whole-packet export retired with packages) + packaging conventions
-  render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store; docs/RENDER.md
+src/                     (* = has its own AGENTS.md; read it, this line is only the label)
+  model/ *     SpxTemplate types, SPX parse/serialize, catalog data, fonts, brand, library, shows
+  templates/ * the wizard catalog, the :root style contract, the GRAPHIC TYPE registry
+  store/ *     templateStore.ts (zustand) - the applyTemplate/undo choke point; saveActions.ts
+  blocks/ *    deterministic transforms: blocks, field editing, Timeline v2, animMachine.ts
+  ai/ *        the SPX GENERATION HARNESS; ai/video/ is the parallel VIDEO motion harness
+  export/ *    the export registry - 6 targets + whole-SHOW export + packaging conventions
+  render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store (docs/RENDER.md)
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
+  components/ * the React app: AppShell, CodeEditor, canvas, timeline dock, Inspector, wizard/,
+               auth/, save/, home/, video/, icons.tsx
+  app/         router.ts - HASH ROUTING for /app (docs/SAVED_CONTENT_MODEL.md §3)
+  preview/     composeDocument.ts - inlines CSS + GSAP + JS + assets into the iframe srcdoc
+  editor/      Monaco VIEW-only helpers (comment visibility as decorations, never edits)
+  video/       the video pipeline: compile, validate, fonts (SINGLE source, so preview == render)
+  validation/  validateTemplate.ts (export + AI gate) + runtimeBench.ts (the live-iframe bench)
+  control/     the CONTROL LAYER (docs/CONTROL_LAYER.md): ONE generator, the ControlMessage
+               protocol, three receivers, the staged-vs-take model
   backend/     the OPTIONAL Supabase backend: config.ts isBackendConfigured is the ONE
                feature-detection point (unset env = pure offline mode); auth, sync, assets
-  audience/    the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE
-               `AudienceBackend` interface + TWO providers - `localAudience` (in memory, with a
-               submission simulator: rehearsal, offline builds, and what makes the whole
-               moderation workflow drivable by the offline e2e suite) and `audienceData`
-               (Supabase, over migration 0035's eleven slug-keyed SECURITY DEFINER RPCs, POLLED
-               not realtime - slug authorization cannot be expressed to postgres_changes).
-               The interface has NO method that reaches the command log - that is how "nothing
-               viewer-written airs without an operator" is structural rather than remembered.
-               `joinSurface.ts` is the framework-free renderer BOTH the public page and the
-               operator's read-only preview mount, so the two cannot drift
-  community/   shared templates (signed-in only), validated + benched at publish AND import;
-               showchat/ is audience send-in (SendIn page, ModerationPanel, chatGraphicBlock)
+  audience/    the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE AudienceBackend
+               interface + localAudience / audienceData providers. The interface has NO method
+               reaching the command log - that is how "nothing viewer-written airs without an
+               operator" is structural rather than remembered. joinSurface.ts is the one renderer
+               both the public page and the operator preview mount
+  community/   shared templates (signed-in only), validated + benched at publish AND import
   entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence
                default < plan < temporary grant < manual override, every value carrying WHY
-  feedback/    the PURE feedback contract (docs/ADMIN.md §10): the two-valued rating axis, the
-               enumerated reason vocabularies (the generation set IS 0011's, minus the two the
-               app writes), areas, triage states. Read by the browser form, api/, the admin
-               inbox and 0028's CHECK constraints - one vocabulary, four consumers
-  admin/       the PRIVATE admin page (its own MPA entry at /admin) - unlinked, noindex,
-               a plain 404 for anyone api/admin/* does not recognise. Never a security boundary.
-               Usage sections count OTHER PEOPLE by default: the ScopePicker's external /
-               internal / all scope excludes accounts marked internal (migration 0027), and
-               says on the page which scope is showing and what it cannot reach
-  output/      the browser-output RENDERER (its own MPA entry at /output) - one persistent
-               transparent capability URL per production for CasparCG/OBS/vMix; follows the
-               hosted-control log with boot recovery + tail-fill (docs/CLOUD_PLAYOUT.md)
-  components/ * the React app: AppShell (topbar Save controls + 🏠 Home), CodeEditor, canvas,
-               timeline dock, Inspector, the five-tab SidePanel, wizard/, auth/, save/
-               (SaveControls + the save/guard dialogs), icons.tsx (the inline-SVG icon set -
-               Home/production surfaces use it instead of emoji), home/ (the routed
-               PRODUCTIONS-FIRST HomePage + sections/ + GraphicRow/RowMenu +
-               GraphicControlPage + ProductionPage - the flat library, entries, per-graphic
-               operator panel, and the production cockpit: cues, links, publish, the operator
-               verbs), and
-               video/ (the PARALLEL video shell, topbar Graphics/Home escape hatches)
-public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports); src/assets/ has
-               the bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source -
-               src/export/AGENTS.md) + data-URL asset helpers, src/teach/ the Monaco tooltips
-scripts/       dev-port.mjs + port-registry.mjs (the per-worktree port RESERVATION - docs/
-               DEV_PORTS.md) + port-probe.mjs, l3-sweep.mjs, type-floor.mjs + overflow-sweep.mjs (catalog
-               quality gates), ai-compare.mjs + ai-bench.mjs (both SPEND TOKENS),
-               render-smoke*.mjs, worktree-activity.mjs (who else is in flight) +
-               merge-order.mjs (which branch should land FIRST - see Git below),
-               hooks/ (guard hooks wired in .claude/settings.json)
-  api/         server-only Vercel functions: the render service plus the Creative AI model
-               gateway, NoaCG Lite profile/allowance endpoints, sealed user-key endpoints, and
-               api/admin/* behind _lib/adminAuth.ts (404 for every refusal - docs/ADMIN.md);
-               typechecked by tsconfig.api.json
-render-worker/ the Remotion renderer and player-host/ the preview host - own exact-pinned packages
-player-host/   so the non-OSI license never enters the AGPL bundle. The player host is built into
-               public/player-host/ as ONE self-contained page (JS, fonts, textChecks.js inlined -
-               the opaque origin can fetch nothing), loaded with sandbox="allow-scripts" ONLY
-               (never add allow-same-origin), postMessage with a per-session nonce
+  feedback/    the PURE feedback contract (docs/ADMIN.md §10) - one vocabulary, four consumers
+  admin/       the PRIVATE admin page. Never a security boundary. Usage sections count OTHER
+               PEOPLE by default (the ScopePicker excludes internal accounts)
+  output/      the browser-output RENDERER - one persistent transparent capability URL per
+               production, following the hosted-control log with boot recovery (docs/CLOUD_PLAYOUT.md)
+public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports)
+src/assets/    bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source) + asset helpers
+src/teach/     the Monaco tooltips
+scripts/       dev-port + port-registry (the per-worktree RESERVATION), the catalog quality gates,
+               ai-compare + ai-bench (both SPEND TOKENS), render-smoke, worktree-activity (who else
+               is in flight), merge-order (which branch should land FIRST), hooks/
+api/           server-only Vercel functions: the render service, the AI model gateway, Lite
+               profile/allowance, sealed user-key endpoints, api/admin/* behind _lib/adminAuth.ts
+               (404 for every refusal). Typechecked by tsconfig.api.json
+render-worker/ the Remotion renderer, and player-host/ the preview host - own exact-pinned packages
+player-host/   so the non-OSI licence never enters the AGPL bundle. Built into public/player-host/
+               as ONE self-contained page, loaded with sandbox="allow-scripts" ONLY (never add
+               allow-same-origin), postMessage with a per-session nonce
 ```
 
 ### Auth posture (the open studio)
@@ -287,129 +211,40 @@ show chat, and AI (hosted mode). Offline builds (no Supabase env) must grow **ze
 
 ### The choose-first creation flow (primary UX)
 
-New projects go through the **CreationWizard** (Entry -> Browse -> Fields -> Style -> Animation
--> Finish, persistent live preview); the Browse step is a FACETED template storefront
-(docs/TEMPLATE_TAXONOMY_PROPOSAL.md: search + programme ranking + category tiles + field/style/
-capability facets over src/model/taxonomy.ts + src/templates/templateMeta.ts);
-`variant.create(options)` generates the complete, commented
+New projects go through the **CreationWizard** (Entry -> Browse -> Fields -> Style -> Animation ->
+Finish, persistent live preview); `variant.create(options)` generates the complete, commented
 template, applied with `resetSampleData: true` so a project starts from its own field defaults.
-The **Finish** step names the graphic and holds the flow's one branch: open it in the editor,
-or **export it without the editor ever opening** - that door saves the graphic to the library,
-lands on Home, and opens the standalone export window (the same surface as the editor's Export
-panel, also reachable from any saved graphic on Home). Export is not a reward for opening the
-editor.
-The Entry step leads with **Continue working** (recent library graphics + the door to Home),
-then the broadcast-graphics cards: templates, **"Create with AI"** (THE one AI door - a brief plus
-optional images and/or an existing .html/.zip; its ⚙ AI settings pick the execution TIER:
-NoaCG Lite, NoaCG Pro (the image-guided pipeline on pinned routes, docs/NOACG_PRO_PLAN.md §7),
-or the advanced Custom/BYO provider surface - every AI result runs the harness with the runtime
-bench injected, and the no-AI "Open as code" import stays one click away, never gated on sign-in),
-**"Import graphic"** (manual: artwork -> erase/scale -> PLACE text fields -> fonts -> in/out
-animation), and blank; **"Video or animation with AI"** sits in its own visually separated
-strip marked Beta (the parallel VIDEO project kind, engine chosen at create - creating/opening
-a video flips the persisted doc-kind switch and every SPX create path flips it back). After creation, code
-is the source of truth and two **live panels** keep working via deterministic patches: the **Style
-panel** writes the `:root` style contract and **the step timeline** touches ONLY the marked
-ANIMATION region - user code outside the markers is never modified. The timeline dock picks its
-surface from the CODE, never the category, which keeps pre-migration templates working.
+Entry leads with **Continue working**, then the broadcast-graphics cards: templates, **"Create with
+AI"** (THE one AI door - its ⚙ settings pick the TIER: Lite, Pro, or Custom/BYO), **"Import
+graphic"** (manual artwork -> erase/scale -> place text fields), and blank; the video strip sits
+separately, marked Beta. **Finish** is the flow's one branch: open it in the editor, or **export it
+without the editor ever opening** - export is not a reward for opening the editor. After creation
+the Style panel writes the `:root` contract and the step timeline touches ONLY the marked ANIMATION
+region - user code outside the markers is never modified, and the timeline dock picks its surface
+from the CODE, never the category, which keeps pre-migration templates working. Per-surface detail:
+src/components/AGENTS.md; the Browse storefront's facets: `docs/TEMPLATE_TAXONOMY_PROPOSAL.md`.
 
 ## Verifying changes
 
-Always `npm run build` (typecheck + lint + build) after changes. The tree stays lint-clean: fix
-findings properly rather than sprinkling eslint-disable comments. Its first, fastest step is
-`node scripts/check-shared-instructions.mjs` - the drift guard for the AGENTS.md/CLAUDE.md
-split and the `.agent-workflows/` shared-workflow pattern: it validates thin imports, Claude
-commands, Codex skills under `.agents/skills/`, metadata, explicit-invocation safety, referenced
-scripts, and the configured instruction-size budget. It self-discovers `AGENTS.md` and shared
-workflow files, so a new nested area or shared command needs no separate registration - only
-correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
+Six rules. The full procedure - which suite, why the gate moved off the laptop, what each catalog
+gate measures - is **`docs/VERIFICATION.md`**.
 
-Its second step, `scripts/check-workflows.mjs`, validates every `.github/workflows/*.yml` against
-the GitHub Actions schema: a misspelled key, a wrong-typed value, a `needs:` naming a job that does
-not exist - the last being exactly what editing the CI gate's dependency set can introduce. Never
-wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes produced no run at all.
-
-- **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
-  real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
-  (docs/DEPLOYMENT.md): `npm run test:e2e:affected` maps changed files to covering specs
-  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change - except
-  on **`main`, which always runs the FULL suite** (a spec no change maps to is never selected,
-  so it can sit red through green run after green run - measured, eight of them), and NIGHTLY.
-  So use `affected` before a merge - the full local run is no longer the
-  gate, and the mapper escalates to everything whenever it is unsure. **During the
-  student-release sprint, `npm run test:e2e:focus` is THE student-critical suite command**
-  (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs the
-  focus set (scripts/e2e-lists.mjs, 34 specs) instead of all 103 files; the nightly still runs
-  everything and its verdict separates focus failures from paused-area drift. Prefer the npm
-  script - the env-var spelling cannot be baked into a package script, because Windows runs
-  those through `cmd.exe` where a `VAR=1 cmd` prefix is a syntax error, which is why every
-  local run escalated to 103 files while CI quietly ran 34. When you add a spec, add
-  its mapping in the same commit, or it only ever runs at night. Bootstrap non-wizard specs
-  with `createProject` (`e2e/_create.ts`).
-- **One browser-driving job per MACHINE, not per worktree.** A suite, a catalog sweep and a
-  bench are the same workload under different names - a dev server plus a pile of headless
-  Chromium - and several worktrees are normally live. Two starting in the same minute asks a
-  16 GB laptop for double everything: measured at 59 live `chrome-headless-shell` processes,
-  10.9 GB held by the test tree and available RAM down to 35 MB, at which point every other app
-  is being paged out. The guard hook refuses the second job and names the checkout holding the
-  first (`scripts/e2e-runs.mjs`, which scans processes rather than keeping a lock file, so
-  there is nothing stale to clear), and `e2e/_offline-guard.ts` WAITS instead - the universal
-  net, since a hook only sees tool calls, never your terminal. Use the **`:queued`** form of any
-  e2e script to wait rather than fail, `node scripts/e2e-runs.mjs --all` to see what is running,
-  and `--orphans` / `--kill-orphans` to reap browsers a killed run left behind.
-  `NOACG_ALLOW_PARALLEL_E2E=1` in the command overrides.
-  Anything the named list misses is absorbed by the worker ladder (`scripts/e2e-workers.mjs`):
-  it reads FREE MEMORY at start and takes fewer workers when something heavy is already
-  resident, which is why the local worker count is not a constant.
-- **The pre-merge gate belongs to CI, not the laptop.** `ci.yml` runs on every branch push and
-  does strictly more than a local run can (build, the affected plan sharded eight ways, the
-  factory gates, the catalog tripwire when raised) in six to nine minutes, free, on a clean
-  checkout. safe-merge's Phase 3 prefers a CI run green on exactly the commit being promoted
-  and falls back to the local pair only when there isn't one.
-- **Logic checks without UI (fast path):** Vite serves source modules, so in a browser context you
-  can `await import('/src/blocks/registry.ts?t=' + Date.now())`, apply blocks to
-  `createBlankTemplate(...)`, run `validateTemplate`, and load `composeDocument(tpl)` into a hidden
-  iframe to call `update()/play()/stop()`; store state via `useTemplateStore.getState()`.
-- **Template catalog sweep:** `node scripts/l3-sweep.mjs <shots-dir> <category>` (dev server must
-  be running; any `TemplateCategory` id - `lower-third`, `info-card`, `end-credits`, `ticker`,
-  `quiz`, `poll`, `audience`, …) - validates every variant × preset × easing. Run it for the
-  affected category after template changes. A category whose contract differs from the standard
-  one gets its own branch in the script rather than a waiver (audience and quiz each have one).
-- **Catalog quality gates (run after any catalog-wide change):** `node scripts/type-floor.mjs`
-  fails on any text under its category size floor; `node scripts/overflow-sweep.mjs --baseline`
-  fails on any box that newly escapes the 1920x1080 frame or clips its own content, diffing
-  against `scripts/overflow-baseline.json` (~200 variants clip by design - reveal masks, ticker/
-  crawl scroll - so it is a diff gate, re-recorded with `--update-baseline` on a deliberate look
-  change). **`--with-images` adds a second pass with a mark in every image field**, recorded as
-  `<id>@image` in the same baseline: a logo is the one operator action that can spend a strap's
-  remaining width (+35% on lt54, docs/ADAPT_FIRST_PLAN.md §1.5) and every gate here otherwise runs
-  on the EMPTY build. Re-record with `--update-baseline --with-images`; the script refuses a bare
-  re-record once image rows exist, because that would silently retire half the gate.
-  Neither measures capacity: `npm run test:e2e:catalog` (the calibration tripwire in
-  `e2e/catalog/catalog-bench.spec.ts`) is the ONLY gate that catches a design growing past its
-  width budget (it doubles every text value), so run it too. It is excluded from the default
-  `npm run test:e2e` suite - benching every catalog variant across every category is the single
-  heaviest thing here, and (like the other two gates above) it only needs to run when the
-  catalog or `src/validation/runtimeBench.ts` actually changed. **None of the five is left to
-  memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
-  runs it on that flag, and the NIGHTLY sweep runs all five unconditionally - so an unrun
-  catalog gate is now caught by morning rather than never.
-  The last three gates share one doctrine - they MEASURE the rendered graphic rather than
-  grepping the source, because every source check here would have passed a catalog that was
-  visibly broken. `node scripts/field-coverage.mjs` is about DATA: it drives every data field to
-  a sentinel through `update()` and re-reads the screen, so anything that did not move is not
-  operator-reachable (an `id="fN"` scan cannot see a standings row, ticker item or credits line,
-  which a runtime BUILDS from one `lines` field). `node scripts/numerals.mjs` is about MOVEMENT:
-  it substitutes every digit in turn and measures, failing any live number whose box changes
-  width (DESIGN_LANGUAGE §1) - `tabular-nums` is a NO-OP on six of the seventeen bundled faces,
-  so grepping for it would have passed every jiggling scoreboard. `--fonts` re-measures the
-  registry's `tabularFigures` flags. `node scripts/engine-floor.mjs` is about the PLAYOUT
-  BROWSER: what CSS/JS an older engine silently drops, per design and per declaration
-  (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate). It shares its scanner with the
-  export screen's Playout-compatibility section (`src/validation/engineSupport.ts`), so gate and
-  warning cannot disagree, and it REPORTS at exit 0 - a standing account (179 of 430 designs at
-  the Chromium 88 bar) rather than a line the catalog currently holds. Each script documents its
-  own exemptions, with the reason written beside them.
+1. **Always `npm run build`** (typecheck + lint + build) after changes, and keep the tree
+   lint-clean rather than adding eslint-disable comments. There is no application unit-test suite;
+   never mark observable work done on a green build alone.
+2. **UI flows -> Playwright**, and add a spec for any new flow *plus its mapping in the same
+   commit*, or it only ever runs at night. Use `npm run test:e2e:focus:queued` during the sprint.
+3. **One browser-driving job per MACHINE, not per worktree** - a suite, a catalog sweep and a bench
+   are the same workload, and this laptop is RAM-bound. Use the `:queued` form of any e2e script;
+   `NOACG_ALLOW_PARALLEL_E2E=1` overrides.
+4. **The pre-merge gate belongs to CI, not the laptop** - it does strictly more, in six to nine
+   minutes, on a clean checkout.
+5. **After a catalog change run the five catalog gates** (`type-floor`, `overflow-sweep
+   --baseline`, `test:e2e:catalog`, `field-coverage`, `numerals`) plus `l3-sweep` for the affected
+   category. They MEASURE the rendered graphic, because every source check would have passed a
+   catalog that was visibly broken.
+6. **Freshness is TIME-driven, never commit-driven** (`docs/STACK_FRESHNESS.md`): `check:freshness`
+   reports weekly and nothing auto-upgrades.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the
@@ -430,8 +265,7 @@ wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes pro
 - The preview rebuilds on a debounce after `applyTemplate` - 350 ms when authoring, **50 ms under
   the e2e suite** (`VITE_PREVIEW_DEBOUNCE_MS`, pinned in playwright.config.ts). Never sleep out
   either number; a spec that hard-codes one is wrong at the other. Use
-  `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
-  wrapping the action when anything slow sits between action and wait.
+  `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe.
 - **A spec that saves off the UI and then reloads must WAIT for the disk.** A durable write is
   accepted synchronously and lands a moment later (durableStore.ts), so a `reload`/`goto` fired
   the instant a mutator returns aborts what has not committed, and the next page is missing the
@@ -440,16 +274,13 @@ wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes pro
   assertion needs neither: the shell cannot render before hydration resolves.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
   it focused, and Space belongs to a focused button by design (spaceKey.ts) - so the press lands on
-  that button, not on the surface under test. Which one answers can even depend on a timer the spec
-  never mentions: a new field arrives selected and the Inspector's deferred reveal unmounts the
-  Data tab's `+ Add` half a second later, dropping focus to the body. Call `parkFocusOffControls`
-  (`e2e/_keys.ts`) rather than inheriting whatever the bootstrap left behind.
+  that button, not on the surface under test. Call `parkFocusOffControls` (`e2e/_keys.ts`) rather
+  than inheriting whatever the bootstrap left behind.
 - A wizard-created VIDEO project auto-runs its first generation, which lands as its own undoable
   snapshot ~0.1-2.6 s after `video-shell` appears (unbounded: the validation probe waits on the
   player host with no timeout). A spec that makes an undoable change before that lands is racing
-  it - the generation becomes the newest undo target, so a later Ctrl+Z rewinds the generation
-  instead, and an assertion that the project did NOT change can pass vacuously. Wait for the
-  assistant reply first (`waitForGeneration`, `.ai-msg.assistant`), never a fixed timeout.
+  it. Wait for the assistant reply first (`waitForGeneration`, `.ai-msg.assistant`), never a fixed
+  timeout.
 
 ## Git
 
@@ -458,9 +289,9 @@ wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes pro
   start something that collides: every OTHER worktree's uncommitted and not-yet-merged files,
   then every branch ahead of `main` that no worktree has checked out (a closed session leaves its
   work there, so it still collides even though nobody is in it). If a session starts on `main`
-  with work to do, branch first. The rhythm: **commit
-  each completed, verified phase/step** to the FEATURE BRANCH with a descriptive message. **Never add a
-  `Co-Authored-By` trailer or any agent co-author.** Don't commit `dist/` in feature work.
+  with work to do, branch first. The rhythm: **commit each completed, verified phase/step** to the
+  FEATURE BRANCH with a descriptive message. **Never add a `Co-Authored-By` trailer or any agent
+  co-author.** Don't commit `dist/` in feature work.
 - **`main` is only ever touched when the user asks for it, in that message - from ANY checkout.**
   Nothing lands on your own initiative: no commit made while sitting on `main`, no `git merge` into
   main, no `git push origin main`. Being in the primary checkout on `main` is not
@@ -480,8 +311,9 @@ wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes pro
   stop and report - permission to run the flow is not permission to land something broken.
 - **A finished session can clean up its own worktree, but only the USER starts it.** The
   cleanup-worktrees workflow run from inside a worktree (`cleanup-worktrees.mjs --self`) removes
-  that one, under the same rules as the bulk sweep. Handoff only REPORTS whether that is
-  available - a verdict written by a model must never trigger an irreversible action.
+  that one, under the same rules as the bulk sweep. **No other workflow raises the subject** -
+  handoff used to report whether removal was available and no longer mentions it at all, because
+  a verdict written by a model must never be the thing that starts an irreversible action.
   **A clean `git status` does not mean a worktree is disposable:** it says nothing about ignored
   files, and removal deletes them regardless - `.env`, bench output that cost real money, logs.
   The script lists every non-regenerable ignored path with its size and refuses to apply until

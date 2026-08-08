@@ -68,16 +68,23 @@ export function presetsForType(type: SpxTemplate['type']): AnimPreset[] {
   return ANIM_PRESETS;
 }
 
-/** Every preset in the product, one list. The wizard's Animation step reads it too (a variant
- *  lists which ones suit it) — kept HERE so a new preset family is registered in exactly one
- *  place; a second copy silently renders an empty picker for whatever it forgot. */
+/**
+ * Every preset in the product, one list, EACH FAMILY EXACTLY ONCE. The wizard's Animation step
+ * reads it too (a variant lists which ones suit it) — kept HERE so a new preset family is
+ * registered in exactly one place; a second copy silently renders an empty picker for whatever
+ * it forgot.
+ *
+ * It is a SET, not a concatenation, and the difference is visible: six families (starting
+ * soon, game timers, infographics, versus, quiz, imported design) were spread twice while the
+ * second block was being extended with poll and audience, so every design in those categories
+ * offered each of its presets as two identical cards in the wizard — React's duplicate-key
+ * warning was the only thing saying so. `e2e/anim-engine.spec.ts` now fails on a repeated id.
+ */
 export const ALL_PRESETS = [
   ...ANIM_PRESETS, ...CREDITS_PRESETS, ...TICKER_PRESETS,
   ...SS_PRESETS, ...GT_PRESETS, ...IG_PRESETS, ...VS_PRESETS, ...QUIZ_PRESETS, ...DESIGN_PRESETS,
   ...FRAME_PRESETS, ...TRANSITION_PRESETS,
-  ...COMP_PRESETS,
-  ...SS_PRESETS, ...GT_PRESETS, ...IG_PRESETS, ...VS_PRESETS, ...QUIZ_PRESETS, ...POLL_PRESETS,
-  ...AUDIENCE_PRESETS, ...DESIGN_PRESETS,
+  ...COMP_PRESETS, ...POLL_PRESETS, ...AUDIENCE_PRESETS,
 ];
 
 /** Look up a preset across every category's library. */

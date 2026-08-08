@@ -15,7 +15,7 @@ shipped, gate-checked design — declaring a pack is one entry in `PACKS`, no ne
 families with their own designs, tokens and Browse chips, but they are BROWSE families rather
 than KIT ones: no pack resolves into either, and filling them would mean ~122 new designs. A
 surface that re-resolves a pack in another look must therefore MEASURE which families work
-rather than assume all six (`familiesFor`, `src/components/wizard/steps/KitStep.tsx`); the
+rather than assume all six (`familiesFor`, `src/components/wizard/steps/KitPicker.tsx`); the
 `validatePacks` cell gate only tests a pack's own declared family, so it cannot catch this. That is the "catalog growth is a config change"
 half of Phase 3's done-when, made true for the axis it is true on:
 
@@ -29,11 +29,54 @@ half of Phase 3's done-when, made true for the axis it is true on:
 - **The pack's family is a default, not a constraint.** Any pack resolves in any of the four
   families — the family field is the curated taste pick a non-technical user starts from.
 
-What a pack does NOT yet have is a wizard surface. Its SHAPE is now decided
-(`TEMPLATE_TAXONOMY_PROPOSAL.md` §18, 2026-07-23): **a "start from a kit" ENTRY CARD, not a
-third mode inside the Browse step** - Browse produces one graphic, a kit produces several, and
-a surface that promises a single pick must not deliver something else. The taxonomy and the
-config are ready for it; only the surface is unbuilt.
+### The wizard surface (built; the shape changed once)
+
+A pack's SHAPE was first decided as **a "start from a kit" ENTRY CARD, not a third mode inside
+Browse** (`TEMPLATE_TAXONOMY_PROPOSAL.md` §18, 2026-07-23, built 2026-07-29) - Browse produces
+one graphic, a kit produces several, and a surface promising a single pick must not deliver
+something else.
+
+**That is reversed as of 2026-08-08: there is ONE door, and the outcome is a question inside
+it.** The Browse step opens with a segmented control - ONE GRAPHIC or A WHOLE KIT - and the
+answer swaps the step's body between the design grid and the KIT PICKER
+(`src/components/wizard/steps/KitPicker.tsx`). The old decision's premise still holds; what it
+got wrong was where the honesty has to live. A card on the front page has to be understood
+BEFORE it is pressed, so a user who did not already know the word "kit" never found the set,
+and a user who guessed wrong walked back to Entry to change their mind. A switch at the top of
+the step it governs states the same fact at the moment it matters and costs one click to undo.
+
+The picker is TWO moves, in this order because the second is an edit of the first: pick the
+GENRE PRESET (the pack), then edit the set with checkboxes over `kitChoices` - the pack's own
+contents plus every other type whose (type x family) cell resolves.
+
+**The step's ONE search box works on both sides of the switch**, and what it searches follows
+the answer: designs on the one-graphic side, and on the kit side the SHOWS plus the graphics a
+kit can hold. That is the half of "the grid and the search stay visible either way" worth
+having - twenty-one shows and about fifty addable graphics is exactly the list a search box
+exists for, while the facets beside it are questions about ONE design (a field count, a style
+family) and stand down. It is a plain normalized substring, deliberately not the
+`templates/search.ts` engine: a show matches on its name, its description and the reference
+FORMATS it serves, so "wedding" finds Church & Ceremony; a row matches on the design's name and
+on its graphic TYPE, so "ticker" finds the minimal ticker design called Wire Rotator. Two rules
+keep it honest: filtering hides rows but never unticks them, so the count on screen stays the
+whole SELECTION and the panel says how many of the kit it is not listing; and a query matching
+no show says so and offers to clear itself rather than showing an empty grid. From there a kit walks the
+SAME six wizard steps a single graphic does, over the whole set, with two additions of its own:
+the KIT TRAY (which graphic of the set - the second axis of progress, the step rail being the
+first) and the LOOK QUESTION after the first graphic ("use this look for the other N?"), whose
+"yes" is a deterministic transform over the `:root` style contract and nothing else
+(`src/components/wizard/kitPlan.ts` `kitLookPatch`).
+**Declining it is not a one-way door.** The question renders only while the answer is
+undecided, which made "no" permanent: on the 36-graphic Esports kit - the flagship, and a
+realistic first pick - one click committed the user to a hundred-odd steps with no way back.
+The tray therefore carries **"Use this look for the rest (N)"** for as long as unbuilt graphics
+remain after the one in hand. It is an ACTION always on offer rather than the question asked
+again (the user declined a blanket propagation; re-asking each graphic would be nagging for a
+different answer), it lives on the tray because it is about the SET, and everything already
+configured by hand is KEPT - `buildRemaining` never rebuilds a graphic that already has one. It ends on a Finish that names a
+PRODUCTION, shows every built graphic, and saves the whole set before either of its two doors -
+open the production, or export the kit as one package, with the editor never involved.
+Pinned by `e2e/wizard-kit.spec.ts`.
 
 ## The twelve packs
 

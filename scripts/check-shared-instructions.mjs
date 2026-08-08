@@ -23,13 +23,17 @@ const MAX_WRAPPER_LINES = 25;
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 // Membership means DESTRUCTIVE, not merely important - it is what earns the
 // disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
-// worktree; it only reports now, so it left again rather than diluting what this set means.
+// worktree; it no longer touches cleanup at all, so it left again rather than diluting what this
+// set means.
 const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
 // Short invocation aliases: <alias> => <canonical workflow>. An alias owns adapters in BOTH
 // tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
 // so a shortcut can never grow a second copy of the procedure. Never alias a destructive
 // (explicit-only) workflow: a one-keystroke command must not be able to land anything.
-const WORKFLOW_ALIASES = new Map([['n', 'next']]);
+const WORKFLOW_ALIASES = new Map([
+  ['n', 'next'],
+  ['o', 'orchestrator'],
+]);
 const CLAUDE_ONLY_EXCEPTIONS = new Map([
   [
     'rescue',
@@ -49,6 +53,35 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
+    // The orchestrator assigns work to other sessions and must never start it, so the two
+    // halves that keep it honest are pinned: it grounds the plan in measured repository state
+    // rather than in a handoff's prose, and it says out loud what it would push back on. That
+    // section exists because a day was once planned with four of six sessions serving goals the
+    // roadmap had parked - flagging is the whole value, so it must not be quietly droppable.
+    'orchestrator',
+    [
+      'node scripts/worktree-activity.mjs',
+      'node scripts/merge-order.mjs',
+      'What I would push back on',
+      'Every pasted task gets a prompt.',
+      // Quoted from the root AGENTS.md rather than paraphrased, so the two cannot drift apart
+      // with a green build - the earlier lowercase paraphrase pinned only itself.
+      'One browser-driving job per MACHINE, not per worktree',
+      'Never act on a collision.',
+      "Read, don't write.",
+      'Create or update no files',
+      // The whole workflow rests on this: it assigns work and does none of it, and it never
+      // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
+      // order reads like an offer to merge, so the boundary is pinned in both directions.
+      'THIS SESSION NEVER ACTS',
+      'Every command this session produces is for the USER to run, and names WHERE to run it',
+      'Section 3 is a report, not a pick.',
+      // A file-list diff calls every one of these collisions disjoint, so the plan has to hand
+      // out the scarce slots itself.
+      'The plan ALLOCATES these up front',
+    ],
+  ],
+  [
     'handoff',
     [
       'git rev-parse --short HEAD',
@@ -56,10 +89,25 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'last known verification command/result tied to that commit',
       'Do not run verification during handoff.',
       'Create or update no files',
-      // Handoff must stay read-only. Both halves pinned: it deletes nothing, and the cleanup
-      // check it runs is the dry run, never `--apply`.
-      '**Handoff deletes nothing.**',
-      'Never pass `--apply`',
+      // A handoff exists so the NEXT session can judge the work, not obey a list. The why is
+      // what makes that judgement possible, and it is the first thing to go when a handoff is
+      // written in a hurry - so it is pinned. The other two are the fields a later session
+      // cannot reconstruct once the branch is merged and the chat is archived.
+      'Every item carries its WHY',
+      'The files this branch touched',
+      "Constraints: point, don't reprint.",
+      // The archive verdict is a TEST, not an impression: archive-ready means committed, pushed
+      // and contained in `main`, and containment that cannot be established reads as not safe.
+      // Both ancestor checks are pinned because dropping either one turns the verdict back into
+      // a feeling - a green feature branch would pass on "it all worked".
+      'This is a TEST, not an impression.',
+      'git merge-base --is-ancestor HEAD main',
+      'git merge-base --is-ancestor HEAD origin/main',
+      // Handoff must stay read-only, and must stay OUT of worktree cleanup entirely - the owner
+      // runs that sweep deliberately and does not want the option raised here. This marker
+      // replaced two that pinned handoff's own cleanup report, removed 2026-08-08.
+      "Read, don't write.",
+      'Never remove a worktree, and never offer to.',
     ],
   ],
   [

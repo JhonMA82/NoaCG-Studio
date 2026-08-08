@@ -15,6 +15,7 @@ import {
   type WizardDraft,
 } from './draft';
 import { loadBrand, saveBrand, type ProjectBrand } from '../../model/brand';
+import { FONTS } from '../../model/fonts';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
@@ -26,7 +27,12 @@ import ImportDesignStep from './steps/ImportDesignStep';
 import PrepareDesignStep from './steps/PrepareDesignStep';
 import PlaceFieldsStep from './steps/PlaceFieldsStep';
 import TemplateStep from './steps/TemplateStep';
-import BrowseStep from './steps/BrowseStep';
+import BrowseStep, { type BuildMode } from './steps/BrowseStep';
+import { defaultFamilyFor, defaultSelectionFor } from './steps/KitPicker';
+import KitTray from './KitTray';
+import KitLookStep from './steps/KitLookStep';
+import KitFinishStep from './steps/KitFinishStep';
+import { buildRemaining, kitItemDraft, type KitPlan } from './kitPlan';
 import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/search';
 import FieldsStep from './steps/FieldsStep';
 import StyleStep from './steps/StyleStep';
@@ -49,16 +55,15 @@ import { saveGraphicAs } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
-import KitStep from './steps/KitStep';
 import { createGraphic } from '../../model/library';
 import { captureLookFromTemplate } from '../../model/packets';
-import { addGraphicToShow, createShowNamed, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
+import { addGraphicToShow, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import { useAdvancedMode } from '../useAdvancedMode';
 import type { TemplatePack } from '../../templates/packs';
-import { kitItems } from '../../templates/kit';
+import { kitSelection } from '../../templates/kit';
 import type { StyleTag } from '../../model/fonts';
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
@@ -87,8 +92,6 @@ const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'A
 const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
 const STEP_TITLES_VIDEO = ['Start', 'Video'];
 const STEP_TITLES_BLANK = ['Start', 'Blank project'];
-// A kit is ONE decision - which show am I running - so it has no chain of steps.
-const STEP_TITLES_KIT = ['Start', 'Kit'];
 // Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
 // (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
 // in/out animation, create — and land in the real canvas editor with a graphic that already
@@ -106,9 +109,15 @@ const STEP_SUBS: Record<string, string[]> = {
   ai: ['Choose mode', 'Describe it', 'Name & save'],
   video: ['Choose mode', 'Brief & format'],
   blank: ['Choose mode', 'Format & name'],
-  kit: ['Choose mode', 'Pick a show'],
   design: ['Choose mode', 'Your artwork', 'Erase & scale', 'Place fields', 'In & out motion', 'Name & save'],
 };
+
+/* A KIT walks the SAME six steps as one graphic — that is the whole point of folding the two
+   doors into one — so it borrows `template`'s rail and changes only the words that would be
+   wrong: the step where a design is chosen is where the SHOW is chosen, and the last step
+   names a production rather than a graphic. */
+const STEP_SUBS_KIT = ['Choose mode', 'Pick the show', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Where it goes'];
+const STEP_TITLES_KIT = ['Start', 'Kit', 'Fields', 'Style', 'Animation', 'Finish'];
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -128,7 +137,7 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank' | 'kit'>('template');
+  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank'>('template');
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   // Browse-step facet state lives here (not in the step) so Back returns with the
   // filters intact for the wizard session; a fresh open starts clean.
@@ -158,8 +167,20 @@ export default function CreationWizard() {
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
-  // Kit mode: building writes N graphics + a package, so it reports progress and any
-  // partial-failure reason inline rather than failing silently.
+  // ── THE KIT HALF of the Browse step (one graphic, or the whole set) ──
+  // Its picker state lives here, not in the step, for the same reason `browseFilters` does:
+  // Back must return to the set exactly as it was left.
+  const [buildMode, setBuildMode] = useState<BuildMode>('one');
+  const [kitPack, setKitPack] = useState<TemplatePack | null>(null);
+  const [kitFamily, setKitFamily] = useState<StyleTag | null>(null);
+  const [kitSelected, setKitSelected] = useState<string[]>([]);
+  /** The kit under construction — set when Browse's Next is taken in kit mode, null otherwise.
+   *  Its presence is what makes every step below behave as one graphic OF A SET. */
+  const [kit, setKit] = useState<KitPlan | null>(null);
+  /** The production's name on the kit's Finish step (the graphic name field's counterpart). */
+  const [kitProductionName, setKitProductionName] = useState('');
+  // Saving a kit writes N library records plus a production, so it reports progress and any
+  // failure reason inline rather than failing silently.
   const [kitBusy, setKitBusy] = useState(false);
   const [kitError, setKitError] = useState<string | null>(null);
   // The step scroller flags when content hides below the fold (short laptop windows), so the
@@ -192,6 +213,19 @@ export default function CreationWizard() {
     };
   }, [open]);
 
+  /** Back to "one graphic". Declared as a plain function (not a hook) so both the open reset
+   *  and the ✕ rewind clear the same seven pieces of state — a kit half-cleared is a wizard
+   *  whose rail says Browse and whose footer is still building somebody else's show. */
+  function resetKit() {
+    setBuildMode('one');
+    setKitPack(null);
+    setKitFamily(null);
+    setKitSelected([]);
+    setKit(null);
+    setKitProductionName('');
+    setKitError(null);
+  }
+
   // Fresh wizard every time it opens; reload the brand (it may have just been saved).
   useEffect(() => {
     if (open) {
@@ -203,6 +237,7 @@ export default function CreationWizard() {
       acceptedAiGeneration.current = null;
       setAiThread(null);
       setStretchDemo(null);
+      resetKit();
       const b = loadBrand();
       setBrand(b);
       // Off by default: reusing the previous project's look is an explicit choice,
@@ -362,7 +397,7 @@ export default function CreationWizard() {
     setAiResult(null);
     setAiThread(null);
     setStretchDemo(null);
-    setKitError(null);
+    resetKit();
     // Back to what a fresh open sets. The toggle WRITES the brand into the draft, so leaving
     // it checked over a draft that was just cleared would show a look the graphic no longer
     // carries — the checkbox and the preview disagreeing about the same fact.
@@ -410,68 +445,228 @@ export default function CreationWizard() {
     void applyGenerated(createBlankTemplate(draftResolution(draft), draft.fps));
   };
 
+  /* ── THE KIT WALK ────────────────────────────────────────────────────────────────────────
+     A kit is not a different flow; it is the SAME flow run over a set. Browse's mode switch
+     starts it, the ordinary Fields/Style/Animation steps configure whichever graphic is
+     current, and only two moments are the kit's own: the LOOK QUESTION after the first graphic
+     (wizard/steps/KitLookStep.tsx) and the Finish that names a production instead of a
+     graphic. `kit.built` is the record of what has actually been made — the tray reads it, the
+     Finish grid renders it, and the save writes exactly it. */
+
+  /** Move the walk onto kit graphic `index`, loading its draft: the shared project format, the
+   *  design's own suggested lines, and the pack's curated palette. A graphic reached HERE is
+   *  always one the user is about to configure by hand, so it never carries a propagated look -
+   *  that is what "take me through each one" means, and the yes path builds without stopping. */
+  const openKitGraphic = (plan: KitPlan, index: number) => {
+    const item = plan.items[index];
+    setKit({ ...plan, current: index });
+    setDraft((d) =>
+      kitItemDraft(d, item.variant, {
+        packPaletteId: plan.pack.paletteId,
+        // The footer's "Colors & typeface from this project" applies to EVERY graphic of the
+        // set, not just whichever one was on screen when it was ticked. It is also what the
+        // production-context open turns on by itself, so a kit started from a production's
+        // "+ New graphic" arrives in that production's look.
+        brand: matchBrand && brand ? brandPatch(brand) : null,
+      }),
+    );
+    setStep(2);
+  };
+
+  /** Browse → the first graphic of the set. The pack's own palette leads (docs/GOALS.md
+   *  "Student release" step 7: a curated kit names one palette and every graphic is created
+   *  with it), and whatever the user does to it from here is what the look question offers to
+   *  carry. */
+  const startKit = (pack: TemplatePack, family: StyleTag, keys: string[]) => {
+    const items = kitSelection(pack, family, keys);
+    if (items.length === 0) return;
+    const plan: KitPlan = {
+      pack,
+      family,
+      items,
+      keys: [...keys],
+      current: 0,
+      built: items.map(() => null),
+      propagate: null,
+    };
+    setKitProductionName('');
+    setKitError(null);
+    openKitGraphic(plan, 0);
+  };
+
   /**
-   * Build a KIT: every graphic in the pack, saved to the library and pooled into one new
-   * PRODUCTION - the unit that airs (docs/GOALS.md "Student release" step 3).
+   * Leaving the current graphic's last step: build it, record it, and go wherever the plan
+   * says next. The build is the ordinary `buildDraftTemplate` every other door calls, so a kit
+   * graphic and a hand-made one are the same code by construction.
+   */
+  const advanceKit = () => {
+    if (!kit || !variant || !previewTemplate) return;
+    const built = kit.built.map((t, i) => (i === kit.current ? previewTemplate : t));
+    const plan = { ...kit, built };
+    const last = kit.current === kit.items.length - 1;
+    // THE LOOK ALREADY CARRIED, so a return trip to this graphic must carry it again: the
+    // whole set is rebuilt from the draft as it now stands (this graphic keeps the fields it
+    // was actually given; every other one re-derives). Without this, editing the tone-setting
+    // graphic after saying yes would leave the rest wearing the look it used to have.
+    if (plan.propagate === true) {
+      setKit({ ...plan, built: buildRemaining({ ...plan, built: built.map((t, i) => (i === kit.current ? t : null)) }, draft) });
+      setStep(finishStep);
+      return;
+    }
+    // The first graphic always reaches the look question — it is the one that sets the tone,
+    // and asking it any later would mean asking about a look two graphics already ignored.
+    if (plan.propagate === null || last) {
+      setKit(plan);
+      setStep(finishStep);
+      return;
+    }
+    openKitGraphic(plan, kit.current + 1);
+  };
+
+  /** "Yes, build them now": every remaining graphic, in the first one's look, deterministically
+   *  (wizard/kitPlan.ts — the transform is the :root style contract and nothing else). */
+  const useKitLookForAll = () => {
+    if (!kit) return;
+    setKit({ ...kit, propagate: true, built: buildRemaining(kit, draft) });
+  };
+
+  /** "No, take me through each one": graphic 2 starts its own Fields step. */
+  const walkKitEachOne = () => {
+    if (!kit) return;
+    openKitGraphic({ ...kit, propagate: false }, kit.current + 1);
+  };
+
+  /**
+   * The way out of that walk, offered from the tray for as long as unbuilt graphics remain:
+   * take the graphic in hand as the tone-setter after all. Everything already configured by
+   * hand is KEPT (`buildRemaining` never rebuilds a graphic that has one) - the point is to
+   * stop walking, not to discard the walking already done.
+   *
+   * Answering "no" used to be permanent, because the look question renders only while
+   * `propagate` is null. On the 36-graphic Esports kit that made one click cost a hundred-odd
+   * steps with no way back.
+   */
+  const adoptKitLookForRest = () => {
+    if (!kit || !variant || !previewTemplate) return;
+    const built = kit.built.map((t, i) => (i === kit.current ? previewTemplate : t));
+    const plan: KitPlan = { ...kit, built, propagate: true };
+    setKit({ ...plan, built: buildRemaining(plan, draft) });
+    setStep(finishStep);
+  };
+
+  /**
+   * SAVE THE WHOLE SET: every graphic to the library, pooled into one new PRODUCTION - the
+   * unit that airs (docs/GOALS.md "Student release" step 3).
    *
    * It deliberately does NOT touch the editor - no applyTemplate, no working project. A kit's
    * outcome is a production of several graphics, and silently opening one of them would pick
-   * for the user and leave the other N-1 looking like they had not been made. Landing on the
-   * production page puts all of them - and the road to air - in front of them instead.
+   * for the user and leave the other N-1 looking like they had not been made.
    *
    * Graphics are written straight through `createGraphic` rather than the store's save path,
-   * because that path saves THE OPEN PROJECT and there is exactly one of those. A partial
-   * failure (a full quota is the realistic cause) stops and reports rather than leaving a
-   * half-built kit behind with nothing saying so.
+   * because that path saves THE OPEN PROJECT and there is exactly one of those. Every write is
+   * CLAIMED (`commitDurableWrites`) before anything is reported or navigated to: the durable
+   * store accepts a write and confirms it a moment later, so continuing on the synchronous
+   * answer would build a production on top of graphics that never landed
+   * (src/components/AGENTS.md, "Save + Home").
    */
-  const createKit = (pack: TemplatePack, family: StyleTag) => {
+  const saveKit = async (dest: ProductionDest): Promise<Show | null> => {
+    if (!kit) return null;
+    const templates = kit.built.filter((t): t is SpxTemplate => t !== null);
+    if (templates.length !== kit.items.length) {
+      setKitError('Some graphics in this kit have not been built yet.');
+      return null;
+    }
     setKitBusy(true);
     setKitError(null);
     try {
-      // kitItems is the SAME resolution the step's contents list shows - types resolved
-      // through the matrix PLUS the pack's extras. Reading only the resolved types here
-      // silently dropped every extra (end credits, the versus card) while the card still
-      // counted them, so the kit built fewer graphics than it promised.
-      // A pack that declares its palette (step 7 - the curated production-ready ones) gets
-      // it imposed on EVERY graphic: a style family is not one palette, and the measured
-      // audit found a single kit mixing four. Packs without one keep each design's own
-      // default - the pre-step-7 behavior their pinned looks (esports' Volt) rely on.
-      const kitPalette = pack.paletteId ? paletteById(pack.paletteId) : undefined;
-      const built = kitItems(pack, family).map((item) => ({
-        name: item.variant.name,
-        // Beyond palette, only the project format is imposed - everything else stays the
-        // design's own tasteful default.
-        template: item.variant.create({ resolution: draftResolution(draft), fps: draft.fps, palette: kitPalette }),
-      }));
-
       // Library records first, so the production is only created once every graphic in it
       // saved - a quota failure mid-way never leaves an empty production on Home.
-      const docs = built.map((item) => {
-        const { doc, error } = createGraphic(item.template, { name: item.name, packageId: null });
-        if (error || !doc) throw new Error(error ?? 'Could not save the graphic.');
-        return doc;
-      });
+      const docs = [];
+      for (const template of templates) {
+        const { doc, error } = createGraphic(template, { name: template.name, packageId: null });
+        const failure = error ?? (await commitDurableWrites());
+        if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
+        docs.push(doc);
+      }
+
+      // A kit usually IS a new production, and that stays the default - but the wizard can be
+      // opened FOR one (a production page's "+ New graphic"), and building a second production
+      // beside the one the user started from is not what they asked for. An existing pick that
+      // has since been deleted (another tab) falls back to a new one rather than dropping the
+      // work on the floor, exactly as the single-graphic door does.
+      let show = dest.kind === 'existing' ? loadShows().find((s) => s.id === dest.id) : undefined;
+      if (!show) {
+        const made = createShowNamedChecked(dest.kind === 'new' ? dest.name : kit.pack.name);
+        const showError = made.error ?? (await commitDurableWrites());
+        if (showError) throw new Error(showError);
+        show = made.show;
+      }
+      const target = show;
 
       // Pool each copy with its library back-link - the same construction the production
-      // page's own add uses, cue auto-seeding included. Pool order follows the pack's list
+      // page's own add uses, cue auto-seeding included. Pool order follows the kit's own
       // order, which is also the layer paint order (index 0 furthest back).
-      const show = createShowNamed(pack.name);
       for (const doc of docs) {
-        const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-        if (error) throw new Error(error);
+        const { error } = addGraphicToShow(target.id, doc.template, { graphicId: doc.id });
+        const failure = error ?? (await commitDurableWrites());
+        if (failure) throw new Error(failure);
       }
       // The kit's curated look becomes the production's look, so a graphic later made FOR
-      // this production inherits it.
-      if (docs[0]) setShowLook(show.id, captureLookFromTemplate(docs[0].template));
+      // this production inherits it - but never overwrite a look the production already has,
+      // which is the rule the single-graphic door follows for the same reason.
+      if (!target.look && docs[0]) {
+        setShowLook(target.id, captureLookFromTemplate(docs[0].template));
+        const lookError = await commitDurableWrites();
+        if (lookError) throw new Error(lookError);
+      }
 
       trackEvent('activation', 'kit');
-      closeGallery();
-      useRouter.getState().navigate({ view: 'production', id: show.id });
+      return target;
     } catch (error) {
       setKitError(error instanceof Error ? error.message : String(error));
+      return null;
     } finally {
       setKitBusy(false);
     }
+  };
+
+  /** What the look question is actually offering to carry, in the user's own words — the same
+   *  read-back the single-graphic Finish gives, so the offer is not taken blind. */
+  const lookSummary = (): string => {
+    if (!variant) return 'this look';
+    const palette =
+      draft.customPalette ?? (draft.paletteId ? paletteById(draft.paletteId) : variant.defaultPalette);
+    const fontId = draft.fontId ?? variant.defaultFontId;
+    const font =
+      fontId === 'custom'
+        ? draft.customFont?.family ?? 'your imported typeface'
+        : FONTS.find((f) => f.id === fontId)?.family ?? 'the design’s typeface';
+    return `${palette.name} · ${font}`;
+  };
+
+  /** Door 1: save the set, land on the production page. */
+  const openKitProduction = (dest: ProductionDest) => {
+    void saveKit(dest).then((show) => {
+      if (!show) return;
+      closeGallery();
+      useRouter.getState().navigate({ view: 'production', id: show.id });
+    });
+  };
+
+  /**
+   * Door 2: save the set, then export it as ONE package - without the editor ever opening
+   * (src/components/AGENTS.md: export is not a reward for opening the editor). The target
+   * picker and the validation gate live on ProductionExportDialog, so the wizard asks for that
+   * surface through the store's one-shot `pendingProductionExport` (the `pendingProductionId`
+   * idiom) rather than growing a second whole-show export screen that could disagree with it.
+   */
+  const exportKit = (dest: ProductionDest) => {
+    void saveKit(dest).then((show) => {
+      if (!show) return;
+      useTemplateStore.setState({ pendingProductionExport: show.id });
+      closeGallery();
+      useRouter.getState().navigate({ view: 'production', id: show.id });
+    });
   };
 
   // The AI graphic's name: the Finish field, else the generated design's own name — the same
@@ -697,9 +892,12 @@ export default function CreationWizard() {
     });
   };
 
+  /** Kit mode's Browse step is satisfied by a picked SHOW with at least one graphic ticked,
+   *  never by a `draft.variantId` — no single design has been chosen at that point. */
+  const kitBrowseReady = !!kitPack && !!kitFamily && kitSelected.length > 0;
   const nextDisabled =
     mode === 'template'
-      ? step === 1 && !draft.variantId
+      ? step === 1 && (buildMode === 'kit' ? !kitBrowseReady : !draft.variantId)
       : (step === 1 &&
           (mode === 'import'
             ? draft.importedImages.length === 0 || !draft.category
@@ -713,26 +911,52 @@ export default function CreationWizard() {
   // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
   // step that exists to offer a choice. Every earlier step had already shown the graphic, and
   // the step's own read-back says what was built, so the actions win the room here.
+  // The kit's Browse step is a picker over whole SHOWS, not a design grid, so there is no one
+  // graphic to preview yet; from Fields on, the preview shows the graphic being configured.
   const showPreview =
     (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
     : mode === 'video' ? false
-    : mode === 'kit' ? false
     : mode === 'blank' ? step === 1
     : mode === 'design' ? step >= 1 && !!previewTemplate
-    : mode === 'template' ? step >= 1 && !!previewTemplate
+    : mode === 'template' ? (kit ? step >= 2 && step < finishStep : step >= 1) && !!previewTemplate
     : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
     mode === 'ai' ? STEP_TITLES_AI
     : mode === 'video' ? STEP_TITLES_VIDEO
-    : mode === 'kit' ? STEP_TITLES_KIT
     : mode === 'blank' ? STEP_TITLES_BLANK
     : mode === 'design' ? STEP_TITLES_DESIGN
     : mode === 'import' ? STEP_TITLES_IMPORT
+    : kit || buildMode === 'kit' ? STEP_TITLES_KIT
     : STEP_TITLES;
+  const stepSubs = mode === 'template' && (kit || buildMode === 'kit') ? STEP_SUBS_KIT : STEP_SUBS[mode];
   // Rail position → step index (1:1 in every mode).
   const stepIndexes = stepTitles.map((_, i) => i);
   const railPos = stepIndexes.indexOf(step);
-  const goToStep = (delta: number) => setStep(stepIndexes[railPos + delta] ?? step);
+  /** Is the plan in flight still the one the picker currently describes? Going Back to Browse
+   *  and returning UNCHANGED must not throw away graphics that are already built; changing the
+   *  show, the look or the contents genuinely is a different kit, and restarts. */
+  const kitPlanMatches = (plan: KitPlan): boolean =>
+    plan.pack.id === kitPack?.id &&
+    plan.family === kitFamily &&
+    plan.keys.length === kitSelected.length &&
+    plan.keys.every((key) => kitSelected.includes(key));
+
+  /** Forward means something different for a kit at two points: leaving Browse STARTS the set,
+   *  and leaving the last configuring step BUILDS the current graphic and lets the plan decide
+   *  where the walk goes — the look question, the next graphic, or the production. Everything
+   *  in between is an ordinary step. */
+  const goToStep = (delta: number) => {
+    if (delta > 0 && mode === 'template' && buildMode === 'kit' && step === 1) {
+      if (kit && kitPlanMatches(kit)) setStep(2);
+      else if (kitPack && kitFamily) startKit(kitPack, kitFamily, kitSelected);
+      return;
+    }
+    if (delta > 0 && kit && step === animStep) {
+      advanceKit();
+      return;
+    }
+    setStep(stepIndexes[railPos + delta] ?? step);
+  };
 
   /* Finish's read-back rows are clickable: each goes back to the step it was decided on.
      The row names its decision, not a step NUMBER, because import mode carries an extra
@@ -789,7 +1013,7 @@ export default function CreationWizard() {
           DESIGN/IMPORT keep the classic "Create project" (create from any step - a
           design needing no erase, fields, or animation choice creates immediately);
           KIT stands down for the same reason as Finish: its own Create IS the action. */}
-      {mode === 'template' && step >= 1 && step < finishStep && (
+      {mode === 'template' && step >= 1 && step < finishStep && !kit && buildMode === 'one' && (
         <button
           className="wz-skip"
           disabled={!draft.variantId}
@@ -798,6 +1022,21 @@ export default function CreationWizard() {
           data-testid="wz-skip-to-finish"
         >
           Skip to finish
+        </button>
+      )}
+      {/* A KIT's shortcut cannot be "skip to finish": the walk's remaining steps belong to the
+          graphic in hand, and past it there may be N more graphics or the look question. So it
+          takes the same door Next takes from Animation - accept this graphic as it stands and
+          let the plan decide - and says exactly that. */}
+      {kit && step >= 2 && step < animStep && (
+        <button
+          className="wz-skip"
+          disabled={!previewTemplate}
+          onClick={advanceKit}
+          title="Happy with this graphic's defaults? Accept it and move on"
+          data-testid="wz-kit-skip"
+        >
+          Skip ahead
         </button>
       )}
       {(mode === 'design' || mode === 'import') && step < finishStep && (mode === 'import' ? step >= 2 : step >= 1) && (
@@ -825,9 +1064,15 @@ export default function CreationWizard() {
           Next →
         </button>
       )}
-      {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && mode !== 'kit' && step > 0 && step < finishStep && (
+      {mode !== 'ai' && mode !== 'video' && mode !== 'blank' && step > 0 && step < finishStep && (
         <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
-          Next →
+          {/* On a kit's last configuring step the button is not moving to another step of this
+              graphic - it is finishing this one - so it says which. */}
+          {kit && step === animStep
+            ? kit.current === kit.items.length - 1 || kit.propagate === null
+              ? 'Finish this graphic →'
+              : 'Next graphic →'
+            : 'Next →'}
         </button>
       )}
     </div>
@@ -876,13 +1121,13 @@ export default function CreationWizard() {
             <span className="wz-title-step">
               {mode === 'ai' ? 'Create with AI'
                 : mode === 'video' ? 'Video with AI'
-                : mode === 'kit' ? 'Start from a kit'
                 : mode === 'design' ? 'Import graphic'
+                : kit ? `${kit.pack.name} kit`
                 : 'New graphic'}
             </span>
             {/* Once a design is chosen it names the thing being built, so the header answers
                 "what am I working on" without the reader looking at the preview. */}
-            {variant && <span className="wz-title-doc">· {variant.name}</span>}
+            {variant && step < finishStep && <span className="wz-title-doc">· {variant.name}</span>}
           </div>
           {/* HOW FAR ALONG — from the SECOND step onward. On Entry there is no answer to give:
               no mode is chosen yet, so the denominator is not even the same number for every
@@ -930,7 +1175,13 @@ export default function CreationWizard() {
                     // Next presses. Other modes keep their sequential walks - their steps
                     // build state a jump would skip.
                     disabled={
-                      s > step
+                      // A KIT'S LAST RAIL ENTRY IS NOT A JUMP TARGET. Reaching it means the
+                      // graphic in hand has been BUILT and the plan has decided what comes
+                      // next; a rail click sets the step directly, so allowing it would land
+                      // on a Finish with a hole in the set and nothing saying so. Every
+                      // earlier entry stays reachable — those are steps of one graphic.
+                      kit && s === finishStep && s !== step ? true
+                      : s > step
                         ? !(mode === 'template' && !!draft.variantId)
                         : s > (mode === 'template' ? 1 : 2) && !draft.variantId
                     }
@@ -942,7 +1193,7 @@ export default function CreationWizard() {
                         the rail out as a horizontal strip of numbered chips. */}
                     <span className="wz-dot-text">
                       <span className="wz-dot-label">{t}</span>
-                      <span className="wz-dot-sub">{STEP_SUBS[mode]?.[i] ?? ''}</span>
+                      <span className="wz-dot-sub">{stepSubs?.[i] ?? ''}</span>
                     </span>
                   </button>
                 );
@@ -953,7 +1204,7 @@ export default function CreationWizard() {
                 CONTROL itself stays in the step that owns it (the Browse step's picker, the
                 AI and blank steps' own) — one control, one home; this is the reminder plus
                 the way back to it. */}
-            {step > 0 && mode !== 'kit' && (
+            {step > 0 && (
               <div className="wz-rail-foot">
                 <p className="dlg-caption">Project format</p>
                 <p className="wz-rail-format">{formatSummary}</p>
@@ -963,6 +1214,25 @@ export default function CreationWizard() {
           </nav>
 
           <div className="wz-main">
+          {/* THE KIT TRAY: the second axis of progress (which graphic of the set), above the
+              form column, in the rail's own vocabulary. See wizard/KitTray.tsx. */}
+          {kit && (
+            <KitTray
+              plan={kit}
+              // Only while walking each graphic separately, on a configuring step, with
+              // unbuilt graphics still after this one. On the first graphic the look question
+              // is coming at the end of it anyway, and offering the same thing twice on one
+              // walk is two doors to one outcome.
+              onUseLookForRest={
+                kit.propagate === false &&
+                step >= 2 &&
+                step <= animStep &&
+                kit.current < kit.items.length - 1
+                  ? adoptKitLookForRest
+                  : undefined
+              }
+            />
+          )}
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
             {step === 0 && (
               <EntryStep
@@ -974,7 +1244,6 @@ export default function CreationWizard() {
                   setMode('video');
                   setStep(1);
                 }}
-                onKit={() => { setMode('kit'); setStep(1); }}
                 onBlank={() => { setMode('blank'); setStep(1); }}
                 onHome={() => {
                   closeGallery();
@@ -988,15 +1257,6 @@ export default function CreationWizard() {
                 onFormat={(selection) => patch(formatDraftPatch(selection))}
                 onCreate={createVideo}
                 onOpen={createVideo}
-              />
-            )}
-            {step === 1 && mode === 'kit' && (
-              <KitStep
-                format={draftFormatSelection(draft)}
-                onFormat={(selection) => patch(formatDraftPatch(selection))}
-                onCreate={createKit}
-                busy={kitBusy}
-                error={kitError}
               />
             )}
             {step === 1 && mode === 'blank' && (
@@ -1116,6 +1376,25 @@ export default function CreationWizard() {
                 // Ranking context, not a filter: with the footer's brand toggle on, the
                 // package's siblings lead the results (proposal §13.3).
                 brandFamily={matchBrand && brand ? brand.styleTag : null}
+                buildMode={buildMode}
+                onBuildMode={setBuildMode}
+                kitPack={kitPack}
+                kitFamily={kitFamily}
+                kitSelected={kitSelected}
+                // A new show brings its OWN curated look and its own whole contents - carrying
+                // the previous pick across would quietly stop being the kit it was curated as
+                // (the same rule the separate kit step held).
+                onKitPack={(pack) => {
+                  const family = defaultFamilyFor(pack, null);
+                  setKitPack(pack);
+                  setKitFamily(family);
+                  setKitSelected(family ? defaultSelectionFor(pack, family) : []);
+                }}
+                // A LOOK CHANGE keeps the set: the keys are type ids, and every family the
+                // picker offers resolves all of a pack's types. Anything the new look cannot
+                // build simply stops being offered, and `kitSelection` drops it.
+                onKitFamily={setKitFamily}
+                onKitSelected={setKitSelected}
               />
             )}
             {step === 3 && mode === 'design' && draft.designArt && (
@@ -1193,8 +1472,34 @@ export default function CreationWizard() {
                 onReplay={() => setReplayKey((k) => k + 1)}
               />
             )}
+            {/* THE KIT'S ENDING, in two moments. The look question comes first and only once
+                (there is nothing to ask when the set is a single graphic), then the kit's own
+                Finish: name the production, look at everything that was built, pick a door. */}
+            {step === finishStep && kit && kit.propagate === null && kit.items.length > 1 && (
+              <KitLookStep
+                remaining={kit.items.length - 1}
+                summary={lookSummary()}
+                onUseForAll={useKitLookForAll}
+                onWalkEachOne={walkKitEachOne}
+              />
+            )}
+            {step === finishStep && kit && !(kit.propagate === null && kit.items.length > 1) && (
+              <KitFinishStep
+                name={kitProductionName}
+                namePlaceholder={kit.pack.name}
+                onName={setKitProductionName}
+                built={kit.built.filter((t): t is SpxTemplate => t !== null)}
+                oneLook={kit.propagate !== false}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
+                onOpenProduction={openKitProduction}
+                onExport={exportKit}
+                busy={kitBusy}
+                error={kitError}
+              />
+            )}
             {/* Finish — shared by every catalog-shaped mode, design included. */}
-            {step === finishStep && mode !== 'ai' && mode !== 'video' && variant && (
+            {step === finishStep && !kit && mode !== 'ai' && mode !== 'video' && variant && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={variant.name}

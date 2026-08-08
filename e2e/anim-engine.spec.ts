@@ -726,3 +726,20 @@ test('parity: infographic measured motion matches the legacy emit, and lands on 
   expect(landed.ig03.rows).toBe('1.0 1.0 1.0 1.0 1.0');
   expect(landed.ig06.rows).toBe('1.0 1.0 1.0');
 });
+
+test('the preset registry lists every family exactly once', async ({ page }) => {
+  // ALL_PRESETS is a SET, and nothing about the shape of a hand-written concatenation says so.
+  // It shipped with six families spread TWICE (starting soon, game timers, infographics,
+  // versus, quiz, imported design) while the second block was being extended with poll and
+  // audience — so the wizard's Animation step drew each of those presets as two identical
+  // cards, and the only thing that ever mentioned it was React's duplicate-key warning in the
+  // console. Module-level: the claim is about the registry, not about any one design.
+  await page.goto('/app');
+  const report = await page.evaluate(async () => {
+    const { ALL_PRESETS } = await import('/src/blocks/presetRegistry.ts');
+    const ids = (ALL_PRESETS as unknown as { id: string }[]).map((p) => p.id);
+    return { total: ids.length, dupes: [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))] };
+  });
+  expect(report.dupes).toEqual([]);
+  expect(report.total).toBeGreaterThan(0);
+});
