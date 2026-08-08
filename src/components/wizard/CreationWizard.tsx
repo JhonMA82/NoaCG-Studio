@@ -270,15 +270,21 @@ export default function CreationWizard() {
     }).catch(() => undefined);
   }, [open, aiResult]);
 
-  // Escape closes (keeps the current project).
+  // Escape does what the ✕ does — rewind to the front page from a working step, leave from the
+  // front page itself. Two ways out of one surface that disagreed about where "out" is was the
+  // fault; a reader who learns the ✕ rewinds and then loses their draft to the key beside it
+  // has been told two different things by the same wizard. `leaveStepRef` keeps the handler off
+  // the re-subscribe treadmill: leaveStep closes over the step, so binding it directly would
+  // tear the listener down and rebuild it on every draft keystroke.
+  const leaveStepRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeGallery();
+      if (e.key === 'Escape') leaveStepRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, closeGallery]);
+  }, [open]);
 
   const variant = draft.variantId ? variantById(draft.variantId) : undefined;
 
@@ -362,6 +368,8 @@ export default function CreationWizard() {
     // carries — the checkbox and the preview disagreeing about the same fact.
     setMatchBrand(false);
   };
+  // Escape's handler reads this rather than closing over `leaveStep` directly (see below).
+  leaveStepRef.current = leaveStep;
 
   // Creating an SPX graphic (any path) lands in the SPX shell; creating/opening a video
   // lands in the video shell. Only the wizard flips the persisted doc-kind switch.

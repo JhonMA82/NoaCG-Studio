@@ -96,6 +96,26 @@ test('✕ past Entry returns to the wizard front page, keeping the project forma
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });
 
+test('Escape goes exactly where the ✕ goes', async ({ page }) => {
+  await wizard(page);
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('.wz-variant').first().click();
+  await expect(counter(page)).toBeVisible();
+
+  // Two ways out of one surface that disagreed about where "out" is was the fault: a reader
+  // who learns the ✕ rewinds and then loses the draft to the key beside it has been told two
+  // different things by the same wizard.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(counter(page)).toHaveCount(0);
+
+  // And from the front page it leaves, exactly as the ✕ does there.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  await expect(page.getByTestId('home-page')).toBeVisible();
+});
+
 test('✕ on the Entry step still leaves the wizard', async ({ page }) => {
   await wizard(page);
   await page.locator('.wz-header .gallery-close').click();
