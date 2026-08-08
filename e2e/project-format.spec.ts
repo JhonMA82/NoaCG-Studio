@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
 import { finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
 import { acceptAiNotice } from './_ai-notice';
+import { pickDesign } from './_browse';
 
 async function pickFormat(
   page: Page,
@@ -44,7 +45,7 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
     }
     await page.locator('[data-entry="template"]').click();
     await pickFormat(page, 'browse-format', format.id, format.fps);
-    await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+    await pickDesign(page, 'Hairline');
 
     if (index === cases.length - 1) {
       for (let step = 0; step < 4; step++) {

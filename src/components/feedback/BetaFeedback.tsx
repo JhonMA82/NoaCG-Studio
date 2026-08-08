@@ -14,6 +14,15 @@ import { FeedbackForm } from './FeedbackForm';
 import { feedbackAvailable, sendFeedback } from '../../backend/feedback';
 import type { FeedbackArea, FeedbackSentiment } from '../../feedback/contract';
 
+/**
+ * `area` is not only telemetry: it also NAMES THE INSTANCE. The wizard is a full-screen modal
+ * over whichever shell is mounted, so two of these buttons are in the document at once - the
+ * wizard's, and the occluded one on Home or in the editor behind it. They are genuinely
+ * different doors reporting different areas, so `data-area` lets anything that has to mean one
+ * of them say which, instead of leaving a bare test id matching two elements. (Every other
+ * control on a shell topbar is duplicated the same way while the wizard is open; this is the
+ * one pair that shares an id.)
+ */
 export function BetaFeedbackButton({ area = 'editor' }: { area?: FeedbackArea }) {
   const [open, setOpen] = useState(false);
   if (!feedbackAvailable()) return null;
@@ -24,6 +33,7 @@ export function BetaFeedbackButton({ area = 'editor' }: { area?: FeedbackArea })
         className="fb-open"
         title="Tell us how the beta is going"
         data-testid="beta-feedback-open"
+        data-area={area}
         onClick={() => setOpen(true)}
       >
         Feedback
@@ -66,11 +76,25 @@ function BetaFeedbackDialog({ area, onClose }: { area: FeedbackArea; onClose: ()
         aria-modal="true"
         aria-label="Beta feedback"
         data-testid="beta-feedback-dialog"
+        data-area={area}
       >
+        {/* THE HEADER RULE (handoff §6): the ✕ is a 32px bordered square, hard right, ALWAYS
+            last. This sheet used to carry a labelled "Close" button one gap after the title,
+            held there by a `.spacer` div that flexed nowhere — the exact defect §6 names, on
+            a dialog the student release now puts in front of its main user. `.gallery-close`
+            is the shared shape and `.wz-header` already pushes it. */}
         <div className="wz-header">
           <strong>How is NoaCG Studio working out?</strong>
-          <div className="spacer" />
-          <button type="button" onClick={onClose} data-testid="beta-feedback-close">Close</button>
+          <button
+            type="button"
+            className="gallery-close"
+            onClick={onClose}
+            title="Close"
+            aria-label="Close"
+            data-testid="beta-feedback-close"
+          >
+            ✕
+          </button>
         </div>
         <div className="fb-body">
           <p className="hint">

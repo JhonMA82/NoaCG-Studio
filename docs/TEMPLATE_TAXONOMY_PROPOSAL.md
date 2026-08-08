@@ -523,6 +523,16 @@ Requirements honoured:
 
 ## 12. The Start-from-template browser
 
+> **SUPERSEDED IN PRESENTATION, NOT IN MODEL (2026-08-09).** Every facet below still exists and
+> still narrows the same way - `src/templates/search.ts` is unchanged. What the shipped step
+> DRAWS is `re-design/handoff.md` §2b, which is binding where the two disagree, and it differs
+> in three places: the category tiles are ONE dropdown with the same live counts (22 tiles was
+> a wall at any per-tile height), the specialist facets sit behind one Filters disclosure at
+> every width rather than a desktop `More filters` inside a mobile drawer, and **the results
+> are a first page of 12 plus "Show 12 more"** - the sketch below renders every match, which
+> at today's catalog is 429 cards and 30,215px of scroll. The living description of the shipped
+> surface is `src/templates/AGENTS.md` ("The storefront's shape").
+
 ### 12.1 Flow [PROPOSAL]
 
 The Entry step is untouched. "Start from a template" opens one **Browse step** replacing

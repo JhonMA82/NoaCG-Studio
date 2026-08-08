@@ -3,6 +3,7 @@ import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
 import { finishIntoEditor, enableAdvancedMode } from './_create';
 import { durableValue } from './_storage';
+import { chooseType, pickDesign } from './_browse';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it - in ADVANCED mode, whose '' route boots into the restored editor (the default
@@ -15,8 +16,8 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);
   });

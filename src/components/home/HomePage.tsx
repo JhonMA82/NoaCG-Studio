@@ -26,6 +26,7 @@ import type { SpxTemplate } from '../../model/types';
 import BrandLogo from '../BrandLogo';
 import AuthStatus from '../auth/AuthStatus';
 import SyncStatus from '../SyncStatus';
+import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SignInDialog from '../auth/SignInDialog';
 import SaveDialogs from '../save/SaveDialogs';
 import SettingsDialog from '../SettingsDialog';
@@ -186,6 +187,11 @@ export default function HomePage({ route }: { route: Route }) {
         <button onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings" data-testid="home-settings">
           <IconSliders />
         </button>
+        {/* The general beta door, on every surface a student actually stands on. It used to
+            exist only in the EDITOR shell - the one surface the student release demoted
+            behind Advanced mode - so the release's own user could not send feedback at all,
+            and feedback is what the Lite prompt learns from. Renders nothing offline. */}
+        <BetaFeedbackButton area="home" />
         <SyncStatus />
         <AuthStatus />
       </header>

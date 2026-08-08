@@ -2,6 +2,7 @@ import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
+import { chooseType } from './_browse';
 
 // The Prettier formatting layer (src/format/formatCode.ts) and its Monaco wiring. The service is
 // house-aware on purpose: it formats HTML freely, but it must NEVER silently rewrite the two
@@ -94,7 +95,7 @@ async function createLowerThird(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
+  await chooseType(page, 'Lower thirds');
   await page.locator('.wz-variant').first().click();
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);

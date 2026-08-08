@@ -68,6 +68,31 @@ drawing one.
   RANKING input the user never chose (today: the saved brand's family, a deliberately small
   boost that a genuine programme match always outranks), kept out of `BrowseFilters` so it
   can never grow a chip or be cleared by Clear-all.
+  **It returns the WHOLE result and the step renders a PAGE of it.** `browseTemplates` has no
+  limit argument and must not grow one - the total is what the step reports ("Showing 12 of
+  82"), and a filter's honest effect is a number the engine has to know in full to produce.
+  Paging is `BrowseStep`'s, over `best` then `also`, reset by any change to the filters or the
+  sort.
+
+**THE STOREFRONT'S SHAPE** (re-design/handoff.md §2b, the binding description of what these
+facets are DRAWN as - the taxonomy proposal §12 describes the same facets in their original
+tile-wall presentation, which no longer ships):
+
+- **The graphic type is ONE DROPDOWN** carrying each type's live catalog count
+  (`browsableCategories`), not a strip of chips. It has 22 answers, and 22 targets is a wall
+  whatever their per-chip height: as 230px tiles it stacked eleven rows, and as chips in a
+  scrolling box it still took three rows of the step whose job is showing designs.
+- **The style families stay CHIPS** and stay in the lead row - six short answers picked by
+  feel and re-picked often. Everything else (programme, field counts, structures,
+  capabilities, motion) is behind ONE Filters disclosure, closed by default, with the active
+  count on it.
+- **The results are a first page plus "Show 12 more"**, and the step states both numbers.
+  Rendering all 429 matches was 30,215px of scroll; lazy iframes made that cheap to paint and
+  no easier to read.
+- **A named design is reached by SEARCHING**, not by scrolling to it - which is what the e2e
+  helpers `pickDesign` / `chooseType` (`e2e/_browse.ts`) encode, and why facet specs assert
+  the count line (`data-testid="wz-browse-count"`) rather than counting cards: a card count
+  measures the page size and would read 12 for every filter leaving twelve or more.
 - The id registries (families/formats with verbatim sheet names, 26 graphic categories,
   structures, semantics, capabilities, placements, motion intensity/styles, style aliases)
   live in **src/model/taxonomy.ts**; display labels there, never in stored ids.

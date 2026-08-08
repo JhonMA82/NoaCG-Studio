@@ -1,6 +1,7 @@
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
+import { chooseType, pickDesign } from './_browse';
 
 // The wizard's logo option: a variant that declares `logo: 'optional'` offers a toggle +
 // custom upload on the Fields step; enabling it makes the created template carry a REAL
@@ -18,8 +19,8 @@ async function toFieldsStep(page: Page, category: string, variantName: string) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: category }).click();
-  await page.locator('.wz-variant', { hasText: variantName }).click();
+  await chooseType(page, category);
+  await pickDesign(page, variantName);
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
 }
 

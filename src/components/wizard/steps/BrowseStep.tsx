@@ -13,6 +13,7 @@ import {
   STRUCTURE_LABELS,
   STYLE_FAMILY_LABELS,
   type CapabilityId,
+  type GraphicCategoryId,
   type MotionIntensity,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
@@ -72,6 +73,21 @@ interface Props {
 export type BuildMode = 'one' | 'kit';
 
 type SortMode = 'relevance' | 'simplest';
+
+/**
+ * HOW MANY DESIGNS THE STEP RENDERS AT ONCE, and how many one press adds (handoff §2b:
+ * "2x2 template cards, Show 12 more").
+ *
+ * It renders a PAGE because the alternative was measured: the unfiltered catalog put 429 live
+ * MiniPreview cards on one grid, 30,215px of scroll, on the step whose whole job is choosing
+ * one of them. Lazy iframes keep that cheap to PAINT, but nothing makes it possible to READ -
+ * a storefront that shows everything shows nothing.
+ *
+ * Twelve, not four as the mockup's narrow column drew: the grid here is `auto-fill` and takes
+ * three or four cards per row at a laptop width, so twelve is the same three rows the
+ * reference shows and the "more" press stays a deliberate act rather than a treadmill.
+ */
+const PAGE_SIZE = 12;
 
 const FIELD_BUCKETS: FieldBucket[] = ['1', '2', '3', '4-5', '6+', 'repeating'];
 const BUCKET_LABEL: Record<FieldBucket, string> = {
@@ -205,10 +221,15 @@ function ResultCard({
 
 /**
  * The Browse step — the faceted Start-from-template storefront
- * (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12): search + programme format (ranking, optional) +
- * category tiles with live counts + field buckets + style, with the specialist facets under
- * More filters. Replaces the Category → Template pair for the catalog flow; filter state
- * lives in the wizard so Back returns with filters intact.
+ * (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12): search + ONE graphic-type dropdown with live
+ * counts + style families + programme format (ranking, optional) + field buckets, with the
+ * specialist facets behind one Filters disclosure. Replaces the Category → Template pair for
+ * the catalog flow; filter state lives in the wizard so Back returns with filters intact.
+ *
+ * IT SHOWS A PAGE, NOT THE CATALOG (re-design/handoff.md §2b). The facets are unchanged and
+ * still narrow the whole catalog — what changed is that the RESULT is a first page plus
+ * "Show N more", and that the 22-chip type strip became a select. Both are the same fix: the
+ * step's own chrome must not be the thing between a person and a design.
  *
  * IT IS ALSO THE ONE DOOR TO A KIT. There is no separate "Start from a kit" entry card any
  * more (which reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18's 2026-07-23 ratification — the
@@ -244,7 +265,6 @@ export default function BrowseStep({
   // active chips and the results stay visible either way.
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const tiles = useMemo(() => browsableCategories(), []);
   const intensities = useMemo(() => offeredIntensities(), []);
   const structures = useMemo(() => offeredStructures(), []);
   const capabilityFilters = useMemo(() => offeredCapabilityFilters(), []);
@@ -252,12 +272,26 @@ export default function BrowseStep({
   // Removed before scoring rather than greyed - a card nobody can use is noise, and it would
   // otherwise inflate every category count and the "remove the most limiting filter" hint.
   const hiddenIds = useMyEntitlement().hiddenTemplates;
+  // …which is why the TYPE options are derived from the same set: the dropdown prints each
+  // count, so one that counted a design the visitor cannot pick would not match the result.
+  const tiles = useMemo(() => browsableCategories(hiddenIds), [hiddenIds]);
+  const catalogTotal = useMemo(() => tiles.reduce((n, t) => n + t.count, 0), [tiles]);
   const outcome = useMemo(
     () => browseTemplates(filters, { brandFamily, hiddenIds }),
     [filters, brandFamily, hiddenIds],
   );
 
   const [sort, sortSet] = useState<SortMode>('relevance');
+
+  // HOW FAR DOWN THE RESULT THE READER HAS ASKED TO GO — reset by any change to what the
+  // result IS. Derived during render off a signature rather than reset in an effect: an
+  // effect would paint one frame of the previous page's cards against the new filter, which
+  // on a step made of live MiniPreview iframes is a visible flash of the wrong designs.
+  const resultKey = `${JSON.stringify(filters)}|${sort}`;
+  const [paging, setPaging] = useState({ key: resultKey, shown: PAGE_SIZE });
+  const shownLimit = paging.key === resultKey ? paging.shown : PAGE_SIZE;
+  const showMore = () => setPaging({ key: resultKey, shown: shownLimit + PAGE_SIZE });
+
   const sortResults = (list: BrowseResult[]) =>
     sort === 'simplest'
       ? [...list].sort(
@@ -296,6 +330,16 @@ export default function BrowseStep({
     activeStrict.length > 0 || filters.query.trim() !== '' || filters.family !== null || filters.format !== null;
 
   const relaxKey = outcome.total === 0 ? mostRestrictiveFilter(filters) : null;
+
+  // THE PAGE. `best` and `also` are one ranking presented in two sections, so the limit is
+  // spent on the ranking and the sections are what is left over — "Best for" first, then
+  // whatever room remains goes to "Also works".
+  const bestSorted = sortResults(outcome.best);
+  const alsoSorted = sortResults(outcome.also);
+  const shownBest = bestSorted.slice(0, shownLimit);
+  const shownAlso = alsoSorted.slice(0, Math.max(0, shownLimit - bestSorted.length));
+  const shownCount = shownBest.length + shownAlso.length;
+  const remaining = outcome.total - shownCount;
 
   const drawerCount = activeStrict.length + (filters.family || filters.format ? 1 : 0);
 
@@ -374,30 +418,39 @@ export default function BrowseStep({
         />
       ) : (
         <>
-      {/* Category tiles with live counts — only categories with catalog content. Outside the
-          disclosure: "what kind of graphic" is the first question the step asks, so it is not
-          something to go and open. */}
-      <div className="wz-cat-grid wz-browse-tiles">
-        {tiles.map((tile) => (
-          <button
-            key={tile.category}
-            className={`wz-cat ${filters.category === tile.category ? 'selected' : ''}`}
-            onClick={() => set({ category: filters.category === tile.category ? null : tile.category })}
-          >
-            <div className="wz-cat-head">
-              <strong>{tile.name}</strong>
-              <span className="wz-count">{tile.count}</span>
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* THE LEAD ROW (re-design/handoff.md §2b): ONE type dropdown, the style families, and
+          ONE way in to everything else.
 
-      {/* THE LEAD ROW (re-design/handoff.md §2b): what a designer actually reaches for —
-          the type strip above, the style families here — and ONE way in to everything else.
-          The tiles and the style chips stay out of the disclosure on purpose: they are the
-          two facets that answer "what kind of graphic" and "what should it feel like", and
-          burying either behind a control labelled Filters costs a click on every visit. */}
+          THE TYPE IS A SELECT, NOT A STRIP OF CHIPS. "What kind of graphic" is the step's
+          first question and stays out of the disclosure — but it has 22 answers, and 22 of
+          anything laid out as targets is a wall whatever its per-chip height is: as cards it
+          stacked eleven rows, as chips it still took a scrolling three-row box on the step
+          whose job is showing designs. A select spends one row, states the current answer in
+          words, and carries each type's catalog count exactly as the chips did.
+
+          The style families stay CHIPS: six short answers a designer picks by feel and
+          re-picks often, which is the case a chip row is for and a second dropdown is not. */}
       <div className="wz-browse-lead">
+        <label className="wz-browse-type">
+          {/* Hidden wording, real label — same device the format picker uses: the select's own
+              text already says "Lower thirds · 82", so a visible caption would repeat it. */}
+          <span className="project-format-label">Graphic type</span>
+          <select
+            data-testid="wz-browse-type"
+            value={filters.category ?? ''}
+            onChange={(e) => set({ category: (e.target.value || null) as GraphicCategoryId | null })}
+          >
+            <option value="">All types · {catalogTotal}</option>
+            {tiles.map((tile) => (
+              <option key={tile.category} value={tile.category}>
+                {tile.name} · {tile.count}
+              </option>
+            ))}
+          </select>
+        </label>
+        {/* Second line of the lead grid, full width — see the CSS for why the row is a grid
+            rather than one wrapping flex line (the step's column halves on a pick, and the
+            chips collapsed into a vertical stack there). */}
         <div className="wz-filter-row" role="group" aria-label="Filter by style">
           {(Object.keys(STYLE_FAMILY_LABELS) as StyleTag[]).map((t) => (
             <button
@@ -409,7 +462,6 @@ export default function BrowseStep({
             </button>
           ))}
         </div>
-        <div className="spacer" />
         {/* ONE disclosure, at every width. It used to be two nested ones — a mobile-only
             drawer holding a "More filters" details — so a desktop reader met five rows of
             facets before the first design, and a phone reader had to open two things to
@@ -525,8 +577,23 @@ export default function BrowseStep({
       </div>
       </div>
 
-      {/* Active chips + count + sort. */}
+      {/* Count + sort, then the active chips — all LEFT-FLUSH under the lead row, the way the
+          reference reads it ("Showing 4 of 82 · sorted by relevance"). Right-aligning the
+          count left it floating alone at the far edge of an empty row whenever no filter had
+          a chip, which is the common case. */}
       <div className="wz-browse-bar">
+        <div className="wz-browse-count">
+          {/* "Showing 12 of 82", never a bare total: with a page on screen, a number that
+              counted the whole result would describe something the reader cannot see, and one
+              that counted the page would hide how much the filters actually left. */}
+          <span data-testid="wz-browse-count">
+            Showing {shownCount} of {outcome.total}
+          </span>
+          <select value={sort} onChange={(e) => sortSet(e.target.value as SortMode)} aria-label="Sort results">
+            <option value="relevance">Relevance</option>
+            <option value="simplest">Simplest first</option>
+          </select>
+        </div>
         <div className="wz-browse-chips">
           {activeStrict.map((chip) => (
             <button key={chip.label} className="wz-filter active" onClick={chip.clear} title="Remove this filter">
@@ -539,23 +606,19 @@ export default function BrowseStep({
             </button>
           )}
         </div>
-        <div className="wz-browse-count">
-          {outcome.total} template{outcome.total === 1 ? '' : 's'}
-          <select value={sort} onChange={(e) => sortSet(e.target.value as SortMode)} aria-label="Sort results">
-            <option value="relevance">Relevance</option>
-            <option value="simplest">Simplest first</option>
-          </select>
-        </div>
       </div>
 
-      {/* Results — sectioned when a programme is chosen (ranking, never hiding). */}
+      {/* Results — sectioned when a programme is chosen (ranking, never hiding), and PAGED.
+          The page is taken off the ordered result as a whole and then split back into the two
+          sections, so "Show more" walks the ranking rather than filling "Best for" to the end
+          before the reader ever sees an "Also works" card. */}
       {outcome.total > 0 ? (
         <>
-          {selectedFormatName && outcome.best.length > 0 && (
+          {selectedFormatName && shownBest.length > 0 && (
             <h3 className="wz-browse-section">Best for {selectedFormatName.toLowerCase()}</h3>
           )}
           <div className="wz-variant-grid">
-            {sortResults(outcome.best).map((r) => (
+            {shownBest.map((r) => (
               <ResultCard
                 key={r.meta.id}
                 r={r}
@@ -566,11 +629,11 @@ export default function BrowseStep({
               />
             ))}
           </div>
-          {selectedFormatName && outcome.also.length > 0 && (
+          {selectedFormatName && shownAlso.length > 0 && (
             <>
               <h3 className="wz-browse-section">Also works</h3>
               <div className="wz-variant-grid">
-                {sortResults(outcome.also).map((r) => (
+                {shownAlso.map((r) => (
                   <ResultCard
                 key={r.meta.id}
                 r={r}
@@ -582,6 +645,15 @@ export default function BrowseStep({
                 ))}
               </div>
             </>
+          )}
+          {/* The rest of the result, one press at a time. It names HOW MANY it will add rather
+              than saying "more", so the press is a known cost — and it disappears at the end
+              of the list instead of going quiet, which is what tells a reader they have seen
+              everything the filters left. */}
+          {remaining > 0 && (
+            <button className="wz-browse-more-btn" data-testid="wz-browse-more" onClick={showMore}>
+              Show {Math.min(PAGE_SIZE, remaining)} more
+            </button>
           )}
         </>
       ) : (

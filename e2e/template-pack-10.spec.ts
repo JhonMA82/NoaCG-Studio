@@ -31,8 +31,11 @@ async function openWizardCategories(page: Page) {
 
 test('the two new categories are browsable, and every design in them creates', async ({ page }) => {
   await openWizardCategories(page);
+  // Browsable = the type dropdown offers it. The 22-chip strip became one select
+  // (re-design/handoff.md §2b); the fact under test is unchanged.
+  const types = page.getByTestId('wz-browse-type');
   for (const cat of NEW_CATEGORIES) {
-    await expect(page.locator('.wz-cat', { hasText: cat.label })).toBeVisible();
+    await expect(types.locator('option', { hasText: cat.label })).toHaveCount(1);
   }
 
   // …and each category's designs all build. Done in the page rather than by clicking every

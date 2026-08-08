@@ -1,4 +1,5 @@
 import { createProject } from './_create';
+import { pickDesign } from './_browse';
 
 // The Export tab's Video & image render section (src/components/render/RenderPanel.tsx).
 // The offline suite runs with VITE_RENDER_API=1 (playwright.config.ts webServer env), so
@@ -24,7 +25,7 @@ async function openExportWindowViaFinish(page: Page, name: string) {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+  await pickDesign(page, 'Hairline');
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-name').fill(name);
   await page.getByTestId('wz-finish-export').click();

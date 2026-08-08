@@ -1,6 +1,7 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
+import { chooseType, pickDesign } from './_browse';
 
 // The broadcast-package flows: custom colors, imported fonts, the project brand,
 // and the first-wave categories (info cards, end credits, tickers).
@@ -10,8 +11,8 @@ async function toVariantStep(page: Page, categoryName: string, variantName: stri
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: categoryName }).click();
-  await page.locator('.wz-variant', { hasText: variantName }).click();
+  await chooseType(page, categoryName);
+  await pickDesign(page, variantName);
 }
 
 async function create(page: Page) {
@@ -87,8 +88,8 @@ test('project brand: match toggle carries the look to another variant', async ({
   // Second creation, different family: the brand accent applies via the match toggle.
   await startNewProject(page);
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Frosted Card' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Frosted Card');
   // The match toggle is off by default — carrying the look over is an explicit choice.
   const match = page.locator('.wz-match input');
   await expect(match).not.toBeChecked();

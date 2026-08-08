@@ -4,9 +4,10 @@ Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when workin
 directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
 Keep it accurate.
 
-Split out of `src/components/AGENTS.md` on 2026-08-08. That contract had reached 1,093 lines and
-was loaded in full by every session touching any component, while this third of it describes one
-directory. The rules are unchanged - only where they live.
+Split out of `src/components/AGENTS.md` on 2026-08-08, which every session touching any
+component loaded in full while a third of it described one directory. This chain now sits close
+to `project_doc_max_bytes` and `npm run check:shared-instructions` refuses a careless addition:
+add a RULE here, leave the reasoning in the code's own comments.
 
 ## Wizard (wizard/)
 
@@ -14,10 +15,28 @@ CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, p
 preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
 which generates the complete, commented template. THREE entry cards (template, Create with AI,
 Import graphic) in a two-column grid, plus the separated video strip; Advanced mode adds blank.
-An ODD LAST CARD spans the row (`.wz-entry-card:last-child:nth-child(odd)`), so three leave no
-empty cell and four still read as a 2x2. Create with AI is the ONE AI door - NoaCG Pro is an
-execution TIER inside it, never a second card; there is no kit card either — see the kit path
-below.
+An ODD LAST CARD spans the row (`.wz-entry-card:last-child:nth-child(odd)`) and sizes to its
+OWN copy — the equal rows and the three-line hint reserve align cards SIDE BY SIDE, and a card
+with no row-mate wearing them is two empty lines of padding. Create with AI is the ONE AI
+door - NoaCG Pro is an execution TIER inside it, never a second card; there is no kit card
+either — see the kit path below.
+
+**THE ENTRY STEP'S CONTENT** (steps/EntryStep.tsx, handoff §2a; the reasoning is in that
+file's comments). Hero = headline + two lines, no second brand mark and no SPX / CasparCG /
+OGraf chip row (the targets belong in the SENTENCE; a row of small pills reads as filters or
+status everywhere else here). Home = a full-width ROW whose Graphics / Productions shortcuts
+are SIBLINGS of the body button, shown only when there is saved work. The video strip is ONE
+LINE: a Beta side-door must not out-weigh a shipped mode.
+**THREE DIVERGENCES ARE DELIBERATE**, pinned by `e2e/wizard-entry-fit.spec.ts`: no "Start from
+a kit" card, cards act on CLICK not radio-plus-Continue, Blank stays behind Advanced mode.
+
+**THE FEEDBACK DOOR IS ON THE WIZARD HEADER** (`BetaFeedbackButton area="wizard"`; Home carries
+`area="home"`). It existed only in the editor shell — the surface the student release demotes —
+so the release's own user could not send anything, and feedback is what the Lite prompt learns
+from. Two dependencies: the header's push is a CHAIN (`.wz-stepcount ~ .fb-open`,
+`.fb-open ~ .gallery-close`), since the step counter is absent on Entry and the button absent
+offline and whichever exists first takes the auto margin; and the shell behind the wizard
+mounts a SECOND button, so a locator meaning one says which via `data-area`.
 
 **LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
@@ -65,18 +84,18 @@ the playout server. Pinned by e2e/wizard-finish.spec.ts.
 
 **A closed `<details>` needs an author rule here.** The UA hides a disclosure's non-summary
 children with `display: none`, which ANY author rule setting `display` on those children beats
-- and both wizard disclosures wrap `.row` / `.wz-filter-row`, which are `display: flex`. Browse's
-"More filters" therefore never collapsed at all until styles.css grew
-`details:not([open]) > *:not(summary) { display: none }`. `toBeVisible()` is blind to it, so
-both specs assert the content's measured HEIGHT is 0, never the `open` attribute.
+- and the Style step's disclosures wrap `.row`, which is `display: flex`, so they never
+collapsed at all until styles.css grew `details:not([open]) > *:not(summary) { display: none }`.
+`toBeVisible()` is blind to it, so specs assert measured HEIGHT is 0, never `open`.
 
 **Browse** (steps/BrowseStep.tsx, mode 'template' only) is the FACETED template storefront
-(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) replacing the old Category -> Template pair: search
-(alias-aware, src/templates/search.ts), optional programme family/format selects (RANKING —
-"Best for X" / "Also works" sections, never exclusion), category tiles with live counts (only
-categories with catalog content render), field-count buckets (range-intersection over the
-reachable visible range), style-family chips, and the specialist facets (structure /
-capabilities / placement-motion) under a More-filters disclosure. Filter state lives in
+(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12 for the facets; re-design/handoff.md §2b and
+src/templates/AGENTS.md for what they are drawn as) replacing the old Category -> Template
+pair: search (alias-aware, src/templates/search.ts), optional programme family/format selects
+(RANKING — "Best for X" / "Also works" sections, never exclusion), ONE graphic-type dropdown
+with live counts, field-count buckets (range-intersection over the reachable visible range),
+style-family chips, and the specialist facets (structure / capabilities / placement-motion)
+behind the Filters disclosure. Filter state lives in
 CreationWizard (`browseFilters`) so Back returns with filters intact; the setter is passed as
 a REACT DISPATCH so chip toggles compose as functional updates (two clicks in one batch must
 never overwrite each other). Zero results name no template dishonestly: the empty state
@@ -89,7 +108,19 @@ button of the card button, never nested; one panel open at a time). The footer's
 toggle feeds `brandFamily` as browse CONTEXT, not a filter: the package's siblings rank
 first, no chip appears, Clear-all leaves it alone, and a genuine programme match always
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
-(IntersectionObserver — the whole catalog can be on one grid now).
+(IntersectionObserver).
+
+**IT SHOWS A PAGE, NOT THE CATALOG** (handoff §2b). `PAGE_SIZE` = 12 plus **"Show 12 more"**,
+and the step states both numbers — `Showing 12 of 82`, `data-testid="wz-browse-count"`.
+Unfiltered it used to render all 429 matches, 30,215px of scroll on the step whose only job is
+picking one. Three rules:
+`browseTemplates` still returns the WHOLE result and gains no limit argument (the total is what
+the count line reports); the limit is spent on the RANKING and then split into the two sections,
+so "Show more" walks "Best for" into "Also works"; and the page resets on any result change,
+derived during render off a signature rather than in an effect — an effect paints one frame of
+the old page against the new filter, a flash of the wrong designs on a grid of live iframes.
+For SPECS: search for a named design (`pickDesign`, `e2e/_browse.ts`) and assert `resultTotal`,
+never a `.wz-variant` count.
 
 **THE KIT PATH — one door, at the top of Browse** (shape + the §18 reversal:
 docs/PACK_TAXONOMY.md, "The wizard surface"). `.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
@@ -113,14 +144,13 @@ target (the graphic in hand was BUILT), while re-finishing the tone-setter re-pr
 
 **ONE disclosure, EVERY width, closed by default** (`.wz-browse-drawer-btn` +
 `.wz-browse-filters`, handoff §2b) — two nested ones cost a desktop reader five rows of facets
-before the first design and a phone reader two clicks to reach one
-capability. LEADING the step: search, the category strip,
-the style families. Behind the toggle: programme, field counts, structures, capabilities,
-motion — with the active count on it, so a narrowed catalog never reads as an empty one. The
-category tiles stay OUTSIDE as compact CHIPS ("what kind of graphic" is the step's first
-question); as 230px cards they stacked eleven rows deep, and on a phone the strip scrolls in
-its own four-row box for the same reason. Its collapsed height is measured by
-`e2e/wizard-finish.spec.ts` for the reason above.
+before the first design and a phone reader two clicks to reach one capability. LEADING the
+step: search, the type select, the style families. Behind the toggle: programme, field counts,
+structures, capabilities, motion — with the active count on it, so a narrowed catalog never
+reads as an empty one. The LEAD ROW is a GRID of two lines (select + Filters, then the chips),
+not one wrapping flex line: this step's column halves the moment a design is picked and the
+preview takes its half, and a flex row degrades there into a 230px vertical stack of chips
+beside a select in an empty half-row.
 
 The shared PROJECT FORMAT picker (`ProjectFormatPicker`, aspect / resolution / FPS,
 `.wz-browse-format`) is not a facet — `browseTemplates` never reads it — so it never sits

@@ -319,11 +319,22 @@ export function validateTaxonomy(): string[] {
   return problems;
 }
 
-/** Browse tiles: categories that actually have catalog content, with counts —
- *  taxonomy-ahead-of-catalog categories render no tile (proposal §4). */
-export function browsableCategories(): { category: GraphicCategoryId; name: string; count: number }[] {
+/**
+ * The Browse step's graphic-TYPE options: categories that actually have catalog content, with
+ * counts — taxonomy-ahead-of-catalog categories are not offered (proposal §4).
+ *
+ * `hiddenIds` are the designs this visitor may not see (docs/ADMIN.md §7). They are excluded
+ * here for the same reason `browseTemplates` drops them before scoring: a count including a
+ * design nobody can pick is a number that will not match the result the option produces, and
+ * the option now SHOWS that number ("Lower thirds · 82") rather than only ordering by it.
+ */
+export function browsableCategories(
+  hiddenIds: readonly string[] = [],
+): { category: GraphicCategoryId; name: string; count: number }[] {
+  const hidden = hiddenIds.length ? new Set(hiddenIds) : null;
   const counts = new Map<GraphicCategoryId, number>();
-  for (const { meta } of allTemplateMeta()) {
+  for (const { variant, meta } of allTemplateMeta()) {
+    if (hidden?.has(variant.id)) continue;
     counts.set(meta.category, (counts.get(meta.category) ?? 0) + 1);
   }
   return GRAPHIC_CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({
