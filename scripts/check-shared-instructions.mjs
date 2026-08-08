@@ -64,10 +64,21 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'node scripts/merge-order.mjs',
       'What I would push back on',
       'Every pasted task gets a prompt.',
-      'One browser-driving job per machine',
+      // Quoted from the root AGENTS.md rather than paraphrased, so the two cannot drift apart
+      // with a green build - the earlier lowercase paraphrase pinned only itself.
+      'One browser-driving job per MACHINE, not per worktree',
       'Never act on a collision.',
       "Read, don't write.",
       'Create or update no files',
+      // The whole workflow rests on this: it assigns work and does none of it, and it never
+      // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
+      // order reads like an offer to merge, so the boundary is pinned in both directions.
+      'THIS SESSION NEVER ACTS',
+      'Every command this session produces is for the USER to run, and names WHERE to run it',
+      'Section 3 is a report, not a pick.',
+      // A file-list diff calls every one of these collisions disjoint, so the plan has to hand
+      // out the scarce slots itself.
+      'The plan ALLOCATES these up front',
     ],
   ],
   [

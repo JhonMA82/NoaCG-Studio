@@ -5,8 +5,25 @@ Shared canonical procedure for the `orchestrator` workflow - invoked as `/orches
 below use their plain names (e.g. "the safe-merge workflow"); translate as `/safe-merge` in
 Claude Code, `$safe-merge` in Codex.
 
-Run at the START of a session that will orchestrate other sessions. This session assigns work
-and never does it.
+Run at the START of a session that will orchestrate other sessions. **This session produces text
+and nothing else.** It is deliberately not explicit-only, because a workflow that cannot act
+cannot be invoked dangerously - do not "harden" it later, which would also break its alias.
+
+## THIS SESSION NEVER ACTS
+
+The single rule everything else serves. This session **plans work and never does any of it**, and
+it **never touches another worktree** - not to check something, not to merge, not to tidy.
+
+- No merge, push, commit, rebase, build, test, install, or edit of product code. Not even a
+  one-line fix that is obviously right: it goes in a prompt.
+- Nothing outside this checkout. Another worktree's files are read about through
+  `worktree-activity.mjs` and planned around - never opened, never changed, never cleaned up.
+- **Every command this session produces is for the USER to run, and names WHERE to run it** - the
+  branch, and the checkout or worktree it belongs in. A command that must run somewhere else is
+  printed with that location, never executed from here.
+
+The reason is not caution, it is legibility: the moment this session starts doing work as well as
+assigning it, nobody can tell which state came from the plan and which from a side effect.
 
 ## Input
 
@@ -16,6 +33,9 @@ Whatever the user pasted with or after the invocation, in any mix:
 - **Owner feedback from testing the newest build** - defects and reactions found by using the
   site. This OUTRANKS a handoff's own idea of what comes next: a handoff knows its own line of
   work, the owner knows what is actually broken.
+- **A vague report** - "the wizard felt slow yesterday". That is ONE session whose first step is
+  reproduce-and-scope, never N sessions invented from one sentence. The clarifying question goes
+  in section 6.
 - **Nothing.** Then plan from repository state alone and say that is what happened.
 
 ## Output
@@ -24,29 +44,52 @@ Six sections, in this order. Nothing else - no session summary, no restatement o
 
 ### 1. The wave table
 
-One row per session. Columns: letter, one-line goal, `START` (now, or `after <letter>`),
-`TOUCHES` (the files or directories it owns), gate slot.
+One row per session: letter, one-line goal, `START` (now, or `after <letter>`), `TOUCHES` (the
+files or directories it will own), `MINTS` (any scarce shared slot it needs - see section 2), and
+whether it needs a browser on this machine.
 
-Letters are the day's vocabulary - the user will say "merge A" for the rest of the day, so a
-letter, once assigned, never moves.
+Letters are the day's vocabulary and, once assigned, never move.
 
-### 2. What can run at once - and the two separate reasons it cannot
+### 2. What can run at once
 
-- **File overlap.** Two sessions owning one file is the expensive failure, not a late merge:
-  git merges parallel edits to one surface CLEANLY and produces a tree describing something
-  neither session built. Do a deliberate overlap pass across every `TOUCHES` set and say which
-  pairs are disjoint. When two sessions need one file, they are sequential - there is no
-  careful way to share it.
-- **The machine.** One browser-driving job per machine, always: a suite, a catalog sweep and a
-  bench are the same workload under different names, and this laptop is RAM-bound. Editing runs
-  in parallel; the GATE does not. Give the gate slots in an order (cheapest first) and tell the
-  user to use the `:queued` form of any e2e script regardless.
+**File overlap is the expensive failure, and a file list alone does not find it.** Two sessions
+owning one file merge CLEANLY and produce a tree describing something neither of them built. Do a
+deliberate pass across every `TOUCHES` set - and then across the collisions a `TOUCHES` diff calls
+disjoint:
 
-### 3. Merge order
+- **A scarce shared slot.** Two sessions minting migration `0036`; two re-recording
+  `scripts/overflow-baseline.json`; two adding an e2e spec and so both editing
+  `scripts/e2e-lists.mjs` / `scripts/e2e-affected.mjs`; two moving a landed goal out of
+  `docs/GOALS.md` into `docs/GOALS_ARCHIVE.md`; two touching `package.json`. Different filenames,
+  disjoint sets, clean merge, wrong result. **The plan ALLOCATES these up front** - A takes 0036,
+  B takes 0037, C owns the baseline re-record - and each is named in that session's `MINTS`.
+- **A renamed or re-signatured shared export.** One session changes it, another writes callers.
+  Any session that renames or re-signatures something shared is **sequential by construction**,
+  whatever the file sets say.
 
-Best-first, with the reason each precedes the next. Then, always: `node scripts/merge-order.mjs`
-ranks this for real with `git merge-tree` and beats the table - name it as the authority, not as
-a suggestion.
+Then the second, unrelated limit: **One browser-driving job per MACHINE, not per worktree** (the
+rule and its override live in the root `AGENTS.md`). Editing parallelises; a browser job does not.
+Note what this does NOT cover: the per-change gate belongs to CI now, so the only work that needs
+the laptop's browser is what CI cannot do - in-browser visual acceptance, the catalog gates
+(`l3-sweep`, `type-floor`, `overflow-sweep`, `field-coverage`, `numerals`, `test:e2e:catalog`),
+benches, and render smoke. Order those cheapest-first and tell the user to use the `:queued` form
+of any e2e script.
+
+### 3. Landing order
+
+Two different things, never blended:
+
+- **Branches already ahead of `main`** - `node scripts/merge-order.mjs` measures this with
+  `git merge-tree`. Quote its own verdict words - `clear`, `caution`, `hold` - so the answer can be
+  compared with what the safe-merge workflow prints an hour later. It is the authority here.
+- **Today's new sessions**, which have no branches yet, so the script cannot see them. Give the
+  order as an explicit PREDICTION from `TOUCHES`, `MINTS` and the wait-chain, and say that
+  `merge-order.mjs` should be re-run once the branches exist.
+
+**Section 3 is a report, not a pick.** A branch named here is NOT an offered safe-merge option, so
+"merge A" said to this session does not invoke that flow. Answer it by naming the branch, its
+current `merge-order.mjs` verdict, and where the safe-merge workflow has to run: that branch's own
+worktree, which is the only place its gate can run. This session does not merge.
 
 ### 4. What I would push back on
 
@@ -54,112 +97,107 @@ a suggestion.
 section because a day was once planned with four of six sessions serving goals the roadmap had
 explicitly parked. Say plainly:
 
-- **Which tasks do not serve the current push.** Read the north star in `docs/GOALS.md` - the
-  current push section and what sits under NEXT - and name which pasted tasks serve it and
-  which serve something parked behind it. A task can be good and still be wrong for today.
-- **Real money.** Any task spending API money is called out UP FRONT with an estimate, and it
-  waits for an explicit go-ahead. A key in `.env` is not permission.
+- **Which tasks do not serve the current push** (see the grounding recipe below for the two
+  sections that settle this). A task can be good and still be wrong for today.
+- **Real money.** Any task spending API money is called out UP FRONT with an estimate, and waits
+  for an explicit go-ahead. A key in `.env` is not permission.
 - **Size.** A structural rewrite of a primary surface, started beside four other sessions,
   deserves the sentence "are you sure, today?".
-- **Work that is not ready.** A task whose design decision is undecided, or that depends on a
-  branch still in flight, is named as blocked rather than dressed up as parallel.
-- **Cheap-check-first.** Where a reported defect has a known one-line cause, say so and put the
-  check at the top of that prompt rather than opening an investigation.
+- **Work that is not ready** - an undecided design decision, or a dependency still in flight.
+- **Cheap-check-first.** Where a reported defect has a known one-line cause, say so and put that
+  check at the top of the prompt rather than opening an investigation.
+- **A task you cannot write a WHY for.** Hand it over anyway, and say exactly that here.
 
-If there is genuinely nothing to push back on, one line saying so. Do not invent a concern to
-fill the section.
+If there is genuinely nothing to push back on, one line saying so. Do not invent a concern.
 
-**Every pasted task gets a prompt.** Flagging is not vetoing: the concern goes above, the
-prompt still goes below, and the decision stays the user's.
+**Every pasted task gets a prompt.** Flagging is not vetoing: the concern goes above, the prompt
+still goes below, and the decision stays the user's.
 
 ### 5. The prompts
 
-One fenced block per session, in START order, each self-contained and pasteable into a fresh
-session. Compact - target ~20 lines:
+One fenced block per session, in START order, each pasteable into a fresh session. Compact -
+target ~20 lines:
 
 ```
-BRANCH claude/<name>   START now | after A   TOUCHES <files>
+BRANCH <tool>/<name>   START now | after A   TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
 DO     1. …  2. …  3. …
 TRAPS  only what is written in no repo file
-GATE   npm run build [+ suite]. Commit each verified step to the branch. Never land on main.
+GATE   npm run build, then push and read the CI run. Commit each verified step. Never land on main.
 ```
 
-- **WHY is not decoration, and it is not the goal restated.** GOAL says what will be true; WHY
-  says what breaks if it is not. One clause: the defect it fixes, the user it unblocks, the part
-  of the roadmap it moves. It is there so the session doing the work can TEST the assignment
-  instead of obeying it - a session that concludes the task will not reach the stated goal is
-  right to say so, and cannot without this line. A task whose why you cannot write is a task you
-  do not understand: hand it over anyway if it was pasted, and say exactly that in section 4.
-- **READ points, it never summarizes.** Name the files - the root and nested `AGENTS.md`, the
-  binding doc, the source file. The child session reads them at current HEAD, which is more
-  accurate than any paraphrase and costs this session nothing.
-- **TRAPS carries only what exists nowhere but a chat.** A trap already written in a repo file
-  gets a pointer instead. Reprinting `src/ai/AGENTS.md` into a prompt is the most common way
-  these get fat.
+- **`<tool>` is whichever tool will run it** - `claude/…` or `codex/…`. Never hardcode one.
+- **WHY says what breaks if this is not done**, where GOAL says what will be true. It exists so
+  the receiving session can TEST the assignment instead of obeying it. Same rule and same reason
+  as the handoff workflow's, pinned there.
+- **READ points, it never summarizes.** Name the files; the session reads them at current HEAD.
+- **TRAPS carries only what exists nowhere but a chat.** A trap already in a repo file gets a
+  pointer. Reprinting an area contract is how these get fat.
 - **DO is verifiable steps**, not a topic list. Reproduce-before-fixing for any bug.
-- Every prompt ends on the gate and `Never land on main` - the standing rule, in every prompt,
-  because the child session may never see this one.
-- A task handed to Codex says so, and says the delegating session still verifies the result.
+- **GATE is `npm run build` plus CI**, because the per-change suite belongs to CI, not the laptop -
+  add a local browser job only for the work from section 2 that CI cannot do. Every prompt ends on
+  `Never land on main`, because the session running it may never see this one.
+- A task **delegated to the other tool** says so (in Claude Code that is the rescue workflow,
+  which is Claude-only), and says the delegating session still verifies the result. Delegate for
+  mechanical bulk edits, a settled design spanning many files, or a bug still failing after two
+  genuine attempts.
 
-### 6. Open questions
+### 6. Open questions, then one pick
 
-Only decisions that change what the work IS and that the user alone can make. A question with
-an obvious default is not a question - state the default and move on.
+Only decisions that change what the work IS and that the user alone can make; a question with an
+obvious default is not a question. End with a short pick - start wave 1, reorder, hold one - so
+the day begins in one tap rather than a paragraph.
 
 ## How to ground it
 
-This session must survive a whole day of "what do I merge next" questions, so its window is the
-scarce resource. Reading is budgeted in three tiers.
+This session has to survive a whole day of follow-up questions, so its window is the scarce
+resource. Reading is tiered.
 
-**ALWAYS - the cheap set, first, before reading anything else.** It produces the wave table, so
-if the window later runs short the routing already exists.
+**ALWAYS - the cheap set, first.** It produces the wave table, so if the window later runs short
+the routing already exists.
 
 - `node scripts/worktree-activity.mjs` - every other worktree's uncommitted and unmerged files.
-  This is the collision input, and it is also how a "finished" session is caught still holding
-  work. Never trust a handoff's claim that nothing is in flight.
-- `node scripts/merge-order.mjs` - the measured landing order.
+  This is the collision input, and how a "finished" session is caught still holding work.
+- `node scripts/merge-order.mjs` - the measured order for branches already ahead of `main`.
 - `git log --oneline -5`, `git branch --show-current`, `git status --porcelain=v1 --branch`.
-- **The north star, two greps, nothing more.** `grep -n '^#' docs/GOALS.md` for the skeleton -
-  which sections exist and which are parked - then the CURRENT PUSH section alone. That is
-  enough to classify every pasted task for section 4: a task whose home is a parked section is
-  parked, whatever its own handoff says about urgency. Never read the whole file, and never read
+- **For each branch a pasted handoff names**: `git show-ref --verify refs/heads/<branch>` and
+  `git branch --merged main`. A handoff that says "all merged" for a branch that never landed, or
+  names a branch that no longer exists, is reported in section 4 - not written a prompt.
+- **The north star, two ranges, nothing more:** `grep -n '^#' docs/GOALS.md` for the skeleton,
+  then `sed -n '/^## NOW/,/^## NEXT/p' docs/GOALS.md` for the current push. `## NOW` is the push;
+  `## NEXT`, `## THEN` and `## Parking lot` are parked. That is enough to classify every pasted
+  task, whatever its own handoff says about urgency. Never read the whole file, and never read
   `docs/GOALS_ARCHIVE.md`.
 
-**ONLY WHEN IT CHANGES ROUTING** - each read needs a question it answers, and the answer has to
-be able to move a session in the table:
+**ONLY WHEN IT CHANGES ROUTING** - each read owes a question whose answer can move a session:
+one source file to confirm or kill a suspected collision; the binding doc for a task whose scope
+looks wrong; one memory or round doc when a pasted trap decides an order.
 
-- One source file, to confirm or kill a suspected collision between two sessions.
-- The binding doc for one pasted task whose scope looks wrong, when section 4 would otherwise be
-  a guess.
-- One memory or round doc, when a pasted handoff names a trap that decides an order.
-
-**Know what a source read actually costs.** Opening any file inside a directory that has its own
-`AGENTS.md` loads that whole area contract too - measured: one 164-line component pulled ~400
-lines of contract with it. So prefer `grep` with a line range over opening the file, and never
-open a second file in an area whose contract is already loaded without a reason.
+Prefer `grep` with a line range to opening a source file: in Claude Code, reading a file in an
+area that has its own contract pulls that contract in too (22-1070 lines, depending on the area),
+after which a second file in the same area is free.
 
 **NEVER, unprompted:** product source for a task nobody flagged, plan docs for work nobody
-pasted, reference images (name the path in the prompt and let the session open it), a nested
-`AGENTS.md` read for background, or an individual memory file browsed for context rather than
-consulted for one fact.
+pasted, reference images (name the path in the prompt), or a memory file browsed for background
+rather than consulted for one fact.
 
-The reading serves the wave table and section 4. Spend none of it into the prompts - those stay
-pointers, so a longer read never produces a longer prompt.
+Spend none of the reading into the prompts - those stay pointers, so a longer read never produces
+a longer prompt.
 
 ## Rules
 
-- **Read, don't write.** Plan the work; never start it. No commit, merge, push, build, test, or
-  edit of product code. If a fix is a single obvious line, it still belongs in a prompt.
-- **Never act on a collision.** Another worktree's in-flight work is reported and planned
-  around - never touched, committed, or cleaned up.
-- **Create or update no files.** The plan lives in the response. The user pastes prompts into
-  sessions from there; a plan file would be one more thing to keep true.
-- **Verify before you list.** A blocker, a collision or a merge order stated as fact came from a
-  command in this session, not from a handoff's prose or from memory of yesterday.
-- **Letters are stable, and so is scope.** Do not silently merge two pasted tasks into one
-  session or split one into three; if the shape is wrong, say so in section 4 and offer it.
-- **Stay usable all day.** The user returns to ask "what do I merge first" and "can B start
-  now". Answer those from the table and a fresh `worktree-activity` run, not by re-planning.
+- **Read, don't write.** See "THIS SESSION NEVER ACTS" above; that section is the contract.
+- **Never act on a collision.** Another worktree's in-flight work is reported and planned around.
+- **Create or update no files.** The plan lives in the response. The wave table is the user's to
+  keep; recovery is re-invoking with it pasted back, and the letters carry over unchanged.
+- **Verify before you list.** A blocker, a collision or a landing order stated as fact came from a
+  command run in this session - not from a handoff's prose, and not from memory of yesterday.
+- **`TOUCHES` is a forecast**, not a copy of a handoff's retrospective file list. They answer
+  different questions.
+- **Letters are stable, and so is scope.** Never silently merge two pasted tasks or split one; if
+  the shape is wrong, say so in section 4 and offer it.
+- **Stay usable all day.** "Can B start now" is three checks, all required: A's branch contained
+  in `main` (`git branch --merged main`), A's worktree clean, and the shared file no longer listed
+  in flight. Answer from those plus a fresh `worktree-activity.mjs` run - never by re-planning.
