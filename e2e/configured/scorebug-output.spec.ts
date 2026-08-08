@@ -58,9 +58,10 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
-  // Publishing opens the links popover; its backdrop sits over everything, and clicking the
-  // backdrop is how it closes.
-  await page.locator('.lib-menu-backdrop').click();
+  // Publishing opens the links popover; clicking the backdrop is how it closes - AT A CORNER,
+  // because the popover sits above the backdrop and a centre click lands on the popover (see
+  // quiz-output.spec.ts for the whole story).
+  await page.locator('.lib-menu-backdrop').click({ position: { x: 5, y: 5 } });
   await expect(page.getByTestId('production-links')).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
@@ -126,8 +127,12 @@ test('a published scorebug takes a score bump and a running clock on the real ou
 
   // ── THE CLOCK, last, because every Update re-seeds it. Its only honest proof is two reads
   // separated by real seconds: a single frame cannot tell a running clock from a stopped one.
-  // A fresh entrance is the reset (both halves), so Take again to leave full time behind. ──
-  await page.getByTestId('verb-take').click();
+  // A fresh entrance is the reset (both halves), so play the entrance again to leave full time
+  // behind - through RE-TAKE, which is what that is now. Take became a TOGGLE on 2026-08-07
+  // (docs/PLAYOUT_DASHBOARD.md §2), so pressing it on a live cue takes the board OFF air: the
+  // log for this run shows `stop` + `cue: null` a tenth of a second before the clock verb this
+  // spec then blamed the product for greying. Re-take moved to its own button and the R key. ──
+  await page.getByTestId('verb-retake').click();
   await page.getByTestId('cue-action-clockStart').click();
   const clockNow = () => graphic.locator('.scoreboard-clock').textContent();
   const started = await clockNow();

@@ -54,6 +54,10 @@ test.describe('account essentials', () => {
 
   test('the sign-in dialog offers the forgot-password path', async ({ page }) => {
     await page.goto('/app');
+    // WAIT for the wizard before dismissing it, the way _helpers.ts does. Escape fired at the
+    // moment the page loads lands before the modal mounts, so it stays open and its backdrop
+    // swallows every click on the topbar underneath - which reads as "Sign in is broken".
+    await expect(page.locator('.wz-modal')).toBeVisible();
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByTestId('forgot-password').click();

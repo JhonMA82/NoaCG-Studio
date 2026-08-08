@@ -39,9 +39,12 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
-  // Publishing opens the links popover (the URLs are the point); its backdrop sits over
-  // EVERYTHING including the toggle — clicking the backdrop is how it closes.
-  await page.locator('.lib-menu-backdrop').click();
+  // Publishing opens the links popover (the URLs are the point); clicking the backdrop is how it
+  // closes. AT A CORNER, the same way library.spec.ts does it: the popover deliberately sits
+  // ABOVE the backdrop (it was unclickable underneath it once), and it has since grown to four
+  // capability URLs - so a centre click, which is what a bare .click() aims at, now lands on the
+  // popover itself and the test waits out its whole budget.
+  await page.locator('.lib-menu-backdrop').click({ position: { x: 5, y: 5 } });
   await expect(page.getByTestId('production-links')).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
