@@ -2237,8 +2237,20 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-anim { text-align: left; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }
 .wz-anim.selected { border-color: var(--accent); }
 /* The Slide family's cell: the preset card plus its direction-of-travel picker. */
-.wz-anim-cell { display: flex; flex-direction: column; gap: 6px; }
-.wz-anim-cell .wz-anim { flex: 1; width: 100%; }
+/* TRAVEL sits in the preset grid's own empty cell (re-design/handoff.md §2e). Five presets in
+   two columns leave a hole, and the direction arrows used to spend vertical room under the
+   Slide card while that hole stayed empty — on a step measured at 235px of overflow. Bordered
+   like a preset card so it reads as part of the same set, captioned so it is clear the arrows
+   belong to Slide rather than to whatever card happens to sit above them. */
+.wz-anim-travel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
 .wz-anim-dirs { display: flex; gap: 4px; }
 .wz-anim-dirs button { flex: 1; padding: 4px 0; font-size: 14px; line-height: 1; }
 .wz-anim-dirs button.active { border-color: var(--accent); color: var(--accent); }
