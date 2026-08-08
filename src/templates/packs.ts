@@ -114,15 +114,23 @@ export const PACKS: TemplatePack[] = [
   // scorebug wants, whether the score is kept in periods or sets, whether a lineup is a squad
   // or a start list — plus the supporting graphics that sport actually uses. They claim no
   // reference formats: see `TemplatePack.formats`.
+  //
+  // They are refinements of Match Day, and being cut that way is what left them unable to run a
+  // show on their own: measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), all nine were pure match
+  // furniture — no opener, nothing that puts a sentence on screen. Every kit ships the CORE SIX
+  // regardless of genre (a lower third, an opener, an info card, a ticker or bug, a countdown or
+  // hold, a closing card), so `title-card` and `key-facts` are in all nine below. Both resolve in
+  // all four production families, so this costs no template work and narrows no pack's looks.
   {
     id: 'football',
     name: 'Football',
     description: 'Count-up clock, subs and cards, the league table and the weekend results.',
     family: 'sport',
     types: [
-      'scorebug', 'match-event', 'match-status', 
+      'scorebug', 'match-event', 'match-status',
       'fixtures', 'match-board',
       'lower-third', 'sponsor-bug', 'countdown', 'holding-screen',
+      'title-card', 'key-facts',
     ],
     extras: ['vs01'],
     formats: [],
@@ -136,6 +144,7 @@ export const PACKS: TemplatePack[] = [
       'scorebug', 'match-board', 'match-event', 'match-status',
       'fixtures',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -145,9 +154,10 @@ export const PACKS: TemplatePack[] = [
     description: 'Quarter clock, the quarter-by-quarter board, team stats and the conference table.',
     family: 'sport',
     types: [
-      'scorebug', 'match-board', 
+      'scorebug', 'match-board',
       'match-status', 'match-event', 'fixtures',
       'lower-third', 'sponsor-bug', 'countdown',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -160,6 +170,7 @@ export const PACKS: TemplatePack[] = [
       'scorebug', 'match-event', 'match-board', 'match-status',
       'fixtures',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -170,8 +181,11 @@ export const PACKS: TemplatePack[] = [
     family: 'glass',
     types: [
       'match-board', 'scorebug', 'match-status',
-      'fixtures', 
+      'fixtures',
       'lower-third', 'sponsor-bug', 'agenda',
+      // A rain break and a suspended session are this pack's normal state, so the hold and the
+      // countdown to resumption are core here rather than optional.
+      'title-card', 'key-facts', 'countdown', 'holding-screen',
     ],
     extras: ['vs02'],
     formats: [],
@@ -188,6 +202,7 @@ export const PACKS: TemplatePack[] = [
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'sponsor-bug', 'ticker', 'holding-screen',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -202,6 +217,7 @@ export const PACKS: TemplatePack[] = [
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'agenda', 'sponsor-bug',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -212,8 +228,9 @@ export const PACKS: TemplatePack[] = [
     family: 'glass',
     types: [
       'match-status', 'scorebug', 'match-event',
-      'fixtures', 'countdown', 
+      'fixtures', 'countdown',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
     ],
     extras: ['vs02'],
     formats: [],
@@ -224,9 +241,10 @@ export const PACKS: TemplatePack[] = [
     description: 'The amateur kit: full club names, no crests needed, and nothing that costs bitrate.',
     family: 'minimal',
     types: [
-      'scorebug', 'match-status', 'match-board', 
+      'scorebug', 'match-status', 'match-board',
       'fixtures', 'match-event',
       'lower-third', 'holding-screen', 'countdown', 'sponsor-bug',
+      'title-card', 'key-facts',
     ],
     formats: [],
   },
@@ -254,6 +272,9 @@ export const PACKS: TemplatePack[] = [
       // Pre-match drafting needs the new operator-driven veto board as well as the live map
       // ladder. The three straps identify players, the commentary pair and the analysis desk.
       'mr04', 'ls11', 'ls06', 'ls13',
+      // The two-caster split, in this kit's own Volt look (an extra never follows the family
+      // the kit is built in, so it is only ever offered where it already matches).
+      'fr03',
       // Tournament-wide score and sponsor rails remain readable while play stays visible.
       'tk13', 'cr12',
     ],
@@ -273,8 +294,16 @@ export const PACKS: TemplatePack[] = [
       // A stream's audience IS the show: the chat strap and the live vote are as core here
       // as the strap is, and the question card is what a Just Chatting segment runs on.
       'chat-highlight', 'live-poll', 'viewer-question',
+      // The follower / member / donation / gift / raid alert. Its own template-owned queue is
+      // what makes a burst of events survive, so a creator kit without it is a kit that drops
+      // the graphic the stream is most often asked for.
+      'event-notification',
     ],
     extras: [
+      // The webcam surround, in the house look this kit is built in. A frame cannot be a graphic
+      // TYPE (its field count follows its camera count - docs/GRAPHIC_TYPES.md), so it can only
+      // reach a kit as an extra, and an extra carries its OWN look - hence in-family only.
+      'fr01',
       // A co-stream names two people in the house look, the handle row is the graphic a
       // creator ends on, and the identity card carries the sub/donation goal a subathon or
       // a telethon exists for.
@@ -401,6 +430,8 @@ export const PACKS: TemplatePack[] = [
       // the guest-over-host pair, the specialist's subject tag, and the now-playing strap a
       // radio-with-video show needs (the topic card had been standing in for it).
       'ls02', 'ls04', 'ls24', 'ls25',
+      // The two-up interview surround, in this kit's own Frost look.
+      'fr02',
       // The coming-up card replaces the off-family Studio Pair (ls04 already carries that
       // job), the glass Reading Card replaces the ivory Quotation, and Intermission
       // replaces the noacg Short Break beside the kept Back Shortly.
@@ -435,6 +466,9 @@ export const PACKS: TemplatePack[] = [
       // field, the institution's mark on the card, the session strap that leads with the
       // talk for people joining mid-track, and the expert's field for medical and legal.
       'ls17', 'ls18', 'ls19', 'ls24',
+      // The screen-share surround with a presenter inset - the layout a webinar spends most of
+      // its runtime in, in this kit's own Clean look.
+      'fr04',
       // The two notices a webinar runs more than any graphic it was planned with, and the
       // small print the medical and legal formats are obliged to carry: the disclaimer at
       // the floor, and the health advisory with its helpline in a band of its own.

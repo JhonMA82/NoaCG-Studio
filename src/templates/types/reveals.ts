@@ -20,9 +20,11 @@ import { nm03 } from '../competition/reveal/nm03';
 import { vd01 } from '../competition/reveal/vd01';
 import { vd02 } from '../competition/reveal/vd02';
 import { vd03 } from '../competition/reveal/vd03';
+import { vd04 } from '../competition/reveal/vd04';
 import { wn01 } from '../competition/reveal/wn01';
 import { wn02 } from '../competition/reveal/wn02';
 import { wn03 } from '../competition/reveal/wn03';
+import { wn04 } from '../competition/reveal/wn04';
 import {
   AWARD_FIELDS,
   NOMINEE_FIELDS,
@@ -227,6 +229,21 @@ export const verdictCardType: GraphicType = {
       },
       create: (_type, options) => vd03.create(options),
     },
+    {
+      id: 'vd04',
+      name: 'Frost Verdict',
+      description: 'A frosted ruling card with the verdict held in a softly-ringed medallion.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['comp-bloom', 'comp-impact', 'comp-rise'],
+      samples: {
+        prompt: 'IS THAT ANSWER CORRECT?',
+        answer: 'THE RED PLANET IS MARS',
+        note: 'CONFIRMED BY THE JUDGES',
+      },
+      create: (_type, options) => vd04.create(options),
+    },
   ],
 };
 
@@ -326,6 +343,16 @@ export const winnerCardType: GraphicType = {
       fontId: 'manrope',
       animationPresets: ['comp-bloom', 'comp-rise', 'comp-impact'],
       create: (_type, options) => wn03.create(options),
+    },
+    {
+      id: 'wn04',
+      name: 'Clean Champion',
+      description: 'A quiet result card where a hairline separates the champion from the score.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
+      create: (_type, options) => wn04.create(options),
     },
   ],
 };

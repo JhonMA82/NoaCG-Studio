@@ -9,8 +9,14 @@ import { mu04 } from './mu04';
 import { h201 } from './h201';
 import { h202 } from './h202';
 import { h203 } from './h203';
+import { h204 } from './h204';
 import { pc01 } from './pc01';
 import { pc02 } from './pc02';
 import { pc03 } from './pc03';
+import { pc04 } from './pc04';
 
-export const MATCHUPS: TemplateVariant[] = [mu01, mu02, mu03, mu04, h201, h202, h203, pc01, pc02, pc03];
+export const MATCHUPS: TemplateVariant[] = [
+  mu01, mu02, mu03, mu04,
+  h201, h202, h203, h204,
+  pc01, pc02, pc03, pc04,
+];

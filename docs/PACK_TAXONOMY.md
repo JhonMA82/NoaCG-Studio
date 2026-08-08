@@ -95,6 +95,27 @@ Pinned by `e2e/wizard-kit.spec.ts`.
 | Shopping | noacg | topic-card, countdown, lower-third, ticker, title-card, sponsor-bug, key-facts, sponsor-strip, sponsor-rotator | pi04, ss06, ss12, cr12 |
 | Wellness | minimal | countdown, holding-screen, topic-card, lower-third, social-bug, process-steps, logo-bug | pi04, pi06, ss08, ss09, card52 |
 
+### The core six — what makes a kit a kit
+
+Every kit ships six graphics regardless of genre, and its genre add-ons on top of them: a lower
+third, an opener or topic card, an info or bullet card, a ticker or bug, a countdown or holding
+card, and a closing card. A kit does not need every category in the catalog; it needs to be
+complete enough to RUN A SHOW.
+
+Measured against that bar 2026-08-08 (**`KIT_MATRIX_GAPS.md`**, the standing gap report), the nine
+DISCIPLINE packs failed it — all nine were pure match furniture with no opener, no card that puts
+a sentence on screen and no way to end. That was a declaration fault, not missing designs: every
+type they needed already resolves in all four production families, so `title-card` and `key-facts`
+joined all nine (and the countdown and hold joined Racket Sports, whose normal state is a break).
+Newsroom and Talk Show still have no closing card, and that one IS a catalog gap — see below.
+
+**The closing card has no graphic type.** It is answered today by the `end-credits` extras and by
+`ss09` "Thanks for Watching", and an extra carries its OWN look: it is a fixed variant id, so it
+does not follow the family the kit was built in and `paletteId` repaints its palette but not its
+shape language. That is why frames enter a kit only where the frame's own family already matches
+the pack's (Creator `fr01`, Esports `fr03`, Talk Show `fr02`, Corporate `fr04`) — a frame cannot
+be a type at all, because its field count follows its camera count.
+
 ### Kit look unification (`TemplatePack.paletteId`)
 
 A pack may declare a palette id, and the kit create path then builds EVERY graphic in the kit

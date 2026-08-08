@@ -16,6 +16,8 @@ import { pi07 } from './pi07';
 import { pi08 } from './pi08';
 import { pi09 } from './pi09';
 import { pi10 } from './pi10';
+import { pi11 } from './pi11';
+import { pi12 } from './pi12';
 
 export const PUBLIC_INFO: TemplateVariant[] = [
   pi01, // Public Notice — the category's reference design
@@ -25,6 +27,8 @@ export const PUBLIC_INFO: TemplateVariant[] = [
   pi07, // Bilingual Panel — two languages side by side
   pi08, // Language Rotator — the house two-language machine
   pi09, // Notice Rotator — the minimal two-language machine
+  pi11, // Slab Notice Rotator - the sport two-language machine
+  pi12, // Frost Notice Rotator - the glass two-language machine
   pi03, // Source Label — the corner attribution chip
   pi04, // Disclaimer Strip — the full-width small-print band
   pi10, // Source Folio - editorial source attribution (sibling lt31)

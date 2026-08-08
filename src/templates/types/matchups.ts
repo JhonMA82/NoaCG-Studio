@@ -21,6 +21,7 @@ import { paletteById } from '../../model/wizard';
 import { h201 } from '../competition/matchup/h201';
 import { h202 } from '../competition/matchup/h202';
 import { h203 } from '../competition/matchup/h203';
+import { h204 } from '../competition/matchup/h204';
 import { mu01 } from '../competition/matchup/mu01';
 import { mu02 } from '../competition/matchup/mu02';
 import { mu03 } from '../competition/matchup/mu03';
@@ -28,6 +29,7 @@ import { mu04 } from '../competition/matchup/mu04';
 import { pc01 } from '../competition/matchup/pc01';
 import { pc02 } from '../competition/matchup/pc02';
 import { pc03 } from '../competition/matchup/pc03';
+import { pc04 } from '../competition/matchup/pc04';
 import { H2H_FIELDS, MATCHUP_FIELDS, PLAYER_FIELDS } from '../competition/matchup/shared';
 import type { GraphicType } from './graphicType';
 
@@ -255,6 +257,16 @@ export const headToHeadType: GraphicType = {
       fontId: 'inter',
       create: (_type, options) => h203.create(options),
     },
+    {
+      id: 'h204',
+      name: 'Frost Compare',
+      description: 'A frosted comparison board with glass rows and softly-rounded share bars.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['comp-cascade', 'comp-bloom', 'comp-rise'],
+      create: (_type, options) => h204.create(options),
+    },
   ],
 };
 
@@ -357,6 +369,16 @@ export const playerCardType: GraphicType = {
       fontId: 'manrope',
       animationPresets: ['comp-bloom', 'comp-rise', 'comp-impact'],
       create: (_type, options) => pc03.create(options),
+    },
+    {
+      id: 'pc04',
+      name: 'Clean Player',
+      description: 'A panel-free competitor card with a hairline identity block and ruled stats.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
+      create: (_type, options) => pc04.create(options),
     },
   ],
 };

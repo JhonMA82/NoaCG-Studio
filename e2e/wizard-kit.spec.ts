@@ -20,7 +20,21 @@ import { settleDurableWrites } from './_durable';
 // before either door is taken. A spec that only checked the picker rendered would pass on a
 // flow that built nothing.
 
-/** A short kit to walk: Wellness's twelve, cut to the first two. Walking a 36-graphic kit
+/**
+ * How many graphics a pack declares, asked of the MODEL rather than written down here. A kit's
+ * size is config and moves whenever a pack's contents are curated (docs/KIT_MATRIX_GAPS.md added
+ * to several at once); a literal in a spec is a guard with a shelf life, and the assertion worth
+ * keeping is that the SCREEN agrees with `kitSize`, not that either equals 36.
+ */
+async function kitSizeOf(page: Page, packId: string): Promise<number> {
+  return page.evaluate(async (id) => {
+    const { PACKS } = await import('/src/templates/packs.ts');
+    const { kitSize } = await import('/src/templates/kit.ts');
+    return kitSize(PACKS.find((p: { id: string }) => p.id === id)!);
+  }, packId);
+}
+
+/** A short kit to walk: Wellness's twelve, cut to the first two. Walking the flagship kit
  *  through the UI would re-buy this coverage at thirty times the cost. */
 async function pickShortKit(page: Page, keep = 2) {
   await page.goto('/app');
@@ -200,13 +214,14 @@ test('picking another kit brings back its own default look and its own contents'
   await page.locator('[data-kit="esports"]').click();
   await expect(page.getByTestId('kit-detail').locator('h3')).toHaveText('Esports');
   await expect(family).toHaveValue('sport'); // esports' OWN family, which happens to be sport
-  await expect(page.getByTestId('kit-total')).toHaveText('36 graphics');
+  await expect(page.getByTestId('kit-total')).toHaveText(`${await kitSizeOf(page, 'esports')} graphics`);
 
   await page.locator('[data-kit="newsroom"]').click();
   await expect(family).toHaveValue('minimal'); // newsroom's own, not the carried pick
+  const newsroom = await kitSizeOf(page, 'newsroom');
   const boxes = page.locator('[data-testid="kit-contents"] [data-kit-item]');
-  await expect(boxes).toHaveCount(32);
-  for (let i = 0; i < 32; i++) await expect(boxes.nth(i)).toBeChecked();
+  await expect(boxes).toHaveCount(newsroom);
+  for (let i = 0; i < newsroom; i++) await expect(boxes.nth(i)).toBeChecked();
 });
 
 test('the tray is the second axis of progress, and Back keeps the set', async ({ page }) => {
@@ -351,7 +366,7 @@ test('"take me through each one" walks the rest of the set', async ({ page }) =>
 test('declining the look question is not a one-way door', async ({ page }) => {
   // "No, take me through each one" used to be permanent - the look question renders only while
   // `propagate` is null - so one click committed the user to walking every remaining graphic.
-  // On the 36-graphic Esports kit that is a hundred-odd steps with no way back.
+  // On the Esports kit - the longest one - that is a hundred-odd steps with no way back.
   await pickShortKit(page, 3);
   await page.locator('.wz-next').click();
   await walkOneKitGraphic(page);
@@ -378,19 +393,22 @@ test('declining the look question is not a one-way door', async ({ page }) => {
 
 test('the tray survives a kit far longer than the strip', async ({ page }) => {
   // Every other walk here is two or three graphics, so the tray's own scrolling has never run.
-  // The Esports kit is 36 - the flagship, and the realistic first thing someone picks.
+  // Esports is the flagship and the realistic first thing someone picks; its size is config, so
+  // it is read from the model and only its ORDER of magnitude is asserted here.
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await page.locator('[data-build-mode="kit"]').click();
   await page.locator('[data-kit="esports"]').click();
-  await expect(page.getByTestId('kit-total')).toHaveText('36 graphics');
+  const size = await kitSizeOf(page, 'esports');
+  expect(size).toBeGreaterThanOrEqual(30); // this test is about a LONG kit
+  await expect(page.getByTestId('kit-total')).toHaveText(`${size} graphics`);
   await page.locator('.wz-next').click();
 
   const tray = page.getByTestId('kit-tray');
-  await expect(tray).toContainText('graphic 1 of 36');
-  await expect(tray.locator('[data-kit-chip]')).toHaveCount(36);
+  await expect(tray).toContainText(`graphic 1 of ${size}`);
+  await expect(tray.locator('[data-kit-chip]')).toHaveCount(size);
 
-  // The strip scrolls rather than wrapping or squeezing 36 chips into the column width, and
+  // The strip scrolls rather than wrapping or squeezing every chip into the column width, and
   // the tray keeps a sane share of the form column at a laptop height.
   const strip = await tray.locator('.wz-kit-tray-strip').evaluate((el) => ({
     scrolls: el.scrollWidth > el.clientWidth + 1,
@@ -410,7 +428,7 @@ test('the tray survives a kit far longer than the strip', async ({ page }) => {
   await walkOneKitGraphic(page);
   await page.getByTestId('kit-look-no').click();
   await walkOneKitGraphic(page);
-  await expect(tray).toContainText('graphic 3 of 36');
+  await expect(tray).toContainText(`graphic 3 of ${size}`);
   const inView = await tray.evaluate((el) => {
     const strip = el.querySelector('.wz-kit-tray-strip')!.getBoundingClientRect();
     const current = el.querySelector('[data-state="current"]')!.getBoundingClientRect();
@@ -552,7 +570,7 @@ test('the newsroom and talk-show kits are coherent: one look, one family, no dup
     const { PACKS } = await import('/src/templates/packs.ts');
     const { kitItems } = await import('/src/templates/kit.ts');
     const { paletteById } = await import('/src/model/wizard.ts');
-    const out: Record<string, { total: number; offFamily: string[]; accents: string[]; expected: string; dupes: string[] }> = {};
+    const out: Record<string, { total: number; declared: number; offFamily: string[]; accents: string[]; expected: string; dupes: string[] }> = {};
     for (const pack of PACKS.filter((p) => ['newsroom', 'talk-show'].includes(p.id))) {
       const items = kitItems(pack, pack.family);
       const palette = paletteById(pack.paletteId!);
@@ -564,6 +582,7 @@ test('the newsroom and talk-show kits are coherent: one look, one family, no dup
       const names = items.map((item) => item.variant.name);
       out[pack.id] = {
         total: items.length,
+        declared: pack.types.length + (pack.extras?.length ?? 0),
         offFamily: items.filter((item) => item.variant.styleTag !== pack.family).map((item) => item.variant.id),
         accents: [...accents],
         expected: palette.accent,
@@ -573,9 +592,11 @@ test('the newsroom and talk-show kits are coherent: one look, one family, no dup
     return out;
   });
 
-  expect(report['newsroom'].total).toBe(32);
-  expect(report['talk-show'].total).toBe(24);
   for (const kit of Object.values(report)) {
+    // The kit builds exactly what the pack declares. The sizes themselves are config and move
+    // whenever a pack is curated (docs/KIT_MATRIX_GAPS.md moved several at once), so the RULE
+    // is what is asserted here rather than yesterday's number.
+    expect(kit.total).toBe(kit.declared);
     expect(kit.offFamily).toEqual([]);
     expect(kit.accents).toEqual([kit.expected]); // ONE accent across the whole kit
     expect(kit.dupes).toEqual([]); // a type resolution and an extra naming the same design would silently merge in the pool
