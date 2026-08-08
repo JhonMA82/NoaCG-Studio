@@ -131,8 +131,8 @@ from ~80 places in the tree, so it never changes.*
       recovery defect is fixed but has never run against a real backend; the unexplained
       **"the CasparCG URL stopped working"** report from acceptance round 2 is a cloud-door report
       and the one mechanism that matches it is that unpublishing mints a new slug
-      (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2); and **migration 0034 is still unapplied to
-      production** (the parking lot below), so the multi-layer wire half is not there.
+      (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2). **Migration 0034 was NOT the third one** - it
+      has been applied all along and the parking-lot line saying otherwise was stale (see below).
 
 ---
 
@@ -220,8 +220,11 @@ Real work, deliberately not now. Each has a plan doc; none is current until it i
   same command log - a CSV sheet driving a ticker, then a real provider); professional automation
   (real-time streams, sports/timing feeds, the local Bridge, public API, Companion/Stream Deck,
   redundant renderers). Stage 3 is the same goal as the old "data-driven/live content" line.
-- **Migration 0034 is not yet applied to production** - the per-graphic `live_cue` map. Blocks the
-  multi-layer wire half.
+- ~~Migration 0034 is not yet applied to production~~ - **it is** (checked against the live project
+  2026-08-08: the ledger carries 0001-0036, and `control_live_cue_set` was CALLED, not merely
+  found - a format-1 row migrates into `{v:2, layers:{…}}` keeping both layers, which is the
+  behaviour the shape alone would not have proved). This line was stale; the multi-layer wire half
+  is not blocked.
 - **Adapt-first paid proofs** (`docs/ADAPT_FIRST_PLAN.md` §6.2/§6.3): shortlist-beats-digest, and
   folding Lite onto the platform placement rule. Both need explicit spend approval.
 - **Managed funded AI tier** - quotas, credit weighting, an Auto route. Belongs with Extreme.
