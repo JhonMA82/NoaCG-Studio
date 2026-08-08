@@ -1418,6 +1418,37 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       mean the re-test now doubles as the first real-hardware sighting of the contextual
       controls, so run it against a production whose rundown includes a scorebug cue.
 
+### Kits, not one graphic at a time (2026-08-08 — the catalog half)
+
+- [x] **Catalog kits from the wizard.** ONE door. The separate "Start from a kit" Entry card is
+      gone; the Browse step opens with a **ONE GRAPHIC / A WHOLE KIT** segmented control, and
+      choosing the kit swaps the step's body for a picker: start from a genre preset (the
+      PACKS - newsroom, match day, esports, classroom, church, …), then EDIT the set with
+      checkboxes over the pack's contents plus every other graphic type whose (type × family)
+      cell actually resolves. Nothing that would throw on Create is ever offered, and the count
+      on screen is the count that gets built.
+      The set then walks the SAME six wizard steps a single graphic does, with a **kit tray**
+      above the form column tracking which graphic is current (the second axis of progress; the
+      step rail is the first). After the first graphic - the one that sets the tone - one
+      question: *use this look for the other N?* Yes is a deterministic transform over the
+      `:root` style contract and nothing else (palette, declared-variable overrides, typeface,
+      both size knobs, motion where the target design declares the preset); no is a walk through
+      each remaining graphic. It ends on a Finish that names a PRODUCTION, shows a thumbnail
+      grid of everything built, and saves the whole set before either door - open the
+      production, or export the kit as one package. The editor is never involved.
+      **Why the reversal** (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18 had ratified the separate
+      card on 2026-07-23, built 2026-07-29): a front-page card has to be understood before it
+      is pressed, so only someone who already knew the word "kit" ever found the set, and
+      correcting a wrong guess meant walking back to Entry. The old card also could not
+      customize a kit's graphics at all - it created the pack and landed on the production.
+      Surfaces: `wizard/steps/KitPicker.tsx`, `wizard/KitTray.tsx`, `wizard/steps/KitLookStep.tsx`,
+      `wizard/steps/KitFinishStep.tsx`, `wizard/kitPlan.ts`, `templates/kit.ts` `kitChoices`.
+      Pinned by `e2e/wizard-kit.spec.ts`.
+      Found while walking it: `ALL_PRESETS` spread six preset families TWICE, so every starting
+      soon / game timer / infographic / versus / quiz / imported-design variant offered each of
+      its presets as two identical cards in the wizard. Fixed, and `e2e/anim-engine.spec.ts`
+      now fails on a repeated preset id.
+
 ### Quality bar (always-on)
 - [x] `npm run build` green as the CI gate
 - [x] Playwright E2E for core UI flows

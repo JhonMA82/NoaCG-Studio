@@ -123,6 +123,12 @@ test('folder CARDS: name one, drag a graphic into it, filter by it, and rename i
   await page.getByTestId('folder-rename-input').fill('Cup Final');
   await page.getByTestId('folder-rename-input').press('Enter');
   await expect(page.getByTestId('folder-card-Cup Final')).toContainText('1 graphic');
+  // The rename is a durable write, and a durable write is ACCEPTED synchronously and lands a
+  // moment later (src/model/durableStore.ts) - so a reload fired the instant the mutator
+  // returns aborts it, and the reloaded page shows the OLD folder name, or none. The
+  // assertion above passes either way, because it reads the in-memory mirror. Measured
+  // failing here on 2026-08-08.
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('folder-card-Cup Final')).toContainText('1 graphic');
 });

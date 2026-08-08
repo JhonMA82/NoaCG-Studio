@@ -726,9 +726,12 @@ exactly like AIPromptPanel; everything else stays open.
 
 CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
 preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
-which generates the complete, commented template. FOUR entry cards (template, Create with AI,
-Import graphic, kit) in a 2x2 grid, plus the separated video strip. Create with AI is the ONE
-AI door - NoaCG Pro is an execution TIER inside it, never a second card.
+which generates the complete, commented template. THREE entry cards (template, Create with AI,
+Import graphic) in a two-column grid, plus the separated video strip; Advanced mode adds blank.
+An ODD LAST CARD spans the row (`.wz-entry-card:last-child:nth-child(odd)`), so three leave no
+empty cell and four still read as a 2x2. Create with AI is the ONE AI door - NoaCG Pro is an
+execution TIER inside it, never a second card; there is no kit card either — see the kit path
+below.
 
 **LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
@@ -744,9 +747,9 @@ Two measured constraints:
   WORKING surface (`.wz-body-working`, the Import flow's Text step) the measure cap lifts and
   the preview clamps, or the placement canvas drops under the 700px floor
   `e2e/import-graphic.spec.ts` holds.
-- **The Entry step's HEIGHT budget still binds** (`e2e/wizard-entry-fit.spec.ts`, 1366x768).
-  The 2x2 grid retired the fixed 240px card width - cards share the column instead of wrapping
-  the row - but cost 10px, taken back off the hero's title margin. Grow one, pay from another.
+- **The Entry step's HEIGHT budget still binds** (`e2e/wizard-entry-fit.spec.ts`, 1366x768):
+  cards share the column rather than wrapping the row, and the grid's 10px cost was taken off
+  the hero's title margin. Grow one, pay from another.
 
 **Deep-linked open** (`#/new/<variantId>`, docs/PRERENDER.md - a prerendered template page's
 CTA): the router's `design` param rides through `openGallery(designId)` into templateStore's
@@ -802,10 +805,30 @@ first, no chip appears, Clear-all leaves it alone, and a genuine programme match
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now).
 
+**THE KIT PATH — one door, at the top of Browse** (shape + the §18 reversal:
+docs/PACK_TAXONOMY.md, "The wizard surface"). `.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
+grid and **KitPicker** (genre preset, then checkboxes over `templates/kit.ts` `kitChoices`);
+the format picker and the SEARCH sit above the branch — one box: designs on one side, shows and
+the graphics a kit can hold on the other (facets stand down).
+Filtering hides rows, never unticks them, and the count stays the whole SELECTION.
+Picker state lives in CreationWizard like `browseFilters`. A kit then walks the SAME six steps
+a single graphic does (`mode` stays `'template'`; `KitPlan`, wizard/kitPlan.ts, makes each step
+one graphic OF A SET) plus **KitTray**, **KitLookStep** and **KitFinishStep**. What
+they must not break: the tray is the second axis of progress, in the rail's vocabulary, its
+done chips MiniPreview in `lazy` mode (its one caller), not navigation; the
+look question is a bordered card, never a modal (it would cover the rail and tray, which are
+what make it answerable), and its yes is a deterministic transform over the `:root` contract and
+NOTHING else (`kitLookPatch` — the motion preset carries only where the target design DECLARES
+it, and the brand toggle reaches every graphic of the set); both Finish doors SAVE
+FIRST, every write claimed (see "Save + Home"), export asking the production page for its
+dialog via templateStore's one-shot `pendingProductionExport` and NAMING the production it
+packages, which is the whole pool; and the kit's last rail entry is not a jump
+target (the graphic in hand was BUILT), while re-finishing the tone-setter re-propagates.
+
 **ONE disclosure, EVERY width, closed by default** (`.wz-browse-drawer-btn` +
-`.wz-browse-filters`, handoff §2b). It was two nested — a phone-only drawer wrapping a
-`More filters` `<details>` — so desktop met five rows of facets before the first design and a
-phone opened two things to reach a capability. LEADING the step: search, the category strip,
+`.wz-browse-filters`, handoff §2b) — two nested ones cost a desktop reader five rows of facets
+before the first design and a phone reader two clicks to reach one
+capability. LEADING the step: search, the category strip,
 the style families. Behind the toggle: programme, field counts, structures, capabilities,
 motion — with the active count on it, so a narrowed catalog never reads as an empty one. The
 category tiles stay OUTSIDE as compact CHIPS ("what kind of graphic" is the step's first
@@ -814,9 +837,9 @@ its own four-row box for the same reason. Its collapsed height is measured by
 `e2e/wizard-finish.spec.ts` for the reason above.
 
 The shared PROJECT FORMAT picker (`ProjectFormatPicker`, aspect / resolution / FPS,
-`.wz-browse-format`) sits OUTSIDE `.wz-browse-filters`: it is not a facet — `browseTemplates`
-never reads it — and inside the drawer it asked a phone user to open "Filters" to make a
-decision that filters nothing. On Browse it is three bare selects in ONE row, since the rail
+`.wz-browse-format`) is not a facet — `browseTemplates` never reads it — so it never sits
+inside the filter drawer, where it asked a phone user to open "Filters" to make a decision that
+filters nothing. On Browse it is three bare selects in ONE row, since the rail
 captions and reads back the format and the options say what they are; each label's text is
 hidden via `.project-format-label`, kept in the DOM for a screen reader. That span exists so a
 surface can hide the WORDING without hiding the control the label wraps — every other caller

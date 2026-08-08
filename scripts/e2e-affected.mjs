@@ -79,9 +79,14 @@ const MAP = [
   // air having run none of its 13 tests until the nightly. control.spec.ts rides along because
   // its exported-panel case is built from a scorebug (sb01).
   [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'production-controls.spec.ts']],
+  // WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit
+  // half, so a pack edit or a change to `kitChoices` moves what the picker offers, what the
+  // count promises and what the production ends up holding. Unions with the generic
+  // src/templates rule below (which never named this spec).
+  [/^src\/templates\/(kit|packs)\.ts$/, ['wizard-kit.spec.ts']],
   [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts']],
   // wizard-finish, wizard-kit and wizard-shell were MISSING from this list, so a FinishStep,
-  // KitStep or wizard-header change ran neither the spec named after it nor anything that
+  // kit-flow or wizard-header change ran neither the spec named after it nor anything that
   // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
   // (scripts/e2e-affected.mjs's own safety argument is that it fails toward running more).
   [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts']],
@@ -105,7 +110,10 @@ const MAP = [
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts']],
+  // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
+  // THE production export dialog (templateStore `pendingProductionExport`), so a change to
+  // that page can break a wizard flow whose name says nothing about productions.
+  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts']],
   // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
   // above, because they are the same surface from the other side: those specs drive the Export
   // panel, so they are what renders these components at all. Unmapped, each of them escalated a

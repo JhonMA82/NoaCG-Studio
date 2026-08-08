@@ -106,6 +106,13 @@ interface TemplateState {
    *  Finish step preselects it. Same one-shot lifecycle as pendingDesignId — set right
    *  before navigating to `#/new`, consumed and cleared by the wizard's open effect. */
   pendingProductionId: string | null;
+  /** A production whose EXPORT dialog should open the moment its page mounts — the kit
+   *  wizard's "Export the kit (.zip)" door (docs/GOALS.md "Kits, not one graphic at a time").
+   *  Same one-shot lifecycle as pendingProductionId: set right before navigating to the
+   *  production, consumed and cleared by ProductionPage. The wizard asks for the EXISTING
+   *  export surface rather than growing a second whole-show export screen, so the target
+   *  picker and the validation gate can never disagree with the production page's own. */
+  pendingProductionExport: string | null;
   /** Snapshots taken before each panel / AI / gallery apply, for one-click undo. */
   history: SpxTemplate[];
   /** Undone snapshots, for redo. Any NEW edit clears it (the classic undo-tree cut). */
@@ -331,6 +338,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   galleryOpen: !initialProject && !hasCurrentVideoProject(),
   pendingDesignId: null,
   pendingProductionId: null,
+  pendingProductionExport: null,
   history: [],
   future: [],
   lastChange: null,

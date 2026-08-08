@@ -21,6 +21,14 @@ the (type x family) matrix PLUS its `extras`. Both halves are the kit - a caller
 `resolvePack` builds a kit missing its extras while still counting them, which is exactly the
 bug the wizard's kit step shipped with. It lives here rather than in packs.ts because that
 module deliberately does not import the catalog it is a view over.
+`kitChoices(pack, family)` widens that into what the picker OFFERS - the pack's contents, then
+every other graphic type whose cell resolves ("start from a genre preset, then edit the set") -
+and `kitSelection` resolves a ticked set back to `KitItem[]`. Every offered row is asked
+through `resolvePack`, the same resolver create runs, because the matrix is not full and the
+widening is exactly where a row that throws on Create could appear. A choice's KEY is the
+graphic TYPE id (or `extra:<designId>`), never the resolved design id and never an index: the
+design changes when the look does, so either of those would silently re-tick the set the
+moment the user changed the look.
 
 **packs.ts** - the PACK taxonomy (docs/PACK_TAXONOMY.md): a pack is a curated type-subset in a
 default family, PURE CONFIG over the types x families matrix; the 60 reference formats each map
@@ -31,7 +39,7 @@ glass cover 53-61 of 62 types; editorial covers 6 cells and cinematic covers 5. 
 style families with focused information systems and Browse chips, but BROWSE families rather
 than KIT ones - no pack resolves into either. The cell gate only tests a pack's OWN declared
 family, so it cannot catch this: anything re-resolving a pack must MEASURE which families work
-(`familiesFor` in wizard/steps/KitStep.tsx), never assume all six.
+(`familiesFor` in wizard/steps/KitPicker.tsx), never assume all six.
 
 ## Discovery metadata (the Browse step's facets — docs/TEMPLATE_TAXONOMY_PROPOSAL.md)
 

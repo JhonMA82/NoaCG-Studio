@@ -1011,6 +1011,21 @@ none needs revisiting unless that evidence changes.
   in all six families, and `editorial`/`cinematic` resolve for none - so the step offers only
   the looks a given kit can actually be built in. `src/templates/packs.ts` still describes the
   matrix as full; that comment is now wrong and the gap is real catalog work, not a doc fix.
+
+  **REVERSED 2026-08-08 — ONE DOOR.** The separate Entry card is gone; "one graphic or a whole
+  kit" is a SEGMENTED CONTROL at the top of the Browse step, and picking a kit swaps the step's
+  body from the design grid to the kit picker (`wizard/steps/KitPicker.tsx`). The premise above
+  was right and the conclusion did not follow from it. Two things measured against it:
+  **a front-page card has to be understood before it is pressed** - "kit" is a word the product
+  is teaching, so the set was only ever found by someone who already knew to look for it - and
+  **an Entry card is expensive to change your mind about**, because correcting the guess means
+  walking back to the front page. A switch at the top of the step it governs makes the same
+  promise at the moment it is actionable, and costs one click to undo. What protected the old
+  decision's honesty is kept structurally instead: the switch's two sides each say what they
+  produce, the rail's words follow the answer, and the count on the picker is the count that
+  gets built. A kit then walks the SAME six steps a single graphic does - which is the part the
+  separate card could never offer, since customizing a kit's graphics was not a thing it did at
+  all. Full shape in `PACK_TAXONOMY.md`, "The wizard surface"; pinned by `e2e/wizard-kit.spec.ts`.
 - **`title` and `topic` keep separate browse tiles.** They answer different producer
   questions - what the SHOW is versus what is being discussed NOW - and the workbook demands
   both heavily (23 and 29 formats). Today's 4 + 4 designs look thin, but the pending pack

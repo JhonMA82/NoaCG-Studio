@@ -30,7 +30,9 @@ import {
   type FieldBucket,
 } from '../../../templates/search';
 import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
+import type { TemplatePack } from '../../../templates/packs';
 import MiniPreview from '../MiniPreview';
+import KitPicker from './KitPicker';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import { useMyEntitlement } from '../../useMyEntitlement';
 import {
@@ -53,7 +55,21 @@ interface Props {
   /** The saved brand's family when the footer's "Use current project's colors & typeface" is
    *  on — ranks the package's siblings first without becoming a filter chip (§13.3). */
   brandFamily: StyleTag | null;
+  /** ONE GRAPHIC or A WHOLE KIT — the step's first question (see the segmented control). */
+  buildMode: BuildMode;
+  onBuildMode: (mode: BuildMode) => void;
+  /** The kit half's state, held by the wizard so Back returns to the set as it was left. */
+  kitPack: TemplatePack | null;
+  kitFamily: StyleTag | null;
+  kitSelected: string[];
+  onKitPack: (pack: TemplatePack) => void;
+  onKitFamily: (family: StyleTag) => void;
+  onKitSelected: (keys: string[]) => void;
 }
+
+/** What this walk is going to produce. The step asks it first because everything below the
+ *  switch answers to it: a design grid answers "which graphic", a kit picker "which show". */
+export type BuildMode = 'one' | 'kit';
 
 type SortMode = 'relevance' | 'simplest';
 
@@ -193,8 +209,31 @@ function ResultCard({
  * category tiles with live counts + field buckets + style, with the specialist facets under
  * More filters. Replaces the Category → Template pair for the catalog flow; filter state
  * lives in the wizard so Back returns with filters intact.
+ *
+ * IT IS ALSO THE ONE DOOR TO A KIT. There is no separate "Start from a kit" entry card any
+ * more (which reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18's 2026-07-23 ratification — the
+ * reasoning and the reversal are recorded there): the outcome the old card protected is now a
+ * SEGMENTED CONTROL at the top of this step, so "one graphic or the whole set" is a question
+ * asked once, in the place where designs are chosen, and answered again at any time without
+ * walking back to Entry and losing the walk.
  */
-export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickVariant, onAi, brandFamily }: Props) {
+export default function BrowseStep({
+  draft,
+  filters,
+  onFilters,
+  onDraft,
+  onPickVariant,
+  onAi,
+  brandFamily,
+  buildMode,
+  onBuildMode,
+  kitPack,
+  kitFamily,
+  kitSelected,
+  onKitPack,
+  onKitFamily,
+  onKitSelected,
+}: Props) {
   const set = (patch: Partial<BrowseFilters>) => onFilters((prev) => ({ ...prev, ...patch }));
   // One detail panel open at a time — the grid stays readable and Escape has one target.
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -262,20 +301,56 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
 
   return (
     <div className="wz-browse">
-      {/* Search — always visible, drawer or not. */}
+      {/* THE STEP'S FIRST QUESTION — one graphic, or the whole set. A segmented control rather
+          than two entry cards: the answer is cheap to change, and everything under it is the
+          answer's own surface, so putting the switch at the top is what makes changing your
+          mind cost one click instead of a walk back to the front page. */}
+      <div className="wz-buildmode" role="group" aria-label="How much to make" data-testid="wz-buildmode">
+        <button
+          className={`wz-buildmode-opt ${buildMode === 'one' ? 'active' : ''}`}
+          aria-pressed={buildMode === 'one'}
+          onClick={() => onBuildMode('one')}
+          data-build-mode="one"
+        >
+          <strong>One graphic</strong>
+          <span className="hint">Pick a design and make it yours.</span>
+        </button>
+        <button
+          className={`wz-buildmode-opt ${buildMode === 'kit' ? 'active' : ''}`}
+          aria-pressed={buildMode === 'kit'}
+          onClick={() => onBuildMode('kit')}
+          data-build-mode="kit"
+        >
+          <strong>A whole kit</strong>
+          <span className="hint">Every graphic a show needs, in one look, in one production.</span>
+        </button>
+      </div>
+
+      {/* ONE SEARCH BOX, BOTH SIDES OF THE SWITCH — it is above the branch, not inside the
+          one-graphic body. What it searches follows the answer: designs on one side, SHOWS and
+          the graphics a kit can hold on the other. The facets stand down in kit mode (a field
+          count or a style family is a question about one design, and means nothing when the
+          question is "which show am I running"), but a list of 21 shows and ~50 addable
+          graphics is exactly the kind of list a search box exists for. */}
       <input
         className="wz-browse-search"
         type="search"
-        placeholder="Search all templates — try “name graphic”, “countdown”, “church verse”…"
+        placeholder={
+          buildMode === 'kit'
+            ? 'Search shows and graphics — try “church”, “esports”, “ticker”…'
+            : 'Search all templates — try “name graphic”, “countdown”, “church verse”…'
+        }
         value={filters.query}
         onChange={(e) => set({ query: e.target.value })}
-        aria-label="Search templates"
+        aria-label={buildMode === 'kit' ? 'Search shows and graphics' : 'Search templates'}
       />
 
       {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the
           results (browseTemplates never reads aspect), so it sits OUTSIDE the filter block
           and stays visible when the mobile drawer is shut. Inside it, changing 9:16 meant
-          opening a control labelled "Filters" to make a decision that filters nothing. */}
+          opening a control labelled "Filters" to make a decision that filters nothing.
+          It is also ABOVE the build-mode branch: a kit's frame is one decision for the whole
+          production, and the rail's foot reads it back for the whole walk either way. */}
       {/* No description line: the rail's foot now carries the format read-back for the whole
           walk, so repeating "choose the authored canvas" above it is one sentence of chrome
           on the step whose job is picking a design. */}
@@ -286,6 +361,19 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
         className="wz-browse-format"
       />
 
+      {buildMode === 'kit' ? (
+        <KitPicker
+          pack={kitPack}
+          family={kitFamily}
+          selected={kitSelected}
+          onPack={onKitPack}
+          onFamily={onKitFamily}
+          onSelected={onKitSelected}
+          query={filters.query}
+          onClearQuery={() => set({ query: '' })}
+        />
+      ) : (
+        <>
       {/* Category tiles with live counts — only categories with catalog content. Outside the
           disclosure: "what kind of graphic" is the first question the step asks, so it is not
           something to go and open. */}
@@ -508,6 +596,8 @@ export default function BrowseStep({ draft, filters, onFilters, onDraft, onPickV
             ✦ Create it with AI instead
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   );

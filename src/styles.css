@@ -1690,14 +1690,78 @@ kbd {
    grows. Scoped to the grid, because the Finish doors reserve their own smaller number and a
    shared value would spend the step height they are short of. */
 .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.4em); }
+/* NO HOLE ON AN ODD COUNT. The default studio offers three mode cards (Advanced mode adds a
+   fourth), and a three-card 2-column grid leaves an empty cell that reads as a card that
+   failed to render. The odd LAST card spans the row instead — which restores the plain 2x2
+   the moment the fourth card appears, with no JavaScript deciding anything. */
+.wz-entry .wz-entry-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
-/* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
+/* ── ONE GRAPHIC, OR A WHOLE KIT ─────────────────────────────────────────────────────────
+   The Browse step's first question, as a segmented control. Two options in one bordered
+   track: the pair reads as one control with a chosen side rather than as two buttons that
+   happen to sit together, which is the difference between "a switch" and "a decision I have
+   already made twice". Deliberately roomy - each side carries a line of what it produces,
+   because "kit" is a word the product is teaching. */
+.wz-buildmode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-1);
+}
+.wz-buildmode-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  text-align: left;
+  line-height: 1.35;
+}
+.wz-buildmode-opt strong { font-size: 14px; font-weight: 600; }
+.wz-buildmode-opt .hint { font-size: 12px; }
+.wz-buildmode-opt:hover:not(.active) { background: var(--bg-panel); border-color: transparent; color: var(--text); }
+/* The chosen side wears the rail's active treatment, so "where am I" reads the same way in
+   both places (see .wz-dot.active). */
+.wz-buildmode-opt.active {
+  color: var(--text);
+  background: var(--bg-panel-2);
+  border-color: var(--accent-line);
+}
+@media (max-width: 767px) {
+  .wz-buildmode { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── The KIT CONTENTS PICKER (Browse's kit half): pick a show, then edit the set ────
    The grid is the whole decision, so cards stay scannable rather than pretty: name,
    who it is for, and how many graphics land. The detail panel below only appears once
    a kit is picked - an empty panel would imply a step that is not there. */
 .wz-kit { display: flex; flex-direction: column; gap: 14px; }
 .wz-kit-lede { color: var(--text-dim); margin: 0; }
-.wz-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+/* THE SHOW LIST SCROLLS IN ITS OWN BOX, and that is what makes the step work. Unbounded, 21
+   packs are six rows and ~620px at 1366x768 — the whole step — so picking one appended the
+   contents picker BELOW THE FOLD with nothing on screen saying it had appeared, while Next was
+   already enabled. Measured 2026-08-08 in the visual pass. Bounded, the show and its set are on
+   screen together, which is what "start from a preset, then edit it" actually needs: flip
+   between shows and watch the contents change. Same reasoning as the Browse step's category
+   strip, which scrolls in its own four-row box on a phone. */
+.wz-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 268px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* Room for the scrollbar, so a card's right edge is never sat on by it. */
+  padding-right: 4px;
+}
+@media (max-width: 767px) { .wz-kit-grid { max-height: 208px; } }
 .wz-kit-card {
   text-align: left;
   display: flex;
@@ -1726,8 +1790,14 @@ kbd {
   border-radius: 10px;
 }
 .wz-kit-detail h3 { margin: 0; font-size: 16px; }
+/* Name, look and the LIVE COUNT on one row: the count is the promise the step makes, so it
+   sits beside the control that changes it rather than at the foot of a scrolling list. */
+.wz-kit-detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; width: 100%; }
 .wz-kit-family { display: flex; align-items: center; gap: 8px; }
+.wz-kit-total { margin-left: auto; font-size: 12px; color: var(--accent); }
 .wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
+.wz-kit-filtered { margin: 0; font-size: 12px; }
+.wz-kit-filtered button { font-size: 12px; }
 .wz-kit-contents {
   margin: 0;
   padding: 0;
@@ -1742,6 +1812,158 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 9px;
+}
+/* An "add more" row is offered, not shipped, so it reads quieter than the pack's own until
+   it is ticked - and a ticked one reads exactly like a pack row, because at that point it
+   IS one. */
+.wz-kit-contents--extra li { border-style: dashed; opacity: 0.8; }
+.wz-kit-contents--extra li:has(input:checked) { border-style: solid; opacity: 1; }
+/* The whole pill is the target. The global "inputs are 100% wide" rule was written for
+   fields you type into (src/components/AGENTS.md, "Dialog anatomy"), so the box is sized
+   here rather than left to stretch the row it sits in. */
+.wz-kit-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.wz-kit-check input { width: 13px; height: 13px; margin: 0; flex: 0 0 auto; }
+.wz-kit-contents li:has(input:checked) { color: var(--text); border-color: var(--accent-line); }
+
+/* ── THE KIT TRAY: which graphic of the set (the rail says where inside this graphic) ──
+   Same vocabulary as `.wz-dot`, deliberately: the mark is the rail's 26px square, done is
+   the rail's green, current is the rail's amber, pending is the rail's dimmed. */
+.wz-kit-tray {
+  flex: 0 0 auto;
+  padding: 10px 20px 8px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-app);
+}
+/* WRAPS AS WHOLE ITEMS, never inside the label. Squeezed by the button on a 390px screen the
+   label broke between "GRAPHIC 3 OF" and "36", which is the one place its wording must not
+   break; the button takes its own line instead. */
+.wz-kit-tray-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin: 0 0 8px; }
+.wz-kit-tray-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 0; white-space: nowrap; }
+/* The escape from a long one-at-a-time walk. Quiet on purpose - it is an offer standing open,
+   not a call to action competing with Next. */
+.wz-kit-tray-adopt {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+}
+.wz-kit-tray-adopt:hover { background: transparent; border-color: transparent; text-decoration: underline; }
+.wz-kit-tray-strip {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.wz-kit-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 8px;
+  flex: 0 0 auto;
+  width: 132px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+}
+/* THE SLOT IS 16:9, like the frame the graphic is authored in. At a flatter ratio the framing
+   fits by HEIGHT and leaves a gap down each side, so a full-frame holding screen was pillarboxed
+   in its chip while filling its cell in the Finish grid - the same graphic, two shapes, which
+   reads as a broken thumbnail rather than as a design choice. */
+.wz-kit-chip-thumb {
+  grid-column: 1 / -1;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+/* A GRAPHIC THAT HAS NOT BEEN MADE YET HAS NO PICTURE, and a filled dark box in its place
+   reads as a thumbnail that failed to load. The slot keeps its room (so the strip does not go
+   ragged as graphics land) and says "not yet" in the product's own idiom for that — the dashed
+   outline the make-one production card and the add-more pills already use. */
+.wz-kit-chip-thumb:empty {
+  background: transparent;
+  border: 1px dashed var(--hairline);
+}
+/* MiniPreview brings its own `.wz-mini` frame; inside a chip it fills the thumb slot. */
+.wz-kit-chip-thumb .wz-mini { width: 100%; height: 100%; }
+.wz-kit-chip-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+}
+.wz-kit-chip-name {
+  font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-kit-chip.is-done { color: var(--text-mid); }
+.wz-kit-chip.is-done .wz-kit-chip-mark { color: var(--state-ok); border-color: var(--state-ok-line); background: var(--state-ok-bg); }
+.wz-kit-chip.is-current { color: var(--text); background: var(--bg-panel-2); border-color: var(--hairline-2); }
+.wz-kit-chip.is-current .wz-kit-chip-mark { color: var(--accent); border-color: var(--accent-line); background: var(--accent-bg); }
+.wz-kit-chip.is-pending { opacity: 0.5; }
+@media (max-width: 767px) {
+  .wz-kit-tray { padding: 8px 12px 6px; }
+  /* A phone has no room for a picture per chip; the mark and the name still carry both the
+     order and the progress. */
+  .wz-kit-chip { width: auto; grid-template-rows: auto; }
+  .wz-kit-chip-thumb { display: none; }
+}
+
+/* ── The look question: a bordered card in the form column, never a modal ── */
+.wz-kit-look {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background: var(--bg-1);
+}
+.wz-kit-look h3 { margin: 0; font-size: 18px; }
+.wz-kit-look-doors { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.wz-kit-look-doors .wz-entry-card { width: auto; flex: 1 1 260px; }
+.wz-kit-look-doors .wz-entry-head + .hint { min-height: calc(2 * 1.4em); }
+
+/* ── The kit's Finish: everything that was built, side by side ──
+   The grid IS the check on the kit's promise (one look across the set), so the cells are big
+   enough to compare and the names sit under them rather than over the picture. */
+.wz-kit-built {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wz-kit-built-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wz-kit-built-cell .wz-mini { height: 88px; }
+.wz-kit-built-name {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Step 1 (import mode): drop zone */
