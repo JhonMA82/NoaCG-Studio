@@ -326,6 +326,25 @@ export default function BrowseStep({
         </button>
       </div>
 
+      {/* ONE SEARCH BOX, BOTH SIDES OF THE SWITCH — it is above the branch, not inside the
+          one-graphic body. What it searches follows the answer: designs on one side, SHOWS and
+          the graphics a kit can hold on the other. The facets stand down in kit mode (a field
+          count or a style family is a question about one design, and means nothing when the
+          question is "which show am I running"), but a list of 21 shows and ~50 addable
+          graphics is exactly the kind of list a search box exists for. */}
+      <input
+        className="wz-browse-search"
+        type="search"
+        placeholder={
+          buildMode === 'kit'
+            ? 'Search shows and graphics — try “church”, “esports”, “ticker”…'
+            : 'Search all templates — try “name graphic”, “countdown”, “church verse”…'
+        }
+        value={filters.query}
+        onChange={(e) => set({ query: e.target.value })}
+        aria-label={buildMode === 'kit' ? 'Search shows and graphics' : 'Search templates'}
+      />
+
       {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the
           results (browseTemplates never reads aspect), so it sits OUTSIDE the filter block
           and stays visible when the mobile drawer is shut. Inside it, changing 9:16 meant
@@ -350,19 +369,11 @@ export default function BrowseStep({
           onPack={onKitPack}
           onFamily={onKitFamily}
           onSelected={onKitSelected}
+          query={filters.query}
+          onClearQuery={() => set({ query: '' })}
         />
       ) : (
         <>
-      {/* Search — always visible, drawer or not. */}
-      <input
-        className="wz-browse-search"
-        type="search"
-        placeholder="Search all templates — try “name graphic”, “countdown”, “church verse”…"
-        value={filters.query}
-        onChange={(e) => set({ query: e.target.value })}
-        aria-label="Search templates"
-      />
-
       {/* Category tiles with live counts — only categories with catalog content. Outside the
           disclosure: "what kind of graphic" is the first question the step asks, so it is not
           something to go and open. */}

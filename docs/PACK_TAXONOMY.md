@@ -47,7 +47,20 @@ the step it governs states the same fact at the moment it matters and costs one 
 
 The picker is TWO moves, in this order because the second is an edit of the first: pick the
 GENRE PRESET (the pack), then edit the set with checkboxes over `kitChoices` - the pack's own
-contents plus every other type whose (type x family) cell resolves. From there a kit walks the
+contents plus every other type whose (type x family) cell resolves.
+
+**The step's ONE search box works on both sides of the switch**, and what it searches follows
+the answer: designs on the one-graphic side, and on the kit side the SHOWS plus the graphics a
+kit can hold. That is the half of "the grid and the search stay visible either way" worth
+having - twenty-one shows and about fifty addable graphics is exactly the list a search box
+exists for, while the facets beside it are questions about ONE design (a field count, a style
+family) and stand down. It is a plain normalized substring, deliberately not the
+`templates/search.ts` engine: a show matches on its name, its description and the reference
+FORMATS it serves, so "wedding" finds Church & Ceremony; a row matches on the design's name and
+on its graphic TYPE, so "ticker" finds the minimal ticker design called Wire Rotator. Two rules
+keep it honest: filtering hides rows but never unticks them, so the count on screen stays the
+whole SELECTION and the panel says how many of the kit it is not listing; and a query matching
+no show says so and offers to clear itself rather than showing an empty grid. From there a kit walks the
 SAME six wizard steps a single graphic does, over the whole set, with two additions of its own:
 the KIT TRAY (which graphic of the set - the second axis of progress, the step rail being the
 first) and the LOOK QUESTION after the first graphic ("use this look for the other N?"), whose

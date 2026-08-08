@@ -1796,6 +1796,8 @@ kbd {
 .wz-kit-family { display: flex; align-items: center; gap: 8px; }
 .wz-kit-total { margin-left: auto; font-size: 12px; color: var(--accent); }
 .wz-kit-contents-label { font-size: 11px; color: var(--text-dim); margin: 0; }
+.wz-kit-filtered { margin: 0; font-size: 12px; }
+.wz-kit-filtered button { font-size: 12px; }
 .wz-kit-contents {
   margin: 0;
   padding: 0;

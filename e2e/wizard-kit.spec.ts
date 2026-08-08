@@ -79,6 +79,52 @@ test('the switch swaps the step body and is changeable without going back', asyn
   await expect(page.getByTestId('browse-format-aspect')).toBeVisible();
 });
 
+test('one search box, and on the kit side it searches the kit', async ({ page }) => {
+  // The Browse step keeps ONE search input across the switch; what it searches follows the
+  // answer. A list of 21 shows and ~50 addable graphics is exactly what a search box is for,
+  // and the facets are not: a field count or a style family is a question about one design.
+  await page.goto('/app');
+  await page.locator('[data-entry="template"]').click();
+  const search = page.locator('.wz-browse-search');
+  await expect(search).toHaveAttribute('placeholder', /Search all templates/);
+
+  await page.locator('[data-build-mode="kit"]').click();
+  await expect(search).toBeVisible();
+  await expect(search).toHaveAttribute('placeholder', /Search shows and graphics/);
+
+  // A show matches on what it is FOR, not only on its name - the reference formats are what
+  // make "wedding" find a pack called Church & Ceremony.
+  await search.fill('wedding');
+  await expect(page.locator('[data-kit]')).toHaveCount(1);
+  await expect(page.locator('[data-kit="church"]')).toBeVisible();
+
+  // A row matches on its graphic TYPE as well as the design's name: the ticker type's minimal
+  // design is called "Wire Rotator", and "ticker" is the word a person types.
+  await search.fill('');
+  await page.locator('[data-kit="newsroom"]').click();
+  await expect(page.getByTestId('kit-total')).toHaveText('32 graphics');
+  await search.fill('ticker');
+  const rows = page.locator('[data-kit-item]');
+  expect(await rows.count()).toBeGreaterThan(0);
+  expect(await rows.count()).toBeLessThan(32);
+  await expect(page.locator('[data-testid="kit-contents"] [data-kit-item="ticker"]')).toBeVisible();
+
+  // FILTERING HIDES ROWS, IT DOES NOT UNTICK THEM. The count is the whole selection, and the
+  // step says out loud that the rest are still in the kit - a number that fell while the user
+  // typed would read as the kit shrinking under them.
+  await expect(page.getByTestId('kit-total')).toHaveText('32 graphics');
+  await expect(page.getByTestId('kit-filtered')).toContainText('hidden by the search');
+  await page.getByTestId('kit-filtered').getByRole('button', { name: 'Show all' }).click();
+  await expect(search).toHaveValue('');
+  await expect(page.locator('[data-testid="kit-contents"] [data-kit-item]')).toHaveCount(32);
+
+  // A query that matches no show says so and offers the way out, rather than an empty grid.
+  await search.fill('zzzz');
+  await expect(page.getByTestId('kit-no-shows')).toBeVisible();
+  await page.getByTestId('kit-no-shows').getByRole('button', { name: /Clear the search/ }).click();
+  await expect(page.locator('[data-kit]')).toHaveCount(21);
+});
+
 test('the count on screen is the count that gets built', async ({ page }) => {
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();

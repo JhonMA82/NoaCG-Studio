@@ -39,6 +39,21 @@ export function defaultSelectionFor(pack: TemplatePack, family: StyleTag): strin
   return kitChoices(pack, family).filter((c) => c.inPack).map((c) => c.key);
 }
 
+/**
+ * WHAT THE BROWSE STEP'S SEARCH BOX MEANS ON THIS SIDE OF THE SWITCH: a plain normalized
+ * substring over the words a person would actually type, not the taxonomy engine.
+ * `templates/search.ts` ranks DESIGNS over facets, semantics and programme formats, and none
+ * of that is the question here — "which show am I running" and "does this kit have a ticker"
+ * are answered by names. Splitting on `-` is what lets a typed "map round" find the
+ * `map-round` type.
+ */
+function matches(query: string, ...fields: (string | null | undefined)[]): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = fields.filter(Boolean).join(' ').toLowerCase().replace(/-/g, ' ');
+  return q.split(/\s+/).every((word) => hay.includes(word.replace(/-/g, ' ')));
+}
+
 interface Props {
   /** The chosen genre preset, or null while the user is still picking one. */
   pack: TemplatePack | null;
@@ -48,6 +63,9 @@ interface Props {
   onPack: (pack: TemplatePack) => void;
   onFamily: (family: StyleTag) => void;
   onSelected: (keys: string[]) => void;
+  /** The Browse step's search box, shared with the one-graphic side. */
+  query: string;
+  onClearQuery: () => void;
 }
 
 /**
@@ -65,7 +83,16 @@ interface Props {
  * number comes from the SELECTION, because the whole point of the picker is that the user can
  * move it in either direction.
  */
-export default function KitPicker({ pack, family, selected, onPack, onFamily, onSelected }: Props) {
+export default function KitPicker({
+  pack,
+  family,
+  selected,
+  onPack,
+  onFamily,
+  onSelected,
+  query,
+  onClearQuery,
+}: Props) {
   const available = useMemo(() => (pack ? familiesFor(pack) : []), [pack]);
   /** What this pack can contain in this look. Resolution can throw on a config error (an
    *  unfilled matrix cell) - that is a build-time bug, not a user error, so it degrades to an
@@ -83,9 +110,23 @@ export default function KitPicker({ pack, family, selected, onPack, onFamily, on
   const toggle = (key: string) =>
     onSelected(ticked.has(key) ? selected.filter((k) => k !== key) : [...selected, key]);
 
-  const inPack = choices.filter((c) => c.inPack);
-  const extra = choices.filter((c) => !c.inPack);
+  // A show matches on its NAME, on what it is for, and on the reference formats it serves -
+  // which is what makes "wedding" find Church & Ceremony and "auction" find Shopping.
+  const shows = PACKS.filter((p) => matches(query, p.name, p.description, p.formats.join(' ')));
+  // A row matches on the design's name AND on its graphic TYPE, because those are two
+  // different words for the same thing and a person types either: the ticker type's minimal
+  // design is called "Wire Rotator", so searching "ticker" has to find it.
+  const visible = choices.filter((c) => matches(query, c.variant.name, c.typeId));
+  const inPack = visible.filter((c) => c.inPack);
+  const extra = visible.filter((c) => !c.inPack);
+  // THE COUNT IS THE WHOLE SELECTION, never the visible rows. Filtering hides rows; it does
+  // not untick them, and a number that fell while the user typed would read as the kit
+  // shrinking under them.
   const chosenCount = choices.filter((c) => ticked.has(c.key)).length;
+  // Only rows that are IN the kit can be reassured about. The add-more rows are an offer, not
+  // a promise, so counting them here produced "72 more graphics are hidden - they stay in the
+  // kit" over a kit of 32, which is two wrong facts in one sentence.
+  const hidden = choices.filter((c) => c.inPack).length - inPack.length;
 
   return (
     <div className="wz-kit" data-testid="kit-picker">
@@ -95,8 +136,15 @@ export default function KitPicker({ pack, family, selected, onPack, onFamily, on
         anything you like.
       </p>
 
+      {shows.length === 0 && (
+        <div className="wz-browse-empty" data-testid="kit-no-shows">
+          <p className="hint">No show matches “{query.trim()}”.</p>
+          <button className="wz-filter" onClick={onClearQuery}>✕ Clear the search</button>
+        </div>
+      )}
+
       <div className="wz-kit-grid" role="list">
-        {PACKS.map((p) => {
+        {shows.map((p) => {
           const active = p.id === pack?.id;
           return (
             <button
@@ -139,7 +187,17 @@ export default function KitPicker({ pack, family, selected, onPack, onFamily, on
             </span>
           </div>
 
-          <p className="wz-kit-contents-label mono">In this kit</p>
+          {/* A search narrows what is SHOWN, never what is chosen - so say so, or a kit that
+              still counts twelve while listing three looks like a bug in the count. */}
+          {hidden > 0 && (
+            <p className="wz-kit-filtered hint" data-testid="kit-filtered">
+              {hidden} more in this kit {hidden === 1 ? 'is' : 'are'} hidden by the search — still
+              in it, just not listed.{' '}
+              <button className="wz-rail-change" onClick={onClearQuery}>Show all</button>
+            </p>
+          )}
+
+          {inPack.length > 0 && <p className="wz-kit-contents-label mono">In this kit</p>}
           <ul className="wz-kit-contents" data-testid="kit-contents">
             {inPack.map((choice) => (
               <li key={choice.key}>
