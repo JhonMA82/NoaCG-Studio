@@ -89,6 +89,12 @@ from ~80 places in the tree, so it never changes.*
       foundation, vote-to-air, presenter view, the audience join page - and **none of it has ever
       been looked at by a human**; geometry-only e2e coverage is not acceptance. A student-facing
       surface that has never been seen is the largest unmeasured risk in the release.
+      **First pass done 2026-08-08, and it paid for itself immediately:** the audience link 404ed
+      on production for every operator who copied it (a `vercel.json` rewrite pointing at
+      `/join.html` under `cleanUrls`), and the presenter view rendered as unstyled serif text
+      because the join stylesheet ships with the surface it never mounts. Both fixed, both now
+      gated. The rest of the plane - contextual cue controls, the data foundation, vote-to-air -
+      is still unlooked-at.
 - [ ] **Decide which door the class runs on.** Two routes reach air and only one needs an account:
       **export** (files, local relay and controller on the playout machine - no sign-in, and the
       route round 2 proved on real hardware) and **cloud publish** (the persistent output URL and
@@ -190,6 +196,11 @@ Real work, deliberately not now. Each has a plan doc; none is current until it i
 - **Payments/subscriptions** - long beta first; separate private repo, Stripe, metered generations.
 - **Nightly auto-generated graphics library** (`docs/NIGHTLY_AUTOMATION_PLAN.md`) - committed
   direction, unscheduled.
+- **Audience page per-show customisation** and **automatic chat ingestion from YouTube/Twitch into
+  the audience plane** (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Backlog for the audience plane") -
+  both owner-requested on 2026-08-08, both deliberately not started while the plain join page is
+  still being accepted. Each is a capability-disclosure or an architecture decision wearing a
+  feature's clothes; the doc says which.
 - **Video/animation projects** - the parallel Beta shell stays where it is until the north star
   lands.
 - **Google Fonts import, the dedicated preview channel, Home polish** - postponed by the student

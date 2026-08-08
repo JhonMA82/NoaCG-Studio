@@ -20,7 +20,7 @@ const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const mod = await import(`data:text/javascript,${encodeURIComponent(js)}`);
-const { parseCsv, parseJsonTable, parseDelimited, detectSeparator, parseTableFile } = mod;
+const { parseCsv, parseJsonTable, parseDelimited, detectSeparator, parseTableFile, serializeCsv } = mod;
 
 test('a quoted field keeps its commas', () => {
   const { header, rows } = parseCsv('Question,Answer\n"Which, of these, is a comma?",Yes\n');
@@ -109,4 +109,27 @@ test('the file name picks the reader, not a MIME type the browser may not have s
   assert.deepEqual(parseTableFile('bank.json', '[{"A":"1"}]').header, ['A']);
   assert.deepEqual(parseTableFile('bank.csv', 'A,B\n1,2\n').header, ['A', 'B']);
   assert.match(parseTableFile('bank.csv', '').error, /no rows/);
+});
+
+test('a written table reads back as itself, quoting only what has to be quoted', () => {
+  // The template the Data tab offers for download is this writer's output, and the file the
+  // operator hands back is this reader's input - so the round trip IS the contract.
+  const header = ['Question', 'Answer A', 'Correct answer'];
+  const rows = [
+    ['Which, of these, is a comma?', 'This one', 'A'],
+    ['She said "hello"', 'Line\nbreak', 'B'],
+  ];
+  const back = parseCsv(serializeCsv(header, rows));
+  assert.deepEqual(back.header, header);
+  assert.deepEqual(back.rows, rows);
+  // Plain cells stay plain: a file where every value is quoted looks machine-mangled in the
+  // spreadsheet's own preview, which is the first thing an operator sees.
+  assert.equal(serializeCsv(['A', 'B']), 'A,B\r\n');
+});
+
+test('a header-only template imports as columns with nothing in them', () => {
+  const { header, rows, error } = parseTableFile('quiz.csv', serializeCsv(['Question', 'Answer A']));
+  assert.equal(error, null);
+  assert.deepEqual(header, ['Question', 'Answer A']);
+  assert.deepEqual(rows, []);
 });
