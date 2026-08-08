@@ -284,6 +284,41 @@ test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 wa
   await expect(program.locator('#f2')).toHaveText('Mars');
 });
 
+test('the downloaded template is a file the importer accepts, with the columns a cue can bind', async ({
+  page,
+}) => {
+  // The other half of import. What is pinned is the ROUND TRIP: the header the download carries
+  // is the header the importer reads back, and its columns bind to the quiz board's fields -
+  // which is the whole reason a blank template beats guessing at column names.
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Template Night');
+  await page.getByTestId('tab-data').click();
+
+  await page.getByTestId('new-dataset-kind').selectOption('quiz');
+  const download = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-dataset-template').click(),
+  ]).then(([d]) => d);
+  expect(download.suggestedFilename()).toBe('quiz-questions-template.csv');
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const text = Buffer.concat(chunks).toString('utf8');
+  expect(text.trim()).toBe('Question,Answer A,Answer B,Answer C,Answer D,Correct answer');
+
+  // Hand it straight back, with a row typed in as an operator would.
+  await page.getByTestId('import-dataset').setInputFiles({
+    name: 'Quiz questions.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(`${text}Which planet is red?,Venus,Mars,Pluto,Titan,B\r\n`),
+  });
+  const note = page.getByTestId('import-note');
+  await expect(note).toContainText('Imported 1 row');
+  // Every column bound - a template that named a column no field answers to would be the one
+  // failure this feature exists to make impossible.
+  await expect(note).toContainText('Question, Answer A, Answer B, Answer C, Answer D, Correct answer');
+});
+
 test('an imported table whose columns match no field says so rather than looking successful', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Match');
