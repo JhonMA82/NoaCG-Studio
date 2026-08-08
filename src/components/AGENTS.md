@@ -726,9 +726,12 @@ exactly like AIPromptPanel; everything else stays open.
 
 CreationWizard (Entry -> Browse -> Fields -> Style -> Animation -> **Finish**, persistent live
 preview), draft.ts, WizardPreview, MiniPreview, steps/. Creating calls `variant.create(options)`
-which generates the complete, commented template. FOUR entry cards (template, Create with AI,
-Import graphic, kit) in a 2x2 grid, plus the separated video strip. Create with AI is the ONE
-AI door - NoaCG Pro is an execution TIER inside it, never a second card.
+which generates the complete, commented template. THREE entry cards (template, Create with AI,
+Import graphic) in a two-column grid, plus the separated video strip; Advanced mode adds blank.
+An ODD LAST CARD spans the row (`.wz-entry-card:last-child:nth-child(odd)`), so three leave no
+empty cell and four still read as a 2x2. Create with AI is the ONE AI door - NoaCG Pro is an
+execution TIER inside it, never a second card; there is no kit card either, **"one graphic or a
+whole kit" being asked inside Browse** (below).
 
 **LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
@@ -801,6 +804,24 @@ toggle feeds `brandFamily` as browse CONTEXT, not a filter: the package's siblin
 first, no chip appears, Clear-all leaves it alone, and a genuine programme match always
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now).
+
+**THE KIT PATH — one door, asked at the top of Browse.** Shape, and why it reversed
+TEMPLATE_TAXONOMY_PROPOSAL §18's separate Entry card: docs/PACK_TAXONOMY.md, "The wizard
+surface". `.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
+grid and **KitPicker** (genre preset, then checkboxes over `templates/kit.ts` `kitChoices`);
+the format picker sits above the branch; picker state lives in CreationWizard like
+`browseFilters`. A kit then walks the SAME six steps a single graphic does — `mode` stays
+`'template'`, and `KitPlan` (wizard/kitPlan.ts) makes each step one graphic OF A SET — plus:
+**KitTray**, the second axis of progress in the rail's own vocabulary, done chips being
+MiniPreview in `lazy` mode (its one caller), never navigation; **KitLookStep**, "use this look
+for the other N?" as a bordered card, NEVER a modal (which would cover the rail and tray, the
+two surfaces that make it answerable), whose yes is a deterministic transform over the `:root`
+style contract and NOTHING else (`kitLookPatch`; the motion preset carries only where the
+target design DECLARES it); and **KitFinishStep**, the production name, the built grid, and two
+doors that BOTH SAVE FIRST with every write claimed (see "Save + Home") — export asking the
+production page for its dialog through templateStore's one-shot `pendingProductionExport`. The
+kit's LAST rail entry is not a jump target (reaching it means the graphic in hand was BUILT;
+a rail click sets the step directly), and re-finishing the tone-setter after a yes RE-propagates.
 
 **ONE disclosure, EVERY width, closed by default** (`.wz-browse-drawer-btn` +
 `.wz-browse-filters`, handoff §2b). It was two nested — a phone-only drawer wrapping a

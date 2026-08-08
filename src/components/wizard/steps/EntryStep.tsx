@@ -10,8 +10,6 @@ interface Props {
   onImportGraphic: () => void;
   onAi: () => void;
   onVideo: () => void;
-  /** Start from a KIT: a curated set of graphics for one kind of show. */
-  onKit: () => void;
   onBlank: () => void;
   /** Go to Home (all saved work: graphics, productions, control panels, videos). */
   onHome: () => void;
@@ -32,8 +30,14 @@ interface Props {
  * A user who designed their graphic in Photoshop wants NoaCG to make it broadcast-ready
  * (fields, animation, export), not to regenerate it. Existing .html / SPX templates (and
  * logos to design around) go through Create with AI instead.
+ *
+ * THERE IS NO "Start from a kit" CARD. A kit is not a different way of starting — it is the
+ * same walk over a whole set — so "one graphic or the whole kit" is asked at the top of the
+ * BROWSE step, where designs are chosen and the answer can be changed without walking back
+ * here. (This reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23; see the reversal
+ * recorded there.)
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onKit, onBlank, onHome }: Props) {
+export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onBlank, onHome }: Props) {
   const advanced = useAdvancedMode((s) => s.advanced);
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
@@ -80,19 +84,22 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
       </div>
       )}
 
-      {/* THE 2x2 GRID (re-design/handoff.md §2a). Every card is the same two blocks: a TITLE
-          ROW carrying the icon beside the title, then the description in a block of its own.
-          The icon used to be a third stacked line, which put each card's copy at a different
-          y and let the longest description make its whole grid row taller than the other
-          (measured at 1366x768: row 1 179px, row 2 138px). Card copy is kept to what the row
-          reserves — a card that needs a fourth line is a card that needs shorter copy. */}
+      {/* THE TWO-COLUMN GRID (re-design/handoff.md §2a). Every card is the same two blocks: a
+          TITLE ROW carrying the icon beside the title, then the description in a block of its
+          own. The icon used to be a third stacked line, which put each card's copy at a
+          different y and let the longest description make its whole grid row taller than the
+          other (measured at 1366x768: row 1 179px, row 2 138px). Card copy is kept to what the
+          row reserves — a card that needs a fourth line is a card that needs shorter copy.
+          THREE cards in a two-column grid leave no hole: an ODD LAST CARD spans both columns
+          (`.wz-entry-card:last-child:nth-child(odd)`), so the default studio reads as a full
+          block and Advanced mode's fourth card restores the plain 2x2. */}
       <div className="wz-entry">
         <button className="wz-entry-card wz-entry-card--primary" onClick={onTemplates} data-entry="template">
           <span className="wz-entry-head">
             <span className="wz-entry-icon">▤</span>
             <strong>Start from a template</strong>
           </span>
-          <span className="hint">Pick a design, choose your fields, style, and animation — then tweak the code it writes, or never open it.</span>
+          <span className="hint">One graphic, or the whole kit a show needs in one look. Choose your fields, style and animation — then tweak the code it writes, or never open it.</span>
         </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
@@ -107,13 +114,6 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             <strong>Import graphic</strong>
           </span>
           <span className="hint">Bring a finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece.</span>
-        </button>
-        <button className="wz-entry-card" onClick={onKit} data-entry="kit">
-          <span className="wz-entry-head">
-            <span className="wz-entry-icon">▥</span>
-            <strong>Start from a kit</strong>
-          </span>
-          <span className="hint">A match, a service, an election night — the whole set of graphics a show needs, created together into one production.</span>
         </button>
         {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
             (docs/GOALS.md "Student release" step 4). */}

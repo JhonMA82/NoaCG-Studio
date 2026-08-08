@@ -155,9 +155,9 @@ these are the commitments.
 Nobody making a show wants to create graphics one by one. Say which graphics the programme needs,
 get all of them in **one unified look**, landing together in one production.
 
-- [ ] **Catalog kits from the wizard** - available now in principle: `TemplatePack.paletteId`
-      already imposes one palette across a kit (newsroom, talk-show). Generalize it to a
-      user-chosen set of categories. **No AI required, so this ships before the AI version.**
+*Catalog kits from the wizard landed 2026-08-08 - one door, a user-editable set, and one look
+across it; the full entry is in the archive.*
+
 - [ ] **AI kits** - the same door, with Lite generating the set. Rides on Lite being good.
 
 ---

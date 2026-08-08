@@ -72,7 +72,7 @@ test('the video card keeps a compact readable layout on mobile', async ({ page }
   expect(Math.abs(geometry.titleLeft - geometry.hintLeft)).toBeLessThan(1);
 });
 
-test('the four mode cards form an even 2x2 grid', async ({ page }) => {
+test('the three mode cards fill the grid with no hole', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
 
   // THE ALIGNMENT CONTRACT (re-design/handoff.md §2a). Before this, the icon sat on its own
@@ -100,13 +100,19 @@ test('the four mode cards form an even 2x2 grid', async ({ page }) => {
       };
     }),
   );
-  expect(cards).toHaveLength(4);
+  // THREE in the default studio since the kit card retired (its question moved into the
+  // Browse step's build-mode switch); Advanced mode adds a fourth.
+  expect(cards.map((c) => c.entry)).toEqual(['template', 'ai', 'import-graphic']);
 
-  // Two columns, two rows, equal in both directions (1px of subpixel rounding allowed).
+  // NO HOLE. An odd count in a two-column grid would leave an empty cell that reads as a card
+  // that failed to render, so the last card spans the row
+  // (`.wz-entry-card:last-child:nth-child(odd)`). Rows stay equal in height either way.
   const round = (n: number) => Math.round(n);
-  expect(new Set(cards.map((c) => round(c.width))).size).toBe(1);
   expect(new Set(cards.map((c) => round(c.height))).size).toBe(1);
-  expect(new Set(cards.map((c) => round(c.left))).size).toBe(2);
+  expect(round(cards[0].width)).toBe(round(cards[1].width));
+  expect(round(cards[2].width)).toBeGreaterThan(round(cards[0].width) * 1.9);
+  expect(round(cards[0].left)).toBe(round(cards[2].left));
+  expect(round(cards[1].left)).toBeGreaterThan(round(cards[0].left));
 
   for (const c of cards) {
     // The title row is one flex line: the icon precedes the title and shares its centreline.
@@ -121,7 +127,7 @@ test('the four mode cards form an even 2x2 grid', async ({ page }) => {
   // description fits the three-line block, so the heights above would match even without
   // `grid-auto-rows: 1fr` — which would leave the rule that actually holds the grid together
   // unproven, and the day someone writes a fourth line the ragged rows come back. So force
-  // that day: overflow one card's copy and require the other three to follow it.
+  // that day: overflow one card's copy and require the others to follow it.
   const heights = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
     els[0].querySelector('.hint').textContent = 'x '.repeat(220);
     return els.map((el) => Math.round(el.getBoundingClientRect().height));
@@ -132,10 +138,10 @@ test('the four mode cards form an even 2x2 grid', async ({ page }) => {
 test('the mode cards stack into one column on a phone', async ({ page }) => {
   await entryStepAt(page, 390, 844);
 
-  // The 2x2 grid is a DESKTOP measure. Left at two columns on a 390px screen each card got a
-  // 164px column — about 110px of text beside the icon — so every title wrapped to two lines
-  // with the icon floating against the middle of the block, and the descriptions ran seven to
-  // eleven lines of two-word rows. Measured then: four cards 291px tall each.
+  // The two-column grid is a DESKTOP measure. Left at two columns on a 390px screen each card
+  // got a 164px column — about 110px of text beside the icon — so every title wrapped to two
+  // lines with the icon floating against the middle of the block, and the descriptions ran
+  // seven to eleven lines of two-word rows. Measured then: four cards 291px tall each.
   const cards = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
     els.map((el) => {
       const r = el.getBoundingClientRect();
@@ -150,7 +156,7 @@ test('the mode cards stack into one column on a phone', async ({ page }) => {
       };
     }),
   );
-  expect(cards).toHaveLength(4);
+  expect(cards).toHaveLength(3);
 
   // One column: every card shares a left edge and a width, and each starts below the last.
   expect(new Set(cards.map((c) => c.left)).size).toBe(1);

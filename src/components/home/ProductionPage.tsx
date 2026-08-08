@@ -139,6 +139,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const [note, setNote] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  // THE KIT WIZARD'S EXPORT DOOR (templateStore `pendingProductionExport`): a kit is exported
+  // without the editor ever opening, and the target picker + validation gate it needs are this
+  // page's own dialog - so the wizard asks for that surface instead of growing a second one.
+  // One-shot, and cleared as it is read, like every other `pending*` in the store.
+  useEffect(() => {
+    const pending = useTemplateStore.getState().pendingProductionExport;
+    if (!pending || pending !== id) return;
+    useTemplateStore.setState({ pendingProductionExport: null });
+    setExportOpen(true);
+  }, [id]);
   const [linksOpen, setLinksOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<'output' | 'control' | 'join' | 'presenter' | null>(null);

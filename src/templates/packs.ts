@@ -22,7 +22,7 @@
 // no graphic TYPE ships a design in them, so no pack resolves into either. That is a
 // deliberate state, not debt: filling them means ~122 new designs, and a kit is not the only
 // thing a style family is for. Anything resolving a pack must therefore MEASURE which families
-// work (`familiesFor` in wizard/steps/KitStep.tsx) rather than assume all six do.
+// work (`familiesFor` in wizard/steps/KitPicker.tsx) rather than assume all six do.
 //
 // `scripts/factory.mjs` validates all of this on every run: every type id resolves, every
 // extra exists in the catalog, and the 60 formats are covered exactly once. Editing this file
