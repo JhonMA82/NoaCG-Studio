@@ -108,8 +108,15 @@ from ~80 places in the tree, so it never changes.*
       on production for every operator who copied it (a `vercel.json` rewrite pointing at
       `/join.html` under `cleanUrls`), and the presenter view rendered as unstyled serif text
       because the join stylesheet ships with the surface it never mounts. Both fixed, both now
-      gated. The rest of the plane - contextual cue controls, the data foundation, vote-to-air -
-      is still unlooked-at.
+      gated. **Second pass done 2026-08-08** over the rest of the plane - contextual cue controls,
+      the Data workspace, vote-to-air - and it paid for itself the same way: **the first Take of a
+      session aired the graphic and put it straight back off** (the boot recovery treated the
+      operator's own take as a page opening onto a live production and snapped to a stale "off"),
+      black PROGRAM monitor and every ⚡ action greyed, on every offline take. Every spec took a
+      cue instantly, inside the window the bug needed, so the suite was green over it. Fixed and
+      pinned by a spec that waits first; two shared-control defects fixed with it. Still owed:
+      the owner's own eyes, and the Data workspace's empty state
+      (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Acceptance pass 2026-08-08").
 - [ ] **Decide which door the class runs on.** Two routes reach air and only one needs an account:
       **export** (files, local relay and controller on the playout machine - no sign-in, and the
       route round 2 proved on real hardware) and **cloud publish** (the persistent output URL and

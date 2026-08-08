@@ -169,6 +169,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
+  /** What the WIRE said was live when this page resolved the production - null until it has
+   *  answered, and never written by anything this operator does. The boot recovery below is
+   *  keyed on it for exactly that reason. */
+  const [bootLive, setBootLive] = useState<LiveCueMap | null>(null);
   /** Each graphic's last reported MACHINE state, keyed by pool name. Two sources converge on
    *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
    *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
@@ -277,9 +281,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (!alive || !resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
-      // monitor, so the reports must be in hand before liveCue commits and fires it.
+      // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
       setLiveCue(resolved.liveCue);
+      // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
+      // see the effect below for what that distinction cost.
+      setBootLive(resolved.liveCue);
       // Seed each graphic's machine state from its last published report — the page may be
       // opening onto a production another operator drove mid-sequence.
       for (const [graphic, report] of Object.entries(resolved.live)) {
@@ -370,15 +377,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       programRef.current?.apply(items);
     }
   }, []);
-  // The boot half: the wire resolve lands after the stage is already up, so the first time any
-  // layer is known to be live there is nothing to have signalled.
+  // The boot half: the wire resolve lands after the stage is already up, so the first time the
+  // WIRE says a layer is live there is nothing to have signalled.
+  //
+  // It is keyed on the wire's own answer (`bootLive`), NOT on `liveCue`, and that is the whole
+  // point rather than a refactor. `liveCue` also moves when THIS operator takes a cue, so the
+  // recovery used to fire on the first Take of every session: it replayed `snap` to the machine
+  // state last reported — "off", because the stage reports that once a second and the reply to
+  // the play in flight had not landed yet — and put the graphic straight back off air. The
+  // monitor went black, the state chip read Off and every ⚡ action greyed, with nothing said.
+  // Offline it was every take, since with no wire `liveCue` can only ever move locally. Every
+  // spec took a cue and asserted immediately, inside the window before the first state poll, so
+  // the whole suite stayed green over it (`e2e/production-controls.spec.ts` now waits first).
   const recoveredRef = useRef(false);
   useEffect(() => {
-    if (recoveredRef.current) return;
-    if (!Object.values(liveCue).some(Boolean)) return;
+    if (recoveredRef.current || !bootLive) return;
     recoveredRef.current = true;
+    if (!Object.values(bootLive).some(Boolean)) return;
     restoreProgram();
-  }, [liveCue, restoreProgram]);
+  }, [bootLive, restoreProgram]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow
   // for a running timer.

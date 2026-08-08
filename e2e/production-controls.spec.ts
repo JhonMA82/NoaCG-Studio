@@ -51,6 +51,33 @@ test('the production page re-asks for machine state, so a change it did not caus
   await expect(chip).toHaveText('Answer selected', { timeout: 5_000 });
 });
 
+test('a Take pressed a moment after the page opens still airs - and stays aired', async ({ page }) => {
+  // EVERY OTHER SPEC HERE TAKES INSTANTLY, and that is what hid this: a real operator opens a
+  // production, reads the rundown and presses Take seconds later. The local PROGRAM monitor
+  // reports its machine state once a second, so by then the page knew the graphic was "off" -
+  // and the boot recovery, which was keyed on `liveCue` MOVING rather than on the wire's own
+  // answer, treated the operator's own first Take as a page that had opened onto a live
+  // production and replayed `snap` to that stale "off". The graphic aired and went straight
+  // back off: black monitor, chip reading Off, every action greyed, nothing said. Offline it
+  // was every take, because with no wire `liveCue` can only move locally.
+  await createProject(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Quiz Night');
+
+  // Past the first state poll - the window the old bug needed.
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('not on air');
+  await page.waitForTimeout(2_000);
+  await page.getByTestId('verb-take').click();
+
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(program.locator('.quiz')).toBeVisible();
+  // And it is still there after the next few polls - a graphic that airs and then quietly
+  // disappears is the same defect wearing a delay.
+  await page.waitForTimeout(3_000);
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
+  await expect(page.getByTestId('cue-action-select')).toBeEnabled();
+});
+
 test('quiz actions on the production page: greying, select/lock, live update keeps the lock, snap recovers the verdict', async ({ page }) => {
   await createProject(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');

@@ -530,6 +530,44 @@ mechanism in the product that matches the description, and it is worth confirmin
 owner's session before treating it as a defect. Anyone touching publish/unpublish should look
 for a second way the slug can change under a live renderer.
 
+## Acceptance pass — the contextual controls, the Data and Audience workspaces (2026-08-08)
+
+The second half of the visual acceptance GOALS.md names as the release's largest unmeasured
+risk: the production page's ⚡ GRAPHIC ACTIONS, the Data workspace and the vote-to-air walk,
+driven as an operator drives them (a production carrying a quiz, a match board and a vote board)
+rather than as a spec drives them.
+
+**P0 — the first Take of a session aired the graphic and put it straight back off.** The boot
+recovery was keyed on `liveCue` MOVING, and `liveCue` also moves when this operator takes a cue -
+so the operator's own first Take was mistaken for a page opening onto a live production. It
+replayed `snap` to the machine state last reported, which the local PROGRAM monitor reports once
+a second and which was therefore "off", the reply to the play in flight not having landed. The
+result: black PROGRAM monitor, the state chip reading Off, every ⚡ action greyed, the rundown
+row still marked ON AIR, and nothing said. **Offline it was every take**, since with no wire
+`liveCue` can only ever move locally - and offline is the door the class may run on.
+
+It is now keyed on the wire's own answer (`bootLive`, written only by the resolve). Why the whole
+suite was green over it: every spec took a cue and asserted immediately, inside the ~1 s window
+before the first state poll. Pinned by a spec that WAITS first
+(`e2e/production-controls.spec.ts`, "a Take pressed a moment after the page opens"). The published
+path was hit by the same defect whenever a page opened with nothing live.
+
+**Two control defects on the same surface, both in the shared `FieldControl`, so both were on
+every operator surface at once:** a number field's operator STEP-SIZE box was styled exactly like
+the value box and sat right beside it, so a match board's score read `− 1 + 1` - two identical
+number boxes, one of which changes nothing on air (captioned now, and the value box no longer
+shrinks to one visible digit); and a picture field's hint sat BESIDE the picker as a flex sibling,
+squeezing a crest slot with no pictures yet down to a bare 20px chevron (the hint moved under it).
+The exported control panel carries the same caption, per the one-control doctrine.
+
+**Looked at and correct:** structural greying through the whole quiz sequence and the four-group
+match-board chip; the clock running on air while a score bump is applied; multi-layer PROGRAM
+(quiz over match board over vote board); the audience inbox, presenter Now/Next pointers, the live
+tally (bars measured proportional), staging a vote to a cue and airing it - the aired board shows
+50/25/25 from `Label | count`. **Not fixed, recorded:** the Data workspace's empty state is a
+header and one sentence over ~830px of nothing, and its "⬇ Blank CSV" button wraps onto its own
+row away from the sibling buttons it belongs to.
+
 ## Audience backend design (for Phases 5–6; designed 2026-08-05, BUILT 2026-08-07)
 
 > **STATUS 2026-08-07 — built to this design, not a second one.** Migration

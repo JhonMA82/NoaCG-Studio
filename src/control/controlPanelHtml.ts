@@ -199,6 +199,10 @@ function renderPanelPage(title: string, graphics: EmittedGraphic[]): string {
   .seg button.on { background:var(--accent); border-color:var(--accent); color:#0d1117; font-weight:600; }
   .step { width:44px; flex:0 0 auto; font-weight:700; }
   .num-input { text-align:center; }
+  /* The bump size, captioned - uncaptioned it reads as a second value box beside the score. */
+  .stepsize { display:flex; align-items:center; gap:5px; flex:0 0 auto; }
+  .stepsize span { font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:#8b93a1; }
+  .stepsize input { width:48px; text-align:center; }
   .events h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); margin:10px 0 6px; font-weight:600; }
   .events .btns { display:flex; flex-wrap:wrap; gap:8px; }
   .events button { min-width:96px; }
@@ -367,8 +371,9 @@ GRAPHICS.forEach(function (g) {
       var plus = el('button', { class: 'step' }, ['+']);
       // A declared step fixes the increment; a field that declares none (every SPX number
       // field) lets the operator pick the bump size — the same rule the in-app control uses.
-      var stepBox = el('input', { type: 'number', class: 'num-input', title: 'step size', style: 'width:56px;flex:0 0 auto' });
+      var stepBox = el('input', { type: 'number', title: 'How much + and - change the value' });
       stepBox.value = String(c.step != null ? c.step : 1);
+      var stepWrap = el('label', { class: 'stepsize' }, [el('span', {}, ['step']), stepBox]);
       function bump(dir) {
         var s = c.step != null ? c.step : (parseFloat(stepBox.value) || 1);
         input.value = String(clamp(c, (parseFloat(input.value) || 0) + dir * s));
@@ -377,7 +382,7 @@ GRAPHICS.forEach(function (g) {
       minus.onclick = function () { bump(-1); };
       plus.onclick = function () { bump(1); };
       var kids = [minus, input, plus];
-      if (c.step == null) kids.push(stepBox);
+      if (c.step == null) kids.push(stepWrap);
       wrap.appendChild(el('div', { class: 'row' }, kids));
     } else if (c.kind === 'lines') {
       var ta = el('textarea', { placeholder: 'one entry per line' });

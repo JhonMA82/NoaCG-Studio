@@ -71,14 +71,18 @@ function NumberControl({ descriptor: d, value, onChange, testId }: FieldControlP
       />
       <button className="ctl-step" title="Up" onClick={() => bump(1)}>+</button>
       {d.step == null && (
-        <input
-          className="ctl-num"
-          style={{ width: 56, flex: '0 0 auto' }}
-          type="number"
-          title="Step size"
-          value={operatorStep}
-          onChange={(e) => setOperatorStep(e.target.value)}
-        />
+        // SAID OUT LOUD, not left to a tooltip. Styled like the value box and sitting right
+        // beside it, this read as a second score on a match board - two identical number boxes,
+        // one of which changes nothing on air. The caption is what tells them apart at a glance.
+        <label className="ctl-stepsize" title="How much + and − change the value">
+          <span>step</span>
+          <input
+            className="ctl-num ctl-num-step"
+            type="number"
+            value={operatorStep}
+            onChange={(e) => setOperatorStep(e.target.value)}
+          />
+        </label>
       )}
     </div>
   );
@@ -94,36 +98,40 @@ function ImageControl({ value, onChange, images = [], onUpload, imageHint, testI
   const thumb = images.find((i) => i.value === current)?.src;
 
   return (
-    <div className="row">
-      <select className="grow" value={current} data-testid={testId} onChange={(e) => onChange(e.target.value)}>
-        <option value="">None</option>
-        {images.map((i) => (
-          <option key={i.value} value={i.value}>{i.value}</option>
-        ))}
-        {missing && <option value={current}>{current} (missing)</option>}
-      </select>
-      {thumb && <img className="ctl-thumb" src={thumb} alt="" />}
-      {onUpload && (
-        <>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".png,.jpg,.jpeg,.gif,.webp,.svg"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onUpload(file);
-              e.target.value = ''; // let the same file be picked again
-            }}
-          />
-          <button title="Upload an image — bundled into the export under images/" onClick={() => fileInput.current?.click()}>
-            ⬆ Upload…
-          </button>
-        </>
-      )}
-      {!onUpload && images.length === 0 && imageHint && (
-        <span className="hint" style={{ fontSize: 11 }}>{imageHint}</span>
-      )}
+    // The hint sits UNDER the picker, never beside it: as a flex sibling its two lines of text
+    // took the row's whole width and squeezed the select - which has no content of its own to
+    // hold it open when the graphic carries no pictures - down to a bare chevron. A crest slot
+    // reachable only by aiming at a 20px arrow is the cockpit divergence in a different form.
+    <div className="ctl-image">
+      <div className="row">
+        <select className="grow" value={current} data-testid={testId} onChange={(e) => onChange(e.target.value)}>
+          <option value="">None</option>
+          {images.map((i) => (
+            <option key={i.value} value={i.value}>{i.value}</option>
+          ))}
+          {missing && <option value={current}>{current} (missing)</option>}
+        </select>
+        {thumb && <img className="ctl-thumb" src={thumb} alt="" />}
+        {onUpload && (
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".png,.jpg,.jpeg,.gif,.webp,.svg"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(file);
+                e.target.value = ''; // let the same file be picked again
+              }}
+            />
+            <button title="Upload an image — bundled into the export under images/" onClick={() => fileInput.current?.click()}>
+              ⬆ Upload…
+            </button>
+          </>
+        )}
+      </div>
+      {!onUpload && images.length === 0 && imageHint && <p className="hint ctl-image-hint">{imageHint}</p>}
     </div>
   );
 }

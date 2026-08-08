@@ -544,6 +544,18 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 /* ---------- Field controls (the shared control: Data, Control, video Content) ---------- */
 .ctl-step { width: 40px; flex: 0 0 auto; font-weight: 700; font-size: 16px; }
 .ctl-num { text-align: center; }
+/* The bump size, captioned. Same box as the value and right beside it, an uncaptioned one read
+   as a second score on a match board (F1 · Score A: − 1 + 1). */
+.ctl-stepsize { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; margin: 0; }
+.ctl-stepsize > span { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+/* The VALUE keeps the room: a two-digit score must never be squeezed to one visible digit by
+   the controls around it (`.pd-field input { width: 100% }` otherwise sets all three equal). */
+.row > .ctl-num { flex: 1 1 auto; min-width: 64px; }
+.ctl-stepsize > .ctl-num-step { flex: 0 0 auto; width: 46px; min-width: 46px; }
+/* A picture field's select has no content of its own to hold it open; the hint goes underneath
+   rather than competing with it for the row. */
+.ctl-image > .row > select { min-width: 96px; }
+.ctl-image-hint { font-size: 11px; margin: 4px 0 0; }
 .ctl-thumb { width: 32px; height: 32px; flex: 0 0 auto; object-fit: contain;
   background: var(--bg-3); border: 1px solid var(--border); border-radius: 6px; }
 .field-reset { font-size: 11px; padding: 2px 6px; }

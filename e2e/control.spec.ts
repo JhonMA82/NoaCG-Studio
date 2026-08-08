@@ -27,7 +27,7 @@ test('control tab live-drives the preview from a field control', async ({ page }
   // Name the value box rather than taking the first input: a stepper renders the value AND an
   // operator step-size box, so `input` alone passed here by DOM order rather than by intent.
   await page.locator('.field-row', { hasText: 'Score A' })
-    .locator('input.ctl-num:not([title="Step size"])').fill('7');
+    .locator('input.ctl-num:not(.ctl-num-step)').fill('7');
   const frame = page.frameLocator('iframe.preview-frame');
   await expect(frame.locator('#f1')).toHaveText('7');
 

@@ -40,7 +40,7 @@ test('scoreboard: all four fields bind and a score change lands', async ({ page 
   // Score A is a number field: the stepper renders a value box AND an operator step-size box,
   // so name the value one rather than relying on which comes first in the DOM.
   const scoreInput = page.locator('.panel-body .field-row', { hasText: 'Score A' })
-    .locator('input.ctl-num:not([title="Step size"])');
+    .locator('input.ctl-num:not(.ctl-num-step)');
   await scoreInput.fill('5');
   await page.locator('.panel-body').getByRole('button', { name: '⟳ Update' }).click();
   await expect(frame(page).locator('#f1')).toHaveText('5');
