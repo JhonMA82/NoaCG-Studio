@@ -1,19 +1,68 @@
 # NoaCG Pro - the image-guided editable graphics pipeline
 
-Status: **the reconstruction path is PARKED on measurement (2026-08-08, §10a)** - the concept
-stage works and the compiler cannot keep what it designs. The first vertical slice (lower thirds)
-is built and runs; this document records the architecture decisions for NoaCG Pro, the tier above
-NoaCG Lite: image-model visual direction compiled into ordinary, editable, exportable NoaCG
-templates. Read §10a before proposing further work on it.
+**This document describes a LIVE EXPERIMENT, not a committed roadmap.** Pro's tactics have moved
+several times, and a doc that leads with tactics contradicts itself every time they do. So it leads
+with the question instead: a shifting tactic updates §0 and nothing else.
 
-The one-sentence contract: **the image model proposes the appearance; NoaCG owns
-structure, fields, animation, validation, and export.** A generated image is a visual
-reference or a reusable asset - never a hidden scene model, never a screenshot-to-HTML
-side channel.
+## 0. The question, and what would settle it
 
-## 1. Why this is not the thing AI_WIZARD_PLAN.md rejected
+**The question:** *can an image model's visual direction be turned into a NoaCG graphic that is
+better than what adapt-first already produces - at a price a user will pay?*
 
-`docs/AI_WIZARD_PLAN.md` §5 deliberately rejected "an image-generation model for
+That is the whole of Pro. The one-sentence contract underneath it has not moved: **the image model
+proposes the appearance; NoaCG owns structure, fields, animation, validation, and export.** A
+generated image is a visual reference or a reusable asset - never a hidden scene model, never a
+screenshot-to-HTML side channel.
+
+The question has been asked two ways. The first is answered; the second is open.
+
+### Q1 - reconstruct the concept into code. ANSWERED: no.
+
+**Verdict 2026-08-08: the concept stage works and the compiler cannot keep what it designs.** 11 of
+12 concepts are credible broadcast lower thirds; the reconstruction ships a visibly broken graphic
+on 5 of 12 while the deterministic gates report 11 of 12 passing. **The relationship is INVERSE** -
+the strongest concept in the bank became the worst output, because a distinctive design is exactly
+the one a rectangle-rebuilding compiler cannot reproduce or erase behind. A better image model makes
+this worse. Full round: §10a and `benchmarks/pro/round-2026-08-08/`.
+
+**PARKED.** It would become a yes again only if one of these is true, and neither is cheap:
+
+- the compiler can reconstruct **non-rectangular geometry** (angled panels, layered accents) rather
+  than boxes, or
+- an **image-edit clean-plate capability** exists, so the baked original can be removed instead of
+  covered (declared in §3.1, deferred beyond v1).
+
+Nothing here is a reason to change `PRO_STANDARD_ROUTES`: the failure is in the compiler's reach,
+not the route.
+
+### Q2 - reuse the concept as a REFERENCE. OPEN, and the cheaper question.
+
+Feed a generated concept back into the grounded adapt path as a `layout` reference
+(`model/imagePurpose.ts`), so the image model's strength - composition - meets the path that already
+produces correct graphics. This attacks the one weakness adapt-first has: **sameness** (Lite put 9
+of 12 briefs on one chassis in the same round where it delivered a usable graphic on 12 of 12).
+
+**It is a YES if**, on a blind gallery of **20+ joined items** against plain Lite on the same briefs:
+the reference visibly moves COMPOSITION rather than only colour, chassis spread widens, and the
+owner would take more of the Pro-referenced results to air. **It is a NO if** the composition does
+not move - which is the live risk, because the creative rounds already measured that "references
+land but only reach the surface": a mood board came back as the right ink on the right paper and the
+composition did not move. A `layout` reference is a different purpose from a mood board and may
+behave differently; that is exactly what the round would measure.
+
+**The price question rides along and is not secondary.** A concept costs ~$0.067 and an
+interpretation $0.009-0.011 - **~$0.077 per completed generation, ~250x a Lite generation
+($0.0003)**, and a generation that fails after its concept still costs the full amount. Q2 needs
+only the concept call, so it is the cheaper half of an expensive tier.
+
+---
+
+*Everything below is the ARCHITECTURE of the v1 pipeline - the Q1 path. It is built, it runs, and it
+is parked. Read it as the record of how the answered question was implemented, not as a plan.*
+
+## 1. Why this is not the thing the AI wizard plan rejected
+
+`docs/AI_WIZARD_PLAN.md` (parked 2026-08-08) §5 deliberately rejected "an image-generation model for
 backgrounds/textures" because it pulls output away from clean, editable, exportable code.
 Pro revisits that decision *with the objection answered* rather than ignored:
 
