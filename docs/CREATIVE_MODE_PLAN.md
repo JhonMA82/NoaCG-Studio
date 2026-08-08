@@ -786,3 +786,135 @@ custom; validity-vs-satisfaction inversion), the Lite benchmark rounds a-j and �
 (three open-weight models at parity with the incumbent on structured design calls), the
 2026-07-17 compare-rig absorption finding, current-code traces in §1, br01/br02 + the
 bracket graphic type, and scripts/ai-bench-prices.json.*
+
+---
+
+## Appendix A - the pilot's implementation contract
+
+*Relocated from `src/ai/AGENTS.md` on 2026-08-08, when that file was reordered around adapt-first
+and cut to the live contract. Nothing here changed; it moved because the pilot is bench-only and a
+live contract should not carry an experiment's internals. `src/ai/AGENTS.md` keeps the two rules
+that reach outside the pilot (the frozen-control freeze and the anti-anchoring rule).*
+
+### The staged path
+
+`contracts.ts` (ConceptDirection + CreativeSpec, both normalize-don't-reject) -> `knowledgeCards.ts`
+(family anatomy + DESIGN_LANGUAGE numbers, keyword-selected, max 2, a card REPLACES generic
+language) -> `stages.ts` (the stage 4/5 tools and prompts) -> `scaffold.ts` (DETERMINISTIC: fields +
+SPX definition + runtime + list rebuild + the marked region + safe-area geometry) -> `style.ts` (the
+model's CSS and bounded region HTML through an applyPolish-class gate). **The scaffold is the
+floor**: a style patch the gate refuses leaves a plain but valid graphic, e2e-pinned against the
+full production validator.
+
+### The rigs
+
+`bench:creative:route` (routing only), `bench:creative:pilot` (the arms - the most expensive rig in
+the repo, explicit routes, priced, ceilinged), `bench:creative:refs` (free catalog hold frames, so
+`bench:sameness` can calibrate the copy line), and `scripts/creative-plate-visibility.mjs` (free,
+reads PNGs already on disk).
+
+**The pilot rig's routes are PER ARM CLASS** (the 2026-07-31 bracket smoke, blocker 1: qwen3-30b
+completed 0/8 coder-arm runs on `malformed_response` over ~10k-token emits while going 8/8 on the
+staged arm - one route for every arm measures emit-size reliability, not the arms): `--route` is the
+candidate under test (arms C/D + the shared intent stage), `--coder-route` is REQUIRED for arms A/B
+and may equal `--route` to restore single-model attribution. The rig pins each arm's route through
+saved settings - the same mechanism that picks production's session model - so the frozen control's
+code is untouched; each stage's serving model is in the ledger, `pilot.json` records `armRoutes`,
+and per-stage cost is priced by the RECORDED model first. With split routes, A-vs-B and C-vs-A stay
+single-variable; B-vs-C differs in model class AND staging, and the report says so.
+
+### The BACKDROP rule, split by what the spec declares
+
+Owner ruling 2026-07-31, `RULINGS-2026-07-31.md`. The defect: a style patch shadows `--panel-bg` to
+black on the root - legal, `:root` is untouched - and makes the box `100vw x 100vh` painted with it,
+so a "valid" overlay floods the frame. An OVERLAY (`fullFrame: false`) may not paint an opaque
+full-frame backdrop: `style.ts stripFrameFlood` strips the FILL and keeps the PAINT from any rule
+carrying both, which leaves the panel at content size in its zone instead of an invisible box with
+the content sprayed across the canvas. A full-frame BOARD may cover, and is measured instead -
+`creative-plate-visibility.mjs` composites against the known plate (`creative-plate.mjs`, shared
+with the rig so reference and capture cannot drift) and calibrates the floor against the catalog's
+own designs **per category**: pooled over lower thirds and versus, the catalog minimum is 0.0%,
+because vs02 legitimately covers every pixel, and one number over two placement classes excuses
+every flood there is. The same measurement reads the opposite end exactly - a frame pixel-identical
+to the bare plate painted NOTHING.
+
+### `spec.layout.fullFrame` is DERIVED, not asked for
+
+It decides both the scaffold's anchoring (a full-frame graphic is centred, not zoned) and whether
+the backdrop gate above applies, and the model got it wrong on 24 of 30 lower thirds - for graphics
+whose own family word was "strap" and whose zone was "bottom-left". Two rewordings of the stage-5
+schema moved the rate by 8 points, which is the evidence that it was never a wording problem.
+`templates/structuralAnchor.ts intentCoversFrame` now resolves the structure the brief named through
+the anchor table and reads the `CoverageClass` the graphic category already declares; the model's
+flag survives only for a brief that names no structure the catalog knows. Over the archived specs:
+lower thirds 24/30 claiming the frame -> 0, versus 49/49 (correcting two that had denied it). It
+lives beside the anchor table for that table's own reason - the router and the satisfaction check
+must not hold two answers.
+
+### Stage 3 READS THE USER'S REFERENCES
+
+`creative/references.ts`, plan §7; wired 2026-08-02, `REFERENCES-2026-08-02.md`. Four briefs in the
+bank had said "the attached mood board" / "plate attached" since it was written and every round sent
+nothing.
+
+- **The reading REPLACES the picture, it does not accompany it.** The designing stages are text
+  models by choice - that is what makes arm C cost a tenth of the control - so one vision call turns
+  every attachment into structured words and the raw image blocks are dropped. Sending both is not
+  redundancy but a FAILED REQUEST: a text route rejects a message carrying an image rather than
+  ignoring it, which killed every reference brief on this stage's first run.
+- **The purpose decides what may be said** (`model/imagePurpose.ts`): `mood` gives colour and
+  texture and explicitly no arrangement, `layout` gives arrangement and no artwork, `plate` is what
+  the graphic must survive and is never drawn. Each keeps its own heading in the prompt - a flat
+  list is how a plate gets read as a mood board, and a duplicated attachment claim is dropped rather
+  than filed under another's purpose.
+- **Arm A does not get references** and the bench says so wherever its numbers are: the frozen
+  control cannot consume a picture on a text route, so a reference brief compares a pipeline that
+  can see against one that cannot.
+- Fixtures are SYNTHESISED (`scripts/creative-reference-fixtures.mjs`), not collected. Real
+  broadcast graphics belong to whoever made them, and a mood board carries no composition - a real
+  design used as one would smuggle a layout in and make the experiment unreadable.
+
+### The platform floors a CREATE result must clear
+
+**A CREATE result must be readable against SOMETHING - a surface, or its own halo, never neither**
+(`style.ts legibilityFloor`). The scaffold published `--panel-bg` as a variable and nothing ever
+painted it, so a contract that correctly said dark ink on cream paper rendered the ink onto live
+video. The floor is a disjunction, not "always paint a panel": a panel-less design is real (the
+catalog's `clean` skin carries none and buys legibility with a halo), so the platform supplies one
+only when the design supplied neither. It applies to the BARE SCAFFOLD too, which is what ships
+whenever the gate refuses a patch. Only the scaffold's own elements count as a surface - accepting
+any prefixed class let a decorative dot disable the floor for the designs most likely to need it, so
+it errs toward painting.
+
+**Three more, because a model got each of them wrong at scale** (the 2026-08-01 pass,
+`PASS-2026-08-01.md`):
+
+- **Every declared field reaches the screen.** Fields bind to regions through the spec's `fieldKeys`,
+  which stage 5 frequently returns EMPTY, and the rescue for unbound fields used to skip the `list`
+  and `hidden` roles - so 48 of 69 staged runs shipped fields nothing could draw (88 of them). Row
+  sets are now one compiled table generating both the markup and the runtime (they were decided
+  separately, which left 26 of 55 runs with a rebuild whose container did not exist), every list
+  field gets its own container, and a final sweep gives a visible slot to anything still unreachable.
+- **A graphic can say something.** Seven runs declared no fields at all and several typed every field
+  as a picture, leaving a frame of src-less `<img>`. The scaffold guarantees one text-painting field,
+  synthesized from the graphic's own name. The rule asks what a field PAINTS, never what its label
+  looks like - a keyword guess has to call "Home Team Crest" an image and "Team 1" not, and would
+  become its own defect.
+- **A length keeps its unit.** The style stage copies the scaffold's
+  `calc(26px * var(--scale) * var(--type-scale))` and drops the `px`; the browser then discards the
+  declaration and the whole type ladder reverts to ~16px in a 1920x1080 frame. 469 declarations
+  across 59 of 155 archived stylesheets, and the coder arms clean at 0 - the scaffold's own pattern
+  induces it. `style.ts repairUnitlessLengths` restores the unit (clamp-don't-reject) narrowly enough
+  that it only touches expressions built from bare numbers and the two scaffold multipliers.
+
+**These were all invisible to every gate, which is the lesson worth keeping.** Structural
+satisfaction asked whether a required part was PRESENT in the DOM, and a hidden holder is present -
+so a versus card whose four fields were all undrawable scored complete. That is why
+`validation/structuralIntentCheck.ts` drives every text-bearing field to a sentinel and re-reads the
+painted frame.
+
+### The critique repair lands when it is NO WORSE than its base
+
+`pipeline.ts noWorseThan`, same ruling: no new error rule and no more errors than the base, or clean.
+The old `validation.ok` rule could not land on an invalid base at all - 1/20 across both smoke rounds
+- which made §11 criterion 8 unmeasurable rather than negative.

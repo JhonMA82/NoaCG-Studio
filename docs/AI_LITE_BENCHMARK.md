@@ -558,3 +558,70 @@ the first calibrated run). The system only ever RECOMMENDS - output is a recomme
 plus a proposed env-route change; the product owner promotes by editing server config.
 A candidate can be *recommended for manual broadcast verification*, never
 *broadcast-approved*, until the manual checklist there is complete.
+
+---
+
+## Appendix B - the skin and judge mechanics
+
+*Relocated from `src/ai/AGENTS.md` on 2026-08-08, when that file was reordered around adapt-first
+and cut to the live contract. Nothing here changed; it moved because both surfaces are
+server-flagged OFF and a live contract should not carry an experiment's internals.
+`src/ai/AGENTS.md` keeps the three rules that bind anyone touching the code while the flags are
+off: a skin reverts rather than costing a working result, `clip-path` is forbidden, and the judge's
+admission RPC is the shape every new paid Lite route repeats.*
+
+### The skin path
+
+When the profile enables `AI_LITE_SKIN_ENABLED`, the same single model call may ALSO return
+`skin:{summary,css,html?}` - bounded restyling for the NEUTRAL canvas chassis
+(`templates/lowerThirds/skinCanvas.ts` `ltc01`, deliberately NOT in the browse catalog). The
+platform still compiles everything deterministically; the skin CSS lands as a marked override block
+through the SAME polish gate (`applyPolish`, `LITE_SKIN_MARKER`), and `litePipeline.attemptLiteSkin`
+is the ONE implementation both production (`liteGroundedResult`, path `grounded+skin`) and the
+benchmark runners use. Any failure - an illegal patch (`liteSkinPatchErrors`, shared with the
+server's semantic validation), a gate rejection, or a failing bench - REVERTS silently to the spec's
+house chassis. With the flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behaviour are
+byte-identical to before the skin existed, and a skin a model emits anyway is stripped server-side.
+
+**Why `clip-path` is banned, generalised.** The blind review found two skins whose secondary line
+lost its last letter to an angled cut; the runtime bench read a perfectly placed box and passed, and
+so did the vision judge (§6d). The patch gate rejects it in CSS and in `skin.html` style attributes;
+`background-clip: text` stays legal. Generalize the lesson before adding any visual construct to a
+model's allowlist: **a deterministic gate cannot catch a defect in a dimension it does not measure**,
+so either measure that dimension or forbid the construct.
+
+**A constraint stated as a prohibition suppresses the behaviour it constrains.** The strap rules
+first shipped as "STRAP SHAPE IS NON-NEGOTIABLE" and "a wrapped name is a failed skin", and the next
+paid round emitted skins at HALF the previous rate: given a way to fail and a documented way out
+(`omit skin`), the model took the way out. The same geometry now reads as the shape being painted,
+and the escape hatch names omission as the likelier mistake. Measured, not theorised - prompt
+version `lite-lower-third-v3`, and the pin in `aiLite.test.ts` fails if failure language returns.
+When a teaching change moves a rate, suspect the FRAMING before the rule.
+
+### The vision judge
+
+One server-owned, cost-capped vision call (`POST /api/ai/lite/judge`, flag `AI_LITE_JUDGE_ENABLED`)
+scoring the rendered HOLD frame on legibility / textIntegrity / hierarchy / briefFit / strapShape
+(contract + prompt in `liteContract.ts`, `LITE_JUDGE_*`, versioned independently as
+`LITE_JUDGE_PROMPT_VERSION`); every axis must reach the server threshold or the caller reverts to
+the house chassis. It fails closed like the generation routes and stores nothing. Today only the
+eval rig calls it (Playwright captures the hold frame); production wiring waits on
+judge-vs-blind-review calibration AND an in-app capture path - see §6b before touching thresholds.
+
+**Write every judge axis as INSPECTION, and let ABSENCE be its first failure.** Both blind spots the
+human review found were the same mistake in different clothes. `legibility` asked the model to read,
+and reading completes a word whose last letter is sliced off. `strapShape` listed the wrong shapes a
+panel can take - squat box, badge, tall stack - so a frame with no panel at all matched nothing on
+the list and scored 5. An axis phrased as a taxonomy of variants can only find the variants; an axis
+phrased as "locate the elements, then ask what binds them" can find nothing-is-there. A new axis
+states what to look at, what counts as absent, and what earns a 5 - never a list of named failures.
+
+**The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a generation is
+admitted once, for one generation, so a second paid call cannot ride that admission indefinitely.
+Ownership, liveness (`expiresAt`), the per-generation cap (`AI_LITE_JUDGE_MAX_PER_GENERATION`,
+attempts not successes) and the daily fleet spend ceiling are decided ATOMICALLY in one RPC under
+the same advisory locks `reserve_ai_lite_generation` takes, and the worst-case cost is BOOKED there
+before the call - `settleJudgeCost` reconciles it to the provider's number afterwards. Booking first
+is not bookkeeping neatness: adding the cost afterwards from a value read before the call loses one
+of two overlapping judgements. A missing record and someone else's answer fail identically, so the
+endpoint is not a generation-id oracle.
