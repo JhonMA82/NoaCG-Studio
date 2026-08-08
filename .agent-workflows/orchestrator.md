@@ -80,12 +80,19 @@ session. Compact - target ~20 lines:
 ```
 BRANCH claude/<name>   START now | after A   TOUCHES <files>
 GOAL   One sentence: what is true when this is done.
+WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
 DO     1. …  2. …  3. …
 TRAPS  only what is written in no repo file
 GATE   npm run build [+ suite]. Commit each verified step to the branch. Never land on main.
 ```
 
+- **WHY is not decoration, and it is not the goal restated.** GOAL says what will be true; WHY
+  says what breaks if it is not. One clause: the defect it fixes, the user it unblocks, the part
+  of the roadmap it moves. It is there so the session doing the work can TEST the assignment
+  instead of obeying it - a session that concludes the task will not reach the stated goal is
+  right to say so, and cannot without this line. A task whose why you cannot write is a task you
+  do not understand: hand it over anyway if it was pasted, and say exactly that in section 4.
 - **READ points, it never summarizes.** Name the files - the root and nested `AGENTS.md`, the
   binding doc, the source file. The child session reads them at current HEAD, which is more
   accurate than any paraphrase and costs this session nothing.
