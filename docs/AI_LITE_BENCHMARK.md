@@ -1,5 +1,12 @@
 # NoaCG Lite - model evaluation benchmark
 
+> **PARKED 2026-08-08 - superseded by `docs/AI_LITE_PLAN.md` (the deadline plan) and
+> `docs/AI_LITE_PROMOTION.md` (promotion policy).** Retained as the benchmark machinery's
+> reference and as the home of three relocated records: Appendix B (the skin and judge
+> mechanics) and Appendix C (the OpenRouter-era rounds A-D and route table), plus the §6b-§6f
+> judge measurements. Prices and route names below predate the Vercel AI Gateway move and are
+> not current recommendations.
+
 How NoaCG Lite's model-and-provider route is measured, regressed, and (eventually)
 promoted. The question: *which route produces the cheapest consistently usable, editable,
 broadcast-appropriate Lite graphic* - cost per **accepted** graphic, not per call, against

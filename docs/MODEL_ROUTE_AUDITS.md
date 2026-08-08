@@ -1,5 +1,10 @@
 # Model route audits
 
+> **PARKED 2026-08-08 as a PLAN - superseded by `docs/AI_PROVIDER_GATEWAY.md` for live route
+> and retention policy.** It is NOT superseded as a RECORD: this file is the dated evidence for
+> every `zdrAvailable` claim, and `api/_lib/aiModelCatalog.ts` and `api/_lib/admin/eligibility.ts`
+> cite it by name. Keep appending audits here; do not read the surrounding narrative as strategy.
+
 > **TRANSPORT CHANGED 2026-08-07.** Every audit in the *OpenRouter* sections below was
 > performed against per-endpoint listings that answered "which endpoint of this model is
 > ZDR-servable". Vercel AI Gateway answers that differently and later: it filters a

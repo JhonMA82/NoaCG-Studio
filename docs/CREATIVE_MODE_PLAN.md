@@ -1,5 +1,13 @@
 # Creative Mode - a custom creation path for affordable open models
 
+> **PARKED 2026-08-08 - superseded by `src/ai/AGENTS.md` and `docs/ADAPT_FIRST_PLAN.md`.**
+> Five paid rounds concluded that cheap models cannot reliably invent an airable broadcast
+> graphic from a blank stylesheet, and the product pivoted to adapt-first. The `creative/` code
+> still exists and is BENCH-ONLY - no product path reaches it. The live routing contract this
+> plan's §2 and §6 used to own now lives in `src/ai/AGENTS.md`; the pilot's implementation
+> contract is Appendix A below; the verdicts and their retry conditions are
+> `docs/AI_ATTEMPTS.md`. Nothing here is current strategy.
+
 Status: PLAN, revision 2 (no implementation on this branch). Companion to
 `docs/AI_PLATFORM_PLAN.md` (the task-registry architecture this slots into) and
 `docs/AI_LITE_BENCHMARK.md` (the evidence base). Read `src/ai/AGENTS.md` first - the harness

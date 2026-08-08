@@ -465,8 +465,8 @@ screen above).
 
 **EXPERIMENT - BENCH ONLY. Nothing in the product reaches it**: no UI, no route from `claudeProvider` into
 it, and its only caller is `scripts/creative-pilot-bench.mjs`. Its strategy was superseded by adapt-first.
-The staged pipeline's parts, the four ablation arms and every measured ruling live in the parked
-`docs/CREATIVE_MODE_PLAN.md` Appendix A; the verdicts are in `docs/AI_ATTEMPTS.md`.
+The staged pipeline's parts, the four ablation arms and every measured ruling live in
+`docs/CREATIVE_MODE_PLAN.md` (parked) Appendix A; the verdicts are in `docs/AI_ATTEMPTS.md`.
 
 Two rules reach outside the pilot and bind here:
 

@@ -1,7 +1,8 @@
 # AI task registry and approved-route model catalog
 
-Stage 1 of `docs/AI_PLATFORM_PLAN.md` (§4, §7, §12). Two server-only modules; the browser
-never sees either.
+Two server-only modules; the browser never sees either. Together they are the gate every
+NoaCG-funded model call passes: a task declares what it needs, and a route serves it only if
+the approved-route catalog carries it. The transport itself is `docs/AI_PROVIDER_GATEWAY.md`.
 
 ## The task registry (`api/_lib/aiTaskRegistry.ts`)
 
