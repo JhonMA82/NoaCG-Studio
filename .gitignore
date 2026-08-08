@@ -40,6 +40,10 @@ creative-gallery/
 lite-bench-out*/
 pro-bench-out*/
 lite-eval-out*/
+# The Pro feasibility round's two extra rigs (benchmarks/pro/round-2026-08-08): Lite driven over
+# the Pro brief bank, and the state-machine generation probe with its emitted code.
+lite-on-pro-out*/
+pro-machine-out*/
 
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.

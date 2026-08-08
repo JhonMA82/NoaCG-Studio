@@ -142,7 +142,15 @@ export async function compileProConcept(
         content: proInterpretContent(brief, { base64: sent.base64, mediaType: sent.mediaType }),
       }],
       tool: PRO_INTERPRET_TOOL,
-      maxTokens: 4000,
+      // REASONING TOKENS COUNT AGAINST THIS BUDGET, and they dominate it. Measured
+      // 2026-08-08 on the pinned interpretation route: the model spends 2400-3900 output
+      // tokens thinking before it writes a character of JSON, so a 4000 cap left roughly a
+      // hundred tokens for a document that needs ~2200 - and a busier concept truncated
+      // mid-object with finish_reason 'length'. That failure cost 5 of 12 briefs in a paid
+      // round, each one throwing away a concept image that had already been paid for.
+      // The cap is not a price control (only tokens actually produced are billed); it is
+      // the ceiling a runaway answer hits, so it sits well clear of the observed maximum.
+      maxTokens: 12000,
       ...(options.interpretRoute ? { route: options.interpretRoute } : {}),
       surface: 'pro',
     });

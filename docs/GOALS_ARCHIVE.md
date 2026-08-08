@@ -203,6 +203,33 @@ with its lower-third siblings (§8), swept per category, and covered by an E2E s
       gemini-2.5-flash over the bank, 4/5 after normalizer fixes, real fixtures committed
       (free regression replays), routes pinned as PRO_STANDARD_ROUTES
 - [ ] **Managed funded tier** — task-registry profile, quotas, credit weighting, an Auto route
+- [x] **"Pro: find out whether it works at all" — ANSWERED 2026-08-08, and the answer is the
+      acceptable one the goal invited: not at broadcast quality, on this approach.**
+      (`benchmarks/pro/round-2026-08-08/ROUND.md` + `MACHINE.md`; ~$2.05 spent of a €10 ceiling.)
+      Twelve briefs through the pinned standard routes, measured against Lite on the same twelve.
+      - The image model DESIGNS well: 11 of 12 concepts are credible broadcast lower thirds.
+      - The deterministic reconstruction ships a **visibly broken graphic on 5 of 12 while every
+        gate reports 11 of 12 passing** — it fails in PAINT (baked concept text surviving under
+        rebuilt panels) and the runtime bench measures rectangles.
+      - **The relationship is INVERSE**: the best concept in the bank (`sports-live`) produced the
+        worst graphic, because a distinctive design is angled and layered, which is exactly what a
+        rectangle-rebuilding compiler cannot reproduce or erase behind. A better image model makes
+        this worse, not better — which is what makes it an approach verdict rather than a tuning
+        one.
+      - **Lite was usable on 12 of 12** of the same briefs, at ~1/250th the cost ($0.0003 against
+        $0.077) and ~1/6th the wall clock. Lite's weakness is sameness (9 of 12 on one chassis) —
+        a ceiling on something that works; Pro's is correctness reported as success.
+      - Harness bug found and fixed on the way: `maxTokens: 4000` against a route spending ~96% of
+        its output budget on REASONING tokens truncated the interpretation and destroyed 5 paid
+        concepts (7/12 → 11/12 after raising it to 12,000).
+      - Q2: Pro cannot generate custom fields or a state machine BY CONSTRUCTION (`ProBrief` is
+        `{brief, name, title, includeLogo}`). The free-form coder mints its own fields well, but a
+        machine cannot survive `importAnimData`, which returns `{version, root, speed, steps}`.
+        **No generation path in the repo asks any model for a state machine.**
+      - Decision: **park the reconstruction, keep the concept stage** (as a `layout` reference into
+        the grounded adapt path, and as input to human-built catalog chassis). The state-machine
+        seam is the round's most valuable finding and belongs to every tier — both carried forward
+        as open goals in `GOALS.md`.
 
 ## The pipeline (road ahead — user-defined eras, analyzed 2026-07-05)
 

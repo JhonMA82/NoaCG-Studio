@@ -96,6 +96,15 @@ function parseStructured(text: string): unknown {
   try {
     return object(JSON.parse(text));
   } catch (error) {
+    // OPT-IN, local only. A structured miss is normally indistinguishable from a bad model:
+    // the caller sees one sentence and the body is gone. Seeing where the JSON stopped is what
+    // separates "the model wrote nonsense" from "the answer was cut off mid-object", and the
+    // second was the whole cause of the 2026-08-08 Pro round's five lost concepts. The head and
+    // tail are enough to tell them apart and short enough not to spill a whole answer into a
+    // log; nothing is emitted unless someone asks for it.
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[structured-miss] len=${text.length} head=${JSON.stringify(text.slice(0, 160))} tail=${JSON.stringify(text.slice(-160))}`);
+    }
     if (error instanceof GatewayError) throw error;
     // Retryable: sampled models produce this stochastically, and providers can error
     // mid-stream (first observed on OpenRouter as finish_reason "error" with a truncated body) -
@@ -538,6 +547,13 @@ export const vercelGatewayAdapter: ProviderAdapter = {
       throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
     }
     const usage = object(data.usage ?? {});
+    // The other half of the same opt-in switch. `finish_reason` and the reasoning-token count
+    // inside `usage` are what identify a truncation, and neither survives into the normalized
+    // result the caller sees - a maxTokens sized before reasoning tokens existed is otherwise
+    // invisible from the outside.
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[gateway] finish=${String(choice.finish_reason)} textLen=${text.length} toolArgsLen=${toolArguments.length} usage=${JSON.stringify(usage)}`);
+    }
     const promptDetails = usage.prompt_tokens_details && typeof usage.prompt_tokens_details === 'object'
       ? object(usage.prompt_tokens_details)
       : {};
