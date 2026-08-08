@@ -106,24 +106,29 @@ these are the commitments.
 
 | Tier | Who pays | What it is | State |
 |---|---|---|---|
-| **NoaCG Lite** | us, free to the user | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built, **not yet good or cheap enough** |
+| **NoaCG Lite** | us, free to the user | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
 | **NoaCG Pro** | user, a little | Image-generation models produce a great-looking frame; further steps rebuild it as real HTML with live fields. | direction only, unproven |
 | **NoaCG Extreme** | subscription | The newest OpenAI and Anthropic frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
 
-- [ ] **Lite: 100 generations for 1 EUR** (~€0.01 each), and genuinely usable. Cheap models cannot
-      design a broadcast graphic unaided - a measured finding, not a guess - so Lite never asks
-      them to. The catalog is the crutch AND the moat: adapt-first (`docs/ADAPT_FIRST_PLAN.md`) is
-      that mechanism and is already built. What is open is quality and price at once. **This is
-      the gate for every other AI goal** - one good graphic must be reliable before anything
-      multiplies it.
+- [ ] **Lite: make it good. The price is already solved.** The target was 100 generations per
+      euro (~€0.01 each); the 2026-08-08 round measures **$0.00032 per generation** - thirty times
+      under that ceiling, and unmoved by the transport change
+      (`benchmarks/lite/ROUND-2026-08-08-GATEWAY.md`). Route choice is a QUALITY decision, not a
+      budget one. What is actually open is the half that was never about money: 27 of 30 briefs
+      came back machine-usable, and machine-valid is not the same as good. Cheap models cannot
+      design a broadcast graphic unaided - a measured finding - so Lite never asks them to; the
+      catalog is the crutch AND the moat, through adapt-first (`docs/ADAPT_FIRST_PLAN.md`).
+      **This is the gate for every other AI goal** - one good graphic must be reliable before
+      anything multiplies it.
 - [ ] **Pro: find out whether it works at all.** Bounded experiments before any commitment -
       image-model concept → deterministic reconstruction, measured against Lite output on the same
       briefs. It may not be reachable at broadcast quality; that is an acceptable answer.
       `docs/NOACG_PRO_PLAN.md`.
 - [ ] **Extreme: frontier models + the subscription that funds them.** After there are users.
-      Standing cost rule until there is income: a NoaCG-funded route must be a cheap,
-      OpenRouter-reachable model; OpenAI and Anthropic are reachable only through the user's own
-      sealed key.
+      Standing rule until there is income: a NoaCG-funded route must be a CHEAP model on the
+      managed transport - Vercel AI Gateway since 2026-08-07, not OpenRouter. The constraint is
+      cost, not brand: a frontier model served through the gateway is an ordinary fundable route
+      once it is affordable; only the DIRECT OpenAI and Anthropic APIs need the user's own key.
 - [ ] **Bring your own key, always, for every tier.** The paid surface buys convenience, never
       capability.
 - [ ] **A school account earns more AI.** A verified address on a configured school domain
