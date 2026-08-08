@@ -1,5 +1,6 @@
 import { test, expect, type Request } from '@playwright/test';
-import { SUPABASE_URL } from './_helpers';
+import { dismissWizard, SUPABASE_URL } from './_helpers';
+import { enableAdvancedMode } from '../_create';
 
 // The beta feedback flow, with a backend configured and NO account - which is the case that
 // matters most, because the editor has no login wall and most people who would tell us something
@@ -34,9 +35,14 @@ test.describe('beta feedback (configured, anonymous)', () => {
       });
     });
 
+    // The Feedback button lives in the EDITOR shell (AppShell), which the student release put
+    // behind Advanced mode - so a default /app boots the wizard shell and the button is not
+    // there at all. This spec's subject is the endpoint and what the browser sends, so it opens
+    // the editor to reach the door. THE GAP IT LEAVES IS REAL AND NOT THIS SPEC'S TO FIX: a
+    // student who never opens Advanced mode has no way to send feedback at all.
+    await enableAdvancedMode(page);
     await page.goto('/app');
-    await expect(page.locator('.wz-modal')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await dismissWizard(page);
 
     await page.getByTestId('beta-feedback-open').click();
     await expect(page.getByTestId('beta-feedback-dialog')).toBeVisible();
@@ -77,9 +83,14 @@ test.describe('beta feedback (configured, anonymous)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"recorded":true}' });
     });
 
+    // The Feedback button lives in the EDITOR shell (AppShell), which the student release put
+    // behind Advanced mode - so a default /app boots the wizard shell and the button is not
+    // there at all. This spec's subject is the endpoint and what the browser sends, so it opens
+    // the editor to reach the door. THE GAP IT LEAVES IS REAL AND NOT THIS SPEC'S TO FIX: a
+    // student who never opens Advanced mode has no way to send feedback at all.
+    await enableAdvancedMode(page);
     await page.goto('/app');
-    await expect(page.locator('.wz-modal')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await dismissWizard(page);
     await page.getByTestId('beta-feedback-open').click();
     await page.getByTestId('feedback-positive').click();
 
@@ -98,9 +109,14 @@ test.describe('beta feedback (configured, anonymous)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"recorded":true}' });
     });
 
+    // The Feedback button lives in the EDITOR shell (AppShell), which the student release put
+    // behind Advanced mode - so a default /app boots the wizard shell and the button is not
+    // there at all. This spec's subject is the endpoint and what the browser sends, so it opens
+    // the editor to reach the door. THE GAP IT LEAVES IS REAL AND NOT THIS SPEC'S TO FIX: a
+    // student who never opens Advanced mode has no way to send feedback at all.
+    await enableAdvancedMode(page);
     await page.goto('/app');
-    await expect(page.locator('.wz-modal')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await dismissWizard(page);
     await page.getByTestId('beta-feedback-open').click();
     await expect(page.getByTestId('beta-feedback-dialog')).toBeVisible();
 

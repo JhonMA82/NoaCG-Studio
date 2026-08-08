@@ -114,11 +114,24 @@ label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 
 @media (max-width: 1520px) {
   .topbar { gap: 8px; }
 }
-@media (max-width: 1300px) {
+/* 1400, not 1300: signed in, the bar carries three more controls than it did when this ladder
+   was written (sync, community, the avatar) and the beta Feedback button after them, and a
+   1366-wide laptop - the commonest there is - overflowed by 24px, hanging the ACCOUNT AVATAR
+   off the right edge. The resolution line is the least essential thing in the bar, so it is
+   what goes first. Measured, not guessed (e2e/configured/signed-in-ux.spec.ts). */
+@media (max-width: 1400px) {
   .topbar { gap: 6px; }
   .topbar .topbar-meta { display: none; }
   .topbar button { padding: 6px 9px; }
   .topbar button.brand-home { padding: 3px 4px; }
+}
+/* The last step before the mobile layout takes over: at 1100 the bar was still 18px over with
+   the save word already gone, so the spacing tightens rather than a control disappearing. It
+   starts at 1240 rather than at the width that was failing - 1200 cleared by three pixels, which
+   is not clearance, it is the next control's problem. */
+@media (max-width: 1240px) {
+  .topbar { gap: 4px; }
+  .topbar button { padding: 6px 7px; }
 }
 
 /* ---------- Brand mark + lockup (Brand Manual §2) ---------- */

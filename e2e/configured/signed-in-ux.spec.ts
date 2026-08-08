@@ -90,9 +90,12 @@ test.describe('signed-in UX walk (configured)', () => {
     await expect(mine).not.toContainText('approved');
     await shot(page, 'home-my-community-templates');
 
-    // Copying the share link is a clipboard write — invisible unless the button says so.
-    await mine.getByTitle('Copy a share link').click();
-    await expect(mine.getByRole('button', { name: /Copied/ })).toBeVisible();
+    // Copying the share link is a clipboard write — invisible unless the button says so. Read
+    // the button's TEXT, not its accessible name: the name comes from an aria-label naming the
+    // graphic, which deliberately does not change when the label flips to "✓ Copied".
+    const copy = mine.getByTitle('Copy a share link');
+    await copy.click();
+    await expect(copy).toContainText('Copied');
 
     // The gallery opens from the EDITOR topbar; Home has its own chrome.
     await page.getByTestId('home-continue-editing').click();
@@ -144,7 +147,10 @@ test.describe('signed-in UX walk (configured)', () => {
     // The cloud-playout wave renamed rundowns to productions in user-facing strings — the
     // surface must speak "production", never "show" or "rundown".
     await expect(publish).toContainText(/production/i);
-    await expect(page.locator('.control-page-main')).not.toContainText(/\brundown export\b/i);
+    // Read the production page itself. `.control-page-main` was the hosted operator page's old
+    // shell class; that surface renders the playout dashboard now, and a locator matching
+    // nothing makes a "does not contain" assertion pass for the wrong reason.
+    await expect(page.getByTestId('production-page')).not.toContainText(/\brundown export\b/i);
     await shot(page, 'production-page-publish');
   });
 });

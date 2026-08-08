@@ -11,6 +11,24 @@ export const haveCreds = Boolean(E2E_EMAIL && E2E_PASSWORD);
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 
+/**
+ * Close the creation wizard and WAIT until it is gone.
+ *
+ * Every live spec that wants the topbar underneath used to press Escape and carry on. Two ways
+ * that goes wrong, and both were seen in the 2026-08-08 runs: pressed at the moment of
+ * navigation it lands before the modal mounts, and even pressed after `toBeVisible` it
+ * occasionally does not take - either way the full-screen backdrop is still there, swallowing
+ * the click that follows, and the failure reads as "Sign in is broken" or "the Feedback button
+ * is unclickable". Its own ✕ is deterministic, and asserting the modal is HIDDEN is what makes
+ * the next click safe.
+ */
+export async function dismissWizard(page: Page): Promise<void> {
+  const modal = page.locator('.wz-modal');
+  await expect(modal).toBeVisible();
+  await page.locator('.wz-modal .gallery-close').click();
+  await expect(modal).toBeHidden();
+}
+
 /** Sign in with email + password via the topbar dialog (Era 5.6 — the editor is open, no wall;
  *  fresh Playwright contexts have no persisted session). Leaves the wizard OPEN afterwards, the
  *  same state a fresh load presents, so createGraphic can run directly. */
@@ -20,8 +38,7 @@ export async function signIn(page: Page): Promise<void> {
   await enableAdvancedMode(page);
   await page.goto('/app');
   // The startup wizard covers the topbar — close it to reach the Sign in button.
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await dismissWizard(page);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   const email = page.locator('#auth-email');
   await email.waitFor({ state: 'visible', timeout: 15_000 });

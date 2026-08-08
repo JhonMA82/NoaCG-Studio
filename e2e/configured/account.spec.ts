@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createGraphic, E2E_PASSWORD, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import {
+  createGraphic,
+  dismissWizard,
+  E2E_PASSWORD,
+  haveCreds,
+  settleSync,
+  signIn,
+  wipeMyGraphics,
+} from './_helpers';
 
 // Account essentials (docs/GOALS.md "Student release" step 9), against the real backend:
 // the Settings Account section (email + password change + sign out), the forgot-password
@@ -54,12 +62,16 @@ test.describe('account essentials', () => {
 
   test('the sign-in dialog offers the forgot-password path', async ({ page }) => {
     await page.goto('/app');
-    // WAIT for the wizard before dismissing it, the way _helpers.ts does. Escape fired at the
-    // moment the page loads lands before the modal mounts, so it stays open and its backdrop
-    // swallows every click on the topbar underneath - which reads as "Sign in is broken".
-    await expect(page.locator('.wz-modal')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await dismissWizard(page);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    // INTERCEPT THE RESET CALL. This used to fire a real reset email at the test account on every
+    // run, and Supabase's built-in SMTP allows a couple an hour - so the more the suite was run,
+    // the more reliably it failed, with the dialog honestly reporting "email rate limit exceeded"
+    // and the spec reading it as a missing confirmation. What belongs to this product is the
+    // email-only form and what it says afterwards; whether Supabase agrees to send is theirs.
+    await page.route('**/auth/v1/recover*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    );
     await page.getByTestId('forgot-password').click();
     // Email-only form; sending reports the next step (Supabase answers success either way —
     // no user enumeration — so this fires a real, harmless reset email at the test account).

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { createGraphic, SUPABASE_URL } from './_helpers';
+import { dismissWizard, SUPABASE_URL } from './_helpers';
+import { enableAdvancedMode } from '../_create';
 
 // Era 5.6 — the open editor. With a backend CONFIGURED, an anonymous visitor can still do the whole
 // core workflow (create → preview → export) with no account; only the account features (cloud sync,
@@ -10,24 +11,38 @@ test.describe('anonymous visitor (open editor)', () => {
   test.skip(!SUPABASE_URL, 'set VITE_SUPABASE_URL to run the configured-mode suite');
 
   test('creates a graphic and reaches export with no account', async ({ page }) => {
+    // THE STUDENT'S OWN ROUTE, which is what this test is for: wizard → Finish → export, with
+    // the editor never opening. It used to walk out through the Finish step's EDITOR door, which
+    // the student release put behind Advanced mode (GOALS step 4) - so signed out, with no
+    // Advanced mode to enable it, the door this waited for cannot exist. Exporting is not a
+    // reward for opening the editor, and neither is proving that it works without an account.
     await page.goto('/app');
     // No wall: the creation wizard opens straight away and no sign-in dialog is up.
     await expect(page.locator('.wz-modal')).toBeVisible();
     await expect(page.locator('.auth-card')).toHaveCount(0);
 
-    await createGraphic(page, 'Lower thirds', 'Hairline');
-    await expect(page.locator('.topbar .tpl-name')).toHaveText('Hairline');
+    await page.locator('[data-entry="template"]').click();
+    await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
+    await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+    await page.getByTestId('wz-skip-to-finish').click();
+    await expect(page.locator('.wz-finish-summary')).toContainText('Hairline');
+    // Signed out, the editor door is absent and the export door is not.
+    await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
+    await page.getByTestId('wz-finish-export').click();
 
-    // The Export tab works signed out (validation + download are core, not account features).
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
-    await expect(page.locator('.panel-body')).toContainText(/SPX/);
+    // Export works signed out: validation and the targets are core, not account features.
+    await expect(page.getByTestId('export-window')).toBeVisible();
+    await expect(page.getByTestId('export-window')).toContainText(/SPX/);
     await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
+    // An EDITOR subject (the AI panel, the Community button), so it needs the editor - which is
+    // Advanced mode now. Signing in is what turns that on for the other specs here; signed out,
+    // this has to ask for it itself.
+    await enableAdvancedMode(page);
     await page.goto('/app');
-    await expect(page.locator('.wz-modal')).toBeVisible();
-    await page.keyboard.press('Escape'); // close the wizard to reach the topbar + panels
+    await dismissWizard(page); // reach the topbar + panels underneath
 
     // Topbar offers Sign in (and no signed-in account status).
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
