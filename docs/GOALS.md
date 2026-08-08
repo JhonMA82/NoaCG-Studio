@@ -133,6 +133,12 @@ from ~80 places in the tree, so it never changes.*
       and the one mechanism that matches it is that unpublishing mints a new slug
       (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2). **Migration 0034 was NOT the third one** - it
       has been applied all along and the parking-lot line saying otherwise was stale (see below).
+      **And the live suite is now load-bearing.** Run against the real project 2026-08-08: 7 of 18
+      passed. The two OUTPUT specs - the cloud door's only automated proof - were red on stale
+      gestures and are repaired and green; the rest is spec rot from the student release, six of
+      them specs written for an editor-first app that boots into the wizard now (`e2e/configured/`
+      anonymous, feedback, parts of signed-in-ux). It only ever runs by hand, so nothing reported
+      any of it. Before the class it needs a green run and a habit of running it.
 
 ---
 
