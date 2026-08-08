@@ -329,7 +329,7 @@ This is where output quality changes. Four concerns, mapped onto existing struct
 | Critique / review | **defer** | - |
 
 **Critique is deliberately deferred.** `src/ai/CLAUDE.md` already gates "a selective vision
-taste critic" on benchmark proof, and `docs/GOALS.md` Era 5 records a measured finding that the
+taste critic" on benchmark proof, and `docs/GOALS_ARCHIVE.md` Era 5 records a measured finding that the
 pipeline does not beat a competent iterator on single-graphic quality. Adding a critique stage
 costs a model call per generation and is the least likely of the four to pay for itself. Revisit
 only after the reference work has a measured result.
@@ -1482,7 +1482,7 @@ one pass to differentiate from itself (§4).
 
 1. **The seven motion additions** to `MOTION_PRINCIPLES` - smallest, safest, independently
    valuable, and one append-only edit to a single file, so it merges trivially against other
-   in-flight branches. Note the standing rule from `docs/GOALS.md` Era 3: re-run the bank after
+   in-flight branches. Note the standing rule from `docs/GOALS_ARCHIVE.md` Era 3: re-run the bank after
    any system-prompt change. Cheap to write, but not trustworthy until a bench pass.
 2. **The PoC in §8** - schema fields, ~12 cards per §13.1, contrast selection behind a flag.
    The selector is verifiable free with `scripts/reference-select-check.mjs`; `video-bench.mjs

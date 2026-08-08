@@ -2,7 +2,8 @@
 
 The operational playbook for the adoption push. It executes the GTM plan (the published
 "Go-to-Market Plan" artifact, sections 06-08) with **as much automation as possible** and a fixed
-human budget of **~5 h/week**. Companion docs: `docs/GOALS.md` (Era 7),
+human budget of **~5 h/week**. Companion docs: `docs/GOALS_ARCHIVE.md` (Era 7; the open half is
+the nightly-library line in `docs/GOALS.md`'s parking lot),
 `docs/NIGHTLY_AUTOMATION_PLAN.md` (the library flywheel - reused here, not re-planned).
 
 > Status: **ACTIVE PLAN, largely not started.** Decisions below are locked (founder,

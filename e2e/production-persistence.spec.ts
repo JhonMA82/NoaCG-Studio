@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { settleDurableWrites } from './_durable';
 
 // PRODUCTION DEPENDABILITY (docs/GOALS.md "Student release" step 6): a production must
 // survive everything a class throws at it - closing and reopening, a browser refresh
@@ -10,7 +11,7 @@ import { test, expect, type Page } from '@playwright/test';
 /** Seed a production with one pooled catalog graphic + its auto-seeded cue, off the UI. */
 async function seedProduction(page: Page, name = 'Class Show'): Promise<string> {
   await page.goto('/app');
-  return page.evaluate(async (showName) => {
+  const id = await page.evaluate(async (showName) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
     const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
@@ -21,6 +22,10 @@ async function seedProduction(page: Page, name = 'Class Show'): Promise<string> 
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
     return show.id;
   }, name);
+  // Every caller navigates the moment this returns, and a navigation aborts a write that has
+  // not committed yet (e2e/_durable.ts) - the production would open missing its own graphic.
+  await settleDurableWrites(page);
+  return id;
 }
 
 /** The rundown's rows (the cue list's entries - selection, reorder, duplicate live here). */
@@ -178,15 +183,14 @@ test('the audience and presenter links are offered separately, and only once the
 
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowAudienceSlugs(showId, { joinSlug: 'friday-night-live', presenterSlug: 'pv-test-slug' });
-    // Wait for the database, not just the mirror. The reload below restores what is ON DISK,
-    // and a `goto` fired the instant this returns tears the document down mid-transaction -
-    // which is exactly how this test first failed, showing NOT PUBLISHED against slugs the
-    // app had already accepted.
-    await commitDurableWrites();
   }, id);
+  // Wait for the database, not just the mirror. The reload below restores what is ON DISK, and
+  // a navigation fired the instant the write returns tears the document down mid-transaction -
+  // which is exactly how this test first failed, showing NOT PUBLISHED against slugs the app
+  // had already accepted.
+  await settleDurableWrites(page);
   // RELOAD, not goto: the page is already on this exact URL, and a same-URL goto does not
   // re-render, so the surface would still be showing the unpublished record it read on arrival.
   await page.reload();
@@ -219,11 +223,10 @@ test('the readable audience name: the database decides, and this build says so h
   await page.goto(`/app#/production/${id}`);
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowAudienceSlugs(showId, { joinSlug: 'aB3xK9zQ', presenterSlug: 'pv-test-slug' });
-    await commitDurableWrites();
   }, id);
+  await settleDurableWrites(page);
   await page.reload();
   await page.getByTestId('production-links-toggle').click();
 

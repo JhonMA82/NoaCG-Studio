@@ -70,6 +70,63 @@ jobs:
       - name: Build (typecheck + lint + bundle)
         run: npm run build
 
+  # Did Vercel even accept this commit? On main only, and deliberately outside the gate below.
+  #
+  # Vercel validates vercel.json and the function budget BEFORE it creates a deployment, so a
+  # refusal produces no build, no deployment row and no deployment_status event - nothing but a
+  # `Vercel` commit status here on GitHub. On 2026-08-07 that froze production for eight commits
+  # while every gate stayed green, and the only thing that eventually noticed was deploy-verify's
+  # drift belt, hours later (docs/DEPLOYMENT.md). The status arrives within a minute of the push,
+  # so asking for it here turns hours into minutes at the cost of one cheap job.
+  #
+  # The two local gates (check-vercel-config, check-function-budget) are what should catch this
+  # before a push; this is the belt for the classes they cannot know about - a plan limit that
+  # changed, a project setting, anything Vercel decides on its side.
+  deployable:
+    name: Vercel accepted the commit
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: read
+    steps:
+      - name: Wait for Vercel's verdict on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          # Poll rather than assume: the status is usually up within a minute, but a queued
+          # deployment can take longer, and "no status yet" must never read as a refusal.
+          #
+          # The list endpoint, not the combined one: it is documented as reverse chronological,
+          # so element 0 is the CURRENT verdict. Vercel posts pending first and then the result,
+          # and reading the wrong one of those would either alarm early or miss the refusal.
+          for i in $(seq 1 20); do
+            # `|| true`: the step runs under `bash -e`, and a transient API failure must not be
+            # reported as Vercel refusing the commit. No answer simply means keep waiting.
+            VERDICT="$(gh api "repos/$GH_REPO/commits/$SHA/statuses" \
+              --jq '[.[] | select(.context == "Vercel")][0] | "\(.state) \(.description) \(.target_url)"' || true)"
+            STATE="${VERDICT%% *}"
+            case "$STATE" in
+              failure|error)
+                echo "::error title=Vercel refused this commit::${VERDICT#* }"
+                echo "No deployment exists for it, so the Vercel dashboard shows nothing at all."
+                echo "Reproduce locally: npm run check:vercel-config && npm run check:function-budget"
+                exit 1
+                ;;
+              success)
+                echo "Vercel accepted $SHA."
+                exit 0
+                ;;
+            esac
+            sleep 15
+          done
+          # Vercel is under no obligation to answer on our schedule, and a missing verdict is not
+          # a refusal. deploy-verify's drift belt is what catches a deployment that never happens.
+          echo "No Vercel verdict for $SHA within five minutes - leaving it to deploy-verify."
+
   # What can this change actually have broken? The answer decides both which specs run and how
   # many runners they are worth. It needs no dependencies - scripts/e2e-affected.mjs is node
   # builtins and git - so this job costs seconds, and every other E2E job waits on it.
@@ -96,19 +153,38 @@ jobs:
         id: plan
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           # Student-release sprint (docs/GOALS.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
           # Delete this line when the sprint ends (scripts/e2e-lists.mjs says what else goes).
+          # It deliberately does not apply to main - see the main branch below.
           E2E_SPRINT_FOCUS: '1'
         run: |
           set -euo pipefail
           if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
+          # MAIN RUNS EVERYTHING. Every other run tests what THIS change can affect, which is
+          # the right economics for a branch and the wrong one for the branch production ships
+          # from: a spec no change maps to is never selected, so it can break and stay green
+          # for as long as nobody escalates. That is not hypothetical - on 2026-08-07
+          # e2e/public-service.spec.ts was red on main through eight consecutive green main
+          # runs, and what finally surfaced it was an unrelated branch touching package.json
+          # and escalating to the full suite by accident.
+          #
+          # The nightly already runs everything, so this buys LATENCY, not coverage: minutes
+          # instead of up to a day, on the branch where a regression is already live. It costs
+          # about two minutes of wall clock (the eight shards run in parallel) and no money -
+          # the repo is public. The sprint's focus collapse is skipped here on purpose; focus
+          # is a device for keeping BRANCH runs cheap, and main is where the paused areas are
+          # supposed to be watched.
+          if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."
+            PLAN='{"mode":"full","specs":[],"catalog":true}'
           # An absent, all-zero (first push of a branch) or garbage-collected base means we
           # cannot know what changed. Then we do not guess: the fallback is the whole suite,
           # because the one thing a fallback must never do is run LESS than the truth.
-          if [ -z "$BASE" ] \
+          elif [ -z "$BASE" ] \
             || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
             echo "::notice title=E2E plan::No usable diff base ('${BASE}') - running the FULL suite."

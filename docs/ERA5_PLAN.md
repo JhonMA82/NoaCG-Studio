@@ -1,7 +1,7 @@
 # Era 5 - Server era (the plan)
 
 > **STATUS 2026-07-22: HISTORICAL.** The era shipped: 5.0-5.6 are built and live-verified
-> (see `docs/GOALS.md` Era 5 for what landed, including decisions that evolved after this
+> (see `docs/GOALS_ARCHIVE.md` Era 5 for what landed, including decisions that evolved after this
 > plan - e.g. 5.3 shipped on a public channel + secret topic, not the private-channel JWT
 > design below, and 5.6 became the open editor). Only **5.7 payments** remains open, deferred
 > by decision. Three postures here are still load-bearing and now live elsewhere: offline
@@ -9,8 +9,8 @@
 > gateway repo split, and "a green build never verifies a server path" (root `AGENTS.md`).
 > Read this doc for the rationale record, not for current shape.
 
-The coherent planning round GOALS.md calls for. `docs/GOALS.md` keeps the checklist, this keeps
-the *why* and the *shape* as planned.
+The coherent planning round GOALS.md called for. `docs/GOALS_ARCHIVE.md` keeps the checklist,
+this keeps the *why* and the *shape* as planned.
 
 Planning round completed **2026-07-05** (recon: 8-agent codebase map + Supabase pattern research).
 

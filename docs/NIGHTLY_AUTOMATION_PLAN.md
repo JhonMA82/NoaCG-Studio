@@ -22,7 +22,7 @@ moderator queue).
 > scheduling-harness item (docs/noacg-master-goals.md). **Jobs B/C (generation + staging + the
 > review agent) remain PLAN ONLY** — they spend real API money nightly, require migration
 > `0012`, and wait on the §10 decisions; if B lands, a nightly cadence returns with it. Read
-> `docs/ERA5_PLAN.md` and `docs/GOALS.md` first; this plan slots in as a new operability layer
+> `docs/ERA5_PLAN.md` and `docs/GOALS_ARCHIVE.md` first; this plan slots in as a new operability layer
 > on top of the shipped Era 5.5 community feature.
 
 ---

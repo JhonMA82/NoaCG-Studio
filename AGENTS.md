@@ -23,7 +23,8 @@ bundled JetBrains Mono rather than IBM Plex Mono, because shipping a face means 
 **Free forever for the core; the only paid surface is hosted AI without a BYO key; the current
 goal is users/adoption, not revenue.** Binding docs, read before generating or judging templates:
 **`docs/DESIGN_LANGUAGE.md`** (taste + motion + code style) and **`docs/GOALS.md`** (north star +
-milestones - keep it checked off as work lands).
+what is NOT done - when a goal lands, move it verbatim to `docs/GOALS_ARCHIVE.md` and delete it
+from GOALS.md, which stays under ~200 lines).
 
 **Current push (2026-08): the STUDENT RELEASE** - the binding 10-step roadmap is the "Student
 release" section of `docs/GOALS.md`. The primary workflow is WIZARD-FIRST: choose a template or
@@ -55,6 +56,10 @@ npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes;
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety # isolated Git-safety regression tests for shared workflows
 npm run check:workflows      # what only GitHub could check: .github/workflows/*.yml (in build)
+npm run check:vercel-config  # what only Vercel could check: vercel.json's routes (in build) -
+npm run check:function-budget # ...and api/'s function count. BOTH are refused BEFORE a
+                             # deployment exists, so they show nowhere on Vercel, only in the
+                             # GitHub commit status. Each froze production once (docs/DEPLOYMENT.md)
 npm run check:freshness      # what npm CANNOT see: vendored GSAP/Lottie + pinned model ids
 ```
 
@@ -329,8 +334,10 @@ editing the CI gate's dependency set can introduce.
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
   (docs/DEPLOYMENT.md): `npm run test:e2e:affected` maps changed files to covering specs
-  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
-  suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
+  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change - except
+  on **`main`, which always runs the FULL suite** (a spec no change maps to is never selected,
+  so it can sit red through green run after green run - measured, eight of them), and NIGHTLY.
+  So use `affected` before a merge - the full local run is no longer the
   gate, and the mapper escalates to everything whenever it is unsure. **During the
   student-release sprint, `npm run test:e2e:focus` is THE student-critical suite command**
   (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs the
@@ -443,6 +450,12 @@ editing the CI gate's dependency set can introduce.
   either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
+- **A spec that saves off the UI and then reloads must WAIT for the disk.** A durable write is
+  accepted synchronously and lands a moment later (durableStore.ts), so a `reload`/`goto` fired
+  the instant a mutator returns aborts what has not committed, and the next page is missing the
+  last write or two - which one varies. `settleDurableWrites` before tearing the page down;
+  `awaitDurableReady` after a reload whose read is an `evaluate` (`e2e/_durable.ts`). A UI
+  assertion needs neither: the shell cannot render before hydration resolves.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
   it focused, and Space belongs to a focused button by design (spaceKey.ts) - so the press lands on
   that button, not on the surface under test. Which one answers can even depend on a timer the spec

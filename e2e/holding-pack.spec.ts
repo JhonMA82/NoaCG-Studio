@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
+import { settleDurableWrites } from './_durable';
 import { awaitPreviewRebuild } from './_preview';
 
 // THE HOLDING / CREDITS / CEREMONY PACK.
@@ -286,6 +287,9 @@ test('a looping reel survives create, save and reopen with its motion intact', a
     if (late) throw new Error(late);
     return doc.id;
   });
+  // The save is accepted synchronously and lands a moment later; reloading first aborts it
+  // (e2e/_durable.ts). The reload below is the whole point of the test, so wait for the disk.
+  await settleDurableWrites(page);
 
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
