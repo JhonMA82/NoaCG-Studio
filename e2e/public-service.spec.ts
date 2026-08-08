@@ -1,4 +1,5 @@
 import { enableAdvancedMode } from './_create';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 
@@ -439,9 +440,16 @@ test('save, reload and reopen keeps a severity machine and a language machine in
     return out;
   })()`)) as Record<string, string>;
 
+  // Three saves accepted is not three saves LANDED (e2e/_durable.ts): each one hands IndexedDB
+  // its own transaction, and reloading before they commit drops the last one or two - which is
+  // how this test used to report a two-language panel with no machine at all.
+  await settleDurableWrites(page);
+
   // A real reload: the library is read back from storage, not from memory.
   await page.reload();
   await page.keyboard.press('Escape');
+  // Read the model directly, so the shell being on screen proves nothing about the mirror.
+  await awaitDurableReady(page);
   const r = (await page.evaluate(`(async (ids) => {
     const { loadAllGraphics } = await import('/src/model/library.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');

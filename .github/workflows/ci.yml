@@ -153,19 +153,38 @@ jobs:
         id: plan
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           # Student-release sprint (docs/GOALS.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
           # Delete this line when the sprint ends (scripts/e2e-lists.mjs says what else goes).
+          # It deliberately does not apply to main - see the main branch below.
           E2E_SPRINT_FOCUS: '1'
         run: |
           set -euo pipefail
           if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
+          # MAIN RUNS EVERYTHING. Every other run tests what THIS change can affect, which is
+          # the right economics for a branch and the wrong one for the branch production ships
+          # from: a spec no change maps to is never selected, so it can break and stay green
+          # for as long as nobody escalates. That is not hypothetical - on 2026-08-07
+          # e2e/public-service.spec.ts was red on main through eight consecutive green main
+          # runs, and what finally surfaced it was an unrelated branch touching package.json
+          # and escalating to the full suite by accident.
+          #
+          # The nightly already runs everything, so this buys LATENCY, not coverage: minutes
+          # instead of up to a day, on the branch where a regression is already live. It costs
+          # about two minutes of wall clock (the eight shards run in parallel) and no money -
+          # the repo is public. The sprint's focus collapse is skipped here on purpose; focus
+          # is a device for keeping BRANCH runs cheap, and main is where the paused areas are
+          # supposed to be watched.
+          if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."
+            PLAN='{"mode":"full","specs":[],"catalog":true}'
           # An absent, all-zero (first push of a branch) or garbage-collected base means we
           # cannot know what changed. Then we do not guess: the fallback is the whole suite,
           # because the one thing a fallback must never do is run LESS than the truth.
-          if [ -z "$BASE" ] \
+          elif [ -z "$BASE" ] \
             || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
             echo "::notice title=E2E plan::No usable diff base ('${BASE}') - running the FULL suite."

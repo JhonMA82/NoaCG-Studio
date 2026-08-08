@@ -330,8 +330,10 @@ editing the CI gate's dependency set can introduce.
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
   (docs/DEPLOYMENT.md): `npm run test:e2e:affected` maps changed files to covering specs
-  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change; the FULL
-  suite runs NIGHTLY. So use `affected` before a merge - the full local run is no longer the
+  (`scripts/e2e-affected.mjs`) and is both the inner loop AND what CI runs per change - except
+  on **`main`, which always runs the FULL suite** (a spec no change maps to is never selected,
+  so it can sit red through green run after green run - measured, eight of them), and NIGHTLY.
+  So use `affected` before a merge - the full local run is no longer the
   gate, and the mapper escalates to everything whenever it is unsure. **During the
   student-release sprint, `npm run test:e2e:focus` is THE student-critical suite command**
   (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs the
@@ -444,6 +446,12 @@ editing the CI gate's dependency set can introduce.
   either number; a spec that hard-codes one is wrong at the other. Use
   `awaitPreviewRebuild` (`e2e/_preview.ts`) before clicking Play or asserting inside the iframe,
   wrapping the action when anything slow sits between action and wait.
+- **A spec that saves off the UI and then reloads must WAIT for the disk.** A durable write is
+  accepted synchronously and lands a moment later (durableStore.ts), so a `reload`/`goto` fired
+  the instant a mutator returns aborts what has not committed, and the next page is missing the
+  last write or two - which one varies. `settleDurableWrites` before tearing the page down;
+  `awaitDurableReady` after a reload whose read is an `evaluate` (`e2e/_durable.ts`). A UI
+  assertion needs neither: the shell cannot render before hydration resolves.
 - **A spec that presses Space (or Enter) must first say where FOCUS is.** Clicking a control leaves
   it focused, and Space belongs to a focused button by design (spaceKey.ts) - so the press lands on
   that button, not on the surface under test. Which one answers can even depend on a timer the spec

@@ -16,6 +16,17 @@ that path. Binding: keep it updated when the pipeline changes.
    spec files (max four) for a subset. It also raises the **catalog calibration gate** for
    changes that can move catalog output or the bench.
 
+   **`main` is the exception: a push there runs the FULL suite, whatever the diff says** (and
+   the sprint's focus collapse does not apply - focus keeps BRANCH runs cheap, and `main` is
+   where the paused areas still need watching). Scoping answers "what can this change have
+   broken", which is the right question for a branch and the wrong one for the branch
+   production ships from: a spec that no change maps to is never selected, so it can break and
+   stay green indefinitely. On 2026-08-07 `e2e/public-service.spec.ts` was red on `main`
+   through eight consecutive green `main` runs, and what surfaced it was an unrelated branch
+   escalating to the full suite by accident. This buys **latency, not coverage** - the nightly
+   already ran everything - and costs about two minutes of wall clock, because the eight
+   shards run in parallel and the catalog gate (3 min) finishes inside them.
+
    **Scoping is only safe because the mapper fails toward running more:** an unmapped file, a
    shared-core file (`src/store`, `src/model`, `src/preview`, `src/validation`, the shell), or
    a diff base that cannot be resolved all escalate to the full suite. When the plan skips the
