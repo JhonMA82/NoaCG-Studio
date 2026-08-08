@@ -357,6 +357,10 @@ export default function CreationWizard() {
     setAiThread(null);
     setStretchDemo(null);
     setKitError(null);
+    // Back to what a fresh open sets. The toggle WRITES the brand into the draft, so leaving
+    // it checked over a draft that was just cleared would show a look the graphic no longer
+    // carries — the checkbox and the preview disagreeing about the same fact.
+    setMatchBrand(false);
   };
 
   // Creating an SPX graphic (any path) lands in the SPX shell; creating/opening a video
