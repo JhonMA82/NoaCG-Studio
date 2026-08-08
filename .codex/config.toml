@@ -1,3 +1,21 @@
 # The root and nested AGENTS.md contracts intentionally carry detailed binding rules.
 # Keep the full root-to-area instruction chain available in trusted Codex sessions.
-project_doc_max_bytes = 131072
+#
+# This number is a RATCHET: it only ever goes DOWN. Every session loads one of these chains
+# before doing anything, so the cost is paid more often than for any other file in the tree, and
+# the limit is the only thing that stops a chain growing back once it has been trimmed.
+# scripts/check-shared-instructions.mjs measures every root-to-area chain against it and fails
+# the build when one is over.
+#
+# Measured 2026-08-08, after the root contract was cut from 500 to 331 lines: the largest chain
+# is the one ending at src/components/AGENTS.md, and the check itself reports it as 113,719 bytes
+# (its own count is the authoritative one - measuring the files by hand gives a slightly smaller
+# number, because line endings differ). Roughly 1.8 KB of growth to that area contract is in
+# flight on a kit branch. Set to 120,000, which leaves about 4 KB of headroom once that lands.
+# Before the root cut the same chain stood at about 124 KB, within 7 KB of failing the build, and
+# nothing reported how close it was.
+#
+# To lower it again: run the check, read the largest chain off its own output, allow a little
+# headroom, and only ever reduce.
+# Raising it hides the problem it exists to surface - shorten a contract instead.
+project_doc_max_bytes = 120000
