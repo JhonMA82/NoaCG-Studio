@@ -61,3 +61,43 @@ GOOD Lite is needs a second arm and human review (`docs/AI_LITE_PROMOTION.md`).
 
 Media: 108 lifecycle frames + 27 clips under `lite-eval-out/` (gitignored), `review.html`
 alongside them.
+
+## Follow-up 2026-08-08: the three failures, diagnosed
+
+Investigated after the round. The headline: **only one of the three was what it looked like.**
+
+**`multilingual` was not a Cyrillic bug.** Replayed three times against a faithful copy of the
+rig's request (the rig sends only prompt/resolution/fps - no generationSpec): 3 of 3 succeeded
+with the Ukrainian copy intact. The schema carries no ASCII-assuming constraint; the only
+`pattern` in it is the hex-colour one. It was a stochastic miss on the primary.
+
+**What made a stochastic miss fatal was the FALLBACK.** Lite runs `retryLimit: 0`, so a
+retryable `malformed_response` does not re-roll the primary - it hands straight to the second
+route. Pointed at the same briefs as a primary, `openai/gpt-oss-20b` produced the Lite
+contract **2 times in 4**, failing `multilingual` with the identical error. It was chosen the
+night before on price and catalog-approval alone, and never measured against the contract it
+exists to satisfy.
+
+**`alibaba/qwen3.7-flash` was tried as a replacement and REJECTED.** Cheapest text route on
+the gateway (0.03/0.13) with a 991k context - and it cannot serve Lite at all: its endpoint
+downgrades `response_format: json_schema` to `json_object` and then refuses
+("'messages' must contain the word 'json'"). 0 of 6. Price and context are not capability.
+
+**A second, self-inflicted fault surfaced while testing it.** The first six attempts failed
+before reaching any model, because `AI_LITE_GATEWAY_PROVIDERS=google,vertex,bedrock` - set the
+night before, and in production - names nobody who serves an Alibaba model. The gateway answers
+`No available providers match the 'only' filter`, which the error mapping reported as the
+generic "the AI provider rejected the request". That reads as the model refusing when nothing
+was ever asked, and it sent this investigation down the wrong path once. It now has its own
+code, `route_not_permitted`.
+
+**The fix.** The second attempt goes to the primary again rather than to a weaker model. Two
+rolls of a model that produced the contract 27 times in 30 beat one roll each of that and a
+coin flip; the trade is provider-outage resilience, which has not been observed here, against
+the schema miss, which has. Verified after the change: `multilingual` passes, and
+`call-to-action` - the round's other `generation_failed` - now passes **on attempt 2**, which
+is the retry doing exactly the job the old fallback could not.
+
+`team-identity` still fails, and is a different class: server semantic validation refusing a
+spec whose roles do not satisfy the brief. Fail-closed working, not a transport or schema
+fault. Left open.

@@ -720,9 +720,26 @@ function retentionUnsatisfiable(body: string): boolean {
   return /no_providers_available/i.test(body);
 }
 
+/** The provider ALLOWLIST excluded every provider that serves the model. A configuration
+ *  fault, not a provider one: the route is fine and the operator's `only` list is wrong (or
+ *  the model moved providers). It reported as a generic `provider_rejected` once and cost a
+ *  real investigation - "the AI provider rejected the request" reads as the model refusing,
+ *  when nothing was ever asked. */
+function allowlistExcludesModel(body: string): boolean {
+  return /No available providers match the '?only'? filter/i.test(body);
+}
+
 function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
   if (status === 429) return new GatewayError('rate_limited', 'The AI provider is busy. Try again shortly.', 429, true);
+  if (status === 400 && allowlistExcludesModel(body)) {
+    return new GatewayError(
+      'route_not_permitted',
+      'The configured provider allowlist does not include any provider that serves this model.',
+      502,
+      false,
+    );
+  }
   if (status === 400 && retentionUnsatisfiable(body)) {
     return new GatewayError(
       'retention_unsatisfiable',

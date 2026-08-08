@@ -143,6 +143,10 @@ export type AiGatewayErrorCode =
    *  non-compliant one. Distinct from `zdr_unavailable`: a better plan will not fix it,
    *  a different model might. */
   | 'retention_unsatisfiable'
+  /** The server's provider allowlist (`AI_LITE_GATEWAY_PROVIDERS` and friends) names no
+   *  provider that serves the requested model, so the gateway refused before calling one.
+   *  A configuration fault - the route is fine, the allowlist is wrong. */
+  | 'route_not_permitted'
   | 'unavailable';
 
 export interface AiGatewayErrorBody {

@@ -66,7 +66,7 @@ test('the registry re-expresses Lite as the lite-design-spec task profile', () =
   assert.equal(task.limits.maxImages, 0);
   assert.equal(task.limits.maxImageResolution, null);
   assert.deepEqual(task.routePolicy.primary, { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' });
-  assert.deepEqual(task.routePolicy.fallbacks, [{ provider: 'vercel', model: 'openai/gpt-oss-20b' }]);
+  assert.deepEqual(task.routePolicy.fallbacks, [{ provider: 'vercel', model: 'google/gemini-2.5-flash-lite' }]);
 
   // The skin experiment widens the structured contract, and the schema ref says so.
   process.env.AI_LITE_SKIN_ENABLED = '1';

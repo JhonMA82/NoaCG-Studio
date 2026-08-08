@@ -122,21 +122,31 @@ export function liteProfile(): LiteProfile {
     process.env.AI_LITE_PRIMARY_MODEL,
     { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
   );
-  // NOT qwen3-coder-next, and the reason is arithmetic rather than taste. Lite refuses to
-  // start unless the worst case of BOTH routes together fits `AI_LITE_MAX_COST_USD` (0.007),
-  // and that model costs 0.50/1.20 per million on this gateway against 0.11/0.80 on
-  // OpenRouter - so its worst case alone is 0.0078 and every generation died on
-  // `cost_ceiling` before reaching a model. A previous session hit the identical failure with
-  // the identical route on OpenRouter (docs/AI_LITE_PLAN.md) and repointed the fallback; the
-  // model it moved to has no gateway equivalent, so this picks the cheapest ALREADY-AUDITED
-  // catalog entry instead: 0.05/0.20, open-weight (the §15.1 preference), 0.0009 worst case.
+  // THE SECOND ATTEMPT GOES TO THE SAME MODEL, and that is a measurement rather than an
+  // oversight. Lite's session ceiling is a hard TWO attempts (src/ai/AGENTS.md), so the second
+  // one is spent either re-rolling the primary or moving to another model - it cannot do both.
   //
-  // A fallback's bar is "produces a usable spec when the primary fails", not "wins a bench" -
-  // but if it ever becomes the primary, that is a promotion and needs the paid round.
+  // Measured 2026-08-08 (benchmarks/lite/ROUND-2026-08-08-GATEWAY.md): pointed at the same
+  // briefs as a primary, `openai/gpt-oss-20b` produced the Lite contract 2 times in 4, while
+  // this primary produced it 27 times in 30 and 3 of 3 on the brief that actually failed. A
+  // second attempt on the weaker model turns a recoverable stochastic miss into a user-visible
+  // failure roughly half the time - which is exactly what happened to the `multilingual`
+  // fixture in that round. Two rolls of a model that works beats one roll each of a good model
+  // and a coin flip.
+  //
+  // Two things this deliberately trades away, so they can be traded back knowingly:
+  //   - PROVIDER-OUTAGE resilience. If the primary is down, the retry is down too. That
+  //     failure has not been observed here; the schema miss has, three times in thirty.
+  //   - The open-weight preference (§15.1), which only applies at benchmark PARITY. There is
+  //     no parity: 2/4 against 27/30.
+  //
+  // Repointing this at a different model is a route decision needing its own measurement -
+  // and the candidate must be served by a provider in AI_LITE_GATEWAY_PROVIDERS, or the
+  // gateway refuses it with `route_not_permitted` before any model is called.
   const fallback = envRoute(
     process.env.AI_LITE_FALLBACK_PROVIDER,
     process.env.AI_LITE_FALLBACK_MODEL,
-    { provider: 'vercel', model: 'openai/gpt-oss-20b' },
+    { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
   );
   const judgeRoute = envRoute(
     process.env.AI_LITE_JUDGE_PROVIDER,

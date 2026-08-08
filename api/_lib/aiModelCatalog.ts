@@ -134,6 +134,12 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
   //   mistralai/mistral-small-2603, mistralai/mistral-small-24b-instruct-2501,
   //   google/gemma-3-12b-it, qwen/qwen3-30b-a3b-instruct-2507
   //
+  // MEASURED AND REJECTED 2026-08-08: `alibaba/qwen3.7-flash`. Cheapest text route on the
+  // gateway (0.03/0.13) with a 991k context, and it cannot serve Lite at all - its endpoint
+  // downgrades `response_format: json_schema` to `json_object` and then refuses the call
+  // ("'messages' must contain the word 'json'"). 0 of 6 briefs reached a model. Price and
+  // context are not capability: a fallback has to produce the CONTRACT.
+  //
   // All four were BENCHMARK CANDIDATES rather than promoted routes - listed only so
   // `bench:qualify` could reach them, since taskConfigured() refuses an uncatalogued route.
   // The last was the leader of the 2026-07-29 Lite round and never promoted. Re-add
