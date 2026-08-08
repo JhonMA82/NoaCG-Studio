@@ -202,11 +202,18 @@ export function liteProfile(): LiteProfile {
     //     design its own brief argued against - five rounds of five, `intent_variant_mismatch`
     //     on both attempts. Four more chassis now declare both kinds, and
     //     `api/_lib/aiLite.test.ts` refuses any intent kind with a single home.
+    // v13: `intentMatchesRoles` judged the kind against whichever emitted role its fixed scan
+    //     order reached first, so a SUPPORTING line decided what the graphic had to claim to
+    //     be - a team strap with a competition kicker (roles team-name then event-name) was
+    //     refused `intent_role_mismatch` unless it declared itself an `event` graphic. It now
+    //     judges `emittedRoles[0]` alone, which the schema already pins to
+    //     `intent.primaryRole`. The `intent_role_mismatch` repair message is model-facing text
+    //     and changed with it, which is why this is a version and not a silent fix.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v12').trim().slice(0, 64) || 'lite-lower-third-v12',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v13').trim().slice(0, 64) || 'lite-lower-third-v13',
     primary,
     fallback,
     prices,

@@ -213,6 +213,73 @@ test('no intent kind is servable by a single chassis', () => {
   }
 });
 
+test('the FIRST line role decides the intent kind, not whichever role a scan reaches first', () => {
+  // `intentMatchesRoles` used to scan the emitted roles in a fixed priority order and return on
+  // the first hit, with `event-name` tested BEFORE `team-name`. So the ordinary team-identity
+  // fixture - "team name Helsinki Comets and supporting context Women's Championship Final",
+  // whose natural emit is roles ['team-name', 'event-name'] with kind 'team' - was refused
+  // `intent_role_mismatch` unless it declared itself an `event` graphic. A SUPPORTING line was
+  // deciding what the graphic is. It failed intermittently for six rounds (the gateway round,
+  // v9, v10 and v12 failed it; v7, v8 and v11 passed), which reads as sampling noise.
+  const entry = LITE_CATALOG.find((candidate) => candidate.intentKinds.includes('team'));
+  assert.ok(entry, 'at least one chassis must serve the team intent kind');
+  const teamStrap = (kind: string) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'A bold sport identity strap.',
+      name: 'Team Identity Strap',
+      summary: 'A team lower third with a competition kicker.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind, primaryRole: 'team-name', secondaryRole: 'event-name' },
+      lines: [
+        { title: 'Team', sample: 'Helsinki Comets', role: 'team-name' },
+        { title: 'Competition', sample: 'Women’s Championship Final', role: 'event-name' },
+      ],
+      flourish: '',
+    },
+  });
+  const teamRequest = {
+    ...request(),
+    prompt: 'A bold lower third identifying team name Helsinki Comets and supporting context '
+      + 'Women’s Championship Final. Sport treatment, short entrance, no score display.',
+  };
+  assert.deepEqual(validateLiteDecision(teamStrap('team'), teamRequest).errors, []);
+  // The primary role still has real teeth: a team-name first line cannot claim to be an event.
+  assert.ok(
+    validateLiteDecision(teamStrap('event'), teamRequest).errors.includes('intent_role_mismatch'),
+  );
+
+  // And the mirror case, which the old order got right only by accident: an event strap whose
+  // supporting line names the host team is an `event` graphic, not a `team` one.
+  const eventEntry = LITE_CATALOG.find((candidate) => candidate.intentKinds.includes('event'));
+  assert.ok(eventEntry);
+  const eventStrap = (kind: string) => ({
+    status: 'ready',
+    aiCategory: eventEntry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'An editorial event strap.',
+      name: 'Event Identity Strap',
+      summary: 'An event lower third with a team kicker.',
+      category: eventEntry.category,
+      variantId: eventEntry.variantId,
+      intent: { kind, primaryRole: 'event-name', secondaryRole: 'team-name' },
+      lines: [
+        { title: 'Event', sample: 'Women’s Championship Final', role: 'event-name' },
+        { title: 'Team', sample: 'Helsinki Comets', role: 'team-name' },
+      ],
+      flourish: '',
+    },
+  });
+  assert.deepEqual(validateLiteDecision(eventStrap('event'), request()).errors, []);
+  assert.ok(
+    validateLiteDecision(eventStrap('team'), request()).errors.includes('intent_role_mismatch'),
+  );
+});
+
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {
   const entry = LITE_CATALOG[0];
   const valid = {

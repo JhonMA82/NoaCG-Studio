@@ -330,6 +330,13 @@ schema already pins to `intent.primaryRole`) instead of the first match in an ar
 It is a semantic-validation change with real teeth, so it wants its own round rather than being
 folded into this one.
 
+**Fixed after this round, as `lite-lower-third-v13`.** `intentMatchesRoles` now judges
+`emittedRoles[0]` alone; the `intent_role_mismatch` repair message names the first line as the
+deciding one, which is why it took a version bump. Pinned both ways in `api/_lib/aiLite.test.ts`
+("the FIRST line role decides the intent kind") - a team strap with a competition kicker passes,
+and a team-name first line still may not claim `event`. Not yet re-measured against the fixture
+bank.
+
 ### 5.5 `.env.example` pointed the fallback at a route the code no longer uses
 
 It still said `AI_LITE_FALLBACK_MODEL=alibaba/qwen3-coder-next` while the code default has been
