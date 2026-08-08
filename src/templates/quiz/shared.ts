@@ -308,8 +308,15 @@ function clearReveal() {
 }
 
 // quizRow(letter): the option row a letter names, or null. A -> row 0, B -> row 1, …
+// THE EMPTY STRING IS NOT A LETTER, and it has to be rejected before the lookup rather than by
+// it: '${letters}'.indexOf('') is 0 in every JS engine, so an unset pick used to resolve to
+// ROW A. The selected-answer field starts empty by design (nobody has picked yet), so entering
+// the selected state on a board nobody had typed an answer into marked the first answer as the
+// contestant's - a wrong pick on air, with no operator action behind it and nothing to
+// distinguish it from a real one.
 function quizRow(letter) {
-  var index = '${letters}'.indexOf(String(letter || '').trim().toUpperCase());
+  var name = String(letter || '').trim().toUpperCase();
+  var index = name ? '${letters}'.indexOf(name) : -1;
   var options = document.querySelectorAll('.quiz-option');
   return index === -1 ? null : (options[index] || null);
 }

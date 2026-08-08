@@ -31,6 +31,7 @@ Layers of documentation, top to bottom:
 | `COMPETITION_PACK.md` | The esports / competition / result / reveal pack: its 12 types, their state flows and events, and how the four categories share one assembler. |
 | `PUBLIC_SERVICE_PACK.md` | Tickers, alerts and public information: the capability matrix, what "a real ticker" and "a real alert state" mean, and the platform limits the pack ran into. |
 | `CONTROL_LAYER.md` | Operator surfaces: the one generator, the ControlMessage protocol, shows, hosted control (migration 0008), staging + event log. |
+| `CONTROL_PANEL_PARITY.md` | MEASURED, 2026-08-09: what an operator can actually do on `#/control/<id>` for a lower third and for each interactive type (quiz, live vote, scoreboard, countdown), the nine gaps ranked, and what a Lite-generated interactive graphic would need on top. |
 | `SAVED_CONTENT_MODEL.md` | The library: GraphicDoc, packages-as-folders, hash routes, control entries, Save semantics. |
 | `DESIGN_LANGUAGE.md` | The taste bar: typography, color, motion doctrine, the §8 family tokens, generated-code style. |
 | `KIT_MATRIX_GAPS.md` | The standing kit gap report: the (type × family) matrix as it resolves, the core six a kit owes a show, and which designs no kit can reach. |

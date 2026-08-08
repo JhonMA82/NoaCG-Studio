@@ -25,7 +25,7 @@
 
 import { chromium } from '@playwright/test';
 import { devPort } from '../scripts/dev-port.mjs';
-import { activeRuns, describeRuns } from '../scripts/e2e-runs.mjs';
+import { activeRuns, describeRuns, selfAndAncestors } from '../scripts/e2e-runs.mjs';
 import { resolve } from 'node:path';
 
 /** Keys playwright.config.ts pins EMPTY. A non-empty value means the pin did not apply. */
@@ -64,10 +64,17 @@ const QUEUE_TIMEOUT_MS = 30 * 60_000;
 async function waitForOtherRuns(): Promise<void> {
   if (process.env.CI) return;
   const me = resolve(process.cwd());
+  // THIS run is not "another checkout", however its command line reads. A linked worktree has
+  // no node_modules of its own, so the Playwright CLI it runs lives in the MAIN checkout and
+  // `rootOfCommand` attributes the run there - `exclude: me` then never matches and the guard
+  // waits out its whole 30-minute cap behind this very process. Excluding our own process
+  // chain as well is the identity that path-matching cannot supply.
+  const mine = selfAndAncestors();
   const deadline = Date.now() + QUEUE_TIMEOUT_MS;
   let announced = false;
+  const others = () => activeRuns({ exclude: me, excludePids: mine });
 
-  for (let runs = activeRuns({ exclude: me }); runs.length > 0; runs = activeRuns({ exclude: me })) {
+  for (let runs = others(); runs.length > 0; runs = others()) {
     if (Date.now() > deadline) {
       console.warn(
         `Still waiting after ${QUEUE_TIMEOUT_MS / 60_000} min - starting anyway. Active elsewhere:\n${describeRuns(runs)}`,

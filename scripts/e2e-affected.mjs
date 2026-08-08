@@ -56,7 +56,7 @@ const MAP = [
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
   [/^scripts\/aiDevPlugin/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
-  [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts']],
+  [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts']],
   // The readable audience name is minted by the publish path but READ on the audience surfaces,
   // and rules union rather than shadowing - so this adds to the src/control/ list above.
   [/^src\/control\/joinName/, ['production-audience.spec.ts']],
@@ -72,13 +72,19 @@ const MAP = [
   // renamed or re-declared moves what a brief retrieves.
   // The quiz runtime is also the exported control panel's recovery subject and the audience
   // pack's answer boards - the generic src/templates rule below unions with this one.
-  [/^src\/templates\/quiz\//, ['control.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  // The four types whose MACHINE the per-graphic control page is generated from. A type file is
+  // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
+  // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
+  // to any of them has to run it. (types/scoreboard.ts is covered by the sports rule below.)
+  [/^src\/templates\/(poll|gameTimers)\//, ['control-panel-types.spec.ts']],
+  [/^src\/templates\/types\/(answerBoard|quizBoard|livePoll|clocks)\.ts$/, ['control-panel-types.spec.ts']],
   // The scoreboards are the OTHER stateful family with a runtime of their own - the match
   // clock, the club-colour lift and the period rebuild - and sports.spec.ts is the only place
   // any of that is driven. It had been mapped nowhere at all, so a scoreboard change reached
   // air having run none of its 13 tests until the nightly. control.spec.ts rides along because
   // its exported-panel case is built from a scorebug (sb01).
-  [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'production-controls.spec.ts']],
+  [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'control-panel-types.spec.ts', 'production-controls.spec.ts']],
   // WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit
   // half, so a pack edit or a change to `kitChoices` moves what the picker offers, what the
   // count promises and what the production ends up holding. Unions with the generic
@@ -113,7 +119,7 @@ const MAP = [
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.
-  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts']],
   // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
   // above, because they are the same surface from the other side: those specs drive the Export
   // panel, so they are what renders these components at all. Unmapped, each of them escalated a

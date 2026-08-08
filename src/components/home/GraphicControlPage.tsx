@@ -388,17 +388,34 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   key={b.event}
                   disabled={!legal}
                   onClick={() => {
+                    // A PAYLOAD ONLY RIDES WHEN THERE IS SOMETHING TO SEND. The values a
+                    // payload carries live in an ENTRY on this surface, and a freshly saved
+                    // graphic has none - so building the payload from `active?.values[key] ??
+                    // ''` sent an EMPTY string for every payload field, which the machine then
+                    // applied: pressing ⚡ Select answer on a graphic with no entries wiped the
+                    // pick instead of making one. The guard is about the EVENT, never about the
+                    // value, so nothing downstream was going to catch that.
+                    // With no entry the event now fires bare and the graphic keeps the field
+                    // values it already has on air - the same thing the exported panel does,
+                    // where the payload comes from field boxes that always hold a value.
                     const payload: Record<string, string> = {};
-                    for (const key of b.payload ?? []) payload[key] = String(active?.values[key] ?? '');
+                    for (const key of b.payload ?? []) {
+                      const value = active?.values[key];
+                      if (value !== undefined) payload[key] = String(value);
+                    }
                     postCmd({ cmd: 'dispatch', event: b.event, payload });
                     // An accepted event can be what airs the graphic (an arrow out of off);
                     // the machine-off check above clears the tally if it was not.
                     setAired(true);
                   }}
                   title={
-                    legal
-                      ? `Fire "${b.event}"`
-                      : `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+                    !legal
+                      ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+                      : b.payload?.length
+                        ? active
+                          ? `Fires "${b.event}" with ${b.payload.join(', ')} from “${active.label}”`
+                          : `Fires "${b.event}". ${b.payload.join(', ')} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
+                        : `Fire "${b.event}"`
                   }
                   data-testid={`control-event-${b.event}`}
                 >
