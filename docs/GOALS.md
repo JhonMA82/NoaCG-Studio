@@ -134,11 +134,16 @@ from ~80 places in the tree, so it never changes.*
       (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2). **Migration 0034 was NOT the third one** - it
       has been applied all along and the parking-lot line saying otherwise was stale (see below).
       **And the live suite is now load-bearing.** Run against the real project 2026-08-08: 7 of 18
-      passed. The two OUTPUT specs - the cloud door's only automated proof - were red on stale
-      gestures and are repaired and green; the rest is spec rot from the student release, six of
-      them specs written for an editor-first app that boots into the wizard now (`e2e/configured/`
-      anonymous, feedback, parts of signed-in-ux). It only ever runs by hand, so nothing reported
-      any of it. Before the class it needs a green run and a habit of running it.
+      passed, then **17 of 18 after repair, 1 flaky** (the renderer showed the aired board later
+      than the spec's 30 s and passed on retry and on an isolated re-run - the one thing to watch,
+      since "it did not appear" is the failure a class notices). It found one real defect: signed
+      in at 1366px the topbar overflowed and hung the ACCOUNT AVATAR off the screen edge. The rest
+      was rot from the student release - it only ever runs by hand, so nothing reported any of it.
+      **Run it before the class, and again after any change to publish, output or the topbar.**
+- [ ] **A wizard-only student cannot send feedback.** The beta Feedback button lives in the editor
+      shell, which is Advanced mode now - so the people the release is FOR have no door to it,
+      while feedback is what feeds the Lite prompt. Found while repairing the live suite; the fix
+      is a surface decision (Home? the production page? the wizard's Finish step?), not a bug fix.
 
 ---
 
