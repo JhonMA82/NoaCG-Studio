@@ -116,7 +116,7 @@ const STEP_SUBS: Record<string, string[]> = {
    doors into one — so it borrows `template`'s rail and changes only the words that would be
    wrong: the step where a design is chosen is where the SHOW is chosen, and the last step
    names a production rather than a graphic. */
-const STEP_SUBS_KIT = ['Choose mode', 'Pick the show', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name the production'];
+const STEP_SUBS_KIT = ['Choose mode', 'Pick the show', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Where it goes'];
 const STEP_TITLES_KIT = ['Start', 'Kit', 'Fields', 'Style', 'Animation', 'Finish'];
 
 /**
@@ -460,7 +460,16 @@ export default function CreationWizard() {
   const openKitGraphic = (plan: KitPlan, index: number) => {
     const item = plan.items[index];
     setKit({ ...plan, current: index });
-    setDraft((d) => kitItemDraft(d, item.variant, { packPaletteId: plan.pack.paletteId }));
+    setDraft((d) =>
+      kitItemDraft(d, item.variant, {
+        packPaletteId: plan.pack.paletteId,
+        // The footer's "Colors & typeface from this project" applies to EVERY graphic of the
+        // set, not just whichever one was on screen when it was ticked. It is also what the
+        // production-context open turns on by itself, so a kit started from a production's
+        // "+ New graphic" arrives in that production's look.
+        brand: matchBrand && brand ? brandPatch(brand) : null,
+      }),
+    );
     setStep(2);
   };
 
@@ -542,7 +551,7 @@ export default function CreationWizard() {
    * answer would build a production on top of graphics that never landed
    * (src/components/AGENTS.md, "Save + Home").
    */
-  const saveKit = async (): Promise<Show | null> => {
+  const saveKit = async (dest: ProductionDest): Promise<Show | null> => {
     if (!kit) return null;
     const templates = kit.built.filter((t): t is SpxTemplate => t !== null);
     if (templates.length !== kit.items.length) {
@@ -562,28 +571,39 @@ export default function CreationWizard() {
         docs.push(doc);
       }
 
-      const name = kitProductionName.trim() || kit.pack.name;
-      const made = createShowNamedChecked(name);
-      const showError = made.error ?? (await commitDurableWrites());
-      if (showError) throw new Error(showError);
-      const show = made.show;
+      // A kit usually IS a new production, and that stays the default - but the wizard can be
+      // opened FOR one (a production page's "+ New graphic"), and building a second production
+      // beside the one the user started from is not what they asked for. An existing pick that
+      // has since been deleted (another tab) falls back to a new one rather than dropping the
+      // work on the floor, exactly as the single-graphic door does.
+      let show = dest.kind === 'existing' ? loadShows().find((s) => s.id === dest.id) : undefined;
+      if (!show) {
+        const made = createShowNamedChecked(dest.kind === 'new' ? dest.name : kit.pack.name);
+        const showError = made.error ?? (await commitDurableWrites());
+        if (showError) throw new Error(showError);
+        show = made.show;
+      }
+      const target = show;
 
       // Pool each copy with its library back-link - the same construction the production
       // page's own add uses, cue auto-seeding included. Pool order follows the kit's own
       // order, which is also the layer paint order (index 0 furthest back).
       for (const doc of docs) {
-        const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+        const { error } = addGraphicToShow(target.id, doc.template, { graphicId: doc.id });
         const failure = error ?? (await commitDurableWrites());
         if (failure) throw new Error(failure);
       }
       // The kit's curated look becomes the production's look, so a graphic later made FOR
-      // this production inherits it.
-      if (docs[0]) setShowLook(show.id, captureLookFromTemplate(docs[0].template));
-      const lookError = await commitDurableWrites();
-      if (lookError) throw new Error(lookError);
+      // this production inherits it - but never overwrite a look the production already has,
+      // which is the rule the single-graphic door follows for the same reason.
+      if (!target.look && docs[0]) {
+        setShowLook(target.id, captureLookFromTemplate(docs[0].template));
+        const lookError = await commitDurableWrites();
+        if (lookError) throw new Error(lookError);
+      }
 
       trackEvent('activation', 'kit');
-      return show;
+      return target;
     } catch (error) {
       setKitError(error instanceof Error ? error.message : String(error));
       return null;
@@ -607,8 +627,8 @@ export default function CreationWizard() {
   };
 
   /** Door 1: save the set, land on the production page. */
-  const openKitProduction = () => {
-    void saveKit().then((show) => {
+  const openKitProduction = (dest: ProductionDest) => {
+    void saveKit(dest).then((show) => {
       if (!show) return;
       closeGallery();
       useRouter.getState().navigate({ view: 'production', id: show.id });
@@ -622,8 +642,8 @@ export default function CreationWizard() {
    * surface through the store's one-shot `pendingProductionExport` (the `pendingProductionId`
    * idiom) rather than growing a second whole-show export screen that could disagree with it.
    */
-  const exportKit = () => {
-    void saveKit().then((show) => {
+  const exportKit = (dest: ProductionDest) => {
+    void saveKit(dest).then((show) => {
       if (!show) return;
       useTemplateStore.setState({ pendingProductionExport: show.id });
       closeGallery();
@@ -1436,6 +1456,8 @@ export default function CreationWizard() {
                 onName={setKitProductionName}
                 built={kit.built.filter((t): t is SpxTemplate => t !== null)}
                 oneLook={kit.propagate !== false}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
                 onOpenProduction={openKitProduction}
                 onExport={exportKit}
                 busy={kitBusy}

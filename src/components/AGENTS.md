@@ -730,8 +730,8 @@ which generates the complete, commented template. THREE entry cards (template, C
 Import graphic) in a two-column grid, plus the separated video strip; Advanced mode adds blank.
 An ODD LAST CARD spans the row (`.wz-entry-card:last-child:nth-child(odd)`), so three leave no
 empty cell and four still read as a 2x2. Create with AI is the ONE AI door - NoaCG Pro is an
-execution TIER inside it, never a second card; there is no kit card either, **"one graphic or a
-whole kit" being asked inside Browse** (below).
+execution TIER inside it, never a second card; there is no kit card either — see the kit path
+below.
 
 **LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
@@ -747,9 +747,9 @@ Two measured constraints:
   WORKING surface (`.wz-body-working`, the Import flow's Text step) the measure cap lifts and
   the preview clamps, or the placement canvas drops under the 700px floor
   `e2e/import-graphic.spec.ts` holds.
-- **The Entry step's HEIGHT budget still binds** (`e2e/wizard-entry-fit.spec.ts`, 1366x768).
-  The 2x2 grid retired the fixed 240px card width - cards share the column instead of wrapping
-  the row - but cost 10px, taken back off the hero's title margin. Grow one, pay from another.
+- **The Entry step's HEIGHT budget still binds** (`e2e/wizard-entry-fit.spec.ts`, 1366x768):
+  cards share the column rather than wrapping the row, and the grid's 10px cost was taken off
+  the hero's title margin. Grow one, pay from another.
 
 **Deep-linked open** (`#/new/<variantId>`, docs/PRERENDER.md - a prerendered template page's
 CTA): the router's `design` param rides through `openGallery(designId)` into templateStore's
@@ -805,21 +805,23 @@ first, no chip appears, Clear-all leaves it alone, and a genuine programme match
 outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver — the whole catalog can be on one grid now).
 
-**THE KIT PATH — one door, asked at the top of Browse.** Shape, and why it reversed
-TEMPLATE_TAXONOMY_PROPOSAL §18's separate Entry card: docs/PACK_TAXONOMY.md, "The wizard
-surface". `.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
+**THE KIT PATH — one door, asked at the top of Browse.** Shape and the §18 reversal:
+docs/PACK_TAXONOMY.md, "The wizard surface".
+`.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
 grid and **KitPicker** (genre preset, then checkboxes over `templates/kit.ts` `kitChoices`);
 the format picker sits above the branch; picker state lives in CreationWizard like
 `browseFilters`. A kit then walks the SAME six steps a single graphic does — `mode` stays
 `'template'`, and `KitPlan` (wizard/kitPlan.ts) makes each step one graphic OF A SET — plus:
 **KitTray**, the second axis of progress in the rail's own vocabulary, done chips being
 MiniPreview in `lazy` mode (its one caller), never navigation; **KitLookStep**, "use this look
-for the other N?" as a bordered card, NEVER a modal (which would cover the rail and tray, the
-two surfaces that make it answerable), whose yes is a deterministic transform over the `:root`
-style contract and NOTHING else (`kitLookPatch`; the motion preset carries only where the
-target design DECLARES it); and **KitFinishStep**, the production name, the built grid, and two
-doors that BOTH SAVE FIRST with every write claimed (see "Save + Home") — export asking the
-production page for its dialog through templateStore's one-shot `pendingProductionExport`. The
+for the other N?" as a bordered card, NEVER a modal (it would cover the rail and tray), whose
+yes is a deterministic transform over the `:root` style contract and NOTHING else
+(`kitLookPatch`; the motion preset carries only where the target design DECLARES it, and the
+footer's brand toggle reaches every graphic of the set, not just the one on screen); and
+**KitFinishStep**, the production DESTINATION (a new one by default, or the context production
+when the wizard was opened for one), the built grid, and two doors
+that BOTH SAVE FIRST with every write claimed (see "Save + Home"), export asking the production
+page for its dialog through templateStore's one-shot `pendingProductionExport`. The
 kit's LAST rail entry is not a jump target (reaching it means the graphic in hand was BUILT;
 a rail click sets the step directly), and re-finishing the tone-setter after a yes RE-propagates.
 

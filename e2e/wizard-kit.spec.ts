@@ -228,7 +228,7 @@ test('the first graphic sets the tone and its look carries to the rest', async (
   await expect(cells).toHaveCount(2);
   await expect(cells.nth(0).locator('iframe')).toHaveCount(1);
 
-  await page.getByTestId('kit-finish-production').click();
+  await page.getByTestId('kit-finish-production-go').click();
   await expect(page).toHaveURL(/#\/production\//);
   await settleDurableWrites(page);
 
@@ -336,6 +336,67 @@ test('the export door saves the whole set first, then packages it', async ({ pag
     (name) => /^studio_wellness\/[^/]+\/[^/]+\.html$/.test(name) && !name.endsWith('controlpanel.html'),
   );
   expect(graphicHtmls).toHaveLength(2);
+});
+
+test('a kit opened FOR a production joins that one, in its look', async ({ page }) => {
+  // The wizard can be opened for a production (its page's "+ New graphic"), which pre-applies
+  // that production's look and preselects it on the single-graphic Finish. The kit path used to
+  // read neither: it rebuilt every graphic's draft from `initialDraft()` and always called
+  // `createShowNamedChecked`, so starting a kit here silently built a SECOND production beside
+  // the one the user was standing in, in a look it had nothing to do with.
+  await page.goto('/app');
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('.wz-variant').first().click();
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-name').fill('Friday Desk');
+  await page.getByTestId('wz-finish-production-go').click();
+  await expect(page).toHaveURL(/#\/production\//);
+  await settleDurableWrites(page);
+
+  await page.getByTestId('production-new-graphic').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  // The context open still starts on Entry - it preselects a destination, it does not skip
+  // the choice of what to make.
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('[data-build-mode="kit"]').click();
+  await page.locator('[data-kit="wellness"]').click();
+  const items = page.locator('[data-testid="kit-contents"] [data-kit-item]');
+  const total = await items.count();
+  for (let i = 2; i < total; i++) await items.nth(i).uncheck();
+  await page.locator('.wz-next').click();
+  await walkOneKitGraphic(page);
+  await page.getByTestId('kit-look-yes').click();
+
+  // The production it was opened for is the DEFAULT, and the door says which one it means -
+  // "Open the production" over a picker pointing at somebody else's show says nothing.
+  await expect(page.getByTestId('kit-finish-production')).not.toHaveValue('new');
+  await expect(page.getByTestId('kit-finish-production-go')).toContainText('Add to Friday Desk');
+  await page.getByTestId('kit-finish-production-go').click();
+  await expect(page).toHaveURL(/#\/production\//);
+  await settleDurableWrites(page);
+
+  const report = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const shows = loadShows() as unknown as {
+      name: string;
+      look?: { palette?: { accent?: string } };
+      graphics: { name: string; template: { css: string } }[];
+    }[];
+    return {
+      shows: shows.length,
+      names: shows.map((s) => s.name),
+      pool: shows[0]?.graphics.map((g) => g.name) ?? [],
+      accents: [...new Set((shows[0]?.graphics ?? []).map((g) => g.template.css.match(/--accent:\s*([^;]+);/)?.[1]?.trim()))],
+    };
+  });
+
+  // ONE production, holding the graphic it started with AND the whole kit.
+  expect(report.shows).toBe(1);
+  expect(report.names).toEqual(['Friday Desk']);
+  expect(report.pool).toHaveLength(3);
+  // And one look across all three: the production's own, carried into the kit by the brand the
+  // context open turns on - not the pack's curated palette and not each design's default.
+  expect(report.accents).toHaveLength(1);
 });
 
 test('the newsroom and talk-show kits are coherent: one look, one family, no duplicates', async ({ page }) => {

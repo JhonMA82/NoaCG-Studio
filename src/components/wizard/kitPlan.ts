@@ -94,16 +94,20 @@ export function kitLookPatch(source: WizardDraft, target: TemplateVariant): Draf
 
 /**
  * The draft one kit graphic is configured from: the project format (a property of the whole
- * production), the design's own suggested lines, the pack's curated palette, and — once the
- * look question has been answered yes — the first graphic's identity on top.
+ * production), the design's own suggested lines, and then up to three look sources applied in
+ * order of how deliberately they were chosen.
  *
- * `look` is null for the FIRST graphic: it starts from the pack's palette and the design's own
- * defaults, which is exactly what the pre-picker kit create built.
+ * **The order is the whole contract.** `packPaletteId` is the pack's curated taste pick, so it
+ * loses to anything the user said. `brand` is the footer's "Colors & typeface from this
+ * project" — an explicit ask, and the one the production-context open turns on by itself, so it
+ * outranks the pack. `look` is the first graphic's identity once the look question was answered
+ * yes, and it wins because it is the most recent deliberate choice. Rebuilding from
+ * `initialDraft()` without the middle one is what silently dropped the toggle on the kit path.
  */
 export function kitItemDraft(
   base: WizardDraft,
   variant: TemplateVariant,
-  opts: { packPaletteId?: string; look?: DraftPatch | null } = {},
+  opts: { packPaletteId?: string; brand?: DraftPatch | null; look?: DraftPatch | null } = {},
 ): WizardDraft {
   const fresh = initialDraft();
   return mergeDraft(
@@ -120,6 +124,7 @@ export function kitItemDraft(
       variantId: variant.id,
       lines: variant.suggestedLines.map((l) => ({ ...l })),
       paletteId: opts.packPaletteId ?? null,
+      ...(opts.brand ?? {}),
       ...(opts.look ?? {}),
     },
   );
@@ -135,6 +140,9 @@ export function buildRemaining(plan: KitPlan, source: WizardDraft): (SpxTemplate
     if (plan.built[i]) return plan.built[i];
     return buildDraftTemplate(
       item.variant,
+      // No `brand` here on purpose: `source` IS the first graphic's draft, which already had
+      // the brand applied, and `kitLookPatch` carries its palette and typeface forward. Passing
+      // the brand again would be the same fact arriving twice by two routes.
       kitItemDraft(source, item.variant, {
         packPaletteId: plan.pack.paletteId,
         look: kitLookPatch(source, item.variant),
