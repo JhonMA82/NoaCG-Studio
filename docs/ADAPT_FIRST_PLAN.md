@@ -197,8 +197,34 @@ tokens to ~500-1,200, and `variantId`'s enum is narrowed to the shortlist, so th
 becomes "which of these ten proven designs", not "which of 430 lines of text".
 
 **Applied on the ADAPT route only.** A create-routed generation keeps the full digest, which keeps
-the frozen benchmark control (`src/ai/AGENTS.md`, plan §8) byte-identical and keeps the §4
-anti-anchoring question out of scope.
+the frozen benchmark control (`src/ai/AGENTS.md`) byte-identical and keeps the §4 anti-anchoring
+question out of scope.
+
+### 3.1 Retrieval as built - the four properties, each measured
+
+*Relocated from `src/ai/AGENTS.md` on 2026-08-08, when that file was cut to the live contract. The
+rules stay stated there; the measurements that produced them live here.*
+
+Three things make a shortlist usable rather than merely shorter, and a fourth decides what happens
+when it is too short. None was obvious in advance; each is what a naive implementation got wrong.
+
+- **A brief is a SET of terms, not one query.** `textScore` is token-AND - every token must land or
+  the whole query scores zero - and a sentence always contains a word the index cannot place.
+- **Each term is weighted by how RARE it is in the pool.** "lower", "third" and "name" match every
+  lower third there is; summing raw scores collapsed the shortlist to catalog order once the
+  distinctive words ran out (measured: **89 of 89** "matched the brief text").
+- **The cut is RELATIVE to the best match.** A worship brief's two scripture designs score 29 and 11
+  and the next sixty score 2.2 - **a nonzero score is not relevance**. A slot spent on an irrelevant
+  design is worse than an empty one.
+- **Only matches ship, and the floor of four is filled in bands.** Designs a SELECTIVE term named
+  (one reaching fewer than half the pool) come first, then designs no term reached, then the residue
+  last. Measured over 40 briefs, 14 needed a top-up: filling by "scored anything at all" spends those
+  slots on the 2.2 residue in 13 of them, and filling by "scored nothing at all" misses the 14th,
+  where two designs a rare term named sit just below the cut. **The residue ranks below an UNREACHED
+  design deliberately** - a generic house strap is unreached because it has no distinctive
+  vocabulary, which makes it a neutral base to adapt, while 2.2 means only "has a name field and is
+  a lower third". `Shortlist.reason` states the split, so a shortlist never reads as four answers
+  when two of them are floor-filling.
 
 ### Stage P - the chassis keeps the zone it was drawn for
 
