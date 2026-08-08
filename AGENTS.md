@@ -480,8 +480,9 @@ wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes pro
   stop and report - permission to run the flow is not permission to land something broken.
 - **A finished session can clean up its own worktree, but only the USER starts it.** The
   cleanup-worktrees workflow run from inside a worktree (`cleanup-worktrees.mjs --self`) removes
-  that one, under the same rules as the bulk sweep. Handoff only REPORTS whether that is
-  available - a verdict written by a model must never trigger an irreversible action.
+  that one, under the same rules as the bulk sweep. **No other workflow raises the subject** -
+  handoff used to report whether removal was available and no longer mentions it at all, because
+  a verdict written by a model must never be the thing that starts an irreversible action.
   **A clean `git status` does not mean a worktree is disposable:** it says nothing about ignored
   files, and removal deletes them regardless - `.env`, bench output that cost real money, logs.
   The script lists every non-regenerable ignored path with its size and refuses to apply until

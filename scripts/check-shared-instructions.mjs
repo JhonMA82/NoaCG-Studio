@@ -23,7 +23,8 @@ const MAX_WRAPPER_LINES = 25;
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 // Membership means DESTRUCTIVE, not merely important - it is what earns the
 // disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
-// worktree; it only reports now, so it left again rather than diluting what this set means.
+// worktree; it no longer touches cleanup at all, so it left again rather than diluting what this
+// set means.
 const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
 // Short invocation aliases: <alias> => <canonical workflow>. An alias owns adapters in BOTH
 // tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
@@ -84,10 +85,18 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'Every item carries its WHY',
       'The files this branch touched',
       "Constraints: point, don't reprint.",
-      // Handoff must stay read-only. Both halves pinned: it deletes nothing, and the cleanup
-      // check it runs is the dry run, never `--apply`.
-      '**Handoff deletes nothing.**',
-      'Never pass `--apply`',
+      // The archive verdict is a TEST, not an impression: archive-ready means committed, pushed
+      // and contained in `main`, and containment that cannot be established reads as not safe.
+      // Both ancestor checks are pinned because dropping either one turns the verdict back into
+      // a feeling - a green feature branch would pass on "it all worked".
+      'This is a TEST, not an impression.',
+      'git merge-base --is-ancestor HEAD main',
+      'git merge-base --is-ancestor HEAD origin/main',
+      // Handoff must stay read-only, and must stay OUT of worktree cleanup entirely - the owner
+      // runs that sweep deliberately and does not want the option raised here. This marker
+      // replaced two that pinned handoff's own cleanup report, removed 2026-08-08.
+      "Read, don't write.",
+      'Never remove a worktree, and never offer to.',
     ],
   ],
   [
