@@ -500,6 +500,13 @@ export const vercelGatewayAdapter: ProviderAdapter = {
     const data = object(value);
     const choice = object(array(data.choices)[0]);
     const message = object(choice.message);
+    // Opt-in, local only, and FIRST - before the truncation check and the image branch, so it
+    // still reports on the answers that are about to throw. `finish_reason` and the usage
+    // block's `reasoning_tokens` are what identify a budget eaten by thinking, and neither
+    // survives into the normalized result a caller sees.
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[gateway] finish=${String(choice.finish_reason)} usage=${JSON.stringify(data.usage ?? {})}`);
+    }
     if (request.expect === 'image') {
       const images = Array.isArray(message.images)
         ? message.images.map(object).flatMap((item) => {
@@ -521,6 +528,22 @@ export const vercelGatewayAdapter: ProviderAdapter = {
         images,
         usage: totalUsage(imageUsage.prompt_tokens, imageUsage.completion_tokens, providerCost(imageUsage.cost)),
       };
+    }
+    // SAY WHEN THE ANSWER WAS CUT OFF. The Anthropic and OpenAI adapters have always checked
+    // their own truncation signal and reported it in these words; this one - the MANAGED
+    // transport, the route most traffic takes - did not, so a budget exhausted by reasoning
+    // tokens surfaced as "invalid structured result" further down, where the body is already
+    // gone. That cost an hour of instrumented diagnosis and five paid concept images on
+    // 2026-08-08 (benchmarks/pro/round-2026-08-08/ROUND.md §3). Not retryable, matching the
+    // other two: a second attempt on the same budget truncates in the same place.
+    if (choice.finish_reason === 'length') {
+      throw new GatewayError(
+        'malformed_response',
+        'The AI response was cut off by the output token limit. Raise the call\'s budget '
+          + '(outputBudget in src/ai/modelTypes.ts) or ask for less.',
+        502,
+        false,
+      );
     }
     const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.map(object) : [];
     const expectedTool = request.structuredOutput
@@ -547,13 +570,6 @@ export const vercelGatewayAdapter: ProviderAdapter = {
       throw new GatewayError('malformed_response', 'The AI provider returned an empty response.', 502, false);
     }
     const usage = object(data.usage ?? {});
-    // The other half of the same opt-in switch. `finish_reason` and the reasoning-token count
-    // inside `usage` are what identify a truncation, and neither survives into the normalized
-    // result the caller sees - a maxTokens sized before reasoning tokens existed is otherwise
-    // invisible from the outside.
-    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
-      console.log(`[gateway] finish=${String(choice.finish_reason)} textLen=${text.length} toolArgsLen=${toolArguments.length} usage=${JSON.stringify(usage)}`);
-    }
     const promptDetails = usage.prompt_tokens_details && typeof usage.prompt_tokens_details === 'object'
       ? object(usage.prompt_tokens_details)
       : {};

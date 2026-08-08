@@ -28,6 +28,7 @@ import type {
   VideoProgress,
   VideoValidator,
 } from './provider';
+import { outputBudget } from '../modelTypes';
 import { BASE_SKILL, detectSkillsByKeyword, skillById, type VideoSkill } from './skills';
 import { referenceSection, selectReferenceCards, type ReferenceCard } from './referenceCards';
 import { noteReferenceUse } from '../referenceSelect';
@@ -180,7 +181,10 @@ async function detectSkills(prompt: string, model?: string): Promise<VideoSkill[
         'Classify a motion-graphics request onto the most relevant skills. Pick at most 3; pick none when nothing clearly applies.',
       messages: [{ role: 'user', content: prompt }],
       tool: DETECT_SKILLS_TOOL,
-      maxTokens: 300,
+      // At most three skill ids come back, so the answer really is this small - but the call
+      // is wrapped in a catch that degrades to "no skills", so a budget with no room to think
+      // in does not fail loudly here. It silently stops classifying, which is worse.
+      maxTokens: outputBudget(300),
       ...(model ? { model } : { modelRole: 'fast' }),
     })) as { skills: string[] };
     return result.skills.map((id) => skillById(id)).filter((s): s is VideoSkill => !!s);
@@ -244,7 +248,10 @@ async function directMotion(
     system: directorSystem(skills, ctx.engine, cards),
     messages: [{ role: 'user', content: [...vision, { type: 'text', text }] }],
     tool: MOTION_PLAN_TOOL,
-    maxTokens: 4000,
+    // The closest analogue to the Pro interpretation call that this rule was measured on: a
+    // multi-phase plan of a couple of thousand tokens, forced through a schema. That one
+    // truncated mid-object on exactly this budget.
+    maxTokens: outputBudget(4000),
     model,
   })) as EmittedMotionPlan;
   // Defensive: schema-required or not, never let a malformed plan crash the pipeline.

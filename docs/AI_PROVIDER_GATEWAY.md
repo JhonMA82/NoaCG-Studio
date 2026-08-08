@@ -273,6 +273,24 @@ Every parsed result is validated again on the server against the same schema bef
 DesignSpec or template code. A missing field, wrong type, unknown field where
 `additionalProperties` is false, or malformed JSON is a normalized `malformed_response`.
 
+**A TRUNCATED answer is reported as truncation, on every adapter.** Reasoning tokens are output
+tokens: they count against `maxTokens` and they are spent BEFORE the model writes anything, so a
+budget sized for the answer alone gets cut off mid-object and the half-JSON that arrives is
+indistinguishable from a model that cannot follow a schema. Anthropic (`stop_reason`) and OpenAI
+(`incomplete_details`) always checked their own signal; the Vercel adapter did not, and its
+`finish_reason: 'length'` surfaced as a plain "invalid structured result" - which cost an hour of
+instrumented diagnosis and five already-paid concept images on 2026-08-08
+(`benchmarks/pro/round-2026-08-08/ROUND.md` §3). All three now report it in the same words, not
+retryable, because a second attempt on the same budget truncates in the same place. Pinned by
+`aiGateway.test.ts`, including a negative control so the guard cannot start swallowing good
+answers.
+
+Call sites build the budget with **`outputBudget(expectedAnswerTokens)`** (`src/ai/modelTypes.ts`),
+which adds `REASONING_HEADROOM_TOKENS` on top - so a call states what its answer needs and nothing
+has to remember that thinking is billed first. A literal `maxTokens` is the shape of the bug.
+`NOACG_DEBUG_STRUCTURED=1` logs `finish_reason` and the usage block locally when a structured call
+misbehaves; neither survives into the normalized result a caller sees.
+
 The gateway normally uses JSON Schema response formatting. An audited managed route may
 instead use a forced function tool when the model supports tools but not response formatting
 (`AI_LITE_GATEWAY_STRUCTURED_MODE=tool`). The tool arguments pass through the same schema

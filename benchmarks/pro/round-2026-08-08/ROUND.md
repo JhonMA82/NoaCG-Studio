@@ -292,9 +292,23 @@ needs no image model and no new modality.
 
 ### 7.4 Fixes worth landing regardless of the above
 
-1. **`maxTokens: 12000` on the Pro interpretation call** - DONE. Still open: sweep the other 17
-   hand-set `maxTokens` in `src/ai` for the same reasoning-token trap. `creative/references.ts:150`
-   is 1200 and `brainstorm.ts:35` is 700, against 2,400-3,900 reasoning tokens measured here.
+1. **The token budgets** - DONE for every PRODUCTION call site, via one rule rather than a sweep
+   of literals: `outputBudget(expectedAnswerTokens)` in `src/ai/modelTypes.ts` adds
+   `REASONING_HEADROOM_TOKENS` (8,000, about twice the measured worst case) so a call site states
+   only what its ANSWER needs and no longer has to know that thinking is billed first. Applied to
+   the Pro interpretation (unchanged at 12,000, so nothing needed re-verifying), the brainstorm
+   turn (was 700 - a reply of a few hundred tokens with no room to think), the video Motion
+   Director (was 4,000 - the closest analogue to the call that broke), and the video skill
+   classifier (was 300, and wrapped in a catch, so it would have degraded SILENTLY to "no skills"
+   rather than failing).
+
+   **Two groups deliberately left**, so the list is honest rather than complete:
+   - `src/ai/creative/` (6 sites) is BENCH ONLY - `src/ai/AGENTS.md` states nothing in the product
+     reaches it - so a truncation there costs a benchmark run, not a user. Worth fixing when that
+     pipeline next moves; not worth a collision now.
+   - `src/ai/claudeProvider.ts` (6 sites, including the design stage at 2,000) was uncommitted in
+     another worktree at the time. It is the highest-value remaining group - the design call is on
+     every grounded generation - and should be done in one pass once that branch lands.
 2. **Make `pro-bench.mjs` count interpretation cost** so `--max-cost` is a real ceiling - DONE,
    and verified on the paid route (§1).
 3. **Correct `docs/NOACG_PRO_PLAN.md` §7a's cost figures** - DONE: interpretation is $0.009-0.011,
