@@ -22,6 +22,14 @@ import { card42 } from '../infoCards/card42';
 import { card43 } from '../infoCards/card43';
 import { card44 } from '../infoCards/card44';
 import { card45 } from '../infoCards/card45';
+import { card72 } from '../infoCards/card72';
+import { card73 } from '../infoCards/card73';
+import { card74 } from '../infoCards/card74';
+import { card75 } from '../infoCards/card75';
+import { card76 } from '../infoCards/card76';
+import { card77 } from '../infoCards/card77';
+import { card78 } from '../infoCards/card78';
+import { card79 } from '../infoCards/card79';
 import { optionalLine } from './graphicType';
 import type { GraphicType } from './graphicType';
 
@@ -91,6 +99,20 @@ export const productCardType: GraphicType = {
       defaultZone: 'mid-right',
       create: (_type, options) => card39.create(options),
     },
+    {
+      id: 'card72', name: 'Clean Product', description: 'A panel-light product card with a framed shot and hairline price hierarchy.',
+      styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
+      samples: { product: 'Field Notes Desk Lamp', price: '€89', was: '€119', saving: 'Save 25%', detail: 'Warm dimming - five-year guarantee' },
+      animationPresets: ['line-reveal', 'slide-up', 'fade', 'mask-wipe', 'slide-down', 'blur-in'],
+      create: (_type, options) => card72.create(options),
+    },
+    {
+      id: 'card73', name: 'Volt Product', description: 'A hard-edged product slab with a large price and saving chip.',
+      styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
+      samples: { product: 'MATCHDAY PRO JACKET', price: '€129', was: '€179', saving: 'SAVE 28%', detail: 'WATERPROOF - CLUB DELIVERY INCLUDED' },
+      animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
+      create: (_type, options) => card73.create(options),
+    },
   ],
 };
 
@@ -154,6 +176,20 @@ export const offerCardType: GraphicType = {
       },
       animationPresets: ['line-reveal', 'mask-wipe', 'slide-up', 'fade', 'slide-down', 'blur-in'],
       create: (_type, options) => card41.create(options),
+    },
+    {
+      id: 'card74', name: 'House Offer', description: 'The house offer card with a large claim, code, and deadline on a void panel.',
+      styleTag: 'noacg', palette: paletteById('noacg'), fontId: 'space-grotesk',
+      samples: { kicker: 'MEMBER OFFER', offer: '30% OFF', detail: 'ALL ANNUAL PLANS', code: 'ON-AIR30', ends: 'ENDS SUNDAY 23:59' },
+      animationPresets: ['slide-up', 'line-reveal', 'mask-wipe', 'fade', 'slide-down', 'blur-in'],
+      create: (_type, options) => card74.create(options),
+    },
+    {
+      id: 'card75', name: 'Frost Offer', description: 'A frosted offer panel with a luminous claim, outlined code, and deadline.',
+      styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
+      samples: { kicker: 'Private preview', offer: '20% off', detail: 'The new studio collection', code: 'PREVIEW20', ends: 'Through midnight' },
+      animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'mid-right',
+      create: (_type, options) => card75.create(options),
     },
   ],
 };
@@ -222,6 +258,20 @@ export const listingCardType: GraphicType = {
       },
       animationPresets: ['slide-up', 'line-reveal', 'mask-wipe', 'fade', 'slide-down', 'blur-in'],
       create: (_type, options) => card43.create(options),
+    },
+    {
+      id: 'card76', name: 'Volt Listing', description: 'A sport listing slab with a high-impact labelled value.',
+      styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
+      samples: { title: 'LOT 18 - SIGNED FINAL SHIRT', meta: '2026 FINAL - PLAYER WORN', valueLabel: 'CURRENT BID', value: '€2,400', status: 'BIDDING OPEN' },
+      animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
+      create: (_type, options) => card76.create(options),
+    },
+    {
+      id: 'card77', name: 'Frost Listing', description: 'A frosted listing card with a softly separated live value.',
+      styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
+      samples: { title: 'Harbour Loft, West Quay', meta: '2 bedrooms - 104 m² - sea view', valueLabel: 'Guide price', value: '£575,000', status: 'Private viewing' },
+      animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'bottom-right',
+      create: (_type, options) => card77.create(options),
     },
   ],
 };
@@ -292,6 +342,20 @@ export const qrCardType: GraphicType = {
       animationPresets: ['line-reveal', 'slide-up', 'fade', 'mask-wipe', 'slide-down', 'blur-in'],
       defaultZone: 'mid-right',
       create: (_type, options) => card45.create(options),
+    },
+    {
+      id: 'card78', name: 'Volt Scan', description: 'A hard-edged QR slab with a protected white tile and written address.',
+      styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
+      samples: { headline: 'SCAN FOR TICKETS', address: 'voltafc.com/final', detail: 'FINAL RELEASE - LIMITED SEATS' },
+      animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
+      create: (_type, options) => card78.create(options),
+    },
+    {
+      id: 'card79', name: 'Frost Scan', description: 'A frosted QR card with a protected white tile and readable address.',
+      styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
+      samples: { headline: 'Continue the story', address: 'frost.media/aftershow', detail: 'Interviews and the full gallery' },
+      animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'mid-right',
+      create: (_type, options) => card79.create(options),
     },
   ],
 };

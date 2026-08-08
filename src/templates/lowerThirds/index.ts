@@ -81,6 +81,7 @@ import { SPECIALIST_LOWER_THIRDS } from './specialist';
 import { lt55 } from './lt55';
 import { lt56 } from './lt56';
 import { lt57 } from './lt57';
+import { lt58 } from './lt58';
 
 
 /** The matrix above, in browse order: the generalist straps, grouped by style family. */
@@ -136,6 +137,7 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt44, // Stat Strip — five inputs: player and club over a row of stat cells
   lt17, // Volt Handle — compact sport social mark (social-handle type, sport)
   lt57, // Volt Call — leaning call-to-action slab (call-to-action type, sport)
+  lt58, // Clean Call - minimal hairline call-to-action strap
   // Modern social / glass
   lt08, // Frosted Card — backdrop-blur glass card (logo slot)
   lt09, // Gradient Pill — compact pill, name + handle inline

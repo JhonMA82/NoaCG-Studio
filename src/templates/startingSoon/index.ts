@@ -19,6 +19,10 @@ import { ss10 } from './ss10';
 import { ss11 } from './ss11';
 import { ss12 } from './ss12';
 import { ss13 } from './ss13';
+import { ss14 } from './ss14';
+import { ss15 } from './ss15';
+import { ss16 } from './ss16';
+import { ss17 } from './ss17';
 
 export const STARTING_SOON: TemplateVariant[] = [
   // ── Before the show ──
@@ -37,6 +41,10 @@ export const STARTING_SOON: TemplateVariant[] = [
   ss08, // minimal — the technical pause, deliberately clockless
   // ── After the show ──
   ss09, // noacg — the sign-off / offline card
+  ss17, // noacg - typed sign-off with logo slot
+  ss14, // minimal - typed sign-off with logo slot
+  ss15, // sport - typed sign-off with logo slot
+  ss16, // glass - typed sign-off with logo slot
 ];
 
 export function startingSoonById(id: string): TemplateVariant | undefined {

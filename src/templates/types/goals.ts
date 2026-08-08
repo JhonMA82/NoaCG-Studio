@@ -16,9 +16,14 @@ import { ig22 } from '../infographics/ig22';
 import { ig23 } from '../infographics/ig23';
 import { ig24 } from '../infographics/ig24';
 import { ig25 } from '../infographics/ig25';
+import { ig30 } from '../infographics/ig30';
+import { ig31 } from '../infographics/ig31';
+import { ig32 } from '../infographics/ig32';
+import { ig33 } from '../infographics/ig33';
 import { lt55 } from '../lowerThirds/lt55';
 import { lt56 } from '../lowerThirds/lt56';
 import { lt57 } from '../lowerThirds/lt57';
+import { lt58 } from '../lowerThirds/lt58';
 import type { GraphicType } from './graphicType';
 
 /**
@@ -104,6 +109,17 @@ export const callToActionType: GraphicType = {
       animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
       create: (_type, options) => lt57.create(options),
     },
+    {
+      id: 'lt58',
+      name: 'Clean Call',
+      description: 'A quiet call-to-action: a hairline label, the target, and one reason line.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      samples: { action: 'Join us', target: 'noacg.studio/community', detail: 'Free templates and production notes' },
+      animationPresets: ['line-reveal', 'slide-up', 'fade', 'mask-wipe', 'slide-left', 'blur-in'],
+      create: (_type, options) => lt58.create(options),
+    },
   ],
 };
 
@@ -177,6 +193,28 @@ export const goalMeterType: GraphicType = {
       defaultZone: 'mid-right',
       create: (_type, options) => ig23.create(options),
     },
+    {
+      id: 'ig30',
+      name: 'Clean Goal',
+      description: 'A quiet goal meter with a hairline track and a derived running share.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      samples: { raised: '18400', goal: '30000' },
+      animationPresets: ['count-up'],
+      create: (_type, options) => ig30.create(options),
+    },
+    {
+      id: 'ig31',
+      name: 'Volt Goal',
+      description: 'A high-impact goal meter with a hard-edged progress lane and oversized total.',
+      styleTag: 'sport',
+      palette: paletteById('volt'),
+      fontId: 'oswald',
+      samples: { raised: '6840', goal: '10000', label: 'CAMPAIGN TOTAL' },
+      animationPresets: ['count-up'],
+      create: (_type, options) => ig31.create(options),
+    },
   ],
   // ig05 "Rising Total" is the minimal member of this family and is NOT promoted here: it
   // predates the type and carries three fields (total, goal, kicker) where the type declares
@@ -247,6 +285,28 @@ export const milestoneTrackType: GraphicType = {
         current: '3120',
       },
       create: (_type, options) => ig25.create(options),
+    },
+    {
+      id: 'ig32',
+      name: 'Clean Milestones',
+      description: 'A quiet tier rail with hairline markers and evenly spaced labels.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      samples: { milestones: 'First bell | 1000\nHalfway | 2500\nFinal hour | 5000\nStretch | 7500', current: '3200' },
+      animationPresets: ['milestone-run'],
+      create: (_type, options) => ig32.create(options),
+    },
+    {
+      id: 'ig33',
+      name: 'Frost Milestones',
+      description: 'A translucent tier rail with softly lit reached nodes.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      samples: { milestones: 'Seed | 2500\nGrow | 7500\nBloom | 15000\nLegacy | 30000', current: '9600' },
+      animationPresets: ['milestone-run'],
+      create: (_type, options) => ig33.create(options),
     },
   ],
 };

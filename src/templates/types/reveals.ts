@@ -14,9 +14,11 @@ import { paletteById } from '../../model/wizard';
 import { aw01 } from '../competition/reveal/aw01';
 import { aw02 } from '../competition/reveal/aw02';
 import { aw03 } from '../competition/reveal/aw03';
+import { aw04 } from '../competition/reveal/aw04';
 import { nm01 } from '../competition/reveal/nm01';
 import { nm02 } from '../competition/reveal/nm02';
 import { nm03 } from '../competition/reveal/nm03';
+import { nm04 } from '../competition/reveal/nm04';
 import { vd01 } from '../competition/reveal/vd01';
 import { vd02 } from '../competition/reveal/vd02';
 import { vd03 } from '../competition/reveal/vd03';
@@ -115,6 +117,16 @@ export const nomineeRevealType: GraphicType = {
       fontId: 'inter',
       animationPresets: ['comp-cascade', 'comp-bloom', 'comp-rise'],
       create: (_type, options) => nm03.create(options),
+    },
+    {
+      id: 'nm04', name: 'Volt Nominees', description: 'A hard-edged finalist board where the winner takes the accent slab.',
+      styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
+      animationPresets: ['comp-impact', 'comp-cascade', 'comp-rise'],
+      // The sport board is drawn around a PLAYER award rather than a play of the tournament,
+      // which is what its own line says - so the wizard offers the design's words, not the
+      // type's (the samples gate, docs/GRAPHIC_TYPES.md §5).
+      samples: { category: 'PLAYER OF THE FINAL' },
+      create: (_type, options) => nm04.create(options),
     },
   ],
 };
@@ -462,6 +474,13 @@ export const awardRevealType: GraphicType = {
         'on a press. Only the copy differs, which is why this design declares samples rather ' +
         'than a type of its own.',
       create: (_type, options) => aw03.create(options),
+    },
+    {
+      id: 'aw04', name: 'Clean Award', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
+      styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
+      animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
+      samples: { kicker: 'THE AWARD FOR', category: 'OUTSTANDING LIVE PRODUCTION', subject: 'NORTHLIGHT MEDIA' },
+      create: (_type, options) => aw04.create(options),
     },
   ],
 };

@@ -116,21 +116,22 @@ test('one search box, and on the kit side it searches the kit', async ({ page })
   // design is called "Wire Rotator", and "ticker" is the word a person types.
   await search.fill('');
   await page.locator('[data-kit="newsroom"]').click();
-  await expect(page.getByTestId('kit-total')).toHaveText('32 graphics');
+  const newsroom = await kitSizeOf(page, 'newsroom');
+  await expect(page.getByTestId('kit-total')).toHaveText(`${newsroom} graphics`);
   await search.fill('ticker');
   const rows = page.locator('[data-kit-item]');
   expect(await rows.count()).toBeGreaterThan(0);
-  expect(await rows.count()).toBeLessThan(32);
+  expect(await rows.count()).toBeLessThan(newsroom);
   await expect(page.locator('[data-testid="kit-contents"] [data-kit-item="ticker"]')).toBeVisible();
 
   // FILTERING HIDES ROWS, IT DOES NOT UNTICK THEM. The count is the whole selection, and the
   // step says out loud that the rest are still in the kit - a number that fell while the user
   // typed would read as the kit shrinking under them.
-  await expect(page.getByTestId('kit-total')).toHaveText('32 graphics');
+  await expect(page.getByTestId('kit-total')).toHaveText(`${newsroom} graphics`);
   await expect(page.getByTestId('kit-filtered')).toContainText('hidden by the search');
   await page.getByTestId('kit-filtered').getByRole('button', { name: 'Show all' }).click();
   await expect(search).toHaveValue('');
-  await expect(page.locator('[data-testid="kit-contents"] [data-kit-item]')).toHaveCount(32);
+  await expect(page.locator('[data-testid="kit-contents"] [data-kit-item]')).toHaveCount(newsroom);
 
   // A query that matches no show says so and offers the way out, rather than an empty grid.
   await search.fill('zzzz');

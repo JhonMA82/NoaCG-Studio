@@ -243,3 +243,38 @@ decisions (do here).
 Nothing here changes a persisted format, so nothing here needs a migration. `scripts/factory.mjs`
 validates the pack config on every run and will catch a declaration that points at an empty cell,
 which is the gate items 1-3 are held to.
+
+## 6. What was done, and what the numbers are now (2026-08-08, same day)
+
+Items 1, 2, 3 and 5 are **done**; item 4 is the one that remains, and it is a decision rather than
+work. Re-measured with the same probe:
+
+| | before | after |
+|---|---|---|
+| kits resolving in all four production looks | 17 of 21 | **21 of 21** |
+| empty cells, production families | 25 | **0** |
+| graphic types no kit lists | 10 | **0** |
+| catalog variants no kit can offer | 123 of 430 | **119 of 459** |
+
+Twenty-five designs filled the matrix, and a **`sign-off` type** (`ss14`-`ss17`) gave the core
+six's closing card a home that follows the kit's look, so every one of the 21 kits now declares
+one. `ss09` "Thanks for Watching" was NOT promoted into it: it emits three text lines and
+`logo: 'none'` against the type's logo slot, and widening the type to fit an existing card would
+have been the promotion tail wagging the type (`GRAPHIC_TYPES.md` §5).
+
+**The orphan count barely moved, and that is the finding, not a disappointment.** Filling every
+cell adds one design per (type, family) — the ceiling a kit can reach — while the orphans are
+overwhelmingly SIBLING designs of types that already resolve (§3 mechanism 1), the four
+type-less categories, and the two Browse-only families. **"No orphan graphics" is not reachable
+by drawing more designs**; it needs the kit model to let a choice name a design as well as a
+type. That is item 4, and it is now the only thing between here and the goal.
+
+Two things measured on the way that belong to nobody's feature:
+
+- **The type-floor gate had never run.** Its reader lost the backslashes in `\s`/`\d`, so it
+  threw before measuring anything (repaired here). A gate that fails loudly is fine; this one
+  failed loudly at a point nobody was looking, which is how it stayed dead across a release.
+- **`lt05` and `card02@image` flip their overflow measurement between runs** — observed three
+  times, twice recording a clip that the next run did not reproduce. Left OUT of the baseline
+  deliberately, because a blanket `--update-baseline` absorbs exactly this and then nothing can
+  ever see it again.

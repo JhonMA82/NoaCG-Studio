@@ -34,12 +34,17 @@ moment the user changed the look.
 default family, PURE CONFIG over the types x families matrix; the 60 reference formats each map
 to exactly one pack. `scripts/factory.mjs` validates the config on every run (cells resolve,
 extras exist, formats covered exactly once) - edit packs.ts and the doc together.
-**The matrix is full across FOUR families, not six** (measured 2026-07-30): noacg/sport/minimal/
-glass cover 53-61 of 62 types; editorial covers 6 cells and cinematic covers 5. They are real
-style families with focused information systems and Browse chips, but BROWSE families rather
-than KIT ones - no pack resolves into either. The cell gate only tests a pack's OWN declared
-family, so it cannot catch this: anything re-resolving a pack must MEASURE which families work
-(`familiesFor` in wizard/steps/KitPicker.tsx), never assume all six.
+**The matrix is full across FOUR families, not six** - and since 2026-08-08 those four are
+COMPLETE, so every pack resolves in every one of them (docs/KIT_MATRIX_GAPS.md; before that day
+four packs were stuck in two looks each). Editorial covers 6 types and cinematic 5: real style
+families with focused information systems and Browse chips, but BROWSE families rather than KIT
+ones - no pack resolves into either, and filling them for kits is ~118 designs apiece. The cell
+gate only tests a pack's OWN declared family, so it cannot catch a hole in the other five:
+anything re-resolving a pack must MEASURE which families work (`familiesFor` in
+wizard/steps/KitPicker.tsx), never assume.
+`docs/KIT_MATRIX_GAPS.md` is the standing gap report - the core six a kit owes a show, which
+designs no kit can reach, and why that last number is a kit-model question rather than a
+drawing one.
 
 ## Discovery metadata (the Browse step's facets — docs/TEMPLATE_TAXONOMY_PROPOSAL.md)
 

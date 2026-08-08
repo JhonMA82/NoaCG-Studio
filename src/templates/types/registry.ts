@@ -46,6 +46,7 @@ import { transitionType } from './transitions';
 import { alertLevelType } from './alertLevel';
 import { publicNoticeType } from './publicNotice';
 import { eventNotificationType } from './eventNotification';
+import { signOffType } from './signOff';
 
 /** Every registered type, in the reference data's frequency order (the count is how many of
  *  the 60 reference formats ask for that graphic). The last three of the original twelve earn
@@ -63,6 +64,7 @@ export const TYPES: GraphicType[] = [
   socialBugType,      // 17/60
   pollType,           // 13/60
   holdingScreenType,  //  9/60
+  signOffType,        // the closing card - one hold, no authored machine
   tickerType,         //  8/60
   scoreboardType,     //  5/60 — but the type that proves parallel groups
   quizBoardType,      // the flagship
