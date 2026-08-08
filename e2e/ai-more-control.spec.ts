@@ -160,11 +160,17 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
   await page.locator('.mc-head', { hasText: 'Data fields' }).click();
   await expect(labels).toHaveCount(seeded);
 
-  // Close the wizard entirely and come back: the draft survives (localStorage). This file
-  // runs in Advanced mode (openAiStep), so the close rewinds to the EDITOR - reopen through
-  // its "+ New graphic" like a user would.
+  // Close the wizard entirely and come back: the draft survives (localStorage). Leaving takes
+  // TWO presses now: from a working step ✕ rewinds to the wizard's front page, and only from
+  // there does it leave (e2e/wizard-shell.spec.ts owns that contract). Both presses have to
+  // preserve the setup - the first discards the wizard's own draft, which is a different
+  // thing from the structured setup the panel persists.
+  await page.locator('.gallery-close').click();
+  await expect(page.locator('[data-entry="ai"]')).toBeVisible();
   await page.locator('.gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
+  // This file runs in Advanced mode (openAiStep), so the close rewinds to the EDITOR - reopen
+  // through its "+ New graphic" like a user would.
   await page.getByRole('button', { name: '+ New graphic' }).click();
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();

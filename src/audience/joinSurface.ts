@@ -44,26 +44,42 @@ const STYLE_ID = 'noacg-join-style';
  *  on a 5-inch screen needs the layout to be the same one every time. */
 const CSS = `
 .nj { --nj-accent:#ffb84d; --nj-text:#f4f4f5; --nj-panel:#141417; --nj-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  min-height:100%; box-sizing:border-box; padding:20px 16px 40px; margin:0 auto; max-width:560px;
+  min-height:100%; box-sizing:border-box; margin:0 auto; max-width:560px;
+  /* viewport-fit=cover means the page runs under the notch and the home indicator, so the
+     padding has to know about both — a Send button behind the indicator is unpressable. */
+  padding:calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+          calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   color:var(--nj-text); font-family:var(--nj-font); }
 .nj * { box-sizing:border-box; }
 .nj-title { margin:0 0 4px; font-size:15px; letter-spacing:.14em; text-transform:uppercase; opacity:.6; }
 .nj-prompt { margin:0 0 20px; font-size:23px; line-height:1.3; font-weight:600; }
-.nj-card { background:var(--nj-panel); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:16px; margin-bottom:14px; }
-.nj-label { display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin-bottom:6px; }
-.nj input[type=text], .nj textarea { width:100%; background:rgba(255,255,255,.05); color:inherit; font:inherit;
-  border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:11px 12px; }
-.nj textarea { min-height:104px; resize:vertical; }
+/* The border does the work, not the fill: a production's published panel colour is often within
+   a few percent of the page behind it (the studio's own is rgba(10,12,16,.86) on #0b0b0d), and a
+   card that reads as a card only for SOME brands is not a card. */
+.nj-card { background:var(--nj-panel); border:1px solid rgba(255,255,255,.16); border-radius:14px;
+  padding:16px; margin-bottom:14px; box-shadow:0 1px 0 rgba(255,255,255,.05) inset; }
+/* margin, not margin-bottom: the presenter view uses this class on a <p>, which would otherwise
+   keep the browser's 1em top margin and sit lower in its card than the same label does here. */
+.nj-label { display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin:0 0 6px; }
+/* 44px minimum on everything a thumb aims at, inputs included — the iOS/Android floor, and the
+   reason the padding is not simply "looks about right". */
+.nj input[type=text], .nj textarea { width:100%; min-height:44px; background:rgba(255,255,255,.05); color:inherit; font:inherit;
+  font-size:16px; border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:11px 12px; }
+/* No resize grabber: it is a desktop affordance that lands as a stray mark over the corner of a
+   phone-sized box, and a phone scrolls the field instead. */
+.nj textarea { min-height:112px; resize:none; }
 .nj input[type=text]:focus, .nj textarea:focus { outline:2px solid var(--nj-accent); outline-offset:1px; border-color:transparent; }
-.nj-count { text-align:right; font-size:12px; opacity:.55; margin-top:6px; }
+.nj-field + .nj-field { margin-top:14px; }
+.nj-count { text-align:right; font-size:12px; opacity:.55; margin:6px 0 0; }
+.nj-count:empty { display:none; }
 .nj-count.over { color:var(--nj-accent); opacity:1; }
-.nj-send { width:100%; margin-top:12px; padding:14px; font:inherit; font-weight:700; font-size:16px;
+.nj-send { width:100%; min-height:52px; margin-top:14px; padding:14px; font:inherit; font-weight:700; font-size:16px;
   color:#151006; background:var(--nj-accent); border:0; border-radius:10px; cursor:pointer; }
 /* A disabled send is its own colour, not the accent at 45%: a washed-out amber slab reads as a
    broken button rather than as one waiting for something to be typed. */
 .nj-send[disabled] { background:rgba(255,255,255,.08); color:rgba(244,244,245,.5); cursor:default; }
 .nj-opts { display:grid; gap:10px; }
-.nj-opt { display:flex; align-items:center; gap:10px; width:100%; text-align:left; font:inherit; font-size:16px;
+.nj-opt { display:flex; align-items:center; gap:12px; width:100%; min-height:52px; text-align:left; font:inherit; font-size:16px;
   color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14);
   border-radius:10px; padding:14px; cursor:pointer; }
 .nj-opt[aria-pressed=true] { border-color:var(--nj-accent); box-shadow:inset 0 0 0 1px var(--nj-accent); }
@@ -77,7 +93,14 @@ const CSS = `
 .nj-waiting { text-align:center; padding:26px 10px; opacity:.7; font-size:16px; line-height:1.5; }
 `;
 
-function ensureStyle(doc: Document): void {
+/**
+ * Put the join look on a document. Exported because the join ENTRY renders two things this
+ * function does not — the presenter view and the "nothing to show" message — and both were
+ * shipping unstyled: `nj-*` class names against a stylesheet that only existed once
+ * `mountJoinSurface` had run. A presenter opening their own link got serif text flush against
+ * the left edge of a black page.
+ */
+export function ensureJoinStyle(doc: Document): void {
   if (doc.getElementById(STYLE_ID)) return;
   const style = doc.createElement('style');
   style.id = STYLE_ID;
@@ -118,7 +141,7 @@ export function mountJoinSurface(
   client: JoinSurfaceClient,
   options: JoinSurfaceOptions = {},
 ): JoinSurfaceHandle {
-  ensureStyle(root.ownerDocument);
+  ensureJoinStyle(root.ownerDocument);
   root.classList.add('nj');
 
   let view: JoinView | null = null;
@@ -174,8 +197,15 @@ export function mountJoinSurface(
 
   const renderCompose = () => {
     const card = el('div', 'nj-card');
+    const isComment = view?.state.mode === 'comment';
+
+    // Labels are wired to their fields with for/id rather than merely sitting above them: on a
+    // phone the label is the biggest thing near a small box, and tapping it has to focus.
+    const nameField = el('div', 'nj-field');
     const nameLabel = el('label', 'nj-label', 'Your name (optional)');
+    nameLabel.htmlFor = 'nj-author';
     const nameInput = el('input');
+    nameInput.id = 'nj-author';
     nameInput.type = 'text';
     nameInput.maxLength = AUDIENCE_LIMITS.author;
     nameInput.value = draft.author;
@@ -183,18 +213,28 @@ export function mountJoinSurface(
     nameInput.addEventListener('input', () => {
       draft.author = nameInput.value;
     });
-    const bodyLabel = el('label', 'nj-label', view?.state.mode === 'comment' ? 'Your message' : 'Your question');
+    nameField.append(nameLabel, nameInput);
+
+    const bodyField = el('div', 'nj-field');
+    const bodyLabel = el('label', 'nj-label', isComment ? 'Your message' : 'Your question');
+    bodyLabel.htmlFor = 'nj-body';
     const bodyInput = el('textarea');
+    bodyInput.id = 'nj-body';
     bodyInput.maxLength = AUDIENCE_LIMITS.body;
     bodyInput.value = draft.body;
+    bodyInput.placeholder = isComment ? 'Type your message…' : 'Type your question…';
     const count = el('p', 'nj-count');
+    bodyField.append(bodyLabel, bodyInput, count);
+
     const send = el('button', 'nj-send', 'Send');
     send.type = 'button';
 
     const sync = () => {
       draft.body = bodyInput.value;
       const left = AUDIENCE_LIMITS.body - bodyInput.value.length;
-      count.textContent = `${left} characters left`;
+      // The counter appears only once it is news. "500 characters left" over an empty box is a
+      // limit nobody is near, printed where the next thing to read should be.
+      count.textContent = left <= 120 ? `${left} characters left` : '';
       count.classList.toggle('over', left < 40);
       send.disabled = busy || bodyInput.value.trim().length === 0;
     };
@@ -203,7 +243,7 @@ export function mountJoinSurface(
       void sendNow(nameInput.value, bodyInput.value);
     });
 
-    card.append(nameLabel, nameInput, bodyLabel, bodyInput, count, send);
+    card.append(nameField, bodyField, send);
     root.appendChild(card);
     sync();
   };

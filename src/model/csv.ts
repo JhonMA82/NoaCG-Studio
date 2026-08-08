@@ -202,3 +202,19 @@ export function parseTableFile(name: string, text: string): ParsedTable & { erro
   if (parsed.header.length === 0) return { header: [], rows: [], error: 'That file has no rows.' };
   return { header: parsed.header, rows: parsed.rows, error: null };
 }
+
+/**
+ * The WRITER, here beside the reader so the two cannot drift: what this emits is what
+ * `parseCsv` reads back, and scripts/csv.test.mjs proves the round trip rather than trusting it.
+ *
+ * RFC 4180 quoting, applied only where it is needed - a cell holding the separator, a quote, or
+ * a newline. Comma is the separator and CRLF the line ending, which is the pair every
+ * spreadsheet on every platform opens without being asked what the file is.
+ */
+export function serializeCsv(header: string[], rows: string[][] = []): string {
+  const cell = (value: string) =>
+    /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const line = (cells: string[]) => cells.map(cell).join(',');
+  // A trailing newline, so appending a row in a plain text editor starts on its own line.
+  return [line(header), ...rows.map(line)].join('\r\n') + '\r\n';
+}

@@ -11,7 +11,7 @@
 import { isBackendConfigured } from '../backend/config';
 import { createSupabaseAudience, presenterBySlug } from '../audience/audienceData';
 import { deviceToken } from '../audience/deviceToken';
-import { mountJoinSurface } from '../audience/joinSurface';
+import { ensureJoinStyle, mountJoinSurface } from '../audience/joinSurface';
 
 const root = document.getElementById('join');
 
@@ -37,6 +37,9 @@ function readSlug(): { join: string | null; presenter: string | null } {
  *  guessed link. */
 function nothing(message = 'This link is not open right now.'): void {
   if (!root) return;
+  // The stylesheet belongs to the join surface, and this page has two states that never mount it
+  // — this message and the presenter view. Both shipped unstyled until it was asked for here.
+  ensureJoinStyle(document);
   root.className = 'nj';
   root.textContent = '';
   const p = document.createElement('p');
@@ -53,6 +56,9 @@ async function showPresenter(slug: string): Promise<void> {
       nothing();
       return;
     }
+    // Same stylesheet as the audience page — this view uses its class names, so without this it
+    // renders as unstyled serif text against the left edge of the screen.
+    ensureJoinStyle(document);
     root.className = 'nj';
     root.textContent = '';
     const title = document.createElement('p');
@@ -60,10 +66,12 @@ async function showPresenter(slug: string): Promise<void> {
     title.textContent = view.productionName;
     root.appendChild(title);
     // Two items, in the words that would go on air. No inbox, no counts, no controls: a
-    // presenter's tablet is a read-only window onto what the operator has lined up.
+    // presenter's tablet is a read-only window onto what the operator has lined up. The labels
+    // match the two buttons the producer presses (🎤 Now / ⇢ Next on the Audience tab), so the
+    // two people can say the same word about the same thing.
     for (const [label, item] of [
-      ['On air next', view.current],
-      ['After that', view.next],
+      ['Now', view.current],
+      ['Next', view.next],
     ] as const) {
       const card = document.createElement('div');
       card.className = 'nj-card';
@@ -71,9 +79,11 @@ async function showPresenter(slug: string): Promise<void> {
       heading.className = 'nj-label';
       heading.textContent = label;
       const body = document.createElement('p');
-      body.className = 'nj-prompt';
+      body.className = item ? 'nj-prompt' : 'nj-note';
       body.style.margin = '0';
-      body.textContent = item?.body || '—';
+      // An empty slot says it is empty. A dash reads as a rendering fault on a tablet held at
+      // arm's length, and this is the one page nobody can ask about mid-show.
+      body.textContent = item?.body || 'Nothing queued yet.';
       card.append(heading, body);
       if (item?.author) {
         const who = document.createElement('p');
@@ -83,6 +93,10 @@ async function showPresenter(slug: string): Promise<void> {
       }
       root.appendChild(card);
     }
+    const foot = document.createElement('p');
+    foot.className = 'nj-note';
+    foot.textContent = 'Read-only — this updates itself as the producer changes what is queued.';
+    root.appendChild(foot);
   };
   await paint();
   // The presenter view is a monitor, so it refreshes on the same cadence as the join page and

@@ -270,15 +270,21 @@ export default function CreationWizard() {
     }).catch(() => undefined);
   }, [open, aiResult]);
 
-  // Escape closes (keeps the current project).
+  // Escape does what the ✕ does — rewind to the front page from a working step, leave from the
+  // front page itself. Two ways out of one surface that disagreed about where "out" is was the
+  // fault; a reader who learns the ✕ rewinds and then loses their draft to the key beside it
+  // has been told two different things by the same wizard. `leaveStepRef` keeps the handler off
+  // the re-subscribe treadmill: leaveStep closes over the step, so binding it directly would
+  // tear the listener down and rebuild it on every draft keystroke.
+  const leaveStepRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeGallery();
+      if (e.key === 'Escape') leaveStepRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, closeGallery]);
+  }, [open]);
 
   const variant = draft.variantId ? variantById(draft.variantId) : undefined;
 
@@ -322,6 +328,48 @@ export default function CreationWizard() {
   if (!open) return null;
 
   const patch = (p: DraftPatch) => setDraft((d) => mergeDraft(d, p));
+
+  /**
+   * The ✕. From any step past Entry it goes BACK TO THE WIZARD'S FRONT PAGE rather than out of
+   * the wizard: the reader who is three steps into the wrong mode wants the other door, not the
+   * app behind it, and losing the whole surface to correct one wrong turn is the fault this
+   * fixes. From Entry itself there is nowhere left to rewind to, so it closes as it always did.
+   *
+   * The draft is DISCARDED — the mode's own choices are what the reader is leaving — except the
+   * PROJECT FORMAT, which is a property of the thing being made and not of the route taken to
+   * make it; re-picking 4:5 at 50 fps after every mode change would be the wizard forgetting
+   * something the reader already told it. Home stays one click away on the brand lockup, which
+   * is the same door on every topbar in the product.
+   */
+  const leaveStep = () => {
+    if (step === 0) {
+      closeGallery();
+      return;
+    }
+    setDraft((d) => {
+      const fresh = initialDraft();
+      return {
+        ...fresh,
+        aspectId: d.aspectId,
+        resolutionId: d.resolutionId,
+        fps: d.fps,
+        formatTouched: d.formatTouched,
+      };
+    });
+    setMode('template');
+    setStep(0);
+    setBrowseFilters(NO_BROWSE_FILTERS);
+    setAiResult(null);
+    setAiThread(null);
+    setStretchDemo(null);
+    setKitError(null);
+    // Back to what a fresh open sets. The toggle WRITES the brand into the draft, so leaving
+    // it checked over a draft that was just cleared would show a look the graphic no longer
+    // carries — the checkbox and the preview disagreeing about the same fact.
+    setMatchBrand(false);
+  };
+  // Escape's handler reads this rather than closing over `leaveStep` directly (see below).
+  leaveStepRef.current = leaveStep;
 
   // Creating an SPX graphic (any path) lands in the SPX shell; creating/opening a video
   // lands in the video shell. Only the wizard flips the persisted doc-kind switch.
@@ -836,10 +884,24 @@ export default function CreationWizard() {
                 "what am I working on" without the reader looking at the preview. */}
             {variant && <span className="wz-title-doc">· {variant.name}</span>}
           </div>
-          <span className="wz-stepcount">
-            Step <b>{railPos + 1}</b> / {stepTitles.length}
-          </span>
-          <button className="gallery-close" onClick={closeGallery} title="Cancel (keep current project)">✕</button>
+          {/* HOW FAR ALONG — from the SECOND step onward. On Entry there is no answer to give:
+              no mode is chosen yet, so the denominator is not even the same number for every
+              door (Create with AI is 3 steps, a kit is 2), and "Step 1 / 6" on a screen whose
+              whole question is "which of these four" states a walk the reader has not picked.
+              The count comes from the ACTIVE MODE's own step list, which is what makes it
+              true once it does appear. */}
+          {step > 0 && (
+            <span className="wz-stepcount" data-testid="wz-stepcount">
+              Step <b>{railPos + 1}</b> / {stepTitles.length}
+            </span>
+          )}
+          <button
+            className="gallery-close"
+            onClick={leaveStep}
+            title={step > 0 ? 'Back to the start (discards this draft)' : 'Cancel (keep current project)'}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Body: step content (+ live preview from step 2). The Text step (design mode, step 3)

@@ -1643,6 +1643,10 @@ kbd {
 .wz-entry {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* EQUAL ROWS. Without this the grid sizes each row to its tallest card, so the one card
+     with a longer description made its whole row taller than the row beneath it (measured at
+     1366x768 before the fix: 179px against 138px) and the four cards read as two pairs. */
+  grid-auto-rows: 1fr;
   gap: 14px;
   padding: 10px 0 0;
   width: 100%;
@@ -1665,6 +1669,27 @@ kbd {
 .wz-entry-card .wz-entry-icon { font-size: 20px; color: var(--accent); }
 .wz-entry-card strong { font-size: 15px; font-weight: 600; }
 .wz-entry-card:disabled { opacity: 0.55; cursor: default; }
+
+/* THE CARD'S TITLE ROW (re-design/handoff.md §2a): the icon sits BESIDE the title, not on a
+   line of its own above it. Stacked, the icon cost a whole line of the entry step's height
+   budget per card and left the row with nothing to align a trailing control to; the reference
+   draws its selection dot at the far end of exactly this row, which is why it is a flex line
+   rather than two blocks. `margin-left: auto` on a future trailing child parks it right. */
+.wz-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wz-entry-head .wz-entry-icon { flex: 0 0 auto; line-height: 1; }
+.wz-entry-head strong { min-width: 0; }
+/* The description RESERVES the room the longest card needs, so every card's copy starts at
+   the same y and a two-line card is not shorter than a three-line one. Three lines is the
+   entry grid's budget: a card whose copy needs a fourth is a card that needs shorter copy.
+   It is a floor, never a cap — nothing is clipped if a translation runs long, the row simply
+   grows. Scoped to the grid, because the Finish doors reserve their own smaller number and a
+   shared value would spend the step height they are short of. */
+.wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.4em); }
 
 /* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
    The grid is the whole decision, so cards stay scannable rather than pretty: name,
@@ -2011,9 +2036,42 @@ kbd {
    Browse step's chip disclosure its summary carries a rule above it — the collapsed row has
    to read as the boundary of the step's tuning half, not as a stray line of text. */
 .wz-style-more { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
-.wz-style-more summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 2px 0; }
+/* A collapsed row is a LABEL on the left and its CURRENT VALUE on the right, in the mono label
+   voice (re-design/handoff.md §2d). The value is the whole reason a section is allowed to
+   collapse at all: a disclosure that hides a decision without naming it makes the reader open
+   every one of them to find out what the graphic is set to. */
+.wz-style-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 2px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  /* `display: flex` stops the UA rendering a summary's ::marker at all, so the disclosure
+     arrow has to be drawn here or the row loses the one thing saying it opens. */
+  list-style: none;
+}
+.wz-style-more summary::-webkit-details-marker { display: none; }
+.wz-style-more summary::before {
+  content: '▸';
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.wz-style-more[open] summary::before { content: '▾'; }
 .wz-style-more summary:hover { color: var(--text); }
 .wz-style-more[open] summary { margin-bottom: 6px; }
+.wz-style-more-value {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
 
 /* Step 5: animation */
 /* The Template step's discovery filters: small chips above the variant grid. */
@@ -2033,16 +2091,24 @@ kbd {
 }
 .wz-browse-programme { margin-bottom: 12px; }
 .wz-browse-programme select { min-width: 200px; }
-/* NOT A 22-CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid,
-   which at 22 categories stacked eleven rows deep and pushed the actual templates off the
-   screen — on the step whose whole job is picking one. They are chips now, in a bounded
-   strip that scrolls on its own: the same 22 targets (every spec still clicks them by name,
-   and the tile set is still derived from the taxonomy), about a fifth of the height. */
+/* NOT A CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid, which
+   at 27 categories stacked eleven rows deep and pushed the actual templates off the screen —
+   on the step whose whole job is picking one. They are chips now, in a bounded strip that
+   scrolls on its own: the same targets (every spec still clicks them by name, and the tile set
+   is still derived from the taxonomy), a fraction of the height.
+   THE CAP APPLIES AT EVERY WIDTH, which it did not at first — only the phone had it. The strip
+   wraps to whatever the step column gives it, and that column HALVES the moment a design is
+   picked and the live preview takes its half of the sheet: measured at 1366x768, the strip went
+   from 142px to 364px on the pick, 58% of the visible step spent on chips, pushing the first
+   design card from 373px down to 657px and out of sight. Three rows, then scroll. */
 .wz-browse-tiles {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 12px;
+  max-height: 112px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .wz-browse-tiles .wz-cat {
   flex: 0 0 auto;
@@ -2190,11 +2256,11 @@ details:not([open]) > *:not(summary) { display: none; }
   .wz-browse-lead { flex-direction: column; align-items: stretch; }
   .wz-browse-lead .spacer { display: none; }
   .wz-browse-drawer-btn { justify-content: center; width: 100%; }
-  /* THE TYPE STRIP SCROLLS ON ITS OWN. Twenty-two chips wrap to twelve rows on a 390px
-     screen: measured 512px tall, which put the first design 293px BELOW the fold — the wall
-     this redesign removed, back on the surface where it costs most. Capped to about four
-     rows with its own scroll, so the step still opens on templates. */
-  .wz-browse-tiles { max-height: 150px; overflow-y: auto; padding-right: 4px; }
+  /* THE TYPE STRIP SCROLLS ON ITS OWN — the base rule's cap, raised. Twenty-two chips wrap to
+     twelve rows on a 390px screen: measured 512px tall, which put the first design 293px BELOW
+     the fold — the wall this redesign removed, back on the surface where it costs most. A
+     phone has no preview beside the step, so it can afford the extra row the desktop cannot. */
+  .wz-browse-tiles { max-height: 150px; }
   /* Three format selects in one row is a desktop measure; stacked they stay legible. */
   .wz-browse-format .project-format-fields { flex-wrap: wrap; }
   .wz-browse-format .project-format-fields label { flex: 1 1 45%; }
@@ -2204,13 +2270,31 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-anim { text-align: left; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }
 .wz-anim.selected { border-color: var(--accent); }
 /* The Slide family's cell: the preset card plus its direction-of-travel picker. */
-.wz-anim-cell { display: flex; flex-direction: column; gap: 6px; }
-.wz-anim-cell .wz-anim { flex: 1; width: 100%; }
+/* TRAVEL sits in the preset grid's own empty cell (re-design/handoff.md §2e). Five presets in
+   two columns leave a hole, and the direction arrows used to spend vertical room under the
+   Slide card while that hole stayed empty — on a step measured at 235px of overflow. Bordered
+   like a preset card so it reads as part of the same set, captioned so it is clear the arrows
+   belong to Slide rather than to whatever card happens to sit above them. */
+.wz-anim-travel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
 .wz-anim-dirs { display: flex; gap: 4px; }
 .wz-anim-dirs button { flex: 1; padding: 4px 0; font-size: 14px; line-height: 1; }
 .wz-anim-dirs button.active { border-color: var(--accent); color: var(--accent); }
 
-/* Step 6: finish — name it, read back what was built, then take one of the two doors. */
+/* Step 6: finish — name it, read back what was built, then take one of the two doors.
+   THE STEP'S HEIGHT IS ITS BUDGET, because the doors are the last thing on it: everything
+   above them that spends a line pushes the only two controls the step exists for below the
+   fold. Measured at 1366x768 before this pass — 54px of overflow, both doors clipped. The
+   blocks are therefore tighter here than the app's default rhythm, scoped to this step so no
+   other panel pays for it. Pinned by e2e/wizard-finish.spec.ts. */
+.wz-finish .panel-section { margin-bottom: 12px; }
 .wz-finish-name { width: 100%; max-width: 420px; font-size: 15px; }
 /* The read-back. A definition list rather than a table: these are label/value pairs, and the
    grid keeps every value on one column edge so the block scans vertically. */
@@ -2222,7 +2306,7 @@ details:not([open]) > *:not(summary) { display: none; }
   grid-template-columns: 110px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: baseline;
-  padding: 9px 14px;
+  padding: 7px 14px;
 }
 .wz-finish-summary > div + div { border-top: 1px solid var(--hairline); }
 .wz-finish-summary dt { font-size: 12px; color: var(--text-dim); }
@@ -2241,8 +2325,14 @@ details:not([open]) > *:not(summary) { display: none; }
    this step exists for. At 240 they sit side by side at ~274px each, which is also the width
    every other entry card in the wizard already uses. Wrap is kept for narrow viewports, where
    stacking full-width is right. */
-.wz-finish-doors { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.wz-finish-doors { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
 .wz-finish-doors .wz-entry-card { width: auto; flex: 1 1 240px; }
+/* The doors' own description reserve — two lines, not the entry grid's three. Their copy was
+   cut to what a door actually has to say (the detail belongs to the surface each one leads
+   to), because at 1366x768 the pair sat BELOW THE FOLD on the one step whose whole job is to
+   offer a choice: the primary door's title was cut through the middle. Measured by
+   e2e/wizard-finish.spec.ts. */
+.wz-finish-doors .wz-entry-head + .hint { min-height: calc(2 * 1.4em); }
 
 .issue { padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); }
 .issue.error { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.4); }
@@ -3943,8 +4033,19 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   /* The mode caption ("New graphic") is ~110px of a 375px header saying what the user chose
      two taps ago, while the active chip already names where they are. The brand mark stays. */
   .wz-title-step, .wz-title-sep, .wz-title-doc { display: none; }
-  .wz-entry { padding: 16px 4px; }
-  .wz-entry-card { width: 100%; }
+  /* ONE COLUMN ON A PHONE. The 2x2 grid is a desktop measure: at 390px it gave each card a
+     164px column, which left about 110px of text beside the icon — so every title wrapped to
+     two lines with the icon floating against the middle of the block, and the descriptions ran
+     seven to eleven lines of two-word rows. Measured: four cards 291px tall each, 513px of
+     overflow. It is the same defect the video card's own mobile rule was written for.
+     `grid-auto-rows` goes back to auto with it: equal heights are what keeps a ROW even, and a
+     single-column stack has no rows to even out — held at 1fr it would grow all four cards to
+     the tallest one's height for nothing. */
+  .wz-entry {
+    padding: 16px 4px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */
   .wz-continue-card { flex-direction: column; align-items: flex-start; }
   .pk-body { padding: 12px 14px; }

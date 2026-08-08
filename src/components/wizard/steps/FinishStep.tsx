@@ -164,10 +164,9 @@ export default function FinishStep({
         {/* Not cosmetic on the export branch: this name slugs the zip and, for the SPX and
             CasparCG packages, the template FOLDER inside it — what the operator picks from
             in the playout server. */}
-        <p className="hint">
-          Used in the library, on the topbar, and as the exported package’s folder name. Leave
-          it blank to use “{namePlaceholder}”.
-        </p>
+        {/* One line. The field already SHOWS what an empty name falls back to, as its
+            placeholder, so spending a second line to say so again cost the doors below. */}
+        <p className="hint">Used in the library, on the topbar, and as the exported folder name.</p>
       </div>
 
       <div className="panel-section">
@@ -217,11 +216,18 @@ export default function FinishStep({
           )}
         </div>
         <p className="hint">
-          A production is what airs: its graphics, the cue rundown, and — once published — the
-          output URL your playout client loads and the control page you operate from.
+          A production is what airs: its graphics, the cue rundown, the output URL, and the
+          control page.
         </p>
       </div>
 
+      {/* Each door wears the shared card anatomy: a title row, then a short description block.
+          At 1366x768 the pair used to sit BELOW THE FOLD — the primary door's title was cut
+          through the middle on the one step whose whole job is to offer a choice — so every
+          block above them says its piece in fewer lines and the doors' own copy is one line of
+          what happens, not a paragraph about where it leads. They stay side by side (the
+          measured decision above `.wz-finish-doors`); stacking them costs more height than it
+          buys. */}
       <div className="wz-finish-doors">
         <button
           className="wz-entry-card wz-entry-card--primary"
@@ -229,12 +235,12 @@ export default function FinishStep({
           disabled={busy}
           data-testid="wz-finish-production-go"
         >
-          <span className="wz-entry-icon">▶</span>
-          <strong>Add to the production — go live</strong>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">▶</span>
+            <strong>Add to the production — go live</strong>
+          </span>
           <span className="hint">
-            Saves the graphic to your library, pools it into the production above with its
-            first cue ready, and lands on the production page — publish for the live URLs, or
-            export the whole set from there.
+            Saves it to your library, pools it into the production with its first cue ready.
           </span>
         </button>
         <button
@@ -243,12 +249,13 @@ export default function FinishStep({
           disabled={busy}
           data-testid="wz-finish-export"
         >
-          <span className="wz-entry-icon">⬇</span>
-          <strong>Export it</strong>
+          <span className="wz-entry-head">
+            <span className="wz-entry-icon">⬇</span>
+            <strong>Export it</strong>
+          </span>
           <span className="hint">
             Just the files — SPX, CasparCG, OGraf, LiveOS, an OBS/vMix overlay
-            {isRenderConfigured() ? ', or a rendered video or still' : ''}. It is saved to
-            your library first, so you can always come back to it.
+            {isRenderConfigured() ? ', or a rendered video' : ''}. Saved to your library first.
           </span>
         </button>
         {showEditorDoor && (
@@ -258,11 +265,13 @@ export default function FinishStep({
             disabled={busy}
             data-testid="wz-finish-editor"
           >
-            <span className="wz-entry-icon">‹›</span>
-            <strong>Open in the editor</strong>
+            <span className="wz-entry-head">
+              <span className="wz-entry-icon">‹›</span>
+              <strong>Open in the editor</strong>
+            </span>
             <span className="hint">
-              Fine-tune fields, motion and code on the canvas and timeline. Save it whenever
-              you are ready — nothing is written to your library until you do.
+              Fine-tune fields, motion and code on the canvas and timeline. Nothing is written
+              to your library until you press Save.
             </span>
           </button>
         )}
