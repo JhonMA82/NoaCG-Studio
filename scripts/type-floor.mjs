@@ -31,9 +31,9 @@ import { devPort } from './dev-port.mjs';
 // one regex over one tiny declaration, and it fails loudly if the shape ever moves.
 const FLOOR = (() => {
   const source = readFileSync(new URL('../src/validation/typeFloor.ts', import.meta.url), 'utf8');
-  const body = source.match(/TYPE_FLOOR_PX[^=]*=s*{([^}]*)}/)?.[1];
+  const body = source.match(/TYPE_FLOOR_PX[^=]*=\s*{([^}]*)}/)?.[1];
   const table = {};
-  for (const [, key, value] of (body ?? '').matchAll(/'?([a-z-]+)'?s*:s*(d+)/g)) table[key] = Number(value);
+  for (const [, key, value] of (body ?? '').matchAll(/'?([a-z-]+)'?\s*:\s*(\d+)/g)) table[key] = Number(value);
   if (!table.default) {
     throw new Error('could not read TYPE_FLOOR_PX from src/validation/typeFloor.ts - has its shape changed?');
   }

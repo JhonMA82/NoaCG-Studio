@@ -32,6 +32,10 @@ import { ig26 } from './ig26';
 import { ig27 } from './ig27';
 import { ig28 } from './ig28';
 import { ig29 } from './ig29';
+import { ig30 } from './ig30';
+import { ig31 } from './ig31';
+import { ig32 } from './ig32';
+import { ig33 } from './ig33';
 
 export const INFOGRAPHICS: TemplateVariant[] = [
   ig01, // Big stat count-up
@@ -58,8 +62,12 @@ export const INFOGRAPHICS: TemplateVariant[] = [
   ig21, // House Actions — house recap (recap-card)
   ig22, // House Goal — noacg goal meter, total + progress bar (sibling lt11 / ig05)
   ig23, // Frost Goal — glass goal ring, share of the target (sibling lt08 / ig04)
+  ig30, // Clean Goal - minimal measured goal bar
+  ig31, // Volt Goal - sport measured goal bar
   ig24, // House Milestones — noacg tier rail with reached nodes (sibling lt11 / ig22)
   ig25, // Volt Milestones — sport tier rail, leaning markers (sibling lt05 / ig03)
+  ig32, // Clean Milestones - minimal measured tier rail
+  ig33, // Frost Milestones - glass measured tier rail
   // ── The sports pack: fixtures and results, on one board (docs/SPORTS_PACK.md) ──
   ig26, // House Fixtures — noacg void panel, amber score chips (sibling ig08)
   ig27, // Volt Fixtures — sport slab, filled score blocks (sibling ig10)

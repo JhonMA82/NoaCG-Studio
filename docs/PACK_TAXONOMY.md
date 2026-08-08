@@ -10,14 +10,16 @@ live registry on every run, so this mapping cannot silently rot.
 (docs/GRAPHIC_TYPES.md §6), so every `(type, family)` cell a pack reaches for already names a
 shipped, gate-checked design — declaring a pack is one entry in `PACKS`, no new template work.
 
-**Four families, not six** (measured 2026-07-29): `noacg` covers 61 of 62 types, `sport` 56,
-`minimal` 53, `glass` 53 — while `editorial` and `cinematic` cover 1 each. Both are real style
-families with their own designs, tokens and Browse chips, but they are BROWSE families rather
-than KIT ones: no pack resolves into either, and filling them would mean ~122 new designs. A
-surface that re-resolves a pack in another look must therefore MEASURE which families work
-rather than assume all six (`familiesFor`, `src/components/wizard/steps/KitPicker.tsx`); the
-`validatePacks` cell gate only tests a pack's own declared family, so it cannot catch this. That is the "catalog growth is a config change"
-half of Phase 3's done-when, made true for the axis it is true on:
+**Four families, not six** — and as of 2026-08-08 the four are FULL: every registered type ships a
+design in `noacg`, `minimal`, `sport` and `glass`, so all 21 packs resolve in all four looks
+(`KIT_MATRIX_GAPS.md` §6 has the before/after). `editorial` and `cinematic` cover 6 and 5 types
+and stay BROWSE families rather than KIT ones — real style families with their own designs,
+tokens and Browse chips, but filling them for kits would mean ~118 designs each to serve a look
+no pack declares. A surface that re-resolves a pack in another look must still MEASURE which
+families work (`familiesFor`, `src/components/wizard/steps/KitPicker.tsx`) rather than assume:
+the `validatePacks` cell gate only tests a pack's own declared family, which is exactly how the
+gate stayed green through the years the other three were incomplete. That is the "catalog growth
+is a config change" half of Phase 3's done-when, made true for the axis it is true on:
 
 - **A new pack = config.** Add the entry; the factory proves it resolves and that the format
   mapping stays exactly-once.
@@ -94,6 +96,34 @@ Pinned by `e2e/wizard-kit.spec.ts`.
 | Stage & Music | glass | title-card, lower-third, holding-screen, countdown, social-bug, agenda, ticker, now-next, statement-card, notice-card, award-bug, event-bug | ls04, ls25, ls26, ls27, al10, cr02, cr09, cr12, ss07, ss11, card56 |
 | Shopping | noacg | topic-card, countdown, lower-third, ticker, title-card, sponsor-bug, key-facts, sponsor-strip, sponsor-rotator | pi04, ss06, ss12, cr12 |
 | Wellness | minimal | countdown, holding-screen, topic-card, lower-third, social-bug, process-steps, logo-bug | pi04, pi06, ss08, ss09, card52 |
+
+### The core six — what makes a kit a kit
+
+Every kit ships six graphics regardless of genre, and its genre add-ons on top of them: a lower
+third, an opener or topic card, an info or bullet card, a ticker or bug, a countdown or holding
+card, and a closing card. A kit does not need every category in the catalog; it needs to be
+complete enough to RUN A SHOW.
+
+**`validatePacks` enforces it** (`CORE_SIX` in `src/templates/packs.ts`, so the factory fails the
+build on a kit that cannot run a show). Only TYPES satisfy a role, never `extras`: a type resolves
+per family and therefore follows the look the kit was built in, while an extra is a fixed variant
+id carrying its own. Mutation-tested when it landed - take one kit's closing card away and the
+gate names it.
+
+Measured against that bar 2026-08-08 (**`KIT_MATRIX_GAPS.md`**, the standing gap report), the nine
+DISCIPLINE packs failed it — all nine were pure match furniture with no opener, no card that puts
+a sentence on screen and no way to end. That was a declaration fault, not missing designs: every
+type they needed already resolves in all four production families, so `title-card` and `key-facts`
+joined all nine (and the countdown and hold joined Racket Sports, whose normal state is a break).
+Newsroom and Talk Show still have no closing card, and that one IS a catalog gap — see below.
+
+**The closing card became a real type the same day** (`sign-off`, `ss14`-`ss17`), and every kit
+declares it. It had been answered by the `end-credits` extras and by `ss09` "Thanks for Watching",
+which is not good enough for a core-six member: an extra carries its OWN look, because it is a
+fixed variant id, so it does not follow the family the kit was built in and `paletteId` repaints
+its palette but not its shape language. That is why frames enter a kit only where the frame's own family already matches
+the pack's (Creator `fr01`, Esports `fr03`, Talk Show `fr02`, Corporate `fr04`) — a frame cannot
+be a type at all, because its field count follows its camera count.
 
 ### Kit look unification (`TemplatePack.paletteId`)
 

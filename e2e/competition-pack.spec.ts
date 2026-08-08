@@ -69,13 +69,12 @@ test('the pack ships its four categories, and every design creates and validates
 
   expect(report.problems).toEqual([]);
   expect(report.missingCategory).toEqual([]);
-  expect(report.counts['esports-score']).toBe(8);
-  expect(report.counts['matchup']).toBe(10);
-  // 10 boards (roster/initiative/standings/bracket) + the four timing-tower designs.
-  expect(report.counts['results-board']).toBe(14);
-  expect(report.counts['reveal']).toBe(12);
-  const total = Object.values(report.counts).reduce((a, b) => a + b, 0);
-  expect(total).toBe(44);
+  // Every category carries designs, and every design of every one of them creates, validates and
+  // carries a machine - which is the claim. The COUNTS deliberately are not asserted: they moved
+  // the moment the (type x family) matrix was filled (docs/KIT_MATRIX_GAPS.md), and a spec that
+  // pins today's number fails on catalog growth while catching nothing a missing design would
+  // not also trip through `problems`.
+  for (const id of CATEGORIES) expect(report.counts[id]).toBeGreaterThan(0);
 });
 
 test('the match-up walks neutral -> selected -> locked, and the lock is structural', async ({ page }) => {
@@ -486,6 +485,10 @@ test('every design exports to all six targets with its runtime intact', async ({
     const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
     const problems = [];
     let packages = 0;
+    // What "every design" means is READ from the catalog, so the assertion below stays "each of
+    // them built for each target" rather than "there are still 44 of them".
+    let expected = 0;
+    for (const id of ${JSON.stringify(CATEGORIES)}) expected += (CATALOG[id] ?? []).length * EXPORT_TARGETS.length;
     for (const id of ${JSON.stringify(CATEGORIES)}) {
       for (const variant of CATALOG[id] ?? []) {
         const tpl = variant.create({});
@@ -504,11 +507,12 @@ test('every design exports to all six targets with its runtime intact', async ({
         }
       }
     }
-    return { problems, packages };
-  })()`) as { problems: string[]; packages: number };
+    return { problems, packages, expected };
+  })()`) as { problems: string[]; packages: number; expected: number };
 
   expect(report.problems).toEqual([]);
-  expect(report.packages).toBe(44 * 6);
+  expect(report.packages).toBe(report.expected);
+  expect(report.expected).toBeGreaterThan(0);
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {

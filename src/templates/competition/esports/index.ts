@@ -10,5 +10,9 @@ import { mr01 } from './mr01';
 import { mr02 } from './mr02';
 import { mr03 } from './mr03';
 import { mr04 } from './mr04';
+import { mr05 } from './mr05';
 
-export const ESPORTS_SCORES: TemplateVariant[] = [es01, es02, es03, es04, mr01, mr02, mr03, mr04];
+export const ESPORTS_SCORES: TemplateVariant[] = [
+  es01, es02, es03, es04,
+  mr01, mr02, mr03, mr05, mr04,
+];

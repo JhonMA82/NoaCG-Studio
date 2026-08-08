@@ -14,15 +14,19 @@ import { paletteById } from '../../model/wizard';
 import { aw01 } from '../competition/reveal/aw01';
 import { aw02 } from '../competition/reveal/aw02';
 import { aw03 } from '../competition/reveal/aw03';
+import { aw04 } from '../competition/reveal/aw04';
 import { nm01 } from '../competition/reveal/nm01';
 import { nm02 } from '../competition/reveal/nm02';
 import { nm03 } from '../competition/reveal/nm03';
+import { nm04 } from '../competition/reveal/nm04';
 import { vd01 } from '../competition/reveal/vd01';
 import { vd02 } from '../competition/reveal/vd02';
 import { vd03 } from '../competition/reveal/vd03';
+import { vd04 } from '../competition/reveal/vd04';
 import { wn01 } from '../competition/reveal/wn01';
 import { wn02 } from '../competition/reveal/wn02';
 import { wn03 } from '../competition/reveal/wn03';
+import { wn04 } from '../competition/reveal/wn04';
 import {
   AWARD_FIELDS,
   NOMINEE_FIELDS,
@@ -113,6 +117,16 @@ export const nomineeRevealType: GraphicType = {
       fontId: 'inter',
       animationPresets: ['comp-cascade', 'comp-bloom', 'comp-rise'],
       create: (_type, options) => nm03.create(options),
+    },
+    {
+      id: 'nm04', name: 'Volt Nominees', description: 'A hard-edged finalist board where the winner takes the accent slab.',
+      styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
+      animationPresets: ['comp-impact', 'comp-cascade', 'comp-rise'],
+      // The sport board is drawn around a PLAYER award rather than a play of the tournament,
+      // which is what its own line says - so the wizard offers the design's words, not the
+      // type's (the samples gate, docs/GRAPHIC_TYPES.md §5).
+      samples: { category: 'PLAYER OF THE FINAL' },
+      create: (_type, options) => nm04.create(options),
     },
   ],
 };
@@ -227,6 +241,21 @@ export const verdictCardType: GraphicType = {
       },
       create: (_type, options) => vd03.create(options),
     },
+    {
+      id: 'vd04',
+      name: 'Frost Verdict',
+      description: 'A frosted ruling card with the verdict held in a softly-ringed medallion.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['comp-bloom', 'comp-impact', 'comp-rise'],
+      samples: {
+        prompt: 'IS THAT ANSWER CORRECT?',
+        answer: 'THE RED PLANET IS MARS',
+        note: 'CONFIRMED BY THE JUDGES',
+      },
+      create: (_type, options) => vd04.create(options),
+    },
   ],
 };
 
@@ -326,6 +355,16 @@ export const winnerCardType: GraphicType = {
       fontId: 'manrope',
       animationPresets: ['comp-bloom', 'comp-rise', 'comp-impact'],
       create: (_type, options) => wn03.create(options),
+    },
+    {
+      id: 'wn04',
+      name: 'Clean Champion',
+      description: 'A quiet result card where a hairline separates the champion from the score.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
+      create: (_type, options) => wn04.create(options),
     },
   ],
 };
@@ -435,6 +474,13 @@ export const awardRevealType: GraphicType = {
         'on a press. Only the copy differs, which is why this design declares samples rather ' +
         'than a type of its own.',
       create: (_type, options) => aw03.create(options),
+    },
+    {
+      id: 'aw04', name: 'Clean Award', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
+      styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
+      animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
+      samples: { kicker: 'THE AWARD FOR', category: 'OUTSTANDING LIVE PRODUCTION', subject: 'NORTHLIGHT MEDIA' },
+      create: (_type, options) => aw04.create(options),
     },
   ],
 };

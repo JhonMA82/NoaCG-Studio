@@ -24,6 +24,7 @@ import { mr01 } from '../competition/esports/mr01';
 import { mr02 } from '../competition/esports/mr02';
 import { mr03 } from '../competition/esports/mr03';
 import { mr04 } from '../competition/esports/mr04';
+import { mr05 } from '../competition/esports/mr05';
 import { MAP_FIELDS, SCORE_FIELDS } from '../competition/esports/shared';
 import type { GraphicType } from './graphicType';
 
@@ -290,6 +291,16 @@ export const mapRoundType: GraphicType = {
       // A strip of game chips belongs across the top of the frame, not down its side.
       defaultZone: 'top-center',
       create: (_type, options) => mr03.create(options),
+    },
+    {
+      id: 'mr05',
+      name: 'Clean Maps',
+      description: 'A panel-free map ladder with hairline rows and a quiet live-map cursor.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
+      create: (_type, options) => mr05.create(options),
     },
     {
       id: 'mr04',

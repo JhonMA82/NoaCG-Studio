@@ -45,6 +45,8 @@
 import { paletteById } from '../../model/wizard';
 import { pi08 } from '../publicInfo/pi08';
 import { pi09 } from '../publicInfo/pi09';
+import { pi11 } from '../publicInfo/pi11';
+import { pi12 } from '../publicInfo/pi12';
 import type { GraphicType, TypeBranch, TypeTimeline } from './graphicType';
 
 /** How long each language holds before the other takes over (speed-relative seconds).
@@ -186,6 +188,26 @@ export const publicNoticeType: GraphicType = {
       },
       animationPresets: ['fade', 'slide-up', 'mask-wipe', 'blur-in'],
       create: (_type, options) => pi09.create(options),
+    },
+    {
+      id: 'pi11',
+      name: 'Slab Notice Rotator',
+      description: 'A hard-edged two-language notice whose messages rotate in one solid slab.',
+      styleTag: 'sport',
+      palette: paletteById('volt'),
+      fontId: 'oswald',
+      animationPresets: ['slide-up', 'fade', 'mask-wipe', 'blur-in'],
+      create: (_type, options) => pi11.create(options),
+    },
+    {
+      id: 'pi12',
+      name: 'Frost Notice Rotator',
+      description: 'A frosted two-language notice whose messages rotate in one stable panel.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['blur-in', 'fade', 'slide-up'],
+      create: (_type, options) => pi12.create(options),
     },
   ],
 };

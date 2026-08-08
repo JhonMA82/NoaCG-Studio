@@ -76,6 +76,14 @@ import {
   card66,
 } from './infoSystems/editorial';
 import { card67, card68, card69, card70, card71 } from './infoSystems/cinematic';
+import { card72 } from './card72';
+import { card73 } from './card73';
+import { card74 } from './card74';
+import { card75 } from './card75';
+import { card76 } from './card76';
+import { card77 } from './card77';
+import { card78 } from './card78';
+import { card79 } from './card79';
 
 export const INFO_CARDS: TemplateVariant[] = [
   // ── Information cards ──
@@ -119,12 +127,20 @@ export const INFO_CARDS: TemplateVariant[] = [
   card37, // House Statement — house long text (statement-card)
   card38, // House Product — noacg live-shopping card, shot + price row (sibling lt11 / card06)
   card39, // Frost Product — glass live-shopping card, stacked shot + price row (sibling card03)
+  card72, // Clean Product - minimal product card
+  card73, // Volt Product - sport product slab
   card40, // Volt Offer — sport flash-offer slab, claim + promo code (sibling lt05 / card02)
   card41, // Clean Offer — minimal panel-free offer card (sibling lt01 / card07)
+  card74, // House Offer - noacg offer card
+  card75, // Frost Offer - glass offer card
   card42, // Clean Listing — minimal property/lot/resource card (sibling lt03 / ig05)
   card43, // House Lot — noacg auction/listing card, live value block (sibling lt11 / card38)
+  card76, // Volt Listing - sport listing slab
+  card77, // Frost Listing - glass listing card
   card44, // House Scan — noacg QR card, quiet-zone tile + address (sibling lt11 / card38)
   card45, // Clean Scan — minimal stacked QR card (sibling lt01 / card07)
+  card78, // Volt Scan - sport QR card with protected white tile
+  card79, // Frost Scan - glass QR card with protected white tile
   card46, // Frost Location — glass travel/location card, drawn pin (sibling card03 / card39)
   card47, // Volt Location — sport venue marker, drawn pin (sibling lt05 / card02)
   card48, // House Sponsors — noacg sponsor strip, four partner slots (sibling lt11 / bug02)

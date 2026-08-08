@@ -12,17 +12,17 @@
 // deliberately NOT config: it needs twelve designs and a FAMILY_TOKENS row before a pack could
 // point at it, and `validatePacks` would say so.
 //
-// **"The matrix is full" is true of FOUR families, not six** (measured 2026-07-29):
+// **"The matrix is full" is true of FOUR families, not six** — and as of 2026-08-08 those four
+// are genuinely full: every registered type ships a noacg, minimal, sport and glass design, so
+// every pack below resolves in all four looks. Before that day, seventeen of twenty-one did
+// (docs/KIT_MATRIX_GAPS.md measured it; ten designs closed the gap).
 //
-//   noacg 61/62 types · sport 56/62 · minimal 53/62 · glass 53/62
-//   editorial 1/62 · cinematic 1/62
-//
-// Editorial and cinematic are real STYLE families — 7 catalog designs each, their own
-// FAMILY_TOKENS row and Browse chip — but they are BROWSE families, not KIT families: almost
-// no graphic TYPE ships a design in them, so no pack resolves into either. That is a
-// deliberate state, not debt: filling them means ~122 new designs, and a kit is not the only
-// thing a style family is for. Anything resolving a pack must therefore MEASURE which families
-// work (`familiesFor` in wizard/steps/KitPicker.tsx) rather than assume all six do.
+// Editorial and cinematic cover 6 and 5 types. They are real STYLE families — their own designs,
+// FAMILY_TOKENS row and Browse chip — but they are BROWSE families, not KIT families: almost no
+// graphic TYPE ships a design in them, so no pack resolves into either. That is a deliberate
+// state, not debt: filling them means ~118 new designs each, and a kit is not the only thing a
+// style family is for. Anything resolving a pack must therefore MEASURE which families work
+// (`familiesFor` in wizard/steps/KitPicker.tsx) rather than assume all six do.
 //
 // `scripts/factory.mjs` validates all of this on every run: every type id resolves, every
 // extra exists in the catalog, and the 60 formats are covered exactly once. Editing this file
@@ -96,6 +96,7 @@ export const PACKS: TemplatePack[] = [
       'event-bug', 'live-bug', 'sponsor-strip', 'status-chip',
       // The competition pack's sports half (docs/COMPETITION_PACK.md).
       'roster', 'standings', 'winner-card',
+      'sign-off',
     ],
     extras: [
       // The specialist straps a match feed is drawn for: the commentary pair as a block and
@@ -114,15 +115,24 @@ export const PACKS: TemplatePack[] = [
   // scorebug wants, whether the score is kept in periods or sets, whether a lineup is a squad
   // or a start list — plus the supporting graphics that sport actually uses. They claim no
   // reference formats: see `TemplatePack.formats`.
+  //
+  // They are refinements of Match Day, and being cut that way is what left them unable to run a
+  // show on their own: measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), all nine were pure match
+  // furniture — no opener, nothing that puts a sentence on screen. Every kit ships the CORE SIX
+  // regardless of genre (a lower third, an opener, an info card, a ticker or bug, a countdown or
+  // hold, a closing card), so `title-card` and `key-facts` are in all nine below. Both resolve in
+  // all four production families, so this costs no template work and narrows no pack's looks.
   {
     id: 'football',
     name: 'Football',
     description: 'Count-up clock, subs and cards, the league table and the weekend results.',
     family: 'sport',
     types: [
-      'scorebug', 'match-event', 'match-status', 
+      'scorebug', 'match-event', 'match-status',
       'fixtures', 'match-board',
       'lower-third', 'sponsor-bug', 'countdown', 'holding-screen',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     extras: ['vs01'],
     formats: [],
@@ -136,6 +146,8 @@ export const PACKS: TemplatePack[] = [
       'scorebug', 'match-board', 'match-event', 'match-status',
       'fixtures',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -145,9 +157,11 @@ export const PACKS: TemplatePack[] = [
     description: 'Quarter clock, the quarter-by-quarter board, team stats and the conference table.',
     family: 'sport',
     types: [
-      'scorebug', 'match-board', 
+      'scorebug', 'match-board',
       'match-status', 'match-event', 'fixtures',
       'lower-third', 'sponsor-bug', 'countdown',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -160,6 +174,8 @@ export const PACKS: TemplatePack[] = [
       'scorebug', 'match-event', 'match-board', 'match-status',
       'fixtures',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -170,8 +186,12 @@ export const PACKS: TemplatePack[] = [
     family: 'glass',
     types: [
       'match-board', 'scorebug', 'match-status',
-      'fixtures', 
+      'fixtures',
       'lower-third', 'sponsor-bug', 'agenda',
+      // A rain break and a suspended session are this pack's normal state, so the hold and the
+      // countdown to resumption are core here rather than optional.
+      'title-card', 'key-facts', 'countdown', 'holding-screen',
+      'sign-off',
     ],
     extras: ['vs02'],
     formats: [],
@@ -188,6 +208,8 @@ export const PACKS: TemplatePack[] = [
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'sponsor-bug', 'ticker', 'holding-screen',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -202,6 +224,8 @@ export const PACKS: TemplatePack[] = [
       'fixtures', 'match-status',
       'countdown', 'scorebug',
       'lower-third', 'agenda', 'sponsor-bug',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -212,8 +236,10 @@ export const PACKS: TemplatePack[] = [
     family: 'glass',
     types: [
       'match-status', 'scorebug', 'match-event',
-      'fixtures', 'countdown', 
+      'fixtures', 'countdown',
       'lower-third', 'sponsor-bug', 'holding-screen',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     extras: ['vs02'],
     formats: [],
@@ -224,9 +250,11 @@ export const PACKS: TemplatePack[] = [
     description: 'The amateur kit: full club names, no crests needed, and nothing that costs bitrate.',
     family: 'minimal',
     types: [
-      'scorebug', 'match-status', 'match-board', 
+      'scorebug', 'match-status', 'match-board',
       'fixtures', 'match-event',
       'lower-third', 'holding-screen', 'countdown', 'sponsor-bug',
+      'title-card', 'key-facts',
+      'sign-off',
     ],
     formats: [],
   },
@@ -249,11 +277,15 @@ export const PACKS: TemplatePack[] = [
       'esports-score', 'map-round', 'match-event', 'match-status', 'fixtures',
       // Desk and post-match coverage.
       'standings', 'bracket', 'ticker', 'scoreboard', 'winner-card',
+      'sign-off',
     ],
     extras: [
       // Pre-match drafting needs the new operator-driven veto board as well as the live map
       // ladder. The three straps identify players, the commentary pair and the analysis desk.
       'mr04', 'ls11', 'ls06', 'ls13',
+      // The two-caster split, in this kit's own Volt look (an extra never follows the family
+      // the kit is built in, so it is only ever offered where it already matches).
+      'fr03',
       // Tournament-wide score and sponsor rails remain readable while play stays visible.
       'tk13', 'cr12',
     ],
@@ -273,8 +305,18 @@ export const PACKS: TemplatePack[] = [
       // A stream's audience IS the show: the chat strap and the live vote are as core here
       // as the strap is, and the question card is what a Just Chatting segment runs on.
       'chat-highlight', 'live-poll', 'viewer-question',
+      // The follower / member / donation / gift / raid alert. Its own template-owned queue is
+      // what makes a burst of events survive, so a creator kit without it is a kit that drops
+      // the graphic the stream is most often asked for.
+      'event-notification',
+      'sign-off',
+      'goal-meter', 'milestone-track', 'call-to-action',
     ],
     extras: [
+      // The webcam surround, in the house look this kit is built in. A frame cannot be a graphic
+      // TYPE (its field count follows its camera count - docs/GRAPHIC_TYPES.md), so it can only
+      // reach a kit as an extra, and an extra carries its OWN look - hence in-family only.
+      'fr01',
       // A co-stream names two people in the house look, the handle row is the graphic a
       // creator ends on, and the identity card carries the sub/donation goal a subathon or
       // a telethon exists for.
@@ -315,6 +357,11 @@ export const PACKS: TemplatePack[] = [
       // them: the severity ladder is what an emergency broadcast IS, and the two-language
       // notice retires the "multilingual cards are fields" stand-in the mapping recorded.
       'alert-level', 'public-notice',
+      // The hold a news desk actually runs on - a bulletin waiting to start, a feed that has
+      // dropped. It was covered by the `ss08` extra alone, which happens to be minimal and so
+      // happens to match this kit's look; the type follows whatever look the kit is built in.
+      'holding-screen',
+      'sign-off',
     ],
     extras: [
       // The news desk's specialist straps, ALL in-family since step 7 (the measured audit
@@ -360,6 +407,7 @@ export const PACKS: TemplatePack[] = [
       // A civic broadcast is frequently obliged to carry its notices in two languages, and
       // the rotator is the honest way to do that in one strip's worth of screen.
       'public-notice',
+      'sign-off',
     ],
     extras: [
       // Civic coverage reads the party colour first: the result bar, the symmetric podium
@@ -394,6 +442,7 @@ export const PACKS: TemplatePack[] = [
       'station-bug', 'sponsor-rotator',
       // The whole audience-interaction set: a live Q&A is this pack's own format.
       'viewer-question', 'qa-card', 'chat-highlight', 'question-queue', 'live-poll',
+      'sign-off',
     ],
     extras: [
       // The panel's own straps, ALL in-family since step 7 (the measured audit found ls05
@@ -401,6 +450,8 @@ export const PACKS: TemplatePack[] = [
       // the guest-over-host pair, the specialist's subject tag, and the now-playing strap a
       // radio-with-video show needs (the topic card had been standing in for it).
       'ls02', 'ls04', 'ls24', 'ls25',
+      // The two-up interview surround, in this kit's own Frost look.
+      'fr02',
       // The coming-up card replaces the off-family Studio Pair (ls04 already carries that
       // job), the glass Reading Card replaces the ivory Quotation, and Intermission
       // replaces the noacg Short Break beside the kept Back Shortly.
@@ -429,12 +480,17 @@ export const PACKS: TemplatePack[] = [
       'event-bug', 'sponsor-strip',
       // Webinar and conference Q&A: the moderator's queue and the answered card.
       'question-queue', 'qa-card', 'viewer-question', 'live-poll',
+      'sign-off',
+      'qr-card',
     ],
     extras: [
       // The speaker credits a conference actually runs on: post-nominals as their own
       // field, the institution's mark on the card, the session strap that leads with the
       // talk for people joining mid-track, and the expert's field for medical and legal.
       'ls17', 'ls18', 'ls19', 'ls24',
+      // The screen-share surround with a presenter inset - the layout a webinar spends most of
+      // its runtime in, in this kit's own Clean look.
+      'fr04',
       // The two notices a webinar runs more than any graphic it was planned with, and the
       // small print the medical and legal formats are obliged to carry: the disclaimer at
       // the floor, and the health advisory with its helpline in a band of its own.
@@ -468,6 +524,7 @@ export const PACKS: TemplatePack[] = [
       'verdict-card', 'standings',
       // Two- and three-answer boards for true/false and three-way rounds, plus the class vote.
       'answer-board-2', 'answer-board-3', 'live-poll', 'viewer-question',
+      'sign-off',
     ],
     extras: [
       // The lecturer's credit, and the school or department mark a student production is
@@ -494,6 +551,7 @@ export const PACKS: TemplatePack[] = [
       'logo-bug', 'event-bug',
       // The request card and the question card — a service reads both from the congregation.
       'community-request', 'viewer-question', 'question-queue',
+      'sign-off',
     ],
     extras: [
       // The three worship straps, and the reason this pack needed its own: a sermon credit
@@ -523,6 +581,8 @@ export const PACKS: TemplatePack[] = [
       // A gala runs on two marks: which award is being given, and which festival or stage
       // this is.
       'award-bug', 'event-bug',
+      'sign-off',
+      'nominee-reveal', 'award-reveal',
     ],
     extras: [
       // The billing straps, and getting them the right way round is this pack's whole job:
@@ -554,6 +614,8 @@ export const PACKS: TemplatePack[] = [
       // Live commerce is brand-dense: a partner strip for the show's sponsors, and a rotation
       // for the ones that cycle through a long selling block.
       'sponsor-strip', 'sponsor-rotator',
+      'sign-off',
+      'product-card', 'offer-card', 'listing-card', 'qr-card', 'call-to-action',
     ],
     // No specialist strap here on purpose: the pack is drawn for interview duos, athletes,
     // clergy, academics, politicians and performers, and a selling host is named by an
@@ -579,6 +641,7 @@ export const PACKS: TemplatePack[] = [
       'process-steps',
       // A class or an ambient stream keeps one quiet mark on screen and nothing more.
       'logo-bug',
+      'sign-off',
     ],
     // Same as Shopping: an instructor is named by an ordinary strap, and forcing a
     // specialist one in would only make the kit harder to read. What this pack DID need is
@@ -626,6 +689,34 @@ export function resolvePack(pack: TemplatePack): PackCell[] {
  * merged catalog's id set, passed in by the caller (the factory) so this module never has to
  * import the catalog it is a view over.
  */
+/**
+ * THE CORE SIX - what every kit owes a show, whatever its genre (docs/PACK_TAXONOMY.md).
+ *
+ * A kit does not need every category in the catalog; it needs to be complete enough to RUN one.
+ * Measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), nine kits were not: the discipline packs were
+ * pure match furniture with no opener, nothing that puts a sentence on screen and no way to end,
+ * because they were cut as refinements of Match Day rather than as kits in their own right.
+ *
+ * Each role lists the TYPES that satisfy it. An `extras` entry does NOT count, deliberately: a
+ * type resolves per family and so follows the look the kit was built in, while an extra is a
+ * fixed variant id carrying its own. A kit whose closing card is an off-family extra is exactly
+ * the incoherence `paletteId` was introduced to fix, one layer down.
+ */
+const CORE_SIX: Record<string, readonly string[]> = {
+  'lower third': ['lower-third'],
+  'opener or topic card': ['title-card', 'topic-card'],
+  'info or bullet card': [
+    'key-facts', 'headline-card', 'recap-card', 'process-steps', 'statement-card',
+    'notice-card', 'public-notice',
+  ],
+  'ticker or bug': [
+    'ticker', 'sponsor-bug', 'station-bug', 'live-bug', 'logo-bug', 'event-bug', 'social-bug',
+    'award-bug', 'status-chip', 'sponsor-strip', 'sponsor-rotator',
+  ],
+  'countdown or holding card': ['countdown', 'holding-screen'],
+  'closing card': ['sign-off'],
+};
+
 export function validatePacks(knownVariantIds?: string[]): string[] {
   const problems: string[] = [];
   const typeIds = new Set(TYPES.map((t) => t.id));
@@ -651,6 +742,15 @@ export function validatePacks(knownVariantIds?: string[]): string[] {
       const known = new Set(knownVariantIds);
       for (const extra of pack.extras ?? []) {
         if (!known.has(extra)) problems.push(`pack "${pack.id}" extra "${extra}" is not in the catalog`);
+      }
+    }
+
+    for (const [role, satisfiedBy] of Object.entries(CORE_SIX)) {
+      if (!satisfiedBy.some((typeId) => pack.types.includes(typeId))) {
+        problems.push(
+          `pack "${pack.id}" ships no ${role} - the core six is what makes a kit able to run a ` +
+            `show (one of: ${satisfiedBy.join(', ')})`,
+        );
       }
     }
 

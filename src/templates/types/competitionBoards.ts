@@ -21,10 +21,13 @@
 import { paletteById } from '../../model/wizard';
 import { br01 } from '../competition/results/br01';
 import { br02 } from '../competition/results/br02';
+import { br03 } from '../competition/results/br03';
+import { br04 } from '../competition/results/br04';
 import { rs01 } from '../competition/results/rs01';
 import { rs02 } from '../competition/results/rs02';
 import { rs03 } from '../competition/results/rs03';
 import { rs04 } from '../competition/results/rs04';
+import { rs05 } from '../competition/results/rs05';
 import { st01 } from '../competition/results/st01';
 import { st02 } from '../competition/results/st02';
 import { st03 } from '../competition/results/st03';
@@ -135,6 +138,16 @@ export const rosterType: GraphicType = {
       fontId: 'inter',
       animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
       create: (_type, options) => rs03.create(options),
+    },
+    {
+      id: 'rs05',
+      name: 'Frost Roster',
+      description: 'A frosted line-up board with rounded rows and an accent-ringed spotlight.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['comp-cascade', 'comp-bloom', 'comp-rise'],
+      create: (_type, options) => rs05.create(options),
     },
     {
       id: 'rs04',
@@ -380,6 +393,26 @@ export const bracketType: GraphicType = {
       fontId: 'space-grotesk',
       animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
       create: (_type, options) => br02.create(options),
+    },
+    {
+      id: 'br03',
+      name: 'Clean Bracket',
+      description: 'A panel-free knockout tree with hairline ties and a quiet live-round cursor.',
+      styleTag: 'minimal',
+      palette: paletteById('ivory'),
+      fontId: 'inter',
+      animationPresets: ['comp-cascade', 'comp-rise', 'comp-bloom'],
+      create: (_type, options) => br03.create(options),
+    },
+    {
+      id: 'br04',
+      name: 'Frost Bracket',
+      description: 'A frosted knockout tree with glass ties and an accent-ringed live round.',
+      styleTag: 'glass',
+      palette: paletteById('frost'),
+      fontId: 'manrope',
+      animationPresets: ['comp-cascade', 'comp-bloom', 'comp-rise'],
+      create: (_type, options) => br04.create(options),
     },
   ],
 };
