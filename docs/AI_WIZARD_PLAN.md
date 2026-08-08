@@ -1,5 +1,10 @@
 # AI wizard review & improvement plan
 
+> **PARKED 2026-08-08 - superseded by `docs/ADAPT_FIRST_PLAN.md`.** Written before the pivot,
+> when the question was how to improve open-ended AI generation rather than whether to do it at
+> all. Retained for §5's rejection of image-generation-for-backgrounds, which
+> `docs/NOACG_PRO_PLAN.md` §1 answers rather than ignores. Nothing here is current strategy.
+
 **Status: ACTIVE PLAN (proposed 2026-07-24).** Nothing here is built. It reviews the
 Create-with-AI wizard step as it stands today, names what is weak, compares against what the
 rest of the market does, and proposes an ordered plan. Where a proposal costs real API money

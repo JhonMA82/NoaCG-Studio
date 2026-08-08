@@ -124,7 +124,7 @@ and no prompt, template, screenshot, or generated artifact is retained.
 ## Disclosure and consent
 
 Every AI action that sends content off the user's machine is gated by a first-use
-disclosure notice (ratified decision 2, `docs/AI_PLATFORM_PLAN.md` §15): prompts and
+disclosure notice (ratified decision 2, 2026-07-28): prompts and
 uploaded images may be sent to an external AI provider; sensitive or confidential material
 must not be uploaded; ZDR-capable routes are preferred where available but retention
 across providers is not guaranteed. The wording and version live in
@@ -245,7 +245,8 @@ requested model satisfies is a different failure - `400 no_providers_available`,
 might.
 
 Every catalogued route was **verified serving under ZDR on 2026-08-07**, one real call each,
-recorded in `docs/MODEL_ROUTE_AUDITS.md`; `zdrAvailable` is that recorded result and nothing
+recorded in `docs/MODEL_ROUTE_AUDITS.md` (the dated audit log - parked as a plan, live as the
+record); `zdrAvailable` is that recorded result and nothing
 else. The /admin Models page shows *verified* / *not verified* accordingly, and flipping one to
 true stays reserved for whoever actually makes the verifying call.
 

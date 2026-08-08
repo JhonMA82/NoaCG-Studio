@@ -1,5 +1,11 @@
 # AI platform plan - one workflow for all AI assistance
 
+> **PARKED 2026-08-08 - superseded by `src/ai/AGENTS.md`, `docs/AI_PROVIDER_GATEWAY.md` and
+> `docs/AI_TASK_REGISTRY.md`.** The stages this plan proposed are built and their contracts are
+> owned by those three files. Retained for the ratified decisions it records (the disclosure
+> notice, who-pays-decides-the-route, the wrong-kind blocking ruling), which live code still
+> cites by section number. Nothing here is current strategy.
+
 **Status: PLAN RATIFIED (2026-07-28).** Sections 1-3 and 5 are a verified audit of the tree
 at audit time; sections 4-14 are the reviewed design. The owner decisions in section 15 were
 ratified 2026-07-28 and supersede the corresponding proposals earlier in the document (marked

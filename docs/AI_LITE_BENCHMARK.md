@@ -1,5 +1,12 @@
 # NoaCG Lite - model evaluation benchmark
 
+> **PARKED 2026-08-08 - superseded by `docs/AI_LITE_PLAN.md` (the deadline plan) and
+> `docs/AI_LITE_PROMOTION.md` (promotion policy).** Retained as the benchmark machinery's
+> reference and as the home of three relocated records: Appendix B (the skin and judge
+> mechanics) and Appendix C (the OpenRouter-era rounds A-D and route table), plus the §6b-§6f
+> judge measurements. Prices and route names below predate the Vercel AI Gateway move and are
+> not current recommendations.
+
 How NoaCG Lite's model-and-provider route is measured, regressed, and (eventually)
 promoted. The question: *which route produces the cheapest consistently usable, editable,
 broadcast-appropriate Lite graphic* - cost per **accepted** graphic, not per call, against
@@ -558,3 +565,374 @@ the first calibrated run). The system only ever RECOMMENDS - output is a recomme
 plus a proposed env-route change; the product owner promotes by editing server config.
 A candidate can be *recommended for manual broadcast verification*, never
 *broadcast-approved*, until the manual checklist there is complete.
+
+---
+
+## Appendix B - the skin and judge mechanics
+
+*Relocated from `src/ai/AGENTS.md` on 2026-08-08, when that file was reordered around adapt-first
+and cut to the live contract. Nothing here changed; it moved because both surfaces are
+server-flagged OFF and a live contract should not carry an experiment's internals.
+`src/ai/AGENTS.md` keeps the three rules that bind anyone touching the code while the flags are
+off: a skin reverts rather than costing a working result, `clip-path` is forbidden, and the judge's
+admission RPC is the shape every new paid Lite route repeats.*
+
+### The skin path
+
+When the profile enables `AI_LITE_SKIN_ENABLED`, the same single model call may ALSO return
+`skin:{summary,css,html?}` - bounded restyling for the NEUTRAL canvas chassis
+(`templates/lowerThirds/skinCanvas.ts` `ltc01`, deliberately NOT in the browse catalog). The
+platform still compiles everything deterministically; the skin CSS lands as a marked override block
+through the SAME polish gate (`applyPolish`, `LITE_SKIN_MARKER`), and `litePipeline.attemptLiteSkin`
+is the ONE implementation both production (`liteGroundedResult`, path `grounded+skin`) and the
+benchmark runners use. Any failure - an illegal patch (`liteSkinPatchErrors`, shared with the
+server's semantic validation), a gate rejection, or a failing bench - REVERTS silently to the spec's
+house chassis. With the flag off, the schema (`LITE_READY_OUTPUT`), prompt, and behaviour are
+byte-identical to before the skin existed, and a skin a model emits anyway is stripped server-side.
+
+**Why `clip-path` is banned, generalised.** The blind review found two skins whose secondary line
+lost its last letter to an angled cut; the runtime bench read a perfectly placed box and passed, and
+so did the vision judge (§6d). The patch gate rejects it in CSS and in `skin.html` style attributes;
+`background-clip: text` stays legal. Generalize the lesson before adding any visual construct to a
+model's allowlist: **a deterministic gate cannot catch a defect in a dimension it does not measure**,
+so either measure that dimension or forbid the construct.
+
+**A constraint stated as a prohibition suppresses the behaviour it constrains.** The strap rules
+first shipped as "STRAP SHAPE IS NON-NEGOTIABLE" and "a wrapped name is a failed skin", and the next
+paid round emitted skins at HALF the previous rate: given a way to fail and a documented way out
+(`omit skin`), the model took the way out. The same geometry now reads as the shape being painted,
+and the escape hatch names omission as the likelier mistake. Measured, not theorised - prompt
+version `lite-lower-third-v3`, and the pin in `aiLite.test.ts` fails if failure language returns.
+When a teaching change moves a rate, suspect the FRAMING before the rule.
+
+### The vision judge
+
+One server-owned, cost-capped vision call (`POST /api/ai/lite/judge`, flag `AI_LITE_JUDGE_ENABLED`)
+scoring the rendered HOLD frame on legibility / textIntegrity / hierarchy / briefFit / strapShape
+(contract + prompt in `liteContract.ts`, `LITE_JUDGE_*`, versioned independently as
+`LITE_JUDGE_PROMPT_VERSION`); every axis must reach the server threshold or the caller reverts to
+the house chassis. It fails closed like the generation routes and stores nothing. Today only the
+eval rig calls it (Playwright captures the hold frame); production wiring waits on
+judge-vs-blind-review calibration AND an in-app capture path - see §6b before touching thresholds.
+
+**Write every judge axis as INSPECTION, and let ABSENCE be its first failure.** Both blind spots the
+human review found were the same mistake in different clothes. `legibility` asked the model to read,
+and reading completes a word whose last letter is sliced off. `strapShape` listed the wrong shapes a
+panel can take - squat box, badge, tall stack - so a frame with no panel at all matched nothing on
+the list and scored 5. An axis phrased as a taxonomy of variants can only find the variants; an axis
+phrased as "locate the elements, then ask what binds them" can find nothing-is-there. A new axis
+states what to look at, what counts as absent, and what earns a 5 - never a list of named failures.
+
+**The judge passes admission of its OWN** (`store.reserveJudge`, migration 0013): a generation is
+admitted once, for one generation, so a second paid call cannot ride that admission indefinitely.
+Ownership, liveness (`expiresAt`), the per-generation cap (`AI_LITE_JUDGE_MAX_PER_GENERATION`,
+attempts not successes) and the daily fleet spend ceiling are decided ATOMICALLY in one RPC under
+the same advisory locks `reserve_ai_lite_generation` takes, and the worst-case cost is BOOKED there
+before the call - `settleJudgeCost` reconciles it to the provider's number afterwards. Booking first
+is not bookkeeping neatness: adding the cost afterwards from a value read before the call loses one
+of two overlapping judgements. A missing record and someone else's answer fail identically, so the
+endpoint is not a generation-id oracle.
+
+---
+
+## Appendix C - the OpenRouter-era Lite rounds (A-D) and route table
+
+*Relocated verbatim from `docs/AI_LITE_PLAN.md` on 2026-08-08, when that plan was rewritten as
+the student-deadline plan and stripped of everything historical. These sections describe the
+configuration BEFORE the move to Vercel AI Gateway: the prices are OpenRouter prices and the
+route names are OpenRouter route names, so nothing here is a current recommendation. The findings
+that still bind are in `docs/AI_ATTEMPTS.md` and `src/ai/AGENTS.md`.*
+
+## 0. What changed on 2026-08-07
+
+Lite had been off in production **for everyone** since it shipped - `AI_LITE_ENABLED` was
+never set on the Vercel project, so the greyed-out door was an environment variable, not code.
+Nobody had ever used the `lite-lower-third-v3` prompt in production, which means every prior
+opinion about Lite's quality was formed on evidence that did not cover it: the 2026-07-27
+calibration measured hand-written gold specs, rounds d-j measured the SKIN experiment (off in
+production, a different code path), and the 2026-07-29 model comparison measured *machine
+usability* - "compiles and benches clean", which a grey square also satisfies.
+
+Three things had to be true before a single generation could run, and only one was known:
+
+1. **`AI_LITE_ENABLED` alone is not enough.** `taskConfigured()` refuses any OpenRouter route
+   with an empty `AI_LITE_GATEWAY_PROVIDERS`, so enabling alone moves the status endpoint
+   from `disabled` to `not-configured` and nothing else.
+2. **The pinned fallback could not be served at all.** `liteGatewayPolicy` derives
+   `maxInputPerMillion` from the *audited catalog snapshot*, which prices
+   `qwen/qwen3-coder-next` at 0.11/M in. Its cheapest live endpoint is parasail/bf16 at
+   **0.12/M in**; every endpoint is dearer than the cap computed from our own stale figure, so
+   the fallback route had zero eligible endpoints. Repointed at
+   `mistralai/mistral-small-24b-instruct-2501`, whose live price (0.05/0.08 on deepinfra/fp8)
+   matches the catalog entry exactly.
+3. **The 89% `provider_rejected` round has a structural explanation.** The historical allowlist
+   was `google-vertex,google-ai-studio` - endpoints that serve the *primary* only. `only` is
+   ONE list applied to every route, and `allowProviderFallbacks` is pinned false, so a primary
+   hiccup had nowhere to go. The list now covers both routes.
+
+Production now answers `enabled: true`, `reason: "sign-in"` - `configured` passed, which
+independently re-confirms that both routes are catalog-approved, priced, allowlisted, keyed and
+ledger-backed.
+
+**Anonymous access remains OFF and is not ours to change.** `ANONYMOUS_PLAN['ai.lite'] = false`
+puts OpenRouter spend behind an account. The proposal, with numbers, is §7.
+
+### ZDR is provable per provider, for free
+
+`?zdr=true` is a listing-level filter and no endpoint field carries a data policy, which is why
+provider pinning has been guesswork. It need not be: **a model that appears in the ZDR listing
+and has exactly ONE endpoint proves that endpoint's provider is ZDR-servable.** Measured over
+the 30 qualified candidates: `deepinfra` (4 models, including `google/gemma-3-12b-it` and
+`mistralai/mistral-small-24b-instruct-2501`), `coreweave`, `together`, `groq`, `parasail`,
+`reka`. **Not** proven: `streamlake`, which is the cheapest endpoint of
+`qwen/qwen3-30b-a3b-instruct-2507` - the 24/24 leader of the 2026-07-29 comparison. So that
+route is a gamble rather than a free upgrade, and it is listed below as a candidate, not a
+promotion.
+
+---
+
+## 1. The first round: what the shipped configuration actually produces
+
+`bench:spike --suite=core`, 6 frozen briefs x 3 runs = **18 generations, $0.0051 total**,
+prompt `lite-lower-third-v3`, primary `google/gemini-2.5-flash-lite`. Artifacts:
+`lite-bench-out/round-2026-08-07/`.
+
+| measure | result |
+|---|---|
+| machine-usable | **18 / 18** |
+| validation rule codes raised | **none, on any generation** |
+| repairs / second attempts | 2 / 3 |
+| mean cost per generation | **$0.000285** (1.3k in, ~460 out) |
+| mean latency | 17.8 s |
+| chassis stable across 3 runs | 4 of 6 briefs |
+
+**Cost is not the constraint and should stop being discussed as one.** The owner's ceiling is
+~€0.01 (~$0.011) per generation. The measured figure is **2.6% of it**, and every open-weight
+candidate in §3 is cheaper still. Nothing in this plan should be traded against price; the
+budget has 30-100x headroom and the scarce resource is human review.
+
+### The defect the frames show and every gate missed
+
+Machine-usable was 18/18 with zero rule codes. Then the frames:
+
+- **`long-name`** (lt11 House Strap): the name wrapped to 2 lines and the role to **3**. Five
+  text lines, a ~350px-tall "lower third" - a card, not a strap. The brief had asked in so many
+  words to "preserve hierarchy and fit without tiny text".
+- **`news-reporter`** (lt25 Masthead): role wrapped to 2 lines, breaking its relationship with
+  the design's own rule above it.
+- **`multilingual`** (lt02 Underline): Ukrainian role wrapped to 2 lines. Same shape.
+- **`story-headline`** (lt11): good. A two-line *headline* over a one-line location kicker is
+  correct broadcast practice - the wrap is only a defect when the line carries identity
+  metadata that belongs on one line.
+
+Three of six frames, one mechanism. **No gate can see it**, and that is not an oversight in any
+one of them: `overflow-sweep` asks whether a box escapes the frame and a wrapped line does not
+(the panel grows downward); the runtime bench's stress pass doubles every value and asks the
+same question; `type-floor` measures font *size*. A five-line lower third passes everything the
+platform owns.
+
+### The cause is ours, not the model's
+
+The obvious reading - "the model picked bad typography" - is wrong, and checking cost one grep.
+`lt02`, `lt11` and `lt25` all set `text-transform: uppercase` plus the family's wide
+`--label-tracking` on their supporting line **in the design's own CSS**. The model never chose
+it. Had this gone into the prompt it could never have worked.
+
+What the model *did* do was believe `LITE_CATALOG`, which is the only capacity information it
+has. `scripts/lite-line-capacity.mjs` renders each chassis, drives the real supporting field
+through `update()`, and reads the painted result back - the field-coverage technique, inverted:
+
+| chassis | advertised | measured 1-line max | transform | tracking |
+|---|---|---|---|---|
+| lt32 Scrim | **high** | **28 chars** | uppercase | 6.8px |
+| lt11 House Strap | **high** | **39** | uppercase | 4.84px |
+| lt25 Masthead | high | 47 | uppercase | 4.8px |
+| lt05 Angle Slab | **medium** | **55** | none | normal |
+| lt02 Underline | high | 58 | uppercase | 0.92px |
+| lt15 Frost Strap | **medium** | **66** | none | normal |
+
+*(The first pass bisected the frozen bank's longest role and reported exactly 48 for three
+designs - the probe's length, not a measurement. The probe is now longer than any design can
+hold, which is what turned "≥48" into 55, 58 and 66.)*
+
+**The metadata was anti-correlated with reality.** Both designs advertising `medium` measure
+widest - `lt15` holds **66 characters, 2.4x** the `lt32` that advertised `high` loudest and
+holds 28. Tracked uppercase costs roughly a third of the characters a reader expects, and
+`lt32` pays most for it (widest tracking, smallest size). The model was told to send long text
+to `lt11` and `lt32`, which is exactly backwards, and the frames are what that instruction
+produces.
+
+**Fixed 2026-08-07.** `textCapacity: 'medium' | 'high'` is gone; `supportingLineChars` carries
+the measured number, the digest states it with its unit, and the prompt's capacity clause names
+it instead of asking for "realistic text capacity". Prompt version `lite-lower-third-v4`.
+`node scripts/lite-line-capacity.mjs --check` is the gate, mutation-tested in both directions -
+a claim above the measurement fails as a lie, a claim more than 4 characters below it fails as
+stale.
+
+## 1a. The A/B round: the capacity fix did not work, and the real cause is `scaleRatio`
+
+Same 6 briefs x 3 runs, same model, same fixture bank; only the platform moved (v4 digest,
+capacity clause, wrap check). **18 generations, $0.0053.** Artifacts:
+`lite-bench-out/round-2026-08-07b/`.
+
+| | round A (`v3-baseline`) | round B (`v4-capacity`) |
+|---|---|---|
+| mean capacity of the chassis CHOSEN | 48.6 chars | **49.3 chars** |
+| `long-name` (needs ~48) | lt11, lt11, lt11 | lt11, lt25, lt11 |
+| `multilingual` | lt02, lt25, lt02 | lt25, lt25, lt25 |
+| identity lines that wrapped | 0 reported | **11 of 18** |
+| machine-usable | 18/18 | 7/18 |
+
+**+0.7 characters is noise** - round A varied its own chassis on two of six briefs. The design
+the round failed on, `long-name`, still picks the 39-character `lt11` in two runs of three.
+Telling the model the truth about capacity changed the metadata and not the behaviour, and the
+claim in the commit that landed it ("fixes the round's headline defect at its source") was
+wrong. **The A/B is the only reason that is known.**
+
+**Why it could not have worked, measured afterwards.** `applyDesignAdjustments` rewrites the
+very property `supportingLineChars` measures. The supporting line's size is derived from the
+spec's `typography.scaleRatio` - `clamp(namePx / ratio, 14, namePx * 0.92)` - so the number the
+digest states describes the design *as authored* and the pipeline then overwrites it:
+
+| chassis | as authored | `scaleRatio: 1.2` | `scaleRatio: 2.6` |
+|---|---|---|---|
+| lt25 Masthead | 20px / **47 chars** | 48px / **19** | 22px / 42 |
+| lt02 Underline | 23px / 58 | 47px / **28** | 22px / 61 |
+| lt11 House Strap | 22px / 39 | 45px / **19** | 21px / 42 |
+| lt32 Scrim | 20px / 28 | 45px / **14** | 21px / 26 |
+
+A ratio of **1.2 - the legal minimum, and unbounded in the schema until this change** - nearly
+doubles the supporting line and cuts capacity by 2-3x. That is the `university-speaker` frame
+exactly: a 38-character role against a capacity of 19.
+
+**So `scaleRatio` is the lever, not the chassis word**, and step 3 moves from hazard-closing to
+the actual fix. Two things were also ruled out by measurement rather than argument: `sizeScale`
+does NOT change capacity (the auto-fit cap is expressed per scale unit, so box and type scale
+together - 58 chars at 1.0, 1.2 and 1.4 alike), and the wrap is not a per-design limit (every
+design wraps at the same 806px shared cap).
+
+**`bench-line-wrap` is therefore a WARNING, and that severity is measured too.** As an error it
+failed 11 of 18; Lite has no repair loop on the grounded path, so it would have refused two
+thirds of requests for a graphic that is mediocre but airable. It becomes an error the day
+something can act on it.
+
+**What the round is worth keeping for:** the check itself. Round A scored 18/18 machine-usable
+with zero rule codes while three of six frames carried the defect. Round B names 11 of 18. The
+gate is the deliverable; the metadata correction is true and inert.
+
+## 1b. Round C, and the number that measured nothing
+
+A third round (`v5-ratio-ceiling`, 18 generations, $0.0052) tested the fix §1a pointed at:
+`applyDesignAdjustments` may no longer enlarge the supporting line past the size its design
+authored. Verified deterministically first, across all six chassis - at `scaleRatio: 1.2`, which
+previously produced 45-48px, every design now emits its authored size, so **no chassis can be
+enlarged at all**.
+
+The round then reported machine-usable **7/18 → 17/18** and wrapped identity lines **11 → 0**.
+
+**That second number is worthless, and it is worth writing down why.** `bench-line-wrap` moved
+from error to warning between round B and round C, and `scripts/ai-lite-eval.mjs` recorded
+`ruleCodes` from `validation.errors` ONLY. So round B counted the findings and round C stopped
+counting them. Nothing in the artifacts said so - the count simply went to zero, in exactly the
+direction the change was hoping for.
+
+It was caught by opening a frame. Round C's `long-name` is lt25, reported clean, and its role is
+plainly on two lines. Reproducing that decision directly through `compileLiteDecision` raises
+**two** `bench-line-wrap` findings. So:
+
+- **The ratio ceiling is verified to do what it says** (no design can be enlarged) and is NOT
+  verified to remove wraps. A 47-character role on lt25's 47-character capacity still wraps.
+- **Round C's true wrap count is unknown** and cannot be recovered from its artifacts.
+- `warningCodes` is now recorded beside `ruleCodes`, so the next round can be read at all.
+
+**Round D (`v5-measured`, 18 generations, $0.0052) is round C's configuration re-measured with
+that instrument.** The comparison that means something is B against D - each read at the
+severity its own finding carried:
+
+| round | wrapped identity lines | readable | machine-usable | `generation_failed` |
+|---|---|---|---|---|
+| A `v3-baseline` | 0 - the check did not exist | no | 18/18 | 0 |
+| B `v4-capacity` | **11** (errors) | errors only | 7/18 | 0 |
+| C `v5-ratio-ceiling` | 0 - counted nothing | **no** | 17/18 | 1 |
+| D `v5-measured` | **6** (warnings) | yes | 17/18 | 1 |
+
+**11 → 6.** The ceiling removes roughly half the wraps, and the residue is precise rather than
+scattered: **all six findings are `long-name`, in all three runs** - the deliberately hostile
+brief, whose 32-character name and 47-character role exceed every chassis in the allowlist. The
+five other briefs are clean. That is the honest shape of the fix: it stops the pipeline
+*creating* the problem, and it cannot invent width that does not exist (§1a).
+
+**One regression to watch, and it may be ours.** `esports-player` returned `generation_failed`
+in run 3 of BOTH v5 rounds, and in neither v3 nor v4 round - 2 of 2 under the new contract, 0 of
+2 before it. `generation_failed` is REPAIR_FAILED, a semantic exhaustion rather than transport
+(§9), so it is a quality signal.
+
+**The mechanism was then established rather than assumed, and it is real.** `schemaAccepts` in
+`api/_lib/aiGateway.ts` REJECTS an out-of-range number; the rejection becomes a retryable
+`malformed_response`, retried inside a budget of two attempts, and exhausting it returns
+`generation_failed` to the user. So `minimum`/`maximum` on `scaleRatio` converted a value the
+compile had always CLAMPED into one that can spend the whole budget and deliver nothing.
+
+That is the harness's clamp-don't-reject rule deciding the case, so the bounds came out again the
+same day (prompt version `lite-lower-third-v6`). Two things worth separating:
+
+- **The mechanism is proven; the attribution is not.** Nothing recorded which value
+  `esports-player` actually emitted, so whether this is what failed it stays n=2 on one fixture.
+  Removing the bound is right on doctrine regardless, and a later round can confirm the failure
+  goes away.
+- **The shown-but-illegal defect the bounds were meant to close is a MISMATCH** - a model told
+  one range while the compile applies another - and agreement closes it. Refusing the response is
+  a different thing, and on a clamped field it is a strictly worse one.
+
+`sizeScale` carries the identical shape (bounded 0.7-1.4 on the wire, clamped at compile) and was
+deliberately left alone: nothing has measured it firing, and 0.7-1.4 is a wide range. Revisit it
+with evidence rather than by symmetry.
+
+The lesson generalises past this instrument: **changing a finding's SEVERITY changes what the
+instrument counts, and a metric that reads errors will report the change as an improvement.**
+Round A had already shown the mirror image - 18/18 machine-usable with zero rule codes while
+three of six frames carried the defect. Both times the artifacts agreed with each other and
+disagreed with the picture, and both times only a rendered frame settled it.
+
+### A hazard the round did not trigger, stated as a hazard
+
+`designAdjust.ts` derives the supporting line's size as `clamp(namePx / ratio, 14, …)` - a
+**14px** floor, while `scripts/type-floor.mjs` holds a lower third to **20px**. `scaleRatio`
+carries no `minimum`/`maximum` in the Lite schema at all (it is clamped 1.2-2.6 in code only) -
+the shown-but-illegal shape `narrowVariantTool` exists to prevent, one field over. Independently,
+`sizeScale` reaches `--scale` through `computeScale`, so a legal 0.7 multiplies every text size:
+a 20px title renders at 14px, and a ratio-shrunk title at ~9.8px. Nothing re-measures the
+ADJUSTED result - the catalog gates certify a design **as authored**. No generation in this
+round did it; the arithmetic says it is reachable, so it needs a gate, not a paragraph.
+
+
+
+## 3. Routes, with real prices
+
+Measured 2026-08-07 from the live OpenRouter listing plus each candidate's endpoints. Cost per
+generation uses this round's own measured shape, 1.3k input / 460 output.
+
+| role | route | $/M in-out | est. $/generation | % of the €0.01 budget | open weights | ZDR endpoint |
+|---|---|---|---|---|---|---|
+| **primary today** | `google/gemini-2.5-flash-lite` | 0.10 / 0.40 | **$0.000285** *(measured)* | 2.6% | no | google-ai-studio, google-vertex |
+| **fallback today** | `mistralai/mistral-small-24b-instruct-2501` | 0.05 / 0.08 | $0.000102 | 0.9% | yes | **deepinfra (proven)** |
+| candidate | `google/gemma-3-12b-it` | 0.05 / 0.15 | $0.000134 | 1.2% | yes | **deepinfra (proven)** |
+| candidate | `openai/gpt-oss-20b` | 0.03 / 0.13 | $0.000099 | 0.9% | yes | multi-endpoint, unproven |
+| candidate | `qwen/qwen3-30b-a3b-instruct-2507` | 0.048 / 0.193 | $0.000151 | 1.4% | yes | streamlake, **unproven** |
+| judge (off) | `google/gemini-2.5-flash` | 0.30 / 2.50 | ~$0.0022 | 20% | no | google-* |
+
+Two conclusions, and the first is the important one:
+
+- **Every candidate fits the budget with 30-100x headroom, so route choice is a QUALITY
+  decision, not a cost decision.** The 2026-07-29 comparison is the only Lite-task evidence
+  that exists (gemma-3-12b-it 23/24, qwen3-30b 24/24, incumbent 22/24) and it measured machine
+  usability, which §1 has now shown says nothing about whether a frame is airable. A route
+  change should wait for the §5 loop to produce a scorecard that measures the right thing.
+- **The judge costs 8x a generation.** At 20% of the budget for a single call it is affordable,
+  and it is still not worth switching on - see §4.
+
+Recommendation: **leave the primary alone for now.** The open-weight preference (plan §15.1) is
+real but it is a tie-breaker at parity, and parity has not been measured on anything that
+matters yet. Switching the primary today would replace a baseline we have just established with
+one we have not.
+
