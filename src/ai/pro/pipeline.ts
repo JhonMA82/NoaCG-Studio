@@ -52,6 +52,17 @@ export interface ProResult extends ProCompileResult {
   /** The raw interpretation the compile was built from - what the benchmark saves as a
    *  fixture so regression runs replay it without paying for it again. */
   interpretation?: ProInterpretationV1;
+  /**
+   * What the interpretation call cost, provider-reported, beside `concept.costUsd`.
+   *
+   * It is RETURNED rather than left to be dug out of the telemetry ring afterwards. The bench
+   * used to read it back off `startAiRun`'s stage records and matched on `stage.name` - a field
+   * that does not exist (the record's key is `stage`), so the lookup yielded `null` on every
+   * run and the `--max-cost` ceiling silently counted the image half only. A number the caller
+   * needs belongs in the return value; a side channel that can go quietly undefined is not a
+   * cost control.
+   */
+  interpretCostUsd: number | null;
 }
 
 function conceptDataUrl(image: ModelImage): string {
@@ -154,8 +165,11 @@ export async function compileProConcept(
       ...(options.interpretRoute ? { route: options.interpretRoute } : {}),
       surface: 'pro',
     });
+    // Read the cost BEFORE the shape check: an off-shape answer was still served and still
+    // billed, so a throw from here has to carry the number out with it.
+    const interpretCostUsd = result.usage.estimatedCost?.amount ?? null;
     if (!isProInterpretation(result.output)) {
-      throw new ProCompileError('The design interpretation came back off-shape.');
+      throw new ProCompileError('The design interpretation came back off-shape.', interpretCostUsd ?? undefined);
     }
     run.stage('interpret', t0, result.model, result.usage);
 
@@ -181,7 +195,7 @@ export async function compileProConcept(
       run.stage('validate', t0);
     }
     run.finish(validation ? validation.ok : true, validation?.errors.map((finding) => finding.rule));
-    return { ...compiled, validation, concept, interpretation: result.output };
+    return { ...compiled, validation, concept, interpretation: result.output, interpretCostUsd };
   } catch (error) {
     run.finish(false);
     throw error;

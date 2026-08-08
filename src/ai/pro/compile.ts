@@ -44,7 +44,22 @@ export interface ProCompileResult {
   report: ProCompileReport;
 }
 
-export class ProCompileError extends Error {}
+export class ProCompileError extends Error {
+  /**
+   * What the interpretation call cost before this failure, when it had already been paid for.
+   *
+   * A throw is where money goes missing: the call completes, the provider bills it, and the
+   * exception carries only a sentence. A caller enforcing a spend ceiling has to be able to
+   * count what a FAILED attempt cost, or the ceiling drifts upward every time something goes
+   * wrong - which is exactly when it matters. Undefined means nothing had been spent yet.
+   */
+  readonly costUsd?: number;
+
+  constructor(message: string, costUsd?: number) {
+    super(message);
+    this.costUsd = costUsd;
+  }
+}
 
 /** The honest line about an EMPTY logo slot sitting over the concept's own placeholder mark.
  *  Exported so `fillProLogoSlot` can retire it BY IDENTITY once it picks a file for that slot -

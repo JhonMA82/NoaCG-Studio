@@ -55,11 +55,28 @@ because the bench records them as `null` (below). The per-generation numbers mat
 - **A Lite generation costs ~$0.0003.** Pro is **~250x** the price of Lite per graphic, and
   ~6-10x the wall clock (26-57 s against ~5 s).
 
-**`scripts/pro-bench.mjs` under-reports its own spend.** `interpretCostUsd` came back `null` on
-all 24 generations - it reads the cost off the telemetry ring's interpret stage, which does not
-carry `estimatedCost` - so the `--max-cost` ceiling counts the image half only. A run ceilinged
-at $1.20 can spend ~$1.35 without the ceiling noticing. That is a defect in a cost control, and
-it is worth fixing before any further paid Pro work.
+**`scripts/pro-bench.mjs` under-reported its own spend - FIXED in this branch.**
+`interpretCostUsd` came back `null` on all 24 generations, so the `--max-cost` ceiling counted the
+image half only: a run ceilinged at $1.20 could spend ~$1.35 without the ceiling noticing.
+
+The cause was not a missing cost. The bench dug the number out of the telemetry ring's stage
+records and matched on `stage.name` - **a field that does not exist**; the record's key is
+`stage` (`src/ai/telemetry.ts` `AiStageRecord`). An optional-chained lookup on a misspelled field
+yields `undefined`, which the `?? null` turned into a plausible "no cost reported". Nothing
+failed; a cost control simply stopped counting.
+
+The fix does not correct the field name - it removes the side channel. `ProResult` now carries
+`interpretCostUsd` back from the pipeline that already had it in hand, and `ProCompileError`
+carries what a FAILED interpretation cost, because a ceiling that stops counting when something
+goes wrong drifts upward exactly when it matters. Verified on the real route: $0.0101 and $0.0063
+where the bench previously recorded `null`.
+
+The same failure destroyed artifacts, not just numbers: the early return on an interpretation
+failure carried the cost out but not the picture, so **five paid concept images were deleted** by
+the code that existed to preserve their cost. It now writes the image too.
+
+The general shape is worth keeping: **a number a caller needs belongs in the return value.** A
+side channel that can go quietly undefined is not a measurement.
 
 ---
 
@@ -275,13 +292,15 @@ needs no image model and no new modality.
 
 ### 7.4 Fixes worth landing regardless of the above
 
-1. **`maxTokens: 12000` on the Pro interpretation call** (done in this branch). Sweep every other
-   hand-set `maxTokens` for the same reasoning-token trap.
-2. **Make `pro-bench.mjs` count interpretation cost** so `--max-cost` is a real ceiling.
-3. **Correct `docs/NOACG_PRO_PLAN.md` §7a's cost figures**: interpretation is $0.009-0.011, not
-   ~$0.002, so a generation is ~$0.077 and a FAILED generation still costs ~$0.077.
-4. **Save the concept image on an interpretation failure.** Five paid images were destroyed by an
-   early return that carried the cost number out but not the picture.
+1. **`maxTokens: 12000` on the Pro interpretation call** - DONE. Still open: sweep the other 17
+   hand-set `maxTokens` in `src/ai` for the same reasoning-token trap. `creative/references.ts:150`
+   is 1200 and `brainstorm.ts:35` is 700, against 2,400-3,900 reasoning tokens measured here.
+2. **Make `pro-bench.mjs` count interpretation cost** so `--max-cost` is a real ceiling - DONE,
+   and verified on the paid route (§1).
+3. **Correct `docs/NOACG_PRO_PLAN.md` §7a's cost figures** - DONE: interpretation is $0.009-0.011,
+   not ~$0.002, so a generation is ~$0.077 and a FAILED generation still costs ~$0.077.
+4. **Save the concept image on an interpretation failure** - DONE. Five paid images were destroyed
+   by an early return that carried the cost number out but not the picture.
 
 ### 7.5 What this round did NOT establish
 

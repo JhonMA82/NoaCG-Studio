@@ -57,6 +57,7 @@ await page.evaluate(async (r) => {
 }, route);
 
 let ok = 0;
+let spent = 0;
 for (let i = 0; i < repeats; i += 1) {
   const outcome = await page.evaluate(async (input) => {
     const bust = `?t=${Date.now()}`;
@@ -71,13 +72,21 @@ for (let i = 0; i < repeats; i += 1) {
     const concept = { dataUrl: input.conceptDataUrl, mediaType: 'image/png', ...size, model: 'fixture', costUsd: 0 };
     try {
       const result = await compileProConcept(input.brief, concept, {});
-      return { ok: true, regions: result.interpretation?.regions?.length ?? 0 };
+      return {
+        ok: true,
+        regions: result.interpretation?.regions?.length ?? 0,
+        costUsd: result.interpretCostUsd,
+      };
     } catch (error) {
-      return { ok: false, error: String(error).slice(0, 300) };
+      // A failed interpretation was still served and billed; ProCompileError carries what it
+      // cost, which is the half a spend ceiling most needs and most easily loses.
+      return { ok: false, error: String(error).slice(0, 300), costUsd: error?.costUsd ?? null };
     }
   }, { brief: entry.brief, conceptDataUrl });
   if (outcome.ok) ok += 1;
-  console.log(`  ${i + 1}: ${outcome.ok ? `OK (${outcome.regions} regions)` : `FAIL ${outcome.error}`}`);
+  if (typeof outcome.costUsd === 'number') spent += outcome.costUsd;
+  const cost = typeof outcome.costUsd === 'number' ? ` · $${outcome.costUsd.toFixed(4)}` : ' · cost UNREPORTED';
+  console.log(`  ${i + 1}: ${outcome.ok ? `OK (${outcome.regions} regions)` : `FAIL ${outcome.error}`}${cost}`);
 }
-console.log(`${ok}/${repeats} interpretations succeeded on ${route}.`);
+console.log(`${ok}/${repeats} interpretations succeeded on ${route} · spent $${spent.toFixed(4)}.`);
 await browser.close();
