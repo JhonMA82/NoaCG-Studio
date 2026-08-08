@@ -81,4 +81,67 @@ test.describe('a Lite identity line stays on one line', () => {
     // the check reads the role rather than just measuring height.
     expect(await rulesFor(page, 'story-headline', LONG_ROLE)).not.toContain('bench-line-wrap');
   });
+
+  test('a real Lite GENERATION raises it too, not only the benchmark compile', async ({ page }) => {
+    // The three cases above drive `compileLiteDecision`, which is the BENCHMARK's entry point.
+    // Production goes through the provider, and the browser builds its injected validator
+    // (AiStep) long before a decision exists - so for a while the wrap check and the type floor
+    // were findings every round measured and no user ever saw. `liteValidator` in
+    // claudeProvider composes them from the decision; this is the pin that it still does.
+    await page.route('**/api/ai/lite/generations', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        generationId: '22222222-2222-4222-8222-222222222222',
+        decision: {
+          status: 'ready',
+          aiCategory: 'lower-third',
+          spec: {
+            fit: 'catalog',
+            reason: 'pinned by e2e',
+            name: 'Line fit through the provider',
+            summary: 'Line fit through the provider',
+            category: 'lower-third',
+            variantId: 'lt32',
+            intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+            lines: [
+              { title: 'Name', sample: 'Amina Okafor', role: 'person-name' },
+              { title: 'Role', sample: LONG_ROLE, role: 'person-role' },
+            ],
+            flourish: '',
+          },
+        },
+        usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 },
+        attemptCount: 1,
+        repairCount: 0,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      }),
+    }));
+    await page.route('**/api/ai/lite/outcome', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: '{"recorded":true}',
+    }));
+
+    const rules = await page.evaluate(async () => {
+      // `claudeProvider` directly, not `getAiProvider()`: the suite pins OFFLINE mode, where
+      // the resolver hands back the stub provider, which has no Lite path at all - so the
+      // assertion would pass or fail for a reason that has nothing to do with this contract.
+      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const context = {
+        images: [],
+        palette: null,
+        resolution: { width: 1920, height: 1080, label: '1080p' },
+        fps: 50,
+      };
+      // NO `validate` is injected on purpose: the point is that the LITE path composes its own,
+      // so a caller that supplies nothing still gets the identity-wrap and type-floor findings.
+      const change = await claudeProvider.generate(
+        'A documentary super for a policy researcher.',
+        context as never,
+        { profile: 'lite' } as never,
+      );
+      const v = change.validation;
+      return [...(v?.errors ?? []), ...(v?.warnings ?? [])].map((f) => f.rule);
+    });
+    expect(rules).toContain('bench-line-wrap');
+  });
 });

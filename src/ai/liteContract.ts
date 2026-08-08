@@ -237,7 +237,27 @@ const specSchema: Record<string, unknown> = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        presetId: { type: 'string', maxLength: 80 },
+        // STAGED RETIREMENT, and the staging is the point. The 2026-08-07 round measured this
+        // field null on all 18 generations and the plan called it dead; the 2026-08-08 quality
+        // round found it null on 20 of 29 and carrying an INVALID value on the other 9 - every
+        // one of them the chosen chassis's own `motion:` prose read back ("controlled newsroom
+        // reveal" -> `controlled-newsroom-reveal`). `resolveDesign` requires the id to be in
+        // `variant.animationPresets`, so all 9 were silently dropped and the design's authored
+        // motion shipped: no wrong graphic, but a shown-but-illegal field and a telemetry axis
+        // that reads as a choice nobody made.
+        //
+        // Deleting the property is NOT the free fix the plan assumed. This object is
+        // `additionalProperties: false`, so removing it converts an emission nine of twenty-nine
+        // generations make into a schema REJECTION - `malformed_response`, an attempt burnt out
+        // of a budget of two, and the numeric-enum failure mode of v7 all over again. So the
+        // instruction goes in the DESCRIPTION, where it costs no prompt line (the `speed`
+        // precedent below) and where a model that ignores it is still merely clamped. Delete the
+        // property only once a round measures zero emissions.
+        presetId: {
+          type: 'string',
+          maxLength: 80,
+          description: 'Omit this field. Motion comes from the chosen design, and any value not already one of that design\'s own presets is ignored.',
+        },
         easing: { type: 'string', maxLength: 80 },
         // BOUNDS, NOT AN ENUM, and the reason is a hard provider limit rather than taste:
         // Google's structured-output schema accepts `enum` only on a STRING, so a numeric

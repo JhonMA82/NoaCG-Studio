@@ -34,7 +34,7 @@ const MAP = [
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.
   [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts']],
@@ -76,7 +76,7 @@ const MAP = [
   // air having run none of its 13 tests until the nightly. control.spec.ts rides along because
   // its exported-panel case is built from a scorebug (sb01).
   [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'production-controls.spec.ts']],
-  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts']],
+  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts']],
   [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the

@@ -176,11 +176,16 @@ export function liteProfile(): LiteProfile {
     //     generation, which took every Lite call down the moment the managed transport routed
     //     this model to Google. Bounds replace it and the three legal values moved into the
     //     property description; designSpec.ts already dropped anything outside them.
+    // v8: animation.presetId carries "omit this field" as its DESCRIPTION. The quality round
+    //     of 2026-08-08 measured it invalid on 9 of 29 generations - each one the chosen
+    //     chassis's own motion prose read back - all silently clamped away. The property stays
+    //     in the schema on purpose: this object is additionalProperties:false, so deleting it
+    //     would turn those nine emissions into rejections rather than into nothing.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
     // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v7').trim().slice(0, 64) || 'lite-lower-third-v7',
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v8').trim().slice(0, 64) || 'lite-lower-third-v8',
     primary,
     fallback,
     prices,

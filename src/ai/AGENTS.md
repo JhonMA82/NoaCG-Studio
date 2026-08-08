@@ -61,11 +61,23 @@ and simplification, never an automatic expensive fallback.
 
 **`litePipeline.ts` is the ONE grounded compile path** - normalizeLiteSpec +
 assembleGroundedTemplate (specToTemplate → applyDesignAdjustments → ensureSpecFonts →
-applySpecOutPreset) + productionSpxValidator (static + bench + safety screen, the same
-composition AiStep injects). claudeProvider is built FROM it, and the Lite benchmark
+applySpecOutPreset) + productionSpxValidator (static + bench + safety screen). claudeProvider
+is built FROM it, and the Lite benchmark
 runners (`scripts/ai-lite-*.mjs`, docs/AI_LITE_BENCHMARK.md) compile through the identical
 function - never re-inline the sequence anywhere; `scripts/ai-lite-bench.test.mjs` pins
 that no second copy exists.
+
+**Lite composes its OWN validator** (`claudeProvider.liteValidator`), for the same reason it
+passes its own `AssembleOptions`: two of `productionSpxValidator`'s options can only be
+answered from the DECISION - which lines must hold one line (`singleLineIdentityFields`, off
+the spec's declared roles) and which category's type floor the ADJUSTED result is held to -
+and the browser builds its injected validator in AiStep long before a decision exists. While
+they were left unset, `bench-line-wrap` and `bench-type-floor` were findings every Lite
+BENCHMARK measured and no user ever did: the round scored a stricter gate than the product
+ran. Both are WARNINGS, so composing them in cannot fail a generation that used to pass. The
+two arguments AiStep does supply are always empty on this path (Lite takes no uploads and
+cannot convert an import), so nothing is lost but the structured setup's own checks, which
+`liteValidator` re-applies. Pinned by the provider case in `e2e/lite-line-fit.spec.ts`.
 
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider

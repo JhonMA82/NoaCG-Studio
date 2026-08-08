@@ -414,16 +414,19 @@ Each step is free unless marked, and each is independently landable.
    on the long role, stays quiet when the copy fits, and stays quiet on the SAME long copy
    declared as a headline.
 
-   **Not yet wired into production**, and deliberately: the browser's injected validator is
-   built in `components/wizard/steps/AiStep.tsx`, which another session owns this week. The
-   seam is ready - `productionSpxValidator(source, protectedAssets, singleLineFields)` - and
-   `compileLiteDecision` already passes it, so the benchmark path is covered. Handing the AiStep
-   one-liner over is the whole remaining task.
-3. **Gate the ADJUSTED result.** The catalog gates certify a design as authored; add the type
-   floor to the AI validator composition (`productionSpxValidator`) so a generation is held to
-   the same 20px floor the catalog is. Deliberately NOT in `runtimeBench` - a user who chooses
-   graphic size S is not making an error, so this is a generation-quality rule, not an export
-   gate.
+   **WIRED INTO PRODUCTION 2026-08-08**, and not where this step expected. AiStep cannot
+   supply `singleLineFields`: the browser builds its injected validator before any decision
+   exists, and the fields are derived from the DECISION's declared roles against the ASSEMBLED
+   template. So the composition moved to the one place that has both - `claudeProvider`'s
+   `liteValidator`, beside the `AssembleOptions` override that exists for the identical reason.
+   Until then the wrap check was a finding every ROUND measured and no user ever saw.
+3. **Gate the ADJUSTED result.** DONE. `designAdjust` clamps to `typeFloorFor(category)`
+   rather than a hard 14px, and the live bench raises `bench-type-floor` on anything that
+   still renders under it (`e2e/lite-type-floor.spec.ts` pins both halves). It reaches
+   production through the same `liteValidator` composition as step 2 - before that it was
+   benchmark-only for the same reason. Deliberately NOT in `runtimeBench`'s defaults - a user
+   who chooses graphic size S is not making an error, so this is a generation-quality rule,
+   not an export gate.
 4. **Close the schema gaps.** DONE: `typography.scaleRatio` carries `minimum`/`maximum` in both
    schemas, and the supporting line can no longer be enlarged past its authored size (§1b).
    **What is left is the part the rounds have not answered** - a role longer than the chassis

@@ -222,6 +222,20 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
         fieldCount: template.fields.length,
         zone: designSpec.zone ?? null,
         animationPreset: designSpec.animation?.presetId ?? null,
+        // The COLOUR and PROPORTION decisions, recorded for the same reason warningCodes is:
+        // a round that cannot say what a frame was built from cannot diagnose the frame. The
+        // 2026-08-08 quality round produced one lt11 result whose second field painted no
+        // pixels at all - visible in the hold frame, invisible to every rule code - and the
+        // artifacts could not say whether a bespoke palette caused it, because none of this
+        // was written down. These are DESIGN parameters, not user content: the same class as
+        // variantId and zone, and nothing here carries a brief, a template, or a person's copy.
+        paletteId: designSpec.paletteId ?? null,
+        palette: designSpec.palette ?? null,
+        density: designSpec.density ?? null,
+        alignment: designSpec.alignment ?? null,
+        sizeScale: designSpec.sizeScale ?? null,
+        typography: designSpec.typography ?? null,
+        shape: designSpec.shape ?? null,
         entranceDurationMs,
         exitDurationMs,
         initialData: Object.fromEntries(designSpec.lines.map((line, index) => [`f${index}`, line.sample])),
@@ -296,6 +310,13 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
+      paletteId: measured.paletteId,
+      palette: measured.palette,
+      density: measured.density,
+      alignment: measured.alignment,
+      sizeScale: measured.sizeScale,
+      typography: measured.typography,
+      shape: measured.shape,
       entranceDurationMs: measured.entranceDurationMs,
       exitDurationMs: measured.exitDurationMs,
       phaseFiles: { entrance: entranceFile, hold: holdFile, update: updateFile, exit: exitFile },
@@ -514,6 +535,13 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       fieldCount: measured.fieldCount,
       zone: measured.zone,
       animationPreset: measured.animationPreset,
+      paletteId: measured.paletteId,
+      palette: measured.palette,
+      density: measured.density,
+      alignment: measured.alignment,
+      sizeScale: measured.sizeScale,
+      typography: measured.typography,
+      shape: measured.shape,
       entranceDurationMs: measured.entranceDurationMs,
       exitDurationMs: measured.exitDurationMs,
       ruleCodes: measured.ruleCodes,
