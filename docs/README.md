@@ -33,6 +33,8 @@ Layers of documentation, top to bottom:
 | `CONTROL_LAYER.md` | Operator surfaces: the one generator, the ControlMessage protocol, shows, hosted control (migration 0008), staging + event log. |
 | `SAVED_CONTENT_MODEL.md` | The library: GraphicDoc, packages-as-folders, hash routes, control entries, Save semantics. |
 | `DESIGN_LANGUAGE.md` | The taste bar: typography, color, motion doctrine, the §8 family tokens, generated-code style. |
+| `KIT_MATRIX_GAPS.md` | The standing kit gap report: the (type × family) matrix as it resolves, the core six a kit owes a show, and which designs no kit can reach. |
+| `LOOKS_AND_PALETTES.md` | NOTE, unscheduled: measured evidence that the catalog reads as one product (four families, four palettes, four faces, almost all dark-panel), what more looks would cost, and the anti-slop rules any new look is held to. |
 | `SPX_TEMPLATE_FORMAT.md` | The external SPX contract this product targets (reference; keep in sync with SPX). |
 | `TIMELINE_INTERACTION_MODEL.md` | The editing surfaces' interaction contract (selection, keyframes, playhead, what NoaCG deliberately does not copy from NLEs). |
 | `IMPORT_MVP.md` | The Import Graphic flow: the structure contract, fit modes, Prepare/erase, 9-slice stretch. Shipped; doubles as the domain record. |
