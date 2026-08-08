@@ -104,19 +104,43 @@ an obvious default is not a question - state the default and move on.
 
 ## How to ground it
 
-**Cheap commands first, in this order, before reading anything else.** They produce the wave
-table; if the window later runs short, the routing already exists.
+This session must survive a whole day of "what do I merge next" questions, so its window is the
+scarce resource. Reading is budgeted in three tiers.
+
+**ALWAYS - the cheap set, first, before reading anything else.** It produces the wave table, so
+if the window later runs short the routing already exists.
 
 - `node scripts/worktree-activity.mjs` - every other worktree's uncommitted and unmerged files.
   This is the collision input, and it is also how a "finished" session is caught still holding
   work. Never trust a handoff's claim that nothing is in flight.
 - `node scripts/merge-order.mjs` - the measured landing order.
 - `git log --oneline -5`, `git branch --show-current`, `git status --porcelain=v1 --branch`.
+- **The north star, two greps, nothing more.** `grep -n '^#' docs/GOALS.md` for the skeleton -
+  which sections exist and which are parked - then the CURRENT PUSH section alone. That is
+  enough to classify every pasted task for section 4: a task whose home is a parked section is
+  parked, whatever its own handoff says about urgency. Never read the whole file, and never read
+  `docs/GOALS_ARCHIVE.md`.
 
-**Then read the repository freely to be RIGHT** - about collisions, blockers, and what to push
-back on. Reading source is how a hidden dependency between two sessions gets found, and it is
-worth the window. But spend none of it into the prompts: the reading serves the wave table and
-section 4, while the prompts stay pointers.
+**ONLY WHEN IT CHANGES ROUTING** - each read needs a question it answers, and the answer has to
+be able to move a session in the table:
+
+- One source file, to confirm or kill a suspected collision between two sessions.
+- The binding doc for one pasted task whose scope looks wrong, when section 4 would otherwise be
+  a guess.
+- One memory or round doc, when a pasted handoff names a trap that decides an order.
+
+**Know what a source read actually costs.** Opening any file inside a directory that has its own
+`AGENTS.md` loads that whole area contract too - measured: one 164-line component pulled ~400
+lines of contract with it. So prefer `grep` with a line range over opening the file, and never
+open a second file in an area whose contract is already loaded without a reason.
+
+**NEVER, unprompted:** product source for a task nobody flagged, plan docs for work nobody
+pasted, reference images (name the path in the prompt and let the session open it), a nested
+`AGENTS.md` read for background, or an individual memory file browsed for context rather than
+consulted for one fact.
+
+The reading serves the wave table and section 4. Spend none of it into the prompts - those stay
+pointers, so a longer read never produces a longer prompt.
 
 ## Rules
 
