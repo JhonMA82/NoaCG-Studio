@@ -9,7 +9,8 @@ than letting it read as open.
 Layers of documentation, top to bottom:
 
 1. **Vision & principles** — root `AGENTS.md` (identity + non-negotiables),
-   `GOALS.md` (north star, business posture, and the milestone log).
+   `GOALS.md` (north star, business posture, and the OPEN roadmap; shipped milestones live in
+   `GOALS_ARCHIVE.md`).
 2. **Cross-domain architecture** — `ARCHITECTURE.md` (binding, machine-enforced).
 3. **Domain contracts** — nested `AGENTS.md` files (with thin `CLAUDE.md` imports) plus the
    binding docs below.
@@ -63,6 +64,7 @@ Layers of documentation, top to bottom:
 
 | Doc | What it explains |
 |---|---|
+| `GOALS_ARCHIVE.md` | Every milestone that shipped up to 2026-08-07, with its date and rationale, plus the ratified decisions behind them. The live roadmap is `GOALS.md`. |
 | `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6; 5.7 payments open. |
 | `TIMELINE_PLAN.md` | The pre-v2 timeline direction + the Loopic/SPX competitive research. Superseded by Timeline v2. |
 | `WYSIWYG_PLAN.md` | The first canvas-editing slices and their guardrails. Shipped and extended. |
@@ -81,6 +83,9 @@ Layers of documentation, top to bottom:
 
 ## Where the roadmap lives
 
-`GOALS.md` is the ONE milestone log — add new milestones at the bottom, never duplicate a
-roadmap into a second file. Plans get their own doc only while they need design rationale;
-when they finish, they move to the historical table above.
+`GOALS.md` is the ONE roadmap — never duplicate it into a second file. It holds only what is
+**not done**, and stays under ~200 lines so it can be read in one sitting. When a goal lands,
+move its entry verbatim into `GOALS_ARCHIVE.md` (the complete shipped record, with dates and
+rationale) and delete it from `GOALS.md`. When the direction changes, rewrite `GOALS.md`; the
+archive keeps the history. Plans get their own doc only while they need design rationale; when
+they finish, they move to the historical table above.

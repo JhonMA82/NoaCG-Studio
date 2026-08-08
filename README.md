@@ -76,7 +76,7 @@ See [`.env.example`](.env.example) for what turns each optional piece on.
 | Doc | What it covers |
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | The authoritative project contract — architecture, conventions, non-negotiables |
-| [`docs/GOALS.md`](docs/GOALS.md) | North star and the road ahead |
+| [`docs/GOALS.md`](docs/GOALS.md) | North star and the open road ahead (shipped work: [`docs/GOALS_ARCHIVE.md`](docs/GOALS_ARCHIVE.md)) |
 | [`docs/SPX_TEMPLATE_FORMAT.md`](docs/SPX_TEMPLATE_FORMAT.md) | The SPX template contract |
 | [`docs/STATE_MACHINE_SCHEMA.md`](docs/STATE_MACHINE_SCHEMA.md) | What a graphic *is*: states, transitions, the default path |
 | [`docs/CONTROL_LAYER.md`](docs/CONTROL_LAYER.md) | Operator panels, rundowns, hosted control |

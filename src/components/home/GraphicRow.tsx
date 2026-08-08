@@ -9,7 +9,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { useAdvancedMode } from '../useAdvancedMode';
 import GraphicThumb from './GraphicThumb';
 import RowMenu, { type RowMenuItem } from './RowMenu';
-import { IconControl, IconCopy, IconDownload, IconGlobe, IconPencil, IconPlus, IconTrash, IconTv } from '../icons';
+import { IconControl, IconCopy, IconDownload, IconFolder, IconGlobe, IconPencil, IconPlus, IconTrash, IconTv } from '../icons';
 
 /** A saved graphic's thumbnail shows the data an operator last selected, when there is one.
  *  Exported because the dashboard's shelf renders the same graphic and must show it the same
@@ -165,6 +165,13 @@ export default function GraphicRow({
     <div
       className={`lib-row lib-row--${view}${onToggleSelect ? ' selectable' : ''}${selected ? ' selected' : ''}`}
       data-testid={`graphic-row-${g.id}`}
+      // Dragged onto a folder card (GraphicsSection) — the gesture the FOLDERS band offers.
+      // Only the id travels: the drop calls the same setGraphicsFolder the bulk bar does.
+      draggable={!!onToggleSelect}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/x-noacg-graphic', g.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       // Clicking the item selects it, the way a file manager does — but only on the item's
       // own background, never through a control inside it. The pip and the row are the same
       // gesture, so shift-click ranges work from either.
@@ -174,24 +181,7 @@ export default function GraphicRow({
         onToggleSelect(e.shiftKey);
       }}
     >
-      {onToggleSelect && (
-        // A PIP, not a checkbox (re-design/handoff.md §5). A library of graphics is picked
-        // from the way files are: the row is the target and the mark reports the state. A
-        // column of tick boxes puts a permanent control beside every row for an action most
-        // visits never take. It stays a real button — keyboard-reachable, and the thing a
-        // shift-click lands on — so range selection works exactly as before.
-        <button
-          className="lib-select"
-          aria-pressed={!!selected}
-          onClick={(e) => onToggleSelect(e.shiftKey)}
-          title="Select (Shift-click selects a range)"
-          aria-label={`Select ${g.name}`}
-          data-testid="select-graphic"
-        >
-          <span aria-hidden="true">✓</span>
-        </button>
-      )}
-      {/* A card's thumbnail fills its width; a row's is the grid's fixed 168px cell. */}
+      {/* A card's thumbnail fills its width; a table row's is the 100px PREVIEW column. */}
       <GraphicThumb
         template={g.template}
         values={activeValues(g)}
@@ -200,6 +190,25 @@ export default function GraphicRow({
         fill={view === 'grid'}
       />
       <div className="lib-info">
+        {onToggleSelect && (
+          // A PIP, not a checkbox (re-design/handoff.md §5). A library of graphics is picked
+          // from the way files are: the row is the target and the mark reports the state. A
+          // column of tick boxes puts a permanent control beside every row for an action most
+          // visits never take. It stays a real button — keyboard-reachable, and the thing a
+          // shift-click lands on — so range selection works exactly as before. It sits with
+          // the NAME (the card absolutely positions it over the thumbnail), never in a column
+          // of its own, which is what would make it a checkbox again.
+          <button
+            className="lib-select"
+            aria-pressed={!!selected}
+            onClick={(e) => onToggleSelect(e.shiftKey)}
+            title="Select (Shift-click selects a range)"
+            aria-label={`Select ${g.name}`}
+            data-testid="select-graphic"
+          >
+            <span aria-hidden="true">✓</span>
+          </button>
+        )}
         {renaming ? (
           <input
             autoFocus
@@ -224,12 +233,31 @@ export default function GraphicRow({
             <strong>{g.name}</strong>
           </button>
         )}
-        <span className="muted">
-          {g.type}
-          {' · '}
-          {new Date(g.updatedAt).toLocaleDateString()}
-        </span>
+        {/* On a CARD the type and date ride under the name; the table gives each its own
+            column, so repeating them here would print every value twice. */}
+        {view === 'grid' && (
+          <span className="muted">
+            {g.type}
+            {' · '}
+            {new Date(g.updatedAt).toLocaleDateString()}
+          </span>
+        )}
       </div>
+      {view === 'list' && (
+        <>
+          <span className="lib-cell lib-cell-mono" data-testid="row-type">{g.type}</span>
+          <span className="lib-cell lib-cell-mono" data-testid="row-edited">
+            {new Date(g.updatedAt).toLocaleDateString()}
+          </span>
+          <span className="lib-cell" data-testid="row-folder">
+            {g.folder ? (
+              <span className="lib-folder-tag"><IconFolder /> {g.folder}</span>
+            ) : (
+              <span className="muted" aria-hidden="true">—</span>
+            )}
+          </span>
+        </>
+      )}
       <div className="lib-actions">
         <button className="primary" onClick={() => onOpen(g)} title={advanced ? 'Open in the editor' : 'Open — preview, edit data, operate'} data-testid="open-graphic">
           Open

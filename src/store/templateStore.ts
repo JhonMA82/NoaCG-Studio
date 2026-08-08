@@ -327,7 +327,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   // Show the template chooser only when there is no work to return to: a first-ever visit
   // starts at the wizard; a returning user's reload (or a bookmarked #/graphic link) lands
   // straight in the restored project - SPX or video, whichever shell owns the reload.
-  // "+ New project" and the #/new route still open it on demand.
+  // "+ New graphic" and the #/new route still open it on demand.
   galleryOpen: !initialProject && !hasCurrentVideoProject(),
   pendingDesignId: null,
   pendingProductionId: null,

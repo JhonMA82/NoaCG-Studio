@@ -161,7 +161,11 @@ export default function HomePage({ route }: { route: Route }) {
           <BrandLogo size={24} />
         </button>
         <span className="divider-dot" aria-hidden="true">·</span>
-        <span className="tpl-name">Home</span>
+        {/* The topbar says WHERE you are, not just that you are home (handoff §5a): a routed
+            section is a page, and the crumb is the only thing that says which one. */}
+        <span className="tpl-name">
+          Home{section ? ` · ${SECTIONS.find((s) => s.id === section)?.label}` : ''}
+        </span>
         <div className="spacer" />
         {/* An editor door - Advanced mode only (docs/GOALS.md "Student release" step 4). */}
         {advanced && (
@@ -175,7 +179,7 @@ export default function HomePage({ route }: { route: Route }) {
           </button>
         )}
         <button className="primary" onClick={() => navigate({ view: 'new' })} data-testid="home-new-project">
-          + New project
+          + New graphic
         </button>
         {/* Settings must be reachable WITHOUT an account (the avatar menu is the other door,
             and offline builds have none) - it is where Advanced mode lives. Not auth UI. */}
@@ -285,15 +289,19 @@ export default function HomePage({ route }: { route: Route }) {
 
           {section === 'graphics' && (
             <>
-              <h2><IconGrid size={18} /> Graphics <span className="muted">({filtered.length})</span></h2>
-              {searchRow}
-              {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
+              {/* The section's whole header - title, search, sort, view - is ONE row inside
+                  GraphicsSection (re-design/handoff.md §5b): the toggle and the sort belong
+                  to the list that answers them, and a title on one line with the search on
+                  the next is what pushed the first graphic off the fold. */}
               <GraphicsSection
                 graphics={filtered}
+                query={query}
+                onQuery={setQuery}
                 onOpen={openGraphic}
                 onChanged={refresh}
                 onPublish={onPublish}
               />
+              {filtered.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
               {communityOn && mySubs.length > 0 && (
                 <div className="panel-section" style={{ marginTop: 14 }}>
                   <h3>My community templates</h3>
@@ -396,10 +404,10 @@ function EmptyHint({ onNew }: { onNew: () => void }) {
     <div className="panel-section">
       <h3>Nothing saved yet</h3>
       <p className="hint">
-        Create a graphic with <strong>+ New project</strong> — it lands here, ready to add to a
+        Create a graphic with <strong>+ New graphic</strong> — it lands here, ready to add to a
         production, and syncs across your devices while you are signed in.
       </p>
-      <button className="primary" onClick={onNew}>+ New project</button>
+      <button className="primary" onClick={onNew}>+ New graphic</button>
     </div>
   );
 }

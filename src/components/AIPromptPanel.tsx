@@ -116,14 +116,14 @@ export default function AIPromptPanel() {
           result is validated for SPX compatibility.
           {!aiConfigured() && (
             <>
-              {' '}Currently using the offline stub — add an AI provider key (New project →
+              {' '}Currently using the offline stub — add an AI provider key (New graphic →
               Create with AI → AI settings) for full model-backed edits.
             </>
           )}
         </p>
         {liteEnabled && (
           <p className="hint">
-            NoaCG Lite creates and refines grounded graphics in New project. It does not rewrite
+            NoaCG Lite creates and refines grounded graphics in New graphic. It does not rewrite
             an existing template's code. The controls below use the separately configured
             advanced or BYO provider path.
           </p>

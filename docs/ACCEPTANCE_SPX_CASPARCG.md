@@ -7,7 +7,7 @@ suite (`library.spec.ts`, `machine-graph.spec.ts`, `import-*.spec.ts`, `exports.
 
 ## Prepare the fixture (in the app, ~3 minutes)
 
-1. `+ New project → Start from a template → Lower thirds` → pick any variant → Create.
+1. `+ New graphic → Start from a template → Lower thirds` → pick any variant → Create.
 2. In **◇ States**: `+ state → ▤ Name` then `+ state → ▤ Title` — the path now reads
    `▶ Enter → » Name In → » Title In → ■ Out` (the internal layer sequence).
 3. Optional: select the `Enter → Name In` arrow, set **change: Cut — instant** (or Fade).

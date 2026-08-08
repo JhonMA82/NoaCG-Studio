@@ -3,7 +3,7 @@
 > **STATUS 2026-07-22: COMPLETE — all five phases shipped.** Phase 1 (state schema,
 > 2026-07-19), Phase 2 (graphic types, 2026-07-20), Phase 3 (the template factory + packs,
 > 2026-07-21), Phase 4 (the node editor, 2026-07-21), Phase 5 (the control layer + profiles,
-> 2026-07-21). The milestone entries live in `docs/GOALS.md`; the binding contracts the phases
+> 2026-07-21). The milestone entries live in `docs/GOALS_ARCHIVE.md`; the binding contracts the phases
 > produced are `docs/STATE_MACHINE_SCHEMA.md`, `docs/GRAPHIC_TYPES.md`, `docs/PACK_TAXONOMY.md`,
 > and `docs/CONTROL_LAYER.md`. This document is the historical master plan — the acceptance
 > criteria in §1.4 remain the standing tests of the model, and §1.5's consciously-deferred list

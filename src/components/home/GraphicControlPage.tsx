@@ -299,7 +299,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
         {/* Every surface keeps a door to the wizard (acceptance feedback: creating must be
             reachable from anywhere, not only from Home and the editor). */}
         <button onClick={() => navigate({ view: 'new' })} data-testid="control-new-project">
-          + New project
+          + New graphic
         </button>
         <button
           onClick={() =>
