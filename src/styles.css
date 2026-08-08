@@ -2063,11 +2063,21 @@ kbd {
    screen — on the step whose whole job is picking one. They are chips now, in a bounded
    strip that scrolls on its own: the same 22 targets (every spec still clicks them by name,
    and the tile set is still derived from the taxonomy), about a fifth of the height. */
+/* THE CATEGORY STRIP IS CAPPED, at every width. It is 27 tiles, and it wraps to whatever the
+   step column gives it — which HALVES the moment a design is picked and the live preview takes
+   its half of the sheet. Measured at 1366x768: the strip went from 142px to 364px on the pick,
+   which is 58% of the visible step spent on category chips, and it pushed the first design card
+   from 373px down to 657px — off the bottom of a step whose whole job is "pick a design". The
+   phone has scrolled this strip in its own box since it existed; the desktop needed it for the
+   same reason and did not have it. Three rows, then scroll. */
 .wz-browse-tiles {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 12px;
+  max-height: 112px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .wz-browse-tiles .wz-cat {
   flex: 0 0 auto;
@@ -2215,11 +2225,11 @@ details:not([open]) > *:not(summary) { display: none; }
   .wz-browse-lead { flex-direction: column; align-items: stretch; }
   .wz-browse-lead .spacer { display: none; }
   .wz-browse-drawer-btn { justify-content: center; width: 100%; }
-  /* THE TYPE STRIP SCROLLS ON ITS OWN. Twenty-two chips wrap to twelve rows on a 390px
-     screen: measured 512px tall, which put the first design 293px BELOW the fold — the wall
-     this redesign removed, back on the surface where it costs most. Capped to about four
-     rows with its own scroll, so the step still opens on templates. */
-  .wz-browse-tiles { max-height: 150px; overflow-y: auto; padding-right: 4px; }
+  /* THE TYPE STRIP SCROLLS ON ITS OWN — the base rule's cap, raised. Twenty-two chips wrap to
+     twelve rows on a 390px screen: measured 512px tall, which put the first design 293px BELOW
+     the fold — the wall this redesign removed, back on the surface where it costs most. A
+     phone has no preview beside the step, so it can afford the extra row the desktop cannot. */
+  .wz-browse-tiles { max-height: 150px; }
   /* Three format selects in one row is a desktop measure; stacked they stay legible. */
   .wz-browse-format .project-format-fields { flex-wrap: wrap; }
   .wz-browse-format .project-format-fields label { flex: 1 1 45%; }
