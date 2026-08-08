@@ -64,6 +64,9 @@ test('style step: rapid palette clicks settle on the LAST palette, entrance repl
 
 test('style step: font and size choices land in the rebuilt preview', async ({ page }) => {
   await openWizardTo(page, 'style');
+  // Typeface sits behind a disclosure now (re-design/handoff.md §2d) — the collapsed row
+  // names the face in use, and the picker opens on ask. Same idiom as Size & position below.
+  await page.getByTestId('wz-typeface').locator('summary').click();
   await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // A growth-set face flows through the same path: the first serif the catalog ever had
@@ -74,8 +77,9 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   await page.getByTestId('font-search').fill('');
   await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
-  // Size and position are TUNING and sit behind a disclosure — palette and font are the two
-  // choices this step leads with. Open it to reach the knobs (see components/CLAUDE.md).
+  // Size and position are TUNING and sit behind a disclosure too. The PALETTE is what this
+  // step now leads with alone: every other decision here has a good per-design default and a
+  // collapsed row naming it. Open it to reach the knobs (see components/CLAUDE.md).
   await page.getByTestId('wz-size-position').locator('summary').click();
   // Graphic size L scales the WHOLE graphic (the --scale contract), not just the text.
   // 1.25 / 1.2 are StyleStep's SIZES/TYPE_SIZES ladders (widened with the corpus review).

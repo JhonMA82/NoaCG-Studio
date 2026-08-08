@@ -81,7 +81,10 @@ test('finish: skip-to-finish jumps from Browse once a design is picked', async (
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
   // The rail's forward dots unlocked too — Back to Style directly is one click.
   await page.locator('.wz-dot', { hasText: 'Style' }).click();
-  await expect(page.getByTestId('font-picker')).toBeVisible();
+  // The palette grid, not the typeface picker: what this asserts is "the rail landed on
+  // Style", and the picker now sits behind the collapsed Typeface row (handoff §2d), so a
+  // visibility check on it would be testing the disclosure rather than the jump.
+  await expect(page.locator('.wz-palettes')).toBeVisible();
   await page.locator('.wz-dot', { hasText: 'Finish' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 });

@@ -2036,9 +2036,42 @@ kbd {
    Browse step's chip disclosure its summary carries a rule above it — the collapsed row has
    to read as the boundary of the step's tuning half, not as a stray line of text. */
 .wz-style-more { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
-.wz-style-more summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 2px 0; }
+/* A collapsed row is a LABEL on the left and its CURRENT VALUE on the right, in the mono label
+   voice (re-design/handoff.md §2d). The value is the whole reason a section is allowed to
+   collapse at all: a disclosure that hides a decision without naming it makes the reader open
+   every one of them to find out what the graphic is set to. */
+.wz-style-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 2px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  /* `display: flex` stops the UA rendering a summary's ::marker at all, so the disclosure
+     arrow has to be drawn here or the row loses the one thing saying it opens. */
+  list-style: none;
+}
+.wz-style-more summary::-webkit-details-marker { display: none; }
+.wz-style-more summary::before {
+  content: '▸';
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.wz-style-more[open] summary::before { content: '▾'; }
 .wz-style-more summary:hover { color: var(--text); }
 .wz-style-more[open] summary { margin-bottom: 6px; }
+.wz-style-more-value {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
 
 /* Step 5: animation */
 /* The Template step's discovery filters: small chips above the variant grid. */
