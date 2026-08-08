@@ -71,10 +71,10 @@ pin and the es2017 output floor can both be broken by a bump that passes every c
 **The dev port is per-checkout** (`scripts/dev-port.mjs`, which prints it): 5174 in the main
 checkout (5175 for the live e2e suite), a RESERVED port from the 5180-5298 block in a linked
 worktree - Vite, both Playwright configs, the guard hooks and the dev scripts all read the same
-number, so parallel worktrees never fight over one server. The number is preferred by a hash of
-the checkout path and then reserved through a ticket in `<git-common-dir>/noacg-dev-ports/`, so
-two worktrees that hash alike still both start (**`docs/DEV_PORTS.md`** - assignment, storage,
-troubleshooting a stuck server). `.claude/launch.json` and `.claude/dev-port.json` are GENERATED
+number, so parallel worktrees never fight over one server. It is RESERVED through a ticket, not
+merely hashed, so two worktrees that hash alike still both start (**`docs/DEV_PORTS.md`** -
+assignment, storage, troubleshooting a stuck server). `.claude/launch.json` and
+`.claude/dev-port.json` are GENERATED
 from that reservation (gitignored - never hand-edit or commit them). `DEV_PORT=n` overrides
 everything. `npm run test:ports` covers the allocator.
 
@@ -325,11 +325,9 @@ workflow files, so a new nested area or shared command needs no separate registr
 correct adapters. The complete maintenance contract is `docs/AGENT_WORKFLOWS.md`.
 
 Its second step, `scripts/check-workflows.mjs`, validates every `.github/workflows/*.yml` against
-the GitHub Actions schema. That used to be the one thing only GitHub could check, which is fine
-until it isn't: during the 2026-08-06 Actions outage, webhook delivery was throttled hard enough
-that two pushes of a `ci.yml` change produced no run at all. It catches a misspelled key, a
-wrong-typed value, and a `needs:` naming a job that does not exist - the last being exactly what
-editing the CI gate's dependency set can introduce.
+the GitHub Actions schema: a misspelled key, a wrong-typed value, a `needs:` naming a job that does
+not exist - the last being exactly what editing the CI gate's dependency set can introduce. Never
+wait for GitHub to catch it instead; during the 2026-08-06 outage two pushes produced no run at all.
 
 - **UI flows -> Playwright.** Verify user-facing flows with the E2E suite in `e2e/` (specs drive the
   real dev server): `npm run test:e2e`, and add a spec for any new flow. **Testing is TIERED**
@@ -360,11 +358,9 @@ editing the CI gate's dependency set can introduce.
   e2e script to wait rather than fail, `node scripts/e2e-runs.mjs --all` to see what is running,
   and `--orphans` / `--kill-orphans` to reap browsers a killed run left behind.
   `NOACG_ALLOW_PARALLEL_E2E=1` in the command overrides.
-  Anything the named list misses is still absorbed by the worker ladder
-  (`scripts/e2e-workers.mjs`): it reads FREE MEMORY when a run starts and takes fewer workers
-  when something heavy is already resident - another job, a build, or Premiere with a project
-  open. That is also the local worker count, which is why it is not a constant: 6 workers is
-  the fastest measured from ~5.6 GB free and the SLOWEST from ~4.5 GB.
+  Anything the named list misses is absorbed by the worker ladder (`scripts/e2e-workers.mjs`):
+  it reads FREE MEMORY at start and takes fewer workers when something heavy is already
+  resident, which is why the local worker count is not a constant.
 - **The pre-merge gate belongs to CI, not the laptop.** `ci.yml` runs on every branch push and
   does strictly more than a local run can (build, the affected plan sharded eight ways, the
   factory gates, the catalog tripwire when raised) in six to nine minutes, free, on a clean
@@ -378,9 +374,7 @@ editing the CI gate's dependency set can introduce.
   be running; any `TemplateCategory` id - `lower-third`, `info-card`, `end-credits`, `ticker`,
   `quiz`, `poll`, `audience`, …) - validates every variant × preset × easing. Run it for the
   affected category after template changes. A category whose contract differs from the standard
-  one gets its own branch in the script rather than a waiver: the audience sweep checks the
-  MESSAGE wraps and clamps (its `#f0` is a kicker, not the text), and the quiz sweep reads the
-  correct-answer field off the template instead of assuming a four-answer layout.
+  one gets its own branch in the script rather than a waiver (audience and quiz each have one).
 - **Catalog quality gates (run after any catalog-wide change):** `node scripts/type-floor.mjs`
   fails on any text under its category size floor; `node scripts/overflow-sweep.mjs --baseline`
   fails on any box that newly escapes the 1920x1080 frame or clips its own content, diffing
@@ -400,34 +394,22 @@ editing the CI gate's dependency set can introduce.
   memory:** `npm run test:e2e:affected` raises the tripwire automatically when relevant and CI
   runs it on that flag, and the NIGHTLY sweep runs all five unconditionally - so an unrun
   catalog gate is now caught by morning rather than never.
-  The fourth gate is about DATA, not looks: `node scripts/field-coverage.mjs` fails on any
-  meaningful visible string an operator cannot reach through a data field. It does not read the
-  markup for `id="fN"` - a standings row, a ticker item and a credits line are all BUILT by a
-  runtime from ONE `lines` field, so an id check would either miss them or need a special case
-  per category. Instead it renders the graphic, drives EVERY data field to a sentinel through
-  `update()`, and re-reads the screen: anything that did not move is not operator-reachable.
-  Two kinds of thing are excused IN THE SCRIPT, each with its reason written down - an
-  empty-slot placeholder for an image (`filelist`) field, which IS a field and is replaced by
-  the picked file, and a value the runtime computes rather than anyone types (a wall clock).
-  A `filelist` cannot be driven (there is no image to point at), so the run reports those
-  variants as NOT DRIVEN rather than counting them as passes.
-  The fifth gate is about MOVEMENT: `node scripts/numerals.mjs` fails on any live number whose
-  box changes width as its digits change (DESIGN_LANGUAGE §1's numerals rule). Same doctrine as
-  field-coverage - it renders the live-number categories, substitutes every digit in turn and
-  measures, rather than grepping for `tabular-nums`. That distinction is the whole point: the
-  declaration is a NO-OP on a typeface without the feature, and six of the seventeen bundled
-  faces are in that class, so a source check would have passed every scoreboard in the catalog
-  while they all still jiggled. `--fonts` re-measures the registry's `tabularFigures` flags
-  (across each face's weight range - evenness is weight-dependent).
-  The sixth gate is about the PLAYOUT BROWSER: `node scripts/engine-floor.mjs` builds every
-  design and reports the CSS/JS features an older engine cannot render, per design and per
-  declaration (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate). Same doctrine again -
-  it MEASURES the emitted code rather than keeping a list of designs known to be broken - and it
-  shares its scanner with the export screen's Playout-compatibility section
-  (`src/validation/engineSupport.ts`), so a gate and a user-facing warning cannot disagree. It
-  REPORTS and exits 0 by default: an old CasparCG CEF drops a modern declaration in silence, and
-  measured 2026-08-06 that is 179 of 430 designs at the Chromium 88 bar, so this is a standing
-  account of what the catalog costs on old hardware rather than a line it currently holds.
+  The last three gates share one doctrine - they MEASURE the rendered graphic rather than
+  grepping the source, because every source check here would have passed a catalog that was
+  visibly broken. `node scripts/field-coverage.mjs` is about DATA: it drives every data field to
+  a sentinel through `update()` and re-reads the screen, so anything that did not move is not
+  operator-reachable (an `id="fN"` scan cannot see a standings row, ticker item or credits line,
+  which a runtime BUILDS from one `lines` field). `node scripts/numerals.mjs` is about MOVEMENT:
+  it substitutes every digit in turn and measures, failing any live number whose box changes
+  width (DESIGN_LANGUAGE §1) - `tabular-nums` is a NO-OP on six of the seventeen bundled faces,
+  so grepping for it would have passed every jiggling scoreboard. `--fonts` re-measures the
+  registry's `tabularFigures` flags. `node scripts/engine-floor.mjs` is about the PLAYOUT
+  BROWSER: what CSS/JS an older engine silently drops, per design and per declaration
+  (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate). It shares its scanner with the
+  export screen's Playout-compatibility section (`src/validation/engineSupport.ts`), so gate and
+  warning cannot disagree, and it REPORTS at exit 0 - a standing account (179 of 430 designs at
+  the Chromium 88 bar) rather than a line the catalog currently holds. Each script documents its
+  own exemptions, with the reason written beside them.
 
 **Gotchas:**
 - The app declares `color-scheme: dark` (styles.css `:root`) and composeDocument injects the
