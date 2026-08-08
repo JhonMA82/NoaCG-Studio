@@ -79,7 +79,9 @@ shots-*/
 !.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-task/
+!.agents/skills/o/
 !.agents/skills/ograf-expert/
+!.agents/skills/orchestrator/
 !.agents/skills/safe-merge/
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/

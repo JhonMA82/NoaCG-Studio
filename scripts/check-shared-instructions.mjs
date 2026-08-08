@@ -29,7 +29,10 @@ const EXPLICIT_ONLY_WORKFLOWS = new Set(['safe-merge', 'cleanup-worktrees']);
 // tools, exactly as thin as a normal adapter, pointing at the target's canonical workflow -
 // so a shortcut can never grow a second copy of the procedure. Never alias a destructive
 // (explicit-only) workflow: a one-keystroke command must not be able to land anything.
-const WORKFLOW_ALIASES = new Map([['n', 'next']]);
+const WORKFLOW_ALIASES = new Map([
+  ['n', 'next'],
+  ['o', 'orchestrator'],
+]);
 const CLAUDE_ONLY_EXCEPTIONS = new Map([
   [
     'rescue',
@@ -46,6 +49,24 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'Never act on a collision.',
       'Verify before you list.',
       "Read, don't write.",
+    ],
+  ],
+  [
+    // The orchestrator assigns work to other sessions and must never start it, so the two
+    // halves that keep it honest are pinned: it grounds the plan in measured repository state
+    // rather than in a handoff's prose, and it says out loud what it would push back on. That
+    // section exists because a day was once planned with four of six sessions serving goals the
+    // roadmap had parked - flagging is the whole value, so it must not be quietly droppable.
+    'orchestrator',
+    [
+      'node scripts/worktree-activity.mjs',
+      'node scripts/merge-order.mjs',
+      'What I would push back on',
+      'Every pasted task gets a prompt.',
+      'One browser-driving job per machine',
+      'Never act on a collision.',
+      "Read, don't write.",
+      'Create or update no files',
     ],
   ],
   [
