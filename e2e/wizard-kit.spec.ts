@@ -309,6 +309,9 @@ test('the export door saves the whole set first, then packages it', async ({ pag
   await page.getByTestId('kit-look-yes').click();
 
   await page.getByTestId('kit-finish-name').fill('Studio Wellness');
+  // The other half of the door's conditional: a kit going into a NEW production really is a
+  // package of the kit, and says so.
+  await expect(page.getByTestId('kit-finish-export')).toContainText('Export the kit (.zip)');
   await page.getByTestId('kit-finish-export').click();
 
   // Export is not a reward for opening the editor - and for a kit the editor is never
@@ -371,9 +374,28 @@ test('a kit opened FOR a production joins that one, in its look', async ({ page 
   // "Open the production" over a picker pointing at somebody else's show says nothing.
   await expect(page.getByTestId('kit-finish-production')).not.toHaveValue('new');
   await expect(page.getByTestId('kit-finish-production-go')).toContainText('Add to Friday Desk');
-  await page.getByTestId('kit-finish-production-go').click();
+  // AND THE EXPORT DOOR NAMES WHAT COMES OUT OF IT. Pooled into a production that already had
+  // a graphic, the package is that production's — three graphics, not the two in the kit — so
+  // a door still labelled "Export the kit" would be promising a package it does not produce.
+  const exportDoor = page.getByTestId('kit-finish-export');
+  await expect(exportDoor).toContainText('Export Friday Desk (.zip)');
+  await expect(exportDoor).toContainText('all 3 graphics');
+  // Take the EXPORT door rather than the production one: it saves identically, and it is the
+  // door whose promise is checkable against a real artifact.
+  await exportDoor.click();
   await expect(page).toHaveURL(/#\/production\//);
+  await expect(page.getByTestId('production-export-dialog')).toBeVisible();
   await settleDurableWrites(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('prod-export-download').click(),
+  ]);
+  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+  const graphicHtmls = Object.keys(zip.files).filter(
+    (name) => /^friday_desk\/[^/]+\/[^/]+\.html$/.test(name) && !name.endsWith('controlpanel.html'),
+  );
+  expect(graphicHtmls).toHaveLength(3); // the door said 3, and the package has 3
 
   const report = await page.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');

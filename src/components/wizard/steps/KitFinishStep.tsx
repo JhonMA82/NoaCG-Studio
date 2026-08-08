@@ -148,13 +148,21 @@ export default function KitFinishStep({
           disabled={busy}
           data-testid="kit-finish-export"
         >
+          {/* THE DOOR NAMES WHAT COMES OUT OF IT. The package is the PRODUCTION's - the whole
+              pool, each graphic on its own playout layer - which is the useful artifact and
+              also the only coherent one: once a kit is pooled into a production there is no
+              "just the kit" left to package. So a kit joining a production that already had
+              graphics says so, and says how many, instead of promising a package of the kit
+              and handing over somebody else's graphics as well. */}
           <span className="wz-entry-head">
             <span className="wz-entry-icon">⬇</span>
-            <strong>Export the kit (.zip)</strong>
+            <strong>{target ? `Export ${target.name} (.zip)` : 'Export the kit (.zip)'}</strong>
           </span>
           <span className="hint">
-            One package with every graphic on its own playout layer. Saved first, so nothing is
-            lost.
+            {target
+              ? `One package with all ${target.graphics.length + built.length} graphics in that production — the kit and what was already there — each on its own playout layer.`
+              : 'One package with every graphic on its own playout layer.'}{' '}
+            Saved first, so nothing is lost.
           </span>
         </button>
       </div>
