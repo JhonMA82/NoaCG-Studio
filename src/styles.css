@@ -1744,7 +1744,24 @@ kbd {
    a kit is picked - an empty panel would imply a step that is not there. */
 .wz-kit { display: flex; flex-direction: column; gap: 14px; }
 .wz-kit-lede { color: var(--text-dim); margin: 0; }
-.wz-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+/* THE SHOW LIST SCROLLS IN ITS OWN BOX, and that is what makes the step work. Unbounded, 21
+   packs are six rows and ~620px at 1366x768 — the whole step — so picking one appended the
+   contents picker BELOW THE FOLD with nothing on screen saying it had appeared, while Next was
+   already enabled. Measured 2026-08-08 in the visual pass. Bounded, the show and its set are on
+   screen together, which is what "start from a preset, then edit it" actually needs: flip
+   between shows and watch the contents change. Same reasoning as the Browse step's category
+   strip, which scrolls in its own four-row box on a phone. */
+.wz-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 268px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* Room for the scrollbar, so a card's right edge is never sat on by it. */
+  padding-right: 4px;
+}
+@media (max-width: 767px) { .wz-kit-grid { max-height: 208px; } }
 .wz-kit-card {
   text-align: left;
   display: flex;
@@ -1839,14 +1856,26 @@ kbd {
   background: transparent;
   color: var(--text-dim);
 }
+/* THE SLOT IS 16:9, like the frame the graphic is authored in. At a flatter ratio the framing
+   fits by HEIGHT and leaves a gap down each side, so a full-frame holding screen was pillarboxed
+   in its chip while filling its cell in the Finish grid - the same graphic, two shapes, which
+   reads as a broken thumbnail rather than as a design choice. */
 .wz-kit-chip-thumb {
   grid-column: 1 / -1;
   display: block;
   width: 100%;
-  height: 44px;
+  aspect-ratio: 16 / 9;
   border-radius: 3px;
   overflow: hidden;
   background: var(--bg-panel);
+}
+/* A GRAPHIC THAT HAS NOT BEEN MADE YET HAS NO PICTURE, and a filled dark box in its place
+   reads as a thumbnail that failed to load. The slot keeps its room (so the strip does not go
+   ragged as graphics land) and says "not yet" in the product's own idiom for that — the dashed
+   outline the make-one production card and the add-more pills already use. */
+.wz-kit-chip-thumb:empty {
+  background: transparent;
+  border: 1px dashed var(--hairline);
 }
 /* MiniPreview brings its own `.wz-mini` frame; inside a chip it fills the thumb slot. */
 .wz-kit-chip-thumb .wz-mini { width: 100%; height: 100%; }

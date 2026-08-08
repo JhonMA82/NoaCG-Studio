@@ -1435,6 +1435,7 @@ export default function CreationWizard() {
                 namePlaceholder={kit.pack.name}
                 onName={setKitProductionName}
                 built={kit.built.filter((t): t is SpxTemplate => t !== null)}
+                oneLook={kit.propagate !== false}
                 onOpenProduction={openKitProduction}
                 onExport={exportKit}
                 busy={kitBusy}

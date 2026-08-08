@@ -26,12 +26,17 @@ interface Props {
  * carries five things would be the surface lying about what it does.
  */
 export default function KitLookStep({ remaining, summary, onUseForAll, onWalkEachOne }: Props) {
+  // A kit of two leaves exactly one graphic to ask about, and "the other 1 graphic" / "All 1
+  // are made" is the kind of line that makes a product read as generated. Counted words only
+  // where there is a count worth reading.
+  const others = remaining === 1 ? 'the other graphic' : `the other ${remaining} graphics`;
   return (
     <div className="wz-kit-look" data-testid="kit-look">
-      <h3>Use this look for the other {remaining} graphic{remaining === 1 ? '' : 's'}?</h3>
+      <h3>Use this look for {others}?</h3>
       <p className="hint">
-        The colours, typeface, sizes and motion you just chose — {summary} — applied to every
-        graphic left in the kit. Each design keeps its own fields and its own placement.
+        The colours, typeface, sizes and motion you just chose — {summary} — applied to{' '}
+        {remaining === 1 ? 'it' : 'every graphic left in the kit'}. Each design keeps its own
+        fields and its own placement.
       </p>
       <div className="wz-kit-look-doors">
         <button
@@ -44,7 +49,8 @@ export default function KitLookStep({ remaining, summary, onUseForAll, onWalkEac
             <strong>Yes, build them now</strong>
           </span>
           <span className="hint">
-            All {remaining} are made in this look, and you go straight to naming the production.
+            {remaining === 1 ? 'It is' : `All ${remaining} are`} made in this look, and you go
+            straight to naming the production.
           </span>
         </button>
         <button className="wz-entry-card" onClick={onWalkEachOne} data-testid="kit-look-no">

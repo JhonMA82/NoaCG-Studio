@@ -8,6 +8,10 @@ interface Props {
   onName: (name: string) => void;
   /** Every graphic that was built, in kit order. */
   built: SpxTemplate[];
+  /** True when the first graphic's look was carried across the set. The caption states what
+   *  actually happened: after "take me through each one" the graphics were styled separately,
+   *  and a fixed "one look" would be the step claiming something the user declined. */
+  oneLook: boolean;
   /** Save the whole set and land on the production page. */
   onOpenProduction: () => void;
   /** Save the whole set, then export it as one package. */
@@ -36,11 +40,14 @@ export default function KitFinishStep({
   namePlaceholder,
   onName,
   built,
+  oneLook,
   onOpenProduction,
   onExport,
   busy,
   error,
 }: Props) {
+  // "Saves all 2" is the shape of a sentence nobody wrote on purpose.
+  const allOfThem = built.length === 2 ? 'both' : `all ${built.length}`;
   return (
     <div className="wz-finish wz-kit-finish" data-testid="kit-finish">
       <div className="panel-section">
@@ -62,7 +69,9 @@ export default function KitFinishStep({
       <div className="panel-section">
         <h3>
           What you built
-          <span className="dlg-caption">{built.length} graphics, one look</span>
+          <span className="dlg-caption">
+            {built.length} graphics{oneLook ? ', one look' : ', styled one at a time'}
+          </span>
         </h3>
         <ul className="wz-kit-built" data-testid="kit-built">
           {built.map((template, i) => (
@@ -88,7 +97,7 @@ export default function KitFinishStep({
             <strong>Open the production</strong>
           </span>
           <span className="hint">
-            Saves all {built.length}, pools them with their cues ready, and opens the cockpit.
+            Saves {allOfThem}, pools them with their cues ready, and opens the cockpit.
           </span>
         </button>
         <button

@@ -34,8 +34,14 @@ export default function KitTray({ plan }: { plan: KitPlan }) {
 
   return (
     <div className="wz-kit-tray" data-testid="kit-tray">
+      {/* "graphic 1 of 2" is only true while one of them is being worked on. Once the whole set
+          is built the walk has no current graphic, and saying it still does put "GRAPHIC 1 OF 2"
+          over a Finish step showing both of them (measured in the visual pass). */}
       <p className="wz-kit-tray-label mono">
-        {plan.pack.name} · graphic {Math.min(plan.current + 1, plan.items.length)} of {plan.items.length}
+        {plan.pack.name} ·{' '}
+        {plan.built.every((t) => t !== null)
+          ? `${plan.items.length} graphics built`
+          : `graphic ${Math.min(plan.current + 1, plan.items.length)} of ${plan.items.length}`}
       </p>
       <ol className="wz-kit-tray-strip">
         {plan.items.map((item, i) => {

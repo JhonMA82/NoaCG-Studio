@@ -209,7 +209,9 @@ test('the first graphic sets the tone and its look carries to the rest', async (
 
   const look = page.getByTestId('kit-look');
   await expect(look).toBeVisible();
-  await expect(look.locator('h3')).toHaveText('Use this look for the other 1 graphic?');
+  // Singular, not "the other 1 graphic" — a kit of two leaves exactly one to ask about, and
+  // the counted phrasing is what makes a product read as generated.
+  await expect(look.locator('h3')).toHaveText('Use this look for the other graphic?');
   // The card says what it will actually carry (the :root style contract, not "everything"),
   // read back off the choice that was just made.
   await expect(look).toContainText('Signal Red');
