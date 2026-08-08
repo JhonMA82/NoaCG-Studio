@@ -269,6 +269,13 @@ type-less categories, and the two Browse-only families. **"No orphan graphics" i
 by drawing more designs**; it needs the kit model to let a choice name a design as well as a
 type. That is item 4, and it is now the only thing between here and the goal.
 
+**The core six is now a gate, not a measurement** (`CORE_SIX` + `validatePacks`, run by
+`scripts/factory.mjs`): a pack that ships no opener, no info card, no ticker-or-bug, no
+countdown-or-hold or no closing card fails the build. It caught one thing the day it landed -
+**Newsroom declared no `holding-screen` type**, covering the role with the `ss08` extra, which is
+minimal and so matched this kit's look by luck rather than by resolution. Roles are satisfied by
+TYPES only, for that exact reason.
+
 Two things measured on the way that belong to nobody's feature:
 
 - **The type-floor gate had never run.** Its reader lost the backslashes in `\s`/`\d`, so it

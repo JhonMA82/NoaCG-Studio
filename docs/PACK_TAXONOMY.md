@@ -104,6 +104,12 @@ third, an opener or topic card, an info or bullet card, a ticker or bug, a count
 card, and a closing card. A kit does not need every category in the catalog; it needs to be
 complete enough to RUN A SHOW.
 
+**`validatePacks` enforces it** (`CORE_SIX` in `src/templates/packs.ts`, so the factory fails the
+build on a kit that cannot run a show). Only TYPES satisfy a role, never `extras`: a type resolves
+per family and therefore follows the look the kit was built in, while an extra is a fixed variant
+id carrying its own. Mutation-tested when it landed - take one kit's closing card away and the
+gate names it.
+
 Measured against that bar 2026-08-08 (**`KIT_MATRIX_GAPS.md`**, the standing gap report), the nine
 DISCIPLINE packs failed it — all nine were pure match furniture with no opener, no card that puts
 a sentence on screen and no way to end. That was a declaration fault, not missing designs: every

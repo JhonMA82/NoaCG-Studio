@@ -357,6 +357,10 @@ export const PACKS: TemplatePack[] = [
       // them: the severity ladder is what an emergency broadcast IS, and the two-language
       // notice retires the "multilingual cards are fields" stand-in the mapping recorded.
       'alert-level', 'public-notice',
+      // The hold a news desk actually runs on - a bulletin waiting to start, a feed that has
+      // dropped. It was covered by the `ss08` extra alone, which happens to be minimal and so
+      // happens to match this kit's look; the type follows whatever look the kit is built in.
+      'holding-screen',
       'sign-off',
     ],
     extras: [
@@ -685,6 +689,34 @@ export function resolvePack(pack: TemplatePack): PackCell[] {
  * merged catalog's id set, passed in by the caller (the factory) so this module never has to
  * import the catalog it is a view over.
  */
+/**
+ * THE CORE SIX - what every kit owes a show, whatever its genre (docs/PACK_TAXONOMY.md).
+ *
+ * A kit does not need every category in the catalog; it needs to be complete enough to RUN one.
+ * Measured 2026-08-08 (docs/KIT_MATRIX_GAPS.md), nine kits were not: the discipline packs were
+ * pure match furniture with no opener, nothing that puts a sentence on screen and no way to end,
+ * because they were cut as refinements of Match Day rather than as kits in their own right.
+ *
+ * Each role lists the TYPES that satisfy it. An `extras` entry does NOT count, deliberately: a
+ * type resolves per family and so follows the look the kit was built in, while an extra is a
+ * fixed variant id carrying its own. A kit whose closing card is an off-family extra is exactly
+ * the incoherence `paletteId` was introduced to fix, one layer down.
+ */
+const CORE_SIX: Record<string, readonly string[]> = {
+  'lower third': ['lower-third'],
+  'opener or topic card': ['title-card', 'topic-card'],
+  'info or bullet card': [
+    'key-facts', 'headline-card', 'recap-card', 'process-steps', 'statement-card',
+    'notice-card', 'public-notice',
+  ],
+  'ticker or bug': [
+    'ticker', 'sponsor-bug', 'station-bug', 'live-bug', 'logo-bug', 'event-bug', 'social-bug',
+    'award-bug', 'status-chip', 'sponsor-strip', 'sponsor-rotator',
+  ],
+  'countdown or holding card': ['countdown', 'holding-screen'],
+  'closing card': ['sign-off'],
+};
+
 export function validatePacks(knownVariantIds?: string[]): string[] {
   const problems: string[] = [];
   const typeIds = new Set(TYPES.map((t) => t.id));
@@ -710,6 +742,15 @@ export function validatePacks(knownVariantIds?: string[]): string[] {
       const known = new Set(knownVariantIds);
       for (const extra of pack.extras ?? []) {
         if (!known.has(extra)) problems.push(`pack "${pack.id}" extra "${extra}" is not in the catalog`);
+      }
+    }
+
+    for (const [role, satisfiedBy] of Object.entries(CORE_SIX)) {
+      if (!satisfiedBy.some((typeId) => pack.types.includes(typeId))) {
+        problems.push(
+          `pack "${pack.id}" ships no ${role} - the core six is what makes a kit able to run a ` +
+            `show (one of: ${satisfiedBy.join(', ')})`,
+        );
       }
     }
 
