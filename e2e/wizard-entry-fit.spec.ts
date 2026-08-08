@@ -72,6 +72,63 @@ test('the video card keeps a compact readable layout on mobile', async ({ page }
   expect(Math.abs(geometry.titleLeft - geometry.hintLeft)).toBeLessThan(1);
 });
 
+test('the four mode cards form an even 2x2 grid', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+
+  // THE ALIGNMENT CONTRACT (re-design/handoff.md §2a). Before this, the icon sat on its own
+  // line above the title and the grid sized each row to its tallest card, so the longest
+  // description made row 1 taller than row 2 (measured: 179px against 138px) and every card's
+  // copy began at a different offset. Geometry, because the defect is invisible to any
+  // assertion about which elements exist.
+  const cards = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      const head = el.querySelector('.wz-entry-head').getBoundingClientRect();
+      const icon = el.querySelector('.wz-entry-icon').getBoundingClientRect();
+      const title = el.querySelector('strong').getBoundingClientRect();
+      const hint = el.querySelector('.hint').getBoundingClientRect();
+      return {
+        entry: el.dataset.entry,
+        left: r.left, width: r.width, height: r.height,
+        // Where each block sits INSIDE its own card — the card-relative offsets are what has
+        // to match across all four, since the two rows sit at different page positions.
+        headTop: head.top - r.top,
+        hintTop: hint.top - r.top,
+        // Same row: the icon's box overlaps the title's vertically and precedes it.
+        iconRight: icon.right, titleLeft: title.left,
+        iconMidY: icon.top + icon.height / 2, titleMidY: title.top + title.height / 2,
+      };
+    }),
+  );
+  expect(cards).toHaveLength(4);
+
+  // Two columns, two rows, equal in both directions (1px of subpixel rounding allowed).
+  const round = (n: number) => Math.round(n);
+  expect(new Set(cards.map((c) => round(c.width))).size).toBe(1);
+  expect(new Set(cards.map((c) => round(c.height))).size).toBe(1);
+  expect(new Set(cards.map((c) => round(c.left))).size).toBe(2);
+
+  for (const c of cards) {
+    // The title row is one flex line: the icon precedes the title and shares its centreline.
+    expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
+    expect(Math.abs(c.iconMidY - c.titleMidY), `${c.entry}: icon on the title's line`).toBeLessThan(4);
+    // Every card's copy starts at the same y — the whole point of the fixed-height blocks.
+    expect(round(c.headTop), `${c.entry}: title row offset`).toBe(round(cards[0].headTop));
+    expect(round(c.hintTop), `${c.entry}: description offset`).toBe(round(cards[0].hintTop));
+  }
+
+  // THE ROWS STAY EQUAL WHEN ONE CARD OUTGROWS THE RESERVE. With today's copy every
+  // description fits the three-line block, so the heights above would match even without
+  // `grid-auto-rows: 1fr` — which would leave the rule that actually holds the grid together
+  // unproven, and the day someone writes a fourth line the ragged rows come back. So force
+  // that day: overflow one card's copy and require the other three to follow it.
+  const heights = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
+    els[0].querySelector('.hint').textContent = 'x '.repeat(220);
+    return els.map((el) => Math.round(el.getBoundingClientRect().height));
+  });
+  expect(new Set(heights).size, `rows stayed equal: ${heights.join(', ')}`).toBe(1);
+});
+
 test('a window too short for the step cues its overflow', async ({ page }) => {
   await entryStepAt(page, 1280, 620);
 

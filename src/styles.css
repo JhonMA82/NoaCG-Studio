@@ -1643,6 +1643,10 @@ kbd {
 .wz-entry {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* EQUAL ROWS. Without this the grid sizes each row to its tallest card, so the one card
+     with a longer description made its whole row taller than the row beneath it (measured at
+     1366x768 before the fix: 179px against 138px) and the four cards read as two pairs. */
+  grid-auto-rows: 1fr;
   gap: 14px;
   padding: 10px 0 0;
   width: 100%;
@@ -1665,6 +1669,27 @@ kbd {
 .wz-entry-card .wz-entry-icon { font-size: 20px; color: var(--accent); }
 .wz-entry-card strong { font-size: 15px; font-weight: 600; }
 .wz-entry-card:disabled { opacity: 0.55; cursor: default; }
+
+/* THE CARD'S TITLE ROW (re-design/handoff.md §2a): the icon sits BESIDE the title, not on a
+   line of its own above it. Stacked, the icon cost a whole line of the entry step's height
+   budget per card and left the row with nothing to align a trailing control to; the reference
+   draws its selection dot at the far end of exactly this row, which is why it is a flex line
+   rather than two blocks. `margin-left: auto` on a future trailing child parks it right. */
+.wz-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wz-entry-head .wz-entry-icon { flex: 0 0 auto; line-height: 1; }
+.wz-entry-head strong { min-width: 0; }
+/* The description RESERVES the room the longest card needs, so every card's copy starts at
+   the same y and a two-line card is not shorter than a three-line one. Three lines is the
+   entry grid's budget: a card whose copy needs a fourth is a card that needs shorter copy.
+   It is a floor, never a cap — nothing is clipped if a translation runs long, the row simply
+   grows. Scoped to the grid, because the Finish doors reserve their own smaller number and a
+   shared value would spend the step height they are short of. */
+.wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.4em); }
 
 /* ── Kit step (Start from a kit): pick a show, get its whole set of graphics ────────
    The grid is the whole decision, so cards stay scannable rather than pretty: name,
@@ -2210,7 +2235,13 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-anim-dirs button { flex: 1; padding: 4px 0; font-size: 14px; line-height: 1; }
 .wz-anim-dirs button.active { border-color: var(--accent); color: var(--accent); }
 
-/* Step 6: finish — name it, read back what was built, then take one of the two doors. */
+/* Step 6: finish — name it, read back what was built, then take one of the two doors.
+   THE STEP'S HEIGHT IS ITS BUDGET, because the doors are the last thing on it: everything
+   above them that spends a line pushes the only two controls the step exists for below the
+   fold. Measured at 1366x768 before this pass — 54px of overflow, both doors clipped. The
+   blocks are therefore tighter here than the app's default rhythm, scoped to this step so no
+   other panel pays for it. Pinned by e2e/wizard-finish.spec.ts. */
+.wz-finish .panel-section { margin-bottom: 12px; }
 .wz-finish-name { width: 100%; max-width: 420px; font-size: 15px; }
 /* The read-back. A definition list rather than a table: these are label/value pairs, and the
    grid keeps every value on one column edge so the block scans vertically. */
@@ -2222,7 +2253,7 @@ details:not([open]) > *:not(summary) { display: none; }
   grid-template-columns: 110px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: baseline;
-  padding: 9px 14px;
+  padding: 7px 14px;
 }
 .wz-finish-summary > div + div { border-top: 1px solid var(--hairline); }
 .wz-finish-summary dt { font-size: 12px; color: var(--text-dim); }
@@ -2241,8 +2272,14 @@ details:not([open]) > *:not(summary) { display: none; }
    this step exists for. At 240 they sit side by side at ~274px each, which is also the width
    every other entry card in the wizard already uses. Wrap is kept for narrow viewports, where
    stacking full-width is right. */
-.wz-finish-doors { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.wz-finish-doors { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
 .wz-finish-doors .wz-entry-card { width: auto; flex: 1 1 240px; }
+/* The doors' own description reserve — two lines, not the entry grid's three. Their copy was
+   cut to what a door actually has to say (the detail belongs to the surface each one leads
+   to), because at 1366x768 the pair sat BELOW THE FOLD on the one step whose whole job is to
+   offer a choice: the primary door's title was cut through the middle. Measured by
+   e2e/wizard-finish.spec.ts. */
+.wz-finish-doors .wz-entry-head + .hint { min-height: calc(2 * 1.4em); }
 
 .issue { padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); }
 .issue.error { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.4); }

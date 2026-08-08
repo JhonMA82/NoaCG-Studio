@@ -77,7 +77,11 @@ const MAP = [
   // its exported-panel case is built from a scorebug (sb01).
   [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'production-controls.spec.ts']],
   [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts']],
-  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts']],
+  // wizard-finish, wizard-kit and wizard-shell were MISSING from this list, so a FinishStep,
+  // KitStep or wizard-header change ran neither the spec named after it nor anything that
+  // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
+  // (scripts/e2e-affected.mjs's own safety argument is that it fails toward running more).
+  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves

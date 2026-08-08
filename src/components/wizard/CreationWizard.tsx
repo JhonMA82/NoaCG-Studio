@@ -323,6 +323,42 @@ export default function CreationWizard() {
 
   const patch = (p: DraftPatch) => setDraft((d) => mergeDraft(d, p));
 
+  /**
+   * The ✕. From any step past Entry it goes BACK TO THE WIZARD'S FRONT PAGE rather than out of
+   * the wizard: the reader who is three steps into the wrong mode wants the other door, not the
+   * app behind it, and losing the whole surface to correct one wrong turn is the fault this
+   * fixes. From Entry itself there is nowhere left to rewind to, so it closes as it always did.
+   *
+   * The draft is DISCARDED — the mode's own choices are what the reader is leaving — except the
+   * PROJECT FORMAT, which is a property of the thing being made and not of the route taken to
+   * make it; re-picking 4:5 at 50 fps after every mode change would be the wizard forgetting
+   * something the reader already told it. Home stays one click away on the brand lockup, which
+   * is the same door on every topbar in the product.
+   */
+  const leaveStep = () => {
+    if (step === 0) {
+      closeGallery();
+      return;
+    }
+    setDraft((d) => {
+      const fresh = initialDraft();
+      return {
+        ...fresh,
+        aspectId: d.aspectId,
+        resolutionId: d.resolutionId,
+        fps: d.fps,
+        formatTouched: d.formatTouched,
+      };
+    });
+    setMode('template');
+    setStep(0);
+    setBrowseFilters(NO_BROWSE_FILTERS);
+    setAiResult(null);
+    setAiThread(null);
+    setStretchDemo(null);
+    setKitError(null);
+  };
+
   // Creating an SPX graphic (any path) lands in the SPX shell; creating/opening a video
   // lands in the video shell. Only the wizard flips the persisted doc-kind switch.
   const toSpxShell = () => useDocKindStore.getState().setKind('spx');
@@ -836,10 +872,24 @@ export default function CreationWizard() {
                 "what am I working on" without the reader looking at the preview. */}
             {variant && <span className="wz-title-doc">· {variant.name}</span>}
           </div>
-          <span className="wz-stepcount">
-            Step <b>{railPos + 1}</b> / {stepTitles.length}
-          </span>
-          <button className="gallery-close" onClick={closeGallery} title="Cancel (keep current project)">✕</button>
+          {/* HOW FAR ALONG — from the SECOND step onward. On Entry there is no answer to give:
+              no mode is chosen yet, so the denominator is not even the same number for every
+              door (Create with AI is 3 steps, a kit is 2), and "Step 1 / 6" on a screen whose
+              whole question is "which of these four" states a walk the reader has not picked.
+              The count comes from the ACTIVE MODE's own step list, which is what makes it
+              true once it does appear. */}
+          {step > 0 && (
+            <span className="wz-stepcount" data-testid="wz-stepcount">
+              Step <b>{railPos + 1}</b> / {stepTitles.length}
+            </span>
+          )}
+          <button
+            className="gallery-close"
+            onClick={leaveStep}
+            title={step > 0 ? 'Back to the start (discards this draft)' : 'Cancel (keep current project)'}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Body: step content (+ live preview from step 2). The Text step (design mode, step 3)

@@ -46,4 +46,5 @@ export const FOCUS = [
   'wizard-kit.spec.ts',
   'wizard-logo.spec.ts',
   'wizard-preview.spec.ts',
+  'wizard-shell.spec.ts',
 ];
