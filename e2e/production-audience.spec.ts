@@ -129,6 +129,12 @@ test('the public join page answers honestly on an offline build', async ({ page 
   await page.goto('/join/friday-night-live');
   await expect(page.locator('#join')).toContainText('runs offline');
   await expect(page.locator('form, textarea')).toHaveCount(0);
+  // …and it answers honestly IN THE PAGE'S OWN LOOK. The stylesheet ships with the join surface,
+  // so every state that does not mount that surface — this one and the presenter view — used to
+  // render as unstyled serif text flush against the left edge. An honest message nobody would
+  // trust is not an honest answer.
+  await expect(page.locator('#noacg-join-style')).toHaveCount(1);
+  await expect(page.locator('#join')).toHaveClass(/\bnj\b/);
 });
 
 test('an unknown production workspace degrades to Playout rather than a dead surface', async ({ page }) => {
