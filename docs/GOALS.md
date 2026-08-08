@@ -117,12 +117,22 @@ from ~80 places in the tree, so it never changes.*
       pinned by a spec that waits first; two shared-control defects fixed with it. Still owed:
       the owner's own eyes, and the Data workspace's empty state
       (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Acceptance pass 2026-08-08").
-- [ ] **Decide which door the class runs on.** Two routes reach air and only one needs an account:
-      **export** (files, local relay and controller on the playout machine - no sign-in, and the
-      route round 2 proved on real hardware) and **cloud publish** (the persistent output URL and
-      phone control - gated on sign-in). The north star sentence describes the second. Pick one for
-      the two weeks; if it is cloud, the accounts exist before the class, not during it. Second
-      accepted limitation: restyling after save means recreating in the wizard or Advanced mode.
+- [x] **Which door the class runs on: DECIDED 2026-08-08 - CLOUD FIRST, EXPORT AS THE BACKUP.**
+      The class publishes and drives the persistent output URL with phone control; the export route
+      (files, local relay and controller on the playout machine - the one round 2 proved on real
+      hardware) is what a failing network falls back to. Two consequences, both now owed:
+      **the accounts exist before the class, not during it**; and the hardware re-test in step 10
+      must drive the CLOUD door first and the export door second, in that order, since the backup
+      is only a backup if it has been rehearsed. Third accepted limitation, unchanged: restyling
+      after save means recreating in the wizard or Advanced mode.
+- [ ] **What cloud-first pulls forward.** Named here rather than discovered during the class:
+      the **hosted control page is now a primary surface** (it was covered by the maintainer's live
+      checklist alone, because an offline build cannot drive it) - its own copy of the first-take
+      recovery defect is fixed but has never run against a real backend; the unexplained
+      **"the CasparCG URL stopped working"** report from acceptance round 2 is a cloud-door report
+      and the one mechanism that matches it is that unpublishing mints a new slug
+      (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2); and **migration 0034 is still unapplied to
+      production** (the parking lot below), so the multi-layer wire half is not there.
 
 ---
 

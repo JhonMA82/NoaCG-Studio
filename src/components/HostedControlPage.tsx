@@ -149,12 +149,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // Safe here in a way it was NOT in an exported package: this stage drives nothing but itself.
   // The round-1 bug was a baked log follower snapping a REAL playout graphic to its last
   // reported (off) state one round-trip after the host's play().
+  //
+  // It reads the layers THE RESOLVE reported, never the live `liveCue` state. That state also
+  // moves when this operator's own take comes back round the log, so keyed on it the recovery
+  // fired on the first take of a session and replayed the entrance the follower had just
+  // applied - the monitor playing the graphic in twice. The cockpit had the same shape and a
+  // worse ending (it snapped to a stale "off" and took the graphic off air); both are keyed on
+  // the wire's own answer now.
   const recoveredRef = useRef(false);
   useEffect(() => {
     if (!payload || !resolved || recoveredRef.current) return;
-    const up = Object.entries(liveCue).filter(([, cueId]) => !!cueId);
-    if (up.length === 0) return;
     recoveredRef.current = true;
+    const up = Object.entries(resolved.liveCue).filter(([, cueId]) => !!cueId);
     for (const [graphic] of up) {
       const data = resolved.live[graphic]?.data;
       programRef.current?.apply([
@@ -162,7 +168,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         { graphic, msg: { t: 'play' as const } },
       ]);
     }
-  }, [payload, resolved, liveCue]);
+  }, [payload, resolved]);
 
   if (show === 'loading') {
     return (
