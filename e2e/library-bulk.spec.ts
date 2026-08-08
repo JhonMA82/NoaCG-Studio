@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { settleDurableWrites } from './_durable';
 
 // The Graphics section's organisation layer (acceptance-round asks): multi-select with a
 // bulk bar, and FLAT folders — GraphicDoc.folder, one level, additive-optional (no version
@@ -11,14 +12,12 @@ async function seedLibrary(page: Page, names: string[]): Promise<void> {
   await page.evaluate(async (list: string[]) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const tpl = variantsFor('lower-third')[0].create({});
     for (const name of list) createGraphic(tpl, { name });
-    // The durable store ACCEPTS a write and confirms it a moment later, so a seed that
-    // reloads straight after creating can reload before the records land — which is exactly
-    // what these specs were doing, and why one of them failed roughly every other run.
-    await commitDurableWrites();
   }, names);
+  // Accepted is not landed, and the goto below tears the page down (e2e/_durable.ts) — which
+  // is why this seed used to come back short by a graphic every other run.
+  await settleDurableWrites(page);
   await page.goto('/app#/home/graphics');
   await expect(page.getByTestId('home-page')).toBeVisible();
 }

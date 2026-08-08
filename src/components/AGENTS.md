@@ -172,11 +172,10 @@ every section stays mounted and no preference is reachable only by clicking the 
   timeline - locking is about the POINTER, never editability. Exactly one part has a default:
   an imported design's ARTWORK (a full-bleed image UNDER every field, so unlocked it swallows
   every press meant for the text) - a press on BARE artwork then falls through to the root's
-  zone drag, which moves the whole graphic. A locked ROOT gives up that zone drag too, so the
-  press marquees over the graphic instead. Two surfaces toggle it: the **Inspector's identity
-  header** (any part - the general home) and the **selection chip's padlock** (the artwork
-  only, where the default is the surprising one). Locks are UI state, cleared on a
-  whole-project swap.
+  zone drag. A locked ROOT gives up that zone drag too, so the press marquees instead. Two
+  surfaces toggle it: the **Inspector's identity header** (any part) and the **selection chip's
+  padlock** (the artwork only, where the default is the surprising one). Locks are UI state,
+  cleared on a whole-project swap.
   The SELECTION model is docs/TIMELINE_INTERACTION_MODEL.md's: a click selects the innermost
   TemplatePart under the point (registry-driven closest-ancestor hit test, rect-containment
   fallback), clicking the sole selected part climbs to its container, SHIFT-click toggles, and
@@ -304,10 +303,9 @@ every section stays mounted and no preference is reachable only by clicking the 
   choreography, converted, rather than a lesser second editor; a legacy region it CANNOT read gets
   **LegacyTimeline** (below).
   The step timeline's vocabulary: a time ruler with the operator's cue markers (▶ » ● ■) at
-  every boundary; step CLIPS - right-edge resize (default PRESERVES keyframe timing: extending
-  leaves settled air, shrinking clamps at the last keyframe; Alt-drag STRETCHES times
-  proportionally), context menu Duplicate/Rename/Delete + the step's default ease, »+ adds a
-  step, a hold popover edits the SPX `out` setting, a speed select scales everything; LAYER
+  every boundary; step CLIPS - right-edge resize (default PRESERVES keyframe timing; Alt-drag
+  STRETCHES times proportionally), context menu Duplicate/Rename/Delete + the step's default
+  ease, »+ adds a step, a hold popover edits the SPX `out` setting, a speed select; LAYER
   ROWS - every registry part gets a row - with aggregate keyframe diamonds, a ▸ caret that
   EXPANDS the layer into per-property sub-rows (drag/Delete/ease scoped to that property via
   moveKeyframe/deleteKeyframe/setKeyframeEase's prop arg), and a LAYER STATE BLOCK: the
@@ -672,8 +670,8 @@ await entirely, because the app-level dialog already announces unclaimed failure
 The PARALLEL editor world for the AI video project kind (VideoProject, src/model/videoTypes.ts).
 App.tsx renders **VideoAppShell** instead of AppShell when docKindStore says 'video'; only the
 wizard flips that switch. Every panel follows the project's ENGINE ('remotion' | 'hyperframes',
-picked at creation): the code pane, the preview bridge, the validator, the render manifest, and
-the source download all branch on it, while chat/Content/Settings/Assets stay one surface.
+picked at creation): the code pane, the preview bridge, the validator, the render manifest and
+the source download all branch on it, while the rest stay one surface.
 Layout: code pane (lazy Monaco, **VideoCodeEditor** - Composition.tsx with syntax-only TSX
 diagnostics from monacoSetup.ts, or composition.html for HyperFrames; typing goes through
 store.setSource) | splitter (model/videoLayout.ts `codeRatio` pref) | right column =
@@ -685,47 +683,41 @@ tabbed panel: **VideoAiChatPanel** (the primary authoring surface - auto-runs th
 generation when chat holds exactly one unanswered user turn, guarded PER PROJECT ID with a
 retry button on failure; every AI result applies as ONE undoable applyProject; failed
 validation keeps the previous working code and offers "Apply anyway"), **VideoContentPanel**
-(the editable inputs the AI declared - the video Template Definition; each input becomes a shared
-FieldDescriptor and renders the SHARED field row (fields/), the same one the SPX Data and operator
-panels use, editing `project.inputs` live through store.setInputValue - so a non-technical user
-changes the headline/accent/score/logo without touching TSX and the preview updates instantly
-via the player host's set-props channel; the image control is an asset PICKER over the project's
-uploaded assets by logical name - uploading itself lives in the Assets tab, which enforces the
-manifest budget; per-field Reset comes from the shared row, "Reset all" from the panel. The panel
-also shows inputs INFERRED FROM THE CODE (model/videoInputInfer.ts): any `fields.<key> ?? default`
-the module reads but nobody declared, badged `code` - the code is the source of truth, so a pro
-who hand-writes a field gets the same control the AI would have declared. A declared input wins;
-an inferred one is adopted into project.inputs on its first edit, which is why
-store.setInputValue takes the whole input, not just a key),
+(the editable inputs the AI declared - the video Template Definition; each becomes a shared
+FieldDescriptor and renders the SHARED field row (fields/), editing `project.inputs` live
+through store.setInputValue, so a non-technical user changes the headline/score/logo without
+touching TSX; the image control is an asset PICKER over the project's uploads by logical name.
+The panel also shows inputs INFERRED FROM THE CODE (model/videoInputInfer.ts): any
+`fields.<key> ?? default` the module reads but nobody declared, badged `code` - the code is the
+source of truth, so a pro who hand-writes a field gets the control the AI would have declared.
+A declared input wins; an inferred one is adopted into project.inputs on its first edit, which
+is why store.setInputValue takes the whole input, not just a key),
 **VideoSettingsPanel**
 (undoable patchSettings; duration edits in seconds, fps changes preserve seconds. Settings drive
 the player and the renderer at once but NOT the composition's code, which was written against
 whatever they were at generation time - so the project records that (`authoredFor`) and the panel
-reports any DRIFT (videoTypes.ts settingsDrift: duration, fps, frame size, transparency) with a
-one-click "update the code", which goes through store.requestAi -> the CHAT panel's one AI path,
-so it lands as a normal turn and undoes like any other edit. The render preflight repeats the
-warning. `authoredFor: null` = provenance unknown (the starter, or a pre-existing saved project):
-warn about nothing). Its AI-model override uses the global provider and live server-side catalog
-suggestions filtered for the full video structured-output/context contract; the field accepts an
-opaque id when discovery is unavailable and never receives a provider key),
+reports any DRIFT (videoTypes.ts settingsDrift) with a one-click "update the code" that goes
+through store.requestAi -> the CHAT panel's one AI path, so it lands as a normal turn and undoes
+like any other edit. `authoredFor: null` = provenance unknown: warn about nothing. Its AI-model
+override uses the global provider and live catalog suggestions filtered for the video
+structured-output contract, accepts an opaque id when discovery is unavailable, and never
+receives a provider key),
 **VideoAssetsPanel** (data-URL assets, 3 MB/asset hard cap - the render manifest budget; uploads
 go through video/types.ts uniqueVideoAssetPath so an asset's LOGICAL NAME is settled once, into
 the immutable path - adding or deleting another asset must never rename one, because the code and
 image-input values point at that name. A few big assets can still exhaust localStorage: the save
 fails LOUDLY (the shell's `video-autosave-failed` flag), never silently. It also sets each
-upload's PURPOSE (model/imagePurpose.ts) via store `setAssetUse` -> the additive-optional
-`VideoProject.assetUses`; it is the ONE video surface that must NOT filter by it, since it is
-where a reference is re-tagged or deleted. Everything else reads `video/types.ts`
-`compositionAssets`, which is what keeps reference material out of all four routes an asset can
-otherwise reach - `assets.<name>` in the code, the Content picker, the player's data-URL map,
-and the render manifest. Two traps: a zustand selector that BUILDS the filtered array returns a
-new reference every store write (memo the two stable parts instead), and
+upload's PURPOSE (model/imagePurpose.ts) via store `setAssetUse`, and is the ONE video surface
+that must NOT filter by it, since it is where a reference is re-tagged or deleted. Everything
+else reads `video/types.ts` `compositionAssets`, which keeps reference material out of all four
+routes an asset can otherwise reach - `assets.<name>` in the code, the Content picker, the
+player's data-URL map, and the render manifest. Two traps: a zustand selector that BUILDS the
+filtered array returns a new reference every store write (memo the two stable parts instead), and
 `createDefaultVideoProject` constructs the project field by field, so a new field must be added
 to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-purpose.spec.ts),
 **VideoExportPanel** (mounts **VideoRenderPanel** when isRenderConfigured() - the engine's
-manifest kind ('remotion' compiledJs+inputProps, or 'hyperframes' composed documentHtml)
-through the shared render service, with an upload-budget meter; plus the engine's source
-download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
+manifest kind through the shared render service, with an upload-budget meter; plus the engine's
+source download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
 (explicit saves; the current slot autosaves separately). The shell binds the same global
 undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
 exactly like AIPromptPanel; everything else stays open.

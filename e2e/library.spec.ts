@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 import { showCode } from './_code';
+import { settleDurableWrites } from './_durable';
 
 // docs/SAVED_CONTENT_MODEL.md — the graphics LIBRARY, the Save flow, routed Home, brand
 // looks, and the per-graphic control panel with its ENTRIES. These are the core-product
@@ -633,4 +634,50 @@ test('the list view is a real table: headings over their own columns, and the to
   const rowBox = (await row.boundingBox())!;
   expect(bar.y).toBeGreaterThan(rowBox.y);
   await expect(row).toHaveClass(/selected/);
+});
+
+test('the Graphics header is one row, and the type chips and sort narrow and reorder it', async ({ page }) => {
+  await page.goto('/app#/home/graphics');
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const strap = variantsFor('lower-third')[0].create({});
+    const crawl = variantsFor('ticker')[0].create({});
+    createGraphic(strap, { name: 'Zulu Strap' });
+    createGraphic(strap, { name: 'Alpha Strap' });
+    createGraphic(crawl, { name: 'Mike Ticker' });
+  });
+  // Accepted is not landed, and the goto below tears the page down (e2e/_durable.ts).
+  await settleDurableWrites(page);
+  await page.goto('/app#/home/graphics');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+
+  // ONE row: the title, the search, the sort and the view toggle share a line. Two bands of
+  // chrome before the first graphic is most of a laptop's fold (re-design/handoff.md §5b).
+  const tops = await page
+    .locator('.lib-viewbar > h2, .lib-viewbar .lib-search, .lib-viewbar .lib-sort, .lib-viewbar .lib-viewtoggle')
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  expect(tops).toHaveLength(4);
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(16);
+
+  // Chips are DERIVED from the library — the count is what is there, not a fixed strip.
+  await expect(page.getByTestId('type-chip-all')).toContainText('3');
+  await expect(page.getByTestId('type-chip-lower-third')).toContainText('Lower thirds');
+  await expect(page.getByTestId('type-chip-lower-third')).toContainText('2');
+  await expect(page.getByTestId('type-chip-ticker')).toContainText('Tickers');
+
+  await page.getByTestId('type-chip-lower-third').click();
+  await expect(page.locator('.lib-row')).toHaveCount(2);
+  // The chip counts keep counting the whole library, so picking one never renumbers the rest.
+  await expect(page.getByTestId('type-chip-all')).toContainText('3');
+  await page.getByTestId('type-chip-lower-third').click(); // pressing the active chip clears it
+  await expect(page.locator('.lib-row')).toHaveCount(3);
+
+  // Sort reorders the SAME rows rather than filtering them.
+  const names = () => page.locator('.lib-row .lib-name-link strong').allTextContents();
+  await page.getByTestId('library-sort').selectOption('name');
+  expect(await names()).toEqual(['Alpha Strap', 'Mike Ticker', 'Zulu Strap']);
+  await page.getByTestId('library-sort').selectOption('newest');
+  expect((await names())[0]).toBe('Mike Ticker');
 });

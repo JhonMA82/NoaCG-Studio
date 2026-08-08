@@ -278,13 +278,9 @@ test('a looping reel survives create, save and reopen with its motion intact', a
   const id = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { createGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const t = useTemplateStore.getState().template;
     const { doc, error } = createGraphic(t, { name: 'Reel round trip', baseline: t });
     if (error) throw new Error(error);
-    // Accepted is not landed — wait for the confirmation before reloading onto it.
-    const late = await commitDurableWrites();
-    if (late) throw new Error(late);
     return doc.id;
   });
   // The save is accepted synchronously and lands a moment later; reloading first aborts it
