@@ -129,6 +129,44 @@ test('the four mode cards form an even 2x2 grid', async ({ page }) => {
   expect(new Set(heights).size, `rows stayed equal: ${heights.join(', ')}`).toBe(1);
 });
 
+test('the mode cards stack into one column on a phone', async ({ page }) => {
+  await entryStepAt(page, 390, 844);
+
+  // The 2x2 grid is a DESKTOP measure. Left at two columns on a 390px screen each card got a
+  // 164px column — about 110px of text beside the icon — so every title wrapped to two lines
+  // with the icon floating against the middle of the block, and the descriptions ran seven to
+  // eleven lines of two-word rows. Measured then: four cards 291px tall each.
+  const cards = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      const title = el.querySelector('strong').getBoundingClientRect();
+      const icon = el.querySelector('.wz-entry-icon').getBoundingClientRect();
+      return {
+        entry: el.dataset.entry,
+        left: Math.round(r.left), width: Math.round(r.width), top: Math.round(r.top),
+        titleHeight: title.height,
+        titleLineHeight: parseFloat(getComputedStyle(el.querySelector('strong')).lineHeight),
+        iconRight: icon.right, titleLeft: title.left,
+      };
+    }),
+  );
+  expect(cards).toHaveLength(4);
+
+  // One column: every card shares a left edge and a width, and each starts below the last.
+  expect(new Set(cards.map((c) => c.left)).size).toBe(1);
+  expect(new Set(cards.map((c) => c.width)).size).toBe(1);
+  const tops = cards.map((c) => c.top);
+  expect([...tops].sort((a, b) => a - b)).toEqual(tops);
+
+  for (const c of cards) {
+    // ONE line of title. This is the assertion that fails the day the column narrows again —
+    // a wrapped title is what turns these cards back into screen-tall ragged blocks.
+    expect(c.titleHeight, `${c.entry}: title wrapped`).toBeLessThan(c.titleLineHeight * 1.6);
+    // And the icon still leads that line rather than floating beside a block.
+    expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
+  }
+});
+
 test('a window too short for the step cues its overflow', async ({ page }) => {
   await entryStepAt(page, 1280, 620);
 

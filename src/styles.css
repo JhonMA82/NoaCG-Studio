@@ -3988,8 +3988,19 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
   /* The mode caption ("New graphic") is ~110px of a 375px header saying what the user chose
      two taps ago, while the active chip already names where they are. The brand mark stays. */
   .wz-title-step, .wz-title-sep, .wz-title-doc { display: none; }
-  .wz-entry { padding: 16px 4px; }
-  .wz-entry-card { width: 100%; }
+  /* ONE COLUMN ON A PHONE. The 2x2 grid is a desktop measure: at 390px it gave each card a
+     164px column, which left about 110px of text beside the icon — so every title wrapped to
+     two lines with the icon floating against the middle of the block, and the descriptions ran
+     seven to eleven lines of two-word rows. Measured: four cards 291px tall each, 513px of
+     overflow. It is the same defect the video card's own mobile rule was written for.
+     `grid-auto-rows` goes back to auto with it: equal heights are what keeps a ROW even, and a
+     single-column stack has no rows to even out — held at 1fr it would grow all four cards to
+     the tallest one's height for nothing. */
+  .wz-entry {
+    padding: 16px 4px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
   /* The compact one-line rows stack again on a phone — a row layout has no width to share. */
   .wz-continue-card { flex-direction: column; align-items: flex-start; }
   .pk-body { padding: 12px 14px; }
