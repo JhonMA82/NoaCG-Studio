@@ -89,6 +89,12 @@ from ~80 places in the tree, so it never changes.*
       foundation, vote-to-air, presenter view, the audience join page - and **none of it has ever
       been looked at by a human**; geometry-only e2e coverage is not acceptance. A student-facing
       surface that has never been seen is the largest unmeasured risk in the release.
+      **First pass done 2026-08-08, and it paid for itself immediately:** the audience link 404ed
+      on production for every operator who copied it (a `vercel.json` rewrite pointing at
+      `/join.html` under `cleanUrls`), and the presenter view rendered as unstyled serif text
+      because the join stylesheet ships with the surface it never mounts. Both fixed, both now
+      gated. The rest of the plane - contextual cue controls, the data foundation, vote-to-air -
+      is still unlooked-at.
 - [ ] **Decide which door the class runs on.** Two routes reach air and only one needs an account:
       **export** (files, local relay and controller on the playout machine - no sign-in, and the
       route round 2 proved on real hardware) and **cloud publish** (the persistent output URL and
@@ -107,7 +113,7 @@ these are the commitments.
 | Tier | Who pays | What it is | State |
 |---|---|---|---|
 | **NoaCG Lite** | us, free to the user | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
-| **NoaCG Pro** | user, a little | Image-generation models produce a great-looking frame; further steps rebuild it as real HTML with live fields. | direction only, unproven |
+| **NoaCG Pro** | user, a little | Image-generation models produce a great-looking frame; further steps rebuild it as real HTML with live fields. | **measured 2026-08-08: the frame is good, the rebuild is not. Parked.** |
 | **NoaCG Extreme** | subscription | The newest OpenAI and Anthropic frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
 
 - [ ] **Lite: make it good. The price is already solved.** The target was 100 generations per
@@ -120,10 +126,19 @@ these are the commitments.
       catalog is the crutch AND the moat, through adapt-first (`docs/ADAPT_FIRST_PLAN.md`).
       **This is the gate for every other AI goal** - one good graphic must be reliable before
       anything multiplies it.
-- [ ] **Pro: find out whether it works at all.** Bounded experiments before any commitment -
-      image-model concept → deterministic reconstruction, measured against Lite output on the same
-      briefs. It may not be reachable at broadcast quality; that is an acceptable answer.
-      `docs/NOACG_PRO_PLAN.md`.
+- [ ] **Pro: reuse the concept, not the reconstruction.** "Does it work at all" is ANSWERED and
+      archived - not at broadcast quality on the rebuild approach, now parked
+      (`benchmarks/pro/round-2026-08-08/`, `docs/NOACG_PRO_PLAN.md` §10a). Open is the half that
+      measured WELL: the image model designs credible broadcast graphics. Feed a concept back as a
+      `layout` REFERENCE into the grounded adapt path - Pro's strength against Lite's sameness.
+- [ ] **A generated graphic can carry its own STATE MACHINE.** Every tier, not Pro. The platform has
+      the engine, the node editor, the control pages and the hosted log - and **no generation path
+      asks a model for a machine** (the only mention in `src/ai` is Lite's refusal code). A
+      generated clock+scoreboard got six correct fields and zero operator events: its clock engine
+      is unreachable, and the dispatcher it invented was silently overridden by the platform's own.
+      Prompting cannot fix it - every emit converts through `importAnimData`, which drops a machine
+      by construction. The fix is a structured MACHINE stage spliced in deterministically, the way
+      `designSpec` works. **The gap between "make a graphic" and "run a show".**
 - [ ] **Extreme: frontier models + the subscription that funds them.** After there are users.
       Standing rule until there is income: a NoaCG-funded route must be a CHEAP model on the
       managed transport - Vercel AI Gateway since 2026-08-07, not OpenRouter. The constraint is
@@ -181,6 +196,11 @@ Real work, deliberately not now. Each has a plan doc; none is current until it i
 - **Payments/subscriptions** - long beta first; separate private repo, Stripe, metered generations.
 - **Nightly auto-generated graphics library** (`docs/NIGHTLY_AUTOMATION_PLAN.md`) - committed
   direction, unscheduled.
+- **Audience page per-show customisation** and **automatic chat ingestion from YouTube/Twitch into
+  the audience plane** (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Backlog for the audience plane") -
+  both owner-requested on 2026-08-08, both deliberately not started while the plain join page is
+  still being accepted. Each is a capability-disclosure or an architecture decision wearing a
+  feature's clothes; the doc says which.
 - **Video/animation projects** - the parallel Beta shell stays where it is until the north star
   lands.
 - **Google Fonts import, the dedicated preview channel, Home polish** - postponed by the student

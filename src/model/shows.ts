@@ -372,6 +372,16 @@ const DATASET_PRESETS: Record<ShowDataset['kind'], { name: string; labels: strin
   generic: { name: 'Data table', labels: ['Column 1', 'Column 2', 'Column 3'] },
 };
 
+/**
+ * A kind's starter columns, for anything that needs the SHAPE without creating a table - the
+ * Data tab's downloadable CSV template being the one caller. It reads this table rather than
+ * carrying its own list, so a template file can never describe a shape the workspace itself
+ * would not have made, and adding a column above changes both at once.
+ */
+export function datasetPreset(kind: ShowDataset['kind']): { name: string; labels: string[] } {
+  return DATASET_PRESETS[kind];
+}
+
 function datasetOf(show: Show, datasetId: string): ShowDataset | undefined {
   return show.datasets?.find((d) => d.id === datasetId);
 }

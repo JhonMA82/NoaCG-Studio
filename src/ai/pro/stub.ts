@@ -166,5 +166,7 @@ export async function stubCompilePro(
     options.logoMark ?? null,
   );
   const validation = options.validate ? await options.validate(compiled.template) : null;
-  return { ...compiled, validation, concept };
+  // Zero, not null: the offline stub reaches no provider, so nothing was spent - which is a
+  // measured cost of nothing, not an unknown one.
+  return { ...compiled, validation, concept, interpretCostUsd: 0 };
 }

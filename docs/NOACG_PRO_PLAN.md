@@ -1,8 +1,10 @@
 # NoaCG Pro - the image-guided editable graphics pipeline
 
-Status: in progress (first vertical slice: lower thirds). This document records the
-architecture decisions for NoaCG Pro, the tier above NoaCG Lite: image-model visual
-direction compiled into ordinary, editable, exportable NoaCG templates.
+Status: **the reconstruction path is PARKED on measurement (2026-08-08, §10a)** - the concept
+stage works and the compiler cannot keep what it designs. The first vertical slice (lower thirds)
+is built and runs; this document records the architecture decisions for NoaCG Pro, the tier above
+NoaCG Lite: image-model visual direction compiled into ordinary, editable, exportable NoaCG
+templates. Read §10a before proposing further work on it.
 
 The one-sentence contract: **the image model proposes the appearance; NoaCG owns
 structure, fields, animation, validation, and export.** A generated image is a visual
@@ -223,8 +225,13 @@ interpretation to `google/gemini-2.5-flash`, both via OpenRouter:
 - **Quality**: the 2026-07-31 paid round (§10) measured 4/5 brief-bank passes after the
   normalizer fixes, with the strongest text rendering among affordable image routes -
   text fidelity is the binding constraint for a concept whose lines must be transcribable.
-- **Cost**: ~$0.067 per concept + ~$0.002 per interpretation - ~$0.07-0.08 per completed
-  generation, roughly a tenth of premium image routes.
+- **Cost**: ~$0.067 per concept + **$0.009-0.011 per interpretation** = **~$0.077 per completed
+  generation**, roughly a tenth of premium image routes - and ~250x a NoaCG Lite generation
+  ($0.0003), which is the comparison that decides whether the tier is worth its price.
+  The interpretation figure was ~$0.002 under OpenRouter and is five times that on the managed
+  gateway, because **reasoning tokens bill**: the route spends 2,400-3,900 output tokens thinking
+  before it writes any JSON (measured 2026-08-08, benchmarks/pro/round-2026-08-08/ROUND.md §3).
+  A generation that FAILS after its concept still costs the full ~$0.077.
 - **Why one provider**: OpenRouter reaches both models behind one API shape, one billing
   meter, and the gateway adapter that already implements `expect:'image'`.
 
@@ -302,6 +309,41 @@ gemini-2.5-flash interpretation, ~$2 total including debugging):
   away), and `artDropped` fires whenever every region was rebuilt and one opaque panel
   covers the now-unpadded unit. A peek beside an edge the crop must keep - a flattened
   panel, a kept logo - remains, and remains a clean-plate argument.
+
+## 10a. The 2026-08-08 feasibility round - the measured answer to "does this work at all"
+
+`benchmarks/pro/round-2026-08-08/` (ROUND.md + MACHINE.md) is the round `docs/GOALS.md` asked for,
+and its verdict is that **the reconstruction is the thing that does not work**, not the concept.
+
+- **The image model designs well**: 11 of 12 concepts are credible broadcast lower thirds.
+- **The reconstruction ships a visibly broken graphic on 5 of 12** while the deterministic gates
+  report 11 of 12 passing. §10's "crop ring residue" and "paint is an unmeasured dimension" are
+  not residue: they are where Pro's output quality lives.
+- **The relationship is INVERSE.** The strongest concept in the bank (`sports-live`, angled panels,
+  layered accents) became the worst output in the bank, because a distinctive design is exactly the
+  one a rectangle-rebuilding compiler cannot reproduce or erase behind. A better image model makes
+  this worse, not better.
+- **Lite delivered a usable graphic on 12 of 12 of the same briefs**, at 1/250th the cost and 1/6th
+  the wall clock. Lite's weakness is sameness (9 of 12 on one chassis) - a ceiling on something that
+  works. Pro's is correctness reported as success.
+- **A truncation bug cost 5 of 12 concepts in the first bank** - `maxTokens: 4000` against a route
+  that spends ~96% of its output budget on reasoning tokens (§3 of the round doc). Fixed to 12,000.
+  Every hand-set `maxTokens` in the tree deserves the same check.
+
+The round's recommendation is to PARK the interpret→compile path and keep the concept stage for two
+uses that do not require reconstruction: a generated concept fed back as a `layout` REFERENCE into
+the grounded adapt path (attacking Lite's sameness with Pro's strength), and concepts as input to
+human-built catalog chassis. Nothing here is a reason to change `PRO_STANDARD_ROUTES`; the failure
+is in the compiler's reach, not the route.
+
+**Q2, and it is not a Pro problem.** Pro cannot generate custom fields or a state machine by
+construction - `ProBrief` is `{brief, name, title, includeLogo}` and the compiled graphic carries
+two text fields, one step, no machine. The free-form coder DOES mint its own fields (6 correct,
+correctly typed, operable on `#/control/<id>`), but a machine cannot survive its pipeline:
+`convertEmittedRegion` → `importAnimData` returns `{version, root, speed, steps}` and mentions
+`machine` nowhere. No generation path in the repo asks any model for a state machine. That seam -
+a small structured MACHINE stage spliced in deterministically, the way `designSpec` already works -
+would serve every tier at once and needs no image model.
 
 ## 11. What v1 deliberately does not do
 

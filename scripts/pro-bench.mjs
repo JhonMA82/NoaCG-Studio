@@ -16,6 +16,14 @@
 // explicit: it refuses to run without --generate, a named --image-route, and a --max-cost
 // ceiling it enforces cumulatively mid-run.
 //
+// THE CEILING COUNTS BOTH CALLS, and used to count only the image. It read the interpretation's
+// cost back off the telemetry ring's stage records, matching on a field name that does not
+// exist - so it was null on every brief and a run ceilinged at $1.20 could spend ~$1.35 without
+// the ceiling noticing (measured over 24 generations, benchmarks/pro/round-2026-08-08/ROUND.md
+// §1). The number now comes back from the pipeline itself (`ProResult.interpretCostUsd`), and a
+// FAILED interpretation bills too, carried out on the thrown ProCompileError: a ceiling that
+// stops counting when something goes wrong drifts upward exactly when it matters.
+//
 // Deterministic structural checks (scored here) stay separate from subjective visual
 // quality (the review gallery, a human read). Requires the dev server on this checkout's
 // port (npm run dev - with your own .env for paid mode).
@@ -171,35 +179,46 @@ for (const entry of briefs) {
       const validate = productionSpxValidator();
       let result;
       let conceptCost = null;
-      let interpretCost = null;
+      // No initializer: every branch below now sets it, and a default of null was how the old
+      // read could report "unknown" without anything having gone wrong.
+      let interpretCost;
       if (input.paid) {
         const [provider, ...modelParts] = input.imageRoute.split(':');
         const concept = await generateProConcept(input.brief, { provider, model: modelParts.join(':') });
         conceptCost = concept.costUsd;
         // A failed interpretation must not lose the concept's PAID cost with the throw -
         // the first paid round spent ~$0.80 on twelve concepts and reported $0.000,
-        // because the whole evaluate threw before the cost was returned.
+        // because the whole evaluate threw before the cost was returned. It must not lose the
+        // IMAGE either: the concept is the expensive half and it is already in hand here, so a
+        // failure returns the picture as well as the number. Twelve of them were destroyed in
+        // the 2026-08-08 round by an early return that carried only the cost.
         try {
           result = await compileProConcept(input.brief, concept, { validate });
         } catch (error) {
-          return { failedAfterConcept: String(error).slice(0, 300), conceptCost };
+          return {
+            failedAfterConcept: String(error).slice(0, 300),
+            conceptCost,
+            // ProCompileError carries what the failed interpretation itself cost, when the
+            // call had already been served and billed.
+            interpretCost: typeof error?.costUsd === 'number' ? error.costUsd : null,
+            conceptDataUrl: concept.dataUrl,
+          };
         }
-        // The interpretation's provider-reported cost lands on the telemetry ring's stage
-        // record; read it back so the ceiling counts the whole brief, not just the image.
-        const { exportAiRuns } = await import(`/src/ai/telemetry.ts${bust}`);
-        const runs = JSON.parse(exportAiRuns());
-        const last = runs.filter((run) => run.kind === 'pro-generate').at(-1);
-        interpretCost = last?.stages?.find((stage) => stage.name === 'interpret')?.usage?.estimatedCost?.amount ?? null;
+        interpretCost = result.interpretCostUsd;
       } else if (input.fixture) {
         const size = await measure(input.fixture.concept);
         const concept = { dataUrl: input.fixture.concept, mediaType: 'image/png', ...size, model: 'fixture', costUsd: 0 };
         const plan = normalizeProInterpretation(input.fixture.interpretation, size, uuid);
         const compiled = await compileProPlan(plan, concept, input.brief, {});
         result = { ...compiled, validation: await validate(compiled.template), concept };
+        // A fixture replays a call that was paid for once, long ago. Zero, not null: this run
+        // spent nothing, which is a measurement rather than a missing one.
+        interpretCost = 0;
       } else {
         const { stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
         const concept = await stubProConcept(input.brief);
         result = await stubCompilePro(input.brief, concept, { validate });
+        interpretCost = result.interpretCostUsd;
       }
 
       // ── Deterministic structural checks ──────────────────────────────────────────
@@ -269,11 +288,23 @@ for (const entry of briefs) {
   }
   if (outcome.failedAfterConcept) {
     if (typeof outcome.conceptCost === 'number') spentUsd += outcome.conceptCost;
-    console.log(`  FAILED after the paid concept ($${(outcome.conceptCost ?? 0).toFixed(3)}): ${outcome.failedAfterConcept.split('\n')[0]}`);
+    if (typeof outcome.interpretCost === 'number') spentUsd += outcome.interpretCost;
+    // KEEP THE PICTURE. The concept was generated and billed; the failure is downstream of it,
+    // so the image is still a usable artifact - a fixture candidate, and the only evidence of
+    // what the model actually drew for this brief.
+    if (outcome.conceptDataUrl) {
+      await writeFile(
+        path.join(OUT, `${entry.id}.concept.png`),
+        Buffer.from(outcome.conceptDataUrl.split(',')[1], 'base64'),
+      );
+    }
+    const failedCost = (outcome.conceptCost ?? 0) + (outcome.interpretCost ?? 0);
+    console.log(`  FAILED after the paid concept ($${failedCost.toFixed(3)}, image kept): ${outcome.failedAfterConcept.split('\n')[0]}`);
     results.push({
       id: entry.id,
       error: outcome.failedAfterConcept,
       conceptCostUsd: outcome.conceptCost,
+      interpretCostUsd: outcome.interpretCost ?? null,
       ms: Date.now() - started,
     });
     await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, spentUsd, results }, null, 2));
@@ -321,7 +352,10 @@ const rows = results.map((r) => `
     <h2>${r.id} <small>${r.skipped ? `skipped (${r.skipped})` : r.error ? 'ERROR' : r.pass ? 'PASS' : 'FAIL'}${r.source ? ` · ${r.source}` : ''}</small></h2>
     ${r.error ? `<pre>${r.error}</pre>` : ''}
     <div class="frames">
-      ${r.conceptCostUsd !== undefined && r.conceptCostUsd !== null ? `<p>concept cost $${r.conceptCostUsd.toFixed(4)}</p>` : ''}
+      ${r.conceptCostUsd !== undefined && r.conceptCostUsd !== null
+        ? `<p>cost $${(r.conceptCostUsd + (r.interpretCostUsd ?? 0)).toFixed(4)} — concept $${r.conceptCostUsd.toFixed(4)}${
+          typeof r.interpretCostUsd === 'number' ? ` + interpretation $${r.interpretCostUsd.toFixed(4)}` : ''}</p>`
+        : ''}
       <figure><img src="${r.id}.concept.png" onerror="this.parentElement.remove()"><figcaption>concept</figcaption></figure>
       <figure><img src="${r.id}.png" onerror="this.parentElement.remove()"><figcaption>compiled hold frame</figcaption></figure>
     </div>

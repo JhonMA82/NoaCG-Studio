@@ -96,6 +96,15 @@ function parseStructured(text: string): unknown {
   try {
     return object(JSON.parse(text));
   } catch (error) {
+    // OPT-IN, local only. A structured miss is normally indistinguishable from a bad model:
+    // the caller sees one sentence and the body is gone. Seeing where the JSON stopped is what
+    // separates "the model wrote nonsense" from "the answer was cut off mid-object", and the
+    // second was the whole cause of the 2026-08-08 Pro round's five lost concepts. The head and
+    // tail are enough to tell them apart and short enough not to spill a whole answer into a
+    // log; nothing is emitted unless someone asks for it.
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[structured-miss] len=${text.length} head=${JSON.stringify(text.slice(0, 160))} tail=${JSON.stringify(text.slice(-160))}`);
+    }
     if (error instanceof GatewayError) throw error;
     // Retryable: sampled models produce this stochastically, and providers can error
     // mid-stream (first observed on OpenRouter as finish_reason "error" with a truncated body) -
@@ -491,6 +500,13 @@ export const vercelGatewayAdapter: ProviderAdapter = {
     const data = object(value);
     const choice = object(array(data.choices)[0]);
     const message = object(choice.message);
+    // Opt-in, local only, and FIRST - before the truncation check and the image branch, so it
+    // still reports on the answers that are about to throw. `finish_reason` and the usage
+    // block's `reasoning_tokens` are what identify a budget eaten by thinking, and neither
+    // survives into the normalized result a caller sees.
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[gateway] finish=${String(choice.finish_reason)} usage=${JSON.stringify(data.usage ?? {})}`);
+    }
     if (request.expect === 'image') {
       const images = Array.isArray(message.images)
         ? message.images.map(object).flatMap((item) => {
@@ -512,6 +528,22 @@ export const vercelGatewayAdapter: ProviderAdapter = {
         images,
         usage: totalUsage(imageUsage.prompt_tokens, imageUsage.completion_tokens, providerCost(imageUsage.cost)),
       };
+    }
+    // SAY WHEN THE ANSWER WAS CUT OFF. The Anthropic and OpenAI adapters have always checked
+    // their own truncation signal and reported it in these words; this one - the MANAGED
+    // transport, the route most traffic takes - did not, so a budget exhausted by reasoning
+    // tokens surfaced as "invalid structured result" further down, where the body is already
+    // gone. That cost an hour of instrumented diagnosis and five paid concept images on
+    // 2026-08-08 (benchmarks/pro/round-2026-08-08/ROUND.md §3). Not retryable, matching the
+    // other two: a second attempt on the same budget truncates in the same place.
+    if (choice.finish_reason === 'length') {
+      throw new GatewayError(
+        'malformed_response',
+        'The AI response was cut off by the output token limit. Raise the call\'s budget '
+          + '(outputBudget in src/ai/modelTypes.ts) or ask for less.',
+        502,
+        false,
+      );
     }
     const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.map(object) : [];
     const expectedTool = request.structuredOutput
