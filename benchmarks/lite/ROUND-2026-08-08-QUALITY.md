@@ -149,12 +149,20 @@ amber-accent house strap. Placement, hierarchy and inset are right everywhere.
      `sizeScale`, `typography` and `shape` per row. Design parameters, same class as `variantId`
      and `zone`; no brief, no template, no copy. A round that cannot say what a frame was built
      from cannot diagnose the frame — the `warningCodes` lesson, one field over.
-   - **The gate that would have caught it is not in Lite's composition.**
+   - **The gate that would have caught it was not in Lite's composition. It is now.**
      `validation/structuralIntentCheck.ts` drives every text field to a sentinel and re-reads the
-     painted frame, which is precisely "did this field reach the screen". It is injected as
-     `GenerateOptions.structuralCheck` on the harness paths and never runs on Lite. Recommended,
-     not shipped here: a new gate needs its own false-positive work (a field a later step reveals
-     is legitimately transparent during the entrance).
+     painted frame, which is precisely "did this field reach the screen" - and it could not run
+     here at all: it needs a `StructuralIntent`, Lite runs no intent stage, so
+     `withStructuralFindings` returns early on every Lite result. The drive moved to
+     `validation/fieldPaint.ts` (one definition, two consumers) and the bench exposes it as the
+     opt-in `fieldPaints`, which `liteValidator` and `compileLiteDecision` turn on. A WARNING,
+     for the same reason as the other two: a grounded assembly has no repair loop, so refusing
+     the result would spend a user's generation on a defect nothing can fix for them.
+     **Its honest limit is written into the option:** it reads ONE state, the settled default
+     path, so a field a later operator event reveals would read as unpainted. Lite is safe today
+     because it ships single-step lower thirds — §1's widening question has to come back to this
+     line. Pinned four ways by `e2e/lite-field-paint.spec.ts`, including that the sentinel drive
+     restores the default data so the exit, replay and stress phases after it are unchanged.
 
 ## 5. What changed in the platform this round
 

@@ -898,12 +898,15 @@ async function groundedResult(
  * the structured setup's own checks, which are re-applied.
  */
 function liteValidator(spec: DesignSpec, ctx: GenerateContext | undefined): SpxValidator {
-  const base: SpxValidator = (template) => productionSpxValidator(
-    null,
-    [],
-    singleLineIdentityFields(spec, template),
-    spec.category ?? null,
-  )(template);
+  const base: SpxValidator = (template) => productionSpxValidator(null, [], {
+    singleLineFields: singleLineIdentityFields(spec, template),
+    typeFloorCategory: spec.category ?? null,
+    // The third is not spec-derived and is here for a different reason: Lite is the one path
+    // that gets NO structural check at all, because that check needs an intent and Lite runs
+    // no intent stage. Without this, nothing anywhere asks whether a Lite graphic's fields
+    // reach the screen - and the 2026-08-08 round produced a frame where one did not.
+    fieldPaints: true,
+  })(template);
   return withSpecChecks(base, ctx?.spec) ?? base;
 }
 

@@ -68,16 +68,31 @@ function - never re-inline the sequence anywhere; `scripts/ai-lite-bench.test.mj
 that no second copy exists.
 
 **Lite composes its OWN validator** (`claudeProvider.liteValidator`), for the same reason it
-passes its own `AssembleOptions`: two of `productionSpxValidator`'s options can only be
+passes its own `AssembleOptions`: `productionSpxValidator`'s `ProductionBenchOptions` can only be
 answered from the DECISION - which lines must hold one line (`singleLineIdentityFields`, off
 the spec's declared roles) and which category's type floor the ADJUSTED result is held to -
 and the browser builds its injected validator in AiStep long before a decision exists. While
 they were left unset, `bench-line-wrap` and `bench-type-floor` were findings every Lite
 BENCHMARK measured and no user ever did: the round scored a stricter gate than the product
-ran. Both are WARNINGS, so composing them in cannot fail a generation that used to pass. The
+ran. All three are WARNINGS, so composing them in cannot fail a generation that used to pass. The
 two arguments AiStep does supply are always empty on this path (Lite takes no uploads and
 cannot convert an import), so nothing is lost but the structured setup's own checks, which
 `liteValidator` re-applies. Pinned by the provider case in `e2e/lite-line-fit.spec.ts`.
+
+**The third option is there for a different reason: Lite gets NO structural check at all.**
+`withStructuralFindings` returns early without a `StructuralIntent`, and Lite runs no intent
+stage - so the one question that measures whether a declared field REACHES THE SCREEN
+(`structuralIntentCheck`'s sentinel drive) never ran on the one path with no repair loop. The
+2026-08-08 quality round produced the frame that proves it matters: a strap that painted its
+name, reserved a band under it, drew nothing there, and answered `update()` with fresh data by
+changing nothing - `fieldCount: 2`, every rule code silent. The drive now lives in
+`validation/fieldPaint.ts`, shared by the structural check and the bench's opt-in
+`fieldPaints`, which `liteValidator` and `compileLiteDecision` both turn on. **It reads ONE
+state** (the settled default path), which is why it is opt-in rather than ambient: a field a
+later operator event reveals would read as unpainted, and Lite is safe today only because it
+ships single-step lower thirds. Widening Lite past those revisits that note first. Pinned by
+`e2e/lite-field-paint.spec.ts` (quiet on a real result, fires on a hidden field, off by
+default, and the default data is restored so the phases after it measure what they always did).
 
 `liteTypes.ts` is intentionally dependency-light because both browser and API TypeScript
 trees import it. Do not import catalog or DOM-bearing model modules from it. Model/provider

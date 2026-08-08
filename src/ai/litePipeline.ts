@@ -62,20 +62,35 @@ export function assembleGroundedTemplate(
  * Passing none — every caller that has no uploads, and every benchmark run — costs one
  * comparison and changes nothing.
  */
+/**
+ * The extra bench questions only a caller holding a DESIGN DECISION can answer. Every one of
+ * them is off by default, so a caller that passes none gets exactly the behaviour that shipped
+ * before they existed. They are an options object rather than three more positional arguments
+ * because they arrive together, from one place: `claudeProvider.liteValidator`.
+ */
+export interface ProductionBenchOptions {
+  /** Field ids that carry IDENTITY and must not wrap - see `singleLineIdentityFields`. Empty
+   *  for every caller that has no spec to read roles from, which is today's behaviour exactly. */
+  singleLineFields?: readonly string[];
+  /** Category whose type floor the RENDERED result is held to. Null keeps today's behaviour
+   *  for every caller that has no category to read - the floor is opt-in, like the wrap check. */
+  typeFloorCategory?: string | null;
+  /** Drive every field to a sentinel and re-read the frame: which declared fields reach no
+   *  pixels. Read `RuntimeBenchOptions.fieldPaints` before turning it on for a new caller -
+   *  it measures ONE state, which is why it is not on for everyone. */
+  fieldPaints?: boolean;
+}
+
 export function productionSpxValidator(
   source?: SpxTemplate | null,
   protectedAssets: string[] = [],
-  /** Field ids that carry IDENTITY and must not wrap - see `singleLineIdentityFields`. Empty
-   *  for every caller that has no spec to read roles from, which is today's behaviour exactly. */
-  singleLineFields: readonly string[] = [],
-  /** Category whose type floor the RENDERED result is held to. Null keeps today's behaviour
-   *  for every caller that has no category to read - the floor is opt-in, like the wrap check. */
-  typeFloorCategory: string | null = null,
+  bench: ProductionBenchOptions = {},
 ): SpxValidator {
   const base: SpxValidator = async (t) =>
     mergeResults(validateTemplate(t), await benchTemplateRuntime(t, {
-      singleLineFields,
-      ...(typeFloorCategory ? { typeFloorPx: typeFloorFor(typeFloorCategory) } : {}),
+      singleLineFields: bench.singleLineFields ?? [],
+      ...(bench.typeFloorCategory ? { typeFloorPx: typeFloorFor(bench.typeFloorCategory) } : {}),
+      ...(bench.fieldPaints ? { fieldPaints: true } : {}),
     }));
   const safe = withSafetyChecks(base, source ?? null);
   if (!protectedAssets.length) return safe;
@@ -217,7 +232,11 @@ export async function compileLiteDecision(
   }
   const { template, diversity } = assembleGroundedTemplate(spec, ctx);
   const validation = demoteSpecFields(
-    await productionSpxValidator(null, [], singleLineIdentityFields(spec, template), spec.category ?? null)(template),
+    await productionSpxValidator(null, [], {
+      singleLineFields: singleLineIdentityFields(spec, template),
+      typeFloorCategory: spec.category ?? null,
+      fieldPaints: true,
+    })(template),
   );
   return {
     spec, template, validation, diversity,
