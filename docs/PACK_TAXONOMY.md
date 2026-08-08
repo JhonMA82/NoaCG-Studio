@@ -65,7 +65,15 @@ SAME six wizard steps a single graphic does, over the whole set, with two additi
 the KIT TRAY (which graphic of the set - the second axis of progress, the step rail being the
 first) and the LOOK QUESTION after the first graphic ("use this look for the other N?"), whose
 "yes" is a deterministic transform over the `:root` style contract and nothing else
-(`src/components/wizard/kitPlan.ts` `kitLookPatch`). It ends on a Finish that names a
+(`src/components/wizard/kitPlan.ts` `kitLookPatch`).
+**Declining it is not a one-way door.** The question renders only while the answer is
+undecided, which made "no" permanent: on the 36-graphic Esports kit - the flagship, and a
+realistic first pick - one click committed the user to a hundred-odd steps with no way back.
+The tray therefore carries **"Use this look for the rest (N)"** for as long as unbuilt graphics
+remain after the one in hand. It is an ACTION always on offer rather than the question asked
+again (the user declined a blanket propagation; re-asking each graphic would be nagging for a
+different answer), it lives on the tray because it is about the SET, and everything already
+configured by hand is KEPT - `buildRemaining` never rebuilds a graphic that already has one. It ends on a Finish that names a
 PRODUCTION, shows every built graphic, and saves the whole set before either of its two doors -
 open the production, or export the kit as one package, with the editor never involved.
 Pinned by `e2e/wizard-kit.spec.ts`.

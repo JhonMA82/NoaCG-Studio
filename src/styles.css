@@ -1834,7 +1834,23 @@ kbd {
   border-bottom: 1px solid var(--hairline);
   background: var(--bg-app);
 }
-.wz-kit-tray-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 8px; }
+/* WRAPS AS WHOLE ITEMS, never inside the label. Squeezed by the button on a 390px screen the
+   label broke between "GRAPHIC 3 OF" and "36", which is the one place its wording must not
+   break; the button takes its own line instead. */
+.wz-kit-tray-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin: 0 0 8px; }
+.wz-kit-tray-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 0; white-space: nowrap; }
+/* The escape from a long one-at-a-time walk. Quiet on purpose - it is an offer standing open,
+   not a call to action competing with Next. */
+.wz-kit-tray-adopt {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+}
+.wz-kit-tray-adopt:hover { background: transparent; border-color: transparent; text-decoration: underline; }
 .wz-kit-tray-strip {
   display: flex;
   gap: 8px;

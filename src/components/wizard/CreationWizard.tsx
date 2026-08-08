@@ -537,6 +537,24 @@ export default function CreationWizard() {
   };
 
   /**
+   * The way out of that walk, offered from the tray for as long as unbuilt graphics remain:
+   * take the graphic in hand as the tone-setter after all. Everything already configured by
+   * hand is KEPT (`buildRemaining` never rebuilds a graphic that has one) - the point is to
+   * stop walking, not to discard the walking already done.
+   *
+   * Answering "no" used to be permanent, because the look question renders only while
+   * `propagate` is null. On the 36-graphic Esports kit that made one click cost a hundred-odd
+   * steps with no way back.
+   */
+  const adoptKitLookForRest = () => {
+    if (!kit || !variant || !previewTemplate) return;
+    const built = kit.built.map((t, i) => (i === kit.current ? previewTemplate : t));
+    const plan: KitPlan = { ...kit, built, propagate: true };
+    setKit({ ...plan, built: buildRemaining(plan, draft) });
+    setStep(finishStep);
+  };
+
+  /**
    * SAVE THE WHOLE SET: every graphic to the library, pooled into one new PRODUCTION - the
    * unit that airs (docs/GOALS.md "Student release" step 3).
    *
@@ -1198,7 +1216,23 @@ export default function CreationWizard() {
           <div className="wz-main">
           {/* THE KIT TRAY: the second axis of progress (which graphic of the set), above the
               form column, in the rail's own vocabulary. See wizard/KitTray.tsx. */}
-          {kit && <KitTray plan={kit} />}
+          {kit && (
+            <KitTray
+              plan={kit}
+              // Only while walking each graphic separately, on a configuring step, with
+              // unbuilt graphics still after this one. On the first graphic the look question
+              // is coming at the end of it anyway, and offering the same thing twice on one
+              // walk is two doors to one outcome.
+              onUseLookForRest={
+                kit.propagate === false &&
+                step >= 2 &&
+                step <= animStep &&
+                kit.current < kit.items.length - 1
+                  ? adoptKitLookForRest
+                  : undefined
+              }
+            />
+          )}
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
             {step === 0 && (
               <EntryStep

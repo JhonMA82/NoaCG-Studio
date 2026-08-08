@@ -21,7 +21,14 @@ import type { KitPlan } from './kitPlan';
  * way to answer the question the look card asks out loud. The tray reports; the rail and the
  * footer move.
  */
-export default function KitTray({ plan }: { plan: KitPlan }) {
+export default function KitTray({
+  plan,
+  onUseLookForRest,
+}: {
+  plan: KitPlan;
+  /** Offered only while walking each graphic separately with unbuilt ones left — see below. */
+  onUseLookForRest?: () => void;
+}) {
   const currentRef = useRef<HTMLLIElement>(null);
   // Keep the graphic being worked on in view: past the first handful of chips the strip
   // scrolls, and a tray whose current chip is off to the left reports nothing. Destructured
@@ -37,12 +44,31 @@ export default function KitTray({ plan }: { plan: KitPlan }) {
       {/* "graphic 1 of 2" is only true while one of them is being worked on. Once the whole set
           is built the walk has no current graphic, and saying it still does put "GRAPHIC 1 OF 2"
           over a Finish step showing both of them (measured in the visual pass). */}
-      <p className="wz-kit-tray-label mono">
-        {plan.pack.name} ·{' '}
-        {plan.built.every((t) => t !== null)
-          ? `${plan.items.length} graphics built`
-          : `graphic ${Math.min(plan.current + 1, plan.items.length)} of ${plan.items.length}`}
-      </p>
+      <div className="wz-kit-tray-head">
+        <p className="wz-kit-tray-label mono">
+          {plan.pack.name} ·{' '}
+          {plan.built.every((t) => t !== null)
+            ? `${plan.items.length} graphics built`
+            : `graphic ${Math.min(plan.current + 1, plan.items.length)} of ${plan.items.length}`}
+        </p>
+        {/* THE WAY OUT OF A LONG WALK. Declining the look question sends the user through every
+            remaining graphic one at a time, which on the 36-graphic Esports kit is a hundred-odd
+            steps with no way back - a one-way door built by answering one question. It lives
+            HERE rather than in the footer because it is about the SET, which is what the tray
+            is for, and it is an ACTION always on offer rather than the question asked again:
+            the user already declined a blanket propagation, and re-asking every graphic would
+            be nagging them for a different answer. */}
+        {onUseLookForRest && (
+          <button
+            className="wz-kit-tray-adopt"
+            onClick={onUseLookForRest}
+            title="Build every graphic left in the kit with the colours, typeface, sizes and motion of the one you are on"
+            data-testid="kit-adopt-look"
+          >
+            Use this look for the rest ({plan.items.length - plan.current - 1})
+          </button>
+        )}
+      </div>
       <ol className="wz-kit-tray-strip">
         {plan.items.map((item, i) => {
           const built = plan.built[i];

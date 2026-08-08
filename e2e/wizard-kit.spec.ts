@@ -348,6 +348,77 @@ test('"take me through each one" walks the rest of the set', async ({ page }) =>
   await expect(page.locator('[data-testid="kit-built"] .wz-kit-built-cell')).toHaveCount(2);
 });
 
+test('declining the look question is not a one-way door', async ({ page }) => {
+  // "No, take me through each one" used to be permanent - the look question renders only while
+  // `propagate` is null - so one click committed the user to walking every remaining graphic.
+  // On the 36-graphic Esports kit that is a hundred-odd steps with no way back.
+  await pickShortKit(page, 3);
+  await page.locator('.wz-next').click();
+  await walkOneKitGraphic(page);
+  await page.getByTestId('kit-look-no').click();
+
+  // Walking graphic 2 by hand, the tray offers the way out - and counts what is left, not what
+  // is in the kit.
+  await expect(page.getByTestId('kit-tray')).toContainText('graphic 2 of 3');
+  const adopt = page.getByTestId('kit-adopt-look');
+  await expect(adopt).toHaveText('Use this look for the rest (1)');
+
+  // It is an ACTION, not the question asked again: it stands down on the first graphic (where
+  // the look question is coming anyway) and on the last (where there is no rest).
+  await adopt.click();
+  await expect(page.getByTestId('kit-finish')).toBeVisible();
+  await expect(page.getByTestId('kit-adopt-look')).toHaveCount(0);
+
+  // EVERYTHING ALREADY CONFIGURED BY HAND IS KEPT. The point is to stop walking, not to throw
+  // away the walking already done - so all three are built, and the two the user actually
+  // walked are still the ones they made.
+  await expect(page.locator('[data-testid="kit-built"] .wz-kit-built-cell')).toHaveCount(3);
+  await expect(page.locator('[data-kit-chip][data-state="done"]')).toHaveCount(3);
+});
+
+test('the tray survives a kit far longer than the strip', async ({ page }) => {
+  // Every other walk here is two or three graphics, so the tray's own scrolling has never run.
+  // The Esports kit is 36 - the flagship, and the realistic first thing someone picks.
+  await page.goto('/app');
+  await page.locator('[data-entry="template"]').click();
+  await page.locator('[data-build-mode="kit"]').click();
+  await page.locator('[data-kit="esports"]').click();
+  await expect(page.getByTestId('kit-total')).toHaveText('36 graphics');
+  await page.locator('.wz-next').click();
+
+  const tray = page.getByTestId('kit-tray');
+  await expect(tray).toContainText('graphic 1 of 36');
+  await expect(tray.locator('[data-kit-chip]')).toHaveCount(36);
+
+  // The strip scrolls rather than wrapping or squeezing 36 chips into the column width, and
+  // the tray keeps a sane share of the form column at a laptop height.
+  const strip = await tray.locator('.wz-kit-tray-strip').evaluate((el) => ({
+    scrolls: el.scrollWidth > el.clientWidth + 1,
+    rows: new Set([...el.children].map((c) => Math.round(c.getBoundingClientRect().top))).size,
+  }));
+  expect(strip.scrolls).toBe(true);
+  expect(strip.rows).toBe(1);
+  const trayShare = await page.evaluate(() => {
+    const t = document.querySelector('[data-testid="kit-tray"]')!.getBoundingClientRect();
+    const main = document.querySelector('.wz-main')!.getBoundingClientRect();
+    return t.height / main.height;
+  });
+  expect(trayShare).toBeLessThan(0.35);
+
+  // The CURRENT chip is scrolled into view rather than left off to the left - the whole reason
+  // the tray reports anything. Walk to the third graphic and check the strip followed.
+  await walkOneKitGraphic(page);
+  await page.getByTestId('kit-look-no').click();
+  await walkOneKitGraphic(page);
+  await expect(tray).toContainText('graphic 3 of 36');
+  const inView = await tray.evaluate((el) => {
+    const strip = el.querySelector('.wz-kit-tray-strip')!.getBoundingClientRect();
+    const current = el.querySelector('[data-state="current"]')!.getBoundingClientRect();
+    return current.left >= strip.left - 1 && current.right <= strip.right + 1;
+  });
+  expect(inView).toBe(true);
+});
+
 test('the export door saves the whole set first, then packages it', async ({ page }) => {
   await pickShortKit(page);
   await page.locator('.wz-next').click();
