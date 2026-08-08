@@ -57,6 +57,21 @@ control, is the long-term differentiator.
   and productions saved to their own Home across devices, the persistent cloud output URL, and
   hosted AI allowance.
 
+### Who we are replacing
+
+Three products, and what each one obliges us to build. The long-term goal is to take their
+customers, so their proven capabilities are our requirements list.
+
+- **Rive** - a designer-first tool for interactive animation with real state-machine logic,
+  embedded through a small runtime. Interactive, state-driven behaviour is what a live graphic
+  fundamentally IS, so Rive sets the bar for our state machine and node editor.
+- **Singular.live** - cloud broadcast graphics: templates in their cloud, a browser control room,
+  output reaching air from their playout. They already do most of what we intend, so the gap we
+  have to open is **breadth** - a catalog covering nearly any use case - over equivalent cloud
+  playout.
+- **Loopic** - HTML broadcast graphics, the closest positioning to ours, with a real editor. Its
+  timeline and canvas editing are what our Advanced mode has to beat.
+
 ---
 
 ## NOW - students live in two weeks

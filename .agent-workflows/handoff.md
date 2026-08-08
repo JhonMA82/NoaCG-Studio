@@ -12,10 +12,10 @@ Optional focus from the user, if one was given at invocation.
 
 ## Output
 
-**The question this workflow answers is "what should be done next?"** Everything else is
-optional weight. No "what happened" summary, no hygiene checklist, no validation status
-section, no mention of other branches or worktrees (the user prunes those deliberately, in
-their own sessions).
+**The question this workflow answers is "what should be done next, and why is it worth doing?"**
+Everything else is optional weight. No "what happened" summary, no hygiene checklist, no
+validation status section, no mention of other branches or worktrees (the user prunes those
+deliberately, in their own sessions).
 
 ### 1. What's next
 
@@ -30,58 +30,75 @@ Scope it to THIS session's line of work - never "go merge branch X". Include:
   now wrong.
 - **Optional follow-ups**, clearly marked as optional so they are easy to skip.
 
+**Every item carries its WHY - the real problem it solves, or the goal it serves.** One clause
+is enough: the defect it fixes, the user it unblocks, or the section of `docs/GOALS.md` it moves.
+A next step is a CLAIM that doing it changes something real, and the session that picks it up has
+to be able to TEST that claim rather than obey it. Nothing here is work because it is on a list -
+a reader who judges that an item will not reach the goal is right to say so and skip it, and that
+judgement is only possible when the why is on the page. An item whose why cannot be written down
+is not a next step; drop it rather than dressing it up.
+
+Prefer the honest small why to the grand one. "The export door is untested on real hardware and
+the class runs on it" is useful. "Improves quality" is not a why.
+
 If there is genuinely nothing to do next, say so in one line. Don't invent work.
 
 ### 2. Pasteable prompt - only if work remains
 
 A single self-contained code block for a fresh Claude Code or Codex session: what was
-completed, repo/branch state if it matters, the remaining work, key constraints or decisions
-(point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks, the best next step. No
-transcript dump.
+completed, repo/branch state if it matters, the remaining work **and why each piece matters**,
+key constraints or decisions (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks,
+the best next step. No transcript dump. The block must stand alone - the user pastes it and
+nothing else, so anything the next session needs is inside it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is
 clean, and the last known verification command/result tied to that commit. If verification is
 missing or stale, say so as remaining work rather than running it during handoff.
 
+Four fields that cost one line each and are expensive to reconstruct once this chat is gone:
+
+- **Landed or not, as a fact** - whether the work reached `main` and `origin/main`, stated
+  plainly rather than in prose. A session whose story says "all merged" can still be holding
+  uncommitted work in its own worktree, and a reader cannot tell those apart from a summary.
+- **The files this branch touched** - `git diff --name-only main...HEAD`, about a dozen at most
+  with a count if there are more. Once the branch is merged this is the one input nobody can
+  recover, and it is what a check for two parallel sessions editing one file runs on. That
+  collision is the expensive one: git merges both edits cleanly and produces a tree describing
+  something neither session built.
+- **What this blocks, and what blocked it** - one line. This session knows it for free; anyone
+  planning around it otherwise has to read source to work it out.
+- **Constraints: point, don't reprint.** A rule already written in a repo file gets a POINTER
+  naming that file. Print only what exists nowhere but this chat - a measured finding, an option
+  ruled out and why, a trap that cost this session real time. Copying an area's `AGENTS.md` into
+  the prompt is how these get fat, and the copy goes stale while the file it came from does not.
+
 Skip this section entirely when nothing remains - don't pad it out to look complete.
 
 ### 3. Bottom line
 
-One or two lines, last. Lead with exactly one of these, verbatim, then why, in plain language:
+One or two lines, last. **This is a TEST, not an impression.** Archive-ready means the work is
+committed, pushed, and contained in `main`; nothing less qualifies, however finished the session
+feels. Run the checks, then lead with exactly one of these, verbatim, followed by why in plain
+language:
 
-- `SAFE TO ARCHIVE` - nothing is lost by closing this chat. The default after a clean run of
+- `SAFE TO ARCHIVE` - all four hold: the working tree is clean, there is no mid-merge/rebase
+  state and no stash holding this work, `git merge-base --is-ancestor HEAD main` exits 0, and
+  `git merge-base --is-ancestor HEAD origin/main` exits 0. The normal state after a clean run of
   the safe-merge workflow.
-- `SAFE TO ARCHIVE WITH NOTES` - nothing lost, but there are follow-ups captured in the prompt.
-- `NOT SAFE TO ARCHIVE YET` - closing now loses work or context: important changes uncommitted or
-  unpushed, work that should have landed on `main` but didn't, a required migration/env step, or
-  an unfinished task known only here. Say in one line exactly what to do first.
+- `SAFE TO ARCHIVE WITH NOTES` - the same four hold, and there are follow-ups captured in the
+  prompt above. The verdict answers whether closing the chat LOSES anything, and a follow-up
+  written down is not a loss.
+- `NOT SAFE TO ARCHIVE YET` - anything else, **including every case where the answer is merely
+  unproven**. Uncommitted or unpushed changes, an untracked file worth keeping, work that should
+  have landed on `main` but did not, a required migration or env step, or an unfinished task known
+  only here. Say in one line exactly what to do first.
 
-### 4. Whether this worktree can be cleaned up - report only, NEVER act
-
-**Handoff deletes nothing.** The bottom line above is a judgement, and a judgement that has been
-wrong before must never be wired to an irreversible action. Removing the worktree is the
-cleanup-worktrees workflow's job, and it happens because the USER asked for it in that moment.
-
-When the bottom line is `SAFE TO ARCHIVE` or `SAFE TO ARCHIVE WITH NOTES`, run the read-only
-check and report what it says in one line:
-
-    node scripts/cleanup-worktrees.mjs --self
-
-It is a dry run: it never removes anything without `--apply`. It answers whether this worktree
-is removable (branch contained in BOTH local `main` and `origin/main`, clean, not detached, not
-the primary) and - the part git otherwise hides - lists ignored content that removal would
-destroy: `.env`, bench output, logs. `git status` never mentions those, and removal deletes them
-anyway.
-
-Say which it is, and stop there:
-
-- removable with nothing at risk - "this worktree can be removed with the cleanup-worktrees
-  workflow; nothing unrecoverable is in it";
-- removable but holding at-risk content - name the paths and sizes, because that is the part
-  the user cannot see from anywhere else;
-- not removable - give the reason it printed.
-
-Never pass `--apply`, and never offer to sweep other worktrees.
+Two ways this verdict goes wrong, so test for both. A green, verified FEATURE branch is **not**
+archive-ready - the work is real but it lives in exactly one place, and this chat is the only
+thing that knows why it was done that way. And `origin/main` is a LOCAL ref: if it looks behind,
+confirm before claiming the work was pushed - a read-only `git fetch origin main` is the one
+network read this workflow may make. When containment cannot be established, the verdict is
+`NOT SAFE TO ARCHIVE YET`, never the optimistic guess.
 
 ## How to ground it (read-only)
 
@@ -105,8 +122,11 @@ remaining work. If the answer is the boring expected one, say nothing.
 ## Rules
 
 - **Read, don't write.** Never merge, push, commit, delete, clean, stash, reset, or rewrite
-  history, run builds, or execute tests. Report problems; never silently fix them. This holds for
-  worktree cleanup too: section 4 reports, and the user runs the cleanup-worktrees workflow.
+  history, run builds, or execute tests. Report problems; never silently fix them.
+- **Say nothing about worktree cleanup** - not whether this worktree could be removed, not what
+  removal would destroy, not that the option exists. The user runs the cleanup-worktrees workflow
+  when they choose to, and asked for that noise to stay out of a handoff. Never remove a worktree,
+  and never offer to.
 - **Create or update no files** - no handoff file, session summary, timestamped note, project
   document, or tool-specific memory. Deliver all continuation context in the response so the same
   handoff works in Claude Code and Codex.
