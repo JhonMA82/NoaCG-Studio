@@ -283,6 +283,12 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
     await page.waitForTimeout(80);
     const holdFile = `${LABEL}-${fixtureId}-hold.png`;
     await page.screenshot({ path: path.join(OUT, holdFile) });
+    // THE TEXT SWAP A GALLERY READER SEES MID-CLIP. Deliberate: a second update() with longer
+    // copy, fired only after the entrance wait AND waitForMotionToSettle, so it always lands
+    // inside the hold. stop() is 600 ms further on (180 + 420 below), so this can never overlap
+    // the exit tween - and the wait is a measurement, not a sleep, so a slow entrance moves it
+    // rather than clipping it. Nothing in the graphic re-fires it: update() writes textContent
+    // and next()/timer transitions are operator-driven (docs/AI_LITE_PLAN.md section 4).
     await page.evaluate((updateData) => {
       document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(updateData));
     }, measured.updateData);
