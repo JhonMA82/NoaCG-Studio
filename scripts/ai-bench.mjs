@@ -17,9 +17,10 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
+import { outDir } from './out-dir.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const OUT = process.argv[2] || './bench-out';
+const OUT = outDir(process.argv[2], './bench-out', 'Usage: node scripts/ai-bench.mjs [out-dir]');
 const FILTER = process.argv[3] ?? '';
 mkdirSync(OUT, { recursive: true });
 

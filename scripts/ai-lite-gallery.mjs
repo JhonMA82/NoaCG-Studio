@@ -16,8 +16,9 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { seededRandom } from './ai-lite-bench/suites.mjs';
+import { outDir } from './out-dir.mjs';
 
-const OUT = path.resolve(process.argv[2] || './lite-bench-out');
+const OUT = path.resolve(outDir(process.argv[2], './lite-bench-out', 'Usage: node scripts/ai-lite-gallery.mjs [out-dir]'));
 
 async function collectItems(dir, relative = '') {
   const items = [];

@@ -24,6 +24,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { devPort } from './dev-port.mjs';
+import { outDir } from './out-dir.mjs';
 import {
   LITE_LOWER_THIRD_FIXTURES,
   LITE_LOWER_THIRD_FIXTURE_VERSION,
@@ -36,7 +37,7 @@ import {
 } from './ai-lite-brand-fixtures.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const OUT = path.resolve(process.argv[2] || './lite-eval-out');
+const OUT = path.resolve(outDir(process.argv[2], './lite-eval-out', 'Usage: node scripts/ai-lite-eval.mjs [out-dir] [label] [count]'));
 const LABEL = String(process.argv[3] || 'candidate').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 40);
 const REQUESTED = Math.min(40, Math.max(1, Number(process.argv[4]) || LITE_LOWER_THIRD_FIXTURES.length));
 const TOKEN = (process.env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '').trim();

@@ -22,11 +22,13 @@
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { outDir as positionalDir } from './out-dir.mjs';
 
 const repoRoot = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
-const corpusDir = resolve(process.argv[2] || join(repoRoot, 'spx_examples'));
-const galleryDir = resolve(process.argv[3] || './spx-corpus-out/gallery');
-const outDir = resolve(process.argv[4] || './spx-corpus-out/eval-set');
+const USAGE = 'Usage: node scripts/spx-eval-set.mjs [corpus-dir] [gallery-dir] [eval-set-dir]';
+const corpusDir = resolve(positionalDir(process.argv[2], join(repoRoot, 'spx_examples'), USAGE));
+const galleryDir = resolve(positionalDir(process.argv[3], './spx-corpus-out/gallery', USAGE));
+const outDir = resolve(positionalDir(process.argv[4], './spx-corpus-out/eval-set', USAGE));
 const setPath = join(repoRoot, 'benchmarks/corpus-eval/v1/set.json');
 
 if (!existsSync(corpusDir)) {

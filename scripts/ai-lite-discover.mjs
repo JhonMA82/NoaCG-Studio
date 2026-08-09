@@ -15,8 +15,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildApiRuntime } from './api-runtime-build.mjs';
+import { outDir } from './out-dir.mjs';
 
-const OUT = path.resolve(process.argv[2] || './lite-bench-out');
+const OUT = path.resolve(outDir(process.argv[2], './lite-bench-out', 'Usage: node scripts/ai-lite-discover.mjs [out-dir]'));
 
 // The per-million ceilings are the FUNDED-ROUTE gate itself (api/_lib/aiModelCatalog.ts),
 // not a second opinion about it: a candidate the registry would refuse to fund has no

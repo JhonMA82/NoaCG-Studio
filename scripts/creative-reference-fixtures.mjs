@@ -21,8 +21,9 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { outDir } from './out-dir.mjs';
 
-const OUT = path.resolve(process.argv[2] || './benchmarks/creative/v1/references');
+const OUT = path.resolve(outDir(process.argv[2], './benchmarks/creative/v1/references', 'Usage: node scripts/creative-reference-fixtures.mjs [out-dir]'));
 
 /** Each fixture: the brief that attaches it, its declared purpose, and the picture. */
 const FIXTURES = [

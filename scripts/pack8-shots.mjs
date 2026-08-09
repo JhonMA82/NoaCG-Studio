@@ -10,8 +10,9 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { outDir } from './out-dir.mjs';
 
-const out = process.argv[2] ?? 'pack8-out';
+const out = outDir(process.argv[2], 'pack8-out', 'Usage: node scripts/pack8-shots.mjs [out-dir]');
 mkdirSync(out, { recursive: true });
 const port = execSync('node scripts/dev-port.mjs').toString().trim();
 const base = `http://localhost:${port}`;

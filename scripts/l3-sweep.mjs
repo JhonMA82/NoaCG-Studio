@@ -4,23 +4,17 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
+import { outDir } from './out-dir.mjs';
 
-// Both arguments are POSITIONAL, not flags:
-//   node scripts/l3-sweep.mjs [out-dir] [category]
-const OUT = process.argv[2] || './l3-shots';
+// Both arguments are POSITIONAL, not flags. The guard is shared with every other script that
+// takes a directory this way (scripts/out-dir.mjs) - this is where the mistake it refuses was
+// actually made, and one copy of the check is the point.
+const OUT = outDir(
+  process.argv[2],
+  './l3-shots',
+  'Usage: node scripts/l3-sweep.mjs [out-dir] [category]   e.g. node scripts/l3-sweep.mjs ./l3-shots lower-third',
+);
 const CATEGORY = process.argv[3] || 'lower-third';
-
-// A flag-shaped out-dir is a mistake, never a request. `--category lower-third` reads as a
-// named argument to everyone who types it, and this script takes positionals - so it silently
-// created a directory literally called `--category`, filled it with 90 screenshots, and those
-// were committed and merged to main before anyone noticed (2026-08-09). Refusing costs one
-// comparison; the alternative is junk at the repo root that every future status, sweep and
-// file search has to be read past.
-if (OUT.startsWith('-')) {
-  console.error(`Refusing to write into "${OUT}" - it looks like a flag, and both arguments here are positional.`);
-  console.error('Usage: node scripts/l3-sweep.mjs [out-dir] [category]   e.g. node scripts/l3-sweep.mjs ./l3-shots lower-third');
-  process.exit(2);
-}
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch();

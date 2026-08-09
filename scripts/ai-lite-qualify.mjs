@@ -24,8 +24,9 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { outDir } from './out-dir.mjs';
 
-const OUT = path.resolve(process.argv[2] || './lite-bench-out');
+const OUT = path.resolve(outDir(process.argv[2], './lite-bench-out', 'Usage: node scripts/ai-lite-qualify.mjs [out-dir]'));
 const MAX_CANDIDATES = Math.max(1, Number(process.argv[3]) || 24);
 const PER_CALL_CEILING_USD = 0.007;
 const EST_INPUT_TOKENS = 2000;
