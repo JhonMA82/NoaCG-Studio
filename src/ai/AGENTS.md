@@ -244,6 +244,21 @@ stylesheet, or the bundled fonts. A claim ABOVE the measurement fails as the def
 four characters below fails as stale. **An adjective is what a chassis may say only where nothing can
 measure it.**
 
+**A BRAND MARK is under the same rule, and `LiteCatalogEntry.logoSlot` is the measurement.**
+`node scripts/ai-lite-brand-audit.mjs --lite --check` renders a real mark into a real slot and
+reads the frame back - size, aspect, crop, clear space, containment, ink contrast against the
+surface the slot actually paints - and gates the declaration against it. **The design declares
+the slot and the compiler fills it; the model never places a mark.** The declaration is split
+because the halves go stale differently: `fits` is GEOMETRY (which mark shapes land legibly; no
+palette changes it) and `surface` is TONE - `palette` when the slot sits on the design's own
+panel, `dark` when it sits on the picture, which means a brand owning only a dark version of its
+mark cannot use that chassis at all. **The other half of the answer is the REQUEST**: `hasLogo`
+was a boolean, so the model knew a mark existed and nothing about it. `LiteGenerationRequest.mark`
+now carries shape, backing and ink, all measured in the browser by `assets/assetInfo.ts`
+`probeMark` and content-free by construction; `hasLogo` stays beside it because the quota check
+reads it and the request validator is a strict key allowlist. Design, findings and the catalog
+work they bought: `docs/AI_LITE_PLAN.md` §7, `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
+
 **`zone` and `animation.presetId` stay in the schema although both decisions are dead.** The Lite spec
 object is `additionalProperties: false`, so a property the model still EMITS becomes a refusal rather
 than a no-op - deleting them cost 29/30 → 26/30. Teach a field away in its DESCRIPTION first, measure the

@@ -404,6 +404,26 @@ export interface TemplateVariant {
   suggestedLines: LineSpec[];
   /** Logo capability — drives the wizard's logo toggle, the import flow, and filtering. */
   logo: LogoSupport;
+  /**
+   * WHAT that image slot is for, when the design's slot is not a brand mark.
+   *
+   * `logo` answers "does this design take an image field"; it does not answer "what kind of
+   * image", and the two got conflated because for almost every design the answer is the same.
+   * Measured 2026-08-09 (`benchmarks/lite/BRAND-AUDIT-2026-08-09.md`), one design in the
+   * catalog is a counter-example strong enough to need the distinction: ls25's slot is RELEASE
+   * ARTWORK — square by nature, correctly `object-fit: cover`, and titled "Cover artwork" in
+   * the field list. Judged as a mark well it fails for cropping, and the cropping is right.
+   *
+   * A `mark` well holds something that must appear exactly as uploaded (no crop, no radius,
+   * no distortion — `src/ai/assetIntegrity.ts` enforces this the moment the upload is marked
+   * "use it as it is"). A `picture` well holds content, which a design may legitimately crop
+   * to its own shape.
+   *
+   * ADDITIVE OPTIONAL and absent means `mark`, so every existing variant reads exactly as it
+   * did. Nothing persists a variant, so there is no migration to write (root AGENTS.md rule 6
+   * is about SAVED formats).
+   */
+  imageSlot?: 'mark' | 'picture';
   /** Animation presets that suit this design (first = default). */
   animationPresets: AnimPresetId[];
   /**

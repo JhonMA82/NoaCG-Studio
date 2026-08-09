@@ -21,7 +21,10 @@ export const lt05: TemplateVariant = defineVariant(
       { title: 'Player', sample: 'JAKE MORRISON' },
       { title: 'Stat line', sample: '24 PTS · 11 AST' },
     ],
-    logo: 'none',
+    // The BRAND SLOT: this design inherits the shared band (templates/shared/logoSlot.ts),
+    // so a channel mark, a club crest or a wide institutional lockup all land at a legible
+    // size with no per-design code. Emitted only when the user turns the logo on.
+    logo: 'optional',
     animationPresets: ['snap-stinger', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
     defaultPalette: paletteById('volt'),
     defaultFontId: 'oswald',

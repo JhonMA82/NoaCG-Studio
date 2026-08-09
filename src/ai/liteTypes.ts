@@ -42,6 +42,49 @@ export interface LiteLowerThirdIntent {
   secondaryRole?: LiteLowerThirdLineRole;
 }
 
+/**
+ * The four shapes a brand mark comes in, as a slot has to care about them.
+ *
+ * A chassis's logo well is drawn for a shape, and the mismatch is not a matter of degree: a 10:1
+ * sponsor rail inside a square well paints a hairline, and no amount of taste fixes it
+ * (`benchmarks/lite/BRAND-AUDIT-2026-08-09.md`). Four buckets rather than a number because the
+ * model reasons in kinds, and because a slot either holds a shape or does not.
+ */
+export type LiteMarkShape = 'portrait' | 'square' | 'wordmark' | 'rail';
+
+/** The boundaries, in ONE place - the browser measures, the server validates, the audit's
+ *  fixture bank declares its five marks against these same cuts. */
+export function markShapeFromAspect(aspect: number): LiteMarkShape {
+  if (!(aspect > 0) || !Number.isFinite(aspect)) return 'square';
+  if (aspect < 0.85) return 'portrait';
+  if (aspect <= 1.4) return 'square';
+  if (aspect <= 4.5) return 'wordmark';
+  return 'rail';
+}
+
+/**
+ * What the user's mark IS, measured in the browser before anything is sent.
+ *
+ * `hasLogo` was a BOOLEAN, and that is why `LiteCatalogEntry.logoSlot` could be measured and
+ * still not be actable: the model could be told a chassis offers a dark surface and holds every
+ * shape, and had no way to know whether the file in the user's hand was a knockout wordmark that
+ * reads there or a dark-only one that vanishes. Both facts are free and deterministic - the
+ * aspect is `naturalWidth / naturalHeight` and the backing is one alpha pass - so neither needs a
+ * model and neither is a guess.
+ *
+ * Content-free by construction: a shape bucket, an opacity fact, and a light/dark word. The
+ * PIXELS never leave the machine, which is the same line every other Lite input is held to.
+ */
+export interface LiteMarkDescriptor {
+  shape: LiteMarkShape;
+  /** `own-field` = the mark brings its own background and cannot vanish on any surface;
+   *  `transparent` = its ink composites onto whatever the slot paints. */
+  backing: 'own-field' | 'transparent';
+  /** Only meaningful for a `transparent` mark: which surfaces its ink can read against.
+   *  A `light` (knockout) mark needs a dark surface, a `dark` one needs a light surface. */
+  ink?: 'light' | 'dark';
+}
+
 export interface LiteDesignSpec {
   fit: 'catalog';
   reason: string;
@@ -158,7 +201,13 @@ export interface LiteGenerationRequest {
   conversation?: LiteConversationTurn[];
   palette?: { accent: string; text: string; textDim: string; panel: string } | null;
   primaryFont?: { family: string; uploaded: boolean } | null;
+  /** Is there a mark at all. Kept beside `mark` rather than replaced by it: this is the field
+   *  the quota check reads, and a browser tab loaded before a deploy still sends only this one
+   *  - the request validator is a strict key allowlist, so dropping it would fail those
+   *  requests outright instead of degrading. `mark` is the DESCRIPTION when the client could
+   *  take one. */
   hasLogo?: boolean;
+  mark?: LiteMarkDescriptor | null;
   resolution: { width: number; height: number };
   fps: number;
 }

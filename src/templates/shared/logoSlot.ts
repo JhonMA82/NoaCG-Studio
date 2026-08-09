@@ -39,13 +39,25 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
 
   const css = `${design.css}
 
-/* The logo: a rounded square leading the box, above the text (hidden while empty). */
+/* The logo: a band leading the box, above the text (hidden while empty). Sized by HEIGHT with
+   the width left free, so each mark takes exactly the room its own shape needs.
+
+   It was a 56px SQUARE until 2026-08-09, and measured that was false advertising: a square well
+   holds a crest and reduces a 4:1 wordmark to a 20px strip and a 10:1 sponsor rail to about 8px
+   - and most real brands are wordmarks, so "bring your logo" was true for a shape most users do
+   not have (benchmarks/lite/BRAND-AUDIT-2026-08-09.md). A fixed height with an auto width also
+   reserves NO empty width when the mark is narrow, which is the trap DESIGN_LANGUAGE §5 names.
+   Only a mark past ~4:1 reaches the cap and letterboxes, which is the honest outcome for one.
+
+   NO radius and NO crop, deliberately - a brand mark's corners belong to the brand, and this is
+   the slot every 'optional' design inherits. src/ai/assetIntegrity.ts refuses both on a picture
+   the user marked "use it as it is", which is what a logo is. */
 .${prefix}-logo {
   display: block;                  /* its own row — the text starts below it */
-  width: calc(56px * var(--scale));   /* logo square width */
-  height: calc(56px * var(--scale));  /* logo square height */
-  margin-bottom: calc(14px * var(--scale));  /* air between logo and the first line */
-  border-radius: var(--panel-radius);  /* the chip follows the family's corner treatment */
+  height: calc(64px * var(--scale));  /* the mark's height is what a viewer reads it by */
+  width: auto;                     /* …and its width follows its own proportions */
+  max-width: calc(260px * var(--scale));  /* the cap a very wide rail letterboxes inside */
+  margin-bottom: calc(20px * var(--scale));  /* clear space: a quarter of the mark's height */
   object-fit: contain;             /* show the whole logo, never crop a wide wordmark */
 }`;
 

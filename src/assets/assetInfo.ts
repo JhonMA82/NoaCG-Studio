@@ -174,6 +174,100 @@ export function probeAsset(asset: AssetFile): Promise<AssetInfo> {
   return result;
 }
 
+// ── The BRAND MARK probe ─────────────────────────────────────────────────────────────
+//
+// What a logo IS, as the thing that has to place it needs to know: its shape bucket, whether it
+// brings its own background, and - when it does not - whether its ink is light or dark. Those
+// three facts decide whether a given catalog slot can carry it, and all three are free
+// (docs/AI_LITE_PLAN.md §7.5). It lives beside probeAsset because it is the same one-image,
+// one-canvas read, and reusing that machinery is what keeps them from disagreeing about, say,
+// what an SVG's natural size is.
+//
+// It answers about the mark, never about the picture: one downscaled pass, three scalars out,
+// and no pixels leave the caller.
+
+/** Alpha at or above this counts as ink for the luminance mean - a soft edge is not the mark. */
+const INK_ALPHA = 128;
+/** Below this share of fully-opaque pixels the mark is treated as transparent-backed. A logo
+ *  flattened onto a white tile (every JPEG mark) is opaque and DOES bring its own field. */
+const OWN_FIELD_OPACITY = 0.98;
+
+export interface MarkProbe {
+  /** naturalWidth / naturalHeight. */
+  aspect: number;
+  backing: 'own-field' | 'transparent';
+  /** Alpha-weighted mean relative luminance of the ink, 0-1. Only meaningful when the mark is
+   *  transparent-backed; on an own-field mark the "ink" includes its own background. */
+  inkLuminance: number;
+}
+
+function readMark(img: HTMLImageElement): MarkProbe | null {
+  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
+  // The same 64px cap probeAlpha uses: a mark's tone and coverage do not need full resolution,
+  // and a full-size readback of a large upload is a real pause on a slow machine.
+  const w = Math.max(1, Math.min(64, img.naturalWidth));
+  const h = Math.max(1, Math.min(64, img.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, w, h);
+  const px = ctx.getImageData(0, 0, w, h).data;
+
+  let opaque = 0;
+  let inkWeight = 0;
+  let inkSum = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const alpha = px[i + 3];
+    if (alpha === 255) opaque += 1;
+    if (alpha < INK_ALPHA) continue;
+    const channel = (value: number): number => {
+      const s = value / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    const lum = 0.2126 * channel(px[i]) + 0.7152 * channel(px[i + 1]) + 0.0722 * channel(px[i + 2]);
+    const weight = alpha / 255;
+    inkSum += lum * weight;
+    inkWeight += weight;
+  }
+  const total = (px.length / 4) || 1;
+  return {
+    aspect,
+    backing: opaque / total >= OWN_FIELD_OPACITY ? 'own-field' : 'transparent',
+    inkLuminance: inkWeight > 0 ? inkSum / inkWeight : 0,
+  };
+}
+
+const markCache = new Map<string, Promise<MarkProbe | null>>();
+
+/** Probe an uploaded mark (async, cached). Null when it is not a readable image. */
+export function probeMark(asset: AssetFile): Promise<MarkProbe | null> {
+  if (!isImageAsset(asset.path) || typeof asset.data !== 'string' || !isDataUrl(asset.data)) {
+    return Promise.resolve(null);
+  }
+  const key = `${asset.path}:${assetBytes(asset)}`;
+  const cached = markCache.get(key);
+  if (cached) return cached;
+  const result = new Promise<MarkProbe | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        resolve(readMark(img));
+      } catch {
+        // A canvas readback can fail (an exotic codec, a hardened browser). Unknown is a
+        // legitimate answer here - the caller falls back to sending no descriptor at all,
+        // which is exactly the behaviour that shipped before this existed.
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = asset.data as string;
+  });
+  markCache.set(key, result);
+  return result;
+}
+
 /** How many times the template's code (html + css + js) references the asset's path. */
 export function referenceCount(template: SpxTemplate, path: string): number {
   const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

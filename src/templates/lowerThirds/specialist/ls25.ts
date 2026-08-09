@@ -27,6 +27,11 @@ export const ls25: TemplateVariant = defineVariant(
       { title: 'Release', sample: 'Nightfall EP · Sable Records' },
     ],
     logo: 'optional',
+    // …but the slot holds a PICTURE, not a brand mark. Cover art is content: cropping it to
+    // the square is the right answer, where cropping a logo destroys it. Without this the
+    // brand audit reads the design's correct `object-fit: cover` as the defect it is
+    // everywhere else (benchmarks/lite/BRAND-AUDIT-2026-08-09.md).
+    imageSlot: 'picture',
     // Slide-left: a now-playing strap belongs to a running set, so it glides in from the
     // side the way a station ident does rather than announcing itself from below.
     animationPresets: ['slide-left', 'blur-in', 'fade', 'pop-spring', 'slide-up', 'mask-wipe'],

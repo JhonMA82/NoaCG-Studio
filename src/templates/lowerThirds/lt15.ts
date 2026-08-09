@@ -20,7 +20,10 @@ export const lt15: TemplateVariant = defineVariant(
       { title: 'Name', sample: 'Sofia Lindqvist' },
       { title: 'Title', sample: 'Creative Director' },
     ],
-    logo: 'none',
+    // The BRAND SLOT: this design inherits the shared band (templates/shared/logoSlot.ts),
+    // so a channel mark, a club crest or a wide institutional lockup all land at a legible
+    // size with no per-design code. Emitted only when the user turns the logo on.
+    logo: 'optional',
     // Glass resolves out of blur and pops softly; line-reveal stays available to draw the edge.
     animationPresets: ['blur-in', 'pop-spring', 'line-reveal', 'fade', 'slide-down', 'flip-3d'],
     defaultPalette: paletteById('frost'),
