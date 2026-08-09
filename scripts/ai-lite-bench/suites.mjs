@@ -378,6 +378,22 @@ export const REPAIR_SUITE = [
     // validates. The `logo_not_supported` rule stays in validateLiteDecision - it guards the
     // next chassis audited in without a slot, and a rule deleted because today's bank cannot
     // reach it is the mistake `zone` and `animation.presetId` record in src/ai/AGENTS.md.
+    // The invisible mark, as a fixture. lt11's logo surface follows the PALETTE, this request
+    // supplies a dark panel, and the mark is transparent with dark ink - so the frame would show
+    // a logo field, no rule codes, and nothing a viewer can see. That is exactly what the
+    // 2026-08-09 brand round produced twice, and it is the reason the check is a measurement
+    // rather than a prompt line: the teaching it replaces was literally satisfied by both frames.
+    id: 'repair-logo-contrast-low',
+    request: {
+      ...repairRequest('A news lower third for Ada Example, Example Editor, carrying our logo.'),
+      palette: { accent: '#3b7dd8', text: '#f2f5fa', textDim: '#b3bccb', panel: '#111722' },
+      hasLogo: true,
+      mark: { shape: 'wordmark', backing: 'transparent', ink: 'dark' },
+    },
+    decision: readyDecision({ ...baseSpec(), useLogoSlot: true }),
+    expectErrors: ['logo_contrast_low'],
+  },
+  {
     id: 'repair-logo-not-supported',
     request: repairRequest('A lower third for Ada Example, Example Editor.'),
     decision: readyDecision({ ...baseSpec(), useLogoSlot: true }),

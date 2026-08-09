@@ -890,6 +890,7 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
   flourish_forbidden: 'Set spec.flourish to an empty string.',
   logo_not_supported: 'Remove useLogoSlot, or choose a chassis whose catalog entry says logo:yes.',
+  logo_contrast_low: 'The mark would not read on that design\'s logo surface. Choose a chassis whose logo surface suits the mark\'s ink - a light mark needs a dark surface and a dark mark needs a light one - or clear useLogoSlot.',
   requested_category_ignored: 'Return the category the request asked for.',
   skin_shape_invalid: 'Return skin as an object with summary and css strings, or omit skin.',
   skin_summary_invalid: 'Give skin.summary one short sentence naming the treatment.',
@@ -1101,6 +1102,10 @@ export function clampLightnessForContrast(color: string, panel: string, target: 
 
 export const LITE_CONTRAST_FLOOR = { primary: 4.5, secondary: 3 } as const;
 
+/** A mark is a GRAPHICAL object, so WCAG's non-text floor applies rather than the text one -
+ *  the same 3:1 `scripts/ai-lite-brand-audit.mjs` measures a rendered mark against. */
+export const LITE_MARK_CONTRAST_FLOOR = 3;
+
 /**
  * Bring a bespoke palette up to the contrast floor. Returns the repaired palette plus a
  * content-free note per adjustment, or null when the floor is unreachable at any lightness
@@ -1244,6 +1249,28 @@ export function validateLiteDecision(
   const flourish = (spec as { flourish?: unknown }).flourish;
   if (typeof flourish === 'string' && flourish.trim()) errors.push('flourish_forbidden');
   if (spec.useLogoSlot && !entry?.logo) errors.push('logo_not_supported');
+  // Will the mark READ where this chassis puts it? Measured here rather than taught, because the
+  // 2026-08-09 brand round proved teaching cannot reach it: two of four bad frames were a
+  // transparent mark composited onto a surface of its own tone, and the prompt rule was
+  // literally satisfied in both. A chassis declaring `surface: 'palette'` says where its logo
+  // surface COMES FROM, not what it will BE - only the request's palette closes that, and only
+  // the server holds both halves at once (`benchmarks/lite/BRAND-ROUND-2026-08-09.md` §2).
+  //
+  // Scoped hard, because every term has to be KNOWN for the answer to mean anything: a mark that
+  // brings its own field cannot vanish, a mark whose ink read as mid-grey was deliberately sent
+  // without a tone, and a palette nobody supplied leaves the chassis default carrying - which
+  // this module cannot resolve. Absence is not evidence, so any missing term simply does not fire.
+  if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
+    const ink = request.mark.ink === 'light' ? '#ffffff' : '#000000';
+    const panel = spec.palette?.panel ?? request.palette?.panel ?? null;
+    // A `dark` surface is the PICTURE behind the graphic, which no palette repaints
+    // (docs/CATALOG_VARIETY.md §5.3) - so a dark-ink mark is unreadable there whatever else is
+    // requested. A `palette` surface is answerable only when a palette was actually supplied.
+    const unreadable = entry.logoSlot.surface === 'dark'
+      ? request.mark.ink === 'dark'
+      : panel !== null && (contrastRatio(ink, panel) ?? 99) < LITE_MARK_CONTRAST_FLOOR;
+    if (unreadable) errors.push('logo_contrast_low');
+  }
   // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
   // lightness can reach it, drop the bespoke palette so the chassis default carries. A
   // legibility floor should cost the palette at worst, never the whole generation.
