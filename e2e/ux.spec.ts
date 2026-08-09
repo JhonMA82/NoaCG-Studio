@@ -2,6 +2,7 @@ import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
+import { chooseType, pickDesign } from './_browse';
 
 // The UX overhaul: preview-over-tabs layout, validation inside Export, motion phase
 // control + auto-replay (on the timeline strip — the Motion tab is retired), add-field
@@ -12,8 +13,8 @@ async function createHairline(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();
@@ -119,8 +120,8 @@ test('wizard: direction control mixes a different exit preset at create', async 
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
   await page.getByRole('button', { name: 'Next →' }).click(); // Style
   await page.getByRole('button', { name: 'Next →' }).click(); // Animation

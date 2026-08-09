@@ -26,6 +26,14 @@ import { settleDurableWrites } from './_durable';
  * to several at once); a literal in a spec is a guard with a shelf life, and the assertion worth
  * keeping is that the SCREEN agrees with `kitSize`, not that either equals 36.
  */
+/** How many kits the pack registry offers - the source of truth the grid is rendered from. */
+async function packCount(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const { PACKS } = await import('/src/templates/packs.ts');
+    return PACKS.length;
+  });
+}
+
 async function kitSizeOf(page: Page, packId: string): Promise<number> {
   return page.evaluate(async (id) => {
     const { PACKS } = await import('/src/templates/packs.ts');
@@ -137,7 +145,10 @@ test('one search box, and on the kit side it searches the kit', async ({ page })
   await search.fill('zzzz');
   await expect(page.getByTestId('kit-no-shows')).toBeVisible();
   await page.getByTestId('kit-no-shows').getByRole('button', { name: /Clear the search/ }).click();
-  await expect(page.locator('[data-kit]')).toHaveCount(21);
+  // CLEARING THE SEARCH RESTORES EVERY KIT - which is the claim, so the number comes from the
+  // registry the grid is built from rather than from a literal that ages the next time a pack
+  // is curated.
+  await expect(page.locator('[data-kit]')).toHaveCount(await packCount(page));
 });
 
 test('the count on screen is the count that gets built', async ({ page }) => {

@@ -16,21 +16,48 @@ screenshot-to-HTML side channel.
 
 The question has been asked two ways. The first is answered; the second is open.
 
-### Q1 - reconstruct the concept into code. ANSWERED: no.
+### Q1 - reconstruct the concept into code. PARKED, and NOT YET FAIRLY ASKED.
 
 **Verdict 2026-08-08: the concept stage works and the compiler cannot keep what it designs.** 11 of
 12 concepts are credible broadcast lower thirds; the reconstruction ships a visibly broken graphic
-on 5 of 12 while the deterministic gates report 11 of 12 passing. **The relationship is INVERSE** -
-the strongest concept in the bank became the worst output, because a distinctive design is exactly
-the one a rectangle-rebuilding compiler cannot reproduce or erase behind. A better image model makes
-this worse. Full round: §10a and `benchmarks/pro/round-2026-08-08/`.
+on 5 of 12 while the deterministic gates report 11 of 12 passing. Full round: §10a and
+`benchmarks/pro/round-2026-08-08/`.
 
-**PARKED.** It would become a yes again only if one of these is true, and neither is cheap:
+**Corrected 2026-08-09** (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`, free measurements,
+`node scripts/pro-geometry-audit.mjs`). The round's outcome stands; its DIAGNOSIS does not. The
+five broken briefs are not five instances of one cause:
+
+- **The compiler renders every design at 0.72x the size it was drawn.** The concept comes back
+  1376x768 and its pixels are used as DESIGN pixels in a 1920x1080 frame. Nothing rescales.
+  Measured identical on all five fixtures that resolve.
+- **Live text renders at 0.59x the baked text it replaces** - `boxH * 0.72` in the shared field
+  normalizer, compounded with the above. This is what turns an un-erased plate into two visibly
+  different copies of the same name, rather than a near-miss.
+- **Rebuilt fills are not the colours in the picture**: mean rgb distance 131 across 17
+  rebuild-shape regions; within 20 on zero of them.
+- **The designed position is discarded** and replaced by one of nine zone buckets from the unit's
+  centre, which is why a lower third at cy=0.66 renders mid-frame.
+- **One brief, `empty-optional`, never reached the compiler**: `proConceptPrompt` renders its two
+  values inside its own bullet scaffolding and the image model drew the scaffolding.
+
+**The relationship is INVERSE** in its narrow form - this compiler rebuilds RECTANGLES, so the
+designs it survives are the ones that are rectangles. On `sports-live` the interpretation model saw
+the angled panels and said so in a warning; `ProPanelGeometry` has no polygon, so four rectangles
+were rebuilt over an angled design. That is a four-field schema's limit, not image-led design's.
+**"A better image model makes this worse" is not supported by the evidence** - the arithmetic
+defects above hit the six USABLE briefs equally hard and merely failed to break them.
+
+**And the gates were not blind.** `ProCompileReport.warnings` separates broken from usable on 11 of
+12; `pro-bench.mjs` records the warnings and computes `pass` without reading them. `artDropped`
+fired on 3 of 12 and all three are usable - the path with no plate left to show through.
+
+**Still PARKED**, on cost and on the clean plate, not on "it cannot work". It becomes a yes again if:
 
 - the compiler can reconstruct **non-rectangular geometry** (angled panels, layered accents) rather
   than boxes, or
 - an **image-edit clean-plate capability** exists, so the baked original can be removed instead of
-  covered (declared in §3.1, deferred beyond v1).
+  covered (declared in §3.1, deferred beyond v1), or
+- the four defects above are fixed and a re-run measures the approach as it was actually designed.
 
 Nothing here is a reason to change `PRO_STANDARD_ROUTES`: the failure is in the compiler's reach,
 not the route.
@@ -378,6 +405,16 @@ and its verdict is that **the reconstruction is the thing that does not work**, 
 - **A truncation bug cost 5 of 12 concepts in the first bank** - `maxTokens: 4000` against a route
   that spends ~96% of its output budget on reasoning tokens (§3 of the round doc). Fixed to 12,000.
   Every hand-set `maxTokens` in the tree deserves the same check.
+
+**Re-opened 2026-08-09: `benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`** locates each failure inside
+the pipeline and corrects two of the claims above. The reconstruction carries four defects that are
+arithmetic and vocabulary rather than taste - a 0.72x frame-scale error, a 0.59x type-size error,
+fills that do not match the pixels, and zone re-bucketing that discards the designed position - plus
+a concept-prompt leak that broke a fifth brief before the compiler ran. "No gate in the tree can see
+the difference" is false: the compiler's own warning count separates broken from usable on 11 of 12,
+and the bench discards it. Re-run the measurements free with `node scripts/pro-geometry-audit.mjs`.
+**Also: the round did not pass `--save-fixtures`, so the twelve interpretations behind these twelve
+frames are gone. A paid round writes its fixtures.**
 
 The round's recommendation is to PARK the interpret→compile path and keep the concept stage for two
 uses that do not require reconstruction: a generated concept fed back as a `layout` REFERENCE into

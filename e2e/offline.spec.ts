@@ -2,6 +2,7 @@ import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
+import { chooseType, pickDesign } from './_browse';
 
 // Era 1: self-hosted Monaco — the editor must work with every CDN unreachable.
 
@@ -17,8 +18,8 @@ test('the editor loads and works with all CDNs blocked', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);
   });

@@ -246,7 +246,7 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
   await select.click();
   await expect(graphic.locator('#f6')).toHaveText('C');
   await expect(lock).toBeEnabled();
-  await expect(panel.locator('.state-chip')).toContainText('selected');
+  await expect(panel.locator('.state-chip')).toContainText('Answer selected');
 
   await panel.close();
   await graphic.close();
@@ -343,7 +343,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
   // The segmented row recovers its selection from the log — C wears the active mark.
   await expect(panel.locator('.field', { hasText: 'Selected answer' }).locator('.seg button.on')).toHaveText('C');
   await expect(panel.locator('.field', { hasText: 'Question' }).locator('input[type="text"]')).toHaveValue('Staged, not aired');
-  await expect(panel.locator('.state-chip')).toContainText('selected');
+  await expect(panel.locator('.state-chip')).toContainText('Answer selected');
   await expect(panel.getByRole('button', { name: '⚡ Lock it in' })).toBeEnabled();
 
   await panel.close();

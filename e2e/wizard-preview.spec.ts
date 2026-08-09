@@ -1,4 +1,5 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
+import { chooseType, pickDesign } from './_browse';
 
 // The wizard's live preview must FEEL live: every choice lands in the composed iframe,
 // rapid changes settle on the LAST choice, and the lifecycle demo on the Animation step
@@ -9,8 +10,8 @@ async function openWizardTo(page: Page, step: 'fields' | 'style' | 'animation') 
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   const hops = { fields: 1, style: 2, animation: 3 }[step];
   for (let i = 0; i < hops; i++) await page.getByRole('button', { name: 'Next →' }).click();
 }
@@ -110,8 +111,8 @@ test('zoom to graphic: the preview reframes onto a small graphic and back', asyn
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'corner logos' }).click();
-  await page.locator('.wz-variant', { hasText: 'Glass Mark' }).click();
+  await chooseType(page, 'corner logos');
+  await pickDesign(page, 'Glass Mark');
 
   const iframe = page.locator('.wz-side iframe');
   const scaleOf = async () =>
@@ -170,7 +171,7 @@ test('template cards frame onto the graphic, not the empty canvas around it', as
   });
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
+  await chooseType(page, 'Lower thirds');
   await expect(page.locator('.wz-variant').first()).toBeVisible();
 
   const framing = await page.evaluate(async () => {

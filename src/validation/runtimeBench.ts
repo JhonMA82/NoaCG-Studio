@@ -890,10 +890,13 @@ export async function benchTemplateRuntime(
     warnings.push(...flow.warnings);
 
     // ── Every declared field reaches the screen ──────────────────────────────────────
-    // Here rather than at the end, because this is the state the question is about: the
-    // settled on-air look with the whole default path walked. The drive REPLACES the frame's
-    // data, so the defaults go straight back before anything else is measured - the exit,
-    // replay and stress phases below must see exactly what they saw before this existed.
+    // Here rather than at the end, because this is where the question starts: the settled
+    // on-air look with the whole default path walked. It does not END there - the drive snaps
+    // through the machine's other states and unions what each shows, so a field only a later
+    // branch paints counts as reachable (fieldPaint.ts says why). It restores the machine
+    // itself; the DATA half is ours, and the defaults go straight back before anything else is
+    // measured - the branch, exit, replay and stress phases below must see exactly what they
+    // saw before this existed.
     if (opts.fieldPaints) {
       phase = 'field paint';
       const unpainted = await unreachableFields(win.document, win as Window & { update?: (d: string) => void }, template, SETTLE_MS);
@@ -903,9 +906,10 @@ export async function benchTemplateRuntime(
         warnings.push(
           issue(
             'bench-field-unpainted',
-            `Field ${name} is declared and operator-editable, but its value reaches no pixels in the `
-              + 'settled graphic - typing into it changes nothing on air. Either the design draws it '
-              + 'nowhere, or a colour or size decision made it invisible.',
+            `Field ${name} is declared and operator-editable, but its value reaches no pixels in `
+              + 'ANY of the graphic\'s states - typing into it changes nothing on air, whatever the '
+              + 'operator presses. Either the design draws it nowhere, or a colour or size decision '
+              + 'made it invisible.',
           ),
         );
       }

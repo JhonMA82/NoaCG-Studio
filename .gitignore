@@ -93,10 +93,10 @@ shots-*/
 !.agents/skills/video-quality-round/
 skills-lock.json
 
-# Screenshot scratch for design reviews - kept locally on purpose, never committed. Untracked
-# it would leave the primary checkout permanently "dirty", which blocks the merge and worktree
-# workflows for every session sharing it.
-re-design/
+# re-design/ holds the approved redesign reference (handoff.md + the mockup PNGs) and IS
+# committed, so every checkout and every session can see the pictures a change is measured
+# against. Keep throwaway review screenshots out of it - put them in a scratch directory
+# outside the repo rather than leaving the primary checkout permanently "dirty".
 
 # Remotion deploy bundle (built by render-worker/bundle.mjs in the Vercel build step)
 render-worker/bundle/

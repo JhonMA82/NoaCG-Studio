@@ -76,8 +76,10 @@ export interface ProductionBenchOptions {
    *  for every caller that has no category to read - the floor is opt-in, like the wrap check. */
   typeFloorCategory?: string | null;
   /** Drive every field to a sentinel and re-read the frame: which declared fields reach no
-   *  pixels. Read `RuntimeBenchOptions.fieldPaints` before turning it on for a new caller -
-   *  it measures ONE state, which is why it is not on for everyone. */
+   *  pixels. It walks the machine's states as well as the settled default path, so a graphic
+   *  with branches is a fair subject (validation/fieldPaint.ts). Still opt-in: a hand-written
+   *  template may hide whatever it likes, and only a caller that OWNS the design can say a
+   *  dark field is a defect. */
   fieldPaints?: boolean;
 }
 

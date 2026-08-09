@@ -32,4 +32,21 @@ test.describe('feedback, offline', () => {
     await expect(page.getByTestId('open-home')).toBeVisible();
     await expect(page.getByTestId('beta-feedback-open')).toHaveCount(0);
   });
+
+  test('the wizard and Home grow no feedback door offline either', async ({ page }) => {
+    // The door was ADDED to both surfaces (the student release demotes the editor behind
+    // Advanced mode, so a wizard-only student had no way to send anything). The offline gate
+    // has to hold on the new surfaces exactly as it does on the old one - which is the half a
+    // spec written only against the editor would never have caught.
+    await page.goto('/app');
+    await expect(page.getByTestId('creation-wizard')).toBeVisible();
+    await expect(page.getByTestId('beta-feedback-open')).toHaveCount(0);
+    // The neighbour that proves the header rendered: the wizard's own close button.
+    await expect(page.locator('.wz-header .gallery-close')).toBeVisible();
+
+    await page.goto('/app#/home');
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    await expect(page.getByTestId('beta-feedback-open')).toHaveCount(0);
+    await expect(page.getByTestId('home-settings')).toBeVisible();
+  });
 });

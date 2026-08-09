@@ -132,14 +132,43 @@ is deliberately lowered. Meanwhile the residue is measured, not silently reflowe
 
 ### Pro's interpret → compile reconstruction
 **2026-07-31 → 08-08 · visibly broken on 5 of 12 while the gates reported 11 of 12 passing · PARKED
-(`docs/NOACG_PRO_PLAN.md` §10a).** The image model designs well - 11 of 12 credible concepts. The
-rectangle-rebuilding compiler cannot keep what they design, and **the relationship is INVERSE**: the
-strongest concept in the bank became the worst output, because a distinctive design is exactly the
-one the compiler cannot reproduce or erase behind. A better image model makes this worse. Lite
-delivered a usable graphic on 12 of 12 of the same briefs, at 1/250th the cost.
-**RETRY WHEN** the compiler can reconstruct non-rectangular geometry, **or** an image-edit clean-plate
-capability can remove the baked original instead of covering it. Neither is needed for the half that
-measured well: feed the CONCEPT back as a `layout` reference into the grounded adapt path.
+(`docs/NOACG_PRO_PLAN.md` §0 Q1, §10a).** The image model designs well - 11 of 12 credible concepts.
+The rectangle-rebuilding compiler cannot keep what they design. Lite delivered a usable graphic on
+12 of 12 of the same briefs, at 1/250th the cost.
+**Re-diagnosed 2026-08-09** (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`, free):
+**the approach was never fairly tested.** The compiler renders every design at **0.72x** the size it
+was drawn (the 1376x768 concept's pixels used as design pixels in a 1920x1080 frame), places live
+text at **0.59x** the baked text it replaces (`boxH * 0.72` compounding with the same error), paints
+rebuilt panels in colours the pixels do not contain (mean rgb distance 131 over 17 regions, within
+20 on zero), and discards the designed position for a nine-way zone bucket. A fifth brief broke in
+the concept PROMPT, which renders its two values inside its own bullet scaffolding. Only
+`sports-live` is the named rectangle limit - and there the model SAW the angled panels and warned
+about them, because `ProPanelGeometry` has no polygon to put them in. So "a better image model makes
+this worse" is unsupported: those defects hit the six usable briefs equally and merely failed to
+break them.
+**And the gate was not blind.** `ProCompileReport.warnings` separates broken from usable on 11 of 12;
+`pro-bench.mjs` records them and computes `pass` without reading them. `artDropped` fired on 3 of 12
+and all three are usable.
+**RETRY WHEN** the four measured defects are fixed and a re-run measures the approach as designed -
+`node scripts/pro-geometry-audit.mjs` is the free gate for the first four. Independently: a polygon
+in the panel contract, **or** an image-edit clean-plate capability. Neither is needed for the half
+that measured well: feed the CONCEPT back as a `layout` reference into the grounded adapt path.
+**Standing instruction from this one:** a paid round must pass `--save-fixtures`. The 2026-08-08
+interpretations were not kept, so the twelve model outputs behind the twelve frames are gone and the
+per-brief attribution had to be reconstructed from pictures and code.
+
+### Creative Mode as a parallel creation architecture
+**2026-07 → 08-02, four ablation arms · RETIRED 2026-08-09, superseded by Pro (owner decision).**
+The staged CREATE pipeline (concepts → creative spec → scaffold compile → style → critique) was
+built to make cheap open models compose off-catalog graphics. Adapt-first won the strategy question
+before it landed, and Pro now owns "the model proposes the appearance, the platform owns the
+engineering". It is not a second architecture to carry: **stop reading `docs/CREATIVE_MODE_PLAN.md`
+as live strategy, and mine it.** What survives, and where it should go, is that plan's RETIRED
+banner. `scripts/creative-route-bench.mjs` and `e2e/creative-routing.spec.ts` are NOT part of this -
+they cover the LIVE Phase-A routing stage and stay.
+**RETRY WHEN** never as a parallel path. The individual mechanisms retry on their own merits inside
+Pro: the inspection-question critic, the scaffold/style split, the knowledge cards, and the
+one-vision-call-to-text reference bridge.
 
 ### Teaching the free-form coder its structure spine by example
 **Through 2026-07-17 · every result converted the moment a `-box` class was injected · FIXED by

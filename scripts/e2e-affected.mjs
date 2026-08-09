@@ -4,6 +4,9 @@
 //
 //   npm run test:e2e:affected            # diff against the merge-base with main + working tree
 //   npm run test:e2e:affected -- <ref>   # diff against an explicit base ref
+//   npm run test:e2e:integration         # after taking main in: diff from the FORK POINT, so the
+//                                        # plan covers BOTH sides' changes (automatic when HEAD
+//                                        # is a merge of main; --no-integration opts out)
 //   npm run test:e2e:affected -- --list  # print the plan without running Playwright
 //   npm run test:e2e:affected -- --json  # print the plan as JSON, for CI to branch on
 //
@@ -56,7 +59,7 @@ const MAP = [
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
   [/^scripts\/aiDevPlugin/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
-  [/^src\/control\//, ['control.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts']],
+  [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts']],
   // The readable audience name is minted by the publish path but READ on the audience surfaces,
   // and rules union rather than shadowing - so this adds to the src/control/ list above.
   [/^src\/control\/joinName/, ['production-audience.spec.ts']],
@@ -72,19 +75,35 @@ const MAP = [
   // renamed or re-declared moves what a brief retrieves.
   // The quiz runtime is also the exported control panel's recovery subject and the audience
   // pack's answer boards - the generic src/templates rule below unions with this one.
-  [/^src\/templates\/quiz\//, ['control.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts']],
+  // The four types whose MACHINE the per-graphic control page is generated from. A type file is
+  // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
+  // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
+  // to any of them has to run it. (types/scoreboard.ts is covered by the sports rule below.)
+  [/^src\/templates\/(poll|gameTimers)\//, ['control-panel-types.spec.ts']],
+  [/^src\/templates\/types\/(answerBoard|quizBoard|livePoll|clocks)\.ts$/, ['control-panel-types.spec.ts']],
   // The scoreboards are the OTHER stateful family with a runtime of their own - the match
   // clock, the club-colour lift and the period rebuild - and sports.spec.ts is the only place
   // any of that is driven. It had been mapped nowhere at all, so a scoreboard change reached
   // air having run none of its 13 tests until the nightly. control.spec.ts rides along because
   // its exported-panel case is built from a scorebug (sb01).
-  [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'production-controls.spec.ts']],
+  [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'control-panel-types.spec.ts', 'production-controls.spec.ts']],
   // WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit
   // half, so a pack edit or a change to `kitChoices` moves what the picker offers, what the
   // count promises and what the production ends up holding. Unions with the generic
   // src/templates rule below (which never named this spec).
   [/^src\/templates\/(kit|packs)\.ts$/, ['wizard-kit.spec.ts']],
-  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts']],
+  // THE PACK SPECS BELONG HERE, and for six of them they did not. A spec that iterates the
+  // CATALOG asserts over exactly what a design addition changes, so adding one design must
+  // select every one of them - yet `competition-pack`, `holding-pack`, `full-frame-offering`,
+  // `public-service`, `template-escaping` and `sports` were reachable from no template path at
+  // all (sports only from `src/templates/scoreboards`, which a new esports design does not
+  // touch). Measured on 2026-08-08: ten designs landed on claude/new-session-d34962, every
+  // local and CI branch gate stayed green, and competition-pack.spec.ts only ran because that
+  // branch's FIRST push gave CI no diff base and it escalated to the full suite by accident.
+  // `scripts/e2e-affected.test.mjs` now pins the rule this list was failing - every catalog
+  // importer is selected by a `src/templates/` change - so the hole cannot silently reopen.
+  [/^src\/templates\//, ['catalog-baseline.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts']],
   // wizard-finish, wizard-kit and wizard-shell were MISSING from this list, so a FinishStep,
   // kit-flow or wizard-header change ran neither the spec named after it nor anything that
   // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
@@ -113,7 +132,7 @@ const MAP = [
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.
-  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts']],
   // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
   // above, because they are the same surface from the other side: those specs drive the Export
   // panel, so they are what renders these components at all. Unmapped, each of them escalated a
@@ -387,6 +406,55 @@ function git(...cmd) {
   return execFileSync('git', cmd, { encoding: 'utf8' }).trim();
 }
 
+/** True when `maybeAncestor` is contained in `ref`. Exit status, so no output to parse. */
+function isAncestor(maybeAncestor, ref) {
+  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore' }).status === 0;
+}
+
+/**
+ * THE INTEGRATION BASE - the fork point, for a branch that has taken `main` in.
+ *
+ * The default base is `merge-base HEAD main`, which answers "what has this branch changed".
+ * After `git merge main` that base IS `main`, so the plan covers only the branch's own files
+ * and everything main just brought in is invisible to the gate. That is the wrong question at
+ * exactly the moment the right one matters: a clean textual merge says nothing about whether
+ * the COMBINED state holds, and the two sides are individually green by construction - each was
+ * verified against a tree that no longer exists.
+ *
+ * So when HEAD has taken main in, diff from where the two sides diverged instead: for the most
+ * recent first-parent merge whose SECOND parent came from main, that is `merge-base P1 P2`. The
+ * resulting file list is the union of both sides' changes since the fork, which is what "verify
+ * the combined state" means in terms this script can classify. It is deliberately
+ * over-inclusive - the same direction every other fallback here fails in - and the cost is
+ * bounded by sprint focus, which collapses the escalation to the 34-spec set rather than 103.
+ *
+ * Walking the first-parent chain (rather than only looking at HEAD) keeps this working after
+ * follow-up commits: the integration is not verified until it is verified, and adding a commit
+ * on top does not make the merge older news.
+ *
+ * @returns {string|null} the fork point, or null when this branch has merged nothing from main
+ */
+function integrationBase() {
+  // "Came from main" is asked of `origin/main` as well as `main`, because a worktree's local
+  // `main` is routinely stale - several are live at once and only one of them pulls. A branch
+  // that merged `origin/main` directly would otherwise look like it had merged nothing, and the
+  // silent answer would be the old, narrower base: the exact failure this exists to prevent.
+  const mainRefs = ['main', 'origin/main'].filter(
+    (ref) => spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore' }).status === 0,
+  );
+  const merges = git('rev-list', '--merges', '--first-parent', '--max-count=50', 'HEAD')
+    .split('\n')
+    .filter(Boolean);
+  for (const merge of merges) {
+    const [, p1, p2] = git('rev-list', '--parents', '-n', '1', merge).split(/\s+/);
+    // A merge with one parent is an octopus artefact or a grafted history; skip rather than
+    // guess. `p2` came from main only if a main ref still contains it.
+    if (!p1 || !p2 || !mainRefs.some((ref) => isAncestor(p2, ref))) continue;
+    return git('merge-base', p1, p2);
+  }
+  return null;
+}
+
 /** The plan, as CI consumes it. `mode` covers the specs to run; `catalog` is independent of it,
  *  because a catalog change can need the calibration gate while needing no feature spec. */
 function emitJson({ mode, specs, catalog, base, changed }) {
@@ -418,7 +486,24 @@ function main() {
   const baseArg = args.find((a) => !a.startsWith('--'));
   const log = asJson ? () => {} : console.log;
 
-  const base = baseArg ?? git('merge-base', 'HEAD', 'main');
+  // INTEGRATION MODE. `--integration` asks the question a post-merge run has to ask - "does the
+  // COMBINED state hold" - by moving the base back to the fork point (see `integrationBase`).
+  // It is also taken automatically when HEAD is itself a merge that brought main in, because
+  // that is precisely the moment someone is about to push an unverified combination and the
+  // ceremony of remembering a flag is what fails. `--no-integration` forces the plain
+  // branch-only diff for a one-off. An explicit base argument always wins: it was asked for.
+  const wantsIntegration = !args.includes('--no-integration');
+  const headIsMainMerge = !baseArg && git('rev-list', '--parents', '-n', '1', 'HEAD').split(/\s+/).length > 2;
+  const integration =
+    !baseArg && wantsIntegration && (args.includes('--integration') || headIsMainMerge)
+      ? integrationBase()
+      : null;
+  const base = baseArg ?? integration ?? git('merge-base', 'HEAD', 'main');
+  if (integration) {
+    log(
+      `e2e-affected: INTEGRATION base ${base.slice(0, 8)} - this branch has taken main in, so the plan covers BOTH sides' changes since the fork, not just the branch's.`,
+    );
+  }
   const committed = git('diff', '--name-only', `${base}...HEAD`).split('\n');
   // Porcelain lines are `XY path` (a rename is `XY old -> new`); a global trim() would eat the
   // first line's leading status space, so strip the prefix by pattern, not by position.

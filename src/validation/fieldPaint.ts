@@ -11,6 +11,7 @@
 //
 // Browser-only: it drives a template running in a same-origin iframe and re-reads the frame.
 
+import { parseAnimData } from '../blocks/animData';
 import type { SpxTemplate } from '../model/types';
 
 /** The field types whose value becomes VISIBLE TEXT, so driving them can be observed on the
@@ -64,6 +65,24 @@ interface UpdateGlobal {
   update?: (data: string) => void;
 }
 
+/** The machine engine's own globals (src/templates/shared/animRuntime.ts). Absent on a saved
+ *  template whose FROZEN interpreter predates it, which is why every use is guarded. */
+interface MachineGlobals {
+  noacgSnap?: (assignments: Record<string, string> | null, opts?: { timers?: boolean }) => void;
+  noacgMachineState?: () => { groups: Record<string, string> };
+}
+
+/**
+ * How many extra states one measurement may enter.
+ *
+ * A bound is required - this walks a graph an author controls - but it must never be the thing
+ * that decides the answer, so it sits far above anything the catalog ships: the largest machine
+ * here is the quiz board's eight states, and the busiest parallel type reaches nine across three
+ * groups. `e2e/lite-field-paint.spec.ts` measures the real maximum against this number, so the
+ * cap cannot quietly start truncating as types are added.
+ */
+export const MAX_WALKED_STATES = 32;
+
 /**
  * Which declared fields never reach the screen.
  *
@@ -78,12 +97,36 @@ interface UpdateGlobal {
  * credits line are all BUILT by a runtime from ONE field, so the id is legitimately absent.
  * Driving the field and re-reading the screen is the only question that survives that.
  *
+ * IT ASKS THE WHOLE MACHINE, NOT ONE STATE. Until 2026-08-09 it read the frame once, at the
+ * settled default path, which is only the whole answer for a graphic that has no states. A field
+ * a later operator event reveals - a quiz's audience percentages, painted only on entry to its
+ * `audience` branch, three events past settled - reached no pixels at that moment and would have
+ * been reported unreachable, failing a correct graphic. That was the standing blocker on running
+ * this check for any interactive category (docs/CONTROL_PANEL_PARITY.md §6).
+ *
+ * So after the settled reading it SNAPS through the machine's other states and unions what each
+ * one shows. Three properties make that both correct and cheap:
+ *
+ * - `noacgSnap` enters any state directly, by replaying its canonical path with callbacks
+ *   suppressed - no need to find an event sequence that reaches it, and a state no walk can
+ *   reach by pressing buttons is still measured.
+ * - Because callbacks ARE suppressed, a state whose look is a CALL (the quiz's marks, the poll's
+ *   winner) paints nothing from the snap alone. The data is therefore re-driven after each one -
+ *   which is exactly the recovery sequence's own trailing `update()`, not a special case.
+ * - It stops as soon as every field has been seen somewhere, so a correct graphic pays for one
+ *   or two extra states rather than for its whole graph.
+ *
+ * Only an EXPLICIT machine is walked. A derived one's states ARE the default path, which the
+ * caller already walked before calling this, so a single-step lower third costs nothing new.
+ *
  * It REPLACES the frame's data with sentinels. A caller that measures anything else afterwards
  * has to restore the values it wants - `runtimeBench` does; the structural check runs it last.
+ * The MACHINE is put back where it was found, so a caller that walked to a pose before calling
+ * this still measures that pose afterwards.
  */
 export async function unreachableFields(
   doc: Document,
-  win: Window & UpdateGlobal,
+  win: Window & UpdateGlobal & MachineGlobals,
   template: SpxTemplate,
   settleMs: number,
 ): Promise<string[]> {
@@ -91,16 +134,68 @@ export async function unreachableFields(
     .map((f, i) => ({ field: f, sentinel: sentinelFor(f, i) }))
     .filter((d) => TEXT_FTYPES.has(d.field.ftype));
   if (!driven.length) return [];
-  try {
-    win.update?.(JSON.stringify(Object.fromEntries(driven.map((d) => [d.field.field, d.sentinel]))));
-  } catch {
-    return []; // a template that throws on update is the runtime bench's finding, not ours
+
+  const payload = JSON.stringify(Object.fromEntries(driven.map((d) => [d.field.field, d.sentinel])));
+  /** Write the sentinels and let the frame settle. False = the template threw, so stop. */
+  const drive = async (): Promise<boolean> => {
+    try {
+      win.update?.(payload);
+    } catch {
+      return false; // a template that throws on update is the runtime bench's finding, not ours
+    }
+    await new Promise<void>((r) => setTimeout(r, settleMs)); // a rebuild runtime may re-fit
+    return true;
+  };
+  /** One cell is enough for a list: the field reached the screen, and how many rows the runtime
+   *  chose to draw is a different question. */
+  const shows = (sentinel: string, painted: string): boolean =>
+    sentinel.split(/[\s|\n]+/).some((part) => part && painted.includes(part));
+
+  if (!(await drive())) return [];
+  let missing = driven.filter((d) => !shows(d.sentinel, visibleText(doc, win)));
+
+  const machine = missing.length > 0 ? parseAnimData(template.js)?.machine : null;
+  const snap = win.noacgSnap;
+  const readState = win.noacgMachineState;
+  if (machine && typeof snap === 'function' && typeof readState === 'function') {
+    // An interpreter that cannot say where it is, is one we must not move: without a pointer to
+    // put back, the walk would leave the caller measuring a pose it never asked for.
+    let restore: Record<string, string> | null;
+    try {
+      restore = readState().groups;
+    } catch {
+      restore = null;
+    }
+    if (restore) {
+      // Skip each group's INITIAL state (a group resting there is what the settled reading
+      // already showed) and whatever is on screen right now, for the same reason.
+      const targets: Array<{ group: string; state: string }> = [];
+      for (const group of machine.groups) {
+        for (const state of group.states) {
+          if (state.id === group.initial || restore[group.id] === state.id) continue;
+          targets.push({ group: group.id, state: state.id });
+        }
+      }
+      for (const target of targets.slice(0, MAX_WALKED_STATES)) {
+        if (missing.length === 0) break;
+        try {
+          // timers: false - a measurement must never arm a clock that then advances the
+          // graphic under the next reading (the editor's parked preview passes the same).
+          snap({ [target.group]: target.state }, { timers: false });
+        } catch {
+          continue; // an unreachable state snaps to nothing; the others still answer
+        }
+        if (!(await drive())) break;
+        const painted = visibleText(doc, win);
+        missing = missing.filter((d) => !shows(d.sentinel, painted));
+      }
+      try {
+        snap(restore, { timers: false });
+      } catch {
+        /* put back if we can; the caller's own restore covers the data half */
+      }
+    }
   }
-  await new Promise<void>((r) => setTimeout(r, settleMs)); // a rebuild runtime may re-fit
-  const painted = visibleText(doc, win);
-  return driven
-    // One cell is enough for a list: the field reached the screen, and how many rows the
-    // runtime chose to draw is a different question.
-    .filter((d) => !d.sentinel.split(/[\s|\n]+/).some((part) => part && painted.includes(part)))
-    .map((d) => `${d.field.title || d.field.field} (${d.field.field})`);
+
+  return missing.map((d) => `${d.field.title || d.field.field} (${d.field.field})`);
 }

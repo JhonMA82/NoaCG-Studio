@@ -3,7 +3,7 @@ import { useTemplateStore } from '../store/templateStore';
 import { parseAnimData } from '../blocks/animData';
 import { canonicalPath, deriveMachine, machineControls } from '../blocks/animMachine';
 import { parseStatePhase } from '../blocks/timelineLens';
-import { eventLegality, isEventLegal } from '../control/controlModel';
+import { eventLegality, formatMachineState, isEventLegal, machineStateNames } from '../control/controlModel';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../preview/previewProtocol';
 
 interface Props {
@@ -68,6 +68,14 @@ export default function PlayoutSimulator({ iframeRef }: Props) {
   // silently dropped the illegal ones, so "Select answer" after "Lock it in" looked broken
   // rather than impossible.
   const eventLegal = useMemo(() => eventLegality(templateJs), [templateJs]);
+  // The chip's WORDS. Held in a ref as well, because the poll's listener is subscribed once
+  // (its deps are deliberately `[machineEvents]`) and would otherwise keep naming states from
+  // whichever template was open when it subscribed.
+  const stateNames = useMemo(() => machineStateNames(templateJs), [templateJs]);
+  const stateNamesRef = useRef(stateNames);
+  useEffect(() => {
+    stateNamesRef.current = stateNames;
+  }, [stateNames]);
   const [machineState, setMachineState] = useState('');
   // The machine's raw pointers go to the STORE, not to local state: the simulator owns the
   // iframe and is the only thing that can poll it, but the Control panel shows the same event
@@ -144,8 +152,9 @@ export default function PlayoutSimulator({ iframeRef }: Props) {
       if (ev.source !== iframeRef.current?.contentWindow) return;
       const msg = ev.data as PreviewStateMessage | undefined;
       if (!msg || msg.type !== PREVIEW_STATE_TYPE || !msg.state) return;
-      const groups = Object.entries(msg.state.groups);
-      setMachineState(groups.map(([g, s]) => (groups.length > 1 ? `${g}:${s}` : s)).join(' · '));
+      // Worn as WORDS, through the one formatter every operator surface uses: the runtime
+      // reports ids, and "sealed" is the author's vocabulary rather than the operator's.
+      setMachineState(formatMachineState(stateNamesRef.current, msg.state) ?? '');
       setMachineGroups(msg.state.groups);
     };
     window.addEventListener('message', onMessage);

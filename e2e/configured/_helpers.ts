@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from '../_create';
+import { chooseType, pickDesign } from '../_browse';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
 // the public repo carries no secrets; `haveCreds` gates the whole suite off when they're unset.
@@ -56,8 +57,8 @@ export async function signIn(page: Page): Promise<void> {
 export async function createGraphic(page: Page, category: string, variant: string): Promise<void> {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: category }).click();
-  await page.locator('.wz-variant', { hasText: variant }).click();
+  await chooseType(page, category);
+  await pickDesign(page, variant);
   await finishIntoEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   await page.waitForTimeout(650);

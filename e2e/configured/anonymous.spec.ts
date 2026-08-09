@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { dismissWizard, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode } from '../_create';
+import { chooseType, pickDesign } from '../_browse';
 
 // Era 5.6 — the open editor. With a backend CONFIGURED, an anonymous visitor can still do the whole
 // core workflow (create → preview → export) with no account; only the account features (cloud sync,
@@ -22,8 +23,8 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.locator('.auth-card')).toHaveCount(0);
 
     await page.locator('[data-entry="template"]').click();
-    await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-    await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+    await chooseType(page, 'Lower thirds');
+    await pickDesign(page, 'Hairline');
     await page.getByTestId('wz-skip-to-finish').click();
     await expect(page.locator('.wz-finish-summary')).toContainText('Hairline');
     // Signed out, the editor door is absent and the export door is not.

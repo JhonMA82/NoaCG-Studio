@@ -448,25 +448,50 @@ absence is mutation-pinned).
 
 **EXPERIMENT - the reconstruction path is PARKED on measurement (2026-08-08).** The concept stage works
 and the compiler cannot keep what it designs: visibly broken on 5 of 12 while the gates reported 11 of 12
-passing, and **the relationship is INVERSE** - the strongest concept became the worst output, so a better
-image model makes it worse. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured
-well is the concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
+passing. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured well is the
+concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
 
-Pro is an execution TIER of the same Create-with-AI step, never a second flow: `AiSettings.tier` picks
-lite/pro/custom, and `pro/brief.ts` maps the SHARED brief onto the v1 `ProBrief` - one deterministic seam,
-no parallel brief vocabulary. `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user
-never picks models; **do not change it without re-running `npm run bench:pro` paid stages.** Offline the
-deterministic stub (`pro/stub.ts`) runs the identical flow, keeping `e2e/pro.spec.ts` token-free.
-`fillProLogoSlot` bundles an as-is upload into the slot it asked for, deterministically and writing no
-CSS, and runs BETWEEN the compile and the injected validator - that order is load-bearing (see the as-is
-screen above).
+**Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
+fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
+renders every design at 0.72x the size it was drawn (a 1376x768 concept's pixels used as DESIGN pixels
+in a 1920x1080 frame), places live text at 0.59x the baked text it replaces, paints panels in colours
+the pixels do not contain, and re-buckets the designed position into one of nine zones. `ProPanelGeometry`
+carries no polygon, so an angled design is rebuilt as rectangles - which is a schema limit, not a
+model one: on `sports-live` the interpretation SAW the angles and warned about them. Free re-measurement:
+`node scripts/pro-geometry-audit.mjs`. And the house rule below was misapplied here - the compiler's own
+`ProCompileReport.warnings` separates broken from usable on 11 of 12, and `pro-bench.mjs` records them
+and computes `pass` without reading them. **A gate that measures the right dimension and discards the
+answer is a scoring bug, not a blind spot.**
+
+**Lite and Pro are SEPARATE PROJECTS with different purposes and constraints (owner decision,
+2026-08-09).** Pro is not the continuation of Lite and Lite is not a reduced Pro. Lite is a managed,
+free, catalog-grounded profile whose constraints are cost per generation, quota safety and
+control-panel operability, and whose open problem is SAMENESS. Pro is a paid image-guided experiment
+whose constraint is whether a generated appearance can survive becoming code at all, and whose open
+problem is CORRECTNESS. A change that serves one is not evidence for the other, they do not share a
+quality bar, and neither's benchmark scores the other. What they DO share is deliberate and narrow:
+one Create-with-AI entry point (`AiSettings.tier` picks lite/pro/custom), one user-facing brief, and
+one deterministic mapping seam - `pro/brief.ts` maps that shared brief onto the v1 `ProBrief` so there
+is no parallel brief vocabulary. That is a UI and contract economy, not a shared strategy.
+
+`PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
+change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
+2026-08-08 round did not and its twelve interpretations are gone. Offline the deterministic stub
+(`pro/stub.ts`) runs the identical flow, keeping `e2e/pro.spec.ts` token-free. `fillProLogoSlot` bundles
+an as-is upload into the slot it asked for, deterministically and writing no CSS, and runs BETWEEN the
+compile and the injected validator - that order is load-bearing (see the as-is screen above).
 
 ## Phase-C creative pilot (`creative/`)
 
-**EXPERIMENT - BENCH ONLY. Nothing in the product reaches it**: no UI, no route from `claudeProvider` into
-it, and its only caller is `scripts/creative-pilot-bench.mjs`. Its strategy was superseded by adapt-first.
-The staged pipeline's parts, the four ablation arms and every measured ruling live in
-`docs/CREATIVE_MODE_PLAN.md` (parked) Appendix A; the verdicts are in `docs/AI_ATTEMPTS.md`.
+**RETIRED 2026-08-09 (owner decision): Creative Mode is superseded by NoaCG Pro and is no longer carried
+as a parallel architecture.** Both existed to answer "the model proposes the appearance, the platform owns
+the engineering"; Pro owns that question now, and two live experiments asking it separately is how the
+answers come to disagree. `docs/CREATIVE_MODE_PLAN.md` is a RETIRED record to MINE, never a plan to
+continue - its reusable mechanisms and their measured rulings are listed in that file's banner and in
+`docs/AI_ATTEMPTS.md`. **Nothing in the product reaches this code**: no UI, no route from `claudeProvider`
+into it, and its only caller is `scripts/creative-pilot-bench.mjs`. Removing it is a separate, deliberate
+change - and `scripts/creative-route-bench.mjs` plus `e2e/creative-routing.spec.ts` are NOT part of it,
+because they cover the LIVE Phase-A routing stage.
 
 Two rules reach outside the pilot and bind here:
 

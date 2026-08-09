@@ -1226,6 +1226,14 @@ kbd {
    Settings' sat one gap after its subtitle, mid-header. */
 .wz-header > .gallery-close { margin-left: auto; }
 .wz-header > .wz-stepcount ~ .gallery-close { margin-left: 0; }
+/* The Feedback button joins that trailing cluster. It renders NOTHING offline, and the step
+   counter is absent on Entry, so the push has to survive either being missing - which is
+   what a chain of sibling rules gives for free: whichever of the three exists FIRST takes
+   the auto margin, and everything after it takes none. Get this wrong and Feedback sits one
+   gap after the title on the Entry step, mid-header, which is the exact §6 defect. */
+.wz-header > .fb-open { margin-left: auto; }
+.wz-header > .wz-stepcount ~ .fb-open { margin-left: 0; }
+.wz-header > .fb-open ~ .gallery-close { margin-left: 0; }
 /* How far along, in the mono label voice. */
 .wz-stepcount {
   margin-left: auto;
@@ -1637,7 +1645,12 @@ kbd {
 /* The whole step must fit a 768px-tall laptop without scrolling — every vertical margin here
    is budgeted. If you grow one, take the height from another. (The Recent strip's removal
    paid for the desktop-first hero sizes above.) */
-.wz-hero { text-align: center; max-width: 880px; padding: 10px 16px 0; }
+/* FLUSH LEFT, like everything under it (re-design/handoff.md §2a). The hero was centred over
+   a left-aligned card grid, so the title, the subtitle and the first card each started at a
+   different x — three ragged edges on the app's first screen. Left-aligning costs nothing and
+   is what the reference draws. Its max-width is the SUBTITLE's measure: two lines is the
+   budgeted height, and an unbounded line at 1366px would run to one. */
+.wz-hero { text-align: left; width: 100%; max-width: 1180px; padding: 10px 0 0; }
 .wz-hero-title {
   font-size: 30px;
   font-weight: 600;
@@ -1648,17 +1661,7 @@ kbd {
   margin: 6px 0 8px;
 }
 .wz-hero-title span { color: var(--amber); }
-.wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0 auto; max-width: 760px; }
-.wz-hero-tags { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
-.wz-hero-tags span {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 11px;
-}
+.wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0; max-width: 720px; }
 
 /* TWO BY TWO (re-design/handoff.md §2a). One row of narrow cards made four tall ragged
    columns of text; two rows of wide ones read as four choices. It also retires the fixed
@@ -1720,6 +1723,13 @@ kbd {
    failed to render. The odd LAST card spans the row instead — which restores the plain 2x2
    the moment the fourth card appears, with no JavaScript deciding anything. */
 .wz-entry .wz-entry-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* …AND IT SIZES TO ITS OWN COPY. Both rules above it exist to make two cards SHARING a row
+   line up — the reserved three lines of hint, and the equal row heights. A card that spans
+   the row has no row-mate to line up with, so both rules stop being alignment and become a
+   card two empty lines taller than its text: measured at 1366x768, "Import graphic" drew one
+   line of copy inside a 130px box, which reads as content that failed to load. */
+.wz-entry:has(> .wz-entry-card:last-child:nth-child(odd)) { grid-auto-rows: auto; }
+.wz-entry .wz-entry-card:last-child:nth-child(odd) .hint { min-height: 0; }
 
 /* ── ONE GRAPHIC, OR A WHOLE KIT ─────────────────────────────────────────────────────────
    The Browse step's first question, as a segmented control. Two options in one bordered
@@ -2338,46 +2348,22 @@ kbd {
 }
 .wz-browse-programme { margin-bottom: 12px; }
 .wz-browse-programme select { min-width: 200px; }
-/* NOT A CATEGORY WALL (re-design/handoff.md §2b). The tiles were 230px cards in a grid, which
-   at 27 categories stacked eleven rows deep and pushed the actual templates off the screen —
-   on the step whose whole job is picking one. They are chips now, in a bounded strip that
-   scrolls on its own: the same targets (every spec still clicks them by name, and the tile set
-   is still derived from the taxonomy), a fraction of the height.
-   THE CAP APPLIES AT EVERY WIDTH, which it did not at first — only the phone had it. The strip
-   wraps to whatever the step column gives it, and that column HALVES the moment a design is
-   picked and the live preview takes its half of the sheet: measured at 1366x768, the strip went
-   from 142px to 364px on the pick, 58% of the visible step spent on chips, pushing the first
-   design card from 373px down to 657px and out of sight. Three rows, then scroll. */
-.wz-browse-tiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-  max-height: 112px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.wz-browse-tiles .wz-cat {
-  flex: 0 0 auto;
+/* NOT A CATEGORY WALL (re-design/handoff.md §2b) — ONE DROPDOWN.
+   The type facet has 22 answers, and 22 targets is a wall whatever their per-chip height is.
+   As 230px tiles it stacked eleven rows and pushed the designs off the step; as chips in a
+   scrolling box it still took three rows, and that box grew worse exactly when the step got
+   tighter (the column HALVES the moment a design is picked and the live preview takes its
+   half: measured at 1366x768, 142px of chips became 364px, 58% of the visible step, pushing
+   the first design card from 373px to 657px and out of sight).
+   A select spends ONE row at any width, states the current answer in words, and still carries
+   every type's catalog count — the fact the chips' badges carried. */
+.wz-browse-type select {
+  width: auto;
+  min-width: 190px;
+  max-width: 260px;
   padding: 6px 10px;
-  gap: 0;
-  border-radius: 4px;
   font-size: 13px;
-  background: var(--bg-panel);
 }
-.wz-browse-tiles .wz-cat-head { gap: 8px; }
-.wz-browse-tiles .wz-cat-head strong { font-weight: 500; }
-/* The count reads as data, not as a badge competing with the name. */
-.wz-browse-tiles .wz-count {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-faint);
-  border: none;
-  padding: 0;
-  background: none;
-}
-.wz-browse-tiles .wz-cat.selected { border-color: var(--accent); background: var(--accent-bg); }
-.wz-browse-tiles .wz-cat.selected .wz-count { color: var(--accent); }
 .wz-filter-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
 /* A closed <details> hides its non-summary children through a UA rule — and ANY author rule
    setting `display` on those children silently beats it. Both wizard disclosures wrap rows
@@ -2390,10 +2376,23 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-browse-more { margin: 0 0 10px; }
 .wz-browse-more .wz-filter-row { margin: 4px 0 8px; }
 
-/* THE LEAD ROW: style chips on the left, the one Filters disclosure on the right. */
-.wz-browse-lead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.wz-browse-lead .spacer { flex: 1; }
-.wz-browse-lead .wz-filter-row { margin: 0; }
+/* THE LEAD ROW — TWO LINES, ALWAYS: the type select and the Filters disclosure share the first; the style
+   families take the whole of the second. The reference draws all three on one line, and at a
+   full-width step they would fit — but this step's column HALVES the moment a design is picked
+   and the live preview takes its half of the sheet, and a one-line flex row degrades there
+   into the worst layout of the three: measured at 1366x768 with a design picked, the six
+   families stacked into a 230px vertical column of chips beside a select floating in an empty
+   half-row. A grid gives the same shape at every width, and the wide case pays only a
+   right-aligned Filters button, which is where a toolbar affordance belongs anyway. */
+.wz-browse-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+}
+.wz-browse-lead .wz-browse-drawer-btn { grid-column: 2; grid-row: 1; }
+.wz-browse-lead .wz-filter-row { grid-column: 1 / -1; margin: 0; flex-wrap: wrap; }
 /* ONE disclosure at EVERY width (handoff §2b), not a phone-only drawer wrapping a desktop
    `More filters` details. Collapsed by default: five rows of facets between the search box
    and the first design is the storefront asking questions before it shows anything. */
@@ -2426,7 +2425,10 @@ details:not([open]) > *:not(summary) { display: none; }
   background: none;
 }
 .wz-browse-format legend,
-.wz-browse-format .project-format-label {
+.wz-browse-format .project-format-label,
+/* Same device for the type select: its own options read "Lower thirds · 82", so a visible
+   caption would say it twice — but the label stays in the DOM for a screen reader. */
+.wz-browse-type .project-format-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -2439,10 +2441,23 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-browse-format .project-format-fields { display: flex; gap: 8px; flex: 1; min-width: 0; }
 .wz-browse-format .project-format-fields label { flex: 1 1 0; min-width: 0; gap: 0; }
 .wz-browse-format select { font-size: 12px; padding: 5px 8px; }
-.wz-browse-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.wz-browse-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .wz-browse-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.wz-browse-count { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.wz-browse-count { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; flex: 0 0 auto; }
+.wz-browse-count select { width: auto; padding: 4px 8px; font-size: 12px; }
 .wz-browse-section { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 14px 0 8px; }
+/* "Show 12 more" (handoff §2b): full width under the grid, quiet, and the width IS the point —
+   it belongs to the whole result, not to the last card in the row above it. */
+.wz-browse-more-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 5px;
+  background: var(--bg-panel);
+  font-size: 14px;
+  color: var(--text-mid);
+}
+.wz-browse-more-btn:hover { border-color: var(--border-strong); background: var(--bg-2); }
 /* Result cards carry the strict info budget under the existing caption row. */
 .wz-browse-meta { display: flex; flex-direction: column; gap: 2px; padding: 0 10px 10px; font-size: 11px; color: var(--text-dim); }
 .wz-browse-cat { color: var(--accent); }
@@ -2498,16 +2513,16 @@ details:not([open]) > *:not(summary) { display: none; }
 .wz-browse-drawer-btn[aria-expanded='true'] { color: var(--text); border-color: var(--border-strong); }
 @media (max-width: 768px) {
   .project-format-fields { grid-template-columns: 1fr; }
-  /* On a phone the style chips and the toggle each take the full width rather than sharing
-     a row that would put the toggle off the screen edge. */
-  .wz-browse-lead { flex-direction: column; align-items: stretch; }
-  .wz-browse-lead .spacer { display: none; }
+  /* On a phone the select and the toggle cannot share a row either — one column, three
+     stacked bands in DOM order: type, the style chips, then Filters. Same reading order as
+     the desktop grid (the lead facets, then the way in to everything else). */
+  .wz-browse-lead { grid-template-columns: minmax(0, 1fr); }
+  .wz-browse-lead .wz-browse-drawer-btn { grid-column: 1; grid-row: auto; }
   .wz-browse-drawer-btn { justify-content: center; width: 100%; }
-  /* THE TYPE STRIP SCROLLS ON ITS OWN — the base rule's cap, raised. Twenty-two chips wrap to
-     twelve rows on a 390px screen: measured 512px tall, which put the first design 293px BELOW
-     the fold — the wall this redesign removed, back on the surface where it costs most. A
-     phone has no preview beside the step, so it can afford the extra row the desktop cannot. */
-  .wz-browse-tiles { max-height: 150px; }
+  /* The type select takes the full width like everything else in the stacked lead column —
+     it is the step's first question, and a 190px control floating in a 390px row reads as an
+     afterthought beside chips that span the screen. */
+  .wz-browse-type select { width: 100%; max-width: none; }
   /* Three format selects in one row is a desktop measure; stacked they stay legible. */
   .wz-browse-format .project-format-fields { flex-wrap: wrap; }
   .wz-browse-format .project-format-fields label { flex: 1 1 45%; }
@@ -4293,8 +4308,6 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
     grid-template-columns: minmax(0, 1fr);
     grid-auto-rows: auto;
   }
-  /* The compact one-line rows stack again on a phone — a row layout has no width to share. */
-  .wz-continue-card { flex-direction: column; align-items: flex-start; }
   .pk-body { padding: 12px 14px; }
   .gallery-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
 }
@@ -5345,7 +5358,11 @@ h2 + .lib-row,
   font-size: 14px;
 }
 .control-page-transport button.primary { padding-inline: 20px; font-weight: 600; }
-.control-events-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+/* The graphic's own events sit BELOW the transport in their declared sections (.ctl-events,
+   shared with the Rehearse panel), not inline with ▶ ⟳ » ■ — a quiz put nine controls in one
+   flat row otherwise. Operator-sized like the transport above it: these are pressed live. */
+.control-page-events { padding: 4px 14px 12px; background: var(--panel); }
+.control-page-events button { min-height: 44px; padding: 10px 16px; font-size: 14px; }
 /* The operator's "where is it" chip — the editor's .simulator-state, sized for the transport
    row it sits in (this bar is deliberately bigger than the editor's; see the operator-sized
    cues). Pushed right so it reads as status, not as another button. */
@@ -6252,9 +6269,53 @@ h2 + .lib-row,
 /* Continue working is a compact one-line ROW (icon · title · hint), not a tall card — the
    entry step's height budget goes to the five creation cards, and this block sits above
    them on every launch. Width tracks the 4-card grid (4 × 264px + 3 × 14px gaps). */
-.wz-continue { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; width: 100%; max-width: 1098px; }
-.wz-continue-card { width: 100%; flex-direction: row; align-items: center; gap: 12px; padding: 12px 18px; }
-.wz-continue-card .hint { flex: 1; min-width: 0; }
+.wz-continue { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; width: 100%; max-width: 1180px; }
+/* THE HOME ROW (handoff §2a): one bordered row holding the body button and its two section
+   shortcuts as SIBLINGS. The border lives on the row, not on the body button, so the three
+   controls read as one object rather than as a card with two buttons parked beside it —
+   which is what a nested set would look like and what a nested BUTTON would actually be. */
+.wz-continue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  transition: border-color 0.14s;
+}
+.wz-continue-row:hover { border-color: var(--border-strong); }
+/* The body button gives its own chrome up to the row: no border, no lift, no background of
+   its own. It is still the whole clickable area left of the shortcuts. */
+.wz-continue-card {
+  flex: 1;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 0;
+  border: none;
+  background: none;
+}
+.wz-continue-card:hover { border: none; background: none; transform: none; }
+/* The row's glyph carries the whole row's weight, where a card's shares it with a title on
+   the same line — so it is sized against the two-line block beside it, not against a title. */
+.wz-continue-card .wz-entry-icon { font-size: 24px; }
+.wz-continue-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wz-continue-card .hint { min-width: 0; }
+/* The two shortcuts: secondary buttons, never amber. Home is where saved work is, not the
+   action the step is recommending — the entry cards below are. */
+.wz-continue-jump { display: flex; gap: 8px; flex: 0 0 auto; }
+.wz-continue-jump button {
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+  border-color: var(--border-strong);
+  color: var(--text-mid);
+  background: none;
+}
+.wz-continue-jump button:hover { color: var(--text); border-color: var(--accent); }
 .wz-beta-tag {
   display: inline-block;
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -6270,8 +6331,8 @@ h2 + .lib-row,
   margin-left: 6px;
   vertical-align: 2px;
 }
-/* The video strip stays visually apart (dashed rule) but flat: the card lays out as one
-   ROW so the whole strip is on screen at 768px viewport height, below the entry grid. */
+/* The video strip stays visually apart (dashed rule) but flat: ONE LINE (handoff §2a), so
+   the whole strip is on screen at 768px viewport height, below the entry grid. */
 .wz-video-strip {
   margin-top: 10px;
   padding-top: 10px;
@@ -6281,7 +6342,7 @@ h2 + .lib-row,
   gap: 12px;
   flex-wrap: wrap;
   width: 100%;
-  max-width: 1098px;
+  max-width: 1180px;
 }
 .wz-video-strip-label {
   font-size: 10px;
@@ -6295,28 +6356,54 @@ h2 + .lib-row,
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  padding: 12px 18px;
+  /* 9px, not 12: one line of copy, so the card is as tall as its text plus the least padding
+     that still reads as a control. It is the quietest thing on the step and must measure that
+     way beside the shipped modes above it. */
+  padding: 9px 14px;
 }
-.wz-video-strip .wz-entry-card--video .hint { flex: 1; min-width: 0; }
+.wz-video-strip .wz-entry-card--video .wz-entry-icon { font-size: 13px; }
+.wz-video-strip .wz-entry-card--video strong { white-space: nowrap; }
+/* The hint is the tail of one sentence, so it truncates rather than wrapping the row to two
+   lines — the strip's whole point is that it costs one. */
+.wz-video-strip .wz-entry-card--video .hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-video-strip-go { flex: 0 0 auto; color: var(--text-faint); }
 
 @media (max-width: 768px) {
-  /* Keep the video option compact on phones. The desktop flex row leaves the long description
-     with only a sliver beside the title, making every word wrap and turning the card into a
-     screen-tall column. This media-object grid gives the copy the full remaining width. */
+  /* On a phone the title and the hint cannot share a row — "Video or animation with AI" plus
+     the Beta tag is already most of 390px. Two lines, the icon spanning both, and the arrow
+     drops out: it pointed at a row that no longer reads as one. */
   .wz-video-strip .wz-entry-card--video {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     column-gap: 12px;
-    row-gap: 6px;
+    row-gap: 4px;
   }
   .wz-video-strip .wz-entry-card--video .wz-entry-icon {
     grid-row: 1 / span 2;
   }
+  .wz-video-strip .wz-entry-card--video strong { white-space: normal; }
   .wz-video-strip .wz-entry-card--video .hint {
     grid-column: 2;
     width: 100%;
+    white-space: normal;
   }
+  .wz-video-strip-go { display: none; }
+  /* The Home row stacks: two shortcut buttons beside a two-line description leave the
+     description a sliver, and the shortcuts are the row's real value on a phone. */
+  .wz-continue-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .wz-continue-jump button { flex: 1; }
+  /* The hint runs to three lines in 390px, and an icon centred against three lines sits
+     beside the MIDDLE of the sentence rather than beside the title it names. Cap-align it,
+     the same rule §6 gives every checkbox row. */
+  .wz-continue-card { align-items: flex-start; }
+  .wz-continue-card .wz-entry-icon { margin-top: 1px; }
 }
 
 /* The video shell's workspace badge — the constant reminder this is the OTHER workspace. */

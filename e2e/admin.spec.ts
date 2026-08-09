@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { resultTotal } from './_browse';
 
 // The private admin surface, from the outside (docs/ADMIN.md section 1).
 //
@@ -94,10 +95,11 @@ test('offline: the entitlement endpoint is absent and the catalog stays whole', 
 
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
-  // The browse grid renders real cards, so nothing filtered the catalog away.
+  // The browse grid renders real cards, so nothing filtered the catalog away. Read the
+  // step's own count line rather than the cards: the grid shows a first page now
+  // (re-design/handoff.md §2b), and the claim here is about the CATALOG, not the page.
   await expect(page.locator('.wz-variant').first()).toBeVisible();
-  const count = await page.locator('.wz-variant').count();
-  expect(count).toBeGreaterThan(5);
+  expect(await resultTotal(page)).toBeGreaterThan(5);
 });
 
 test('the landing page does not link to the admin surface either', async ({ page }) => {

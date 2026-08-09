@@ -3,6 +3,7 @@ import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
+import { chooseType, pickDesign } from './_browse';
 
 // Era 2a: import an existing template (.html or SPX-style .zip) to edit and convert.
 
@@ -97,8 +98,8 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);
   });

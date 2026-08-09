@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { armStorageFailure, fillStorage } from './_storage';
+import { pickDesign } from './_browse';
 
 // WHAT HAPPENS WHEN BROWSER STORAGE IS FULL.
 //
@@ -21,7 +22,7 @@ async function toFinishStep(page: Page): Promise<void> {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+  await pickDesign(page, 'Hairline');
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 }

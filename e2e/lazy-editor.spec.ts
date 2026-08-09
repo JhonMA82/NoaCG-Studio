@@ -2,6 +2,7 @@ import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';
+import { chooseType, pickDesign } from './_browse';
 
 // Monaco loads lazily (AppShell wraps CodeEditor in React.lazy): the shell, preview, and
 // wizard never wait on the editor bundle, and surfaces that don't show code don't fetch it
@@ -30,11 +31,11 @@ async function createHairline(page: Page): Promise<string[]> {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  // The category tiles sit outside the filter disclosure now; opening it is harmless.
+  // The type select sits outside the filter disclosure; opening it is harmless.
   const drawerToggle = page.locator('.wz-browse-drawer-btn');
   if (await drawerToggle.isVisible()) await drawerToggle.click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
   await awaitPreviewRebuild(page, async () => {
     await finishIntoEditor(page);
     await expect(page.locator('.wz-modal')).toBeHidden();

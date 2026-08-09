@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import BrandLogo from '../../BrandLogo';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -11,16 +10,29 @@ interface Props {
   onAi: () => void;
   onVideo: () => void;
   onBlank: () => void;
-  /** Go to Home (all saved work: graphics, productions, control panels, videos). */
-  onHome: () => void;
+  /**
+   * Go to Home. `section` is null for the dashboard, or one of Home's own sections for the
+   * shortcuts beside it — the row offers "Graphics" and "Productions" because those are the
+   * two answers to "pick up where you left off", and landing on the dashboard to click one
+   * of them again is a stop the reference removes.
+   */
+  onHome: (section?: string | null) => void;
 }
 
 /**
- * Step 0 — the app's home moment. A branded hero states what NoaCG Studio is and who it's
- * for, then two halves: the HOME card (all saved work — the wizard is not the place to
- * browse it, Home is) and ways to start something new. Broadcast-graphics paths sit
- * together; "Video or animation with AI" is visually separated and marked Beta, because it
- * creates a STANDALONE video — not a live broadcast graphic.
+ * Step 0 — the app's home moment. A hero states what NoaCG Studio is and who it's for, then
+ * two halves: the HOME row (all saved work — the wizard is not the place to browse it, Home
+ * is) and ways to start something new. Broadcast-graphics paths sit together; "Video or
+ * animation with AI" is one separated line marked Beta, because it creates a STANDALONE
+ * video — not a live broadcast graphic.
+ *
+ * THREE DIVERGENCES FROM re-design/handoff.md §2a ARE DELIBERATE. They are listed here so
+ * nobody "fixes" the screen back towards the picture:
+ *  - there is no "Start from a kit" card (see the note at the bottom of this comment);
+ *  - a card ACTS ON CLICK; the reference draws radio dots and a Continue button, which is a
+ *    second press for a choice that has already been made unambiguously;
+ *  - Blank stays behind Advanced mode (docs/GOALS.md "Student release" step 4), so the
+ *    default studio shows three cards where the reference shows four.
  *
  * The old per-graphic "Recent" chips are gone deliberately: in the default studio they
  * opened the EDITOR, the demoted surface, and Home's rows (control page, productions,
@@ -53,34 +65,52 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
 
   return (
     <div className="wz-entry-wrap">
+      {/* THE HERO IS A HEADLINE AND TWO LINES (re-design/handoff.md §2a) — nothing else.
+          It used to carry a 40px BrandLogo above the title and a row of SPX / CasparCG /
+          OGraf mono chips below the subtitle. Both are gone, and neither is a trim for space:
+          the wizard's own topbar already wears the brand two inches higher, so a second logo
+          states the same fact twice on the one screen where the reader has a decision to
+          make; and three export targets rendered as CHIPS read as filters or as status,
+          because that is what a row of small bordered pills means everywhere else in this
+          app. The targets belong in the sentence, where they are a promise rather than
+          furniture — which is exactly where the reference puts them. */}
       <div className="wz-hero">
-        <BrandLogo size={40} />
         <h1 className="wz-hero-title">
           Broadcast graphics, <span>built in minutes.</span>
         </h1>
         <p className="wz-hero-sub">
-          Premium, on-air lower thirds, tickers, scoreboards and more — made by choosing, not
-          coding. Export working templates for the tools you already run.
+          Lower thirds, tickers, scoreboards and more — made by choosing, not coding. Exports
+          for SPX, CasparCG and OGraf.
         </p>
-        <div className="wz-hero-tags mono">
-          <span>SPX</span>
-          <span>CasparCG</span>
-          <span>OGraf</span>
-        </div>
       </div>
 
       {/* ── Home: saved work first — creation is not the only door. Shown only when there
-             IS work to continue; see hasSavedWork. ── */}
+             IS work to continue; see hasSavedWork.
+
+             A ROW, NOT A CARD, and it carries its own shortcuts (handoff §2a). Home holds two
+             kinds of saved thing and the reader already knows which one they want, so the row
+             names them: the body opens the dashboard, "Graphics" and "Productions" go
+             straight to their section. Those are SIBLING buttons of the body button, never
+             nested inside it — a button inside a button is invalid, and the same sibling
+             pattern the Browse card's ⓘ uses. ── */}
       {hasSavedWork && (
       <div className="wz-continue" data-testid="wz-continue">
-        <button className="wz-entry-card wz-continue-card" onClick={onHome} data-entry="continue">
-          <span className="wz-entry-icon">🏠</span>
-          <strong>Home</strong>
-          <span className="hint">
-            Your saved graphics, productions, control panels, and videos — pick up where you
-            left off.
+        <div className="wz-continue-row">
+          <button className="wz-entry-card wz-continue-card" onClick={() => onHome(null)} data-entry="continue">
+            <span className="wz-entry-icon">⌂</span>
+            <span className="wz-continue-text">
+              <strong>Home</strong>
+              <span className="hint">
+                Your saved graphics, productions, control panels, and videos — pick up where
+                you left off.
+              </span>
+            </span>
+          </button>
+          <span className="wz-continue-jump">
+            <button onClick={() => onHome('graphics')} data-entry="continue-graphics">Graphics</button>
+            <button onClick={() => onHome('productions')} data-entry="continue-productions">Productions</button>
           </span>
-        </button>
+        </div>
       </div>
       )}
 
@@ -99,7 +129,10 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             <span className="wz-entry-icon">▤</span>
             <strong>Start from a template</strong>
           </span>
-          <span className="hint">One graphic, or the whole kit a show needs in one look. Choose your fields, style and animation — then tweak the code it writes, or never open it.</span>
+          {/* The kit is named HERE because there is no kit card — this sentence is the only
+              thing on the front page that says a whole set is possible, and the switch that
+              does it sits at the top of Browse (see the note above). */}
+          <span className="hint">Pick a design — one graphic, or the whole kit a show needs in one look — then choose your fields, style and animation. Tweak the code it writes, or never open it.</span>
         </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
@@ -128,7 +161,13 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         )}
       </div>
 
-      {/* ── The video world, clearly apart: a standalone rendered video, not a live graphic. ── */}
+      {/* ── The video world, clearly apart: a standalone rendered video, not a live graphic.
+             ONE QUIET LINE (handoff §2a). It was a full card with a three-line hint, which
+             gave the BETA side-door more vertical weight than "Import graphic" — a shipped
+             mode — and spent the entry step's tightest resource on the option fewest people
+             want. What the line has to say is what makes it different from everything above
+             it: it renders to a FILE, and it opens the other workspace. The rest was
+             examples, and a mode nobody has chosen yet does not need examples. ── */}
       <div className="wz-video-strip" data-testid="wz-video-strip">
         <span className="wz-video-strip-label mono">Not a live graphic?</span>
         <button className="wz-entry-card wz-entry-card--video" onClick={onVideo} data-entry="video">
@@ -136,11 +175,8 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           <strong>
             Video or animation with AI <span className="wz-beta-tag">Beta</span>
           </strong>
-          <span className="hint">
-            Makes a standalone video or animation — a stinger, intro, logo reveal, countdown —
-            that you render to a file. It opens in the separate Video workspace, not the
-            broadcast-graphics editor.
-          </span>
+          <span className="hint">Renders to a file. Opens the separate Video workspace.</span>
+          <span className="wz-video-strip-go" aria-hidden="true">→</span>
         </button>
       </div>
     </div>

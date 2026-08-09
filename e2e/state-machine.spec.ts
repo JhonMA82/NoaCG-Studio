@@ -447,14 +447,16 @@ test('preview: snap-to-state works in the editor, and the event strip guards lik
   // The minimal machine surface: one button per authored operator event + the state chip.
   await expect(page.getByTestId('sim-events')).toBeVisible();
   await expect(page.getByTestId('sim-event-select')).toBeVisible();
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('question', { timeout: 5000 });
+  // The chip wears the state's NAME, not its id (controlModel.ts formatMachineState): the ids
+  // are the author's vocabulary and the names are what every operator surface shows.
+  await expect(page.getByTestId('sim-state-chip')).toHaveText('Question', { timeout: 5000 });
 
   // Snap through the store (the programmatic path the done-when names): instant Locked.
   await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     useTemplateStore.getState().sendSnap({ flow: 'locked' });
   })()`);
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('locked', { timeout: 5000 });
+  await expect(page.getByTestId('sim-state-chip')).toHaveText('Locked', { timeout: 5000 });
   const pose = {
     state: (await frameMachineState(page)).flow,
     root: await frameOpacity(page, '.qz'),
@@ -471,18 +473,18 @@ test('preview: snap-to-state works in the editor, and the event strip guards lik
     useTemplateStore.getState().sendEvent('select');
   })()`);
   await page.waitForTimeout(200);
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('locked');
+  await expect(page.getByTestId('sim-state-chip')).toHaveText('Locked');
 
   // And a LEGAL event dispatched from the strip actually plays its state's timeline through
   // the whole app path (store -> simulator -> preview iframe), not just moves the pointer.
   const frame = page.frameLocator('iframe.preview-frame');
   await page.locator('.simulator button', { hasText: 'Play' }).click();
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('question');
+  await expect(page.getByTestId('sim-state-chip')).toHaveText('Question');
   await expect
     .poll(async () => frame.locator('.qz-rows').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('0'); // pre-armed by the entrance: the rows wait for their reveal
   await page.getByTestId('sim-event-reveal').click();
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('answers');
+  await expect(page.getByTestId('sim-state-chip')).toHaveText('Answers up');
   await expect
     .poll(async () => Number(await frame.locator('.qz-rows').evaluate((el) => getComputedStyle(el).opacity)))
     .toBeGreaterThan(0.9);

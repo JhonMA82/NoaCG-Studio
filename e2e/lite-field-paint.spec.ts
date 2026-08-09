@@ -18,6 +18,13 @@
 //   2. a template whose field genuinely cannot paint raises it (the mutation half);
 //   3. it is OFF unless a caller asks - a hand-written template may hide whatever it likes.
 //
+// THE MULTI-STATE HALF (added 2026-08-09, docs/CONTROL_PANEL_PARITY.md §6) is the last three.
+// The drive used to read the frame ONCE, at the settled default path, which is the whole answer
+// only for a graphic that has no states - so a field a later operator event reveals read as
+// unreachable and would have failed a correct graphic. That was the standing blocker on running
+// this check for any interactive category, and it is not hypothetical: the quiz board's audience
+// percentages are painted only on entry to its `audience` branch, three events past settled.
+//
 // Free - no model call, no tokens.
 
 import { expect, test } from '@playwright/test';
@@ -113,5 +120,74 @@ test.describe('a Lite graphic paints every field it declares', () => {
     // measuring `ZQ0X` instead of the real copy - so the two runs must otherwise agree.
     const others = (rules: string[]) => rules.filter((r) => r !== 'bench-field-unpainted').sort();
     expect(others(out.on)).toEqual(others(out.off));
+  });
+});
+
+test.describe('the drive asks the whole machine, not one state', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app');
+  });
+
+  test('a field only a later branch paints is NOT reported unreachable', async ({ page }) => {
+    // The quiz board is the case the widening exists for. `audienceResults` (f7) is painted by
+    // applyAudienceResult(), which runs on entry to the `audience` branch - three operator events
+    // past the settled default path. Read at settled it paints nothing, and the check used to
+    // call a perfectly correct catalog graphic broken.
+    const out = await page.evaluate(async () => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const bench = await import('/src/validation/runtimeBench.ts');
+      const template = variantById('qz02')!.create({});
+      // The field's own default is empty (nobody has picked yet), and an empty value paints
+      // nothing anywhere - the drive replaces every value with a sentinel, which is the whole
+      // point, but the SAMPLE has to be reachable for the graphic to be worth measuring.
+      const result = await bench.benchTemplateRuntime(template, { fieldPaints: true });
+      return [...result.errors, ...result.warnings]
+        .filter((f) => f.rule === 'bench-field-unpainted')
+        .map((f) => f.message);
+    });
+    expect(out).toEqual([]);
+  });
+
+  test('a machine-bearing graphic still reports a field that paints in NO state', async ({ page }) => {
+    // The mutation half of the widening: unioning across states must not turn the check into one
+    // that can never fire. Same quiz, one field hidden in every state.
+    const out = await page.evaluate(async () => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const bench = await import('/src/validation/runtimeBench.ts');
+      const template = variantById('qz02')!.create({});
+      const hidden = { ...template, css: `${template.css}\n#f7, .quiz-aud { display: none !important; }\n` };
+      const result = await bench.benchTemplateRuntime(hidden, { fieldPaints: true });
+      return [...result.errors, ...result.warnings].map((f) => f.rule);
+    });
+    expect(out).toContain('bench-field-unpainted');
+  });
+
+  test('no shipped machine is anywhere near the walk cap', async ({ page }) => {
+    // MAX_WALKED_STATES bounds a graph an author controls, and a bound that silently truncated
+    // would decide the answer instead of measuring it. This measures the real maximum across the
+    // whole catalog, so the cap can never quietly start biting as types are added.
+    const out = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { MAX_WALKED_STATES } = await import('/src/validation/fieldPaint.ts');
+      let worst = { id: '', states: 0 };
+      for (const variants of Object.values(CATALOG)) {
+        for (const variant of variants) {
+          let machine;
+          try {
+            machine = parseAnimData(variant.create({}).js)?.machine;
+          } catch {
+            continue; // a variant that refuses its own defaults is another spec's finding
+          }
+          if (!machine) continue;
+          const states = machine.groups.reduce((n, g) => n + g.states.length, 0);
+          if (states > worst.states) worst = { id: variant.id, states };
+        }
+      }
+      return { worst, cap: MAX_WALKED_STATES };
+    });
+    expect(out.worst.states).toBeGreaterThan(0); // the measurement itself works
+    expect(out.worst.states, `${out.worst.id} is the largest machine in the catalog`)
+      .toBeLessThan(out.cap);
   });
 });

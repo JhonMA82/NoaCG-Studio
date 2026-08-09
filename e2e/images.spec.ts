@@ -2,6 +2,7 @@ import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';
+import { chooseType, pickDesign } from './_browse';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 
@@ -18,8 +19,8 @@ async function createFrom(page: Page, categoryName: string, variantName: string)
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: categoryName }).click();
-  await page.locator('.wz-variant', { hasText: variantName }).click();
+  await chooseType(page, categoryName);
+  await pickDesign(page, variantName);
 }
 
 async function create(page: Page) {

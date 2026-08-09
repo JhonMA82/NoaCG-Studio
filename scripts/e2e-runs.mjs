@@ -61,7 +61,7 @@ function windowsNodeProcesses() {
   // ConvertTo-Json collapses a single result to an object rather than an array, so force one.
   const script =
     "@(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | " +
-    'Select-Object ProcessId,CommandLine,CreationDate) | ConvertTo-Json -Depth 3 -Compress';
+    'Select-Object ProcessId,ParentProcessId,CommandLine,CreationDate) | ConvertTo-Json -Depth 3 -Compress';
   const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
     windowsHide: true,
@@ -77,6 +77,7 @@ function windowsNodeProcesses() {
     .filter((r) => typeof r?.CommandLine === 'string')
     .map((r) => ({
       pid: Number(r.ProcessId),
+      ppid: Number(r.ParentProcessId),
       command: r.CommandLine,
       // CIM dates arrive as \/Date(1754472000000)\/ through ConvertTo-Json.
       startedAt: msFromCimDate(r.CreationDate),
@@ -89,15 +90,16 @@ function msFromCimDate(value) {
 }
 
 function posixNodeProcesses() {
-  const res = spawnSync('ps', ['-eo', 'pid=,etimes=,args='], { encoding: 'utf8' });
+  const res = spawnSync('ps', ['-eo', 'pid=,ppid=,etimes=,args='], { encoding: 'utf8' });
   if (res.status !== 0 || !res.stdout) return [];
   return res.stdout
     .split('\n')
-    .map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
+    .map((line) => /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/.exec(line))
     .filter(Boolean)
-    .filter(([, , , args]) => /(^|[/\\])node(\.exe)?\s/.test(`${args} `))
-    .map(([, pid, etimes, args]) => ({
+    .filter(([, , , , args]) => /(^|[/\\])node(\.exe)?\s/.test(`${args} `))
+    .map(([, pid, ppid, etimes, args]) => ({
       pid: Number(pid),
+      ppid: Number(ppid),
       command: args,
       startedAt: Date.now() - Number(etimes) * 1000,
     }));
@@ -126,7 +128,13 @@ const WORKER = /playwright[/\\]+lib[/\\]+worker[/\\]+workerProcessEntry\.js/;
 /**
  * The checkout a Playwright process belongs to: everything left of its `node_modules`. That is
  * the one path present in every spelling of the invocation (`npx`, an `.bin` shim, a direct
- * `node ...cli.js`), so it identifies the worktree without parsing arguments.
+ * `node ...cli.js`), so it identifies the checkout without parsing arguments.
+ *
+ * IT IS NOT ALWAYS THE WORKTREE THE RUN BELONGS TO. A linked worktree usually has no
+ * node_modules of its own, so its runs resolve the MAIN checkout's Playwright and are
+ * attributed there. That is the honest answer to "whose node_modules is this" and the wrong
+ * answer to "whose run is this" - a caller that needs the second one identifies itself by
+ * process ancestry instead (`selfAndAncestors`).
  */
 export function rootOfCommand(command) {
   // Split into ARGUMENTS first, then look inside one, rather than running a regex across the
@@ -185,11 +193,33 @@ function rootOfSweep(command, fallbackRoot) {
 }
 
 /**
+ * A pid and every process above it, as a Set - "which running processes am I part of".
+ *
+ * THE ROOT IS NOT ALWAYS ENOUGH TO RECOGNISE YOUR OWN RUN. `rootOfCommand` reads the checkout
+ * out of the path in front of `node_modules`, and a LINKED WORKTREE normally has no
+ * node_modules of its own: `npx playwright` there resolves the MAIN checkout's copy, so the
+ * run's command line names the main checkout while its cwd is the worktree. `exclude` then
+ * never matches, the guard sees the run as somebody else's, and every worktree suite queues
+ * behind ITSELF for the full 30-minute cap before starting anyway. Ancestry is the identity
+ * that survives that, because it is a fact about processes rather than about paths.
+ *
+ * A process list that cannot be read (the fail-open case) yields just the pid itself.
+ */
+export function selfAndAncestors(pid = process.pid, processes = nodeProcesses()) {
+  const parentOf = new Map(processes.map((p) => [p.pid, p.ppid]));
+  const chain = new Set([pid]);
+  for (let at = parentOf.get(pid); at && !chain.has(at); at = parentOf.get(at)) chain.add(at);
+  return chain;
+}
+
+/**
  * Browser-driving work active anywhere on this machine, longest-running first: Playwright runs
  * AND the catalog sweeps and benches, which cost the same memory under a different name.
  *
  * `exclude` drops work belonging to that checkout - pass your own root to ask "is anyone ELSE
- * running?", omit it to ask "is anything running at all?".
+ * running?", omit it to ask "is anything running at all?". `excludePids` drops work by PROCESS
+ * IDENTITY instead, which is what a caller running INSIDE the run must use (see
+ * `selfAndAncestors`).
  *
  * A sweep whose checkout cannot be read from its command line (the usual case - it is launched
  * as `node scripts/l3-sweep.mjs` from inside the checkout, and a working directory does not
@@ -197,7 +227,7 @@ function rootOfSweep(command, fallbackRoot) {
  * rather than to the caller's own root, because guessing "it's mine" would make `exclude` hide
  * it, and a sweep you cannot see is exactly the one that overloads the machine.
  */
-export function activeRuns({ exclude, unattributableRoot = '<unknown checkout>' } = {}) {
+export function activeRuns({ exclude, excludePids, unattributableRoot = '<unknown checkout>' } = {}) {
   return nodeProcesses()
     .filter((p) => RUNNER.test(p.command) || SWEEP.test(p.command))
     .map((p) => ({
@@ -206,6 +236,7 @@ export function activeRuns({ exclude, unattributableRoot = '<unknown checkout>' 
       label: labelOf(p.command),
       elapsedMin: p.startedAt ? Math.round(((Date.now() - p.startedAt) / 60_000) * 10) / 10 : null,
     }))
+    .filter((r) => !excludePids?.has(r.pid))
     .filter((r) => r.root && !(exclude && sameRoot(r.root, exclude)))
     .sort((a, b) => (b.elapsedMin ?? 0) - (a.elapsedMin ?? 0));
 }
