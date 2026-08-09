@@ -286,6 +286,14 @@ function isDirectoryAncestor(ancestor, candidate) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
+// Reporting these on a GREEN run is the point: a chain three hundred bytes under the budget is
+// indistinguishable from a comfortable one unless the number is printed, and the ratchet in
+// .codex/config.toml only ever moves DOWN - so "lower the limit until it fails" is not an
+// available way to discover headroom.
+const CHAIN_REPORT_COUNT = 3;
+const CHAIN_TIGHT_FRACTION = 0.8;
+const chainUsage = [];
+
 function checkInstructionChains(agentsFiles) {
   const limit = configuredInstructionLimit();
   for (const leaf of agentsFiles) {
@@ -296,12 +304,31 @@ function checkInstructionChains(agentsFiles) {
     const bytes =
       chain.reduce((sum, file) => sum + Buffer.byteLength(text(file), 'utf8'), 0) +
       Math.max(0, chain.length - 1) * 2;
+    chainUsage.push({ leaf: rel(leaf), bytes, limit, headroom: limit - bytes });
     if (bytes > limit) {
       failures.push(
         `Codex instruction chain ending at ${rel(leaf)} is ${bytes} bytes, over ` +
           `project_doc_max_bytes=${limit}`,
       );
     }
+  }
+}
+
+function reportChainHeadroom() {
+  if (chainUsage.length === 0) return;
+  const ranked = [...chainUsage].sort((a, b) => a.headroom - b.headroom);
+  const tight = ranked.filter((chain) => chain.bytes > chain.limit * CHAIN_TIGHT_FRACTION);
+  const shown = ranked.slice(0, Math.max(CHAIN_REPORT_COUNT, tight.length));
+  console.log(
+    `Tightest instruction chain(s) against project_doc_max_bytes=${shown[0].limit} ` +
+      `(${chainUsage.length} chain(s) checked):`,
+  );
+  for (const chain of shown) {
+    const percent = ((chain.bytes / chain.limit) * 100).toFixed(1);
+    const flag = chain.bytes > chain.limit * CHAIN_TIGHT_FRACTION ? '  <-- near the limit' : '';
+    console.log(
+      `  - ${chain.leaf}: ${chain.bytes} bytes used, ${chain.headroom} free (${percent}%)${flag}`,
+    );
   }
 }
 
@@ -500,3 +527,4 @@ console.log(
     `${workflowNames.length} Claude/Codex workflow pair(s), ${WORKFLOW_ALIASES.size} alias(es), ` +
     `${CLAUDE_ONLY_EXCEPTIONS.size} documented tool-specific exception(s).`,
 );
+reportChainHeadroom();
