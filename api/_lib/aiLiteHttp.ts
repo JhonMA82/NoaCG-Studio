@@ -8,10 +8,13 @@ export type LiteApiErrorCode =
   | 'allowance_exhausted'
   | 'already_running'
   | 'fleet_capacity'
+  | 'shared_capacity'
+  | 'fleet_spend_ceiling'
   | 'cost_ceiling'
   | 'duplicate_request'
   | 'rate_limited'
   | 'provider_unavailable'
+  | 'provider_rate_limited'
   | 'generation_failed'
   | 'not_found';
 

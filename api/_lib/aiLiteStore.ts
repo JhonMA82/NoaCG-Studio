@@ -128,7 +128,10 @@ export interface LiteGenerationStore {
   }): Promise<LiteVariantQualityPrior[]>;
 }
 
-const ACTIVE = new Set<LiteGenerationStatus>(['reserved', 'model_running', 'spec_ready']);
+const ACTIVE_FOR_USER = new Set<LiteGenerationStatus>(['reserved', 'model_running', 'spec_ready']);
+// Fleet capacity protects paid provider work. Once a spec is ready the provider slot is
+// free; browser validation may still hold the user's own one-at-a-time guard.
+const ACTIVE_FOR_FLEET = new Set<LiteGenerationStatus>(['reserved', 'model_running']);
 const SUCCESS = new Set<LiteGenerationStatus>(['usable', 'accepted']);
 
 function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGenerationRecord {
@@ -192,8 +195,8 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
       monthlyStarts: userRecords.filter((record) => record.createdAt >= now - MONTH).length,
       dailySuccesses: userRecords.filter((record) => record.createdAt >= now - DAY && SUCCESS.has(record.status)).length,
       monthlySuccesses: userRecords.filter((record) => record.createdAt >= now - MONTH && SUCCESS.has(record.status)).length,
-      activeForUser: userRecords.filter((record) => ACTIVE.has(record.status) && record.expiresAt > now).length,
-      activeGlobal: records.filter((record) => ACTIVE.has(record.status) && record.expiresAt > now).length,
+      activeForUser: userRecords.filter((record) => ACTIVE_FOR_USER.has(record.status) && record.expiresAt > now).length,
+      activeGlobal: records.filter((record) => ACTIVE_FOR_FLEET.has(record.status) && record.expiresAt > now).length,
       dailyFleetSpendUsd: records
         .filter((record) => record.createdAt >= now - DAY)
         .reduce((sum, record) => sum + record.providerCostUsd, 0),

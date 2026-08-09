@@ -49,9 +49,12 @@ async function authHeaders(): Promise<Record<string, string>> {
 async function checkedJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null) as LiteApiError | null;
+    const code = body?.error?.code ?? 'generation_failed';
     throw new LiteRequestError(
-      body?.error?.code ?? 'generation_failed',
-      body?.error?.message ?? 'NoaCG Lite could not complete the request.',
+      code,
+      code === 'shared_capacity' || code === 'fleet_capacity'
+        ? 'NoaCG Lite is temporarily busy. Please try again in a moment.'
+        : body?.error?.message ?? 'NoaCG Lite could not complete the request.',
       body?.error?.retryable ?? false,
     );
   }

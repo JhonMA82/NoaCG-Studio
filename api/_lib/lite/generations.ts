@@ -14,7 +14,11 @@ import {
   liteProfileForUser,
   routePrice,
 } from '../aiLiteProfile.js';
-import { admitTaskIp } from '../aiLiteRateLimit.js';
+import {
+  admitTaskIp,
+  jitteredCapacityDelay,
+  liteCapacityRetryPlan,
+} from '../aiLiteRateLimit.js';
 import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
 import { routeDisabled, systemSettings } from '../systemSettings.js';
@@ -24,6 +28,7 @@ import {
   liteLedgerConfigured,
   modelResultPatch,
   type LiteGenerationRecord,
+  type LiteGenerationStore,
   type LiteReservation,
 } from '../aiLiteStore.js';
 import {
@@ -218,24 +223,61 @@ function withProfileCost(result: ModelResult, profile: ReturnType<typeof litePro
       };
 }
 
-function reservationError(reservation: Exclude<LiteReservation, { status: 'created' }>): Response {
+export function reservationError(reservation: Exclude<LiteReservation, { status: 'created' }>): Response {
   if (reservation.status === 'duplicate') {
     return liteError('duplicate_request', 'This generation request was already processed.', 409);
   }
   if (reservation.status === 'user-concurrency') {
     return liteError('already_running', 'Finish the current Lite generation before starting another.', 409, true);
   }
-  if (reservation.status === 'fleet-concurrency' || reservation.status === 'fleet-spend') {
-    return liteError('fleet_capacity', 'NoaCG Lite has reached its current shared capacity. Try again later.', 503, true);
+  if (reservation.status === 'fleet-concurrency') {
+    return liteError('shared_capacity', 'NoaCG Lite is temporarily busy. Please try again in a moment.', 503, true);
+  }
+  if (reservation.status === 'fleet-spend') {
+    return liteError('fleet_spend_ceiling', 'NoaCG Lite is temporarily unavailable.', 503, false);
   }
   return liteError('allowance_exhausted', 'Your current NoaCG Lite allowance has been used.', 429);
 }
 
-function gatewayResponse(error: GatewayError): Response {
-  if (error.code === 'rate_limited' || error.code === 'unavailable' || error.code === 'timeout') {
+export function gatewayResponse(error: GatewayError): Response {
+  if (error.code === 'rate_limited') {
+    return liteError('provider_rate_limited', 'NoaCG Lite\'s provider is temporarily busy.', error.status, true);
+  }
+  if (error.code === 'unavailable' || error.code === 'timeout') {
     return liteError('provider_unavailable', error.message, error.status, true);
   }
   return liteError('generation_failed', error.message, error.status, false);
+}
+
+interface CapacityRetryDependencies {
+  now(): number;
+  random(): number;
+  sleep(ms: number): Promise<void>;
+}
+
+const CAPACITY_RETRY_DEFAULTS: CapacityRetryDependencies = {
+  now: () => Date.now(),
+  random: () => Math.random(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/** Retry only the shared fleet slot. A quota, user overlap, spend ceiling, or duplicate
+ * is a durable answer and returns immediately. Every observation carries the identical
+ * user/idempotency context, so only the successful reservation can consume a start. */
+export async function reserveLiteCapacity(
+  store: LiteGenerationStore,
+  input: Parameters<LiteGenerationStore['reserve']>[0],
+  plan: ReturnType<typeof liteCapacityRetryPlan>,
+  dependencies: CapacityRetryDependencies = CAPACITY_RETRY_DEFAULTS,
+): Promise<LiteReservation> {
+  for (let attempt = 0; attempt < plan.maxAttempts; attempt += 1) {
+    const reservation = await store.reserve({ ...input, now: dependencies.now() });
+    if (reservation.status !== 'fleet-concurrency' || attempt === plan.maxAttempts - 1) {
+      return reservation;
+    }
+    await dependencies.sleep(jitteredCapacityDelay(plan.retrySpacingMs, dependencies.random));
+  }
+  throw new Error('Lite capacity retry exhausted without a reservation result.');
 }
 
 async function failRecord(
@@ -340,14 +382,19 @@ export default {
     const store = await getLiteGenerationStore();
     const now = Date.now();
     const requestedCategory = request.generationSpec?.category;
-    const reservation = await store.reserve({
+    const capacityPlan = liteCapacityRetryPlan(
+      profile.maxConcurrentFleet,
+      profile.maxAttempts,
+      profile.timeoutMs,
+    );
+    const reservation = await reserveLiteCapacity(store, {
       userId: user.userId,
       ipHash: callerIpHash,
       idempotencyKey: request.idempotencyKey,
       requestedCategory: requestedCategory && requestedCategory !== 'auto' ? requestedCategory : null,
       now,
-      profile,
-    });
+      profile: { ...profile, expiryMs: capacityPlan.activeLeaseMs },
+    }, capacityPlan);
     if (reservation.status !== 'created') return reservationError(reservation);
     let record: LiteGenerationRecord | null = reservation.record;
     record = await store.update(record.id, { status: 'model_running' });
@@ -445,6 +492,7 @@ export default {
         resolvedVariantId,
         intentKind,
         rejectionReason: semantic.decision.status === 'unsupported' ? semantic.decision.code : null,
+        expiresAt: Date.now() + capacityPlan.activeLeaseMs,
       });
       if (!record) return liteError('generation_failed', 'Lite could not persist the generation outcome.', 500);
       const result: LiteGenerationResult = {
