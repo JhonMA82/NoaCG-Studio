@@ -209,6 +209,9 @@ export function liteProfile(): LiteProfile {
     //     judges `emittedRoles[0]` alone, which the schema already pins to
     //     `intent.primaryRole`. The `intent_role_mismatch` repair message is model-facing text
     //     and changed with it, which is why this is a version and not a silent fix.
+    //     Measured 2026-08-09: 30 of 30, no rejections of any kind, `bench-line-wrap` unchanged
+    //     at 3, $0.0103 (benchmarks/lite/ROUND-2026-08-09-V13.md). First clean bank in the
+    //     ledger's history.
     // The ledger records this per generation, so outcomes stay attributable to the prompt
     // that produced them - bump it whenever the teaching changes, never silently, and bump it
     // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
