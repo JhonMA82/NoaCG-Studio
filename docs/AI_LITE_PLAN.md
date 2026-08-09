@@ -142,3 +142,119 @@ first two are server-flagged off and gated on the loop producing a trustworthy s
   `docs/INTERACTIVE_PLAYOUT_PLAN.md`), never on the fleet ceiling alone.
 - **What "best effort" means at the deadline for a category that is not good.** Ship it, or switch it
   off? Decision 1 says best effort; it does not say which of those two a bad category gets.
+
+## 7. Brand integration - a user's logo and colours in a Lite graphic
+
+**Status: DESIGNED and FREELY MEASURED 2026-08-09, unstarted in code, no round paid for.** This
+is the product promise the plan has never tested. v13 proved Lite can REPRODUCE a template;
+nobody has ever asked it to ADD something, and "a channel's own graphic" is the whole difference
+between this and a catalog browser.
+
+### 7.1 What "coherent" means, as a claim a render can refute
+
+Nine measurements, all taken off the painted frame, none inferable from the CSS. Thresholds and
+their reasoning are `RULES` in `scripts/ai-lite-brand-audit.mjs`; the two that are borrowed
+verbatim from `NoaCG-Brand-Kit/BRAND-MANUAL.md` are the lockup width and the clear-space idea.
+
+1. **The slot exists** - a `filelist` field bound to an `<img id="fN">` that paints. (`no-slot-*`)
+2. **The mark is painted at all** once a file is in it. (`not-painted`)
+3. **Not distorted** - painted aspect within 2% of the source's. (`aspect-distorted`)
+4. **Not cropped** - no `object-fit: cover`, no clip. (`cropped`)
+5. **Big enough**: a crest-shaped mark >= 32px painted height, a lockup (>3:1) >= 96px painted
+   width, at 1920x1080. The manual's own floors are 16px and 96px; the mark's is doubled because
+   16px at 1080p is 1.5% of frame height. **Which dimension decides is the MARK's aspect** - a
+   wide lockup dies on width long before it dies on height, and measuring only height is how a
+   6px hairline reads as a pass. (`below-min-size`)
+6. **Clear space** >= 0.25 x the mark's own painted height to the nearest painting neighbour,
+   and never an overlap. (`clear-space`, `collision`)
+7. **Placed, not floating** - inside the design's own `-box` and inside title-safe.
+   (`outside-box`, `outside-safe-area`)
+8. **Legible against the surface the slot actually paints.** Two different floors, because they
+   are two different physical questions: a TRANSPARENT mark composites its ink onto the surface
+   and can vanish (3:1, WCAG's non-text floor); a mark carrying its OWN field cannot vanish and
+   can only fail to separate (1.5:1). (`ink-contrast`, `field-separation`)
+9. **The accent came from the brand and the house amber did not survive it** - no painted colour
+   within tolerance of `#f6a623` under a brand palette carrying none. (`house-accent-survives`)
+
+Deliberately NOT claimed as measurable: whether the mark is in the *right* slot for the brief.
+That is taste, it goes to the gallery, and pretending to grade it is how a bench passes a graphic
+with a real clipping bug (§4).
+
+### 7.2 The mechanism: the DESIGN declares the slot, the compiler fills it
+
+**Decided. The model does not place the logo.** Its only logo decision stays the one it already
+has - `useLogoSlot`, plus which chassis - and everything about where, how big, how clear and on
+what surface is the design's own drawn geometry, measured and gated.
+
+The evidence is three findings, in order of weight:
+
+- **Lite cannot place a mark at all today.** All six audited chassis are `logo: 'none'`;
+  `--lite` reports 30 of 30 `no-slot-field`. There is no model decision to improve, because no
+  model choice reaches a slot that does not exist. The first work is catalog work.
+- **The Pro re-diagnosis says the failure mode is arithmetic, not taste**
+  (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`, `src/ai/AGENTS.md`): the concept stage saw the
+  design correctly, and the compiler rendered it at 0.72x, placed live text at 0.59x and
+  re-bucketed the position into one of nine zones. A model asked to place a mark in coordinates
+  would be handing its answer to the same class of arithmetic. A model asked to pick a design
+  that already contains a drawn slot hands over nothing.
+- **The slots that exist get it wrong in ways a model could not have fixed.** 14 of 65 pairs
+  absorbed the mark; 0 of 13 chassis were clean on all five shapes; and **0 of 13 could carry a
+  wordmark or a horizontal lockup at legible size**, which is what most real brands are. That is
+  a drawing problem with a measurable target, not a prompting problem.
+
+The cost of the decision, stated plainly: **placement stops being creative.** A brand graphic
+will be a catalog design with the brand's mark in the slot its designer drew, not a composition
+arranged around the mark. That is the same trade adapt-first already made and won
+(`docs/ADAPT_FIRST_PLAN.md`), and the escape hatch is the same one: the way to place a mark
+differently is to DRAW a design that places it differently, and let retrieval put it in front of
+the model.
+
+### 7.3 The free proof, and what it found
+
+`node scripts/ai-lite-brand-audit.mjs` (+ `--lite`, `--all`, `--ids`, `--marks`, `--palette`,
+`--check`, `--json`). Renders the real template through the real assembler with a real mark,
+settles, and reads the frame back - the `lite-line-capacity.mjs` method turned onto geometry.
+Spends nothing. The mark bank is authored SVG committed in `scripts/ai-lite-brand-fixtures.mjs`,
+never an uploaded file, so the audit measures mark SHAPES rather than whatever somebody had.
+
+Full round: **`benchmarks/lite/BRAND-AUDIT-2026-08-09.md`**. The three results that change the
+build order:
+
+- **No catalog lower third can carry a wordmark or a wide lockup.** 0 of 13, twice. The slots are
+  near-squares of 52-140px; a 10:1 rail contains down to a 6-14px hairline.
+- **The shared logo slot violates the platform's own as-is screen.**
+  `templates/shared/logoSlot.ts` - inherited by every future `logo: 'optional'` design - puts a
+  `border-radius` on the mark, and `lt08` adds `object-fit: cover`. `src/ai/assetIntegrity.ts`
+  rejects exactly those on a picture the user marked "use it as it is". Two live contracts that
+  have never met, because no path has yet sent a protected upload into a catalog slot.
+- **The palette that fights a mark is chosen by the surface the SLOT paints**, not by the
+  package's lightness. Nearly every logo well is painted in the accent, so a knockout mark on a
+  "light package" was still landing on something dark and the contrast column came back clean.
+  It took a pale-ACCENT brand to make the check fail. The audit's first run was wrong in the
+  direction that flatters.
+
+### 7.4 Build order, and none of it needs a model
+
+Free unless marked. Each step ends with the audit re-run, so the next one starts from a number.
+
+1. **Fix the two as-is violations** - the shared slot's radius and `lt08`'s crop. This is a
+   contradiction between two shipped contracts, not brand work, and it lands whatever else does.
+2. **Draw the lockup case.** A logo slot that can hold a 4:1 wordmark and a 10:1 rail is a
+   different shape from a crest well: a horizontal band above or beside the text, sized on
+   WIDTH. Until one exists, "bring your logo" is false for most brands. Target: at least three
+   Lite-eligible chassis clean on all five mark shapes, verified by `--check`.
+3. **Give the six Lite chassis slots** (or replace the ones that cannot take a mark coherently),
+   and add the measured logo metadata to `LITE_CATALOG` - what mark SHAPES a chassis can hold,
+   generated from the audit exactly as `supportingLineChars` is generated from
+   `lite-line-capacity.mjs`. **An adjective is what a chassis may say only where nothing can
+   measure it** (`src/ai/AGENTS.md`), and this is measurable.
+4. **Only then, one paid round** over the eight briefs in `scripts/ai-lite-brand-fixtures.mjs`
+   (five lower thirds servable today, three in categories §3 widens to). The schema change is
+   expected to be nil-to-tiny: `useLogoSlot` already exists on the wire and the request already
+   carries `hasLogo`. **No prompt version is minted until step 3's metadata exists** - a version
+   bump whose only content is a sentence asking for better logo placement is precisely the lever
+   §4 records as the least effective measured so far.
+
+*(~$0.010 for a round of 8, at v13's $0.00034 per generation. Cost is not the constraint here and
+was not the reason to stop; the reason to stop is that a paid round before step 3 would be
+measuring six chassis that cannot hold a logo.)*
