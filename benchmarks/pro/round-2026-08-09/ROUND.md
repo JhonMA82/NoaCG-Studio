@@ -29,7 +29,27 @@ entirely wrong.
 Cost held exactly to the 4-brief baseline: $0.940 / 12 = $0.0783 per generation against the
 predicted $0.0777, and the concept image was $0.0671 flat on every brief again.
 
-## What the frames show (5 of 10 read)
+## The budget fix is VERIFIED (and cost 4x the estimate)
+
+`outputBudget(4000)` -> `7000`, re-run against the exact archived concept that truncated:
+**1/1 succeeded, 14 regions, $0.0322.** Fourteen regions is far more than the ~2,200-token
+document the old 4,000 was sized against, which is the whole explanation.
+
+Two things that number is worth beyond the pass. It is the **dearest interpretation seen** -
+the round's range was $0.0068-0.0178 - so `portrait-logo` costs about $0.099 all-in, the closest
+any brief has come to the $0.15 ceiling and evidence the ceiling sits in the right place. And it
+was estimated at ~$0.008 beforehand, four times under: interpretation cost tracks REGION COUNT,
+not brief length, and nothing had measured that before.
+
+`scripts/pro-interpret-probe.mjs` gained `--concept=<png>` to make this possible at all. The
+concept worth re-interpreting is by definition one whose interpretation failed, and a failed
+brief saves no fixture - so the image only exists in the out-dir and the archive. Copying it into
+`benchmarks/pro/v1/fixtures/<id>/` to make the probe see it OVERWRITES a good fixture's concept
+and leaves that fixture's `interpretation.json` describing an image that is no longer there.
+Nothing checks that pair, so the corruption would be silent and would poison every later free
+run. (Written from experience: this session did exactly that and caught it before it landed.)
+
+## What the frames show (all 10 read)
 
 | Brief | Machine | By eye |
 |---|---|---|
@@ -38,6 +58,20 @@ predicted $0.0777, and the concept image was $0.0671 flat on every brief again.
 | `news-public` | PASS 1.00 | **Degraded.** The concept centred the name over a hairline rule in a panel that hugged the text. The compile left-aligned both lines at roughly half the drawn size, dropped the rule entirely, flattened the gradient to one blue, and stretched the panel to three times the width the text needs. Recognisably the same idea, none of the craft. |
 | `high-contrast` | PASS 1.00 | **BROKEN.** The baked name from the artwork is still on screen ABOVE the rebuilt panel - "Sam Peterson" appears twice, once as clipped white letters behind the graphic and once as live text inside it. |
 | `minimalist` | PASS 1.00 | **BROKEN.** Every line doubled and overlapping, the whole graphic crushed into a ~320x200 box in the bottom-left corner with the artwork clipping it. Unreadable. |
+| `long-name` | PASS 1.00 | **Usable.** A 46-character name fits and stays legible - the case the brief exists for. Dead space below the text. |
+| `multiline-title` | PASS 1.00 | **Degraded.** Legible and un-ghosted, but the type is very small in a large dark panel and the title renders on one line. |
+| `entertainment` | PASS 1.00 | **BROKEN.** The baked name ghosts below the rebuilt panel and a strip of raw concept backdrop is visible around it. |
+| `non-latin` | PASS 1.00 | **BROKEN.** The baked Greek name sits large behind the live one - the Japanese title line survives, the name is doubled. |
+| `empty-optional` | PASS 0.67 | **BROKEN.** Baked "Nora Lindqvist" and "Correspondent" at full size with the live text overlaid small on top of them. Unreadable. |
+
+**Final tally, all ten read: 3 usable, 2 degraded, 5 BROKEN.** That is the same 5-in-12 rate the
+2026-08-08 round hit, reproduced after the scoring fix.
+
+**The dominant failure is ONE defect, not five.** Four of the five broken results show the
+artwork's baked text through or behind the live text. The erase is computed against the concept's
+own pixels and the panel is rebuilt at a different scale, so what was supposed to be covered no
+longer is. Fixing the scale is therefore likely to fix most of the visible breakage too - which
+makes it the single highest-value change on this list, not merely a fidelity nicety.
 
 The two broken ones share a cause worth stating precisely: **the erase and the rebuilt panel are
 computed at different scales, so the original baked text is no longer covered by what replaces
@@ -84,24 +118,36 @@ The bank did not get worse. The reporting stopped being kind.
 1. **Raise the interpretation budget** so a brief cannot lose its paid concept to our own cap
    (`portrait-logo`). Smallest fix, guaranteed value.
 2. ~~Make the geometry defect visible to a gate.~~ **Done** - see above.
-3. **Fix the cause - and it is a DECISION, not arithmetic.** (This corrects an earlier line here
-   that said the fix belongs in `normalize.ts`; checking the code showed that to be too
-   confident.) The artwork IS the concept crop, so rendering at the intended size means
-   stretching a 1376px-wide raster across 1920px: the graphic gains size and loses sharpness,
-   and no coordinate change recovers pixels the image never had. Three routes, none free:
-   - **Root `--scale`** - the design unit already multiplies artwork and fields by it together
-     (src/components/AGENTS.md "THE DESIGN UNIT"), so this is one value rather than a
-     coordinate refactor. Costs sharpness. Probably the right first move, and the gate scores
-     it 1.00 immediately.
-   - **Ask for a bigger concept** - not available today: the gateway's image call carries
-     `modalities` and no size parameter (`api/_lib/aiGateway.ts`), so this needs transport work
-     or a different route.
-   - **Compose at the concept's own resolution** - honest and sharp, but it makes Pro's output
-     frame follow whatever the image model returned, which the rest of the product does not
-     expect.
+3. **Fix the cause: STOP ASKING THE MODEL FOR A BACKDROP.** (Owner, 2026-08-09, correcting two
+   earlier readings in this file - first that the fix belonged in `normalize.ts`, then that it
+   was a three-way trade between size and sharpness. Both treated the concept's FRAMING as
+   fixed. It is not, and it is ours to choose.)
 
-   Whichever is chosen, the gate above is how you will know it landed: a faithful compile
-   scores 1.00. Judge sharpness by eye on the same fixtures - the gate cannot see it.
+   `proConceptPrompt` currently asks for "a premium broadcast television lower-third graphic,
+   rendered in a **full 1920x1080 frame** … over a dark, softly blurred, neutral **studio
+   backdrop**". The model answers at ~1376x768 whatever we ask for, so we are spending most of a
+   fixed pixel budget painting a backdrop we then crop away and discard. `minimalist` put 23% of
+   the width on the actual graphic and binned the other 77%.
+
+   Ask for the graphic ALONE, tightly framed, and the same 1376px carries the strap instead of
+   the scenery. Then choose its size and placement on the 1920x1080 canvas as a separate
+   decision rather than inheriting them from wherever the model happened to put it. A strap
+   drawn at 1376px and placed at, say, 1150px wide is a DOWNSCALE - sharp, with the size
+   correct. That is the requirement ("correct size, always sharp"), and neither half costs the
+   other.
+
+   What this replaces: root `--scale` alone is a pure stretch and is ruled out; asking for a
+   larger output is still unavailable (the gateway's image call carries `modalities` and no size
+   parameter, `api/_lib/aiGateway.ts`); composing at the concept's own resolution is unnecessary
+   once the framing is tight.
+
+   Expect this to fix most of the visible breakage as well, not just fidelity: four of the five
+   broken frames are baked-text ghosts, and there is no baked backdrop to show through once the
+   concept is the graphic alone.
+
+   Both halves need re-benching - a prompt change invalidates the fixtures, so budget a fresh
+   paid round (~$0.95). The gate says whether the size landed; sharpness is an eye judgement on
+   the frames.
 4. **Only then** re-open whether the reconstruction path is viable. Judging it on these numbers
    would repeat the mistake the re-diagnosis identified - the approach has still not been fairly
    tested, because the compiler is losing designs the model got right.
