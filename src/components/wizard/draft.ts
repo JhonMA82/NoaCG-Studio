@@ -107,6 +107,14 @@ export interface WizardDraft {
    * fields keep working. Always [] from the wizard.
    */
   extraFields: ExtraFieldSpec[];
+  /**
+   * The graphic TYPE's setup values, by its own logical field keys (`{ correctAnswer: 'C' }`).
+   * What a design SAYS is `lines`; this is the rest of what it is - which answer is correct,
+   * the club colours, how long the countdown runs. Only a type-compiled design has any (see
+   * `setupFields`), and every value is clamped at compile, so an untouched draft is `{}` and
+   * changes nothing.
+   */
+  content: Record<string, string>;
   paletteId: string | null;
   /** User-defined colors (takes precedence over paletteId when set). */
   customPalette: Palette | null;
@@ -184,6 +192,7 @@ export function initialDraft(): WizardDraft {
     formatTouched: false,
     lines: [],
     extraFields: [],
+    content: {},
     paletteId: null,
     customPalette: null,
     cssVarOverrides: {},
@@ -245,6 +254,7 @@ export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): Wi
           ? draft.lines
           : undefined,
     extraFields: draft.extraFields.length > 0 ? draft.extraFields : undefined,
+    content: Object.keys(draft.content).length > 0 ? draft.content : undefined,
     palette: draft.customPalette ?? (draft.paletteId ? paletteById(draft.paletteId) : undefined),
     fontId: draft.fontId && draft.fontId !== 'custom' ? draft.fontId : undefined,
     customFont: draft.fontId === 'custom' && draft.customFont ? draft.customFont : undefined,

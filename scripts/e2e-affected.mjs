@@ -37,7 +37,7 @@ const MAP = [
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.
   [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts']],
@@ -108,7 +108,7 @@ const MAP = [
   // kit-flow or wizard-header change ran neither the spec named after it nor anything that
   // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
   // (scripts/e2e-affected.mjs's own safety argument is that it fails toward running more).
-  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts']],
+  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves
