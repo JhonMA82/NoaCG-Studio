@@ -4,6 +4,12 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 store-side halves of these contracts are in src/store/AGENTS.md; the code patchers they call are
 in src/blocks/AGENTS.md.
 
+**Five subdirectories own their own contract** - `wizard/`, `video/`, `home/`, `fields/` and
+`style/`, each an `AGENTS.md` with a thin `CLAUDE.md` importing it, loaded only when you work in
+that directory. A section that describes ONE directory belongs there, not here: this file is read
+in full by every session touching any component, and the chain through it sits close to
+`project_doc_max_bytes` (`npm run check:shared-instructions` prints the remaining headroom).
+
 ## Dialog anatomy (EVERY dialog, defined once in styles.css)
 
 re-design/handoff.md §6. Here rather than per sheet: these defects are what happens when six
