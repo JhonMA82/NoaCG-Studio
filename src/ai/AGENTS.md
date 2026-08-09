@@ -466,6 +466,27 @@ and the compiler cannot keep what it designs: visibly broken on 5 of 12 while th
 passing. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured well is the
 concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
 
+**Re-measured 2026-08-09 over the whole bank (`benchmarks/pro/round-2026-08-09/ROUND.md`, $0.940,
+10 fixtures saved): the bench said 10/10 pass at `editability 1.00`, and of five frames read by
+eye two were usable, one degraded and two BROKEN - one printing the artwork's baked name a second
+time above the rebuilt panel. `editability` is a real measurement of a different question; NO gate
+here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
+1.00. Every concept image was good, so the compiler is what loses them.**
+
+**That gate now EXISTS and `pro-bench` counts it in `pass`.** `proDesignScaleRatio` /
+`proScaleFaithful` (`pro/contract.ts`) answer `conceptWidth / frameWidth` - the whole defect
+reduces to that, because the design unit's share of the concept and its share of the frame differ
+by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
+free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
+not get worse; the reporting stopped being kind - do not "fix" the score by loosening
+`PRO_SCALE_TOLERANCE`.** The cause is a DECISION rather than arithmetic: the artwork IS the
+concept crop, so rendering at the designed size stretches a 1376px raster across 1920px and no
+coordinate change recovers pixels the image never had. The likely mechanism is the root
+`--scale` (one value - the design unit already scales artwork and fields together), and asking
+for a bigger concept is not available today because the gateway's image call carries no size
+parameter. `ROUND.md` lists the three routes; the gate tells you the size landed, never whether
+it still looks sharp.
+
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
 renders every design at 0.72x the size it was drawn (a 1376x768 concept's pixels used as DESIGN pixels
@@ -488,6 +509,14 @@ quality bar, and neither's benchmark scores the other. What they DO share is del
 one Create-with-AI entry point (`AiSettings.tier` picks lite/pro/custom), one user-facing brief, and
 one deterministic mapping seam - `pro/brief.ts` maps that shared brief onto the v1 `ProBrief` so there
 is no parallel brief vocabulary. That is a UI and contract economy, not a shared strategy.
+
+**A Pro generation is capped at `PRO_MAX_GENERATION_COST_USD` = $0.15, counting BOTH calls**
+(`pro/contract.ts`; measured $0.0777, of which the concept image is a flat $0.0671 - `docs/ADMIN.md`
+§9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
+again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
+already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
+lesson about early returns destroying paid concepts. Browser-side, so it is a cost control and not
+a server booking; an unreported cost counts as zero.
 
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the

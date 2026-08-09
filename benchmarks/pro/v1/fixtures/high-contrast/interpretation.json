@@ -1,102 +1,113 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 0.95,
+  "graphicTypeConfidence": 0.99,
   "regions": [
     {
       "kind": "panel",
       "bbox": {
-        "x": 0,
-        "y": 0.7685,
-        "w": 0.625,
-        "h": 0.0463
+        "x": 0.1546875,
+        "y": 0.4138888,
+        "w": 0.6109375,
+        "h": 0.1152777
       },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "panel",
-        "fill": {
-          "kind": "gradient",
-          "angleDeg": 90,
-          "from": "#2D6B77",
-          "to": "#52AFBF"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "panel",
-      "bbox": {
-        "x": 0,
-        "y": 0.8148,
-        "w": 0.625,
-        "h": 0.0833
-      },
-      "confidence": 0.95,
+      "confidence": 0.99,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#212930"
+          "color": "#1a4d8c"
         },
         "opacity": 1,
         "radiusNorm": 0
       }
     },
     {
-      "kind": "text",
+      "kind": "panel",
       "bbox": {
-        "x": 0.0208,
-        "y": 0.7778,
-        "w": 0.1615,
-        "h": 0.0324
+        "x": 0.1546875,
+        "y": 0.5291666,
+        "w": 0.6109375,
+        "h": 0.0819444
+      },
+      "confidence": 0.99,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#f7931e"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.1546875,
+        "y": 0.4138888,
+        "w": 0.0375,
+        "h": 0.1152777
       },
       "confidence": 0.95,
+      "treatment": "flattened"
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.20234375,
+        "y": 0.4319444,
+        "w": 0.27578125,
+        "h": 0.0791666
+      },
+      "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
-      "sampleText": "Ingrid Bakker",
-      "suggestedTitle": "Name",
+      "sampleText": "Sam Peterson",
+      "suggestedTitle": "Name Line",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 700,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0324,
+        "fontSizeNorm": 0.0791666,
         "letterSpacing": "normal",
-        "lineHeightRatio": 1.1
+        "lineHeightRatio": 1.2
       }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.0208,
-        "y": 0.8287,
-        "w": 0.125,
-        "h": 0.0185
+        "x": 0.20234375,
+        "y": 0.5402777,
+        "w": 0.35703125,
+        "h": 0.0541666
       },
-      "confidence": 0.95,
+      "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
-      "sampleText": "Polling Analyst",
-      "suggestedTitle": "Title",
+      "sampleText": "Emergency Coordinator",
+      "suggestedTitle": "Title Line",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#D1D1D1",
-        "fontSizeNorm": 0.0185,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.0541666,
         "letterSpacing": "normal",
-        "lineHeightRatio": 1.1
+        "lineHeightRatio": 1.2
       }
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "A thin white border (approx. 2px) surrounds the combined blue and orange panels. The current schema does not directly support adding a border to panels."
+  ],
   "animation": {
     "presetId": "design-slide",
     "speed": 0.5

@@ -13,11 +13,15 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
 import { readEnvFile } from './ai-bench-server.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const id = process.argv[2] ?? 'news-public';
 const repeats = Number(process.argv[3] ?? 1);
 const route = process.argv[4] ?? 'vercel:google/gemini-2.5-flash';
+// Gateway routes only, unless the run says why (scripts/harness-route-policy.mjs). This probe
+// takes its route POSITIONALLY, so the reason rides an env var rather than a flag.
+requireAllowedRoute(route, { source: 'the route argument', reason: process.env.NOACG_FRONTIER_REASON });
 
 const bank = JSON.parse(await readFile(path.resolve('benchmarks/pro/v1/briefs.json'), 'utf8'));
 const entry = bank.briefs.find((b) => b.id === id);

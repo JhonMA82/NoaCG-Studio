@@ -2201,6 +2201,12 @@ kbd {
 .wz-line-row input { flex: 1; }
 /* A FIELD ID badge — "f0". The fixed width is what keeps a column of them aligned. */
 .wz-fid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); width: 24px; flex: none; }
+/* A SETUP row — the design's non-line decisions (which answer is correct, the club colours).
+   Its label is a WORD, not an "f0" badge, so it needs its own column width; borrowing .wz-fid
+   clipped "Correct answer" into 24px, the same mistake .wz-file-chip below exists to undo. */
+.wz-setup-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.wz-setup-label { width: 132px; flex: none; font-size: 12px; color: var(--text-dim); }
+.wz-setup-row > :not(.wz-setup-label) { flex: 1; min-width: 0; }
 /* A FILE chip — an uploaded asset's name beside its remove button. It borrowed .wz-fid and
    inherited that 24px, which crushed every filename onto two cramped lines. */
 .wz-file-chip {

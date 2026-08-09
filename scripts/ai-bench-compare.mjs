@@ -26,6 +26,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from '@playwright/test';
 import { BASE, killTree, readEnvFile, settlePort, startServer } from './ai-bench-server.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
@@ -132,6 +133,14 @@ for (const model of CANDIDATES) {
       // candidate's result and quietly poison the comparison.
       throw new Error(`route mismatch - app resolved ${route.provider}:${route.model}, expected ${model}`);
     }
+    // The candidate names a MODEL; the provider comes from the app's own saved settings, so the
+    // policy is checked on the RESOLVED pair - the only point where this rig knows which
+    // provider it is about to bill (scripts/harness-route-policy.mjs; AI_PLATFORM_PLAN §7a).
+    // The refusal names the setting rather than a flag, because no flag produced this value.
+    requireAllowedRoute(`${route.provider}:${route.model}`, {
+      source: "the app's saved AI provider setting",
+      reason: flag('frontier-reason'),
+    });
     console.log(`  route verified: ${route.provider}:${route.model}`);
 
     await new Promise((resolve, reject) => {

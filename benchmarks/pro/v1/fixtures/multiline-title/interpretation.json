@@ -7,39 +7,37 @@
       "kind": "panel",
       "bbox": {
         "x": 0,
-        "y": 0.7685,
-        "w": 0.625,
-        "h": 0.0463
+        "y": 0.8305,
+        "w": 1,
+        "h": 0.1694
       },
-      "confidence": 0.95,
+      "confidence": 0.99,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
         "fill": {
-          "kind": "gradient",
-          "angleDeg": 90,
-          "from": "#2D6B77",
-          "to": "#52AFBF"
+          "kind": "solid",
+          "color": "#2C2C2C"
         },
         "opacity": 1,
         "radiusNorm": 0
       }
     },
     {
-      "kind": "panel",
+      "kind": "decorative",
       "bbox": {
         "x": 0,
-        "y": 0.8148,
-        "w": 0.625,
-        "h": 0.0833
+        "y": 0.8305,
+        "w": 0.0068,
+        "h": 0.1694
       },
       "confidence": 0.95,
       "treatment": "rebuild-shape",
       "panel": {
-        "shape": "panel",
+        "shape": "accent-bar",
         "fill": {
           "kind": "solid",
-          "color": "#212930"
+          "color": "#BEBEBE"
         },
         "opacity": 1,
         "radiusNorm": 0
@@ -48,16 +46,16 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.0208,
-        "y": 0.7778,
-        "w": 0.1615,
-        "h": 0.0324
+        "x": 0.0146,
+        "y": 0.8407,
+        "w": 0.2427,
+        "h": 0.0352
       },
-      "confidence": 0.95,
+      "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
-      "sampleText": "Ingrid Bakker",
+      "sampleText": "Ravi Chandrasekaran",
       "suggestedTitle": "Name",
       "typography": {
         "classification": "sans",
@@ -65,34 +63,34 @@
         "suggestedFontId": "inter",
         "approxWeight": 700,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0324,
+        "fontSizeNorm": 0.0352,
         "letterSpacing": "normal",
-        "lineHeightRatio": 1.1
+        "lineHeightRatio": 1.2
       }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.0208,
-        "y": 0.8287,
-        "w": 0.125,
-        "h": 0.0185
+        "x": 0.0146,
+        "y": 0.8843,
+        "w": 0.4839,
+        "h": 0.025
       },
-      "confidence": 0.95,
+      "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
-      "sampleText": "Polling Analyst",
-      "suggestedTitle": "Title",
+      "sampleText": "Professor of Computational Linguistics, University of Edinburgh",
+      "suggestedTitle": "Role",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#D1D1D1",
-        "fontSizeNorm": 0.0185,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.025,
         "letterSpacing": "normal",
-        "lineHeightRatio": 1.1
+        "lineHeightRatio": 1.2
       }
     }
   ],

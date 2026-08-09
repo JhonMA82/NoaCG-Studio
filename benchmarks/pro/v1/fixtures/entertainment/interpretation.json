@@ -6,56 +6,49 @@
     {
       "kind": "panel",
       "bbox": {
-        "x": 0,
-        "y": 0.741,
-        "w": 1,
-        "h": 0.005
+        "x": 0.2265625,
+        "y": 0.5555555,
+        "w": 0.546875,
+        "h": 0.1388888
       },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#6BA1D7"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "panel",
-      "bbox": {
-        "x": 0,
-        "y": 0.746,
-        "w": 1,
-        "h": 0.254
-      },
-      "confidence": 0.95,
+      "confidence": 1,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
         "fill": {
-          "kind": "solid",
-          "color": "#24467C"
+          "kind": "gradient",
+          "angleDeg": 0,
+          "from": "#3C44A7",
+          "to": "#E6AE55"
         },
         "opacity": 1,
-        "radiusNorm": 0
+        "radiusNorm": 0.25
       }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.21875,
+        "y": 0.5416666,
+        "w": 0.5625,
+        "h": 0.1666666
+      },
+      "confidence": 0.9,
+      "treatment": "flattened"
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.04,
-        "y": 0.781,
-        "w": 0.92,
-        "h": 0.062
+        "x": 0.34765625,
+        "y": 0.5861111,
+        "w": 0.3046875,
+        "h": 0.0416666
       },
       "confidence": 1,
       "treatment": "rebuild-text",
-      "align": "left",
+      "align": "center",
       "role": "person-name",
-      "sampleText": "Alexandra Konstantopoulos-Vandermeulen",
+      "sampleText": "Bianca Solari",
       "suggestedTitle": "Name",
       "typography": {
         "classification": "sans",
@@ -63,7 +56,7 @@
         "suggestedFontId": "inter",
         "approxWeight": 700,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.062,
+        "fontSizeNorm": 0.0416666,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
@@ -71,32 +64,34 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.04,
-        "y": 0.844,
-        "w": 0.92,
-        "h": 0.044
+        "x": 0.4453125,
+        "y": 0.6361111,
+        "w": 0.109375,
+        "h": 0.0305555
       },
       "confidence": 1,
       "treatment": "rebuild-text",
-      "align": "left",
+      "align": "center",
       "role": "person-role",
-      "sampleText": "Senior European Economics Correspondent",
-      "suggestedTitle": "Title",
+      "sampleText": "Host",
+      "suggestedTitle": "Role",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.044,
+        "fontSizeNorm": 0.0305555,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "The glowing accent around the main panel features a complex, multi-color gradient and blur which cannot be precisely reproduced with standard CSS shape reconstruction methods and will be flattened."
+  ],
   "animation": {
-    "presetId": "design-slide",
-    "speed": 0.5
+    "presetId": "design-pop",
+    "speed": 0.3
   }
 }

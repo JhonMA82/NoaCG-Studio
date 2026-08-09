@@ -661,6 +661,12 @@ function legalFieldValue(field: TypeField, raw: unknown): string | undefined {
     }
     case 'color':
       return /^#[0-9a-f]{3,8}$/i.test(value) || /^rgba?\([\d\s.,%]+\)$/i.test(value) ? value : undefined;
+    case 'image':
+      // Refused outright: an image field's value is an asset PATH, and a path with no bytes
+      // behind it is the dangling-reference defect - an export that packages a reference
+      // nothing satisfies, silent until playout. An image arrives as an asset
+      // (`importedImages` / `logoAssetPath`), never as a content string.
+      return undefined;
     default:
       // Text and multi-line text: any string, including a deliberately empty one (clearing a
       // field is a real edit). Bounded so a runaway value cannot become the template.
@@ -763,6 +769,32 @@ export function variantsFromType(type: GraphicType): TemplateVariant[] {
     };
     return variant;
   });
+}
+
+/**
+ * The type's SETUP fields: the non-line values that are decided when the graphic is BUILT,
+ * as against the ones an operator sends it while it is on air.
+ *
+ * The distinction is DERIVED from the machine rather than declared a second time, because the
+ * machine already draws it. This model's whole answer to combinatorial states is "the moment is
+ * a state, what it is about is DATA" - a pick rides in as an event's PAYLOAD - so a field named
+ * in `machine.controls[].payload` is live state by construction: the contestant's answer, the
+ * highlighted row, the focused competitor, the verdict. Nobody has picked one yet at create,
+ * and offering it there would invite an author to set a value the first operator event
+ * overwrites.
+ *
+ * Everything else non-line is a genuine build-time decision - which answer is correct, the club
+ * colours, how long the countdown runs, the word this broadcaster puts on the live flag - and
+ * every one of them was previously reachable only after creation, in the editor's Data tab.
+ *
+ * Image fields are excluded: their value is an asset path, so they are offered where the asset
+ * itself can be supplied, never as a value to type.
+ */
+export function setupFields(type: GraphicType): TypeField[] {
+  const live = new Set((type.controls ?? []).flatMap((control) => control.payload ?? []));
+  return type.fields.filter(
+    (f) => f.role !== 'line' && f.role !== 'logo' && f.kind !== 'image' && !live.has(f.key),
+  );
 }
 
 /** The main group's id for a type — what noacgMachineState() keys its pointer by. */

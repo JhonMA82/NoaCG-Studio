@@ -33,6 +33,93 @@ export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute }
   interpret: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
 };
 
+/**
+ * What ONE Pro generation may cost, both model calls together, in USD.
+ *
+ * MEASURED, not guessed (`pro-baseline-2026-08-09` in the eval archive, four briefs, 4/4 pass):
+ * $0.0777 per generation, ranging 0.0739 to 0.0849. The concept image is a FLAT $0.0671 on
+ * every brief - a fixed output-token count per image - and the interpretation is the only part
+ * that varies, 0.0068 to 0.0178. **86% of the bill is one fixed charge**, which is exactly why
+ * the ceiling is per GENERATION: a per-run bound only limits how many happen, while this bounds
+ * what any single one can become.
+ *
+ * 0.15 is a shade under twice the measurement - room for one dear interpretation, or a routine
+ * price rise, without room for a runaway. It is not the funded-route ceiling
+ * (`FUNDED_ROUTE_PRICE_CEILING`, api/_lib/aiModelCatalog.ts): that one measures TEXT tokens per
+ * million and structurally cannot see `image_output`, which is what dominates this bill. Raise
+ * it deliberately after a re-measurement, never to admit one run that just missed.
+ */
+export const PRO_MAX_GENERATION_COST_USD = 0.15;
+
+/**
+ * Has this generation spent past its ceiling?
+ *
+ * An UNSET cost counts as zero, the same reading `api/_lib/lite/generations.ts` takes of an
+ * actual spend: a provider that reported no number has not thereby proved a breach, and
+ * refusing on silence would fail generations that cost nothing unusual. The consequence is
+ * stated rather than hidden - a route that reports no cost is unbounded here, and that is a
+ * reason to keep every Pro route inside the audited catalog, where the price is known.
+ */
+export function proSpendExceeds(
+  spend: { conceptUsd?: number | null; interpretUsd?: number | null },
+  ceiling: number = PRO_MAX_GENERATION_COST_USD,
+): boolean {
+  return (spend.conceptUsd ?? 0) + (spend.interpretUsd ?? 0) > ceiling;
+}
+
+/**
+ * How big the compiled graphic comes out, against the size it was DESIGNED at.
+ *
+ * The interpretation returns normalized boxes, and the compiler turns them into DESIGN pixels
+ * against the concept's own pixel frame. When the image model answers at 1376x768 and the
+ * project frame is 1920x1080, every coordinate is therefore used at 1376/1920 of its intended
+ * size - the whole graphic shrinks together, which is exactly why nothing downstream notices:
+ * no box overflows, no text wraps, no rule fires. `scripts/pro-geometry-audit.mjs` derives the
+ * same number the long way, through a rendered frame; it reduces to this ratio because the
+ * design unit's share of the concept and its share of the frame differ by nothing else.
+ *
+ * MEASURED 2026-08-09 over the whole fixture bank: 0.72 on ten of eleven, with live text
+ * landing near 0.50x the baked glyphs it replaces - and every one of those scored a bench PASS
+ * at `editability 1.00` (`benchmarks/pro/round-2026-08-09/ROUND.md`).
+ *
+ * 1.00 is faithful. This is a MEASUREMENT, and the fix is NOT arithmetic on these numbers.
+ * The artwork IS the concept crop, so rendering the design at its intended size means
+ * displaying a 1376px-wide raster across 1920px - the graphic gains size and loses sharpness,
+ * and no coordinate change recovers pixels the image never had. The likely mechanism is the
+ * root `--scale` the design unit already multiplies artwork and fields by together (see
+ * src/components/AGENTS.md "THE DESIGN UNIT"), which makes it one value rather than a
+ * coordinate refactor; the open question is whether the upscaled artwork is acceptable.
+ * Asking the model for a 1920-wide concept is not available today: the gateway's image call
+ * carries `modalities` and no size parameter (api/_lib/aiGateway.ts).
+ */
+export function proDesignScaleRatio(conceptWidth: number, frameWidth: number): number | null {
+  if (!(conceptWidth > 0) || !(frameWidth > 0)) return null;
+  return conceptWidth / frameWidth;
+}
+
+/**
+ * How far from 1.00 a compile may land and still be called faithful.
+ *
+ * 0.02 is deliberately tight. The defect this catches is not a rounding drift - it is a whole
+ * graphic rendered at three quarters of its design - and a loose tolerance here would let the
+ * next variant of it through while reporting a pass, which is the failure the gate exists to
+ * end. A concept that genuinely matches the frame scores exactly 1.00.
+ */
+export const PRO_SCALE_TOLERANCE = 0.02;
+
+/**
+ * True when the compile kept the design's size. A null ratio is UNKNOWN, never faithful.
+ *
+ * The epsilon is not slack in the rule - it is binary floating point. `1 - 0.02` is
+ * 0.98 exactly, but `Math.abs(0.98 - 1)` is 0.020000000000000018, so a value sitting exactly
+ * ON the documented boundary fails a bare `<=` and the tolerance silently means slightly less
+ * than it says. Compared against a defect ~28% out this changes no verdict, which is precisely
+ * why it would have gone unnoticed as a small dishonesty in the constant.
+ */
+export function proScaleFaithful(ratio: number | null): boolean {
+  return ratio !== null && Math.abs(ratio - 1) <= PRO_SCALE_TOLERANCE + Number.EPSILON * 8;
+}
+
 /** The forced-tool shape (modelGateway's ModelTool), declared structurally so this file
  *  stays dependency-light - the liteTypes.ts rule: browser and API TypeScript trees both
  *  read contracts, and neither catalog nor DOM-bearing modules may ride along. */

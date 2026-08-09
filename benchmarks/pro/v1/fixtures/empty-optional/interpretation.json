@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "graphicType": "lower-third",
+  "graphicTypeConfidence": 1,
+  "regions": [
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.234375,
+        "y": 0.430555,
+        "w": 0.380859,
+        "h": 0.055555
+      },
+      "confidence": 0.99,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-name",
+      "sampleText": "Nora Lindqvist",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "oswald",
+        "approxWeight": 700,
+        "color": "#000000",
+        "fontSizeNorm": 0.055555,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.234375,
+        "y": 0.534722,
+        "w": 0.24414,
+        "h": 0.046875
+      },
+      "confidence": 0.99,
+      "treatment": "rebuild-text",
+      "align": "left",
+      "role": "person-role",
+      "sampleText": "Correspondent",
+      "suggestedTitle": "Title",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 400,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.046875,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1.2
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.180664,
+        "y": 0.408101,
+        "w": 0.625976,
+        "h": 0.217013
+      },
+      "confidence": 0.95,
+      "treatment": "flattened"
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.195312,
+        "y": 0.517361,
+        "w": 0.585937,
+        "h": 0.003472
+      },
+      "confidence": 0.98,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#34B07D"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    }
+  ],
+  "warnings": [],
+  "animation": {
+    "presetId": "design-slide",
+    "speed": 0.5
+  }
+}
