@@ -123,7 +123,7 @@ test('a show collects graphics in rundown order and exports one aggregated panel
       }),
     )
     .toBe('selected');
-  await expect(quizCard.locator('.state-chip')).toContainText('selected');
+  await expect(quizCard.locator('.state-chip')).toContainText('Answer selected');
 
   await panel.close();
   await quiz.close();

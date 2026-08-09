@@ -271,14 +271,15 @@ test('the control panel reports the state and greys an event the machine would d
   await saveAs(page, 'Quiz board');
   await openControlPanel(page, 'Quiz board');
 
-  // The chip names where the preview is, and it is what the greying is judged against.
-  await expect(page.getByTestId('control-state')).toContainText('question');
+  // The chip names where the preview is, and it is what the greying is judged against. It
+  // says the state's NAME, never its id (controlModel.ts formatMachineState).
+  await expect(page.getByTestId('control-state')).toContainText('Question');
   await expect(page.getByTestId('control-event-revealChoice')).toBeDisabled(); // only sealed offers it
   await expect(page.getByTestId('control-event-lock')).toBeEnabled(); // the hidden-pick flow seals from here
   await expect(page.getByTestId('control-event-select')).toBeEnabled();
 
   await page.getByTestId('control-event-select').click();
-  await expect(page.getByTestId('control-state')).toContainText('selected');
+  await expect(page.getByTestId('control-state')).toContainText('Answer selected');
   await expect(page.getByTestId('control-event-lock')).toBeEnabled(); // legal from Selected
   await expect(page.getByTestId('control-event-judge')).toBeDisabled();
 

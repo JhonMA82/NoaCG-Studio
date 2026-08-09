@@ -15,7 +15,7 @@
 // The ARGUMENT-SPLITTING cases, which are the actual logic, are platform-neutral and always run.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rootOfCommand, sameRoot } from './e2e-runs.mjs';
+import { rootOfCommand, sameRoot, selfAndAncestors } from './e2e-runs.mjs';
 
 const onlyWindows = { skip: process.platform !== 'win32' };
 const onlyPosix = { skip: process.platform === 'win32' };
@@ -83,6 +83,40 @@ test('a command with no node_modules has no root, rather than a wrong one', () =
   assert.equal(rootOfCommand(''), null);
   // node_modules with nothing before it is not a checkout either.
   assert.equal(rootOfCommand('node node_modules/@playwright/test/cli.js test'), null);
+});
+
+// ── Identifying your OWN run when the root cannot ───────────────────────────────────────────
+// A linked worktree has no node_modules, so `npx playwright` there runs the MAIN checkout's CLI
+// and rootOfCommand attributes the run to the main checkout. `exclude: <worktree>` then never
+// matches its own run, and the queue in e2e/_offline-guard.ts waits out its whole 30-minute cap
+// behind the very process doing the waiting. Ancestry is what survives that.
+
+test('a worktree run really does resolve to the MAIN checkout (the reason ancestry exists)', () => {
+  const cmd = '"node" "/repo/node_modules/.bin/../@playwright/test/cli.js" test some.spec.ts';
+  const root = rootOfCommand(cmd);
+  assert.ok(root.endsWith('/repo'), `got ${root}`);
+  assert.ok(!sameRoot(root, '/repo/.claude/worktrees/feature-x'), 'the worktree is not its own root here');
+});
+
+test('selfAndAncestors walks the parent chain', () => {
+  const procs = [
+    { pid: 40, ppid: 30, command: 'node cli.js test' },
+    { pid: 30, ppid: 20, command: 'node npx-cli.js' },
+    { pid: 20, ppid: 1, command: 'node shell' },
+    { pid: 99, ppid: 1, command: 'node unrelated' },
+  ];
+  assert.deepEqual([...selfAndAncestors(40, procs)], [40, 30, 20, 1]);
+  assert.ok(!selfAndAncestors(40, procs).has(99));
+});
+
+test('selfAndAncestors terminates on a cycle and on an unknown pid', () => {
+  // A recycled pid can make the table describe a loop; the walk must not hang on it.
+  const cyclic = [
+    { pid: 7, ppid: 8, command: 'node a' },
+    { pid: 8, ppid: 7, command: 'node b' },
+  ];
+  assert.deepEqual([...selfAndAncestors(7, cyclic)], [7, 8]);
+  assert.deepEqual([...selfAndAncestors(1234, [])], [1234]);
 });
 
 test('roots compare case-insensitively and across slash spellings', onlyWindows, () => {
