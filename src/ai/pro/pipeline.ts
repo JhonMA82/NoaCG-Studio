@@ -19,9 +19,11 @@ import { uuid } from '../../model/id';
 import {
   PRO_INTERPRET_TOOL,
   PRO_INTERPRET_VERSION,
+  PRO_MAX_GENERATION_COST_USD,
   proConceptPrompt,
   proInterpretContent,
   proInterpretSystemPrompt,
+  proSpendExceeds,
   type ProBrief,
   type ProInterpretationV1,
 } from './contract';
@@ -30,6 +32,33 @@ import { compileProPlan, ProCompileError, type ProCompileResult } from './compil
 import { fillProLogoSlot } from './logoAsset';
 
 export type ProStage = 'concept' | 'interpret' | 'compile' | 'validate';
+
+/**
+ * A generation stopped because it spent past `PRO_MAX_GENERATION_COST_USD`.
+ *
+ * It extends `ProCompileError` so it carries its cost out the same way every other paid
+ * failure here does - the bench and the UI already add `error.costUsd` to the running total,
+ * and a ceiling breach that reported nothing would be the one failure that under-counts spend.
+ *
+ * The ceiling is enforced in the BROWSER because Pro rides the general model surface rather
+ * than a server task profile (there is no `pro-*` entry in api/_lib/aiTaskRegistry.ts). That
+ * makes it a cost control, not a security boundary: it bounds what the product does with a
+ * caller's own key, and the managed side stays protected by the fleet ceiling and the approved
+ * catalog. A server-side booking of the Lite shape lands with the day Pro becomes a registered
+ * task; until then this is the only thing standing between a route change and an open tap.
+ */
+export class ProCostCeilingError extends ProCompileError {
+  readonly ceilingUsd: number;
+
+  constructor(spentUsd: number, ceilingUsd: number) {
+    super(
+      `This Pro generation cost $${spentUsd.toFixed(4)}, past its $${ceilingUsd.toFixed(2)} ceiling, and was stopped.`,
+      spentUsd,
+    );
+    this.name = 'ProCostCeilingError';
+    this.ceilingUsd = ceilingUsd;
+  }
+}
 
 /** The tier's curated routes, defined in the dependency-light contract so `api/` can read the
  *  same constant this pipeline obeys (see the note there). Re-exported unchanged: every
@@ -79,7 +108,11 @@ function measure(dataUrl: string): Promise<{ width: number; height: number }> {
 }
 
 /** ONE image call on the explicitly chosen image route. The route is pinned whole (provider
- *  and model), so the session's text-model fallbacks can never answer an image request. */
+ *  and model), so the session's text-model fallbacks can never answer an image request.
+ *
+ *  The per-generation ceiling (`PRO_MAX_GENERATION_COST_USD`) is enforced in
+ *  `compileProConcept`, not here - see the note at the cost read below for why a breach must
+ *  not cost the caller the image it already paid for. */
 export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute): Promise<ProConcept> {
   const run = startAiRun('pro-generate');
   const t0 = Date.now();
@@ -94,6 +127,13 @@ export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute
     const image = result.images?.[0];
     if (!image) throw new Error('The image model returned no image.');
     run.stage('concept', t0, result.model, result.usage);
+    const costUsd = result.usage.estimatedCost?.amount ?? null;
+    // A breach is NOT thrown here, deliberately. The image is already drawn and already billed,
+    // so throwing could refund nothing and would destroy the expensive half of the run - the
+    // 2026-08-08 mistake, where twelve paid concepts were lost to an early return. The concept
+    // comes back with its cost attached and `compileProConcept` refuses BEFORE the second call,
+    // which is the only spend a ceiling can still prevent. The picture stays inspectable, and a
+    // route that has quietly re-priced is visible in the number rather than in a stack trace.
     run.finish(true);
     const dataUrl = conceptDataUrl(image);
     const size = await measure(dataUrl);
@@ -102,7 +142,7 @@ export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute
       mediaType: image.mediaType,
       ...size,
       model: result.model,
-      costUsd: result.usage.estimatedCost?.amount ?? null,
+      costUsd,
     };
   } catch (error) {
     run.finish(false);
@@ -139,8 +179,19 @@ export async function compileProConcept(
      *  by its `<img src>` (assetIntegrity.ts `targetsOf`), so a fill applied after
      *  validation would be screened by nothing at all. */
     logoMark?: PurposedImage | null;
+    /** The whole generation's ceiling, concept included. Defaults to
+     *  `PRO_MAX_GENERATION_COST_USD`; the bench passes its own when probing a route. */
+    maxCostUsd?: number;
   } = {},
 ): Promise<ProResult> {
+  const ceiling = options.maxCostUsd ?? PRO_MAX_GENERATION_COST_USD;
+  // Refuse BEFORE the interpretation call when the concept alone already spent the ceiling.
+  // `generateProConcept` throws on that, so the case that reaches here is a concept from
+  // somewhere else - a saved fixture, a retry against a re-priced route - and the whole point
+  // of a ceiling is that the expensive call does not happen.
+  if (proSpendExceeds({ conceptUsd: concept.costUsd }, ceiling)) {
+    throw new ProCostCeilingError(concept.costUsd ?? 0, ceiling);
+  }
   const run = startAiRun('pro-generate');
   try {
     options.onStage?.('interpret');
@@ -164,6 +215,13 @@ export async function compileProConcept(
     // Read the cost BEFORE the shape check: an off-shape answer was still served and still
     // billed, so a throw from here has to carry the number out with it.
     const interpretCostUsd = result.usage.estimatedCost?.amount ?? null;
+    // Both calls are in now, so this is the real per-generation total the ceiling is about.
+    // It runs BEFORE the shape check for the same reason that check reads the cost first: a
+    // breach is a breach whether or not the answer was usable, and reporting the cheaper of
+    // the two failures would understate what the run spent.
+    if (proSpendExceeds({ conceptUsd: concept.costUsd, interpretUsd: interpretCostUsd }, ceiling)) {
+      throw new ProCostCeilingError((concept.costUsd ?? 0) + (interpretCostUsd ?? 0), ceiling);
+    }
     if (!isProInterpretation(result.output)) {
       throw new ProCompileError('The design interpretation came back off-shape.', interpretCostUsd ?? undefined);
     }

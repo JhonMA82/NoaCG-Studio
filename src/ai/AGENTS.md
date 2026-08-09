@@ -474,6 +474,14 @@ one Create-with-AI entry point (`AiSettings.tier` picks lite/pro/custom), one us
 one deterministic mapping seam - `pro/brief.ts` maps that shared brief onto the v1 `ProBrief` so there
 is no parallel brief vocabulary. That is a UI and contract economy, not a shared strategy.
 
+**A Pro generation is capped at `PRO_MAX_GENERATION_COST_USD` = $0.15, counting BOTH calls**
+(`pro/contract.ts`; measured $0.0777, of which the concept image is a flat $0.0671 - `docs/ADMIN.md`
+§9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
+again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
+already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
+lesson about early returns destroying paid concepts. Browser-side, so it is a cost control and not
+a server booking; an unreported cost counts as zero.
+
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
 2026-08-08 round did not and its twelve interpretations are gone. Offline the deterministic stub

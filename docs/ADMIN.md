@@ -818,8 +818,21 @@ archive; 4 briefs, 4/4 pass, gateway routes `google/gemini-3.1-flash-image` +
 | **total** | **$0.0777** (range 0.0739 - 0.0849, ±7%) |
 
 The shape is the useful part: **86% of a Pro generation is one flat charge**, so a per-generation
-ceiling is a meaningful control and a per-run one only bounds volume. Nothing is set in code yet -
-the number below is the proposal awaiting a decision, not a rule in force. The route the tier actually draws with IS marked, from
+ceiling is a meaningful control and a per-run one only bounds volume.
+
+**The ceiling is $0.15 per generation** (owner, 2026-08-09), a shade under twice the measurement -
+room for one dear interpretation or a routine price rise, not for a runaway. It lives in
+`PRO_MAX_GENERATION_COST_USD` (`src/ai/pro/contract.ts`) and counts BOTH calls; `compileProConcept`
+refuses before the interpretation when the concept alone already spent it, and again on the total
+once both costs are known. A breach at the concept stage does NOT throw: the image is already
+billed, so it comes back with its cost attached and only the next call is stopped.
+
+Two limits worth stating rather than discovering. It is enforced in the BROWSER, because Pro rides
+the general model surface and has no entry in `api/_lib/aiTaskRegistry.ts` - so it bounds what the
+product does with a caller's own key, and is not a server-side booking of the Lite shape. And an
+unreported cost counts as zero, the same reading Lite takes of an actual spend, which makes a route
+that publishes no price unbounded here - one more reason every Pro route stays in the audited
+catalog. Pinned by `api/_lib/proCostCeiling.test.ts` in the build gate. The route the tier actually draws with IS marked, from
 `PRO_STANDARD_ROUTES` - so "no verdict here" never has to be read as "nothing here is used". A price the provider did not publish reads "not published", never
 "free" - the same discipline as ZDR reading "not audited" rather than "no".
 

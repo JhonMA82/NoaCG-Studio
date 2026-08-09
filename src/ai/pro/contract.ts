@@ -33,6 +33,40 @@ export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute }
   interpret: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
 };
 
+/**
+ * What ONE Pro generation may cost, both model calls together, in USD.
+ *
+ * MEASURED, not guessed (`pro-baseline-2026-08-09` in the eval archive, four briefs, 4/4 pass):
+ * $0.0777 per generation, ranging 0.0739 to 0.0849. The concept image is a FLAT $0.0671 on
+ * every brief - a fixed output-token count per image - and the interpretation is the only part
+ * that varies, 0.0068 to 0.0178. **86% of the bill is one fixed charge**, which is exactly why
+ * the ceiling is per GENERATION: a per-run bound only limits how many happen, while this bounds
+ * what any single one can become.
+ *
+ * 0.15 is a shade under twice the measurement - room for one dear interpretation, or a routine
+ * price rise, without room for a runaway. It is not the funded-route ceiling
+ * (`FUNDED_ROUTE_PRICE_CEILING`, api/_lib/aiModelCatalog.ts): that one measures TEXT tokens per
+ * million and structurally cannot see `image_output`, which is what dominates this bill. Raise
+ * it deliberately after a re-measurement, never to admit one run that just missed.
+ */
+export const PRO_MAX_GENERATION_COST_USD = 0.15;
+
+/**
+ * Has this generation spent past its ceiling?
+ *
+ * An UNSET cost counts as zero, the same reading `api/_lib/lite/generations.ts` takes of an
+ * actual spend: a provider that reported no number has not thereby proved a breach, and
+ * refusing on silence would fail generations that cost nothing unusual. The consequence is
+ * stated rather than hidden - a route that reports no cost is unbounded here, and that is a
+ * reason to keep every Pro route inside the audited catalog, where the price is known.
+ */
+export function proSpendExceeds(
+  spend: { conceptUsd?: number | null; interpretUsd?: number | null },
+  ceiling: number = PRO_MAX_GENERATION_COST_USD,
+): boolean {
+  return (spend.conceptUsd ?? 0) + (spend.interpretUsd ?? 0) > ceiling;
+}
+
 /** The forced-tool shape (modelGateway's ModelTool), declared structurally so this file
  *  stays dependency-light - the liteTypes.ts rule: browser and API TypeScript trees both
  *  read contracts, and neither catalog nor DOM-bearing modules may ride along. */
