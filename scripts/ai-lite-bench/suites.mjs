@@ -371,10 +371,17 @@ export const REPAIR_SUITE = [
     expectErrors: ['flourish_forbidden'],
   },
   {
+    // Kept as a REGRESSION pin with no expected errors, the same way the palette case below is.
+    // Every audited chassis declared `logo: false` until 2026-08-09, so asking for the logo slot
+    // was always a refusal; all six carry a measured brand slot now
+    // (benchmarks/lite/BRAND-AUDIT-2026-08-09.md), and the correct expectation is that this
+    // validates. The `logo_not_supported` rule stays in validateLiteDecision - it guards the
+    // next chassis audited in without a slot, and a rule deleted because today's bank cannot
+    // reach it is the mistake `zone` and `animation.presetId` record in src/ai/AGENTS.md.
     id: 'repair-logo-not-supported',
     request: repairRequest('A lower third for Ada Example, Example Editor.'),
     decision: readyDecision({ ...baseSpec(), useLogoSlot: true }),
-    expectErrors: ['logo_not_supported'],
+    expectErrors: [],
   },
   {
     // Kept as a REGRESSION pin with no expected errors: this palette used to be refused

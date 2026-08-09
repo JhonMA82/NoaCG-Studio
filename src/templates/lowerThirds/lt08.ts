@@ -52,7 +52,11 @@ export const lt08: TemplateVariant = defineVariant(
     const logoCss = o.logoEnabled
       ? `
 
-/* The logo: a rounded square, vertically centered against the text block. */
+/* The logo: a square slot, vertically centered against the text block.
+   The square used to round its corners and fill itself with object-fit: cover, which reads as
+   a neat docked chip and quietly crops every mark that is not square — a wordmark loses both
+   ends. Both are refused by src/ai/assetIntegrity.ts on a picture marked "use it as it is",
+   and a logo always is. The card keeps its own radius; the mark keeps its own shape. */
 .lower-third-logo {
   position: absolute;              /* out of flow — the card's left padding reserves its space */
   left: calc(35px * var(--scale)); /* aligned with the card's horizontal padding */
@@ -60,8 +64,7 @@ export const lt08: TemplateVariant = defineVariant(
   transform: translateY(-50%);     /* …whatever the number of text lines */
   width: calc(75px * var(--scale));   /* logo square width */
   height: calc(75px * var(--scale));  /* logo square height */
-  border-radius: calc(14px * var(--scale));  /* rounded corners echo the card shape */
-  object-fit: cover;               /* fill the square without distorting the image */
+  object-fit: contain;             /* show the whole mark — never crop it to fill the square */
 }`
       : '';
 

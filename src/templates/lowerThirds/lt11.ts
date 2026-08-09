@@ -20,7 +20,10 @@ export const lt11: TemplateVariant = defineVariant(
       { title: 'Name', sample: sampleName('lt11') },
       { title: 'Title', sample: 'Anchor · Evening News' },
     ],
-    logo: 'none',
+    // The BRAND SLOT: this design inherits the shared band (templates/shared/logoSlot.ts),
+    // so a channel mark, a club crest or a wide institutional lockup all land at a legible
+    // size with no per-design code. Emitted only when the user turns the logo on.
+    logo: 'optional',
     animationPresets: ['line-reveal', 'slide-up', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
     defaultPalette: paletteById('noacg'),
     defaultFontId: 'space-grotesk',

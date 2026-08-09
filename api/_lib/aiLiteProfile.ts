@@ -225,7 +225,14 @@ export function liteProfile(): LiteProfile {
     //
     // The env override survives for the one job that needs it: holding a benchmark to an older
     // prompt on purpose. Setting it in a real deployment is how the label starts lying.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v13').trim().slice(0, 64) || 'lite-lower-third-v13',
+    //
+    // v14 (2026-08-09): the six audited chassis carry a BRAND SLOT, so the digest's `logo:` line
+    // reads `yes` where all six read `no`. That is a real change to the text the model is given -
+    // `useLogoSlot` was an automatic refusal on every chassis before it and is legal on every
+    // chassis after it - so the label has to move with it, or v13's numbers get read as
+    // describing a prompt that no longer exists (§4's rule: a pass COUNT is not a diagnosis, and
+    // the ledger's grouping is by `prompt_version`).
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v14').trim().slice(0, 64) || 'lite-lower-third-v14',
     primary,
     fallback,
     prices,

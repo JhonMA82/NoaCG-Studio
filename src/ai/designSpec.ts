@@ -61,6 +61,21 @@ export interface DesignSpec {
   variantId?: string;
   /** The operator's visible text lines (1-3): label + realistic sample. */
   lines: { title: string; sample: string }[];
+  /**
+   * Values for the chassis's non-line fields, by the graphic TYPE's logical key - which answer
+   * a quiz marks correct, how long a countdown runs, a live poll's options. Lines are what the
+   * graphic SAYS; this is the rest of what makes it the graphic that was asked for, and without
+   * it a generated quiz carries the right question and still marks the chassis's own default
+   * row correct.
+   *
+   * A LIST of pairs rather than a map because it crosses a model boundary: a JSON Schema with
+   * `additionalProperties: false` cannot describe an open key set, and the alternative - naming
+   * every legal key of every type as a schema property - is a contract that has to be rewritten
+   * for each category the profile widens to. `specToTemplate` folds it into the map
+   * `WizardOptions.content` wants. Illegal keys and values are dropped at compile, never
+   * refused: the platform owns correctness (model/wizard.ts).
+   */
+  content?: { key: string; value: string }[];
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
   /** Place the first uploaded image into the design's logo slot. */
   useLogoSlot?: boolean;
@@ -435,6 +450,18 @@ export function specToTemplate(
     extraFields: (spec.extraFields ?? []).filter((f) =>
       ['textfield', 'textarea', 'number', 'filelist'].includes(f.ftype),
     ),
+    // The pairs become the map the assembler wants; a later pair wins, and the compile clamps
+    // every value against the type's own declaration (a type-compiled chassis) or ignores the
+    // whole map (a hand-written one, which declares no logical keys to write against).
+    ...(spec.content?.length
+      ? {
+          content: Object.fromEntries(
+            spec.content
+              .filter((entry) => entry && typeof entry.key === 'string' && entry.key.trim())
+              .map((entry) => [entry.key.trim(), typeof entry.value === 'string' ? entry.value : String(entry.value ?? '')]),
+          ),
+        }
+      : {}),
     palette,
     fontId: FONTS.some((f) => f.id === spec.fontId) ? spec.fontId : undefined,
     // The user's uploaded font wins over any font id (WizardOptions' own precedence rule).

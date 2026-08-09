@@ -21,7 +21,10 @@ export const lt32: TemplateVariant = defineVariant(
       { title: 'Name', sample: 'Alexandra Riva' },
       { title: 'Role', sample: 'Marine Biologist' },
     ],
-    logo: 'none',
+    // The BRAND SLOT: this design inherits the shared band (templates/shared/logoSlot.ts),
+    // so a channel mark, a club crest or a wide institutional lockup all land at a legible
+    // size with no per-design code. Emitted only when the user turns the logo on.
+    logo: 'optional',
     // Cinematic motion is slow and still: a fade leads, and nothing overshoots.
     animationPresets: ['fade', 'blur-in', 'line-reveal', 'slide-up', 'mask-wipe'],
     defaultPalette: paletteById('noir'),

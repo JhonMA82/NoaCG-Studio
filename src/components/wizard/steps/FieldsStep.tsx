@@ -2,6 +2,9 @@ import { useRef } from 'react';
 import { uniqueAssetPath } from '../../../assets/assetUtils';
 import { importImageFile } from '../../../assets/imageImport';
 import { fieldPlanOf, type TemplateVariant } from '../../../model/wizard';
+import { setupFields } from '../../../templates/types/graphicType';
+import { typeById } from '../../../templates/types/registry';
+import { FieldControl } from '../../fields/FieldControl';
 import type { DraftPatch, WizardDraft } from '../draft';
 
 interface Props {
@@ -20,6 +23,12 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
   const lines = draft.lines;
   const plan = fieldPlanOf(variant);
   const logoInput = useRef<HTMLInputElement>(null);
+  // The design's SETUP values - the non-line decisions that belong to building the graphic
+  // rather than to running it (setupFields derives that from the machine: a field an operator
+  // event carries as payload is live state, and nobody has picked one yet). Only a
+  // type-compiled design has any; everything else renders exactly what it rendered before.
+  const type = variant.typeId ? typeById(variant.typeId) : undefined;
+  const setup = type ? setupFields(type) : [];
 
   const setLine = (i: number, key: 'title' | 'sample', value: string) => {
     onDraft({ lines: lines.map((l, k) => (k === i ? { ...l, [key]: value } : l)) });
@@ -130,6 +139,36 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           )}
         </p>
       </div>
+
+      {setup.length > 0 && (
+        <div className="panel-section" data-testid="wz-setup">
+          <h3>
+            Setup{' '}
+            <span className="muted">
+              decided now - what an operator sends it on air stays theirs
+            </span>
+          </h3>
+          {setup.map((field) => (
+            <div className="wz-setup-row" key={field.key}>
+              <span className="wz-setup-label">{field.label}</span>
+              <FieldControl
+                descriptor={{
+                  key: field.key,
+                  label: field.label,
+                  kind: field.kind,
+                  defaultValue: field.value,
+                  ...(field.options ? { options: field.options } : {}),
+                }}
+                value={draft.content[field.key] ?? field.value}
+                testId={`wz-setup-${field.key}`}
+                onChange={(value) =>
+                  onDraft({ content: { ...draft.content, [field.key]: String(value) } })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {variant.logo !== 'none' && (
         <div className="panel-section">

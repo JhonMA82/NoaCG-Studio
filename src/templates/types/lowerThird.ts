@@ -41,7 +41,14 @@ export const lowerThirdType: GraphicType = {
   controls: [],
   capabilities: {
     maxLines: 2,
-    logo: 'none',
+    // The BRAND SLOT, 2026-08-09. A compiled variant takes the TYPE's capabilities, so this is
+    // what the wizard's logo toggle, the Template step's logo filter and the AI's chassis
+    // metadata read - and while it said 'none', the six designs the managed free profile is
+    // allowed to use could not carry a channel mark at all (benchmarks/lite/BRAND-AUDIT-2026-08-09.md).
+    // The field is NOT in `fields` above on purpose: an optional logo is emitted by the shared
+    // slot only when the user turns it on, so the declared field list stays the two lines this
+    // type is. `briefings.ts` and `cards.ts` already work exactly this way.
+    logo: 'optional',
     animationPresets: ['line-reveal', 'slide-up', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
     defaultZone: 'bottom-left',
   },
@@ -96,9 +103,10 @@ export const lowerThirdType: GraphicType = {
     {
       // Designed FOR this cell. NO EXISTING GLASS LOWER THIRD IS PROMOTABLE, and all three
       // fail differently, which is why this cell needed a new design rather than a promotion:
-      //  - lt08 Frosted Card fails three gates at once - it emits no .lower-third-accent element
-      //    (the accent is its keyline), carries three lines against this type's two, and declares
-      //    logo 'optional' where this type declares none;
+      //  - lt08 Frosted Card fails two gates at once - it emits no .lower-third-accent element
+      //    (the accent is its keyline) and carries three lines against this type's two. (A third
+      //    reason stood until 2026-08-09: it declared logo 'optional' where this type declared
+      //    none. The type declares 'optional' now, so that one is gone; the other two are not.)
       //  - lt09 Gradient Pill fails parts for the same reason (its accent is an edge ring drawn
       //    by a pseudo-element, so there is no accent NODE for a timeline to address) and fails
       //    semantics besides: its second line is an @handle, which is the social bug's subject;
@@ -152,11 +160,12 @@ export const lowerThirdType: GraphicType = {
       create: (_type, options) => lt32.create(options),
     },
     //
-    // lt07 is NOT promotable here either, for a third reason worth naming: a compiled variant
-    // takes the TYPE's capabilities, not the design's. lt07 declares `logo: 'optional'` and
-    // three lines; this type declares no logo and two. Promoting it silently stripped the badge
-    // it is named for and dropped it out of the wizard's logo-first ordering. The sport
-    // lower-third cell needs a two-line design with no logo slot.
+    // lt07 is NOT promotable here either, and the reason it taught is worth keeping even though
+    // the fact behind it has changed: a compiled variant takes the TYPE's capabilities, not the
+    // design's, so while this type said `logo: 'none'` promoting lt07 silently stripped the
+    // badge it is named for and dropped it out of the wizard's logo-first ordering. The type
+    // carries an optional logo since 2026-08-09, so the LOGO half no longer bites; lt07 still
+    // emits three lines against this type's two, and that is the disqualifier that remains.
     // lt10 is NOT promotable here: this type declares two fields (name, title) and lt10 emits
     // three. A type's field count is part of its contract — the control page and the compiled
     // fN ids are built from it — so a design carrying an extra field is a different graphic,

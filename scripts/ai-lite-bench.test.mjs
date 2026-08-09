@@ -117,6 +117,49 @@ test('every contract symbol the browser-side runners reference exists', () => {
   }
 });
 
+test('mark shapes: the aspect cuts, and no shape servable by only one chassis', async () => {
+  const types = await import(pathToFileURL(path.join(runtime.outputDir, 'src/ai/liteTypes.js')).href);
+  // The boundaries, at and either side of each cut - a mark's shape decides which slots can
+  // hold it, so an off-by-one here silently routes a wordmark into a crest well.
+  assert.equal(types.markShapeFromAspect(180 / 260), 'portrait');
+  assert.equal(types.markShapeFromAspect(0.84), 'portrait');
+  assert.equal(types.markShapeFromAspect(0.85), 'square');
+  assert.equal(types.markShapeFromAspect(1), 'square');
+  assert.equal(types.markShapeFromAspect(1.4), 'square');
+  assert.equal(types.markShapeFromAspect(1.41), 'wordmark');
+  assert.equal(types.markShapeFromAspect(4), 'wordmark');
+  assert.equal(types.markShapeFromAspect(4.5), 'wordmark');
+  assert.equal(types.markShapeFromAspect(4.51), 'rail');
+  assert.equal(types.markShapeFromAspect(10), 'rail');
+  // A degenerate reading is not a refusal: a probe that could not size the image must not turn
+  // into a shape nothing serves.
+  for (const bad of [0, -1, NaN, Infinity]) assert.equal(types.markShapeFromAspect(bad), 'square');
+
+  // The same structural rule the intent kinds are under (api/_lib/aiLite.test.ts): a mark shape
+  // with a single home is a brief that can only be answered by one design, whatever that design
+  // looks like - and this profile has already shipped that failure twice.
+  const homes = new Map();
+  for (const entry of contract.LITE_CATALOG) {
+    for (const shape of entry.logoSlot?.fits ?? []) homes.set(shape, (homes.get(shape) ?? 0) + 1);
+  }
+  for (const shape of ['portrait', 'square', 'wordmark', 'rail']) {
+    assert.ok((homes.get(shape) ?? 0) >= 2, `mark shape "${shape}" is servable by ${homes.get(shape) ?? 0} chassis`);
+  }
+});
+
+test('the catalog digest states each chassis logo slot in shapes and surface', () => {
+  const digest = contract.liteCatalogDigest();
+  for (const entry of contract.LITE_CATALOG) {
+    if (!entry.logoSlot) continue;
+    // Measured metadata that never reaches the prompt is a dead knob, and this one exists
+    // precisely so the model can avoid a slot that would crush the user's mark.
+    assert.ok(
+      digest.includes(`logo:holds ${entry.logoSlot.fits.join(',')} marks, surface:${entry.logoSlot.surface}`),
+      `${entry.variantId}'s logo slot is not in the digest`,
+    );
+  }
+});
+
 test('production src never imports benchmark code (bundle exclusion)', () => {
   const walk = (dir) => readdirSync(path.join(projectRoot, dir), { withFileTypes: true })
     .flatMap((entry) => {

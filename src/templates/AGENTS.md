@@ -248,6 +248,18 @@ the control page and the pre-play frame cannot disagree; TITLES stay the type's,
 contract's labels are what its own row dropdowns are declared against. Pinned by
 `e2e/lite-line-content.spec.ts`, registry-wide and mutation-tested.
 
+**`WizardOptions.content` is the channel for everything a LINE cannot carry** - which answer a
+quiz marks correct, how long a countdown runs, a live poll's options: all `role: 'data'` or
+`'hidden'`, none of them reachable through `lines`. It is keyed by the type's own LOGICAL keys
+(`{ correctAnswer: 'C' }`), never by `fN`, and only a type-compiled variant honours it, because
+only a type declares those keys and the kind to clamp each value against; a hand-written variant
+ignores it rather than guessing what its ids mean. **Every value is clamped to what the field
+declares and an illegal one is DROPPED** - a `select` takes only an option it offers, so a
+correct-answer field can never name a row that does not exist (which would reveal nothing, with
+no error anywhere). `DesignSpec.content` is the same data as a LIST of pairs, because a JSON
+Schema with `additionalProperties: false` cannot describe an open key set; `specToTemplate` folds
+it into the map.
+
 **The trap to know:** a timer never arms on a timeline that never ends (the arming call is
 scheduled at the timeline's end). A `repeat: -1` loop or a measured `dynamics` builder makes
 that unreachable, so `validateMachine` errors on it. This is why the ticker type is a rotator
@@ -775,6 +787,15 @@ picked file replaces it).
   `shared/logoSlot.ts` `applyLogoSlot` injects the standard slot (filelist field +
   `<img id="fN" class="{prefix}-logo">` leading the box + placeholder CSS) from
   `assembleStandard` when `logoEnabled` and `designHasLogoSlot` says the design has none.
+  **A MARK IS NOT A PICTURE, and the slot has to be drawn for that.** The shared slot is a BAND
+  sized by height with its width free - it was a 56px square until 2026-08-09, which held a crest
+  and reduced a 4:1 wordmark to a 20px strip and a 10:1 sponsor rail to about 8px, so "bring your
+  logo" was true only for a shape most brands do not have. It also carries NO radius and NO crop:
+  `src/ai/assetIntegrity.ts` refuses both on a picture the user marked "use it as it is", and the
+  two contracts had simply never met. A slot that holds CONTENT rather than a mark - ls25's
+  release artwork, which is square by nature and correctly cropped - says so with
+  `TemplateVariant.imageSlot: 'picture'`. Measured by `node scripts/ai-lite-brand-audit.mjs`;
+  findings in `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
 - The preview iframe can't resolve `images/...` paths set at runtime - preview/composeDocument.ts
   injects a MutationObserver shim that swaps known relative paths for their in-memory data URLs.
   Exported packages never include the shim.
