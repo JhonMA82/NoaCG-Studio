@@ -890,7 +890,6 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
   flourish_forbidden: 'Set spec.flourish to an empty string.',
   logo_not_supported: 'Remove useLogoSlot, or choose a chassis whose catalog entry says logo:yes.',
-  logo_contrast_low: 'The mark would not read on that design\'s logo surface. Choose a chassis whose logo surface suits the mark\'s ink - a light mark needs a dark surface and a dark mark needs a light one - or clear useLogoSlot.',
   requested_category_ignored: 'Return the category the request asked for.',
   skin_shape_invalid: 'Return skin as an object with summary and css strings, or omit skin.',
   skin_summary_invalid: 'Give skin.summary one short sentence naming the treatment.',
@@ -1260,16 +1259,44 @@ export function validateLiteDecision(
   // brings its own field cannot vanish, a mark whose ink read as mid-grey was deliberately sent
   // without a tone, and a palette nobody supplied leaves the chassis default carrying - which
   // this module cannot resolve. Absence is not evidence, so any missing term simply does not fire.
+  //
+  // It is APPLIED, never refused - and that shape was bought with a paid round. Shipped as an
+  // ERROR it turned the two frames it caught into two `generation_failed`s: the repair round
+  // could not save either, exactly as the palette floor's own note three lines below records
+  // ("a legibility floor should cost the palette at worst, never the whole generation"). A rule
+  // that converts a bad graphic into no graphic is worse than the defect it replaces.
+  //
+  // So the platform fixes it, in the order that costs the user least: re-pick a chassis whose
+  // logo surface suits the mark, and only when the catalog has none, deliver the graphic without
+  // the mark. Both are recorded as adjustments, so the ledger can count how often a brand's mark
+  // cannot be honoured - which is a CATALOG gap to draw against, not a model failure.
+  let logoReselect: string | null = null;
+  let dropLogo = false;
   if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
-    const ink = request.mark.ink === 'light' ? '#ffffff' : '#000000';
     const panel = spec.palette?.panel ?? request.palette?.panel ?? null;
+    const markShape = request.mark.shape;
+    const ink = request.mark.ink;
     // A `dark` surface is the PICTURE behind the graphic, which no palette repaints
     // (docs/CATALOG_VARIETY.md §5.3) - so a dark-ink mark is unreadable there whatever else is
     // requested. A `palette` surface is answerable only when a palette was actually supplied.
-    const unreadable = entry.logoSlot.surface === 'dark'
-      ? request.mark.ink === 'dark'
-      : panel !== null && (contrastRatio(ink, panel) ?? 99) < LITE_MARK_CONTRAST_FLOOR;
-    if (unreadable) errors.push('logo_contrast_low');
+    const reads = (candidate: LiteCatalogEntry): boolean => {
+      if (!candidate.logoSlot || !candidate.logoSlot.fits.includes(markShape)) return false;
+      if (candidate.logoSlot.surface === 'dark') return ink === 'light';
+      if (panel === null) return true;
+      const inkHex = ink === 'light' ? '#ffffff' : '#000000';
+      return (contrastRatio(inkHex, panel) ?? 99) >= LITE_MARK_CONTRAST_FLOOR;
+    };
+    if (!reads(entry)) {
+      // Keep every other decision the model made: same intent, and at least the text capacity
+      // the chosen design had, so a re-pick can never wrap a line the original held.
+      const swap = LITE_CATALOG.find((candidate) =>
+        candidate.variantId !== entry.variantId
+        && candidate.intentKinds.includes(spec.intent.kind)
+        && candidate.supportingLineChars >= entry.supportingLineChars
+        && reads(candidate));
+      if (swap) logoReselect = swap.variantId;
+      else dropLogo = true;
+    }
   }
   // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
   // lightness can reach it, drop the bespoke palette so the chassis default carries. A
@@ -1319,6 +1346,19 @@ export function validateLiteDecision(
   }
   if (palette) repaired.palette = palette;
   else delete repaired.palette;
+  // The mark repair, applied to the DECISION rather than only to the checks - the compile reads
+  // `variantId` and `useLogoSlot`, so a fix that stops at the validator changes nothing a viewer
+  // can see, which is the field-paint lesson in `src/ai/AGENTS.md` one layer up.
+  if (logoReselect) {
+    repaired.variantId = logoReselect;
+    adjustments.push('logo_chassis_reselected');
+  } else if (dropLogo) {
+    // The graphic survives without the mark. A brand that owns only one tone of its logo and a
+    // package with no surface for it is a real, ordinary situation - and half the request
+    // delivered beats none of it.
+    repaired.useLogoSlot = false;
+    adjustments.push('logo_dropped_unreadable');
+  }
   return {
     decision: { status: 'ready', spec: repaired, ...(skin ? { skin } : {}) },
     errors: [],

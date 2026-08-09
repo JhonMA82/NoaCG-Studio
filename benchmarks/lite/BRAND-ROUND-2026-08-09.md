@@ -1,7 +1,7 @@
 # The first brand round - 2026-08-09
 
-**Spent $0.0037 across three passes** (`brand-v14` 5 briefs, `brand-v14b` 2 re-runs,
-`brand-v14c` 5 briefs). Frames archived and verified at
+**Spent $0.0048 across four passes** (`brand-v14` 5 briefs, `brand-v14b` 2 re-runs, `brand-v14c`
+5 briefs, `brand-v14d` 5 briefs confirming the contrast rule). Frames archived and verified at
 `C:/claude/noacg-lite-eval-archive/brand-v14c-2026-08-09` (54 files, 3 structured).
 
 The first time NoaCG Lite has been asked to ADD something to a graphic rather than reproduce
@@ -50,10 +50,17 @@ dark-ink mark on a design whose logo surface is dark") is literally satisfied in
 
 **The metadata is right and the instruction built on it is not.** `palette` is a statement about
 where the surface COMES FROM, not what it will BE, and only the request knows the second half.
-Fixed: `logo_contrast_low` in the server semantic validation, where the repair loop can act on
-it - the mark's ink against the resolved panel, scoped so an unknown term never fires. A repair
-fixture pins it and the suite's exact-match test shows it stays silent elsewhere. NOT yet
-confirmed by a paid round: that the rule fires is proven, that the model RECOVERS is not.
+**Fixed twice, and the second shape was bought with the confirming round.** Shipped first as a
+refusal, it turned both frames into `generation_failed` - the repair round could not save either,
+which is precisely what the palette floor's own note three lines above it in the code already
+said. A rule that converts a bad graphic into no graphic is worse than the defect.
+
+It is APPLIED now, in the order that costs the user least: re-pick a chassis whose logo surface
+suits the mark, and only when the catalog has none, drop the mark and ship the graphic. Both are
+recorded as adjustments, so the ledger counts how often a brand's mark cannot be honoured - a
+CATALOG gap to draw against, not a model failure. Verified across five cases: a knockout on a
+light package reselects to lt02 and keeps its mark; a dark-only mark on a dark package ships
+without it; and the three cases that should not fire do not.
 
 ### 3. The clipped rail was MY FIXTURE, not the product. (BANK, fixed - and this entry was wrong)
 
@@ -98,6 +105,7 @@ construction. Narrowed to the explicitly plural forms.
 
 Lite can now place a brand mark, and does. It places it **well when the mark brings its own
 field and the design was drawn for that shape**, and badly in one named, measurable way that is
-platform work rather than model work. Every defect this round found is now fixed or corrected. What no round has shown is whether the
-model RECOVERS when the contrast rule fires - the next paid round should confirm that, not
-re-find any of this.
+platform work rather than model work. Every defect this round found is now fixed or corrected. The confirming round answered the one question left open, and answered it NO: the model does not
+recover from a contrast refusal, so the rule became a deterministic repair instead. What no round
+has shown yet is a FRAME of that repair - that a reselected chassis renders a readable mark is
+verified in code and not yet on screen.
