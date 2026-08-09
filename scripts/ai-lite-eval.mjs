@@ -403,7 +403,8 @@ async function writeReviewPage() {
       .map((row) => `
         <article>
           <h3>${escapeHtml(row.candidate)}</h3>
-          ${row.motionFile ? `<video controls muted loop preload="metadata" src="${escapeHtml(row.motionFile)}"></video>` : ''}
+          ${row.motionFile ? `<video controls muted loop preload="metadata" src="${escapeHtml(row.motionFile)}"></video>
+          <p class="clip-note">The copy changes once mid-clip: the runner sends a second <code>update()</code> during the hold. Not a template defect - judge the swap for FIT, not for firing.</p>` : ''}
           <div class="phases">
             ${Object.entries(row.phaseFiles ?? {}).map(([phase, file]) => `
               <figure>
@@ -436,13 +437,15 @@ async function writeReviewPage() {
   article{padding:16px;background:#12161d;border:1px solid #29313d;border-radius:10px}
   img,video{display:block;width:100%;height:auto;background:#05070a;border-radius:6px}
   video{margin-bottom:12px}
+  .clip-note{max-width:none;margin:0 0 12px;font-size:12px;line-height:1.45;color:#8d97a5}
+  .clip-note code{font-family:ui-monospace,monospace;color:#c6cfda}
   .phases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   figure{margin:0} figcaption{padding-top:5px;color:#aeb7c3;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
 </style>
 <body>
   <header>
     <h1>NoaCG Lite blind lower-third review</h1>
-    <p>Candidate labels are intentionally neutral. Every still is captured at 1920x1080 for entrance, hold, update, and exit. Review at 100% for typography, spacing, hierarchy, fit, and sharpness. Use the clips to judge the full lifecycle choreography and settling. The clips are review proxies; runtime validation still uses the live browser graphic.</p>
+    <p>Candidate labels are intentionally neutral. Every still is captured at 1920x1080 for entrance, hold, update, and exit. Review at 100% for typography, spacing, hierarchy, fit, and sharpness. Use the clips to judge the full lifecycle choreography and settling. <strong>Each clip runs entrance &rarr; hold &rarr; update &rarr; exit, so its text changes once mid-clip on purpose</strong> - the runner sends a second <code>update()</code> with longer copy during the hold, 600&thinsp;ms before <code>stop()</code>. No shipped template re-fires that itself, so read the swap as a legibility test (does the longer copy still fit and sit right?), never as a fault. The clips are review proxies; runtime validation still uses the live browser graphic.</p>
   </header>
   ${cards}
 </body>
