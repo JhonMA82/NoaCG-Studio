@@ -41,6 +41,31 @@ export interface LiteCatalogEntry {
    * `scripts/lite-line-capacity.mjs --check` and is gated against it.
    */
   supportingLineChars: number;
+  /**
+   * What this chassis's BRAND SLOT can actually hold, MEASURED by
+   * `node scripts/ai-lite-brand-audit.mjs --lite --check` and never authored by hand - the same
+   * contract `supportingLineChars` is under, for the same reason: the first version of that
+   * field was an adjective and it ranked the designs almost backwards.
+   *
+   * Null when the chassis carries no slot. The two halves are split because they go stale
+   * differently:
+   *
+   * - `fits` is GEOMETRY - which mark shapes land at a legible size with their clear space
+   *   intact. It is a fact about the slot and no palette changes it. A shape absent here is one
+   *   the design crushes: measured 2026-08-09, a square well reduced a 4:1 wordmark to a 20px
+   *   strip and a 10:1 rail to about 8px, and no gate in the tree could see it because a
+   *   letterboxed image does not escape its frame.
+   * - `surface` is TONE, and it is one word because one word is all that is true. `palette`
+   *   means the slot sits on the design's own panel, so the user's package decides whether a
+   *   dark-ink or a knockout mark reads. `dark` means the slot sits on the PICTURE - a
+   *   panel-less design is welded to a dark backdrop (docs/CATALOG_VARIETY.md §5.3), so a
+   *   brand that only has a dark version of its mark cannot use this chassis at all.
+   */
+  logoSlot: {
+    surface: 'palette' | 'dark';
+    /** Fixture ids from `scripts/ai-lite-brand-fixtures.mjs`. */
+    fits: readonly string[];
+  } | null;
   fieldPattern: string;
   motionCharacter: string;
 }
@@ -90,7 +115,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'House Strap',
       description: 'Amber accent, dark broadcast-width panel, strong display name and mono supporting line.',
       style: 'noacg',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['news', 'corporate', 'public service', 'general interviews'],
       avoidFor: ['delicate documentary supers', 'playful or highly decorative briefs'],
@@ -104,7 +130,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'Underline',
       description: 'Panel-free typography with a restrained accent underline and generous whitespace.',
       style: 'minimal',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'dark', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['universities', 'interviews', 'corporate', 'clean editorial programmes'],
       avoidFor: ['high-energy sports', 'busy footage without a quiet text area'],
@@ -118,7 +145,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'Angle Slab',
       description: 'Forward-leaning condensed sport slab with bold hierarchy and fast controlled motion.',
       style: 'sport',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'dark', fits: ['banner-wide'] },
       intentKinds: ['person', 'team', 'event', 'promotion'],
       bestFor: ['sports', 'esports', 'competitive events', 'high-energy segments'],
       avoidFor: ['long academic titles', 'solemn public information', 'quiet documentary work'],
@@ -132,7 +160,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'Frost Strap',
       description: 'Translucent glass strap with a soft accent edge and calm name-over-role hierarchy.',
       style: 'glass',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
       intentKinds: ['person', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['technology', 'streaming', 'creative interviews', 'modern events'],
       avoidFor: ['very bright flat backgrounds', 'hard-news urgency', 'dense supporting copy'],
@@ -146,7 +175,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'Masthead',
       description: 'Editorial rule-led composition with a confident name and tracked supporting line.',
       style: 'editorial',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'dark', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['public news', 'documentary', 'universities', 'culture and current affairs'],
       avoidFor: ['esports', 'game shows', 'sponsor-heavy promotional graphics'],
@@ -160,7 +190,8 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       name: 'Scrim',
       description: 'Cinematic typography on a quiet gradient scrim that integrates with the shot.',
       style: 'cinematic',
-      logo: false,
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
       intentKinds: ['person', 'story', 'event'],
       bestFor: ['documentary', 'arts', 'film', 'human-interest interviews'],
       avoidFor: ['score updates', 'dense data', 'high-energy calls to action'],

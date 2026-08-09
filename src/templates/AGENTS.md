@@ -759,6 +759,15 @@ picked file replaces it).
   `shared/logoSlot.ts` `applyLogoSlot` injects the standard slot (filelist field +
   `<img id="fN" class="{prefix}-logo">` leading the box + placeholder CSS) from
   `assembleStandard` when `logoEnabled` and `designHasLogoSlot` says the design has none.
+  **A MARK IS NOT A PICTURE, and the slot has to be drawn for that.** The shared slot is a BAND
+  sized by height with its width free - it was a 56px square until 2026-08-09, which held a crest
+  and reduced a 4:1 wordmark to a 20px strip and a 10:1 sponsor rail to about 8px, so "bring your
+  logo" was true only for a shape most brands do not have. It also carries NO radius and NO crop:
+  `src/ai/assetIntegrity.ts` refuses both on a picture the user marked "use it as it is", and the
+  two contracts had simply never met. A slot that holds CONTENT rather than a mark - ls25's
+  release artwork, which is square by nature and correctly cropped - says so with
+  `TemplateVariant.imageSlot: 'picture'`. Measured by `node scripts/ai-lite-brand-audit.mjs`;
+  findings in `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
 - The preview iframe can't resolve `images/...` paths set at runtime - preview/composeDocument.ts
   injects a MutationObserver shim that swaps known relative paths for their in-memory data URLs.
   Exported packages never include the shim.

@@ -145,7 +145,7 @@ first two are server-flagged off and gated on the loop producing a trustworthy s
 
 ## 7. Brand integration - a user's logo and colours in a Lite graphic
 
-**Status: DESIGNED and FREELY MEASURED 2026-08-09, unstarted in code, no round paid for.** This
+**Status: DESIGNED, MEASURED and BUILT to step 3 on 2026-08-09. No round paid for.** This
 is the product promise the plan has never tested. v13 proved Lite can REPRODUCE a template;
 nobody has ever asked it to ADD something, and "a channel's own graphic" is the whole difference
 between this and a catalog browser.
@@ -237,24 +237,47 @@ build order:
 
 Free unless marked. Each step ends with the audit re-run, so the next one starts from a number.
 
-1. **Fix the two as-is violations** - the shared slot's radius and `lt08`'s crop. This is a
-   contradiction between two shipped contracts, not brand work, and it lands whatever else does.
-2. **Draw the lockup case.** A logo slot that can hold a 4:1 wordmark and a 10:1 rail is a
-   different shape from a crest well: a horizontal band above or beside the text, sized on
-   WIDTH. Until one exists, "bring your logo" is false for most brands. Target: at least three
-   Lite-eligible chassis clean on all five mark shapes, verified by `--check`.
-3. **Give the six Lite chassis slots** (or replace the ones that cannot take a mark coherently),
-   and add the measured logo metadata to `LITE_CATALOG` - what mark SHAPES a chassis can hold,
-   generated from the audit exactly as `supportingLineChars` is generated from
-   `lite-line-capacity.mjs`. **An adjective is what a chassis may say only where nothing can
-   measure it** (`src/ai/AGENTS.md`), and this is measurable.
+1. **Fix the two as-is violations. DONE 2026-08-09.** The shared slot no longer rounds the mark
+   and `lt08` no longer crops it; `cropped` went from 9 failures to 0. `ls25` declares
+   `imageSlot: 'picture'` (`model/wizard.ts`) because its slot is release artwork, not a mark,
+   and cropping it is the design being right.
+2. **Draw the lockup case. DONE 2026-08-09.** The shared slot is a BAND now - sized by height
+   with the width free and a cap - so a mark takes the room its own shape needs and only
+   something past ~4:1 letterboxes. On the Lite chassis `below-min-size` went from 33 failures
+   to 0: the wordmark paints 256x64 where it used to paint a 20px strip.
+3. **Give the six Lite chassis slots, with measured metadata. DONE 2026-08-09.**
+   `types/lowerThird.ts` declares `logo: 'optional'` - a compiled variant takes the TYPE's
+   capabilities, so flipping the design files alone would have emitted a slot the wizard never
+   offers. `--lite` went from **0 of 30 pairs to 21 of 30**, five of six chassis clean on every
+   mark shape geometrically. `LiteCatalogEntry.logoSlot` carries the measurement (`fits` =
+   geometry, `surface` = tone), gated by `--lite --check` and mutation-proved. Full account:
+   `benchmarks/lite/BRAND-AUDIT-2026-08-09.md` §6.
 4. **Only then, one paid round** over the eight briefs in `scripts/ai-lite-brand-fixtures.mjs`
    (five lower thirds servable today, three in categories §3 widens to). The schema change is
    expected to be nil-to-tiny: `useLogoSlot` already exists on the wire and the request already
-   carries `hasLogo`. **No prompt version is minted until step 3's metadata exists** - a version
-   bump whose only content is a sentence asking for better logo placement is precisely the lever
-   §4 records as the least effective measured so far.
+   carries `hasLogo`. **The version this round mints is earned by the metadata, not by a
+   sentence** - step 3's `logoSlot` is measured but nothing in the PROMPT reads it yet, and
+   putting it in the chassis digest is what changes the model's chassis choice when a mark is
+   present. A bump whose only content were a plea for better logo placement is precisely the
+   lever §4 records as the least effective measured so far.
 
 *(~$0.010 for a round of 8, at v13's $0.00034 per generation. Cost is not the constraint here and
-was not the reason to stop; the reason to stop is that a paid round before step 3 would be
-measuring six chassis that cannot hold a logo.)*
+was not the reason to stop.)*
+
+### 7.5 The gap step 3 exposed, and it is not a model problem
+
+**`logoSlot` is measured, and the model cannot act on it yet, because the request never says
+what the user's mark IS.** `LiteGenerationRequest.hasLogo` is a BOOLEAN. So the model can be told
+that lt02 holds every mark shape and offers a dark surface, and still has no way to know whether
+the file in the user's hand is a knockout wordmark that will read there or a dark-only one that
+will vanish - and `--lite` measured that exact failure three times.
+
+Both missing facts are free and deterministic, and neither needs a model: the mark's natural
+ASPECT is `naturalWidth / naturalHeight` on the upload, and whether it carries its own field or
+composites its ink onto the surface is one alpha probe (`model/imagePurpose.ts` `probeAsset`
+already does the same class of read for the purpose preselect). Send those instead of a boolean
+and the chassis choice becomes answerable from metadata that already exists.
+
+That is the first piece of step 4, ahead of any prompt wording: **widen `hasLogo` into a small
+measured mark descriptor, then put `logoSlot` in the chassis digest.** Until both land, the
+metadata is gated but unread - which is a deliberate half-step, not an oversight.

@@ -20,6 +20,7 @@
    "name": "House Board",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -64,6 +65,7 @@
    "name": "House Board",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -108,6 +110,7 @@
    "name": "House Board",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -150,6 +153,7 @@
    "name": "House Board",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -194,6 +198,7 @@
    "name": "House Board",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -238,6 +243,7 @@
    "name": "House Ident",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -282,6 +288,7 @@
    "name": "House Ident",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -326,6 +333,7 @@
    "name": "House Ident",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -368,6 +376,7 @@
    "name": "House Ident",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -412,6 +421,7 @@
    "name": "House Ident",
    "family": "noacg",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -456,6 +466,7 @@
    "name": "Mark Left",
    "family": "minimal",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -501,6 +512,7 @@
    "name": "Mark Left",
    "family": "minimal",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -545,6 +557,7 @@
    "name": "Mark Left",
    "family": "minimal",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -587,6 +600,7 @@
    "name": "Mark Left",
    "family": "minimal",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -631,6 +645,7 @@
    "name": "Mark Left",
    "family": "minimal",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -673,6 +688,7 @@
    "name": "Imprint",
    "family": "editorial",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -718,6 +734,7 @@
    "name": "Imprint",
    "family": "editorial",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -762,6 +779,7 @@
    "name": "Imprint",
    "family": "editorial",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -804,6 +822,7 @@
    "name": "Imprint",
    "family": "editorial",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -848,6 +867,7 @@
    "name": "Imprint",
    "family": "editorial",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -890,6 +910,7 @@
    "name": "Frame Mark",
    "family": "cinematic",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -934,6 +955,7 @@
    "name": "Frame Mark",
    "family": "cinematic",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -978,6 +1000,7 @@
    "name": "Frame Mark",
    "family": "cinematic",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -1020,6 +1043,7 @@
    "name": "Frame Mark",
    "family": "cinematic",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -1064,6 +1088,7 @@
    "name": "Frame Mark",
    "family": "cinematic",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -1108,6 +1133,7 @@
    "name": "Number Badge",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -1153,6 +1179,7 @@
    "name": "Number Badge",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -1197,6 +1224,7 @@
    "name": "Number Badge",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -1239,6 +1267,7 @@
    "name": "Number Badge",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -1283,6 +1312,7 @@
    "name": "Number Badge",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -1325,6 +1355,7 @@
    "name": "Team Bar",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -1369,6 +1400,7 @@
    "name": "Team Bar",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -1413,6 +1445,7 @@
    "name": "Team Bar",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -1457,6 +1490,7 @@
    "name": "Team Bar",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -1501,6 +1535,7 @@
    "name": "Team Bar",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -1546,22 +1581,22 @@
    "name": "Frosted Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
    "failures": [
-    "cropped",
     "below-min-size"
    ],
    "painted": {
     "w": 75,
-    "h": 75,
+    "h": 19,
     "boxW": 75,
     "boxH": 75,
-    "fit": "cover"
+    "fit": "contain"
    },
    "clear": 22,
-   "needClear": 19,
+   "needClear": 5,
    "nearestSel": "#f0",
    "inkRatio": 15.92,
    "amber": "",
@@ -1591,22 +1626,22 @@
    "name": "Frosted Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
    "failures": [
-    "cropped",
     "below-min-size"
    ],
    "painted": {
     "w": 75,
-    "h": 75,
+    "h": 19,
     "boxW": 75,
     "boxH": 75,
-    "fit": "cover"
+    "fit": "contain"
    },
    "clear": 22,
-   "needClear": 19,
+   "needClear": 5,
    "nearestSel": "#f0",
    "inkRatio": 17.96,
    "amber": "",
@@ -1636,6 +1671,7 @@
    "name": "Frosted Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -1645,7 +1681,7 @@
     "h": 75,
     "boxW": 75,
     "boxH": 75,
-    "fit": "cover"
+    "fit": "contain"
    },
    "clear": 22,
    "needClear": 19,
@@ -1678,22 +1714,22 @@
    "name": "Frosted Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "banner-wide",
    "markId": "banner-wide",
    "failures": [
-    "cropped",
     "below-min-size"
    ],
    "painted": {
     "w": 75,
-    "h": 75,
+    "h": 8,
     "boxW": 75,
     "boxH": 75,
-    "fit": "cover"
+    "fit": "contain"
    },
    "clear": 22,
-   "needClear": 19,
+   "needClear": 2,
    "nearestSel": "#f0",
    "inkRatio": 17.96,
    "amber": "",
@@ -1723,21 +1759,21 @@
    "name": "Frosted Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "shield-tall",
    "markId": "shield-tall",
    "failures": [
-    "cropped",
     "field-separation"
    ],
    "painted": {
-    "w": 75,
+    "w": 52,
     "h": 75,
     "boxW": 75,
     "boxH": 75,
-    "fit": "cover"
+    "fit": "contain"
    },
-   "clear": 22,
+   "clear": 34,
    "needClear": 19,
    "nearestSel": "#f0",
    "inkRatio": 1.48,
@@ -1768,6 +1804,7 @@
    "name": "Glass Sign",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -1812,6 +1849,7 @@
    "name": "Glass Sign",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -1856,6 +1894,7 @@
    "name": "Glass Sign",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -1898,6 +1937,7 @@
    "name": "Glass Sign",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -1942,6 +1982,7 @@
    "name": "Glass Sign",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 2,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -1986,6 +2027,7 @@
    "name": "Glass Board",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -2030,6 +2072,7 @@
    "name": "Glass Board",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -2074,6 +2117,7 @@
    "name": "Glass Board",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -2116,6 +2160,7 @@
    "name": "Glass Board",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -2160,6 +2205,7 @@
    "name": "Glass Board",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 4,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -2204,6 +2250,7 @@
    "name": "Club Crest",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -2249,6 +2296,7 @@
    "name": "Club Crest",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -2293,6 +2341,7 @@
    "name": "Club Crest",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -2335,6 +2384,7 @@
    "name": "Club Crest",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -2379,6 +2429,7 @@
    "name": "Club Crest",
    "family": "sport",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -2421,6 +2472,7 @@
    "name": "Faculty Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-dark",
    "markId": "wordmark-dark",
@@ -2465,6 +2517,7 @@
    "name": "Faculty Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "wordmark-light",
    "markId": "wordmark-light",
@@ -2509,6 +2562,7 @@
    "name": "Faculty Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "badge-square",
    "markId": "badge-square",
@@ -2553,6 +2607,7 @@
    "name": "Faculty Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "banner-wide",
    "markId": "banner-wide",
@@ -2597,6 +2652,7 @@
    "name": "Faculty Card",
    "family": "glass",
    "logo": "optional",
+   "imageSlot": "mark",
    "maxLines": 3,
    "mark": "shield-tall",
    "markId": "shield-tall",
@@ -2615,232 +2671,6 @@
    "needClear": 42,
    "nearestSel": ".lower-third-accent",
    "inkRatio": 1.48,
-   "amber": "",
-   "baseLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ],
-   "withLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ]
-  },
-  {
-   "id": "ls25",
-   "name": "Now Playing",
-   "family": "glass",
-   "logo": "optional",
-   "maxLines": 3,
-   "mark": "wordmark-dark",
-   "markId": "wordmark-dark",
-   "failures": [
-    "cropped",
-    "clear-space",
-    "ink-contrast"
-   ],
-   "painted": {
-    "w": 130,
-    "h": 161,
-    "boxW": 130,
-    "boxH": 161,
-    "fit": "cover"
-   },
-   "clear": 30,
-   "needClear": 40,
-   "nearestSel": "#f0",
-   "inkRatio": 1.49,
-   "amber": "",
-   "baseLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ],
-   "withLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ]
-  },
-  {
-   "id": "ls25",
-   "name": "Now Playing",
-   "family": "glass",
-   "logo": "optional",
-   "maxLines": 3,
-   "mark": "wordmark-light",
-   "markId": "wordmark-light",
-   "failures": [
-    "cropped",
-    "clear-space"
-   ],
-   "painted": {
-    "w": 130,
-    "h": 161,
-    "boxW": 130,
-    "boxH": 161,
-    "fit": "cover"
-   },
-   "clear": 30,
-   "needClear": 40,
-   "nearestSel": "#f0",
-   "inkRatio": 4.11,
-   "amber": "",
-   "baseLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ],
-   "withLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ]
-  },
-  {
-   "id": "ls25",
-   "name": "Now Playing",
-   "family": "glass",
-   "logo": "optional",
-   "maxLines": 3,
-   "mark": "badge-square",
-   "markId": "badge-square",
-   "failures": [
-    "cropped",
-    "clear-space"
-   ],
-   "painted": {
-    "w": 130,
-    "h": 161,
-    "boxW": 130,
-    "boxH": 161,
-    "fit": "cover"
-   },
-   "clear": 30,
-   "needClear": 40,
-   "nearestSel": "#f0",
-   "inkRatio": 1.92,
-   "amber": "",
-   "baseLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ],
-   "withLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ]
-  },
-  {
-   "id": "ls25",
-   "name": "Now Playing",
-   "family": "glass",
-   "logo": "optional",
-   "maxLines": 3,
-   "mark": "banner-wide",
-   "markId": "banner-wide",
-   "failures": [
-    "cropped",
-    "clear-space"
-   ],
-   "painted": {
-    "w": 130,
-    "h": 161,
-    "boxW": 130,
-    "boxH": 161,
-    "fit": "cover"
-   },
-   "clear": 30,
-   "needClear": 40,
-   "nearestSel": "#f0",
-   "inkRatio": 4.11,
-   "amber": "",
-   "baseLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ],
-   "withLines": [
-    {
-     "field": "f0",
-     "lines": 1
-    },
-    {
-     "field": "f1",
-     "lines": 1
-    }
-   ]
-  },
-  {
-   "id": "ls25",
-   "name": "Now Playing",
-   "family": "glass",
-   "logo": "optional",
-   "maxLines": 3,
-   "mark": "shield-tall",
-   "markId": "shield-tall",
-   "failures": [
-    "cropped",
-    "clear-space"
-   ],
-   "painted": {
-    "w": 130,
-    "h": 161,
-    "boxW": 130,
-    "boxH": 161,
-    "fit": "cover"
-   },
-   "clear": 30,
-   "needClear": 40,
-   "nearestSel": "#f0",
-   "inkRatio": 2.96,
    "amber": "",
    "baseLines": [
     {

@@ -69,6 +69,18 @@ const RULES = {
 
 // The house amber. A brand palette carrying none of it must leave none of it on screen.
 const HOUSE_AMBER = [246, 166, 35];
+
+/**
+ * The failure codes that depend on the PALETTE rather than on the design's drawn geometry.
+ *
+ * The split exists because the two halves are declarable in different ways. Whether a 10:1 rail
+ * letterboxes to a hairline in a given slot is a fact about the slot and never changes; whether a
+ * dark-ink mark reads on it depends on what colour the user's package paints that surface. A
+ * chassis can therefore declare which SHAPES it holds as a fixed list, and answer the tone
+ * question with one word about the surface - and neither claim goes stale when the other moves.
+ */
+const TONE_CODES = new Set(['ink-contrast', 'field-separation']);
+const geometryFailures = (failures) => failures.filter((code) => !TONE_CODES.has(code));
 // The broadcast backdrop every contrast composite ends on (blocks/cssVars.ts).
 const BACKDROP = [16, 18, 22];
 
@@ -120,14 +132,19 @@ await page.evaluate(async () => {
 const targets = await page.evaluate(
   ([category, lite, all, ids]) => {
     const pool = (window.__cat.CATALOG[category] || []).map((v) => ({
-      id: v.id, name: v.name, family: v.styleTag, logo: v.logo, maxLines: v.maxLines,
+      id: v.id, name: v.name, family: v.styleTag, logo: v.logo,
+      imageSlot: v.imageSlot ?? 'mark', maxLines: v.maxLines,
     }));
     if (ids.length) return pool.filter((v) => ids.includes(v.id));
     if (lite) {
       const liteIds = window.__lite.LITE_CATALOG.map((e) => e.variantId);
       return pool.filter((v) => liteIds.includes(v.id));
     }
-    return all ? pool : pool.filter((v) => v.logo !== 'none');
+    // A `picture` well is not a mark well: cropping release artwork to a square is the design
+    // being right, and grading it against the mark rules reports a defect that is a feature
+    // (model/wizard.ts `imageSlot`). Excluded by default and NAMED in the output, never
+    // silently dropped - a target set that shrinks without saying so reads as full coverage.
+    return all ? pool : pool.filter((v) => v.logo !== 'none' && v.imageSlot !== 'picture');
   },
   [CATEGORY, LITE_ONLY, ALL, idFilter],
 );
@@ -136,6 +153,19 @@ if (!targets.length) {
   console.error(`No variants selected for category "${CATEGORY}".`);
   await browser.close();
   process.exit(2);
+}
+
+// Say what the default target set left out, so a shrinking denominator is visible.
+if (!ALL && !LITE_ONLY && !idFilter.length) {
+  const excluded = await page.evaluate(
+    (category) => (window.__cat.CATALOG[category] || [])
+      .filter((v) => v.logo !== 'none' && (v.imageSlot ?? 'mark') === 'picture')
+      .map((v) => v.id),
+    CATEGORY,
+  );
+  if (excluded.length) {
+    console.log(`Excluded ${excluded.length} picture well(s), not mark wells: ${excluded.join(', ')}.\n`);
+  }
 }
 
 await page.evaluate(([rules, backdrop, houseAmber]) => {
@@ -421,6 +451,10 @@ await page.evaluate(([rules, backdrop, houseAmber]) => {
       needClear: Math.round(needClear),
       nearestSel: collides || nearestSel,
       inkRatio,
+      // The relative luminance of the surface the SLOT paints, composited down to the
+      // broadcast backdrop. This is the fact a chassis can honestly declare about which marks
+      // it can host: a mark's own colours are the user's, but the surface is the design's.
+      surfaceLum: Math.round(lum(surface) * 1000) / 1000,
       amber,
       baseLines, withLines,
     };
@@ -438,6 +472,11 @@ for (const target of targets) {
     results.push({ ...target, mark: mark.id, ...row });
   }
 }
+// Read the declarations while the page is still alive - the gate below runs after the browser
+// is gone, and a check that cannot reach its expected values would silently pass.
+const declaredLogoSlots = await page.evaluate(() => Object.fromEntries(
+  window.__lite.LITE_CATALOG.map((e) => [e.variantId, e.logoSlot ?? null]),
+));
 await browser.close();
 
 if (jsonOut) {
@@ -486,8 +525,64 @@ if (codes.size) {
   for (const [code, n] of [...codes].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(3)}  ${code}`);
 }
 
+// ── The declaration gate: LITE_CATALOG.logoSlot against this render ───────────────────
+//
+// Same contract as `supportingLineChars` and `lite-line-capacity.mjs --check`: the expected
+// values live in `src/ai/liteContract.ts`, never in a copy beside the gate, because a gate
+// holding its own answers is checking its homework. `--lite --check` is the form that gates it.
+function checkLiteDeclarations(declared) {
+  const problems = [];
+  for (const [id, claim] of Object.entries(declared)) {
+    const rows = results.filter((r) => r.id === id);
+    if (!rows.length) continue;
+    const fits = rows.filter((r) => !geometryFailures(r.failures ?? ['error']).length)
+      .map((r) => r.mark).sort();
+    // Two distinct surface luminances across the run means the slot sits on a surface the
+    // PALETTE paints (the run pairs marks with different packages); one dark reading means the
+    // slot sits on the picture, and no palette can make it light.
+    const lums = [...new Set(rows.map((r) => r.surfaceLum).filter((v) => typeof v === 'number'))];
+    const surface = lums.length > 1 || lums.some((v) => v > 0.2) ? 'palette' : 'dark';
+
+    if (!claim) {
+      problems.push(`${id}: declares no logoSlot; measured surface ${surface}, fits ${fits.join(',') || 'nothing'}.`);
+      continue;
+    }
+    if (claim.surface !== surface) {
+      problems.push(`${id}: declares surface '${claim.surface}', measured '${surface}'.`);
+    }
+    const claimed = [...(claim.fits ?? [])].sort();
+    const over = claimed.filter((m) => !fits.includes(m));
+    const under = fits.filter((m) => !claimed.includes(m));
+    // Asymmetric, like the line-capacity gate: a claim ABOVE the measurement is the defect,
+    // because the model is told a mark shape will land and it does not.
+    if (over.length) problems.push(`${id}: claims it fits ${over.join(',')} and does not.`);
+    if (under.length) problems.push(`${id}: fits ${under.join(',')} and does not claim it - stale, so the design is under-used.`);
+  }
+  return problems;
+}
+
 if (CHECK) {
-  process.exitCode = failing.length ? 1 : 0;
+  let problems = [];
+  // The declaration half needs the WHOLE bank at the default pairing, and refuses rather than
+  // reports on a subset. Measured on two marks it called three chassis over-claiming for the
+  // three it had not rendered, and read `surface` off a single palette - a gate that turns a
+  // narrowed run into a list of imaginary defects is worse than one that declines to answer.
+  if (LITE_ONLY && markFilter.length) {
+    console.log('\n--check skipped the declaration gate: --marks narrows the bank, and `fits` '
+      + 'can only be compared against a full run. Re-run without --marks.');
+  } else if (LITE_ONLY && FORCED_PALETTE) {
+    console.log('\n--check skipped the declaration gate: --palette pins one package, and '
+      + '`surface` is read from the default pairing. Re-run without --palette.');
+  } else if (LITE_ONLY) {
+    problems = checkLiteDeclarations(declaredLogoSlots);
+    for (const line of problems) console.log(`  x ${line}`);
+    if (problems.length) {
+      console.log(`\n${problems.length} declaration problem(s). Update logoSlot in src/ai/liteContract.ts.`);
+    } else {
+      console.log('\nLITE_CATALOG.logoSlot agrees with the render on every audited chassis.');
+    }
+  }
+  process.exitCode = failing.length || problems.length ? 1 : 0;
   if (failing.length) {
     console.log(`\n${failing.length} failing pair(s). A chassis is only fit for a Lite brand allowlist `
       + 'when it is clean on every mark shape - a slot that works for a crest and crushes a lockup '

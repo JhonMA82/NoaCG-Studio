@@ -21,7 +21,10 @@ export const lt25: TemplateVariant = defineVariant(
       { title: 'Name', sample: 'Alexandra Riva' },
       { title: 'Role', sample: 'Chief Correspondent' },
     ],
-    logo: 'none',
+    // The BRAND SLOT: this design inherits the shared band (templates/shared/logoSlot.ts),
+    // so a channel mark, a club crest or a wide institutional lockup all land at a legible
+    // size with no per-design code. Emitted only when the user turns the logo on.
+    logo: 'optional',
     // The rule draws first — line-reveal is the family's entrance.
     animationPresets: ['line-reveal', 'fade', 'mask-wipe', 'slide-up', 'slide-down'],
     defaultPalette: paletteById('vermilion'),
