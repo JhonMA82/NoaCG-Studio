@@ -267,10 +267,27 @@ for (const entry of briefs) {
         artDropped: result.report.artDropped,
         reportWarnings: result.report.warnings,
       };
+
+      // ── Did the compile keep the design's SIZE? ──────────────────────────────────
+      // The measurement pro-bench used not to make. Everything above can be perfect while
+      // the graphic renders at three quarters of the size it was drawn, because every part
+      // shrinks together and no rule fires (docs/AI_PLATFORM_PLAN and the 2026-08-09 round:
+      // ten of eleven fixtures at 0.72, all of them scoring PASS at editability 1.00).
+      const { proDesignScaleRatio, proScaleFaithful } = await import(`/src/ai/pro/contract.ts${bust}`);
+      const frameWidth = t.resolution?.width ?? 1920;
+      checks.conceptWidth = result.concept.width;
+      checks.frameWidth = frameWidth;
+      checks.designScaleRatio = proDesignScaleRatio(result.concept.width, frameWidth);
+      checks.scaleFaithful = proScaleFaithful(checks.designScaleRatio);
+
       checks.pass = checks.validationOk
         && checks.textFields >= checks.expectedTextFields
         && checks.nameCarried && checks.titleCarried
-        && (!checks.logoExpected || checks.logoSlot);
+        && (!checks.logoExpected || checks.logoSlot)
+        // A graphic rendered at the wrong size is not a pass, however editable it is. This
+        // deliberately turns the bank's 10/10 into a failing score until the compiler
+        // rescales - the number was always this bad; only the reporting was kind.
+        && checks.scaleFaithful;
 
       // ── The compiled HOLD frame, for the gallery ─────────────────────────────────
       const { composeDocument } = await import(`/src/preview/composeDocument.ts${bust}`);
@@ -364,7 +381,12 @@ for (const entry of briefs) {
     ms: Date.now() - started,
   };
   results.push(record);
-  console.log(`  ${record.pass ? 'PASS' : 'FAIL'} · ${record.source} · fields ${record.textFields} · editability ${record.editability.toFixed(2)} · ${record.ms} ms`);
+  // The scale ratio is printed on EVERY line, pass or fail. It is the number that was being
+  // measured and thrown away, so it belongs where the verdict is read, not in a JSON file.
+  const scale = typeof record.designScaleRatio === 'number'
+    ? `${record.designScaleRatio.toFixed(2)}x${record.scaleFaithful ? '' : ' SHRUNK'}`
+    : 'n/a';
+  console.log(`  ${record.pass ? 'PASS' : 'FAIL'} · ${record.source} · fields ${record.textFields} · editability ${record.editability.toFixed(2)} · scale ${scale} · ${record.ms} ms`);
   if (!record.validationOk) for (const err of record.validationErrors) console.log(`    ✗ ${err}`);
   await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, routes: paid ? { image: imageRoute, interpret: interpretRoute, frontierReason: routeReasons } : null, spentUsd, results }, null, 2));
 }

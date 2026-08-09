@@ -60,15 +60,34 @@ is what lost them. That supports the 2026-08-09 re-diagnosis (`DIAGNOSIS.md` in 
   concept and then throws the interpretation away on a budget we chose is the cheapest bug in
   this list to close.
 
+## The gate now exists (added the same day)
+
+Step 2 below is DONE. `scripts/pro-geometry-audit.mjs` had been measuring this all along and
+`pro-bench` never read its answer - the scoring-bug shape the re-diagnosis named, one level up.
+
+Run free over the whole bank, the audit gives **0.72 on ten of eleven fixtures** (0.73 for
+`corporate`, whose concept came back 1408 wide), with live text landing near **0.50x** the baked
+glyphs it replaces. The ratio reduces to exact arithmetic - `conceptWidth / frameWidth` - because
+the design unit's share of the concept and its share of the frame differ by nothing else, so
+`proDesignScaleRatio` / `proScaleFaithful` (`src/ai/pro/contract.ts`) compute it without
+rendering anything, and `api/_lib/proGeometry.test.ts` pins it in the build gate.
+
+`pro-bench` now prints the ratio on every line and **counts it in `pass`**. The free fixture
+replay consequently reads **1/12**, and the one pass is the deterministic STUB, which draws at
+frame size and scores 1.00x - the control that shows the gate is measuring rather than simply
+failing everything.
+
+The bank did not get worse. The reporting stopped being kind.
+
 ## What to do next, in order
 
 1. **Raise the interpretation budget** so a brief cannot lose its paid concept to our own cap
    (`portrait-logo`). Smallest fix, guaranteed value.
-2. **Make the geometry defect visible to a gate.** The compiler already knows the concept's
-   pixel frame and the frame it rendered into; the ratio between them is the whole defect and
-   nothing currently reports it. Until something does, every future round will keep scoring
-   broken graphics as passes.
-3. **Only then** re-open whether the reconstruction path is viable. Judging it on these numbers
+2. ~~Make the geometry defect visible to a gate.~~ **Done** - see above.
+3. **Fix the cause**: the compiler should rescale concept pixels into frame pixels rather than
+   using them as design pixels. That belongs in `normalize.ts`, and the gate above is what will
+   tell you it worked - a faithful compile scores 1.00.
+4. **Only then** re-open whether the reconstruction path is viable. Judging it on these numbers
    would repeat the mistake the re-diagnosis identified - the approach has still not been fairly
    tested, because the compiler is losing designs the model got right.
 

@@ -67,6 +67,52 @@ export function proSpendExceeds(
   return (spend.conceptUsd ?? 0) + (spend.interpretUsd ?? 0) > ceiling;
 }
 
+/**
+ * How big the compiled graphic comes out, against the size it was DESIGNED at.
+ *
+ * The interpretation returns normalized boxes, and the compiler turns them into DESIGN pixels
+ * against the concept's own pixel frame. When the image model answers at 1376x768 and the
+ * project frame is 1920x1080, every coordinate is therefore used at 1376/1920 of its intended
+ * size - the whole graphic shrinks together, which is exactly why nothing downstream notices:
+ * no box overflows, no text wraps, no rule fires. `scripts/pro-geometry-audit.mjs` derives the
+ * same number the long way, through a rendered frame; it reduces to this ratio because the
+ * design unit's share of the concept and its share of the frame differ by nothing else.
+ *
+ * MEASURED 2026-08-09 over the whole fixture bank: 0.72 on ten of eleven, with live text
+ * landing near 0.50x the baked glyphs it replaces - and every one of those scored a bench PASS
+ * at `editability 1.00` (`benchmarks/pro/round-2026-08-09/ROUND.md`).
+ *
+ * 1.00 is faithful. This is a MEASUREMENT, not the fix: the fix is for the compiler to rescale
+ * concept pixels into frame pixels, and it belongs in `normalize.ts`, not here.
+ */
+export function proDesignScaleRatio(conceptWidth: number, frameWidth: number): number | null {
+  if (!(conceptWidth > 0) || !(frameWidth > 0)) return null;
+  return conceptWidth / frameWidth;
+}
+
+/**
+ * How far from 1.00 a compile may land and still be called faithful.
+ *
+ * 0.02 is deliberately tight. The defect this catches is not a rounding drift - it is a whole
+ * graphic rendered at three quarters of its design - and a loose tolerance here would let the
+ * next variant of it through while reporting a pass, which is the failure the gate exists to
+ * end. A concept that genuinely matches the frame scores exactly 1.00.
+ */
+export const PRO_SCALE_TOLERANCE = 0.02;
+
+/**
+ * True when the compile kept the design's size. A null ratio is UNKNOWN, never faithful.
+ *
+ * The epsilon is not slack in the rule - it is binary floating point. `1 - 0.02` is
+ * 0.98 exactly, but `Math.abs(0.98 - 1)` is 0.020000000000000018, so a value sitting exactly
+ * ON the documented boundary fails a bare `<=` and the tolerance silently means slightly less
+ * than it says. Compared against a defect ~28% out this changes no verdict, which is precisely
+ * why it would have gone unnoticed as a small dishonesty in the constant.
+ */
+export function proScaleFaithful(ratio: number | null): boolean {
+  return ratio !== null && Math.abs(ratio - 1) <= PRO_SCALE_TOLERANCE + Number.EPSILON * 8;
+}
+
 /** The forced-tool shape (modelGateway's ModelTool), declared structurally so this file
  *  stays dependency-light - the liteTypes.ts rule: browser and API TypeScript trees both
  *  read contracts, and neither catalog nor DOM-bearing modules may ride along. */

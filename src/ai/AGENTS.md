@@ -473,6 +473,15 @@ time above the rebuilt panel. `editability` is a real measurement of a different
 here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
 1.00. Every concept image was good, so the compiler is what loses them.**
 
+**That gate now EXISTS and `pro-bench` counts it in `pass`.** `proDesignScaleRatio` /
+`proScaleFaithful` (`pro/contract.ts`) answer `conceptWidth / frameWidth` - the whole defect
+reduces to that, because the design unit's share of the concept and its share of the frame differ
+by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
+free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
+not get worse; the reporting stopped being kind - do not "fix" the score by loosening
+`PRO_SCALE_TOLERANCE`.** The real fix is for `normalize.ts` to rescale concept pixels into frame
+pixels, and this gate is how you will know it worked.
+
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
 renders every design at 0.72x the size it was drawn (a 1376x768 concept's pixels used as DESIGN pixels
