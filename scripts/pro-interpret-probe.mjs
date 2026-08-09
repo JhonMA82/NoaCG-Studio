@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 // Diagnostic probe for the Pro INTERPRETATION call alone (docs/NOACG_PRO_PLAN.md §7a).
 //
-//   node scripts/pro-interpret-probe.mjs <fixture-id> [repeats]
+//   node scripts/pro-interpret-probe.mjs <fixture-id> [repeats] [route] [--concept=<png>]
 //
 // Replays a checked-in fixture CONCEPT through compileProConcept, so the expensive image
 // call is never made: the only paid call is the interpretation itself (~$0.002). It exists
 // because a paid round lost 5 of 12 concepts to interpretation failures, and diagnosing that
 // by re-running the full pipeline costs $0.067 a try.
+//
+// `--concept=<png>` reads the image from ANYWHERE instead of the fixture directory, and it is
+// the flag this probe most needed: the concept worth re-interpreting is precisely the one whose
+// interpretation FAILED, and a failed brief saves no fixture. Its image survives in the round's
+// out-dir (the compiler keeps the picture on a post-concept failure) and in the archive - but
+// dropping it into `benchmarks/pro/v1/fixtures/<id>/` to make the probe see it would overwrite
+// a GOOD fixture's concept and leave that fixture's `interpretation.json` describing an image
+// no longer there. A silently mismatched fixture poisons every later free run, and nothing
+// checks the pair. Point at the file; leave the bank alone.
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -16,9 +25,12 @@ import { readEnvFile } from './ai-bench-server.mjs';
 import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const id = process.argv[2] ?? 'news-public';
-const repeats = Number(process.argv[3] ?? 1);
-const route = process.argv[4] ?? 'vercel:google/gemini-2.5-flash';
+const argv = process.argv.slice(2);
+const positional = argv.filter((a) => !a.startsWith('--'));
+const conceptFlag = argv.find((a) => a.startsWith('--concept='))?.slice(10);
+const id = positional[0] ?? 'news-public';
+const repeats = Number(positional[1] ?? 1);
+const route = positional[2] ?? 'vercel:google/gemini-2.5-flash';
 // Gateway routes only, unless the run says why (scripts/harness-route-policy.mjs). This probe
 // takes its route POSITIONALLY, so the reason rides an env var rather than a flag.
 requireAllowedRoute(route, { source: 'the route argument', reason: process.env.NOACG_FRONTIER_REASON });
@@ -29,7 +41,11 @@ if (!entry) {
   console.error(`No brief "${id}" in the bank.`);
   process.exit(1);
 }
-const png = await readFile(path.resolve('benchmarks/pro/v1/fixtures', id, 'concept.png'));
+const conceptPath = conceptFlag
+  ? path.resolve(conceptFlag)
+  : path.resolve('benchmarks/pro/v1/fixtures', id, 'concept.png');
+const png = await readFile(conceptPath);
+console.log(`concept: ${conceptPath}${conceptFlag ? '  (outside the fixture bank)' : ''}`);
 const conceptDataUrl = `data:image/png;base64,${png.toString('base64')}`;
 
 const browser = await chromium.launch();

@@ -479,13 +479,19 @@ reduces to that, because the design unit's share of the concept and its share of
 by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
 free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
 not get worse; the reporting stopped being kind - do not "fix" the score by loosening
-`PRO_SCALE_TOLERANCE`.** The cause is a DECISION rather than arithmetic: the artwork IS the
-concept crop, so rendering at the designed size stretches a 1376px raster across 1920px and no
-coordinate change recovers pixels the image never had. The likely mechanism is the root
-`--scale` (one value - the design unit already scales artwork and fields together), and asking
-for a bigger concept is not available today because the gateway's image call carries no size
-parameter. `ROUND.md` lists the three routes; the gate tells you the size landed, never whether
-it still looks sharp.
+`PRO_SCALE_TOLERANCE`.**
+
+**THE CAUSE IS THE CONCEPT PROMPT, and the direction is decided (owner, 2026-08-09).**
+`proConceptPrompt` asks for the graphic inside a "full 1920x1080 frame" over a "softly blurred
+studio backdrop", so a fixed ~1376x768 output spends most of its pixels on scenery the compiler
+then crops away - `minimalist` kept 23% of the width and binned the rest. Ask for the GRAPHIC
+ALONE, tightly framed, and decide its canvas size and placement separately instead of inheriting
+them from the model's framing: a strap drawn at 1376px and placed at ~1150px is a downscale, so
+correct size and sharpness stop competing. Root `--scale` alone (a pure stretch) is RULED OUT; a
+larger model output is unavailable (the gateway image call has no size parameter). Expect it to
+clear most of the baked-text ghosting too - four of five broken frames show it, and a tight
+concept has no backdrop to show through. A prompt change invalidates the fixtures: budget a fresh
+paid round (~$0.95). Detail: `benchmarks/pro/round-2026-08-09/ROUND.md`.
 
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
