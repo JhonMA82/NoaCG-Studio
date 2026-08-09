@@ -199,13 +199,18 @@ group to its initial - the VISUAL half of reset); the per-graphic page never cal
 is therefore false on this surface: an operator who lands in the wrong state has ■ Stop and a
 replay, and there is no reset-visual-state separate from resetting data.
 
-**Read the blueprints before building it.** Four approved interactive mockups landed on
-2026-08-09 (`docs/PLAYOUT_DASHBOARD.md` §8a) and they answer this differently from the port
-suggested above: the quiz frames put a `QUIZ STATE` **dropdown among the ordinary fields**, worded
-"Waiting for contestant", plus a `↺ Reset question` action - state as something you DRIVE, where
-`PLAYOUT_DASHBOARD.md` §7b says in as many words that the snap picker is for RECOVERY and "not a
-way to drive a graphic". That contradiction is the owner's to settle and is recorded there; it
-decides what this surface should grow.
+**What to build, decided 2026-08-09** (`docs/PLAYOUT_DASHBOARD.md` §8a, ruling 1): the approved
+blueprints' PLACEMENT with §7b's SEMANTICS. So this surface grows **two** things, not one:
+
+- the current state as a **labelled row in the field editor**, in the author's words, where the
+  quiz frames draw their `QUIZ STATE` control - the operator should read where the graphic is
+  without hunting for a chip;
+- a **recovery** jump, labelled as recovery, riding with a re-send of the values (recovery is two
+  operations). The production page's `.pd-snap` is the working example.
+
+Jumping stays recovery on purpose: driving by picking from a list skips the arrows, and after
+`lock` there is no `select` arrow at all - a late pick is impossible rather than refused. A free
+state dropdown would make that guard cosmetic.
 
 **5.4 A running countdown cannot be corrected - only restarted.** Measured: the clock shows 3:00 at
 load, ⟳ Update with 7 minutes repaints it to 7:00 immediately, ▶ Play starts it at 6:59, ⚡ Pause
@@ -226,11 +231,12 @@ on a timer (live vote, chat highlight) and a third (transition) clears itself; n
 so on an operator surface.
 
 The approved quiz blueprints go further than "say so": they carry a `TIMER (SEC)` **stepper as an
-operator field**, i.e. a per-play window. Both timer types decline exactly that in their own files
-("the window's length is AUTHORED data on the arrow … not a field the operator sets per play",
-`types/livePoll.ts`), because a second, field-driven clock can disagree with the arrow. Recorded as
-a decision in `docs/PLAYOUT_DASHBOARD.md` §8a rather than settled here - it is the same subject as
-§5.4.
+operator field**, i.e. a per-play window. **Decided 2026-08-09** (`docs/PLAYOUT_DASHBOARD.md` §8a,
+ruling 2): **no second clock.** The delay authored on the arrow stays the one source of truth -
+both timer types decline a per-play field in their own files for exactly that reason - and what
+gets built instead is this gap as written: **an armed timer must be visible on the surface**, with
+its remaining window, so "it closed itself" is never a surprise. Ending one early stays the manual
+button that already exists. This is the open work item; §5.4 is its sibling on the countdown side.
 
 **5.6 Event buttons were not grouped by section. FIXED HERE.** Measured: `.ctl-event-section` count
 was **0** on the quiz's control page, while every other renderer honours the `section` the type

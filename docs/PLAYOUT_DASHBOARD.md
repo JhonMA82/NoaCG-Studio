@@ -196,20 +196,27 @@ Presenter View — are `docs/INTERACTIVE_PLAYOUT_PLAN.md`'s planes, largely ship
 (`ProductionDataWorkspace`, `ProductionAudienceWorkspace`, `/join`, the presenter view). Nothing
 here asks for a new plane; it asks for the CUE EDITOR to show the right controls per graphic type.
 
-### Two places the blueprints and the shipped contracts disagree — owner's call
+### Two places the blueprints and the shipped contracts disagreed — DECIDED 2026-08-09
 
-Recorded rather than resolved, because both are decisions, not defects:
+Both were decisions rather than defects, so they went to the owner. The rulings:
 
-1. **The graphic's STATE as an ordinary operator field.** The quiz frames put a `QUIZ STATE`
-   dropdown (reading "Waiting for contestant", "Question card") in the field editor beside F0–F6.
-   §7b of this doc says the opposite in as many words: *"Snap to state… is the RECOVERY picker,
-   not a way to drive a graphic"* — normal operation is the ⚡ actions and » Next. A dropdown among
-   the fields reads as the normal way to drive it. Which one is right decides whether
-   `#/control/<id>` grows a recovery picker (`docs/CONTROL_PANEL_PARITY.md` §5.3) or a state
-   field.
-2. **A per-play TIMER value.** The quiz frames carry a `TIMER (SEC)` stepper as an operator field.
-   The state model says a timer transition's delay is authored data ON THE ARROW, and both timer
-   types state that as a known limit in their own files (`types/livePoll.ts`: *"the window's length
-   is AUTHORED data on the arrow … not a field the operator sets per play"*, with the manual
-   button as the answer). Making it a field means a second clock that can disagree with the arrow,
-   which that comment declined on purpose. Same subject as `CONTROL_PANEL_PARITY.md` §5.4/§5.5.
+1. **The graphic's STATE: the blueprint's PLACEMENT, §7b's SEMANTICS.** The quiz frames put a
+   `QUIZ STATE` dropdown (reading "Waiting for contestant", "Question card") in the field editor
+   beside F0–F6, where §7b says in as many words that *"Snap to state… is the RECOVERY picker, not
+   a way to drive a graphic"*.
+   **Ruled:** show the state where the blueprint puts it — a labelled row in the field editor, in
+   the author's words — but jumping to one stays a RECOVERY action and is labelled as such.
+   **Why the drawing does not win outright:** driving by picking from a list skips the arrows, and
+   the structural guard is the model's central claim — after `lock` there is no `select` arrow, so
+   a late pick is *impossible* rather than refused (`docs/STATE_MACHINE_SCHEMA.md` §3). A free
+   dropdown would make that guard cosmetic, and the ⚡ buttons' greying would stop being the whole
+   truth about what can happen. Normal driving remains the ⚡ actions and » Next.
+2. **A per-play TIMER value: NO second clock.** The quiz frames carry a `TIMER (SEC)` stepper as
+   an operator field; the state model says a timer transition's delay is authored data ON THE
+   ARROW, and both timer types decline a per-play field in their own files (`types/livePoll.ts`:
+   *"the window's length is AUTHORED data on the arrow … not a field the operator sets per play"*).
+   **Ruled:** the arrow stays authoritative, and the real need behind the drawing is answered
+   instead — **an armed timer must be VISIBLE**. Today the live vote closes itself after 20 s with
+   nothing on any operator surface saying it will, which is the actual complaint
+   (`CONTROL_PANEL_PARITY.md` §5.5); ending a window early stays the manual button that already
+   exists ("Close voting"). Not built yet — it is the open item those sections now point at.
