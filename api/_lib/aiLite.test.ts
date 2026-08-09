@@ -213,6 +213,145 @@ test('no intent kind is servable by a single chassis', () => {
   }
 });
 
+test('the FIRST line role decides the intent kind, not whichever role a scan reaches first', () => {
+  // `intentMatchesRoles` used to scan the emitted roles in a fixed priority order and return on
+  // the first hit, with `event-name` tested BEFORE `team-name`. So the ordinary team-identity
+  // fixture - "team name Helsinki Comets and supporting context Women's Championship Final",
+  // whose natural emit is roles ['team-name', 'event-name'] with kind 'team' - was refused
+  // `intent_role_mismatch` unless it declared itself an `event` graphic. A SUPPORTING line was
+  // deciding what the graphic is. It failed intermittently for six rounds (the gateway round,
+  // v9, v10 and v12 failed it; v7, v8 and v11 passed), which reads as sampling noise.
+  const entry = LITE_CATALOG.find((candidate) => candidate.intentKinds.includes('team'));
+  assert.ok(entry, 'at least one chassis must serve the team intent kind');
+  const teamStrap = (kind: string) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'A bold sport identity strap.',
+      name: 'Team Identity Strap',
+      summary: 'A team lower third with a competition kicker.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind, primaryRole: 'team-name', secondaryRole: 'event-name' },
+      lines: [
+        { title: 'Team', sample: 'Helsinki Comets', role: 'team-name' },
+        { title: 'Competition', sample: 'Women’s Championship Final', role: 'event-name' },
+      ],
+      flourish: '',
+    },
+  });
+  const teamRequest = {
+    ...request(),
+    prompt: 'A bold lower third identifying team name Helsinki Comets and supporting context '
+      + 'Women’s Championship Final. Sport treatment, short entrance, no score display.',
+  };
+  assert.deepEqual(validateLiteDecision(teamStrap('team'), teamRequest).errors, []);
+  // The primary role still has real teeth: a team-name first line cannot claim to be an event.
+  assert.ok(
+    validateLiteDecision(teamStrap('event'), teamRequest).errors.includes('intent_role_mismatch'),
+  );
+
+  // And the mirror case, which the old order got right only by accident: an event strap whose
+  // supporting line names the host team is an `event` graphic, not a `team` one.
+  const eventEntry = LITE_CATALOG.find((candidate) => candidate.intentKinds.includes('event'));
+  assert.ok(eventEntry);
+  const eventStrap = (kind: string) => ({
+    status: 'ready',
+    aiCategory: eventEntry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'An editorial event strap.',
+      name: 'Event Identity Strap',
+      summary: 'An event lower third with a team kicker.',
+      category: eventEntry.category,
+      variantId: eventEntry.variantId,
+      intent: { kind, primaryRole: 'event-name', secondaryRole: 'team-name' },
+      lines: [
+        { title: 'Event', sample: 'Women’s Championship Final', role: 'event-name' },
+        { title: 'Team', sample: 'Helsinki Comets', role: 'team-name' },
+      ],
+      flourish: '',
+    },
+  });
+  assert.deepEqual(validateLiteDecision(eventStrap('event'), request()).errors, []);
+  assert.ok(
+    validateLiteDecision(eventStrap('team'), request()).errors.includes('intent_role_mismatch'),
+  );
+});
+
+test('a line with a blank sample is dropped instead of reserving a band nothing paints', () => {
+  // Measured on the `one-line` fixture of the 2026-08-09 round: asked for a one-line strap with
+  // no invented role, the model answered with TWO lines and left the second sample empty. The
+  // chassis reserved its supporting band and painted nothing there - about a third of the panel,
+  // blank, on the hold frame and still blank after `update()`. `fieldCount` said 2, no rule code
+  // fired, and `bench-field-unpainted` stayed silent because the field CAN paint; it just had
+  // nothing in it. Only a human reading the frame caught it, twice now.
+  const entry = LITE_CATALOG[0];
+  const withSecondSample = (sample: string) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'A cinematic single-line identification.',
+      name: 'One Line Strap',
+      summary: 'A one-line lower third.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Aisha Rahman', role: 'person-name' },
+        { title: 'Role', sample, role: 'person-role' },
+      ],
+      flourish: '',
+    },
+  });
+  const oneLineRequest = {
+    ...request(),
+    prompt: 'A cinematic one-line lower third identifying Aisha Rahman. No invented role or '
+      + 'organization, generous spacing, subtle entrance.',
+  };
+
+  const readySpec = (result: ReturnType<typeof validateLiteDecision>) => {
+    const decision = result.decision;
+    assert.ok(decision && decision.status === 'ready', 'expected a ready decision');
+    return decision.spec;
+  };
+
+  const blank = validateLiteDecision(withSecondSample('   '), oneLineRequest);
+  assert.deepEqual(blank.errors, []);
+  const spec = readySpec(blank);
+  assert.equal(spec.lines.length, 1, 'the blank line must not reach the compile');
+  assert.equal(
+    spec.intent?.secondaryRole,
+    undefined,
+    'a one-line spec may not keep a secondaryRole describing a line that is gone',
+  );
+  assert.ok(blank.adjustments?.includes('blank_line_dropped'), 'the drop is reported, not silent');
+
+  // A filled second line is untouched - this must not quietly become a one-line profile.
+  const filled = validateLiteDecision(withSecondSample('Documentary Subject'), oneLineRequest);
+  assert.deepEqual(filled.errors, []);
+  assert.equal(readySpec(filled).lines.length, 2);
+  assert.ok(!filled.adjustments?.includes('blank_line_dropped'));
+
+  // A role the BRIEF asked for, emitted as an empty line, was never delivered - so dropping it
+  // must surface as the missing role rather than passing as an invisible one.
+  const asked = validateLiteDecision(withSecondSample(''), {
+    ...request(),
+    prompt: 'A lower third for speaker name Aisha Rahman and role Creative Director.',
+  });
+  assert.ok(asked.errors.includes('requested_role_missing:person-role'));
+
+  // The FIRST line keeps its slot: promoting a supporting line to identity would silently
+  // change what the graphic is, so a nameless graphic fails instead.
+  const blankPrimary = structuredClone(withSecondSample('Creative Director'));
+  blankPrimary.spec.lines[0].sample = '';
+  const primary = validateLiteDecision(blankPrimary, oneLineRequest);
+  assert.equal(readySpec(primary).lines.length, 2, 'a blank primary keeps its slot');
+  assert.ok(!primary.adjustments?.includes('blank_line_dropped'));
+});
+
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {
   const entry = LITE_CATALOG[0];
   const valid = {

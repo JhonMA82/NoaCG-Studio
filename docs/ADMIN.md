@@ -424,7 +424,10 @@ transition through status and cost as a generation runs, and neither claims to b
   tens of accounts and the wrong one at ten thousand. The `truncated` flag in the response is the
   tripwire: when it starts coming back true, the fix is a database-side view, not a bigger page.
 - **`AI_LITE_OVERRIDE_USER_IDS` is legacy.** It resolves as `env-override` and can only widen AI
-  access, never remove it. It is removed one release after plans ship.
+  access, never remove it. It is removed one release after plans ship. **It is not only an access
+  flag:** `liteProfileForUser` also raises a listed id's daily and monthly successes and starts to
+  10,000 and its concurrency to at least 2, so every per-user Lite quota stops applying and the
+  fleet daily spend ceiling is the only control left for that account.
 
 ## 7. Migrations
 

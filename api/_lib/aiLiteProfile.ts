@@ -202,11 +202,30 @@ export function liteProfile(): LiteProfile {
     //     design its own brief argued against - five rounds of five, `intent_variant_mismatch`
     //     on both attempts. Four more chassis now declare both kinds, and
     //     `api/_lib/aiLite.test.ts` refuses any intent kind with a single home.
-    // The ledger records this per generation, so outcomes stay attributable to the prompt
-    // that produced them - bump it whenever the teaching changes, never silently, and bump it
-    // HERE and in .env.example together: a partial bump ran v5 text under a v4 label once, and
-    // that is worse than not bumping at all.
-    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v12').trim().slice(0, 64) || 'lite-lower-third-v12',
+    // v13: `intentMatchesRoles` judged the kind against whichever emitted role its fixed scan
+    //     order reached first, so a SUPPORTING line decided what the graphic had to claim to
+    //     be - a team strap with a competition kicker (roles team-name then event-name) was
+    //     refused `intent_role_mismatch` unless it declared itself an `event` graphic. It now
+    //     judges `emittedRoles[0]` alone, which the schema already pins to
+    //     `intent.primaryRole`. The `intent_role_mismatch` repair message is model-facing text
+    //     and changed with it, which is why this is a version and not a silent fix.
+    //     Measured 2026-08-09: 30 of 30, no rejections of any kind, `bench-line-wrap` unchanged
+    //     at 3, $0.0103 (benchmarks/lite/ROUND-2026-08-09-V13.md). First clean bank in the
+    //     ledger's history.
+    // The ledger records this per generation, so outcomes stay attributable to the prompt that
+    // produced them - bump it whenever the teaching changes, and never silently.
+    //
+    // **Bump it HERE only.** The literal below IS the version; `.env.example` ships the variable
+    // COMMENTED OUT and unset resolves to this string, so there is one source of truth and
+    // nothing to keep in sync. It used to ship a concrete value, and the two-places rule that
+    // required was the hazard rather than the guard: a partial bump once ran v5 text under a v4
+    // label, and any deployment configured by copying the example was pinned to whatever version
+    // was current the day it was copied - new prompt text ledgered under an old label, with
+    // nobody having made a mistake.
+    //
+    // The env override survives for the one job that needs it: holding a benchmark to an older
+    // prompt on purpose. Setting it in a real deployment is how the label starts lying.
+    promptVersion: (process.env.AI_LITE_PROMPT_VERSION ?? 'lite-lower-third-v13').trim().slice(0, 64) || 'lite-lower-third-v13',
     primary,
     fallback,
     prices,

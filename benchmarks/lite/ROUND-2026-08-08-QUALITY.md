@@ -16,6 +16,10 @@ contract fix in §5.4.
 **The shipping configuration is `lite-lower-third-v12`**: 29 of 30 machine-usable, zero schema
 rejections, and the fixture that had failed every round since the gateway one now passes.
 
+> **Superseded 2026-08-09 by `lite-lower-third-v13`** — the ordering fix §5.4 diagnosed and
+> deferred, measured at 30 of 30 with no rejections. See `ROUND-2026-08-09-V13.md`, which also
+> corrects one round list in §5.4 below.
+
 ---
 
 ## 1. The doctrine, checked in code rather than assumed
@@ -329,6 +333,24 @@ The fix is one line — judge the kind against the PRIMARY role (`emittedRoles[0
 schema already pins to `intent.primaryRole`) instead of the first match in an arbitrary order.
 It is a semantic-validation change with real teeth, so it wants its own round rather than being
 folded into this one.
+
+**Fixed after this round, as `lite-lower-third-v13`.** `intentMatchesRoles` now judges
+`emittedRoles[0]` alone; the `intent_role_mismatch` repair message names the first line as the
+deciding one, which is why it took a version bump. Pinned both ways in `api/_lib/aiLite.test.ts`
+("the FIRST line role decides the intent kind") - a team strap with a competition kicker passes,
+and a team-name first line still may not claim `event`. **Re-measured 2026-08-09: 30 of 30, no
+rejections, `team-identity` resolved on `lt05` as kind `team` (`ROUND-2026-08-09-V13.md`).**
+
+**One correction to the paragraph above, from the ledger.** "Firing intermittently all along (the
+gateway round, v9, v10 failed it; v7, v8, v11 passed)" is the round list for the `team` ONE-HOME
+defect, which failed as `intent_variant_mismatch`. Grouped by `prompt_version` and
+`rejection_reason`, `ai_generations` carries `intent_role_mismatch` as a FINAL reason on exactly
+two generations - **v10 and v12**, both after two attempts. v3, v7, v8, v9 and v11 lost their one
+fixture to `intent_variant_mismatch` or `malformed_response`. The ledger stores only the final
+reason, so an attempt refused this way and recovered on the retry leaves no row: intermittent
+firing stays consistent with the data without being shown by it. What is measured is that it cost
+a whole generation twice. **A pass count cannot tell a schema refusal from a semantic one - the
+reason column can.**
 
 ### 5.5 `.env.example` pointed the fallback at a route the code no longer uses
 

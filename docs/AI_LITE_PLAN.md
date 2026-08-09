@@ -12,10 +12,10 @@ doctrine and code contract are `src/ai/AGENTS.md` and `docs/ADAPT_FIRST_PLAN.md`
 |---|---|
 | Production | ON since 2026-08-07, signed-in, quota'd. Anonymous access remains OFF (§6) |
 | Transport | Vercel AI Gateway. Second attempt goes to the PRIMARY, not a weaker fallback |
-| Cost | **$0.00032 per generation** - about 3% of the ~€0.01 ceiling. **Not a constraint** |
-| Reliability | 27 of 30 briefs machine-usable on the last measured round |
+| Cost | **$0.00034 per generation** - about 3% of the ~€0.01 ceiling. **Not a constraint** |
+| Reliability | **30 of 30** briefs machine-usable, zero rejections, on `lite-lower-third-v13` (2026-08-09, `benchmarks/lite/ROUND-2026-08-09-V13.md`) |
 | Scope today | lower thirds only, six audited chassis |
-| The open problem | **quality**. Machine-valid is not good, and nothing has yet judged good |
+| The open problem | **quality**. Machine-valid is not good, and nothing has yet judged good - **the v13 bank's frames are unread** |
 
 **Cost should stop being discussed.** There is 30-100x headroom, every candidate route fits, and
 route choice is a QUALITY decision. The scarce resource is human review.
@@ -76,7 +76,7 @@ inherit the lower third's already-measured shape.
 ## 4. The loop
 
 ```
-frozen brief bank  →  one round (~$0.005)  →  FRAMES READ BEFORE any gate output
+frozen brief bank  →  one round (~$0.010)  →  FRAMES READ BEFORE any gate output
    →  every rejection gets a MECHANISM and an OWNER
         model     →  remove the decision, or clamp it in the SCHEMA
         platform  →  a deterministic gate, or corrected metadata
@@ -85,12 +85,16 @@ frozen brief bank  →  one round (~$0.005)  →  FRAMES READ BEFORE any gate ou
 ```
 
 **The invariant: a defect leaves the list only when something makes it unrepeatable - never when a
-prompt sentence says not to do it.** Two supporting rules, both learned expensively:
+prompt sentence says not to do it.** Three supporting rules, all learned expensively:
 
 - **Attribute before fixing.** Rounds have twice read as "the model cannot design" and been platform
   bugs. A headline defect once looked like model taste and was three lines of catalog CSS.
 - **Machine-usable is not a quality signal.** 18/18 with zero rule codes, alongside a five-line
   strap.
+- **A pass COUNT is not a diagnosis - read the ledger's `rejection_reason`.** 29/30 was the score in
+  four different rounds that failed for three different reasons, and the v13 fix was invisible in
+  the count until the column named it. `ai_generations` grouped by `prompt_version` and
+  `rejection_reason` separates a schema refusal from a semantic one; the runner's own tally cannot.
 
 What makes the loop affordable is structural: **Lite's model writes no code.** Every failure is
 either a *decision* (fixable by narrowing the schema - free, permanent, applies to every future
@@ -119,10 +123,10 @@ before widening; 4-6 are the widening itself.
    already works - and notes that **no generation path in the repo currently asks any model for a
    machine.** This is the single largest unknown in the plan and it is not a Lite-only problem.
 4. **Widen to the interactive categories, one at a time**, each with a gallery round and a driven
-   control page before the next starts. *(~$0.005 per round.)*
+   control page before the next starts. *(~$0.010 per round.)*
 5. **Widen to the static categories**, batched where their shapes match.
 6. **Then, and only then, consider the route.** With a scorecard that measures frames rather than
-   compilability, run the open-weight candidates. *(~$0.005 per candidate.)*
+   compilability, run the open-weight candidates. *(~$0.010 per candidate.)*
 
 Deliberately **not** on this list: the skin path, the vision judge, and any prompt rewrite. The
 first two are server-flagged off and gated on the loop producing a trustworthy scorecard

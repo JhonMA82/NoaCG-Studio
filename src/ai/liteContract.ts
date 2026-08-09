@@ -811,7 +811,7 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   lower_third_intent_invalid: 'Rebuild spec.intent with a listed kind, a listed primaryRole, and (with two lines) a listed secondaryRole.',
   primary_role_mismatch: 'Make intent.primaryRole exactly equal lines[0].role. Change the intent, not the line.',
   secondary_role_mismatch: 'Make intent.secondaryRole exactly equal lines[1].role, and include it whenever there are two lines.',
-  intent_role_mismatch: 'The intent kind contradicts the line roles: a person-name line needs kind "person", a story-headline line needs "story", an event-name line needs "event". Change kind to match the roles you emitted.',
+  intent_role_mismatch: 'The intent kind contradicts the FIRST line\'s role, which alone decides what the graphic is: person-name needs kind "person", story-headline needs "story", event-name needs "event", team-name needs "team" or "person", organization needs "organization" or "person", call-to-action or social-handle needs "promotion". The second line is context and constrains nothing. Change kind to match lines[0].role.',
   intent_variant_mismatch: 'The chosen chassis does not serve this intent kind. Pick a chassis whose listed intents include your intent.kind.',
   line_role_invalid: 'Give every line a role from the allowed list.',
   requested_role_missing: 'The brief explicitly asks for a {detail} line. Add it, or change an existing line\'s role to {detail}.',
@@ -899,17 +899,39 @@ function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdL
   return roles;
 }
 
+/**
+ * The intent kind is judged against the PRIMARY line role alone - `emittedRoles[0]`, which the
+ * schema already pins to `intent.primaryRole` (`primary_role_mismatch` above).
+ *
+ * It used to scan every emitted role in a fixed priority order and return on the first hit, so a
+ * SUPPORTING line decided what the graphic had to claim to be. `event-name` was tested before
+ * `team-name`, which made the ordinary "Helsinki Comets / Women's Championship Final" strap -
+ * roles `['team-name', 'event-name']`, kind `team` - legal only if it declared itself an `event`
+ * graphic.
+ *
+ * The production ledger (`ai_generations`, project kprolrchuldgfrzspthy) has `intent_role_mismatch`
+ * as the FINAL reason on exactly two generations, v10 and v12, each after both attempts. Rounds v3,
+ * v7, v8, v9 and v11 lost their one fixture to `intent_variant_mismatch` or `malformed_response`
+ * instead. The ledger keeps only the final reason, so a first attempt refused this way and
+ * recovered by the second leaves no row - "it fired intermittently all along" is consistent with
+ * the data but not shown by it. What IS measured is that it cost a whole generation twice.
+ *
+ * A second line is context, never identity: the graphic IS whatever its first line names.
+ */
 function intentMatchesRoles(
   kind: LiteLowerThirdIntentKind,
   roles: readonly LiteLowerThirdLineRole[],
 ): boolean {
-  if (roles.includes('person-name')) return kind === 'person';
-  if (roles.includes('story-headline')) return kind === 'story';
-  if (roles.includes('event-name')) return kind === 'event';
-  if (roles.includes('team-name')) return kind === 'team' || kind === 'person';
-  if (roles.includes('organization')) return kind === 'organization' || kind === 'person';
-  if (roles.includes('call-to-action') || roles.includes('social-handle')) return kind === 'promotion';
-  return true;
+  switch (roles[0]) {
+    case 'person-name': return kind === 'person';
+    case 'story-headline': return kind === 'story';
+    case 'event-name': return kind === 'event';
+    case 'team-name': return kind === 'team' || kind === 'person';
+    case 'organization': return kind === 'organization' || kind === 'person';
+    case 'call-to-action':
+    case 'social-handle': return kind === 'promotion';
+    default: return true;
+  }
 }
 
 function relativeLuminance(hex: string): number | null {
@@ -1094,7 +1116,27 @@ export function validateLiteDecision(
   const aiCategory = output.aiCategory;
   const entry = LITE_CATALOG.find((candidate) => candidate.variantId === spec.variantId);
   const errors: string[] = [];
-  const lines = Array.isArray(spec.lines) ? spec.lines : [];
+  // A line whose SAMPLE is blank still costs its slot. Measured 2026-08-09 on the `one-line`
+  // fixture ("no invented role or organization"): the model answered with two lines and left
+  // the second empty, so the chassis reserved its supporting band and painted nothing in it -
+  // about a third of the panel, blank, on every frame including after `update()`.
+  //
+  // **Nothing in the tree could see it.** `fieldCount` was 2, no rule code fired, and
+  // `bench-field-unpainted` stayed silent because the field CAN paint - it simply had nothing
+  // in it. That is the second time this defect class has arrived through a door no gate covers
+  // (benchmarks/lite/ROUND-2026-08-09-V13.md §5.1), so it is closed deterministically rather
+  // than taught: a trailing blank line is DROPPED, which is the harness's own doctrine that an
+  // out-of-range value clamps to the nearest legal one instead of costing the generation.
+  //
+  // Trailing only, and never the first line: re-seating a blank primary would silently promote
+  // the supporting line to identity. A blank FIRST line keeps its slot and fails
+  // `primary_role_mismatch` on its own, which is the honest answer for a nameless graphic.
+  // If the brief explicitly asked for the dropped line's role, `requested_role_missing` then
+  // fires - correct, because a role emitted as an empty line was never delivered.
+  const emittedLines = Array.isArray(spec.lines) ? spec.lines : [];
+  const lines = [...emittedLines];
+  while (lines.length > 1 && !String(lines[lines.length - 1]?.sample ?? '').trim()) lines.pop();
+  const blankLinesDropped = emittedLines.length - lines.length;
   if (!entry) errors.push('variant_not_allowed');
   if (spec.fit !== 'catalog') errors.push('fit_not_catalog');
   if (entry && spec.category !== entry.category) errors.push('category_variant_mismatch');
@@ -1135,6 +1177,7 @@ export function validateLiteDecision(
   // lightness can reach it, drop the bespoke palette so the chassis default carries. A
   // legibility floor should cost the palette at worst, never the whole generation.
   const adjustments: string[] = [];
+  if (blankLinesDropped > 0) adjustments.push('blank_line_dropped');
   let palette = spec.palette;
   if (palette) {
     const clamped = clampLitePalette(palette);
@@ -1168,6 +1211,14 @@ export function validateLiteDecision(
   }
   if (errors.length) return { errors };
   const repaired = { ...spec, flourish: null } as LiteDesignSpec;
+  if (blankLinesDropped > 0) {
+    // The compile reads `lines`, so the drop has to reach the decision, not just the checks -
+    // and a one-line spec carrying a secondaryRole would describe a line that is not there.
+    repaired.lines = lines;
+    if (lines.length === 1 && repaired.intent?.secondaryRole !== undefined) {
+      repaired.intent = { kind: repaired.intent.kind, primaryRole: repaired.intent.primaryRole };
+    }
+  }
   if (palette) repaired.palette = palette;
   else delete repaired.palette;
   return {
