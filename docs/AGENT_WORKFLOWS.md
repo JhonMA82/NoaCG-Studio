@@ -52,7 +52,16 @@ adapter.
 Codex limits the bytes it loads from the root-to-current-directory `AGENTS.md` chain.
 `.codex/config.toml` raises that limit for this trusted repository because its nested contracts
 are intentionally detailed. `scripts/check-shared-instructions.mjs` calculates every chain and
-fails if one exceeds the configured limit.
+fails if one exceeds the configured limit. On a GREEN run it also prints the tightest chains with
+their remaining headroom, and marks any chain past 80% of the limit - a chain a few hundred bytes
+under budget is otherwise indistinguishable from a comfortable one, and the limit itself only ever
+ratchets DOWN (`.codex/config.toml`), so "lower it until it fails" is not a way to find out.
+
+When a chain runs short, RELOCATE rather than delete: move a section that describes one directory
+into that directory's own `AGENTS.md` (plus the thin `CLAUDE.md` importing it) and leave a pointer
+behind. The content still loads for the people editing that code, and it leaves every OTHER chain.
+`src/components/` is the worked example - `wizard/`, `video/`, `home/`, `fields/` and `style/` all
+carry their own contract, so a session editing the wizard no longer loads the video shell's.
 
 ## Adding or changing a workflow
 

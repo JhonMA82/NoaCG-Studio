@@ -4,6 +4,12 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 store-side halves of these contracts are in src/store/AGENTS.md; the code patchers they call are
 in src/blocks/AGENTS.md.
 
+**Five subdirectories own their own contract** - `wizard/`, `video/`, `home/`, `fields/` and
+`style/`, each an `AGENTS.md` with a thin `CLAUDE.md` importing it, loaded only when you work in
+that directory. A section that describes ONE directory belongs there, not here: this file is read
+in full by every session touching any component, and the chain through it sits close to
+`project_doc_max_bytes` (`npm run check:shared-instructions` prints the remaining headroom).
+
 ## Dialog anatomy (EVERY dialog, defined once in styles.css)
 
 re-design/handoff.md §6. Here rather than per sheet: these defects are what happens when six
@@ -402,67 +408,18 @@ every section stays mounted and no preference is reachable only by clicking the 
 
 ## Field controls (fields/) - ONE control, every surface
 
-**FieldControl.tsx** is THE editable-field control. Every surface where a human changes a field's
-value renders it: the SPX Data panel, the SPX Control panel, and the video Content panel. They
-differ only in the DESCRIPTORS they pass (model/fieldModel.ts `FieldDescriptor`) and where the
-value lives - never in what a number/colour/image control looks like or how it behaves. `FieldRow`
-adds the label, the optional id badge, and the per-field **Reset** to the descriptor's
-`defaultValue` (shown only once the value differs). Controls emit their kind's natural type - a
-number for `number`, a string otherwise.
-**SpxFieldRow.tsx** is the SPX binding both SPX panels share (sampleData + asset upload; values
-stringify at that boundary because SPX sample data is a flat string map); the video panel binds
-its own store the same way.
-**Do not hand-roll a field control.** A new kind is added to `FieldKind`, mapped in the two
-adapters (control/controlModel.ts `fieldDescriptors`, model/videoTypes.ts `videoInputDescriptor`),
-and rendered once here. The exported standalone controlpanel.html (control/controlPanelHtml.ts)
-renders the SAME descriptors in dependency-free vanilla JS because it ships without React - it is
-the one deliberate second renderer; keep it in step.
+**FieldControl.tsx** is THE editable-field control - the SPX Data panel, the SPX Control panel and
+the video Content panel all render it, differing only in the descriptors they pass. **Do not
+hand-roll a field control.** The full contract moved to **`src/components/fields/AGENTS.md`** (with
+its thin `CLAUDE.md`), which loads when you work in that directory.
 
 ## Style controls (style/) - ONE set, both surfaces
 
-**StyleControls.tsx** renders the `:root` style contract wherever a human edits it: the
-wizard's Style step and the editor's Style panel. It takes the DECLARED variables plus a
-setter, so neither surface owns an opinion about what exists - `tokenVarsCss` emits only the
-tokens a stylesheet actually reads, and a control appears for a variable that is there. Same
-no-dead-knobs doctrine as the imported design's absent `--type-scale`.
-
-Colour WORDS come from `model/styleVocabulary.ts`, the one translation table, grouped by role;
-an unrecognised design-owned colour falls back to its humanised name rather than being hidden.
-Every shape token has a control - radius, blur, keyline, lift, accent weight and glow, both
-trackings, the heading weight, the kicker typeface were once emitted into every graphic and
-reachable only by hand-editing the CSS. A shadow slot takes named presets, never a swatch or a
-free field: the editor's looser colour filter rendered `--panel-shadow: 0 8px 24px rgba(...)`
-as a colour row whose swatch overwrote the whole shadow.
-
-Two contracts to keep when adding a control:
-- **Token values are complete CSS values, never bare numbers** (`calc(16px * var(--scale))`,
-  `none`, `50%`). A length control edits the number INSIDE the expression via
-  `blocks/cssLength.ts` - overwriting the value would drop `var(--scale)` and the radius
-  would silently stop scaling with the graphic.
-- **A colour is parsed WITH its alpha** (`blocks/cssVars.ts` `parseCssColor` /
-  `formatCssColor`) and written back in the form it arrived in. `--panel-bg` is an `rgba()`
-  in nearly every design; a native `<input type="color">` has no alpha, so the old
-  swatch-plus-hex pairing turned a translucent panel opaque with nothing on screen to show it.
-
-**ColorField.tsx** is that control: swatch + feature-detected `EyeDropper` + text field +
-an opacity slider. Its `advisory` is a NUMBER with the caveat in its title, never a verdict -
-`contrastRatio` sees two colour values, while readability also depends on transparency, the
-moving video behind the graphic, text shadows, type size and key-and-fill output. A pass/fail
-badge would claim something the arithmetic cannot know.
-
-A token that FOLLOWS another (`--accent-ink: var(--panel-bg)`) resolves to the literal behind
-it so the row shows a real swatch, and its hint says that picking a colour there breaks the
-link - which is what the pick means.
-
-Two rows are shaped by what would otherwise be a lie:
-- **A shadow row leads with the design's OWN value**, labelled "As designed" and selected,
-  whenever it matches no preset - which is most designs, since a shadow is per-design far more
-  than per-family. Four presets with none of them lit reads as a broken control.
-- **A typeface token** (`--font-label`, `--font-numeric`) is a picker over BUNDLED faces only.
-  Pointing one at a family we do not ship would emit a `url("fonts/…")` nothing writes, and
-  `font-display: swap` would hide that until playout. **Both write paths ensure the
-  `@font-face`** - the wizard's inside `buildDraftTemplate`, the editor's inside `setVar`. A
-  hand-written value the registry does not know is kept and shown, never silently replaced.
+**StyleControls.tsx** renders the `:root` style contract wherever a human edits it: the wizard's
+Style step and the editor's Style panel. Its contract - the no-dead-knobs doctrine, complete CSS
+values, alpha-preserving colours, ColorField and the bundled-typeface rule - moved to
+**`src/components/style/AGENTS.md`** (with its thin `CLAUDE.md`), which loads when you work in
+that directory.
 
 ## Panels (the six tool panels - Data / Control / Style / Assets / AI / Export)
 
@@ -602,134 +559,18 @@ await entirely, because the app-level dialog already announces unclaimed failure
 - **save/SaveDialogs** - the first-save/Save-As dialog (name only - every save is standalone)
   and the unsaved-changes guard (Save & continue / Save first… / Discard /
   Cancel), mounted once per shell; both declare useModalGate.
-- **home/HomePage** - `#/home[/<section>]`, PRODUCTIONS-FIRST (docs/GOALS.md "Student
-  release" step 8): no section = the DASHBOARD (productions as CARDS, then a SHELF of the six
-  most recent graphics, then recent videos); nav sections are productions / graphics / videos
-  / looks, each with its count. The retired `recent` and `controls` sections land on the
-  dashboard - every graphic row reaches its control panel through its ⋯ menu. The
-  shell/nav/dashboard live here; the section bodies are `home/sections/*`.
-  **THE DASHBOARD SHOWS, THE SECTION LISTS** (handoff §5a). Its question is "pick up where you
-  left off", which a graphic answers by being RECOGNISED - so a shelf card is thumbnail + name,
-  the whole card the door, no per-row controls. The library ROWS and every verb on them belong
-  to the Graphics section, so a spec wanting a `.lib-row` opens the section first (one such
-  walk, `e2e/render.spec.ts`, was caught only by CI - a Home change does not map to it).
-  **The Graphics section's header is ONE row** (handoff §5b): title, search, sort, view
-  toggle - a title on one line with the search on the next spent two bands of the fold on
-  chrome. The search box lives there but the QUERY is HomePage's, since the dashboard searches
-  with the same one. Under it, TYPE chips derived from the library (only types someone
-  actually has; counts are of the whole search-filtered set, so picking one never renumbers
-  the others), and they appear from two types - one type is not a filter.
-  A graphic is `home/GraphicRow` in TWO containers off one `view` prop (`prefs.libraryView`,
-  per device): `.lib-row--grid` is a CARD, `.lib-row--list` a row of the §5c TABLE - preview |
-  name | type | edited | folder | actions, where `.lib-thead` and every row share ONE
-  `--lib-cols` template whose two trailing columns are FIXED, because the heading cells are
-  empty and `max-content` collapsed them to nothing, sliding every heading right of the values
-  under it. Both carry Open, the "+ Production" popover and the `home/RowMenu` ⋯ overflow
-  (control panel / export / rename / duplicate / publish / two-step delete).
-  **SELECTION HAS NO CHECKBOXES** (handoff §5b): the item takes the click, shift-click extends
-  over the VISIBLE order, a press on the container's own background clears, and `.lib-select`
-  is a PIP reporting state rather than a control column beside every row - INVISIBLE at rest
-  (by opacity, so it keeps its space, its focus order and its click target; an outline on every
-  resting row is that checkbox column drawn faintly), and still what a shift-click lands on.
-  The bulk bar renders AFTER the items, which is what lets `sticky; bottom` float it over the
-  list - above them its natural place is the top, so it never lifts off.
-  FOLDERS are one thing in two presentations: CARDS in the card grid (drop targets, ⋯ =
-  rename / production / remove) and the chip row in the table. Every folder verb is
-  `setGraphicsFolder` over its members - there is no folder record - so a folder holding
-  nothing cannot persist, and a newly named one lives in component state until something is
-  moved into it.
-  Icons are inline SVG from `components/icons.tsx` - no
-  pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
-  gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
-  Its topbar carries the **beta feedback door** (`area="home"`), as the wizard's header does
-  (`area="wizard"`) - it existed only in the EDITOR shell, the surface the student release
-  demotes, so the release's own user had no way to send anything. Both render nothing offline,
-  and with a wizard open over a shell TWO are in the document: `data-area` names one.
-- **home/sections/ProductionsSection** - production CARDS: a production has a state, a size and
-  a set of graphics, and a one-line row showed none of them. Name + published badge, stats, a
-  strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes
-  one. Published tints GREEN - amber is preview and red is on air (Brand §3).
-- **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
-  preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
-  recipe; a template with no builder contract falls back to its own play(), since a card has no
-  Play button beside it). A LIVE render, deliberately not a picture stored on GraphicDoc: no
-  persisted-format change, no migration, nothing extra to sync, and it can never disagree with
-  the template it previews. The iframe mounts only when the card scrolls into view
-  (IntersectionObserver). It is FRAMED ON THE GRAPHIC, not on the canvas
-  (preview/frameGraphic.ts, shared with the wizard's picker cards): a lower third is a band
-  across a fraction of a 1920×1080 frame, and at 144px the whole-canvas view was an unreadable
-  smear of one. Measured after the settle, so nothing is framed mid-air.
-- **home/GraphicControlPage** - `#/control/<graphicId>`: the saved graphic's operator
-  panel, and the surface that AIRS (the editor's Rehearse tab is the preview-only twin) -
-  live graphic + transport + machine event buttons (GREYED by controlModel `isEventLegal`
-  against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the editor's
-  Rehearse panel, the event strip and the hosted page do) + a STATE CHIP naming the current
-  state (the fact the greying is judged against, so a button is never greyed without the
-  surface saying why) + ENTRIES (named data rows: add/duplicate/rename/delete/select-active,
-  ▶ Play with an entry, ★ make an entry the template's default data via setFieldDefault) +
-  the downloadable controlpanel.html with entries baked in (control/controlPanelHtml.ts
-  opts.entries). Entry mutations compose through a read-fresh `patch(cur => …)` - two edits in
-  one tick must never overwrite each other. An entry's ✕ is ARMED (two-step, like Home's
-  graphic delete): typed-in data with no undo behind it, on a row someone drives live.
+- **home/** - HomePage (`#/home[/<section>]`), the productions/graphics/videos/looks sections,
+  GraphicThumb and GraphicControlPage moved to **`src/components/home/AGENTS.md`** (with its thin
+  `CLAUDE.md`), which loads when you work in that directory.
 - **AuthStatus** now routes 🏠 Home from the account menu (initials avatar fallback); the
   topbar's always-visible 🏠 Home button is the no-account door to the same place.
 
 ## Video editor shell (video/)
 
-The PARALLEL editor world for the AI video project kind (VideoProject, src/model/videoTypes.ts).
-App.tsx renders **VideoAppShell** instead of AppShell when docKindStore says 'video'; only the
-wizard flips that switch. Every panel follows the project's ENGINE ('remotion' | 'hyperframes',
-picked at creation): the code pane, the preview bridge, the validator, the render manifest and
-the source download all branch on it, while the rest stay one surface.
-Layout: code pane (lazy Monaco, **VideoCodeEditor** - Composition.tsx with syntax-only TSX
-diagnostics from monacoSetup.ts, or composition.html for HyperFrames; typing goes through
-store.setSource) | splitter (model/videoLayout.ts `codeRatio` pref) | right column =
-**VideoPlayerFrame** (the player stage; sandbox="allow-scripts" iframe either way - the
-prebuilt Remotion Player host driven by PlayerBridge, or the HyperFrames composed-srcdoc
-driver driven by HyperframesBridge (src/video/hyperframes/); bridgeRegistry holds whichever
-is mounted and the chat's validator narrows to its engine's kind) over a
-tabbed panel: **VideoAiChatPanel** (the primary authoring surface - auto-runs the FIRST
-generation when chat holds exactly one unanswered user turn, guarded PER PROJECT ID with a
-retry button on failure; every AI result applies as ONE undoable applyProject; failed
-validation keeps the previous working code and offers "Apply anyway"), **VideoContentPanel**
-(the editable inputs the AI declared - the video Template Definition; each becomes a shared
-FieldDescriptor and renders the SHARED field row (fields/), editing `project.inputs` live
-through store.setInputValue, so a non-technical user changes the headline/score/logo without
-touching TSX; the image control is an asset PICKER over the project's uploads by logical name.
-The panel also shows inputs INFERRED FROM THE CODE (model/videoInputInfer.ts): any
-`fields.<key> ?? default` the module reads but nobody declared, badged `code` - the code is the
-source of truth, so a pro who hand-writes a field gets the control the AI would have declared.
-A declared input wins; an inferred one is adopted into project.inputs on its first edit, which
-is why store.setInputValue takes the whole input, not just a key),
-**VideoSettingsPanel**
-(undoable patchSettings; duration edits in seconds, fps changes preserve seconds. Settings drive
-the player and the renderer at once but NOT the composition's code, which was written against
-whatever they were at generation time - so the project records that (`authoredFor`) and the panel
-reports any DRIFT (videoTypes.ts settingsDrift) with a one-click "update the code" that goes
-through store.requestAi -> the CHAT panel's one AI path, so it lands as a normal turn and undoes
-like any other edit. `authoredFor: null` = provenance unknown: warn about nothing. Its AI-model
-override uses the global provider and live catalog suggestions filtered for the video
-structured-output contract, accepts an opaque id when discovery is unavailable, and never
-receives a provider key),
-**VideoAssetsPanel** (data-URL assets, 3 MB/asset hard cap - the render manifest budget; uploads
-go through video/types.ts uniqueVideoAssetPath so an asset's LOGICAL NAME is settled once, into
-the immutable path - adding or deleting another asset must never rename one, because the code and
-image-input values point at that name. A few big assets can still exhaust localStorage: the save
-fails LOUDLY (the shell's `video-autosave-failed` flag), never silently. It also sets each
-upload's PURPOSE (model/imagePurpose.ts) via store `setAssetUse`, and is the ONE video surface
-that must NOT filter by it, since it is where a reference is re-tagged or deleted. Everything
-else reads `video/types.ts` `compositionAssets`, which keeps reference material out of all four
-routes an asset can otherwise reach - `assets.<name>` in the code, the Content picker, the
-player's data-URL map, and the render manifest. Two traps: a zustand selector that BUILDS the
-filtered array returns a new reference every store write (memo the two stable parts instead), and
-`createDefaultVideoProject` constructs the project field by field, so a new field must be added
-to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-purpose.spec.ts),
-**VideoExportPanel** (mounts **VideoRenderPanel** when isRenderConfigured() - the engine's
-manifest kind through the shared render service, with an upload-budget meter; plus the engine's
-source download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
-(explicit saves; the current slot autosaves separately). The shell binds the same global
-undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
-exactly like AIPromptPanel; everything else stays open.
+Moved to **`src/components/video/AGENTS.md`** (with its thin `CLAUDE.md`), which loads when you
+work in that directory. It holds the video shell's full contract: VideoAppShell, the per-ENGINE
+branching, the code pane and player bridges, and the chat / content / settings / assets / export
+panels.
 
 ## Wizard (wizard/)
 
