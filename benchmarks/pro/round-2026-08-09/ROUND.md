@@ -1,0 +1,75 @@
+# NoaCG Pro - full brief-bank round, 2026-08-09
+
+The first Pro round run for QUALITY rather than cost. Twelve briefs, the standard gateway
+routes, `--save-fixtures` so the interpretations survive this time.
+
+    node scripts/pro-bench.mjs --generate \
+      --image-route=vercel:google/gemini-3.1-flash-image \
+      --interpret-route=vercel:google/gemini-2.5-flash \
+      --max-cost=1.30 --save-fixtures
+
+**Spent $0.940 over 12 briefs.** Archived whole at
+`C:\claude\noacg-lite-eval-archive\pro-full-round-2026-08-09` (25 files, verified).
+Ten fixtures are committed under `benchmarks/pro/v1/fixtures/`, so every one of these
+interpretations replays free from now on - the 2026-08-08 round did not save them and lost
+twelve.
+
+## The headline
+
+**The bench reported 10/10 pass, every one at `editability 1.00`. Of the five frames read by
+eye, two are usable, one is degraded, and two are broken badly enough to be unairable.**
+
+That is the same disagreement the 2026-08-08 round hit (visibly broken on 5 of 12 while the
+gates reported 11 of 12 passing), reproduced after the scoring fix, and it is the finding that
+matters: **no gate in this rig measures whether the compiled graphic resembles the concept the
+model drew.** `editability` measures how much of the design became editable text, which is a
+real and different question - it answers 1.00 for a graphic that is entirely editable and
+entirely wrong.
+
+Cost held exactly to the 4-brief baseline: $0.940 / 12 = $0.0783 per generation against the
+predicted $0.0777, and the concept image was $0.0671 flat on every brief again.
+
+## What the frames show (5 of 10 read)
+
+| Brief | Machine | By eye |
+|---|---|---|
+| `corporate` | PASS 1.00 | **Usable.** Clean, legible, proportionate. Dead space right of the text and an empty logo well on the left, but this would air. |
+| `gradient-accent` | PASS 1.00 | **Usable.** Gradient survived. Type is small for broadcast and the panel carries dead space, but nothing is wrong. |
+| `news-public` | PASS 1.00 | **Degraded.** The concept centred the name over a hairline rule in a panel that hugged the text. The compile left-aligned both lines at roughly half the drawn size, dropped the rule entirely, flattened the gradient to one blue, and stretched the panel to three times the width the text needs. Recognisably the same idea, none of the craft. |
+| `high-contrast` | PASS 1.00 | **BROKEN.** The baked name from the artwork is still on screen ABOVE the rebuilt panel - "Sam Peterson" appears twice, once as clipped white letters behind the graphic and once as live text inside it. |
+| `minimalist` | PASS 1.00 | **BROKEN.** Every line doubled and overlapping, the whole graphic crushed into a ~320x200 box in the bottom-left corner with the artwork clipping it. Unreadable. |
+
+The two broken ones share a cause worth stating precisely: **the erase and the rebuilt panel are
+computed at different scales, so the original baked text is no longer covered by what replaces
+it.** That is the `pro-geometry-audit` family of defects (0.72x design-pixel scaling, 0.59x live
+text) reaching the screen, not a new one - but a GHOST OF THE NAME is a more serious symptom than
+"text is smaller than drawn", because it is duplicated content on air rather than a proportion
+mistake.
+
+Every concept image was good. The model drew five broadcast-plausible lower thirds; the compiler
+is what lost them. That supports the 2026-08-09 re-diagnosis (`DIAGNOSIS.md` in the
+`round-2026-08-08` folder) rather than the older "image-led reconstruction cannot work" reading.
+
+## Two hard failures
+
+- **`sports-live`** - `The design interpretation came back off-shape.` $0.078 spent, concept
+  kept. Same brief the 2026-08-08 round flagged for angled panels the schema cannot express.
+- **`portrait-logo`** - `The AI response was cut off by the output token limit.` $0.067 spent,
+  concept kept. This one is OURS and is fixable: `compileProConcept` asks for
+  `outputBudget(4000)` and this brief's interpretation does not fit. A brief that costs a paid
+  concept and then throws the interpretation away on a budget we chose is the cheapest bug in
+  this list to close.
+
+## What to do next, in order
+
+1. **Raise the interpretation budget** so a brief cannot lose its paid concept to our own cap
+   (`portrait-logo`). Smallest fix, guaranteed value.
+2. **Make the geometry defect visible to a gate.** The compiler already knows the concept's
+   pixel frame and the frame it rendered into; the ratio between them is the whole defect and
+   nothing currently reports it. Until something does, every future round will keep scoring
+   broken graphics as passes.
+3. **Only then** re-open whether the reconstruction path is viable. Judging it on these numbers
+   would repeat the mistake the re-diagnosis identified - the approach has still not been fairly
+   tested, because the compiler is losing designs the model got right.
+
+**Not evidence about NoaCG Lite.** Separate projects, separate quality bars (src/ai/AGENTS.md).

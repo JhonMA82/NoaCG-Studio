@@ -466,6 +466,13 @@ and the compiler cannot keep what it designs: visibly broken on 5 of 12 while th
 passing. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured well is the
 concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
 
+**Re-measured 2026-08-09 over the whole bank (`benchmarks/pro/round-2026-08-09/ROUND.md`, $0.940,
+10 fixtures saved): the bench said 10/10 pass at `editability 1.00`, and of five frames read by
+eye two were usable, one degraded and two BROKEN - one printing the artwork's baked name a second
+time above the rebuilt panel. `editability` is a real measurement of a different question; NO gate
+here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
+1.00. Every concept image was good, so the compiler is what loses them.**
+
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
 renders every design at 0.72x the size it was drawn (a 1376x768 concept's pixels used as DESIGN pixels

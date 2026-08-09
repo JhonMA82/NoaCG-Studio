@@ -1,15 +1,35 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 0.9,
+  "graphicTypeConfidence": 0.95,
   "regions": [
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.0881,
-        "y": 0.6978,
-        "w": 0.6125,
-        "h": 0.1333
+        "x": 0.078125,
+        "y": 0.604166,
+        "w": 0.015625,
+        "h": 0.347222
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#112A59"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.09375,
+        "y": 0.604166,
+        "w": 0.84375,
+        "h": 0.347222
       },
       "confidence": 0.95,
       "treatment": "rebuild-shape",
@@ -17,27 +37,7 @@
         "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#1F4E97"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.0881,
-        "y": 0.6867,
-        "w": 0.6125,
-        "h": 0.0078
-      },
-      "confidence": 0.9,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#E5E5E5"
+          "color": "#1A3977"
         },
         "opacity": 1,
         "radiusNorm": 0
@@ -46,49 +46,69 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.1156,
-        "y": 0.7204,
-        "w": 0.2813,
-        "h": 0.0463
+        "x": 0.1328,
+        "y": 0.6736,
+        "w": 0.3398,
+        "h": 0.0625
       },
       "confidence": 0.95,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
       "sampleText": "Alexandra Riva",
-      "suggestedTitle": "Name",
+      "suggestedTitle": "Person Name",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
-        "approxWeight": 700,
+        "approxWeight": 400,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.04,
+        "fontSizeNorm": 0.05,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     },
     {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.1328,
+        "y": 0.7778,
+        "w": 0.7109,
+        "h": 0.0014
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#C1C8D1"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
       "kind": "text",
       "bbox": {
-        "x": 0.1156,
-        "y": 0.763,
-        "w": 0.3813,
-        "h": 0.0333
+        "x": 0.1328,
+        "y": 0.8264,
+        "w": 0.5469,
+        "h": 0.0417
       },
       "confidence": 0.95,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Chief Political Correspondent",
-      "suggestedTitle": "Title",
+      "suggestedTitle": "Person Title",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
-        "approxWeight": 400,
-        "color": "#E5E5E5",
-        "fontSizeNorm": 0.027,
+        "approxWeight": 300,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.03,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
