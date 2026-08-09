@@ -1,12 +1,36 @@
 # Creative Mode - a custom creation path for affordable open models
 
-> **PARKED 2026-08-08 - superseded by `src/ai/AGENTS.md` and `docs/ADAPT_FIRST_PLAN.md`.**
-> Five paid rounds concluded that cheap models cannot reliably invent an airable broadcast
-> graphic from a blank stylesheet, and the product pivoted to adapt-first. The `creative/` code
-> still exists and is BENCH-ONLY - no product path reaches it. The live routing contract this
-> plan's §2 and §6 used to own now lives in `src/ai/AGENTS.md`; the pilot's implementation
-> contract is Appendix A below; the verdicts and their retry conditions are
+> **RETIRED 2026-08-09 (owner decision) - superseded by NoaCG Pro.** This is a record to MINE,
+> not a plan to continue, and Creative Mode is no longer carried as a parallel architecture.
+> Both it and Pro exist to answer the same question - the model proposes the appearance, the
+> platform owns the engineering - and Pro owns that question now
+> (`docs/NOACG_PRO_PLAN.md`). Two live experiments asking it separately is how the answers come
+> to disagree.
+>
+> Previously PARKED 2026-08-08: five paid rounds concluded that cheap models cannot reliably
+> invent an airable broadcast graphic from a blank stylesheet, and the product pivoted to
+> adapt-first. The `creative/` code is BENCH-ONLY - no product path reaches it. The live routing
+> contract this plan's §2 and §6 used to own now lives in `src/ai/AGENTS.md`; the pilot's
+> implementation contract is Appendix A below; the verdicts and their retry conditions are
 > `docs/AI_ATTEMPTS.md`. Nothing here is current strategy.
+>
+> **What survives the retirement, and where it belongs.** These are the parts worth carrying
+> into Pro rather than re-deriving. Each is a mechanism with a measured ruling behind it, not an
+> idea:
+>
+> | Mined from | What it is | Why it survives |
+> |---|---|---|
+> | `creative/critique.ts` | a rendered-frame critic that asks CONCRETE INSPECTION QUESTIONS, each phrased with ABSENCE as its first failure | the closest thing in the tree to a critic role, and its phrasing rule is the fix for the Lite judge's "scored 5 on a frame with no strap". Never scored a round - it is a design, not a finding |
+> | `creative/scaffold.ts` + `creative/style.ts` | the platform compiles the whole ENGINEERING skeleton with marked region SLOTS; the model then patches only the look, through a gate that makes `:root`, `@font-face`, the ANIMATION region, the SPX definition and every field id untouchable, and returns null rather than degrade | this is the general form of Pro's compile: today Pro's model can only fill four numbers per panel, and this is the seam that lets it write CSS without being able to break the contract |
+> | `creative/knowledgeCards.ts` | anatomy and principles for one composition family, taught WITHOUT showing a design to copy; a card REPLACES generic language rather than stacking, at most two per prompt | the load-ceiling lesson (`docs/AI_ATTEMPTS.md`, "adding prompt lines"): a prompt at this length is a fixed budget, not an append-only log |
+> | `creative/references.ts` | ONE vision call converts a picture into structured TEXT that cheap TEXT stages then act on, cacheable per asset, and the PURPOSE decides what is read | the multi-model bridge in miniature: a vision model reads, text models design. Pro's own `layout`-reference plan is this mechanism |
+> | `creative/neutralSkeleton.ts` | the de-anchored example: engineering contracts and nothing to copy | the anti-anchoring rule is absolute and outlives this plan |
+> | `creative/contracts.ts` | ConceptDirection + CreativeSpec, versioned, with normalizers that CLAMP a raw emit instead of rejecting it | the house pattern; Pro's `ProInterpretationV1` + `normalize.ts` is the same shape |
+> | `creative/pipeline.ts` | the four-arm ablation harness - A control / B de-anchored / C staged / D + critique - so each stage is isolated by one difference | the methodology any multi-stage Pro must borrow to prove a stage pays for itself |
+>
+> **Not mined, and not retired:** `scripts/creative-route-bench.mjs` and
+> `e2e/creative-routing.spec.ts` cover the LIVE Phase-A routing stage, which shipped. They keep
+> the word "creative" in their names and have nothing to do with this plan.
 
 Status: PLAN, revision 2 (no implementation on this branch). Companion to
 `docs/AI_PLATFORM_PLAN.md` (the task-registry architecture this slots into) and

@@ -480,11 +480,12 @@ test('save, reload and reopen keeps a severity machine and a language machine in
 
 test('every export target packages the new categories with no dangling references', async ({ page }) => {
   await toApp(page);
-  const packages = (await page.evaluate(`(async () => {
+  const GRAPHICS = ['tk15', 'al01', 'pi08'];
+  const built = (await page.evaluate(`(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
     const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
     const out = [];
-    for (const id of ['tk15', 'al01', 'pi08']) {
+    for (const id of ${JSON.stringify(GRAPHICS)}) {
       const tpl = variantById(id).create({});
       for (const target of EXPORT_TARGETS) {
         const zip = await target.build(tpl);
@@ -494,11 +495,15 @@ test('every export target packages the new categories with no dangling reference
         });
       }
     }
-    return out;
-  })()`)) as { id: string; target: string; base64: string }[];
+    // How many targets there ARE is read here, in the same evaluation that built them, so
+    // adding an export target cannot make this fail on arithmetic - only on a target that
+    // produced no package.
+    return { out, targets: EXPORT_TARGETS.length };
+  })()`)) as { out: { id: string; target: string; base64: string }[]; targets: number };
+  const packages = built.out;
 
-  // Six targets × three graphics.
-  expect(packages).toHaveLength(18);
+  expect(built.targets, 'the export registry still has targets to package for').toBeGreaterThan(0);
+  expect(packages).toHaveLength(GRAPHICS.length * built.targets);
 
   for (const pkg of packages) {
     const label = `${pkg.id}/${pkg.target}`;

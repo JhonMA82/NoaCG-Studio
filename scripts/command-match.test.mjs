@@ -131,3 +131,18 @@ test('the shared sweep list is a usable alternation for both consumers', () => {
   assert.ok(built.test('node C:\\repo\\scripts\\type-floor.mjs'));
   assert.ok(!built.test('node C:/repo/scripts/dev-port.mjs'));
 });
+
+test('asking what WOULD run is not a run', () => {
+  // `--list` / `--json` print the plan and exit - no dev server, no browser, no memory. Blocking
+  // them denied the one cheap thing a session can do while another checkout is busy, which is
+  // the moment the guard is most likely to be firing.
+  assert.ok(!invokesE2e('node scripts/e2e-affected.mjs --list --focus'));
+  assert.ok(!invokesE2e('node scripts/e2e-affected.mjs --json'));
+  assert.ok(!invokesE2e('npx playwright test --list'));
+
+  // The real thing still is one, including the integration form the plan-only flags share a
+  // command shape with.
+  assert.ok(invokesE2e('node scripts/e2e-affected.mjs --integration --focus'));
+  assert.ok(invokesE2e('npm run test:e2e:integration'));
+  assert.ok(invokesE2e('npx playwright test competition-pack.spec.ts'));
+});

@@ -31,6 +31,30 @@ is a config change" half of Phase 3's done-when, made true for the axis it is tr
 - **The pack's family is a default, not a constraint.** Any pack resolves in any of the four
   families — the family field is the curated taste pick a non-technical user starts from.
 
+### A kit gets a coherent default look (decided 2026-08-08)
+
+> **A kit gets a coherent default look, and "look" means the whole system: palette AND typography,
+> spacing, shape, layout language, image treatment and motion. These are DEFAULTS, never locks —
+> the user still customises afterwards, exactly as they do today.**
+
+Binding, and not yet true of what ships. Three measured gaps between the decision and the code
+(`CATALOG_VARIETY.md` §6):
+
+- **19 of 21 packs declare no `paletteId`**, so a kit arrives in each design's own default — one
+  of the four (family, palette, typeface) triples that cover 75% of the catalog.
+- **A look is not a palette.** `TemplatePack.paletteId` repaints and nothing else; type, spacing,
+  shape language, image treatment and motion have no per-kit carrier at all. Whatever grows one
+  has to reach all seven, which is the same widening of `FAMILY_TOKENS` that a new design
+  DIRECTION needs (`CATALOG_VARIETY.md` §4.2).
+- **30% of declared extras are already off-family** (36 of 121): an `extras` entry is a fixed
+  variant id and does not follow the family the kit was built in. A kit whose look is a promise
+  therefore declares TYPES, and covers its roles with types only — which is what the core-six gate
+  already requires, for the same reason.
+
+**"Defaults, never locks" is the load-bearing half.** Every value stays a `:root` token the Style
+panel writes, per-graphic customisation in the wizard is unchanged, and the tray's "use this look
+for the rest" keeps applying to whatever the user has actually chosen.
+
 ### The wizard surface (built; the shape changed once)
 
 A pack's SHAPE was first decided as **a "start from a kit" ENTRY CARD, not a third mode inside
