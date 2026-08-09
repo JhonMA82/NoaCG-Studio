@@ -473,13 +473,13 @@ time above the rebuilt panel. `editability` is a real measurement of a different
 here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
 1.00. Every concept image was good, so the compiler is what loses them.**
 
-**That gate now EXISTS and `pro-bench` counts it in `pass`.** `proDesignScaleRatio` /
-`proScaleFaithful` (`pro/contract.ts`) answer `conceptWidth / frameWidth` - the whole defect
-reduces to that, because the design unit's share of the concept and its share of the frame differ
-by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
-free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
-not get worse; the reporting stopped being kind - do not "fix" the score by loosening
-`PRO_SCALE_TOLERANCE`.**
+**The sharp-placement gate now EXISTS and `pro-bench` counts both halves in `pass`.** The
+interpretation carries a separate `canvasPlacement`; `resolveProCanvasPlacement`
+(`pro/contract.ts`) clamps it to a useful lower-third size and safe canvas position, applies at
+most a 1.00 scale, and says when the source lacks enough pixels to fulfil the requested size.
+`api/_lib/proGeometry.test.ts` pins the arithmetic free. The pre-change fixture bank is expected
+to keep source-limited failures because those concepts spent their pixels on full-frame scenery;
+only a fresh tight-concept round can measure whether the prompt fixed that input.
 
 **THE CAUSE IS THE CONCEPT PROMPT, and the direction is decided (owner, 2026-08-09).**
 `proConceptPrompt` asks for the graphic inside a "full 1920x1080 frame" over a "softly blurred
@@ -492,6 +492,13 @@ larger model output is unavailable (the gateway image call has no size parameter
 clear most of the baked-text ghosting too - four of five broken frames show it, and a tight
 concept has no backdrop to show through. A prompt change invalidates the fixtures: budget a fresh
 paid round (~$0.95). Detail: `benchmarks/pro/round-2026-08-09/ROUND.md`.
+
+**IMPLEMENTED 2026-08-09, awaiting the fresh paid round.** `proConceptPrompt` now asks for the
+graphic alone with tight framing and no environment. The same interpretation call independently
+chooses normalized canvas width and top-left placement. Normalization clamps that decision;
+compile keeps the native crop and sends artwork, live fields, rebuilt panels, and the logo slot
+through one downscale-only imported-design `--scale`, expressed with the normal editable zone and
+nudge contract. Contract version: `pro-interpret-v3`.
 
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler

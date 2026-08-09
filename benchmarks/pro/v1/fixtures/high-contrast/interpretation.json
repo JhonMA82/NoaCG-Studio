@@ -2,6 +2,11 @@
   "version": 1,
   "graphicType": "lower-third",
   "graphicTypeConfidence": 0.99,
+  "canvasPlacement": {
+    "widthNorm": 0.6,
+    "xNorm": 0.0625,
+    "yNorm": 0.72
+  },
   "regions": [
     {
       "kind": "panel",

@@ -183,6 +183,8 @@ server-revalidated. It extends the `ImportedGraphicAnalysisV1` shape rather than
 inventing a parallel vocabulary:
 
 - canvas + safe margins, graphic type + confidence (v1 accepts only `lower-third`);
+- an independent `canvasPlacement`: intended displayed width and top-left position on a
+  1920x1080 canvas, normalized and deterministically clamped so source pixels only downscale;
 - regions: `kind: text | logo | image | panel | decorative`, normalized bboxes,
   confidence, roles, sample text, typography (same **font honesty** rule: enum-locked to
   the seven bundled faces, `matchQuality` can never claim exact);
@@ -248,6 +250,14 @@ every existing behaviour - locks, Style tab, design presets, stretch, text-fit, 
 applies verbatim. One additive change in `src/model/structure.ts`: `.{prefix}-panel-N`
 elements become selectable `panel` parts so reconstructed panels get canvas/timeline/
 Inspector presence. (Additive: no existing template emits that class.)
+
+Canvas placement is not inherited from the concept image. The image is requested as the graphic
+alone and tightly framed; interpretation chooses final width and top-left position separately.
+The normalizer clamps that decision to lower-third-safe bounds and a maximum scale of 1. The
+compiler keeps the crop at native resolution and applies the one resulting downscale through the
+imported-design `--scale`, so artwork, text, rebuilt panels, and logo slots retain one source
+coordinate system. A source that cannot reach the requested useful size without upscaling is
+reported as source-limited and fails the benchmark gate.
 
 ## 6. Motion (v1)
 
