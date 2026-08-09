@@ -1047,12 +1047,18 @@ export default function AiStep({
       {needsSignIn ? (
         // Hosted mode, no account: AI is an account feature — but only the AI. The import
         // above (Open as code) and the catalog continuation stay fully open.
+        //
+        // This copy is the product's whole answer to a student who has no account, since
+        // anonymous Lite stays off: it names the FREE ACCOUNT as the thing that unlocks AI,
+        // and offers making one beside signing in. "Sign in" alone told them to do something
+        // they cannot do.
         <div style={{ marginTop: 12 }}>
           <SignInPrompt
+            offerSignUp
             feature={liteMode ? 'NoaCG Lite' : proMode ? 'NoaCG Pro' : 'Create with AI'}
             reason={liteMode
-              ? 'Sign in to use the included NoaCG Lite allowance for common editable graphics.'
-              : 'Sign in to use AI and get a validated, editable template.'}
+              ? 'Create with AI needs a free NoaCG account — it comes with the included NoaCG Lite allowance for common editable graphics.'
+              : 'Create with AI needs a free NoaCG account. It costs nothing, and you get a validated, editable template.'}
           />
         </div>
       ) : (

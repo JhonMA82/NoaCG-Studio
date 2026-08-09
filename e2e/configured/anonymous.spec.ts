@@ -37,6 +37,35 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
   });
 
+  test('the AI door offers a free account, not just a sign-in', async ({ page }) => {
+    // Anonymous Lite stays OFF by decision, so this gate is the product's whole answer to a
+    // student who has no account: it must name the free account and offer making one. A lone
+    // "Sign in" told them to do something they cannot do.
+    await page.goto('/app');
+    await page.locator('[data-entry="ai"]').click();
+
+    const prompt = page.getByTestId('signin-prompt');
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText(/free NoaCG account/);
+
+    // Create-account leads, sign-in stays beside it, and the dialog opens ON the signup half.
+    await prompt.getByTestId('signin-prompt-signup').click();
+    await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.locator('.auth-submit')).toHaveText('Create account');
+    // Closed with the dialog's OWN ✕, not Escape: Escape reaches the wizard behind it too, and
+    // a closed wizard takes the gate under test off the page.
+    await page.locator('.auth-card .gallery-close').click();
+    await expect(page.locator('.auth-card')).toHaveCount(0);
+
+    await prompt.getByTestId('signin-prompt-signin').click();
+    await expect(page.locator('.auth-submit')).toHaveText('Sign in');
+    await page.locator('.auth-card .gallery-close').click();
+
+    // The IMPORT half stays outside the gate — its "Open as code (no AI)" door only appears
+    // once a file is dropped, so what is assertable here is that the drop zone is still live.
+    await expect(page.locator('.wz-drop')).toBeVisible();
+  });
+
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
     // An EDITOR subject (the AI panel, the Community button), so it needs the editor - which is
     // Advanced mode now. Signing in is what turns that on for the other specs here; signed out,

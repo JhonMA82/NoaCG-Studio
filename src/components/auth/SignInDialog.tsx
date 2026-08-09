@@ -16,6 +16,7 @@ import { useModalGate } from '../spaceKey';
 export default function SignInDialog() {
   const open = useAuthUi((s) => s.signInOpen);
   const reason = useAuthUi((s) => s.reason);
+  const intent = useAuthUi((s) => s.intent);
   const close = useAuthUi((s) => s.closeSignIn);
   const { signedIn, backendConfigured } = useAuthState();
   // This component stays mounted and renders null when closed, so the gate keys on the OPEN
@@ -33,6 +34,16 @@ export default function SignInDialog() {
   // Only dismiss on a backdrop click whose press ALSO began on the backdrop, so a drag that
   // selects text in the email/password field and releases outside never closes. See SaveDialogs.
   const pressedOnBackdrop = useRef(false);
+
+  // Open on the half the caller asked for. Keyed on the OPEN transition (and on the intent
+  // itself, so a second gate with a different answer re-aims the dialog), never on every
+  // render — a manual toggle inside an open dialog must stick.
+  useEffect(() => {
+    if (!open) return;
+    setMode(intent);
+    setError(null);
+    setNote(null);
+  }, [open, intent]);
 
   // Close automatically the moment a session exists (email sign-in resolves in-page; the OAuth
   // path leaves the page entirely, so it never needs this).

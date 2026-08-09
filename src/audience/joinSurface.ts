@@ -15,6 +15,7 @@
 // Never a tally (the reveal is a graphic, on air, at the operator's moment), never the answer
 // key, never anybody else's words.
 
+import { FONTS } from '../model/fonts';
 import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
@@ -94,6 +95,30 @@ const CSS = `
 `;
 
 /**
+ * The bundled faces, declared so a production's published typeface actually ARRIVES.
+ *
+ * `audienceBrandFor` sends a family NAME (`"Saira", Arial, sans-serif`); without a matching
+ * `@font-face` the phone has nothing to load it from, so every brand set in a bundled face fell
+ * back silently while its colours applied — the one part of a look a viewer could not see.
+ *
+ * All of them, unconditionally: an `@font-face` is a DECLARATION, so the browser fetches only
+ * the family something on the page actually asks for. Declaring just the branded one would mean
+ * rebuilding the stylesheet whenever a production's look changed, and `ensureJoinStyle` is
+ * deliberately write-once.
+ *
+ * The URL is ABSOLUTE. The template exports use a relative `fonts/<file>` because they ship the
+ * files beside themselves; this page is served from the app's own origin, and `/join/<name>`
+ * would resolve a relative path to `/join/fonts/<file>`. `/fonts` serves them with CORS, so the
+ * operator's rehearsal preview inside the studio gets the same faces from the same place.
+ */
+const FONT_FACE_CSS = FONTS.map((font) => `@font-face {
+  font-family:"${font.family}";
+  src:url("/fonts/${font.file}") format("woff2");
+  font-weight:${font.weights[0]} ${font.weights[1]};
+  font-display:swap;
+}`).join('\n');
+
+/**
  * Put the join look on a document. Exported because the join ENTRY renders two things this
  * function does not — the presenter view and the "nothing to show" message — and both were
  * shipping unstyled: `nj-*` class names against a stylesheet that only existed once
@@ -104,7 +129,7 @@ export function ensureJoinStyle(doc: Document): void {
   if (doc.getElementById(STYLE_ID)) return;
   const style = doc.createElement('style');
   style.id = STYLE_ID;
-  style.textContent = CSS;
+  style.textContent = `${FONT_FACE_CSS}\n${CSS}`;
   doc.head.appendChild(style);
 }
 

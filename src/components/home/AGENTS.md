@@ -1,0 +1,82 @@
+# src/components/home - the Home surfaces
+
+Loaded alongside the root `AGENTS.md` and `src/components/AGENTS.md` when working in this
+directory (Claude reads it via this directory's `CLAUDE.md` import; Codex reads it directly).
+Keep it accurate.
+
+Split out of `src/components/AGENTS.md` on 2026-08-09, which every session touching any component
+loaded in full even when the work never went near Home. The save contract these surfaces obey -
+never report a save the storage layer has not agreed to - stays there, because every surface owes
+it. Add a RULE here; leave the reasoning in the code's own comments.
+
+## Home (home/, docs/SAVED_CONTENT_MODEL.md)
+
+- **home/HomePage** - `#/home[/<section>]`, PRODUCTIONS-FIRST (docs/GOALS.md "Student
+  release" step 8): no section = the DASHBOARD (productions as CARDS, then a SHELF of the six
+  most recent graphics, then recent videos); nav sections are productions / graphics / videos
+  / looks, each with its count. The retired `recent` and `controls` sections land on the
+  dashboard - every graphic row reaches its control panel through its ⋯ menu. The
+  shell/nav/dashboard live here; the section bodies are `home/sections/*`.
+  **THE DASHBOARD SHOWS, THE SECTION LISTS** (handoff §5a). Its question is "pick up where you
+  left off", which a graphic answers by being RECOGNISED - so a shelf card is thumbnail + name,
+  the whole card the door, no per-row controls. The library ROWS and every verb on them belong
+  to the Graphics section, so a spec wanting a `.lib-row` opens the section first (one such
+  walk, `e2e/render.spec.ts`, was caught only by CI - a Home change does not map to it).
+  **The Graphics section's header is ONE row** (handoff §5b): title, search, sort, view
+  toggle - a title on one line with the search on the next spent two bands of the fold on
+  chrome. The search box lives there but the QUERY is HomePage's, since the dashboard searches
+  with the same one. Under it, TYPE chips derived from the library (only types someone
+  actually has; counts are of the whole search-filtered set, so picking one never renumbers
+  the others), and they appear from two types - one type is not a filter.
+  A graphic is `home/GraphicRow` in TWO containers off one `view` prop (`prefs.libraryView`,
+  per device): `.lib-row--grid` is a CARD, `.lib-row--list` a row of the §5c TABLE - preview |
+  name | type | edited | folder | actions, where `.lib-thead` and every row share ONE
+  `--lib-cols` template whose two trailing columns are FIXED, because the heading cells are
+  empty and `max-content` collapsed them to nothing, sliding every heading right of the values
+  under it. Both carry Open, the "+ Production" popover and the `home/RowMenu` ⋯ overflow
+  (control panel / export / rename / duplicate / publish / two-step delete).
+  **SELECTION HAS NO CHECKBOXES** (handoff §5b): the item takes the click, shift-click extends
+  over the VISIBLE order, a press on the container's own background clears, and `.lib-select`
+  is a PIP reporting state rather than a control column beside every row - INVISIBLE at rest
+  (by opacity, so it keeps its space, its focus order and its click target; an outline on every
+  resting row is that checkbox column drawn faintly), and still what a shift-click lands on.
+  The bulk bar renders AFTER the items, which is what lets `sticky; bottom` float it over the
+  list - above them its natural place is the top, so it never lifts off.
+  FOLDERS are one thing in two presentations: CARDS in the card grid (drop targets, ⋯ =
+  rename / production / remove) and the chip row in the table. Every folder verb is
+  `setGraphicsFolder` over its members - there is no folder record - so a folder holding
+  nothing cannot persist, and a newly named one lives in component state until something is
+  moved into it.
+  Icons are inline SVG from `components/icons.tsx` - no
+  pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
+  gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
+  Its topbar carries the **beta feedback door** (`area="home"`), as the wizard's header does
+  (`area="wizard"`) - it existed only in the EDITOR shell, the surface the student release
+  demotes, so the release's own user had no way to send anything. Both render nothing offline,
+  and with a wizard open over a shell TWO are in the document: `data-area` names one.
+- **home/sections/ProductionsSection** - production CARDS: a production has a state, a size and
+  a set of graphics, and a one-line row showed none of them. Name + published badge, stats, a
+  strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes
+  one. Published tints GREEN - amber is preview and red is on air (Brand §3).
+- **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
+  preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
+  recipe; a template with no builder contract falls back to its own play(), since a card has no
+  Play button beside it). A LIVE render, deliberately not a picture stored on GraphicDoc: no
+  persisted-format change, no migration, nothing extra to sync, and it can never disagree with
+  the template it previews. The iframe mounts only when the card scrolls into view
+  (IntersectionObserver). It is FRAMED ON THE GRAPHIC, not on the canvas
+  (preview/frameGraphic.ts, shared with the wizard's picker cards): a lower third is a band
+  across a fraction of a 1920×1080 frame, and at 144px the whole-canvas view was an unreadable
+  smear of one. Measured after the settle, so nothing is framed mid-air.
+- **home/GraphicControlPage** - `#/control/<graphicId>`: the saved graphic's operator
+  panel, and the surface that AIRS (the editor's Rehearse tab is the preview-only twin) -
+  live graphic + transport + machine event buttons (GREYED by controlModel `isEventLegal`
+  against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the editor's
+  Rehearse panel, the event strip and the hosted page do) + a STATE CHIP naming the current
+  state (the fact the greying is judged against, so a button is never greyed without the
+  surface saying why) + ENTRIES (named data rows: add/duplicate/rename/delete/select-active,
+  ▶ Play with an entry, ★ make an entry the template's default data via setFieldDefault) +
+  the downloadable controlpanel.html with entries baked in (control/controlPanelHtml.ts
+  opts.entries). Entry mutations compose through a read-fresh `patch(cur => …)` - two edits in
+  one tick must never overwrite each other. An entry's ✕ is ARMED (two-step, like Home's
+  graphic delete): typed-in data with no undo behind it, on a row someone drives live.
