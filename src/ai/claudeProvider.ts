@@ -36,6 +36,7 @@ import { preferenceHint } from './preferences';
 import {
   assembleGroundedTemplate,
   attemptLiteSkin,
+  liteHoldFrameFindings,
   normalizeLiteSpec,
   productionSpxValidator,
   singleLineIdentityFields,
@@ -937,7 +938,7 @@ async function liteGroundedResult(
       const skinStarted = Date.now();
       const skinned = await attemptLiteSkin(spec, decision.skin, context, (t) => validateWith(t, options, run));
       run.stage('lite-skin', skinStarted);
-      if (skinned) {
+      if (skinned && !liteHoldFrameFindings(spec, skinned.validation, true).length) {
         run.diversity(skinned.diversity);
         change = {
           summary: spec.summary || 'An AI-designed look on the NoaCG canvas.',
@@ -952,20 +953,42 @@ async function liteGroundedResult(
     // schema allows sizeScale 0.7–1.4 and its prompt already carries the bottom-zone rule, so
     // moving either is a behaviour change its versioned benchmark has to re-baseline first
     // (docs/ADAPT_FIRST_PLAN.md §6.2). `profile` is stripped above, so this must be explicit.
-    change ??= await groundedResult(
-      spec,
-      context,
-      { ...options, profile: undefined, validate: liteValidator(spec, context) },
-      run,
-      // `keepChassisZone` since v9: the chassis is assembled at the zone it was DRAWN for, and
-      // `spec.zone` is not read even when the model sends one. Measured over two 30-brief
-      // rounds, the model answered `bottom-left` 47 times of 47 and every audited Lite chassis
-      // declares exactly that - so this changes no output and stops the model being asked.
-      // `sizeScaleRange` is deliberately still absent: Lite's own contract declares 0.7-1.4,
-      // which is `specToTemplate`'s permissive default, and narrowing it would re-open the
-      // shown-but-illegal mismatch ADAPT_FIRST_PLAN §3 Stage V records.
-      { keepChassisZone: true },
-    );
+    const fallbackIds = ((decision.spec as { fallbackVariantIds?: string[] }).fallbackVariantIds ?? [])
+      .filter((variantId) => variantId !== spec.variantId);
+    for (const variantId of [spec.variantId, ...fallbackIds]) {
+      const candidate = { ...spec, variantId };
+      const compiled = await groundedResult(
+        candidate,
+        context,
+        { ...options, profile: undefined, validate: liteValidator(candidate, context) },
+        run,
+        // The chassis keeps the zone it was measured in; the model selects among references
+        // but never authors placement or a parallel scene model.
+        { keepChassisZone: true },
+      );
+      change = compiled;
+      const validation = compiled.validation ?? validateTemplate(compiled.template);
+      if (validation.ok && !liteHoldFrameFindings(candidate, validation).length) break;
+    }
+    if (!change) throw new Error('Lite had no compatible reference chassis to compile.');
+    const finalValidation = change.validation ?? validateTemplate(change.template);
+    const finalHoldFindings = liteHoldFrameFindings(change.spec ?? spec, finalValidation, change.path === 'grounded+skin');
+    if (finalHoldFindings.length) {
+      change = {
+        ...change,
+        validation: {
+          ...finalValidation,
+          ok: false,
+          errors: [
+            ...finalValidation.errors,
+            ...finalHoldFindings.map((finding) => ({
+              rule: `lite-hold-${finding}`,
+              message: `The rendered hold frame failed Lite's ${finding} check.`,
+            })),
+          ],
+        },
+      };
+    }
     const ruleCodes = change.validation?.errors.map((error) => error.rule) ?? [];
     await recordLiteOutcome({
       generationId: generated.generationId,

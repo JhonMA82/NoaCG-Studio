@@ -128,15 +128,12 @@ test('request JSON limits reject declared and streamed oversize bodies', async (
   await assert.rejects(() => readJson(streamed, 20), { code: 'too_large' });
 });
 
-test('obviously unsupported requests are rejected before model inference', () => {
+test('non-graphic requests screen early while category language reaches inference', () => {
   assert.deepEqual(
     obviousUnsupportedDecision('Build a package of multiple graphics with a branching state machine')?.status,
     'unsupported',
   );
-  assert.equal(
-    obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video')?.status,
-    'unsupported',
-  );
+  assert.equal(obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video'), null);
   assert.equal(
     obviousUnsupportedDecision('Create a video project in Remotion')?.status,
     'unsupported',

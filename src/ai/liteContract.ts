@@ -1,16 +1,59 @@
 import type {
   LiteDecision,
+  LiteCategoryAlternative,
+  LiteCategoryId,
   LiteDesignSpec,
   LiteGenerationSpec,
   LiteGenerationRequest,
   LiteLowerThirdIntentKind,
   LiteLowerThirdLineRole,
   LiteMarkShape,
+  LiteStyleIntent,
   LiteSkinPatch,
   LiteUnsupportedCode,
   LiteVariantQualityPrior,
 } from './liteTypes';
 import type { StructuredOutput } from './modelTypes';
+import { pickRelevantDiverse } from './referenceSelect.js';
+
+export type LiteFieldKind = 'text' | 'image';
+
+export interface CategoryContract {
+  id: LiteCategoryId;
+  supportedGraphicTypes: readonly string[];
+  visibleFields: { min: number; max: number };
+  allowedFieldKinds: readonly LiteFieldKind[];
+  contentSlots: readonly {
+    name: string;
+    required: boolean;
+    kinds: readonly LiteFieldKind[];
+    roles: readonly LiteLowerThirdLineRole[];
+  }[];
+  compatibleReferenceChassis: readonly string[];
+  stateMachine: {
+    owner: 'graphic-type';
+    typeId: string;
+    shape: 'derived-linear';
+  };
+  operatorEvents: readonly ['play', 'update', 'next', 'stop'];
+}
+
+export interface LiteReferenceSlot {
+  name: 'primary' | 'secondary' | 'tertiary' | 'quaternary';
+  roles: readonly LiteLowerThirdLineRole[];
+}
+
+export interface LiteReferenceGeometry {
+  widthShare: number;
+  heightShare: number;
+  anchor: string;
+  primaryTypePx: number;
+  readingSurface: 'panel' | 'scrim' | 'none';
+}
+
+export type LiteStyleSignals = {
+  [K in keyof LiteStyleIntent]: readonly LiteStyleIntent[K][];
+};
 
 export interface LiteCatalogEntry {
   aiCategory: string;
@@ -70,14 +113,24 @@ export interface LiteCatalogEntry {
   } | null;
   fieldPattern: string;
   motionCharacter: string;
+  visibleFields: { min: number; max: number };
+  slots: readonly LiteReferenceSlot[];
+  geometry: LiteReferenceGeometry;
+  styleSignals: LiteStyleSignals;
+  searchTerms: readonly string[];
 }
+
+type LiteCatalogBase = Omit<
+  LiteCatalogEntry,
+  'visibleFields' | 'slots' | 'geometry' | 'styleSignals' | 'searchTerms'
+>;
 
 const entries = (
   aiCategory: string,
   category: LiteDesignSpec['category'],
   maxLines: number,
-  variants: Omit<LiteCatalogEntry, 'aiCategory' | 'category' | 'maxLines'>[],
-): LiteCatalogEntry[] => variants.map((variant) => ({ aiCategory, category, maxLines, ...variant }));
+  variants: Omit<LiteCatalogBase, 'aiCategory' | 'category' | 'maxLines'>[],
+): LiteCatalogBase[] => variants.map((variant) => ({ aiCategory, category, maxLines, ...variant }));
 
 /**
  * `intentKinds` is a hand-authored fit claim, and it is capable of being WRONG in the direction
@@ -110,7 +163,7 @@ const entries = (
  * and `social-handle` map to `promotion` ALONE and had no such escape hatch. A club name over a
  * competition kicker is as ordinary as the call to action, so the same four designs declare it.
  */
-export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
+const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
   ...entries('lower-third', 'lower-third', 2, [
     {
       variantId: 'lt11',
@@ -202,10 +255,367 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       fieldPattern: 'person or subject name, then quiet role or location',
       motionCharacter: 'slow confident fade and short travel; no overshoot',
     },
+    {
+      variantId: 'lt30',
+      name: 'Dateline',
+      description: 'Four-field editorial reporting strap with a ruled location line and printed hierarchy.',
+      style: 'editorial',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'story', 'event', 'organization'],
+      bestFor: ['public news', 'field reports', 'live locations', 'emergency coverage'],
+      avoidFor: ['one-line names', 'esports', 'luxury entertainment'],
+      visualWeight: 'light',
+      supportingLineChars: 55,
+      fieldPattern: 'name, role, organization, then location or live dateline',
+      motionCharacter: 'editorial rule reveal in reading order',
+    },
+    {
+      variantId: 'lt37',
+      name: 'Slate',
+      description: 'Right-anchored cinematic slate with room for four quiet documentary lines.',
+      style: 'cinematic',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'story', 'event', 'organization'],
+      bestFor: ['documentary', 'history', 'arts', 'luxury culture'],
+      avoidFor: ['urgent news', 'score updates', 'high-energy promotion'],
+      visualWeight: 'light',
+      supportingLineChars: 40,
+      fieldPattern: 'subject, role, context, then location or source',
+      motionCharacter: 'measured cinematic drift and fade',
+    },
+    {
+      variantId: 'lt41',
+      name: 'Team Bar',
+      description: 'Three-field layered sport bar for player, team, and competitive context.',
+      style: 'sport',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'team', 'event', 'promotion'],
+      bestFor: ['sports', 'esports', 'live competitions', 'teams'],
+      avoidFor: ['academic titles', 'documentary', 'quiet public information'],
+      visualWeight: 'heavy',
+      supportingLineChars: 39,
+      fieldPattern: 'player or team, role or club, then score or event context',
+      motionCharacter: 'fast layered stinger with a hard settle',
+    },
+    {
+      variantId: 'lt49',
+      name: 'Glass Board',
+      description: 'Four-field translucent information-rich lower third with a clean technical hierarchy.',
+      style: 'glass',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'story', 'event', 'organization', 'team'],
+      bestFor: ['technology', 'universities', 'modern conferences', 'data-led interviews'],
+      avoidFor: ['urgent hard news', 'heritage documentary', 'minimal one-line credits'],
+      visualWeight: 'medium',
+      supportingLineChars: 60,
+      fieldPattern: 'identity, role, organization, then topic or location',
+      motionCharacter: 'soft depth reveal with precise stagger',
+    },
+    {
+      variantId: 'ls12',
+      name: 'Caster Deck',
+      description: 'Three-field esports caster ident led by the handle and grounded in the desk role.',
+      style: 'noacg',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'team', 'promotion'],
+      bestFor: ['esports', 'streaming', 'commentary', 'creator broadcasts'],
+      avoidFor: ['public news', 'documentary', 'academic lectures'],
+      visualWeight: 'medium',
+      supportingLineChars: 50,
+      fieldPattern: 'handle or name, real name or role, then team or programme',
+      motionCharacter: 'technical house reveal with a crisp label finish',
+    },
+    {
+      variantId: 'ls17',
+      name: 'Lectern',
+      description: 'Four-field academic credit with separate post-nominals, position, and institution.',
+      style: 'minimal',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'event', 'organization'],
+      bestFor: ['universities', 'history lectures', 'research', 'public scholarship'],
+      avoidFor: ['esports', 'short promotional calls', 'urgent alerts'],
+      visualWeight: 'light',
+      supportingLineChars: 134,
+      fieldPattern: 'name, post-nominals, academic position, then institution',
+      motionCharacter: 'quiet ruled entrance with no overshoot',
+    },
+    {
+      variantId: 'ls29',
+      name: 'Field Report',
+      description: 'Three-field live-news dateline over a correspondent identity and role.',
+      style: 'noacg',
+      logo: false,
+      logoSlot: null,
+      intentKinds: ['person', 'story', 'event'],
+      bestFor: ['public news', 'fire and weather coverage', 'live locations', 'breaking stories'],
+      avoidFor: ['luxury culture', 'academic lectures', 'esports'],
+      visualWeight: 'medium',
+      supportingLineChars: 33,
+      fieldPattern: 'location or live label, correspondent name, then role or story context',
+      motionCharacter: 'controlled live-news reveal with dateline first',
+    },
   ]),
 ] as const;
 
+const PRIMARY_ROLES: readonly LiteLowerThirdLineRole[] = [
+  'person-name', 'organization', 'team-name', 'story-headline', 'event-name',
+  'social-handle', 'call-to-action', 'location',
+];
+const SUPPORT_ROLES: readonly LiteLowerThirdLineRole[] = [
+  'person-role', 'organization', 'team-name', 'event-name', 'location',
+  'social-handle', 'call-to-action', 'supporting-context',
+];
+const slot = (
+  name: LiteReferenceSlot['name'],
+  roles: readonly LiteLowerThirdLineRole[],
+): LiteReferenceSlot => ({ name, roles });
+const signals = (
+  mood: LiteStyleSignals['mood'],
+  era: LiteStyleSignals['era'],
+  energy: LiteStyleSignals['energy'],
+  material: LiteStyleSignals['material'],
+  paletteDirection: LiteStyleSignals['paletteDirection'],
+  typographyCharacter: LiteStyleSignals['typographyCharacter'],
+  shapeLanguage: LiteStyleSignals['shapeLanguage'],
+  texture: LiteStyleSignals['texture'],
+  motion: LiteStyleSignals['motion'],
+): LiteStyleSignals => ({
+  mood, era, energy, material, paletteDirection, typographyCharacter,
+  shapeLanguage, texture, motion,
+});
+
+/** Measured at 1920x1080 through scripts/catalog-geometry.mjs. Field ranges are the visible
+ * slots the real variant assembler painted in the same run. Keeping the measurements separate
+ * from the prose makes a stale claim testable. */
+const REFERENCE_METADATA: Record<string, Pick<
+  LiteCatalogEntry,
+  'visibleFields' | 'slots' | 'geometry' | 'styleSignals' | 'searchTerms'
+>> = {
+  lt11: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.248, heightShare: 0.136, anchor: 'bottom-left', primaryTypePx: 54, readingSurface: 'panel' },
+    styleSignals: signals(['authoritative', 'technical'], ['contemporary'], ['confident'], ['screen'], ['brand-led', 'neutral-dark'], ['geometric', 'monospace'], ['orthogonal', 'layered'], ['clean', 'glow'], ['technical-snap', 'editorial-reveal']),
+    searchTerms: ['control room', 'broadcast', 'newsroom', 'house', 'public news'],
+  },
+  lt02: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.18, heightShare: 0.105, anchor: 'bottom-left', primaryTypePx: 56, readingSurface: 'none' },
+    styleSignals: signals(['restrained', 'authoritative'], ['contemporary'], ['quiet', 'measured'], ['flat'], ['neutral-light', 'cool'], ['humanist', 'geometric'], ['ruled', 'minimal'], ['none', 'clean'], ['precise-draw', 'calm-fade']),
+    searchTerms: ['university', 'clean', 'minimal', 'interview', 'academic'],
+  },
+  lt05: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.22, heightShare: 0.124, anchor: 'bottom-left', primaryTypePx: 58, readingSurface: 'panel' },
+    styleSignals: signals(['dramatic', 'technical'], ['contemporary', 'futurist'], ['high', 'explosive'], ['metal', 'screen'], ['high-contrast', 'brand-led'], ['condensed', 'display'], ['angled', 'layered'], ['clean'], ['fast-stinger', 'technical-snap']),
+    searchTerms: ['sport', 'esports', 'competition', 'heat', 'fast'],
+  },
+  lt15: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.206, heightShare: 0.116, anchor: 'bottom-left', primaryTypePx: 46, readingSurface: 'panel' },
+    styleSignals: signals(['technical', 'warm'], ['contemporary', 'futurist'], ['measured'], ['glass', 'light'], ['cool', 'brand-led'], ['geometric', 'humanist'], ['rounded', 'layered'], ['frosted', 'glow'], ['soft-depth', 'calm-fade']),
+    searchTerms: ['technology', 'modern', 'streaming', 'creative', 'glass'],
+  },
+  lt25: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.199, heightShare: 0.105, anchor: 'bottom-left', primaryTypePx: 57, readingSurface: 'none' },
+    styleSignals: signals(['authoritative', 'restrained', 'luxurious'], ['contemporary', 'heritage'], ['measured', 'confident'], ['paper', 'flat'], ['neutral-light', 'monochrome', 'brand-led'], ['editorial-serif', 'humanist'], ['ruled', 'minimal'], ['paper', 'clean'], ['editorial-reveal', 'precise-draw']),
+    searchTerms: ['public news', 'documentary', 'luxury', 'university', 'culture'],
+  },
+  lt32: {
+    visibleFields: { min: 1, max: 2 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.359, heightShare: 0.217, anchor: 'bottom-left', primaryTypePx: 54, readingSurface: 'scrim' },
+    styleSignals: signals(['restrained', 'dramatic', 'luxurious'], ['contemporary', 'heritage'], ['quiet'], ['light'], ['neutral-dark', 'monochrome'], ['cinematic', 'humanist'], ['minimal'], ['grain', 'clean'], ['cinematic-drift', 'calm-fade']),
+    searchTerms: ['documentary', 'film', 'history', 'human interest', 'cinematic'],
+  },
+  lt30: {
+    visibleFields: { min: 2, max: 4 },
+    slots: [
+      slot('primary', ['person-name', 'story-headline', 'event-name', 'organization']),
+      slot('secondary', ['person-role', 'supporting-context']),
+      slot('tertiary', ['organization', 'supporting-context']),
+      slot('quaternary', ['location', 'event-name', 'supporting-context']),
+    ],
+    geometry: { widthShare: 0.228, heightShare: 0.192, anchor: 'bottom-left', primaryTypePx: 60, readingSurface: 'none' },
+    styleSignals: signals(['authoritative', 'urgent'], ['contemporary', 'heritage'], ['confident', 'high'], ['paper', 'flat'], ['high-contrast', 'brand-led'], ['editorial-serif', 'humanist'], ['ruled', 'orthogonal'], ['paper', 'clean'], ['editorial-reveal', 'precise-draw']),
+    searchTerms: ['public news', 'reporter', 'dateline', 'fire', 'weather', 'location'],
+  },
+  lt37: {
+    visibleFields: { min: 2, max: 4 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES), slot('tertiary', SUPPORT_ROLES), slot('quaternary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.382, heightShare: 0.26, anchor: 'bottom-right', primaryTypePx: 50, readingSurface: 'scrim' },
+    styleSignals: signals(['dramatic', 'luxurious', 'restrained'], ['heritage', 'contemporary'], ['quiet', 'measured'], ['light', 'fabric'], ['monochrome', 'neutral-dark'], ['cinematic', 'editorial-serif'], ['minimal', 'ruled'], ['grain'], ['cinematic-drift', 'calm-fade']),
+    searchTerms: ['documentary', 'history', 'luxury', 'arts', 'right anchored'],
+  },
+  lt41: {
+    visibleFields: { min: 2, max: 3 },
+    slots: [slot('primary', ['person-name', 'team-name', 'event-name']), slot('secondary', ['team-name', 'person-role', 'organization']), slot('tertiary', ['event-name', 'supporting-context'])],
+    geometry: { widthShare: 0.274, heightShare: 0.149, anchor: 'bottom-left', primaryTypePx: 51, readingSurface: 'panel' },
+    styleSignals: signals(['dramatic', 'technical'], ['contemporary', 'futurist'], ['high', 'explosive'], ['metal', 'screen'], ['high-contrast', 'brand-led'], ['condensed', 'display'], ['angled', 'layered'], ['clean', 'glow'], ['fast-stinger', 'technical-snap']),
+    searchTerms: ['esports', 'team', 'player', 'competition', 'arena'],
+  },
+  lt49: {
+    visibleFields: { min: 2, max: 4 },
+    slots: [slot('primary', PRIMARY_ROLES), slot('secondary', SUPPORT_ROLES), slot('tertiary', SUPPORT_ROLES), slot('quaternary', SUPPORT_ROLES)],
+    geometry: { widthShare: 0.234, heightShare: 0.192, anchor: 'bottom-left', primaryTypePx: 48, readingSurface: 'panel' },
+    styleSignals: signals(['technical', 'authoritative'], ['contemporary', 'futurist'], ['measured', 'confident'], ['glass', 'screen'], ['cool', 'brand-led'], ['geometric', 'monospace'], ['rounded', 'layered'], ['frosted', 'glow'], ['soft-depth', 'technical-snap']),
+    searchTerms: ['technology', 'science', 'university', 'conference', 'data'],
+  },
+  ls12: {
+    visibleFields: { min: 2, max: 3 },
+    slots: [slot('primary', ['social-handle', 'person-name']), slot('secondary', ['person-name', 'person-role']), slot('tertiary', ['team-name', 'organization', 'supporting-context'])],
+    geometry: { widthShare: 0.289, heightShare: 0.153, anchor: 'bottom-left', primaryTypePx: 58, readingSurface: 'panel' },
+    styleSignals: signals(['technical', 'playful'], ['contemporary', 'futurist'], ['high', 'confident'], ['screen'], ['brand-led', 'neutral-dark'], ['monospace', 'display'], ['orthogonal', 'layered'], ['scanline', 'glow'], ['technical-snap', 'fast-stinger']),
+    searchTerms: ['esports', 'caster', 'stream', 'handle', 'commentary'],
+  },
+  ls17: {
+    visibleFields: { min: 3, max: 4 },
+    slots: [slot('primary', ['person-name']), slot('secondary', ['supporting-context']), slot('tertiary', ['person-role']), slot('quaternary', ['organization'])],
+    geometry: { widthShare: 0.335, heightShare: 0.181, anchor: 'bottom-left', primaryTypePx: 45, readingSurface: 'panel' },
+    styleSignals: signals(['authoritative', 'restrained'], ['heritage', 'contemporary'], ['quiet', 'measured'], ['paper', 'flat'], ['neutral-light', 'brand-led'], ['humanist', 'editorial-serif'], ['ruled', 'minimal'], ['paper', 'clean'], ['precise-draw', 'calm-fade']),
+    searchTerms: ['history lecturer', 'university', 'academic', 'professor', 'research'],
+  },
+  ls29: {
+    visibleFields: { min: 2, max: 3 },
+    slots: [slot('primary', ['location', 'event-name', 'story-headline']), slot('secondary', ['person-name']), slot('tertiary', ['person-role', 'supporting-context'])],
+    geometry: { widthShare: 0.257, heightShare: 0.165, anchor: 'bottom-left', primaryTypePx: 49, readingSurface: 'panel' },
+    styleSignals: signals(['authoritative', 'urgent'], ['contemporary'], ['confident', 'high'], ['screen'], ['brand-led', 'high-contrast'], ['geometric', 'monospace'], ['orthogonal', 'layered'], ['clean', 'glow'], ['editorial-reveal', 'technical-snap']),
+    searchTerms: ['public news', 'field report', 'fire', 'heat', 'live location', 'correspondent'],
+  },
+};
+
+export const LITE_CATALOG: readonly LiteCatalogEntry[] = BASE_LITE_CATALOG.map((entry) => {
+  const metadata = REFERENCE_METADATA[entry.variantId];
+  if (!metadata) throw new Error(`Missing Lite reference metadata for ${entry.variantId}.`);
+  return { ...entry, ...metadata };
+});
+
+const LOWER_THIRD_CHASSIS = LITE_CATALOG.map((entry) => entry.variantId);
+
+/** The one Lite category registry. Only contracts in this registry may compile. The first
+ * complete contract supports one to four visible fields while keeping the linear machine and
+ * operator surface owned by the existing lower-third GraphicType. */
+export const CATEGORY_CONTRACTS: readonly CategoryContract[] = [{
+  id: 'lower-third',
+  supportedGraphicTypes: ['lower-third'],
+  visibleFields: { min: 1, max: 4 },
+  allowedFieldKinds: ['text', 'image'],
+  contentSlots: [
+    { name: 'primary', required: true, kinds: ['text'], roles: PRIMARY_ROLES },
+    { name: 'secondary', required: false, kinds: ['text'], roles: SUPPORT_ROLES },
+    { name: 'tertiary', required: false, kinds: ['text'], roles: SUPPORT_ROLES },
+    { name: 'quaternary', required: false, kinds: ['text'], roles: SUPPORT_ROLES },
+  ],
+  compatibleReferenceChassis: LOWER_THIRD_CHASSIS,
+  stateMachine: { owner: 'graphic-type', typeId: 'lower-third', shape: 'derived-linear' },
+  operatorEvents: ['play', 'update', 'next', 'stop'],
+}];
+
+export function categoryContract(id: string): CategoryContract | undefined {
+  return CATEGORY_CONTRACTS.find((contract) => contract.id === id);
+}
+
 export const LITE_AI_CATEGORIES = ['lower-third'] as const;
+
+export const LITE_CATEGORY_IDS: readonly LiteCategoryId[] = [
+  'lower-third', 'title', 'topic-card', 'breaking', 'ticker', 'scoreboard', 'stats-panel',
+  'player-card', 'versus', 'quiz', 'poll', 'qa-card', 'countdown', 'schedule', 'leaderboard',
+  'quote', 'sponsor-bug', 'social-bug', 'progress-goal', 'starting-soon', 'end-credits',
+];
+
+export const LITE_AUTO_CATEGORY_CONFIDENCE = 0.8;
+export const LITE_AUTO_CATEGORY_MARGIN = 0.12;
+export const LITE_REFERENCE_LIMIT = 5;
+
+const STYLE_AXES: readonly (keyof LiteStyleIntent)[] = [
+  'mood', 'era', 'energy', 'material', 'paletteDirection', 'typographyCharacter',
+  'shapeLanguage', 'texture', 'motion',
+];
+
+function referenceDistance(a: LiteCatalogEntry, b: LiteCatalogEntry): number {
+  let different = 0;
+  for (const axis of STYLE_AXES) {
+    if (!a.styleSignals[axis].some((value) => (b.styleSignals[axis] as readonly string[]).includes(value))) {
+      different += 1;
+    }
+  }
+  if (a.geometry.anchor !== b.geometry.anchor) different += 1;
+  if (a.geometry.readingSurface !== b.geometry.readingSurface) different += 1;
+  return different / (STYLE_AXES.length + 2);
+}
+
+function referenceText(entry: LiteCatalogEntry): string {
+  return [
+    entry.name, entry.description, entry.style, entry.bestFor.join(' '), entry.avoidFor.join(' '),
+    entry.searchTerms.join(' '), entry.fieldPattern,
+    ...STYLE_AXES.flatMap((axis) => entry.styleSignals[axis]),
+  ].join(' ').toLowerCase();
+}
+
+function retrievalTerms(request: LiteGenerationRequest): string[] {
+  const text = [
+    request.prompt,
+    request.generationSpec?.styleNotes,
+    request.generationSpec?.mood,
+    ...(request.generationSpec?.fields.map((field) => `${field.label} ${field.description ?? ''}`) ?? []),
+  ].filter(Boolean).join(' ').toLowerCase();
+  const stop = new Set(['with', 'from', 'that', 'this', 'lower', 'third', 'graphic', 'create', 'make', 'need']);
+  return [...new Set(text.split(/[^a-z0-9]+/).filter((term) => term.length >= 3 && !stop.has(term)))].slice(0, 28);
+}
+
+export interface LiteReferenceSet {
+  entries: readonly LiteCatalogEntry[];
+  reason: string;
+}
+
+/** Small, relevant, and diverse grounded references for the one existing Lite model call. The
+ * browser never supplies this set; the trusted server derives it from the request and narrows
+ * both the prompt digest and the structured-output variant enum to the same ids. */
+export function retrieveLiteReferenceSet(
+  request: LiteGenerationRequest,
+  limit = LITE_REFERENCE_LIMIT,
+): LiteReferenceSet {
+  const manual = request.generationSpec?.category;
+  const contract = manual && manual !== 'auto' ? categoryContract(manual) : CATEGORY_CONTRACTS[0];
+  if (!contract) return { entries: [], reason: `No compilable CategoryContract for ${manual}.` };
+  const allowed = new Set(contract.compatibleReferenceChassis);
+  const requestedFields = request.generationSpec?.fields.length ?? 0;
+  const categoryPool = LITE_CATALOG.filter((entry) => entry.category === contract.id && allowed.has(entry.variantId));
+  const capacityPool = requestedFields
+    ? categoryPool.filter((entry) => requestedFields >= entry.visibleFields.min && requestedFields <= entry.visibleFields.max)
+    : categoryPool;
+  const pool = capacityPool.length ? capacityPool : categoryPool;
+  const terms = retrievalTerms(request);
+  const relevance = (entry: LiteCatalogEntry): number => {
+    const text = referenceText(entry);
+    let score = 0;
+    for (const term of terms) {
+      if (entry.searchTerms.some((tag) => tag.toLowerCase().includes(term))) score += 5;
+      else if (entry.bestFor.some((tag) => tag.toLowerCase().includes(term))) score += 3;
+      else if (text.includes(term)) score += 1;
+      if (entry.avoidFor.some((tag) => tag.toLowerCase().includes(term))) score -= 4;
+    }
+    if (requestedFields && entry.visibleFields.max === requestedFields) score += 3;
+    return Math.max(0, score);
+  };
+  const entries = pickRelevantDiverse(pool, Math.min(limit, pool.length), relevance, referenceDistance);
+  return {
+    entries,
+    reason: `${entries.length} of ${pool.length} ${contract.id} references; ${terms.length} semantic terms`
+      + (requestedFields ? `; ${requestedFields}-field capacity` : ''),
+  };
+}
 
 const variantIds = LITE_CATALOG.map((entry) => entry.variantId);
 const categories = [...new Set(LITE_CATALOG.map((entry) => entry.category))];
@@ -221,6 +631,17 @@ const lineRoles: LiteLowerThirdLineRole[] = [
 const intentKinds: LiteLowerThirdIntentKind[] = [
   'person', 'story', 'event', 'team', 'organization', 'promotion',
 ];
+const styleIntentEnums = {
+  mood: ['authoritative', 'warm', 'urgent', 'restrained', 'playful', 'dramatic', 'technical', 'luxurious'],
+  era: ['contemporary', 'mid-century', 'retro-1980s', 'retro-1990s', 'heritage', 'futurist'],
+  energy: ['quiet', 'measured', 'confident', 'high', 'explosive'],
+  material: ['flat', 'paper', 'glass', 'metal', 'fabric', 'light', 'screen'],
+  paletteDirection: ['brand-led', 'neutral-dark', 'neutral-light', 'warm', 'cool', 'high-contrast', 'monochrome'],
+  typographyCharacter: ['humanist', 'geometric', 'editorial-serif', 'condensed', 'monospace', 'display', 'cinematic'],
+  shapeLanguage: ['orthogonal', 'rounded', 'angled', 'ruled', 'layered', 'minimal'],
+  texture: ['none', 'clean', 'grain', 'paper', 'glow', 'frosted', 'scanline'],
+  motion: ['calm-fade', 'editorial-reveal', 'precise-draw', 'soft-depth', 'fast-stinger', 'technical-snap', 'cinematic-drift'],
+} as const;
 
 /**
  * Roles whose line must stay on ONE line, because they carry IDENTITY: a name, a job title, an
@@ -239,7 +660,10 @@ export const LITE_SINGLE_LINE_ROLES: ReadonlySet<LiteLowerThirdLineRole> = new S
 
 const specSchema: Record<string, unknown> = {
   type: 'object',
-  required: ['fit', 'reason', 'name', 'summary', 'category', 'variantId', 'intent', 'lines'],
+  required: [
+    'fit', 'reason', 'name', 'summary', 'category', 'variantId', 'categoryInference',
+    'styleIntent', 'intent', 'lines',
+  ],
   additionalProperties: false,
   properties: {
     fit: { type: 'string', enum: ['catalog'] },
@@ -248,6 +672,45 @@ const specSchema: Record<string, unknown> = {
     summary: { type: 'string', minLength: 1, maxLength: 240 },
     category: { type: 'string', enum: categories },
     variantId: { type: 'string', enum: variantIds },
+    categoryInference: {
+      type: 'object',
+      required: ['category', 'confidence', 'alternatives'],
+      additionalProperties: false,
+      properties: {
+        category: { type: 'string', enum: LITE_CATEGORY_IDS },
+        confidence: { type: 'number', minimum: 0, maximum: 1 },
+        alternatives: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: 'object',
+            required: ['category', 'confidence', 'reason'],
+            additionalProperties: false,
+            properties: {
+              category: { type: 'string', enum: LITE_CATEGORY_IDS },
+              confidence: { type: 'number', minimum: 0, maximum: 1 },
+              reason: { type: 'string', minLength: 1, maxLength: 160 },
+            },
+          },
+        },
+      },
+    },
+    styleIntent: {
+      type: 'object',
+      required: Object.keys(styleIntentEnums),
+      additionalProperties: false,
+      properties: Object.fromEntries(
+        Object.entries(styleIntentEnums).map(([key, values]) => [key, { type: 'string', enum: values }]),
+      ),
+    },
+    fallbackVariantIds: {
+      type: 'array',
+      maxItems: 2,
+      uniqueItems: true,
+      items: { type: 'string', enum: variantIds },
+      description: 'Up to two other shown references, best fallback first. Never repeat variantId.',
+    },
     intent: {
       type: 'object',
       required: ['kind', 'primaryRole'],
@@ -261,7 +724,7 @@ const specSchema: Record<string, unknown> = {
     lines: {
       type: 'array',
       minItems: 1,
-      maxItems: 2,
+      maxItems: 4,
       items: {
         type: 'object',
         required: ['title', 'sample', 'role'],
@@ -524,6 +987,30 @@ export const LITE_READY_OUTPUT_SKIN: StructuredOutput = {
   },
 };
 
+/** Narrow the variant and fallback enums to exactly the references shown in the prompt. This
+ * is the Lite equivalent of narrowVariantTool: shown and legal stay the same set. */
+export function liteReadyOutputFor(
+  references: readonly LiteCatalogEntry[],
+  options?: { skin?: boolean },
+): StructuredOutput {
+  const base = options?.skin ? LITE_READY_OUTPUT_SKIN : LITE_READY_OUTPUT;
+  const output = JSON.parse(JSON.stringify(base)) as StructuredOutput;
+  const schema = output.schema as {
+    properties: {
+      spec: {
+        properties: {
+          variantId: { enum: string[] };
+          fallbackVariantIds: { items: { enum: string[] } };
+        };
+      };
+    };
+  };
+  const ids = references.map((entry) => entry.variantId);
+  schema.properties.spec.properties.variantId.enum = ids;
+  schema.properties.spec.properties.fallbackVariantIds.items.enum = ids;
+  return output;
+}
+
 /**
  * The ONE semantic definition of a legal skin patch — the server validates with it (so a
  * violation earns the model a repair round with named errors) and the browser re-checks it
@@ -708,7 +1195,6 @@ const unsupportedPatterns: { code: LiteUnsupportedCode; pattern: RegExp; message
   { code: 'import-conversion', pattern: /\b(convert|repair|rewrite).{0,40}\b(import|html|zip|template)\b/i, message: 'Lite does not convert or repair imported templates.', suggestion: 'Ask Lite to create a new common graphic from a short brief.' },
   { code: 'video-request', pattern: /\b(remotion|hyperframes|3d scene|cinematic sequence|video project)\b|\b(?:create|make|generate|render|produce|export)\b.{0,30}\bvideo\b/i, message: 'Lite creates editable broadcast graphics, not video projects.', suggestion: 'Ask for one lower third for a person, story, event, team, or organization.' },
   { code: 'external-data', pattern: /\b(fetch|api|live feed|database|websocket|real[- ]time data)\b/i, message: 'Lite cannot add external data or network dependencies.', suggestion: 'Ask for editable fields that an operator can update in NoaCG.' },
-  { code: 'unsupported-category', pattern: /\b(title card|information card|info card|ticker|countdown|timer|scoreboard|score bug|statistics panel|stats panel|end credits|credits roll|quiz|poll)\b/i, message: 'The first NoaCG Lite release is focused on excellent lower thirds.', suggestion: 'Describe one lower third for a person, story, event, team, or organization.' },
 ];
 
 export function obviousUnsupportedDecision(prompt: string): LiteDecision | null {
@@ -731,8 +1217,8 @@ export function deterministicUnsupportedDecision(request: LiteGenerationRequest)
   return obviousUnsupportedDecision(request.prompt);
 }
 
-export function liteCatalogDigest(): string {
-  return LITE_CATALOG.map((entry) =>
+export function liteCatalogDigest(only: readonly LiteCatalogEntry[] = LITE_CATALOG): string {
+  return only.map((entry) =>
     [
       `${entry.variantId} ${entry.name}`,
       `style:${entry.style}`,
@@ -746,6 +1232,10 @@ export function liteCatalogDigest(): string {
       // against it.
       `capacity:supporting line holds ${entry.supportingLineChars} characters on one line`,
       `fields:${entry.fieldPattern}`,
+      `visible:${entry.visibleFields.min}-${entry.visibleFields.max}`,
+      `slots:${entry.slots.map((contentSlot) => `${contentSlot.name}[${contentSlot.roles.join(',')}]`).join(';')}`,
+      `geometry:${entry.geometry.anchor},${entry.geometry.widthShare}w,${entry.geometry.heightShare}h,${entry.geometry.primaryTypePx}px,${entry.geometry.readingSurface}`,
+      `signals:${STYLE_AXES.map((axis) => `${axis}=${entry.styleSignals[axis].join(',')}`).join(';')}`,
       `motion:${entry.motionCharacter}`,
       // The slot's MEASURED capability, on the line that already said yes or no - a richer
       // token rather than another prompt line, because §6c measured that every line added here
@@ -792,13 +1282,23 @@ function skinPromptLines(): string[] {
 export function liteSystemPrompt(
   promptVersion: string,
   qualityPriors: readonly LiteVariantQualityPrior[] = [],
-  options?: { skin?: boolean },
+  options?: {
+    skin?: boolean;
+    references?: readonly LiteCatalogEntry[];
+    manualCategory?: string | null;
+  },
 ): string {
+  const references = options?.references?.length ? options.references : LITE_CATALOG;
+  const categoryInstruction = options?.manualCategory && options.manualCategory !== 'auto'
+    ? `The user manually selected ${options.manualCategory}. It is authoritative: categoryInference.category and spec.category must both be ${options.manualCategory}, whatever the prose suggests.`
+    : `Infer the broadcast category from the whole brief. Return confidence from 0 to 1 and the best 1-3 alternatives. Use high confidence only when the structure is explicit; an ambiguous brief must keep honest alternatives so the product can ask the user.`;
   return [
     `NoaCG Lite Design Director ${promptVersion}.`,
-    'The server has already established that this is one supported lower third. Return exactly one ready structured design. Never refuse it and never write HTML, CSS, or JavaScript.',
-    'Choose one listed chassis. The platform compiles it deterministically into an editable broadcast graphic.',
-    'Fit must be catalog and flourish must be the empty string. Use one or two realistic editable lines and identify the semantic role of each line.',
+    'Return exactly one structured catalog adaptation decision. Never write HTML, CSS, or JavaScript.',
+    categoryInstruction,
+    'Choose one listed reference chassis and rank up to two other listed compatible references as fallbacks. The platform compiles and hold-frame-tests them deterministically.',
+    'Fit must be catalog and flourish must be the empty string. Use one to four realistic editable lines only where the selected chassis lists that visible capacity, and match every line role to its named slot.',
+    'Interpret style in context as mood, era, energy, material, palette direction, typography character, shape language, texture, and motion. Do not map a word directly to a color. Exact brand palette and type choices in the request override inferred style.',
     'Length limits are hard: reason and summary are each ONE short sentence under 200 characters. Never write multi-sentence rationales anywhere.',
     // The line that used to sit here defended `spec.zone` ("keep it in a bottom zone; use
     // bottom-left unless the brief clearly supports bottom-center or bottom-right"). It went in
@@ -827,10 +1327,10 @@ export function liteSystemPrompt(
     // line, because §6c measured that every line added to this prompt degraded the axis it
     // targeted along with the ones it did not.
     'Prioritize legibility, intentional hierarchy, generous spacing, correct lower-third conventions, and motion that follows reading order. Keep the supporting line within the chosen chassis\'s stated character capacity so it stays on one line; when the requested copy is longer, choose a chassis that holds it rather than letting it wrap.',
-    'A requested visual style should select and tune the nearest compatible chassis, not make the request unsupported.',
+    'A requested visual style should select and tune the nearest compatible chassis, not make the request unsupported. Avoid a generic default panel when the brief asks for a distinctive material, era, or shape language.',
     ...(options?.skin ? skinPromptLines() : []),
     'Catalog:',
-    liteCatalogDigest(),
+    liteCatalogDigest(references),
     qualityPriorDigest(qualityPriors),
   ].filter(Boolean).join('\n');
 }
@@ -878,13 +1378,18 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   variant_not_allowed: 'Set spec.variantId to one of the listed catalog chassis ids, copied exactly.',
   category_variant_mismatch: 'Set spec.category to the category the chosen variantId belongs to in the catalog list.',
   ai_category_variant_mismatch: 'Set aiCategory to the chosen chassis\'s own aiCategory from the catalog list.',
-  line_count_invalid: 'Return one or two lines - no more, no fewer - matching the chassis capacity.',
+  line_count_invalid: 'Return one to four visible lines, within the selected chassis measured capacity.',
   lower_third_intent_invalid: 'Rebuild spec.intent with a listed kind, a listed primaryRole, and (with two lines) a listed secondaryRole.',
   primary_role_mismatch: 'Make intent.primaryRole exactly equal lines[0].role. Change the intent, not the line.',
   secondary_role_mismatch: 'Make intent.secondaryRole exactly equal lines[1].role, and include it whenever there are two lines.',
+  manual_category_ignored: 'Use the manually selected category for both categoryInference.category and spec.category.',
+  inferred_category_ignored: 'Make spec.category exactly match the high-confidence inferred category.',
+  fallback_variant_invalid: 'Do not repeat the selected chassis or a fallback chassis.',
+  fallback_variant_incompatible: 'Choose fallbacks that support the same category and visible field count.',
   intent_role_mismatch: 'The intent kind contradicts the FIRST line\'s role, which alone decides what the graphic is: person-name needs kind "person", story-headline needs "story", event-name needs "event", team-name needs "team" or "person", organization needs "organization" or "person", call-to-action or social-handle needs "promotion". The second line is context and constrains nothing. Change kind to match lines[0].role.',
   intent_variant_mismatch: 'The chosen chassis does not serve this intent kind. Pick a chassis whose listed intents include your intent.kind.',
   line_role_invalid: 'Give every line a role from the allowed list.',
+  slot_role_mismatch: 'Use one of the selected chassis roles listed for the {detail} content slot, or select a compatible chassis.',
   requested_role_missing: 'The brief explicitly asks for a {detail} line. Add it, or change an existing line\'s role to {detail}.',
   field_count_exceeded: 'Reduce the number of lines and extra fields to the allowed maximum.',
   lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
@@ -1169,10 +1674,22 @@ export function validateLiteDecision(
     const code = output.unsupportedCode;
     if (typeof code !== 'string' || !code || ![
       'unsupported-category', 'multi-graphic-request', 'advanced-state-machine', 'reference-recreation',
-      'import-conversion', 'video-request', 'external-data', 'too-complex',
+      'import-conversion', 'video-request', 'external-data', 'too-complex', 'category-ambiguous',
     ].includes(code)) return { errors: ['unsupported_code_invalid'] };
     const message = typeof output.message === 'string' ? output.message.trim() : '';
     if (!message) return { errors: ['unsupported_message_missing'] };
+    const categoryChoices = Array.isArray(output.categoryChoices)
+      ? output.categoryChoices.filter((choice): choice is LiteCategoryAlternative => {
+        if (!choice || typeof choice !== 'object' || Array.isArray(choice)) return false;
+        const item = choice as unknown as LiteCategoryAlternative;
+        return LITE_CATEGORY_IDS.includes(item.category)
+          && Number.isFinite(item.confidence)
+          && item.confidence >= 0
+          && item.confidence <= 1
+          && typeof item.reason === 'string'
+          && Boolean(item.reason.trim());
+      }).slice(0, 3)
+      : [];
     return {
       decision: {
         status: 'unsupported',
@@ -1181,6 +1698,7 @@ export function validateLiteDecision(
         ...(typeof output.suggestedBrief === 'string' && output.suggestedBrief.trim()
           ? { suggestedBrief: output.suggestedBrief.trim().slice(0, 300) }
           : {}),
+        ...(categoryChoices.length ? { categoryChoices } : {}),
       },
       errors: [],
     };
@@ -1191,6 +1709,60 @@ export function validateLiteDecision(
   const aiCategory = output.aiCategory;
   const entry = LITE_CATALOG.find((candidate) => candidate.variantId === spec.variantId);
   const errors: string[] = [];
+  const requestedCategory = request.generationSpec?.category;
+  const inference = spec.categoryInference;
+  const validInference = inference
+    && LITE_CATEGORY_IDS.includes(inference.category)
+    && Number.isFinite(inference.confidence)
+    && inference.confidence >= 0
+    && inference.confidence <= 1
+    && Array.isArray(inference.alternatives);
+  // The wire schema requires this object. The fallback keeps old persisted fixtures readable;
+  // production output cannot omit it because structured output rejects that response first.
+  if (validInference) {
+    if (requestedCategory && requestedCategory !== 'auto') {
+      if (inference.category !== requestedCategory || spec.category !== requestedCategory) {
+        errors.push('manual_category_ignored');
+      }
+    } else {
+      const alternatives = inference.alternatives
+        .filter((candidate) => candidate.category !== inference.category)
+        .sort((a, b) => b.confidence - a.confidence);
+      const margin = inference.confidence - (alternatives[0]?.confidence ?? 0);
+      if (inference.confidence < LITE_AUTO_CATEGORY_CONFIDENCE || margin < LITE_AUTO_CATEGORY_MARGIN) {
+        const choices: LiteCategoryAlternative[] = [
+          { category: inference.category, confidence: inference.confidence, reason: 'Best interpretation of the brief.' },
+          ...alternatives,
+        ].slice(0, 3);
+        return {
+          decision: {
+            status: 'unsupported',
+            code: 'category-ambiguous',
+            message: 'The brief could describe more than one graphic category.',
+            suggestedBrief: 'Choose a graphic category, then keep the same creative brief.',
+            categoryChoices: choices,
+          },
+          errors: [],
+        };
+      }
+      if (!categoryContract(inference.category)) {
+        return {
+          decision: {
+            status: 'unsupported',
+            code: 'unsupported-category',
+            message: `${inference.category} is understood but does not yet have a Lite compiler.`,
+            suggestedBrief: 'Choose lower-third to create this design now.',
+            categoryChoices: [
+              { category: inference.category, confidence: inference.confidence, reason: 'Best interpretation of the brief.' },
+              ...alternatives,
+            ].slice(0, 3),
+          },
+          errors: [],
+        };
+      }
+      if (spec.category !== inference.category) errors.push('inferred_category_ignored');
+    }
+  }
   // A line whose SAMPLE is blank still costs its slot. Measured 2026-08-09 on the `one-line`
   // fixture ("no invented role or organization"): the model answered with two lines and left
   // the second empty, so the chassis reserved its supporting band and painted nothing in it -
@@ -1216,7 +1788,9 @@ export function validateLiteDecision(
   if (spec.fit !== 'catalog') errors.push('fit_not_catalog');
   if (entry && spec.category !== entry.category) errors.push('category_variant_mismatch');
   if (entry && aiCategory !== entry.aiCategory) errors.push('ai_category_variant_mismatch');
-  if (lines.length < 1 || (entry && lines.length > Math.min(3, entry.maxLines))) {
+  if (lines.length < 1 || (entry && (
+    lines.length < entry.visibleFields.min || lines.length > entry.visibleFields.max
+  ))) {
     errors.push('line_count_invalid');
   }
   const intent = spec.intent;
@@ -1239,6 +1813,25 @@ export function validateLiteDecision(
     if (entry && !entry.intentKinds.includes(intent.kind)) errors.push('intent_variant_mismatch');
   }
   if (emittedRoles.length !== lines.length) errors.push('line_role_invalid');
+  if (entry && lines.length >= entry.visibleFields.min && lines.length <= entry.visibleFields.max) {
+    emittedRoles.forEach((role, index) => {
+      const contentSlot = entry.slots[index];
+      if (!contentSlot || !contentSlot.roles.includes(role)) {
+        errors.push(`slot_role_mismatch:${contentSlot?.name ?? index + 1}`);
+      }
+    });
+  }
+  const fallbacks = spec.fallbackVariantIds ?? [];
+  if (new Set(fallbacks).size !== fallbacks.length || fallbacks.includes(spec.variantId)) {
+    errors.push('fallback_variant_invalid');
+  }
+  if (entry && fallbacks.some((variantId) => {
+    const fallback = LITE_CATALOG.find((candidate) => candidate.variantId === variantId);
+    return !fallback
+      || fallback.category !== entry.category
+      || lines.length < fallback.visibleFields.min
+      || lines.length > fallback.visibleFields.max;
+  })) errors.push('fallback_variant_incompatible');
   for (const requiredRole of requestedLineRoles(request)) {
     if (!emittedRoles.includes(requiredRole)) errors.push(`requested_role_missing:${requiredRole}`);
   }

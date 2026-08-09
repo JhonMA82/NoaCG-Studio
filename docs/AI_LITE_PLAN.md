@@ -14,11 +14,35 @@ doctrine and code contract are `src/ai/AGENTS.md` and `docs/ADAPT_FIRST_PLAN.md`
 | Transport | Vercel AI Gateway. Second attempt goes to the PRIMARY, not a weaker fallback |
 | Cost | **$0.00034 per generation** - about 3% of the ~€0.01 ceiling. **Not a constraint** |
 | Reliability | **30 of 30** briefs machine-usable, zero rejections, on `lite-lower-third-v13` (2026-08-09, `benchmarks/lite/ROUND-2026-08-09-V13.md`) |
-| Scope today | lower thirds only, six audited chassis |
-| The open problem | **quality**. Machine-valid is not good, and nothing has yet judged good - **the v13 bank's frames are unread** |
+| Scope today | lower thirds only, 13 measured semantic reference chassis, with 1-4 visible fields |
+| The open problem | **quality**. The free semantic bank is clean; a paid model round and owner gallery review have not yet been authorized |
 
 **Cost should stop being discussed.** There is 30-100x headroom, every candidate route fits, and
 route choice is a QUALITY decision. The scarce resource is human review.
+
+### 1.1 Semantic category system - DONE 2026-08-09, free
+
+Lite now asks the existing constrained decision call for category inference, honest confidence
+and alternatives, plus nine structured style-intent axes. A manually selected category is
+authoritative. Auto mode proceeds only above the confidence and margin floors; ambiguity returns
+category choices for the UI instead of forcing a lower third. Category words are no longer a
+brittle regex refusal.
+
+`CATEGORY_CONTRACTS` in `src/ai/liteContract.ts` is the one registry for category structure. Its
+complete lower-third entry owns supported graphic types, 1-4 visible fields, field kinds, named
+content slots, compatible measured chassis, the type-owned linear state machine, and the standard
+operator events. The model never writes fields, lifecycle code, or a second scene model.
+
+Thirteen proven lower thirds now carry semantic style signals, measured geometry, field capacity,
+and slot roles. Trusted server retrieval selects at most five relevant and diverse references and
+narrows both the prompt and structured-output enum to the same set. The model ranks a primary
+reference and up to two fallbacks; deterministic compilation tries them when runtime geometry,
+contrast, brief fit, or generic-treatment checks reject a hold frame.
+
+The locked provider-free bank covers history lecturer, fire/heat, university, public news,
+documentary, luxury, technology, and esports. `npm run bench:lite:semantic` rendered all eight
+through the production compiler and runtime bench: **8/8 category-correct, machine-valid, and
+hold-clean**. No paid model comparison was run. A declared budget is required before that step.
 
 ## 2. The four owner decisions (2026-08-08)
 
