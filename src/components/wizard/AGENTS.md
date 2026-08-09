@@ -199,7 +199,21 @@ e2e/import-prepare.spec.ts + e2e/import-stretch.spec.ts.
 
 The steps are driven by each variant's declared CAPABILITIES (model/wizard.ts): the Fields step
 offers up to `maxLines` text lines plus the logo toggle + custom upload on a `logo: 'optional'`
-design (built-in slots show it checked and locked); the Style step has TWO size knobs (Graphic
+design (built-in slots show it checked and locked); it also offers a graphic TYPE's SETUP values
+- which answer a quiz marks correct, the club colours, a countdown's duration - rendered through
+the shared `fields/FieldControl` like every other editable field, and written to
+`WizardOptions.content`. **What counts as setup is DERIVED, never declared twice:**
+`setupFields` (templates/types/graphicType.ts) drops every field an operator event carries as
+its PAYLOAD, because in this model a pick IS payload - so live state (the contestant's answer,
+the highlighted row, the verdict) cannot be offered at build time, and image fields stay out
+because their value is an asset path. A design with none shows no section at all. Before this,
+the five lines of a quiz were editable and the one value deciding what the board MEANS was
+reachable only in the editor, which the student release exists to make optional. Its label is a
+word, so it gets `.wz-setup-label`'s own column - reusing `.wz-fid` clipped it into 24px, the
+same trap `.wz-file-chip` already exists to undo. Pinned by e2e/wizard-setup-fields.spec.ts,
+including a registry-wide check that a setup value lands on the field it NAMES (the write is
+positional, so a design emitting its fields out of declaration order would silently put the club
+colour in the period chip); the Style step has TWO size knobs (Graphic
 size -> --scale, Text size -> --type-scale); the Animation step renders the slide family as ONE
 card with a direction-of-travel picker. WizardPreview cancels pending lifecycle-demo timers when
 a debounced srcdoc commits (a stale stop() must never blank the fresh document), pushes field
