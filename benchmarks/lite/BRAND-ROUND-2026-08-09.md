@@ -23,7 +23,7 @@ it is the fourth time this profile has produced it (§4 of the plan). Every row:
 | `brand-news-wordmark` | dark-ink wordmark | lt11 | mark effectively **invisible** - dark ink on the brand's dark panel |
 | `brand-knockout-only` | knockout wordmark | lt11 | mark effectively **invisible** - white ink on the light paper panel |
 | `brand-university-banner` | 13:1 rail | lt11 | mark clipped mid-word - **the FIXTURE's fault, not the product's** (§3) |
-| `brand-creator-shield` | portrait shield | lt15 | not read in this pass |
+| `brand-creator-shield` | portrait shield | lt32 | mark fine, **the NAME is invisible** - see §4 |
 
 ## Three defects, each with a mechanism and an owner
 
@@ -114,6 +114,29 @@ proved by restoring the 960 viewBox: `<text> spans 124..1242 x 16..83 outside it
 
 The rail is a 13:1 lockup now (`1280x96`), which is what it always was.
 
+### 4. A light package on a scrim design loses its TEXT. (PLATFORM, OPEN - and unfixed on purpose)
+
+The fifth frame went unread for two days, and it carries a defect none of the mark work touches:
+`brand-creator-shield` chose lt32 Scrim with the light `paper` package, and **"Tomas Aalto" is
+near-black on a dark backdrop.** The mark reads perfectly - it brings its own field - so every
+check built during this round stayed silent, and the row reported machine-usable.
+
+This is `docs/CATALOG_VARIETY.md` §5.2 case 2: a hand-drawn gradient scrim is authored as literal
+dark stops, so it does NOT follow the palette, and dark text lands on it. 32 of the 38 gradient
+designs measured catastrophic there.
+
+**An attempted fix was reverted rather than shipped**, and why is the useful part. The obvious
+guard - refuse a light package on a design whose `logoSlot.surface` is `dark` - does not fire
+here, because lt32 measures `surface: 'palette'`: its logo well DOES follow the palette even
+though its scrim does not. `logoSlot.surface` answers a question about the LOGO's surface and was
+never a proxy for "can this design take a light palette". Shipping it would have guarded three
+chassis on a coincidence and missed the one with the actual defect.
+
+The real answer is a measured per-chassis fact - `palette-freedom.mjs` already measures exactly
+this for all 459 designs - declared the way `supportingLineChars` and `logoSlot` are, and gated
+against a re-render. That is a piece of work, not a small fix, and it is the next thing this line
+should do.
+
 ## What is NOT a defect
 
 - **The brand colours land.** Every frame carries the brief's accent and panel; the house amber
@@ -122,6 +145,16 @@ The rail is a 13:1 lockup now (`1280x96`), which is what it always was.
   for the creator.
 - **The first pass's inverted name/team ordering did not reproduce** in `brand-v14c`, so read it
   as sampling rather than a systematic content bug.
+- **lt05's clear space was never a defect, and the audit was wrong about it.** It reported lt05
+  able to hold only a rail, because it counted the design's own accent slab as a neighbour
+  crowding the mark. But an accent is structural furniture fused to the panel edge, and lt05
+  gives its TEXT the identical distance from it - and the single frame this whole round judged
+  GOOD was a crest on lt05, at exactly the distance being failed. A threshold contradicted by
+  the picture it exists to predict is measuring the wrong neighbour. The accent is excluded now
+  (a panel containing the mark already was), lt05 measures 20px of clear space against a 16px
+  requirement on every shape, and its declaration went from one shape to four. **The number was
+  not moved** - the neighbour set was corrected, which is the difference between fixing an
+  instrument and tuning it until it agrees.
 
 ## One gate defect found on the way (fixed)
 

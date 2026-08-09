@@ -428,6 +428,14 @@ await page.evaluate(([rules, backdrop, houseAmber]) => {
       if (r.width < 1 || r.height < 1) continue;
       // An element that CONTAINS the whole logo is a surface, not a neighbour.
       if (r.left <= logoRect.left && r.top <= logoRect.top && r.right >= logoRect.right && r.bottom >= logoRect.bottom) continue;
+      // Nor is the design's own ACCENT. Clear space asks whether the mark is crowded by
+      // something competing with it; an accent is structural furniture fused to the panel's
+      // edge, and every design gives its TEXT exactly the same distance from it. Counting it
+      // said lt05 could hold only a rail - while the one frame this whole round judged GOOD was
+      // a crest on lt05, at the very distance being called a failure. A threshold contradicted
+      // by the picture it is supposed to predict is measuring the wrong neighbour, and moving
+      // the number to fit would have hidden that instead of fixing it.
+      if (el.classList.contains(`${prefix}-accent`)) continue;
       const sel = el.id ? `#${el.id}` : (typeof el.className === 'string' && el.className
         ? `.${el.className.trim().split(/\s+/)[0]}` : el.tagName.toLowerCase());
       const { gap, overlaps } = rectGap(logoRect, r);

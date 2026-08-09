@@ -148,7 +148,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Forward-leaning condensed sport slab with bold hierarchy and fast controlled motion.',
       style: 'sport',
       logo: true,
-      logoSlot: { surface: 'dark', fits: ['rail'] },
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'team', 'event', 'promotion'],
       bestFor: ['sports', 'esports', 'competitive events', 'high-energy segments'],
       avoidFor: ['long academic titles', 'solemn public information', 'quiet documentary work'],
