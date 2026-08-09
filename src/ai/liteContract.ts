@@ -1286,6 +1286,17 @@ export function validateLiteDecision(
       const inkHex = ink === 'light' ? '#ffffff' : '#000000';
       return (contrastRatio(inkHex, panel) ?? 99) >= LITE_MARK_CONTRAST_FLOOR;
     };
+    // A LIGHT package cannot move onto a panel-less design. `surface: 'dark'` means the logo
+    // slot sits on the PICTURE rather than on a panel, which is the same thing as saying the
+    // design has no reading surface a palette can repaint (docs/CATALOG_VARIETY.md §5.3) - so
+    // near-black text drawn for a light panel simply disappears there.
+    //
+    // This clause exists because the first version of the repair did exactly that: it moved a
+    // knockout mark from lt11 to lt02, the mark became perfectly legible, and the NAME vanished.
+    // Every machine check passed and only the frame showed it. A repair that trades one
+    // invisible element for another is not a repair.
+    const panelLuminance = panel ? relativeLuminance(panel) : null;
+    const panelIsLight = panelLuminance !== null && panelLuminance > 0.5;
     if (!reads(entry)) {
       // Keep every other decision the model made: same intent, and at least the text capacity
       // the chosen design had, so a re-pick can never wrap a line the original held.
@@ -1293,6 +1304,7 @@ export function validateLiteDecision(
         candidate.variantId !== entry.variantId
         && candidate.intentKinds.includes(spec.intent.kind)
         && candidate.supportingLineChars >= entry.supportingLineChars
+        && !(panelIsLight && candidate.logoSlot?.surface === 'dark')
         && reads(candidate));
       if (swap) logoReselect = swap.variantId;
       else dropLogo = true;

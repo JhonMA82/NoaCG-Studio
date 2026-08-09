@@ -57,10 +57,33 @@ said. A rule that converts a bad graphic into no graphic is worse than the defec
 
 It is APPLIED now, in the order that costs the user least: re-pick a chassis whose logo surface
 suits the mark, and only when the catalog has none, drop the mark and ship the graphic. Both are
-recorded as adjustments, so the ledger counts how often a brand's mark cannot be honoured - a
-CATALOG gap to draw against, not a model failure. Verified across five cases: a knockout on a
-light package reselects to lt02 and keeps its mark; a dark-only mark on a dark package ships
-without it; and the three cases that should not fire do not.
+recorded as adjustments, never errors.
+
+**The first version of that repair traded one invisible element for another, and only a FRAME
+showed it.** It moved a knockout mark from lt11 to lt02, the mark became perfectly legible - and
+the NAME disappeared, because lt02 is panel-less (that is *why* its logo surface is the picture)
+and the user's light-package text had been drawn for a panel. Every machine check passed. This is
+`docs/CATALOG_VARIETY.md` §5.3 arriving from a direction nobody was watching: a design with no
+reading surface a palette can repaint cannot receive a light package, and a repair that moves one
+there breaks the graphic it was fixing. The re-pick now refuses a panel-less candidate whenever
+the package is light.
+
+**With today's six chassis the re-pick can therefore never fire, and that is the finding.** Every
+unreadable case ends in a drop:
+
+| mark ink | package | outcome |
+|---|---|---|
+| dark | dark | mark dropped - no chassis offers a light surface |
+| light | light | mark dropped - the only dark surfaces are panel-less |
+| light | dark | fine, untouched |
+| dark | light | fine, untouched |
+| (own field) | either | never fires |
+
+The branch is kept because it is the correct shape and fires the day a chassis exists that can
+rescue a mark - **one whose logo surface is the OPPOSITE tone to its own package**, which is to
+say a design with a dark logo well on a light panel. The catalog has none. That is a drawing
+task, and it is the concrete thing standing between "Lite accepts your logo" and "Lite always
+shows your logo".
 
 ### 3. The clipped rail was MY FIXTURE, not the product. (BANK, fixed - and this entry was wrong)
 
@@ -105,7 +128,12 @@ construction. Narrowed to the explicitly plural forms.
 
 Lite can now place a brand mark, and does. It places it **well when the mark brings its own
 field and the design was drawn for that shape**, and badly in one named, measurable way that is
-platform work rather than model work. Every defect this round found is now fixed or corrected. The confirming round answered the one question left open, and answered it NO: the model does not
-recover from a contrast refusal, so the rule became a deterministic repair instead. What no round
-has shown yet is a FRAME of that repair - that a reselected chassis renders a readable mark is
-verified in code and not yet on screen.
+platform work rather than model work. Every defect this round found is now fixed or corrected, and
+the repair has been read on screen as well as in code - which is how its own first version was
+caught breaking the text it was meant to leave alone.
+
+**What is left is a catalog gap, not a software one.** A brand that owns only one tone of its
+mark gets a graphic without its logo, honestly and every time, because no Lite chassis offers a
+logo surface in the opposite tone to its own package. Draw one and the repair starts rescuing
+marks instead of dropping them; until then, `logo_dropped_unreadable` in the ledger is the count
+of how often that missing design would have paid for itself.
