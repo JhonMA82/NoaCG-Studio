@@ -1,5 +1,15 @@
 # Looks and palettes — why the catalog reads as one product, and what it would cost not to
 
+> **Superseded on the measurement, 2026-08-09 — read `CATALOG_VARIETY.md` first.** This note
+> counted the three DECLARED axes (style family, palette, typeface) and concluded the catalog
+> ships "sixteen combinations". That holds — four (family, palette, typeface) triples cover 75% of
+> 459 designs — but it is not where the sameness lives. Measured off the EMITTED code, the style
+> family explains 1–3% of a design's typography, 5% of its layout and 5% of its drawn parts; the
+> graphic CATEGORY explains 26–54% of each. Two consequences overturn §4 below: **a new style
+> family buys a panel treatment, not a design direction**, and **editorial is not the cheapest new
+> look — it measures as sitting inside minimal** (nearest-minimal distance 0.21, against minimal's
+> own internal 0.24). The anti-slop rules in this note are unaffected and still binding.
+
 Status: **a note, not a plan.** Written 2026-08-08 from a measurement taken while filling the kit
 matrix (`KIT_MATRIX_GAPS.md`). Nothing here is scheduled. It exists so the next person to reach
 for "add a style family" starts from the numbers rather than from taste.

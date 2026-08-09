@@ -393,8 +393,16 @@ branch - it is never where conflicts get resolved.
    **Route B - locally, when CI is unavailable or you need an answer without pushing.**
    Both of:
    - `npm run build` - typecheck, lint, bundle.
-   - `npm run test:e2e:focus:queued` during the student-release sprint, or
-     `npm run test:e2e:affected:queued` outside it - the specs covering this branch's diff,
+   - `npm run test:e2e:integration:queued` - the same affected plan, based at the FORK POINT
+     rather than at `main`. Phase 2 just merged `main` into the branch, and the default base
+     (`merge-base HEAD main`) is then `main` itself, so a plain affected run covers only the
+     branch's own files and everything main brought in goes unverified. That is the whole
+     question this phase exists to answer: a clean merge says two diffs did not touch the same
+     lines, never that the COMBINED state holds. Outside the student-release sprint drop the
+     `--focus` half (`node scripts/e2e-affected.mjs --integration`); for a branch that has NOT
+     taken main in, `npm run test:e2e:focus:queued` is the same thing and still correct.
+
+     Either way it runs the specs covering the diff it was based on,
      plus the catalog calibration gate when the catalog moved. Run it even when the change
      looks harmless: "it's only templates" is exactly the branch that went red, and the
      script decides what "affected" means, not the person merging. It reports and skips

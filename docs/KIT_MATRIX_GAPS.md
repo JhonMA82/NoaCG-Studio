@@ -126,6 +126,15 @@ resolution failure. That is the single highest-value build in this report, and i
 | results-board | 1 | rs04 |
 | imported-design | 1 | imp01 |
 
+> **Re-measured 2026-08-09 (`CATALOG_VARIETY.md` §2.2), and mechanism 1 below is much smaller than
+> it reads.** Bucketing all 119 orphans exclusively: **59** are designs belonging to no graphic
+> TYPE that no pack lists as an `extra` (a declaration gap — config, if the look problem is
+> solved), **37** are editorial/cinematic, **12** are the sibling mechanism 1 describes, and **11**
+> are the four type-less categories. So the sibling question decides twelve designs, not fifty.
+> The same pass also measured the orphans as marginally MORE distinct than the designs a kit can
+> already offer (median nearest-neighbour distance 0.21 against 0.18), so folding them in as
+> near-duplicates would delete the more distinctive half.
+
 There are **three separate mechanisms** here, and only one of them is a missing design:
 
 1. **A type resolves to exactly ONE design per family, so every sibling is unreachable.** The
