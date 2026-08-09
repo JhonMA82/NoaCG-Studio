@@ -227,10 +227,38 @@ equal the step count, which depends on the preset and the line count. `attachMac
 compiled machine on after assembly and THROWS if it is off-shape - unlike `convertToDataRegion`
 it is compiling our own declaration, so degrading would ship a control page whose buttons do
 nothing. One clamp sits BEFORE that gate: a caller passing FEWER lines than the type declares
-(an AI/Lite spec asking for a one-line lower third) gets the missing lines padded with empty
-text - the declared field still exists and stays editable, an empty value collapses via the
-`:empty` mask rule, and the missing-parts throw stays reserved for a design that genuinely
-fails to emit a declared part (found by the Lite benchmark's one-line challenge brief).
+(an AI/Lite spec asking for a one-line lower third) gets the missing lines filled in - the
+declared field still exists and stays editable, and the missing-parts throw stays reserved for a
+design that genuinely fails to emit a declared part (found by the Lite benchmark's one-line
+challenge brief). **WITH WHAT is decided by the FIELD PLAN, and the two answers are opposites:**
+a `lines` plan pads with EMPTY text (an empty value collapses via the `:empty` mask rule - a
+shorter lower third), a `fixed` plan keeps the design's OWN default, because a quiz board with
+two of its four answers blanked is not a smaller quiz, it is a broken one.
+
+**A type's line CAPACITY is derived, never below its own count of `line` fields, and the
+caller's lines are written into those fields after assembly** (`variantsFromType`,
+`withLineValues`). Both halves were load-bearing, measured 2026-08-09: nine types - the three
+answer boards and every sports board - declared 3 to 6 line fields against a hand-authored
+`capabilities.maxLines` of 1, so `specToTemplate`'s `slice(0, variant.maxLines)` threw the rest
+away before `create()` saw them; and those same fixed-contract assemblers build their fields
+from a baked content declaration rather than from `o.lines`, so they carried NONE of what a
+caller asked for. A generated quiz came back as the catalog's own planets question with four
+planets for answers. The post-pass writes value and static text together (`setFieldDefault`), so
+the control page and the pre-play frame cannot disagree; TITLES stay the type's, because a fixed
+contract's labels are what its own row dropdowns are declared against. Pinned by
+`e2e/lite-line-content.spec.ts`, registry-wide and mutation-tested.
+
+**`WizardOptions.content` is the channel for everything a LINE cannot carry** - which answer a
+quiz marks correct, how long a countdown runs, a live poll's options: all `role: 'data'` or
+`'hidden'`, none of them reachable through `lines`. It is keyed by the type's own LOGICAL keys
+(`{ correctAnswer: 'C' }`), never by `fN`, and only a type-compiled variant honours it, because
+only a type declares those keys and the kind to clamp each value against; a hand-written variant
+ignores it rather than guessing what its ids mean. **Every value is clamped to what the field
+declares and an illegal one is DROPPED** - a `select` takes only an option it offers, so a
+correct-answer field can never name a row that does not exist (which would reveal nothing, with
+no error anywhere). `DesignSpec.content` is the same data as a LIST of pairs, because a JSON
+Schema with `additionalProperties: false` cannot describe an open key set; `specToTemplate` folds
+it into the map.
 
 **The trap to know:** a timer never arms on a timeline that never ends (the arming call is
 scheduled at the timeline's end). A `repeat: -1` loop or a measured `dynamics` builder makes

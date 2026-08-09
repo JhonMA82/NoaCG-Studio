@@ -96,6 +96,14 @@ prompt sentence says not to do it.** Three supporting rules, all learned expensi
   the count until the column named it. `ai_generations` grouped by `prompt_version` and
   `rejection_reason` separates a schema refusal from a semantic one; the runner's own tally cannot.
 
+**The gallery clips swap their text on purpose - the graphic is not broken.** Every `.webm` spans
+entrance → hold → **update** → exit, because the runner fires a second `update()` with different copy
+once motion has settled (`scripts/ai-lite-eval.mjs`, the `updateData` call after the hold frame);
+`stop()` follows 600 ms later, so the swap can never overlap the exit tween. `update()` writes
+`textContent` and nothing else (`src/templates/shared/base.ts`) and no shipped Lite lower third arms
+a timer transition or calls `next()` itself, so on air the copy changes only when an operator sends
+it. **Clips need a caption saying so** - two readers have now asked.
+
 What makes the loop affordable is structural: **Lite's model writes no code.** Every failure is
 either a *decision* (fixable by narrowing the schema - free, permanent, applies to every future
 generation) or a *compile/catalog* issue (fixable once, for everyone). Nothing here is fixable only

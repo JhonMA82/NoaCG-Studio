@@ -26,6 +26,7 @@ import type { FieldKind, FieldOption } from '../../model/fieldModel';
 import type { SpxField, SpxTemplate } from '../../model/types';
 import type { TemplatePart } from '../../model/structure';
 import type { StyleTag } from '../../model/fonts';
+import { fieldPlanOf } from '../../model/wizard';
 import type {
   AnimPresetId,
   LineSpec,
@@ -574,6 +575,135 @@ export function missingParts(type: GraphicType, template: SpxTemplate): string[]
     .map((p) => `${p.id} (${p.selector})`);
 }
 
+/**
+ * Write the caller's line text into the compiled template's declared line fields.
+ *
+ * Every assembler that builds its fields FROM `o.lines` has already done this, and the pass
+ * is then a no-op writing the same values back. The ones that do not are the fixed-contract
+ * families - quiz boards and every scoreboard - whose fields come from a baked content
+ * declaration the assembler owns; they emit their design's default answers whatever the
+ * caller asked for. Measured 2026-08-09 across the registry: nine types declared between
+ * three and six line fields and carried NONE of them, which is how a generated quiz came back
+ * with the catalog's own planets question and four planets as its answers.
+ *
+ * It is a post-pass rather than a change to those assemblers because the mapping it needs -
+ * declared line field i is the template's i-th field - is the TYPE's contract, and the type is
+ * the only thing that holds both halves. It writes the definition value and the element's
+ * static text TOGETHER, so the operator's control page and the pre-play frame cannot disagree
+ * about what the graphic says. (This is `blocks/edit.ts`'s `setFieldDefault` written out rather
+ * than imported: `blocks/edit` imports the standard assembler, so reaching for it from here
+ * closes an import cycle through the catalog - which loads at module scope and takes the whole
+ * app's AI step down with it.)
+ *
+ * TITLES are deliberately not written: a fixed contract's labels are the type's own, and the
+ * dropdowns that address its rows by letter are declared against them.
+ */
+function withLineValues(type: GraphicType, template: SpxTemplate, lines: LineSpec[]): SpxTemplate {
+  const lineCount = type.fields.filter((f) => f.role === 'line').length;
+  const values = type.fields.map((_f, i) => (i < lineCount ? lines[i]?.sample : undefined));
+  return withFieldValues(template, values);
+}
+
+/**
+ * Write the caller's CONTENT into the compiled template's non-line fields, by the type's own
+ * LOGICAL keys (`correctAnswer`, `durationMinutes`), never by `fN` - positional ids are the
+ * compiler's business and a caller writing one would break the moment a field was inserted.
+ *
+ * Lines are what a graphic SAYS; content is the rest of what makes it the graphic that was
+ * asked for. A quiz board declares which answer is correct, a countdown its duration, a live
+ * poll its options - all `role: 'data'` or `'hidden'`, none of them reachable through `lines`.
+ * Without this channel a generated quiz carries the right question and the right four answers
+ * and still marks the chassis's own default row correct, which is a wrong graphic that every
+ * gate calls valid.
+ *
+ * **Every value is CLAMPED against the field's own declaration, and an illegal one is DROPPED
+ * rather than written.** A `select` takes only a value (or label) it actually offers - which is
+ * what keeps a machine that addresses its rows by letter addressable - a `number` only a finite
+ * number, a `toggle` only a boolean word. An unknown key is dropped too. This is the harness's
+ * standing rule that an out-of-range value clamps to the nearest legal one instead of costing
+ * the generation, applied to the one surface where a wrong value is not a visual defect but an
+ * operator lie: a correct-answer field naming a row that does not exist reveals nothing at all.
+ */
+function withContentValues(
+  type: GraphicType,
+  template: SpxTemplate,
+  content: Record<string, string>,
+): SpxTemplate {
+  const values = type.fields.map((field) => {
+    // Lines have their own channel, and the logo slot is an asset path (`logoAssetPath`).
+    if (field.role === 'line' || field.role === 'logo') return undefined;
+    if (!Object.prototype.hasOwnProperty.call(content, field.key)) return undefined;
+    return legalFieldValue(field, content[field.key]);
+  });
+  return withFieldValues(template, values);
+}
+
+/** One content value, clamped to what its field declares - or undefined when nothing legal
+ *  remains, which drops the write and leaves the design's own default in place. */
+function legalFieldValue(field: TypeField, raw: unknown): string | undefined {
+  if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') return undefined;
+  const value = String(raw).trim();
+  switch (field.kind) {
+    case 'select': {
+      // Matched against the field's OWN options, by value first and then by the label the
+      // operator reads - a model answering "B" for an option labelled B is right either way.
+      const match = field.options?.find(
+        (o) => o.value.toLowerCase() === value.toLowerCase() || o.label.toLowerCase() === value.toLowerCase(),
+      );
+      return match?.value;
+    }
+    case 'number':
+      return Number.isFinite(Number(value)) && value !== '' ? String(Number(value)) : undefined;
+    case 'toggle': {
+      if (/^(true|yes|on|1)$/i.test(value)) return 'true';
+      if (/^(false|no|off|0)$/i.test(value)) return 'false';
+      return undefined;
+    }
+    case 'color':
+      return /^#[0-9a-f]{3,8}$/i.test(value) || /^rgba?\([\d\s.,%]+\)$/i.test(value) ? value : undefined;
+    default:
+      // Text and multi-line text: any string, including a deliberately empty one (clearing a
+      // field is a real edit). Bounded so a runaway value cannot become the template.
+      return value.slice(0, 2000);
+  }
+}
+
+/**
+ * Write values into the compiled template's fields BY POSITION - `undefined` leaves a field
+ * exactly as the assembler emitted it.
+ *
+ * The definition value and the element's static text are written TOGETHER, so the operator's
+ * control page and the pre-play frame cannot disagree about what the graphic says. (This is
+ * `blocks/edit.ts`'s `setFieldDefault` written out rather than imported: `blocks/edit` imports
+ * the standard assembler, so reaching for it from here closes an import cycle through the
+ * catalog - which loads at module scope and takes the whole app's AI step down with it.)
+ *
+ * TITLES are deliberately never written: a fixed contract's labels are the type's own, and the
+ * dropdowns that address its rows by letter are declared against them.
+ */
+function withFieldValues(template: SpxTemplate, values: readonly (string | undefined)[]): SpxTemplate {
+  const fields = template.fields.map((f, i) => (values[i] === undefined ? f : { ...f, value: values[i] as string }));
+  if (fields.every((f, i) => f.value === template.fields[i].value)) return template;
+
+  let html = replaceDefinitionInHtml(template.html, template.settings, fields);
+  for (let i = 0; i < values.length; i += 1) {
+    const value = values[i];
+    if (value === undefined || value === template.fields[i]?.value) continue;
+    // The static text inside the element with this id (a visible <span> or a hidden source
+    // <div>). [^<]* also matches newlines, so multi-line sources are covered.
+    html = html.replace(
+      new RegExp(`(<(?:span|div)\\b[^>]*\\bid="${template.fields[i].field}"[^>]*>)[^<]*`),
+      (_m, open: string) => `${open}${escapeLineText(value)}`,
+    );
+  }
+  return { ...template, html, fields };
+}
+
+/** Minimal HTML text escaping for content written into an element's body. */
+function escapeLineText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** Compile a type into the catalog variants its designs ship as. */
 export function variantsFromType(type: GraphicType): TemplateVariant[] {
   return type.designs.map((design) => {
@@ -584,7 +714,13 @@ export function variantsFromType(type: GraphicType): TemplateVariant[] {
       name: design.name,
       styleTag: design.styleTag,
       description: design.description,
-      maxLines: type.capabilities.maxLines,
+      // Line CAPACITY can never sit below the number of line fields the type declares. It is
+      // hand-authored, and where the two disagreed the smaller number won everywhere a caller
+      // clamps to it: `specToTemplate` slices an AI spec's lines to `maxLines`, so a quiz board
+      // declaring five line fields and a capacity of 1 threw four answers away before
+      // `create()` ever saw them. Deriving the floor means a type that grows a line field
+      // cannot silently start blanking it.
+      maxLines: Math.max(type.capabilities.maxLines, type.fields.filter((f) => f.role === 'line').length),
       suggestedLines: typeLines(type.fields, design.samples),
       logo: type.capabilities.logo,
       // The design's own vocabulary wins where it has one — see TypeDesign.animationPresets.
@@ -596,28 +732,33 @@ export function variantsFromType(type: GraphicType): TemplateVariant[] {
       create(options) {
         // A caller may legitimately pass FEWER lines than the type declares (an AI spec
         // or Lite decision for a one-line lower third). A type-compiled design cannot
-        // drop a declared field - the field list IS the type - so missing lines ride
-        // along with empty text: the field exists and stays operator-editable, and an
-        // empty value takes no space (the :empty mask rule). Without this pad the
-        // missing-parts gate below throws on a request the platform doctrine says must
-        // CLAMP, never fail (found by the benchmark's one-line challenge brief).
+        // drop a declared field - the field list IS the type - so the gap is filled here.
+        // WITH WHAT depends on the type's field plan, and the two answers are opposites:
+        //
+        // - a 'lines' plan shrinks, so the gap rides along as EMPTY text - the field exists
+        //   and stays operator-editable, and an empty value takes no space (the :empty mask
+        //   rule). Without this pad the missing-parts gate below throws on a request the
+        //   platform doctrine says must CLAMP, never fail (the benchmark's one-line brief).
+        // - a FIXED plan cannot shrink: a quiz board with two of its four answers blanked is
+        //   not a smaller quiz, it is a broken one. The gap keeps the design's OWN default.
         const declared = typeLines(type.fields, design.samples);
+        const plan = fieldPlanOf({ category: type.structure.category });
         const requested = options?.lines;
-        const padded = requested && requested.length > 0 && requested.length < declared.length
-          ? {
-              ...options,
-              lines: [
-                ...requested,
-                ...declared.slice(requested.length).map((line) => ({ title: line.title, sample: '' })),
-              ],
-            }
-          : options;
-        const template = attachMachine(type, design.create(type, padded));
+        const lines = requested && requested.length > 0 && requested.length < declared.length
+          ? [
+              ...requested,
+              ...declared.slice(requested.length).map((line) => (
+                plan.kind === 'fixed' ? line : { title: line.title, sample: '' }
+              )),
+            ]
+          : requested;
+        const template = attachMachine(type, design.create(type, lines ? { ...options, lines } : options));
         const missing = missingParts(type, template);
         if (missing.length > 0) {
           throw new Error(`GraphicType "${type.id}": design "${design.id}" is missing required parts: ${missing.join(', ')}.`);
         }
-        return template;
+        const withLines = withLineValues(type, template, lines ?? declared);
+        return options?.content ? withContentValues(type, withLines, options.content) : withLines;
       },
     };
     return variant;

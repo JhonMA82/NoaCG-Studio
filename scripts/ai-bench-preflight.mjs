@@ -16,7 +16,7 @@
 
 import { projectRoot } from './api-runtime-build.mjs';
 import { printPreflightReport, runTaskPreflight } from './ai-task-preflight.mjs';
-import { loadEnvFile } from './read-dotenv.mjs';
+import { envRoot, loadEnvFile } from './read-dotenv.mjs';
 
 const argv = process.argv.slice(2);
 // --env=<path> checks a DIFFERENT environment file (a staging config, or a fixture
@@ -35,8 +35,13 @@ if (!REQUESTED.length || !['lite', 'import-analysis'].includes(TASK)) {
  *  the same reader the paid runner uses - the precedence is the point, so this must be both
  *  the same file and the same parse. */
 function readAmbientEnv() {
-  const { env, found } = loadEnvFile(projectRoot, ENV_FILE);
+  // A linked worktree has no `.env`, so the file is looked for in the MAIN checkout too -
+  // otherwise the free preflight answers "nothing is configured" for the whole machine on the
+  // strength of which directory the command was typed in.
+  const root = envRoot(projectRoot, ENV_FILE);
+  const { env, found, path } = loadEnvFile(root, ENV_FILE);
   if (!found) console.warn(`No ${ENV_FILE} found - checking the plan against the ambient environment only.\n`);
+  else if (root !== projectRoot) console.log(`Reading ${path} (this checkout has no ${ENV_FILE}).\n`);
   return env;
 }
 

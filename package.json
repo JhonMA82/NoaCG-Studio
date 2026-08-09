@@ -48,6 +48,8 @@
     "test:ai-gateway": "node scripts/run-ai-gateway-tests.mjs",
     "test:ai-serverless-runtime": "node --test scripts/ai-serverless-runtime.test.mjs",
     "eval:ai-lite": "node scripts/ai-lite-eval.mjs",
+    "eval:round": "node scripts/lite-eval-round.mjs",
+    "eval:archive": "node scripts/eval-archive.mjs",
     "bench:calibrate": "node scripts/ai-lite-calibrate.mjs",
     "bench:preflight": "node scripts/ai-bench-preflight.mjs",
     "bench:discover": "node scripts/ai-lite-discover.mjs",
