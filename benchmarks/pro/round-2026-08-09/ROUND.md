@@ -84,9 +84,24 @@ The bank did not get worse. The reporting stopped being kind.
 1. **Raise the interpretation budget** so a brief cannot lose its paid concept to our own cap
    (`portrait-logo`). Smallest fix, guaranteed value.
 2. ~~Make the geometry defect visible to a gate.~~ **Done** - see above.
-3. **Fix the cause**: the compiler should rescale concept pixels into frame pixels rather than
-   using them as design pixels. That belongs in `normalize.ts`, and the gate above is what will
-   tell you it worked - a faithful compile scores 1.00.
+3. **Fix the cause - and it is a DECISION, not arithmetic.** (This corrects an earlier line here
+   that said the fix belongs in `normalize.ts`; checking the code showed that to be too
+   confident.) The artwork IS the concept crop, so rendering at the intended size means
+   stretching a 1376px-wide raster across 1920px: the graphic gains size and loses sharpness,
+   and no coordinate change recovers pixels the image never had. Three routes, none free:
+   - **Root `--scale`** - the design unit already multiplies artwork and fields by it together
+     (src/components/AGENTS.md "THE DESIGN UNIT"), so this is one value rather than a
+     coordinate refactor. Costs sharpness. Probably the right first move, and the gate scores
+     it 1.00 immediately.
+   - **Ask for a bigger concept** - not available today: the gateway's image call carries
+     `modalities` and no size parameter (`api/_lib/aiGateway.ts`), so this needs transport work
+     or a different route.
+   - **Compose at the concept's own resolution** - honest and sharp, but it makes Pro's output
+     frame follow whatever the image model returned, which the rest of the product does not
+     expect.
+
+   Whichever is chosen, the gate above is how you will know it landed: a faithful compile
+   scores 1.00. Judge sharpness by eye on the same fixtures - the gate cannot see it.
 4. **Only then** re-open whether the reconstruction path is viable. Judging it on these numbers
    would repeat the mistake the re-diagnosis identified - the approach has still not been fairly
    tested, because the compiler is losing designs the model got right.

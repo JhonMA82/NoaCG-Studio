@@ -206,9 +206,17 @@ export async function compileProConcept(
       tool: PRO_INTERPRET_TOOL,
       // The call this rule was measured on: a ~2,200-token interpretation that truncated
       // mid-object on a flat 4,000 budget, because the route spent 2,400-3,900 of it
-      // thinking first. `outputBudget` (modelTypes.ts) owns the allowance; this states only
-      // what the ANSWER needs. Same 12,000 the fix landed with, so nothing re-verified here.
-      maxTokens: outputBudget(4000),
+      // thinking first. `outputBudget` (modelTypes.ts) owns the reasoning allowance; this
+      // states only what the ANSWER needs.
+      //
+      // Raised 4,000 -> 7,000 on 2026-08-09: `portrait-logo` still hit the ceiling in the
+      // full-bank round and threw away a concept that had already been paid for
+      // (benchmarks/pro/round-2026-08-09/ROUND.md). A brief with many regions writes a much
+      // longer document than the 2,200-token case this was sized against, and the failure
+      // mode is not degradation - the whole interpretation is lost, along with $0.067 of
+      // image. The ceiling is the wrong place to be frugal: an unused allowance costs
+      // nothing, because billing is on tokens produced, not tokens permitted.
+      maxTokens: outputBudget(7000),
       ...(options.interpretRoute ? { route: options.interpretRoute } : {}),
       surface: 'pro',
     });

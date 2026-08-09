@@ -479,8 +479,13 @@ reduces to that, because the design unit's share of the concept and its share of
 by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
 free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
 not get worse; the reporting stopped being kind - do not "fix" the score by loosening
-`PRO_SCALE_TOLERANCE`.** The real fix is for `normalize.ts` to rescale concept pixels into frame
-pixels, and this gate is how you will know it worked.
+`PRO_SCALE_TOLERANCE`.** The cause is a DECISION rather than arithmetic: the artwork IS the
+concept crop, so rendering at the designed size stretches a 1376px raster across 1920px and no
+coordinate change recovers pixels the image never had. The likely mechanism is the root
+`--scale` (one value - the design unit already scales artwork and fields together), and asking
+for a bigger concept is not available today because the gateway's image call carries no size
+parameter. `ROUND.md` lists the three routes; the gate tells you the size landed, never whether
+it still looks sharp.
 
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler

@@ -82,8 +82,15 @@ export function proSpendExceeds(
  * landing near 0.50x the baked glyphs it replaces - and every one of those scored a bench PASS
  * at `editability 1.00` (`benchmarks/pro/round-2026-08-09/ROUND.md`).
  *
- * 1.00 is faithful. This is a MEASUREMENT, not the fix: the fix is for the compiler to rescale
- * concept pixels into frame pixels, and it belongs in `normalize.ts`, not here.
+ * 1.00 is faithful. This is a MEASUREMENT, and the fix is NOT arithmetic on these numbers.
+ * The artwork IS the concept crop, so rendering the design at its intended size means
+ * displaying a 1376px-wide raster across 1920px - the graphic gains size and loses sharpness,
+ * and no coordinate change recovers pixels the image never had. The likely mechanism is the
+ * root `--scale` the design unit already multiplies artwork and fields by together (see
+ * src/components/AGENTS.md "THE DESIGN UNIT"), which makes it one value rather than a
+ * coordinate refactor; the open question is whether the upscaled artwork is acceptable.
+ * Asking the model for a 1920-wide concept is not available today: the gateway's image call
+ * carries `modalities` and no size parameter (api/_lib/aiGateway.ts).
  */
 export function proDesignScaleRatio(conceptWidth: number, frameWidth: number): number | null {
   if (!(conceptWidth > 0) || !(frameWidth > 0)) return null;
