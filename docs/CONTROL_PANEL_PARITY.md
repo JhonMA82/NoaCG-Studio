@@ -243,23 +243,38 @@ state chip AND the full greying table after every press, plus the machine-less l
 §5.1 regression. Its mapping is in `scripts/e2e-affected.mjs` under `src/control/`, the four type
 files, and `src/components/home/`.
 
-## 6. The recorded blocker: `validation/fieldPaint.ts` reads one state
+## 6. The recorded blocker: `validation/fieldPaint.ts` read one state — FIXED
 
-`unreachableFields()` drives every text-bearing field to a sentinel, waits, and reads the visible
-text **once, at the settled default-path state**. A field a later operator event reveals therefore
-reads as unpainted, and a correct multi-state graphic fails.
+`unreachableFields()` drove every text-bearing field to a sentinel and read the visible text
+**once, at the settled default-path state**. A field a later operator event reveals therefore read
+as unpainted, and a correct multi-state graphic failed.
 
-It is not hypothetical on the types measured here. The quiz's `f7` **Audience results** is painted
-only by `applyAudienceResult()`, which runs on entry to the `audience` branch - three operator
-events past the settled state. Drive it at rest and it paints nothing; the field is correct and the
-check would call it unreachable. The vote's figures and the quiz's selection marks have the same
-shape (`applySelection` in `selected`/`locked`).
+It was not hypothetical on the types measured here. The quiz's `f7` **Audience results** is painted
+only by `applyAudienceResult()`, on entry to the `audience` branch - three operator events past the
+settled state. **Measured, by disabling the fix and re-running the spec:** the check reported
+*"Field Audience results (f7) … reaches no pixels"* on an untouched catalog quiz. The vote's figures
+and the quiz's selection marks have the same shape (`applySelection` in `selected`/`locked`).
 
-The drive is opt-in (`RuntimeBenchOptions.fieldPaints`, on only for Lite), which is why nothing has
-failed yet: Lite ships single-step lower thirds. **Widening the drive past one state is a
-prerequisite for Lite on any interactive category**, and the mechanism to widen it with already
-exists - `noacgSnap(assignments)` enters any state instantly with suppressed callbacks, so the
-check can walk each group's states and union the visible text. Not fixed here; recorded as asked.
+The drive now asks the whole machine. After the settled reading it snaps through the machine's
+other states and unions what each one shows. Three properties make that correct and cheap:
+
+- **`noacgSnap` enters any state directly**, replaying its canonical path with callbacks
+  suppressed - no event sequence to find, and a state no button-press can reach is still measured.
+- **Because callbacks are suppressed**, a state whose look is a CALL paints nothing from the snap
+  alone, so the data is re-driven after each one. That is the recovery sequence's own trailing
+  `update()`, not a special case.
+- **It stops as soon as every field has been seen**, so a correct graphic pays for one or two extra
+  states rather than its whole graph. Only an EXPLICIT machine is walked - a derived one's states
+  ARE the default path the caller already walked - so a single-step lower third costs nothing new,
+  and the machine is put back where it was found so the bench's later phases measure what they did
+  before.
+
+`MAX_WALKED_STATES` (32) bounds a graph an author controls; the spec MEASURES the catalog's largest
+machine against it rather than trusting the number, so the cap cannot quietly start truncating.
+Pinned by three tests in `e2e/lite-field-paint.spec.ts`, including the mutation half (a field that
+paints in NO state is still reported) - the guard was verified red before it was verified green.
+
+**Lite is no longer blocked on this for the interactive categories.** What remains is §7.
 
 ## 7. What a Lite-generated interactive graphic would need on top
 
@@ -274,7 +289,7 @@ chassis, where the claim is vacuous because none of them has an event.
 
 What genuinely has to change to widen Lite into these categories, in order:
 
-1. **Widen the field-paint drive past one state** (§6). Hard blocker, not a nice-to-have.
+1. ~~**Widen the field-paint drive past one state** (§6).~~ **DONE** — it asks the whole machine now.
 2. **Fix §5.1 before any interactive category ships.** A Lite quiz is exactly a graphic nobody has
    built entries for yet, so the first thing a student would press is the button that wipes the
    pick.

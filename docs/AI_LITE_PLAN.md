@@ -38,6 +38,12 @@ These are binding and exist in no other file.
    open `#/control/<id>`, drive it - never assume.** The mechanism that should make this free is in
    `src/ai/AGENTS.md`: Lite compiles through the same `variant.create()` the wizard runs, so parity
    ought to follow by construction. "Ought to" is not a verification.
+   **Verified 2026-08-09** on a lower third and on one graphic of every interactive type
+   (`docs/CONTROL_PANEL_PARITY.md`): the mechanism does hold - `create()` is the wrapper that calls
+   `attachMachine`, so the machine, its controls and its labels arrive whatever asked for the
+   template. The obstacle to a Lite quiz turned out not to be the machine at all: `specToTemplate`
+   slices lines to `variant.maxLines`, which is 1 on a compiled quiz against five declared line
+   fields, so a Lite decision declaring any lines yields a board with four blank answers (§7 there).
 4. **This consolidation happens before further Lite work.** Done: `src/ai/AGENTS.md` reordered and
    status-labelled, `docs/AI_ATTEMPTS.md` written, six docs parked.
 
@@ -96,13 +102,17 @@ by paying for a bigger model.
 Each step is free unless marked. Steps 1-3 are the parity and instrumentation work that must be true
 before widening; 4-6 are the widening itself.
 
-1. **Verify control-panel parity end to end on a lower third.** Build one through Lite, save it, open
-   `#/control/<id>`, drive every field and event. This is the cheapest possible test of decision 3
-   and it has not been run. If it fails on the simplest category, nothing below matters.
-2. **Widen the field-paint drive past one state.** `validation/fieldPaint.ts` reads ONE state (the
-   settled default path), which is safe only because Lite ships single-step lower thirds. **A quiz
-   has states, so this is a hard blocker on step 4**, not a nice-to-have: a field a later operator
-   event reveals would read as unpainted and fail a correct graphic.
+1. **Verify control-panel parity end to end on a lower third. DONE 2026-08-09** - and widened to one
+   graphic of every interactive type the catalog ships, driven field by field and event by event on
+   `#/control/<id>`. **`docs/CONTROL_PANEL_PARITY.md` is the result**: parity holds structurally
+   (every type's machine survives `variant.create()`, produces its declared buttons and greys them
+   by the structural guard), and what was weak was the operator surface. Four defects fixed, four
+   gaps left recorded there. Pinned by `e2e/control-panel-types.spec.ts`.
+2. **Widen the field-paint drive past one state. DONE 2026-08-09.** `validation/fieldPaint.ts` read
+   ONE state, which was safe only because Lite ships single-step lower thirds; measured against a
+   catalog quiz it falsely reported the audience-percentage field unreachable. It now snaps through
+   the machine's states and unions what each shows, stopping as soon as every field has been seen.
+   **No longer a blocker on step 4.**
 3. **Decide what a multi-state Lite decision even contains.** Today's schema describes a chassis,
    lines, palette and typography. A quiz needs steps and events. `docs/GOALS.md` records the shape
    this should take - a structured MACHINE stage spliced in deterministically, the way `designSpec`
