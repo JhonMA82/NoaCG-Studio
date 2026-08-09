@@ -5,6 +5,7 @@ import type {
   LiteGenerationRequest,
   LiteLowerThirdIntentKind,
   LiteLowerThirdLineRole,
+  LiteMarkShape,
   LiteSkinPatch,
   LiteUnsupportedCode,
   LiteVariantQualityPrior,
@@ -63,8 +64,9 @@ export interface LiteCatalogEntry {
    */
   logoSlot: {
     surface: 'palette' | 'dark';
-    /** Fixture ids from `scripts/ai-lite-brand-fixtures.mjs`. */
-    fits: readonly string[];
+    /** Mark SHAPES, not fixture ids: the audit's five marks are the sampling instrument, and a
+     *  claim expressed in their names would go stale the moment the bank grew. */
+    fits: readonly LiteMarkShape[];
   } | null;
   fieldPattern: string;
   motionCharacter: string;
@@ -116,7 +118,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Amber accent, dark broadcast-width panel, strong display name and mono supporting line.',
       style: 'noacg',
       logo: true,
-      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['news', 'corporate', 'public service', 'general interviews'],
       avoidFor: ['delicate documentary supers', 'playful or highly decorative briefs'],
@@ -131,7 +133,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Panel-free typography with a restrained accent underline and generous whitespace.',
       style: 'minimal',
       logo: true,
-      logoSlot: { surface: 'dark', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['universities', 'interviews', 'corporate', 'clean editorial programmes'],
       avoidFor: ['high-energy sports', 'busy footage without a quiet text area'],
@@ -146,7 +148,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Forward-leaning condensed sport slab with bold hierarchy and fast controlled motion.',
       style: 'sport',
       logo: true,
-      logoSlot: { surface: 'dark', fits: ['banner-wide'] },
+      logoSlot: { surface: 'dark', fits: ['rail'] },
       intentKinds: ['person', 'team', 'event', 'promotion'],
       bestFor: ['sports', 'esports', 'competitive events', 'high-energy segments'],
       avoidFor: ['long academic titles', 'solemn public information', 'quiet documentary work'],
@@ -161,7 +163,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Translucent glass strap with a soft accent edge and calm name-over-role hierarchy.',
       style: 'glass',
       logo: true,
-      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['technology', 'streaming', 'creative interviews', 'modern events'],
       avoidFor: ['very bright flat backgrounds', 'hard-news urgency', 'dense supporting copy'],
@@ -176,7 +178,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Editorial rule-led composition with a confident name and tracked supporting line.',
       style: 'editorial',
       logo: true,
-      logoSlot: { surface: 'dark', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team', 'promotion'],
       bestFor: ['public news', 'documentary', 'universities', 'culture and current affairs'],
       avoidFor: ['esports', 'game shows', 'sponsor-heavy promotional graphics'],
@@ -191,7 +193,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Cinematic typography on a quiet gradient scrim that integrates with the shot.',
       style: 'cinematic',
       logo: true,
-      logoSlot: { surface: 'palette', fits: ['wordmark-dark', 'wordmark-light', 'badge-square', 'banner-wide', 'shield-tall'] },
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event'],
       bestFor: ['documentary', 'arts', 'film', 'human-interest interviews'],
       avoidFor: ['score updates', 'dense data', 'high-energy calls to action'],
@@ -717,7 +719,12 @@ export function liteCatalogDigest(): string {
       `capacity:supporting line holds ${entry.supportingLineChars} characters on one line`,
       `fields:${entry.fieldPattern}`,
       `motion:${entry.motionCharacter}`,
-      `logo:${entry.logo ? 'yes' : 'no'}`,
+      // The slot's MEASURED capability, on the line that already said yes or no - a richer
+      // token rather than another prompt line, because §6c measured that every line added here
+      // degrades the axis it targets along with the ones it does not.
+      entry.logoSlot
+        ? `logo:holds ${entry.logoSlot.fits.join(',')} marks, surface:${entry.logoSlot.surface}`
+        : `logo:${entry.logo ? 'yes' : 'no'}`,
       entry.description,
     ].join('|'),
   ).join('\n');
@@ -778,7 +785,11 @@ export function liteSystemPrompt(
     'A documentary subject is a person, not a story headline: use the subject name first and their requested role or location second. Quiet documentary styling normally fits Scrim or Masthead; preserve the person identity even when the brief says documentary.',
     'A story lower third identifies the story itself: put the concise on-air headline first with role story-headline, then only a requested location or supporting context. Never turn a headline into a person, programme title, document title, or paragraph of body copy.',
     'For event, team, organization, and promotion lower thirds, keep the primary identity on line one and only the most useful requested context on line two.',
-    'Use House Strap for robust news readability, Masthead for editorial or public-broadcast stories, Underline for quiet clean footage, and Scrim for human-interest or documentary shots. Do not choose Scrim for urgent news or long dense context.',
+    // The mark rule rides the chassis-selection line rather than becoming a line of its own,
+    // for the §6c reason above. It is a HARD constraint, not taste: a design whose logo entry
+    // omits the requested mark's shape crushes it, and one whose surface is dark cannot show a
+    // dark-ink mark at all - both measured, neither fixable by the model.
+    'Use House Strap for robust news readability, Masthead for editorial or public-broadcast stories, Underline for quiet clean footage, and Scrim for human-interest or documentary shots. Do not choose Scrim for urgent news or long dense context. When the request carries a mark, set useLogoSlot and choose a chassis whose logo entry lists that mark\'s shape; if the mark is transparent with dark ink, choose one whose logo surface is palette, never dark.',
     'Line titles describe what an operator edits, such as Name, Role, Team, Headline, Event, or Location. Line samples are the actual on-air copy.',
     'Omit palette when the request supplies no exact brand colors. Do not invent a bespoke palette.',
     'Bespoke palette values need at least 4.5:1 primary-text contrast and 3:1 secondary-text contrast against the panel.',
@@ -818,6 +829,7 @@ export function liteRequestText(request: LiteGenerationRequest): string {
     palette: request.palette,
     primaryFont: request.primaryFont,
     hasLogo: request.hasLogo,
+    mark: request.mark,
     resolution: request.resolution,
     fps: request.fps,
   });

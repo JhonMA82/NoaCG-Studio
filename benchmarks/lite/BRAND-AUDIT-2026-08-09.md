@@ -210,7 +210,12 @@ reach it is the mistake `zone` and `animation.presetId` record in `src/ai/AGENTS
 ### 6.6 What is still not done
 
 - **`lt05`'s clear space.** One chassis, geometric, and its metadata says so honestly.
-- **Nothing reads `logoSlot` yet.** The gate does; the prompt does not. Wiring it into the chassis
-  digest changes the prompt and therefore mints a Lite prompt version, which is the first half of
-  the paid round (`docs/AI_LITE_PLAN.md` §7.4 step 4) - not something to land unmeasured.
 - **The four unproven checks** in §4 are still unproven.
+- **No frame of any of this has been looked at by a human.** Every number here is geometry and
+  luminance read off a render; §"decision 2" of the plan is explicit that machine-valid is not
+  the bar, and a mark can pass all nine measurements and still sit in a place a designer would
+  move. That is what the paid round's gallery is for.
+
+Closed since: **`logoSlot` now reaches the model.** It rides the digest line that already said
+`logo:yes`, and the request carries a measured `mark` descriptor (shape, backing, ink) so the
+constraint is answerable - `docs/AI_LITE_PLAN.md` §7.5.

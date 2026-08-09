@@ -264,20 +264,36 @@ Free unless marked. Each step ends with the audit re-run, so the next one starts
 *(~$0.010 for a round of 8, at v13's $0.00034 per generation. Cost is not the constraint here and
 was not the reason to stop.)*
 
-### 7.5 The gap step 3 exposed, and it is not a model problem
+### 7.5 The gap step 3 exposed, and how it was closed. DONE 2026-08-09, free
 
-**`logoSlot` is measured, and the model cannot act on it yet, because the request never says
-what the user's mark IS.** `LiteGenerationRequest.hasLogo` is a BOOLEAN. So the model can be told
-that lt02 holds every mark shape and offers a dark surface, and still has no way to know whether
-the file in the user's hand is a knockout wordmark that will read there or a dark-only one that
-will vanish - and `--lite` measured that exact failure three times.
+`logoSlot` was measured and the model could not act on it, because the request never said what
+the user's mark IS: `LiteGenerationRequest.hasLogo` was a BOOLEAN. The model could be told lt02
+holds every shape on a dark surface and still had no way to know whether the file in the user's
+hand was a knockout wordmark that reads there or a dark-only one that vanishes - and `--lite`
+measured that exact failure three times.
 
-Both missing facts are free and deterministic, and neither needs a model: the mark's natural
-ASPECT is `naturalWidth / naturalHeight` on the upload, and whether it carries its own field or
-composites its ink onto the surface is one alpha probe (`model/imagePurpose.ts` `probeAsset`
-already does the same class of read for the purpose preselect). Send those instead of a boolean
-and the chassis choice becomes answerable from metadata that already exists.
+Both missing facts are free, deterministic and need no model, so both are now measured in the
+browser before anything is sent (`assets/assetInfo.ts` `probeMark`, one image, one 64px canvas
+pass) and sent as `LiteGenerationRequest.mark`:
 
-That is the first piece of step 4, ahead of any prompt wording: **widen `hasLogo` into a small
-measured mark descriptor, then put `logoSlot` in the chassis digest.** Until both land, the
-metadata is gated but unread - which is a deliberate half-step, not an oversight.
+- **shape** - `markShapeFromAspect` buckets the natural aspect into `portrait` / `square` /
+  `wordmark` / `rail`. The cuts live in `liteTypes.ts` alone; the audit's fixture bank declares
+  its five marks against them rather than re-deriving them.
+- **backing** - `own-field` or `transparent`, from the share of fully opaque pixels. A logo
+  flattened onto a white tile is opaque and genuinely does bring its own field.
+- **ink** - `light` or `dark`, from the alpha-weighted mean luminance, and only for a
+  transparent mark. The 0.35/0.65 cut is wide of the middle on purpose: a mid-grey mark has no
+  honest answer, so it gets none rather than a tone that might be wrong.
+
+Content-free by construction - a bucket, an opacity fact and one word. No bytes, no name, no
+dimensions. `hasLogo` stays beside it: it is what the quota check reads, and the request
+validator is a strict key allowlist, so a browser tab loaded before a deploy still works.
+
+`logoSlot` reaches the model on the digest line that already said `logo:yes`, and the constraint
+rides the existing chassis-selection line rather than becoming a line of its own - §6c of the
+benchmark measured that every line added to this prompt degrades the axis it targets along with
+the ones it does not. Two structural pins in `scripts/ai-lite-bench.test.mjs`: the aspect cuts,
+and **no mark shape servable by only one chassis** - the same rule the intent kinds are under,
+for the same reason.
+
+**That is the free half of step 4. What remains is the paid round itself.**

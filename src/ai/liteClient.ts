@@ -1,7 +1,10 @@
 import { getAccessToken } from '../backend/auth';
+import { probeMark } from '../assets/assetInfo';
 import type { DesignSpec } from './designSpec';
 import type { GenerateContext } from './provider';
+import { markShapeFromAspect } from './liteTypes';
 import type {
+  LiteMarkDescriptor,
   LiteGenerationRequest,
   LiteGenerationResult,
   LiteOutcomeRequest,
@@ -63,6 +66,28 @@ export async function loadLiteStatus(): Promise<LiteStatusResponse> {
   return checkedJson<LiteStatusResponse>(response);
 }
 
+/**
+ * Measure the user's mark, if there is exactly one. Returns null on anything unreadable, which
+ * is the pre-2026-08-09 behaviour exactly: the server still gets `hasLogo` and the model still
+ * gets "there is a logo", just without the three facts that let it choose a chassis that can
+ * actually carry it (`docs/AI_LITE_PLAN.md` §7.5).
+ *
+ * The 0.35 / 0.65 cut is deliberately WIDE of the middle. It only has to separate a knockout
+ * mark from a dark-ink one, and a mark whose ink averages mid-grey has no honest answer - so it
+ * gets none, and the model is told the shape without being told a tone that might be wrong.
+ */
+async function describeMark(context: GenerateContext): Promise<LiteMarkDescriptor | null> {
+  if (context.images.length !== 1) return null;
+  const probe = await probeMark(context.images[0]);
+  if (!probe) return null;
+  const ink = probe.inkLuminance >= 0.65 ? 'light' : probe.inkLuminance <= 0.35 ? 'dark' : undefined;
+  return {
+    shape: markShapeFromAspect(probe.aspect),
+    backing: probe.backing,
+    ...(probe.backing === 'transparent' && ink ? { ink } : {}),
+  };
+}
+
 export async function generateLiteDesign(
   prompt: string,
   context: GenerateContext,
@@ -97,6 +122,7 @@ export async function generateLiteDesign(
         ? { family: context.spec.fonts.primary.fontId, uploaded: false }
         : null,
     hasLogo: context.images.length === 1,
+    mark: await describeMark(context),
     // ProjectFormatPreset has creation-only ID/capability fields. The managed contract is
     // deliberately narrower and server-authoritative: only authored dimensions cross it.
     resolution: { width: context.resolution.width, height: context.resolution.height },

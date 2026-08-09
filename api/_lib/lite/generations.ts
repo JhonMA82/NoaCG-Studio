@@ -43,6 +43,7 @@ import { validateProjectFormat } from '../../../src/model/projectFormat.js';
 const MAX_BODY_BYTES = 32_000;
 const ALLOWED_CATEGORY = new Set<string>(['auto', ...LITE_AI_CATEGORIES]);
 const IDEMPOTENCY = /^[A-Za-z0-9][A-Za-z0-9_-]{15,127}$/;
+const MARK_SHAPES = new Set<string>(['portrait', 'square', 'wordmark', 'rail']);
 
 function recordType(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('object expected');
@@ -58,7 +59,7 @@ function validateRequest(value: unknown, profile: ReturnType<typeof liteProfile>
   const body = recordType(value);
   if (!onlyKeys(body, [
     'idempotencyKey', 'prompt', 'generationSpec', 'priorSpec', 'conversation',
-    'palette', 'primaryFont', 'hasLogo', 'resolution', 'fps',
+    'palette', 'primaryFont', 'hasLogo', 'mark', 'resolution', 'fps',
   ])) throw new Error('unknown field');
   if (typeof body.idempotencyKey !== 'string' || !IDEMPOTENCY.test(body.idempotencyKey)) throw new Error('idempotency');
   if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > profile.limits.promptCharacters) {
@@ -107,6 +108,17 @@ function validateRequest(value: unknown, profile: ReturnType<typeof liteProfile>
   }
   if (body.hasLogo !== undefined && typeof body.hasLogo !== 'boolean') throw new Error('logo');
   if (body.hasLogo === true && profile.limits.logos < 1) throw new Error('logo unsupported');
+  // The mark DESCRIPTOR (src/ai/liteTypes.ts): three enumerated facts the browser measured off
+  // the upload. Content-free by construction - no bytes, no name, no dimensions - and validated
+  // as strictly as everything else here, because it reaches the prompt.
+  if (body.mark !== undefined && body.mark !== null) {
+    const mark = recordType(body.mark);
+    if (!onlyKeys(mark, ['shape', 'backing', 'ink'])) throw new Error('mark');
+    if (!MARK_SHAPES.has(String(mark.shape))) throw new Error('mark shape');
+    if (mark.backing !== 'own-field' && mark.backing !== 'transparent') throw new Error('mark backing');
+    if (mark.ink !== undefined && mark.ink !== 'light' && mark.ink !== 'dark') throw new Error('mark ink');
+    if (profile.limits.logos < 1) throw new Error('logo unsupported');
+  }
   if (body.palette !== undefined && body.palette !== null) {
     const palette = recordType(body.palette);
     if (!onlyKeys(palette, ['accent', 'text', 'textDim', 'panel'])) throw new Error('palette');

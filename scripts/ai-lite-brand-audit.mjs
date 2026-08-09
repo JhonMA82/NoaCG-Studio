@@ -35,6 +35,7 @@ import { writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
 import {
   LITE_BRAND_MARKS,
+  LITE_BRAND_MARKS_BY_ID,
   LITE_BRAND_PALETTES,
   LITE_BRAND_FIXTURE_VERSION,
 } from './ai-lite-brand-fixtures.mjs';
@@ -535,8 +536,18 @@ function checkLiteDeclarations(declared) {
   for (const [id, claim] of Object.entries(declared)) {
     const rows = results.filter((r) => r.id === id);
     if (!rows.length) continue;
-    const fits = rows.filter((r) => !geometryFailures(r.failures ?? ['error']).length)
-      .map((r) => r.mark).sort();
+    // Declared in SHAPES, measured on fixtures: a shape counts as fitting only when EVERY
+    // fixture of that shape landed. Two wordmarks differ only in ink, so they always agree
+    // geometrically - but taking `some` here would let one bad sample of a future shape pass,
+    // and the claim the model reads is "this slot holds that shape", not "sometimes does".
+    const byShape = new Map();
+    for (const row of rows) {
+      const shape = LITE_BRAND_MARKS_BY_ID.get(row.mark)?.shape;
+      if (!shape) continue;
+      const ok = !geometryFailures(row.failures ?? ['error']).length;
+      byShape.set(shape, (byShape.get(shape) ?? true) && ok);
+    }
+    const fits = [...byShape].filter(([, ok]) => ok).map(([shape]) => shape).sort();
     // Two distinct surface luminances across the run means the slot sits on a surface the
     // PALETTE paints (the run pairs marks with different packages); one dark reading means the
     // slot sits on the picture, and no palette can make it light.
@@ -582,11 +593,26 @@ if (CHECK) {
       console.log('\nLITE_CATALOG.logoSlot agrees with the render on every audited chassis.');
     }
   }
-  process.exitCode = failing.length || problems.length ? 1 : 0;
+  // WHAT FAILS THE RUN depends on which question was asked, and conflating the two would leave
+  // a gate that can never go green.
+  //
+  // `--lite` asks "does LITE_CATALOG still describe the render". A failing PAIR there is usually
+  // not a defect: lt02 cannot show a dark-ink mark because it has no panel to put one on, and
+  // the declaration says exactly that. Holding the run red for it would mean a permanent red
+  // that everyone learns to skip, which is worse than no gate.
+  //
+  // Every other form asks "does this chassis absorb a mark", and there a failing pair is the
+  // finding.
+  process.exitCode = (LITE_ONLY ? problems.length : failing.length || problems.length) ? 1 : 0;
   if (failing.length) {
-    console.log(`\n${failing.length} failing pair(s). A chassis is only fit for a Lite brand allowlist `
-      + 'when it is clean on every mark shape - a slot that works for a crest and crushes a lockup '
-      + 'is a slot the model would have to reason about, which is the decision this design removes.');
+    console.log(`\n${failing.length} failing pair(s)`
+      + (LITE_ONLY
+        ? ' - not a failure of this run: `--lite` gates the DECLARATION, and a tone limit a '
+          + 'chassis honestly declares is a fact, not a defect. Re-read the table if a GEOMETRY '
+          + 'code appears, because those are not declarable.'
+        : '. A chassis is only fit for a Lite brand allowlist when it is clean on every mark '
+          + 'shape - a slot that works for a crest and crushes a lockup is a slot the model would '
+          + 'have to reason about, which is the decision this design removes.'));
   }
 } else {
   console.log('\nRun with --check to gate. Nothing here spends tokens.');

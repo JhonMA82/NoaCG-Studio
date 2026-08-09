@@ -58,6 +58,12 @@ const shield = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="260"
  * A real brand kit ships more than one of these, which is why a graphic has to say which
  * surface it offers rather than assuming the file will cope.
  *
+ * `shape` is the bucket `LiteMarkShape` sorts this aspect into (src/ai/liteTypes.ts owns the
+ * cuts: portrait <0.85, square <=1.4, wordmark <=4.5, rail above). Declared rather than derived
+ * because these five SVGs are authored here, and because the audit is a .mjs script that cannot
+ * import the TypeScript that owns the boundaries - so the data lives here and the logic lives
+ * there, rather than the boundaries living in both.
+ *
  * `inkHex` is the colour that has to READ; `fieldHex` is the mark's own background, or null
  * when the mark is transparent. The pair matters because they are two different physical
  * questions and only one of them can be failed. A transparent lockup composites its ink
@@ -74,6 +80,7 @@ export const LITE_BRAND_MARKS = [
     path: 'images/brand-wordmark-dark.svg',
     data: svgAsset(wordmark('#12161c', '#5d6472')),
     natural: { width: 480, height: 120 },
+    shape: 'wordmark',
     inkHex: '#12161c',
     fieldHex: null,
     tone: 'dark',
@@ -85,6 +92,7 @@ export const LITE_BRAND_MARKS = [
     path: 'images/brand-wordmark-light.svg',
     data: svgAsset(wordmark('#ffffff', '#b7bdc9')),
     natural: { width: 480, height: 120 },
+    shape: 'wordmark',
     inkHex: '#ffffff',
     fieldHex: null,
     tone: 'light',
@@ -96,6 +104,7 @@ export const LITE_BRAND_MARKS = [
     path: 'images/brand-badge.svg',
     data: svgAsset(badge),
     natural: { width: 256, height: 256 },
+    shape: 'square',
     inkHex: '#ffffff',
     fieldHex: '#1f4f9c',
     tone: 'both',
@@ -107,6 +116,7 @@ export const LITE_BRAND_MARKS = [
     path: 'images/brand-banner.svg',
     data: svgAsset(banner('#ffffff')),
     natural: { width: 960, height: 96 },
+    shape: 'rail',
     inkHex: '#ffffff',
     fieldHex: null,
     tone: 'light',
@@ -118,6 +128,7 @@ export const LITE_BRAND_MARKS = [
     path: 'images/brand-shield.svg',
     data: svgAsset(shield),
     natural: { width: 180, height: 260 },
+    shape: 'portrait',
     inkHex: '#e6c463',
     fieldHex: '#0f3d2e',
     tone: 'both',
