@@ -280,6 +280,78 @@ test('the FIRST line role decides the intent kind, not whichever role a scan rea
   );
 });
 
+test('a line with a blank sample is dropped instead of reserving a band nothing paints', () => {
+  // Measured on the `one-line` fixture of the 2026-08-09 round: asked for a one-line strap with
+  // no invented role, the model answered with TWO lines and left the second sample empty. The
+  // chassis reserved its supporting band and painted nothing there - about a third of the panel,
+  // blank, on the hold frame and still blank after `update()`. `fieldCount` said 2, no rule code
+  // fired, and `bench-field-unpainted` stayed silent because the field CAN paint; it just had
+  // nothing in it. Only a human reading the frame caught it, twice now.
+  const entry = LITE_CATALOG[0];
+  const withSecondSample = (sample: string) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'A cinematic single-line identification.',
+      name: 'One Line Strap',
+      summary: 'A one-line lower third.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Aisha Rahman', role: 'person-name' },
+        { title: 'Role', sample, role: 'person-role' },
+      ],
+      flourish: '',
+    },
+  });
+  const oneLineRequest = {
+    ...request(),
+    prompt: 'A cinematic one-line lower third identifying Aisha Rahman. No invented role or '
+      + 'organization, generous spacing, subtle entrance.',
+  };
+
+  const readySpec = (result: ReturnType<typeof validateLiteDecision>) => {
+    const decision = result.decision;
+    assert.ok(decision && decision.status === 'ready', 'expected a ready decision');
+    return decision.spec;
+  };
+
+  const blank = validateLiteDecision(withSecondSample('   '), oneLineRequest);
+  assert.deepEqual(blank.errors, []);
+  const spec = readySpec(blank);
+  assert.equal(spec.lines.length, 1, 'the blank line must not reach the compile');
+  assert.equal(
+    spec.intent?.secondaryRole,
+    undefined,
+    'a one-line spec may not keep a secondaryRole describing a line that is gone',
+  );
+  assert.ok(blank.adjustments?.includes('blank_line_dropped'), 'the drop is reported, not silent');
+
+  // A filled second line is untouched - this must not quietly become a one-line profile.
+  const filled = validateLiteDecision(withSecondSample('Documentary Subject'), oneLineRequest);
+  assert.deepEqual(filled.errors, []);
+  assert.equal(readySpec(filled).lines.length, 2);
+  assert.ok(!filled.adjustments?.includes('blank_line_dropped'));
+
+  // A role the BRIEF asked for, emitted as an empty line, was never delivered - so dropping it
+  // must surface as the missing role rather than passing as an invisible one.
+  const asked = validateLiteDecision(withSecondSample(''), {
+    ...request(),
+    prompt: 'A lower third for speaker name Aisha Rahman and role Creative Director.',
+  });
+  assert.ok(asked.errors.includes('requested_role_missing:person-role'));
+
+  // The FIRST line keeps its slot: promoting a supporting line to identity would silently
+  // change what the graphic is, so a nameless graphic fails instead.
+  const blankPrimary = structuredClone(withSecondSample('Creative Director'));
+  blankPrimary.spec.lines[0].sample = '';
+  const primary = validateLiteDecision(blankPrimary, oneLineRequest);
+  assert.equal(readySpec(primary).lines.length, 2, 'a blank primary keeps its slot');
+  assert.ok(!primary.adjustments?.includes('blank_line_dropped'));
+});
+
 test('Lite accepts only a semantically matching allowlisted catalog spec', () => {
   const entry = LITE_CATALOG[0];
   const valid = {

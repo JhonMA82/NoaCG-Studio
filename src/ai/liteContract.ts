@@ -1116,7 +1116,27 @@ export function validateLiteDecision(
   const aiCategory = output.aiCategory;
   const entry = LITE_CATALOG.find((candidate) => candidate.variantId === spec.variantId);
   const errors: string[] = [];
-  const lines = Array.isArray(spec.lines) ? spec.lines : [];
+  // A line whose SAMPLE is blank still costs its slot. Measured 2026-08-09 on the `one-line`
+  // fixture ("no invented role or organization"): the model answered with two lines and left
+  // the second empty, so the chassis reserved its supporting band and painted nothing in it -
+  // about a third of the panel, blank, on every frame including after `update()`.
+  //
+  // **Nothing in the tree could see it.** `fieldCount` was 2, no rule code fired, and
+  // `bench-field-unpainted` stayed silent because the field CAN paint - it simply had nothing
+  // in it. That is the second time this defect class has arrived through a door no gate covers
+  // (benchmarks/lite/ROUND-2026-08-09-V13.md §5.1), so it is closed deterministically rather
+  // than taught: a trailing blank line is DROPPED, which is the harness's own doctrine that an
+  // out-of-range value clamps to the nearest legal one instead of costing the generation.
+  //
+  // Trailing only, and never the first line: re-seating a blank primary would silently promote
+  // the supporting line to identity. A blank FIRST line keeps its slot and fails
+  // `primary_role_mismatch` on its own, which is the honest answer for a nameless graphic.
+  // If the brief explicitly asked for the dropped line's role, `requested_role_missing` then
+  // fires - correct, because a role emitted as an empty line was never delivered.
+  const emittedLines = Array.isArray(spec.lines) ? spec.lines : [];
+  const lines = [...emittedLines];
+  while (lines.length > 1 && !String(lines[lines.length - 1]?.sample ?? '').trim()) lines.pop();
+  const blankLinesDropped = emittedLines.length - lines.length;
   if (!entry) errors.push('variant_not_allowed');
   if (spec.fit !== 'catalog') errors.push('fit_not_catalog');
   if (entry && spec.category !== entry.category) errors.push('category_variant_mismatch');
@@ -1157,6 +1177,7 @@ export function validateLiteDecision(
   // lightness can reach it, drop the bespoke palette so the chassis default carries. A
   // legibility floor should cost the palette at worst, never the whole generation.
   const adjustments: string[] = [];
+  if (blankLinesDropped > 0) adjustments.push('blank_line_dropped');
   let palette = spec.palette;
   if (palette) {
     const clamped = clampLitePalette(palette);
@@ -1190,6 +1211,14 @@ export function validateLiteDecision(
   }
   if (errors.length) return { errors };
   const repaired = { ...spec, flourish: null } as LiteDesignSpec;
+  if (blankLinesDropped > 0) {
+    // The compile reads `lines`, so the drop has to reach the decision, not just the checks -
+    // and a one-line spec carrying a secondaryRole would describe a line that is not there.
+    repaired.lines = lines;
+    if (lines.length === 1 && repaired.intent?.secondaryRole !== undefined) {
+      repaired.intent = { kind: repaired.intent.kind, primaryRole: repaired.intent.primaryRole };
+    }
+  }
   if (palette) repaired.palette = palette;
   else delete repaired.palette;
   return {
