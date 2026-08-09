@@ -148,7 +148,7 @@ export const LITE_CATALOG: readonly LiteCatalogEntry[] = [
       description: 'Forward-leaning condensed sport slab with bold hierarchy and fast controlled motion.',
       style: 'sport',
       logo: true,
-      logoSlot: { surface: 'dark', fits: ['rail'] },
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'team', 'event', 'promotion'],
       bestFor: ['sports', 'esports', 'competitive events', 'high-energy segments'],
       avoidFor: ['long academic titles', 'solemn public information', 'quiet documentary work'],
@@ -272,6 +272,24 @@ const specSchema: Record<string, unknown> = {
           role: { type: 'string', enum: lineRoles },
         },
       },
+    },
+    // The BRAND SLOT switch. Added 2026-08-09, and the round that found it missing is the
+    // cleanest possible statement of the rule the `zone` note below records from the other
+    // direction: **this object is `additionalProperties: false`, so a property the PROMPT asks
+    // for and the schema omits is an instruction the model cannot obey.** The first paid brand
+    // round told the model to "set useLogoSlot", every one of five generations came back
+    // machine-usable with zero rule codes, and not one placed a mark - because emitting the
+    // property at all would have been a schema refusal. A prompt line and a schema property are
+    // two halves of one decision; shipping either alone buys nothing.
+    //
+    // Deliberately NOT `required`: a brief with no mark must not have to say so, and a model
+    // that omits it compiles to today's behaviour exactly.
+    useLogoSlot: {
+      type: 'boolean',
+      description:
+        'Set true when the request carries a brand mark and the chosen design can hold it. '
+        + 'Match the mark\'s shape against the chassis\'s logo entry, and never place a '
+        + 'transparent dark-ink mark on a design whose logo surface is dark.',
     },
     // `zone` STAYS IN THE SCHEMA and is ignored by the compile - the same staged retirement
     // `animation.presetId` went through, and this field is the reason that staging is a rule
@@ -674,7 +692,17 @@ export function normalizeLiteSkinPatch(value: unknown): LiteSkinPatch {
 }
 
 const unsupportedPatterns: { code: LiteUnsupportedCode; pattern: RegExp; message: string; suggestion: string }[] = [
-  { code: 'multi-graphic-request', pattern: /\b(package|graphics package|set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
+  // "package" USED to be in this alternation, and it refused work it had no business refusing:
+  // in broadcast a package IS the show's look - "our light paper package", "the graphics
+  // package" - which is exactly the vocabulary a brand brief arrives in. Measured 2026-08-09 on
+  // the brand bank's first paid round: 2 of 5 briefs refused for free, before any model call,
+  // both of them for the word alone (`benchmarks/lite/BRAND-ROUND-2026-08-09.md`). It also
+  // bought nothing even when it fired on a real multi-graphic request - Lite returns ONE result
+  // by construction, so the worst case without it is one graphic instead of a refusal. Same
+  // lesson as `intentKinds` above: a hand-authored claim can be wrong in the direction that
+  // refuses work, and that direction is the expensive one. Only the explicitly PLURAL forms
+  // remain.
+  { code: 'multi-graphic-request', pattern: /\b(set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
   { code: 'advanced-state-machine', pattern: /\b(branching|state machine|multiple parallel states|conditional transition)\b/i, message: 'Lite does not create advanced branching or parallel state machines.', suggestion: 'Ask for one graphic with a simple entrance, hold, update, and exit.' },
   { code: 'reference-recreation', pattern: /\b(recreate|replicate|copy|pixel[- ]perfect).{0,40}\b(screenshot|reference|image|graphic)\b/i, message: 'Lite does not recreate graphics from reference images.', suggestion: 'Describe the desired palette, hierarchy, mood, and graphic type in words.' },
   { code: 'import-conversion', pattern: /\b(convert|repair|rewrite).{0,40}\b(import|html|zip|template)\b/i, message: 'Lite does not convert or repair imported templates.', suggestion: 'Ask Lite to create a new common graphic from a short brief.' },
@@ -1073,6 +1101,10 @@ export function clampLightnessForContrast(color: string, panel: string, target: 
 
 export const LITE_CONTRAST_FLOOR = { primary: 4.5, secondary: 3 } as const;
 
+/** A mark is a GRAPHICAL object, so WCAG's non-text floor applies rather than the text one -
+ *  the same 3:1 `scripts/ai-lite-brand-audit.mjs` measures a rendered mark against. */
+export const LITE_MARK_CONTRAST_FLOOR = 3;
+
 /**
  * Bring a bespoke palette up to the contrast floor. Returns the repaired palette plus a
  * content-free note per adjustment, or null when the floor is unreachable at any lightness
@@ -1216,6 +1248,72 @@ export function validateLiteDecision(
   const flourish = (spec as { flourish?: unknown }).flourish;
   if (typeof flourish === 'string' && flourish.trim()) errors.push('flourish_forbidden');
   if (spec.useLogoSlot && !entry?.logo) errors.push('logo_not_supported');
+  // Will the mark READ where this chassis puts it? Measured here rather than taught, because the
+  // 2026-08-09 brand round proved teaching cannot reach it: two of four bad frames were a
+  // transparent mark composited onto a surface of its own tone, and the prompt rule was
+  // literally satisfied in both. A chassis declaring `surface: 'palette'` says where its logo
+  // surface COMES FROM, not what it will BE - only the request's palette closes that, and only
+  // the server holds both halves at once (`benchmarks/lite/BRAND-ROUND-2026-08-09.md` §2).
+  //
+  // Scoped hard, because every term has to be KNOWN for the answer to mean anything: a mark that
+  // brings its own field cannot vanish, a mark whose ink read as mid-grey was deliberately sent
+  // without a tone, and a palette nobody supplied leaves the chassis default carrying - which
+  // this module cannot resolve. Absence is not evidence, so any missing term simply does not fire.
+  //
+  // It is APPLIED, never refused - and that shape was bought with a paid round. Shipped as an
+  // ERROR it turned the two frames it caught into two `generation_failed`s: the repair round
+  // could not save either, exactly as the palette floor's own note three lines below records
+  // ("a legibility floor should cost the palette at worst, never the whole generation"). A rule
+  // that converts a bad graphic into no graphic is worse than the defect it replaces.
+  //
+  // So the platform fixes it, in the order that costs the user least: re-pick a chassis whose
+  // logo surface suits the mark, and only when the catalog has none, deliver the graphic without
+  // the mark. Both are recorded as adjustments, so the ledger can count how often a brand's mark
+  // cannot be honoured - which is a CATALOG gap to draw against, not a model failure.
+  let logoReselect: string | null = null;
+  let logoPlate: 'light' | 'dark' | null = null;
+  if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
+    const panel = spec.palette?.panel ?? request.palette?.panel ?? null;
+    const markShape = request.mark.shape;
+    const ink = request.mark.ink;
+    // A `dark` surface is the PICTURE behind the graphic, which no palette repaints
+    // (docs/CATALOG_VARIETY.md §5.3) - so a dark-ink mark is unreadable there whatever else is
+    // requested. A `palette` surface is answerable only when a palette was actually supplied.
+    const reads = (candidate: LiteCatalogEntry): boolean => {
+      if (!candidate.logoSlot || !candidate.logoSlot.fits.includes(markShape)) return false;
+      if (candidate.logoSlot.surface === 'dark') return ink === 'light';
+      if (panel === null) return true;
+      const inkHex = ink === 'light' ? '#ffffff' : '#000000';
+      return (contrastRatio(inkHex, panel) ?? 99) >= LITE_MARK_CONTRAST_FLOOR;
+    };
+    // A LIGHT package cannot move onto a panel-less design. `surface: 'dark'` means the logo
+    // slot sits on the PICTURE rather than on a panel, which is the same thing as saying the
+    // design has no reading surface a palette can repaint (docs/CATALOG_VARIETY.md §5.3) - so
+    // near-black text drawn for a light panel simply disappears there.
+    //
+    // This clause exists because the first version of the repair did exactly that: it moved a
+    // knockout mark from lt11 to lt02, the mark became perfectly legible, and the NAME vanished.
+    // Every machine check passed and only the frame showed it. A repair that trades one
+    // invisible element for another is not a repair.
+    const panelLuminance = panel ? relativeLuminance(panel) : null;
+    const panelIsLight = panelLuminance !== null && panelLuminance > 0.5;
+    if (!reads(entry)) {
+      // Keep every other decision the model made: same intent, and at least the text capacity
+      // the chosen design had, so a re-pick can never wrap a line the original held.
+      const swap = LITE_CATALOG.find((candidate) =>
+        candidate.variantId !== entry.variantId
+        && candidate.intentKinds.includes(spec.intent.kind)
+        && candidate.supportingLineChars >= entry.supportingLineChars
+        && !(panelIsLight && candidate.logoSlot?.surface === 'dark')
+        && reads(candidate));
+      // A well is the LAST resort and the one that always works: the catalog cannot currently
+      // offer a chassis whose logo surface is the opposite tone to its own package, so without
+      // it every unreadable pairing ended with the mark dropped. The mark keeps its own tone,
+      // the graphic keeps its design, and the picture is not touched.
+      if (swap) logoReselect = swap.variantId;
+      else logoPlate = ink === 'light' ? 'dark' : 'light';
+    }
+  }
   // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
   // lightness can reach it, drop the bespoke palette so the chassis default carries. A
   // legibility floor should cost the palette at worst, never the whole generation.
@@ -1264,6 +1362,19 @@ export function validateLiteDecision(
   }
   if (palette) repaired.palette = palette;
   else delete repaired.palette;
+  // The mark repair, applied to the DECISION rather than only to the checks - the compile reads
+  // `variantId` and `useLogoSlot`, so a fix that stops at the validator changes nothing a viewer
+  // can see, which is the field-paint lesson in `src/ai/AGENTS.md` one layer up.
+  if (logoReselect) {
+    repaired.variantId = logoReselect;
+    adjustments.push('logo_chassis_reselected');
+  } else if (logoPlate) {
+    // The mark keeps its own tone and the graphic keeps its design; the well is what makes the
+    // two compatible. Recorded, because how often it is needed is the measure of a catalog that
+    // has no design offering a logo surface in the opposite tone to its own package.
+    repaired.logoPlate = logoPlate;
+    adjustments.push('logo_plated');
+  }
   return {
     decision: { status: 'ready', spec: repaired, ...(skin ? { skin } : {}) },
     errors: [],

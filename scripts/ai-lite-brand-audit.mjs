@@ -156,6 +156,53 @@ if (!targets.length) {
   process.exit(2);
 }
 
+// ── The instrument checks ITSELF first ───────────────────────────────────────────────
+//
+// A mark whose artwork overflows its own viewBox is clipped before the product ever sees it,
+// and the render then shows a cut-off logo that looks exactly like a placement defect. That is
+// not hypothetical: `banner-wide` declared a 960-wide viewBox around a text run ending at 1242,
+// and the 2026-08-09 brand round wrote the result up as the PRODUCT clipping a mark. A broken
+// fixture does not read as a broken fixture; it reads as a broken product, and everything this
+// script says afterwards is measured through it.
+//
+// So every mark is rendered alone and its ink bounding box compared with its own viewBox, before
+// a single chassis is touched.
+const markFaults = await page.evaluate((marks) => {
+  const faults = [];
+  for (const mark of marks) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0';
+    host.innerHTML = atob(mark.data.split(',')[1]);
+    document.body.appendChild(host);
+    const svg = host.querySelector('svg');
+    if (!svg) { faults.push(`${mark.id}: not an inline SVG`); host.remove(); continue; }
+    const [, , vbW, vbH] = (svg.getAttribute('viewBox') ?? '0 0 0 0').split(/\s+/).map(Number);
+    for (const node of svg.querySelectorAll('text, rect, path, circle')) {
+      const box = node.getBBox();
+      // A stroke paints outside the geometric box, so allow its half-width before complaining.
+      const slack = (parseFloat(getComputedStyle(node).strokeWidth) || 0) / 2 + 0.5;
+      if (box.x + box.width > vbW + slack || box.y + box.height > vbH + slack || box.x < -slack || box.y < -slack) {
+        faults.push(`${mark.id}: <${node.tagName}> spans ${Math.round(box.x)}..${Math.round(box.x + box.width)} x `
+          + `${Math.round(box.y)}..${Math.round(box.y + box.height)} outside its ${vbW}x${vbH} viewBox`);
+      }
+    }
+    // The declared natural size has to be the viewBox, or every aspect this script computes is
+    // measuring one mark and reporting another.
+    if (vbW !== mark.natural.width || vbH !== mark.natural.height) {
+      faults.push(`${mark.id}: declares natural ${mark.natural.width}x${mark.natural.height}, viewBox is ${vbW}x${vbH}`);
+    }
+    host.remove();
+  }
+  return faults;
+}, LITE_BRAND_MARKS.map(({ id, data, natural }) => ({ id, data, natural })));
+
+if (markFaults.length) {
+  console.error('The MARK BANK is faulty - fix it before trusting anything below:');
+  for (const fault of markFaults) console.error(`  x ${fault}`);
+  await browser.close();
+  process.exit(2);
+}
+
 // Say what the default target set left out, so a shrinking denominator is visible.
 if (!ALL && !LITE_ONLY && !idFilter.length) {
   const excluded = await page.evaluate(
@@ -381,6 +428,14 @@ await page.evaluate(([rules, backdrop, houseAmber]) => {
       if (r.width < 1 || r.height < 1) continue;
       // An element that CONTAINS the whole logo is a surface, not a neighbour.
       if (r.left <= logoRect.left && r.top <= logoRect.top && r.right >= logoRect.right && r.bottom >= logoRect.bottom) continue;
+      // Nor is the design's own ACCENT. Clear space asks whether the mark is crowded by
+      // something competing with it; an accent is structural furniture fused to the panel's
+      // edge, and every design gives its TEXT exactly the same distance from it. Counting it
+      // said lt05 could hold only a rail - while the one frame this whole round judged GOOD was
+      // a crest on lt05, at the very distance being called a failure. A threshold contradicted
+      // by the picture it is supposed to predict is measuring the wrong neighbour, and moving
+      // the number to fit would have hidden that instead of fixing it.
+      if (el.classList.contains(`${prefix}-accent`)) continue;
       const sel = el.id ? `#${el.id}` : (typeof el.className === 'string' && el.className
         ? `.${el.className.trim().split(/\s+/)[0]}` : el.tagName.toLowerCase());
       const { gap, overlaps } = rectGap(logoRect, r);

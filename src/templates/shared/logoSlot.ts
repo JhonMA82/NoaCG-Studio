@@ -18,6 +18,32 @@ export function designHasLogoSlot(design: StandardDesign, prefix: string): boole
 }
 
 /**
+ * The WELL behind the mark, painted only when the design's own surface cannot show it.
+ *
+ * The neutrals are fixed rather than derived from the palette on purpose: the well exists
+ * precisely because the palette's surface is the wrong tone, so deriving it from that palette is
+ * how it ends up wrong again. Both clear WCAG's 3:1 non-text floor against a pure white or a
+ * pure black mark with room to spare, which is what a knockout and a dark lockup actually are.
+ *
+ * Padding is the clear space the manual asks for, INSIDE the well - so the mark keeps its own
+ * air rather than touching the edge of the thing drawn to hold it. Nothing here reaches the
+ * picture: no radius, no crop, no filter, no uneven scale, which is what `assetIntegrity.ts`
+ * refuses on a mark the user said to use as it is.
+ */
+function plateCss(prefix: string, o: ResolvedOptions): string {
+  if (!o.logoPlate) return '';
+  const fill = o.logoPlate === 'light' ? '#f2f4f7' : '#12161c';
+  return `
+
+/* The logo WELL: the mark's own reading surface, because the design's would have hidden it. */
+.${prefix}-logo {
+  box-sizing: content-box;         /* the padding is clear space, not part of the mark's size */
+  padding: calc(10px * var(--scale));  /* clear space between the mark and the well's edge */
+  background: ${fill};             /* ${o.logoPlate} well - fixed, never the palette's surface */
+}`;
+}
+
+/**
  * Inject the shared logo slot into a design: the <img> as the first child of the
  * .{prefix}-box, its placeholder CSS, and the filelist field (id after every user field).
  * Returns the design untouched when the box wrapper can't be found — never a broken layout.
@@ -59,7 +85,7 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
   max-width: calc(260px * var(--scale));  /* the cap a very wide rail letterboxes inside */
   margin-bottom: calc(20px * var(--scale));  /* clear space: a quarter of the mark's height */
   object-fit: contain;             /* show the whole logo, never crop a wide wordmark */
-}`;
+}${plateCss(prefix, o)}`;
 
   return {
     ...design,

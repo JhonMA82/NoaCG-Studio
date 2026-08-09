@@ -28,6 +28,12 @@ import {
   LITE_LOWER_THIRD_FIXTURES,
   LITE_LOWER_THIRD_FIXTURE_VERSION,
 } from './ai-lite-lower-third-fixtures.mjs';
+import {
+  LITE_BRAND_FIXTURES,
+  LITE_BRAND_FIXTURE_VERSION,
+  LITE_BRAND_MARKS_BY_ID,
+  LITE_BRAND_PALETTES,
+} from './ai-lite-brand-fixtures.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve(process.argv[2] || './lite-eval-out');
@@ -42,9 +48,27 @@ const FIXTURE_IDS = new Set(
     .map((value) => value.trim())
     .filter(Boolean),
 );
+// WHICH BANK. The default is the text-only lower-third bank every prior round used. `brand`
+// selects the BRAND bank (scripts/ai-lite-brand-fixtures.mjs): the same shape of brief, plus a
+// real mark and the brand colours it arrives with, which is the case the product promise rests
+// on and no round has ever sent. Only the fixtures differ - the endpoint, the ceilings, the
+// shared compile, the capture and the ledger are the ones already in use here.
+const BANK = (process.env.NOACG_LITE_EVAL_BANK ?? 'lower-third').trim();
+if (BANK !== 'lower-third' && BANK !== 'brand') {
+  console.error(`Unknown NOACG_LITE_EVAL_BANK "${BANK}". Use lower-third or brand.`);
+  process.exit(1);
+}
+const BRAND = BANK === 'brand';
+// The brand bank carries three briefs for categories Lite cannot serve yet (§3 of the plan
+// widens to them). Sending those would spend money to be told `unsupported`, which is a known
+// answer, so the round takes only what is servable and SAYS how many it left out.
+const BRAND_SERVABLE = LITE_BRAND_FIXTURES.filter((fixture) => fixture.servable);
+const BANK_FIXTURES = BRAND
+  ? BRAND_SERVABLE.map((fixture) => [fixture.id, fixture.prompt, fixture])
+  : LITE_LOWER_THIRD_FIXTURES;
 const SELECTED_FIXTURES = (FIXTURE_IDS.size
-  ? LITE_LOWER_THIRD_FIXTURES.filter(([fixtureId]) => FIXTURE_IDS.has(fixtureId))
-  : LITE_LOWER_THIRD_FIXTURES
+  ? BANK_FIXTURES.filter(([fixtureId]) => FIXTURE_IDS.has(fixtureId))
+  : BANK_FIXTURES
 ).slice(0, REQUESTED);
 const RAW_VIDEO_DIR = path.join(OUT, '.raw-video');
 const FFMPEG = (process.env.FFMPEG_PATH ?? 'ffmpeg').trim() || 'ffmpeg';
@@ -154,7 +178,46 @@ async function waitForMotionToSettle(page) {
   return false;
 }
 
-async function measureAndCapture(spec, fixtureId, skin = null) {
+/**
+ * Measure each brand mark through the REAL browser probe the product uses, rather than reading
+ * the descriptor off the fixture record.
+ *
+ * The fixture knows its own shape and ink because the SVG is authored beside it, so a descriptor
+ * could be assembled here for free - and it would be a second implementation of the one thing
+ * this round exists to exercise. `probeMark` + `markShapeFromAspect` are what a real upload goes
+ * through (src/ai/liteClient.ts `describeMark`), so a bug in either has to show up as a wrong
+ * request, not be quietly routed around by the runner.
+ */
+async function probeBrandMarks() {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+    return await page.evaluate(async (marks) => {
+      const { probeMark } = await import('/src/assets/assetInfo.ts');
+      const { markShapeFromAspect } = await import('/src/ai/liteTypes.ts');
+      const out = {};
+      for (const mark of marks) {
+        const probe = await probeMark({ path: mark.path, data: mark.data });
+        if (!probe) { out[mark.id] = null; continue; }
+        const ink = probe.inkLuminance >= 0.65 ? 'light' : probe.inkLuminance <= 0.35 ? 'dark' : undefined;
+        out[mark.id] = {
+          descriptor: {
+            shape: markShapeFromAspect(probe.aspect),
+            backing: probe.backing,
+            ...(probe.backing === 'transparent' && ink ? { ink } : {}),
+          },
+          measured: { aspect: Math.round(probe.aspect * 1000) / 1000, inkLuminance: Math.round(probe.inkLuminance * 1000) / 1000 },
+        };
+      }
+      return out;
+    }, [...LITE_BRAND_MARKS_BY_ID.values()].map(({ id, path: assetPath, data }) => ({ id, path: assetPath, data })));
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+async function measureAndCapture(spec, fixtureId, skin = null, brandContext = null) {
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
     deviceScaleFactor: 1,
@@ -168,16 +231,20 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
   const recordingStarted = Date.now();
   try {
     await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
-    const measured = await page.evaluate(async ({ spec: designSpec, skin: skinPatch }) => {
+    const measured = await page.evaluate(async ({ spec: designSpec, skin: skinPatch, brand }) => {
       // The ONE shared compile pipeline (src/ai/litePipeline.ts) - identical to what
       // production runs after the same server decision. Never re-inline the steps here:
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
       const { compileLiteDecision } = await import('/src/ai/litePipeline.ts');
       const { parseAnimData } = await import('/src/blocks/animData.ts');
       const { variantById } = await import('/src/templates/catalog.ts');
+      // The brand bank supplies what a real user brings: the mark as a project asset (so the
+      // slot fills with a real file rather than staying empty) and the brand palette (so "the
+      // accent came from the brand" is visible in the frame). The lower-third bank passes
+      // neither, which is byte-identical to every round before this one.
       const context = {
-        images: [],
-        palette: null,
+        images: brand?.images ?? [],
+        palette: brand?.palette ?? null,
         resolution: { width: 1920, height: 1080, label: '1080p' },
         fps: 50,
       };
@@ -265,7 +332,7 @@ async function measureAndCapture(spec, fixtureId, skin = null) {
           return [`f${index}`, replacements[line.role] ?? line.sample];
         })),
       };
-    }, { spec, skin });
+    }, { spec, skin, brand: brandContext });
     await page.evaluate((initialData) => {
       document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(initialData));
     }, measured.initialData);
@@ -394,7 +461,12 @@ async function writeReviewPage() {
   const summaries = [];
   for (const file of files) {
     const parsed = JSON.parse(await readFile(path.join(OUT, file), 'utf8'));
-    if (parsed.fixtureVersion === LITE_LOWER_THIRD_FIXTURE_VERSION) summaries.push(parsed);
+    // Same BANK and same version, both. The version alone stopped being enough the moment a
+    // second bank existed: brand v1 and lower-third v1 would otherwise pool into one gallery
+    // and read as candidates for the same brief.
+    const sameBank = (parsed.bank ?? 'lower-third') === BANK;
+    const version = BRAND ? LITE_BRAND_FIXTURE_VERSION : LITE_LOWER_THIRD_FIXTURE_VERSION;
+    if (sameBank && parsed.fixtureVersion === version) summaries.push(parsed);
   }
   const cards = SELECTED_FIXTURES.map(([fixtureId, prompt]) => {
     const candidates = summaries
@@ -456,7 +528,35 @@ const rows = [];
 let totalCostUsd = 0;
 let providerCalls = 0;
 let sessions = 0;
-for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
+// Measure every brand mark ONCE, before the loop and before anything is spent: a probe that
+// failed is a configuration fault, and finding that out after four paid generations is finding
+// it too late. Empty on the lower-third bank, which sends no marks.
+const MARK_PROBES = BRAND ? await probeBrandMarks() : {};
+if (BRAND) {
+  const unreadable = Object.entries(MARK_PROBES).filter(([, value]) => !value).map(([id]) => id);
+  if (unreadable.length) {
+    console.error(`Could not probe brand mark(s): ${unreadable.join(', ')}. Aborting before spending anything.`);
+    await browser.close();
+    process.exit(1);
+  }
+  console.log(`Brand bank: ${SELECTED_FIXTURES.length} servable brief(s); `
+    + `${LITE_BRAND_FIXTURES.length - BRAND_SERVABLE.length} left out as not-yet-servable categories.`);
+  for (const [id, value] of Object.entries(MARK_PROBES)) {
+    console.log(`  ${id}: ${JSON.stringify(value.descriptor)} `
+      + `(aspect ${value.measured.aspect}, ink ${value.measured.inkLuminance})`);
+  }
+}
+
+for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
+  // What a real user's request carries, assembled from the fixture record.
+  const brandPalette = fixture ? LITE_BRAND_PALETTES[fixture.palette] : null;
+  const brandMark = fixture ? LITE_BRAND_MARKS_BY_ID.get(fixture.markId) : null;
+  const brandContext = brandMark
+    ? {
+        palette: { id: 'brand', name: 'Brand', ...brandPalette },
+        images: [{ path: brandMark.path, data: brandMark.data }],
+      }
+    : null;
   if (providerCalls >= MAX_PROVIDER_CALLS || totalCostUsd >= MAX_COST_USD) break;
   const started = Date.now();
   process.stdout.write(`- ${fixtureId}: `);
@@ -472,6 +572,11 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       body: JSON.stringify({
         idempotencyKey: `eval-${LABEL}-${fixtureId}-${crypto.randomUUID()}`,
         prompt,
+        // The brand bank only: the user's colours, that there IS a mark, and what the browser
+        // measured that mark to be. Absent on the lower-third bank, so its request body is
+        // byte-identical to every round before this one.
+        ...(brandPalette ? { palette: brandPalette } : {}),
+        ...(brandMark ? { hasLogo: true, mark: MARK_PROBES[brandMark.id].descriptor } : {}),
         resolution: { width: 1920, height: 1080 },
         fps: 50,
       }),
@@ -497,7 +602,7 @@ for (const [fixtureId, prompt] of SELECTED_FIXTURES) {
       continue;
     }
 
-    const measured = await measureAndCapture(generated.decision.spec, fixtureId, generated.decision.skin ?? null);
+    const measured = await measureAndCapture(generated.decision.spec, fixtureId, generated.decision.skin ?? null, brandContext);
 
     // The vision judge - the production-shaped tail of the skin funnel: a skin that
     // compiled and benched clean still reverts to the house chassis on a failed verdict.
@@ -620,7 +725,11 @@ await browser.close();
 
 const summary = {
   version: 1,
-  fixtureVersion: LITE_LOWER_THIRD_FIXTURE_VERSION,
+  // Which BANK and which version of it - two rounds from different banks are not comparable,
+  // and a summary that records only a version number leaves that ambiguous the moment a
+  // second bank exists.
+  bank: BANK,
+  fixtureVersion: BRAND ? LITE_BRAND_FIXTURE_VERSION : LITE_LOWER_THIRD_FIXTURE_VERSION,
   candidate: LABEL,
   calls: providerCalls,
   sessions,
