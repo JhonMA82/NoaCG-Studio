@@ -25,7 +25,7 @@ import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { projectRoot } from './api-runtime-build.mjs';
 import { devPort } from './dev-port.mjs';
-import { readEnvFile } from './read-dotenv.mjs';
+import { readCheckoutEnv } from './read-dotenv.mjs';
 
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith('--')));
@@ -48,8 +48,9 @@ const BASE = `http://localhost:${devPort()}`;
 // credentials are absent, so an operator can still supply one by hand.
 // Parsing lives in scripts/read-dotenv.mjs - one definition, shared with the other runners and
 // the freshness checks. Resolved against the project root rather than the cwd, so a run started
-// from a subdirectory finds the same file instead of silently finding none.
-const fileEnv = readEnvFile(projectRoot);
+// from a subdirectory finds the same file instead of silently finding none - and against the
+// MAIN checkout when this one is a worktree, which never has a `.env` of its own.
+const fileEnv = readCheckoutEnv(projectRoot);
 const credentials = {
   url: process.env.VITE_SUPABASE_URL || fileEnv.VITE_SUPABASE_URL || '',
   anon: process.env.VITE_SUPABASE_ANON_KEY || fileEnv.VITE_SUPABASE_ANON_KEY || '',

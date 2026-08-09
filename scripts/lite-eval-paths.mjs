@@ -13,29 +13,16 @@
 //                 BELONG HERE"). Vite loads `.env.[mode].local` after `.env.[mode]`, so this
 //                 file wins without touching the tracked one, and `.gitignore` covers it.
 
-import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readEnvFile } from './read-dotenv.mjs';
+import { mainCheckout as resolveMainCheckout, readEnvFile } from './read-dotenv.mjs';
 
 /** The checkout these scripts live in - a worktree, or the main checkout. */
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/**
- * The MAIN checkout, which is the only one that carries a real `.env`. `--git-common-dir` is
- * the shared `.git` directory: in a linked worktree it is an absolute path into the main
- * checkout, in the main checkout it is a bare `.git` relative to the cwd - hence the resolve
- * against `repoRoot` rather than against wherever the tool was invoked from.
- */
+/** The MAIN checkout, which is the only one that carries a real `.env`. */
 export function mainCheckout() {
-  const result = spawnSync('git', ['rev-parse', '--git-common-dir'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-  const raw = result.status === 0 ? result.stdout.trim() : '';
-  // Not a git checkout at all (a tarball, a CI copy): the checkout we are in is all there is.
-  if (!raw) return repoRoot;
-  return dirname(resolve(repoRoot, raw));
+  return resolveMainCheckout(repoRoot);
 }
 
 /** The main checkout's `.env` - the one file that holds real keys. Absent reads as empty. */
