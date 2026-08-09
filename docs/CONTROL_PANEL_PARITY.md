@@ -37,12 +37,13 @@ control page, produced its declared buttons with its declared labels, and greyed
 structural guard at every step of a real walk. Nothing needed per-type code and nothing was
 missing from the transport. The state chip tracked every group, including the parallel ones.
 
-**What is weak is the operator surface, not the machine.** Ten gaps are listed in §5. Two were
-defects that put a wrong picture on air with nobody doing anything wrong, and both are **fixed
-here**: an empty selected-answer marked answer A as the contestant's pick (§5.0), and an event
-button fired with no entry selected aired an empty payload over the fields (§5.1). The rest are
-capability gaps, led by the state chip printing internal ids (§5.2) and the absence of any
-snap/recovery control the production page already has (§5.3).
+**What is weak is the operator surface, not the machine.** Ten gaps are listed in §5; **four are
+fixed here**. Two were defects that put a wrong picture on air with nobody doing anything wrong -
+an empty selected-answer marked answer A as the contestant's pick (§5.0) and an event fired with
+no entry selected aired an empty payload over the fields (§5.1). Two were the surface not saying
+what it knows: the chip printed internal state ids (§5.2) and the events ignored the sections their
+type declared (§5.6). What is left is led by the absence of any snap/recovery control the
+production page already has (§5.3) and by a running countdown that cannot be corrected (§5.4).
 
 Measured button legality, over the whole walk, matched the authored graph in every case - including
 the two claims the model exists to make: after `lock` the quiz offers no `select` (the pick is
@@ -139,8 +140,8 @@ the other way round:
 |---|---|---|---|---|
 | Event buttons | yes | yes | yes | yes |
 | Structural greying | yes | yes | yes | yes |
-| Buttons grouped by section | **no** | yes | yes | yes |
-| State shown as | **raw id** | **raw id** (the simulator's strip chip) | raw id | state NAME (via `machineStateGroups`) |
+| Buttons grouped by section | yes | yes | yes | yes |
+| State shown as | state NAME | state NAME | state NAME | state NAME |
 | Snap to a state (recovery) | **no** | via the graph | recovery replay on reboot | production page: **yes** (`.pd-snap`, with a reset-visual-state option); hosted page: no |
 | Entries | authored here | – | baked in, read-only | read-only picker |
 | Staged vs aired | Update/Play only | Live toggle | staged + ⟳ Take | staged + ⟳ Take |
@@ -177,15 +178,19 @@ tooltip names the payload fields and says where they come from. Pinned by
 `e2e/control-panel-types.spec.ts` ("an event fired with no entry selected keeps the values already
 on air").
 
-**5.2 The state chip prints internal state IDS, not the names the type authored.** Measured chip
-text: `enter`, `question`, `sealed`, `main:enter · clock:running`. The machine carries `Enter`,
-`Question`, `Locked, choice hidden`, `Running`, and `machineStateGroups` already resolves ids to
-those names - the production and hosted pages both use it for exactly this. The chip is the fact
-every greyed button is justified against, so it is the one string on the surface that has to read
-as English. **Three surfaces share the defect**, from two copies of the same three-line map: this
-page (`GraphicControlPage.tsx`), the editor simulator's strip chip
-(`PlayoutSimulator.tsx:148`), and the exported panel. One shared formatter over
-`machineStateGroups` is the whole fix.
+**5.2 The state chip printed internal state IDS, not the names the type authored. FIXED HERE.**
+Measured chip text was `enter`, `question`, `sealed`, `main:enter · clock:running`, where the
+machine carries `Enter`, `Question`, `Locked, choice hidden`, `Running`. The chip is the fact every
+greyed button is justified against, so it is the one string on the surface that has to read as
+English - and **three surfaces printed ids** (this page, the editor simulator's strip chip, the
+exported panel) while two printed names, from two hand-rolled copies of the same three-line map.
+
+There is one formatter now - `controlModel.ts` `formatMachineState` over `machineStateNames` - and
+all five surfaces call it. `machineStateNames` is deliberately not `machineStateGroups`: that one
+is the snap PICKER's list and is empty without an explicit machine on purpose, while NAMING has to
+work for a machine-less graphic too, so it falls back to the derived machine (whose states are
+named after the steps - a lower third now reads "Enter"). The exported panel ships without React,
+so it carries the map baked in at export.
 
 **5.3 There is no snap / recovery control at all.** The production page builds one out of
 `machineStateGroups` (`.pd-snap`, a per-group state picker plus a `::reset` entry that snaps every
@@ -212,11 +217,14 @@ distinguishes "the operator closed it" from "it closed itself". Two shipped type
 on a timer (live vote, chat highlight) and a third (transition) clears itself; none of them can say
 so on an operator surface.
 
-**5.6 Event buttons are not grouped by section.** Measured: `.ctl-event-section` count is **0** on
-the quiz's control page. The type declares `section` ("Answer", "Vote", "Flag", "Result", "Clock")
-and every other renderer honours it - the Rehearse panel, the exported panel and the production
-page all build section blocks; this page lays all of them out in one flat transport row beside
-▶ ⟳ » ■. On the quiz that is nine controls in one row with no grouping and no order cue.
+**5.6 Event buttons were not grouped by section. FIXED HERE.** Measured: `.ctl-event-section` count
+was **0** on the quiz's control page, while every other renderer honours the `section` the type
+declares ("Answer", "Vote", "Flag", "Result", "Clock") - so a quiz put nine controls in one flat
+row beside ▶ ⟳ » ■ with no grouping and no order cue. The events now sit BELOW the transport in
+their declared sections (`.ctl-events`, the same block the Rehearse panel builds), operator-sized
+like the row above them. The lifecycle row stays what it is: ▶ ⟳ » ■ are the four presses every
+graphic has, an event is one only this graphic has. Browser-checked at 1280×720 - the stage gives
+up the height and nothing clips or scrolls.
 
 **5.7 A branch with no way out reads as a broken » Next.** The vote's `called` has no outgoing
 arrow, so » Next is inert there. The button is neither greyed nor explained - unlike an event
@@ -291,7 +299,7 @@ What genuinely has to change to widen Lite into these categories, in order:
 node scripts/e2e-runs.mjs --wait && npx playwright test e2e/control-panel-types.spec.ts
 ```
 
-Eleven tests, ~50 s. Adding a type: give it a `TypeCase` in that file - its buttons, the settled
+Twelve tests, ~1 min. Adding a type: give it a `TypeCase` in that file - its buttons, the settled
 chip, and the walk with the legality after every press. The list is the type's own claim about what
 an operator may do, written where it can fail.
 

@@ -7,7 +7,7 @@
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
-import { machineControls, type ControlButton } from '../blocks/animMachine';
+import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../export/slug';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all. */
@@ -96,6 +96,57 @@ export function machineStateGroups(js: string): MachineStateGroup[] {
     id: g.id,
     states: g.states.map((s) => ({ id: s.id, name: s.name ?? s.id })),
   }));
+}
+
+/**
+ * Every state's NAME, by group then by state id — what a surface needs to say where the
+ * graphic is in words.
+ *
+ * Deliberately not `machineStateGroups` above: that one is the SNAP PICKER's list and is
+ * empty without an explicit machine on purpose (a plain linear template's picker would only
+ * duplicate ▶/»/■). Naming is the opposite question — a lower third's `enter` should read
+ * "Enter" exactly as a quiz's `sealed` should read "Locked, choice hidden" — so this falls
+ * back to the DERIVED machine, which names its states after the steps. Nothing is fetched:
+ * the names travel inside the template's own data block.
+ */
+export function machineStateNames(js: string): Record<string, Record<string, string>> {
+  const data = parseAnimData(js);
+  if (!data) return {};
+  const machine = data.machine ?? deriveMachine(data);
+  const out: Record<string, Record<string, string>> = {};
+  for (const group of machine.groups) {
+    const names: Record<string, string> = {};
+    for (const s of group.states) names[s.id] = s.name ?? s.id;
+    out[group.id] = names;
+  }
+  return out;
+}
+
+/**
+ * The graphic's current state as one operator-readable line, or null before it has answered.
+ *
+ * THE STATE CHIP IS THE FACT EVERY GREYED BUTTON IS JUDGED AGAINST, so it is the one string on
+ * an operator surface that has to read as English. The runtime reports state IDS
+ * (`noacgMachineState()` keys pointers by id), and three surfaces used to print them raw -
+ * "sealed", "main:enter · clock:running" - from two hand-rolled copies of this map. Ids are
+ * the author's vocabulary; an operator has seen only the names.
+ *
+ * One group prints its state alone; several prefix the GROUP id, because with a clock and a
+ * flag and a walk running at once the name by itself does not say which of them moved.
+ */
+export function formatMachineState(
+  names: Record<string, Record<string, string>>,
+  state: { groups: Record<string, string> } | null | undefined,
+): string | null {
+  if (!state) return null;
+  const entries = Object.entries(state.groups);
+  if (entries.length === 0) return null;
+  return entries
+    .map(([groupId, stateId]) => {
+      const name = names[groupId]?.[stateId] ?? stateId;
+      return entries.length > 1 ? `${groupId}: ${name}` : name;
+    })
+    .join(' · ');
 }
 
 /** Which states each event fires from, per group — a control surface greys a button the

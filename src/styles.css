@@ -5345,7 +5345,11 @@ h2 + .lib-row,
   font-size: 14px;
 }
 .control-page-transport button.primary { padding-inline: 20px; font-weight: 600; }
-.control-events-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+/* The graphic's own events sit BELOW the transport in their declared sections (.ctl-events,
+   shared with the Rehearse panel), not inline with ▶ ⟳ » ■ — a quiz put nine controls in one
+   flat row otherwise. Operator-sized like the transport above it: these are pressed live. */
+.control-page-events { padding: 4px 14px 12px; background: var(--panel); }
+.control-page-events button { min-height: 44px; padding: 10px 16px; font-size: 14px; }
 /* The operator's "where is it" chip — the editor's .simulator-state, sized for the transport
    row it sits in (this bar is deliberately bigger than the editor's; see the operator-sized
    cues). Pushed right so it reads as status, not as another button. */

@@ -18,7 +18,14 @@
 
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor } from '../model/fieldModel';
-import { controlChannelName, eventButtons, eventLegality, fieldDescriptors, type ControlButton } from './controlModel';
+import {
+  controlChannelName,
+  eventButtons,
+  eventLegality,
+  fieldDescriptors,
+  machineStateNames,
+  type ControlButton,
+} from './controlModel';
 import type { RemoteControlConfig } from './realtimeControl';
 import { isImageAsset } from '../assets/assetUtils';
 
@@ -49,6 +56,8 @@ export interface EmittedGraphic {
   events: ControlButton[];
   /** event -> group -> the states it fires from (the structural guard, precomputed). */
   legal: Record<string, Record<string, string[]>>;
+  /** group -> state id -> the NAME the author gave it, so the chip never prints an id. */
+  stateNames: Record<string, Record<string, string>>;
   images: EmittedImage[];
   /** Saved entries the operator switches between (docs/SAVED_CONTENT_MODEL.md §4). */
   entries: EmittedEntry[];
@@ -93,6 +102,10 @@ export function emitGraphic(
     controls: emitControls(template.fields),
     events: eventButtons(template.js),
     legal: eventLegality(template.js),
+    // The state NAMES, baked in: this page ships without React and cannot call
+    // `formatMachineState`, but it must not print raw ids either — a student operating an
+    // exported package has never seen "sealed". Resolved here, at generation time.
+    stateNames: machineStateNames(template.js),
     images,
     entries: (opts?.entries ?? []).map((e) => ({ id: e.id, label: e.label, values: e.values })),
     remote,
@@ -475,9 +488,16 @@ GRAPHICS.forEach(function (g) {
   }
   function paintState() {
     if (machineState) {
+      // The author's NAMES, not the runtime's ids — the same line the app's chip shows.
+      // g.stateNames is baked in at export (controlModel.ts machineStateNames); an id it does
+      // not know falls back to itself, which is what a hand-edited machine gets.
       var parts = [];
       var many = Object.keys(machineState.groups).length > 1;
-      for (var gid in machineState.groups) parts.push((many ? gid + ': ' : '') + machineState.groups[gid]);
+      for (var gid in machineState.groups) {
+        var sid = machineState.groups[gid];
+        var named = (g.stateNames && g.stateNames[gid] && g.stateNames[gid][sid]) || sid;
+        parts.push((many ? gid + ': ' : '') + named);
+      }
       chip.textContent = parts.join(' · ');
       chip.style.display = 'inline-block';
       // The red tally: 'main' is the lifecycle group on every template (a parallel group's

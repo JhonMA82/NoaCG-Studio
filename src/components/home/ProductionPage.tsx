@@ -29,8 +29,10 @@ import {
   eventButtons,
   eventLegality,
   fieldDescriptors,
+  formatMachineState,
   isEventLegal,
   machineStateGroups,
+  machineStateNames,
   type ControlButton,
 } from '../../control/controlModel';
 import {
@@ -427,6 +429,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const events = useMemo(() => (previewTemplate ? eventButtons(previewTemplate.js) : []), [previewTemplate]);
   const legality = useMemo(() => (previewTemplate ? eventLegality(previewTemplate.js) : {}), [previewTemplate]);
   const stateGroups = useMemo(() => (previewTemplate ? machineStateGroups(previewTemplate.js) : []), [previewTemplate]);
+  // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
+  // list is the snap PICKER's and is empty without an explicit machine by design, while a
+  // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
+  const stateNames = useMemo(() => (previewTemplate ? machineStateNames(previewTemplate.js) : {}), [previewTemplate]);
   const settleData = selectedCue ? JSON.stringify(cueView(selectedCue).values) : '';
   const settlePreview = useCallback((data: string) => {
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
@@ -772,13 +778,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // AIR the moment they are pressed, like ✎ Update, so they follow Update's legality: live
   // only while the selected cue's graphic is up on its layer. ──
   const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
-  const stateName = (groupId: string, stateId: string) =>
-    stateGroups.find((g) => g.id === groupId)?.states.find((s) => s.id === stateId)?.name ?? stateId;
-  const stateLabel = machineState
-    ? Object.entries(machineState.groups)
-        .map(([gid, sid]) => (Object.keys(machineState.groups).length > 1 ? `${gid}: ${stateName(gid, sid)}` : stateName(gid, sid)))
-        .join(' · ')
-    : null;
+  const stateLabel = formatMachineState(stateNames, machineState);
   const eventSections: [string, ControlButton[]][] = [];
   for (const b of events) {
     const key = b.section ?? 'Actions';

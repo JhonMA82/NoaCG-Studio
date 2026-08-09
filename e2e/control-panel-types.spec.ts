@@ -23,7 +23,10 @@ import { settleDurableWrites } from './_durable';
 interface Step {
   /** Event to fire, or a lifecycle press. */
   press: string | 'play' | 'next' | 'stop';
-  /** The state chip's expected text afterwards. */
+  /** The state chip's expected text afterwards - the state's NAME, since that is what an
+   *  operator surface shows (controlModel.ts formatMachineState); several groups prefix the
+   *  group id, because with a clock and a flag running at once the name alone does not say
+   *  which of them moved. */
   state: string;
   /** Which event buttons must be pressable afterwards; every other one must be greyed. */
   legal: string[];
@@ -48,14 +51,14 @@ const CASES: TypeCase[] = [
     variantId: 'qz02',
     name: 'quiz board',
     buttons: ['select', 'lock', 'revealChoice', 'judge', 'audience'],
-    settled: 'question',
+    settled: 'Question',
     legalAtRest: ['select', 'lock', 'judge'],
     walk: [
-      { press: 'play', state: 'question', legal: ['select', 'lock', 'judge'] },
-      { press: 'select', state: 'selected', legal: ['select', 'lock'] },
-      { press: 'lock', state: 'locked', legal: ['judge'] },
-      { press: 'judge', state: 'reveal', legal: ['audience'] },
-      { press: 'audience', state: 'audience', legal: [] },
+      { press: 'play', state: 'Question', legal: ['select', 'lock', 'judge'] },
+      { press: 'select', state: 'Answer selected', legal: ['select', 'lock'] },
+      { press: 'lock', state: 'Locked in', legal: ['judge'] },
+      { press: 'judge', state: 'Reveal', legal: ['audience'] },
+      { press: 'audience', state: 'Audience result', legal: [] },
     ],
   },
   {
@@ -64,12 +67,12 @@ const CASES: TypeCase[] = [
     variantId: 'qz02',
     name: 'quiz board, hidden pick',
     buttons: ['select', 'lock', 'revealChoice', 'judge', 'audience'],
-    settled: 'question',
+    settled: 'Question',
     legalAtRest: ['select', 'lock', 'judge'],
     walk: [
-      { press: 'play', state: 'question', legal: ['select', 'lock', 'judge'] },
-      { press: 'lock', state: 'sealed', legal: ['revealChoice', 'judge'] },
-      { press: 'revealChoice', state: 'locked', legal: ['judge'] },
+      { press: 'play', state: 'Question', legal: ['select', 'lock', 'judge'] },
+      { press: 'lock', state: 'Locked, choice hidden', legal: ['revealChoice', 'judge'] },
+      { press: 'revealChoice', state: 'Locked in', legal: ['judge'] },
     ],
   },
   {
@@ -78,13 +81,13 @@ const CASES: TypeCase[] = [
     variantId: 'pl01',
     name: 'live vote',
     buttons: ['close', 'result', 'call'],
-    settled: 'enter',
+    settled: 'Enter',
     legalAtRest: ['close', 'result'],
     walk: [
-      { press: 'play', state: 'enter', legal: ['close', 'result'] },
-      { press: 'close', state: 'closed', legal: ['result'] },
-      { press: 'result', state: 'result', legal: ['call'] },
-      { press: 'call', state: 'called', legal: [] },
+      { press: 'play', state: 'Enter', legal: ['close', 'result'] },
+      { press: 'close', state: 'Voting closed', legal: ['result'] },
+      { press: 'result', state: 'Result', legal: ['call'] },
+      { press: 'call', state: 'Winner called', legal: [] },
     ],
   },
   {
@@ -93,14 +96,14 @@ const CASES: TypeCase[] = [
     variantId: 'sb03',
     name: 'scoreboard',
     buttons: ['flag', 'clearFlag', 'final'],
-    settled: 'main:enter · flag:none · result:live',
+    settled: 'main: Enter · flag: No flag · result: Live',
     legalAtRest: ['flag', 'final'],
     walk: [
-      { press: 'flag', state: 'main:enter · flag:shown · result:live', legal: ['clearFlag', 'final'] },
-      { press: 'clearFlag', state: 'main:enter · flag:none · result:live', legal: ['flag', 'final'] },
-      { press: 'final', state: 'main:enter · flag:none · result:final', legal: ['flag'] },
+      { press: 'flag', state: 'main: Enter · flag: Flag · result: Live', legal: ['clearFlag', 'final'] },
+      { press: 'clearFlag', state: 'main: Enter · flag: No flag · result: Live', legal: ['flag', 'final'] },
+      { press: 'final', state: 'main: Enter · flag: No flag · result: Final', legal: ['flag'] },
       // Stop rests every group at its INITIAL state, which is what makes `final` offerable again.
-      { press: 'stop', state: 'main:off · flag:none · result:live', legal: ['flag', 'final'] },
+      { press: 'stop', state: 'main: Off · flag: No flag · result: Live', legal: ['flag', 'final'] },
     ],
   },
   {
@@ -109,12 +112,12 @@ const CASES: TypeCase[] = [
     variantId: 'gt05',
     name: 'countdown',
     buttons: ['pause', 'resume'],
-    settled: 'main:enter · clock:running',
+    settled: 'main: Enter · clock: Running',
     legalAtRest: ['pause'],
     walk: [
-      { press: 'play', state: 'main:enter · clock:running', legal: ['pause'] },
-      { press: 'pause', state: 'main:enter · clock:paused', legal: ['resume'] },
-      { press: 'resume', state: 'main:enter · clock:running', legal: ['pause'] },
+      { press: 'play', state: 'main: Enter · clock: Running', legal: ['pause'] },
+      { press: 'pause', state: 'main: Enter · clock: Paused', legal: ['resume'] },
+      { press: 'resume', state: 'main: Enter · clock: Running', legal: ['pause'] },
     ],
   },
 ];
@@ -204,13 +207,13 @@ test('an event fired with no entry selected keeps the values already on air', as
   const frame = page.frameLocator('iframe[title="Graphic preview"]');
 
   await page.getByTestId('control-play').click();
-  await expectState(page, 'question');
+  await expectState(page, 'Question');
   await page.getByTestId('control-update').click();
   await expect(frame.locator('#f6')).toHaveText('C');
 
   // No entry is selected, so the event carries nothing and the pick on air survives it.
   await page.getByTestId('control-event-select').click();
-  await expectState(page, 'selected');
+  await expectState(page, 'Answer selected');
   await expect(frame.locator('#f6')).toHaveText('C');
   await expect(frame.locator('.quiz-option.quiz-sel')).toHaveCount(1);
 });
@@ -225,5 +228,23 @@ test('a graphic with no machine gets a transport and no event buttons', async ({
   await expect(page.getByTestId('control-next')).toBeVisible();
   await expect(page.getByTestId('control-stop')).toBeVisible();
   await expect(page.locator('[data-testid^="control-event-"]')).toHaveCount(0);
-  await expectState(page, 'enter');
+  // No sections either - a machine-less graphic has nothing to group.
+  await expect(page.locator('.ctl-event-section')).toHaveCount(0);
+  // And the chip still reads as a word: with no machine key the names come from the DERIVED
+  // machine, which takes them from the step names ("Enter"), not from the slugged ids.
+  await expectState(page, 'Enter');
+});
+
+test('event buttons carry the sections the type declared', async ({ page }) => {
+  // Every other renderer of this vocabulary groups by `machine.controls[].section`; this page
+  // laid all of them in one flat transport row, so a quiz put nine controls in a single line
+  // with no grouping and no order cue.
+  await openControlPage(page, 'sb03', 'Control sections');
+  const sections = page.locator('.ctl-event-section');
+  await expect(sections).toHaveCount(2); // the scoreboard declares Flag and Result
+  await expect(sections.nth(0).locator('h4')).toHaveText('Flag');
+  await expect(sections.nth(1).locator('h4')).toHaveText('Result');
+  // The buttons live INSIDE their section, not beside the transport.
+  await expect(sections.nth(0).getByTestId('control-event-flag')).toBeVisible();
+  await expect(sections.nth(1).getByTestId('control-event-final')).toBeVisible();
 });

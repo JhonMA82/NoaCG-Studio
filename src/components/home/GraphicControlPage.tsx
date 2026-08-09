@@ -3,7 +3,15 @@ import { saveAs } from 'file-saver';
 import { useRouter } from '../../app/router';
 import { graphicById, newEntry, updateGraphic, type ControlEntry, type GraphicDoc } from '../../model/library';
 import { commitDurableWrites } from '../../model/durableStore';
-import { fieldDescriptors, eventButtons, eventLegality, isEventLegal } from '../../control/controlModel';
+import {
+  fieldDescriptors,
+  eventButtons,
+  eventLegality,
+  formatMachineState,
+  isEventLegal,
+  machineStateNames,
+  type ControlButton,
+} from '../../control/controlModel';
 import { renderControlPanelHtml } from '../../control/controlPanelHtml';
 import { composeDocument } from '../../preview/composeDocument';
 import {
@@ -73,6 +81,19 @@ export default function GraphicControlPage({ id }: { id: string }) {
     [doc],
   );
   const buttons = useMemo(() => (doc ? eventButtons(doc.template.js) : []), [doc]);
+  // Grouped by the SECTION the type declared ("Answer", "Vote", "Flag", "Result", "Clock"),
+  // in declared order — the same grouping the Rehearse panel, the exported panel and the
+  // production page build. An undeclared event falls into "Events", as it does there.
+  const eventSections = useMemo(() => {
+    const sections: [string, ControlButton[]][] = [];
+    for (const b of buttons) {
+      const name = b.section ?? 'Events';
+      const bucket = sections.find(([s]) => s === name);
+      if (bucket) bucket[1].push(b);
+      else sections.push([name, [b]]);
+    }
+    return sections;
+  }, [buttons]);
   // Keyed on the TEMPLATE, not the whole record: an entry edit rewrites `doc` on every
   // keystroke, and recomposing the document there only to hand React an identical string is
   // work done to be thrown away.
@@ -138,11 +159,11 @@ export default function GraphicControlPage({ id }: { id: string }) {
       clearInterval(handle);
     };
   }, [buttons.length, doc?.id, postCmd]);
-  const stateLabel = machineState
-    ? Object.entries(machineState.groups)
-        .map(([g, s]) => (Object.keys(machineState.groups).length > 1 ? `${g}:${s}` : s))
-        .join(' · ')
-    : null;
+  // WORN AS WORDS, not as ids. The runtime reports `sealed` / `enter`; the operator has only
+  // ever seen "Locked, choice hidden" and "Enter", and this chip is what every greyed button is
+  // justified against. One formatter, shared with the production and hosted pages.
+  const stateNames = useMemo(() => (doc ? machineStateNames(doc.template.js) : {}), [doc]);
+  const stateLabel = formatMachineState(stateNames, machineState);
   /** The operator PLAYED something here and has not stopped it. Machine state alone cannot
    *  carry the tally: the load-time SETTLE parks the preview at its on-air pose, which walks
    *  the derived machine to its entered state — so "state ≠ off" is true before anyone
@@ -380,49 +401,6 @@ export default function GraphicControlPage({ id }: { id: string }) {
             >
               ■ Stop
             </button>
-            {buttons.length > 0 && <span className="control-events-sep" aria-hidden="true" />}
-            {buttons.map((b) => {
-              const legal = isEventLegal(legality, b.event, machineState);
-              return (
-                <button
-                  key={b.event}
-                  disabled={!legal}
-                  onClick={() => {
-                    // A PAYLOAD ONLY RIDES WHEN THERE IS SOMETHING TO SEND. The values a
-                    // payload carries live in an ENTRY on this surface, and a freshly saved
-                    // graphic has none - so building the payload from `active?.values[key] ??
-                    // ''` sent an EMPTY string for every payload field, which the machine then
-                    // applied: pressing ⚡ Select answer on a graphic with no entries wiped the
-                    // pick instead of making one. The guard is about the EVENT, never about the
-                    // value, so nothing downstream was going to catch that.
-                    // With no entry the event now fires bare and the graphic keeps the field
-                    // values it already has on air - the same thing the exported panel does,
-                    // where the payload comes from field boxes that always hold a value.
-                    const payload: Record<string, string> = {};
-                    for (const key of b.payload ?? []) {
-                      const value = active?.values[key];
-                      if (value !== undefined) payload[key] = String(value);
-                    }
-                    postCmd({ cmd: 'dispatch', event: b.event, payload });
-                    // An accepted event can be what airs the graphic (an arrow out of off);
-                    // the machine-off check above clears the tally if it was not.
-                    setAired(true);
-                  }}
-                  title={
-                    !legal
-                      ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                      : b.payload?.length
-                        ? active
-                          ? `Fires "${b.event}" with ${b.payload.join(', ')} from “${active.label}”`
-                          : `Fires "${b.event}". ${b.payload.join(', ')} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
-                        : `Fire "${b.event}"`
-                  }
-                  data-testid={`control-event-${b.event}`}
-                >
-                  ⚡ {b.label}
-                </button>
-              );
-            })}
             {/* WHERE THE GRAPHIC IS — the fact the event buttons are greyed against, so the
                 surface never greys a button without saying why. This page is the ON-AIR
                 control surface (the editor's Rehearse tab is the preview-only one), so the
@@ -437,6 +415,69 @@ export default function GraphicControlPage({ id }: { id: string }) {
               </span>
             )}
           </div>
+
+          {/* THE GRAPHIC'S OWN EVENTS, IN THE SECTIONS THE TYPE DECLARED. They used to sit in
+              the transport row above, so a quiz put nine controls in one flat line with no
+              grouping and no order cue — while every other renderer of this vocabulary (the
+              Rehearse panel, the exported panel, the production page) built the sections. The
+              lifecycle row stays what it is: ▶ ⟳ » ■ are the four presses EVERY graphic has,
+              and an event is the ones only this one has. */}
+          {eventSections.length > 0 && (
+            <div className="ctl-events control-page-events">
+              {eventSections.map(([section, btns]) => (
+                <div key={section} className="ctl-event-section">
+                  <h4>{section}</h4>
+                  <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                    {btns.map((b) => {
+                      const legal = isEventLegal(legality, b.event, machineState);
+                      return (
+                        <button
+                          key={b.event}
+                          className={b.destructive ? 'ctl-event-destructive' : undefined}
+                          disabled={!legal}
+                          onClick={() => {
+                            // A PAYLOAD ONLY RIDES WHEN THERE IS SOMETHING TO SEND. The values
+                            // a payload carries live in an ENTRY on this surface, and a freshly
+                            // saved graphic has none - so building the payload from
+                            // `active?.values[key] ?? ''` sent an EMPTY string for every payload
+                            // field, which the machine then applied: pressing ⚡ Select answer on
+                            // a graphic with no entries wiped the pick instead of making one.
+                            // The guard is about the EVENT, never about the value, so nothing
+                            // downstream was going to catch that.
+                            // With no entry the event now fires bare and the graphic keeps the
+                            // field values it already has on air - the same thing the exported
+                            // panel does, where the payload comes from field boxes that always
+                            // hold a value.
+                            const payload: Record<string, string> = {};
+                            for (const key of b.payload ?? []) {
+                              const value = active?.values[key];
+                              if (value !== undefined) payload[key] = String(value);
+                            }
+                            postCmd({ cmd: 'dispatch', event: b.event, payload });
+                            // An accepted event can be what airs the graphic (an arrow out of
+                            // off); the machine-off check above clears the tally if it was not.
+                            setAired(true);
+                          }}
+                          title={
+                            !legal
+                              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+                              : b.payload?.length
+                                ? active
+                                  ? `Fires "${b.event}" with ${b.payload.join(', ')} from “${active.label}”`
+                                  : `Fires "${b.event}". ${b.payload.join(', ')} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
+                                : `Fire "${b.event}"`
+                          }
+                          data-testid={`control-event-${b.event}`}
+                        >
+                          ⚡ {b.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="control-page-side">
