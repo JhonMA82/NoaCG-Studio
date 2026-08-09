@@ -39,6 +39,38 @@ test('claudeProvider compiles grounded specs only through litePipeline', () => {
   assert.doesNotMatch(source, /applyDesignAdjustments\(/);
 });
 
+test('the prompt version has ONE source: the profile literal, never a value in .env.example', () => {
+  // `.env.example` used to ship `AI_LITE_PROMPT_VERSION=lite-lower-third-vN`, which made every
+  // bump a two-file edit and made copying the example - the documented setup path - PIN a
+  // deployment to whatever version was current that day. The next bump then moved the code and
+  // left the label behind: new prompt text ledgered under an old version, with nobody having
+  // made a mistake. A partial bump had already run v5 text under a v4 label once.
+  //
+  // Unset now resolves to the literal in aiLiteProfile.ts, so the version travels with the
+  // prompt it names. The override survives only for holding a benchmark to an older prompt.
+  const example = read('.env.example');
+  const live = example
+    .split(/\r?\n/)
+    .filter((line) => /^\s*AI_LITE_PROMPT_VERSION\s*=\s*\S/.test(line));
+  assert.deepEqual(
+    live,
+    [],
+    'a concrete AI_LITE_PROMPT_VERSION in .env.example pins every deployment copied from it - '
+      + 'keep the line commented out so unset means the code\'s own version',
+  );
+  assert.match(
+    example,
+    /#\s*AI_LITE_PROMPT_VERSION=/,
+    'keep the commented-out line and its reasoning, so the variable stays discoverable',
+  );
+  // And the fallback the whole scheme rests on must still exist.
+  assert.match(
+    read('api/_lib/aiLiteProfile.ts'),
+    /process\.env\.AI_LITE_PROMPT_VERSION \?\? '(lite-[a-z0-9-]+)'/,
+    'the profile must carry a concrete default, or unset resolves to nothing',
+  );
+});
+
 test('litePipeline holds the exact production assembly order', () => {
   const source = read('src/ai/litePipeline.ts');
   assert.match(source, /applySpecOutPreset\(\s*ensureSpecFonts\(applyDesignAdjustments\(/);
