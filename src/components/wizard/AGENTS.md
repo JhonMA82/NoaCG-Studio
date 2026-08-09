@@ -21,22 +21,19 @@ with no row-mate wearing them is two empty lines of padding. Create with AI is t
 door - NoaCG Pro is an execution TIER inside it, never a second card; there is no kit card
 either — see the kit path below.
 
-**THE ENTRY STEP'S CONTENT** (steps/EntryStep.tsx, handoff §2a; the reasoning is in that
-file's comments). Hero = headline + two lines, no second brand mark and no SPX / CasparCG /
-OGraf chip row (the targets belong in the SENTENCE; a row of small pills reads as filters or
-status everywhere else here). Home = a full-width ROW whose Graphics / Productions shortcuts
-are SIBLINGS of the body button, shown only when there is saved work. The video strip is ONE
-LINE: a Beta side-door must not out-weigh a shipped mode.
-**THREE DIVERGENCES ARE DELIBERATE**, pinned by `e2e/wizard-entry-fit.spec.ts`: no "Start from
-a kit" card, cards act on CLICK not radio-plus-Continue, Blank stays behind Advanced mode.
+**THE ENTRY STEP'S CONTENT** (steps/EntryStep.tsx, handoff §2a; reasoning in that file's
+comments). Hero = headline + two lines, no second brand mark and no export-target chip row -
+the targets belong in the SENTENCE. Home = a full-width ROW whose Graphics / Productions
+shortcuts are SIBLINGS of the body button, shown only when there is saved work. The video strip
+is ONE LINE. **THREE DIVERGENCES ARE DELIBERATE**, pinned by `e2e/wizard-entry-fit.spec.ts`: no
+kit card, cards act on CLICK not radio-plus-Continue, Blank stays behind Advanced mode.
 
 **THE FEEDBACK DOOR IS ON THE WIZARD HEADER** (`BetaFeedbackButton area="wizard"`; Home carries
 `area="home"`). It existed only in the editor shell — the surface the student release demotes —
-so the release's own user could not send anything, and feedback is what the Lite prompt learns
-from. Two dependencies: the header's push is a CHAIN (`.wz-stepcount ~ .fb-open`,
-`.fb-open ~ .gallery-close`), since the step counter is absent on Entry and the button absent
-offline and whichever exists first takes the auto margin; and the shell behind the wizard
-mounts a SECOND button, so a locator meaning one says which via `data-area`.
+so the release's own user could not send anything. Two dependencies: the header's push is a
+CHAIN (`.wz-stepcount ~ .fb-open`, `.fb-open ~ .gallery-close`), since the step counter is
+absent on Entry and the button absent offline and whichever exists first takes the auto margin;
+and the shell behind the wizard mounts a SECOND button, so a locator says which via `data-area`.
 
 **LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
@@ -111,16 +108,14 @@ outranks it. MiniPreview mounts its iframe only when the card scrolls into view
 (IntersectionObserver).
 
 **IT SHOWS A PAGE, NOT THE CATALOG** (handoff §2b). `PAGE_SIZE` = 12 plus **"Show 12 more"**,
-and the step states both numbers — `Showing 12 of 82`, `data-testid="wz-browse-count"`.
-Unfiltered it used to render all 429 matches, 30,215px of scroll on the step whose only job is
-picking one. Three rules:
-`browseTemplates` still returns the WHOLE result and gains no limit argument (the total is what
-the count line reports); the limit is spent on the RANKING and then split into the two sections,
-so "Show more" walks "Best for" into "Also works"; and the page resets on any result change,
-derived during render off a signature rather than in an effect — an effect paints one frame of
-the old page against the new filter, a flash of the wrong designs on a grid of live iframes.
-For SPECS: search for a named design (`pickDesign`, `e2e/_browse.ts`) and assert `resultTotal`,
-never a `.wz-variant` count.
+and the step states both numbers — `Showing 12 of 82`, `data-testid="wz-browse-count"`. Three
+rules: `browseTemplates` still returns the WHOLE result and gains no limit argument (the total
+is what the count line reports); the limit is spent on the RANKING then split into the two
+sections, so "Show more" walks "Best for" into "Also works"; and the page resets on any result
+change, derived during render off a signature rather than in an effect — an effect paints one
+frame of the old page against the new filter, a flash of the wrong designs on a grid of live
+iframes. For SPECS: search for a named design (`pickDesign`, `e2e/_browse.ts`) and assert
+`resultTotal`, never a `.wz-variant` count.
 
 **THE KIT PATH — one door, at the top of Browse** (shape + the §18 reversal:
 docs/PACK_TAXONOMY.md, "The wizard surface"). `.wz-buildmode` (ONE GRAPHIC / A WHOLE KIT) swaps the step body between the design
