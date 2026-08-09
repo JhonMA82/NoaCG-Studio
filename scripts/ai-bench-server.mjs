@@ -10,7 +10,7 @@
 import { spawn } from 'node:child_process';
 import { projectRoot } from './api-runtime-build.mjs';
 import { devPort } from './dev-port.mjs';
-import { readEnvFile as parseEnvFile } from './read-dotenv.mjs';
+import { envRoot, readCheckoutEnv } from './read-dotenv.mjs';
 
 export const BASE = `http://localhost:${devPort()}`;
 
@@ -18,9 +18,17 @@ export const BASE = `http://localhost:${devPort()}`;
  *  credentials, not the provider keys. Parsing lives in scripts/read-dotenv.mjs, so this and
  *  the freshness checks cannot drift on what a line means. Resolved against the project root
  *  rather than the cwd - a bench started from a subdirectory used to find no .env at all and
- *  fall through to the hand-supplied-token path without saying so. */
+ *  fall through to the hand-supplied-token path without saying so.
+ *
+ *  A LINKED WORKTREE HAS NO `.env` of its own, and most bench work happens in one, so the read
+ *  falls back to the MAIN checkout (scripts/read-dotenv.mjs `envRoot`). Without that every Pro,
+ *  vision and comparison bench hit the same silent fall-through in a worktree - the failure
+ *  this comment already describes, reached by a different route. The fallback is ANNOUNCED,
+ *  because "which file did this secret come from" must never be a guess. */
 export async function readEnvFile() {
-  return parseEnvFile(projectRoot);
+  const resolved = envRoot(projectRoot);
+  if (resolved !== projectRoot) console.log(`[bench] this checkout has no .env - reading ${resolved}/.env`);
+  return readCheckoutEnv(projectRoot);
 }
 
 /** Access tokens last about an hour and a full bench outruns that, so one minted at the

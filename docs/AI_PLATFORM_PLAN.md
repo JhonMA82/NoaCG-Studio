@@ -419,6 +419,29 @@ prose, clearly labelled unverified.
   only if one matches or beats it on NoaCG's benchmarks (env change + bench run, no code
   change). Section 15, decision 1.
 
+### 7a. The spend policy for harness work (owner, 2026-08-09)
+
+The product rule and the bench rule are the same rule, and both are enforced in code rather
+than remembered:
+
+- **Everything runs on the Vercel AI Gateway, on open-weight or otherwise cheap models.**
+  `FUNDED_ROUTE_PROVIDER = 'vercel'` and `FUNDED_ROUTE_PRICE_CEILING` (1.00 in / 5.00 out per
+  million) gate anything NoaCG funds; an uncatalogued route fails closed. OpenAI and Anthropic
+  as DIRECT providers are reachable only through a user's own sealed key - never funded. The
+  same model served through the gateway is an ordinary `vercel` route: the distinction is who
+  holds the credential, not who made the model.
+- **A frontier route in a bench needs a stated reason.** `scripts/harness-route-policy.mjs`
+  refuses a non-gateway route on any runner unless `--frontier-reason="…"` is given, and writes
+  the reason into the round's results. The standing legitimate case is comparing NoaCG Pro
+  against a frontier model. This project has no revenue; the failure mode is the habit, not the
+  one deliberate comparison.
+- **Image output is the unmeasured surface.** Concept images bill through output tokens and no
+  per-run product ceiling has been set (§9, `docs/ADMIN.md` §9). The bench's `--max-cost`
+  ceiling counts both calls and is the only guard today.
+- **Vocabulary.** *Harness* = the code wrapping a model (prompt, schema, repair, validation).
+  *Tier* = what the customer gets (Lite / Pro / BYO). *Bench* or *eval* = the rig that measures
+  a harness. "Improve the harness" and "run a bench" are different work.
+
 ## 8. Benchmark design
 
 Extend the existing `ai-lite-bench` machinery (fixtures, holdout, gold/floor calibration,

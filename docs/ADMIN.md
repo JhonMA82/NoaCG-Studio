@@ -805,7 +805,21 @@ NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks an
 eligibility language at all**: `FUNDED_ROUTE_PRICE_CEILING` was set against text generation and
 no ceiling for image work has been decided, so applying it here would mark usable models
 ineligible against a rule nobody has written. Until such a ceiling is set deliberately, this is
-a menu and not a judgement. The route the tier actually draws with IS marked, from
+a menu and not a judgement.
+
+**What one Pro generation actually costs, measured** (`pro-baseline-2026-08-09` in the eval
+archive; 4 briefs, 4/4 pass, gateway routes `google/gemini-3.1-flash-image` +
+`google/gemini-2.5-flash`):
+
+| | per generation |
+|---|---|
+| concept image | **$0.0671, flat** - identical on all four briefs (a fixed output-token count per image) |
+| interpretation | $0.0068 - $0.0178, brief-dependent (a 2.6x spread on 14% of the bill) |
+| **total** | **$0.0777** (range 0.0739 - 0.0849, ±7%) |
+
+The shape is the useful part: **86% of a Pro generation is one flat charge**, so a per-generation
+ceiling is a meaningful control and a per-run one only bounds volume. Nothing is set in code yet -
+the number below is the proposal awaiting a decision, not a rule in force. The route the tier actually draws with IS marked, from
 `PRO_STANDARD_ROUTES` - so "no verdict here" never has to be read as "nothing here is used". A price the provider did not publish reads "not published", never
 "free" - the same discipline as ZDR reading "not audited" rather than "no".
 

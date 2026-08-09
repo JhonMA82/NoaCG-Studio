@@ -183,6 +183,32 @@ qualification → screening → confirmation with candidate identity = model + e
 revision + parameters + reasoning config, `model@reasoning=low` as its own candidate).
 Build them when a frozen suite survives more than a few weeks.
 
+## 6a. The paid round loop, from any checkout
+
+A linked worktree has no `.env`, so these tools read the MAIN checkout's and write the bench
+configuration next to the worktree's own `package.json`. Nothing is per-round or per-path.
+
+```bash
+node scripts/bench-env.mjs --profile=lite   # compose .env.bench.local (route, quota, keys)
+node scripts/lite-eval-stamp.mjs   # mint a bearer token for the eval account and stamp it
+# start the bench server: preview_start {name: "dev-bench"}, or npm run dev:bench
+node scripts/lite-eval-probe.mjs   # free: what would Lite do for this identity? (expect 200)
+npm run eval:round -- lite-eval-out v14 30   # PAID. Caps: 40 calls / USD 1.50
+npm run bench:sameness && npm run bench:gallery && npm run bench:report   # review
+npm run eval:archive -- lite-eval-out v14    # copy + VERIFY into the permanent archive
+```
+
+`bench-env.mjs --profile=pro` does the same for the Pro bench (gateway key, ZDR, the test
+account it signs in as). Every paid runner polices its routes through
+`scripts/harness-route-policy.mjs`: gateway only, unless the run states `--frontier-reason`
+(`docs/AI_PLATFORM_PLAN.md` §7a).
+
+**Archive before any worktree cleanup.** Out-dirs are gitignored and die with the worktree -
+two paid rounds were lost that way. `eval:archive` copies to
+`C:\claude\noacg-lite-eval-archive\<label>-<YYYY-MM-DD>\`, then refuses loudly unless the
+recursive file count matches AND the `*.json`/`*.jsonl` name set diffs identical. It never
+deletes the source, never overwrites an existing round, and takes `--dry-run`.
+
 ## 6b. The skin vision judge (`POST /api/ai/lite/judge`)
 
 Phase 2 of the skin uniqueness strategy (the paid spike's verdict: capability exists,
@@ -530,6 +556,8 @@ confirmation pass (top two candidates, blind pairwise) stays manual until Phase 
   `results.jsonl`, run summaries, screenshots, clips, galleries, judgements. Raw provider
   bodies are never stored anywhere (the server never returns them). SQLite is deliberately
   not used - JSONL + `bench:report` covers the query needs without a dependency.
+- **A round worth keeping leaves the repo**: `npm run eval:archive` (§6a) into
+  `C:\claude\noacg-lite-eval-archive`, before the worktree that produced it is swept.
 - **Dependency rule:** benchmark → production only. Benchmark code lives outside `src/`
   (never bundled); the build-gate test additionally pins that no `src/` file imports from
   `scripts/` and `check-client-secrets` scans both the tree and `dist/`.
