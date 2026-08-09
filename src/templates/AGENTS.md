@@ -248,6 +248,18 @@ the control page and the pre-play frame cannot disagree; TITLES stay the type's,
 contract's labels are what its own row dropdowns are declared against. Pinned by
 `e2e/lite-line-content.spec.ts`, registry-wide and mutation-tested.
 
+**`WizardOptions.content` is the channel for everything a LINE cannot carry** - which answer a
+quiz marks correct, how long a countdown runs, a live poll's options: all `role: 'data'` or
+`'hidden'`, none of them reachable through `lines`. It is keyed by the type's own LOGICAL keys
+(`{ correctAnswer: 'C' }`), never by `fN`, and only a type-compiled variant honours it, because
+only a type declares those keys and the kind to clamp each value against; a hand-written variant
+ignores it rather than guessing what its ids mean. **Every value is clamped to what the field
+declares and an illegal one is DROPPED** - a `select` takes only an option it offers, so a
+correct-answer field can never name a row that does not exist (which would reveal nothing, with
+no error anywhere). `DesignSpec.content` is the same data as a LIST of pairs, because a JSON
+Schema with `additionalProperties: false` cannot describe an open key set; `specToTemplate` folds
+it into the map.
+
 **The trap to know:** a timer never arms on a timeline that never ends (the arming call is
 scheduled at the timeline's end). A `repeat: -1` loop or a measured `dynamics` builder makes
 that unreachable, so `validateMachine` errors on it. This is why the ticker type is a rotator

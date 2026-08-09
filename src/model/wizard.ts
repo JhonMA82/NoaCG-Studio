@@ -245,6 +245,20 @@ export interface WizardOptions {
   lines?: LineSpec[];
   /** Extra non-visual fields appended to the SPX definition. */
   extraFields?: ExtraFieldSpec[];
+  /**
+   * Values for a GRAPHIC TYPE's non-line fields, keyed by the type's own LOGICAL field key
+   * (`{ correctAnswer: 'C' }`) - never by `fN`, which is positional and would break the moment
+   * a field was inserted. Lines are what a graphic SAYS; this is the rest of what makes it the
+   * graphic that was asked for: which answer is correct, how long the countdown runs, what the
+   * poll's options are.
+   *
+   * Only a TYPE-COMPILED variant can honour it, because only a type declares logical keys and
+   * the kind to clamp each value against (`variantsFromType`). A hand-written variant ignores
+   * it, which is the honest answer rather than a guess at what its `fN` ids mean. Every value
+   * is clamped to what its field declares and an illegal one is DROPPED, so the design's own
+   * default survives instead of the graphic acquiring an option nobody offers.
+   */
+  content?: Record<string, string>;
   palette?: Palette;
   fontId?: string;
   /** A user-imported font (embedded as an asset) — takes precedence over fontId. */

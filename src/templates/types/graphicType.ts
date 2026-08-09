@@ -600,21 +600,100 @@ export function missingParts(type: GraphicType, template: SpxTemplate): string[]
  */
 function withLineValues(type: GraphicType, template: SpxTemplate, lines: LineSpec[]): SpxTemplate {
   const lineCount = type.fields.filter((f) => f.role === 'line').length;
-  const fields = template.fields.map((f, i) => {
-    const line = i < lineCount ? lines[i] : undefined;
-    return line ? { ...f, value: line.sample } : f;
+  const values = type.fields.map((_f, i) => (i < lineCount ? lines[i]?.sample : undefined));
+  return withFieldValues(template, values);
+}
+
+/**
+ * Write the caller's CONTENT into the compiled template's non-line fields, by the type's own
+ * LOGICAL keys (`correctAnswer`, `durationMinutes`), never by `fN` - positional ids are the
+ * compiler's business and a caller writing one would break the moment a field was inserted.
+ *
+ * Lines are what a graphic SAYS; content is the rest of what makes it the graphic that was
+ * asked for. A quiz board declares which answer is correct, a countdown its duration, a live
+ * poll its options - all `role: 'data'` or `'hidden'`, none of them reachable through `lines`.
+ * Without this channel a generated quiz carries the right question and the right four answers
+ * and still marks the chassis's own default row correct, which is a wrong graphic that every
+ * gate calls valid.
+ *
+ * **Every value is CLAMPED against the field's own declaration, and an illegal one is DROPPED
+ * rather than written.** A `select` takes only a value (or label) it actually offers - which is
+ * what keeps a machine that addresses its rows by letter addressable - a `number` only a finite
+ * number, a `toggle` only a boolean word. An unknown key is dropped too. This is the harness's
+ * standing rule that an out-of-range value clamps to the nearest legal one instead of costing
+ * the generation, applied to the one surface where a wrong value is not a visual defect but an
+ * operator lie: a correct-answer field naming a row that does not exist reveals nothing at all.
+ */
+function withContentValues(
+  type: GraphicType,
+  template: SpxTemplate,
+  content: Record<string, string>,
+): SpxTemplate {
+  const values = type.fields.map((field) => {
+    // Lines have their own channel, and the logo slot is an asset path (`logoAssetPath`).
+    if (field.role === 'line' || field.role === 'logo') return undefined;
+    if (!Object.prototype.hasOwnProperty.call(content, field.key)) return undefined;
+    return legalFieldValue(field, content[field.key]);
   });
+  return withFieldValues(template, values);
+}
+
+/** One content value, clamped to what its field declares - or undefined when nothing legal
+ *  remains, which drops the write and leaves the design's own default in place. */
+function legalFieldValue(field: TypeField, raw: unknown): string | undefined {
+  if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') return undefined;
+  const value = String(raw).trim();
+  switch (field.kind) {
+    case 'select': {
+      // Matched against the field's OWN options, by value first and then by the label the
+      // operator reads - a model answering "B" for an option labelled B is right either way.
+      const match = field.options?.find(
+        (o) => o.value.toLowerCase() === value.toLowerCase() || o.label.toLowerCase() === value.toLowerCase(),
+      );
+      return match?.value;
+    }
+    case 'number':
+      return Number.isFinite(Number(value)) && value !== '' ? String(Number(value)) : undefined;
+    case 'toggle': {
+      if (/^(true|yes|on|1)$/i.test(value)) return 'true';
+      if (/^(false|no|off|0)$/i.test(value)) return 'false';
+      return undefined;
+    }
+    case 'color':
+      return /^#[0-9a-f]{3,8}$/i.test(value) || /^rgba?\([\d\s.,%]+\)$/i.test(value) ? value : undefined;
+    default:
+      // Text and multi-line text: any string, including a deliberately empty one (clearing a
+      // field is a real edit). Bounded so a runaway value cannot become the template.
+      return value.slice(0, 2000);
+  }
+}
+
+/**
+ * Write values into the compiled template's fields BY POSITION - `undefined` leaves a field
+ * exactly as the assembler emitted it.
+ *
+ * The definition value and the element's static text are written TOGETHER, so the operator's
+ * control page and the pre-play frame cannot disagree about what the graphic says. (This is
+ * `blocks/edit.ts`'s `setFieldDefault` written out rather than imported: `blocks/edit` imports
+ * the standard assembler, so reaching for it from here closes an import cycle through the
+ * catalog - which loads at module scope and takes the whole app's AI step down with it.)
+ *
+ * TITLES are deliberately never written: a fixed contract's labels are the type's own, and the
+ * dropdowns that address its rows by letter are declared against them.
+ */
+function withFieldValues(template: SpxTemplate, values: readonly (string | undefined)[]): SpxTemplate {
+  const fields = template.fields.map((f, i) => (values[i] === undefined ? f : { ...f, value: values[i] as string }));
   if (fields.every((f, i) => f.value === template.fields[i].value)) return template;
 
   let html = replaceDefinitionInHtml(template.html, template.settings, fields);
-  for (let i = 0; i < lineCount; i += 1) {
-    const line = lines[i];
-    if (!line || line.sample === template.fields[i]?.value) continue;
+  for (let i = 0; i < values.length; i += 1) {
+    const value = values[i];
+    if (value === undefined || value === template.fields[i]?.value) continue;
     // The static text inside the element with this id (a visible <span> or a hidden source
     // <div>). [^<]* also matches newlines, so multi-line sources are covered.
     html = html.replace(
       new RegExp(`(<(?:span|div)\\b[^>]*\\bid="${template.fields[i].field}"[^>]*>)[^<]*`),
-      (_m, open: string) => `${open}${escapeLineText(line.sample)}`,
+      (_m, open: string) => `${open}${escapeLineText(value)}`,
     );
   }
   return { ...template, html, fields };
@@ -678,7 +757,8 @@ export function variantsFromType(type: GraphicType): TemplateVariant[] {
         if (missing.length > 0) {
           throw new Error(`GraphicType "${type.id}": design "${design.id}" is missing required parts: ${missing.join(', ')}.`);
         }
-        return withLineValues(type, template, lines ?? declared);
+        const withLines = withLineValues(type, template, lines ?? declared);
+        return options?.content ? withContentValues(type, withLines, options.content) : withLines;
       },
     };
     return variant;

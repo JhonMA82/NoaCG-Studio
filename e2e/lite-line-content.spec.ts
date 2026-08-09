@@ -112,6 +112,71 @@ test.describe('a generated graphic carries every line it was given', () => {
   });
 });
 
+/** Compile a quiz spec carrying CONTENT and report every field's value, by title. */
+async function compiledContent(page: Page, content: { key: string; value: string }[]) {
+  return page.evaluate(async (content) => {
+    const { specToTemplate } = await import('/src/ai/designSpec.ts');
+    const spec = {
+      fit: 'catalog', reason: 'pinned by e2e', name: 'Content', summary: 'Content',
+      category: 'quiz', variantId: 'qz02',
+      lines: [
+        { title: 'Question', sample: 'Which river runs through Vienna?' },
+        { title: 'Answer A', sample: 'The Rhine' },
+        { title: 'Answer B', sample: 'The Danube' },
+        { title: 'Answer C', sample: 'The Elbe' },
+        { title: 'Answer D', sample: 'The Seine' },
+      ],
+      content,
+    } as unknown as Parameters<typeof specToTemplate>[0];
+    const { template } = specToTemplate(spec);
+    return Object.fromEntries(template.fields.map((f) => [f.title, f.value]));
+  }, content);
+}
+
+test.describe('a decision reaches the content a line cannot carry', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app');
+  });
+
+  test('the quiz marks the answer the brief chose, not the chassis default', async ({ page }) => {
+    // The defect this channel closes: the question and all four answers can be right while the
+    // board still reveals qz02's own default row, which is a wrong graphic every gate passes.
+    const fields = await compiledContent(page, [{ key: 'correctAnswer', value: 'C' }]);
+    expect(fields['Correct answer']).toBe('C');
+    expect(fields['Answer C']).toBe('The Elbe'); // the lines still land
+  });
+
+  test('a value the field does not offer is dropped, never written', async ({ page }) => {
+    // 'E' is not a row on a four-answer board. Writing it would leave the reveal addressing a
+    // row that does not exist - it would light nothing up, with no error anywhere.
+    const fields = await compiledContent(page, [{ key: 'correctAnswer', value: 'E' }]);
+    expect(fields['Correct answer']).toBe('B'); // qz02's own default survives
+  });
+
+  test('an unknown key changes nothing, and a label answers for its value', async ({ page }) => {
+    const unknown = await compiledContent(page, [{ key: 'notAField', value: 'x' }]);
+    expect(unknown['Correct answer']).toBe('B');
+    // The quiz's options are labelled by the same letters they carry, so this pins the label
+    // route on a field where the two differ nowhere else in the type: an audience string is
+    // free text and must survive verbatim.
+    const audience = await compiledContent(page, [{ key: 'audienceResults', value: '34 | 52 | 9 | 5' }]);
+    expect(audience['Audience results']).toBe('34 | 52 | 9 | 5');
+  });
+
+  test('a hand-written variant ignores content rather than guessing', async ({ page }) => {
+    // vs01 is not type-compiled, so it declares no logical keys. Writing by position would be
+    // a guess at what its fN ids mean; the honest answer is to leave it alone.
+    const same = await page.evaluate(async () => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const variant = variantById('vs01')!;
+      const plain = variant.create({});
+      const withContent = variant.create({ content: { anything: 'at all' } });
+      return plain.html === withContent.html && JSON.stringify(plain.fields) === JSON.stringify(withContent.fields);
+    });
+    expect(same).toBe(true);
+  });
+});
+
 test.describe('no graphic type comes back with fewer lines than it declares', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app');
