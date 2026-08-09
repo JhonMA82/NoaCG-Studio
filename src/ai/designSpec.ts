@@ -79,6 +79,9 @@ export interface DesignSpec {
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
   /** Place the first uploaded image into the design's logo slot. */
   useLogoSlot?: boolean;
+  /** A well behind the mark, when the design's own surface would hide it. Set by NoaCG Lite's
+   *  server-side repair, never by a model (src/ai/liteTypes.ts `LiteDesignSpec.logoPlate`). */
+  logoPlate?: 'light' | 'dark';
   zone?: Zone9;
   /** A curated palette id — or a bespoke palette when the brief/references demand one. */
   paletteId?: string;
@@ -479,7 +482,11 @@ export function specToTemplate(
     // design always has its slot, an 'optional' one only emits it when enabled, and a
     // 'none' design gets neither (the image still rides along as a project asset).
     ...(wantsLogo && canTakeLogo(variant)
-      ? { logoEnabled: true, logoAssetPath: ctx?.images[0]?.path }
+      ? {
+          logoEnabled: true,
+          logoAssetPath: ctx?.images[0]?.path,
+          ...(spec.logoPlate ? { logoPlate: spec.logoPlate } : {}),
+        }
       : variant.logo === 'optional'
         ? { logoEnabled: false }
         : {}),

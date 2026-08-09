@@ -56,8 +56,8 @@ which is precisely what the palette floor's own note three lines above it in the
 said. A rule that converts a bad graphic into no graphic is worse than the defect.
 
 It is APPLIED now, in the order that costs the user least: re-pick a chassis whose logo surface
-suits the mark, and only when the catalog has none, drop the mark and ship the graphic. Both are
-recorded as adjustments, never errors.
+suits the mark, and when the catalog has none, paint the mark its own well. Both are recorded as
+adjustments, never errors, and the mark is never dropped.
 
 **The first version of that repair traded one invisible element for another, and only a FRAME
 showed it.** It moved a knockout mark from lt11 to lt02, the mark became perfectly legible - and
@@ -68,22 +68,29 @@ reading surface a palette can repaint cannot receive a light package, and a repa
 there breaks the graphic it was fixing. The re-pick now refuses a panel-less candidate whenever
 the package is light.
 
-**With today's six chassis the re-pick can therefore never fire, and that is the finding.** Every
-unreadable case ends in a drop:
+**With today's six chassis the re-pick can never fire**, because no design offers a logo surface
+in the opposite tone to its own package. Without a third answer that left every unreadable
+pairing dropping the mark - so there is one: the shared slot paints a WELL behind it.
 
 | mark ink | package | outcome |
 |---|---|---|
-| dark | dark | mark dropped - no chassis offers a light surface |
-| light | light | mark dropped - the only dark surfaces are panel-less |
+| dark | dark | **light well**, mark shown |
+| light | light | **dark well**, mark shown |
 | light | dark | fine, untouched |
 | dark | light | fine, untouched |
 | (own field) | either | never fires |
 
-The branch is kept because it is the correct shape and fires the day a chassis exists that can
-rescue a mark - **one whose logo surface is the OPPOSITE tone to its own package**, which is to
-say a design with a dark logo well on a light panel. The catalog has none. That is a drawing
-task, and it is the concrete thing standing between "Lite accepts your logo" and "Lite always
-shows your logo".
+The well is fixed neutral rather than derived from the palette - the palette's surface is the
+wrong tone by definition here, so deriving from it is how it comes out wrong again - and its
+padding is the clear space the brand manual asks for, inside the well. Nothing reaches the
+picture: no radius, no crop, no filter, no uneven scale, which is exactly the set
+`assetIntegrity.ts` refuses on a mark the user said to use as it is. Both plated cases were read
+on screen: a knockout in a dark well on a light package, and a dark lockup in a light well on a
+dark one, each with its text intact.
+
+The re-pick branch stays because a design whose logo surface is the opposite tone to its package
+is still the better answer when one exists - a well is a repair, not a design. Drawing one is
+the remaining catalog task, and `logo_plated` in the ledger counts how often it would pay.
 
 ### 3. The clipped rail was MY FIXTURE, not the product. (BANK, fixed - and this entry was wrong)
 
@@ -132,8 +139,8 @@ platform work rather than model work. Every defect this round found is now fixed
 the repair has been read on screen as well as in code - which is how its own first version was
 caught breaking the text it was meant to leave alone.
 
-**What is left is a catalog gap, not a software one.** A brand that owns only one tone of its
-mark gets a graphic without its logo, honestly and every time, because no Lite chassis offers a
-logo surface in the opposite tone to its own package. Draw one and the repair starts rescuing
-marks instead of dropping them; until then, `logo_dropped_unreadable` in the ledger is the count
-of how often that missing design would have paid for itself.
+**Every brief in the bank now ends with the mark on screen and the text readable**, whichever tone
+the brand owns. What is left is a catalog gap rather than a software one: no Lite chassis offers a
+logo surface in the opposite tone to its own package, so the well does the work a design should.
+A well is a repair, not a design. `logo_plated` in the ledger counts how often that missing design
+would have paid for itself.

@@ -1271,7 +1271,7 @@ export function validateLiteDecision(
   // the mark. Both are recorded as adjustments, so the ledger can count how often a brand's mark
   // cannot be honoured - which is a CATALOG gap to draw against, not a model failure.
   let logoReselect: string | null = null;
-  let dropLogo = false;
+  let logoPlate: 'light' | 'dark' | null = null;
   if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
     const panel = spec.palette?.panel ?? request.palette?.panel ?? null;
     const markShape = request.mark.shape;
@@ -1306,8 +1306,12 @@ export function validateLiteDecision(
         && candidate.supportingLineChars >= entry.supportingLineChars
         && !(panelIsLight && candidate.logoSlot?.surface === 'dark')
         && reads(candidate));
+      // A well is the LAST resort and the one that always works: the catalog cannot currently
+      // offer a chassis whose logo surface is the opposite tone to its own package, so without
+      // it every unreadable pairing ended with the mark dropped. The mark keeps its own tone,
+      // the graphic keeps its design, and the picture is not touched.
       if (swap) logoReselect = swap.variantId;
-      else dropLogo = true;
+      else logoPlate = ink === 'light' ? 'dark' : 'light';
     }
   }
   // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
@@ -1364,12 +1368,12 @@ export function validateLiteDecision(
   if (logoReselect) {
     repaired.variantId = logoReselect;
     adjustments.push('logo_chassis_reselected');
-  } else if (dropLogo) {
-    // The graphic survives without the mark. A brand that owns only one tone of its logo and a
-    // package with no surface for it is a real, ordinary situation - and half the request
-    // delivered beats none of it.
-    repaired.useLogoSlot = false;
-    adjustments.push('logo_dropped_unreadable');
+  } else if (logoPlate) {
+    // The mark keeps its own tone and the graphic keeps its design; the well is what makes the
+    // two compatible. Recorded, because how often it is needed is the measure of a catalog that
+    // has no design offering a logo surface in the opposite tone to its own package.
+    repaired.logoPlate = logoPlate;
+    adjustments.push('logo_plated');
   }
   return {
     decision: { status: 'ready', spec: repaired, ...(skin ? { skin } : {}) },
