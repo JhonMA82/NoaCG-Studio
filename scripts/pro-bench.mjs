@@ -13,8 +13,9 @@
 // fixture - a previously generated concept + interpretation under benchmarks/pro/v1/
 // fixtures/<id>/ - or, where no fixture exists, the deterministic stub. No network, no
 // tokens, no cost. PAID mode SPENDS REAL MONEY on the caller's own keys and is therefore
-// explicit: it refuses to run without --generate, a named --image-route, and a --max-cost
-// ceiling it enforces cumulatively mid-run.
+// explicit: it refuses to run without --generate and a named --image-route, and it enforces a
+// per-run cost ceiling cumulatively mid-run - $2.15 by default (the owner's ~EUR 2 figure,
+// about 27 generations), or whatever --max-cost names.
 //
 // THE CEILING COUNTS BOTH CALLS, and used to count only the image. It read the interpretation's
 // cost back off the telemetry ring's stage records, matching on a field name that does not
@@ -54,7 +55,12 @@ const only = args.find((a) => !a.startsWith('--'))?.split(',').filter(Boolean) ?
 
 const paid = flag('generate');
 const saveFixtures = flag('save-fixtures');
-const maxCost = Number(value('max-cost') ?? (paid ? Number.NaN : 0));
+// The owner's per-run figure (2026-08-09): about EUR 2, which at the measured $0.0777 per
+// generation is roughly 27 of them - a full 12-brief round twice over, with room. It stays a
+// DEFAULT rather than a hard cap: --max-cost still names a smaller ceiling for a probe, and a
+// bigger one is a deliberate keystroke. Measurement: docs/ADMIN.md §9.
+const DEFAULT_MAX_COST_USD = 2.15;
+const maxCost = Number(value('max-cost') ?? (paid ? DEFAULT_MAX_COST_USD : 0));
 const imageRoute = value('image-route');
 // The interpretation call rides the SESSION model, so paid mode must pin a VISION-capable
 // route - the default session model is a text coder and would be handed an image.
@@ -78,9 +84,10 @@ if (paid) {
   const interpret = requireAllowedRoute(interpretRoute, { flag: 'interpret-route', reason: frontierReason });
   routeReasons = { image: image.frontierReason, interpret: interpret.frontierReason };
   if (!Number.isFinite(maxCost) || maxCost <= 0) {
-    console.error('PAID mode needs an explicit --max-cost=<usd> ceiling. This run spends real money.');
+    console.error('--max-cost must be a positive number of dollars. This run spends real money.');
     process.exit(1);
   }
+  console.log(`About ${(maxCost / 0.0777).toFixed(0)} generations fit under it, at the measured $0.0777 each.`);
   console.log(`PAID run: image ${imageRoute}, interpretation ${interpretRoute}, ceiling $${maxCost.toFixed(2)}. This spends real tokens.`);
 }
 
