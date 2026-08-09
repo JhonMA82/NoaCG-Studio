@@ -106,33 +106,40 @@ test('the three mode cards fill the grid with no hole', async ({ page }) => {
 
   // NO HOLE. An odd count in a two-column grid would leave an empty cell that reads as a card
   // that failed to render, so the last card spans the row
-  // (`.wz-entry-card:last-child:nth-child(odd)`). Rows stay equal in height either way.
+  // (`.wz-entry-card:last-child:nth-child(odd)`).
   const round = (n: number) => Math.round(n);
-  expect(new Set(cards.map((c) => round(c.height))).size).toBe(1);
   expect(round(cards[0].width)).toBe(round(cards[1].width));
   expect(round(cards[2].width)).toBeGreaterThan(round(cards[0].width) * 1.9);
   expect(round(cards[0].left)).toBe(round(cards[2].left));
   expect(round(cards[1].left)).toBeGreaterThan(round(cards[0].left));
 
+  // THE PAIR SHARING A ROW ARE EQUAL; THE SPANNING CARD IS NOT MADE TO MATCH THEM. Equal
+  // heights and the three-line description reserve both exist so cards SIDE BY SIDE line up.
+  // A card that spans the row has no row-mate, so applying either to it is not alignment — it
+  // is two empty lines of padding: "Import graphic" drew one line of copy inside a 130px box,
+  // which reads as content that failed to load.
+  expect(round(cards[0].height)).toBe(round(cards[1].height));
+  expect(round(cards[2].height)).toBeLessThan(round(cards[0].height));
+
   for (const c of cards) {
     // The title row is one flex line: the icon precedes the title and shares its centreline.
     expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
     expect(Math.abs(c.iconMidY - c.titleMidY), `${c.entry}: icon on the title's line`).toBeLessThan(4);
-    // Every card's copy starts at the same y — the whole point of the fixed-height blocks.
+    // Every card's copy starts at the same y INSIDE its own card — the whole point of the
+    // fixed-height title row.
     expect(round(c.headTop), `${c.entry}: title row offset`).toBe(round(cards[0].headTop));
     expect(round(c.hintTop), `${c.entry}: description offset`).toBe(round(cards[0].hintTop));
   }
 
-  // THE ROWS STAY EQUAL WHEN ONE CARD OUTGROWS THE RESERVE. With today's copy every
-  // description fits the three-line block, so the heights above would match even without
-  // `grid-auto-rows: 1fr` — which would leave the rule that actually holds the grid together
-  // unproven, and the day someone writes a fourth line the ragged rows come back. So force
-  // that day: overflow one card's copy and require the others to follow it.
-  const heights = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
+  // THE ROW-MATES STAY EQUAL WHEN ONE OUTGROWS THE RESERVE. With today's copy both fit the
+  // three-line block, so the heights above would match even without `grid-auto-rows: 1fr` —
+  // which would leave the rule that actually holds the row together unproven, and the day
+  // someone writes a fourth line the ragged pair comes back. So force that day.
+  const pair = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
     els[0].querySelector('.hint').textContent = 'x '.repeat(220);
-    return els.map((el) => Math.round(el.getBoundingClientRect().height));
+    return els.slice(0, 2).map((el) => Math.round(el.getBoundingClientRect().height));
   });
-  expect(new Set(heights).size, `rows stayed equal: ${heights.join(', ')}`).toBe(1);
+  expect(pair[1], `the row-mate followed: ${pair.join(', ')}`).toBe(pair[0]);
 });
 
 test('the mode cards stack into one column on a phone', async ({ page }) => {
@@ -173,8 +180,115 @@ test('the mode cards stack into one column on a phone', async ({ page }) => {
   }
 });
 
+// ── WHAT THE STEP SAYS (re-design/handoff.md §2a) ───────────────────────────────────────
+// The geometry above was brought over first and the CONTENT was not, so these pin the three
+// differences that were closed - and, just as importantly, the three divergences from the
+// reference that are DELIBERATE, so nobody restores the picture over the decision.
+
+test('the hero names the export targets in the sentence, not as chips', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  const hero = page.locator('.wz-hero');
+  await expect(hero.locator('.wz-hero-title')).toContainText('Broadcast graphics');
+  // The targets are a PROMISE in the subtitle. As a row of small bordered pills they read as
+  // filters or as status, which is what a row of pills means everywhere else in this app.
+  await expect(hero.locator('.wz-hero-sub')).toContainText('SPX, CasparCG and OGraf');
+  await expect(hero.locator('.wz-hero-tags')).toHaveCount(0);
+  // And no second brand mark: the wizard's own topbar already wears one, two inches higher.
+  await expect(hero.locator('svg, img')).toHaveCount(0);
+  await expect(page.locator('.wz-header .brand-home')).toBeVisible();
+});
+
+test('the Home row carries its two section shortcuts', async ({ page }) => {
+  // The row appears only when there IS saved work - a first-ever visit gets no door to an
+  // empty room. Seed one graphic, then reload onto Entry.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.getByTestId('wz-continue')).toHaveCount(0);
+  await page.evaluate(async () => {
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    createGraphic(useTemplateStore.getState().template, { name: 'Seeded strap' });
+    await commitDurableWrites();
+  });
+  await page.goto('/app');
+  const row = page.getByTestId('wz-continue');
+  await expect(row).toBeVisible();
+
+  // ONE ROW: the body button and the two shortcuts share a line, and the shortcuts are
+  // SIBLINGS of the body button - a button nested in a button is invalid markup.
+  const geometry = await row.evaluate((el) => {
+    const body = el.querySelector('[data-entry="continue"]')!.getBoundingClientRect();
+    const graphics = el.querySelector('[data-entry="continue-graphics"]')!.getBoundingClientRect();
+    const productions = el.querySelector('[data-entry="continue-productions"]')!.getBoundingClientRect();
+    return {
+      nested: !!el.querySelector('[data-entry="continue"] button'),
+      bodyBeforeShortcuts: body.right <= graphics.left + 0.5,
+      sameLine: Math.abs(body.top + body.height / 2 - (graphics.top + graphics.height / 2)) < 4,
+      inOrder: graphics.right <= productions.left + 0.5,
+      spansRow: Math.round(el.getBoundingClientRect().width),
+      gridWidth: Math.round(document.querySelector('.wz-entry')!.getBoundingClientRect().width),
+    };
+  });
+  expect(geometry.nested).toBe(false);
+  expect(geometry.bodyBeforeShortcuts).toBe(true);
+  expect(geometry.sameLine).toBe(true);
+  expect(geometry.inOrder).toBe(true);
+  // Full width, like the reference draws it - not a card sharing the grid.
+  expect(geometry.spansRow).toBe(geometry.gridWidth);
+
+  // Each shortcut lands on its own Home section, not on the dashboard.
+  await row.locator('[data-entry="continue-productions"]').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(page.url()).toContain('#/home/productions');
+});
+
+test('the video strip is one line, quieter than any shipped mode', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  const card = page.locator('[data-entry="video"]');
+  // ONE LINE: icon, title, Beta tag and the hint all share a centreline. It was a full card
+  // with a three-line hint, giving the BETA side-door more vertical weight than "Import
+  // graphic", a shipped mode.
+  const shape = await card.evaluate((el) => {
+    const mid = (n: Element) => { const r = n.getBoundingClientRect(); return r.top + r.height / 2; };
+    return {
+      height: el.getBoundingClientRect().height,
+      titleMid: mid(el.querySelector('strong')!),
+      hintMid: mid(el.querySelector('.hint')!),
+      hintLines: el.querySelector('.hint')!.getBoundingClientRect().height,
+      lineHeight: parseFloat(getComputedStyle(el.querySelector('.hint')!).lineHeight),
+    };
+  });
+  expect(Math.abs(shape.titleMid - shape.hintMid)).toBeLessThan(4);
+  expect(shape.hintLines).toBeLessThan(shape.lineHeight * 1.6);
+  // …and shorter than every mode card above it, which is what "quieter" means in geometry.
+  const modeHeight = await page.locator('.wz-entry .wz-entry-card').first()
+    .evaluate((el) => el.getBoundingClientRect().height);
+  expect(shape.height).toBeLessThan(modeHeight);
+});
+
+test('the deliberate divergences from the reference hold', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // NO KIT CARD: a kit is the same walk over a whole set, so the question is asked at the top
+  // of Browse where designs are chosen. The entry copy is the only thing that says so.
+  await expect(page.locator('[data-entry="kit"]')).toHaveCount(0);
+  await expect(page.locator('[data-entry="template"]')).toContainText('kit');
+  // NO BLANK CARD outside Advanced mode (docs/GOALS.md "Student release" step 4).
+  await expect(page.locator('[data-entry="blank"]')).toHaveCount(0);
+  // CARDS ACT ON CLICK - no radio dot, no Continue button. One press, not two.
+  await expect(page.locator('.wz-entry input[type="radio"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Continue/ })).toHaveCount(0);
+  await page.locator('[data-entry="template"]').click();
+  await expect(page.locator('.wz-browse-search')).toBeVisible();
+});
+
 test('a window too short for the step cues its overflow', async ({ page }) => {
-  await entryStepAt(page, 1280, 620);
+  // 500px, where this used to say 620: the §2a content pass shortened the step (the video
+  // strip became one line, and the odd spanning card stopped reserving three lines of hint it
+  // has no copy for), so 1280x620 now FITS and the premise below stopped being true. Measured
+  // after the change: the step's content settles at 461px, so it overflows below ~560.
+  await entryStepAt(page, 1280, 500);
 
   // The premise: this window really is too short. Without it the two assertions below would
   // pass vacuously the day the step grows a scrollbar it should not have.

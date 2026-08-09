@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode } from './_create';
+import { pickDesign } from './_browse';
 
 // The wizard's FINISH step and the standalone export window.
 //
@@ -13,7 +14,7 @@ async function toFinishStep(page: Page, variantName = 'Hairline') {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-variant', { hasText: variantName }).first().click();
+  await pickDesign(page, variantName);
   // Fields → Style → Animation → Finish. The rail is 1:1 with the step index, so walking it
   // with Next is what a user does and what proves the new step is reachable.
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Next →' }).click();
@@ -75,7 +76,7 @@ test('finish: skip-to-finish jumps from Browse once a design is picked', async (
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-variant', { hasText: 'Hairline' }).first().click();
+  await pickDesign(page, 'Hairline');
   // One click instead of four Nexts: the remaining steps keep their defaults.
   await page.getByTestId('wz-skip-to-finish').click();
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, createProject } from './_create';
 import { settleDurableWrites } from './_durable';
 import { awaitPreviewRebuild } from './_preview';
+import { chooseType, pickDesign, resultTotal } from './_browse';
 
 // THE HOLDING / CREDITS / CEREMONY PACK.
 //
@@ -21,7 +22,7 @@ async function toTemplateStep(page: Page, category: string) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat', { hasText: category }).click();
+  await chooseType(page, category);
 }
 
 /** Build a variant into a throwaway iframe and run a probe inside it. Deliberately NOT the
@@ -71,21 +72,27 @@ test('the three families are browsable and every design in them is offered', asy
     }, category);
     // Derived from the live catalog on purpose: the assertion is "every design is reachable",
     // which must keep holding as the catalog grows, not a number that rots on the next one.
-    await expect(page.locator('.wz-variant')).toHaveCount(expected);
+    // Against the count LINE, not the cards: the step renders a first page now (handoff
+    // §2b), so counting cards would measure the page size and pass at 12 for every category
+    // with twelve or more designs - a test that cannot fail.
+    expect(await resultTotal(page)).toBe(expected);
   }
 });
 
 test('the holding set covers the whole show, not just the front door', async ({ page }) => {
   await toTemplateStep(page, 'Holding & break screens');
   // A tile called "Starting soon" would hide these; the naming IS the discovery fix.
+  // Searched one at a time: what must hold is that each design is REACHABLE, and searching
+  // is how a person reaches a named one now that the grid shows a first page.
   for (const name of ['Countdown to Start', 'Short Break', 'Intermission', 'Please Stand By', 'Thanks for Watching']) {
+    await page.locator('.wz-browse-search').fill(name);
     await expect(page.locator('.wz-variant', { hasText: name })).toBeVisible();
   }
 });
 
 test('a ceremony card creates from the wizard and lands in the editor', async ({ page }) => {
   await toTemplateStep(page, 'Information cards');
-  await page.locator('.wz-variant', { hasText: 'In Memoriam' }).click();
+  await pickDesign(page, 'In Memoriam');
   // Create only appears from the Fields step on, so step forward once first.
   await page.locator('.wz-next').click();
   await awaitPreviewRebuild(page, () => finishIntoEditor(page));

@@ -1,6 +1,7 @@
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode } from './_create';
+import { pickDesign } from './_browse';
 
 // Core UI flows for the choose-first creation wizard + live panels.
 
@@ -11,8 +12,7 @@ async function toVariantStep(page: Page, variantName: string) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-cat:not([disabled])').first().click();
-  await page.locator('.wz-variant', { hasText: variantName }).click();
+  await pickDesign(page, variantName);
 }
 
 /** Create into the editor from wherever the walk stands: Skip to finish (remaining steps

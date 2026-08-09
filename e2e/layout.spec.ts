@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
+import { chooseType } from './_browse';
 
 // The flexible dockable-panel workspace (model/layout.ts): the canvas over the timeline in the
 // centre, flanked by left/right docks (plus an optional bottom dock), each hosting any panels as
@@ -204,9 +205,9 @@ test('mobile: the wizard preview keeps a real stage instead of collapsing', asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
-  // The category tiles sit outside the filter disclosure now; opening it is harmless.
+  // The type select sits outside the filter disclosure; opening it is harmless.
   await page.locator('.wz-browse-drawer-btn').click();
-  await page.locator('.wz-cat', { hasText: 'Lower thirds' }).first().click();
+  await chooseType(page, 'Lower thirds');
   await page.locator('.wz-variant').first().click();
 
   // Stacked, the aside must still be given a height: `flex: 0 0 50%`'s flex-grow of 0 once

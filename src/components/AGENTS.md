@@ -26,6 +26,11 @@ dialogs each invent a header and a checkbox row.
   control column because it belongs to the control.
 - **FOOTER** (`.dlg-foot`) - one row, secondary left, primary right, never stacked.
 
+**A `.spacer` div is not a push.** There is no global `.spacer { flex: 1 }`, only scoped ones,
+so a header pushing its ✕ with a bare `<div className="spacer" />` pushes nothing and the button
+sits one gap after the title - the §6 defect exactly, as the beta feedback sheet shipped it.
+Use `.gallery-close`; `.wz-header` already parks it.
+
 Settings is the worked example: 820x620, a section nav that JUMPS rather than switches, so
 every section stays mounted and no preference is reachable only by clicking the right tab.
 
@@ -636,6 +641,10 @@ await entirely, because the app-level dialog already announces unclaimed failure
   Icons are inline SVG from `components/icons.tsx` - no
   pictographic emoji on these surfaces (monochrome verb glyphs stay). Local-first, no auth
   gate - sign-in only adds sync. `#/package/*` is a retired route that lands on Home.
+  Its topbar carries the **beta feedback door** (`area="home"`), as the wizard's header does
+  (`area="wizard"`) - it existed only in the EDITOR shell, the surface the student release
+  demotes, so the release's own user had no way to send anything. Both render nothing offline,
+  and with a wizard open over a shell TWO are in the document: `data-area` names one.
 - **home/sections/ProductionsSection** - production CARDS: a production has a state, a size and
   a set of graphics, and a one-line row showed none of them. Name + published badge, stats, a
   strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes

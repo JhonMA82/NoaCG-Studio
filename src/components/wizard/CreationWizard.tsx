@@ -21,6 +21,7 @@ import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
+import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
 import ImportStep from './steps/ImportStep';
 import ImportDesignStep from './steps/ImportDesignStep';
@@ -1140,6 +1141,13 @@ export default function CreationWizard() {
               Step <b>{railPos + 1}</b> / {stepTitles.length}
             </span>
           )}
+          {/* THE FEEDBACK DOOR BELONGS HERE, not only in the editor shell. The student
+              release makes the wizard the whole product for most people and demotes the
+              editor behind Advanced mode - so a door that existed only in AppShell meant
+              the release's own user could not tell us anything, on the surface where the
+              confusion actually happens. It is the quietest control on the row and it never
+              opens itself; offline it renders nothing at all. */}
+          <BetaFeedbackButton area="wizard" />
           <button
             className="gallery-close"
             onClick={leaveStep}
@@ -1245,9 +1253,9 @@ export default function CreationWizard() {
                   setStep(1);
                 }}
                 onBlank={() => { setMode('blank'); setStep(1); }}
-                onHome={() => {
+                onHome={(section = null) => {
                   closeGallery();
-                  useRouter.getState().navigate({ view: 'home', section: null });
+                  useRouter.getState().navigate({ view: 'home', section });
                 }}
               />
             )}
