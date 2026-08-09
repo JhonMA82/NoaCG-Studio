@@ -2,9 +2,8 @@
 
 Guidance for AI agents working in this repo. Keep it accurate - update it when architecture or
 conventions change. This root file holds the product identity, the non-negotiables and the working
-practices; **deep per-area contracts live in nested `AGENTS.md` files** (directories marked * in the
-map below, each paired with a thin `CLAUDE.md` that imports it) - read the relevant one before
-editing that area from outside it.
+practices; **deep per-area contracts live in nested `AGENTS.md` files** (marked * in the map
+below) - read the relevant one before editing that area from outside it.
 
 Be concise with all of your responses.
 
@@ -64,11 +63,11 @@ GitHub commit status. Each froze production once (`docs/DEPLOYMENT.md`).
 
 **The dev port is per-checkout** and RESERVED through a ticket, not merely hashed, so two worktrees
 that hash alike still both start: 5174 in the main checkout (5175 for the live e2e suite), a
-reserved port from the 5180-5298 block in a linked worktree. `scripts/dev-port.mjs` prints it;
-Vite, both Playwright configs, the guard hooks and the dev scripts all read the same number.
+reserved port from the 5180-5298 block in a linked worktree. `scripts/dev-port.mjs` prints it, and
+Vite, both Playwright configs, the guard hooks and the dev scripts all read that same number.
 `.claude/launch.json` and `.claude/dev-port.json` are GENERATED from that reservation (gitignored -
-never hand-edit or commit them). `DEV_PORT=n` overrides everything. Details, storage and
-troubleshooting: **`docs/DEV_PORTS.md`**; `npm run test:ports` covers the allocator.
+never hand-edit or commit them). `DEV_PORT=n` overrides everything. Details:
+**`docs/DEV_PORTS.md`**; `npm run test:ports` covers the allocator.
 
 **Five pages (Vite MPA).** Clean URLs come from the `app-clean-url` plugin in dev/preview and
 Vercel `cleanUrls` in production.
@@ -214,10 +213,10 @@ show chat, and AI (hosted mode). Offline builds (no Supabase env) must grow **ze
 New projects go through the **CreationWizard** (Entry -> Browse -> Fields -> Style -> Animation ->
 Finish, persistent live preview); `variant.create(options)` generates the complete, commented
 template, applied with `resetSampleData: true` so a project starts from its own field defaults.
-Entry leads with **Continue working**, then the broadcast-graphics cards: templates, **"Create with
-AI"** (THE one AI door - its ⚙ settings pick the TIER: Lite, Pro, or Custom/BYO), **"Import
-graphic"** (manual artwork -> erase/scale -> place text fields), and blank; the video strip sits
-separately, marked Beta. **Finish** is the flow's one branch: open it in the editor, or **export it
+Entry leads with **Continue working**, then the broadcast-graphics cards - templates, **"Create
+with AI"** (THE one AI door; its ⚙ settings pick the TIER: Lite, Pro, Custom/BYO), **"Import
+graphic"** (artwork -> erase/scale -> place text fields), blank - with the video strip separate,
+marked Beta. **Finish** is the flow's one branch: open it in the editor, or **export it
 without the editor ever opening** - export is not a reward for opening the editor. After creation
 the Style panel writes the `:root` contract and the step timeline touches ONLY the marked ANIMATION
 region - user code outside the markers is never modified, and the timeline dock picks its surface
@@ -226,8 +225,7 @@ src/components/AGENTS.md; the Browse storefront's facets: `docs/TEMPLATE_TAXONOM
 
 ## Verifying changes
 
-Six rules. The full procedure - which suite, why the gate moved off the laptop, what each catalog
-gate measures - is **`docs/VERIFICATION.md`**.
+Six rules; the full procedure is **`docs/VERIFICATION.md`**.
 
 1. **Always `npm run build`** (typecheck + lint + build) after changes, and keep the tree
    lint-clean rather than adding eslint-disable comments. There is no application unit-test suite;
@@ -290,8 +288,8 @@ gate measures - is **`docs/VERIFICATION.md`**.
 - Most work happens on a **feature branch**, usually in a worktree - several are typically active
   at once, so `node scripts/worktree-activity.mjs` prints what is in flight elsewhere before you
   start something that collides: every OTHER worktree's uncommitted and not-yet-merged files,
-  then every branch ahead of `main` that no worktree has checked out (a closed session leaves its
-  work there, so it still collides even though nobody is in it). If a session starts on `main`
+  then every branch ahead of `main` that no worktree has checked out - a closed session's work
+  still collides even though nobody is in it. If a session starts on `main`
   with work to do, branch first. The rhythm: **commit each completed, verified phase/step** to the
   FEATURE BRANCH with a descriptive message. **Never add a `Co-Authored-By` trailer or any agent
   co-author.** Don't commit `dist/` in feature work.
@@ -303,24 +301,20 @@ gate measures - is **`docs/VERIFICATION.md`**.
 - **The one exception is the user invoking the repo's merge-to-main flow** (`/safe-merge` in
   Claude Code or `$safe-merge` in Codex). Invoking it IS the ask: run that flow to completion for
   the named branch - preflight, merge into `main`, and push - without asking again for the merge
-  or push. **Selecting the safe-merge option from a pick the `next` workflow offered counts as
-  invoking it** - the user chose that branch deliberately, so run the flow rather than telling
-  them to type the command; see `.agent-workflows/next.md` §2c. It does not authorize branch or
+  or push. **Picking the safe-merge option the `next` workflow offered counts as invoking it** -
+  the user chose that branch deliberately, so run the flow rather than telling them to type the
+  command; see `.agent-workflows/next.md` §2c. It does not authorize branch or
   worktree cleanup, with one carve-out: a branch with no worktree (a closed session leaves those
   behind) has nowhere to integrate `main` and run the gate, so the flow creates a TEMPORARY
   worktree for it and removes that same one at the end - never any other, never with `--force`.
   The permission is scoped to that invocation and that branch; it never carries
   to another branch, a later turn, or any other route onto `main`. If the flow's checks fail,
   stop and report - permission to run the flow is not permission to land something broken.
-- **A finished session can clean up its own worktree, but only the USER starts it.** The
-  cleanup-worktrees workflow run from inside a worktree (`cleanup-worktrees.mjs --self`) removes
-  that one, under the same rules as the bulk sweep. **No other workflow raises the subject** -
-  handoff used to report whether removal was available and no longer mentions it at all, because
-  a verdict written by a model must never be the thing that starts an irreversible action.
-  **A clean `git status` does not mean a worktree is disposable:** it says nothing about ignored
-  files, and removal deletes them regardless - `.env`, bench output that cost real money, logs.
-  The script lists every non-regenerable ignored path with its size and refuses to apply until
-  that loss is explicitly acknowledged.
+- **A finished session can clean up its own worktree, but only the USER starts it** -
+  `cleanup-worktrees.mjs --self`. **No other workflow raises the subject**: a verdict written by a
+  model must never start an irreversible action. **A clean `git status` does not mean a worktree is
+  disposable** - ignored files (`.env`, paid bench output, logs) die with it, so the script refuses
+  to apply until that loss is acknowledged (`.agent-workflows/cleanup-worktrees.md`).
 - **Merge ORDER is checked, not guessed.** `node scripts/merge-order.mjs` ranks every branch
   ahead of `main` by what landing it FIRST costs the other worktrees, measuring real conflicts
   with `git merge-tree` (read-only - no working tree, no ref) and naming the collisions git
@@ -332,3 +326,16 @@ gate measures - is **`docs/VERIFICATION.md`**.
   outside developer reading the history cold. No chat/session language, internal planning names, or
   AI-sounding phrases ("as requested", "starting era 5", "continued work"). Never mention Claude,
   agents, prompts, or the conversation unless the commit is specifically about AI tooling.
+
+## Ending a turn
+
+End completed/waiting turns with a tiny, phone-glanceable wrap-up:
+
+- **Done** - what changed + verified/not.
+- **Needs you** - exact action/question, or "nothing".
+- **Next** - obvious safe continuation -> do it; real choice -> ask clearly; finished -> offer
+  merge/handoff.
+- Never ask permission for obvious, safe work within scope.
+- If input is needed, make the question the final thing on screen.
+- Never bury questions or add prose after them.
+- No extra scans/tools just to produce the wrap-up.
