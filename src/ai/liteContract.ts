@@ -907,8 +907,14 @@ function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdL
  * SUPPORTING line decided what the graphic had to claim to be. `event-name` was tested before
  * `team-name`, which made the ordinary "Helsinki Comets / Women's Championship Final" strap -
  * roles `['team-name', 'event-name']`, kind `team` - legal only if it declared itself an `event`
- * graphic. It failed intermittently for six rounds (the gateway round, v9, v10, v12 failed it;
- * v7, v8, v11 passed), which is the signature that gets written off as sampling.
+ * graphic.
+ *
+ * The production ledger (`ai_generations`, project kprolrchuldgfrzspthy) has `intent_role_mismatch`
+ * as the FINAL reason on exactly two generations, v10 and v12, each after both attempts. Rounds v3,
+ * v7, v8, v9 and v11 lost their one fixture to `intent_variant_mismatch` or `malformed_response`
+ * instead. The ledger keeps only the final reason, so a first attempt refused this way and
+ * recovered by the second leaves no row - "it fired intermittently all along" is consistent with
+ * the data but not shown by it. What IS measured is that it cost a whole generation twice.
  *
  * A second line is context, never identity: the graphic IS whatever its first line names.
  */

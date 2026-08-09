@@ -337,6 +337,17 @@ deciding one, which is why it took a version bump. Pinned both ways in `api/_lib
 and a team-name first line still may not claim `event`. Not yet re-measured against the fixture
 bank.
 
+**One correction to the paragraph above, from the ledger.** "Firing intermittently all along (the
+gateway round, v9, v10 failed it; v7, v8, v11 passed)" is the round list for the `team` ONE-HOME
+defect, which failed as `intent_variant_mismatch`. Grouped by `prompt_version` and
+`rejection_reason`, `ai_generations` carries `intent_role_mismatch` as a FINAL reason on exactly
+two generations - **v10 and v12**, both after two attempts. v3, v7, v8, v9 and v11 lost their one
+fixture to `intent_variant_mismatch` or `malformed_response`. The ledger stores only the final
+reason, so an attempt refused this way and recovered on the retry leaves no row: intermittent
+firing stays consistent with the data without being shown by it. What is measured is that it cost
+a whole generation twice. **A pass count cannot tell a schema refusal from a semantic one - the
+reason column can.**
+
 ### 5.5 `.env.example` pointed the fallback at a route the code no longer uses
 
 It still said `AI_LITE_FALLBACK_MODEL=alibaba/qwen3-coder-next` while the code default has been
