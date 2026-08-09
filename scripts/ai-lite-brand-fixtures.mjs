@@ -36,8 +36,18 @@ const badge = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" 
   <path d="M128 54 L154 112 L216 112 L166 148 L185 208 L128 172 L71 208 L90 148 L40 112 L102 112 Z" fill="#ffffff"/>
 </svg>`;
 
-/** A very wide sponsor rail lockup - 10:1, the shape a square well punishes hardest. */
-const banner = (ink) => `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="96" viewBox="0 0 960 96">
+/**
+ * A very wide sponsor rail lockup - 13:1, the shape a square well punishes hardest.
+ *
+ * The viewBox is 1280 wide because the LOCKUP IS: measured, this text run ends at x=1242, and
+ * the first version declared 960 and clipped its own wordmark to "NORTHBRIDGE POLYT…". That
+ * shipped into the 2026-08-09 brand round and was written up as a platform defect - a mark the
+ * product had clipped - when the product had placed it correctly and the fixture was malformed.
+ * A bank is an instrument: a broken fixture does not read as a broken fixture, it reads as a
+ * broken product, and it took a diagnosis to tell them apart. Anything added here gets its
+ * painted extent checked against its own viewBox first.
+ */
+const banner = (ink) => `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="96" viewBox="0 0 1280 96">
   <rect x="0" y="32" width="96" height="32" rx="6" fill="${ink}"/>
   <text x="124" y="70" font-family="Helvetica, Arial, sans-serif" font-size="60" font-weight="600" letter-spacing="10" fill="${ink}">NORTHBRIDGE POLYTECHNIC</text>
 </svg>`;
@@ -112,15 +122,15 @@ export const LITE_BRAND_MARKS = [
   },
   {
     id: 'banner-wide',
-    label: 'Institution rail (10:1)',
+    label: 'Institution rail (13:1)',
     path: 'images/brand-banner.svg',
     data: svgAsset(banner('#ffffff')),
-    natural: { width: 960, height: 96 },
+    natural: { width: 1280, height: 96 },
     shape: 'rail',
     inkHex: '#ffffff',
     fieldHex: null,
     tone: 'light',
-    note: 'Extreme horizontal lockup: contained in a square slot it paints a hairline strip.',
+    note: '13:1 lockup. In a square slot it paints a hairline strip; its own viewBox fits it.',
   },
   {
     id: 'shield-tall',

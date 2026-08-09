@@ -13,7 +13,7 @@ Prior work this stands on: `BRAND-AUDIT-2026-08-09.md` (the free geometry audit)
 
 ## What the round bought
 
-**Machine-valid said 5 of 5 on every pass. The frames say 1 of 5.** That gap IS the result, and
+**Machine-valid said 5 of 5 on every pass. The frames say 1 of 5** - and one of those four turned out to be a defect in the bank rather than in the product (§3). That gap IS the result, and
 it is the fourth time this profile has produced it (§4 of the plan). Every row: `fieldCount: 3`,
 `ruleCodes: []`, `warningCodes: []`, motion settled.
 
@@ -22,7 +22,7 @@ it is the fourth time this profile has produced it (§4 of the plan). Every row:
 | `brand-sports-badge` | square crest | lt05 | **good** - legible size, correct clear space, brand accent, right hierarchy |
 | `brand-news-wordmark` | dark-ink wordmark | lt11 | mark effectively **invisible** - dark ink on the brand's dark panel |
 | `brand-knockout-only` | knockout wordmark | lt11 | mark effectively **invisible** - white ink on the light paper panel |
-| `brand-university-banner` | 10:1 rail | lt11 | mark **clipped mid-word** ("NORTHBRIDGE POLYT…") |
+| `brand-university-banner` | 13:1 rail | lt11 | mark clipped mid-word - **the FIXTURE's fault, not the product's** (§3) |
 | `brand-creator-shield` | portrait shield | lt15 | not read in this pass |
 
 ## Three defects, each with a mechanism and an owner
@@ -40,7 +40,7 @@ PROMPT asks for and the schema omits is dead teaching. Both halves ship together
 
 Fixed: `useLogoSlot` added to the schema, optional. Re-run placed a mark on 5 of 5.
 
-### 2. `surface: 'palette'` is not actionable, and it is the metadata's own fault. (PLATFORM, open)
+### 2. `surface: 'palette'` is not actionable, and it is the metadata's own fault. (PLATFORM, fixed)
 
 Two of the four failures are the same defect mirrored: a dark-ink mark on a dark panel, and a
 knockout mark on a light one. Both chassis declare `surface: 'palette'`, which means *the user's
@@ -50,17 +50,32 @@ dark-ink mark on a design whose logo surface is dark") is literally satisfied in
 
 **The metadata is right and the instruction built on it is not.** `palette` is a statement about
 where the surface COMES FROM, not what it will BE, and only the request knows the second half.
-The fix is deterministic, not a prompt line: the compile knows the mark's ink and the resolved
-panel colour, so it can measure the contrast and refuse or repair - the shape
-`clampLitePalette` already uses for text.
+Fixed: `logo_contrast_low` in the server semantic validation, where the repair loop can act on
+it - the mark's ink against the resolved panel, scoped so an unknown term never fires. A repair
+fixture pins it and the suite's exact-match test shows it stays silent elsewhere. NOT yet
+confirmed by a paid round: that the rule fires is proven, that the model RECOVERS is not.
 
-### 3. The audit computes where a mark should paint; it never checks that it did. (INSTRUMENT, open)
+### 3. The clipped rail was MY FIXTURE, not the product. (BANK, fixed - and this entry was wrong)
 
-The clipped rail is the sharper finding, because **the free audit passed that exact chassis and
-mark shape.** `paintedImageRect` derives the painted box from `object-fit` arithmetic rather than
-reading pixels, so a mark the layout clips is measured as if it were whole. That is this repo's
-own rule biting the tool written to enforce it: a gate cannot catch a defect in a dimension it
-does not measure.
+**Corrected 2026-08-09, after the diagnosis.** As first written this entry blamed the audit for
+passing a mark the product had clipped. Both halves of that were false, and the correction is
+worth more than the claim was.
+
+Measured: `banner-wide` declared a `viewBox` of `0 0 960 96` around a text run whose bounding box
+ends at **x=1242**. The SVG clipped its own wordmark before anything downstream saw it. The
+product placed the mark correctly - `260x20`, `object-fit: contain`, inside its box, clear space
+intact - and the audit was RIGHT to pass it. There was no platform defect and no instrument blind
+spot; there was a malformed fixture, and it rendered as a cut-off logo that looked exactly like a
+placement bug.
+
+**A bank is an instrument, and a broken fixture does not read as a broken fixture - it reads as a
+broken product.** Everything the audit says is measured through these five files, so they now get
+checked first: `scripts/ai-lite-brand-audit.mjs` renders each mark alone before touching a
+chassis and compares every drawn node's bounding box against the viewBox, plus the declared
+`natural` size against it. A fault aborts with exit 2 rather than producing numbers. Mutation-
+proved by restoring the 960 viewBox: `<text> spans 124..1242 x 16..83 outside its 960x96 viewBox`.
+
+The rail is a 13:1 lockup now (`1280x96`), which is what it always was.
 
 ## What is NOT a defect
 
@@ -82,7 +97,7 @@ construction. Narrowed to the explicitly plural forms.
 ## The state this leaves
 
 Lite can now place a brand mark, and does. It places it **well when the mark brings its own
-field and the design was drawn for that shape**, and badly in two named, measurable ways that are
-both platform work rather than model work. Neither needs a bigger model, a prompt rewrite, or
-another paid round to reproduce - the next round should be spent CONFIRMING a fix, not finding
-these again.
+field and the design was drawn for that shape**, and badly in one named, measurable way that is
+platform work rather than model work. Every defect this round found is now fixed or corrected. What no round has shown is whether the
+model RECOVERS when the contrast rule fires - the next paid round should confirm that, not
+re-find any of this.
