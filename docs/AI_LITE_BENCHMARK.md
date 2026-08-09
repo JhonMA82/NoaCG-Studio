@@ -189,7 +189,7 @@ A linked worktree has no `.env`, so these tools read the MAIN checkout's and wri
 configuration next to the worktree's own `package.json`. Nothing is per-round or per-path.
 
 ```bash
-node scripts/lite-eval-env.mjs     # compose .env.bench.local (route, quota override, keys)
+node scripts/bench-env.mjs --profile=lite   # compose .env.bench.local (route, quota, keys)
 node scripts/lite-eval-stamp.mjs   # mint a bearer token for the eval account and stamp it
 # start the bench server: preview_start {name: "dev-bench"}, or npm run dev:bench
 node scripts/lite-eval-probe.mjs   # free: what would Lite do for this identity? (expect 200)
@@ -197,6 +197,11 @@ npm run eval:round -- lite-eval-out v14 30   # PAID. Caps: 40 calls / USD 1.50
 npm run bench:sameness && npm run bench:gallery && npm run bench:report   # review
 npm run eval:archive -- lite-eval-out v14    # copy + VERIFY into the permanent archive
 ```
+
+`bench-env.mjs --profile=pro` does the same for the Pro bench (gateway key, ZDR, the test
+account it signs in as). Every paid runner polices its routes through
+`scripts/harness-route-policy.mjs`: gateway only, unless the run states `--frontier-reason`
+(`docs/AI_PLATFORM_PLAN.md` §7a).
 
 **Archive before any worktree cleanup.** Out-dirs are gitignored and die with the worktree -
 two paid rounds were lost that way. `eval:archive` copies to

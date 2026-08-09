@@ -24,15 +24,23 @@
 // FAILED interpretation bills too, carried out on the thrown ProCompileError: a ceiling that
 // stops counting when something goes wrong drifts upward exactly when it matters.
 //
+// ROUTES ARE POLICED (scripts/harness-route-policy.mjs): both routes must be `vercel:` gateway
+// routes unless the run states `--frontier-reason="…"`, which is written into results.json so a
+// dear round carries its justification. Harness work belongs on the gateway's open-weight and
+// cheap models; a frontier provider API is for a named comparison, not a habit.
+//
 // Deterministic structural checks (scored here) stay separate from subjective visual
 // quality (the review gallery, a human read). Requires the dev server on this checkout's
-// port (npm run dev - with your own .env for paid mode).
+// port. From a worktree: `node scripts/bench-env.mjs --profile=pro`, then start dev:bench -
+// a worktree has no .env of its own, and the paid path needs the gateway key and the test
+// account.
 
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
 import { readEnvFile } from './ai-bench-server.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve('pro-bench-out');
@@ -52,15 +60,23 @@ const imageRoute = value('image-route');
 // route - the default session model is a text coder and would be handed an image.
 const interpretRoute = value('interpret-route');
 
+// A non-gateway route is allowed only with a stated reason, and the reason is recorded in
+// results.json (scripts/harness-route-policy.mjs holds the policy and the refusal).
+const frontierReason = value('frontier-reason');
+let routeReasons = null;
+
 if (paid) {
   if (!imageRoute?.startsWith('vercel:')) {
     console.error('PAID mode needs an explicit --image-route=vercel:<model> (the gateway\'s image adapter).');
     process.exit(1);
   }
-  if (!interpretRoute?.includes(':')) {
+  if (!interpretRoute) {
     console.error('PAID mode needs an explicit --interpret-route=<provider>:<vision model> for the interpretation call.');
     process.exit(1);
   }
+  const image = requireAllowedRoute(imageRoute, { flag: 'image-route', reason: frontierReason });
+  const interpret = requireAllowedRoute(interpretRoute, { flag: 'interpret-route', reason: frontierReason });
+  routeReasons = { image: image.frontierReason, interpret: interpret.frontierReason };
   if (!Number.isFinite(maxCost) || maxCost <= 0) {
     console.error('PAID mode needs an explicit --max-cost=<usd> ceiling. This run spends real money.');
     process.exit(1);
@@ -307,7 +323,7 @@ for (const entry of briefs) {
       interpretCostUsd: outcome.interpretCost ?? null,
       ms: Date.now() - started,
     });
-    await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, spentUsd, results }, null, 2));
+    await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, routes: paid ? { image: imageRoute, interpret: interpretRoute, frontierReason: routeReasons } : null, spentUsd, results }, null, 2));
     continue;
   }
 
@@ -343,7 +359,7 @@ for (const entry of briefs) {
   results.push(record);
   console.log(`  ${record.pass ? 'PASS' : 'FAIL'} · ${record.source} · fields ${record.textFields} · editability ${record.editability.toFixed(2)} · ${record.ms} ms`);
   if (!record.validationOk) for (const err of record.validationErrors) console.log(`    ✗ ${err}`);
-  await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, spentUsd, results }, null, 2));
+  await writeFile(path.join(OUT, 'results.json'), JSON.stringify({ base: BASE, paid, routes: paid ? { image: imageRoute, interpret: interpretRoute, frontierReason: routeReasons } : null, spentUsd, results }, null, 2));
 }
 
 // ── The review gallery: deterministic verdicts beside the frames a human judges ────────

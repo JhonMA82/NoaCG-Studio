@@ -55,7 +55,7 @@ if (!existsSync(target)) {
   // Composing the bench configuration first is the intended order, but a token file with
   // nothing else in it is still a usable state - the round runner only reads this key.
   console.warn(`${target} does not exist yet - creating it with the token alone.`);
-  console.warn('Run `node scripts/lite-eval-env.mjs` to write the rest of the bench configuration.');
+  console.warn('Run `node scripts/bench-env.mjs --profile=lite` to write the rest of the configuration.');
 }
 const kept = existsSync(target)
   ? readFileSync(target, 'utf8')

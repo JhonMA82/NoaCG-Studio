@@ -30,7 +30,7 @@ export function mainEnv() {
   return readEnvFile(mainCheckout(), '.env');
 }
 
-/** This checkout's bench configuration file. Written by lite-eval-env, read by everything else. */
+/** This checkout's bench configuration file. Written by bench-env.mjs, read by everything else. */
 export function benchEnvPath() {
   return join(repoRoot, '.env.bench.local');
 }

@@ -14,7 +14,7 @@ const env = benchEnv();
 const token = env.NOACG_LITE_EVAL_BEARER_TOKEN ?? '';
 if (!token) {
   console.error(`${benchEnvPath()} carries no NOACG_LITE_EVAL_BEARER_TOKEN.`);
-  console.error('Run scripts/lite-eval-env.mjs then scripts/lite-eval-stamp.mjs first.');
+  console.error('Run scripts/bench-env.mjs then scripts/lite-eval-stamp.mjs first.');
   process.exit(1);
 }
 
