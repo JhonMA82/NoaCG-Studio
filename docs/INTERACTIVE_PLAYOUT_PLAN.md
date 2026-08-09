@@ -636,8 +636,12 @@ row away from the sibling buttons it belongs to.
 > **Deliberately not built yet:** the presenter view beyond the read-only page the presenter
 > slug already serves. The offline suite pins only what an offline build owns — the controls
 > exist, an empty name is refused, the offline truth is reported, a verdict never outlives the
-> name it was about — because both `presenterBySlug` and the claim itself are server work. Both
-> belong on the maintainer's live checklist.
+> name it was about — because both `presenterBySlug` and the claim itself are server work.
+> That checklist is now a SPEC: **`e2e/configured/audience-live.spec.ts`** signs in against the
+> real backend and walks publish → derived readable link → the link opening the join page → a
+> hand-picked name winning over the derived one, then unpublishes. It skips without
+> `E2E_EMAIL`/`E2E_PASSWORD`. `presenterBySlug` is still uncovered — the presenter view it
+> serves is the part above that is unbuilt.
 
 Audience participation is a sibling capability plane on the existing `control_shows` row.
 Everything is browser → Supabase direct (zero Vercel functions), one migration

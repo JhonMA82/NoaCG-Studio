@@ -3054,6 +3054,9 @@ code.inline { font-family: ui-monospace, monospace; background: var(--bg); paddi
 
 /* The inline gate a signed-out visitor sees where an account feature would render. */
 .signin-prompt .primary { margin-top: 4px; }
+/* Wraps rather than squeezing: this sits in a panel that can be narrow (the wizard's AI step in
+   a small window), and a create-account button that ellipsizes reads as a broken control. */
+.signin-prompt-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* ---------- Canvas direct manipulation (Era 6 — drag, hover affordances, inline edit) ---------- */
 .canvas-layer {

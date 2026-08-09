@@ -23,6 +23,8 @@ export function audienceBrandFor(look: ProjectBrand | undefined): AudienceBrand 
     // An imported face cannot travel to a phone (its bytes live in the template's assets, not
     // on this page), so a custom font contributes its FAMILY NAME plus the page's own fallback:
     // a device that happens to have the face uses it, and every other one reads the default.
+    // A BUNDLED face does travel: joinSurface.ts declares an `@font-face` for every one of them
+    // against /fonts, so the name below resolves to a real file on the viewer's phone.
     font: look.customFont
       ? `"${look.customFont.family}", system-ui, sans-serif`
       : look.fontId
