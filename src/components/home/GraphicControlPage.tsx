@@ -84,6 +84,12 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // Grouped by the SECTION the type declared ("Answer", "Vote", "Flag", "Result", "Clock"),
   // in declared order — the same grouping the Rehearse panel, the exported panel and the
   // production page build. An undeclared event falls into "Events", as it does there.
+  /** A payload named in the OPERATOR'S words, never as `f7` (docs/PLAYOUT_DASHBOARD.md §7b).
+   *  The production page already words its ⚡ tooltips this way; this surface and the editor's
+   *  Rehearse panel printed the raw ids, which says nothing about what pressing the button airs -
+   *  "carrying Audience results" is the whole explanation, "carrying f7" is none of it. */
+  const payloadWords = (b: ControlButton): string =>
+    (b.payload ?? []).map((key) => descriptors.find((d) => d.key === key)?.label ?? key).join(', ');
   const eventSections = useMemo(() => {
     const sections: [string, ControlButton[]][] = [];
     for (const b of buttons) {
@@ -463,8 +469,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
                               : b.payload?.length
                                 ? active
-                                  ? `Fires "${b.event}" with ${b.payload.join(', ')} from “${active.label}”`
-                                  : `Fires "${b.event}". ${b.payload.join(', ')} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
+                                  ? `Fires "${b.event}" with ${payloadWords(b)} from “${active.label}”`
+                                  : `Fires "${b.event}". ${payloadWords(b)} ride this event from the ACTIVE ENTRY — with none selected the graphic keeps its current values.`
                                 : `Fire "${b.event}"`
                           }
                           data-testid={`control-event-${b.event}`}

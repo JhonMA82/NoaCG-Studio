@@ -207,7 +207,12 @@ export default function ControlPanel() {
                         !legal
                           ? `"${e.event}" has no arrow out of the current state, so the graphic would drop it`
                           : e.payload?.length
-                            ? `Fires "${e.event}" with ${e.payload.join(', ')}`
+                            ? // The payload in the OPERATOR'S words, never as `f7`
+                              // (docs/PLAYOUT_DASHBOARD.md §7b): "carrying Audience results" says
+                              // what the press airs, and a field id says none of it.
+                              `Fires "${e.event}" with ${(e.payload ?? [])
+                                .map((key) => controls.find((d) => d.key === key)?.label ?? key)
+                                .join(', ')}`
                             : `Fires "${e.event}"`
                       }
                     >

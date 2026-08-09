@@ -1,8 +1,8 @@
 # The playout dashboard — one operator surface, three deployments
 
 Binding design contract for the surface an operator drives a production from. Owner-specified
-2026-08-05 (reference designs: `re-design/playout-example/playout-desktop.png` +
-`playout-phone.png`). Three surfaces render it and **must not diverge**:
+2026-08-05; reference designs `re-design/4a-playout-desktop.png` + `4b-playout-phone.png`, and
+the four INTERACTIVE blueprints in §8a. Three surfaces render it and **must not diverge**:
 
 | Deployment | Code | Wire |
 |---|---|---|
@@ -170,3 +170,46 @@ An **incoming feed** (the public submit page and the moderation page the owner i
 extending `src/community/showchat/`) lands in the same region: a module that shows what viewers
 sent and puts approved items into a cue. Keep the region's height flexible and its contents
 graphic-scoped; do not fill it with chrome.
+
+## 8a. The interactive blueprints — what §8's modules actually look like
+
+Four approved mockups landed 2026-08-09 and no doc referenced them, so they are named here.
+Read them before building anything in the §8 region; the vocabulary is binding, the pixel detail
+is not (the two quiz frames already disagree over field numbering and whether the actions sit in
+one row or a two-column block — treat that as drawing, not as contract).
+
+| File | What it specifies |
+|---|---|
+| `playout-control-panel-blueprint-vision.png` | The whole picture: the dashboard unchanged, plus the FOUR other operator views and the data-flow between them. |
+| `playout-control-panel-quiz-example.png` | The quiz cue's field editor + its ⚡ ACTIONS block. |
+| `playout-control-panel-poll-example.png` | The live-vote cue: Poll / Results / Chat tabs, per-option vote counts, a CONTROLS column, live chat beside it. |
+| `playout-control-panel-audience-question-example.png` | The Q&A cue: original submission vs BROADCAST VERSION, approve / reject / edit, and a questions queue. |
+
+**The founding rule, in the owner's words on the vision frame:** *"Your current playout view stays
+the core. We add power underneath and to the side, not on top of it. We don't break what works.
+We extend it."* And, on the flow diagram: *"Nothing bypasses the operator. Everything becomes a
+cue."* Both restate contracts this doc already holds (§1, and the staged-vs-take rule) — which is
+the useful signal: the blueprints are an EXTENSION of this surface, not a redesign of it.
+
+The four other operator views it names — Data Hub, Audience Inbox, Public Participation Page,
+Presenter View — are `docs/INTERACTIVE_PLAYOUT_PLAN.md`'s planes, largely shipped
+(`ProductionDataWorkspace`, `ProductionAudienceWorkspace`, `/join`, the presenter view). Nothing
+here asks for a new plane; it asks for the CUE EDITOR to show the right controls per graphic type.
+
+### Two places the blueprints and the shipped contracts disagree — owner's call
+
+Recorded rather than resolved, because both are decisions, not defects:
+
+1. **The graphic's STATE as an ordinary operator field.** The quiz frames put a `QUIZ STATE`
+   dropdown (reading "Waiting for contestant", "Question card") in the field editor beside F0–F6.
+   §7b of this doc says the opposite in as many words: *"Snap to state… is the RECOVERY picker,
+   not a way to drive a graphic"* — normal operation is the ⚡ actions and » Next. A dropdown among
+   the fields reads as the normal way to drive it. Which one is right decides whether
+   `#/control/<id>` grows a recovery picker (`docs/CONTROL_PANEL_PARITY.md` §5.3) or a state
+   field.
+2. **A per-play TIMER value.** The quiz frames carry a `TIMER (SEC)` stepper as an operator field.
+   The state model says a timer transition's delay is authored data ON THE ARROW, and both timer
+   types state that as a known limit in their own files (`types/livePoll.ts`: *"the window's length
+   is AUTHORED data on the arrow … not a field the operator sets per play"*, with the manual
+   button as the answer). Making it a field means a second clock that can disagree with the arrow,
+   which that comment declined on purpose. Same subject as `CONTROL_PANEL_PARITY.md` §5.4/§5.5.
