@@ -42,6 +42,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { devPort } from './dev-port.mjs';
 import { PLATE_CSS } from './creative-plate.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const ARGS = process.argv.slice(2);
@@ -57,12 +58,19 @@ const MAX_COST = Number(flag('max-cost') ?? '1');
 const LABEL = flag('label') || 'pilot';
 const ARMS = (flag('arms') || 'A,B,C,D').split(',').map((a) => a.trim().toUpperCase()).filter((a) => 'ABCD'.includes(a));
 
-const [provider, ...modelParts] = ROUTE.split(':');
-const model = modelParts.join(':');
-if (!provider || !model) {
+if (!ROUTE) {
   console.error('This bench SPENDS TOKENS and requires an explicit route: --route=<provider>:<model id>.');
   process.exit(1);
 }
+// Gateway routes only, unless the run states why it needs a frontier provider
+// (scripts/harness-route-policy.mjs; docs/AI_PLATFORM_PLAN.md §7a). All THREE routes are
+// checked, each where it is parsed: this rig can run its arms on different models, so gating
+// only the headline one would leave the coder and the critique free to reach a flagship.
+const FRONTIER_REASON = flag('frontier-reason');
+const { provider, model, frontierReason } = requireAllowedRoute(ROUTE, {
+  flag: 'route',
+  reason: FRONTIER_REASON,
+});
 if (!ARMS.length) {
   console.error('--arms must name at least one of A,B,C,D.');
   process.exit(1);
@@ -71,13 +79,19 @@ if (!Number.isFinite(MAX_COST) || MAX_COST <= 0) {
   console.error(`--max-cost must be a positive USD amount, got "${flag('max-cost')}".`);
   process.exit(1);
 }
-const critiqueModel = CRITIQUE_ROUTE ? CRITIQUE_ROUTE.split(':').slice(1).join(':') : '';
+const critique = CRITIQUE_ROUTE
+  ? requireAllowedRoute(CRITIQUE_ROUTE, { flag: 'critique-route', reason: FRONTIER_REASON })
+  : null;
+const critiqueModel = critique?.model ?? '';
 if (ARMS.includes('D') && !critiqueModel) {
   console.error('Arm D looks at a rendered frame, so it needs a vision model: --critique-route=<provider>:<model id>.');
   process.exit(1);
 }
-const [coderProvider, ...coderModelParts] = CODER_ROUTE.split(':');
-const coderModel = coderModelParts.join(':');
+const coder = CODER_ROUTE
+  ? requireAllowedRoute(CODER_ROUTE, { flag: 'coder-route', reason: FRONTIER_REASON })
+  : null;
+const coderProvider = coder?.provider ?? '';
+const coderModel = coder?.model ?? '';
 if ((ARMS.includes('A') || ARMS.includes('B')) && (!coderProvider || !coderModel)) {
   console.error(
     'Arms A/B emit whole templates (a coder-class call the smoke showed planning models cannot '
@@ -457,7 +471,7 @@ for (const arm of ARMS) {
 
 const report = {
   label: LABEL,
-  route: { provider, model },
+  route: { provider, model, frontierReason },
   coderRoute: CODER_ROUTE || null,
   critiqueRoute: CRITIQUE_ROUTE || null,
   /** Which route served which arm - what makes a split-route report readable on its own. */

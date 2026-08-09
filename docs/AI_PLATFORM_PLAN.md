@@ -431,10 +431,15 @@ than remembered:
   same model served through the gateway is an ordinary `vercel` route: the distinction is who
   holds the credential, not who made the model.
 - **A frontier route in a bench needs a stated reason.** `scripts/harness-route-policy.mjs`
-  refuses a non-gateway route on any runner unless `--frontier-reason="…"` is given, and writes
-  the reason into the round's results. The standing legitimate case is comparing NoaCG Pro
-  against a frontier model. This project has no revenue; the failure mode is the habit, not the
-  one deliberate comparison.
+  refuses a non-gateway route unless `--frontier-reason="…"` is given, and writes the reason
+  into the round's results. The standing legitimate case is comparing NoaCG Pro against a
+  frontier model. This project has no revenue; the failure mode is the habit, not the one
+  deliberate comparison.
+  Gated: `pro-bench` (both routes), `creative-route-bench`, `creative-pilot-bench` (all three -
+  its arms can run on different models), `pro-machine-probe`, `pro-interpret-probe`, and
+  `ai-bench-compare` (on the route RESOLVED from the app's settings, since it names only a
+  model). Not gated, by design rather than omission: `ai-vision-run`, `ai-lite-compare` and
+  `ai-lite-spike` cannot express a non-gateway route at all - the module's header says why.
 - **Image output is the unmeasured surface.** Concept images bill through output tokens and no
   per-run product ceiling has been set (§9, `docs/ADMIN.md` §9). The bench's `--max-cost`
   ceiling counts both calls and is the only guard today.

@@ -32,6 +32,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { devPort } from './dev-port.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const ARGS = process.argv.slice(2);
@@ -42,12 +43,16 @@ const OUT = flag('out') || './creative-route-out';
 const FILTER = flag('only') ?? '';
 const MAX_COST = Number(flag('max-cost') ?? '1');
 
-const [provider, ...modelParts] = ROUTE.split(':');
-const model = modelParts.join(':');
-if (!provider || !model) {
+if (!ROUTE) {
   console.error('This bench SPENDS TOKENS and requires an explicit route: --route=<provider>:<model id>.');
   process.exit(1);
 }
+// Gateway routes only, unless the run states why it needs a frontier provider
+// (scripts/harness-route-policy.mjs; docs/AI_PLATFORM_PLAN.md §7a).
+const { provider, model, frontierReason } = requireAllowedRoute(ROUTE, {
+  flag: 'route',
+  reason: flag('frontier-reason'),
+});
 if (!Number.isFinite(MAX_COST) || MAX_COST <= 0) {
   console.error(`--max-cost must be a positive USD amount, got "${flag('max-cost')}".`);
   process.exit(1);
@@ -177,7 +182,7 @@ const usageTotal = results.reduce(
   { in: 0, out: 0 },
 );
 const report = {
-  route: { provider, model },
+  route: { provider, model, frontierReason },
   when: new Date().toISOString(),
   summary,
   cost: { spentUsd: Number(spent.toFixed(6)), ceilingUsd: MAX_COST, stoppedAtCeiling, pricePerM: price },

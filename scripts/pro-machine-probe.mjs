@@ -24,6 +24,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
+import { requireAllowedRoute } from './harness-route-policy.mjs';
 import { readEnvFile } from './ai-bench-server.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
@@ -31,6 +32,8 @@ const OUT = path.resolve('pro-machine-out');
 const args = process.argv.slice(2);
 const value = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 const route = value('route') ?? 'vercel:alibaba/qwen3-coder-next';
+// Gateway routes only, unless the run says why (scripts/harness-route-policy.mjs).
+const { frontierReason } = requireAllowedRoute(route, { flag: 'route', reason: value('frontier-reason') });
 const armArg = value('arm') ?? 'both';
 const arms = armArg === 'both' ? ['plain', 'taught'] : [armArg];
 
@@ -112,7 +115,7 @@ await page.evaluate(async (r) => {
   saveAiSettings({ provider, model: model.join(':'), fallbacks: [] });
 }, route);
 
-const report = { route, brief: BRIEF, arms: {} };
+const report = { route, frontierReason, brief: BRIEF, arms: {} };
 for (const arm of arms) {
   console.log(`\n══ arm: ${arm} ══`);
   const started = Date.now();
