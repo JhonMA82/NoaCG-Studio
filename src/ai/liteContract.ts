@@ -273,6 +273,24 @@ const specSchema: Record<string, unknown> = {
         },
       },
     },
+    // The BRAND SLOT switch. Added 2026-08-09, and the round that found it missing is the
+    // cleanest possible statement of the rule the `zone` note below records from the other
+    // direction: **this object is `additionalProperties: false`, so a property the PROMPT asks
+    // for and the schema omits is an instruction the model cannot obey.** The first paid brand
+    // round told the model to "set useLogoSlot", every one of five generations came back
+    // machine-usable with zero rule codes, and not one placed a mark - because emitting the
+    // property at all would have been a schema refusal. A prompt line and a schema property are
+    // two halves of one decision; shipping either alone buys nothing.
+    //
+    // Deliberately NOT `required`: a brief with no mark must not have to say so, and a model
+    // that omits it compiles to today's behaviour exactly.
+    useLogoSlot: {
+      type: 'boolean',
+      description:
+        'Set true when the request carries a brand mark and the chosen design can hold it. '
+        + 'Match the mark\'s shape against the chassis\'s logo entry, and never place a '
+        + 'transparent dark-ink mark on a design whose logo surface is dark.',
+    },
     // `zone` STAYS IN THE SCHEMA and is ignored by the compile - the same staged retirement
     // `animation.presetId` went through, and this field is the reason that staging is a rule
     // rather than a preference.
@@ -674,7 +692,17 @@ export function normalizeLiteSkinPatch(value: unknown): LiteSkinPatch {
 }
 
 const unsupportedPatterns: { code: LiteUnsupportedCode; pattern: RegExp; message: string; suggestion: string }[] = [
-  { code: 'multi-graphic-request', pattern: /\b(package|graphics package|set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
+  // "package" USED to be in this alternation, and it refused work it had no business refusing:
+  // in broadcast a package IS the show's look - "our light paper package", "the graphics
+  // package" - which is exactly the vocabulary a brand brief arrives in. Measured 2026-08-09 on
+  // the brand bank's first paid round: 2 of 5 briefs refused for free, before any model call,
+  // both of them for the word alone (`benchmarks/lite/BRAND-ROUND-2026-08-09.md`). It also
+  // bought nothing even when it fired on a real multi-graphic request - Lite returns ONE result
+  // by construction, so the worst case without it is one graphic instead of a refusal. Same
+  // lesson as `intentKinds` above: a hand-authored claim can be wrong in the direction that
+  // refuses work, and that direction is the expensive one. Only the explicitly PLURAL forms
+  // remain.
+  { code: 'multi-graphic-request', pattern: /\b(set of (?:three|four|five|\d+)|multiple graphics)\b/i, message: 'Lite creates one graphic at a time.', suggestion: 'Describe the single most important graphic you need first.' },
   { code: 'advanced-state-machine', pattern: /\b(branching|state machine|multiple parallel states|conditional transition)\b/i, message: 'Lite does not create advanced branching or parallel state machines.', suggestion: 'Ask for one graphic with a simple entrance, hold, update, and exit.' },
   { code: 'reference-recreation', pattern: /\b(recreate|replicate|copy|pixel[- ]perfect).{0,40}\b(screenshot|reference|image|graphic)\b/i, message: 'Lite does not recreate graphics from reference images.', suggestion: 'Describe the desired palette, hierarchy, mood, and graphic type in words.' },
   { code: 'import-conversion', pattern: /\b(convert|repair|rewrite).{0,40}\b(import|html|zip|template)\b/i, message: 'Lite does not convert or repair imported templates.', suggestion: 'Ask Lite to create a new common graphic from a short brief.' },

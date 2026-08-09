@@ -267,7 +267,15 @@ export function liteProfile(): LiteProfile {
       conversationTurns: intEnv('AI_LITE_CONVERSATION_TURNS', 6, 0, 20),
       conversationCharacters: intEnv('AI_LITE_CONVERSATION_CHARACTERS', 6000, 0, 30_000),
       fields: intEnv('AI_LITE_FIELDS', 2, 1, 2),
-      logos: 0,
+      // ONE mark, since 2026-08-09. It was a hard-coded 0, and that was correct for exactly as
+      // long as it was true: every audited chassis declared `logo: 'none'`, so accepting a logo
+      // would have promised a slot that did not exist anywhere. All six carry a measured brand
+      // slot now (`LiteCatalogEntry.logoSlot`), so the 0 had become the one thing refusing the
+      // feature the rest of the profile can serve - `validateRequest` rejects both `hasLogo` and
+      // `mark` while it stands. Bounded 0..1 rather than left open: Lite is a one-mark profile by
+      // construction (`liteClient.ts` sends `hasLogo` only for exactly one image), and 0 stays
+      // reachable so the door can be shut without a deploy.
+      logos: intEnv('AI_LITE_LOGOS', 1, 0, 1),
       logoBytes: intEnv('AI_LITE_LOGO_BYTES', 2_000_000, 100_000, 5_000_000),
     },
     supportedCategories: [...LITE_AI_CATEGORIES],
