@@ -56,8 +56,8 @@ once its gate proves itself** (same trajectory as the nightly library: human-rev
 
 The "make it exist publicly" phase. Everything here is a buildable task (§9).
 
-- [ ] **Domain**: founder buys `noacg.studio` (+ `.com` redirect); wire to the Vercel project,
-      set canonical URL, redirect the raw `.vercel.app` URL.
+- [x] **Domain**: `noacg.studio` is registered through Vercel, wired to the project, and is the
+      canonical URL; `www` and the raw `.vercel.app` aliases redirect to it.
 - [x] **Open signup** (2026-07-08): allowlist enforcement is off - migration `0006` opens the
       Before-User-Created hook to everyone, applied and live-verified with a throwaway signup.
       NoaCG is open for beta testers. The allowlist table + hook stay as the kill switch (re-close

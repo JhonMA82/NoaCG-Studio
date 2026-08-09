@@ -38,8 +38,8 @@ never break, a URL that already shipped. `scripts/prerender.test.mjs` pins exact
 ## The origin
 
 Absolute URLs (canonical, `og:url`, sitemap) use `SITE_ORIGIN`, defaulting to
-`https://noacg-studio.vercel.app`. Set the env var when the real domain lands (growth plan
-W0: `noacg.studio`) - it is the only place the origin appears.
+`https://noacg.studio`. Vercel sets the variable explicitly for preview and production builds
+so generated metadata always names the public origin.
 
 ## The per-design deep link
 
