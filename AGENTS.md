@@ -238,7 +238,10 @@ gate measures - is **`docs/VERIFICATION.md`**.
    are the same workload, and this laptop is RAM-bound. Use the `:queued` form of any e2e script;
    `NOACG_ALLOW_PARALLEL_E2E=1` overrides.
 4. **The pre-merge gate belongs to CI, not the laptop** - it does strictly more, in six to nine
-   minutes, on a clean checkout.
+   minutes, on a clean checkout. **A clean `git merge main` is not proof the integration
+   worked**: both sides were verified against a tree that no longer exists. After taking `main`
+   in, run `npm run test:e2e:integration:queued` (the affected plan from the FORK POINT, so it
+   covers BOTH sides' changes) before pushing or landing.
 5. **After a catalog change run the five catalog gates** (`type-floor`, `overflow-sweep
    --baseline`, `test:e2e:catalog`, `field-coverage`, `numerals`) plus `l3-sweep` for the affected
    category. They MEASURE the rendered graphic, because every source check would have passed a

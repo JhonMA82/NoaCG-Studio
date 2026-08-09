@@ -14,7 +14,24 @@
 // driven with fake exit codes, with no dev server, no browser and no minutes on the clock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runPlan, runsFor, summariseRuns } from './e2e-affected.mjs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { planFor, runPlan, runsFor, summariseRuns } from './e2e-affected.mjs';
+
+const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
+
+/**
+ * Specs that ENUMERATE a catalog collection - `CATALOG`, `TYPES`, `KITS` or `PACKS` - rather
+ * than pulling one design out by id. They are the specs whose assertions move when a design is
+ * added, so they are exactly the specs a `src/templates/` change has to select.
+ */
+function catalogEnumeratingSpecs() {
+  const collection = /(?:import|const)\s*\{[^}]*\b(?:CATALOG|TYPES|KITS|PACKS)\b[^}]*\}/;
+  return readdirSync(E2E_DIR)
+    .filter((f) => f.endsWith('.spec.ts'))
+    .filter((f) => collection.test(readFileSync(join(E2E_DIR, f), 'utf8')));
+}
 
 /** A spawner that returns canned statuses in order, and records what it was asked to run. */
 function fakeRunner(...statuses) {
@@ -101,4 +118,35 @@ test('the summary names which run went red', () => {
 
   const green = runPlan(SUBSET_WITH_CATALOG, fakeRunner(0, 0));
   assert.match(summariseRuns(green.runs, green.status), /Overall: passed/);
+});
+
+// ── The mapping's own hole, pinned ──────────────────────────────────────────
+//
+// THE RULE: adding a design must select every spec that enumerates the catalog. Those specs
+// assert over the collection the design was added to, so they are the ones whose expectations a
+// catalog change can invalidate - and a mapping that omits one produces the failure mode this
+// script says it does not have, running FEWER specs with no alarm attached.
+//
+// Six of them were omitted for months. On 2026-08-08 ten designs landed on
+// claude/new-session-d34962, `competition-pack.spec.ts` went stale on its per-category counts,
+// and every gate stayed green: the local affected run never named the spec, and neither did any
+// CI branch run. It surfaced only because that branch's FIRST push gave CI no diff base
+// (`github.event.before` was all zeroes) and the fallback escalated to the full suite - luck,
+// not coverage.
+//
+// The detector is derived, not a list, so a NEW pack spec is covered the day it is written
+// rather than the day someone remembers this file.
+test('a design added under src/templates selects every spec that enumerates the catalog', () => {
+  const enumerating = catalogEnumeratingSpecs();
+  assert.ok(enumerating.length >= 10, `expected the detector to find the pack specs, got ${enumerating.length}`);
+
+  const { mode, specs } = planFor(['src/templates/competition/esp09.ts']);
+  assert.equal(mode, 'subset', 'a template file is mapped, so it must not escalate');
+
+  const missing = enumerating.filter((s) => !specs.includes(s));
+  assert.deepEqual(
+    missing,
+    [],
+    `these specs enumerate the catalog but no src/templates/ change selects them - add them to the src/templates rule in e2e-affected.mjs: ${missing.join(', ')}`,
+  );
 });

@@ -44,6 +44,30 @@ the env-var spelling cannot be baked into a package script, because Windows runs
 When you add a spec, add its mapping in the same commit, or it only ever runs at night. Bootstrap
 non-wizard specs with `createProject` (`e2e/_create.ts`).
 
+**A spec that enumerates the catalog must be selected by a `src/templates/` change**, and
+`scripts/e2e-affected.test.mjs` pins that rule rather than trusting the list: it scans `e2e/` for
+specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if the mapping misses
+one. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
+
+## A clean merge is not proof the integration worked
+
+`git merge` decides whether two diffs touch the same LINES. It has no opinion about whether the
+combined state still holds - and both sides are green by construction, each verified against a
+tree that no longer exists. Adding designs on a branch while `main` moves underneath is a merge
+git resolves perfectly into a tree whose tests are wrong.
+
+The default affected base is `merge-base HEAD main`, which after `git merge main` IS `main` - so
+the plan covers only the branch's own files and everything main just brought in is invisible.
+**`npm run test:e2e:integration:queued`** moves the base back to the FORK POINT (the merge-base of
+the merge's two parents), so the plan is the union of both sides' changes since they diverged.
+`e2e-affected.mjs` also takes that base automatically when HEAD is itself a merge of main, because
+that is exactly the moment someone is about to push an unverified combination; `--no-integration`
+forces the plain branch-only diff.
+
+It stays cheap: a wide diff escalates, and under sprint focus an escalation is the 34-spec set,
+not 103. The order is **update from main -> verify the combined state -> fix -> push**, and CI
+remains the final authority.
+
 ## The pre-merge gate belongs to CI, not the laptop
 
 `ci.yml` runs on every branch push and does strictly more than a local run can (build, the affected
