@@ -118,7 +118,7 @@ export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute
   const t0 = Date.now();
   try {
     const result = await callModelDetailed({
-      system: 'You generate broadcast graphic design concepts as images.',
+      system: 'You generate tightly framed broadcast graphic artwork as images, without scene mockups or backdrops.',
       messages: [{ role: 'user', content: proConceptPrompt(brief) }],
       expect: 'image',
       route: imageRoute,
@@ -153,7 +153,11 @@ export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute
 function isProInterpretation(value: unknown): value is ProInterpretationV1 {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return record.version === 1 && Array.isArray(record.regions) && typeof record.graphicType === 'string';
+  return record.version === 1
+    && Array.isArray(record.regions)
+    && typeof record.graphicType === 'string'
+    && typeof record.canvasPlacement === 'object'
+    && record.canvasPlacement !== null;
 }
 
 /**

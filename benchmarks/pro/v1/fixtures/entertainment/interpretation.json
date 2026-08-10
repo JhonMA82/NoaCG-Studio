@@ -1,52 +1,66 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 1,
+  "graphicTypeConfidence": 0.9,
+  "canvasPlacement": {
+    "widthNorm": 0.45,
+    "xNorm": 0.05,
+    "yNorm": 0.75
+  },
   "regions": [
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.0833333333,
+        "y": 0.3351851852,
+        "w": 0.8333333333,
+        "h": 0.3287037037
+      },
+      "confidence": 0.95,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#FFDD88"
+        },
+        "opacity": 1,
+        "radiusNorm": 0.14
+      }
+    },
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.2265625,
-        "y": 0.5555555,
-        "w": 0.546875,
-        "h": 0.1388888
+        "x": 0.0859375,
+        "y": 0.3398148148,
+        "w": 0.828125,
+        "h": 0.3194444444
       },
-      "confidence": 1,
+      "confidence": 0.98,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
         "fill": {
           "kind": "gradient",
-          "angleDeg": 0,
-          "from": "#3C44A7",
-          "to": "#E6AE55"
+          "angleDeg": 135,
+          "from": "#FF9933",
+          "to": "#FF3366"
         },
         "opacity": 1,
-        "radiusNorm": 0.25
+        "radiusNorm": 0.14
       }
-    },
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.21875,
-        "y": 0.5416666,
-        "w": 0.5625,
-        "h": 0.1666666
-      },
-      "confidence": 0.9,
-      "treatment": "flattened"
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.34765625,
-        "y": 0.5861111,
-        "w": 0.3046875,
-        "h": 0.0416666
+        "x": 0.1171875,
+        "y": 0.3888888889,
+        "w": 0.3385416667,
+        "h": 0.0787037037
       },
-      "confidence": 1,
+      "confidence": 0.99,
       "treatment": "rebuild-text",
-      "align": "center",
+      "align": "left",
       "role": "person-name",
       "sampleText": "Bianca Solari",
       "suggestedTitle": "Name",
@@ -54,9 +68,9 @@
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
-        "approxWeight": 700,
+        "approxWeight": 600,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0416666,
+        "fontSizeNorm": 0.0787,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
@@ -64,14 +78,14 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.4453125,
-        "y": 0.6361111,
-        "w": 0.109375,
-        "h": 0.0305555
+        "x": 0.1171875,
+        "y": 0.4907407407,
+        "w": 0.0833333333,
+        "h": 0.0555555556
       },
-      "confidence": 1,
+      "confidence": 0.99,
       "treatment": "rebuild-text",
-      "align": "center",
+      "align": "left",
       "role": "person-role",
       "sampleText": "Host",
       "suggestedTitle": "Role",
@@ -80,18 +94,16 @@
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.0305555,
+        "color": "#E6C280",
+        "fontSizeNorm": 0.0556,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     }
   ],
-  "warnings": [
-    "The glowing accent around the main panel features a complex, multi-color gradient and blur which cannot be precisely reproduced with standard CSS shape reconstruction methods and will be flattened."
-  ],
+  "warnings": [],
   "animation": {
-    "presetId": "design-pop",
-    "speed": 0.3
+    "presetId": "design-slide",
+    "speed": 0.5
   }
 }

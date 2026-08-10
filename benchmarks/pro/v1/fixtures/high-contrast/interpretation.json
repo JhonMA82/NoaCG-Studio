@@ -1,80 +1,74 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 0.99,
+  "graphicTypeConfidence": 0.95,
+  "canvasPlacement": {
+    "widthNorm": 0.5,
+    "xNorm": 0.05,
+    "yNorm": 0.8
+  },
   "regions": [
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.1546875,
-        "y": 0.4138888,
-        "w": 0.6109375,
-        "h": 0.1152777
+        "x": 0.026,
+        "y": 0.222,
+        "w": 0.948,
+        "h": 0.546
       },
-      "confidence": 0.99,
+      "confidence": 0.98,
       "treatment": "rebuild-shape",
       "panel": {
         "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#1a4d8c"
+          "color": "#1D4A9E"
         },
         "opacity": 1,
-        "radiusNorm": 0
+        "radiusNorm": 0.02
       }
     },
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.1546875,
-        "y": 0.5291666,
-        "w": 0.6109375,
-        "h": 0.0819444
-      },
-      "confidence": 0.99,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "panel",
-        "fill": {
-          "kind": "solid",
-          "color": "#f7931e"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.1546875,
-        "y": 0.4138888,
-        "w": 0.0375,
-        "h": 0.1152777
+        "x": 0.026,
+        "y": 0.194,
+        "w": 0.948,
+        "h": 0.028
       },
       "confidence": 0.95,
-      "treatment": "flattened"
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#427E87"
+        },
+        "opacity": 1,
+        "radiusNorm": 0.02
+      }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.20234375,
-        "y": 0.4319444,
-        "w": 0.27578125,
-        "h": 0.0791666
+        "x": 0.052,
+        "y": 0.287,
+        "w": 0.469,
+        "h": 0.176
       },
       "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
       "sampleText": "Sam Peterson",
-      "suggestedTitle": "Name Line",
+      "suggestedTitle": "Name",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 700,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0791666,
+        "fontSizeNorm": 0.08,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
@@ -82,32 +76,30 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.20234375,
-        "y": 0.5402777,
-        "w": 0.35703125,
-        "h": 0.0541666
+        "x": 0.052,
+        "y": 0.519,
+        "w": 0.651,
+        "h": 0.139
       },
       "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Emergency Coordinator",
-      "suggestedTitle": "Title Line",
+      "suggestedTitle": "Title",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0541666,
+        "fontSizeNorm": 0.06,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     }
   ],
-  "warnings": [
-    "A thin white border (approx. 2px) surrounds the combined blue and orange panels. The current schema does not directly support adding a border to panels."
-  ],
+  "warnings": [],
   "animation": {
     "presetId": "design-slide",
     "speed": 0.5

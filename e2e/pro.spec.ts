@@ -400,6 +400,104 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   expect(out.gradient.corner![3]).toBe(255);
 });
 
+test('pro: tight concept pixels stay native while artwork, live text, panels and logo share one downscaled canvas placement', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  const out = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
+    const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { composeDocument } = await import(`/src/preview/composeDocument.ts${bust}`);
+    const { uuid } = await import(`/src/model/id.ts${bust}`);
+    const SOURCE = { width: 1376, height: 300 };
+    const canvas = document.createElement('canvas');
+    canvas.width = SOURCE.width;
+    canvas.height = SOURCE.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#16181d';
+    ctx.fillRect(0, 0, SOURCE.width, SOURCE.height);
+    ctx.fillStyle = '#f5a623';
+    ctx.fillRect(0, 0, 12, SOURCE.height);
+
+    const interpretation = {
+      version: 1,
+      graphicType: 'lower-third',
+      graphicTypeConfidence: 0.98,
+      canvasPlacement: { widthNorm: 0.6, xNorm: 0.0625, yNorm: 0.65 },
+      regions: [
+        { kind: 'panel', bbox: { x: 0, y: 0, w: 1, h: 1 }, confidence: 0.99, treatment: 'rebuild-shape',
+          panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 } },
+        { kind: 'text', bbox: { x: 0.08, y: 0.2, w: 0.5, h: 0.22 }, confidence: 0.95,
+          treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Maya Chen' },
+        { kind: 'text', bbox: { x: 0.08, y: 0.58, w: 0.42, h: 0.15 }, confidence: 0.95,
+          treatment: 'rebuild-text', role: 'person-role', suggestedTitle: 'Title', sampleText: 'Anchor' },
+        { kind: 'logo', bbox: { x: 0.87, y: 0.2, w: 0.08, h: 0.36 }, confidence: 0.9,
+          treatment: 'keep-asset', suggestedTitle: 'Logo' },
+      ],
+      animation: { presetId: 'design-fade', speed: 1 },
+      warnings: [],
+    };
+    const plan = normalizeProInterpretation(interpretation, SOURCE, uuid);
+    const dataUrl = canvas.toDataURL('image/png');
+    const result = await compileProPlan(
+      plan,
+      { dataUrl, ...SOURCE },
+      { name: 'Maya Chen', title: 'Anchor', includeLogo: true, brief: '' },
+    );
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;';
+    document.body.appendChild(frame);
+    frame.srcdoc = composeDocument(result.template);
+    await new Promise<void>((resolve) => { frame.onload = () => resolve(); });
+    const doc = frame.contentDocument!;
+    const rect = (selector: string) => {
+      const r = doc.querySelector(selector)!.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    };
+    const art = rect('.imported-design-art');
+    const field = rect('#fw0');
+    const panel = rect('.imported-design-panel-1');
+    const logo = rect(`#${result.report.logoSlot!.wrapperId}`);
+    const asset = result.template.assets.find((entry) => entry.path.endsWith('pro-concept.png'))!;
+    const sourceImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = asset.data;
+    });
+    frame.remove();
+    return {
+      placement: result.report.placement,
+      source: { width: sourceImage.naturalWidth, height: sourceImage.naturalHeight },
+      art,
+      field,
+      panel,
+      logo,
+      expected: {
+        fieldX: art.x + (plan.fields[0].x - plan.unit.x) * plan.placement.scale,
+        fieldY: art.y + (plan.fields[0].y - plan.unit.y) * plan.placement.scale,
+        logoX: art.x + (plan.logo!.x - plan.unit.x) * plan.placement.scale,
+        logoY: art.y + (plan.logo!.y - plan.unit.y) * plan.placement.scale,
+      },
+    };
+  });
+
+  expect(out.source).toEqual({ width: 1376, height: 300 });
+  expect(out.placement.scale).toBeLessThan(1);
+  expect(out.placement.sizeFulfilled).toBe(true);
+  expect(out.art.width).toBeCloseTo(1152, 0);
+  expect(out.art.x).toBeCloseTo(120, 0);
+  expect(out.art.y).toBeCloseTo(702, 0);
+  expect(out.panel.x).toBeCloseTo(out.art.x, 0);
+  expect(out.panel.y).toBeCloseTo(out.art.y, 0);
+  expect(out.panel.width).toBeCloseTo(out.art.width, 0);
+  expect(out.field.x).toBeCloseTo(out.expected.fieldX, 0);
+  expect(out.field.y).toBeCloseTo(out.expected.fieldY, 0);
+  expect(out.logo.x).toBeCloseTo(out.expected.logoX, 0);
+  expect(out.logo.y).toBeCloseTo(out.expected.logoY, 0);
+});
+
 test('pro: decorative regions with panel geometry are rebuilt, and a duplicate box becomes one layer', async ({ page }) => {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();

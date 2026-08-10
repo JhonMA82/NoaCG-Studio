@@ -2,132 +2,108 @@
   "version": 1,
   "graphicType": "lower-third",
   "graphicTypeConfidence": 1,
+  "canvasPlacement": {
+    "widthNorm": 0.45,
+    "xNorm": 0.275,
+    "yNorm": 0.7
+  },
   "regions": [
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.073,
-        "y": 0.668,
-        "w": 0.854,
-        "h": 0.162
-      },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "panel",
-        "fill": {
-          "kind": "solid",
-          "color": "#000000"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.076,
-        "y": 0.671,
-        "w": 0.849,
-        "h": 0.156
+        "x": 0.158,
+        "y": 0.281,
+        "w": 0.694,
+        "h": 0.437
       },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "panel",
-        "fill": {
-          "kind": "gradient",
-          "angleDeg": 90,
-          "from": "#F8F8F8",
-          "to": "#E0E0E0"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
+      "confidence": 1,
+      "treatment": "flattened"
     },
     {
       "kind": "logo",
       "bbox": {
-        "x": 0.095,
-        "y": 0.69,
-        "w": 0.091,
-        "h": 0.112
+        "x": 0.201,
+        "y": 0.366,
+        "w": 0.083,
+        "h": 0.129
       },
       "confidence": 1,
       "treatment": "keep-asset"
     },
     {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.202,
-        "y": 0.69,
-        "w": 0.002,
-        "h": 0.112
-      },
-      "confidence": 0.9,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#666666"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
       "kind": "text",
       "bbox": {
-        "x": 0.222,
-        "y": 0.699,
-        "w": 0.672,
-        "h": 0.048
+        "x": 0.334,
+        "y": 0.37,
+        "w": 0.348,
+        "h": 0.059
       },
       "confidence": 1,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
       "sampleText": "Dr. Amara Nwosu",
-      "suggestedTitle": "PersonName",
+      "suggestedTitle": "Name",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
-        "suggestedFontId": "inter",
+        "suggestedFontId": "archivo",
         "approxWeight": 700,
-        "color": "#222222",
-        "fontSizeNorm": 0.039,
+        "color": "#333333",
+        "fontSizeNorm": 0.059,
         "letterSpacing": "tight",
-        "lineHeightRatio": 1.2
+        "lineHeightRatio": 1
       }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.222,
-        "y": 0.758,
-        "w": 0.603,
-        "h": 0.028
+        "x": 0.334,
+        "y": 0.443,
+        "w": 0.348,
+        "h": 0.037
       },
       "confidence": 1,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Chief Executive Officer",
-      "suggestedTitle": "PersonRole",
+      "suggestedTitle": "Title",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
-        "suggestedFontId": "inter",
+        "suggestedFontId": "archivo",
         "approxWeight": 400,
-        "color": "#222222",
-        "fontSizeNorm": 0.025,
+        "color": "#666666",
+        "fontSizeNorm": 0.037,
         "letterSpacing": "tight",
-        "lineHeightRatio": 1.2
+        "lineHeightRatio": 1
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.313,
+        "y": 0.363,
+        "w": 0.001,
+        "h": 0.145
+      },
+      "confidence": 1,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#CCCCCC"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
       }
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "The main panel's complex angled shape and integrated decorative elements prevent rebuilding as a simple CSS shape. It has been flattened to preserve its appearance."
+  ],
   "animation": {
     "presetId": "design-slide",
     "speed": 0.5
