@@ -1,11 +1,9 @@
 import { expect, test, type Route } from '@playwright/test';
 import { createProject } from './_create';
 
-// The first-use AI disclosure notice (docs/AI_PLATFORM_PLAN.md §9, ratified decision 2).
-// The gate's contract, mutation-proofed both ways:
-//  - a REMOTE generation without prior acceptance shows the dialog first, and a decline
-//    means NO request leaves the browser (the route counter is the proof);
-//  - the OFFLINE STUB path never shows the notice - nothing leaves the machine.
+// Create with AI is disclosed through the public Terms and Privacy pages linked during
+// account creation. Its first generation is deliberately direct: no interruptive notice and
+// no legacy acceptance record. The OFFLINE STUB also remains notice-free.
 
 const LITE_STATUS = {
   profile: 'lite',
@@ -29,7 +27,7 @@ const LITE_STATUS = {
   },
 };
 
-test('a remote generation is gated on the notice; declining sends nothing', async ({ page }) => {
+test('Create with AI sends the first remote generation without an interruptive notice', async ({ page }) => {
   test.setTimeout(60_000);
   let generationCalls = 0;
   await page.route('/api/ai/lite/status', (route) => route.fulfill({
@@ -47,35 +45,13 @@ test('a remote generation is gated on the notice; declining sends nothing', asyn
   await page.locator('[data-entry="ai"]').click();
   await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
   await page.locator('.wz-step textarea').fill('A clean news lower third for a reporter.');
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
 
-  // The dialog appears BEFORE any request leaves; declining leaves the step untouched.
-  await expect(page.getByTestId('ai-consent')).toBeVisible();
-  expect(generationCalls).toBe(0);
-  await page.getByRole('button', { name: 'Not now' }).click();
-  await expect(page.getByTestId('ai-consent')).toBeHidden();
-  expect(generationCalls).toBe(0);
-  // The brief survives a decline - nothing was archived or cleared.
-  await expect(page.locator('.wz-step textarea')).toHaveValue('A clean news lower third for a reporter.');
-
-  // Accepting records it and lets the SAME click through (the aborted route proves the
-  // request was attempted - the gate, not the network, is under test here).
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
-  await expect(page.getByTestId('ai-consent')).toBeVisible();
-  await page.getByTestId('ai-consent-accept').click();
-  await expect(page.getByTestId('ai-consent')).toBeHidden();
+  // The aborted route proves the request left immediately. No consent UI or local acceptance
+  // record may be recreated as a replacement warning surface.
   await expect.poll(() => generationCalls).toBeGreaterThan(0);
-
-  const stored = await page.evaluate(() => localStorage.getItem('spx-gfx-ai-notice') ?? '');
-  expect(stored).toContain('ai-disclosure-v1');
-
-  // Accepted once = never asked again: the next generation goes straight through.
-  // (The accepted run consumed the prompt box, as every generation does.)
-  const before = generationCalls;
-  await page.locator('.wz-step textarea').fill('Another clean lower third.');
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
-  await expect.poll(() => generationCalls).toBeGreaterThan(before);
   await expect(page.getByTestId('ai-consent')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('spx-gfx-ai-notice'))).toBeNull();
 });
 
 test('the offline stub generates without ever showing the notice', async ({ page }) => {

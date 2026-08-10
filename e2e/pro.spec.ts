@@ -51,7 +51,7 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   await page.locator('.wz-step textarea').first().fill('Calm election-night strap, deep blue.');
   // One press runs concept -> interpret -> compile -> the REAL production gate (static +
   // live runtime bench), so give it room.
-  await page.getByRole('button', { name: '✧ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('pro-report')).toContainText('Offline concept');
   await expect(page.getByTestId('pro-report')).toContainText('fully reconstructed, no raster left');
@@ -122,7 +122,7 @@ test('pro: an as-is upload is bundled into the logo slot it asked the concept fo
   await expect(page.getByTestId('ai-upload')).toHaveAttribute('data-purpose', 'asset');
 
   await page.locator('.wz-step textarea').first().fill('A calm news strap with the channel mark.');
-  await page.getByRole('button', { name: '✧ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
   // The report says what happened to the mark - not that a slot exists somewhere.
   await expect(page.getByTestId('pro-outcomes')).toContainText(

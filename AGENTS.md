@@ -69,7 +69,7 @@ Vite, both Playwright configs, the guard hooks and the dev scripts all read that
 never hand-edit or commit them). `DEV_PORT=n` overrides everything. Details:
 **`docs/DEV_PORTS.md`**; `npm run test:ports` covers the allocator.
 
-**Five pages (Vite MPA).** Clean URLs come from the `app-clean-url` plugin in dev/preview and
+**Seven pages (Vite MPA).** Clean URLs come from the `app-clean-url` plugin in dev/preview and
 Vercel `cleanUrls` in production.
 
 | URL | Entry | What it is |
@@ -79,6 +79,8 @@ Vercel `cleanUrls` in production.
 | `/admin` | `admin.html` | PRIVATE admin surface - unlinked, `noindex`, a plain 404 for everyone the server does not recognise (`docs/ADMIN.md`) |
 | `/output?production=<slug>` | `output.html` | the transparent browser-output RENDERER a production client (CasparCG/OBS/vMix) loads once (`docs/CLOUD_PLAYOUT.md`) |
 | `/join/<name>` | `join.html` | PUBLIC audience page (also `/join?p=<slug>`, `?pv=<slug>` for the presenter view) - vanilla TS, `noindex` (`docs/INTERACTIVE_PLAYOUT_PLAN.md` Phase 5) |
+| `/terms` | `terms.html` | PUBLIC terms for accounts and optional hosted services |
+| `/privacy` | `privacy.html` | PUBLIC privacy policy, including managed AI and Custom/BYO processing |
 
 ## Non-negotiable principles (these override default behaviour)
 

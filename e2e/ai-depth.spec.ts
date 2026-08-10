@@ -1,5 +1,4 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { acceptAiNotice } from './_ai-notice';
 
 // Era 3: the Describe-it step's example prompts + brainstorm chat (gateway mocked).
 
@@ -13,7 +12,6 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5' })),
   );
-  await acceptAiNotice(page);
 });
 
 test('example prompts fill the brief with one click', async ({ page }) => {
@@ -53,7 +51,7 @@ test('brainstorm chat: replies render and the BRIEF line becomes the prompt', as
 
   // The brief is what Generate acts on with an empty box; "Edit it" puts it back for editing.
   await expect(page.locator('.wz-step textarea')).toHaveValue('');
-  await expect(page.getByRole('button', { name: '✦ Generate' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Edit it' }).click();
   await expect(page.locator('.wz-step textarea')).toHaveValue(/football substitution lower third/);
 });

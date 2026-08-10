@@ -32,6 +32,7 @@ const isEntrypoint =
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
+  [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],
   [/^src\/ai\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly

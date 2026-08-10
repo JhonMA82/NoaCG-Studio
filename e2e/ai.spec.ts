@@ -1,6 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { acceptAiNotice } from './_ai-notice';
 import { enableAdvancedMode } from './_create';
 import { durableValue } from './_storage';
 
@@ -197,7 +196,6 @@ test.beforeEach(async ({ page }) => {
   // since step 6 (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`) - the same
   // opt-in every other editor-walking spec makes.
   await enableAdvancedMode(page);
-  await acceptAiNotice(page);
 });
 
 test('harness off (the toggle): one raw model call, no design stage', async ({ page }) => {
@@ -212,7 +210,7 @@ test('harness off (the toggle): one raw model call, no design stage', async ({ p
   await openAiStep(page);
   await expect(page.getByLabel(/Design 3 options/)).not.toBeChecked();
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   expect(tools).toEqual(['emit_template']); // one call, straight to the coder tool
   await finishInEditor(page);
@@ -232,7 +230,7 @@ test('describe-it: prompt → validated template → create project', async ({ p
   await page.route('/api/ai/generate', (route: Route) => route.fulfill(toolResponse(route, VALID_TEMPLATE)));
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   // The result renders live in the wizard preview.
   await expect(page.locator('.wz-side iframe')).toBeVisible();
@@ -254,7 +252,7 @@ test('finish: Create with AI reaches the shared Finish step, gated on a valid re
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   // A valid result opens the gate; Next lands on the same Finish step every catalog mode ends on.
@@ -279,7 +277,7 @@ test('finish: the Create-with-AI export door saves the graphic and opens the exp
   await page.route('/api/ai/generate', (route: Route) => route.fulfill(toolResponse(route, VALID_TEMPLATE)));
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   await page.getByRole('button', { name: 'Next →' }).click();
@@ -319,7 +317,7 @@ test('harness on: three grounded alternatives, zero coder calls, the pick is rem
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   expect(templateCalls).toBe(0); // grounded: the platform assembled all three, the model wrote no code
   await expect(page.locator('[data-alt]')).toHaveCount(3);
@@ -353,7 +351,7 @@ test('harness on: the directions are live previews that name their design decisi
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // Each card renders the REAL graphic — the whole point of the alternatives call.
   await expect(page.locator('[data-alt] .wz-mini iframe')).toHaveCount(3);
@@ -386,7 +384,7 @@ test('harness on: the intent stage runs first, and a catalog fit routes to adapt
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // Intent first, then the one design call - and an adapt decision sends nothing to the coder.
   expect(tools).toEqual(['emit_structural_intent', 'emit_design_alternatives']);
@@ -409,7 +407,7 @@ test('harness on: an intent answer from the wrong tool routes nothing - the flow
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   expect(templateCalls).toBe(0); // grounded assembly, not a forced-create coder run
   await expect(page.locator('.change-preview strong')).toHaveText('Grounded One');
@@ -427,7 +425,7 @@ test('harness on: refining a direction keeps the others, and the pick still trai
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
 
   await page.locator('[data-alt="2"]').click();
@@ -462,7 +460,7 @@ test('harness on: a refinement can be undone back to the design that was propose
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   await page.locator('[data-alt="2"]').click();
   await expect(page.getByTestId('ai-revert')).toHaveCount(0); // nothing to undo yet
@@ -486,7 +484,7 @@ test('a failing result offers one press that sends the findings back', async ({ 
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A slate the coder cannot get right');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-bad')).toContainText('check(s) failing', GENERATED);
   await page.getByTestId('ai-fix').click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
@@ -530,7 +528,7 @@ test('the conversation is one thread, and it travels with the brief', async ({ p
   await expect(page.getByTestId('ai-thread')).toContainText('side by side');
   // The box is empty, but the talk arrived at a brief — Generate acts on it.
   await expect(page.locator('.wz-step textarea')).toHaveValue('');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // The generator was told the whole conversation, not just a copied summary line.
   expect(designText).toContain('halftime of a local derby');
@@ -554,7 +552,7 @@ test('an earlier generation stays in the thread and can be brought back', async 
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.change-preview strong')).toHaveText('Round One 1', GENERATED);
 
   await page.locator('.wz-step textarea').fill('Actually try something bolder');
@@ -583,7 +581,7 @@ test('"3 more like this" seeds the design stage with the picked direction', asyn
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   await page.locator('[data-alt="2"]').click();
   await page.getByTestId('ai-more-like').click();
@@ -609,7 +607,7 @@ test('an image attached to a refinement reaches the model and is bundled', async
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
 
   // Attach mid-thread — the same drop zone input the composer's 📎 opens.
@@ -681,7 +679,7 @@ test('brand: the colours in an uploaded logo are offered, and the pick locks the
   await expect(page.locator('.ai-swatch').first()).toHaveAttribute('data-swatch', hex ?? '');
 
   await page.locator('.wz-step textarea').fill('A lower third for our club');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // The picked colour reaches the model as an exact instruction…
   expect(designText).toContain('#1e9e8a');
@@ -703,7 +701,7 @@ test('readiness: a passing result reports what was checked, and the raw path adm
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
 
   // The harness path played the graphic, so every row is a real verdict.
@@ -735,7 +733,7 @@ test('cost: a run whose provider reported no token usage says nothing about toke
   );
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   await expect(page.getByTestId('ai-spent')).toBeVisible();
   await expect(page.getByTestId('ai-spent')).not.toContainText('tokens');
@@ -751,7 +749,7 @@ test('readiness: the raw one-shot never claims the checks it did not run', async
   );
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   // This path statically validates and never plays the graphic. The rows that depend on
@@ -806,7 +804,7 @@ test('describe-it: a flourish runs the polish pass and lands as a marked overrid
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A lower third with a hairline edge');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   await finishInEditor(page);
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Strap');
@@ -834,7 +832,7 @@ test('describe-it: a contract-breaking polish patch reverts to the assembled tem
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A purple lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   // The bad patch is rejected and the assembled template stands — still fully valid.
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   await finishInEditor(page);
@@ -856,7 +854,7 @@ test('describe-it: an invalid first answer triggers the automatic repair round',
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A slate that needs a repair round');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   expect(templateCalls).toBe(2); // the coder emit + one validated repair
 });
@@ -870,7 +868,7 @@ test('describe-it: refine sends the current code back through modify', async ({ 
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toBeVisible(GENERATED);
   await page.getByPlaceholder(/Refine it/).fill('make the name bigger');
   await page.getByRole('button', { name: 'Refine', exact: true }).click();
@@ -895,7 +893,7 @@ test('the conversation that produced an AI graphic travels with it, and survives
   await page.locator('.wz-step textarea').fill('halftime of a local derby, something for substitutions');
   await page.getByTestId('ai-talk').click();
   await expect(page.getByTestId('ai-thread')).toContainText('side by side');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
   // Next → the Finish step's "open in the editor" door (the same ending every AI create takes).
   await page.getByRole('button', { name: 'Next →' }).click();
@@ -934,7 +932,7 @@ test('describe-it: without a key, generation is gated and settings open', async 
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: [], model: 'claude-sonnet-5' })),
   );
   await openAiStep(page);
-  await expect(page.getByRole('button', { name: '✦ Generate' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).toBeDisabled();
   await expect(page.locator('.wz-step input[type="password"]')).toBeVisible(); // key field auto-open
 });
 
@@ -949,7 +947,7 @@ test('legacy browser-stored keys are erased and never reused implicitly', async 
   const stored = await page.evaluate(() => localStorage.getItem('spx-gfx-ai') ?? '');
   expect(stored).not.toContain('sk-ant-legacy-secret');
   expect(stored).not.toContain('apiKey');
-  await expect(page.getByRole('button', { name: '✦ Generate' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).toBeDisabled();
 });
 
 test('a generation that phones home is refused, on the harness-off path too', async ({ page }) => {
@@ -975,7 +973,7 @@ test('a generation that phones home is refused, on the harness-off path too', as
 
   await openAiStep(page);
   await page.locator('.wz-step textarea').fill('A simple test slate');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
 
   // Refused, and told in the graphic's own terms rather than as a rule number. The findings
   // surface in the on-air readiness report (unsafe-js rules are not claimed by a readiness row,

@@ -586,7 +586,10 @@ useAuthState hook + authUi store + SignInDialog + SignInPrompt + AuthStatus avat
 only when a backend is configured AND the visitor is signed out) and render `SignInPrompt` /
 call `useAuthUi().openSignIn(reason)` - never block the app. Signup is OPEN (migration `0006`
 made the Before-User-Created hook permissive; restore the 0002 function body to re-close it to
-the allowlist). No login wall, ever - see the root AGENTS.md "Auth posture".
+the allowlist). The signup half links the public `/terms` and `/privacy` pages and states that
+creating an account agrees to the Terms and acknowledges the Privacy Policy. This is an
+acknowledgement, not a separate consent checkbox. No login wall, ever - see the root AGENTS.md
+"Auth posture".
 
 ACCOUNT ESSENTIALS (docs/GOALS.md "Student release" step 9): SignInDialog carries a third
 'reset' mode ("Forgot your password?" - email only, backend/auth `requestPasswordReset`);

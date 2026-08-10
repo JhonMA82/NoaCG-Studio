@@ -8,14 +8,15 @@ import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
-// Five pages: index.html is the static public landing at "/", app.html is the editor at
+// Seven pages: index.html is the static public landing at "/", app.html is the editor at
 // "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
 // a 404 for everyone the server does not recognise, see docs/ADMIN.md), output.html is
 // the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3), and
 // join.html is the public AUDIENCE page at "/join" (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
-// and preview servers the same ones. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/admin', '/output', '/join'] as const;
+// and preview servers the same ones. Terms and Privacy are public pages for the optional
+// hosted service. `?raw` imports bundle GSAP + template snippets.
+const CLEAN_PAGES = ['/app', '/admin', '/output', '/join', '/terms', '/privacy'] as const;
 
 // `/join/<name>` — the READABLE join URL an operator reads out on air. Vercel serves it through
 // a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
@@ -107,6 +108,8 @@ export default defineConfig(({ command, mode }) => {
           admin: 'admin.html',
           output: 'output.html',
           join: 'join.html',
+          terms: 'terms.html',
+          privacy: 'privacy.html',
         },
       },
     },

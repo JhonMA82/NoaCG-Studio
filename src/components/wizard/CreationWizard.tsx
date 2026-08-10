@@ -1166,9 +1166,11 @@ export default function CreationWizard() {
             mode === 'design' && step === 3 ? ' wz-body-working' : ''
           }`}
         >
-          {/* THE RAIL (handoff §2): where you are, what each step is for, and the project
-              format pinned at its foot. Vertical, so a step can carry a second line. */}
-          <nav className="wz-rail" aria-label="Creation steps">
+          {/* The entry is a MENU, not the first committed step of every possible walk. Until
+              a card is chosen there is no truthful step list or denominator, so the complete
+              rail stands down and its 216px returns to the menu. It appears immediately on
+              every chosen path, including the phone's horizontal form of the same rail. */}
+          {step > 0 && <nav className="wz-rail" aria-label="Creation steps">
             <div className="wz-dots">
               {stepTitles.map((t, i) => {
                 const s = stepIndexes[i];
@@ -1212,14 +1214,12 @@ export default function CreationWizard() {
                 CONTROL itself stays in the step that owns it (the Browse step's picker, the
                 AI and blank steps' own) — one control, one home; this is the reminder plus
                 the way back to it. */}
-            {step > 0 && (
-              <div className="wz-rail-foot">
-                <p className="dlg-caption">Project format</p>
-                <p className="wz-rail-format">{formatSummary}</p>
-                <button className="wz-rail-change" onClick={revealFormatPicker}>Change ▾</button>
-              </div>
-            )}
-          </nav>
+            <div className="wz-rail-foot">
+              <p className="dlg-caption">Project format</p>
+              <p className="wz-rail-format">{formatSummary}</p>
+              <button className="wz-rail-change" onClick={revealFormatPicker}>Change ▾</button>
+            </div>
+          </nav>}
 
           <div className="wz-main">
           {/* THE KIT TRAY: the second axis of progress (which graphic of the set), above the

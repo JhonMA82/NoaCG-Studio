@@ -35,7 +35,9 @@ CHAIN (`.wz-stepcount ~ .fb-open`, `.fb-open ~ .gallery-close`), since the step 
 absent on Entry and the button absent offline and whichever exists first takes the auto margin;
 and the shell behind the wizard mounts a SECOND button, so a locator says which via `data-area`.
 
-**LAYOUT: rail | form column | preview** (handoff §2). The steps are a 216px vertical RAIL
+**LAYOUT AFTER ENTRY: rail | form column | preview** (handoff §2). Entry is a card menu, so it
+renders NO creation-step navigation and uses the rail's 216px for the menu. The rail appears
+immediately after a card is chosen. From then on, the steps are a 216px vertical RAIL
 (`.wz-rail`, still `.wz-dots`/`.wz-dot` so every spec still addresses them): number-or-green-
 tick, title, and a second line naming the decision the step asks for. As header pills they had
 room for six words and wrapped to four rows on a phone. The rail's foot reads the PROJECT
@@ -45,7 +47,7 @@ that read-back stands down (it needed ~212px the row lacks). The FOOTER belongs 
 column, so Next sits under the form it advances, not under the graphic beside it.
 
 Two measured constraints:
-- **The rail's 216px leaves the row before either pane sees it.** Where the left pane is a
+- **After Entry, the rail's 216px leaves the row before either pane sees it.** Where the left pane is a
   WORKING surface (`.wz-body-working`, the Import flow's Text step) the measure cap lifts and
   the preview clamps, or the placement canvas drops under the 700px floor
   `e2e/import-graphic.spec.ts` holds.

@@ -44,7 +44,9 @@ test('deep link: an unknown variant id falls back to the ordinary Entry step', a
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
 
   // Graceful degradation, not a stuck or broken wizard: the same Entry step a bare #/new opens.
-  await expect(page.locator('.wz-dot.active')).toHaveText(/Start/);
+  // Entry is a menu before a creation path exists, so the invalid deep link must not invent
+  // step navigation while it falls back.
+  await expect(page.locator('.wz-rail')).toHaveCount(0);
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
 
   const savedCount = await page.evaluate(async () => {
