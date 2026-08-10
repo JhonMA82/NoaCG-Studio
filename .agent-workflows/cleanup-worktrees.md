@@ -6,9 +6,9 @@ workflows below use their plain names (e.g. "the safe-merge workflow"); translat
 `/safe-merge` in Claude Code, `$safe-merge` in Codex.
 
 Clean up the leftovers from finished coding sessions: stale git worktrees, managed
-`claude/*` / `codex/*` branches that are already fully merged and backed up, stale worktree
-metadata, and empty leftover worktree folders. Do NOT print git commands for the user to run -
-drive the script yourself, read its output, and report conclusions.
+`claude/*` / `codex/*` local and GitHub branches that are already fully merged and backed up,
+stale worktree metadata, and empty leftover worktree folders. Do NOT print git commands for the
+user to run - drive the script yourself, read its output, and report conclusions.
 
 This workflow can delete branches and worktrees, so it runs **only when the user explicitly
 invokes it by name**. Never infer invocation from a request to inspect or discuss repository
@@ -60,9 +60,13 @@ should run in it.
 - A worktree is removed only if its working tree is clean AND (its branch is safely contained,
   OR it is detached at a safely contained commit). Dirty, local-only, or unique-work worktrees
   are skipped and reported.
-- Branches: only safely contained `claude/*` and `codex/*` branches are deleted (via
+- Local branches: only safely contained `claude/*` and `codex/*` branches are deleted (via
   `git branch -d`, never `-D`; git refuses an unmerged branch as a final backstop). `main` and
   the current branch are never touched. Other merged branches are reported, not deleted.
+- GitHub branches: the same managed-prefix and dual-containment rules apply. A remote branch is
+  deleted only after its worktree and same-named local branch are gone. The push carries an
+  exact-head lease, so a branch that changed after assessment is refused rather than losing new
+  work. Unmerged remote branches and branches still needed locally are reported, never deleted.
 - A branch merged via "squash and merge" never passes the ancestry test (its commits aren't
   reachable from main), so it's caught separately: if its tree is already identical to main's,
   it's reported as a possible squash merge for manual review - never deleted automatically, since
@@ -98,5 +102,6 @@ should run in it.
    `[FAILED]` or left in "Manual cleanup remaining".
 
 Hard rules (never break, even if asked mid-flow): never `git branch -D`, never
-`git worktree remove --force`, never delete `main` or the current branch, never delete a
-non-empty folder, never run from a linked worktree.
+`git worktree remove --force`, never delete `main` or the current branch, never delete a remote
+branch without an exact-head lease, never delete a non-empty folder, never run from a linked
+worktree.

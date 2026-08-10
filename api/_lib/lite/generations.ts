@@ -28,12 +28,12 @@ import {
 } from '../aiLiteStore.js';
 import {
   LITE_AI_CATEGORIES,
-  LITE_READY_OUTPUT,
-  LITE_READY_OUTPUT_SKIN,
   deterministicUnsupportedDecision,
+  liteReadyOutputFor,
   liteRepairInstructions,
   liteRequestText,
   liteSystemPrompt,
+  retrieveLiteReferenceSet,
   validateLiteDecision,
 } from '../../../src/ai/liteContract.js';
 import type { LiteGenerationRequest, LiteGenerationResult } from '../../../src/ai/liteTypes.js';
@@ -356,10 +356,13 @@ export default {
       windowDays: profile.qualityPriorWindowDays,
       minSamples: profile.qualityPriorMinSamples,
     }).catch(() => []);
+    const references = retrieveLiteReferenceSet(request);
     const trustedSystemPrompt = liteSystemPrompt(profile.promptVersion, qualityPriors, {
       skin: profile.skinEnabled,
+      references: references.entries,
+      manualCategory: requestedCategory ?? null,
     });
-    const structuredOutput = profile.skinEnabled ? LITE_READY_OUTPUT_SKIN : LITE_READY_OUTPUT;
+    const structuredOutput = liteReadyOutputFor(references.entries, { skin: profile.skinEnabled });
 
     const modelRequest = {
       system: trustedSystemPrompt,

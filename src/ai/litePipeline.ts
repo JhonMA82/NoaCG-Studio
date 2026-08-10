@@ -15,8 +15,14 @@ import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
 import { mergeAssetIntegrity } from './assetIntegrity';
-import { LITE_SINGLE_LINE_ROLES, liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
-import type { LiteLowerThirdLineRole, LiteSkinPatch } from './liteTypes';
+import {
+  LITE_CATALOG,
+  LITE_SINGLE_LINE_ROLES,
+  liteSkinPatchErrors,
+  liteTextHasVisibleGlyph,
+  sanitizeLiteSkinPatch,
+} from './liteContract';
+import type { LiteDesignSpec, LiteLowerThirdLineRole, LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
 import type { SpxTemplate } from '../model/types';
@@ -209,6 +215,50 @@ export interface LiteCompileResult {
   skinOutcome: 'applied' | 'none' | `rejected-${LiteSkinRejection}`;
   /** The failing validation's rule codes when skinOutcome === 'rejected-validation'. */
   skinRejectionRules?: string[];
+  holdFindings: LiteHoldFinding[];
+  attemptedVariantIds: string[];
+}
+
+export type LiteHoldFinding =
+  | 'generic-default-panel'
+  | 'weak-brief-fit'
+  | 'overflow'
+  | 'poor-contrast'
+  | 'empty-field-sample';
+
+/** Deterministic hold-frame verdict. Runtime findings own visible geometry and contrast; the
+ * semantic checks catch a technically valid but generic or reference-mismatched adaptation. */
+export function liteHoldFrameFindings(
+  spec: DesignSpec,
+  validation: ValidationResult,
+  skinApplied = false,
+): LiteHoldFinding[] {
+  const findings = new Set<LiteHoldFinding>();
+  const rules = [...validation.errors, ...validation.warnings].map((finding) => finding.rule.toLowerCase());
+  if (rules.some((rule) => /overflow|outside|clip|line-wrap/.test(rule))) findings.add('overflow');
+  if (rules.some((rule) => /contrast/.test(rule))) findings.add('poor-contrast');
+  const lite = spec as unknown as Partial<LiteDesignSpec>;
+  if (lite.lines?.some((line) => !liteTextHasVisibleGlyph(line.sample))) {
+    findings.add('empty-field-sample');
+  }
+  if (!lite.styleIntent) return [...findings];
+  const chosen = LITE_CATALOG.find((entry) => entry.variantId === spec.variantId);
+  if (chosen) {
+    const intent = lite.styleIntent;
+    const matched = (Object.keys(intent) as (keyof typeof intent)[])
+      .filter((axis) => (chosen.styleSignals[axis] as readonly string[]).includes(intent[axis] as string));
+    if (matched.length < 2) findings.add('weak-brief-fit');
+  }
+  if (!skinApplied) {
+    const treatmentCount = [spec.palette, spec.fontId, spec.typography, spec.shape, spec.density, spec.motionCharacter]
+      .filter(Boolean).length;
+    const distinctive = lite.styleIntent.era !== 'contemporary'
+      || !['flat', 'screen'].includes(lite.styleIntent.material)
+      || !['none', 'clean'].includes(lite.styleIntent.texture)
+      || ['luxurious', 'playful', 'dramatic', 'technical'].includes(lite.styleIntent.mood);
+    if (distinctive && treatmentCount < 2) findings.add('generic-default-panel');
+  }
+  return [...findings];
 }
 
 /**
@@ -224,27 +274,63 @@ export async function compileLiteDecision(
   skin?: LiteSkinPatch,
 ): Promise<LiteCompileResult> {
   const spec = normalizeLiteSpec(raw, ctx.spec);
+  const primaryVariantId = spec.variantId;
+  if (!primaryVariantId) throw new Error('Lite decision has no reference chassis.');
   let skinOutcome: LiteCompileResult['skinOutcome'] = 'none';
   let skinRejectionRules: string[] | undefined;
   if (skin) {
     const attempt = await attemptLiteSkinDetailed(spec, skin, ctx, productionSpxValidator());
-    if (attempt.assembly) return { spec, ...attempt.assembly, skinApplied: true, skinOutcome: 'applied' };
+    if (attempt.assembly) {
+      const holdFindings = liteHoldFrameFindings(spec, attempt.assembly.validation, true);
+      if (!holdFindings.length) {
+        return {
+          spec, ...attempt.assembly, skinApplied: true, skinOutcome: 'applied',
+          holdFindings, attemptedVariantIds: [primaryVariantId],
+        };
+      }
+    }
     skinOutcome = `rejected-${attempt.rejection ?? 'patch'}`;
     skinRejectionRules = attempt.rejectionRules;
   }
   // `keepChassisZone` mirrors production's `liteGroundedResult` exactly - the benchmark and the
   // product must not compile a spec differently, which is this module's whole reason to exist.
-  const { template, diversity } = assembleGroundedTemplate(spec, ctx, { keepChassisZone: true });
-  const validation = demoteSpecFields(
-    await productionSpxValidator(null, [], {
-      singleLineFields: singleLineIdentityFields(spec, template),
-      typeFloorCategory: spec.category ?? null,
-      fieldPaints: true,
-    })(template),
-  );
-  return {
-    spec, template, validation, diversity,
-    skinApplied: false, skinOutcome,
-    ...(skinRejectionRules ? { skinRejectionRules } : {}),
-  };
+  const fallbackIds = ((raw as unknown as Partial<LiteDesignSpec>).fallbackVariantIds ?? [])
+    .filter((id) => id !== primaryVariantId);
+  const candidateIds = [primaryVariantId, ...fallbackIds];
+  let last: Omit<LiteCompileResult, 'attemptedVariantIds'> | null = null;
+  const attemptedVariantIds: string[] = [];
+  for (const variantId of candidateIds) {
+    const candidate = { ...spec, variantId };
+    attemptedVariantIds.push(variantId);
+    const { template, diversity } = assembleGroundedTemplate(candidate, ctx, { keepChassisZone: true });
+    const validation = demoteSpecFields(
+      await productionSpxValidator(null, [], {
+        singleLineFields: singleLineIdentityFields(candidate, template),
+        typeFloorCategory: candidate.category ?? null,
+        fieldPaints: true,
+      })(template),
+    );
+    const holdFindings = liteHoldFrameFindings(candidate, validation);
+    last = {
+      spec: candidate, template, validation, diversity,
+      skinApplied: false, skinOutcome, holdFindings,
+      ...(skinRejectionRules ? { skinRejectionRules } : {}),
+    };
+    if (validation.ok && !holdFindings.length) break;
+  }
+  if (!last) throw new Error('Lite has no reference chassis to compile.');
+  if (last.holdFindings.length) {
+    last.validation = {
+      ...last.validation,
+      ok: false,
+      errors: [
+        ...last.validation.errors,
+        ...last.holdFindings.map((finding) => ({
+          rule: `lite-hold-${finding}`,
+          message: `The rendered hold frame failed Lite's ${finding} check.`,
+        })),
+      ],
+    };
+  }
+  return { ...last, attemptedVariantIds };
 }

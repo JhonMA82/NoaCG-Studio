@@ -34,6 +34,7 @@ const ENV = [
   'AI_LITE_GATEWAY_STRUCTURED_MODE',
   'AI_LITE_DAILY_STARTS',
   'AI_LITE_DAILY_SUCCESSES',
+  'AI_LITE_FIELDS',
   'AI_LITE_FLEET_DAILY_SPEND_USD',
   'AI_LITE_EVAL_MEMORY_LEDGER',
   'NODE_ENV',
@@ -77,6 +78,7 @@ test('Lite profile is disabled and OpenRouter routing fails closed by default', 
   assert.equal(configured.enabled, true);
   assert.equal(liteProfileConfigured(configured), true);
   assert.equal(configured.maxAttempts, 2);
+  assert.equal(configured.limits.fields, 4);
   assert.equal(configured.maxProviderCostUsd, 0.007);
   assert.equal(configured.requireZdr, true);
   assert.equal(configured.structuredMode, 'json-schema');
@@ -128,15 +130,12 @@ test('request JSON limits reject declared and streamed oversize bodies', async (
   await assert.rejects(() => readJson(streamed, 20), { code: 'too_large' });
 });
 
-test('obviously unsupported requests are rejected before model inference', () => {
+test('non-graphic requests screen early while category language reaches inference', () => {
   assert.deepEqual(
     obviousUnsupportedDecision('Build a package of multiple graphics with a branching state machine')?.status,
     'unsupported',
   );
-  assert.equal(
-    obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video')?.status,
-    'unsupported',
-  );
+  assert.equal(obviousUnsupportedDecision('Create a continuous ticker that stays readable over live video'), null);
   assert.equal(
     obviousUnsupportedDecision('Create a video project in Remotion')?.status,
     'unsupported',
@@ -452,7 +451,7 @@ test('a low-contrast palette is clamped to the floor instead of failing the gene
   // The measured retro-festival shape: a warm analogous palette whose dim tone lands just
   // under 3:1. It used to kill the generation; now it ships, repaired.
   const warm = { accent: '#E8AC57', text: '#F5E0C3', textDim: '#A86C41', panel: '#4E3125' };
-  const result = validateLiteDecision(decisionWith(warm), request());
+  const result = validateLiteDecision(decisionWith(warm), { ...request(), palette: warm });
   assert.deepEqual(result.errors, []);
   assert.ok(result.adjustments?.includes('palette_text_dim_lightness_clamped'));
   const shipped = (result.decision as { spec: { palette: Record<string, string> } }).spec.palette;
@@ -469,7 +468,7 @@ test('a low-contrast palette is clamped to the floor instead of failing the gene
   // is light, black only when it is dark, and no panel is both), so this clamps rather than
   // drops - the drop branch is a guard, not a path these floors can reach.
   const greyOnGrey = { accent: '#ffb000', text: '#808080', textDim: '#7a7a7a', panel: '#949494' };
-  const rescued = validateLiteDecision(decisionWith(greyOnGrey), request());
+  const rescued = validateLiteDecision(decisionWith(greyOnGrey), { ...request(), palette: greyOnGrey });
   assert.deepEqual(rescued.errors, []);
   const grey = (rescued.decision as { spec: { palette: Record<string, string> } }).spec.palette;
   assert.ok(ratio(grey.text, grey.panel) >= 4.5);

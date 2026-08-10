@@ -214,6 +214,15 @@ simplification, never an automatic expensive fallback.
 `productionSpxValidator`. `claudeProvider` is built FROM it and the benchmark runners compile through the
 identical function; `scripts/ai-lite-bench.test.mjs` pins that no second copy exists.
 
+**Lite category meaning lives in one `CATEGORY_CONTRACTS` registry.** A contract names the graphic
+type, visible field range, allowed kinds, named slots, compatible measured chassis, type-owned
+machine, and operator events. The same constrained model call returns category confidence and
+alternatives plus structured style intent. Manual category is authoritative; auto mode proceeds
+only above the confidence and margin floors, while ambiguity returns choices for the UI. Trusted
+server retrieval shows at most five relevant, diverse compatible chassis and narrows the output
+enum to the same ids. The compiler owns fields and state and may retry ranked fallback chassis
+when the rendered hold rejects generic treatment, weak brief fit, overflow, or poor contrast.
+
 **Lite composes its OWN validator** (`claudeProvider.liteValidator`), for the same reason it passes its
 own `AssembleOptions`: `ProductionBenchOptions` can only be answered from the DECISION - which lines must
 hold one line (`singleLineIdentityFields`, off the spec's declared roles) and which category's type floor
@@ -272,8 +281,9 @@ price, privacy, and endpoint policy live only in `api/_lib/aiLiteProfile.ts`; th
 `lite-design-spec` and fails closed unless every managed route is in the approved-route catalog. The
 generated template carries no profile marker or generation ledger id.
 
-The first quality release is LOWER-THIRD-ONLY: six audited chassis with positive and negative fit
-metadata, a broad intent facet, and an explicit semantic role for each line. Server semantic validation
+The first quality release is LOWER-THIRD-ONLY: 13 measured chassis with positive and negative fit
+metadata, semantic style signals and geometry, a broad intent facet, and an explicit named slot for
+each of one to four visible lines. Server semantic validation
 enforces requested roles and custom-palette contrast before deterministic compilation. **Do not widen the
 category or variant allowlist without the versioned lower-third benchmark and human visual review.**
 

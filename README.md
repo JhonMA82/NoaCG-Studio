@@ -10,7 +10,7 @@ the export and render finished **MP4 / transparent WebM / ProRes / PNG** media i
 **No account needed to create, preview, or export.** Free forever for the core, self-hostable in
 full, AGPL-3.0.
 
-**→ [noacg-studio.vercel.app](https://noacg-studio.vercel.app)**
+**→ [noacg.studio](https://noacg.studio)**
 
 ![The New Project entry: start from a template, create with AI, import your own graphic, or start blank](docs/images/start.png)
 
