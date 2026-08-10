@@ -681,7 +681,6 @@ const specSchema: Record<string, unknown> = {
         confidence: { type: 'number', minimum: 0, maximum: 1 },
         alternatives: {
           type: 'array',
-          minItems: 1,
           maxItems: 3,
           items: {
             type: 'object',
@@ -1391,6 +1390,7 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   line_role_invalid: 'Give every line a role from the allowed list.',
   slot_role_mismatch: 'Use one of the selected chassis roles listed for the {detail} content slot, or select a compatible chassis.',
   requested_role_missing: 'The brief explicitly asks for a {detail} line. Add it, or change an existing line\'s role to {detail}.',
+  requested_field_count_mismatch: 'Return exactly the number of editable lines declared by generationSpec.fields. Keep each requested value in its own line instead of merging them.',
   field_count_exceeded: 'Reduce the number of lines and extra fields to the allowed maximum.',
   lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
   flourish_forbidden: 'Set spec.flourish to an empty string.',
@@ -1835,6 +1835,10 @@ export function validateLiteDecision(
   for (const requiredRole of requestedLineRoles(request)) {
     if (!emittedRoles.includes(requiredRole)) errors.push(`requested_role_missing:${requiredRole}`);
   }
+  const requestedFieldCount = request.generationSpec?.fields.length ?? 0;
+  if (requestedFieldCount > 0 && lines.length !== requestedFieldCount) {
+    errors.push('requested_field_count_mismatch');
+  }
   const extraCount = Array.isArray(spec.extraFields) ? spec.extraFields.length : 0;
   if (lines.length + extraCount > maxFields) errors.push('field_count_exceeded');
   if (extraCount > 0) errors.push('lower_third_extra_fields_forbidden');
@@ -1913,7 +1917,13 @@ export function validateLiteDecision(
   const adjustments: string[] = [];
   if (blankLinesDropped > 0) adjustments.push('blank_line_dropped');
   let palette = spec.palette;
-  if (palette) {
+  if (palette && !request.palette) {
+    // A model-authored palette is never requested - the prompt explicitly says to omit it.
+    // Keeping one can make panel-less editorial designs paint black text over the programme
+    // picture while passing contrast against a light panel the chassis does not draw.
+    palette = undefined;
+    adjustments.push('unrequested_palette_dropped');
+  } else if (palette) {
     const clamped = clampLitePalette(palette);
     if (clamped) {
       palette = clamped.palette;

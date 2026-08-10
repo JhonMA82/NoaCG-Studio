@@ -35,6 +35,10 @@ import {
   LITE_BRAND_MARKS_BY_ID,
   LITE_BRAND_PALETTES,
 } from './ai-lite-brand-fixtures.mjs';
+import {
+  LITE_SEMANTIC_FIXTURES,
+  LITE_SEMANTIC_FIXTURE_VERSION,
+} from './ai-lite-semantic-fixtures.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve(outDir(process.argv[2], './lite-eval-out', 'Usage: node scripts/ai-lite-eval.mjs [out-dir] [label] [count]'));
@@ -51,22 +55,25 @@ const FIXTURE_IDS = new Set(
 );
 // WHICH BANK. The default is the text-only lower-third bank every prior round used. `brand`
 // selects the BRAND bank (scripts/ai-lite-brand-fixtures.mjs): the same shape of brief, plus a
-// real mark and the brand colours it arrives with, which is the case the product promise rests
-// on and no round has ever sent. Only the fixtures differ - the endpoint, the ceilings, the
-// shared compile, the capture and the ledger are the ones already in use here.
+// real mark and the brand colours it arrives with. `semantic` selects the locked provider-free
+// semantic bank, but replaces its authored decisions with real endpoint decisions. Only the
+// fixtures differ - the endpoint, ceilings, shared compile, capture and ledger stay identical.
 const BANK = (process.env.NOACG_LITE_EVAL_BANK ?? 'lower-third').trim();
-if (BANK !== 'lower-third' && BANK !== 'brand') {
-  console.error(`Unknown NOACG_LITE_EVAL_BANK "${BANK}". Use lower-third or brand.`);
+if (!['lower-third', 'brand', 'semantic'].includes(BANK)) {
+  console.error(`Unknown NOACG_LITE_EVAL_BANK "${BANK}". Use lower-third, brand or semantic.`);
   process.exit(1);
 }
 const BRAND = BANK === 'brand';
+const SEMANTIC = BANK === 'semantic';
 // The brand bank carries three briefs for categories Lite cannot serve yet (§3 of the plan
 // widens to them). Sending those would spend money to be told `unsupported`, which is a known
 // answer, so the round takes only what is servable and SAYS how many it left out.
 const BRAND_SERVABLE = LITE_BRAND_FIXTURES.filter((fixture) => fixture.servable);
 const BANK_FIXTURES = BRAND
   ? BRAND_SERVABLE.map((fixture) => [fixture.id, fixture.prompt, fixture])
-  : LITE_LOWER_THIRD_FIXTURES;
+  : SEMANTIC
+    ? LITE_SEMANTIC_FIXTURES.map((fixture) => [fixture.id, fixture.request.prompt, fixture])
+    : LITE_LOWER_THIRD_FIXTURES;
 const SELECTED_FIXTURES = (FIXTURE_IDS.size
   ? BANK_FIXTURES.filter(([fixtureId]) => FIXTURE_IDS.has(fixtureId))
   : BANK_FIXTURES
@@ -578,6 +585,7 @@ for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
         // byte-identical to every round before this one.
         ...(brandPalette ? { palette: brandPalette } : {}),
         ...(brandMark ? { hasLogo: true, mark: MARK_PROBES[brandMark.id].descriptor } : {}),
+        ...(SEMANTIC ? { generationSpec: fixture.request.generationSpec } : {}),
         resolution: { width: 1920, height: 1080 },
         fps: 50,
       }),
@@ -730,7 +738,11 @@ const summary = {
   // and a summary that records only a version number leaves that ambiguous the moment a
   // second bank exists.
   bank: BANK,
-  fixtureVersion: BRAND ? LITE_BRAND_FIXTURE_VERSION : LITE_LOWER_THIRD_FIXTURE_VERSION,
+  fixtureVersion: BRAND
+    ? LITE_BRAND_FIXTURE_VERSION
+    : SEMANTIC
+      ? LITE_SEMANTIC_FIXTURE_VERSION
+      : LITE_LOWER_THIRD_FIXTURE_VERSION,
   candidate: LABEL,
   calls: providerCalls,
   sessions,

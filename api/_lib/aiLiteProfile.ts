@@ -266,7 +266,10 @@ export function liteProfile(): LiteProfile {
       promptCharacters: intEnv('AI_LITE_PROMPT_CHARACTERS', 2000, 100, 10_000),
       conversationTurns: intEnv('AI_LITE_CONVERSATION_TURNS', 6, 0, 20),
       conversationCharacters: intEnv('AI_LITE_CONVERSATION_CHARACTERS', 6000, 0, 30_000),
-      fields: intEnv('AI_LITE_FIELDS', 2, 1, 2),
+      // CATEGORY_CONTRACTS owns the visible-field ceiling. Lower thirds now support four
+      // named slots, so retaining the old two-field profile cap rejects valid semantic
+      // requests before retrieval or the model can see them.
+      fields: intEnv('AI_LITE_FIELDS', 4, 1, 4),
       // ONE mark, since 2026-08-09. It was a hard-coded 0, and that was correct for exactly as
       // long as it was true: every audited chassis declared `logo: 'none'`, so accepting a logo
       // would have promised a slot that did not exist anywhere. All six carry a measured brand

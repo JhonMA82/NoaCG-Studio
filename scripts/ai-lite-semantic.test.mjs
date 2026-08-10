@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildApiRuntime } from './api-runtime-build.mjs';
 import { LITE_SEMANTIC_FIXTURES } from './ai-lite-semantic-fixtures.mjs';
+import { readFileSync } from 'node:fs';
 
 const runtime = await buildApiRuntime(['api/_lib/aiLiteProfile.ts']);
 const contract = await import(pathToFileURL(path.join(runtime.outputDir, 'src/ai/liteContract.js')).href);
@@ -51,6 +52,30 @@ test('manual category wins and ambiguous auto inference returns choices', () => 
   assert.equal(result.decision?.categoryChoices?.length, 2);
 });
 
+test('a confident category may honestly have no alternative', () => {
+  const confident = structuredClone(LITE_SEMANTIC_FIXTURES[0]);
+  confident.decision.spec.categoryInference.alternatives = [];
+  const result = contract.validateLiteDecision(confident.decision, confident.request);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.decision?.status, 'ready');
+});
+
+test('requested editable fields stay separate and unrequested palettes cannot override the chassis', () => {
+  const merged = structuredClone(LITE_SEMANTIC_FIXTURES.find((fixture) => fixture.id === 'esports'));
+  merged.decision.spec.lines.pop();
+  assert.ok(contract.validateLiteDecision(merged.decision, merged.request).errors.includes('requested_field_count_mismatch'));
+
+  const recolored = structuredClone(LITE_SEMANTIC_FIXTURES.find((fixture) => fixture.id === 'public-news'));
+  recolored.decision.spec.palette = {
+    accent: '#ffffff', text: '#000000', textDim: '#333333', panel: '#f2f2f2',
+  };
+  const result = contract.validateLiteDecision(recolored.decision, recolored.request);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.decision?.status, 'ready');
+  assert.equal(result.decision?.spec.palette, undefined);
+  assert.ok(result.adjustments?.includes('unrequested_palette_dropped'));
+});
+
 test('the output schema requires inference and every style-intent axis', () => {
   const spec = contract.LITE_READY_OUTPUT.schema.properties.spec;
   assert.ok(spec.required.includes('categoryInference'));
@@ -59,4 +84,12 @@ test('the output schema requires inference and every style-intent axis', () => {
     'energy', 'era', 'material', 'mood', 'motion', 'paletteDirection', 'shapeLanguage',
     'texture', 'typographyCharacter',
   ]);
+});
+
+test('the paid gallery runner sends the locked semantic requests through the endpoint', () => {
+  const source = readFileSync('scripts/ai-lite-eval.mjs', 'utf8');
+  assert.match(source, /BANK === 'semantic'/);
+  assert.match(source, /LITE_SEMANTIC_FIXTURES\.map/);
+  assert.match(source, /generationSpec: fixture\.request\.generationSpec/);
+  assert.match(source, /LITE_SEMANTIC_FIXTURE_VERSION/);
 });
