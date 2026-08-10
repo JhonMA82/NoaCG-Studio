@@ -433,10 +433,10 @@ export default function CreationWizard() {
   // project starts from one consistent, formatted baseline. Formatting once at birth also keeps
   // later canvas/timeline edits to tight, minimal diffs - the editor's change-highlight stays
   // accurate. Imported templates are NOT routed here: they stay byte-faithful to the user's file.
-  const applyGenerated = async (template: SpxTemplate, skipNavigation?: boolean) => {
+  const applyGenerated = async (template: SpxTemplate, skipNavigation?: boolean, keepGalleryOpen?: boolean) => {
     const formatted = await formatTemplate(template); // HTML-only by default
     if (!skipNavigation) landAt('editor'); // the seam every editor-ending create flows through
-    applyTemplate(formatted, { resetSampleData: true });
+    applyTemplate(formatted, { resetSampleData: true, keepGalleryOpen });
     setActiveTab('html');
     toSpxShell();
   };
@@ -746,11 +746,11 @@ export default function CreationWizard() {
    *
    * Returns the applied template (read back from the store, post-format) or null.
    */
-  const applyDraftProject = async (skipNavigation?: boolean): Promise<SpxTemplate | null> => {
+  const applyDraftProject = async (skipNavigation?: boolean, keepGalleryOpen?: boolean): Promise<SpxTemplate | null> => {
     if (!previewTemplate || !variant) return null;
     // Design mode rebuilds WITHOUT the preview-only stretch-demo line; every other mode's
     // preview is exactly the created code already.
-    await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate, skipNavigation);
+    await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate, skipNavigation, keepGalleryOpen);
     // An imported design creates BARE and hands off to the editor's Data tab — that is
     // where its fields are added, as real placed layers (docs/IMPORT_MVP.md). DEFERRED a
     // tick: in the default studio no editor renders under the wizard, so AppShell mounts on
@@ -795,7 +795,7 @@ export default function CreationWizard() {
    * just be a library missing the graphic with nothing saying why.
    */
   const createAndExport = () => {
-    void applyDraftProject(true).then(async (template) => {
+    void applyDraftProject(true, true).then(async (template) => {
       if (!template || !variant) return;
       const saved = await saveGraphicAs(draftName(variant, draft), { kind: 'standalone' });
       // Read AFTER the save: it renames the working template to the record's name, which is

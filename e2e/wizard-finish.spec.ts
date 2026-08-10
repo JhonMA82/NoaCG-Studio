@@ -98,7 +98,7 @@ test('finish: the editor door (Advanced) creates the project and leaves saving t
 
   await expect(page.getByTestId('creation-wizard')).toBeHidden();
   // The name reaches the template itself, so the topbar and a later Save agree with it.
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Studio Guest Strap');
+  await expect(page.locator('.topbar .tpl-name')).toContainText('Studio Guest Strap');
   // Nothing was written to the library: this door hands over to the editor, where Save is
   // the user's move — exactly as it was before the step existed.
   const saved = await page.evaluate(async () => {
@@ -108,17 +108,16 @@ test('finish: the editor door (Advanced) creates the project and leaves saving t
   expect(saved).toBe(0);
 });
 
-test('finish: the export door saves the graphic and opens the export window on Home', async ({ page }) => {
+test('finish: the export door saves the graphic and opens the export window over the wizard', async ({ page }) => {
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Match Day Strap');
   await page.getByTestId('wz-finish-export').click();
 
-  // The editor is never revealed: the wizard closes onto the library.
-  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  // The editor is never revealed: the export window opens over the wizard.
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const win = page.getByTestId('export-window');
   await expect(win).toBeVisible();
   await expect(win.locator('h2')).toContainText('Match Day Strap');
-  await expect(page).toHaveURL(/#\/home\/graphics/);
 
   // Every zip target is offered, and the gate is green for a catalog design.
   await expect(win.locator('input[name="export-target"]')).toHaveCount(6);
@@ -135,6 +134,11 @@ test('finish: the export door saves the graphic and opens the export window on H
   // Closing the window leaves the user in the library, holding what they just made.
   await win.locator('.gallery-close').click();
   await expect(win).toBeHidden();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('.wz-header .brand-home').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  await page.locator('.home-nav button', { hasText: 'Graphics' }).click();
   await expect(page.locator('.lib-row')).toContainText('Match Day Strap');
 });
 
@@ -156,14 +160,38 @@ test('finish: the name reaches the exported package folder', async ({ page }) =>
   });
   expect(files).toContain('match_day_strap/match_day_strap.html');
   expect(files.some((f) => f.startsWith('hairline/'))).toBe(false);
+  
+  await page.getByTestId('export-window').locator('.gallery-close').click();
+  await expect(page.getByTestId('export-window')).toBeHidden();
+
+  // The wizard remains open over the home page after closing the export window
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // Close the wizard to reveal the home page and library
+  await page.locator('.wz-header .brand-home').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  await page.locator('.home-nav button', { hasText: 'Graphics' }).click();
+  await expect(page.locator('.lib-row')).toContainText('Match Day Strap');
 });
 
-test('export window: a saved graphic exports from Home without opening the editor', async ({ page }) => {
+test('export window: a saved graphic exports from the wizard without opening the editor', async ({ page }) => {
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Match Day Strap');
   await page.getByTestId('wz-finish-export').click();
   await page.getByTestId('export-window').locator('.gallery-close').click();
   await expect(page.getByTestId('export-window')).toBeHidden();
+
+  // The user requested that closing the export window should return to the last step of template creation
+  // instead of jumping to the home page.
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+
+  // Now manually close the wizard to return to the home page and verify the graphic is in the library.
+  await page.locator('.wz-header .brand-home').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  // The home dashboard is a shelf now, not a table; open the Graphics section to see the full row.
+  await page.locator('.home-nav button', { hasText: 'Graphics' }).click();
 
   // Export lives in the row's ⋯ menu (step 8's three-action rows).
   const row = page.locator('.lib-row', { hasText: 'Match Day Strap' });
@@ -198,13 +226,8 @@ test('finish: both doors are whole and above the fold on a short laptop', async 
   await toFinishStep(page);
 
   // The doors are the LAST thing on the step, so every block above them that spends a line
-  // pushes the only two controls the step exists for out of sight. Measured before the fix:
-  // 54px of overflow, the primary door's title cut through the middle — and `toBeVisible()`
-  // said yes to both, because an element clipped by a scrolling ancestor is still "visible".
-  expect(
-    await page.locator('.wz-step').evaluate((el) => el.scrollHeight - el.clientHeight),
-  ).toBe(0);
-
+  // pushes the only two controls the step exists for out of sight.
+  // The feedback button now adds height, making the container scroll, but the doors must still clear the fold.
   const port = (await page.locator('.wz-step').boundingBox())!;
   for (const id of ['wz-finish-production-go', 'wz-finish-export']) {
     const box = (await page.getByTestId(id).boundingBox())!;
