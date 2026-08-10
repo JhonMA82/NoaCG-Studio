@@ -8,6 +8,13 @@ import { useAdvancedMode } from './useAdvancedMode';
 import { useAuthState } from './auth/useAuthState';
 import { useAuthUi } from './auth/authUi';
 import AiProviderSettings from './AiProviderSettings';
+import {
+  ANALYTICS_CONSENT_EVENT,
+  analyticsBlockedByBrowser,
+  analyticsConsent,
+  setAnalyticsConsent,
+  type AnalyticsConsent,
+} from '../backend/events';
 
 interface Props {
   onClose: () => void;
@@ -28,6 +35,7 @@ interface Props {
 const SECTIONS = [
   { id: 'account', nav: 'Account', caption: 'Account' },
   { id: 'ai', nav: 'AI', caption: 'AI' },
+  { id: 'privacy', nav: 'Privacy', caption: 'Privacy' },
   { id: 'workflow', nav: 'Workflow', caption: 'Workflow defaults' },
   { id: 'brand', nav: 'Brand & style', caption: 'Brand & style defaults' },
 ] as const;
@@ -128,8 +136,16 @@ export default function SettingsDialog({ onClose }: Props) {
   const [ai, setAi] = useState(loadAiSettings);
   const [prefs, setPrefs] = useState(loadPrefs);
   const [active, setActive] = useState<SectionId>('account');
+  const [analytics, setAnalytics] = useState<AnalyticsConsent>(analyticsConsent);
   const { backendConfigured, status } = useAuthState();
   const signedIn = backendConfigured && status === 'signed-in';
+  const browserBlocksAnalytics = analyticsBlockedByBrowser();
+
+  useEffect(() => {
+    const refresh = () => setAnalytics(analyticsConsent());
+    window.addEventListener(ANALYTICS_CONSENT_EVENT, refresh);
+    return () => window.removeEventListener(ANALYTICS_CONSENT_EVENT, refresh);
+  }, []);
 
   const saveAi = (patch: Parameters<typeof saveAiSettings>[0]) => {
     saveAiSettings(patch);
@@ -146,7 +162,7 @@ export default function SettingsDialog({ onClose }: Props) {
     const el = scroller.current;
     if (!el) return;
     const onScroll = () => {
-      const line = el.scrollTop + 40;
+      const line = el.scrollTop + el.offsetTop + 40;
       // Only sections that actually rendered are candidates — offline there is no Account
       // section, so falling back to SECTIONS[0] would mark a nav entry that is not there and
       // leave the real first entry unmarked.
@@ -164,14 +180,19 @@ export default function SettingsDialog({ onClose }: Props) {
   }, []);
 
   const jump = (id: SectionId) => {
-    const node = scroller.current?.querySelector<HTMLElement>(`[data-section='${id}']`);
-    node?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const el = scroller.current;
+    const node = el?.querySelector<HTMLElement>(`[data-section='${id}']`);
+    if (el && node) {
+      el.scrollTo({ top: node.offsetTop - el.offsetTop, behavior: 'smooth' });
+    }
     setActive(id);
   };
 
   // The Account section renders nothing offline, so its nav entry goes with it — a nav item
   // that jumps to an empty anchor is a broken control, not a disabled feature.
-  const sections = SECTIONS.filter((s) => s.id !== 'account' || backendConfigured);
+  const sections = SECTIONS.filter((s) =>
+    !['account', 'privacy'].includes(s.id) || backendConfigured,
+  );
 
   return (
     <div
@@ -219,6 +240,37 @@ export default function SettingsDialog({ onClose }: Props) {
               <p className="dlg-caption">AI</p>
               <AiProviderSettings settings={ai} onChange={saveAi} />
             </section>
+
+            {backendConfigured && (
+              <section data-section="privacy">
+                <p className="dlg-caption">Privacy</p>
+                <label className="dlg-check">
+                  <input
+                    type="checkbox"
+                    checked={analytics === 'accepted' && !browserBlocksAnalytics}
+                    disabled={browserBlocksAnalytics}
+                    onChange={(event) => setAnalyticsConsent(event.target.checked)}
+                    data-testid="analytics-toggle"
+                  />
+                  <span className="dlg-check-text">
+                    <span className="dlg-check-title">Share product-improvement analytics</span>
+                    <span className="dlg-check-desc">
+                      Sends only visit, return, signup, creation, and export milestones with a
+                      random browser identifier. No project content, prompts, advertising, campaign
+                      parameters, or referring sites. Rows are removed after 90 days.
+                    </span>
+                  </span>
+                </label>
+                <p className="dlg-hint">
+                  {browserBlocksAnalytics
+                    ? 'Your browser privacy signal disables analytics.'
+                    : analytics === 'accepted'
+                      ? 'Allowed. Turn this off to stop collection and delete associated analytics rows.'
+                      : 'Not allowed. No analytics identifier or milestones are stored by NoaCG.'}
+                  {' '}<a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
+                </p>
+              </section>
+            )}
 
             <section data-section="workflow">
               <p className="dlg-caption">Workflow defaults</p>

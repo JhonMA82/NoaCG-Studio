@@ -1,154 +1,88 @@
-# Funnel events
+# Product-improvement analytics
 
-The growth funnel: how many people arrive, how many make something, and how many come back.
-It exists to answer ONE question the growth plan steers on (`docs/GROWTH_EXECUTION_PLAN.md`
-§11) - *week-1 retention among activated users from target communities* - and deliberately
-nothing more. It is not product analytics: there is no session replay, no click stream, no
-per-feature usage, and no funnel of the editor's internals.
+The hosted funnel answers whether people successfully create and export graphics and which
+creation doors need improvement. It is optional, first-party, and deliberately smaller than
+general product analytics: no click stream, session replay, page history, project content, or
+prompts.
 
-Backlog item 2 of the growth plan's build queue.
+## Consent boundary
+
+Analytics is inert until the visitor explicitly selects **Allow** in the non-blocking hosted
+banner or enables it under Settings / Privacy. Undecided and declined visitors get no analytics
+identifier, no analytics storage, and no `/api/events` request. Refusal never gates an account or
+feature.
+
+`navigator.globalPrivacyControl`, `DNT: 1`, and the legacy `noacg.funnel.optOut` preference all
+override a stored acceptance. Withdrawal deletes the local identifier and timestamps, then posts
+an opaque deletion request for that browser. If signed in, the server also deletes every funnel
+row associated with that account.
 
 ## The five events
 
 | Event | Fired when | `detail` |
 |---|---|---|
-| `visit` | a page load, once per load | - |
-| `return` | a page load 24 h or more after this browser's last one | - |
+| `visit` | the page load on which consent is accepted, then later page loads | - |
+| `return` | a page load 24 hours or more after this browser's last one | - |
 | `signup` | an email sign-up succeeds | - |
-| `activation` | a graphic or a video project is created | the creation door (`template`, `design`, `ai`, `blank`, `import`, `kit`, `video`) |
-| `export` | an export zip reaches the disk | the export target id (`spx`, `casparcg`, …) |
+| `activation` | a graphic or video project is created | fixed creation door slug |
+| `export` | an export zip reaches the disk | fixed export target slug |
 
-`activation` is the one that matters: it is the difference between a visitor and a user.
-It is recorded per create rather than once per visitor, so the same table answers both
-"did they ever make something" and "how often" - take the first row per `visitor_id` for the
-first, count them for the second.
+OAuth sign-ins are not counted as signup because that path cannot distinguish a new account from
+a returning one.
 
-**`video` is a door like any other, and was added late.** A video project is created through the
-same wizard and is the same signal - a visitor who made something - so it is a `detail` value
-rather than a sixth event; splitting graphics from videos is then one test on that column
-(`docs/ADMIN.md` §8). Until that door started reporting, video creation was invisible to the
-funnel entirely, which showed up as an honest-looking zero rather than as a gap. Periods before
-that release read zero for videos because nothing was counting, and the admin overview says so.
+## What is stored
 
-`return` is derived in the browser rather than by querying history: a page load compares
-against a `lastSeen` stamp in the same first-party storage as the visitor id. A day, not a
-session, so an evening of work counts once however many times the tab is reloaded.
+`public.funnel_events` stores one row per event:
 
-OAuth sign-ins are deliberately **not** counted as `signup`. Only the email path can tell a
-new account from a returning one, and a wrong number is worse than a missing one.
+`event`, random `visitor_id`, optional authenticated `user_id`, allowlisted `detail`, and
+`created_at`.
 
-## What is stored, and what is not
-
-Table `public.funnel_events` (migration `0016`). One row per event:
-
-`event`, `visitor_id`, `user_id` (null until signed in), first-touch `source` / `medium` /
-`campaign` / `referrer_host`, `detail`, `created_at`.
+The identifier is pseudonymous, not anonymous. It is random, first-party, browser-minted, and not
+derived from an account, address, or device characteristic. The account id comes only from the
+verified bearer token, never from the request body.
 
 Deliberately absent:
 
-- **No raw IP.** The route hashes the caller's address for its burst-gate key and never
-  writes it. `ai_gateway_requests` does store an `ip_hash`; this table does not, because the
-  visitor id already identifies a browser and a second identifier would only widen what a
-  leak would mean.
-- **No user agent, screen size, or device fingerprint of any kind.**
-- **No page URLs, titles, prompts, or template content.** `detail` is a slug from a fixed
-  allowlist, not free text.
-- **No cookies anywhere in the path.** `visitor_id` is a random uuid the browser mints for
-  itself in `localStorage`, and clearing site data erases it.
+- raw IP, IP hash, user agent, screen size, or device fingerprint;
+- page URL, title, project data, prompt, uploaded media, or generated output;
+- UTM campaign values, referrer hostname, or any other marketing attribution;
+- free text: `detail` is a server-validated short slug.
 
-The full referring URL is never stored - only its hostname, which is what channel
-attribution actually needs.
+The legacy nullable attribution columns remain temporarily for old rows because deployed admin SQL
+functions still reference `referrer_host`. New clients and the server no longer populate them, and
+the 90-day limit removes the final old values before those columns are dropped.
 
-## First-touch attribution
+## Retention and deletion
 
-UTM parameters and the referrer host are captured **once**, on the browser's first ever page
-load, and never overwritten. A campaign therefore keeps credit for the account it actually
-brought in, and someone who returns later through a different link does not silently rewrite
-their own history. The captured touch rides every subsequent event, so retention stays
-attributable to the channel without a server-side join.
+Migration `0038_funnel_opt_in_retention.sql` removes rows already older than 90 days and schedules a
+daily `pg_cron` deletion. This database rule is the retention boundary; it does not depend on a user
+returning or another analytics request arriving.
 
-## The one place a visitor id is read against an account, and why it is not a profile
+Withdrawal uses the existing `POST /api/events` function with `{ action: "withdraw", visitorId }`,
+so it does not consume another Vercel function. The response is always 204, including malformed or
+unknown identifiers, to avoid creating a probe oracle. An anonymous deletion is scoped to its
+unguessable visitor UUID. An authenticated deletion removes rows for either that browser or the
+verified account.
 
-The admin overview counts OTHER PEOPLE by default, which means excluding the operator's own
-activity (`docs/ADMIN.md` §8). Every other ledger carries a user id and filters exactly; this
-one does not, so migration `0027` derives a set of INTERNAL BROWSERS - visitor ids that have
-ever appeared on a funnel row alongside an account marked internal - and drops their rows from
-the external count.
+## Wiring
 
-That is a link between the two identifiers, so it is worth being precise about what kind. It is
-used in ONE direction and for ONE purpose: to REMOVE rows from an aggregate. Nothing associates
-a visitor with an account in any output, no row of this table is written by it, and no admin
-response contains the mapping. The refusal this document makes is about BUILDING attribution -
-inferring that an anonymous create belongs to somebody who registered later - and that stays
-refused; §8's "never created anything" figure is still an upper bound for exactly that reason.
+```text
+browser                                      server
+src/backend/events.ts                        api/events.ts
+  analyticsConsent / setAnalyticsConsent       rate limit + verify token
+  trackPageVisit / trackEvent                  validate fixed event shape
+  withdraw                                     insert or delete through service role
 
-The limit is stated on the admin page as well as here: it reaches our own SIGNED-IN browsing
-and cannot reach signed-out development traffic, because nothing distinguishes that from a
-stranger's. Every funnel figure under the external scope is therefore an upper bound on
-external activity, in the same direction as the opt-out floor below.
-
-## Opting out
-
-The client is inert - it reports nothing at all - when any of these hold:
-
-- no Supabase backend is configured (every self-hosted clone with an empty `.env`);
-- `navigator.globalPrivacyControl` is true, or the browser sends `DNT: 1`;
-- the visitor set the explicit opt-out (`setFunnelOptOut(true)`), which also deletes the
-  visitor id, the first-touch record, and the last-seen stamp already stored. The promise is
-  "stop knowing me", not merely "stop counting".
-
-## How it is wired
-
-```
-browser                                   server
-─────────────────────────────────────     ──────────────────────────────────────────
-src/backend/events.ts                     api/events.ts          POST, always 204
-  trackPageVisit()  → visit | return        ↳ burst gate         api/_lib/rateLimit.ts
-  trackEvent(event, detail)                 ↳ verifyUser(token)  api/_lib/auth.ts
-  setFunnelOptOut(), funnelOptedOut()       ↳ funnelEventRow()   api/_lib/funnelEvents.ts
-                                            ↳ recordFunnelEvent()  service_role insert
+src/components/AnalyticsConsentBanner.tsx    public.funnel_events
+src/components/SettingsDialog.tsx              daily 90-day pg_cron cleanup
 ```
 
-The browser has **no** RLS policy on the table, so this route is the only writer. That costs
-one function call per event and buys two things worth more: the allowlist is enforced
-somewhere the client cannot edit, and a scraped anon key cannot forge or read a funnel.
+The client and handler remain best-effort and silent. Analytics must never break, block, or slow the
+page reporting it. An unconfigured backend makes the whole surface disappear and sends nothing.
 
-In development and self-hosting the same handler is mounted by `scripts/eventsDevPlugin.mjs`,
-so the route behaves locally exactly as it does on Vercel - browser-verified: a valid event,
-an invalid one and an oversized body are all indistinguishable 204s, and GET answers 405.
+## Verification
 
-The route always answers `204`, including when nothing was written. Analytics must never
-surface as an error in a user's console, and a response distinguishing "stored" from
-"dropped" would be a probe oracle.
-
-Reporting is best-effort throughout: `fetch` failures, blocked storage, and a missing
-backend are all silent. Nothing on this path may ever break, block, or slow the page that
-reported it.
-
-### Call sites
-
-| Where | Event |
-|---|---|
-| `src/main.tsx` | `trackPageVisit()`, before React mounts |
-| `src/components/auth/SignInDialog.tsx` | `signup` |
-| `src/components/wizard/CreationWizard.tsx` | `activation` (`applyDraftProject`, the AI path, the kit path, and `createVideo`) |
-| `src/components/ExportSurface.tsx` | `export`, after the zip is saved |
-
-`signup` fires from the dialog rather than `backend/auth.ts` so the funnel client keeps its
-one-way dependency on auth (it reads the access token) instead of forming an import cycle.
-
-## Rate limiting
-
-`EVENTS_RATE_WINDOW_SEC` / `EVENTS_RATE_MAX` (default 60 per minute per IP hash). This is not
-about protecting the function, which costs almost nothing per call - it is about the DATA. An
-unthrottled endpoint lets one client manufacture a funnel, and an invented activation rate is
-worse than a missing one.
-
-## Tests
-
-`api/_lib/funnelEvents.test.ts` (in `scripts/run-ai-gateway-tests.mjs`, part of
-`npm run build`) pins the allowlist: only the five events store, a row without a usable
-visitor id is dropped rather than stored anonymously, the account id comes from the token
-and never from the body, and URLs / email addresses / prompts / over-long values in `detail`
-and the attribution fields all land as null rather than being truncated into something that
-still leaks.
+- `api/_lib/funnelEvents.test.ts` pins the event and withdrawal allowlists.
+- `e2e/analytics.spec.ts` pins the offline zero-UI, zero-storage posture.
+- `e2e/configured/analytics.spec.ts` pins undecided, accept, decline, withdrawal, DNT/GPC, and
+  desktop/phone layouts against a configured client while intercepting every event request.

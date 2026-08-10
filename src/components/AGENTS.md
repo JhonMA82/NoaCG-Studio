@@ -531,6 +531,9 @@ e2e/layout.spec.ts.
   and job state lives in src/render/renderJobStore.ts. Contracts in src/render/AGENTS.md;
   specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
 - **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**.
+  Hosted analytics is explicit opt-in: AnalyticsConsentBanner is non-blocking and mounts once
+  in App; Settings owns the reversible preference. Undecided, declined, DNT/GPC, and offline
+  states create no identifier and send no events.
 
 ## Save + Home (docs/SAVED_CONTENT_MODEL.md)
 

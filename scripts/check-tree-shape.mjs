@@ -36,8 +36,8 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'docs', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'output.html', 'package-lock.json',
   'package.json', 'player-host', 'playwright.catalog.config.ts', 'playwright.config.ts',
-  'playwright.live.config.ts', 'public', 're-design', 'render-worker', 'scripts', 'src',
-  'supabase', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts',
+  'playwright.live.config.ts', 'privacy.html', 'public', 're-design', 'render-worker', 'scripts', 'src',
+  'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts',
 ]);
 
 /** Tracked paths, one per line, from git itself rather than a directory walk - the question is

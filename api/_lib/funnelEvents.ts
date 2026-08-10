@@ -19,28 +19,23 @@ export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
  *  is the contract - the migration re-states it as a CHECK so a direct writer cannot
  *  bypass it either. */
 const DETAIL_RE = /^[a-z0-9-]{1,40}$/;
-const ATTRIBUTION_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-const HOST_RE = /^[a-z0-9][a-z0-9.-]{0,127}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export interface FunnelEventInput {
   event: unknown;
   visitorId: unknown;
-  source?: unknown;
-  medium?: unknown;
-  campaign?: unknown;
-  referrerHost?: unknown;
   detail?: unknown;
+}
+
+export interface FunnelWithdrawalInput {
+  action: unknown;
+  visitorId: unknown;
 }
 
 export interface FunnelEventRow {
   event: FunnelEvent;
   visitorId: string;
   userId: string | null;
-  source: string | null;
-  medium: string | null;
-  campaign: string | null;
-  referrerHost: string | null;
   detail: string | null;
 }
 
@@ -51,23 +46,29 @@ function slug(value: unknown, pattern: RegExp): string | null {
 }
 
 /** Normalize one reported event, or null when it is not a shape we store. Only `event`
- *  and `visitorId` are required; every attribution field independently degrades to null
- *  rather than rejecting the row, so one malformed UTM parameter never costs a datapoint. */
-export function funnelEventRow(input: FunnelEventInput, userId: string | null): FunnelEventRow | null {
-  const event = FUNNEL_EVENTS.find((name) => name === input.event);
+ *  and `visitorId` are required. There is deliberately no campaign or referrer input: the
+ *  opt-in purpose is product improvement, not acquisition attribution. */
+export function funnelEventRow(input: unknown, userId: string | null): FunnelEventRow | null {
+  if (!input || typeof input !== 'object') return null;
+  const value = input as Partial<FunnelEventInput>;
+  const event = FUNNEL_EVENTS.find((name) => name === value.event);
   if (!event) return null;
-  const visitorId = slug(input.visitorId, UUID_RE);
+  const visitorId = slug(value.visitorId, UUID_RE);
   if (!visitorId) return null;
   return {
     event,
     visitorId,
     userId,
-    source: slug(input.source, ATTRIBUTION_RE),
-    medium: slug(input.medium, ATTRIBUTION_RE),
-    campaign: slug(input.campaign, ATTRIBUTION_RE),
-    referrerHost: slug(input.referrerHost, HOST_RE),
-    detail: slug(input.detail, DETAIL_RE),
+    detail: slug(value.detail, DETAIL_RE),
   };
+}
+
+/** A withdrawal is accepted only for a syntactically valid browser identifier. */
+export function funnelWithdrawalVisitor(input: unknown): string | null {
+  if (!input || typeof input !== 'object') return null;
+  const value = input as Partial<FunnelWithdrawalInput>;
+  if (value.action !== 'withdraw') return null;
+  return slug(value.visitorId, UUID_RE);
 }
 
 export function funnelLedgerConfigured(): boolean {
@@ -91,14 +92,26 @@ export async function recordFunnelEvent(row: FunnelEventRow): Promise<void> {
       event: row.event,
       visitor_id: row.visitorId,
       user_id: row.userId,
-      source: row.source,
-      medium: row.medium,
-      campaign: row.campaign,
-      referrer_host: row.referrerHost,
       detail: row.detail,
     });
     if (error) console.warn('Funnel event write failed:', error.message);
   } catch (error) {
     console.warn('Funnel event write failed:', error instanceof Error ? error.message : error);
+  }
+}
+
+
+/** Delete this opted-out browser and, when authenticated, every row linked to its account. */
+export async function deleteFunnelEvents(visitorId: string, userId: string | null): Promise<void> {
+  if (!funnelLedgerConfigured()) return;
+  try {
+    const db = await sb();
+    const query = db.from('funnel_events').delete();
+    const { error } = userId
+      ? await query.or(`visitor_id.eq.${visitorId},user_id.eq.${userId}`)
+      : await query.eq('visitor_id', visitorId);
+    if (error) console.warn('Funnel withdrawal failed:', error.message);
+  } catch (error) {
+    console.warn('Funnel withdrawal failed:', error instanceof Error ? error.message : error);
   }
 }
