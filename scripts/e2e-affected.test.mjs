@@ -150,3 +150,11 @@ test('a design added under src/templates selects every spec that enumerates the 
     `these specs enumerate the catalog but no src/templates/ change selects them - add them to the src/templates rule in e2e-affected.mjs: ${missing.join(', ')}`,
   );
 });
+
+test('public legal pages select their clean-URL and responsive-layout spec', () => {
+  for (const file of ['terms.html', 'privacy.html', 'src/legal.css']) {
+    const { mode, specs } = planFor([file]);
+    assert.equal(mode, 'subset');
+    assert.deepEqual(specs, ['legal.spec.ts']);
+  }
+});

@@ -6,7 +6,15 @@
 
 import { normalizeAnalysis, type FieldProposal } from '../importAnalysis/normalize';
 import type { ImportAnalysisRegion, ImportedGraphicAnalysisV1 } from '../importAnalysis/contract';
-import { PRO_FONT_IDS, PRO_LIMITS, type ProInterpretationV1, type ProRegion, type ProTreatment } from './contract';
+import {
+  PRO_FONT_IDS,
+  PRO_LIMITS,
+  resolveProCanvasPlacement,
+  type ProCanvasPlacement,
+  type ProInterpretationV1,
+  type ProRegion,
+  type ProTreatment,
+} from './contract';
 
 /** Below this a region is noise, not a plan input (the import-analysis floor). */
 const CONFIDENCE_FLOOR = 0.35;
@@ -40,6 +48,8 @@ export interface ProPlan {
   frame: { width: number; height: number };
   /** The design UNIT: the region union the compiler crops the concept to. */
   unit: { x: number; y: number; w: number; h: number };
+  /** Independent final-canvas decision. Source geometry remains in unit coordinates. */
+  placement: ProCanvasPlacement;
   /** The pad the unit ACTUALLY carries per side (crop px). A side is padded so an imprecise
    *  region edge is never shaved — but where the union edge is owned entirely by rebuilt
    *  OPAQUE panels, the CSS panel repaints that edge anyway, so the pad is dropped: cropping
@@ -284,12 +294,20 @@ export function normalizeProInterpretation(
   const logoIndex = interpretation.regions.findIndex(
     (region) => region.kind === 'logo' && region.confidence >= CONFIDENCE_FLOOR,
   );
+  const placement = resolveProCanvasPlacement(
+    { width: unit.w, height: unit.h },
+    interpretation.canvasPlacement,
+  );
+  if (!placement) {
+    throw new Error('The interpreted design unit has no usable size for canvas placement.');
+  }
 
   return {
     graphicType: interpretation.graphicType,
     graphicTypeConfidence: clamp01(interpretation.graphicTypeConfidence),
     frame,
     unit,
+    placement,
     unitPad,
     fields: analyzed.fields,
     textRects,

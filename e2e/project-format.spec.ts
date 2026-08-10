@@ -2,7 +2,6 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
 import { finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
-import { acceptAiNotice } from './_ai-notice';
 import { pickDesign } from './_browse';
 
 async function pickFormat(
@@ -226,9 +225,8 @@ const LITE_READY = {
 };
 
 test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page }) => {
-  // This spec tests format plumbing, not the disclosure notice - pre-accept it so the
-  // generation proceeds (e2e/ai-consent.spec.ts owns the dialog's own behavior).
-  await acceptAiNotice(page);
+  // This spec tests format plumbing. Create with AI begins directly under the public
+  // Terms and Privacy contract, so no first-use acknowledgement is seeded here.
   let requestFormat: unknown = null;
   await page.route('/api/ai/lite/status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(LITE_STATUS) }),
@@ -248,7 +246,7 @@ test('NoaCG Lite receives and produces the selected 4K60 format', async ({ page 
   await expect(page.getByRole('heading', { name: 'NoaCG Lite' })).toBeVisible();
   await pickFormat(page, 'ai-format', 'landscape-2160p', 60);
   await page.locator('.wz-step textarea').fill('A clean lower third for a presenter.');
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', {
     timeout: 25_000,
   });

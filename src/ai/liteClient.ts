@@ -5,6 +5,7 @@ import type { GenerateContext } from './provider';
 import { markShapeFromAspect } from './liteTypes';
 import type {
   LiteMarkDescriptor,
+  LiteCategoryAlternative,
   LiteGenerationRequest,
   LiteGenerationResult,
   LiteOutcomeRequest,
@@ -30,11 +31,18 @@ export class LiteRequestError extends Error {
 export class LiteUnsupportedError extends Error {
   readonly code: LiteUnsupportedCode;
   readonly suggestedBrief?: string;
+  readonly categoryChoices?: LiteCategoryAlternative[];
 
-  constructor(code: LiteUnsupportedCode, message: string, suggestedBrief?: string) {
+  constructor(
+    code: LiteUnsupportedCode,
+    message: string,
+    suggestedBrief?: string,
+    categoryChoices?: LiteCategoryAlternative[],
+  ) {
     super(message);
     this.code = code;
     this.suggestedBrief = suggestedBrief;
+    this.categoryChoices = categoryChoices;
   }
 }
 
@@ -142,6 +150,7 @@ export async function generateLiteDesign(
       result.decision.code,
       result.decision.message,
       result.decision.suggestedBrief,
+      result.decision.categoryChoices,
     );
   }
   return result;

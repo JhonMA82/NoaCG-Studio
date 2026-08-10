@@ -1,69 +1,45 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 0.95,
+  "graphicTypeConfidence": 1,
+  "canvasPlacement": {
+    "widthNorm": 0.84,
+    "xNorm": 0.08,
+    "yNorm": 0.7
+  },
   "regions": [
-    {
-      "kind": "panel",
-      "bbox": {
-        "x": 0,
-        "y": 0.8305,
-        "w": 1,
-        "h": 0.1694
-      },
-      "confidence": 0.99,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "panel",
-        "fill": {
-          "kind": "solid",
-          "color": "#2C2C2C"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
     {
       "kind": "decorative",
       "bbox": {
-        "x": 0,
-        "y": 0.8305,
-        "w": 0.0068,
-        "h": 0.1694
+        "x": 0.081,
+        "y": 0.449,
+        "w": 0.84,
+        "h": 0.102
       },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#BEBEBE"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
+      "confidence": 1,
+      "treatment": "flattened"
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.0146,
-        "y": 0.8407,
-        "w": 0.2427,
-        "h": 0.0352
+        "x": 0.298,
+        "y": 0.463,
+        "w": 0.301,
+        "h": 0.037
       },
-      "confidence": 0.99,
+      "confidence": 1,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-name",
       "sampleText": "Ravi Chandrasekaran",
-      "suggestedTitle": "Name",
+      "suggestedTitle": "PersonName",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 700,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.0352,
+        "fontSizeNorm": 0.03,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
@@ -71,30 +47,32 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.0146,
-        "y": 0.8843,
-        "w": 0.4839,
-        "h": 0.025
+        "x": 0.301,
+        "y": 0.511,
+        "w": 0.584,
+        "h": 0.017
       },
-      "confidence": 0.99,
+      "confidence": 1,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Professor of Computational Linguistics, University of Edinburgh",
-      "suggestedTitle": "Role",
+      "suggestedTitle": "PersonRole",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.025,
+        "fontSizeNorm": 0.015,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "The background panel features complex geometric cutouts, gradients, and subtle lighting effects that make it unsuitable for 'rebuild-shape'. It has been classified as 'flattened'."
+  ],
   "animation": {
     "presetId": "design-slide",
     "speed": 0.5

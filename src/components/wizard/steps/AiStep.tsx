@@ -33,7 +33,6 @@ import {
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
-import { useAiConsent } from '../../AiConsentDialog';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
 import {
@@ -273,10 +272,6 @@ export default function AiStep({
   // the deterministic offline stub (and says so), exactly like the custom tier's stub provider.
   const proRemote = settings.configuredProviders.includes('vercel');
   const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
-  // Every action on this step runs against a remote route when it runs at all (aiReady
-  // gates the buttons; the stub is unreachable here), so the disclosure gate applies to
-  // generate, refine, and talk alike.
-  const { ensureAiConsent, consentDialog } = useAiConsent();
   // Opens itself ONCE, after the tier is known: a custom-tier visitor with no provider
   // configured needs the setup in front of them, a Lite visitor does not.
   const [showSettings, setShowSettings] = useState(false);
@@ -422,8 +417,6 @@ export default function AiStep({
   const sendChat = async () => {
     const text = prompt.trim();
     if (!text || chatBusy || busy) return;
-    // The talk turn goes to the model gateway, so it is disclosure-gated like a generation.
-    if (!(await ensureAiConsent())) return;
     const history: ChatMessage[] = [...conversation(), { role: 'user', text }];
     say({ kind: 'you', text, attached: 0 });
     setPrompt('');
@@ -681,12 +674,6 @@ export default function AiStep({
   };
 
   const generate = async (seed?: DesignSpec) => {
-    // Gate BEFORE any transcript or prompt-box state changes, so a decline leaves the
-    // step exactly as it was - nothing archived, nothing cleared, nothing recorded.
-    // The one path that reaches here WITHOUT a remote call is Pro's offline stub - a
-    // deterministic local run needs no AI disclosure.
-    const remoteRun = !proMode || proRemote;
-    if (remoteRun && !(await ensureAiConsent())) return;
     const brief = briefNow();
     // ARCHIVE FIRST, then record the request. The transcript is chronological: the result
     // standing now happened BEFORE the thing that replaces it, and appending the new turn
@@ -829,7 +816,6 @@ export default function AiStep({
   const applyRefinement = (instruction: string, useSpec: boolean, label: string) => {
     if (!result) return;
     void (async () => {
-      if (!(await ensureAiConsent())) return;
       setBusy(label);
       setError(null);
       try {
@@ -1267,12 +1253,10 @@ export default function AiStep({
                 onClick={() => void generate()}
               >
                 {imported && !liteMode && !proMode
-                  ? '⚡ Convert with AI'
-                  : liteMode
-                    ? '✦ Create one Lite graphic'
-                    : proMode
-                      ? result ? '✧ Generate a new design' : '✧ Generate'
-                      : '✦ Generate'}
+                  ? 'Convert with AI'
+                  : result
+                    ? proMode ? 'Generate a new design' : 'Create another'
+                    : 'Create'}
               </button>
             )}
             {!liteMode && (
@@ -1698,7 +1682,6 @@ export default function AiStep({
         </>
       )}
 
-      {consentDialog}
     </div>
   );
 }

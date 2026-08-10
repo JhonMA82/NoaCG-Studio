@@ -7,13 +7,14 @@
 // any other imported design; nothing downstream knows Pro exists.
 
 import type { Resolution, SpxTemplate } from '../../model/types';
+import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import type { Zone9 } from '../../model/wizard';
 import { IMPORTED_DESIGN, PREFIX } from '../../templates/importedDesign/shared';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { addPlacedImageSlot, placeLine, setSlotSize } from '../../blocks/designLayout';
 import { uniqueAssetPath } from '../../assets/assetUtils';
 import { eraseRegionFlat, matteRingTransparent } from '../../assets/eraseRegion';
-import type { ProBrief } from './contract';
+import { PRO_CANVAS, type ProBrief } from './contract';
 import type { ProPlan, ProRegionOutcome } from './normalize';
 
 export interface ProCompileReport {
@@ -36,6 +37,8 @@ export interface ProCompileReport {
   logoSlot: { fieldId: string; wrapperId: string; outcomeIndex: number } | null;
   /** Meaningful regions that ended editable / all meaningful regions (0..1; 1 with none). */
   editability: number;
+  /** The independent final-canvas decision applied to the whole design unit. */
+  placement: ProPlan['placement'];
   warnings: string[];
 }
 
@@ -91,14 +94,31 @@ async function cropToUnit(dataUrl: string, unit: ProPlan['unit']): Promise<strin
   return canvas.toDataURL('image/png');
 }
 
-/** Which of the nine zones the unit's centre falls in - approximate placement the user can
- *  refine with the ordinary zone drag. */
-function zoneFor(plan: ProPlan): Zone9 {
-  const cx = (plan.unit.x + plan.unit.w / 2) / plan.frame.width;
-  const cy = (plan.unit.y + plan.unit.h / 2) / plan.frame.height;
-  const horizontal = cx < 1 / 3 ? 'left' : cx > 2 / 3 ? 'right' : 'center';
-  const vertical = cy < 1 / 3 ? 'top' : cy > 2 / 3 ? 'bottom' : 'mid';
-  return `${vertical}-${horizontal}` as Zone9;
+/** Express the exact placement through the ordinary editable zone + nudge contract. */
+function canvasOptions(plan: ProPlan, resolution: Resolution): {
+  zone: Zone9;
+  nudge: { x: number; y: number };
+  sizeScale: number;
+} {
+  const factor = Math.min(resolution.width / PRO_CANVAS.width, resolution.height / PRO_CANVAS.height);
+  const width = plan.unit.w * plan.placement.scale * factor;
+  const height = plan.unit.h * plan.placement.scale * factor;
+  const x = plan.placement.xNorm * resolution.width;
+  const y = plan.placement.yNorm * resolution.height;
+  const hInset = Math.round(resolution.width * 0.0625);
+  const bottomInset = Math.round(resolution.height * 0.11);
+  let nudgeX = x - hInset;
+  if (plan.placement.zone === 'bottom-center') {
+    nudgeX = x + width / 2 - resolution.width / 2;
+  } else if (plan.placement.zone === 'bottom-right') {
+    nudgeX = hInset - (resolution.width - x - width);
+  }
+  const nudgeY = bottomInset - (resolution.height - y - height);
+  return {
+    zone: plan.placement.zone,
+    nudge: { x: Math.round(nudgeX), y: Math.round(nudgeY) },
+    sizeScale: plan.placement.scale,
+  };
 }
 
 function coverage(outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }): number {
@@ -164,6 +184,8 @@ export async function compileProPlan(
   }
 
   const warnings = [...plan.warnings];
+  const resolution = options.resolution ?? DEFAULT_GRAPHICS_RESOLUTION;
+  const placement = canvasOptions(plan, resolution);
 
   // Full reconstruction: when opaque rebuilt shapes cover the whole unit, the raster crop
   // adds nothing - drop it and the graphic is pure code. Guarded on EVERY region being
@@ -228,10 +250,12 @@ export async function compileProPlan(
 
   let template = IMPORTED_DESIGN.create({
     // resolveOptions supplies the graphics defaults (1080p / default fps) when omitted.
-    ...(options.resolution ? { resolution: options.resolution } : {}),
+    resolution,
     ...(options.fps ? { fps: options.fps } : {}),
     lines: [],
-    zone: zoneFor(plan),
+    zone: placement.zone,
+    nudge: placement.nudge,
+    sizeScale: placement.sizeScale,
     designArt: { path: artPath, width: Math.round(plan.unit.w), height: Math.round(plan.unit.h) },
     importedImages: assets,
     animation: { presetId: plan.animation.presetId, speed: plan.animation.speed, easing: 'auto' },
@@ -311,6 +335,7 @@ export async function compileProPlan(
       artDropped,
       logoSlot,
       editability: meaningful.length === 0 ? 1 : editable.length / meaningful.length,
+      placement: plan.placement,
       warnings,
     },
   };

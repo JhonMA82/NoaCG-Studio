@@ -1,5 +1,4 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { acceptAiNotice } from './_ai-notice';
 import { enableAdvancedMode } from './_create';
 import { previewFrame } from './_frame';
 import { awaitPreviewRebuild } from './_preview';
@@ -106,7 +105,6 @@ test.beforeEach(async ({ page }) => {
   // Advanced-only since step 6 (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`).
   // The sibling AI specs opt in the same way - see e2e/ai-more-control.spec.ts.
   await enableAdvancedMode(page);
-  await acceptAiNotice(page);
 });
 
 async function openAiStep(page: Page) {
@@ -132,7 +130,7 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
 
   await openAiStep(page);
   await page.locator('.wz-step textarea').first().fill(BRIEF);
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   // ── 1. The design stage read a shortlist, not the catalog ───────────────────
@@ -226,7 +224,7 @@ test('the shortlist is shown, and picking another design rebuilds on it for free
 
   await openAiStep(page);
   await page.locator('.wz-step textarea').first().fill(BRIEF);
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   // The designs the AI chose BETWEEN, as pictures - the claim's evidence.
@@ -288,7 +286,7 @@ test('an off-catalog brief keeps the full catalog listing, so the create route i
 
   await openAiStep(page);
   await page.locator('.wz-step textarea').first().fill('A rotating three-axis data sculpture, unlike anything on air');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
 
   await expect.poll(() => seen.filter((r) => r.tool.startsWith('emit_design')).length, GENERATED).toBeGreaterThan(0);
   const call = seen.find((r) => r.tool.startsWith('emit_design'))!;

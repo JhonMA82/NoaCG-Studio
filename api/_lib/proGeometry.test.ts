@@ -1,57 +1,92 @@
-// The NoaCG Pro design-SCALE gate (src/ai/pro/contract.ts).
+// The NoaCG Pro sharp-placement gate (src/ai/pro/contract.ts).
 //
-// Under api/_lib for the same reason as proCostCeiling.test.ts: this is the repo's one
-// TypeScript test harness, and the module under test is the dependency-light Pro contract.
-//
-// The ratio is exact arithmetic over two numbers the compiler already holds, so a test can
-// pin it for free. That matters here more than usual: the quantity was ALREADY being measured
-// by scripts/pro-geometry-audit.mjs and the answer was thrown away, which is how ten fixtures
-// came to score PASS at editability 1.00 while rendering at 0.72 of their design size.
+// Concept framing no longer determines on-air size. The interpretation chooses a canvas
+// placement separately, and this dependency-light test pins the deterministic rule that
+// applies it without ever upscaling source pixels.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  PRO_SCALE_TOLERANCE,
-  proDesignScaleRatio,
-  proScaleFaithful,
+  PRO_DEFAULT_CANVAS_PLACEMENT,
+  resolveProCanvasPlacement,
 } from '../../src/ai/pro/contract.js';
 
-test('a concept drawn at the frame size is faithful', () => {
-  assert.equal(proDesignScaleRatio(1920, 1920), 1);
-  assert.equal(proScaleFaithful(proDesignScaleRatio(1920, 1920)), true);
+test('a tightly framed concept reaches a useful lower-third size by downscaling', () => {
+  const placed = resolveProCanvasPlacement(
+    { width: 1376, height: 300 },
+    { widthNorm: 0.6, xNorm: 0.0625, yNorm: 0.7 },
+  );
+  assert.ok(placed);
+  assert.ok(Math.abs(placed.scale - 1152 / 1376) < 0.0001);
+  assert.equal(placed.widthNorm, 0.6);
+  assert.equal(placed.sizeFulfilled, true);
+  assert.equal(placed.zone, 'bottom-left');
 });
 
-test('the measured defect - a 1376px concept in a 1920px frame - is 0.72 and NOT faithful', () => {
-  const ratio = proDesignScaleRatio(1376, 1920);
-  assert.ok(ratio !== null && Math.abs(ratio - 0.7167) < 0.001, `expected ~0.7167, got ${ratio}`);
-  assert.equal(proScaleFaithful(ratio), false);
+test('source pixels are never visibly upscaled to satisfy a requested size', () => {
+  const placed = resolveProCanvasPlacement(
+    { width: 640, height: 180 },
+    { widthNorm: 0.6, xNorm: 0.06, yNorm: 0.72 },
+  );
+  assert.ok(placed);
+  assert.equal(placed.requestedScale, 1.8);
+  assert.equal(placed.scale, 1);
+  assert.equal(placed.widthNorm, 640 / 1920);
+  assert.equal(placed.sizeFulfilled, false);
 });
 
-test('the 1408px concept in the bank is also caught', () => {
-  // `corporate` came back 1408 wide rather than 1376, and the audit reported n/a for it
-  // because its rendered-box read failed - the arithmetic answers anyway, which is the
-  // point of computing this from the two widths instead of from a rendered frame.
-  assert.equal(proScaleFaithful(proDesignScaleRatio(1408, 1920)), false);
+test('an unusually tall concept is downscaled to the lower-third height cap', () => {
+  const placed = resolveProCanvasPlacement(
+    { width: 1400, height: 900 },
+    { widthNorm: 0.7, xNorm: 0.1, yNorm: 0.6 },
+  );
+  assert.ok(placed);
+  assert.equal(placed.scale, 0.42);
+  assert.equal(placed.heightNorm, 0.35);
+  assert.equal(placed.sizeFulfilled, true);
 });
 
-test('the tolerance is tight enough to catch a quarter-size loss and loose enough for rounding', () => {
-  assert.equal(proScaleFaithful(1 - PRO_SCALE_TOLERANCE), true);
-  assert.equal(proScaleFaithful(1 + PRO_SCALE_TOLERANCE), true);
-  assert.equal(proScaleFaithful(1 - PRO_SCALE_TOLERANCE - 0.001), false);
-  assert.equal(proScaleFaithful(1 + PRO_SCALE_TOLERANCE + 0.001), false);
-  // The defect is ~28% off. A tolerance that admitted it would be no gate at all.
-  assert.ok(PRO_SCALE_TOLERANCE < 0.28, 'the tolerance must not admit the defect it exists to catch');
+test('placement is clamped into the lower canvas and broadcast-safe edges', () => {
+  const placed = resolveProCanvasPlacement(
+    { width: 1200, height: 240 },
+    { widthNorm: 0.5, xNorm: -4, yNorm: -2 },
+  );
+  assert.ok(placed);
+  assert.ok(Math.abs(placed.xNorm - 0.03) < Number.EPSILON);
+  assert.equal(placed.yNorm, 0.5);
+  assert.equal(placed.zone, 'bottom-left');
 });
 
-test('an oversized concept is a defect too, not just a shrunken one', () => {
-  // Nothing guarantees the model answers SMALLER than the frame; a 4K concept in a 1920 frame
-  // would render at 2x and overflow everything. The check is distance from 1, not "less than".
-  assert.equal(proScaleFaithful(proDesignScaleRatio(3840, 1920)), false);
+test('malicious size claims clamp, while non-finite placement uses deterministic defaults', () => {
+  const huge = resolveProCanvasPlacement(
+    { width: 1800, height: 300 },
+    { widthNorm: 20, xNorm: 20, yNorm: 20 },
+  );
+  assert.ok(huge);
+  assert.ok(huge.widthNorm <= 0.75);
+  assert.ok(huge.xNorm + huge.widthNorm <= 0.97 + Number.EPSILON);
+  assert.ok(huge.yNorm + huge.heightNorm <= 0.95 + Number.EPSILON);
+
+  const fallback = resolveProCanvasPlacement(
+    { width: 1600, height: 320 },
+    { widthNorm: Number.NaN, xNorm: Number.NaN, yNorm: Number.NaN },
+  );
+  const expected = resolveProCanvasPlacement(
+    { width: 1600, height: 320 },
+    PRO_DEFAULT_CANVAS_PLACEMENT,
+  );
+  assert.deepEqual(fallback, expected);
 });
 
-test('an unusable measurement is UNKNOWN, never faithful', () => {
-  assert.equal(proDesignScaleRatio(0, 1920), null);
-  assert.equal(proDesignScaleRatio(1376, 0), null);
-  assert.equal(proDesignScaleRatio(Number.NaN, 1920), null);
-  assert.equal(proScaleFaithful(null), false);
+test('missing legacy placement receives the same deterministic default', () => {
+  assert.deepEqual(
+    resolveProCanvasPlacement({ width: 1600, height: 320 }, undefined),
+    resolveProCanvasPlacement({ width: 1600, height: 320 }, PRO_DEFAULT_CANVAS_PLACEMENT),
+  );
+});
+
+test('an unusable source or canvas is unknown, never treated as sharp', () => {
+  assert.equal(resolveProCanvasPlacement({ width: 0, height: 300 }, undefined), null);
+  assert.equal(resolveProCanvasPlacement({ width: 1376, height: Number.NaN }, undefined), null);
+  assert.equal(resolveProCanvasPlacement({ width: 1376, height: 300 }, undefined, { width: 0, height: 1080 }), null);
 });

@@ -477,12 +477,13 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 
 ## 9. Privacy, consent, quota, and cost controls
 
-- **Disclosure (build first - it gates everything free)**: a first-use notice on every
-  managed AI action: content is sent to an external AI provider; do not upload sensitive
-  or confidential material; ZDR routing is used where available but provider retention/
-  training policies carry residual uncertainty; "open model" does not mean "private".
-  Consent recorded (timestamp + notice version) in the user record. The `.env.example`
-  reference to this notice finally becomes true.
+- **Disclosure (owner update, 2026-08-10)**: Create with AI is covered by public Terms and
+  Privacy pages, linked from an explicit account-creation acknowledgement. It does not show
+  the old interruptive first-use dialog and does not substitute another warning surface.
+  Managed requests still disclose that the request passes through Vercel AI Gateway to an
+  eligible model provider for transient processing, under required zero-retention and
+  no-training flags. Other AI surfaces retain their existing notice until deliberately
+  migrated; the versioned acceptance record remains for them.
 - **Data minimization**: analysis images downscaled/cropped client-side; only the
   relevant catalog subset/schema context sent per task (Lite's 650-token digest is the
   model); no project data beyond the task inputs; ledger stays content-free.
@@ -536,8 +537,9 @@ manifest identity, blind gallery, taxonomy, hard cost caps) rather than building
 2. **Stage 1 - platform**: task registry + model catalog/allowlist + generalized policy
    layer; Lite re-expressed as the first task profile (behavior-identical, proven by
    `bench:regress`).
-3. **Stage 2 - disclosure**: consent notice + recording (per the ratified decision 2);
-   ZDR-by-default for free routes; run the Lite bench and settle the primary per the
+3. **Stage 2 - disclosure**: public Terms and Privacy plus the account-creation
+   acknowledgement for Create with AI; retain notice recording only on surfaces that still
+   mount it; ZDR-by-default for free routes; run the Lite bench and settle the primary per the
    benchmark-first policy.
 4. **Stage 3 - Import analysis**: harness + proposal UI behind a server flag
    (`AI_TASK_IMPORT_ANALYSIS_ENABLED`, default off), stub-first e2e, then the vision

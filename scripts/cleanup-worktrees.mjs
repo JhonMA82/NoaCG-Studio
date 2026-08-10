@@ -1,5 +1,5 @@
-// Bulk cleanup of stale worktrees, their merged branches, stale worktree metadata, and empty
-// leftover folders - safely, from the primary `main` checkout.
+// Bulk cleanup of stale worktrees, their merged local and GitHub branches, stale worktree
+// metadata, and empty leftover folders - safely, from the primary `main` checkout.
 //
 // Default is a read-only DRY RUN. Pass --apply to actually delete. The explicitly invoked shared
 // cleanup workflow drives this: dry-run, show the plan, then apply when the assessment is clean.
@@ -21,6 +21,8 @@
 // Hard rules (never broken, even with --apply):
 //   - never `git branch -D`, never `git worktree remove --force`, never touch main or the
 //     current branch;
+//   - never delete a GitHub branch unless its exact fetched head is protected by a lease and
+//     fully contained in both local main and origin/main;
 //   - never remove a worktree with uncommitted changes, or a detached worktree whose HEAD is
 //     not contained in main (it may hold unique work);
 //   - never delete a non-empty unregistered folder (report it for manual review);
@@ -73,6 +75,31 @@ const REGENERABLE_IGNORED = [
 const MAIN = 'main';
 const REMOTE_MAIN = 'origin/main';
 const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/'];
+
+function managedBranch(name) {
+  return MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+function remoteBranchRef(name) {
+  return `refs/remotes/origin/${name}`;
+}
+
+function remoteBranchHead(name, cwd) {
+  return git(['rev-parse', '--verify', '--quiet', remoteBranchRef(name)], cwd).stdout || null;
+}
+
+function deleteRemoteBranch(name, expectedHead, cwd) {
+  return git(
+    [
+      'push',
+      `--force-with-lease=refs/heads/${name}:${expectedHead}`,
+      'origin',
+      '--delete',
+      name,
+    ],
+    cwd,
+  );
+}
 
 /** True when every commit of `ref` is already reachable from `target`. */
 function containedIn(ref, target, cwd) {
@@ -203,8 +230,9 @@ export function formatBytes({ bytes, atLeast }) {
  * Every deletion rule of this file still applies - no `--force`, no `-D`, never `main`, never
  * another worktree, and containment in BOTH local `main` and `origin/main` before anything goes.
  *
- * Returns `{ ok, reasons, primaryRoot, path, branch, head }`; `reasons` lists every blocker
- * found, so a refusal explains itself completely instead of one item at a time.
+ * Returns `{ ok, reasons, primaryRoot, path, branch, head, remoteBranchHead }`; `reasons`
+ * lists every blocker found, so a refusal explains itself completely instead of one item at a
+ * time. `remoteBranchHead` is present only when that exact GitHub ref is also safe to retire.
  */
 export function assessSelf(cwd) {
   const reasons = [];
@@ -221,7 +249,15 @@ export function assessSelf(cwd) {
   if (!path) return { ok: false, reasons: ['this directory is not a registered worktree'], primaryRoot, path: null, branch: null, head: null };
 
   const self = worktrees.get(path);
-  const result = { ok: false, reasons, primaryRoot, path, branch: self.branch, head: self.head };
+  const result = {
+    ok: false,
+    reasons,
+    primaryRoot,
+    path,
+    branch: self.branch,
+    head: self.head,
+    remoteBranchHead: null,
+  };
 
   if (samePath(path, primaryRoot)) reasons.push('this is the primary checkout, which is never removed');
   if (self.branch === MAIN) reasons.push(`this worktree is on ${MAIN}`);
@@ -246,6 +282,17 @@ export function assessSelf(cwd) {
         ? `${self.branch} is in local ${MAIN} but not in ${REMOTE_MAIN} - it is not backed up off this machine`
         : `${self.branch} has commits that are not in ${MAIN}`,
     );
+  }
+  if (self.branch && managedBranch(self.branch)) {
+    const remoteHead = remoteBranchHead(self.branch, primaryRoot);
+    const remoteRef = remoteBranchRef(self.branch);
+    if (
+      remoteHead &&
+      containedIn(remoteRef, MAIN, primaryRoot) &&
+      containedIn(remoteRef, REMOTE_MAIN, primaryRoot)
+    ) {
+      result.remoteBranchHead = remoteHead;
+    }
   }
 
   // Ignored content is NOT a refusal - it is a price. `.env` lives in almost every worktree, so
@@ -272,7 +319,14 @@ export function applySelf(
     acknowledgeData = false,
   } = {},
 ) {
-  const done = { removedWorktree: false, folderRemains: false, deletedBranch: null, releasedPorts: [], errors: [] };
+  const done = {
+    removedWorktree: false,
+    folderRemains: false,
+    deletedBranch: null,
+    deletedRemoteBranch: null,
+    releasedPorts: [],
+    errors: [],
+  };
 
   // The one thing a clean tree does not prove. Removal destroys ignored content silently, so
   // anything unrecognised must be acknowledged by a person who has seen the list.
@@ -292,7 +346,11 @@ export function applySelf(
   }
 
   const recheck = assessSelf(plan.path);
-  if (!recheck.ok || recheck.branch !== plan.branch) {
+  if (
+    !recheck.ok ||
+    recheck.branch !== plan.branch ||
+    recheck.remoteBranchHead !== plan.remoteBranchHead
+  ) {
     done.errors.push(`state changed since assessment - ${recheck.reasons.join('; ') || 'branch moved'}`);
     return done;
   }
@@ -312,6 +370,21 @@ export function applySelf(
   if (deleted.ok) done.deletedBranch = plan.branch;
   else done.errors.push(`worktree removed, but the branch was kept: ${deleted.stderr || deleted.stdout || 'git branch -d refused'}`);
 
+  if (done.deletedBranch && plan.remoteBranchHead) {
+    const deletedRemote = deleteRemoteBranch(
+      plan.branch,
+      plan.remoteBranchHead,
+      plan.primaryRoot,
+    );
+    if (deletedRemote.ok) done.deletedRemoteBranch = plan.branch;
+    else {
+      done.errors.push(
+        `local branch deleted, but origin/${plan.branch} was kept: ` +
+          `${deletedRemote.stderr || deletedRemote.stdout || 'remote delete refused'}`,
+      );
+    }
+  }
+
   try {
     done.releasedPorts = prunePorts() ?? [];
   } catch (error) {
@@ -330,6 +403,7 @@ export function assess(cwd) {
     mainSync: null, // { ahead, behind, state }
     worktrees: [], // { path, branch|null, head, action: 'remove'|'skip', why }
     branches: [], // { name, head, action: 'delete'|'skip', why }
+    remoteBranches: [], // managed origin branches, same action shape as local branches
     otherMerged: [], // branches outside managed prefixes (reported, not deleted)
     possibleSquashMerges: [], // tree matches main but not an ancestor - reported, not deleted
     prune: [], // stale worktree metadata git would prune
@@ -439,7 +513,7 @@ export function assess(cwd) {
       // Not an ancestor of main - but a squash/rebase merge lands the same tree under a new
       // commit, so check for that signature before writing the branch off as unmerged.
       if (possiblySquashMerged(name, primaryRoot)) plan.possibleSquashMerges.push(name);
-      if (MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+      if (managedBranch(name)) {
         plan.branches.push({
           name,
           head,
@@ -458,7 +532,7 @@ export function assess(cwd) {
       });
       continue;
     }
-    if (!MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+    if (!managedBranch(name)) {
       plan.otherMerged.push(name);
       continue;
     }
@@ -475,6 +549,58 @@ export function assess(cwd) {
         head,
         action: 'delete',
         why: 'contained in main and origin/main',
+      });
+    }
+  }
+
+  // GitHub branch classification. A remote branch is eligible only when its exact tip is
+  // contained in both copies of main and no same-named local branch or kept worktree still
+  // needs it. Deletion later uses a force-with-lease pinned to this head, so a push racing the
+  // cleanup is refused instead of discarded.
+  const localBranchEntries = new Map(plan.branches.map((entry) => [entry.name, entry]));
+  const remoteList = git(
+    ['for-each-ref', '--format=%(refname)', 'refs/remotes/origin'],
+    primaryRoot,
+  );
+  const remoteNames = remoteList.ok
+    ? remoteList.stdout
+        .split('\n')
+        .filter((ref) => ref.startsWith('refs/remotes/origin/'))
+        .map((ref) => ref.slice('refs/remotes/origin/'.length))
+        .filter((name) => name && name !== 'HEAD' && name !== MAIN)
+    : [];
+  for (const name of remoteNames) {
+    if (!managedBranch(name)) continue;
+    const ref = remoteBranchRef(name);
+    const head = git(['rev-parse', '--verify', '--quiet', ref], primaryRoot).stdout || null;
+    const localEntry = localBranchEntries.get(name);
+    if (!head || !containedIn(ref, MAIN, primaryRoot) || !containedIn(ref, REMOTE_MAIN, primaryRoot)) {
+      plan.remoteBranches.push({
+        name,
+        head,
+        action: 'skip',
+        why: 'has commits not contained in both local main and origin/main',
+      });
+    } else if (keptWorktreeBranches.has(name)) {
+      plan.remoteBranches.push({
+        name,
+        head,
+        action: 'skip',
+        why: 'still belongs to a worktree left in place',
+      });
+    } else if (localEntry && localEntry.action !== 'delete') {
+      plan.remoteBranches.push({
+        name,
+        head,
+        action: 'skip',
+        why: 'same-named local branch is not eligible for deletion',
+      });
+    } else {
+      plan.remoteBranches.push({
+        name,
+        head,
+        action: 'delete',
+        why: 'contained in main and origin/main; no local work depends on it',
       });
     }
   }
@@ -543,6 +669,11 @@ export function assessmentRisks(plan) {
       risks.push(`${branch.name}: ${branch.why}`);
     }
   }
+  for (const branch of plan.remoteBranches.filter((entry) => entry.action === 'skip')) {
+    if (branch.why.includes('not contained in both')) {
+      risks.push(`origin/${branch.name}: ${branch.why}`);
+    }
+  }
   for (const folder of plan.emptyFolders.nonEmpty) {
     risks.push(`${folder}: non-empty unregistered folder`);
   }
@@ -560,7 +691,15 @@ export function applyPlan(
     refreshRemote = () => git(['fetch', 'origin', '--prune'], plan.primaryRoot),
   } = {},
 ) {
-  const done = { removedWorktrees: [], deletedBranches: [], pruned: false, sweep: null, releasedPorts: [], errors: [] };
+  const done = {
+    removedWorktrees: [],
+    deletedBranches: [],
+    deletedRemoteBranches: [],
+    pruned: false,
+    sweep: null,
+    releasedPorts: [],
+    errors: [],
+  };
 
   const refreshed = refreshRemote();
   if (!refreshed?.ok) {
@@ -589,7 +728,7 @@ export function applyPlan(
   // the same containment gate; `git branch -d` is the final backstop that refuses unmerged.
   for (const b of plan.branches.filter((x) => x.action === 'delete')) {
     if (
-      !MANAGED_BRANCH_PREFIXES.some((prefix) => b.name.startsWith(prefix)) ||
+      !managedBranch(b.name) ||
       !b.head ||
       git(['rev-parse', b.name], plan.primaryRoot).stdout !== b.head ||
       !safelyBackedUp(b.name, plan.primaryRoot)
@@ -600,6 +739,31 @@ export function applyPlan(
     const res = git(['branch', '-d', b.name], plan.primaryRoot);
     if (res.ok) done.deletedBranches.push(b.name);
     else done.errors.push(`branch -d ${b.name}: ${res.stderr || res.stdout || 'refused'}`);
+  }
+
+  // Delete the GitHub ref only after the local worktree and branch are gone. The lease binds
+  // deletion to the exact head assessed after the latest fetch; if somebody pushed meanwhile,
+  // Git refuses the delete and the work survives.
+  for (const b of plan.remoteBranches.filter((x) => x.action === 'delete')) {
+    const localStillExists = git(
+      ['show-ref', '--verify', '--quiet', `refs/heads/${b.name}`],
+      plan.primaryRoot,
+    ).ok;
+    const currentRemoteHead = remoteBranchHead(b.name, plan.primaryRoot);
+    if (
+      !managedBranch(b.name) ||
+      !b.head ||
+      localStillExists ||
+      currentRemoteHead !== b.head ||
+      !containedIn(remoteBranchRef(b.name), MAIN, plan.primaryRoot) ||
+      !containedIn(remoteBranchRef(b.name), REMOTE_MAIN, plan.primaryRoot)
+    ) {
+      done.errors.push(`origin/${b.name}: identity, containment, or local dependency changed - skipped`);
+      continue;
+    }
+    const res = deleteRemoteBranch(b.name, b.head, plan.primaryRoot);
+    if (res.ok) done.deletedRemoteBranches.push(b.name);
+    else done.errors.push(`delete origin/${b.name}: ${res.stderr || res.stdout || 'refused'}`);
   }
 
   if (plan.prune.length > 0) {
@@ -647,6 +811,8 @@ function report(plan, done) {
   const wtSkip = plan.worktrees.filter((w) => w.action === 'skip');
   const toDelete = plan.branches.filter((b) => b.action === 'delete');
   const brSkip = plan.branches.filter((b) => b.action === 'skip');
+  const remoteToDelete = plan.remoteBranches.filter((b) => b.action === 'delete');
+  const remoteSkip = plan.remoteBranches.filter((b) => b.action === 'skip');
 
   L.push('');
   L.push(`## Worktrees to remove (${toRemove.length})`);
@@ -664,9 +830,22 @@ function report(plan, done) {
   }
   if (toDelete.length === 0) L.push('  (none)');
 
+  L.push('');
+  L.push(`## GitHub branches to delete (${remoteToDelete.length})`);
+  for (const b of remoteToDelete) {
+    const applied = done
+      ? done.deletedRemoteBranches.includes(b.name)
+        ? ' [deleted]'
+        : ' [FAILED/refused]'
+      : '';
+    L.push(`  - origin/${b.name} (${b.why})${applied}`);
+  }
+  if (remoteToDelete.length === 0) L.push('  (none)');
+
   const skips = [
     ...wtSkip.map((w) => `worktree ${w.path}: ${w.why}`),
     ...brSkip.map((b) => `branch ${b.name}: ${b.why}`),
+    ...remoteSkip.map((b) => `branch origin/${b.name}: ${b.why}`),
   ];
   L.push('');
   L.push(`## Skipped (${skips.length})`);
@@ -725,6 +904,7 @@ function report(plan, done) {
   const manual = [
     ...wtSkip.map((w) => `${w.path} - ${w.why}`),
     ...brSkip.map((b) => `${b.name} - ${b.why}`),
+    ...remoteSkip.map((b) => `origin/${b.name} - ${b.why}`),
     ...(!done ? plan.emptyFolders.nonEmpty : []).map(
       (d) => `${d} - non-empty leftover folder`,
     ),
@@ -747,7 +927,19 @@ function report(plan, done) {
 // Default is a dry run. Risk acknowledgement is valid only after the user approves the safe subset.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--self')) {
   // Self mode: the handoff workflow's last action. Dry run by default, like the bulk mode.
-  const plan = assessSelf(normalize(process.cwd()));
+  const selfCwd = normalize(process.cwd());
+  const selfPrimaryRoot = primaryCheckout(selfCwd);
+  if (selfPrimaryRoot) {
+    const fetched = git(['fetch', 'origin', '--prune'], selfPrimaryRoot);
+    if (!fetched.ok) {
+      console.log(
+        `Cannot run self cleanup: could not refresh origin: ` +
+          `${fetched.stderr || fetched.stdout || 'git fetch failed'}`,
+      );
+      process.exit(2);
+    }
+  }
+  const plan = assessSelf(selfCwd);
   if (!plan.ok) {
     console.log('Self cleanup NOT safe - this worktree stays:');
     for (const reason of plan.reasons) console.log(`  - ${reason}`);
@@ -784,6 +976,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   const done = applySelf(plan, { acknowledgeData });
   if (done.removedWorktree) console.log(`Removed worktree ${plan.path}`);
   if (done.deletedBranch) console.log(`Deleted branch ${done.deletedBranch}`);
+  if (done.deletedRemoteBranch) console.log(`Deleted GitHub branch origin/${done.deletedRemoteBranch}`);
   if (done.releasedPorts.length > 0) console.log(`Released dev port(s): ${done.releasedPorts.join(', ')}`);
   if (done.folderRemains) {
     console.log('The now-empty folder is still on disk - this session holds it open. It is swept automatically once this session exits.');

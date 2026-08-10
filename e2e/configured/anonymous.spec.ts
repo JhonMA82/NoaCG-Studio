@@ -52,6 +52,12 @@ test.describe('anonymous visitor (open editor)', () => {
     await prompt.getByTestId('signin-prompt-signup').click();
     await expect(page.locator('.auth-card')).toBeVisible();
     await expect(page.locator('.auth-submit')).toHaveText('Create account');
+    const legal = page.locator('.auth-legal');
+    await expect(legal).toHaveText(
+      'By creating an account, you agree to the Terms and acknowledge the Privacy Policy.',
+    );
+    await expect(legal.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
+    await expect(legal.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
     // Closed with the dialog's OWN ✕, not Escape: Escape reaches the wizard behind it too, and
     // a closed wizard takes the gate under test off the page.
     await page.locator('.auth-card .gallery-close').click();

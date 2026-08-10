@@ -131,6 +131,14 @@ export default function SignInDialog() {
         <p className="auth-tag">{reason ?? 'Sign in to save your work across devices, share to the community, and use AI.'}</p>
         <p className="muted auth-sub">Creating and exporting graphics never needs an account.</p>
 
+        {mode === 'signup' && (
+          <p className="auth-legal">
+            By creating an account, you agree to the{' '}
+            <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+          </p>
+        )}
+
         <button className="primary auth-google" onClick={google} disabled={busy}>
           Continue with Google
         </button>

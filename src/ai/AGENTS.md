@@ -214,6 +214,15 @@ simplification, never an automatic expensive fallback.
 `productionSpxValidator`. `claudeProvider` is built FROM it and the benchmark runners compile through the
 identical function; `scripts/ai-lite-bench.test.mjs` pins that no second copy exists.
 
+**Lite category meaning lives in one `CATEGORY_CONTRACTS` registry.** A contract names the graphic
+type, visible field range, allowed kinds, named slots, compatible measured chassis, type-owned
+machine, and operator events. The same constrained model call returns category confidence and
+alternatives plus structured style intent. Manual category is authoritative; auto mode proceeds
+only above the confidence and margin floors, while ambiguity returns choices for the UI. Trusted
+server retrieval shows at most five relevant, diverse compatible chassis and narrows the output
+enum to the same ids. The compiler owns fields and state and may retry ranked fallback chassis
+when the rendered hold rejects generic treatment, weak brief fit, overflow, or poor contrast.
+
 **Lite composes its OWN validator** (`claudeProvider.liteValidator`), for the same reason it passes its
 own `AssembleOptions`: `ProductionBenchOptions` can only be answered from the DECISION - which lines must
 hold one line (`singleLineIdentityFields`, off the spec's declared roles) and which category's type floor
@@ -272,8 +281,9 @@ price, privacy, and endpoint policy live only in `api/_lib/aiLiteProfile.ts`; th
 `lite-design-spec` and fails closed unless every managed route is in the approved-route catalog. The
 generated template carries no profile marker or generation ledger id.
 
-The first quality release is LOWER-THIRD-ONLY: six audited chassis with positive and negative fit
-metadata, a broad intent facet, and an explicit semantic role for each line. Server semantic validation
+The first quality release is LOWER-THIRD-ONLY: 13 measured chassis with positive and negative fit
+metadata, semantic style signals and geometry, a broad intent facet, and an explicit named slot for
+each of one to four visible lines. Server semantic validation
 enforces requested roles and custom-palette contrast before deterministic compilation. **Do not widen the
 category or variant allowlist without the versioned lower-third benchmark and human visual review.**
 
@@ -473,13 +483,13 @@ time above the rebuilt panel. `editability` is a real measurement of a different
 here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
 1.00. Every concept image was good, so the compiler is what loses them.**
 
-**That gate now EXISTS and `pro-bench` counts it in `pass`.** `proDesignScaleRatio` /
-`proScaleFaithful` (`pro/contract.ts`) answer `conceptWidth / frameWidth` - the whole defect
-reduces to that, because the design unit's share of the concept and its share of the frame differ
-by nothing else, so no rendering is needed and `api/_lib/proGeometry.test.ts` pins it free. The
-free fixture replay now reads **1/12**, the single pass being the STUB at 1.00x. **The bank did
-not get worse; the reporting stopped being kind - do not "fix" the score by loosening
-`PRO_SCALE_TOLERANCE`.**
+**The sharp-placement gate now EXISTS and `pro-bench` counts both halves in `pass`.** The
+interpretation carries a separate `canvasPlacement`; `resolveProCanvasPlacement`
+(`pro/contract.ts`) clamps it to a useful lower-third size and safe canvas position, applies at
+most a 1.00 scale, and says when the source lacks enough pixels to fulfil the requested size.
+`api/_lib/proGeometry.test.ts` pins the arithmetic free. The pre-change fixture bank is expected
+to keep source-limited failures because those concepts spent their pixels on full-frame scenery;
+only a fresh tight-concept round can measure whether the prompt fixed that input.
 
 **THE CAUSE IS THE CONCEPT PROMPT, and the direction is decided (owner, 2026-08-09).**
 `proConceptPrompt` asks for the graphic inside a "full 1920x1080 frame" over a "softly blurred
@@ -492,6 +502,18 @@ larger model output is unavailable (the gateway image call has no size parameter
 clear most of the baked-text ghosting too - four of five broken frames show it, and a tight
 concept has no backdrop to show through. A prompt change invalidates the fixtures: budget a fresh
 paid round (~$0.95). Detail: `benchmarks/pro/round-2026-08-09/ROUND.md`.
+
+**IMPLEMENTED 2026-08-09 and paid-verified 2026-08-10.** `proConceptPrompt` now asks for the
+graphic alone with tight framing and no environment. The same interpretation call independently
+chooses normalized canvas width and top-left placement. Normalization clamps that decision;
+compile keeps the native crop and sends artwork, live fields, rebuilt panels, and the logo slot
+through one downscale-only imported-design `--scale`, expressed with the normal editable zone and
+nudge contract. Contract version: `pro-interpret-v3`. The fresh 12-brief round spent $1.014569 and
+verified the placement contract: 9/12 requested sizes were fulfilled by downscaling, three stayed
+at native scale and were reported `SOURCE-LIMITED`, and none upscaled. The overall product result
+was 8/12 usable or degraded and 4/12 broken. Tight concepts therefore fixed the canvas arithmetic,
+not reconstruction: baked-text ghosts remain on three frames and `portrait-logo` loses its portrait.
+Full record: `benchmarks/pro/round-2026-08-10/ROUND.md`.
 
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler

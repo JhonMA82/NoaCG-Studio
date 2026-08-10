@@ -10,6 +10,7 @@
 // the E2E_SPRINT_FOCUS env in ci.yml and the focus branch in e2e-affected.mjs - when the
 // sprint ends.
 export const FOCUS = [
+  'analytics.spec.ts',
   'advanced-mode.spec.ts',
   'auth.spec.ts',
   'control.spec.ts',

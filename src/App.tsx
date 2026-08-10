@@ -18,6 +18,7 @@ import { useRouter } from './app/router';
 import { openGraphicById, useSaveUi } from './store/saveActions';
 import { raiseStorageAlert } from './store/storageAlert';
 import { isAdvancedMode, useAdvancedMode } from './components/useAdvancedMode';
+import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 
 export default function App() {
   // Which editor world is active: SPX live graphics or the AI video editor. Persisted;
@@ -219,6 +220,7 @@ export default function App() {
           would unmount before it could be read (the "add to production dumps you in the canvas"
           defect). */}
       <StorageAlertDialog />
+      <AnalyticsConsentBanner />
     </>
   );
 }

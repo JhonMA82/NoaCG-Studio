@@ -172,6 +172,45 @@ function schemaAccepts(value: unknown, schemaValue: unknown): boolean {
   return schema.type === undefined;
 }
 
+/** Content-free diagnostics for a structured miss. Paths and rule names are enough to
+ * identify a schema/model boundary failure without logging the generated decision. */
+function schemaRejectionPaths(value: unknown, schemaValue: unknown, path = '$'): string[] {
+  if (schemaAccepts(value, schemaValue)) return [];
+  if (!schemaValue || typeof schemaValue !== 'object' || Array.isArray(schemaValue)) {
+    return [`${path}:schema`];
+  }
+  const schema = schemaValue as Record<string, unknown>;
+  if (Array.isArray(schema.oneOf) || Array.isArray(schema.anyOf)) return [`${path}:union`];
+  if (Array.isArray(schema.enum) && !schema.enum.some((item) => Object.is(item, value))) {
+    return [`${path}:enum`];
+  }
+  if (schema.type === 'object' && value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const properties = schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
+      ? schema.properties as Record<string, unknown>
+      : {};
+    const required = Array.isArray(schema.required)
+      ? schema.required.filter((item): item is string => typeof item === 'string')
+      : [];
+    const missing = required.filter((key) => !(key in record)).map((key) => `${path}.${key}:required`);
+    const extra = schema.additionalProperties === false
+      ? Object.keys(record).filter((key) => !(key in properties)).map((key) => `${path}.${key}:additional`)
+      : [];
+    const nested = Object.entries(record).flatMap(([key, item]) =>
+      key in properties ? schemaRejectionPaths(item, properties[key], `${path}.${key}`) : [],
+    );
+    return [...missing, ...extra, ...nested].slice(0, 20);
+  }
+  if (schema.type === 'array' && Array.isArray(value)) {
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems) return [`${path}:minItems`];
+    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) return [`${path}:maxItems`];
+    return schema.items === undefined
+      ? [`${path}:array`]
+      : value.flatMap((item, index) => schemaRejectionPaths(item, schema.items, `${path}[${index}]`)).slice(0, 20);
+  }
+  return [`${path}:${typeof schema.type === 'string' ? schema.type : 'shape'}`];
+}
+
 /** Decode a structured result that arrived correct but ENCODED, before anything judges its
  *  shape. Two encodings are common enough to cost whole benchmark rounds, both observed from
  *  Anthropic tool use and neither specific to it:
@@ -236,6 +275,9 @@ export function decodeStructuredOutput(output: unknown, request: ModelRequest): 
 
 function validateStructuredOutput(output: unknown, request: ModelRequest): void {
   if (request.structuredOutput && !schemaAccepts(output, request.structuredOutput.schema)) {
+    if (process.env.NOACG_DEBUG_STRUCTURED === '1') {
+      console.log(`[structured-schema-miss] ${schemaRejectionPaths(output, request.structuredOutput.schema).join(',')}`);
+    }
     // Retryable for the same reason as the parse failure above: schema misses under
     // sampling are stochastic, and the bounded attempt budget is exactly for them.
     throw new GatewayError('malformed_response', 'The model returned a result that did not match the required structure.', 502, true);

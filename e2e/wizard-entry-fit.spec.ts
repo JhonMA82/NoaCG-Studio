@@ -29,6 +29,44 @@ for (const [width, height] of [[1366, 768], [1440, 900]] as const) {
   });
 }
 
+for (const [label, width, height] of [['desktop', 1366, 768], ['phone', 390, 844]] as const) {
+  test(`creation navigation starts only after a card is opened on ${label}`, async ({ page }) => {
+    await entryStepAt(page, width, height);
+
+    // Entry is a menu before a creation path exists. The whole rail - not merely its labels -
+    // stands down, and the main column receives the complete body measure.
+    await expect(page.locator('.wz-rail')).toHaveCount(0);
+    await expect(page.locator('.wz-dots')).toHaveCount(0);
+    const entryWidths = await page.evaluate(() => ({
+      body: document.querySelector('.wz-body')!.getBoundingClientRect().width,
+      main: document.querySelector('.wz-main')!.getBoundingClientRect().width,
+    }));
+    expect(Math.abs(entryWidths.body - entryWidths.main)).toBeLessThan(1);
+
+    await page.locator('[data-entry="ai"]').click();
+    const rail = page.locator('.wz-rail');
+    await expect(rail).toBeVisible();
+    await expect(rail.locator('.wz-dot')).toHaveCount(3);
+    await expect(page.locator('.wz-step button.primary')).toHaveText('Create');
+
+    const layout = await page.evaluate(() => {
+      const railRect = document.querySelector('.wz-rail')!.getBoundingClientRect();
+      const mainRect = document.querySelector('.wz-main')!.getBoundingClientRect();
+      return {
+        railRight: railRect.right,
+        railBottom: railRect.bottom,
+        mainLeft: mainRect.left,
+        mainTop: mainRect.top,
+      };
+    });
+    if (label === 'desktop') {
+      expect(layout.railRight).toBeLessThanOrEqual(layout.mainLeft + 0.5);
+    } else {
+      expect(layout.railBottom).toBeLessThanOrEqual(layout.mainTop + 0.5);
+    }
+  });
+}
+
 test('the video strip is fully inside the scrollport at 1366x768', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
 

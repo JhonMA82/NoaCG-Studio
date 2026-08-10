@@ -1,43 +1,49 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 0.95,
+  "graphicTypeConfidence": 1,
+  "canvasPlacement": {
+    "widthNorm": 0.7,
+    "xNorm": 0.15,
+    "yNorm": 0.75
+  },
   "regions": [
     {
       "kind": "panel",
       "bbox": {
-        "x": 0.078125,
-        "y": 0.604166,
-        "w": 0.015625,
-        "h": 0.347222
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
       },
-      "confidence": 0.95,
+      "confidence": 1,
       "treatment": "rebuild-shape",
       "panel": {
-        "shape": "accent-bar",
+        "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#112A59"
+          "color": "#1C4488"
         },
         "opacity": 1,
         "radiusNorm": 0
       }
     },
     {
-      "kind": "panel",
+      "kind": "decorative",
       "bbox": {
-        "x": 0.09375,
-        "y": 0.604166,
-        "w": 0.84375,
-        "h": 0.347222
+        "x": 0.175,
+        "y": 0.399074,
+        "w": 0.65,
+        "h": 0.006481
       },
-      "confidence": 0.95,
+      "confidence": 1,
       "treatment": "rebuild-shape",
+      "align": "center",
       "panel": {
-        "shape": "panel",
+        "shape": "accent-bar",
         "fill": {
           "kind": "solid",
-          "color": "#1A3977"
+          "color": "#FFFFFF"
         },
         "opacity": 1,
         "radiusNorm": 0
@@ -46,77 +52,57 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.1328,
-        "y": 0.6736,
-        "w": 0.3398,
-        "h": 0.0625
+        "x": 0.1875,
+        "y": 0.444444,
+        "w": 0.61979,
+        "h": 0.074074
       },
-      "confidence": 0.95,
+      "confidence": 1,
       "treatment": "rebuild-text",
-      "align": "left",
+      "align": "center",
       "role": "person-name",
       "sampleText": "Alexandra Riva",
-      "suggestedTitle": "Person Name",
+      "suggestedTitle": "Name",
+      "typography": {
+        "classification": "sans",
+        "matchQuality": "similar-available",
+        "suggestedFontId": "inter",
+        "approxWeight": 700,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.074074,
+        "letterSpacing": "normal",
+        "lineHeightRatio": 1
+      }
+    },
+    {
+      "kind": "text",
+      "bbox": {
+        "x": 0.1875,
+        "y": 0.546296,
+        "w": 0.61979,
+        "h": 0.037037
+      },
+      "confidence": 1,
+      "treatment": "rebuild-text",
+      "align": "center",
+      "role": "person-role",
+      "sampleText": "Chief Political Correspondent",
+      "suggestedTitle": "Title",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
         "color": "#FFFFFF",
-        "fontSizeNorm": 0.05,
+        "fontSizeNorm": 0.037037,
         "letterSpacing": "normal",
-        "lineHeightRatio": 1.2
-      }
-    },
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.1328,
-        "y": 0.7778,
-        "w": 0.7109,
-        "h": 0.0014
-      },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#C1C8D1"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "text",
-      "bbox": {
-        "x": 0.1328,
-        "y": 0.8264,
-        "w": 0.5469,
-        "h": 0.0417
-      },
-      "confidence": 0.95,
-      "treatment": "rebuild-text",
-      "align": "left",
-      "role": "person-role",
-      "sampleText": "Chief Political Correspondent",
-      "suggestedTitle": "Person Title",
-      "typography": {
-        "classification": "sans",
-        "matchQuality": "similar-available",
-        "suggestedFontId": "inter",
-        "approxWeight": 300,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.03,
-        "letterSpacing": "normal",
-        "lineHeightRatio": 1.2
+        "lineHeightRatio": 1
       }
     }
   ],
   "warnings": [],
   "animation": {
     "presetId": "design-slide",
-    "speed": 0.5
+    "speed": 0.7
   }
 }

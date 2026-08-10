@@ -71,9 +71,10 @@ function AiConsentDialog({ open, onClose }: { open: boolean; onClose: (accepted:
 }
 
 /**
- * The imperative consent gate. Call `ensureAiConsent()` at the top of any handler that is
- * about to send content to an external provider; render `consentDialog` once in the same
- * component. Acceptance is recorded (locally + server-side when signed in) on accept.
+ * The first-use acknowledgement retained by AI surfaces that still require it. Create with
+ * AI no longer uses this hook: its disclosure contract lives in the public Terms and Privacy
+ * Policy linked at account creation. Acceptance here is recorded locally and, when signed in,
+ * server-side.
  */
 export function useAiConsent(): {
   ensureAiConsent: () => Promise<boolean>;

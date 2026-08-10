@@ -4,8 +4,9 @@
 // so an account carries its acceptance across browsers. A version bump invalidates both -
 // the stored version must match AI_NOTICE_VERSION exactly.
 //
-// This module holds no UI: AiConsentDialog renders the notice; callers gate their
-// remote-AI actions through useAiConsent (src/components/AiConsentDialog.tsx).
+// This module holds no UI: AiConsentDialog renders the notice for the legacy AI surfaces
+// that still use an explicit first-use acknowledgement. Create with AI is governed by the
+// public Terms and Privacy Policy and deliberately does not mount this gate.
 
 import { getAccessToken } from '../backend/auth';
 import { AI_NOTICE_VERSION } from './consentNotice';

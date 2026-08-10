@@ -13,7 +13,14 @@
 import { bearerToken, methodGuard } from './_lib/http.js';
 import { verifyUser } from './_lib/auth.js';
 import { checkEventsRateLimit } from './_lib/rateLimit.js';
-import { funnelEventRow, recordFunnelEvent, type FunnelEventInput } from './_lib/funnelEvents.js';
+import {
+  deleteFunnelEvents,
+  funnelEventRow,
+  funnelWithdrawalVisitor,
+  recordFunnelEvent,
+  type FunnelEventInput,
+  type FunnelWithdrawalInput,
+} from './_lib/funnelEvents.js';
 
 /** Generous next to a real event (a few hundred bytes) and small enough that the route
  *  never becomes an upload path. */
@@ -25,22 +32,30 @@ export default {
   async fetch(req: Request): Promise<Response> {
     const guard = methodGuard(req, 'POST');
     if (guard) return guard;
-    if (checkEventsRateLimit(req)) return noContent();
 
-    let input: FunnelEventInput;
+    let input: FunnelEventInput | FunnelWithdrawalInput;
     try {
       const declared = Number(req.headers.get('content-length'));
       if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return noContent();
       const text = await req.text();
       if (text.length > MAX_BODY_BYTES) return noContent();
-      input = JSON.parse(text) as FunnelEventInput;
+      input = JSON.parse(text) as FunnelEventInput | FunnelWithdrawalInput;
     } catch {
       return noContent();
     }
 
+    // A valid withdrawal must not be delayed by an event burst. Retention cleanup is the
+    // fallback for a network failure, not for a rate limiter NoaCG controls.
+    const withdrawalVisitor = funnelWithdrawalVisitor(input);
+    if (!withdrawalVisitor && checkEventsRateLimit(req)) return noContent();
+
     // The account half of attribution is taken from the token, never from the body - a
     // client cannot claim to be another user. Anonymous stays anonymous.
     const user = await verifyUser(bearerToken(req));
+    if (withdrawalVisitor) {
+      await deleteFunnelEvents(withdrawalVisitor, user?.userId ?? null);
+      return noContent();
+    }
     // The burst gate above hashes the caller's IP for its key; that hash is deliberately
     // NOT part of the row. The funnel identifies a browser by the id that browser minted
     // for itself, and by nothing else.

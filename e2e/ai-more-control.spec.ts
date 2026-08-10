@@ -1,5 +1,4 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { acceptAiNotice } from './_ai-notice';
 import { enableAdvancedMode } from './_create';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
@@ -75,7 +74,6 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
-  await acceptAiNotice(page);
 });
 
 test('structured setup: pinned category + user fields + intensity land in the created project', async ({ page }) => {
@@ -109,7 +107,7 @@ test('structured setup: pinned category + user fields + intensity land in the cr
   await page.locator('.mc-intensity .mc-cat', { hasText: 'Energetic' }).click();
 
   await page.locator('.wz-step textarea').first().fill('A guest strap for our tech show');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
   expect(templateCalls).toBe(0); // grounded — the platform assembled it
 
@@ -190,7 +188,7 @@ test('prompt-only generation injects no structured setup and keeps the full cate
   });
   await openAiStep(page);
   await page.locator('.wz-step textarea').first().fill('A clean news lower third');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
 
   const design = requests.find((r) => r.tool === 'emit_design_alternatives');

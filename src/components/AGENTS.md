@@ -531,6 +531,9 @@ e2e/layout.spec.ts.
   and job state lives in src/render/renderJobStore.ts. Contracts in src/render/AGENTS.md;
   specs in e2e/render.spec.ts (stubbed API) + e2e/wizard-finish.spec.ts.
 - **CommunityGallery** (🌐), **ModerationQueue** (🛡), **SyncStatus**, **SettingsDialog**.
+  Hosted analytics is explicit opt-in: AnalyticsConsentBanner is non-blocking and mounts once
+  in App; Settings owns the reversible preference. Undecided, declined, DNT/GPC, and offline
+  states create no identifier and send no events.
 
 ## Save + Home (docs/SAVED_CONTENT_MODEL.md)
 
@@ -586,7 +589,10 @@ useAuthState hook + authUi store + SignInDialog + SignInPrompt + AuthStatus avat
 only when a backend is configured AND the visitor is signed out) and render `SignInPrompt` /
 call `useAuthUi().openSignIn(reason)` - never block the app. Signup is OPEN (migration `0006`
 made the Before-User-Created hook permissive; restore the 0002 function body to re-close it to
-the allowlist). No login wall, ever - see the root AGENTS.md "Auth posture".
+the allowlist). The signup half links the public `/terms` and `/privacy` pages and states that
+creating an account agrees to the Terms and acknowledges the Privacy Policy. This is an
+acknowledgement, not a separate consent checkbox. No login wall, ever - see the root AGENTS.md
+"Auth posture".
 
 ACCOUNT ESSENTIALS (docs/GOALS.md "Student release" step 9): SignInDialog carries a third
 'reset' mode ("Forgot your password?" - email only, backend/auth `requestPasswordReset`);

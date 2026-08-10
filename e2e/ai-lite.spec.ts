@@ -1,6 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
-import { acceptAiNotice } from './_ai-notice';
 import { enableAdvancedMode } from './_create';
 
 const STATUS = {
@@ -73,7 +72,6 @@ test.beforeEach(async ({ page }) => {
   // Lite's walk ends in the editor, and that Finish door is Advanced-only since step 6
   // (docs/GOALS.md "Student release"; FinishStep `showEditorDoor`).
   await enableAdvancedMode(page);
-  await acceptAiNotice(page);
   await page.route('/api/ai/lite/status', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -127,7 +125,7 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await page.locator('.wz-step textarea').fill(
     'A credible university-news lower third for a student reporter name and role.',
   );
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText(
     'Passes SPX validation and the live playout test',
     { timeout: 25_000 },
@@ -192,7 +190,7 @@ test('Lite explains an unsupported package request without calling a code or fal
 
   await openLite(page);
   await page.locator('.wz-step textarea').fill('Create a package of five graphics with branching states.');
-  await page.getByRole('button', { name: '✦ Create one Lite graphic' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-bad')).toContainText('Lite creates one graphic at a time.');
   await expect(page.locator('.wz-step .status-bad')).toContainText('Describe the single most important graphic');
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();

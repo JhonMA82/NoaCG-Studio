@@ -1,5 +1,4 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { acceptAiNotice } from './_ai-notice';
 import { mockClaude, useFakeAiKey } from './_video';
 import { enableAdvancedMode } from './_create';
 
@@ -163,7 +162,6 @@ test.beforeEach(async ({ page }) => {
       JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: false }),
     ),
   );
-  await acceptAiNotice(page);
 });
 
 test('the preselect reads the picture, and only ever guesses mark-or-not', async ({ page }) => {
@@ -227,7 +225,7 @@ test('each purpose reaches the model as its own instruction', async ({ page }) =
   await cards.nth(2).getByTestId('purpose-plate').click();
 
   await page.locator('.wz-step textarea').fill('A slate for a guest name.');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-testid="ai-upload"]').first()).toBeVisible();
   await expect.poll(() => body !== null, { timeout: 25_000 }).toBe(true);
 
@@ -265,7 +263,7 @@ test('a reference is never bundled into the created template', async ({ page }) 
   ]);
 
   await page.locator('.wz-step textarea').fill('A slate for a guest name.');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', { timeout: 25_000 });
   await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByTestId('wz-finish-editor').click();
@@ -301,7 +299,7 @@ test('a design that "improves" an as-is picture is held back', async ({ page }) 
   await openAiStep(page);
   await attach(page, [{ name: 'crest.png', w: 200, h: 200, alpha: true }]);
   await page.locator('.wz-step textarea').fill('A slate with our crest.');
-  await page.getByRole('button', { name: '✦ Generate' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
 
   // Reported in the user's terms, naming the rule the design broke rather than a CSS property.
   await expect(page.locator('.wz-step')).toContainText('use it as it is', { timeout: 40_000 });

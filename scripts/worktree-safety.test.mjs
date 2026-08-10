@@ -50,7 +50,7 @@ function makeRepo(t) {
   runGit(primary, 'commit', '-m', 'Initial commit');
   runGit(primary, 'push', '-u', 'origin', 'main');
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  return { primary, root };
+  return { origin, primary, root };
 }
 
 function addWorktree(primary, name, prefix = 'codex') {
@@ -76,6 +76,7 @@ test('self cleanup approves and removes a clean, merged, pushed worktree', (t) =
   const { primary } = makeRepo(t);
   const worktree = addWorktree(primary, 'finished');
   commitInWorktree(worktree.path);
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
   runGit(primary, 'merge', '--ff-only', worktree.branch);
   runGit(primary, 'push', 'origin', 'main');
 
@@ -88,9 +89,14 @@ test('self cleanup approves and removes a clean, merged, pushed worktree', (t) =
   assert.deepEqual(done.errors, []);
   assert.equal(done.removedWorktree, true);
   assert.equal(done.deletedBranch, worktree.branch);
+  assert.equal(done.deletedRemoteBranch, worktree.branch);
   // No process is holding it in a test, so the folder goes too - the husk is a Windows-only tail.
   assert.equal(existsSync(worktree.path), false);
   assert.equal(runGit(primary, 'branch', '--list', worktree.branch), '');
+  assert.equal(
+    runGit(primary, 'ls-remote', '--heads', 'origin', `refs/heads/${worktree.branch}`),
+    '',
+  );
 });
 
 test('self cleanup refuses to destroy ignored content until it is acknowledged', (t) => {
@@ -291,6 +297,7 @@ test('cleanup removes only a clean, remotely backed-up managed worktree and bran
   const { primary } = makeRepo(t);
   const worktree = addWorktree(primary, 'merged');
   commitInWorktree(worktree.path);
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
   runGit(primary, 'merge', '--ff-only', worktree.branch);
   runGit(primary, 'push', 'origin', 'main');
 
@@ -305,12 +312,78 @@ test('cleanup removes only a clean, remotely backed-up managed worktree and bran
     plan.branches.find((entry) => entry.name === worktree.branch).action,
     'delete',
   );
+  assert.equal(
+    plan.remoteBranches.find((entry) => entry.name === worktree.branch).action,
+    'delete',
+  );
 
   const result = applyPlan(plan, primary, { prunePorts: () => [] });
 
   assert.deepEqual(result.errors, []);
   assert.equal(existsSync(worktree.path), false);
   assert.equal(runGit(primary, 'branch', '--list', worktree.branch), '');
+  assert.deepEqual(result.deletedRemoteBranches, [worktree.branch]);
+  assert.equal(
+    runGit(primary, 'ls-remote', '--heads', 'origin', `refs/heads/${worktree.branch}`),
+    '',
+  );
+});
+
+test('cleanup never deletes an unmerged GitHub branch', (t) => {
+  const { primary } = makeRepo(t);
+  const worktree = addWorktree(primary, 'remote-unmerged');
+  commitInWorktree(worktree.path, 'Remote work that has not landed');
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+
+  const plan = assess(primary);
+  const remote = plan.remoteBranches.find((entry) => entry.name === worktree.branch);
+  assert.equal(remote.action, 'skip');
+  assert.match(remote.why, /not contained in both/);
+
+  const result = applyPlan(plan, primary, {
+    prunePorts: () => [],
+    refreshRemote: () => ({ ok: true }),
+  });
+  assert.deepEqual(result.deletedRemoteBranches, []);
+  assert.notEqual(
+    runGit(primary, 'ls-remote', '--heads', 'origin', `refs/heads/${worktree.branch}`),
+    '',
+  );
+});
+
+test('cleanup refuses a GitHub branch that moved after assessment', (t) => {
+  const { origin, primary, root } = makeRepo(t);
+  const worktree = addWorktree(primary, 'remote-race');
+  commitInWorktree(worktree.path, 'Merged feature');
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+  runGit(primary, 'merge', '--ff-only', worktree.branch);
+  runGit(primary, 'push', 'origin', 'main');
+
+  const plan = assess(primary);
+  assert.equal(
+    plan.remoteBranches.find((entry) => entry.name === worktree.branch).action,
+    'delete',
+  );
+
+  const other = join(root, 'other');
+  runGit(root, 'clone', origin, other);
+  runGit(other, 'config', 'user.name', 'Concurrent Pusher');
+  runGit(other, 'config', 'user.email', 'concurrent@example.invalid');
+  runGit(other, 'checkout', worktree.branch);
+  writeFileSync(join(other, 'concurrent.txt'), 'new remote work\n');
+  runGit(other, 'add', 'concurrent.txt');
+  runGit(other, 'commit', '-m', 'Concurrent remote work');
+  runGit(other, 'push', 'origin', worktree.branch);
+  const movedHead = runGit(other, 'rev-parse', 'HEAD');
+
+  const result = applyPlan(plan, primary, { prunePorts: () => [] });
+
+  assert.deepEqual(result.deletedRemoteBranches, []);
+  assert.match(result.errors.join('\n'), /origin\/codex\/remote-race.*changed - skipped/);
+  assert.match(
+    runGit(primary, 'ls-remote', '--heads', 'origin', `refs/heads/${worktree.branch}`),
+    new RegExp(`^${movedHead}`),
+  );
 });
 
 test('cleanup apply rechecks a worktree that became dirty after assessment', (t) => {

@@ -1,15 +1,100 @@
 {
   "version": 1,
   "graphicType": "lower-third",
-  "graphicTypeConfidence": 1,
+  "graphicTypeConfidence": 0.95,
+  "canvasPlacement": {
+    "widthNorm": 0.4,
+    "xNorm": 0.3,
+    "yNorm": 0.75
+  },
   "regions": [
+    {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.13,
+        "y": 0.347,
+        "w": 0.724,
+        "h": 0.356
+      },
+      "confidence": 0.99,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#1D53D4"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.128,
+        "y": 0.338,
+        "w": 0.728,
+        "h": 0.009
+      },
+      "confidence": 0.98,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#B5B5B5"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.125,
+        "y": 0.347,
+        "w": 0.005,
+        "h": 0.356
+      },
+      "confidence": 0.98,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#B5B5B5"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.115,
+        "y": 0.347,
+        "w": 0.008,
+        "h": 0.356
+      },
+      "confidence": 0.98,
+      "treatment": "rebuild-shape",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#7DC9E9"
+        },
+        "opacity": 1,
+        "radiusNorm": 0
+      }
+    },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.234375,
-        "y": 0.430555,
-        "w": 0.380859,
-        "h": 0.055555
+        "x": 0.156,
+        "y": 0.398,
+        "w": 0.667,
+        "h": 0.102
       },
       "confidence": 0.99,
       "treatment": "rebuild-text",
@@ -18,12 +103,12 @@
       "sampleText": "Nora Lindqvist",
       "suggestedTitle": "Name",
       "typography": {
-        "classification": "sans",
+        "classification": "condensed",
         "matchQuality": "similar-available",
-        "suggestedFontId": "oswald",
+        "suggestedFontId": "bebas-neue",
         "approxWeight": 700,
-        "color": "#000000",
-        "fontSizeNorm": 0.055555,
+        "color": "#FFFFFF",
+        "fontSizeNorm": 0.094,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
@@ -31,57 +116,26 @@
     {
       "kind": "text",
       "bbox": {
-        "x": 0.234375,
-        "y": 0.534722,
-        "w": 0.24414,
-        "h": 0.046875
+        "x": 0.156,
+        "y": 0.519,
+        "w": 0.667,
+        "h": 0.06
       },
       "confidence": 0.99,
       "treatment": "rebuild-text",
       "align": "left",
       "role": "person-role",
       "sampleText": "Correspondent",
-      "suggestedTitle": "Title",
+      "suggestedTitle": "Role",
       "typography": {
         "classification": "sans",
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.046875,
+        "color": "#CCCCCC",
+        "fontSizeNorm": 0.056,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
-      }
-    },
-    {
-      "kind": "panel",
-      "bbox": {
-        "x": 0.180664,
-        "y": 0.408101,
-        "w": 0.625976,
-        "h": 0.217013
-      },
-      "confidence": 0.95,
-      "treatment": "flattened"
-    },
-    {
-      "kind": "decorative",
-      "bbox": {
-        "x": 0.195312,
-        "y": 0.517361,
-        "w": 0.585937,
-        "h": 0.003472
-      },
-      "confidence": 0.98,
-      "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#34B07D"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
       }
     }
   ],

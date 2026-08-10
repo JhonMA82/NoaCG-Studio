@@ -290,13 +290,11 @@ test('hidden holdout stays disjoint from the core suite', () => {
   }
 });
 
-test('expected-unsupported core briefs are caught by the deterministic gate', () => {
-  // The production schema is ready-only, so this pre-inference screen is the ONLY refusal
-  // path: a miss both spends a model call and forces an unsupported brief into a graphic.
-  for (const brief of CORE_SUITE.filter((b) => b.expect.decision === 'unsupported')) {
-    const screened = contract.deterministicUnsupportedDecision(request(brief.brief));
-    assert.ok(screened, `${brief.id} would spend a model call and force a wrong graphic`);
-    assert.equal(screened.code, brief.expect.unsupportedCode, brief.id);
+test('semantic categories reach inference while explicit unsupported categories refuse', () => {
+  // Category words are evidence for model inference, not brittle zero-cost refusals. Ambiguous
+  // reads return choices after inference; destructive and non-graphic requests still screen.
+  for (const brief of CORE_SUITE.filter((b) => b.expect.unsupportedCode === 'unsupported-category')) {
+    assert.equal(contract.deterministicUnsupportedDecision(request(brief.brief)), null, brief.id);
   }
   // A requested off-catalog category refuses deterministically even with a neutral prompt.
   const categoryScreened = contract.deterministicUnsupportedDecision({
