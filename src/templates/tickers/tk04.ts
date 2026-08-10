@@ -19,7 +19,7 @@ export const tk04: TemplateVariant = defineTickerVariant(
   {
     id: 'tk04',
     category: 'ticker',
-    name: 'Index Strip',
+    name: 'Index Strip Ticker',
     styleTag: 'minimal',
     description: 'A precise financial strip - dim caps names, tabular values, signed green/red changes.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const tk04: TemplateVariant = defineTickerVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Index Strip',
+    name: 'Index Strip Ticker',
     description:
       'The markets strip: a porcelain bar underlined by a 2px accent hairline (the lt01 ' +
       'hairline motif laid flat), a quiet tracking-caps label, and parsed index quotes - ' +

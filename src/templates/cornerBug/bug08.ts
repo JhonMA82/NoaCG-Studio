@@ -11,7 +11,7 @@ export const bug08: TemplateVariant = defineBugVariant(
   {
     id: 'bug08',
     category: 'corner-bug',
-    name: 'Rule Ident',
+    name: 'Rule Ident Corner Bug',
     styleTag: 'minimal',
     description: 'A panel-free ident: the logo, a thin accent rule, the channel over its show.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const bug08: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Rule Ident',
+    name: 'Rule Ident Corner Bug',
     description:
       'No panel: the channel logo (or a hairline keyline placeholder) sits bare over the video, ' +
       'separated from the channel name and its show by a thin vertical accent rule. Text ' +

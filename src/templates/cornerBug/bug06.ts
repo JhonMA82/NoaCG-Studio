@@ -11,7 +11,7 @@ export const bug06: TemplateVariant = defineBugVariant(
   {
     id: 'bug06',
     category: 'corner-bug',
-    name: 'Frost Ident',
+    name: 'Frost Ident Corner Bug',
     styleTag: 'glass',
     description: 'A frosted ident tile: the channel logo, an accent dot, the channel over its show.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const bug06: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Frost Ident',
+    name: 'Frost Ident Corner Bug',
     description:
       'A compact frosted tile carrying the channel identity: the logo (or an accent lozenge ' +
       'placeholder) beside a small accent dot, the channel name, and the show currently on air ' +

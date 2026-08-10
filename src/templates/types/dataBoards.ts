@@ -26,7 +26,7 @@ const POLL_SAMPLE = 'Streaming | 78\nBroadcast | 54\nOn demand | 36';
  *  lineup, next-up). Promoted out of the infographic category, where it was a variant. */
 export const agendaType: GraphicType = {
   id: 'agenda',
-  name: 'Agenda',
+  name: 'Agenda Infographic',
   description: 'What is coming up, as a list of times and titles.',
   frequency: 22,
   structure: {
@@ -54,7 +54,7 @@ export const agendaType: GraphicType = {
   designs: [
     {
       id: 'ig06',
-      name: 'Schedule Board',
+      name: 'Schedule Board Infographic',
       description: 'A clean running order: tabular times against titles, cascading in.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -68,7 +68,7 @@ export const agendaType: GraphicType = {
       // Designed FOR this cell: no noacg schedule board existed. The house void panel as a
       // running order — sibling of lt11 House Strap and card06 House Topic.
       id: 'ig08',
-      name: 'House Schedule',
+      name: 'House Schedule Infographic',
       description: 'The house running order: a void panel with mono heading and time/show rows.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -82,7 +82,7 @@ export const agendaType: GraphicType = {
       // Designed FOR this cell: no glass schedule board existed. A frosted running order —
       // sibling of lt08 Frosted Card and ig02 Glass Bars.
       id: 'ig09',
-      name: 'Frost Schedule',
+      name: 'Frost Schedule Infographic',
       description: 'A frosted glass running order: a soft heading over time/show rows.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -99,7 +99,7 @@ export const agendaType: GraphicType = {
       // and pairing it up was left as an open design call. A purpose-built sport schedule board
       // sidesteps that ambiguity — sibling of lt06 Split Bar and card02 Slab Card.
       id: 'ig10',
-      name: 'Volt Schedule',
+      name: 'Volt Schedule Infographic',
       description: 'A solid sport slab running order: heavy condensed times against show names.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -126,7 +126,7 @@ export const agendaType: GraphicType = {
  *  percentage bars, seat counts). Also promoted out of the infographic category. */
 export const pollType: GraphicType = {
   id: 'poll',
-  name: 'Poll result',
+  name: 'Poll result Infographic',
   description: 'A question and its answers as bars — the vote, the survey, the count.',
   frequency: 13,
   structure: {
@@ -151,7 +151,7 @@ export const pollType: GraphicType = {
   designs: [
     {
       id: 'ig02',
-      name: 'Glass Bars',
+      name: 'Glass Bars Infographic',
       description: 'Labelled bars that grow to their share, with the figure riding each tip.',
       styleTag: 'glass',
       palette: paletteById('orchid'),
@@ -172,7 +172,7 @@ export const pollType: GraphicType = {
       // Designed FOR this cell: no noacg poll board existed. The house void panel with amber
       // bars — sibling of lt11 House Strap and ig08 House Schedule.
       id: 'ig11',
-      name: 'House Poll',
+      name: 'House Poll Infographic',
       description: 'The house poll board: a void panel with a mono heading and growing amber bars.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -191,7 +191,7 @@ export const pollType: GraphicType = {
       // Designed FOR this cell: no sport poll board existed. A solid slab with square-cut
       // accent bars — sibling of lt06 Split Bar and card02 Slab Card.
       id: 'ig12',
-      name: 'Volt Poll',
+      name: 'Volt Poll Infographic',
       description: 'A solid sport slab bar chart: heavy caps labels with square-cut accent fills.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -210,7 +210,7 @@ export const pollType: GraphicType = {
       // Designed FOR this cell: no minimal poll board existed. A quiet panel with slim bars —
       // sibling of lt01 Hairline and ig06 Schedule Board.
       id: 'ig13',
-      name: 'Clean Poll',
+      name: 'Clean Poll Infographic',
       description: 'A quiet dark panel bar chart: an accent heading over slim growing bars.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

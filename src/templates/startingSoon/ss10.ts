@@ -14,7 +14,7 @@ export const ss10: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss10',
     category: 'starting-soon',
-    name: 'Service Begins Soon',
+    name: 'Service Begins Soon Starting Soon',
     styleTag: 'minimal',
     description: 'A quiet ceremony hold — the occasion in serif-weight display type, the countdown deliberately small.',
     maxLines: 3,
@@ -32,7 +32,7 @@ export const ss10: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Service Begins Soon',
+    name: 'Service Begins Soon Starting Soon',
     description:
       'The ceremony holding screen: the occasion set large and quiet, a line of welcome ' +
       'beneath it, and a small countdown in the secondary voice — informative without ' +

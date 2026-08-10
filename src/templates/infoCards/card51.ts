@@ -17,7 +17,7 @@ export const card51: TemplateVariant = defineCardVariant(
   {
     id: 'card51',
     category: 'info-card',
-    name: 'Lyric Line',
+    name: 'Lyric Line Info Card',
     styleTag: 'glass',
     description: 'The line being sung now, with the next line dimmed beneath it — the two-line singalong format.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const card51: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Lyric Line',
+    name: 'Lyric Line Info Card',
     description:
       'A frosted two-line song card anchored low in frame: the current line bright and large, ' +
       'the next line dimmed but fully legible so singers can read ahead. Advance it by ' +

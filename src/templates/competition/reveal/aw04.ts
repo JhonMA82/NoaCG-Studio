@@ -19,7 +19,7 @@ export const aw04: TemplateVariant = defineRevealVariant(
   {
     id: 'aw04',
     category: 'reveal',
-    name: 'Clean Award',
+    name: 'Clean Award Reveal',
     styleTag: 'minimal',
     description: 'A restrained envelope reveal: a hairline category gives way to the winning name.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const aw04: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Award',
+    name: 'Clean Award Reveal',
     description:
       'A panel-light award reveal with a hairline category and a large unembellished winning name.',
     uicolor: '2',
@@ -44,7 +44,7 @@ export const aw04: TemplateVariant = defineRevealVariant(
     html: awardMarkup(o),
     fields: compFieldsFor(AWARD_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Open', call: 'openEnvelope', duration: 0.7 }],
+    revealSteps: [{ name: 'Open Reveal', call: 'openEnvelope', duration: 0.7 }],
     runtimeExtraJs: AWARD_RUNTIME_JS,
     css: `${revealStructureCss()}
 

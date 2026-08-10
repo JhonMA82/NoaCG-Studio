@@ -13,7 +13,7 @@ export const card29: TemplateVariant = defineCardVariant(
   {
     id: 'card29',
     category: 'info-card',
-    name: 'House Runbook',
+    name: 'House Runbook Info Card',
     styleTag: 'noacg',
     description: 'The house process card: mono step numbers in the void panel, one per Continue.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card29: TemplateVariant = defineCardVariant(
     defaultSteps: true,
   },
   {
-    name: 'House Runbook',
+    name: 'House Runbook Info Card',
     description:
       'The house process card, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono heading, and steps numbered in the house mono ' +

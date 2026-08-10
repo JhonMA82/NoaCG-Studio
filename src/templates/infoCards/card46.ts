@@ -20,7 +20,7 @@ export const card46: TemplateVariant = defineCardVariant(
   {
     id: 'card46',
     category: 'info-card',
-    name: 'Frost Location',
+    name: 'Frost Location Info Card',
     styleTag: 'glass',
     description: 'A location card: your picture over a pinned place name, its region, and a live detail.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const card46: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Frost Location',
+    name: 'Frost Location Info Card',
     description:
       'A frosted location card for travel and IRL streams: a wide picture across the top (your ' +
       'own still — a map export, a photo, a drone frame), then a drawn map pin beside the place ' +

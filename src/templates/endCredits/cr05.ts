@@ -28,7 +28,7 @@ export const cr05: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr05',
     category: 'end-credits',
-    name: 'Schedule Hold',
+    name: 'Schedule Hold End Credits',
     styleTag: 'minimal',
     description: 'The running order as a holding board — time on the left, item on the right, nothing moving.',
     maxLines: 2,
@@ -43,7 +43,7 @@ export const cr05: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Schedule Hold',
+    name: 'Schedule Hold End Credits',
     description:
       'A running-order board: each line is "time | item", set as a two-column list with the ' +
       'times right-aligned in tabular figures so they form a clean edge. Sections (blank-line ' +

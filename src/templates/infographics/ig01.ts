@@ -10,7 +10,7 @@ export const ig01: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig01',
     category: 'infographic',
-    name: 'Big Stat',
+    name: 'Big Stat Infographic',
     styleTag: 'minimal',
     description: 'One enormous figure over a short accent rule and a quiet caps label.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig01: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Big Stat',
+    name: 'Big Stat Infographic',
     description:
       'The quietest infographic of the set and the sibling of lt01/lt02: no panel, just one ' +
       'huge tabular figure, a 3 px accent hairline, and a dimmed tracking-wide caps label. ' +

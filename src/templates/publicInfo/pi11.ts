@@ -9,7 +9,7 @@ export const pi11: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi11',
     category: 'public-info',
-    name: 'Slab Notice Rotator',
+    name: 'Slab Notice Rotator Public Info',
     styleTag: 'sport',
     description: 'A hard-edged two-language notice whose messages rotate in one solid slab.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const pi11: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Slab Notice Rotator',
+    name: 'Slab Notice Rotator Public Info',
     description:
       'The sport two-language notice: a solid, hard-edged slab with a bold accent header, ' +
       'both messages rotating in one fixed block, and a compact issuing line beneath.',

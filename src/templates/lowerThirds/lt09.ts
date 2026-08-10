@@ -9,7 +9,7 @@ export const lt09: TemplateVariant = defineVariant(
   {
     id: 'lt09',
     category: 'lower-third',
-    name: 'Gradient Pill',
+    name: 'Gradient Pill Lower Third',
     styleTag: 'glass',
     description: 'A compact glass pill with name and handle side by side — creator-stream energy.',
     maxLines: 2,
@@ -24,7 +24,7 @@ export const lt09: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Gradient Pill',
+    name: 'Gradient Pill Lower Third',
     description:
       'A compact fully-rounded capsule in dark translucent glass with a subtle accent-tinted ' +
       'edge. The name and @handle sit side by side on one baseline — made for creators and streams.',

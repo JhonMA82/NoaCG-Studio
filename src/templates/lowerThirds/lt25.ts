@@ -13,7 +13,7 @@ export const lt25: TemplateVariant = defineVariant(
   {
     id: 'lt25',
     category: 'lower-third',
-    name: 'Masthead',
+    name: 'Masthead Lower Third',
     styleTag: 'editorial',
     description: 'A rule across the top, the name beneath it, the role as a tracked caps line.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const lt25: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Masthead',
+    name: 'Masthead Lower Third',
     description:
       'The editorial flagship: a 2 px rule across the top of the block, a name set at reading ' +
       'weight, and a role line in wide-tracked caps in the accent colour. Panel-free, so it ' +

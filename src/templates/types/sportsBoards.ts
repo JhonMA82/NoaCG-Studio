@@ -46,7 +46,7 @@ const LIST_PARTS = [
  */
 export const fixturesType: GraphicType = {
   id: 'fixtures',
-  name: 'Fixtures & results',
+  name: 'Fixtures & results Infographic',
   description: 'Matches upcoming and played — the preview, the round-up, and the next-match board.',
   structure: { prefix: 'infographic', category: 'infographic', parts: LIST_PARTS },
   fields: [
@@ -71,7 +71,7 @@ export const fixturesType: GraphicType = {
   designs: [
     {
       id: 'ig26',
-      name: 'House Fixtures',
+      name: 'House Fixtures Infographic',
       description: 'The house fixtures and results board: one row per match, played or upcoming.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -85,7 +85,7 @@ export const fixturesType: GraphicType = {
     },
     {
       id: 'ig27',
-      name: 'Volt Fixtures',
+      name: 'Volt Fixtures Infographic',
       description: 'A sport slab round-up: an accent heading bar, heavy caps, results in filled blocks.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -99,7 +99,7 @@ export const fixturesType: GraphicType = {
     },
     {
       id: 'ig28',
-      name: 'Frost Fixtures',
+      name: 'Frost Fixtures Infographic',
       description: 'A frosted fixtures board: soft rows with the score in an accent-tinted pill.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -113,7 +113,7 @@ export const fixturesType: GraphicType = {
     },
     {
       id: 'ig29',
-      name: 'Club Fixtures',
+      name: 'Club Fixtures Infographic',
       description: 'The amateur results board: full club names on a flat panel, scores in accent.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

@@ -85,7 +85,7 @@ function swapTimeline(to: 1 | 2): TypeTimeline {
 const branches: TypeBranch[] = [
   {
     id: 'language-2',
-    name: 'Language 2',
+    name: 'Language 2 Public Info',
     timeline: swapTimeline(2),
     edges: [
       // The cycle: language 1 is up when the graphic arrives, so the first swap is timed off
@@ -101,7 +101,7 @@ const branches: TypeBranch[] = [
   },
   {
     id: 'language-1',
-    name: 'Language 1',
+    name: 'Language 1 Public Info',
     timeline: swapTimeline(1),
     edges: [
       { from: 'language-2', to: 'language-1', trigger: 'timer', after: HOLD },
@@ -114,7 +114,7 @@ const branches: TypeBranch[] = [
     // cancels the armed timer on the way out of the cycling state and nothing re-arms it —
     // which IS the hold.
     id: 'hold-1',
-    name: 'Holding language 1',
+    name: 'Holding language 1 Public Info',
     timeline: null,
     edges: [
       { from: { waypoint: 0 }, to: 'hold-1', trigger: 'operator', event: 'hold' },
@@ -123,7 +123,7 @@ const branches: TypeBranch[] = [
   },
   {
     id: 'hold-2',
-    name: 'Holding language 2',
+    name: 'Holding language 2 Public Info',
     timeline: null,
     edges: [{ from: 'language-2', to: 'hold-2', trigger: 'operator', event: 'hold' }],
   },
@@ -131,7 +131,7 @@ const branches: TypeBranch[] = [
 
 export const publicNoticeType: GraphicType = {
   id: 'public-notice',
-  name: 'Two-language notice',
+  name: 'Two-language notice Public Info',
   description: 'A public notice that alternates between two languages on its own timer.',
   structure: {
     prefix: 'public-info',
@@ -165,7 +165,7 @@ export const publicNoticeType: GraphicType = {
   designs: [
     {
       id: 'pi08',
-      name: 'Language Rotator',
+      name: 'Language Rotator Public Info',
       description: 'One notice, two languages taking turns in one block — timed, and holdable on air.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -174,7 +174,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi09',
-      name: 'Notice Rotator',
+      name: 'Notice Rotator Public Info',
       description: 'A plain two-language notice whose languages take turns — timed, and holdable.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -191,7 +191,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi11',
-      name: 'Slab Notice Rotator',
+      name: 'Slab Notice Rotator Public Info',
       description: 'A hard-edged two-language notice whose messages rotate in one solid slab.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -201,7 +201,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi12',
-      name: 'Frost Notice Rotator',
+      name: 'Frost Notice Rotator Public Info',
       description: 'A frosted two-language notice whose messages rotate in one stable panel.',
       styleTag: 'glass',
       palette: paletteById('frost'),

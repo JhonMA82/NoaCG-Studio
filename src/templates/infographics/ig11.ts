@@ -14,7 +14,7 @@ export const ig11: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig11',
     category: 'infographic',
-    name: 'House Poll',
+    name: 'House Poll Infographic',
     styleTag: 'noacg',
     description: 'The house poll board: a void panel with a mono heading and growing amber bars.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const ig11: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'House Poll',
+    name: 'House Poll Infographic',
     description:
       'The NoaCG poll board, sibling of lt11 House Strap and ig08 House Schedule: the house ' +
       'void panel with an amber top edge, a tracked mono heading in the accent color, and ' +

@@ -12,7 +12,7 @@ export const bug17: TemplateVariant = defineBugVariant(
   {
     id: 'bug17',
     category: 'corner-bug',
-    name: 'House Sponsor Strip',
+    name: 'House Sponsor Strip Corner Bug',
     styleTag: 'noacg',
     description: 'A house partner strip: a mono kicker over three sponsor slots on the void panel.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const bug17: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Sponsor Strip',
+    name: 'House Sponsor Strip Corner Bug',
     description:
       'The house partner strip: a small mono kicker ("supported by") over a row of three ' +
       'sponsor logo slots divided by hairlines, on the void panel. Each slot is its own SPX ' +

@@ -18,7 +18,7 @@ export const h201: TemplateVariant = defineMatchupVariant(
   {
     id: 'h201',
     category: 'matchup',
-    name: 'Head to Head',
+    name: 'Head to Head Matchup',
     styleTag: 'sport',
     description: 'Stat-by-stat comparison with share bars that grow from the operator figures.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const h201: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Head to Head',
+    name: 'Head to Head Matchup',
     description:
       'The sport comparison board: crests and names at the top, then a row per stat with each ' +
       'side’s figure and a pair of share bars measured from the numbers the operator typed.',

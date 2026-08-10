@@ -24,7 +24,7 @@ export const sb10: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb10',
     category: 'scoreboard',
-    name: 'Volt Match Board',
+    name: 'Volt Match Board Scoreboard',
     styleTag: 'sport',
     description: 'A stadium slab board: club-colour bands, big crests, a huge score pair, period cells.',
     maxLines: 1,
@@ -36,7 +36,7 @@ export const sb10: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Match Board',
+    name: 'Volt Match Board Scoreboard',
     description:
       'The sport full scoreboard, sibling of sb06 Volt Scorebug and lt06 Split Bar: a hard slab ' +
       'with a club-colour band behind each side, oversized crests, full club names, a huge score ' +

@@ -12,7 +12,7 @@ export const bug12: TemplateVariant = defineBugVariant(
   {
     id: 'bug12',
     category: 'corner-bug',
-    name: 'Signal Live',
+    name: 'Signal Live Corner Bug',
     styleTag: 'minimal',
     description: 'A panel-free live mark: a breathing accent dot beside a switchable status word.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const bug12: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Signal Live',
+    name: 'Signal Live Corner Bug',
     description:
       'No panel: a breathing red lamp and the status word sit straight on the video, with a ' +
       'soft text shadow for bright footage. Live, Replay and Standby are real machine states ' +

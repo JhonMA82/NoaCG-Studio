@@ -9,7 +9,7 @@ export const lt08: TemplateVariant = defineVariant(
   {
     id: 'lt08',
     category: 'lower-third',
-    name: 'Frosted Card',
+    name: 'Frosted Card Lower Third',
     styleTag: 'glass',
     description: 'A translucent blurred glass card with an optional rounded logo slot.',
     maxLines: 3,
@@ -24,7 +24,7 @@ export const lt08: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Frosted Card',
+    name: 'Frosted Card Lower Third',
     description:
       'The signature glass card: a translucent white panel frosts whatever plays behind it, ' +
       'lifted by one soft shadow and a hairline keyline. An imported logo docks beside the ' +

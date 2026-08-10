@@ -9,7 +9,7 @@ export const ig31: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig31',
     category: 'infographic',
-    name: 'Volt Goal',
+    name: 'Volt Goal Infographic',
     styleTag: 'sport',
     description:
       'A high-impact goal meter with a hard-edged progress lane and oversized running total.',
@@ -25,7 +25,7 @@ export const ig31: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Volt Goal',
+    name: 'Volt Goal Infographic',
     description:
       'A hard sport slab with an oversized total, accent percentage, and measured progress bar.',
     uicolor: '1',

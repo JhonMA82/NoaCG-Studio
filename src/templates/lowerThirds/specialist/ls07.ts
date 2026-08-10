@@ -17,7 +17,7 @@ export const ls07: TemplateVariant = defineVariant(
   {
     id: 'ls07',
     category: 'lower-third',
-    name: 'Booth Line',
+    name: 'Booth Line Lower Third',
     styleTag: 'minimal',
     description: 'One rail: the segment word in the accent, then both callers set inline.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const ls07: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Booth Line',
+    name: 'Booth Line Lower Third',
     description:
       'The single-rail commentary credit: a small accent label, then both callers set inline ' +
       'behind drawn separators. Each caller is an independent SPX field — the ampersand and ' +

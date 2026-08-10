@@ -13,7 +13,7 @@ export const card21: TemplateVariant = defineCardVariant(
   {
     id: 'card21',
     category: 'info-card',
-    name: 'House Now Next',
+    name: 'House Now Next Info Card',
     styleTag: 'noacg',
     description: 'The house now/next card: amber bar and void panel, the session now and the one after.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card21: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'House Now Next',
+    name: 'House Now Next Info Card',
     description:
       'The house now/next card, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono label over the session running now, and the ' +

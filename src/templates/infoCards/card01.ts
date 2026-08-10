@@ -8,7 +8,7 @@ export const card01: TemplateVariant = defineCardVariant(
   {
     id: 'card01',
     category: 'info-card',
-    name: 'Hairline Card',
+    name: 'Hairline Card Info Card',
     styleTag: 'minimal',
     description: 'A taller Hairline: heading and quiet body lines beside one thin vertical line - no panel.',
     maxLines: 5,
@@ -24,7 +24,7 @@ export const card01: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Hairline Card',
+    name: 'Hairline Card Info Card',
     description:
       'The info-card sibling of the Hairline lower third: no panel behind the text, just a ' +
       'confident heading, dimmed body lines, and a single 3 px vertical hairline standing ' +

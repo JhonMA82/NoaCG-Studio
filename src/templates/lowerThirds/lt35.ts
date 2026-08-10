@@ -12,7 +12,7 @@ export const lt35: TemplateVariant = defineVariant(
   {
     id: 'lt35',
     category: 'lower-third',
-    name: 'Letterbox',
+    name: 'Letterbox Lower Third',
     styleTag: 'cinematic',
     description: 'Name, role and location under a full-width hairline, on a rising scrim.',
     maxLines: 3,
@@ -28,7 +28,7 @@ export const lt35: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Letterbox',
+    name: 'Letterbox Lower Third',
     description:
       'The three-voice documentary super: a hairline across the top of the block, the name, the ' +
       'role, and a location line in wide tracked caps. The scrim rises from the bottom edge like ' +

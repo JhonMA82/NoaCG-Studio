@@ -18,7 +18,7 @@ export const mu04: TemplateVariant = defineMatchupVariant(
   {
     id: 'mu04',
     category: 'matchup',
-    name: 'Clean Match-up',
+    name: 'Clean Match-up Matchup',
     styleTag: 'minimal',
     description: 'Two names either side of a hairline seam — the pick is a rule, not a flood.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const mu04: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Match-up',
+    name: 'Clean Match-up Matchup',
     description:
       'The quiet match-up card: no panel, a hairline accent seam between two names, notes in ' +
       'small caps, and a picked winner marked by an accent underline rather than a fill.',

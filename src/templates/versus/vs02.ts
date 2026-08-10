@@ -14,7 +14,7 @@ export const vs02: TemplateVariant = defineVersusVariant(
   {
     id: 'vs02',
     category: 'versus',
-    name: 'Collision Card',
+    name: 'Collision Card Versus',
     styleTag: 'sport',
     description: 'A translucent vignette over the action - a cracked seam of light and an italic VS.',
     maxLines: 3,
@@ -30,7 +30,7 @@ export const vs02: TemplateVariant = defineVersusVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Collision Card',
+    name: 'Collision Card Versus',
     description:
       'A fullscreen match-up card that keeps the footage visible: a deep translucent ' +
       'vignette, a jagged seam of light where the two sides collide, circular logo slots ' +

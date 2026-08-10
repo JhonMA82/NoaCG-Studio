@@ -10,7 +10,7 @@ export const tk03: TemplateVariant = defineTickerVariant(
   {
     id: 'tk03',
     category: 'ticker',
-    name: 'Glass Flip',
+    name: 'Glass Flip Ticker',
     styleTag: 'glass',
     description: 'A compact glass pill that flips one item at a time - creator-stream energy.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const tk03: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Glass Flip',
+    name: 'Glass Flip Ticker',
     description:
       'A compact fully-rounded capsule in translucent glass with a soft accent ring - the ' +
       'sibling of the Gradient Pill lower third. An accent label dot sits left; the items ' +

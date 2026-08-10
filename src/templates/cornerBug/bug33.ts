@@ -10,7 +10,7 @@ export const bug33: TemplateVariant = defineBugVariant(
   {
     id: 'bug33',
     category: 'corner-bug',
-    name: 'House Location Chip',
+    name: 'House Location Chip Corner Bug',
     styleTag: 'noacg',
     description: 'A compact house chip: the location and the status, split by an amber dot.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const bug33: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Location Chip',
+    name: 'House Location Chip Corner Bug',
     description:
       'The house location chip: the place in display caps and the status in the mono label ' +
       'voice, divided by a small amber dot on the void panel. Small enough to sit under a ' +

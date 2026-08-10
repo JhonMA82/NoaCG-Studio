@@ -13,7 +13,7 @@ export const ig21: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig21',
     category: 'infographic',
-    name: 'House Actions',
+    name: 'House Actions Infographic',
     styleTag: 'noacg',
     description: 'The house action board — one "owner | action" per line in the void panel.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig21: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'House Actions',
+    name: 'House Actions Infographic',
     description:
       'The house action board, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono heading, and items as an amber owner column ' +

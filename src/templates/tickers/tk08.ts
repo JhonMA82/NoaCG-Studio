@@ -18,7 +18,7 @@ export const tk08: TemplateVariant = defineTickerVariant(
   {
     id: 'tk08',
     category: 'ticker',
-    name: 'Frost Rotator',
+    name: 'Frost Rotator Ticker',
     styleTag: 'glass',
     description: 'A frosted strip that holds one story at a time — timed, and pausable on air.',
     maxLines: 2,
@@ -35,7 +35,7 @@ export const tk08: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Rotator',
+    name: 'Frost Rotator Ticker',
     description:
       'The glass ticker in rotating form, sibling of lt08 Frosted Card and lt09 Gradient Pill: ' +
       'a translucent frosted strip with a soft accent-ringed label chip, holding one story long ' +

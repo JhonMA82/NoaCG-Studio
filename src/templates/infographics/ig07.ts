@@ -33,7 +33,7 @@ export const ig07: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig07',
     category: 'infographic',
-    name: 'Election Bars',
+    name: 'Election Bars Infographic',
     styleTag: 'minimal',
     description: 'A newsroom results board - three candidate bars grow to counted-up percentages.',
     maxLines: 3,
@@ -49,7 +49,7 @@ export const ig07: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Election Bars',
+    name: 'Election Bars Infographic',
     description:
       'A serious, newsroom-clean election results board - the sibling of the Hairline / ' +
       'Side Tag lower thirds. A caps title and a "LIVE COUNT" flag sit over an accent rule; ' +

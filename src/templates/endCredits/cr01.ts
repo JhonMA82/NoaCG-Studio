@@ -24,7 +24,7 @@ export const cr01: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr01',
     category: 'end-credits',
-    name: 'Classic Roll',
+    name: 'Classic Roll End Credits',
     styleTag: 'minimal',
     description: 'The classic down-scrolling roll - centered role-above-name stacks, nothing else.',
     maxLines: 2,
@@ -39,7 +39,7 @@ export const cr01: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Classic Roll',
+    name: 'Classic Roll End Credits',
     description:
       'The end-credits everyone knows: a steady upward roll of centered role-above-name ' +
       'stacks, section headings in quiet accent caps, and a single short hairline above ' +

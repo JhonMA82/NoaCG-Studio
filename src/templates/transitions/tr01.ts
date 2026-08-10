@@ -14,7 +14,7 @@ export const tr01: TemplateVariant = defineTransitionVariant(
   {
     id: 'tr01',
     category: 'transition',
-    name: 'Volt Stinger',
+    name: 'Volt Stinger Transition',
     styleTag: 'sport',
     description: 'A full-frame sting: leaning slabs slam across, the mark snaps on, then it clears.',
     maxLines: 1,
@@ -26,7 +26,7 @@ export const tr01: TemplateVariant = defineTransitionVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Stinger',
+    name: 'Volt Stinger Transition',
     description:
       'A sport sting that covers the whole frame so a cut can happen underneath: three leaning ' +
       'slabs slam across — dark, accent, dark — and the programme mark snaps on over them, then ' +

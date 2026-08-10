@@ -14,7 +14,7 @@ export const card24: TemplateVariant = defineCardVariant(
   {
     id: 'card24',
     category: 'info-card',
-    name: 'Volt Headline',
+    name: 'Volt Headline Info Card',
     styleTag: 'sport',
     description: 'A sport report card: a caps headline over the match report and its source.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card24: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Headline',
+    name: 'Volt Headline Info Card',
     description:
       'The sport report card: a flat near-black slab under a chunky accent rail, a FULL TIME ' +
       'style kicker, a heavy condensed caps headline, and the report itself in readable ' +

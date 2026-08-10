@@ -12,7 +12,7 @@ export const lt11: TemplateVariant = defineVariant(
   {
     id: 'lt11',
     category: 'lower-third',
-    name: 'House Strap',
+    name: 'House Strap Lower Third',
     styleTag: 'noacg',
     description: 'The NoaCG house strap: amber accent bar, void blur panel, mono kicker title.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const lt11: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Strap',
+    name: 'House Strap Lower Third',
     description:
       'The NoaCG house lower third: one 8px accent bar with a restrained glow standing ' +
       'against a dark blur panel, a bold display name, and a tracking-wide mono title in ' +

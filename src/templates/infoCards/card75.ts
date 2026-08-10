@@ -9,7 +9,7 @@ export const card75: TemplateVariant = defineCardVariant(
   {
     id: 'card75',
     category: 'info-card',
-    name: 'Frost Offer',
+    name: 'Frost Offer Info Card',
     styleTag: 'glass',
     description:
       'A frosted offer panel with a luminous claim, outlined code chip, and deadline.',
@@ -35,7 +35,7 @@ export const card75: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Frost Offer',
+    name: 'Frost Offer Info Card',
     description:
       'A soft glass offer card with a keyline, sentence-case copy, and an outlined promo code that never sacrifices contrast.',
     uicolor: '5',

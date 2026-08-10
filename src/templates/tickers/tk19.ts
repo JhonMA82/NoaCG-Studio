@@ -15,7 +15,7 @@ export const tk19: TemplateVariant = defineTickerVariant(
   {
     id: 'tk19',
     category: 'ticker',
-    name: 'Advisory Rotator',
+    name: 'Advisory Rotator Ticker',
     styleTag: 'noacg',
     description: 'Public advisories one at a time — timed, holdable, and read in full.',
     maxLines: 2,
@@ -38,7 +38,7 @@ export const tk19: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Advisory Rotator',
+    name: 'Advisory Rotator Ticker',
     description:
       'The house advisory strip: the void panel and mono label block of the news wire, but ' +
       'holding one notice at a time in full-size type instead of running them past. The ' +

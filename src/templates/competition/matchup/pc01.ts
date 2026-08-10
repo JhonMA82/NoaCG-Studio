@@ -18,7 +18,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
   {
     id: 'pc01',
     category: 'matchup',
-    name: 'Player Card',
+    name: 'Player Card Matchup',
     styleTag: 'sport',
     description: 'Portrait, name and role — with the stat block revealed on the press.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Player Card',
+    name: 'Player Card Matchup',
     description:
       'The sport competitor card: a cropped portrait beside the name, role and crest on a ' +
       'dark stage, an accent slab down the portrait edge, and a stat block that arrives on ' +
@@ -46,7 +46,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
     fields: compFieldsFor(PLAYER_FIELDS, o),
     hasAccent: true,
     // The Continue press IS the reveal — a real step, so SPX's step count stays derived.
-    revealSteps: [{ name: 'Stats', call: 'revealStats', duration: 0.5 }],
+    revealSteps: [{ name: 'Stats Matchup', call: 'revealStats', duration: 0.5 }],
     runtimeExtraJs: PLAYER_RUNTIME_JS,
     css: `${playerStructureCss()}
 

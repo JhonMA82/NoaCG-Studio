@@ -95,7 +95,7 @@ function archetype(spec: ArchetypeSpec): TemplateVariant {
 
 const replay = archetype({
   id: 'tr05',
-  name: 'Replay Signal',
+  name: 'Replay Signal Transition',
   description: 'A replay bumper with a broadcast reticle, signal rails, and decisive lockup.',
   styleTag: 'noacg',
   paletteId: 'noacg',
@@ -144,7 +144,7 @@ const replay = archetype({
 
 const sponsor = archetype({
   id: 'tr06',
-  name: 'Sponsor Bumper',
+  name: 'Sponsor Bumper Transition',
   description: 'A restrained sponsor bumper with a framed wordmark and partner-safe spacing.',
   styleTag: 'minimal',
   paletteId: 'ivory',
@@ -186,7 +186,7 @@ const sponsor = archetype({
 
 const chapter = archetype({
   id: 'tr07',
-  name: 'Chapter Change',
+  name: 'Chapter Change Transition',
   description: 'A chapter transition with an editorial grid and clear programme hierarchy.',
   styleTag: 'editorial',
   paletteId: 'vermilion',
@@ -232,7 +232,7 @@ const chapter = archetype({
 
 const sport = archetype({
   id: 'tr08',
-  name: 'Sport Impact',
+  name: 'Sport Impact Transition',
   description: 'A high-energy sport impact with velocity chevrons and a hard centre hit.',
   styleTag: 'sport',
   paletteId: 'volt',
@@ -282,7 +282,7 @@ const sport = archetype({
 
 const editorial = archetype({
   id: 'tr09',
-  name: 'Editorial Page Turn',
+  name: 'Editorial Page Turn Transition',
   description: 'An editorial page turn with layered paper, a fold shadow, and issue metadata.',
   styleTag: 'editorial',
   paletteId: 'vermilion',
@@ -329,7 +329,7 @@ const editorial = archetype({
 
 const cinematic = archetype({
   id: 'tr10',
-  name: 'Cinematic Iris',
+  name: 'Cinematic Iris Transition',
   description: 'A cinematic matte and iris with aperture blades and restrained film rails.',
   styleTag: 'cinematic',
   paletteId: 'ember',

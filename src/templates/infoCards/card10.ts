@@ -15,7 +15,7 @@ export const card10: TemplateVariant = defineCardVariant(
   {
     id: 'card10',
     category: 'info-card',
-    name: 'Session Title',
+    name: 'Session Title Info Card',
     styleTag: 'minimal',
     description: 'A panel-free session opener: track kicker, session title, then time and room.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const card10: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Session Title',
+    name: 'Session Title Info Card',
     description:
       'The minimal session opener for conferences, webinars and lecture streams: a tracked-caps ' +
       'track kicker, one large session title, and the practical line under it (time and room). ' +

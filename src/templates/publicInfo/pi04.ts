@@ -14,7 +14,7 @@ export const pi04: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi04',
     category: 'public-info',
-    name: 'Disclaimer Strip',
+    name: 'Disclaimer Strip Public Info',
     styleTag: 'minimal',
     description: 'A full-width band for legal small print — legible by design, quiet by height.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const pi04: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Disclaimer Strip',
+    name: 'Disclaimer Strip Public Info',
     description:
       'The small-print band: full working width, low height, and text set at the legibility ' +
       'floor rather than below it. A disclaimer nobody can read has not been given.',

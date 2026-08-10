@@ -11,7 +11,7 @@ export const tk06: TemplateVariant = defineTickerVariant(
   {
     id: 'tk06',
     category: 'ticker',
-    name: 'House Markets',
+    name: 'House Markets Ticker',
     styleTag: 'noacg',
     description: 'Markets strip: mono "SYMBOL +1.24%" items with sign-colored deltas and a clock cap.',
     maxLines: 2,
@@ -36,7 +36,7 @@ export const tk06: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Markets',
+    name: 'House Markets Ticker',
     description:
       'The house strip built for numbers: mono market items whose trailing +/− delta is ' +
       'colored by its sign (fixed green/red — semantic, independent of the accent), an ' +

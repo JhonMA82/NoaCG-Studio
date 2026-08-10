@@ -14,7 +14,7 @@ export const ig14: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig14',
     category: 'infographic',
-    name: 'Fact Sheet',
+    name: 'Fact Sheet Infographic',
     styleTag: 'minimal',
     description: 'A panel-free key-facts board — one "term | explanation" per line.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const ig14: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Fact Sheet',
+    name: 'Fact Sheet Infographic',
     description:
       'The minimal explainer board: an accent hairline down the left, a tracked-caps heading, ' +
       'and facts as a small accent term over the fact itself. A line with no pipe is a fact ' +

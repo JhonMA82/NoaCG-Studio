@@ -13,7 +13,7 @@ export const card15: TemplateVariant = defineCardVariant(
   {
     id: 'card15',
     category: 'info-card',
-    name: 'Question Card',
+    name: 'Question Card Info Card',
     styleTag: 'glass',
     description: 'A frosted question card: the question large, then what it turns on.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card15: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Question Card',
+    name: 'Question Card Info Card',
     description:
       'The glass question card for panels, debates and live Q&As: a translucent blurred panel ' +
       'with a short accent stroke, the question at heading size, and marked points under it. ' +

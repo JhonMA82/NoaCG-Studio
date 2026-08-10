@@ -17,7 +17,7 @@ export const mr05: TemplateVariant = defineEsportsVariant(
   {
     id: 'mr05',
     category: 'esports-score',
-    name: 'Clean Maps',
+    name: 'Clean Maps Esports Score',
     styleTag: 'minimal',
     description: 'A panel-free map ladder with hairline rows and a quiet live-map cursor.',
     maxLines: 1,
@@ -29,7 +29,7 @@ export const mr05: TemplateVariant = defineEsportsVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Clean Maps',
+    name: 'Clean Maps Esports Score',
     description:
       'The minimal map indicator: no panel, a hairline beneath the series title, ruled map ' +
       'rows, and one accent edge identifying the map currently in play.',

@@ -10,7 +10,7 @@ export const bug27: TemplateVariant = defineBugVariant(
   {
     id: 'bug27',
     category: 'corner-bug',
-    name: 'Fixture Bug',
+    name: 'Fixture Bug Corner Bug',
     styleTag: 'sport',
     description: 'A solid event slab: the competition logo, the fixture name, and the round or venue.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const bug27: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Fixture Bug',
+    name: 'Fixture Bug Corner Bug',
     description:
       'The sport event ident: the competition logo (or a solid accent placeholder block) beside ' +
       'the fixture in heavy condensed caps and the round or venue beneath, on a square-cornered ' +

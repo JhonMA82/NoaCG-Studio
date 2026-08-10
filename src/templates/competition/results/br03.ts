@@ -18,7 +18,7 @@ export const br03: TemplateVariant = defineResultsVariant(
   {
     id: 'br03',
     category: 'results-board',
-    name: 'Clean Bracket',
+    name: 'Clean Bracket Results Board',
     styleTag: 'minimal',
     description: 'A panel-free knockout tree with hairline ties and a quiet live-round cursor.',
     maxLines: 1,
@@ -30,7 +30,7 @@ export const br03: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Bracket',
+    name: 'Clean Bracket Results Board',
     description:
       'The minimal playoff bracket: a soft scrim, round columns drawn with hairline ties, ' +
       'an accent cursor on the live round, and a restrained champion label.',

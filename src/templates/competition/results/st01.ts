@@ -18,7 +18,7 @@ export const st01: TemplateVariant = defineResultsVariant(
   {
     id: 'st01',
     category: 'results-board',
-    name: 'League Table',
+    name: 'League Table Results Board',
     styleTag: 'sport',
     description: 'A standings table with any columns you declare — and a FINAL state.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const st01: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'League Table',
+    name: 'League Table Results Board',
     description:
       'The sport standings board: a titled table whose columns come from the operator’s own ' +
       'header line, a highlighted row for the team being discussed, and a FINAL mark for when ' +

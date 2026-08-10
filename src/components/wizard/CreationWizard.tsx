@@ -21,7 +21,6 @@ import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
-import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
 import ImportStep from './steps/ImportStep';
 import ImportDesignStep from './steps/ImportDesignStep';
@@ -434,9 +433,9 @@ export default function CreationWizard() {
   // project starts from one consistent, formatted baseline. Formatting once at birth also keeps
   // later canvas/timeline edits to tight, minimal diffs - the editor's change-highlight stays
   // accurate. Imported templates are NOT routed here: they stay byte-faithful to the user's file.
-  const applyGenerated = async (template: SpxTemplate) => {
+  const applyGenerated = async (template: SpxTemplate, skipNavigation?: boolean) => {
     const formatted = await formatTemplate(template); // HTML-only by default
-    landAt('editor'); // the seam every editor-ending create flows through
+    if (!skipNavigation) landAt('editor'); // the seam every editor-ending create flows through
     applyTemplate(formatted, { resetSampleData: true });
     setActiveTab('html');
     toSpxShell();
@@ -682,7 +681,7 @@ export default function CreationWizard() {
    * the next Save. Returns the applied template (read back post-format) or null. Both Finish
    * doors go through here, so the editor and export endings stay byte-identical.
    */
-  const applyAiProject = async (): Promise<SpxTemplate | null> => {
+  const applyAiProject = async (skipNavigation?: boolean): Promise<SpxTemplate | null> => {
     if (!aiResult?.valid) return null;
     if (aiResult.generationId) acceptedAiGeneration.current = aiResult.generationId;
     commitStagedSelection();
@@ -690,7 +689,7 @@ export default function CreationWizard() {
     // The Finish name rides the built template, exactly as the catalog path's draftName does,
     // so it reaches the topbar, the Save prefill, and the export slug through one path.
     const template = aiResult.template.name === name ? aiResult.template : { ...aiResult.template, name };
-    await applyGenerated(template);
+    await applyGenerated(template, skipNavigation);
     // AFTER the whole-project swap (which clears the store's spec AND conversation), adopt this
     // result's own so both ride the autosave slot + the next Save. Both Finish doors reach here.
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
@@ -717,14 +716,11 @@ export default function CreationWizard() {
    *  createAndExport). The save is not optional — an export-only creation that vanished would
    *  cost the whole AI generation to reproduce. A failed save deliberately stays in the editor. */
   const createFromAiAndExport = () => {
-    void applyAiProject().then(async (template) => {
+    void applyAiProject(true).then(async (template) => {
       if (!template) return;
       const saved = await saveGraphicAs(aiName(), { kind: 'standalone' });
       const s = useTemplateStore.getState();
-      closeGallery();
-      // REPLACE, not navigate - the createAndExport back-stack reasoning.
-      if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
-      else reportFailedCreateSave(aiName(), saved.error);
+      if (!saved.ok) reportFailedCreateSave(aiName(), saved.error);
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
@@ -750,11 +746,11 @@ export default function CreationWizard() {
    *
    * Returns the applied template (read back from the store, post-format) or null.
    */
-  const applyDraftProject = async (): Promise<SpxTemplate | null> => {
+  const applyDraftProject = async (skipNavigation?: boolean): Promise<SpxTemplate | null> => {
     if (!previewTemplate || !variant) return null;
     // Design mode rebuilds WITHOUT the preview-only stretch-demo line; every other mode's
     // preview is exactly the created code already.
-    await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate);
+    await applyGenerated(mode === 'design' ? buildDraftTemplate(variant, draft) : previewTemplate, skipNavigation);
     // An imported design creates BARE and hands off to the editor's Data tab — that is
     // where its fields are added, as real placed layers (docs/IMPORT_MVP.md). DEFERRED a
     // tick: in the default studio no editor renders under the wizard, so AppShell mounts on
@@ -799,17 +795,13 @@ export default function CreationWizard() {
    * just be a library missing the graphic with nothing saying why.
    */
   const createAndExport = () => {
-    void applyDraftProject().then(async (template) => {
+    void applyDraftProject(true).then(async (template) => {
       if (!template || !variant) return;
       const saved = await saveGraphicAs(draftName(variant, draft), { kind: 'standalone' });
       // Read AFTER the save: it renames the working template to the record's name, which is
       // what the export slugs the zip and the SPX/CasparCG template folder from.
       const s = useTemplateStore.getState();
-      closeGallery();
-      // REPLACE, not navigate: applyGenerated already replaced the route with the editor's,
-      // and pushing over it would leave Back landing a default-mode user in the editor.
-      if (saved.ok) useRouter.getState().replace({ view: 'home', section: 'graphics' });
-      else reportFailedCreateSave(draftName(variant, draft), saved.error);
+      if (!saved.ok) reportFailedCreateSave(draftName(variant, draft), saved.error);
       useExportUi.getState().openExport({
         template: s.template,
         sampleData: s.sampleData,
@@ -1141,13 +1133,7 @@ export default function CreationWizard() {
               Step <b>{railPos + 1}</b> / {stepTitles.length}
             </span>
           )}
-          {/* THE FEEDBACK DOOR BELONGS HERE, not only in the editor shell. The student
-              release makes the wizard the whole product for most people and demotes the
-              editor behind Advanced mode - so a door that existed only in AppShell meant
-              the release's own user could not tell us anything, on the surface where the
-              confusion actually happens. It is the quietest control on the row and it never
-              opens itself; offline it renders nothing at all. */}
-          <BetaFeedbackButton area="wizard" />
+
           <button
             className="gallery-close"
             onClick={leaveStep}

@@ -10,7 +10,7 @@ export const lt18: TemplateVariant = defineVariant(
   {
     id: 'lt18',
     category: 'lower-third',
-    name: 'Line Handle',
+    name: 'Line Handle Lower Third',
     styleTag: 'minimal',
     description: 'A panel-free social mark: a handle over its platform beside a thin accent hairline.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt18: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Line Handle',
+    name: 'Line Handle Lower Third',
     description:
       'A panel-free minimal social mark in the lt01 family: a thin vertical accent hairline ' +
       'standing beside a handle over a dimmed platform label, carried over the picture by a ' +

@@ -20,7 +20,7 @@ export const br02: TemplateVariant = defineResultsVariant(
   {
     id: 'br02',
     category: 'results-board',
-    name: 'House Bracket',
+    name: 'House Bracket Results Board',
     styleTag: 'noacg',
     description: 'The house knockout tree: void ties, mono rounds, an amber cursor and crown.',
     maxLines: 1,
@@ -32,7 +32,7 @@ export const br02: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Bracket',
+    name: 'House Bracket Results Board',
     description:
       'The NoaCG playoff bracket: a void blur panel with an amber top edge, mono round labels ' +
       'over void tie tiles, an amber cursor on the live round, and an amber champion chip.',

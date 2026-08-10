@@ -32,7 +32,7 @@ import type { GraphicType } from './graphicType';
 /** KEY FACTS / EXPLAINER — the terms and what they mean, one row per fact. */
 export const keyFactsType: GraphicType = {
   id: 'key-facts',
-  name: 'Key facts',
+  name: 'Key facts Infographic',
   description: 'The facts behind a story, as a term and its explanation per row.',
   structure: {
     prefix: 'infographic',
@@ -55,7 +55,7 @@ export const keyFactsType: GraphicType = {
   designs: [
     {
       id: 'ig14',
-      name: 'Fact Sheet',
+      name: 'Fact Sheet Infographic',
       description: 'A panel-free key-facts board — one "term | explanation" per line.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -67,7 +67,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig15',
-      name: 'Frost Facts',
+      name: 'Frost Facts Infographic',
       description: 'A frosted good-to-know board — one "term | explanation" per line.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -79,7 +79,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig16',
-      name: 'Volt Facts',
+      name: 'Volt Facts Infographic',
       description: 'A sport key-numbers board — one "term | number" per line, in heavy caps.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -91,7 +91,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig17',
-      name: 'House Facts',
+      name: 'House Facts Infographic',
       description: 'The house explainer board — one "term | explanation" per line in the void panel.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -107,7 +107,7 @@ export const keyFactsType: GraphicType = {
 /** RECAP / ACTION ITEMS — who owns what, one row per item. */
 export const recapType: GraphicType = {
   id: 'recap-card',
-  name: 'Recap / actions',
+  name: 'Recap / actions Infographic',
   description: 'What was agreed and who is doing it, one row per item.',
   structure: {
     prefix: 'infographic',
@@ -129,7 +129,7 @@ export const recapType: GraphicType = {
   designs: [
     {
       id: 'ig18',
-      name: 'Recap Board',
+      name: 'Recap Board Infographic',
       description: 'A panel-free recap board — one "owner | action" per line.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -141,7 +141,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig19',
-      name: 'Frost Recap',
+      name: 'Frost Recap Infographic',
       description: 'A frosted recap board — one "owner | action" per line.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -153,7 +153,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig20',
-      name: 'Volt Recap',
+      name: 'Volt Recap Infographic',
       description: 'A sport half-time board — one "unit | note" per line, in heavy caps.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -165,7 +165,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig21',
-      name: 'House Actions',
+      name: 'House Actions Infographic',
       description: 'The house action board — one "owner | action" per line in the void panel.',
       styleTag: 'noacg',
       palette: HOUSE.palette,

@@ -17,7 +17,7 @@ export const pc04: TemplateVariant = defineMatchupVariant(
   {
     id: 'pc04',
     category: 'matchup',
-    name: 'Clean Player',
+    name: 'Clean Player Matchup',
     styleTag: 'minimal',
     description: 'A panel-free competitor card with a hairline identity block and ruled stats.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const pc04: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Player',
+    name: 'Clean Player Matchup',
     description:
       'The minimal competitor card: a plateless portrait, identity beside a hairline, and ' +
       'stats revealed as quiet ruled columns on the Continue press.',
@@ -43,7 +43,7 @@ export const pc04: TemplateVariant = defineMatchupVariant(
     html: playerMarkup(o),
     fields: compFieldsFor(PLAYER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Stats', call: 'revealStats', duration: 0.5 }],
+    revealSteps: [{ name: 'Stats Matchup', call: 'revealStats', duration: 0.5 }],
     runtimeExtraJs: PLAYER_RUNTIME_JS,
     css: `${playerStructureCss()}
 

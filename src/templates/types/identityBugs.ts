@@ -65,7 +65,7 @@ import type { GraphicType, TypeBranch } from './graphicType';
  *  most persistent graphic there is; on many channels it never leaves the screen. */
 export const stationBugType: GraphicType = {
   id: 'station-bug',
-  name: 'Station ident',
+  name: 'Station ident Corner Bug',
   description: 'The channel logo with the channel name and the show currently on air.',
   structure: {
     prefix: 'corner-bug',
@@ -92,7 +92,7 @@ export const stationBugType: GraphicType = {
   designs: [
     {
       id: 'bug05',
-      name: 'House Ident',
+      name: 'House Ident Corner Bug',
       description: 'The house station ident: an amber bar, the channel logo, the channel over its show.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -101,7 +101,7 @@ export const stationBugType: GraphicType = {
     },
     {
       id: 'bug06',
-      name: 'Frost Ident',
+      name: 'Frost Ident Corner Bug',
       description: 'A frosted ident tile: the channel logo, an accent dot, the channel over its show.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -112,7 +112,7 @@ export const stationBugType: GraphicType = {
     },
     {
       id: 'bug07',
-      name: 'Slab Ident',
+      name: 'Slab Ident Corner Bug',
       description: 'A solid ident slab: the club logo on a fused accent block, channel over show.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -123,7 +123,7 @@ export const stationBugType: GraphicType = {
     },
     {
       id: 'bug08',
-      name: 'Rule Ident',
+      name: 'Rule Ident Corner Bug',
       description: 'A panel-free ident: the logo, a thin accent rule, the channel over its show.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -184,7 +184,7 @@ function statusState(id: string, name: string, event: string, call: string, reac
  *  it from the control panel; each mode owns its own wording as an ordinary field. */
 export const liveBugType: GraphicType = {
   id: 'live-bug',
-  name: 'Live status',
+  name: 'Live status Corner Bug',
   description: 'The on-air status mark: live, replay or standby, switched by the operator.',
   structure: {
     prefix: 'corner-bug',
@@ -239,7 +239,7 @@ export const liveBugType: GraphicType = {
   designs: [
     {
       id: 'bug09',
-      name: 'House Live',
+      name: 'House Live Corner Bug',
       description: 'The house live bug: a void chip, a breathing amber dot, and a switchable status word.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -248,7 +248,7 @@ export const liveBugType: GraphicType = {
     },
     {
       id: 'bug10',
-      name: 'Frost Live',
+      name: 'Frost Live Corner Bug',
       description: 'A frosted live pill: a breathing accent dot beside a switchable status word.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -258,7 +258,7 @@ export const liveBugType: GraphicType = {
     },
     {
       id: 'bug11',
-      name: 'Volt Live',
+      name: 'Volt Live Corner Bug',
       description: 'A solid accent live chip: the status word in chip ink, neutral when off air.',
       styleTag: 'sport',
       palette: paletteById('signal'),
@@ -268,7 +268,7 @@ export const liveBugType: GraphicType = {
     },
     {
       id: 'bug12',
-      name: 'Signal Live',
+      name: 'Signal Live Corner Bug',
       description: 'A panel-free live mark: a breathing accent dot beside a switchable status word.',
       styleTag: 'minimal',
       palette: paletteById('signal'),
@@ -286,7 +286,7 @@ export const liveBugType: GraphicType = {
  *  line fields to fill, so the wizard offers none and the operator cannot leave one blank. */
 export const logoBugType: GraphicType = {
   id: 'logo-bug',
-  name: 'Logo mark',
+  name: 'Logo mark Corner Bug',
   description: 'A logo and nothing else — the quietest way to keep a brand on screen.',
   structure: {
     prefix: 'corner-bug',
@@ -308,7 +308,7 @@ export const logoBugType: GraphicType = {
   designs: [
     {
       id: 'bug13',
-      name: 'House Mark',
+      name: 'House Mark Corner Bug',
       description: 'Logo only: the house mark over a short amber rule, with no caption at all.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -318,7 +318,7 @@ export const logoBugType: GraphicType = {
     },
     {
       id: 'bug14',
-      name: 'Frost Mark',
+      name: 'Frost Mark Corner Bug',
       description: 'Logo only: one small frosted tile holding the logo and nothing else.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -328,7 +328,7 @@ export const logoBugType: GraphicType = {
     },
     {
       id: 'bug15',
-      name: 'Block Mark',
+      name: 'Block Mark Corner Bug',
       description: 'Logo only: a solid slab with the logo and a fused accent edge — no text.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -338,7 +338,7 @@ export const logoBugType: GraphicType = {
     },
     {
       id: 'bug16',
-      name: 'Clear Mark',
+      name: 'Clear Mark Corner Bug',
       description: 'Logo only: the bare logo over the video, with nothing else around it.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -356,7 +356,7 @@ export const logoBugType: GraphicType = {
  *  its placeholder, so the same design serves one partner or three. */
 export const sponsorStripType: GraphicType = {
   id: 'sponsor-strip',
-  name: 'Sponsor strip',
+  name: 'Sponsor strip Corner Bug',
   description: 'A "supported by" kicker with up to three partner logos beside it.',
   structure: {
     prefix: 'corner-bug',
@@ -386,7 +386,7 @@ export const sponsorStripType: GraphicType = {
   designs: [
     {
       id: 'bug17',
-      name: 'House Sponsor Strip',
+      name: 'House Sponsor Strip Corner Bug',
       description: 'A house partner strip: a mono kicker over three sponsor slots on the void panel.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -395,7 +395,7 @@ export const sponsorStripType: GraphicType = {
     },
     {
       id: 'bug18',
-      name: 'Frost Sponsor Strip',
+      name: 'Frost Sponsor Strip Corner Bug',
       description: 'A frosted partner bar: the kicker inline at the left, three sponsor slots beside it.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -406,7 +406,7 @@ export const sponsorStripType: GraphicType = {
     },
     {
       id: 'bug19',
-      name: 'Slab Sponsor Strip',
+      name: 'Slab Sponsor Strip Corner Bug',
       description: 'A sponsor slab: an accent kicker chip fused to a row of three partner slots.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -417,7 +417,7 @@ export const sponsorStripType: GraphicType = {
     },
     {
       id: 'bug20',
-      name: 'Quiet Sponsor Strip',
+      name: 'Quiet Sponsor Strip Corner Bug',
       description: 'A panel-free partner strip: a kicker over a short accent rule and three slots.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -445,7 +445,7 @@ const SPONSOR_BEAT = 0.5;
  *  keeps the cycle running. The operator can skip ahead or hold a partner on screen. */
 export const sponsorRotatorType: GraphicType = {
   id: 'sponsor-rotator',
-  name: 'Sponsor rotation',
+  name: 'Sponsor rotation Corner Bug',
   description: 'One sponsor slot that cycles through its partners on a timer, pausable on air.',
   structure: {
     prefix: 'corner-bug',
@@ -469,10 +469,10 @@ export const sponsorRotatorType: GraphicType = {
       branches: [
         {
           id: 'advance',
-          name: 'Next sponsor',
+          name: 'Next sponsor Corner Bug',
           // The beat: the stage fades out, the next partner takes its place, the stage returns.
           timeline: {
-            name: 'Advance',
+            name: 'Advance Corner Bug',
             duration: SPONSOR_BEAT,
             ease: 'in',
             calls: [{ time: SPONSOR_BEAT / 2, call: 'sponsorShowNext' }],
@@ -500,7 +500,7 @@ export const sponsorRotatorType: GraphicType = {
           // the machine cancels the armed timer on the way out of the cycling state, and
           // nothing re-arms it until the operator resumes.
           id: 'held',
-          name: 'Held',
+          name: 'Held Corner Bug',
           timeline: null,
           edges: [
             { from: { waypoint: 0 }, to: 'held', trigger: 'operator', event: 'hold' },
@@ -528,7 +528,7 @@ export const sponsorRotatorType: GraphicType = {
   designs: [
     {
       id: 'bug21',
-      name: 'House Sponsor Rotation',
+      name: 'House Sponsor Rotation Corner Bug',
       description: 'A house sponsor bug that cycles three partner logos on a timer — skippable on air.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -537,7 +537,7 @@ export const sponsorRotatorType: GraphicType = {
     },
     {
       id: 'bug22',
-      name: 'Frost Sponsor Rotation',
+      name: 'Frost Sponsor Rotation Corner Bug',
       description: 'A frosted sponsor pill that cycles three partner logos on a timer.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -548,7 +548,7 @@ export const sponsorRotatorType: GraphicType = {
     },
     {
       id: 'bug23',
-      name: 'Slab Sponsor Rotation',
+      name: 'Slab Sponsor Rotation Corner Bug',
       description: 'A sponsor slab that cycles three partner logos on a timer, with an accent kicker chip.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -559,7 +559,7 @@ export const sponsorRotatorType: GraphicType = {
     },
     {
       id: 'bug24',
-      name: 'Quiet Sponsor Rotation',
+      name: 'Quiet Sponsor Rotation Corner Bug',
       description: 'A panel-free sponsor mark that cycles three partner logos on a timer.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -577,7 +577,7 @@ export const sponsorRotatorType: GraphicType = {
  *  which event this is, and which day, session, round or venue you are watching. */
 export const eventBugType: GraphicType = {
   id: 'event-bug',
-  name: 'Event ident',
+  name: 'Event ident Corner Bug',
   description: 'The event logo with its name and the day, session, round or venue.',
   structure: {
     prefix: 'corner-bug',
@@ -603,7 +603,7 @@ export const eventBugType: GraphicType = {
   designs: [
     {
       id: 'bug25',
-      name: 'House Event Bug',
+      name: 'House Event Bug Corner Bug',
       description: 'The house event mark: the event logo, its name, and the day or venue beneath.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -612,7 +612,7 @@ export const eventBugType: GraphicType = {
     },
     {
       id: 'bug26',
-      name: 'Frost Event Bug',
+      name: 'Frost Event Bug Corner Bug',
       description: 'A frosted event tile: the event logo above its name and the day or venue.',
       styleTag: 'glass',
       palette: paletteById('orchid'),
@@ -623,7 +623,7 @@ export const eventBugType: GraphicType = {
     },
     {
       id: 'bug27',
-      name: 'Fixture Bug',
+      name: 'Fixture Bug Corner Bug',
       description: 'A solid event slab: the competition logo, the fixture name, and the round or venue.',
       styleTag: 'sport',
       palette: paletteById('inferno'),
@@ -634,7 +634,7 @@ export const eventBugType: GraphicType = {
     },
     {
       id: 'bug28',
-      name: 'Session Bug',
+      name: 'Session Bug Corner Bug',
       description: 'A panel-free event mark: the logo, a thin rule, the event over its session line.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -653,7 +653,7 @@ export const eventBugType: GraphicType = {
  *  the first line is the label and the second carries the display weight. */
 export const awardBugType: GraphicType = {
   id: 'award-bug',
-  name: 'Award mark',
+  name: 'Award mark Corner Bug',
   description: 'The award word ("winner", "nominee") over the category it was given in.',
   structure: {
     prefix: 'corner-bug',
@@ -679,7 +679,7 @@ export const awardBugType: GraphicType = {
   designs: [
     {
       id: 'bug29',
-      name: 'House Award Bug',
+      name: 'House Award Bug Corner Bug',
       description: 'The house winner / nominee mark: an amber award kicker over the category, beside the award logo.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -688,7 +688,7 @@ export const awardBugType: GraphicType = {
     },
     {
       id: 'bug30',
-      name: 'Gala Award Bug',
+      name: 'Gala Award Bug Corner Bug',
       description: 'A frosted winner / nominee mark: the logo in an accent ring, the award word over its category.',
       styleTag: 'glass',
       palette: paletteById('orchid'),
@@ -699,7 +699,7 @@ export const awardBugType: GraphicType = {
     },
     {
       id: 'bug31',
-      name: 'Champion Bug',
+      name: 'Champion Bug Corner Bug',
       description: 'A champion / winner slab: the award word on an accent chip, the category beside the trophy logo.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -710,7 +710,7 @@ export const awardBugType: GraphicType = {
     },
     {
       id: 'bug32',
-      name: 'Laurel Bug',
+      name: 'Laurel Bug Corner Bug',
       description: 'A panel-free winner / nominee mark: the logo in a hairline ring, the award word over its category.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -729,7 +729,7 @@ export const awardBugType: GraphicType = {
  *  would be an ident, and idents already have four designs of their own. */
 export const statusChipType: GraphicType = {
   id: 'status-chip',
-  name: 'Location chip',
+  name: 'Location chip Corner Bug',
   description: 'A compact chip: where the camera is, and what is happening there.',
   structure: {
     prefix: 'corner-bug',
@@ -755,7 +755,7 @@ export const statusChipType: GraphicType = {
   designs: [
     {
       id: 'bug33',
-      name: 'House Location Chip',
+      name: 'House Location Chip Corner Bug',
       description: 'A compact house chip: the location and the status, split by an amber dot.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -764,7 +764,7 @@ export const statusChipType: GraphicType = {
     },
     {
       id: 'bug34',
-      name: 'Frost Location Chip',
+      name: 'Frost Location Chip Corner Bug',
       description: 'A frosted pill: the location and the status, split by a small accent dot.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -775,7 +775,7 @@ export const statusChipType: GraphicType = {
     },
     {
       id: 'bug35',
-      name: 'Venue Chip',
+      name: 'Venue Chip Corner Bug',
       description: 'A sport chip: the venue on a solid slab, the status in a fused accent block.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -786,7 +786,7 @@ export const statusChipType: GraphicType = {
     },
     {
       id: 'bug36',
-      name: 'Quiet Location Chip',
+      name: 'Quiet Location Chip Corner Bug',
       description: 'A panel-free chip: the location, a short accent rule, then the status.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

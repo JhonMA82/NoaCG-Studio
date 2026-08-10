@@ -13,7 +13,7 @@ export const lt22: TemplateVariant = defineVariant(
   {
     id: 'lt22',
     category: 'lower-third',
-    name: 'Stack Three',
+    name: 'Stack Three Lower Third',
     styleTag: 'minimal',
     description: 'Name, role and a tracked organisation line, held by one tall left rule.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const lt22: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Stack Three',
+    name: 'Stack Three Lower Third',
     description:
       'The three-voice minimal strap: a confident name, a regular-weight role, and an ' +
       'organisation or location line in tracked small caps. Made for steps mode — reveal one ' +

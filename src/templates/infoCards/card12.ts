@@ -15,7 +15,7 @@ export const card12: TemplateVariant = defineCardVariant(
   {
     id: 'card12',
     category: 'info-card',
-    name: 'Segment Title',
+    name: 'Segment Title Info Card',
     styleTag: 'sport',
     description: 'A square sport slab with an accent top rail: numbered kicker, huge caps title.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const card12: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Segment Title',
+    name: 'Segment Title Info Card',
     description:
       'The sport segment opener: a flat near-black slab under a chunky accent rail, a numbered ' +
       'rundown kicker, one huge heavy condensed title and a tracked caps subtitle. Square on ' +

@@ -13,7 +13,7 @@ export const lt37: TemplateVariant = defineVariant(
   {
     id: 'lt37',
     category: 'lower-third',
-    name: 'Slate',
+    name: 'Slate Lower Third',
     styleTag: 'cinematic',
     description: 'Four right-anchored rows — name, role, organisation, note — against a hairline.',
     maxLines: 4,
@@ -30,7 +30,7 @@ export const lt37: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Slate',
+    name: 'Slate Lower Third',
     description:
       'The archival credit block: four rows ragged-left against a hairline column on the right — ' +
       'name, role, organisation, and a production note (a date, an archive reference, a ' +

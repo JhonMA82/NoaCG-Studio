@@ -11,7 +11,7 @@ export const bug20: TemplateVariant = defineBugVariant(
   {
     id: 'bug20',
     category: 'corner-bug',
-    name: 'Quiet Sponsor Strip',
+    name: 'Quiet Sponsor Strip Corner Bug',
     styleTag: 'minimal',
     description: 'A panel-free partner strip: a kicker over a short accent rule and three slots.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const bug20: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Quiet Sponsor Strip',
+    name: 'Quiet Sponsor Strip Corner Bug',
     description:
       'No panel: a tracked-caps kicker over a short accent rule, with three sponsor logo slots ' +
       'beneath, all sitting straight on the video with soft shadows for bright footage. The ' +

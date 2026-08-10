@@ -18,7 +18,7 @@ export const ls24: TemplateVariant = defineVariant(
   {
     id: 'ls24',
     category: 'lower-third',
-    name: 'Expert Panel',
+    name: 'Expert Panel Lower Third',
     styleTag: 'glass',
     description: 'The area of expertise tagged ahead of the name, with the affiliation behind it.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const ls24: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Expert Panel',
+    name: 'Expert Panel Lower Third',
     description:
       'The specialist strap: the area of expertise set as an outlined subject tag above the ' +
       'name, with the affiliation that backs it beneath. The tag answers "why this person" ' +

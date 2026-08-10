@@ -17,7 +17,7 @@ export const ss05: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss05',
     category: 'starting-soon',
-    name: 'Countdown to Start',
+    name: 'Countdown to Start Starting Soon',
     styleTag: 'minimal',
     description: 'Counts down to a wall-clock start time you type once — the number never drifts on a re-take.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const ss05: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Countdown to Start',
+    name: 'Countdown to Start Starting Soon',
     description:
       'A pre-show hold built around a real start time: a tracking-wide caps title, the show ' +
       'name, and the countdown at full size below them. Type "19:30" into the start-time ' +

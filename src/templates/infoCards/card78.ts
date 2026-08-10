@@ -9,7 +9,7 @@ export const card78: TemplateVariant = defineCardVariant(
   {
     id: 'card78',
     category: 'info-card',
-    name: 'Volt Scan',
+    name: 'Volt Scan Info Card',
     styleTag: 'sport',
     description:
       'A hard-edged QR slab with a protected white tile, headline, and written address.',
@@ -33,7 +33,7 @@ export const card78: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Volt Scan',
+    name: 'Volt Scan Info Card',
     description:
       'A sport QR slab with a protected white quiet-zone tile and a high-impact address block.',
     uicolor: '1',

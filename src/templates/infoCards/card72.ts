@@ -9,7 +9,7 @@ export const card72: TemplateVariant = defineCardVariant(
   {
     id: 'card72',
     category: 'info-card',
-    name: 'Clean Product',
+    name: 'Clean Product Info Card',
     styleTag: 'minimal',
     description:
       'A panel-light product card: image, name, price row, and one benefit line.',
@@ -35,7 +35,7 @@ export const card72: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Clean Product',
+    name: 'Clean Product Info Card',
     description:
       'A stripped product card with a framed shot, hairline rule, large price, and restrained supporting copy.',
     uicolor: '2',

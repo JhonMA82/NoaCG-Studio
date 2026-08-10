@@ -9,7 +9,7 @@ export const pi12: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi12',
     category: 'public-info',
-    name: 'Frost Notice Rotator',
+    name: 'Frost Notice Rotator Public Info',
     styleTag: 'glass',
     description: 'A frosted two-language notice whose messages rotate in one stable panel.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const pi12: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Notice Rotator',
+    name: 'Frost Notice Rotator Public Info',
     description:
       'The glass two-language notice: a softly-rounded frosted panel, both messages sharing ' +
       'one stable reading block, and a quiet issuing line beneath a keyline.',

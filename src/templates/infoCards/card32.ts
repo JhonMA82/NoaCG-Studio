@@ -14,7 +14,7 @@ export const card32: TemplateVariant = defineCardVariant(
   {
     id: 'card32',
     category: 'info-card',
-    name: 'Alert Slab',
+    name: 'Alert Slab Info Card',
     styleTag: 'sport',
     description: 'A stadium announcement: caps headline, the detail, and the instruction in its own rule.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card32: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Alert Slab',
+    name: 'Alert Slab Info Card',
     description:
       'The sport safety notice: a flat near-black slab under a chunky accent rail, an accent ' +
       'announcement chip, a heavy condensed caps headline, and the instruction set apart with ' +

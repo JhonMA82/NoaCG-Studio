@@ -14,7 +14,7 @@ export const pi06: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi06',
     category: 'public-info',
-    name: 'Health Advisory',
+    name: 'Health Advisory Public Info',
     styleTag: 'glass',
     description: 'A public-health panel: the advice, and the helpline number, set to be read aloud.',
     maxLines: 4,
@@ -31,7 +31,7 @@ export const pi06: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Health Advisory',
+    name: 'Health Advisory Public Info',
     description:
       'The public-health panel: calm frosted glass, the advice in plain prose, and the ' +
       'helpline in its own high-contrast band — the one line on the card a viewer may need ' +

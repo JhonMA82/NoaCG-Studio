@@ -10,7 +10,7 @@ export const lt17: TemplateVariant = defineVariant(
   {
     id: 'lt17',
     category: 'lower-third',
-    name: 'Volt Handle',
+    name: 'Volt Handle Lower Third',
     styleTag: 'sport',
     description: 'A compact sport strip with an accent edge — a handle in heavy caps over its platform.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt17: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Volt Handle',
+    name: 'Volt Handle Lower Third',
     description:
       'A compact sport social strip in the lt05/lt06 family: a solid dark strip with a chunky ' +
       'accent slab fused to its left edge, the handle in heavy condensed caps over a dimmed ' +

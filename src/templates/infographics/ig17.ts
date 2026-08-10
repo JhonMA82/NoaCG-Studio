@@ -13,7 +13,7 @@ export const ig17: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig17',
     category: 'infographic',
-    name: 'House Facts',
+    name: 'House Facts Infographic',
     styleTag: 'noacg',
     description: 'The house explainer board — one "term | explanation" per line in the void panel.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig17: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'House Facts',
+    name: 'House Facts Infographic',
     description:
       'The house explainer board, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono heading, and facts as an amber term over the ' +

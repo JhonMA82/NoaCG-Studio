@@ -28,7 +28,7 @@ export const cr12: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr12',
     category: 'end-credits',
-    name: 'Sponsor Crawl',
+    name: 'Sponsor Crawl End Credits',
     styleTag: 'sport',
     description: 'A bottom-of-frame acknowledgement strip that crawls while the show keeps running.',
     maxLines: 2,
@@ -43,7 +43,7 @@ export const cr12: TemplateVariant = defineCreditsVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Sponsor Crawl',
+    name: 'Sponsor Crawl End Credits',
     description:
       'A solid bottom strip that crawls partner names past at a constant reading speed: a ' +
       'leaning accent slab carries the group label, names run in condensed caps separated by ' +

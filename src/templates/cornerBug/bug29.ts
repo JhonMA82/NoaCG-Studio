@@ -16,7 +16,7 @@ export const bug29: TemplateVariant = defineBugVariant(
   {
     id: 'bug29',
     category: 'corner-bug',
-    name: 'House Award Bug',
+    name: 'House Award Bug Corner Bug',
     styleTag: 'noacg',
     description: 'The house winner / nominee mark: an amber award kicker over the category, beside the award logo.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const bug29: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Award Bug',
+    name: 'House Award Bug Corner Bug',
     description:
       'The house award mark: the award word ("winner", "nominee") as a small amber kicker over ' +
       'the category, with the award or festival logo (or the three-bar house placeholder) ' +

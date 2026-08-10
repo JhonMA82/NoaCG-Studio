@@ -10,7 +10,7 @@ export const lt39: TemplateVariant = defineVariant(
   {
     id: 'lt39',
     category: 'lower-third',
-    name: 'Block Caps',
+    name: 'Block Caps Lower Third',
     styleTag: 'sport',
     description: 'One name in heavy caps on a hard slab, led by a solid accent block.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const lt39: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Block Caps',
+    name: 'Block Caps Lower Third',
     description:
       'The fastest name in the pack: a solid accent block bolted to a dark slab carrying one line ' +
       'of heavy condensed caps. For substitutions, goal scorers, fight-card names and anywhere a ' +

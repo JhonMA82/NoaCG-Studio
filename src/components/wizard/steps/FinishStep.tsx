@@ -8,6 +8,8 @@ import { isRenderConfigured } from '../../../render/config';
 import { formatProjectSummary } from '../../../model/projectFormat';
 import { draftResolution, type WizardDraft } from '../draft';
 
+import { BetaFeedbackButton } from '../../feedback/BetaFeedback';
+
 /** Which earlier step a summary row was decided on — the target of its Edit link. Named
  *  rather than numbered because the step INDEX differs by mode (import mode carries an extra
  *  Images step before Template), and only the wizard knows the mode. */
@@ -275,6 +277,14 @@ export default function FinishStep({
             </span>
           </button>
         )}
+      </div>
+
+      <div className="panel-section" style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '13px' }}>
+          <strong style={{ display: 'block', color: 'var(--fg)' }}>How did we do?</strong>
+          <span className="hint">Let us know if you ran into any issues creating your graphic.</span>
+        </div>
+        <BetaFeedbackButton area="wizard" />
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ export const rs02: TemplateVariant = defineResultsVariant(
   {
     id: 'rs02',
     category: 'results-board',
-    name: 'House Roster',
+    name: 'House Roster Results Board',
     styleTag: 'noacg',
     description: 'The house line-up: void rows, mono roles, an amber spotlight block.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const rs02: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'House Roster',
+    name: 'House Roster Results Board',
     description:
       'The NoaCG line-up board: a void blur panel with an amber top edge, mono player numbers ' +
       'and roles, and an amber-glowing block marking the spotlit player.',

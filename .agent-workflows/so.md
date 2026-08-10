@@ -56,7 +56,7 @@ Answer these, in this order of importance:
    says" - does the stated problem actually go away, or did the work fix a symptom, an
    adjacent problem, or a problem nobody has?
 2. **Does it fit the existing architecture?** Layer and import-edge rules, code as the single
-   source of truth, deterministic transforms, offline-first, the validation gate, versioned
+   source of truth, deterministic transforms, the validation gate, versioned
    persisted formats with same-commit migrations. A change that works but fights the
    architecture is a finding even when green.
 3. **Is it the best next step?** Check against `docs/GOALS.md` and the repo's current state:

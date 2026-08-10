@@ -31,6 +31,7 @@ import {
   type FieldBucket,
 } from '../../../templates/search';
 import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
+import { CATALOG } from '../../../templates/catalog';
 import type { TemplatePack } from '../../../templates/packs';
 import MiniPreview from '../MiniPreview';
 import KitPicker from './KitPicker';
@@ -178,12 +179,18 @@ function ResultCard({
   onToggleDetail: () => void;
 }) {
   const category = graphicCategoryById(r.meta.category);
+  const isTested = CATALOG[r.meta.category as keyof typeof CATALOG]?.[0]?.id === r.meta.id;
   const familyNames = FAMILIES.filter((f) => r.meta.programmeFamilies.includes(f.id))
     .slice(0, 2)
     .map((f) => f.name);
   return (
     <div className="wz-variant-cell">
-    <button className={`wz-variant ${selected ? 'selected' : ''}`} onClick={onPick} title={r.meta.description}>
+    <button 
+      className={`wz-variant ${selected ? 'selected' : ''}`} 
+      style={{ opacity: isTested ? 1 : 0.25, filter: isTested ? 'none' : 'grayscale(100%)' }}
+      onClick={onPick} 
+      title={isTested ? r.meta.description : `${r.meta.description} (Not tested in E2E)`}
+    >
       <MiniPreview variant={r.variant} />
       <div className="wz-variant-cap">
         <strong>{r.meta.name}</strong>

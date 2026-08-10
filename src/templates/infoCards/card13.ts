@@ -14,7 +14,7 @@ export const card13: TemplateVariant = defineCardVariant(
   {
     id: 'card13',
     category: 'info-card',
-    name: 'Service Title',
+    name: 'Service Title Info Card',
     styleTag: 'noacg',
     description: 'The house ceremony opener: amber bar and void panel, a date kicker over the service name.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card13: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Service Title',
+    name: 'Service Title Info Card',
     description:
       'The house ceremony opener, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono date kicker, the service name at display size, ' +

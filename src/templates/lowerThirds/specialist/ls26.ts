@@ -18,7 +18,7 @@ export const ls26: TemplateVariant = defineVariant(
   {
     id: 'ls26',
     category: 'lower-third',
-    name: 'Stage Artist',
+    name: 'Stage Artist Lower Third',
     styleTag: 'noacg',
     description: 'The artist billed large, with the current track and the stage beneath.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const ls26: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Stage Artist',
+    name: 'Stage Artist Lower Third',
     description:
       'The performance billing: the artist set large — they are the name on the poster — with ' +
       'the current track beneath as the item of the moment and the stage and set time closing ' +

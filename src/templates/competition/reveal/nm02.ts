@@ -18,7 +18,7 @@ export const nm02: TemplateVariant = defineRevealVariant(
   {
     id: 'nm02',
     category: 'reveal',
-    name: 'Frost Nominees',
+    name: 'Frost Nominees Reveal',
     styleTag: 'glass',
     description: 'Finalists on frosted tiles — the winner rings in the accent.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const nm02: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Nominees',
+    name: 'Frost Nominees Reveal',
     description:
       'The glass nominee reveal: a cool stage, the finalists on frosted, softly-rounded tiles, ' +
       'a suspense hold that sinks them back, and an accent ring on the winner.',

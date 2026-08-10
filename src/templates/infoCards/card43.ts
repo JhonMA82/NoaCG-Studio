@@ -17,7 +17,7 @@ export const card43: TemplateVariant = defineCardVariant(
   {
     id: 'card43',
     category: 'info-card',
-    name: 'House Lot',
+    name: 'House Lot Info Card',
     styleTag: 'noacg',
     description: 'An auction/listing card: the lot photo and title beside a live labelled value.',
     maxLines: 5,
@@ -35,7 +35,7 @@ export const card43: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Lot',
+    name: 'House Lot Info Card',
     description:
       'The NoaCG listing card: an 8px amber bar fused to a void blur panel, the lot photo and ' +
       'its title on the left, and a value block behind a keyline on the right — a mono caps ' +

@@ -15,7 +15,7 @@ export const sb16: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb16',
     category: 'scoreboard',
-    name: 'Club Status Card',
+    name: 'Club Status Card Scoreboard',
     styleTag: 'minimal',
     description: 'The amateur result card: a hairline status row, full club names, and the score.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const sb16: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Club Status Card',
+    name: 'Club Status Card Scoreboard',
     description:
       'The local and amateur match-status and final-score card, sibling of sb12 Club Match ' +
       'Board and lt01 Hairline: a flat solid panel with a left-aligned status row and live pip, ' +

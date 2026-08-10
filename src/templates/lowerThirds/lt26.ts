@@ -13,7 +13,7 @@ export const lt26: TemplateVariant = defineVariant(
   {
     id: 'lt26',
     category: 'lower-third',
-    name: 'Byline',
+    name: 'Byline Lower Third',
     styleTag: 'editorial',
     description: 'Publication kicker over the name and role — the printed byline, in that order.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const lt26: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Byline',
+    name: 'Byline Lower Third',
     description:
       'A printed byline for the screen: the publication or programme name as a tracked kicker on ' +
       'top, then the person\'s name, then their role. Written as three ordinary fields — the ' +

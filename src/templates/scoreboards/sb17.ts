@@ -21,7 +21,7 @@ export const sb17: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb17',
     category: 'scoreboard',
-    name: 'House Event Card',
+    name: 'House Event Card Scoreboard',
     styleTag: 'noacg',
     description: 'The house event card: substitutions, bookings and penalties, with a minute stamp.',
     maxLines: 1,
@@ -33,7 +33,7 @@ export const sb17: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Event Card',
+    name: 'House Event Card Scoreboard',
     description:
       'The NoaCG match-event card, sibling of sb05 House Scorebug: a void panel with an amber ' +
       'edge, the event kind and minute on a mono header row, the club beneath, and the two ' +

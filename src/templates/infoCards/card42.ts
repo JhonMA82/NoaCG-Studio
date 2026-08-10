@@ -16,7 +16,7 @@ export const card42: TemplateVariant = defineCardVariant(
   {
     id: 'card42',
     category: 'info-card',
-    name: 'Clean Listing',
+    name: 'Clean Listing Info Card',
     styleTag: 'minimal',
     description: 'A listing card: a photo and title beside a labelled value — property, lot, or resource.',
     maxLines: 5,
@@ -34,7 +34,7 @@ export const card42: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Clean Listing',
+    name: 'Clean Listing Info Card',
     description:
       'A quiet keyline panel topped by a thin accent rule: a photo, the listing title and its ' +
       'specification line on the left, and a value block on the right — a small caps label ' +

@@ -14,7 +14,7 @@ export const card19: TemplateVariant = defineCardVariant(
   {
     id: 'card19',
     category: 'info-card',
-    name: 'Frost Now Next',
+    name: 'Frost Now Next Info Card',
     styleTag: 'glass',
     description: 'A frosted now-playing card: the track and artist, then what is coming up.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card19: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Now Next',
+    name: 'Frost Now Next Info Card',
     description:
       'The glass now-playing card for concerts, DJ sets and theatre streams: a translucent ' +
       'blurred panel with a short accent stroke, the piece playing now over its artist line, ' +

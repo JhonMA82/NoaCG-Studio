@@ -10,7 +10,7 @@ export const lt34: TemplateVariant = defineVariant(
   {
     id: 'lt34',
     category: 'lower-third',
-    name: 'Title Strap',
+    name: 'Title Strap Lower Third',
     styleTag: 'cinematic',
     description: 'Centred name over a hairline, role beneath in wide caps — the title-card pair.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt34: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Title Strap',
+    name: 'Title Strap Lower Third',
     description:
       'The centred documentary pair: a light, wide-set name; a hairline; a role in tracked caps. ' +
       'Ships on the Ember palette — warm bone rather than a signal colour — so it belongs to the ' +

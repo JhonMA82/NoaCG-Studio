@@ -14,7 +14,7 @@ export const card18: TemplateVariant = defineCardVariant(
   {
     id: 'card18',
     category: 'info-card',
-    name: 'Now & Next',
+    name: 'Now & Next Info Card',
     styleTag: 'minimal',
     description: 'What is on air now, a hairline, and what follows it — panel-free.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card18: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Now & Next',
+    name: 'Now & Next Info Card',
     description:
       'The minimal now/next card: an accent hairline down the left, the current item at ' +
       'display size with its detail under it, a divider, then what is coming up in smaller ' +

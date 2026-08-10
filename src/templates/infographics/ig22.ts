@@ -16,7 +16,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig22',
     category: 'infographic',
-    name: 'House Goal',
+    name: 'House Goal Infographic',
     styleTag: 'noacg',
     description: 'A goal meter: the running total over a progress bar toward a target, with the share.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const ig22: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Goal',
+    name: 'House Goal Infographic',
     description:
       'The NoaCG goal meter: an 8px amber bar fused to a void blur panel, a mono label over one ' +
       'huge grouped total with its unit mark, the share of the goal held on the right, then a ' +

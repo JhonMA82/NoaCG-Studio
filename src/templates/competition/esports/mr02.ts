@@ -19,7 +19,7 @@ export const mr02: TemplateVariant = defineEsportsVariant(
   {
     id: 'mr02',
     category: 'esports-score',
-    name: 'House Maps',
+    name: 'House Maps Esports Score',
     styleTag: 'noacg',
     description: 'The house map card: void rows, mono numbers, an amber cursor on the live map.',
     maxLines: 1,
@@ -31,7 +31,7 @@ export const mr02: TemplateVariant = defineEsportsVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'House Maps',
+    name: 'House Maps Esports Score',
     description:
       'The NoaCG map indicator: a void blur card with an amber top edge, mono row numbers, ' +
       'the winning side marked on each played map, and an amber cursor block on the map ' +

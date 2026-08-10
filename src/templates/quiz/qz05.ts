@@ -15,7 +15,7 @@ export const qz05: TemplateVariant = defineQuizVariant(
   {
     id: 'qz05',
     category: 'quiz',
-    name: 'Volt Split',
+    name: 'Volt Split Quiz',
     styleTag: 'sport',
     description: 'A leaning sport board for two answers: the question over two equal accent slabs.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const qz05: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Split',
+    name: 'Volt Split Quiz',
     description:
       'The sport two-answer board, sibling of qz01 Arena Quiz and lt06 Split Bar: a leaning ' +
       'dark slab carries the question in condensed heavy caps over two equal answer blocks, ' +

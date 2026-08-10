@@ -13,7 +13,7 @@ export const ig09: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig09',
     category: 'infographic',
-    name: 'Frost Schedule',
+    name: 'Frost Schedule Infographic',
     styleTag: 'glass',
     description: 'A frosted glass running order: a soft heading over time/show rows.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ig09: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Schedule',
+    name: 'Frost Schedule Infographic',
     description:
       'The glass running order, sibling of lt08 Frosted Card and ig02 Glass Bars: a ' +
       'translucent blurred panel with a soft accent caps heading over a keyline and ' +

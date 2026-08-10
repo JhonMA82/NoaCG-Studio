@@ -15,7 +15,7 @@ export const fr01: TemplateVariant = defineFrameVariant(
   {
     id: 'fr01',
     category: 'frame',
-    name: 'House Cam',
+    name: 'House Cam Frame',
     styleTag: 'noacg',
     description: 'A single webcam surround: amber corner brackets and the house nameplate under it.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const fr01: TemplateVariant = defineFrameVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Cam',
+    name: 'House Cam Frame',
     description:
       'The NoaCG single-camera surround: a 16:9 window inset into the safe area with an amber ' +
       'corner bracket on each corner, and the house nameplate — an 8px amber bar fused to a ' +

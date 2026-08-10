@@ -25,7 +25,7 @@ export const card67: TemplateVariant = defineCardVariant(
   {
     id: 'card67',
     category: 'info-card',
-    name: 'Chapter Scrim',
+    name: 'Chapter Scrim Info Card',
     styleTag: 'cinematic',
     description: 'Chapter title on a soft directional scrim with one hairline and wide light type.',
     maxLines: 5,
@@ -37,7 +37,7 @@ export const card67: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Chapter Scrim',
+    name: 'Chapter Scrim Info Card',
     description:
       'The chapter opener in the lt32 Scrim family: a single 1 px hairline, dimmed wide-tracked ' +
       'chapter label and light display title on a directional scrim. The default fade uses sine easing.',
@@ -124,7 +124,7 @@ export const card68: TemplateVariant = defineCardVariant(
   {
     id: 'card68',
     category: 'info-card',
-    name: 'Now Playing Scrim',
+    name: 'Now Playing Scrim Info Card',
     styleTag: 'cinematic',
     description: 'Now-playing and next cue on a low letterbox scrim with one hairline.',
     maxLines: 5,
@@ -136,7 +136,7 @@ export const card68: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Now Playing Scrim',
+    name: 'Now Playing Scrim Info Card',
     description:
       'The now-playing card in the lt35 Letterbox family: current title and detail over a ' +
       'hairline, with the next cue kept quiet on the same soft scrim. The default fade uses sine easing.',
@@ -266,7 +266,7 @@ export const card69: TemplateVariant = defineCardVariant(
   {
     id: 'card69',
     category: 'info-card',
-    name: 'Documentary Quote',
+    name: 'Documentary Quote Info Card',
     styleTag: 'cinematic',
     description: 'Long documentary quotation with field-note label and attribution on a soft scrim.',
     maxLines: 4,
@@ -278,7 +278,7 @@ export const card69: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Documentary Quote',
+    name: 'Documentary Quote Info Card',
     description:
       'The documentary quotation in the lt32 Scrim family: one 1 px hairline, a dimmed field-note ' +
       'label, light wide prose and an attribution on a left-to-right scrim. The default fade uses sine easing.',
@@ -374,7 +374,7 @@ export const card70: TemplateVariant = defineCardVariant(
   {
     id: 'card70',
     category: 'info-card',
-    name: 'Location Scrim',
+    name: 'Location Scrim Info Card',
     styleTag: 'cinematic',
     description: 'Place, region and context on a compact directional scrim with one hairline.',
     maxLines: 3,
@@ -390,7 +390,7 @@ export const card70: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Location Scrim',
+    name: 'Location Scrim Info Card',
     description:
       'The location identifier in the lt35 Letterbox family: a compact directional scrim, ' +
       'one 1 px hairline, light wide place name and two dimmed context rows. The default fade uses sine easing.',
@@ -470,7 +470,7 @@ export const card71: TemplateVariant = defineCardVariant(
   {
     id: 'card71',
     category: 'info-card',
-    name: 'Prepared Lyric',
+    name: 'Prepared Lyric Info Card',
     styleTag: 'cinematic',
     description: 'Prepared caption or lyric line with the next line held quietly beneath it.',
     maxLines: 3,
@@ -486,7 +486,7 @@ export const card71: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Prepared Lyric',
+    name: 'Prepared Lyric Info Card',
     description:
       'The prepared caption and lyric in the centred lt34 Title Strap family: current line, ' +
       'next line and cue over a low scrim, divided by one 1 px hairline. It is prepared text, not a timed-text runtime.',

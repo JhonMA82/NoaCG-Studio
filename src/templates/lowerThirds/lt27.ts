@@ -11,7 +11,7 @@ export const lt27: TemplateVariant = defineVariant(
   {
     id: 'lt27',
     category: 'lower-third',
-    name: 'Column Rule',
+    name: 'Column Rule Lower Third',
     styleTag: 'editorial',
     description: 'Right-anchored editorial sidebar: a column rule with the type ragged-left.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const lt27: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Column Rule',
+    name: 'Column Rule Lower Third',
     description:
       'The editorial voice for the right of the frame: a column rule down the right edge, the ' +
       'name ragged-left against it, and the role as a tracked caps line. Pairs with lt25 Masthead ' +

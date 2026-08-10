@@ -10,7 +10,7 @@ export const lt48: TemplateVariant = defineVariant(
   {
     id: 'lt48',
     category: 'lower-third',
-    name: 'Glass Tag',
+    name: 'Glass Tag Lower Third',
     styleTag: 'glass',
     description: 'A small right-anchored frosted capsule: an accent dot and one name.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const lt48: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Glass Tag',
+    name: 'Glass Tag Lower Third',
     description:
       'A quiet frosted capsule for the corner of the frame: one accent dot, one name. Made to sit ' +
       'under a guest for a long stretch — a returning panellist, a remote contributor — where a ' +

@@ -18,7 +18,7 @@ export const ls27: TemplateVariant = defineVariant(
   {
     id: 'ls27',
     category: 'lower-third',
-    name: 'Track Cue',
+    name: 'Track Cue Lower Third',
     styleTag: 'minimal',
     description: 'A numbered programme item: the numeral in its own cell, then the title and composer.',
     maxLines: 4,
@@ -35,7 +35,7 @@ export const ls27: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Track Cue',
+    name: 'Track Cue Lower Third',
     description:
       'The programme strap: the item number set apart in its own right-aligned cell — a ' +
       'position in a sequence, not part of the title — with the title and composer beside it ' +

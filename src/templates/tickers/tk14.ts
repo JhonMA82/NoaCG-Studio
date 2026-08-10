@@ -15,7 +15,7 @@ export const tk14: TemplateVariant = defineTickerVariant(
   {
     id: 'tk14',
     category: 'ticker',
-    name: 'Market Board',
+    name: 'Market Board Ticker',
     styleTag: 'minimal',
     description: 'An index crawl with symbol, level and a delta carrying an arrow as well as a colour.',
     maxLines: 3,
@@ -41,7 +41,7 @@ export const tk14: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Market Board',
+    name: 'Market Board Ticker',
     description:
       'The index crawl: each instrument shows its symbol, its level in tabular figures, and ' +
       'a delta that carries an arrow, a sign and a colour — three signals, so the direction ' +

@@ -19,7 +19,7 @@ export const pc02: TemplateVariant = defineMatchupVariant(
   {
     id: 'pc02',
     category: 'matchup',
-    name: 'House Player',
+    name: 'House Player Matchup',
     styleTag: 'noacg',
     description: 'The house competitor card: void portrait frame, mono chip, amber figures.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const pc02: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Player',
+    name: 'House Player Matchup',
     description:
       'The NoaCG competitor card: a void stage, the portrait in an amber-keylined frame, a ' +
       'mono tagline chip, flat house display type, and amber stat figures revealed on the ' +
@@ -46,7 +46,7 @@ export const pc02: TemplateVariant = defineMatchupVariant(
     html: playerMarkup(o),
     fields: compFieldsFor(PLAYER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Stats', call: 'revealStats', duration: 0.5 }],
+    revealSteps: [{ name: 'Stats Matchup', call: 'revealStats', duration: 0.5 }],
     runtimeExtraJs: PLAYER_RUNTIME_JS,
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 

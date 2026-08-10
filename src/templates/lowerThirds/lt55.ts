@@ -18,7 +18,7 @@ export const lt55: TemplateVariant = defineVariant(
   {
     id: 'lt55',
     category: 'lower-third',
-    name: 'House Call',
+    name: 'House Call Lower Third',
     styleTag: 'noacg',
     description: 'A call-to-action strap: an amber action chip, the target beside it, and the reason under it.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const lt55: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Call',
+    name: 'House Call Lower Third',
     description:
       'The NoaCG call-to-action strap: an 8px amber bar fused to a void blur panel, a solid ' +
       'accent chip carrying the imperative ("Follow", "Donate", "Register", "Buy"), the target ' +

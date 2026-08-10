@@ -15,7 +15,7 @@ export const card50: TemplateVariant = defineCardVariant(
   {
     id: 'card50',
     category: 'info-card',
-    name: 'Scripture',
+    name: 'Scripture Info Card',
     styleTag: 'minimal',
     description: 'A reading card built for reading — generous measure, quiet accent, citation underneath.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const card50: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Scripture',
+    name: 'Scripture Info Card',
     description:
       'A verse set for reading aloud: a wide measure, prose line-height, and a short accent ' +
       'rule above it as the only mark on the card. The reference sits beneath in tracked ' +

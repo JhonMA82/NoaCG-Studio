@@ -15,7 +15,7 @@ export const card47: TemplateVariant = defineCardVariant(
   {
     id: 'card47',
     category: 'info-card',
-    name: 'Volt Location',
+    name: 'Volt Location Info Card',
     styleTag: 'sport',
     description: 'A venue marker: a pinned place in heavy caps over its region and a coordinates line.',
     maxLines: 3,
@@ -31,7 +31,7 @@ export const card47: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Location',
+    name: 'Volt Location Info Card',
     description:
       'A forward-leaning sport slab with a chunky accent edge: a drawn map pin beside the venue ' +
       'name in heavy condensed caps, the region under it, and a mono coordinates or capacity ' +

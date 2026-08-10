@@ -17,7 +17,7 @@ export const tk17: TemplateVariant = defineTickerVariant(
   {
     id: 'tk17',
     category: 'ticker',
-    name: 'Bilingual Crawl',
+    name: 'Bilingual Crawl Ticker',
     styleTag: 'minimal',
     description: 'A crawl carrying both languages per item, split by a neutral rule and equally weighted.',
     maxLines: 3,
@@ -40,7 +40,7 @@ export const tk17: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Bilingual Crawl',
+    name: 'Bilingual Crawl Ticker',
     description:
       'One strip, two languages: each item splits at a pipe into two equally weighted halves ' +
       'divided by a neutral keyline. Items with no pipe pass through whole, so a partly ' +

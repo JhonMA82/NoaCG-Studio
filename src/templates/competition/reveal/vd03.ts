@@ -17,7 +17,7 @@ export const vd03: TemplateVariant = defineRevealVariant(
   {
     id: 'vd03',
     category: 'reveal',
-    name: 'Clean Verdict',
+    name: 'Clean Verdict Reveal',
     styleTag: 'minimal',
     description: 'A quiet ruling: the mark set in type, the word under a hairline.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const vd03: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Verdict',
+    name: 'Clean Verdict Reveal',
     description:
       'The quiet ruling card: a soft scrim, the claim in display type, and the verdict said ' +
       'with a typographic mark and a hairline rather than a colour flood.',

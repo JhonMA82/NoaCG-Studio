@@ -16,7 +16,7 @@ export const sb05: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb05',
     category: 'scoreboard',
-    name: 'House Scorebug',
+    name: 'House Scorebug Scoreboard',
     styleTag: 'noacg',
     description: 'The house scorebug: colour chips, two teams, a period chip and a running clock.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb05: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'House Scorebug',
+    name: 'House Scorebug Scoreboard',
     description:
       'The NoaCG compact scorebug, sibling of sb03 House Score: a void blur strip with an amber ' +
       'top edge, a club colour chip beside each team, scores in void chips, and a clock block ' +

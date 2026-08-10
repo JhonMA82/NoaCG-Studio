@@ -12,7 +12,7 @@ export const pl01: TemplateVariant = definePollVariant(
   {
     id: 'pl01',
     category: 'poll',
-    name: 'House Vote',
+    name: 'House Vote Poll',
     styleTag: 'noacg',
     description: 'The house live-vote board: a void panel, amber edge, a VOTE NOW badge and growing amber bars.',
     maxLines: 4,
@@ -29,7 +29,7 @@ export const pl01: TemplateVariant = definePollVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'House Vote',
+    name: 'House Vote Poll',
     description:
       'The NoaCG live-vote board, sibling of lt11 House Strap: the house void panel with an amber ' +
       'accent edge, a mono VOTE NOW badge, the question in display type, and amber bars that grow ' +

@@ -15,7 +15,7 @@ export const fr02: TemplateVariant = defineFrameVariant(
   {
     id: 'fr02',
     category: 'frame',
-    name: 'Frost Interview',
+    name: 'Frost Interview Frame',
     styleTag: 'glass',
     description: 'A two-up interview surround: two camera windows, each with its own frosted nameplate.',
     maxLines: 4,
@@ -32,7 +32,7 @@ export const fr02: TemplateVariant = defineFrameVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Interview',
+    name: 'Frost Interview Frame',
     description:
       'A two-up remote-interview surround in the glass family: two equal camera windows with ' +
       'soft keyline edges, each carrying a frosted nameplate pill inside its bottom-left ' +

@@ -132,12 +132,15 @@ export function applyPresetData(
     const delay = delayEff !== undefined && Number.isFinite(delayEff) && delayEff > 0 ? round(delayEff * speed) : 0;
 
     if (scope === 'all') {
+      const targetStep = ph === 'in' ? next.steps[0] : next.steps[next.steps.length - 1];
+      // Clean swap for the WHOLE step: drop everything it held so switching presets never
+      // leaves the previous preset's tracks behind on layers the new preset doesn't touch.
+      targetStep.layers = {};
       let longest = 0;
       for (const [selector, tracks] of Object.entries(donorStep.layers)) {
         // A press-revealed layer's entrance belongs to its » press, not to ▶ Play —
         // exactly the classic rule (assigned parts drop from the intro choreography).
         if (ph === 'in' && layerPress(next, selector) !== -1) continue;
-        const targetStep = ph === 'in' ? next.steps[0] : next.steps[next.steps.length - 1];
         longest = Math.max(longest, swapLayerTracks(targetStep, selector, tracks, refDur, chosen, speed, donorStep.ease, delay));
         touched = true;
       }

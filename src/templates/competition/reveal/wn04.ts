@@ -18,7 +18,7 @@ export const wn04: TemplateVariant = defineRevealVariant(
   {
     id: 'wn04',
     category: 'reveal',
-    name: 'Clean Champion',
+    name: 'Clean Champion Reveal',
     styleTag: 'minimal',
     description: 'A quiet result card where a hairline separates the champion from the score.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const wn04: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Champion',
+    name: 'Clean Champion Reveal',
     description:
       'The minimal final-result card: a soft scrim, the champion in clean display type, the ' +
       'score arriving below a hairline, and a restrained accent celebration.',
@@ -44,7 +44,7 @@ export const wn04: TemplateVariant = defineRevealVariant(
     html: winnerMarkup(o),
     fields: compFieldsFor(WINNER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Result', call: 'revealResult', duration: 0.5 }],
+    revealSteps: [{ name: 'Result Reveal', call: 'revealResult', duration: 0.5 }],
     runtimeExtraJs: WINNER_RUNTIME_JS,
     css: `${revealStructureCss()}
 

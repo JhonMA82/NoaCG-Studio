@@ -13,7 +13,7 @@ export const lt05: TemplateVariant = defineVariant(
   {
     id: 'lt05',
     category: 'lower-third',
-    name: 'Angle Slab',
+    name: 'Angle Slab Lower Third',
     styleTag: 'sport',
     description: 'A forward-leaning dark slab with a chunky accent edge - fast, aggressive sport energy.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const lt05: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Angle Slab',
+    name: 'Angle Slab Lower Third',
     description:
       'A dark slab painted at a forward lean as if mid-sprint, while the text container stays ' +
       'straight so every line reads clean. A chunky accent slab inside the panel fuses with the ' +

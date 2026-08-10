@@ -15,7 +15,7 @@ export const al08: TemplateVariant = defineAlertVariant(
   {
     id: 'al08',
     category: 'alert',
-    name: 'Service Status',
+    name: 'Service Status Alert',
     styleTag: 'glass',
     description: 'A status panel: the service, its state in the operator’s own words, and a live time.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const al08: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Service Status',
+    name: 'Service Status Alert',
     description:
       'A frosted status panel: the service name, its state in the operator’s own words, and ' +
       'a live "as of HH:MM" stamp that repaints itself every minute — so the notice can sit ' +

@@ -24,7 +24,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig24',
     category: 'infographic',
-    name: 'House Milestones',
+    name: 'House Milestones Infographic',
     styleTag: 'noacg',
     description: 'A milestone track: tiers along a rail, the passed ones lit and the line run out to now.',
     maxLines: 2,
@@ -39,7 +39,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Milestones',
+    name: 'House Milestones Infographic',
     description:
       'The NoaCG milestone track: an 8px amber bar fused to a void blur panel, a heading row ' +
       'with the running figure and a "passed / total" count, then a rail of evenly spaced ' +

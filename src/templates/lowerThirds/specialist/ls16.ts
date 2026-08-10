@@ -18,7 +18,7 @@ export const ls16: TemplateVariant = defineVariant(
   {
     id: 'ls16',
     category: 'lower-third',
-    name: 'Service Speaker',
+    name: 'Service Speaker Lower Third',
     styleTag: 'glass',
     description: 'The moment in the order of service, with the person delivering it named beneath.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const ls16: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Service Speaker',
+    name: 'Service Speaker Lower Third',
     description:
       'The ceremony strap: the moment in the order of service set as a small accent label ' +
       'above the name of whoever is delivering it, on a frosted panel that belongs to a warm, ' +

@@ -8,7 +8,7 @@ export const lt01: TemplateVariant = defineVariant(
   {
     id: 'lt01',
     category: 'lower-third',
-    name: 'Hairline',
+    name: 'Hairline Lower Third',
     styleTag: 'minimal',
     description: 'Pure typography beside one thin vertical line - no panel, whitespace does the work.',
     maxLines: 2,
@@ -23,7 +23,7 @@ export const lt01: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Hairline',
+    name: 'Hairline Lower Third',
     description:
       'The quietest design of the set: no panel behind the text, just confident type and a ' +
       'single 3 px vertical hairline standing beside it. Best over calm, well-lit footage.',

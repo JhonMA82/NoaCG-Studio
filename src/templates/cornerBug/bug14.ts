@@ -10,7 +10,7 @@ export const bug14: TemplateVariant = defineBugVariant(
   {
     id: 'bug14',
     category: 'corner-bug',
-    name: 'Frost Mark',
+    name: 'Frost Mark Corner Bug',
     styleTag: 'glass',
     description: 'Logo only: one small frosted tile holding the logo and nothing else.',
     // Logo-only by design: the graphic has no text fields, so the wizard offers none.
@@ -23,7 +23,7 @@ export const bug14: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Frost Mark',
+    name: 'Frost Mark Corner Bug',
     description:
       'The logo-only glass bug: a translucent blurred tile with a hairline keyline and one ' +
       'soft lift, holding the imported logo — or, until one is picked, a LOGO placeholder box. No text at ' +

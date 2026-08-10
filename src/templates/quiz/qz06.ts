@@ -13,7 +13,7 @@ export const qz06: TemplateVariant = defineQuizVariant(
   {
     id: 'qz06',
     category: 'quiz',
-    name: 'House Split',
+    name: 'House Split Quiz',
     styleTag: 'noacg',
     description: 'The house board for two answers: a void panel, amber edge, two equal answer blocks.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const qz06: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Split',
+    name: 'House Split Quiz',
     description:
       'The NoaCG two-answer board, sibling of qz02 House Quiz and lt11 House Strap: the house ' +
       'void panel with an amber accent edge, the question in display type over two equal answer ' +

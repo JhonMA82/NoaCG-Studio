@@ -13,7 +13,7 @@ export const lt53: TemplateVariant = defineVariant(
   {
     id: 'lt53',
     category: 'lower-third',
-    name: 'House Board',
+    name: 'House Board Lower Third',
     styleTag: 'noacg',
     description: 'The house bar, a logo well, and four lines — name, role, organisation, status.',
     maxLines: 4,
@@ -30,7 +30,7 @@ export const lt53: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Board',
+    name: 'House Board Lower Third',
     description:
       'The house board for long-form interviews: the amber bar, a logo well for the guest\'s ' +
       'institution, then name, role, organisation and a mono status line in the accent colour. ' +

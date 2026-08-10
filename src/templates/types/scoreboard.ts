@@ -57,9 +57,9 @@ export const scoreboardType: GraphicType = {
         states: [
           {
             id: 'none',
-            name: 'No flag',
+            name: 'No flag Scoreboard',
             timeline: {
-              name: 'Flag out',
+              name: 'Flag out Scoreboard',
               duration: 0.22,
               ease: 'out',
               layers: { accent: { opacity: [{ time: 0, value: 1 }, { time: 0.22, value: 0.35 }] } },
@@ -68,9 +68,9 @@ export const scoreboardType: GraphicType = {
           },
           {
             id: 'shown',
-            name: 'Flag',
+            name: 'Flag Scoreboard',
             timeline: {
-              name: 'Flag in',
+              name: 'Flag in Scoreboard',
               duration: 0.28,
               ease: 'in',
               layers: {
@@ -97,12 +97,12 @@ export const scoreboardType: GraphicType = {
         id: 'result',
         initial: 'live',
         states: [
-          { id: 'live', name: 'Live', timeline: null, edges: [] },
+          { id: 'live', name: 'Live Scoreboard', timeline: null, edges: [] },
           {
             id: 'final',
-            name: 'Final',
+            name: 'Final Scoreboard',
             timeline: {
-              name: 'Final',
+              name: 'Final Scoreboard',
               duration: 0.35,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],
@@ -128,7 +128,7 @@ export const scoreboardType: GraphicType = {
   designs: [
     {
       id: 'sb01',
-      name: 'Match Strip',
+      name: 'Match Strip Scoreboard',
       description: 'The sport score strip: team names against big scores, one accent edge.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -137,7 +137,7 @@ export const scoreboardType: GraphicType = {
     },
     {
       id: 'sb02',
-      name: 'Quiet Score',
+      name: 'Quiet Score Scoreboard',
       description: 'Panel-free corner stack - two quiet rows split by a hairline, accent rule on the edge.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -155,7 +155,7 @@ export const scoreboardType: GraphicType = {
       // Designed FOR this cell: no noacg scoreboard existed. The house void strip with an
       // amber accent edge that doubles as the flag marker — sibling of lt11 House Strap.
       id: 'sb03',
-      name: 'House Score',
+      name: 'House Score Scoreboard',
       description: 'The house score strip: void panel, amber accent edge, scores in void chips.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -167,7 +167,7 @@ export const scoreboardType: GraphicType = {
       // Designed FOR this cell: no glass scoreboard existed. A frosted strip with a soft accent
       // bar that doubles as the flag marker — sibling of lt08 Frosted Card.
       id: 'sb04',
-      name: 'Frost Score',
+      name: 'Frost Score Scoreboard',
       description: 'A frosted score strip: soft accent bar, team names, scores in glass chips.',
       styleTag: 'glass',
       palette: paletteById('frost'),

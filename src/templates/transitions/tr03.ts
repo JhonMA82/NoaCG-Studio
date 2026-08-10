@@ -14,7 +14,7 @@ export const tr03: TemplateVariant = defineTransitionVariant(
   {
     id: 'tr03',
     category: 'transition',
-    name: 'House Replay',
+    name: 'House Replay Transition',
     styleTag: 'noacg',
     description: 'A replay bumper: two void bands close over the frame with an amber seam and a chip.',
     maxLines: 1,
@@ -26,7 +26,7 @@ export const tr03: TemplateVariant = defineTransitionVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Replay',
+    name: 'House Replay Transition',
     description:
       'The NoaCG replay bumper: two void bands cover the frame from above and below, an amber ' +
       'keyline runs along the seam where they meet, and the label sits on it as a solid chip. ' +

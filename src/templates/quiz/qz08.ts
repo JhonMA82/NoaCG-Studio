@@ -12,7 +12,7 @@ export const qz08: TemplateVariant = defineQuizVariant(
   {
     id: 'qz08',
     category: 'quiz',
-    name: 'Clean Split',
+    name: 'Clean Split Quiz',
     styleTag: 'minimal',
     description: 'A quiet board for two answers: the question over two halves split by a hairline.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const qz08: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Split',
+    name: 'Clean Split Quiz',
     description:
       'The minimal two-answer board, sibling of qz04 Clean Quiz and lt01 Hairline: a restrained ' +
       'near-black panel with the question over a dim keyline and two equal answer halves divided ' +

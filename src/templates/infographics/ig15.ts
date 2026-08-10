@@ -13,7 +13,7 @@ export const ig15: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig15',
     category: 'infographic',
-    name: 'Frost Facts',
+    name: 'Frost Facts Infographic',
     styleTag: 'glass',
     description: 'A frosted good-to-know board — one "term | explanation" per line.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig15: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Facts',
+    name: 'Frost Facts Infographic',
     description:
       'The glass explainer board: a translucent blurred panel with a short accent stroke, a ' +
       'soft heading, and facts as a small accent term over the fact itself. For venue ' +

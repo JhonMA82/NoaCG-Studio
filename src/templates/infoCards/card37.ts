@@ -13,7 +13,7 @@ export const card37: TemplateVariant = defineCardVariant(
   {
     id: 'card37',
     category: 'info-card',
-    name: 'House Statement',
+    name: 'House Statement Info Card',
     styleTag: 'noacg',
     description: 'The house statement card: a long passage, a second language, an attribution.',
     maxLines: 4,
@@ -25,7 +25,7 @@ export const card37: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'House Statement',
+    name: 'House Statement Info Card',
     description:
       'The house long-text card, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono label, the statement set as prose, a second ' +

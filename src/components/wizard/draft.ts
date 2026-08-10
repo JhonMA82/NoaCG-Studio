@@ -12,6 +12,7 @@ import {
 } from '../../model/projectFormat';
 import { addPlacedLine } from '../../blocks/designLayout';
 import { getCssVariable, setCssVariable } from '../../blocks/cssVars';
+import { FONTS, fontStack } from '../../model/fonts';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { anyPresetById, type AnimPhase } from '../../blocks/presetRegistry';
 import { parseAnimData } from '../../blocks/animData';
@@ -446,11 +447,23 @@ export function buildDraftTemplate(
   // prefill, and the export slug through ONE path rather than being applied per branch.
   const named = draftName(variant, draft);
   if (named !== template.name) template = { ...template, name: named };
-  // The "All design colors" rows: direct :root overrides beyond the palette's four roles,
-  // written with the Style panel's own patch so the wizard needs no second mechanism.
+  let css = template.css;
+  if (draft.fontId) {
+    const stack = draft.fontId === 'custom' && draft.customFont 
+      ? `"${draft.customFont.family}"`
+      : (draft.fontId ? fontStack(FONTS.find(f => f.id === draft.fontId)!) : '');
+    if (stack) {
+      const fontVars = ['font-body', 'font-numeric', 'font-label', 'font-kicker'];
+      for (const v of fontVars) {
+        if (getCssVariable(css, v) !== null && !(v in draft.cssVarOverrides)) {
+          css = setCssVariable(css, v, stack);
+        }
+      }
+    }
+  }
+
   const overridden = Object.entries(draft.cssVarOverrides);
-  if (overridden.length > 0) {
-    let css = template.css;
+  if (overridden.length > 0 || draft.fontId) {
     // Only vars the built design DECLARES: switching designs mid-wizard must not graft the
     // previous design's variable names onto one that never reads them.
     for (const [name, value] of overridden) {

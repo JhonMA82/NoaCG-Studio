@@ -14,7 +14,7 @@ export const lt56: TemplateVariant = defineVariant(
   {
     id: 'lt56',
     category: 'lower-third',
-    name: 'Frost Call',
+    name: 'Frost Call Lower Third',
     styleTag: 'glass',
     description: 'A frosted call-to-action pill: an outlined action chip, the target, and a reason line.',
     maxLines: 3,
@@ -30,7 +30,7 @@ export const lt56: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Call',
+    name: 'Frost Call Lower Third',
     description:
       'A translucent blurred pill carrying the call to action: an outlined chip with the ' +
       'imperative ("Donate", "Follow", "Register"), the target address beside it, and a small ' +

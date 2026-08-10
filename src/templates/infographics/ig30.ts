@@ -9,7 +9,7 @@ export const ig30: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig30',
     category: 'infographic',
-    name: 'Clean Goal',
+    name: 'Clean Goal Infographic',
     styleTag: 'minimal',
     description:
       'A quiet goal meter: running total, derived share, and a hairline progress track.',
@@ -25,7 +25,7 @@ export const ig30: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Clean Goal',
+    name: 'Clean Goal Infographic',
     description:
       'A minimal running total with its derived percentage and target on a quiet hairline meter.',
     uicolor: '2',

@@ -21,7 +21,7 @@ export const ls31: TemplateVariant = defineVariant(
   {
     id: 'ls31',
     category: 'lower-third',
-    name: 'Creator Stack',
+    name: 'Creator Stack Lower Third',
     styleTag: 'noacg',
     description: 'A creator name over a row of handle chips — one chip per platform, each its own field.',
     maxLines: 5,
@@ -39,7 +39,7 @@ export const ls31: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Creator Stack',
+    name: 'Creator Stack Lower Third',
     description:
       'The follow-me strap: the creator name and what they do, over a row of handle chips — ' +
       'one per platform, each an independent SPX field, so a channel is added or dropped ' +

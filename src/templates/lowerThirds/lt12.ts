@@ -11,7 +11,7 @@ export const lt12: TemplateVariant = defineVariant(
   {
     id: 'lt12',
     category: 'lower-third',
-    name: 'House Breaking',
+    name: 'House Breaking Lower Third',
     styleTag: 'noacg',
     description: 'Breaking banner: solid accent label chip over a void headline panel with the house bar.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const lt12: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Breaking',
+    name: 'House Breaking Lower Third',
     description:
       'The house family with the urgency turned up: a solid accent chip (label in dark mono ' +
       'caps) stacked on a void blur panel whose left edge is the 8px house bar, carrying one ' +

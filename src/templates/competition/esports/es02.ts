@@ -21,7 +21,7 @@ export const es02: TemplateVariant = defineEsportsVariant(
   {
     id: 'es02',
     category: 'esports-score',
-    name: 'House Series',
+    name: 'House Series Esports Score',
     styleTag: 'noacg',
     description: 'The house scorebug: void panel, amber edge, amber map scores and series pips.',
     maxLines: 5,
@@ -39,7 +39,7 @@ export const es02: TemplateVariant = defineEsportsVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'House Series',
+    name: 'House Series Esports Score',
     description:
       'The NoaCG series scorebug, sibling of sb03 House Score: a void blur panel with an ' +
       'amber top edge and left accent bar, mono stage and phase labels, amber map scores in ' +

@@ -14,7 +14,7 @@ export const card22: TemplateVariant = defineCardVariant(
   {
     id: 'card22',
     category: 'info-card',
-    name: 'News Headline',
+    name: 'News Headline Info Card',
     styleTag: 'minimal',
     description: 'A panel-free headline card: kicker, headline, the story under it, then the byline.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card22: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'News Headline',
+    name: 'News Headline Info Card',
     description:
       'The minimal headline card for news and current affairs: an accent hairline down the ' +
       'left, a BREAKING-style kicker, the headline at display size, the story in paragraph ' +

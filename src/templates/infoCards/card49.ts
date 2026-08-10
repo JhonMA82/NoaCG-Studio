@@ -18,7 +18,7 @@ export const card49: TemplateVariant = defineCardVariant(
   {
     id: 'card49',
     category: 'info-card',
-    name: 'Clean Partners',
+    name: 'Clean Partners Info Card',
     styleTag: 'minimal',
     description: 'A partners board: a quiet heading over a grid of six sponsor logo slots.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const card49: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Partners',
+    name: 'Clean Partners Info Card',
     description:
       'A quiet keyline panel topped by an accent hairline: a heading and a supporting line over ' +
       'a three-by-two grid of partner logo slots. Every partner is on screen at once — this ' +

@@ -13,7 +13,7 @@ export const lt23: TemplateVariant = defineVariant(
   {
     id: 'lt23',
     category: 'lower-third',
-    name: 'Mark Left',
+    name: 'Mark Left Lower Third',
     styleTag: 'minimal',
     description: 'A square logo mark, an accent divider, then the name and role — one lock-up.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const lt23: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Mark Left',
+    name: 'Mark Left Lower Third',
     description:
       'A horizontal lock-up: the channel or club mark on the left, a thin accent divider, then ' +
       'the name over a dimmed role. The mark is a real SPX image field — leave it empty and the ' +

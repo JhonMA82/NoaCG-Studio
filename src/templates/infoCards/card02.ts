@@ -12,7 +12,7 @@ export const card02: TemplateVariant = defineCardVariant(
   {
     id: 'card02',
     category: 'info-card',
-    name: 'Slab Card',
+    name: 'Slab Card Info Card',
     styleTag: 'sport',
     description: 'A forward-leaning stat slab with a chunky accent edge - lt05 Angle Slab, card-sized.',
     maxLines: 5,
@@ -28,7 +28,7 @@ export const card02: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Slab Card',
+    name: 'Slab Card Info Card',
     description:
       'A dark card painted at the same forward lean as the Angle Slab lower third, with the ' +
       'text container kept straight so every stat line reads clean. A chunky accent slab fuses ' +

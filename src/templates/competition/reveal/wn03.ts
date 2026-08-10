@@ -19,7 +19,7 @@ export const wn03: TemplateVariant = defineRevealVariant(
   {
     id: 'wn03',
     category: 'reveal',
-    name: 'Frost Champion',
+    name: 'Frost Champion Reveal',
     styleTag: 'glass',
     description: 'The result on one frosted panel — the score arrives on the press.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const wn03: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Champion',
+    name: 'Frost Champion Reveal',
     description:
       'The glass final-result card: crest, champion and score on one frosted, softly-rounded ' +
       'panel, the score revealed on the press, and an accent ring for the celebration.',
@@ -45,7 +45,7 @@ export const wn03: TemplateVariant = defineRevealVariant(
     html: winnerMarkup(o),
     fields: compFieldsFor(WINNER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Result', call: 'revealResult', duration: 0.5 }],
+    revealSteps: [{ name: 'Result Reveal', call: 'revealResult', duration: 0.5 }],
     runtimeExtraJs: WINNER_RUNTIME_JS,
     css: `${revealStructureCss()}
 

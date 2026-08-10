@@ -20,7 +20,7 @@ export const ls32: TemplateVariant = defineVariant(
   {
     id: 'ls32',
     category: 'lower-third',
-    name: 'Stream Identity',
+    name: 'Stream Identity Lower Third',
     styleTag: 'sport',
     description: 'A streamer handle with a pulsing live dot, over a goal figure in its own cell.',
     maxLines: 4,
@@ -37,7 +37,7 @@ export const ls32: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Stream Identity',
+    name: 'Stream Identity Lower Third',
     description:
       'The streamer card: the handle with a pulsing live dot and the creator name beneath, ' +
       'beside a goal cell carrying its own label and figure as separate SPX fields — so the ' +

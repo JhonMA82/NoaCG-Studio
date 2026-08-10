@@ -10,7 +10,7 @@ export const ss01: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss01',
     category: 'starting-soon',
-    name: 'Quiet Hold',
+    name: 'Quiet Hold Starting Soon',
     styleTag: 'minimal',
     description: 'Centered caps title, elegant show name, accent hairline and a big quiet countdown.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ss01: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Quiet Hold',
+    name: 'Quiet Hold Starting Soon',
     description:
       'The quietest holding screen of the set: a small tracking-wide caps title above a ' +
       'large elegant show name, separated from the quiet tabular countdown by one 2 px ' +

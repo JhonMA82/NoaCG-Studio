@@ -16,7 +16,7 @@ export const sb06: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb06',
     category: 'scoreboard',
-    name: 'Volt Scorebug',
+    name: 'Volt Scorebug Scoreboard',
     styleTag: 'sport',
     description: 'A hard sport slab bug: colour bars behind team codes, scores, and a shot-style countdown.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb06: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Volt Scorebug',
+    name: 'Volt Scorebug Scoreboard',
     description:
       'The sport compact scorebug, sibling of sb01 Match Strip and lt06 Split Bar: a hard black ' +
       'slab with a leaning accent cap, each team code sitting on its own club-colour bar, and a ' +

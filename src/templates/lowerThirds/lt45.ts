@@ -10,7 +10,7 @@ export const lt45: TemplateVariant = defineVariant(
   {
     id: 'lt45',
     category: 'lower-third',
-    name: 'Glass Chip',
+    name: 'Glass Chip Lower Third',
     styleTag: 'glass',
     description: 'A small centred frosted chip: accent rule, name, dimmed role.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt45: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Glass Chip',
+    name: 'Glass Chip Lower Third',
     description:
       'The smallest glass design in the set: a frosted chip centred at the bottom of the frame, ' +
       'opened by a short accent rule. Made for stage and vertical framings where the subject sits ' +

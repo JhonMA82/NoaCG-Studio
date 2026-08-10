@@ -16,7 +16,7 @@ export const sb14: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb14',
     category: 'scoreboard',
-    name: 'Volt Status Card',
+    name: 'Volt Status Card Scoreboard',
     styleTag: 'sport',
     description: 'A sport result slate: a solid accent status banner over the clubs and a huge score.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb14: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Status Card',
+    name: 'Volt Status Card Scoreboard',
     description:
       'The sport match-status and final-score card, sibling of sb10 Volt Match Board and lt06 ' +
       'Split Bar: a solid accent banner carrying the status word, then the two clubs on their ' +

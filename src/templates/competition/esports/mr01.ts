@@ -19,7 +19,7 @@ export const mr01: TemplateVariant = defineEsportsVariant(
   {
     id: 'mr01',
     category: 'esports-score',
-    name: 'Map Ladder',
+    name: 'Map Ladder Esports Score',
     styleTag: 'sport',
     description: 'The series as a ladder: every map, who took it, and where play is now.',
     maxLines: 1,
@@ -31,7 +31,7 @@ export const mr01: TemplateVariant = defineEsportsVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Map Ladder',
+    name: 'Map Ladder Esports Score',
     description:
       'The sport map indicator: a numbered ladder of the series, the winning side marked on ' +
       'each played map, and an accent cursor on the map being played. The rows are rebuilt ' +

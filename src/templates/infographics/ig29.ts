@@ -22,7 +22,7 @@ export const ig29: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig29',
     category: 'infographic',
-    name: 'Club Fixtures',
+    name: 'Club Fixtures Infographic',
     styleTag: 'minimal',
     description: 'The amateur results board: full club names on a flat panel, scores in accent.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const ig29: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Club Fixtures',
+    name: 'Club Fixtures Infographic',
     description:
       'The local and amateur fixtures and results board, sibling of ig33 Club Table and ig29 ' +
       'Club Lineup: a flat panel with a small heading, the division beside it, and one row per ' +

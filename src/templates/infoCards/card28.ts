@@ -14,7 +14,7 @@ export const card28: TemplateVariant = defineCardVariant(
   {
     id: 'card28',
     category: 'info-card',
-    name: 'Volt Process',
+    name: 'Volt Process Info Card',
     styleTag: 'sport',
     description: 'A sport runsheet: accent-chip numbers, heavy caps steps, one per Continue.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const card28: TemplateVariant = defineCardVariant(
     defaultSteps: true,
   },
   {
-    name: 'Volt Process',
+    name: 'Volt Process Info Card',
     description:
       'The sport runsheet: a flat near-black slab under a chunky accent rail, a tracked-caps ' +
       'heading, and steps numbered in solid accent chips. Built for match-day routines, warm-up ' +

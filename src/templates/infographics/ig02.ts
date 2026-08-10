@@ -14,7 +14,7 @@ export const ig02: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig02',
     category: 'infographic',
-    name: 'Glass Bars',
+    name: 'Glass Bars Infographic',
     styleTag: 'glass',
     description: 'A frosted glass panel with growing rounded bars - one "Label | value" per line.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const ig02: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Glass Bars',
+    name: 'Glass Bars Infographic',
     description:
       'A translucent frosted panel - the sibling of the Frosted Card lower third - holding ' +
       'a horizontal bar chart. An accent caps heading sits on top; each data row shows its ' +

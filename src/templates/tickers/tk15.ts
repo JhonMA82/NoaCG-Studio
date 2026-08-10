@@ -14,7 +14,7 @@ export const tk15: TemplateVariant = defineTickerVariant(
   {
     id: 'tk15',
     category: 'ticker',
-    name: 'Public Notice Crawl',
+    name: 'Public Notice Crawl Ticker',
     styleTag: 'minimal',
     description: 'A high-contrast emergency crawl with a permanent source cap, built to run for hours.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const tk15: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Public Notice Crawl',
+    name: 'Public Notice Crawl Ticker',
     description:
       'The emergency-information strip: fully opaque, the largest type in the ticker set, ' +
       'and a permanent source cap. Built to run for hours over ordinary programming without ' +

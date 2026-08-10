@@ -19,7 +19,7 @@ export const card58: TemplateVariant = defineCardVariant(
   {
     id: 'card58',
     category: 'info-card',
-    name: 'Graduate',
+    name: 'Graduate Info Card',
     styleTag: 'noacg',
     description: 'One graduate at a time — name, award, honours, left-aligned so re-takes never shift the card.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const card58: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Graduate',
+    name: 'Graduate Info Card',
     description:
       'The house name card for a graduation walk: the graduate in big display type against ' +
       'the amber rail, the award beneath it, and honours in a mono accent line. Left ' +

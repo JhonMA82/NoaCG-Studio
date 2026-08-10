@@ -19,7 +19,7 @@ export const card56: TemplateVariant = defineCardVariant(
   {
     id: 'card56',
     category: 'info-card',
-    name: 'Award Card',
+    name: 'Award Card Info Card',
     styleTag: 'noacg',
     description: 'Category, winner, citation — built for the Continue beat: hold the category, then land the name.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const card56: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Award Card',
+    name: 'Award Card Info Card',
     description:
       'The house award card: the category as a mono label on an amber rail, the winner in ' +
       'big display type, and the citation beneath. Turn on “Reveal step by step” when you ' +

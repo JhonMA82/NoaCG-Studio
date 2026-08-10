@@ -25,7 +25,7 @@ export const tt01: TemplateVariant = defineResultsVariant(
   {
     id: 'tt01',
     category: 'results-board',
-    name: 'Timing Tower',
+    name: 'Timing Tower Results Board',
     styleTag: 'sport',
     description: 'The live running order of a timed session — position, competitor, gap.',
     maxLines: 2,
@@ -40,7 +40,7 @@ export const tt01: TemplateVariant = defineResultsVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Timing Tower',
+    name: 'Timing Tower Results Board',
     description:
       'The motorsport timing tower: a narrow column of positions on accent chips, competitor ' +
       'codes and the gap column in tabular figures, with a focus the commentary can move down ' +

@@ -14,7 +14,7 @@ export const lt51: TemplateVariant = defineVariant(
   {
     id: 'lt51',
     category: 'lower-third',
-    name: 'House Center',
+    name: 'House Center Lower Third',
     styleTag: 'noacg',
     description: 'The house bar turned horizontal across a centred void panel — name and mono role.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt51: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Center',
+    name: 'House Center Lower Third',
     description:
       'The house strap for centre-frame shots: the 8 px amber bar laid horizontally across the top ' +
       'of the void panel, with the name and a mono role line centred beneath it. Sibling of lt11 ' +

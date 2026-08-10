@@ -18,7 +18,7 @@ export const vd01: TemplateVariant = defineRevealVariant(
   {
     id: 'vd01',
     category: 'reveal',
-    name: 'Call Verdict',
+    name: 'Call Verdict Reveal',
     styleTag: 'sport',
     description: 'A ruling card: the question, then a full-frame tick or cross.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const vd01: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Call Verdict',
+    name: 'Call Verdict Reveal',
     description:
       'The sport ruling card: the question over a dark stage, then a full-frame tick or cross ' +
       'with its word beneath. Correct rules in the accent; incorrect rules in red.',

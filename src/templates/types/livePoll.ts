@@ -42,7 +42,7 @@ const VOTING_WINDOW = 20;
 
 export const livePollType: GraphicType = {
   id: 'live-poll',
-  name: 'Live vote',
+  name: 'Live vote Poll',
   description: 'A question, the options an audience is voting on, and the moment the vote closes.',
   structure: {
     prefix: 'poll',
@@ -76,11 +76,11 @@ export const livePollType: GraphicType = {
       branches: [
         {
           id: 'closed',
-          name: 'Voting closed',
+          name: 'Voting closed Poll',
           // Closing the vote takes the badge away and nothing else — the figures are still the
           // result's job. Real keyframes, so a snap into this state lands the same pose.
           timeline: {
-            name: 'Close voting',
+            name: 'Close voting Poll',
             duration: 0.35,
             ease: 'out',
             layers: {
@@ -103,9 +103,9 @@ export const livePollType: GraphicType = {
         },
         {
           id: 'called',
-          name: 'Winner called',
+          name: 'Winner called Poll',
           timeline: {
-            name: 'Call winner',
+            name: 'Call winner Poll',
             duration: 0.45,
             ease: 'in',
             calls: [{ time: 0, call: 'pollCallWinner' }],
@@ -135,7 +135,7 @@ export const livePollType: GraphicType = {
   designs: [
     {
       id: 'pl01',
-      name: 'House Vote',
+      name: 'House Vote Poll',
       description: 'The house live-vote board: a void panel, amber edge, a VOTE NOW badge and growing amber bars.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -144,7 +144,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl02',
-      name: 'Volt Vote',
+      name: 'Volt Vote Poll',
       description: 'A results-night slab: condensed caps options, square accent bars, a called winner.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -158,7 +158,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl03',
-      name: 'Frost Vote',
+      name: 'Frost Vote Poll',
       description: 'A frosted live-vote board: a soft VOTE NOW pill over rounded glass bars.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -167,7 +167,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl04',
-      name: 'Clean Vote',
+      name: 'Clean Vote Poll',
       description: 'A quiet live-vote board: an accent VOTE NOW label, a keyline, and slim growing bars.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

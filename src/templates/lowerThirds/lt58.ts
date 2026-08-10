@@ -9,7 +9,7 @@ export const lt58: TemplateVariant = defineVariant(
   {
     id: 'lt58',
     category: 'lower-third',
-    name: 'Clean Call',
+    name: 'Clean Call Lower Third',
     styleTag: 'minimal',
     description:
       'A quiet call-to-action: a hairline label, the target, and one reason line.',
@@ -33,7 +33,7 @@ export const lt58: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Clean Call',
+    name: 'Clean Call Lower Third',
     description:
       'A minimal call-to-action led by a fine accent rule, with a tracked action label over the target and one supporting line.',
     uicolor: '2',

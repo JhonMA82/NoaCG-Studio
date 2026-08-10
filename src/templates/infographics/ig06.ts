@@ -15,7 +15,7 @@ export const ig06: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig06',
     category: 'infographic',
-    name: 'Schedule Board',
+    name: 'Schedule Board Infographic',
     styleTag: 'minimal',
     description: 'A quiet dark panel listing time/show rows - one "time | show" per line.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const ig06: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Schedule Board',
+    name: 'Schedule Board Infographic',
     description:
       'The sibling of the Hairline / Underline lower thirds: one restrained near-black ' +
       'panel, an accent tracking-caps heading over a dim keyline, and time/show rows with ' +

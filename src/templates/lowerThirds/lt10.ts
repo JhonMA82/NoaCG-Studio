@@ -15,7 +15,7 @@ export const lt10: TemplateVariant = defineVariant(
   {
     id: 'lt10',
     category: 'lower-third',
-    name: 'Soft Stack',
+    name: 'Soft Stack Lower Third',
     styleTag: 'glass',
     description: 'A floating glass card with a soft wide shadow and an accent dot before the name.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const lt10: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Soft Stack',
+    name: 'Soft Stack Lower Third',
     description:
       'A floating frosted glass card - 14 px radius, no keyline, one very soft wide shadow. ' +
       'A small accent dot sits inline just before the name; the title dims below it and the ' +

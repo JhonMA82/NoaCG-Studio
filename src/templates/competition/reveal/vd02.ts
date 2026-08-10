@@ -19,7 +19,7 @@ export const vd02: TemplateVariant = defineRevealVariant(
   {
     id: 'vd02',
     category: 'reveal',
-    name: 'House Verdict',
+    name: 'House Verdict Reveal',
     styleTag: 'noacg',
     description: 'The house ruling: void stage, mono labels, amber tick or red cross.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const vd02: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Verdict',
+    name: 'House Verdict Reveal',
     description:
       'The NoaCG ruling card: a void stage, mono prompt and note, and a full-frame amber tick ' +
       'or red cross with its word beneath.',

@@ -13,7 +13,7 @@ export const ss11: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss11',
     category: 'starting-soon',
-    name: 'Doors Open',
+    name: 'Doors Open Starting Soon',
     styleTag: 'sport',
     description: 'The venue hold — leaning slab, condensed caps, and a big clock counting to the ticketed time.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ss11: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Doors Open',
+    name: 'Doors Open Starting Soon',
     description:
       'The sport venue hold: a leaning accent slab carrying the kicker, the event in ' +
       'condensed caps, and the countdown at full stadium size beneath them. Counts to the ' +

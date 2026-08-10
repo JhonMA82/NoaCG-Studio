@@ -13,7 +13,7 @@ export const ig20: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig20',
     category: 'infographic',
-    name: 'Volt Recap',
+    name: 'Volt Recap Infographic',
     styleTag: 'sport',
     description: 'A sport half-time board — one "unit | note" per line, in heavy caps.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig20: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Recap',
+    name: 'Volt Recap Infographic',
     description:
       'The sport recap board: a flat near-black slab under a chunky accent rail, a tracked-caps ' +
       'heading, and notes as an accent unit column against the instruction. For half-time ' +

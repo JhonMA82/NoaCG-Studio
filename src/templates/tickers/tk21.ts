@@ -16,7 +16,7 @@ export const tk21: TemplateVariant = defineTickerVariant(
   {
     id: 'tk21',
     category: 'ticker',
-    name: 'Editorial Desk',
+    name: 'Editorial Desk Ticker',
     styleTag: 'editorial',
     description: 'One news line at a time on a flat ink strip framed by printed rules.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const tk21: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Editorial Desk',
+    name: 'Editorial Desk Ticker',
     description:
       'The news ticker in the lt25 Masthead family: a wide-tracked desk label, one complete ' +
       'story held long enough to read, and exact 2 px printed rules on a flat ink surface.',

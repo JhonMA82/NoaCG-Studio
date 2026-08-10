@@ -9,7 +9,7 @@ export const ss17: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss17',
     category: 'starting-soon',
-    name: 'House Sign-off',
+    name: 'House Sign-off Starting Soon',
     styleTag: 'noacg',
     description:
       'The house end card with a logo, closing line, thank-you message, and next appointment.',
@@ -26,7 +26,7 @@ export const ss17: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Sign-off',
+    name: 'House Sign-off Starting Soon',
     description:
       'The NoaCG full-frame sign-off: logo and mono closing line over a display message, amber rule, and next appointment.',
     uicolor: '4',

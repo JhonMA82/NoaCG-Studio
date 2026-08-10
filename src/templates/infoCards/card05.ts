@@ -13,7 +13,7 @@ export const card05: TemplateVariant = defineCardVariant(
   {
     id: 'card05',
     category: 'info-card',
-    name: 'House Title',
+    name: 'House Title Info Card',
     styleTag: 'noacg',
     description: 'The house title card: mono kicker, huge display title, quiet subtitle, soft accent glow.',
     maxLines: 5,
@@ -29,7 +29,7 @@ export const card05: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Title',
+    name: 'House Title Info Card',
     description:
       'The NoaCG show opener: a tracked mono kicker in the accent color above one huge ' +
       'display title and a quiet subtitle, lifted off the picture by a soft radial accent ' +

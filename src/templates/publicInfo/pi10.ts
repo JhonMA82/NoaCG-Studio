@@ -9,7 +9,7 @@ export const pi10: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi10',
     category: 'public-info',
-    name: 'Source Folio',
+    name: 'Source Folio Public Info',
     styleTag: 'editorial',
     description: 'Source and qualifier on a compact flat paper folio with one printed rule.',
     maxLines: 2,
@@ -24,7 +24,7 @@ export const pi10: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Source Folio',
+    name: 'Source Folio Public Info',
     description:
       'The source attribution in the compact lt31 Standfirst family: one exact 2 px printed ' +
       'rule, a clear source and its qualifier on a flat paper surface.',

@@ -13,7 +13,7 @@ export const pi05: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi05',
     category: 'public-info',
-    name: 'Municipal Notice',
+    name: 'Municipal Notice Public Info',
     styleTag: 'glass',
     description: 'A council notice with its own reference-and-deadline line and issuing office.',
     maxLines: 4,
@@ -30,7 +30,7 @@ export const pi05: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Municipal Notice',
+    name: 'Municipal Notice Public Info',
     description:
       'The council card: a frosted panel carrying a heading, the notice, and — in a chip of ' +
       'its own — the case reference and the deadline to respond by. The two facts a viewer ' +

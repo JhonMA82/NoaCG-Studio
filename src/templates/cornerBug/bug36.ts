@@ -9,7 +9,7 @@ export const bug36: TemplateVariant = defineBugVariant(
   {
     id: 'bug36',
     category: 'corner-bug',
-    name: 'Quiet Location Chip',
+    name: 'Quiet Location Chip Corner Bug',
     styleTag: 'minimal',
     description: 'A panel-free chip: the location, a short accent rule, then the status.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const bug36: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Quiet Location Chip',
+    name: 'Quiet Location Chip Corner Bug',
     description:
       'No panel: the place in the display voice, a short accent rule, then the status as a ' +
       'tiny tracked-caps label — all sitting straight on the video with soft shadows for ' +

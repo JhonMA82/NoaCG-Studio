@@ -17,7 +17,7 @@ export const card45: TemplateVariant = defineCardVariant(
   {
     id: 'card45',
     category: 'info-card',
-    name: 'Clean Scan',
+    name: 'Clean Scan Info Card',
     styleTag: 'minimal',
     description: 'A stacked QR card: your code image above a headline, the URL, and one detail line.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const card45: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Clean Scan',
+    name: 'Clean Scan Info Card',
     description:
       'A panel-free QR card in the minimal family: a white quiet-zone tile holding your code ' +
       'image, a short accent rule beneath it, then the headline, the written-out address, and ' +

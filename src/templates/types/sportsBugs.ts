@@ -57,9 +57,9 @@ function matchClockGroup(): TypeGroup {
     states: [
       {
         id: 'armed',
-        name: 'At period start',
+        name: 'At period start Scoreboard',
         timeline: {
-          name: 'Reset clock',
+          name: 'Reset clock Scoreboard',
           duration: 0.1,
           ease: 'out',
           calls: [{ time: 0, call: 'resetMatchClock' }],
@@ -72,9 +72,9 @@ function matchClockGroup(): TypeGroup {
       },
       {
         id: 'running',
-        name: 'Clock running',
+        name: 'Clock running Scoreboard',
         timeline: {
-          name: 'Start clock',
+          name: 'Start clock Scoreboard',
           duration: 0.1,
           ease: 'in',
           calls: [{ time: 0, call: 'startMatchClock' }],
@@ -87,9 +87,9 @@ function matchClockGroup(): TypeGroup {
       },
       {
         id: 'stopped',
-        name: 'Clock stopped',
+        name: 'Clock stopped Scoreboard',
         timeline: {
-          name: 'Stop clock',
+          name: 'Stop clock Scoreboard',
           duration: 0.1,
           ease: 'out',
           calls: [{ time: 0, call: 'stopMatchClock' }],
@@ -116,9 +116,9 @@ function playGroup(): TypeGroup {
     states: [
       {
         id: 'inPlay',
-        name: 'In play',
+        name: 'In play Scoreboard',
         timeline: {
-          name: 'Resume play',
+          name: 'Resume play Scoreboard',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'markInPlay' }],
@@ -128,9 +128,9 @@ function playGroup(): TypeGroup {
       },
       {
         id: 'interval',
-        name: 'Interval',
+        name: 'Interval Scoreboard',
         timeline: {
-          name: 'Interval',
+          name: 'Interval Scoreboard',
           duration: 0.25,
           ease: 'out',
           calls: [{ time: 0, call: 'markBreak' }],
@@ -152,12 +152,12 @@ function resultGroup(): TypeGroup {
     id: 'result',
     initial: 'live',
     states: [
-      { id: 'live', name: 'Live', timeline: null, edges: [] },
+      { id: 'live', name: 'Live Scoreboard', timeline: null, edges: [] },
       {
         id: 'final',
-        name: 'Full time',
+        name: 'Full time Scoreboard',
         timeline: {
-          name: 'Full time',
+          name: 'Full time Scoreboard',
           duration: 0.35,
           ease: 'in',
           calls: [{ time: 0, call: 'markFinal' }],
@@ -209,7 +209,7 @@ const TEAM_COLOURS: TypeField[] = [
 /** COMPACT SCOREBUG — score, clock and period in the smallest honest strip. */
 export const scorebugType: GraphicType = {
   id: 'scorebug',
-  name: 'Scorebug',
+  name: 'Scorebug Scoreboard',
   description: 'The persistent match strip: two teams, the score, the period and a running clock.',
   structure: {
     prefix: 'scoreboard',
@@ -244,7 +244,7 @@ export const scorebugType: GraphicType = {
   designs: [
     {
       id: 'sb05',
-      name: 'House Scorebug',
+      name: 'House Scorebug Scoreboard',
       description: 'The house scorebug: colour chips, two teams, a period chip and a running clock.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -253,7 +253,7 @@ export const scorebugType: GraphicType = {
     },
     {
       id: 'sb06',
-      name: 'Volt Scorebug',
+      name: 'Volt Scorebug Scoreboard',
       description: 'A hard sport slab bug: colour bars behind team codes, scores, and a shot-style countdown.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -265,7 +265,7 @@ export const scorebugType: GraphicType = {
     },
     {
       id: 'sb07',
-      name: 'Frost Scorebug',
+      name: 'Frost Scorebug Scoreboard',
       description: 'A frosted scorebug pill: soft colour dots, a centred score pair, period and clock.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -276,7 +276,7 @@ export const scorebugType: GraphicType = {
     },
     {
       id: 'sb08',
-      name: 'Club Scorebug',
+      name: 'Club Scorebug Scoreboard',
       description: 'The amateur club bug: full team names, a hairline stack, and a count-up clock.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -297,7 +297,7 @@ export const scorebugType: GraphicType = {
 /** FULL MATCH BOARD — the scorebug plus crests, club colours and the period breakdown. */
 export const matchBoardType: GraphicType = {
   id: 'match-board',
-  name: 'Match board',
+  name: 'Match board Scoreboard',
   description: 'The full scoreboard: crests, club names, the score, the clock and a period breakdown.',
   structure: {
     prefix: 'scoreboard',
@@ -338,7 +338,7 @@ export const matchBoardType: GraphicType = {
   designs: [
     {
       id: 'sb09',
-      name: 'House Match Board',
+      name: 'House Match Board Scoreboard',
       description: 'The house match board: crests, club names, the score pair, clock and period breakdown.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -351,7 +351,7 @@ export const matchBoardType: GraphicType = {
     },
     {
       id: 'sb10',
-      name: 'Volt Match Board',
+      name: 'Volt Match Board Scoreboard',
       description: 'A stadium slab board: club-colour bands, big crests, a huge score pair, period cells.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -365,7 +365,7 @@ export const matchBoardType: GraphicType = {
     },
     {
       id: 'sb11',
-      name: 'Frost Match Board',
+      name: 'Frost Match Board Scoreboard',
       description: 'A frosted card board: competitors stacked as rows, set columns, and a match clock.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -379,7 +379,7 @@ export const matchBoardType: GraphicType = {
     },
     {
       id: 'sb12',
-      name: 'Club Match Board',
+      name: 'Club Match Board Scoreboard',
       description: 'The amateur full-time board: full club names, a flat panel, halves along the bottom.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -411,7 +411,7 @@ export const matchBoardType: GraphicType = {
  */
 export const matchStatusType: GraphicType = {
   id: 'match-status',
-  name: 'Match status',
+  name: 'Match status Scoreboard',
   description: 'Where the match stands — live, at the interval, or the final score.',
   structure: {
     prefix: 'scoreboard',
@@ -441,9 +441,9 @@ export const matchStatusType: GraphicType = {
         states: [
           {
             id: 'live',
-            name: 'Live',
+            name: 'Live Scoreboard',
             timeline: {
-              name: 'Back to live',
+              name: 'Back to live Scoreboard',
               duration: 0.25,
               ease: 'in',
               calls: [{ time: 0, call: 'markLive' }],
@@ -453,9 +453,9 @@ export const matchStatusType: GraphicType = {
           },
           {
             id: 'interval',
-            name: 'Interval',
+            name: 'Interval Scoreboard',
             timeline: {
-              name: 'Interval',
+              name: 'Interval Scoreboard',
               duration: 0.25,
               ease: 'out',
               calls: [{ time: 0, call: 'markBreak' }],
@@ -465,9 +465,9 @@ export const matchStatusType: GraphicType = {
           },
           {
             id: 'final',
-            name: 'Full time',
+            name: 'Full time Scoreboard',
             timeline: {
-              name: 'Full time',
+              name: 'Full time Scoreboard',
               duration: 0.4,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],
@@ -498,7 +498,7 @@ export const matchStatusType: GraphicType = {
   designs: [
     {
       id: 'sb13',
-      name: 'House Status Card',
+      name: 'House Status Card Scoreboard',
       description: 'The house status card: a live pip, the status line, the score pair, and a note.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -508,7 +508,7 @@ export const matchStatusType: GraphicType = {
     },
     {
       id: 'sb14',
-      name: 'Volt Status Card',
+      name: 'Volt Status Card Scoreboard',
       description: 'A sport result slate: a solid accent status banner over the clubs and a huge score.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -522,7 +522,7 @@ export const matchStatusType: GraphicType = {
     },
     {
       id: 'sb15',
-      name: 'Frost Status Card',
+      name: 'Frost Status Card Scoreboard',
       description: 'A frosted result card: a status pill, competitors stacked with scores, and a note.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -536,7 +536,7 @@ export const matchStatusType: GraphicType = {
     },
     {
       id: 'sb16',
-      name: 'Club Status Card',
+      name: 'Club Status Card Scoreboard',
       description: 'The amateur result card: a hairline status row, full club names, and the score.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -574,7 +574,7 @@ export const matchStatusType: GraphicType = {
  */
 export const matchEventType: GraphicType = {
   id: 'match-event',
-  name: 'Match event',
+  name: 'Match event Scoreboard',
   description: 'The transient card: a substitution, a booking, a penalty or a goal, with its minute.',
   structure: {
     prefix: 'scoreboard',
@@ -608,7 +608,7 @@ export const matchEventType: GraphicType = {
       branches: [
         {
           id: 'held',
-          name: 'Held on air',
+          name: 'Held on air Scoreboard',
           // Pose-only: holding a card must not replay its entrance. Entering this state does
           // nothing except take the graphic out of reach of the auto-clear timer.
           timeline: null,
@@ -634,7 +634,7 @@ export const matchEventType: GraphicType = {
   designs: [
     {
       id: 'sb17',
-      name: 'House Event Card',
+      name: 'House Event Card Scoreboard',
       description: 'The house event card: substitutions, bookings and penalties, with a minute stamp.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -644,7 +644,7 @@ export const matchEventType: GraphicType = {
     },
     {
       id: 'sb18',
-      name: 'Volt Event Card',
+      name: 'Volt Event Card Scoreboard',
       description: 'A sport event strap: a colour minute block, an accent kind bar, and the two facts.',
       styleTag: 'sport',
       palette: paletteById('inferno'),
@@ -658,7 +658,7 @@ export const matchEventType: GraphicType = {
     },
     {
       id: 'sb19',
-      name: 'Frost Event Card',
+      name: 'Frost Event Card Scoreboard',
       description: 'A frosted event card: a minute chip, a tracked event label, and the two facts.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -671,7 +671,7 @@ export const matchEventType: GraphicType = {
     },
     {
       id: 'sb20',
-      name: 'Club Event Card',
+      name: 'Club Event Card Scoreboard',
       description: 'The amateur event card: minute, event and club on one row, the two names below.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

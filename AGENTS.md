@@ -89,7 +89,7 @@ Vercel `cleanUrls` in production.
    scene model; the editor always reflects exactly what was written.
 2. **Generated code must be clean, commented, and easy to edit.** Prefer simple, obvious code over
    clever code; rich-but-commented CSS is the house style.
-3. **Offline-first, no unnecessary dependencies.** GSAP is bundled locally
+3. **Self-contained, no unnecessary dependencies.** GSAP is bundled locally
    (`src/assets/gsap.min.js`); so is the Lottie player (`src/assets/lottie.min.js`, lottie_light/
    MIT - injected only when the template uses a Lottie asset; detector in `assets/lottieSupport.ts`).
    No runtime deps or CDN references in generated templates; exports use relative paths only.

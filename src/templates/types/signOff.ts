@@ -10,7 +10,7 @@ import { optionalLine, type GraphicType } from './graphicType';
 
 export const signOffType: GraphicType = {
   id: 'sign-off',
-  name: 'Sign-off',
+  name: 'Sign-off Starting Soon',
   description:
     'The card a show ends on: closing line, thank-you, next appointment, and logo.',
   structure: {
@@ -76,7 +76,7 @@ export const signOffType: GraphicType = {
     // House is the new noacg design because ss09 has no logo field and cannot be promoted.
     {
       id: 'ss17',
-      name: 'House Sign-off',
+      name: 'House Sign-off Starting Soon',
       description:
         'The NoaCG end card with a logo, display message, amber rule, and next appointment.',
       styleTag: 'noacg',
@@ -87,7 +87,7 @@ export const signOffType: GraphicType = {
     // Each family keeps its authored copy through samples while sharing the same field shape.
     {
       id: 'ss14',
-      name: 'Clean Sign-off',
+      name: 'Clean Sign-off Starting Soon',
       description:
         'A quiet end card with a logo, thank-you line, and optional next-broadcast note.',
       styleTag: 'minimal',
@@ -98,7 +98,7 @@ export const signOffType: GraphicType = {
     },
     {
       id: 'ss15',
-      name: 'Volt Sign-off',
+      name: 'Volt Sign-off Starting Soon',
       description:
         'A hard-edged end card with a logo, bold sign-off, and the next fixture line.',
       styleTag: 'sport',
@@ -113,7 +113,7 @@ export const signOffType: GraphicType = {
     },
     {
       id: 'ss16',
-      name: 'Frost Sign-off',
+      name: 'Frost Sign-off Starting Soon',
       description:
         'A frosted end card with a logo, gracious sign-off, and optional next appointment.',
       styleTag: 'glass',

@@ -17,7 +17,7 @@ export const ls03: TemplateVariant = defineVariant(
   {
     id: 'ls03',
     category: 'lower-third',
-    name: 'Duo Void',
+    name: 'Duo Void Lower Third',
     styleTag: 'noacg',
     description: 'The house void panel widened for two — one amber bar, two named columns.',
     maxLines: 4,
@@ -36,7 +36,7 @@ export const ls03: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Duo Void',
+    name: 'Duo Void Lower Third',
     description:
       'The house strap carrying two people: the 8px accent bar and void blur panel of lt11, ' +
       'widened into two content-sized columns split by an amber hairline. Each person has ' +
@@ -48,7 +48,7 @@ export const ls03: TemplateVariant = defineVariant(
     const { left, right } = duoSplitBalanced(o);
     const classes = {
       column: 'lower-third-person',
-      name: 'lower-third-name',
+      name: 'lower-third-name Lower Third',
       role: 'lower-third-title',
     };
     const divider = left.length > 0 && right.length > 0

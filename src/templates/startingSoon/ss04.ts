@@ -12,7 +12,7 @@ export const ss04: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss04',
     category: 'starting-soon',
-    name: 'House Hold',
+    name: 'House Hold Starting Soon',
     styleTag: 'noacg',
     description: 'The house holding screen: mono kicker, display show name, a breathing void clock chip.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const ss04: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Hold',
+    name: 'House Hold Starting Soon',
     description:
       'The NoaCG pre-show screen, sibling of lt11 House Strap and card05 House Title: the house ' +
       'void panel holding a tracked mono kicker in the accent color, the show name in big ' +

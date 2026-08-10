@@ -12,7 +12,7 @@ export const qz07: TemplateVariant = defineQuizVariant(
   {
     id: 'qz07',
     category: 'quiz',
-    name: 'Frost Split',
+    name: 'Frost Split Quiz',
     styleTag: 'glass',
     description: 'A frosted board for two answers: the question over two equal glass answer blocks.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const qz07: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Split',
+    name: 'Frost Split Quiz',
     description:
       'The glass two-answer board, sibling of qz03 Frost Quiz and lt08 Frosted Card: a frosted ' +
       'panel with the question over two equal glass blocks, each led by a softly-rounded accent ' +

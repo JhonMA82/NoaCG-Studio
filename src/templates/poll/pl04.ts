@@ -10,7 +10,7 @@ export const pl04: TemplateVariant = definePollVariant(
   {
     id: 'pl04',
     category: 'poll',
-    name: 'Clean Vote',
+    name: 'Clean Vote Poll',
     styleTag: 'minimal',
     description: 'A quiet live-vote board: an accent VOTE NOW label, a keyline, and slim growing bars.',
     maxLines: 4,
@@ -27,7 +27,7 @@ export const pl04: TemplateVariant = definePollVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Clean Vote',
+    name: 'Clean Vote Poll',
     description:
       'The minimal live-vote board, sibling of lt01 Hairline and ig13 Clean Poll: a restrained ' +
       'near-black panel with a small accent VOTE NOW label that leaves when the vote closes, the ' +

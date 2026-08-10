@@ -13,7 +13,7 @@ export const ig13: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig13',
     category: 'infographic',
-    name: 'Clean Poll',
+    name: 'Clean Poll Infographic',
     styleTag: 'minimal',
     description: 'A quiet dark panel bar chart: an accent heading over slim growing bars.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ig13: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Clean Poll',
+    name: 'Clean Poll Infographic',
     description:
       'The minimal poll board, sibling of lt01 Hairline and ig06 Schedule Board: one ' +
       'restrained near-black panel with an accent tracking-caps heading over a dim keyline, ' +

@@ -36,7 +36,7 @@ export const bug02: TemplateVariant = defineBugVariant(
   {
     id: 'bug02',
     category: 'corner-bug',
-    name: 'House Clock',
+    name: 'House Clock Corner Bug',
     styleTag: 'noacg',
     description: 'The house bug: logo (or the three-bar mark), a tiny caption, and a live ticking clock.',
     maxLines: 1,
@@ -48,7 +48,7 @@ export const bug02: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'House Clock',
+    name: 'House Clock Corner Bug',
     description:
       'The NoaCG on-air mark: the imported logo — or the house three-bar placeholder — over ' +
       'a tiny mono caption and a live HH:MM:SS clock whose seconds tick in the accent color. ' +

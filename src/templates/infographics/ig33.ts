@@ -16,7 +16,7 @@ export const ig33: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig33',
     category: 'infographic',
-    name: 'Frost Milestones',
+    name: 'Frost Milestones Infographic',
     styleTag: 'glass',
     description:
       'A frosted milestone rail with softly lit reached nodes and a derived running position.',
@@ -32,7 +32,7 @@ export const ig33: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Milestones',
+    name: 'Frost Milestones Infographic',
     description:
       'A translucent keylined tier rail with softly glowing reached nodes and the measured milestone-run entrance.',
     uicolor: '5',

@@ -18,7 +18,7 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt03',
     category: 'game-timer',
-    name: 'Sunny Pop',
+    name: 'Sunny Pop Game Timer',
     styleTag: 'sport',
     description: 'A big sunny badge clock ringed by dancing dots — elastic pop-in, a bouncing tick, and a burst at zero.',
     maxLines: 1,
@@ -30,7 +30,7 @@ export const gt03: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Sunny Pop',
+    name: 'Sunny Pop Game Timer',
     description:
       'The kids’ game-show timer: a big sunny accent badge with the clock at its ' +
       'heart, a bright ring that drains as time runs, six candy dots dancing around it, ' +

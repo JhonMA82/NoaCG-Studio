@@ -12,7 +12,7 @@ export const gt05: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt05',
     category: 'game-timer',
-    name: 'House Countdown',
+    name: 'House Countdown Game Timer',
     styleTag: 'noacg',
     description: 'The house timer: an amber bar and void panel, a mono label over a display clock.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const gt05: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'House Countdown',
+    name: 'House Countdown Game Timer',
     description:
       'The NoaCG house countdown, sibling of lt11 House Strap: one 8px amber bar with the ' +
       'house glow fused to a void blur panel, a tracking-wide mono label in the accent ' +

@@ -11,7 +11,7 @@ export const bug07: TemplateVariant = defineBugVariant(
   {
     id: 'bug07',
     category: 'corner-bug',
-    name: 'Slab Ident',
+    name: 'Slab Ident Corner Bug',
     styleTag: 'sport',
     description: 'A solid ident slab: the club logo on a fused accent block, channel over show.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const bug07: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Slab Ident',
+    name: 'Slab Ident Corner Bug',
     description:
       'The sport identity slab: the logo (or a solid accent placeholder block) mounted in a ' +
       'fused accent panel, with the channel in heavy condensed caps over the show on air. ' +

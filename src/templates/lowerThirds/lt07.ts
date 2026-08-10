@@ -8,7 +8,7 @@ export const lt07: TemplateVariant = defineVariant(
   {
     id: 'lt07',
     category: 'lower-third',
-    name: 'Number Badge',
+    name: 'Number Badge Lower Third',
     styleTag: 'sport',
     description: 'A solid accent logo badge bolted to a dark text slab — zero radius, hard shadow.',
     maxLines: 3,
@@ -23,7 +23,7 @@ export const lt07: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Number Badge',
+    name: 'Number Badge Lower Third',
     description:
       'A square accent badge for a team logo or crest, locked to a dark text slab. Flat color, ' +
       'zero radius, and a hard offset shadow give it a sticker-slab, matchday feel.',

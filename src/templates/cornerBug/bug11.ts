@@ -12,7 +12,7 @@ export const bug11: TemplateVariant = defineBugVariant(
   {
     id: 'bug11',
     category: 'corner-bug',
-    name: 'Volt Live',
+    name: 'Volt Live Corner Bug',
     styleTag: 'sport',
     description: 'A solid accent live chip: the status word in chip ink, neutral when off air.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const bug11: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Volt Live',
+    name: 'Volt Live Corner Bug',
     description:
       'The sport on-air chip: a solid accent block with a breathing lamp and the status word ' +
       'in heavy condensed caps, set in the family dark chip ink. Replay and Standby drop the ' +

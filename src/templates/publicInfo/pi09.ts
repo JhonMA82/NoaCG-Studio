@@ -13,7 +13,7 @@ export const pi09: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi09',
     category: 'public-info',
-    name: 'Notice Rotator',
+    name: 'Notice Rotator Public Info',
     styleTag: 'minimal',
     description: 'A plain two-language notice whose languages take turns — timed, and holdable.',
     maxLines: 5,
@@ -31,7 +31,7 @@ export const pi09: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Notice Rotator',
+    name: 'Notice Rotator Public Info',
     description:
       'The minimal two-language notice: one block, an accent rule on the reading edge, and ' +
       'the two languages cross-fading on the graphic’s own timer. The operator can pick a ' +

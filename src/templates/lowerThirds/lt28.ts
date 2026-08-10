@@ -14,7 +14,7 @@ export const lt28: TemplateVariant = defineVariant(
   {
     id: 'lt28',
     category: 'lower-third',
-    name: 'Feature Center',
+    name: 'Feature Center Lower Third',
     styleTag: 'editorial',
     description: 'Centred kicker, a rule, then the name and role — a feature title page on air.',
     maxLines: 3,
@@ -30,7 +30,7 @@ export const lt28: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Feature Center',
+    name: 'Feature Center Lower Third',
     description:
       'A feature title page as a lower third: the section or strand name as a centred kicker, a ' +
       'rule under it, then the name and role. Ships on the light Broadsheet palette — ink on ' +

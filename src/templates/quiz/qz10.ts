@@ -13,7 +13,7 @@ export const qz10: TemplateVariant = defineQuizVariant(
   {
     id: 'qz10',
     category: 'quiz',
-    name: 'House Triple',
+    name: 'House Triple Quiz',
     styleTag: 'noacg',
     description: 'The house board for three answers: a void panel, amber edge, three tall lettered rows.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const qz10: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Triple',
+    name: 'House Triple Quiz',
     description:
       'The NoaCG three-answer board, sibling of qz02 House Quiz and lt11 House Strap: the house ' +
       'void panel with an amber accent edge, the question in display type over three tall answer ' +

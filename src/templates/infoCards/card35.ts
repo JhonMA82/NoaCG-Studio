@@ -13,7 +13,7 @@ export const card35: TemplateVariant = defineCardVariant(
   {
     id: 'card35',
     category: 'info-card',
-    name: 'Reading Card',
+    name: 'Reading Card Info Card',
     styleTag: 'glass',
     description: 'A frosted reading card: the passage, a second language, then the reference.',
     maxLines: 4,
@@ -25,7 +25,7 @@ export const card35: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Reading Card',
+    name: 'Reading Card Info Card',
     description:
       'The glass reading card for services, ceremonies and memorials: a translucent blurred ' +
       'panel, a soft label, the passage set as prose, the same passage in a second language ' +

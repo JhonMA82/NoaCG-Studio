@@ -16,7 +16,7 @@ export const card38: TemplateVariant = defineCardVariant(
   {
     id: 'card38',
     category: 'info-card',
-    name: 'House Product',
+    name: 'House Product Info Card',
     styleTag: 'noacg',
     description: 'A live-shopping product card: photo, name, price beside the old price, and a benefit line.',
     maxLines: 5,
@@ -34,7 +34,7 @@ export const card38: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Product',
+    name: 'House Product Info Card',
     description:
       'The NoaCG product card: an 8px amber bar fused to a void blur panel, a square product ' +
       'shot beside the name, a large accent price with the previous price struck through next ' +

@@ -10,7 +10,7 @@ export const lt16: TemplateVariant = defineVariant(
   {
     id: 'lt16',
     category: 'lower-third',
-    name: 'Frost Handle',
+    name: 'Frost Handle Lower Third',
     styleTag: 'glass',
     description: 'A compact frosted social strip: a handle over its platform, led by an accent dot.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt16: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Frost Handle',
+    name: 'Frost Handle Lower Third',
     description:
       'A compact glass social strip in the lt08 family: a translucent blurred tile with a ' +
       'small accent dot before the handle and the platform as a soft caps label beneath. ' +

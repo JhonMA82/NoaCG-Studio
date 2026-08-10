@@ -19,7 +19,7 @@ export const mu01: TemplateVariant = defineMatchupVariant(
   {
     id: 'mu01',
     category: 'matchup',
-    name: 'Match-up Slam',
+    name: 'Match-up Slam Matchup',
     styleTag: 'sport',
     description: 'Two sides meet around an accent VS slab — then one is picked as the winner.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const mu01: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Match-up Slam',
+    name: 'Match-up Slam Matchup',
     description:
       'The sport match-up card: two crest-and-name columns either side of an accent VS slab ' +
       'on a dark stage, with seed notes beneath. A picked winner lifts and takes the accent; ' +

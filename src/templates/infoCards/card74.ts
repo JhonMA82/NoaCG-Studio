@@ -9,7 +9,7 @@ export const card74: TemplateVariant = defineCardVariant(
   {
     id: 'card74',
     category: 'info-card',
-    name: 'House Offer',
+    name: 'House Offer Info Card',
     styleTag: 'noacg',
     description:
       'The house offer card: a large claim, terms, promo code, and deadline on a void panel.',
@@ -35,7 +35,7 @@ export const card74: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'House Offer',
+    name: 'House Offer Info Card',
     description:
       'A house void panel with an amber edge, mono kicker, large offer, and a compact code chip beside the deadline.',
     uicolor: '4',

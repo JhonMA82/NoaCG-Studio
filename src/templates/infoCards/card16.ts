@@ -13,7 +13,7 @@ export const card16: TemplateVariant = defineCardVariant(
   {
     id: 'card16',
     category: 'info-card',
-    name: 'Topic Slab',
+    name: 'Topic Slab Info Card',
     styleTag: 'sport',
     description: 'A sport talking point: an accent rail over a heavy caps heading and two points.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card16: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Topic Slab',
+    name: 'Topic Slab Info Card',
     description:
       'The sport analysis card: a flat near-black slab under a chunky accent rail, a heavy ' +
       'condensed caps heading, and marked caps points under it. Made for half-time analysis ' +

@@ -10,7 +10,7 @@ export const lt46: TemplateVariant = defineVariant(
   {
     id: 'lt46',
     category: 'lower-third',
-    name: 'Glass Column',
+    name: 'Glass Column Lower Third',
     styleTag: 'glass',
     description: 'A frosted card with a soft accent edge — name, role and a tracked third line.',
     maxLines: 3,
@@ -26,7 +26,7 @@ export const lt46: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Glass Column',
+    name: 'Glass Column Lower Third',
     description:
       'The three-voice glass card: a soft accent edge down the left, then a name, a role, and a ' +
       'studio, handle or location line in tracked accent caps. Built for steps mode — reveal one ' +

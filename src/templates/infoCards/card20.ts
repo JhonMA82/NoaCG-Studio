@@ -13,7 +13,7 @@ export const card20: TemplateVariant = defineCardVariant(
   {
     id: 'card20',
     category: 'info-card',
-    name: 'Volt Now Next',
+    name: 'Volt Now Next Info Card',
     styleTag: 'sport',
     description: 'A sport slab: the event on now with its detail, then the next one up.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card20: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Now Next',
+    name: 'Volt Now Next Info Card',
     description:
       'The sport now/next slab: a flat near-black panel under a chunky accent rail, the event ' +
       'running now in heavy condensed caps with its detail line, and the next item on the ' +

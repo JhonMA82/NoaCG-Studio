@@ -17,7 +17,7 @@ export const rs05: TemplateVariant = defineResultsVariant(
   {
     id: 'rs05',
     category: 'results-board',
-    name: 'Frost Roster',
+    name: 'Frost Roster Results Board',
     styleTag: 'glass',
     description: 'A frosted line-up board with rounded rows and an accent-ringed spotlight.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const rs05: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Frost Roster',
+    name: 'Frost Roster Results Board',
     description:
       'The glass line-up board: one frosted panel, softly-rounded player rows, and an accent ' +
       'ring that holds the player currently in focus.',

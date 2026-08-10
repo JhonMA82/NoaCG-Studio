@@ -14,7 +14,7 @@ export const card11: TemplateVariant = defineCardVariant(
   {
     id: 'card11',
     category: 'info-card',
-    name: 'Keynote Title',
+    name: 'Keynote Title Info Card',
     styleTag: 'glass',
     description: 'A frosted keynote opener: a soft kicker, the talk title, then who is giving it.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card11: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Keynote Title',
+    name: 'Keynote Title Info Card',
     description:
       'The glass keynote opener: a translucent blurred panel, a short rounded accent stroke, a ' +
       'soft tracked kicker, the talk title at display size, and the speaker and their role ' +

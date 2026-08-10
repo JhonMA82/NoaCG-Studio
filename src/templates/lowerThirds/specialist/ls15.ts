@@ -18,7 +18,7 @@ export const ls15: TemplateVariant = defineVariant(
   {
     id: 'ls15',
     category: 'lower-third',
-    name: 'Scripture Reading',
+    name: 'Scripture Reading Lower Third',
     styleTag: 'minimal',
     description: 'The reference set as the headline, with the reader named quietly beneath.',
     maxLines: 4,
@@ -37,7 +37,7 @@ export const ls15: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Scripture Reading',
+    name: 'Scripture Reading Lower Third',
     description:
       'The reading strap: the scripture reference set as the headline with its translation ' +
       'as a quiet suffix, and the reader credited underneath. The reference leads because ' +

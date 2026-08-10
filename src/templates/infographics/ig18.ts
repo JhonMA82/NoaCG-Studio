@@ -13,7 +13,7 @@ export const ig18: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig18',
     category: 'infographic',
-    name: 'Recap Board',
+    name: 'Recap Board Infographic',
     styleTag: 'minimal',
     description: 'A panel-free recap board — one "owner | action" per line.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig18: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Recap Board',
+    name: 'Recap Board Infographic',
     description:
       'The minimal recap board: an accent hairline down the left, a tracked-caps heading, and ' +
       'action items as an accent owner column against the action. An item with no owner still ' +

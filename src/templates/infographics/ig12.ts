@@ -13,7 +13,7 @@ export const ig12: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig12',
     category: 'infographic',
-    name: 'Volt Poll',
+    name: 'Volt Poll Infographic',
     styleTag: 'sport',
     description: 'A solid sport slab bar chart: heavy caps labels with square-cut accent fills.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ig12: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Poll',
+    name: 'Volt Poll Infographic',
     description:
       'The sport poll board, sibling of lt06 Split Bar and card02 Slab Card: a solid dark slab ' +
       'with a heavy accent caps heading and label/value rows whose square-cut accent fills grow ' +

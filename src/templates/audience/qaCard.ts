@@ -125,7 +125,7 @@ interface Spec {
 const SPECS: Spec[] = [
   {
     id: 'qa01',
-    name: 'House Q&A',
+    name: 'House Q&A Audience',
     family: 'noacg',
     palette: 'noacg',
     fontId: 'space-grotesk',
@@ -134,7 +134,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'qa02',
-    name: 'Volt Q&A',
+    name: 'Volt Q&A Audience',
     family: 'sport',
     palette: 'volt',
     fontId: 'oswald',
@@ -143,7 +143,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'qa03',
-    name: 'Frost Q&A',
+    name: 'Frost Q&A Audience',
     family: 'glass',
     palette: 'frost',
     fontId: 'manrope',
@@ -152,7 +152,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'qa04',
-    name: 'Clean Q&A',
+    name: 'Clean Q&A Audience',
     family: 'minimal',
     palette: 'ivory',
     fontId: 'inter',

@@ -21,7 +21,7 @@ export const es01: TemplateVariant = defineEsportsVariant(
   {
     id: 'es01',
     category: 'esports-score',
-    name: 'Series Scorebug',
+    name: 'Series Scorebug Esports Score',
     styleTag: 'sport',
     description: 'The match-night strip: logos, big map scores, and a series pip row.',
     maxLines: 5,
@@ -39,7 +39,7 @@ export const es01: TemplateVariant = defineEsportsVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Series Scorebug',
+    name: 'Series Scorebug Esports Score',
     description:
       'The esports match strip: a volt accent block, team logos beside their names, map ' +
       'scores in dark chips, and one pip per map of the series. The phase chip carries the ' +

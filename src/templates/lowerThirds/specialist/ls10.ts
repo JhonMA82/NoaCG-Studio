@@ -17,7 +17,7 @@ export const ls10: TemplateVariant = defineVariant(
   {
     id: 'ls10',
     category: 'lower-third',
-    name: 'Club Crest',
+    name: 'Club Crest Lower Third',
     styleTag: 'sport',
     description: 'A full-height club crest against the panel, with the player named beside it.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const ls10: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Club Crest',
+    name: 'Club Crest Lower Third',
     description:
       'The squad strap: the club crest at full panel height on the left — a real SPX image ' +
       'field, so one template serves both sides of a fixture — with the player name, position ' +

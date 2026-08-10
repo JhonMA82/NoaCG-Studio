@@ -19,7 +19,7 @@ export const bug35: TemplateVariant = defineBugVariant(
   {
     id: 'bug35',
     category: 'corner-bug',
-    name: 'Venue Chip',
+    name: 'Venue Chip Corner Bug',
     styleTag: 'sport',
     description: 'A sport chip: the venue on a solid slab, the status in a fused accent block.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const bug35: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Venue Chip',
+    name: 'Venue Chip Corner Bug',
     description:
       'The sport location chip: the venue in heavy condensed caps on a square-cornered slab, ' +
       'with the status set in the family dark chip ink on a fused accent block. Sized to sit ' +

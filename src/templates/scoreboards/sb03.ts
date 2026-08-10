@@ -11,7 +11,7 @@ export const sb03: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb03',
     category: 'scoreboard',
-    name: 'House Score',
+    name: 'House Score Scoreboard',
     styleTag: 'noacg',
     description: 'The house score strip: void panel, amber accent edge, scores in void chips.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const sb03: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'House Score',
+    name: 'House Score Scoreboard',
     description:
       'The NoaCG score strip, sibling of lt11 House Strap: a void blur panel with an amber ' +
       'top edge and an amber accent bar on the left, team names in display type, and the two ' +

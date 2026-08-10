@@ -15,7 +15,7 @@ export const sb18: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb18',
     category: 'scoreboard',
-    name: 'Volt Event Card',
+    name: 'Volt Event Card Scoreboard',
     styleTag: 'sport',
     description: 'A sport event strap: a colour minute block, an accent kind bar, and the two facts.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const sb18: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Event Card',
+    name: 'Volt Event Card Scoreboard',
     description:
       'The sport match-event card, sibling of sb06 Volt Scorebug and lt06 Split Bar: a hard ' +
       'horizontal strap with the minute in a club-colour block, the event kind on an accent ' +

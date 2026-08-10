@@ -14,7 +14,7 @@ export const card14: TemplateVariant = defineCardVariant(
   {
     id: 'card14',
     category: 'info-card',
-    name: 'Chapter Card',
+    name: 'Chapter Card Info Card',
     styleTag: 'minimal',
     description: 'A quiet chapter marker: the chapter, what it covers, and when it happened.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card14: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Chapter Card',
+    name: 'Chapter Card Info Card',
     description:
       'The minimal chapter marker: no panel, an accent hairline down the left, the chapter ' +
       'title, and marked points under it. Quiet enough to run under narration, and it takes ' +

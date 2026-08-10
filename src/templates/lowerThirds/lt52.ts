@@ -12,7 +12,7 @@ export const lt52: TemplateVariant = defineVariant(
   {
     id: 'lt52',
     category: 'lower-third',
-    name: 'House Right',
+    name: 'House Right Lower Third',
     styleTag: 'noacg',
     description: 'The house strap mirrored: accent bar on the right, type ragged-left.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const lt52: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'House Right',
+    name: 'House Right Lower Third',
     description:
       'The house strap for the right of the frame: the amber bar on the outside edge, the void ' +
       'panel beside it, the name and mono role set ragged-left. Pairs with lt11 House Strap on ' +

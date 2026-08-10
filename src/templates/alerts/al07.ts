@@ -13,7 +13,7 @@ export const al07: TemplateVariant = defineAlertVariant(
   {
     id: 'al07',
     category: 'alert',
-    name: 'Technical Notice',
+    name: 'Technical Notice Alert',
     styleTag: 'minimal',
     description: 'A calm technical-difficulty strip — no severity flag, because there is no level.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const al07: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Technical Notice',
+    name: 'Technical Notice Alert',
     description:
       'The apology strip: a pale, quiet band with a small keyline mark, a plain statement of ' +
       'the fault and a line of reassurance. Deliberately the least alarming graphic in the ' +

@@ -19,7 +19,7 @@ export const ig27: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig27',
     category: 'infographic',
-    name: 'Volt Fixtures',
+    name: 'Volt Fixtures Infographic',
     styleTag: 'sport',
     description: 'A sport slab round-up: an accent heading bar, heavy caps, results in filled blocks.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const ig27: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Fixtures',
+    name: 'Volt Fixtures Infographic',
     description:
       'The sport fixtures and results board, sibling of ig31 Volt Table and ig10 Volt Schedule: ' +
       'a hard slab with the heading on a solid accent bar, the round beside it, and one row per ' +

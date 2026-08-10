@@ -11,7 +11,7 @@ export const bug01: TemplateVariant = defineBugVariant(
   {
     id: 'bug01',
     category: 'corner-bug',
-    name: 'Glass Mark',
+    name: 'Glass Mark Corner Bug',
     styleTag: 'glass',
     description: 'A small frosted tile with a logo slot and a tiny caption — the persistent on-air mark.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const bug01: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Glass Mark',
+    name: 'Glass Mark Corner Bug',
     description:
       'A compact frosted glass tile that lives in the corner all show long: the imported ' +
       'logo (or an accent diamond placeholder) above a tiny caps caption, lifted by one ' +

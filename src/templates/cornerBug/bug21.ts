@@ -15,7 +15,7 @@ export const bug21: TemplateVariant = defineBugVariant(
   {
     id: 'bug21',
     category: 'corner-bug',
-    name: 'House Sponsor Rotation',
+    name: 'House Sponsor Rotation Corner Bug',
     styleTag: 'noacg',
     description: 'A house sponsor bug that cycles three partner logos on a timer — skippable on air.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const bug21: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'House Sponsor Rotation',
+    name: 'House Sponsor Rotation Corner Bug',
     description:
       'The house sponsor bug that rotates: a mono kicker over one logo stage holding three ' +
       'partner slots, cycling on a timer with a soft crossfade. Empty slots are skipped, and ' +

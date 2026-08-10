@@ -17,7 +17,7 @@ export const sb15: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb15',
     category: 'scoreboard',
-    name: 'Frost Status Card',
+    name: 'Frost Status Card Scoreboard',
     styleTag: 'glass',
     description: 'A frosted result card: a status pill, competitors stacked with scores, and a note.',
     maxLines: 1,
@@ -29,7 +29,7 @@ export const sb15: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Status Card',
+    name: 'Frost Status Card Scoreboard',
     description:
       'The glass match-status and final-score card, sibling of sb11 Frost Match Board and lt08 ' +
       'Frosted Card: a centred frosted card with a status pill, the two competitors stacked as ' +

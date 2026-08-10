@@ -55,8 +55,6 @@ function placementSummaryOf(draft: WizardDraft): string {
   const parts: string[] = [];
   const size = SIZES.find((s) => s.scale === draft.sizeScale);
   if (draft.sizeScale !== 1 && size) parts.push(`size ${size.label}`);
-  const type = TYPE_SIZES.find((s) => s.scale === draft.typeScale);
-  if (draft.typeScale !== 1 && type) parts.push(`text ${type.label}`);
   if (draft.zone) parts.push(draft.zone.replace('-', ' '));
   if (draft.nudge.x !== 0 || draft.nudge.y !== 0) parts.push('nudged');
   return parts.join(' · ');
@@ -101,13 +99,13 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
   // uncontrolled `open` would spring a disclosure back under a user who had just shut it.
   const [colorsOpen, setColorsOpen] = useState(false);
   const [typefaceOpen, setTypefaceOpen] = useState(() => draft.fontId != null);
+  const [fontTarget, setFontTarget] = useState<'all' | '--font-heading' | '--font-body' | '--font-numeric' | '--font-label'>('all');
   // The variant's own style family first, then the rest.
   const palettes = [...PALETTES].sort(
     (a, b) => Number(b.styleTags.includes(variant.styleTag)) - Number(a.styleTags.includes(variant.styleTag)),
   );
   const custom = draft.customPalette;
   const activePalette = custom ? 'custom' : draft.paletteId ?? variant.defaultPalette.id;
-  const activeFont = draft.fontId ?? variant.defaultFontId;
   const activeZone = draft.zone ?? variant.defaultZone;
   /** What the collapsed Typeface row reads back — the face actually in use, so the choice is
    *  never hidden without a trace. Unset means the design's own, named. */
@@ -123,6 +121,32 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
     if (!draft.customFont) return;
     if (typeof draft.customFont.asset.data === 'string') registerAppFont(family, draft.customFont.asset.data);
     onDraft({ customFont: { ...draft.customFont, family } });
+  };
+
+  const getFontValue = () => {
+    if (fontTarget === 'all') return draft.fontId ?? null;
+    const v = draft.cssVarOverrides[fontTarget];
+    if (!v) return null;
+    if (draft.customFont && v.includes(draft.customFont.family)) return 'custom';
+    return FONTS.find(f => v.includes(f.family))?.id ?? 'custom';
+  };
+
+  const handleFontPick = (fontId: string | null) => {
+    if (fontTarget === 'all') {
+      onDraft({ fontId });
+    } else {
+      if (fontId === null) {
+        clearOverride(fontTarget);
+      } else {
+        const stack = fontId === 'custom' && draft.customFont 
+          ? `"${draft.customFont.family}"`
+          : (fontId ? FONTS.find(f => f.id === fontId)?.fallback || 'sans-serif' : '');
+        const fullStack = fontId === 'custom' && draft.customFont 
+          ? `"${draft.customFont.family}"`
+          : (fontId ? `"${FONTS.find(f => f.id === fontId)?.family}", ${stack}` : '');
+        overrideVar(fontTarget, fullStack);
+      }
+    }
   };
 
   /** Start customizing from whatever palette is currently active. */
@@ -249,27 +273,41 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
           Typeface
           <span className="wz-style-more-value">{typefaceSummary}</span>
         </summary>
-        {/* The ONE typeface picker (shared with the import flow, the AI setup and the editor's
-            Style panel): searchable, each family rendered in its own face, upload + this
-            computer's installed faces. The card grid it replaced could never scale past a
-            handful of them. */}
-        <FontPicker
-          value={draft.fontId}
-          customFont={draft.customFont}
-          onPick={(fontId) => onDraft({ fontId })}
-          onCustomFont={(customFont) => onDraft({ customFont, fontId: 'custom' })}
-          defaultLabel={`Design typeface (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})`}
-        />
-        {draft.customFont && activeFont === 'custom' && (
-          <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
-            <input
+        <div className="panel-section">
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <span style={{ whiteSpace: 'nowrap', minWidth: 60 }}>Apply to:</span>
+            <select
               className="grow"
-              value={draft.customFont.family}
-              onChange={(e) => renameCustomFont(e.target.value)}
-              title="Typeface name used in the generated CSS"
+              value={fontTarget}
+              onChange={(e) => setFontTarget(e.target.value as 'all' | '--font-heading' | '--font-body' | '--font-numeric' | '--font-label')}
+            >
+              <option value="all">All Text</option>
+              <option value="--font-heading">Heading</option>
+              <option value="--font-body">Body</option>
+              <option value="--font-numeric">Numeric</option>
+              <option value="--font-label">Label</option>
+            </select>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <FontPicker
+              value={getFontValue()}
+              customFont={draft.customFont}
+              onPick={handleFontPick}
+              onCustomFont={(customFont) => onDraft({ customFont, fontId: 'custom' })}
+              defaultLabel={fontTarget === 'all' ? `Design typeface (${FONTS.find((f) => f.id === variant.defaultFontId)?.family ?? 'default'})` : 'Follows the graphic\'s typeface'}
             />
           </div>
-        )}
+          {draft.customFont && getFontValue() === 'custom' && (
+            <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
+              <input
+                className="grow"
+                value={draft.customFont.family}
+                onChange={(e) => renameCustomFont(e.target.value)}
+                title="Typeface name used in the generated CSS"
+              />
+            </div>
+          )}
+        </div>
       </details>
 
       {/* Size and placement under progressive disclosure (the Browse step's `More filters`

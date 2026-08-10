@@ -16,7 +16,7 @@ export const sb20: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb20',
     category: 'scoreboard',
-    name: 'Club Event Card',
+    name: 'Club Event Card Scoreboard',
     styleTag: 'minimal',
     description: 'The amateur event card: minute, event and club on one row, the two names below.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb20: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Club Event Card',
+    name: 'Club Event Card Scoreboard',
     description:
       'The local and amateur match-event card, sibling of sb08 Club Scorebug and lt01 Hairline: ' +
       'a flat panel with the minute, the event and the club on one header row, and the two ' +

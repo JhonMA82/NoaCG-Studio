@@ -18,7 +18,7 @@ export const rs01: TemplateVariant = defineResultsVariant(
   {
     id: 'rs01',
     category: 'results-board',
-    name: 'Starting Line-up',
+    name: 'Starting Line-up Results Board',
     styleTag: 'sport',
     description: 'A team line-up with roles — and a spotlight the caster moves down it.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const rs01: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Starting Line-up',
+    name: 'Starting Line-up Results Board',
     description:
       'The sport roster board: crest and team name over a numbered line-up, each player with ' +
       'their role. A spotlit player lifts onto an accent block; the rest fall back.',

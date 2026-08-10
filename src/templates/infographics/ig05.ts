@@ -12,7 +12,7 @@ export const ig05: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig05',
     category: 'infographic',
-    name: 'Rising Total',
+    name: 'Rising Total Infographic',
     styleTag: 'minimal',
     description: 'A donation counter: huge counting total over a progress bar toward a goal.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const ig05: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Rising Total',
+    name: 'Rising Total Infographic',
     description:
       'A quiet keyline panel with a 3px accent hairline on top - the sibling of the Side Tag ' +
       'lower third. A tracking-wide caps kicker sits over one enormous thousand-separated ' +

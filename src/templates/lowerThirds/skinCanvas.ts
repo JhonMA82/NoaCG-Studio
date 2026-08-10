@@ -22,7 +22,7 @@ export const ltc01: TemplateVariant = defineVariant(
   {
     id: 'ltc01',
     category: 'lower-third',
-    name: 'Skin Canvas',
+    name: 'Skin Canvas Lower Third',
     styleTag: 'minimal',
     description: 'Neutral panel-and-accent strap — the base the Lite skin restyles.',
     maxLines: 2,
@@ -37,7 +37,7 @@ export const ltc01: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Skin Canvas',
+    name: 'Skin Canvas Lower Third',
     description:
       'A quiet dark panel with a left accent bar and a plain name-over-title stack. ' +
       'Every rule is a default the skin override block is expected to beat by cascade.',

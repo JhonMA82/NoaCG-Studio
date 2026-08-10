@@ -38,11 +38,11 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
     branches: [
       {
         id: 'selected',
-        name: 'Answer selected',
+        name: 'Answer selected Quiz',
         // Entering (or RE-entering) this state repaints the highlight from the data, which is
         // what makes "change the selection freely" a self-transition rather than a state.
         timeline: {
-          name: 'Select',
+          name: 'Select Quiz',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'applySelection' }],
@@ -55,12 +55,12 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
       },
       {
         id: 'locked',
-        name: 'Locked in',
+        name: 'Locked in Quiz',
         // Both painters: this state is entered from `selected` (pick already showing) AND from
         // `sealed` via revealChoice (pick hidden until now) — either way, entering means "the
         // pick is visible and final", so the entry paints the whole moment.
         timeline: {
-          name: 'Lock',
+          name: 'Lock Quiz',
           duration: 0.25,
           ease: 'in',
           calls: [
@@ -86,9 +86,9 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
         // pick hidden" are two different on-air moments, and which one you are in must never
         // depend on how you got there.
         id: 'sealed',
-        name: 'Locked, choice hidden',
+        name: 'Locked, choice hidden Quiz',
         timeline: {
-          name: 'Seal',
+          name: 'Seal Quiz',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'applyLock' }],
@@ -108,9 +108,9 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
         // painted as chips on the rows — after the verdict, as its own operator beat. Off the
         // default path, so SPX's dumb-stepping walk is untouched.
         id: 'audience',
-        name: 'Audience result',
+        name: 'Audience result Quiz',
         timeline: {
-          name: 'Audience',
+          name: 'Audience Quiz',
           duration: 0.3,
           ease: 'out',
           calls: [{ time: 0, call: 'applyAudienceResult' }],
@@ -173,7 +173,7 @@ function answerDropdowns(letters: string[]): GraphicType['fields'] {
  *  answers side by side instead of stacking them. */
 export const twoAnswerBoardType: GraphicType = {
   id: 'answer-board-2',
-  name: 'Two-answer board',
+  name: 'Two-answer board Quiz',
   description: 'A question and two answers — true/false, this or that — with the locked-in pick and the reveal.',
   structure: ANSWER_BOARD_STRUCTURE,
   fields: [
@@ -193,7 +193,7 @@ export const twoAnswerBoardType: GraphicType = {
   designs: [
     {
       id: 'qz05',
-      name: 'Volt Split',
+      name: 'Volt Split Quiz',
       description: 'A leaning sport board for two answers: the question over two equal accent slabs.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -202,7 +202,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz06',
-      name: 'House Split',
+      name: 'House Split Quiz',
       description: 'The house board for two answers: a void panel, amber edge, two equal answer blocks.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -211,7 +211,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz07',
-      name: 'Frost Split',
+      name: 'Frost Split Quiz',
       description: 'A frosted board for two answers: the question over two equal glass answer blocks.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -220,7 +220,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz08',
-      name: 'Clean Split',
+      name: 'Clean Split Quiz',
       description: 'A quiet board for two answers: the question over two halves split by a hairline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -237,7 +237,7 @@ export const twoAnswerBoardType: GraphicType = {
  *  the answer type up, so the board reads from further back. */
 export const threeAnswerBoardType: GraphicType = {
   id: 'answer-board-3',
-  name: 'Three-answer board',
+  name: 'Three-answer board Quiz',
   description: 'A question and three answers, with the locked-in pick and the reveal.',
   structure: ANSWER_BOARD_STRUCTURE,
   fields: [
@@ -258,7 +258,7 @@ export const threeAnswerBoardType: GraphicType = {
   designs: [
     {
       id: 'qz09',
-      name: 'Volt Triple',
+      name: 'Volt Triple Quiz',
       description: 'A leaning sport board for three answers: tall lettered rows under the question.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -267,7 +267,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz10',
-      name: 'House Triple',
+      name: 'House Triple Quiz',
       description: 'The house board for three answers: a void panel, amber edge, three tall lettered rows.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -276,7 +276,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz11',
-      name: 'Frost Triple',
+      name: 'Frost Triple Quiz',
       description: 'A frosted board for three answers: the question over three tall glass answer chips.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -285,7 +285,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz12',
-      name: 'Clean Triple',
+      name: 'Clean Triple Quiz',
       description: 'A quiet board for three answers: a question over a keyline, three hairline-split rows.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

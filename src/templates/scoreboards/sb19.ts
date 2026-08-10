@@ -16,7 +16,7 @@ export const sb19: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb19',
     category: 'scoreboard',
-    name: 'Frost Event Card',
+    name: 'Frost Event Card Scoreboard',
     styleTag: 'glass',
     description: 'A frosted event card: a minute chip, a tracked event label, and the two facts.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb19: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Frost Event Card',
+    name: 'Frost Event Card Scoreboard',
     description:
       'The glass match-event card, sibling of sb07 Frost Scorebug and lt08 Frosted Card: a ' +
       'frosted card with the minute in a soft colour chip, the event kind as a tracked label, ' +

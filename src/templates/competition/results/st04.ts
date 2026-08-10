@@ -18,7 +18,7 @@ export const st04: TemplateVariant = defineResultsVariant(
   {
     id: 'st04',
     category: 'results-board',
-    name: 'Clean Results',
+    name: 'Clean Results Results Board',
     styleTag: 'minimal',
     description: 'A quiet result table: hairline rules, tabular figures, nothing boxed.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const st04: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Results',
+    name: 'Clean Results Results Board',
     description:
       'The quiet result table: no panel, hairline-ruled rows, tabular figures in declared ' +
       'columns, a soft highlight for the row being discussed, and an accent rule under the ' +

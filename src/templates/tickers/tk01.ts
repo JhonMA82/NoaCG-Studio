@@ -10,7 +10,7 @@ export const tk01: TemplateVariant = defineTickerVariant(
   {
     id: 'tk01',
     category: 'ticker',
-    name: 'News Strip',
+    name: 'News Strip Ticker',
     styleTag: 'minimal',
     description: 'Full-width minimal news bar with an accent top border and label block.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const tk01: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'News Strip',
+    name: 'News Strip Ticker',
     description:
       'The classic minimal news strip: a full-width dark bar edged by a 2px accent top ' +
       'border (the lt02 underline motif), a solid accent label block on the left, and ' +

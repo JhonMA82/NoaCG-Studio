@@ -16,7 +16,7 @@ export const ig32: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig32',
     category: 'infographic',
-    name: 'Clean Milestones',
+    name: 'Clean Milestones Infographic',
     styleTag: 'minimal',
     description:
       'A quiet milestone rail with evenly spaced hairline nodes and a derived running position.',
@@ -32,7 +32,7 @@ export const ig32: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Clean Milestones',
+    name: 'Clean Milestones Infographic',
     description:
       'A panel-light milestone rail with hairline markers, small-caps labels, and the measured milestone-run entrance.',
     uicolor: '2',

@@ -80,7 +80,7 @@ function designs(
  *  template with no `machine` key at all. */
 export const viewerQuestionType: GraphicType = {
   id: 'viewer-question',
-  name: 'Viewer question',
+  name: 'Viewer question Audience',
   description: 'One audience question on screen, with who asked it and where it came from.',
   structure: structure([
     { id: 'kicker', selector: '.audience-kicker', kind: 'block', required: true },
@@ -97,10 +97,10 @@ export const viewerQuestionType: GraphicType = {
     defaultZone: 'bottom-left',
   },
   designs: designs([
-    { id: 'aq01', name: 'House Question', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house viewer-question card: a void panel with an amber edge, a mono label, and the asker under the question.', create: (_t, o) => aq01.create(o) },
-    { id: 'aq02', name: 'Volt Question', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport slab: a filled accent label over the question in condensed caps, with the asker beneath.', create: (_t, o) => aq02.create(o) },
-    { id: 'aq03', name: 'Frost Question', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted card with a soft pill label, a hanging quote mark, and the asker under the question.', create: (_t, o) => aq03.create(o) },
-    { id: 'aq04', name: 'Clean Question', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet card: a small accent label, a hanging quote mark, and the asker in a hairline-quiet byline.', create: (_t, o) => aq04.create(o) },
+    { id: 'aq01', name: 'House Question Audience', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house viewer-question card: a void panel with an amber edge, a mono label, and the asker under the question.', create: (_t, o) => aq01.create(o) },
+    { id: 'aq02', name: 'Volt Question Audience', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport slab: a filled accent label over the question in condensed caps, with the asker beneath.', create: (_t, o) => aq02.create(o) },
+    { id: 'aq03', name: 'Frost Question Audience', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted card with a soft pill label, a hanging quote mark, and the asker under the question.', create: (_t, o) => aq03.create(o) },
+    { id: 'aq04', name: 'Clean Question Audience', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet card: a small accent label, a hanging quote mark, and the asker in a hairline-quiet byline.', create: (_t, o) => aq04.create(o) },
   ]),
 };
 
@@ -111,7 +111,7 @@ export const viewerQuestionType: GraphicType = {
  *  server that has never heard of a control page. */
 export const qaCardType: GraphicType = {
   id: 'qa-card',
-  name: 'Q&A card',
+  name: 'Q&A card Audience',
   description: 'A question on screen, and the answer revealed when the speaker has given it.',
   structure: structure([
     { id: 'question', selector: '#f1', kind: 'line', required: true },
@@ -132,10 +132,10 @@ export const qaCardType: GraphicType = {
     defaultZone: 'mid-center',
   },
   designs: designs([
-    { id: 'qa01', name: 'House Q&A', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house Q&A card: a void panel with an amber edge, the question above, the answer revealed on Continue.', create: (_t, o) => qa01.create(o) },
-    { id: 'qa02', name: 'Volt Q&A', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport slab: the question in condensed caps, the answer arriving behind a solid accent edge.', create: (_t, o) => qa02.create(o) },
-    { id: 'qa03', name: 'Frost Q&A', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted card: the question above, the answer landing in its own softly-rounded glass block.', create: (_t, o) => qa03.create(o) },
-    { id: 'qa04', name: 'Clean Q&A', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet card: the question over a dim keyline, with the answer arriving beneath it on Continue.', create: (_t, o) => qa04.create(o) },
+    { id: 'qa01', name: 'House Q&A Audience', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house Q&A card: a void panel with an amber edge, the question above, the answer revealed on Continue.', create: (_t, o) => qa01.create(o) },
+    { id: 'qa02', name: 'Volt Q&A Audience', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport slab: the question in condensed caps, the answer arriving behind a solid accent edge.', create: (_t, o) => qa02.create(o) },
+    { id: 'qa03', name: 'Frost Q&A Audience', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted card: the question above, the answer landing in its own softly-rounded glass block.', create: (_t, o) => qa03.create(o) },
+    { id: 'qa04', name: 'Clean Q&A Audience', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet card: the question over a dim keyline, with the answer arriving beneath it on Continue.', create: (_t, o) => qa04.create(o) },
   ]),
 };
 
@@ -149,7 +149,7 @@ export const qaCardType: GraphicType = {
  *  which is the whole implementation. The ticker's `paused` state works exactly this way. */
 export const chatHighlightType: GraphicType = {
   id: 'chat-highlight',
-  name: 'Chat highlight',
+  name: 'Chat highlight Audience',
   description: 'A comment from the chat, on screen and gone again — held if the operator wants it.',
   structure: structure([
     { id: 'byline', selector: '.audience-by', kind: 'block', required: true },
@@ -168,7 +168,7 @@ export const chatHighlightType: GraphicType = {
       branches: [
         {
           id: 'held',
-          name: 'Held on air',
+          name: 'Held on air Audience',
           // Pose-only: entering it plays nothing. Holding IS entering it — the machine cancels
           // the armed dwell on the way out of the on-air state, and nothing re-arms it.
           timeline: null,
@@ -191,10 +191,10 @@ export const chatHighlightType: GraphicType = {
     defaultZone: 'bottom-left',
   },
   designs: designs([
-    { id: 'ch01', name: 'House Comment', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house chat strap: a void panel with an amber edge, the handle and source above the comment.', create: (_t, o) => ch01.create(o) },
-    { id: 'ch02', name: 'Volt Comment', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport strap: the handle and source in caps above the comment, with an accent edge.', create: (_t, o) => ch02.create(o) },
-    { id: 'ch03', name: 'Frost Comment', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted chat strap: the handle and source above a soft, readable comment.', create: (_t, o) => ch03.create(o) },
-    { id: 'ch04', name: 'Clean Comment', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet chat strap: the handle and source in a hairline byline above the comment.', create: (_t, o) => ch04.create(o) },
+    { id: 'ch01', name: 'House Comment Audience', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house chat strap: a void panel with an amber edge, the handle and source above the comment.', create: (_t, o) => ch01.create(o) },
+    { id: 'ch02', name: 'Volt Comment Audience', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport strap: the handle and source in caps above the comment, with an accent edge.', create: (_t, o) => ch02.create(o) },
+    { id: 'ch03', name: 'Frost Comment Audience', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted chat strap: the handle and source above a soft, readable comment.', create: (_t, o) => ch03.create(o) },
+    { id: 'ch04', name: 'Clean Comment Audience', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet chat strap: the handle and source in a hairline byline above the comment.', create: (_t, o) => ch04.create(o) },
   ]),
 };
 
@@ -207,7 +207,7 @@ export const chatHighlightType: GraphicType = {
  *  queue and a two-question one have exactly these two states. */
 export const questionQueueType: GraphicType = {
   id: 'question-queue',
-  name: 'Question queue',
+  name: 'Question queue Audience',
   description: 'The pending questions, with the one being answered marked live.',
   structure: structure([
     { id: 'heading', selector: '.audience-kicker', kind: 'block', required: true },
@@ -219,9 +219,9 @@ export const questionQueueType: GraphicType = {
       branches: [
         {
           id: 'forward',
-          name: 'Next question',
+          name: 'Next question Audience',
           timeline: {
-            name: 'Next',
+            name: 'Next Audience',
             duration: 0.3,
             ease: 'in',
             calls: [{ time: 0, call: 'audienceQueueNext' }],
@@ -237,9 +237,9 @@ export const questionQueueType: GraphicType = {
         },
         {
           id: 'back',
-          name: 'Previous question',
+          name: 'Previous question Audience',
           timeline: {
-            name: 'Back',
+            name: 'Back Audience',
             duration: 0.3,
             ease: 'in',
             calls: [{ time: 0, call: 'audienceQueuePrev' }],
@@ -265,10 +265,10 @@ export const questionQueueType: GraphicType = {
     defaultZone: 'mid-right',
   },
   designs: designs([
-    { id: 'qq01', name: 'House Queue', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house question queue: a void panel with an amber edge marking the question being answered now.', create: (_t, o) => qq01.create(o) },
-    { id: 'qq02', name: 'Volt Queue', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport running order: condensed caps questions with a solid accent edge on the live one.', create: (_t, o) => qq02.create(o) },
-    { id: 'qq03', name: 'Frost Queue', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted question queue: soft rows with an accent dot against the one being answered.', create: (_t, o) => qq03.create(o) },
-    { id: 'qq04', name: 'Clean Queue', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet question queue: hairline-quiet rows with an accent dot against the live one.', create: (_t, o) => qq04.create(o) },
+    { id: 'qq01', name: 'House Queue Audience', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house question queue: a void panel with an amber edge marking the question being answered now.', create: (_t, o) => qq01.create(o) },
+    { id: 'qq02', name: 'Volt Queue Audience', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A leaning sport running order: condensed caps questions with a solid accent edge on the live one.', create: (_t, o) => qq02.create(o) },
+    { id: 'qq03', name: 'Frost Queue Audience', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted question queue: soft rows with an accent dot against the one being answered.', create: (_t, o) => qq03.create(o) },
+    { id: 'qq04', name: 'Clean Queue Audience', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet question queue: hairline-quiet rows with an accent dot against the live one.', create: (_t, o) => qq04.create(o) },
   ]),
 };
 
@@ -281,7 +281,7 @@ export const questionQueueType: GraphicType = {
  *  behaviour on air is genuinely the same two beats, and the derived machine already says so. */
 export const communityRequestType: GraphicType = {
   id: 'community-request',
-  name: 'Community request',
+  name: 'Community request Audience',
   description: 'A prayer or community request, with who sent it and where from.',
   structure: structure([
     { id: 'kicker', selector: '.audience-kicker', kind: 'block', required: true },
@@ -298,9 +298,9 @@ export const communityRequestType: GraphicType = {
     defaultZone: 'bottom-left',
   },
   designs: designs([
-    { id: 'rq01', name: 'House Request', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house request card: a void panel with an amber edge, the request, and who sent it.', create: (_t, o) => rq01.create(o) },
-    { id: 'rq02', name: 'Volt Request', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A bold leaning request card for high-contrast community brands, with an accent label and edge.', create: (_t, o) => rq02.create(o) },
-    { id: 'rq03', name: 'Frost Request', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted request card: a soft pill label over a generously led request, with the sender beneath.', create: (_t, o) => rq03.create(o) },
-    { id: 'rq04', name: 'Clean Request', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet request card: a small accent label, a calmly led request, and the sender and place beneath.', create: (_t, o) => rq04.create(o) },
+    { id: 'rq01', name: 'House Request Audience', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The house request card: a void panel with an amber edge, the request, and who sent it.', create: (_t, o) => rq01.create(o) },
+    { id: 'rq02', name: 'Volt Request Audience', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A bold leaning request card for high-contrast community brands, with an accent label and edge.', create: (_t, o) => rq02.create(o) },
+    { id: 'rq03', name: 'Frost Request Audience', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted request card: a soft pill label over a generously led request, with the sender beneath.', create: (_t, o) => rq03.create(o) },
+    { id: 'rq04', name: 'Clean Request Audience', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet request card: a small accent label, a calmly led request, and the sender and place beneath.', create: (_t, o) => rq04.create(o) },
   ]),
 };

@@ -18,7 +18,7 @@ export const ls08: TemplateVariant = defineVariant(
   {
     id: 'ls08',
     category: 'lower-third',
-    name: 'Squad Number',
+    name: 'Squad Number Lower Third',
     styleTag: 'sport',
     description: 'The squad number set large in an accent block, with the player named beside it.',
     maxLines: 4,
@@ -36,7 +36,7 @@ export const ls08: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Squad Number',
+    name: 'Squad Number Lower Third',
     description:
       'The player strap built the way sports coverage builds it: the squad number set large ' +
       'in a solid accent block, the player name beside it, position and club beneath. The ' +

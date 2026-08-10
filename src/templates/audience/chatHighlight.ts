@@ -84,7 +84,7 @@ interface Spec {
 const SPECS: Spec[] = [
   {
     id: 'ch01',
-    name: 'House Comment',
+    name: 'House Comment Audience',
     family: 'noacg',
     palette: 'noacg',
     fontId: 'space-grotesk',
@@ -93,7 +93,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'ch02',
-    name: 'Volt Comment',
+    name: 'Volt Comment Audience',
     family: 'sport',
     palette: 'volt',
     fontId: 'oswald',
@@ -102,7 +102,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'ch03',
-    name: 'Frost Comment',
+    name: 'Frost Comment Audience',
     family: 'glass',
     palette: 'frost',
     fontId: 'manrope',
@@ -111,7 +111,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'ch04',
-    name: 'Clean Comment',
+    name: 'Clean Comment Audience',
     family: 'minimal',
     palette: 'ivory',
     fontId: 'inter',

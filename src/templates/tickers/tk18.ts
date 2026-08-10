@@ -18,7 +18,7 @@ export const tk18: TemplateVariant = defineTickerVariant(
   {
     id: 'tk18',
     category: 'ticker',
-    name: 'Status Rotator',
+    name: 'Status Rotator Ticker',
     styleTag: 'minimal',
     description: 'Service statuses one at a time — timed, pausable, and split into a name column.',
     maxLines: 2,
@@ -43,7 +43,7 @@ export const tk18: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Status Rotator',
+    name: 'Status Rotator Ticker',
     description:
       'The operations strip: one service status at a time, each held long enough to read, ' +
       'with the service name in a fixed column so the list can be scanned. The cycle is the ' +
