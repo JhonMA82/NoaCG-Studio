@@ -12,7 +12,7 @@ export const cr03: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr03',
     category: 'end-credits',
-    name: 'Pager End Credits',
+    name: 'Pager End Credit',
     styleTag: 'sport',
     description:
       'One-pager credit swaps: each section holds as a full centered card, then hands over ' +

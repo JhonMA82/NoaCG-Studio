@@ -29,7 +29,7 @@ var easeOut = '${cfg.easeOut}';   // exit ease (the fade-out)`;
 export const SS_PRESETS: AnimPreset[] = [
   {
     id: 'hold-loop' as AnimPresetId,
-    name: 'Hold loop',
+    name: 'Hold loop Starting Soon',
     description: 'A calm hold — the panel fades in, the countdown starts, and one element breathes gently until stop().',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}

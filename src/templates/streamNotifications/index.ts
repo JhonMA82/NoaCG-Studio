@@ -355,7 +355,7 @@ function glassDesign(_o: ResolvedOptions): StreamNotificationDesign {
 
 export const sn01 = defineStreamNotification({
   id: 'sn01',
-  name: 'House Signal',
+  name: 'House Signal Stream Notification',
   description: 'A NoaCG control-room notification with a radar portrait, amber signal rail and compact telemetry hierarchy.',
   styleTag: 'noacg',
   paletteId: 'noacg',

@@ -36,7 +36,7 @@ function lineList(count: number): string {
 export const FRAME_PRESETS: AnimPreset[] = [
   {
     id: 'frame-draw' as AnimPresetId,
-    name: 'Frame draw',
+    name: 'Frame draw Frame',
     description: 'In: the window edge scales up into place, then the nameplate settles under it. Out: both leave together.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}

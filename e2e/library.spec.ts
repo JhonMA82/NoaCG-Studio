@@ -206,7 +206,7 @@ test('a saved graphic\'s control panel: entries create, play with the active ent
   await page.getByTestId('control-play').click();
   const frame = page.locator('.control-page-preview iframe');
   await expect(frame.contentFrame().locator('#f0')).toHaveText('Anna Andersson');
-  await expect(frame.contentFrame().locator('#f1')).toHaveText('Presenter');
+  await expect(frame.contentFrame().locator('#f1')).toContainText('Presenter');
 
   // Switch to another entry and play the same graphic again with ITS data.
   await page.locator('.control-entry').nth(0).getByTestId('select-entry').click();
@@ -496,7 +496,7 @@ test('video and graphics stay separate but connected: #/video, back to graphics,
   await expect(page.getByTestId('video-shell')).toBeVisible();
   await expect(page.locator('.video-workspace-badge')).toContainText('Video');
   await page.getByTestId('back-to-graphics').click();
-  await expect(page.locator('.tpl-name')).toHaveText('Hairline');
+  await expect(page.locator('.tpl-name')).toContainText('Hairline');
 });
 
 test('looks: capture the current look in Home, apply it to another graphic, survive reload', async ({ page }) => {

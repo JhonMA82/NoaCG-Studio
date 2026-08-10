@@ -38,7 +38,7 @@ function buildOutTimeline() {
 export const TICKER_PRESETS: AnimPreset[] = [
   {
     id: 'ticker-marquee' as AnimPresetId,
-    name: 'Marquee loop',
+    name: 'Marquee loop Ticker',
     description: 'The classic news ticker — items travel across the strip in a seamless, endless loop.',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}

@@ -32,7 +32,7 @@ export const cr10: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr10',
     category: 'end-credits',
-    name: 'Graduation Roll End Credits',
+    name: 'Graduation Roll End Credit',
     styleTag: 'minimal',
     description: 'The reading of names — graduate large, award beneath, rolling at a ceremony pace.',
     maxLines: 2,

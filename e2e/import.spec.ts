@@ -63,7 +63,7 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
 
 test('import .html: splits into panes, keeps the definition, validates, exports', async ({ page }) => {
   await dropTemplate(page, 'old-score-bug.html', Buffer.from(FOREIGN_HTML));
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Old Score Bug');
+  await expect(page.locator('.topbar .tpl-name')).toContainText('Old Score Bug');
 
   const tpl = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

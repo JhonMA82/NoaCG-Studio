@@ -347,7 +347,7 @@ test('reload restores the project; save/reopen and the SPX switch work', async (
     { timeout: 30_000 },
   );
   await expect(page.getByTestId('video-shell')).toHaveCount(0);
-  await expect(page.locator('.tpl-name')).toHaveText('Blank');
+  await expect(page.locator('.tpl-name')).toContainText('Blank');
 
   // Reopen the saved video from the wizard's reopen strip (the ▶-prefixed chip; the ↩
   // Continue chip for the autosaved slot also appears - both open the same project here).

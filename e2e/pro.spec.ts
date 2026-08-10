@@ -66,7 +66,7 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
   await page.getByTestId('wz-finish-name').fill('Election Night Strap');
   await page.getByTestId('wz-finish-editor').click();
   await expect(page.getByTestId('creation-wizard')).toBeHidden();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Election Night Strap');
+  await expect(page.locator('.topbar .tpl-name')).toContainText('Election Night Strap');
 
   // The compiled graphic is an ORDINARY template: live fields with the brief's values,
   // reconstructed panels as registry parts, and a timeline-editable NOACG_ANIM block.

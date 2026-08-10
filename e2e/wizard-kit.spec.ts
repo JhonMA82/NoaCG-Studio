@@ -365,7 +365,7 @@ test('"take me through each one" walks the rest of the set', async ({ page }) =>
   await expect(page.getByTestId('wz-stepcount')).toHaveText('Step 3 / 6');
   await expect(page.getByTestId('kit-tray')).toContainText('graphic 2 of 2');
   await expect(page.locator('[data-kit-chip]').nth(1)).toHaveAttribute('data-state', 'current');
-  await expect(page.locator('.wz-title-doc')).toHaveText('· Quiet Hold');
+  await expect(page.locator('.wz-title-doc')).toHaveText('· Quiet Hold Game Timer');
 
   // The look question is asked ONCE. Finishing the last graphic goes straight to the
   // production; asking again would be asking about a look the user already declined.

@@ -24,7 +24,7 @@ var easeOut = '${cfg.easeOut}';   // exit ease — starts naturally, leaves quic
 export const GT_PRESETS: AnimPreset[] = [
   {
     id: 'timer-line-reveal' as AnimPresetId,
-    name: 'Timer line reveal',
+    name: 'Timer line reveal Game Timer',
     description: 'The accent line draws in, the label rises from its mask, the clock fades up — elegant.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}

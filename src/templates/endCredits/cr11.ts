@@ -29,7 +29,7 @@ export const cr11: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr11',
     category: 'end-credits',
-    name: 'Roll of Remembrance End Credits',
+    name: 'Roll of Remembrance End Credit',
     styleTag: 'glass',
     description: 'A memorial name roll — large quiet names, no accent, no badge, nothing competing.',
     maxLines: 2,

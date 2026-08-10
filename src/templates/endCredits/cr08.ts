@@ -36,7 +36,7 @@ export const cr08: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr08',
     category: 'end-credits',
-    name: 'Donor Wall End Credits',
+    name: 'Donor Wall End Credit',
     styleTag: 'glass',
     description: 'Giving levels and their donors, looping seamlessly — the gala and telethon wall.',
     maxLines: 2,

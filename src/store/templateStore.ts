@@ -197,7 +197,7 @@ interface TemplateState {
   patchCss: (css: string) => void;
 
   /** Replace the whole template (used by the panels, AI, and the wizard). */
-  applyTemplate: (template: SpxTemplate, opts?: { resetSampleData?: boolean }) => void;
+  applyTemplate: (template: SpxTemplate, opts?: { resetSampleData?: boolean; keepGalleryOpen?: boolean }) => void;
   /** Restore the template from before the last apply. No-op when history is empty. */
   undo: () => void;
   /** Re-apply the last undone snapshot. No-op when nothing was undone (or a new edit
@@ -422,7 +422,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
         // create path and openGraphicDoc set the right thread just after the swap.
         aiThread: opts?.resetSampleData ? null : s.aiThread,
         validation: null,
-        galleryOpen: false,
+        galleryOpen: opts?.keepGalleryOpen ? s.galleryOpen : false,
         // Snapshot the pre-apply template so the action can be undone; a fresh edit
         // discards whatever was undone before it (the redo branch is gone).
         history: [...s.history, s.template].slice(-30),

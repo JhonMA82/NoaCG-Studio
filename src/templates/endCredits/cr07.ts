@@ -32,7 +32,7 @@ export const cr07: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr07',
     category: 'end-credits',
-    name: 'Thank You Wall End Credits',
+    name: 'Thank You Wall End Credit',
     styleTag: 'minimal',
     description: 'A held board of names in columns — a wall you can read, because nothing on it moves.',
     maxLines: 2,

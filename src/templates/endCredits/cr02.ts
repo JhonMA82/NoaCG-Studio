@@ -12,7 +12,7 @@ export const cr02: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr02',
     category: 'end-credits',
-    name: 'Column Roll End Credits',
+    name: 'Column Roll End Credit',
     styleTag: 'glass',
     description:
       'A two-column credits roll on frosted glass — roles right-aligned left, names left-aligned right.',

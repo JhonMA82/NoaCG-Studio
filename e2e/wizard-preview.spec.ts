@@ -68,15 +68,13 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   // Typeface sits behind a disclosure now (re-design/handoff.md §2d) — the collapsed row
   // names the face in use, and the picker opens on ask. Same idiom as Size & position below.
   await page.getByTestId('wz-typeface').locator('summary').click();
-  await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
+  await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // A growth-set face flows through the same path: the first serif the catalog ever had
   // (docs/GOALS.md "Student release" step 5) - pick it via search, land it in the build.
-  await page.getByTestId('font-search').fill('playfair');
-  await page.locator('.font-option', { hasText: 'Playfair Display' }).click();
+  await page.getByTestId('font-select').first().selectOption({ label: 'Playfair Display' });
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Playfair Display');
-  await page.getByTestId('font-search').fill('');
-  await page.locator('.font-option', { hasText: 'Space Grotesk' }).click();
+  await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
   // Size and position are TUNING and sit behind a disclosure too. The PALETTE is what this
   // step now leads with alone: every other decision here has a good per-design default and a

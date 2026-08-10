@@ -103,7 +103,7 @@ export interface AudienceForm {
 function withAnswerStep(ease: string) {
   return (data: AnimData): AnimData => {
     const answer: AnimStep = {
-      name: 'Answer',
+      name: 'Answer Audience',
       duration: 0.5,
       ease,
       reveals: ['.audience-answer'],

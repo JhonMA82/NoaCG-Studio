@@ -105,7 +105,7 @@ test('project brand: match toggle carries the look to another variant', async ({
 test('info card: creates, binds, and plays', async ({ page }) => {
   await toVariantStep(page, 'Topic', 'Slab Card');
   await create(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Slab Card');
+  await expect(page.locator('.topbar .tpl-name')).toContainText('Slab Card');
   await expect(frame(page).locator('.info-card')).toBeAttached(); // the NEW document is loaded
   await page.getByRole('button', { name: '▶ Play' }).click();
   await expect

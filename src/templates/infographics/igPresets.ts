@@ -49,7 +49,7 @@ function buildOutTimeline() {
 export const IG_PRESETS: AnimPreset[] = [
   {
     id: 'count-up' as AnimPresetId,
-    name: 'Count up',
+    name: 'Count up Infographic',
     description: 'The panel rises in, then the big number counts from zero up to its value.',
     autoEase: { easeIn: 'expo.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}

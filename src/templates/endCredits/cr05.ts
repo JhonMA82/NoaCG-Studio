@@ -28,7 +28,7 @@ export const cr05: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr05',
     category: 'end-credits',
-    name: 'Schedule Hold End Credits',
+    name: 'Schedule Hold End Credit',
     styleTag: 'minimal',
     description: 'The running order as a holding board — time on the left, item on the right, nothing moving.',
     maxLines: 2,

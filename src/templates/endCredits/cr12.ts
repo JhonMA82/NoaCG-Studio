@@ -28,7 +28,7 @@ export const cr12: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr12',
     category: 'end-credits',
-    name: 'Sponsor Crawl End Credits',
+    name: 'Sponsor Crawl End Credit',
     styleTag: 'sport',
     description: 'A bottom-of-frame acknowledgement strip that crawls while the show keeps running.',
     maxLines: 2,
