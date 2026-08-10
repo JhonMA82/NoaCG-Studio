@@ -141,7 +141,7 @@ test('spend, concurrency, user overlap, and provider throttling have separate di
 });
 
 test('the durable usage RPC releases ready and stale rows from fleet capacity', async () => {
-  const source = await readFile('supabase/migrations/0037_release_lite_fleet_capacity.sql', 'utf8');
+  const source = await readFile('supabase/migrations/0038_release_lite_fleet_capacity.sql', 'utf8');
   assert.match(
     source,
     /where generation\.user_id = p_user_id[\s\S]+generation\.status in \('reserved', 'model_running', 'spec_ready'\)[\s\S]+generation\.expires_at > p_now/i,
