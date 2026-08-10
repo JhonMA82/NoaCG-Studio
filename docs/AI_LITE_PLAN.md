@@ -15,7 +15,7 @@ doctrine and code contract are `src/ai/AGENTS.md` and `docs/ADAPT_FIRST_PLAN.md`
 | Cost | **$0.00034 per generation** - about 3% of the ~€0.01 ceiling. **Not a constraint** |
 | Reliability | **30 of 30** briefs machine-usable, zero rejections, on `lite-lower-third-v13` (2026-08-09, `benchmarks/lite/ROUND-2026-08-09-V13.md`) |
 | Scope today | lower thirds only, 13 measured semantic reference chassis, with 1-4 visible fields |
-| The open problem | **quality**. The v14 real-model semantic round is 6/8 visually usable after deterministic corrections; history ordering and the esports render remain unresolved |
+| The open problem | **quality**. The v14 real-model semantic round measured 6/8 visually usable; the esports zero-width-sample defect is fixed unpaid, while history ordering remains unresolved |
 
 **Cost should stop being discussed.** There is 30-100x headroom, every candidate route fits, and
 route choice is a QUALITY decision. The scarce resource is human review.
@@ -44,10 +44,12 @@ documentary, luxury, technology, and esports. `npm run bench:lite:semantic` rend
 through the production compiler and runtime bench: **8/8 category-correct, machine-valid, and
 hold-clean**.
 
-The real-model v14 round ran on 2026-08-10 under a US$0.08 ceiling. After deterministic contract
-corrections, **6/8 are visually usable**: history lecturer fails model slot ordering, and esports
-still hides two supporting fields despite a three-field machine-usable decision. Full attribution,
-spend, and gallery findings: `benchmarks/lite/ROUND-2026-08-10-V14-SEMANTIC.md`.
+The real-model v14 round ran on 2026-08-10 under a US$0.08 ceiling. The paid frames measured
+**6/8 visually usable**: history lecturer failed model slot ordering, and esports hid two
+supporting fields despite a three-field machine-usable decision. The unpaid follow-up reproduced
+the esports result with zero-width samples, disproved the catalog attribution, and added semantic
+repair plus a compile-level refusal. Full attribution, spend, and gallery findings:
+`benchmarks/lite/ROUND-2026-08-10-V14-SEMANTIC.md`.
 
 ## 2. The four owner decisions (2026-08-08)
 
@@ -333,5 +335,6 @@ the ones it does not. Two structural pins in `scripts/ai-lite-bench.test.mjs`: t
 and **no mark shape servable by only one chassis** - the same rule the intent kinds are under,
 for the same reason.
 
-**Step 4 now has a paid semantic round. Its two remaining failures are recorded in
+**Step 4 now has a paid semantic round. The esports failure is fixed unpaid; history ordering is
+the remaining real-model failure recorded in
 `benchmarks/lite/ROUND-2026-08-10-V14-SEMANTIC.md`.**

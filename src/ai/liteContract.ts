@@ -1391,6 +1391,7 @@ const REPAIR_GUIDANCE: Record<string, string> = {
   slot_role_mismatch: 'Use one of the selected chassis roles listed for the {detail} content slot, or select a compatible chassis.',
   requested_role_missing: 'The brief explicitly asks for a {detail} line. Add it, or change an existing line\'s role to {detail}.',
   requested_field_count_mismatch: 'Return exactly the number of editable lines declared by generationSpec.fields. Keep each requested value in its own line instead of merging them.',
+  line_sample_invisible: 'Replace editable line {detail} with its visible requested value. Do not use whitespace, zero-width characters, or placeholders to satisfy the field count.',
   field_count_exceeded: 'Reduce the number of lines and extra fields to the allowed maximum.',
   lower_third_extra_fields_forbidden: 'Remove spec.extraFields entirely - a lower third carries only its lines.',
   flourish_forbidden: 'Set spec.flourish to an empty string.',
@@ -1438,6 +1439,13 @@ export interface LiteSemanticResult {
   /** Content-free codes for what was deterministically REPAIRED rather than refused
    *  (contrast clamps, removed remote-asset reaches). Empty on an untouched decision. */
   adjustments?: string[];
+}
+
+/** Whether a line paints at least one real glyph. JavaScript trim does not remove Unicode
+ * format controls such as U+200B, so a model can otherwise satisfy minLength and field-count
+ * checks with a zero-width value that reserves a band and paints nothing. */
+export function liteTextHasVisibleGlyph(value: unknown): boolean {
+  return typeof value === 'string' && value.replace(/[\s\p{Cc}\p{Cf}\p{Cs}]/gu, '').length > 0;
 }
 
 function requestedLineRoles(request: LiteGenerationRequest): Set<LiteLowerThirdLineRole> {
@@ -1781,8 +1789,14 @@ export function validateLiteDecision(
   // If the brief explicitly asked for the dropped line's role, `requested_role_missing` then
   // fires - correct, because a role emitted as an empty line was never delivered.
   const emittedLines = Array.isArray(spec.lines) ? spec.lines : [];
+  const requestedFieldCount = request.generationSpec?.fields.length ?? 0;
+  if (requestedFieldCount > 0) {
+    emittedLines.forEach((line, index) => {
+      if (!liteTextHasVisibleGlyph(line?.sample)) errors.push(`line_sample_invisible:${index + 1}`);
+    });
+  }
   const lines = [...emittedLines];
-  while (lines.length > 1 && !String(lines[lines.length - 1]?.sample ?? '').trim()) lines.pop();
+  while (lines.length > 1 && !liteTextHasVisibleGlyph(lines[lines.length - 1]?.sample)) lines.pop();
   const blankLinesDropped = emittedLines.length - lines.length;
   if (!entry) errors.push('variant_not_allowed');
   if (spec.fit !== 'catalog') errors.push('fit_not_catalog');
@@ -1835,7 +1849,6 @@ export function validateLiteDecision(
   for (const requiredRole of requestedLineRoles(request)) {
     if (!emittedRoles.includes(requiredRole)) errors.push(`requested_role_missing:${requiredRole}`);
   }
-  const requestedFieldCount = request.generationSpec?.fields.length ?? 0;
   if (requestedFieldCount > 0 && lines.length !== requestedFieldCount) {
     errors.push('requested_field_count_mismatch');
   }

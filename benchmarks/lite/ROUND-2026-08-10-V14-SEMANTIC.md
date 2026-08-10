@@ -22,7 +22,7 @@ machine-usable endpoint decisions; history lecturer is the only final generation
 | documentary | `lt32` | usable | none |
 | luxury | `lt25` | usable after correction | platform |
 | technology | `lt49` | usable | none |
-| esports | `lt41` | not usable | catalog + judge mechanism |
+| esports | `lt41` | not usable in the paid frame; fixed unpaid | model + judge mechanism |
 
 The six accepted frames are readable, correctly anchored, update cleanly with longer copy, and
 settle their entrance and exit motion. Public news is appropriately editorial, documentary is
@@ -57,16 +57,25 @@ when the user supplied no exact brand colors, so the deterministic boundary now 
 model palettes. User-supplied palettes still take the existing contrast-clamp path. Corrected
 rerenders are legible and visually usable.
 
-### Esports - catalog and judge mechanism
+### Esports - model and judge mechanism, corrected unpaid
 
 The first decision merged the requested team and competition into two fields. The validator now
 requires exactly the editable field count declared by `generationSpec`, and repair guidance says
-to keep each value separate. The corrected endpoint decision contains three fields and is
-machine-usable, but the rendered `lt41` hold and update show only the primary line while the two
-supporting fields remain invisible. `ruleCodes` and `warningCodes` are both empty. The catalog
-metadata correctly declares three visible slots, so the remaining defect is in the chassis/palette
-rendering path and in the judge mechanism that calls an unpainted result usable. No further paid
-call was made because another model sample would not diagnose that deterministic render defect.
+to keep each value separate. The corrected endpoint decision contained three fields, but its
+`lt41` hold and update showed only the primary line while the two supporting fields remained
+invisible. `ruleCodes` and `warningCodes` were both empty.
+
+The unpaid follow-up disproved the initial catalog attribution. The exact corrected-round
+adjustment vector renders all three locked esports values in `lt41`. Replacing the two supporting
+samples with U+200B zero-width characters recreates the paid frame exactly and passed the old
+compiler: three declared fields, two reserved empty bands, no finding. JavaScript `trim()` does
+not remove that format character, and the field-paint check deliberately drove fresh sentinels,
+so it proved that the slots could paint rather than that the supplied samples did paint.
+
+The semantic boundary now rejects every requested line without a real glyph and gives the repair
+round an explicit edit. The compile path independently emits `lite-hold-empty-field-sample` if a
+server-bypassing decision reaches it. The free browser benchmark pins both the valid three-line
+`lt41` render and the corrupted decision's refusal. No additional paid call was made.
 
 ## Changes made from evidence
 

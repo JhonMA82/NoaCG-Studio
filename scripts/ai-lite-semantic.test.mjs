@@ -65,6 +65,14 @@ test('requested editable fields stay separate and unrequested palettes cannot ov
   merged.decision.spec.lines.pop();
   assert.ok(contract.validateLiteDecision(merged.decision, merged.request).errors.includes('requested_field_count_mismatch'));
 
+  const invisible = structuredClone(LITE_SEMANTIC_FIXTURES.find((fixture) => fixture.id === 'esports'));
+  invisible.decision.spec.lines[1].sample = '\u200b';
+  invisible.decision.spec.lines[2].sample = '\u200b';
+  const invisibleErrors = contract.validateLiteDecision(invisible.decision, invisible.request).errors;
+  assert.ok(invisibleErrors.includes('line_sample_invisible:2'));
+  assert.ok(invisibleErrors.includes('line_sample_invisible:3'));
+  assert.ok(invisibleErrors.includes('requested_field_count_mismatch'));
+
   const recolored = structuredClone(LITE_SEMANTIC_FIXTURES.find((fixture) => fixture.id === 'public-news'));
   recolored.decision.spec.palette = {
     accent: '#ffffff', text: '#000000', textDim: '#333333', panel: '#f2f2f2',

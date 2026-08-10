@@ -15,7 +15,13 @@ import { applySpecLocks, applySpecOutPreset } from './spec/specDesign';
 import { demoteSpecFields, ensureSpecFonts } from './spec/specValidate';
 import { withSafetyChecks } from './safety';
 import { mergeAssetIntegrity } from './assetIntegrity';
-import { LITE_CATALOG, LITE_SINGLE_LINE_ROLES, liteSkinPatchErrors, sanitizeLiteSkinPatch } from './liteContract';
+import {
+  LITE_CATALOG,
+  LITE_SINGLE_LINE_ROLES,
+  liteSkinPatchErrors,
+  liteTextHasVisibleGlyph,
+  sanitizeLiteSkinPatch,
+} from './liteContract';
 import type { LiteDesignSpec, LiteLowerThirdLineRole, LiteSkinPatch } from './liteTypes';
 import type { GenerateContext, SpxValidator } from './provider';
 import type { AiDiversity } from './telemetry';
@@ -217,7 +223,8 @@ export type LiteHoldFinding =
   | 'generic-default-panel'
   | 'weak-brief-fit'
   | 'overflow'
-  | 'poor-contrast';
+  | 'poor-contrast'
+  | 'empty-field-sample';
 
 /** Deterministic hold-frame verdict. Runtime findings own visible geometry and contrast; the
  * semantic checks catch a technically valid but generic or reference-mismatched adaptation. */
@@ -231,6 +238,9 @@ export function liteHoldFrameFindings(
   if (rules.some((rule) => /overflow|outside|clip|line-wrap/.test(rule))) findings.add('overflow');
   if (rules.some((rule) => /contrast/.test(rule))) findings.add('poor-contrast');
   const lite = spec as unknown as Partial<LiteDesignSpec>;
+  if (lite.lines?.some((line) => !liteTextHasVisibleGlyph(line.sample))) {
+    findings.add('empty-field-sample');
+  }
   if (!lite.styleIntent) return [...findings];
   const chosen = LITE_CATALOG.find((entry) => entry.variantId === spec.variantId);
   if (chosen) {

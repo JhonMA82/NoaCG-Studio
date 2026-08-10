@@ -18,6 +18,23 @@ const { rows } = await runCompileJobs(jobs, {
   capture: false,
 });
 
+// Regression for the paid esports frame: U+200B satisfied the old string and field-count
+// checks, reserved all three lt41 bands, and painted only NOVA. The semantic boundary now asks
+// for repair, while this compile-level guard keeps a bypassed decision from being called usable.
+const invisibleEsports = structuredClone(LITE_SEMANTIC_FIXTURES.find((fixture) => fixture.id === 'esports').decision);
+invisibleEsports.spec.lines[1].sample = '\u200b';
+invisibleEsports.spec.lines[2].sample = '\u200b';
+const { rows: guardRows } = await runCompileJobs([{
+  id: 'esports-invisible-samples',
+  arm: 'semantic-guard',
+  briefId: 'esports',
+  decision: invisibleEsports,
+}], {
+  base,
+  outDir: path.resolve(`./lite-bench-out/semantic-v${LITE_SEMANTIC_FIXTURE_VERSION}`),
+  capture: false,
+});
+
 let failures = 0;
 for (const row of rows) {
   const fixture = LITE_SEMANTIC_FIXTURES.find((item) => item.id === row.id);
@@ -27,6 +44,11 @@ for (const row of rows) {
     failures += 1;
     console.error(`${row.id}: variant=${row.variantId}; rules=${row.ruleCodes.join(',')}; hold=${(row.holdFindings ?? []).join(',')}`);
   }
+}
+const guard = guardRows[0];
+if (guard?.ok || !guard?.holdFindings?.includes('empty-field-sample')) {
+  failures += 1;
+  console.error('esports-invisible-samples: zero-width editable values passed the compile gate');
 }
 console.log(`Free Lite semantic benchmark v${LITE_SEMANTIC_FIXTURE_VERSION}: ${rows.length - failures}/${rows.length} category-correct, machine-valid, hold-clean.`);
 if (failures) process.exitCode = 1;
