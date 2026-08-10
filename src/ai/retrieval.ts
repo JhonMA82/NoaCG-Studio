@@ -30,6 +30,11 @@ import {
   type StructuralAnchor,
 } from '../templates/structuralAnchor';
 
+// Lite uses the same retrieval surface, but its candidates are measured chassis rather than
+// the full wizard catalog. The implementation stays with the Lite contract so its category,
+// capacity, slot, and geometry facts cannot drift into a second registry.
+export { retrieveLiteReferenceSet } from './liteContract';
+
 /** How many proven designs the design stage chooses between. Ten is a shortlist a small model
  *  can hold and a person can be shown; the full catalog is neither. */
 export const SHORTLIST_LIMIT = 10;

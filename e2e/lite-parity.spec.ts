@@ -8,7 +8,8 @@
 // that quietly stops being true when one of those steps grows a Lite-shaped branch.
 //
 // So it is measured rather than argued, over every audited chassis, against
-// `variantById(id).create({})` - the exact call the wizard makes for a hand-picked design.
+// `variantById(id).create({ lines })` - the exact adaptation the wizard makes when a user
+// supplies the same content to a hand-picked design.
 //
 // The second test is the part that is easy to forget: for the ONLY category Lite ships, "the
 // same event buttons" means "no event buttons", because no lower third in the catalog carries
@@ -26,7 +27,7 @@ test.describe('a Lite result is the same graphic as the catalog design it adapte
 
   test('every audited chassis compiles to the same operator surface as a hand-picked build', async ({ page }) => {
     test.setTimeout(120_000);
-    const rows = await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
       const { variantById } = await import('/src/templates/catalog.ts');
       const mod = await import('/src/ai/litePipeline.ts');
       const { LITE_CATALOG } = await import('/src/ai/liteContract.ts');
@@ -67,7 +68,7 @@ test.describe('a Lite result is the same graphic as the catalog design it adapte
           fps: 50,
         } as unknown as Context;
         const compiled = await mod.compileLiteDecision(decision, context);
-        const byHand = variantById(entry.variantId)!.create({});
+        const byHand = variantById(entry.variantId)!.create({ lines: decision.lines });
         out.push({
           variantId: entry.variantId,
           lite: surface(compiled.template),
@@ -76,11 +77,11 @@ test.describe('a Lite result is the same graphic as the catalog design it adapte
           liteErrors: compiled.validation.errors.map((e) => e.rule),
         });
       }
-      return out;
+      return { rows: out, expectedCount: LITE_CATALOG.length };
     });
 
-    expect(rows).toHaveLength(6);
-    for (const row of rows) {
+    expect(result.rows).toHaveLength(result.expectedCount);
+    for (const row of result.rows) {
       expect(row.lite.fields, `${row.variantId} fields`).toEqual(row.hand.fields);
       expect(row.lite.events, `${row.variantId} event buttons`).toEqual(row.hand.events);
       expect(row.lite.groups, `${row.variantId} machine groups`).toEqual(row.hand.groups);

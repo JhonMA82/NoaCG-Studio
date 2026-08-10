@@ -72,7 +72,8 @@ try {
   // the model's schema is ready-only, so this screen is the ONLY refusal path) must still
   // catch the expected-unsupported core briefs it caught when the suite was frozen: a miss
   // is both a cost regression and an UNSUPPORTED_FORCED result waiting to happen.
-  for (const brief of CORE_SUITE.filter((b) => b.expect.decision === 'unsupported')) {
+  for (const brief of CORE_SUITE.filter((b) =>
+    b.expect.decision === 'unsupported' && b.expect.unsupportedCode !== 'unsupported-category')) {
     const screened = contract.deterministicUnsupportedDecision({
       prompt: brief.brief,
       resolution: { width: 1920, height: 1080 },

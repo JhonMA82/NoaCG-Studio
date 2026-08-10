@@ -337,7 +337,10 @@ export const REPAIR_SUITE = [
         { title: 'Name', sample: 'Ada Example', role: 'person-name' },
       ],
     }),
-    expectErrors: ['primary_role_mismatch', 'secondary_role_mismatch'],
+    expectErrors: [
+      'primary_role_mismatch', 'secondary_role_mismatch',
+      'slot_role_mismatch:primary', 'slot_role_mismatch:secondary',
+    ],
   },
   {
     id: 'repair-intent-variant-mismatch',

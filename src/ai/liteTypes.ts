@@ -8,6 +8,7 @@ export type CreativeAiProfileId = 'lite';
 
 export type LiteUnsupportedCode =
   | 'unsupported-category'
+  | 'category-ambiguous'
   | 'multi-graphic-request'
   | 'advanced-state-machine'
   | 'reference-recreation'
@@ -15,6 +16,60 @@ export type LiteUnsupportedCode =
   | 'video-request'
   | 'external-data'
   | 'too-complex';
+
+/** Category vocabulary shared by the browser request, server contract, and future category
+ * picker. A category becomes compilable only when liteContract.ts has a CategoryContract for
+ * it - naming it here is not an allowlist expansion. */
+export type LiteCategoryId =
+  | 'lower-third'
+  | 'title'
+  | 'topic-card'
+  | 'breaking'
+  | 'ticker'
+  | 'scoreboard'
+  | 'stats-panel'
+  | 'player-card'
+  | 'versus'
+  | 'quiz'
+  | 'poll'
+  | 'qa-card'
+  | 'countdown'
+  | 'schedule'
+  | 'leaderboard'
+  | 'quote'
+  | 'sponsor-bug'
+  | 'social-bug'
+  | 'progress-goal'
+  | 'starting-soon'
+  | 'end-credits';
+
+export interface LiteCategoryAlternative {
+  category: LiteCategoryId;
+  confidence: number;
+  reason: string;
+}
+
+/** The category read made by the same constrained model call that chooses the adaptation.
+ * Manual category selection still wins in server semantic validation. */
+export interface LiteCategoryInference {
+  category: LiteCategoryId;
+  confidence: number;
+  alternatives: LiteCategoryAlternative[];
+}
+
+/** Brief meaning separated from palette values. These axes describe design character; they do
+ * not turn words into colors. Exact project/brand values continue to override model choices. */
+export interface LiteStyleIntent {
+  mood: 'authoritative' | 'warm' | 'urgent' | 'restrained' | 'playful' | 'dramatic' | 'technical' | 'luxurious';
+  era: 'contemporary' | 'mid-century' | 'retro-1980s' | 'retro-1990s' | 'heritage' | 'futurist';
+  energy: 'quiet' | 'measured' | 'confident' | 'high' | 'explosive';
+  material: 'flat' | 'paper' | 'glass' | 'metal' | 'fabric' | 'light' | 'screen';
+  paletteDirection: 'brand-led' | 'neutral-dark' | 'neutral-light' | 'warm' | 'cool' | 'high-contrast' | 'monochrome';
+  typographyCharacter: 'humanist' | 'geometric' | 'editorial-serif' | 'condensed' | 'monospace' | 'display' | 'cinematic';
+  shapeLanguage: 'orthogonal' | 'rounded' | 'angled' | 'ruled' | 'layered' | 'minimal';
+  texture: 'none' | 'clean' | 'grain' | 'paper' | 'glow' | 'frosted' | 'scanline';
+  motion: 'calm-fade' | 'editorial-reveal' | 'precise-draw' | 'soft-depth' | 'fast-stinger' | 'technical-snap' | 'cinematic-drift';
+}
 
 export type LiteLowerThirdIntentKind =
   | 'person'
@@ -90,8 +145,15 @@ export interface LiteDesignSpec {
   reason: string;
   name: string;
   summary: string;
-  category: 'lower-third' | 'info-card' | 'ticker' | 'game-timer' | 'scoreboard' | 'infographic';
+  category: LiteCategoryId;
   variantId: string;
+  /** Same-call category reading. The server uses it only when the user left category on auto. */
+  categoryInference: LiteCategoryInference;
+  /** Semantic design direction interpreted in context, before concrete adaptation knobs. */
+  styleIntent: LiteStyleIntent;
+  /** Relevant compatible references the model ranks after its chosen chassis. The deterministic
+   * compiler may try these when the rendered hold frame rejects the first treatment. */
+  fallbackVariantIds?: string[];
   intent: LiteLowerThirdIntent;
   lines: { title: string; sample: string; role: LiteLowerThirdLineRole }[];
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
@@ -193,6 +255,8 @@ export type LiteDecision =
       code: LiteUnsupportedCode;
       message: string;
       suggestedBrief?: string;
+      /** Present for ambiguous auto-category reads and unsupported inferred categories. */
+      categoryChoices?: LiteCategoryAlternative[];
     };
 
 export interface LiteConversationTurn {

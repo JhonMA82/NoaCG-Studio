@@ -3,6 +3,7 @@
 //   node scripts/lite-line-capacity.mjs            # the six audited NoaCG Lite chassis
 //   node scripts/lite-line-capacity.mjs --check    # GATE: measured vs what LITE_CATALOG claims
 //   node scripts/lite-line-capacity.mjs --all      # every lower third in the catalog
+//   node scripts/lite-line-capacity.mjs --ids=lt19,lt30,ls17
 //   node scripts/lite-line-capacity.mjs --json out.json
 //
 // SPENDS NO TOKENS. Needs the dev server (it renders the real templates through it).
@@ -60,6 +61,10 @@ const jsonAt = args.indexOf('--json');
 const jsonOut = jsonAt >= 0 ? args[jsonAt + 1] : null;
 const ALL = args.includes('--all');
 const CHECK = args.includes('--check');
+const ONLY_IDS = (args.find((arg) => arg.startsWith('--ids='))?.slice('--ids='.length) ?? '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 // How far the declared number may lag the measurement before the gate complains. Asymmetric on
 // purpose: a claim ABOVE the measurement is the defect this exists to catch (the model is told
@@ -81,7 +86,12 @@ await page.evaluate(async () => {
 // The audited chassis and what each CLAIMS come from LITE_CATALOG itself, never from a copy
 // kept here: a gate whose expected values live beside it is checking its own homework, and the
 // duplicate is what would go stale the next time a chassis is audited in.
-const targets = ALL
+const targets = ONLY_IDS.length
+  ? (await page.evaluate((ids) => ids.map((id) => {
+      const variant = window.__cat.variantById(id);
+      return { id, name: variant?.name ?? id, claims: null };
+    }), ONLY_IDS))
+  : ALL
   ? (await page.evaluate(() => (window.__cat.CATALOG['lower-third'] || []).map((v) => ({ id: v.id, name: v.name, claims: null }))))
   : (await page.evaluate(() => window.__lite.LITE_CATALOG.map((e) => ({
       id: e.variantId, name: e.name, claims: e.supportingLineChars ?? null,

@@ -173,6 +173,42 @@ export function pickContrasting<T extends { axes: ReferenceAxes }>(
   return chosen;
 }
 
+/** Relevance-first max-min selection for a small grounded reference set.
+ *
+ * The highest-relevance item is pinned. Further items balance normalized relevance with their
+ * minimum semantic distance from everything already selected. This keeps the shortlist on brief
+ * while avoiding three references that differ only by color. The caller owns both scoring
+ * functions, so Lite and video keep their own vocabularies without a parallel selector. */
+export function pickRelevantDiverse<T>(
+  pool: readonly T[],
+  count: number,
+  relevance: (item: T) => number,
+  distance: (a: T, b: T) => number,
+): T[] {
+  if (count <= 0 || pool.length === 0) return [];
+  const ranked = pool
+    .map((item, index) => ({ item, index, relevance: Math.max(0, relevance(item)) }))
+    .sort((a, b) => b.relevance - a.relevance || a.index - b.index);
+  const maxRelevance = ranked[0]?.relevance || 1;
+  const selected = [ranked[0].item];
+  while (selected.length < Math.min(count, pool.length)) {
+    let best: { item: T; score: number; index: number } | null = null;
+    for (const candidate of ranked) {
+      if (selected.includes(candidate.item)) continue;
+      const fit = candidate.relevance / maxRelevance;
+      const diversity = Math.min(...selected.map((item) => distance(candidate.item, item)));
+      // Relevance owns the majority. Diversity breaks attractors inside the relevant band.
+      const score = fit * 0.7 + diversity * 0.3;
+      if (!best || score > best.score || (score === best.score && candidate.index < best.index)) {
+        best = { item: candidate.item, score, index: candidate.index };
+      }
+    }
+    if (!best) break;
+    selected.push(best.item);
+  }
+  return selected;
+}
+
 // ── Anti-dominance ledger ────────────────────────────────────────────────────
 // Same posture as preferences.ts: localStorage, local only, never a hard dependency.
 

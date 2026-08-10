@@ -6,7 +6,7 @@
 #
 #   1. Vercel reports a production deployment FAILED  -> a red run on that commit + the
 #      rolling issue below.
-#   2. Vercel reports a production deployment READY   -> fetch https://noacg-studio.vercel.app/
+#   2. Vercel reports a production deployment READY   -> fetch https://noacg.studio/
 #      version.json (written by scripts/write-version.mjs during the build) and verify the
 #      live commit IS this deployment's commit (or a newer main commit that overtook it),
 #      and that the landing page and editor answer. A deploy that "succeeded" but did not
@@ -32,7 +32,7 @@ permissions:
   issues: write
 
 env:
-  PRODUCTION_URL: https://noacg-studio.vercel.app
+  PRODUCTION_URL: https://noacg.studio
   ISSUE_TITLE: Production is not running the latest main commit
 
 jobs:
