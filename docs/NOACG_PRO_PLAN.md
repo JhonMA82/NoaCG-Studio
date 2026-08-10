@@ -18,13 +18,87 @@ This plan combines four mechanisms in one pipeline:
 | mechanism | role in Pro |
 | --- | --- |
 | **2. Direct HTML generation by an open-weight model** | The model authors the actual visual HTML, CSS and SVG instead of describing a raster image that another model must reverse-engineer. |
-| **3. A broadcast design grammar** | A transient plan gives the model a precise vocabulary for composition, typography, assets, motion and placement; deterministic compilers own SPX and runtime correctness. |
-| **4. Retrieval and composition from design units** | The model starts from a small, relevant set of proven broadcast decisions rather than a blank page or one flattened template. |
+| **3. A minimal broadcast intent contract** | A small transient plan carries only structural decisions NoaCG must compile; HTML/CSS/SVG remains the creative design language. |
+| **4. Retrieval from excellent complete exemplars first** | The model starts from a few relevant, proven graphics. Decomposed design units are added only if an ablation earns them. |
 | **5. A smaller fine-tuned specialist, eventually** | Accepted generations, failures and repairs become a licensed training set only after the system and evaluation harness prove what should be learned. |
 
 These are not four competing architectures. They are stages in one system. The final artifact is
 always an ordinary, clean `SpxTemplate`; no design plan, retrieval trace or model runtime is needed
 to put it on air.
+
+---
+
+## 0. First falsification - does an open model already have the eye?
+
+Before building a grammar, unit corpus, model tournament, visual critic or formal parity harness,
+run one deliberately small research spike. Its only question is:
+
+> When a strong open-weight model receives a good brief, a minimal NoaCG scaffold and a few
+> excellent complete exemplars, does its rendered HTML show enough broadcast-design judgement to
+> justify building the specialist system around it?
+
+This is an early go/no-go experiment, not evidence of frontier parity and not a product prototype.
+
+### 0.1 Reuse, do not build a second pipeline
+
+The spike should be a thin bench-only wrapper over systems that already exist:
+
+- start from the existing 12-brief lower-third bank, adjusting only inputs that were specific to
+  raster reconstruction; 10-15 representative briefs is the complete run;
+- use `structuralIntent` and the lower-third type contract for fields and supported structure;
+- use `creative/neutralSkeleton.ts` or an equivalently minimal generated scaffold for the root,
+  field ids, style variables and authoring-region contract;
+- retrieve two or three excellent **complete** lower-third exemplars through `shortlistFor`, which
+  already reuses `templates/search.ts`, `TemplateMeta` and the one structural-anchor table;
+- make one initial call to one strong, pinned, commercially usable open-weight checkpoint;
+- use the existing `shared/repairLoop.ts` maximum of two rounds for deterministic blocking
+  findings only;
+- validate through `productionSpxValidator`: `validateTemplate`, `benchTemplateRuntime`, safety
+  and asset-integrity checks;
+- render through `composeDocument` at 1920x1080 and reuse the fixture, screenshot, result-ledger
+  and review-gallery patterns in `pro-bench.mjs` and `ai-bench.mjs`.
+
+The spike does not need `BroadcastDesignPlan`, a visual critic, decomposed design units, best of
+two, a new retrieval index, a new repair loop or product wiring. The wrapper either graduates into
+the later harness or is deleted after recording the result.
+
+### 0.2 What humans inspect
+
+Every result is rendered at its actual final placement over neutral and video-like backgrounds.
+Review the settled hold, entrance, update and exit, with normal and stress text. The human notes are
+written **before** revealing the validator verdict, so a green machine result cannot frame a broken
+graphic as successful.
+
+The read is intentionally direct:
+
+- Does it show deliberate hierarchy, proportion, spacing and composition?
+- Does it look like a real broadcast graphic rather than a tutorial component?
+- Did it transform the exemplars into an appropriate answer instead of copying one?
+- Does the motion support the composition?
+- Would local CSS/SVG polish finish it, or would a designer have to start over?
+
+### 0.3 Go/no-go rule
+
+With a 12-brief run, continue only if human inspection finds all of the following:
+
+- at least 6 results show a coherent, deliberate broadcast composition worth refining;
+- at least 3 are airable or one localized repair away, not a redesign away;
+- the set contains at least 3 genuinely different visual directions rather than one safe slab;
+- at least 9 of 12 preserve the scaffold and live-field contract after the existing bounded repair
+  loop;
+- the promising results are not near-copies of an exemplar.
+
+These thresholds answer only whether there is enough visual signal to invest in the system. They
+do not establish a product success rate, a release bar or statistical parity.
+
+If the spike is clearly below the gate, stop. Record the renders and failure taxonomy, then revisit
+only when a materially stronger open checkpoint or a specific falsifiable technique exists. Do not
+build the grammar, unit architecture or critic in hope that infrastructure will manufacture taste.
+If the result is narrowly ambiguous because the chosen endpoint cannot follow the scaffold, one
+second checkpoint may be probed; that is endpoint diagnosis, not an open-ended prompt program.
+
+The spike spends model tokens and therefore requires a separately approved route and cost ceiling.
+Nothing in this planning revision authorizes that spend.
 
 ---
 
@@ -39,12 +113,13 @@ job:
 
 - NoaCG supplies the field contract, SPX definition, animation runtime, state-machine semantics,
   control generation, asset packaging, safe canvas and validators.
-- Retrieval supplies relevant, proven visual decisions instead of asking the model to rediscover
-  broadcast design from first principles.
-- The design grammar narrows an ambiguous brief into decisions that can be checked and compiled.
-- Chromium shows the system what it actually made. Deterministic measurements and a separate
-  visual critic localize defects; a bounded repair pass fixes the artifact rather than merely
-  producing another answer.
+- Retrieval first supplies a few complete, excellent graphics instead of asking the model to
+  rediscover broadcast design from first principles.
+- A deliberately small intent contract carries only relationships the platform must compile;
+  HTML/CSS/SVG keeps creative expression open.
+- Chromium shows the system what it actually made. Deterministic measurements establish
+  correctness, a separate visual critic can localize likely defects, and humans judge whether the
+  rendered design is actually good.
 - Fine-tuning eventually teaches the repeated successful transformations and repairs, not broad
   world knowledge.
 
@@ -79,6 +154,8 @@ types are not silently included in a lower-third success.
 - No unbounded agent loop, autonomous paid cascade or silent fallback to a closed model.
 - No fine-tune before the base system, evaluator and data provenance are sound.
 - No claim of frontier parity from machine scores alone or from one 12-brief round.
+- No large grammar, unit corpus, critic or formal comparison harness before the early spike says
+  the model has enough visual ability to justify them.
 
 ---
 
@@ -146,10 +223,11 @@ brief + fields + brand + assets
 structural intent and supported-type route
         |
         v
-ONE shared retrieval engine -> relevant design units and complete exemplars
+ONE shared retrieval engine -> a few complete, excellent exemplars
+                              -> optional units only after a positive ablation
         |
         v
-open planner -> transient BroadcastDesignPlan
+open planner -> minimal transient BroadcastDesignPlan, once earned
         |
         v
 deterministic SPX scaffold + motion/state compiler
@@ -161,26 +239,30 @@ open code author -> creative HTML/CSS/SVG regions
 render all test states at 1920x1080
         |
         +-> deterministic measurements
-        +-> independent open visual critic
+        +-> separate open visual critic for defect hypotheses
         |
         v
 bounded code repair, maximum two rounds
         |
         v
 production validation -> ordinary SpxTemplate -> editor/export/control
+
+At every important research milestone: render the actual output -> human inspection -> decision
 ```
 
 There is one pipeline and one result. The planner and coder may initially be the same open-weight
 checkpoint with separate contexts, but the roles remain separate contracts so the best model for
-each can be selected later. The visual critic should be a different checkpoint or, at minimum, an
-independent context that never sees the creator's self-assessment.
+each can be selected later. A visual critic presented as independent must use a different
+checkpoint and be calibrated against human findings. The creator in a fresh context is only
+self-critique; it may be useful, but it is not independent evidence.
 
 ### 3.1 Who owns each decision
 
 | decision | owner |
 | --- | --- |
 | requested graphic type, fields and content roles | structural intent proposes; supported-type registry decides |
-| relevant examples and design units | the existing retrieval engine over declared metadata |
+| relevant complete exemplars | the existing retrieval engine over declared metadata |
+| whether decomposed design units exist at all | paired ablation after complete-exemplar retrieval |
 | hierarchy, composition, shape language, palette and visual rhythm | open planner and code author |
 | exact safe bounds, asset pixel limits and final canvas placement | planner proposes; deterministic normalizer decides |
 | field ids, SPX definition and update wiring | platform compiler |
@@ -188,18 +270,21 @@ independent context that never sees the creator's self-assessment.
 | entrance character, sequencing, masks, stagger and easing | model through the motion grammar |
 | GSAP/runtime implementation and snap behavior | platform compiler |
 | correctness, overflow, asset safety and exportability | deterministic validators |
-| visible polish findings | independent open visual critic, calibrated by humans |
-| whether the result is good enough to claim parity | blind human evaluation |
+| likely visible defects and their locations | separate open visual critic, calibrated by humans |
+| visual quality and whether the result is good enough | humans inspecting rendered graphics and motion |
 
 ### 3.2 The two authoring lanes are one system
 
-Direct HTML generation and a design grammar can look contradictory. The resolution is deliberate:
+Direct HTML generation and a structured intent contract can look contradictory. The resolution is
+deliberate:
 
-1. The open planner emits `BroadcastDesignPlan`, which describes intent and relationships.
-2. A deterministic compiler creates the full SPX scaffold and marked creative regions.
-3. The open code author writes the actual semantic HTML, CSS and SVG for those creative regions.
-4. Motion intent compiles through the existing timeline/state vocabulary.
-5. Repairs patch only the failing creative region or revise a plan value and recompile.
+1. Existing structural intent supplies the graphic type, requested fields and supported structure.
+2. If the spike earns further work, the open planner emits the smallest useful
+   `BroadcastDesignPlan` for relationships the platform must compile.
+3. A deterministic compiler creates the full SPX scaffold and marked creative regions.
+4. The open code author writes the actual semantic HTML, CSS and SVG for those creative regions.
+5. Motion intent compiles through the existing timeline/state vocabulary.
+6. Repairs patch only the failing creative region or revise a plan value and recompile.
 
 This keeps direct code generation expressive enough for premium work while preventing the model
 from repeatedly spending reasoning on boilerplate or breaking operator behavior. The transient plan
@@ -207,135 +292,111 @@ is not saved as another editable format. Once code is emitted, code is the sourc
 
 ---
 
-## 4. `BroadcastDesignPlan` - the transient grammar
+## 4. `BroadcastDesignPlan` - the smallest useful transient contract
 
-The grammar is a versioned wire contract between planner and compilers. It is normalized and then
-discarded. Unknown versions fail honestly; they are never guessed into the current shape.
+The early spike runs without this contract. If the spike passes, v1 starts as a small versioned
+wire object between the planner and deterministic compilers. It is normalized and discarded;
+unknown versions fail honestly. It is never an editor format and never persisted beside code.
 
-It must express relationships that the retired rectangle reconstruction schema could not:
+The existing `StructuralIntent` and graphic-type registry already own type, fields, repeating parts
+and structural support. `BroadcastDesignPlan` must not copy that vocabulary. Its initial job is only
+to carry the one decision creative code alone cannot safely coordinate with platform behavior:
 
-### 4.1 Composition
+- **placement:** final 1920x1080 anchor, intended settled bounds and growth direction;
 
-- fixed canvas: 1920x1080, transparent;
-- graphic type and supported structural anchor;
-- safe-area-relative placement intent plus proposed integer design-pixel bounds;
-- compact, standard and wide capacity classes;
-- horizontal anchor, vertical band and growth direction;
-- layer groups, stacking, alignment, gaps, padding and optical offsets;
-- rectangular, rounded, angled, polygonal and path-based silhouettes;
-- clipping paths, masks, strokes, dividers, underlines and accent rails;
-- solid, gradient, translucent and glass-like surfaces within engine support;
-- image and logo slots with fit, crop, focal point and minimum source-resolution rules.
+That is the initial contract. Field behavior remains in the graphic-type and field contracts, and
+the model authors motion through the existing marked authoring region that NoaCG already converts
+to `NOACG_ANIM`. Add a field-behavior or motion-plan property only if rendered evidence later shows
+that those existing seams cannot coordinate a required relationship.
 
-Placement values are not normalized concept-image coordinates. They are final canvas pixels or
-semantic anchors resolved once into final canvas pixels.
+In particular, the initial plan does **not** describe:
 
-### 4.2 Typography
+- DOM nodes, layer trees or component ids;
+- panels, cards, accent bars or predefined shape pieces;
+- colors, typefaces, font sizes, spacing, padding, radii or shadows;
+- SVG paths, clipping geometry or CSS declarations;
+- a catalog-unit assembly recipe.
 
-- semantic roles such as eyebrow, primary, secondary, score and metadata;
-- bundled font family, weight, size, line height, tracking, case and numeric treatment;
-- hierarchy relationships rather than unrelated font-size guesses;
-- maximum lines, fit policy, minimum type floor and empty-field behavior;
-- width growth and truncation rules where the graphic type permits them;
-- foreground/surface relationships for deterministic contrast inspection.
+HTML/CSS/SVG owns those creative decisions directly. A sports strap may use angled SVG, a glass
+strap may use translucent CSS and an editorial strap may use only rules and type without the plan
+learning three component families.
 
-The platform owns the fit implementation. The model chooses the hierarchy and capacity it is
-designed to support.
+The platform normalizes placement and asset pixel limits, then emits field ids, the SPX definition,
+safe scaffold, runtime and canonical `NOACG_ANIM`. Motion that cannot be represented in the existing
+vocabulary is unsupported until that platform vocabulary grows; it is never hidden in arbitrary
+lifecycle JavaScript.
 
-### 4.3 Brand and visual system
+### 4.1 Growth rule
 
-- one dominant palette with role-based tokens;
-- brand mark treatment and reserved clear space;
-- surface, accent and decoration families;
-- corner, stroke, shadow and depth tokens;
-- declared compatibility between units so retrieval cannot assemble unrelated visual languages.
+Every added plan property needs evidence from rendered failures that:
 
-### 4.4 Motion
+1. the model cannot coordinate the relationship reliably in HTML/CSS/SVG alone;
+2. NoaCG must know the value to compile, validate, edit or operate the graphic; and
+3. adding it improves human-rated output in an ablation.
 
-- entrance, hold, update, step and exit beats;
-- per-layer reveal order and relative timing;
-- transforms, opacity, clips, masks, wipes, staggers and approved transition styles;
-- duration, easing, motion origin and reduced-motion behavior;
-- explicit initial, settled and exit poses;
-- optional state and event intent only within the supported state-machine schema.
-
-The compiler emits the existing `NOACG_ANIM` format and runtime. The model never emits its own
-event queue, timers or lifecycle globals. Motion that the grammar cannot represent is unsupported,
-not smuggled into arbitrary JavaScript.
-
-### 4.5 Expressiveness gate
-
-The grammar is not accepted because its schema validates. Before an element is added, the harness
-must prove that the compiled result can reproduce a small human-authored reference set covering
-angled panels, layered accents, masks, logo slots, type growth and multi-phase motion. If designers
-must fight the grammar or insert opaque escape hatches, the vocabulary is too weak and must be
-extended before model evaluation.
+A schema property added because it seems useful is removed. If the contract starts describing how
+the graphic looks rather than the small set of relationships NoaCG must own, it has become the
+second scene graph this architecture forbids.
 
 ---
 
-## 5. Retrieval and composition from design units
+## 5. Retrieval - complete exemplars first
 
 Pro extends the repository's **one shared retrieval system**. It does not build a second vector
 store, catalog ranking engine or design-family format.
 
-### 5.1 The corpus
+### 5.1 Initial retrieval
 
-The searchable corpus contains two kinds of source:
+The existing brief terms, `TemplateMeta`, structural anchor and `browseTemplates` ranking produce a
+small deterministic shortlist. The first specialist path retrieves only complete, proven,
+appropriately licensed NoaCG graphics:
 
-- complete, proven catalog variants for coherent chassis and operator structure;
-- curated design units extracted from owned or appropriately licensed source code.
+- two or three structurally compatible exemplars, best first;
+- a different relevant visual family when the shortlist genuinely contains one;
+- stable source id, version, provenance, license and human-readable retrieval reason.
 
-A design unit is code plus metadata, not a screenshot and not a hidden scene model. Initial unit
-roles are:
+The exemplars show coherent relationships among layout, type, shape and motion. That coherence is
+exactly what premature decomposition could lose. The model is asked to design an answer to the
+brief, not assemble pieces or repaint one of the examples.
 
-- silhouette and layout skeleton;
-- typography hierarchy;
-- panel or reading-surface treatment;
-- accent and decorative motif;
-- logo or image treatment;
-- entrance, reveal, update and exit motion motif.
+The first retrieval ablation is **no exemplar vs complete exemplars**. It must show a material human
+quality improvement before exemplar retrieval becomes part of the specialist. The whole catalog is
+never pasted into a prompt.
 
-Every unit has a stable id, version, provenance, license, supported graphic types, capacity,
-placement, engine floor, required fields, style-family tags and compatibility tags. A changed unit
-is a new version so a benchmark remains reproducible.
+### 5.2 Copying and similarity
 
-### 5.2 Retrieval behavior
+Similarity to a retrieved exemplar is primarily a provenance and copying alarm:
 
-The existing brief terms, `TemplateMeta`, structural anchor and catalog search produce a small,
-diverse shortlist. Pro adds unit metadata to that same index and ranking path. It does not paste the
-whole catalog into a prompt.
+- flag unusually close layout, silhouette, decoration and motion combinations for human review;
+- retain the exemplar ids and code versions used for every generation;
+- reject unattributed near-copies and remove unsafe source material.
 
-The shortlist should contain:
+Do not optimize a graphic to be mechanically distant from its references. Lower thirds share
+conventional anchors, type hierarchies and motion grammar for good reasons. A strong conventional
+design is not worse because a distance metric says it is familiar. Human reviewers judge whether
+the result is appropriately transformed and whether it is good.
 
-- one to three structurally compatible complete exemplars;
-- a small set of compatible units for roles the brief emphasizes;
-- at least one deliberately different but still relevant visual family when available;
-- provenance and a human-readable reason for every result.
+### 5.3 Design units are conditional
 
-Retrieval is deterministic for a fixed corpus and query. Model choice happens over the shortlist,
-not over an unbounded catalog dump.
+Do not extract a large unit corpus up front. Decomposed units become a candidate only if complete
+exemplars reveal a specific limitation, such as excessive copying, one-chassis sameness or an
+inability to transfer a good motion or typography relationship across layouts.
 
-### 5.3 Coherence over collage
+Test that hypothesis with a tiny, human-curated set of units inside the existing retrieval path.
+Compare complete exemplars against complete exemplars plus those units on the same briefs. Build
+versioned unit metadata and compatibility rules only if the unit arm materially improves human-
+rated quality or diversity without reducing coherence, correctness or provenance clarity.
 
-Retrieval must not create a Frankenstein graphic. Composition follows these constraints:
+If units earn a place, they remain source code plus metadata, never a hidden scene model. One
+dominant complete exemplar still anchors coherence; units may inform a limited role, not turn the
+generation into a collage.
 
-- one dominant chassis or layout skeleton owns the composition;
-- one typography system owns the hierarchy;
-- secondary units may fill only declared compatible roles;
-- palette, radii, stroke, depth and motion tokens are unified before code generation;
-- incompatible placement, capacity, engine or field requirements are rejected before the model
-  sees them;
-- the plan records which units were used, transformed or rejected for evaluation and provenance.
+### 5.4 Diversity without novelty theatre
 
-The model is expected to transform units, not copy a finished template and recolor it. Evaluation
-measures both coherence and distance from the selected exemplar.
-
-### 5.4 Diversity without randomness
-
-The harness records dominant chassis, unit and style-family concentration. A route that passes by
-putting most briefs on one safe design has not met the Pro promise. Diversity is measured across a
-brief set, but no per-generation random novelty rule may force a worse design. Relevant alternatives
-come from retrieval; taste chooses among them.
+The harness records exemplar and visual-family concentration across a brief set. A route that puts
+most briefs on one safe composition has not met the Pro promise. This is a set-level diagnosis, not
+a per-output demand for novelty. Relevant alternatives come from retrieval and human taste decides
+whether the result is both appropriate and distinct enough.
 
 ---
 
@@ -344,7 +405,24 @@ come from retrieval; taste chooses among them.
 The current repository can validate structure and measure rendered geometry. Pro adds a first-class
 visual inspection loop around those existing systems.
 
-### 6.1 The render set
+### 6.1 Evidence hierarchy
+
+The three kinds of evidence have different jobs and never collapse into one score:
+
+1. **Deterministic checks establish correctness.** They answer whether fields paint, SPX operates,
+   states are reachable, geometry stays safe, assets survive and exports run. They do not answer
+   whether the design is premium.
+2. **A visual critic finds and localizes likely defects.** It is an assistive instrument for paint,
+   hierarchy, spacing and motion problems the deterministic checks do not measure. Its score is
+   neither correctness nor taste.
+3. **Humans establish visual quality.** People inspect the actual rendered frames and motion and
+   decide whether the work is coherent, premium and airable. Model or critic confidence cannot
+   override that read.
+
+The historical Pro rounds make this ordering binding: 10/10 machine passes once accompanied 5/10
+visibly broken frames, and the tight-placement round still had machine passes on broken outputs.
+
+### 6.2 The render set
 
 Every candidate renders in Chromium at 1920x1080 with transparency made visible by a neutral
 checkerboard. The harness captures at least:
@@ -362,7 +440,7 @@ checkerboard. The harness captures at least:
 The exact set is derived from fields and the state machine so a complex graphic cannot receive the
 same shallow inspection as a two-field lower third.
 
-### 6.2 Deterministic gates
+### 6.3 Deterministic gates
 
 Before visual judgement, a candidate must pass:
 
@@ -376,9 +454,10 @@ Before visual judgement, a candidate must pass:
 - font and asset availability, export paths and engine compatibility;
 - motion duration, stuck pose, large-frame jump and performance checks.
 
-A critical deterministic failure rejects the candidate before it can be ranked as visually good.
+A critical deterministic failure rejects the candidate before it can be considered visually good.
+Passing says only that the candidate is correct enough to inspect.
 
-### 6.3 Independent open visual critic
+### 6.4 Assistive open visual critic
 
 The critic receives the brief, relevant brand input, rendered state contact sheet, alpha view,
 declared design plan and a DOM overlay naming elements. It returns localized findings, not one
@@ -392,13 +471,16 @@ opaque score:
 
 It inspects hierarchy, composition, spacing, optical alignment, brand handling, legibility over
 video, visual coherence, accidental artifacts, motion continuity and whether the brief is actually
-answered. It may not declare structural correctness or edit code directly.
+answered. It may not declare structural correctness, define good design or edit code directly.
 
-The critic is calibrated against broadcast-designer labels. Agreement, false-negative rate on
-seeded defects and false-positive rate on accepted catalog graphics are recorded per pinned model
-version. If it misses known critical defects, its pass is advisory and cannot ship a candidate.
+The critic is a different open checkpoint from the creator when independence matters, and is
+calibrated against broadcast-designer labels. Agreement, false-negative rate on seeded defects and
+false-positive rate on accepted human-authored graphics are recorded per pinned version. A same-
+model fresh context is labeled self-critique and never counted as independent validation. A critic
+finding is a hypothesis until deterministic reproduction or a human read confirms it; a critic
+pass never establishes quality.
 
-### 6.4 Bounded repair
+### 6.5 Bounded repair
 
 The code repairer receives only the failing evidence, relevant source regions and allowed patch
 contract. It gets at most **two rounds**:
@@ -410,12 +492,27 @@ contract. It gets at most **two rounds**:
 A repeated finding, no measurable improvement or new critical failure stops the loop and rejects
 the candidate. Regenerating indefinitely is not repair.
 
-### 6.5 Candidate count
+### 6.6 Candidate count
 
 The research harness starts with one candidate so model and compiler failures remain diagnosable.
 Best-of-two generation becomes the intended quality mode only if an ablation proves that it
-materially improves blind airability. The system gates both, the critic ranks the survivors and
-repairs only the winner. More than two requires separate evidence and a cost/latency decision.
+materially improves blind airability. The system gates both, the critic may rank the survivors and
+repairs only the winner, but that ranking mechanism must first agree with human choices on a
+calibration set. More than two requires separate evidence and a cost/latency decision.
+
+### 6.7 Human visual milestone gates
+
+Every important visual milestone produces reviewable 1920x1080 frames and motion, not just JSON:
+
+- the early feasibility spike;
+- the first minimal-plan outputs;
+- complete-exemplar retrieval and every retrieval ablation;
+- critic calibration and repair ablations;
+- each model, prompt, fine-tune or quantization promotion;
+- each new graphic-type expansion and the product-beta candidate.
+
+The responsible human review happens before that milestone is called successful. Machine, critic
+or model claims may help explain the output after it is seen; none may substitute for seeing it.
 
 ---
 
@@ -440,8 +537,9 @@ on the quality experiment.
 
 ### 7.2 Capability tournament
 
-Model names change faster than this architecture. Before implementation pins a route, candidates
-are tested on:
+Model names change faster than this architecture. The early spike does **not** build a tournament:
+a license and endpoint capability preflight selects one strong open-weight checkpoint, pins it and
+tests the hypothesis cheaply. Only after a go decision are candidates systematically tested on:
 
 - structured planning and schema adherence;
 - HTML/CSS/SVG quality and disciplined patching;
@@ -451,9 +549,9 @@ are tested on:
 - deterministic decoding controls, latency, throughput, hosting availability and license;
 - exact cost per accepted output, including failed candidates and repairs.
 
-Planner, coder, repairer and critic are independent route roles. One checkpoint may win several
-roles; no plan assumption requires that. Routes and prompt/grammar versions are pinned in every
-fixture and round.
+Planner, coder and repairer are independent route roles and one checkpoint may win several. A
+critic claimed as independent must be a different checkpoint. Routes, prompts, the minimal plan
+version and exemplar versions are pinned in every fixture and round.
 
 ### 7.3 Quality before inference optimization
 
@@ -468,6 +566,8 @@ cost and latency, but each optimization reruns the locked quality gate.
 
 The claim is about the complete specialist system, not raw model intelligence. The comparison is
 therefore final rendered graphics produced from the same briefs under declared, bounded workflows.
+This formal evaluation begins only after the early spike passes; the spike is not a small parity
+round.
 
 ### 8.1 Evaluation sets
 
@@ -489,14 +589,25 @@ rendered state, measurements, critic findings, repairs, usage, cost and human ve
 
 At minimum, a quality round compares:
 
-1. the strongest open Pro system;
-2. the best current closed frontier baseline available through the same scaffold, tools, render
+1. excellent human-authored NoaCG graphics mapped to the same briefs as the quality anchor;
+2. the strongest open Pro system;
+3. the best current closed frontier baseline available through the same scaffold, tools, render
    evidence and maximum repair count;
-3. the existing adapt-first product baseline.
+4. the existing adapt-first product baseline.
 
 The open system may use retrieval and specialization because those are the product. The baseline
 receives the same NoaCG structural compiler and validation opportunities so the comparison does not
-confuse broken boilerplate with design intelligence. All output galleries are blinded and shuffled.
+confuse broken boilerplate with design intelligence. The human anchor is the best structurally
+appropriate catalog graphic populated for the brief; when the catalog has no excellent answer, a
+designer authors the benchmark graphic. It establishes what excellent broadcast work in NoaCG
+looks like, not merely what another model can do. Its code and screenshots are withheld from the
+model's prompt, retrieval and training data for that scored item. All output galleries are blinded
+and shuffled.
+
+Frontier parity is useful evidence, but it is not the real finish line. If the frontier arm is
+mediocre on a brief, matching it does not pass. Human-authored anchors calibrate an absolute premium
+quality band, and the open system must enter that band as well as remain competitive with frontier
+models.
 
 ### 8.3 Human judgement
 
@@ -521,10 +632,12 @@ Lower-third Pro does not enter product beta until all are true on the locked hol
 
 - 100% export-valid, field-operable and control-operable results among accepted outputs;
 - zero known baked-text ghosts, missing requested assets, visible upscaling, stretch, off-canvas
-  placement or unresolved critical critic finding;
+  placement or unresolved critical visible defect confirmed from the rendered output;
 - at least 90% of supported holdout briefs return an accepted candidate without a manual repair,
   manual selection or user-triggered rerun;
 - at least 95% accepted outputs judged airable after content and brand entry;
+- human ratings reach the predeclared premium band calibrated by the excellent human-authored
+  anchors; frontier parity alone cannot satisfy this gate;
 - blind preference is statistically non-inferior to the frontier baseline within a predeclared
   five-percentage-point margin, with no material loss in motion or editability;
 - it materially beats adapt-first on distinctiveness without losing adapt-first's correctness;
@@ -537,83 +650,102 @@ calling the better sample progress is not allowed.
 
 Every major mechanism must earn its complexity. The harness compares:
 
-- direct open code without grammar vs grammar plus deterministic scaffold;
-- full exemplars only vs exemplars plus design units;
+- direct open code with the scaffold vs the same path plus the minimal plan;
+- no exemplars vs complete-exemplar retrieval;
+- complete exemplars vs exemplars plus a tiny unit set, only if a measured limitation justifies
+  testing units;
 - no critic vs critic only vs critic plus repair;
 - one candidate vs best of two;
 - base open checkpoint vs later specialist fine-tune.
 
-An ablation uses identical briefs and pinned routes. A component that does not improve blind
-airability, correctness or diversity is removed rather than defended by theory.
+An ablation uses identical briefs and pinned routes. Humans read the rendered graphics before the
+machine explanation. A component that does not improve blind airability, correctness or useful
+set-level diversity is removed rather than defended by theory. Exemplar similarity is reported as
+a copying/provenance alarm, never optimized as a general quality or novelty objective.
 
 ---
 
 ## 9. Delivery plan and stopping gates
 
 No phase is scheduled by optimism. Each begins only when the prior phase's artifact and gate are
-complete. Work remains bench-only until Phase 5.
+complete. Each expensive or architectural assumption is preceded by the cheapest experiment that
+can falsify it. Work remains bench-only until Phase 5.
 
-### Phase 0 - freeze the evaluation contract
+### Phase 0 - small open-model go/no-go spike
+
+**Build:** only the thin experiment in section 0: 10-15 lower-third briefs, one strong open-weight
+checkpoint, the existing neutral scaffold, two or three hand-vetted complete exemplars, the shared
+repair loop, production validator, Chromium renderer, fixtures and review gallery. No plan schema,
+critic, unit corpus, tournament or product path.
+
+**Gate:** humans inspect every rendered hold and motion sample before reading machine verdicts. The
+go/no-go rule is exactly section 0.3.
+
+**Stop if:** the model lacks visible hierarchy, proportion, composition or variety, or promising
+frames need redesign rather than localized repair. Archive the evidence and spend nothing on later
+phases until the underlying model capability materially changes.
+
+### Phase 1 - minimal production spine and intent contract
+
+**Build:** harden the existing scaffold boundary, final-canvas placement and safe creative regions.
+Add only the minimal `BroadcastDesignPlan` properties in section 4, normalized into existing
+`blocks`, state-machine, control and validation systems. Do not put a compiler in React and do not
+persist the plan.
+
+**Gate:** human-authored reference graphics and the promising spike cases compile to readable code,
+survive editing/export, update every field, run every state/control, pass long/empty/non-Latin
+cases, and match their approved 1920x1080 renders. No root scaling or visible asset upscale occurs.
+Humans confirm the minimal plan did not flatten the visual expression that passed Phase 0.
+
+**Stop if:** the contract needs DOM/layer/component descriptions, arbitrary-JS escape hatches or
+becomes a second editor model. Remove unnecessary fields before adding more.
+
+### Phase 2 - formal evaluation contract and human quality anchors
 
 **Build:** the rubric, development bank, locked holdout process, fixture manifest, human review
-form, cost ledger and frontier/adapt baseline procedure. Reclassify the existing paid Pro rounds as
-historical reconstruction evidence, not baselines for the new architecture.
+form, cost ledger, excellent human-authored NoaCG anchors and frontier/adapt procedures. Reclassify
+the existing paid Pro rounds as historical reconstruction evidence, not baselines for the new
+architecture.
 
-**Gate:** a dry run can reproduce shuffled galleries, join machine and human results, detect seeded
-defects and prevent holdout leakage. No model spend is needed to build it.
+**Gate:** a dry run reproduces shuffled galleries, joins machine and human results, detects seeded
+defects, prevents holdout leakage and calibrates the premium rating band against the human anchors.
+No model spend is needed for the dry run.
 
-**Stop if:** parity cannot be defined independently of model identity or reviewers cannot agree
-enough to support a useful decision.
+**Stop if:** quality cannot be defined independently of model identity, the anchors are not
+actually excellent, or reviewers cannot agree enough to support a useful decision.
 
-### Phase 1 - deterministic production spine and grammar
+### Phase 3 - robust open author and complete-exemplar retrieval
 
-**Build:** `BroadcastDesignPlan`, normalization, final-canvas placement, SPX scaffold compiler,
-safe creative regions, motion/state compilation and reference implementations authored by humans.
-Use existing `blocks`, `validation`, catalog geometry, state-machine and control systems; do not put
-a compiler in React or persist the plan.
-
-**Gate:** the reference set compiles to readable code, survives editing/export, updates every field,
-runs every state/control, passes long/empty/non-Latin cases and matches its approved 1920x1080
-renders. No root scaling and no visible asset upscale occur.
-
-**Stop if:** the grammar needs arbitrary-JS escape hatches or becomes a second editor model.
-
-### Phase 2 - open direct author
-
-**Build:** a bench-only planner/coder/repair route contract, open-checkpoint tournament and
-fixture-saving harness. Start with one candidate and no visual repair so failure ownership is clear.
+**Build:** the bench-only planner/coder/repair contracts, open-checkpoint tournament and
+fixture-saving harness. Integrate two or three complete exemplars through the existing retrieval
+path. Start with one candidate and deterministic repairs only so failure ownership stays clear.
 
 **Gate:** on the development bank, the best open route produces a high majority of structurally
-valid candidates, the visual code is genuinely more expressive than the old rectangle compiler,
-and failures are localizable to planner, compiler or coder.
+valid candidates, human review confirms the code retains the visual capability seen in Phase 0,
+and the no-exemplar vs complete-exemplar ablation shows whether retrieval earns its place. Source
+similarity catches copying but does not reward arbitrary visual distance.
 
-**Stop if:** no available open checkpoint can follow the bounded contracts even with retrieved
-examples. Keep the plan and revisit models later rather than weakening SPX safety.
+**Stop if:** no available open checkpoint can follow the bounded contracts, complete examples
+cause copying without a quality gain, or visual quality regresses behind the cheap spike. Keep the
+evidence and revisit later rather than weakening SPX safety.
 
-### Phase 3 - retrieve and compose design units
+### Phase 4 - visual repair, conditional units and frontier comparison
 
-**Build:** provenance-safe unit extraction, metadata, compatibility rules and integration with the
-existing retrieval engine. Human designers approve the first corpus. The model cites its selected
-units and transformations in the transient trace.
+**Build:** state contact sheets, deterministic visual measurements, a calibrated separate open
+critic, bounded repair and optional best of two. Seed a defect suite containing the exact
+historical failures: baked text, duplicate fields, wrong scale, lost logo/portrait, mismatched
+masks, bad paint order, unsafe placement and overflow.
 
-**Gate:** a paired ablation shows higher human-rated taste and broader design-family distribution
-than direct generation alone, without greater structural failure or obvious source copying.
+Only if complete-exemplar retrieval exposes a specific measured limitation, run the tiny design-
+unit ablation in section 5.3. Do not build the unit architecture otherwise.
 
-**Stop if:** outputs become incoherent collages or retrieval merely selects one whole template and
-changes its colors.
+**Gate:** deterministic checks establish correctness, the critic shows useful localized defect
+recall, and humans confirm that its repairs improve blind airability without more regressions. The
+locked comparison meets section 8.4 against human-authored, open, frontier and adapt-first arms.
 
-### Phase 4 - visual critic, repair and frontier comparison
-
-**Build:** state contact sheets, deterministic visual measurements, calibrated open critic, bounded
-repair and optional best of two. Seed a defect suite containing the exact historical failures:
-baked text, duplicate fields, wrong scale, lost logo/portrait, mismatched masks, bad paint order,
-unsafe placement and overflow.
-
-**Gate:** the critic meets its calibrated critical-defect recall, repair improves blind airability
-without increasing regressions, and the locked comparison meets the release gates in section 8.4.
-
-**Stop if:** critic and creator reward each other's artifacts while humans do not, or repair success
-depends on more than two rounds.
+**Stop if:** critic and creator reward each other's artifacts while humans do not, repair success
+depends on more than two rounds, or units reduce coherence. Critic scores never rescue a result
+humans judge poor.
 
 ### Phase 5 - product beta
 
@@ -632,15 +764,21 @@ bench harness that earned the quality claim.
 
 This is mechanism 5 and deliberately comes last.
 
-**Entry gate:** do not start a deployment fine-tune until there are at least 1,000 de-duplicated,
-licensed, human-reviewed accepted traces and 2,000 localized repair or rejection examples across
-the supported variation. A smaller research adapter may start after 500 accepted traces, but it
-cannot replace the base route from that evidence alone.
+**Entry gate:** start fine-tuning when the data, not a calendar or magic count, shows that a
+specialist can learn something reusable. Provenance must be complete; accepted and rejected traces
+must cover the supported brief, style, field, motion and failure variation; family-disjoint
+holdouts must exist; and a small diagnostic adapter must show a real learning curve rather than
+memorization.
 
-**Dataset record:** brief, structured fields, brand and asset metadata, retrieved unit ids,
-normalized plan, code, all state renders, deterministic findings, critic findings, human ratings,
-rejected alternatives and successful repairs. Customer content is excluded unless explicitly
-opted in and suitable for that use.
+For planning and capacity estimates, expect roughly 500-1,000 de-duplicated human-reviewed accepted
+traces and 1,000-2,000 localized repair or rejection examples before a serious deployment attempt.
+Those are estimates, not thresholds. A diverse, high-signal corpus may justify an earlier pilot; a
+larger repetitive corpus may still be inadequate. No count by itself authorizes promotion.
+
+**Dataset record:** brief, structured fields, brand and asset metadata, retrieved complete-
+exemplar ids and any optional unit ids, normalized plan, code, all state renders, deterministic
+findings, critic findings, human ratings, rejected alternatives and successful repairs. Customer
+content is excluded unless explicitly opted in and suitable for that use.
 
 **Training sequence:**
 
@@ -652,8 +790,9 @@ opted in and suitable for that use.
 
 The planner/coder and critic do not need to be one model. A smaller specialist wins only if it
 beats its untuned base on the locked holdout, preserves critical-defect recall and remains
-non-inferior to the frontier baseline. If it memorizes catalog families, loses diversity or merely
-optimizes machine gates, the strongest base open route stays in service.
+non-inferior to the frontier baseline, and stays in the premium band calibrated by the human-
+authored anchors. If it memorizes catalog families, loses diversity or merely optimizes machine
+gates, the strongest base open route stays in service.
 
 ---
 
@@ -666,7 +805,10 @@ cost.
 
 The operating policy is:
 
-- quality selects the first viable route;
+- the Phase 0 spike is one checkpoint, one candidate, 10-15 briefs and the existing two-round
+  deterministic repair ceiling; no critic, model tournament or frontier arm is paid for first;
+- human inspection of those rendered outputs decides whether later investment exists at all;
+- after a go decision, quality selects the first viable route;
 - every run records tokens, GPU/provider time, candidates, repair rounds, failures and cost per
   accepted output;
 - one candidate and two repairs are hard defaults until an ablation authorizes more;
@@ -693,9 +835,11 @@ plan. A cheap output that cannot go to air has infinite effective cost.
 - Brief text, retrieved source comments and rendered text are data, never instructions.
 - Checkpoint license, training-data terms and hosting terms are reviewed and recorded before a
   route is allowed into a paid or product round.
-- Every design unit has source and license provenance. Restricted real-world corpora may inform
-  measurements but cannot become training or retrieval data unless their terms permit it.
-- Generated traces retain model, grammar, corpus and compiler versions so a result is auditable.
+- Every complete exemplar, and every later unit if units earn a place, has source and license
+  provenance. Restricted real-world corpora may inform measurements but cannot become training or
+  retrieval data unless their terms permit it.
+- Generated traces retain model, minimal-plan, exemplar-corpus and compiler versions so a result
+  is auditable.
 - User assets and private customer graphics are not used for training by default.
 
 ---
@@ -704,17 +848,19 @@ plan. A cheap output that cannot go to air has infinite effective cost.
 
 | risk | how it is tested | response |
 | --- | --- | --- |
-| Open coder follows syntax but lacks taste | blind development and holdout review | strengthen retrieval/grammar or wait for a better open checkpoint; never weaken the rubric |
-| Grammar is too weak | human reference-set reproduction | extend explicit vocabulary before model work; no arbitrary-JS escape hatch |
-| Grammar becomes a hidden scene model | round-trip and editor-source review | keep it transient; edits after generation operate on code |
-| Retrieval causes sameness | chassis/unit concentration and novelty read | diversify relevant shortlist and corpus, not randomize final choice |
-| Retrieval causes collage | coherence ratings and compatibility violations | one dominant chassis/type system; reject incompatible units before prompting |
-| Critic misses obvious failures | seeded-defect recall | keep critical deterministic/image-diff tripwires and block release |
-| Critic and creator collude | independent checkpoints plus blinded human labels | retrain/recalibrate critic; human verdict remains authoritative |
+| Open coder follows syntax but lacks taste | Phase 0 rendered spike | stop before building the specialist; revisit only for a materially stronger checkpoint or specific new hypothesis |
+| Minimal plan is too weak | rendered human references and plan/no-plan ablation | add only the observed relationship NoaCG must compile; no arbitrary-JS escape hatch |
+| Minimal plan becomes a hidden scene model | round-trip and editor-source review | delete visual-description fields; edits after generation operate on code |
+| Complete exemplars cause sameness | exemplar/family concentration plus human review | improve the relevant shortlist first; test small units only if this measured limitation remains |
+| Optional units cause collage | paired unit ablation and coherence ratings | do not build or keep unit architecture unless humans see a material gain |
+| Similarity metric punishes good conventional design | compare flags against human provenance decisions | use similarity to catch copying, never as a novelty target |
+| Critic misses obvious failures | seeded-defect recall | keep deterministic/image-diff tripwires, require human confirmation and remove the critic if its recall stays weak |
+| Critic and creator agree on bad work | separate checkpoints plus blinded human labels | treat same-model review as self-critique; recalibrate or remove the critic; human verdict remains authoritative |
 | Repair chases its tail | per-round finding and metric deltas | stop at two; reject no-improvement candidates |
 | Motion looks correct only at hold | entrance/update/next/exit contact sheet and video review | category motion bank and state-derived capture set |
 | Long or non-Latin text breaks hierarchy | adversarial field drive | platform fit/capacity gate; reject unsupported plans |
 | Largest open model is uneconomic | accepted-output cost and throughput | fine-tune/distill a smaller specialist after data exists; BYO/self-host first |
+| Fine-tune starts on a large but weak corpus | provenance, coverage and learning curves | treat counts as estimates; wait for diverse evidence and keep the base fallback |
 | Fine-tune memorizes the catalog | family-disjoint holdout and retrieval-disabled ablation | de-duplicate, diversify, preference-train and keep base fallback |
 | Bench quality does not survive product integration | identical fixture/replay path in product and bench | do not ship a separate product implementation |
 
@@ -743,10 +889,13 @@ No new work or spend should improve the retired reconstruction path.
 
 ## 14. First future slice
 
-The first implementation slice, when separately authorized, is **Phase 0 only**: write the locked
-evaluation contract and fixture manifest, seed the historical defect bank, and establish the
-frontier/adapt comparison procedure. It makes no model call and changes no product path.
+The first implementation slice, when separately authorized, is **Phase 0 only**: build the thin
+bench wrapper, select one strong open-weight checkpoint through a license/capability preflight,
+render 10-15 lower thirds with the existing scaffold, complete exemplars, validator and repair
+loop, and inspect every result by eye. It changes no product path and requires separate approval
+before its capped model spend.
 
-Only after that review should Phase 1 define `BroadcastDesignPlan` and compile human-authored
-references. This ordering is intentional: NoaCG must decide what premium, correct and airable mean
-before optimizing any model to produce it.
+Only a positive human go/no-go verdict unlocks Phase 1. The minimal plan and every later mechanism
+must then earn its place through rendered evidence. This ordering is intentional: falsify model
+taste before funding infrastructure, and never let infrastructure's own scores certify the visual
+work it exists to improve.
