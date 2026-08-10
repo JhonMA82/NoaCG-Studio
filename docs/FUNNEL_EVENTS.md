@@ -54,7 +54,7 @@ the 90-day limit removes the final old values before those columns are dropped.
 
 ## Retention and deletion
 
-Migration `0038_funnel_opt_in_retention.sql` removes rows already older than 90 days and schedules a
+Migration `0037_funnel_opt_in_retention.sql` removes rows already older than 90 days and schedules a
 daily `pg_cron` deletion. This database rule is the retention boundary; it does not depend on a user
 returning or another analytics request arriving.
 

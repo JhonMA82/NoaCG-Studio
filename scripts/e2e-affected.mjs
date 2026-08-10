@@ -35,7 +35,7 @@ const MAP = [
   [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],
   [/^src\/backend\/events\.ts$|^api\/(events\.ts|_lib\/funnelEvents)/, ['analytics.spec.ts']],
   [/^src\/components\/(AnalyticsConsentBanner|SettingsDialog)\.tsx$/, ['analytics.spec.ts', 'auth.spec.ts']],
-  [/^supabase\/migrations\/0038_funnel_opt_in_retention\.sql$/, ['analytics.spec.ts']],
+  [/^supabase\/migrations\/0037_funnel_opt_in_retention\.sql$/, ['analytics.spec.ts']],
   [/^src\/ai\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
