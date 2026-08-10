@@ -3,6 +3,9 @@
 The runbook for the path from a `main` commit to the live product, and for every alarm on
 that path. Binding: keep it updated when the pipeline changes.
 
+The cost and capacity policy for the Pro account is
+[`VERCEL_PRO_NO_OVERAGE_PLAN.md`](VERCEL_PRO_NO_OVERAGE_PLAN.md).
+
 ## The pipeline
 
 1. **CI (`.github/workflows/ci.yml`)** runs on every push to `main` and every PR (a branch
@@ -63,12 +66,12 @@ that path. Binding: keep it updated when the pipeline changes.
    dropped slot cannot hide a missing nightly. It lives in its own workflow deliberately: a
    check inside `nightly.yml` could not fire when the nightly did not.
 2. **Vercel** builds production from **`main` only** (project `noacg-studio`,
-   team `miwcos-projects`, production URL <https://noacg-studio.vercel.app>). Every push to
+   team `miwcos-projects`, production URL <https://noacg.studio>). Every push to
    `main` triggers a production deployment via the Git integration; CI and Vercel run in
    parallel and do not gate each other (see "Known limits").
 3. **`deploy-verify` (`.github/workflows/deploy-verify.yml`)** watches the deployment:
    - a **failed** production deployment becomes a red run on that commit;
-   - a **successful** one is verified live: `https://noacg-studio.vercel.app/version.json`
+   - a **successful** one is verified live: `https://noacg.studio/version.json`
      (written by `scripts/write-version.mjs` at the end of `npm run build`) must serve that
      commit (or a newer `main` commit containing it), and `/` and `/app` must answer;
    - a **drift check** four times a day alerts when production does not contain the newest
@@ -195,7 +198,7 @@ Vercel build for every non-`main` branch unless the head commit message contains
 4. **No deployment row for the commit?** Read the `Vercel` commit status on GitHub before
    suspecting the webhook - a rejected `vercel.json` fails there, silently and invisibly on
    Vercel's side (trap above). `ignoreCommand` is the other cause, but it never skips `main`.
-5. `curl https://noacg-studio.vercel.app/version.json` - what commit is actually live?
+5. `curl https://noacg.studio/version.json` - what commit is actually live?
 6. E2E-red-without-a-code-fault has four known non-code causes (stale dev server, parallel
    sessions on one checkout, HMR ghost modules, offline pin vs a manual server) - reproduce
    locally with `npm run test:e2e -- <spec>` before assuming the code broke.

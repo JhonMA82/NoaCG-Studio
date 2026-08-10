@@ -26,9 +26,9 @@ const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptsDir, '..');
 const distDir = path.join(projectRoot, 'dist');
 
-/** Canonical origin for absolute URLs. Override once the real domain is wired
- *  (growth plan W0: `noacg.studio`). */
-const SITE_ORIGIN = (process.env.SITE_ORIGIN ?? 'https://noacg-studio.vercel.app').replace(/\/+$/, '');
+/** Canonical origin for absolute URLs. Vercel sets the same value explicitly so preview and
+ *  production builds cannot drift from the public address. */
+const SITE_ORIGIN = (process.env.SITE_ORIGIN ?? 'https://noacg.studio').replace(/\/+$/, '');
 
 const escape = (value) =>
   String(value)
