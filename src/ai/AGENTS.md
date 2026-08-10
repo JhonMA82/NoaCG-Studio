@@ -493,12 +493,17 @@ clear most of the baked-text ghosting too - four of five broken frames show it, 
 concept has no backdrop to show through. A prompt change invalidates the fixtures: budget a fresh
 paid round (~$0.95). Detail: `benchmarks/pro/round-2026-08-09/ROUND.md`.
 
-**IMPLEMENTED 2026-08-09, awaiting the fresh paid round.** `proConceptPrompt` now asks for the
+**IMPLEMENTED 2026-08-09 and paid-verified 2026-08-10.** `proConceptPrompt` now asks for the
 graphic alone with tight framing and no environment. The same interpretation call independently
 chooses normalized canvas width and top-left placement. Normalization clamps that decision;
 compile keeps the native crop and sends artwork, live fields, rebuilt panels, and the logo slot
 through one downscale-only imported-design `--scale`, expressed with the normal editable zone and
-nudge contract. Contract version: `pro-interpret-v3`.
+nudge contract. Contract version: `pro-interpret-v3`. The fresh 12-brief round spent $1.014569 and
+verified the placement contract: 9/12 requested sizes were fulfilled by downscaling, three stayed
+at native scale and were reported `SOURCE-LIMITED`, and none upscaled. The overall product result
+was 8/12 usable or degraded and 4/12 broken. Tight concepts therefore fixed the canvas arithmetic,
+not reconstruction: baked-text ghosts remain on three frames and `portrait-logo` loses its portrait.
+Full record: `benchmarks/pro/round-2026-08-10/ROUND.md`.
 
 **Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
 fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler

@@ -4,57 +4,79 @@
   "graphicTypeConfidence": 1,
   "canvasPlacement": {
     "widthNorm": 0.6,
-    "xNorm": 0.0625,
-    "yNorm": 0.72
+    "xNorm": 0.05,
+    "yNorm": 0.75
   },
   "regions": [
     {
       "kind": "panel",
       "bbox": {
-        "x": 0,
-        "y": 0.741,
-        "w": 1,
-        "h": 0.005
+        "x": 0.0501,
+        "y": 0.3197,
+        "w": 0.8873,
+        "h": 0.3624
       },
-      "confidence": 0.95,
+      "confidence": 1,
       "treatment": "rebuild-shape",
-      "panel": {
-        "shape": "accent-bar",
-        "fill": {
-          "kind": "solid",
-          "color": "#6BA1D7"
-        },
-        "opacity": 1,
-        "radiusNorm": 0
-      }
-    },
-    {
-      "kind": "panel",
-      "bbox": {
-        "x": 0,
-        "y": 0.746,
-        "w": 1,
-        "h": 0.254
-      },
-      "confidence": 0.95,
-      "treatment": "rebuild-shape",
+      "align": "left",
       "panel": {
         "shape": "panel",
         "fill": {
           "kind": "solid",
-          "color": "#24467C"
+          "color": "#1f3b61"
         },
-        "opacity": 1,
-        "radiusNorm": 0
+        "opacity": 1
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.0501,
+        "y": 0.3197,
+        "w": 0.0157,
+        "h": 0.3624
+      },
+      "confidence": 1,
+      "treatment": "rebuild-shape",
+      "align": "left",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "gradient",
+          "angleDeg": 90,
+          "from": "#cccccc",
+          "to": "#888888"
+        },
+        "opacity": 1
+      }
+    },
+    {
+      "kind": "decorative",
+      "bbox": {
+        "x": 0.0585,
+        "y": 0.3197,
+        "w": 0.0052,
+        "h": 0.3624
+      },
+      "confidence": 1,
+      "treatment": "rebuild-shape",
+      "align": "left",
+      "panel": {
+        "shape": "accent-bar",
+        "fill": {
+          "kind": "solid",
+          "color": "#2c59a3"
+        },
+        "opacity": 1
       }
     },
     {
       "kind": "text",
       "bbox": {
-        "x": 0.04,
-        "y": 0.781,
-        "w": 0.92,
-        "h": 0.062
+        "x": 0.0877,
+        "y": 0.3699,
+        "w": 0.8351,
+        "h": 0.0836
       },
       "confidence": 1,
       "treatment": "rebuild-text",
@@ -67,19 +89,39 @@
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 700,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.062,
+        "color": "#ffffff",
+        "fontSizeNorm": 0.056,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }
     },
     {
+      "kind": "panel",
+      "bbox": {
+        "x": 0.0647,
+        "y": 0.4703,
+        "w": 0.8768,
+        "h": 0.0186
+      },
+      "confidence": 1,
+      "treatment": "rebuild-shape",
+      "align": "left",
+      "panel": {
+        "shape": "panel",
+        "fill": {
+          "kind": "solid",
+          "color": "#1c3558"
+        },
+        "opacity": 1
+      }
+    },
+    {
       "kind": "text",
       "bbox": {
-        "x": 0.04,
-        "y": 0.844,
-        "w": 0.92,
-        "h": 0.044
+        "x": 0.0877,
+        "y": 0.5074,
+        "w": 0.8351,
+        "h": 0.0651
       },
       "confidence": 1,
       "treatment": "rebuild-text",
@@ -92,8 +134,8 @@
         "matchQuality": "similar-available",
         "suggestedFontId": "inter",
         "approxWeight": 400,
-        "color": "#FFFFFF",
-        "fontSizeNorm": 0.044,
+        "color": "#ffffff",
+        "fontSizeNorm": 0.043,
         "letterSpacing": "normal",
         "lineHeightRatio": 1.2
       }

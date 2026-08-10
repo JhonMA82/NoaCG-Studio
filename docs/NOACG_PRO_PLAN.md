@@ -426,6 +426,14 @@ and the bench discards it. Re-run the measurements free with `node scripts/pro-g
 **Also: the round did not pass `--save-fixtures`, so the twelve interpretations behind these twelve
 frames are gone. A paid round writes its fixtures.**
 
+**Paid verification 2026-08-10: `benchmarks/pro/round-2026-08-10/ROUND.md`.** The tight-concept,
+independent-placement change fixed the measured canvas defect: all twelve outputs used scale <= 1,
+nine fulfilled the interpreted size by downscaling, and three honestly reported `SOURCE-LIMITED`.
+The complete round cost $1.014569 and all twelve fixtures were saved. It did not make reconstruction
+reliable: the machine reported 9/12 pass, while the human read found 8/12 usable or degraded and
+4/12 broken. Three broken frames retain baked text under live fields; `portrait-logo` loses its
+portrait. This separates the findings cleanly - placement is verified, reconstruction remains parked.
+
 The round's recommendation is to PARK the interpret→compile path and keep the concept stage for two
 uses that do not require reconstruction: a generated concept fed back as a `layout` REFERENCE into
 the grounded adapt path (attacking Lite's sameness with Pro's strength), and concepts as input to
