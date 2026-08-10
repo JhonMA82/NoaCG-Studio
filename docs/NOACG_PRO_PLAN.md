@@ -1,460 +1,752 @@
-# NoaCG Pro - the image-guided editable graphics pipeline
+# NoaCG Pro - the open broadcast graphics specialist
 
-**This document describes a LIVE EXPERIMENT, not a committed roadmap.** Pro's tactics have moved
-several times, and a doc that leads with tactics contradicts itself every time they do. So it leads
-with the question instead: a shifting tactic updates §0 and nothing else.
+**OWNER-APPROVED DIRECTION, PLAN ONLY. Implementation has not started.** This plan replaced the
+image-guided reconstruction plan on 2026-08-10. Pro will become a narrow open-weight specialist for
+premium HTML broadcast graphics, not an attempt to make an open model equal a frontier model at
+general reasoning.
 
-## 0. The question, and what would settle it
+The old concept-image -> interpretation -> raster reconstruction path is retired as a product
+direction. Its code and fixtures remain an experiment until an implementation slice removes or
+archives them deliberately. Its evidence remains in `docs/AI_ATTEMPTS.md` and
+`benchmarks/pro/round-2026-08-08/`, `benchmarks/pro/round-2026-08-09/` and
+`benchmarks/pro/round-2026-08-10/`; this document does not rewrite that history. Approving this
+direction does not reorder the Student release: implementation remains parked until it is
+separately authorized.
 
-**The question:** *can an image model's visual direction be turned into a NoaCG graphic that is
-better than what adapt-first already produces - at a price a user will pay?*
+This plan combines four mechanisms in one pipeline:
 
-That is the whole of Pro. The one-sentence contract underneath it has not moved: **the image model
-proposes the appearance; NoaCG owns structure, fields, animation, validation, and export.** A
-generated image is a visual reference or a reusable asset - never a hidden scene model, never a
-screenshot-to-HTML side channel.
+| mechanism | role in Pro |
+| --- | --- |
+| **2. Direct HTML generation by an open-weight model** | The model authors the actual visual HTML, CSS and SVG instead of describing a raster image that another model must reverse-engineer. |
+| **3. A broadcast design grammar** | A transient plan gives the model a precise vocabulary for composition, typography, assets, motion and placement; deterministic compilers own SPX and runtime correctness. |
+| **4. Retrieval and composition from design units** | The model starts from a small, relevant set of proven broadcast decisions rather than a blank page or one flattened template. |
+| **5. A smaller fine-tuned specialist, eventually** | Accepted generations, failures and repairs become a licensed training set only after the system and evaluation harness prove what should be learned. |
 
-The question has been asked two ways. The first is answered; the second is open.
-
-### Q1 - reconstruct the concept into code. PARKED, and NOT YET FAIRLY ASKED.
-
-**Verdict 2026-08-08: the concept stage works and the compiler cannot keep what it designs.** 11 of
-12 concepts are credible broadcast lower thirds; the reconstruction ships a visibly broken graphic
-on 5 of 12 while the deterministic gates report 11 of 12 passing. Full round: §10a and
-`benchmarks/pro/round-2026-08-08/`.
-
-**Corrected 2026-08-09** (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`, free measurements,
-`node scripts/pro-geometry-audit.mjs`). The round's outcome stands; its DIAGNOSIS does not. The
-five broken briefs are not five instances of one cause:
-
-- **The compiler renders every design at 0.72x the size it was drawn.** The concept comes back
-  1376x768 and its pixels are used as DESIGN pixels in a 1920x1080 frame. Nothing rescales.
-  Measured identical on all five fixtures that resolve.
-- **Live text renders at 0.59x the baked text it replaces** - `boxH * 0.72` in the shared field
-  normalizer, compounded with the above. This is what turns an un-erased plate into two visibly
-  different copies of the same name, rather than a near-miss.
-- **Rebuilt fills are not the colours in the picture**: mean rgb distance 131 across 17
-  rebuild-shape regions; within 20 on zero of them.
-- **The designed position is discarded** and replaced by one of nine zone buckets from the unit's
-  centre, which is why a lower third at cy=0.66 renders mid-frame.
-- **One brief, `empty-optional`, never reached the compiler**: `proConceptPrompt` renders its two
-  values inside its own bullet scaffolding and the image model drew the scaffolding.
-
-**The relationship is INVERSE** in its narrow form - this compiler rebuilds RECTANGLES, so the
-designs it survives are the ones that are rectangles. On `sports-live` the interpretation model saw
-the angled panels and said so in a warning; `ProPanelGeometry` has no polygon, so four rectangles
-were rebuilt over an angled design. That is a four-field schema's limit, not image-led design's.
-**"A better image model makes this worse" is not supported by the evidence** - the arithmetic
-defects above hit the six USABLE briefs equally hard and merely failed to break them.
-
-**And the gates were not blind.** `ProCompileReport.warnings` separates broken from usable on 11 of
-12; `pro-bench.mjs` records the warnings and computes `pass` without reading them. `artDropped`
-fired on 3 of 12 and all three are usable - the path with no plate left to show through.
-
-**Still PARKED**, on cost and on the clean plate, not on "it cannot work". It becomes a yes again if:
-
-- the compiler can reconstruct **non-rectangular geometry** (angled panels, layered accents) rather
-  than boxes, or
-- an **image-edit clean-plate capability** exists, so the baked original can be removed instead of
-  covered (declared in §3.1, deferred beyond v1), or
-- the four defects above are fixed and a re-run measures the approach as it was actually designed.
-
-Nothing here is a reason to change `PRO_STANDARD_ROUTES`: the failure is in the compiler's reach,
-not the route.
-
-### Q2 - reuse the concept as a REFERENCE. OPEN, and the cheaper question.
-
-Feed a generated concept back into the grounded adapt path as a `layout` reference
-(`model/imagePurpose.ts`), so the image model's strength - composition - meets the path that already
-produces correct graphics. This attacks the one weakness adapt-first has: **sameness** (Lite put 9
-of 12 briefs on one chassis in the same round where it delivered a usable graphic on 12 of 12).
-
-**It is a YES if**, on a blind gallery of **20+ joined items** against plain Lite on the same briefs:
-the reference visibly moves COMPOSITION rather than only colour, chassis spread widens, and the
-owner would take more of the Pro-referenced results to air. **It is a NO if** the composition does
-not move - which is the live risk, because the creative rounds already measured that "references
-land but only reach the surface": a mood board came back as the right ink on the right paper and the
-composition did not move. A `layout` reference is a different purpose from a mood board and may
-behave differently; that is exactly what the round would measure.
-
-**The price question rides along and is not secondary.** A concept costs ~$0.067 and an
-interpretation $0.009-0.011 - **~$0.077 per completed generation, ~250x a Lite generation
-($0.0003)**, and a generation that fails after its concept still costs the full amount. Q2 needs
-only the concept call, so it is the cheaper half of an expensive tier.
+These are not four competing architectures. They are stages in one system. The final artifact is
+always an ordinary, clean `SpxTemplate`; no design plan, retrieval trace or model runtime is needed
+to put it on air.
 
 ---
 
-*Everything below is the ARCHITECTURE of the v1 pipeline - the Q1 path. It is built, it runs, and it
-is parked. Read it as the record of how the answered question was implemented, not as a plan.*
+## 1. The claim and the boundary
 
-## 1. Why this is not the thing the AI wizard plan rejected
+**The claim:** a specialized open-weight system can match or outperform general frontier models
+inside one small world: premium broadcast design, HTML/CSS/SVG, SPX operation, deterministic
+motion, and render-and-repair.
 
-`docs/AI_WIZARD_PLAN.md` (parked 2026-08-08) §5 deliberately rejected "an image-generation model for
-backgrounds/textures" because it pulls output away from clean, editable, exportable code.
-Pro revisits that decision *with the objection answered* rather than ignored:
+That claim is plausible because the platform can remove most general reasoning from the model's
+job:
 
-- Every meaningful text element becomes a real SPX DataField through the same funnel the
-  Import Graphic flow uses (`addPlacedLine`), so the result is operator-editable in every
-  export target.
-- The primary panel is reconstructed as CSS where practical; only genuinely complex
-  artwork stays raster, and the product says so honestly (the editability report).
-- The compiled template is an ordinary `SpxTemplate`: data-region timeline, Style-panel
-  contract, the existing validators, the existing six export targets. Once compiled it
-  never needs the generation model again.
+- NoaCG supplies the field contract, SPX definition, animation runtime, state-machine semantics,
+  control generation, asset packaging, safe canvas and validators.
+- Retrieval supplies relevant, proven visual decisions instead of asking the model to rediscover
+  broadcast design from first principles.
+- The design grammar narrows an ambiguous brief into decisions that can be checked and compiled.
+- Chromium shows the system what it actually made. Deterministic measurements and a separate
+  visual critic localize defects; a bounded repair pass fixes the artifact rather than merely
+  producing another answer.
+- Fine-tuning eventually teaches the repeated successful transformations and repairs, not broad
+  world knowledge.
 
-## 2. Architecture - what is reused (almost everything)
+This is a testable product hypothesis, not a guarantee. Success means parity on a predeclared,
+blind, broadcast-graphics evaluation. It does not mean parity on coding benchmarks, conversation,
+research, mathematics, arbitrary websites or general agent work.
 
-The pipeline is: **brief -> concept image (new) -> interpretation (extended) ->
-deterministic reconstruction (existing funnel) -> existing validation -> existing editor
-and export.**
+### 1.1 Initial scope
 
-| Stage | System | New or reused |
+Pro starts with **lower thirds** because that is the category with the deepest measurements, the
+clearest placement contract and three paid rounds of failure evidence. It expands one graphic type
+at a time only after that type has:
+
+1. a declared field and structural contract;
+2. deterministic SPX and state-machine compilation;
+3. normal, long, empty and non-Latin content fixtures;
+4. entrance, hold, update, next where applicable, exit and snap tests;
+5. a category-specific blind quality round.
+
+Likely expansion order is lower third -> info card and corner bug -> scoreboard and results board
+-> multi-state graphics. Full-frame transitions, data-driven collections and arbitrary graphic
+types are not silently included in a lower-third success.
+
+### 1.2 Non-goals
+
+- No general website or application generator.
+- No attempt to reproduce a concept image pixel for pixel.
+- No raster image as the graphic's hidden source of truth.
+- No second persisted scene graph beside HTML/CSS/JS and `NOACG_ANIM`.
+- No model-authored SPX dispatcher, control protocol or parallel animation runtime.
+- No arbitrary JavaScript from the model in operator or lifecycle paths.
+- No unbounded agent loop, autonomous paid cascade or silent fallback to a closed model.
+- No fine-tune before the base system, evaluator and data provenance are sound.
+- No claim of frontier parity from machine scores alone or from one 12-brief round.
+
+---
+
+## 2. Non-negotiable output contract
+
+The specialist may own taste. The platform continues to own engineering.
+
+### 2.1 Code and SPX
+
+- The result is one normal `SpxTemplate`: readable HTML, CSS and JS plus its parsed definition.
+- Each live field maps to its visible `id="fN"`; `update(data)` changes the painted graphic.
+- `play()`, `stop()`, `next(data)` and `update(data)` retain the repository's SPX semantics.
+- Data never causes a state transition. Events and timers follow the structural state-machine
+  contract. `steps` remains derived from the default path.
+- Operator controls are generated from fields and the machine. Pro does not write a special
+  control panel or per-template command language.
+- Dependencies, fonts and assets are local and exportable. Generated code contains no CDN or
+  runtime network dependency.
+- The output validates and operates in the same editor, preview, export and control surfaces as a
+  hand-authored template.
+
+### 2.2 One final 1920x1080 coordinate system
+
+The graphic is designed in its production coordinate system from the first authored element:
+
+- The canvas is a transparent 1920x1080 stage.
+- The graphic's settled bounding box is already at its final sharp size and final coordinates.
+- There is no operator transform required after generation and no root `--scale` used to make the
+  composition fit.
+- CSS and SVG are authored at final design-pixel dimensions. They do not have a raster-resolution
+  problem.
+- Raster user assets preserve aspect ratio and source pixels. They may downscale with an explicit
+  asset fit, but never visibly upscale or stretch. An asset too small for the chosen use fails
+  honestly or causes the platform to choose a smaller supported placement.
+- Text, logos, masks, decorative geometry and motion share the same coordinates. A repair cannot
+  move one layer while leaving its related mask, hit area or animation origin behind.
+
+The model chooses **semantic composition intent** and may propose integer pixel bounds. The
+platform resolves and clamps that proposal against the category, safe area, text capacity and
+asset resolution. This keeps aesthetic placement with the specialist while making exact production
+geometry deterministic.
+
+### 2.3 Safe authorship regions
+
+The platform emits the complete structural scaffold. The model may author or patch only marked
+creative regions:
+
+- semantic visual HTML inside the graphic root;
+- CSS custom properties and selectors for those visual elements;
+- inline or bundled SVG using the approved feature set;
+- approved timeline/keyframe declarations through the motion grammar.
+
+The model does not directly edit the SPX definition, field wiring, `NOACG_ANIM` interpreter,
+control receiver, export glue or security markers. Changes to those areas happen only by changing
+the structured plan and recompiling them deterministically.
+
+---
+
+## 3. The architecture
+
+```text
+brief + fields + brand + assets
+        |
+        v
+structural intent and supported-type route
+        |
+        v
+ONE shared retrieval engine -> relevant design units and complete exemplars
+        |
+        v
+open planner -> transient BroadcastDesignPlan
+        |
+        v
+deterministic SPX scaffold + motion/state compiler
+        |
+        v
+open code author -> creative HTML/CSS/SVG regions
+        |
+        v
+render all test states at 1920x1080
+        |
+        +-> deterministic measurements
+        +-> independent open visual critic
+        |
+        v
+bounded code repair, maximum two rounds
+        |
+        v
+production validation -> ordinary SpxTemplate -> editor/export/control
+```
+
+There is one pipeline and one result. The planner and coder may initially be the same open-weight
+checkpoint with separate contexts, but the roles remain separate contracts so the best model for
+each can be selected later. The visual critic should be a different checkpoint or, at minimum, an
+independent context that never sees the creator's self-assessment.
+
+### 3.1 Who owns each decision
+
+| decision | owner |
+| --- | --- |
+| requested graphic type, fields and content roles | structural intent proposes; supported-type registry decides |
+| relevant examples and design units | the existing retrieval engine over declared metadata |
+| hierarchy, composition, shape language, palette and visual rhythm | open planner and code author |
+| exact safe bounds, asset pixel limits and final canvas placement | planner proposes; deterministic normalizer decides |
+| field ids, SPX definition and update wiring | platform compiler |
+| state shape, lifecycle semantics and control legality | supported graphic type plus platform compiler |
+| entrance character, sequencing, masks, stagger and easing | model through the motion grammar |
+| GSAP/runtime implementation and snap behavior | platform compiler |
+| correctness, overflow, asset safety and exportability | deterministic validators |
+| visible polish findings | independent open visual critic, calibrated by humans |
+| whether the result is good enough to claim parity | blind human evaluation |
+
+### 3.2 The two authoring lanes are one system
+
+Direct HTML generation and a design grammar can look contradictory. The resolution is deliberate:
+
+1. The open planner emits `BroadcastDesignPlan`, which describes intent and relationships.
+2. A deterministic compiler creates the full SPX scaffold and marked creative regions.
+3. The open code author writes the actual semantic HTML, CSS and SVG for those creative regions.
+4. Motion intent compiles through the existing timeline/state vocabulary.
+5. Repairs patch only the failing creative region or revise a plan value and recompile.
+
+This keeps direct code generation expressive enough for premium work while preventing the model
+from repeatedly spending reasoning on boilerplate or breaking operator behavior. The transient plan
+is not saved as another editable format. Once code is emitted, code is the source of truth.
+
+---
+
+## 4. `BroadcastDesignPlan` - the transient grammar
+
+The grammar is a versioned wire contract between planner and compilers. It is normalized and then
+discarded. Unknown versions fail honestly; they are never guessed into the current shape.
+
+It must express relationships that the retired rectangle reconstruction schema could not:
+
+### 4.1 Composition
+
+- fixed canvas: 1920x1080, transparent;
+- graphic type and supported structural anchor;
+- safe-area-relative placement intent plus proposed integer design-pixel bounds;
+- compact, standard and wide capacity classes;
+- horizontal anchor, vertical band and growth direction;
+- layer groups, stacking, alignment, gaps, padding and optical offsets;
+- rectangular, rounded, angled, polygonal and path-based silhouettes;
+- clipping paths, masks, strokes, dividers, underlines and accent rails;
+- solid, gradient, translucent and glass-like surfaces within engine support;
+- image and logo slots with fit, crop, focal point and minimum source-resolution rules.
+
+Placement values are not normalized concept-image coordinates. They are final canvas pixels or
+semantic anchors resolved once into final canvas pixels.
+
+### 4.2 Typography
+
+- semantic roles such as eyebrow, primary, secondary, score and metadata;
+- bundled font family, weight, size, line height, tracking, case and numeric treatment;
+- hierarchy relationships rather than unrelated font-size guesses;
+- maximum lines, fit policy, minimum type floor and empty-field behavior;
+- width growth and truncation rules where the graphic type permits them;
+- foreground/surface relationships for deterministic contrast inspection.
+
+The platform owns the fit implementation. The model chooses the hierarchy and capacity it is
+designed to support.
+
+### 4.3 Brand and visual system
+
+- one dominant palette with role-based tokens;
+- brand mark treatment and reserved clear space;
+- surface, accent and decoration families;
+- corner, stroke, shadow and depth tokens;
+- declared compatibility between units so retrieval cannot assemble unrelated visual languages.
+
+### 4.4 Motion
+
+- entrance, hold, update, step and exit beats;
+- per-layer reveal order and relative timing;
+- transforms, opacity, clips, masks, wipes, staggers and approved transition styles;
+- duration, easing, motion origin and reduced-motion behavior;
+- explicit initial, settled and exit poses;
+- optional state and event intent only within the supported state-machine schema.
+
+The compiler emits the existing `NOACG_ANIM` format and runtime. The model never emits its own
+event queue, timers or lifecycle globals. Motion that the grammar cannot represent is unsupported,
+not smuggled into arbitrary JavaScript.
+
+### 4.5 Expressiveness gate
+
+The grammar is not accepted because its schema validates. Before an element is added, the harness
+must prove that the compiled result can reproduce a small human-authored reference set covering
+angled panels, layered accents, masks, logo slots, type growth and multi-phase motion. If designers
+must fight the grammar or insert opaque escape hatches, the vocabulary is too weak and must be
+extended before model evaluation.
+
+---
+
+## 5. Retrieval and composition from design units
+
+Pro extends the repository's **one shared retrieval system**. It does not build a second vector
+store, catalog ranking engine or design-family format.
+
+### 5.1 The corpus
+
+The searchable corpus contains two kinds of source:
+
+- complete, proven catalog variants for coherent chassis and operator structure;
+- curated design units extracted from owned or appropriately licensed source code.
+
+A design unit is code plus metadata, not a screenshot and not a hidden scene model. Initial unit
+roles are:
+
+- silhouette and layout skeleton;
+- typography hierarchy;
+- panel or reading-surface treatment;
+- accent and decorative motif;
+- logo or image treatment;
+- entrance, reveal, update and exit motion motif.
+
+Every unit has a stable id, version, provenance, license, supported graphic types, capacity,
+placement, engine floor, required fields, style-family tags and compatibility tags. A changed unit
+is a new version so a benchmark remains reproducible.
+
+### 5.2 Retrieval behavior
+
+The existing brief terms, `TemplateMeta`, structural anchor and catalog search produce a small,
+diverse shortlist. Pro adds unit metadata to that same index and ranking path. It does not paste the
+whole catalog into a prompt.
+
+The shortlist should contain:
+
+- one to three structurally compatible complete exemplars;
+- a small set of compatible units for roles the brief emphasizes;
+- at least one deliberately different but still relevant visual family when available;
+- provenance and a human-readable reason for every result.
+
+Retrieval is deterministic for a fixed corpus and query. Model choice happens over the shortlist,
+not over an unbounded catalog dump.
+
+### 5.3 Coherence over collage
+
+Retrieval must not create a Frankenstein graphic. Composition follows these constraints:
+
+- one dominant chassis or layout skeleton owns the composition;
+- one typography system owns the hierarchy;
+- secondary units may fill only declared compatible roles;
+- palette, radii, stroke, depth and motion tokens are unified before code generation;
+- incompatible placement, capacity, engine or field requirements are rejected before the model
+  sees them;
+- the plan records which units were used, transformed or rejected for evaluation and provenance.
+
+The model is expected to transform units, not copy a finished template and recolor it. Evaluation
+measures both coherence and distance from the selected exemplar.
+
+### 5.4 Diversity without randomness
+
+The harness records dominant chassis, unit and style-family concentration. A route that passes by
+putting most briefs on one safe design has not met the Pro promise. Diversity is measured across a
+brief set, but no per-generation random novelty rule may force a worse design. Relevant alternatives
+come from retrieval; taste chooses among them.
+
+---
+
+## 6. Render, inspect and repair
+
+The current repository can validate structure and measure rendered geometry. Pro adds a first-class
+visual inspection loop around those existing systems.
+
+### 6.1 The render set
+
+Every candidate renders in Chromium at 1920x1080 with transparency made visible by a neutral
+checkerboard. The harness captures at least:
+
+- initial/off pose;
+- entrance samples and settled hold;
+- normal field values;
+- long values at declared capacity;
+- empty optional values;
+- non-Latin and difficult numeral values;
+- update while on air;
+- each reachable default-path step and supported branch state;
+- exit and snapped recovery pose.
+
+The exact set is derived from fields and the state machine so a complex graphic cannot receive the
+same shallow inspection as a two-field lower third.
+
+### 6.2 Deterministic gates
+
+Before visual judgement, a candidate must pass:
+
+- template validation, SPX definition and runtime pairing;
+- runtime exceptions and external-network screening;
+- field coverage through real `update()` calls;
+- state, event, timer, default-path, snap and control reachability;
+- canvas bounds, safe-area and settled alpha-bounds checks;
+- self-clipping, overflow, long-text capacity and minimum type floors;
+- logo/image containment, aspect ratio and source-resolution checks;
+- font and asset availability, export paths and engine compatibility;
+- motion duration, stuck pose, large-frame jump and performance checks.
+
+A critical deterministic failure rejects the candidate before it can be ranked as visually good.
+
+### 6.3 Independent open visual critic
+
+The critic receives the brief, relevant brand input, rendered state contact sheet, alpha view,
+declared design plan and a DOM overlay naming elements. It returns localized findings, not one
+opaque score:
+
+- severity and category;
+- affected state and element ids;
+- image-space region and visible evidence;
+- expected relationship;
+- whether the issue is repairable in plan, HTML, CSS, SVG or motion.
+
+It inspects hierarchy, composition, spacing, optical alignment, brand handling, legibility over
+video, visual coherence, accidental artifacts, motion continuity and whether the brief is actually
+answered. It may not declare structural correctness or edit code directly.
+
+The critic is calibrated against broadcast-designer labels. Agreement, false-negative rate on
+seeded defects and false-positive rate on accepted catalog graphics are recorded per pinned model
+version. If it misses known critical defects, its pass is advisory and cannot ship a candidate.
+
+### 6.4 Bounded repair
+
+The code repairer receives only the failing evidence, relevant source regions and allowed patch
+contract. It gets at most **two rounds**:
+
+1. patch the smallest responsible creative region or revise a normalized plan value;
+2. recompile if needed, render every affected state, and rerun all gates;
+3. keep the patch only if the stated defect improves without a new regression.
+
+A repeated finding, no measurable improvement or new critical failure stops the loop and rejects
+the candidate. Regenerating indefinitely is not repair.
+
+### 6.5 Candidate count
+
+The research harness starts with one candidate so model and compiler failures remain diagnosable.
+Best-of-two generation becomes the intended quality mode only if an ablation proves that it
+materially improves blind airability. The system gates both, the critic ranks the survivors and
+repairs only the winner. More than two requires separate evidence and a cost/latency decision.
+
+---
+
+## 7. Open-model strategy
+
+### 7.1 What "open" means here
+
+A production Pro route must use a checkpoint whose weights are downloadable, whose exact version
+is pin-able, whose license permits the intended commercial deployment after review, and which can
+be self-hosted. A hosted inference service is acceptable during development or managed operation
+only when it serves that same identifiable open-weight checkpoint. "Open API" without available
+weights does not qualify.
+
+Closed frontier models may be paid **evaluation baselines only**, with explicit approval for each
+round. They are not runtime fallbacks, hidden teachers or required infrastructure. Training data is
+owned, licensed, human-authored or explicitly opted in; it is not silently distilled from closed
+model outputs or customer graphics.
+
+Open-weight does not mean small, local or cheap. The strongest initial checkpoint may require a
+remote multi-GPU host. Local deployment is a goal of the later specialist, not a false constraint
+on the quality experiment.
+
+### 7.2 Capability tournament
+
+Model names change faster than this architecture. Before implementation pins a route, candidates
+are tested on:
+
+- structured planning and schema adherence;
+- HTML/CSS/SVG quality and disciplined patching;
+- long-context use of retrieved examples without copying;
+- tool use and recovery after compiler/validator errors;
+- visual understanding for a separate critic candidate;
+- deterministic decoding controls, latency, throughput, hosting availability and license;
+- exact cost per accepted output, including failed candidates and repairs.
+
+Planner, coder, repairer and critic are independent route roles. One checkpoint may win several
+roles; no plan assumption requires that. Routes and prompt/grammar versions are pinned in every
+fixture and round.
+
+### 7.3 Quality before inference optimization
+
+The first route is the strongest open-weight combination that satisfies the license and can run
+the harness. Development cost and inference convenience do not outrank visible quality. After
+parity is demonstrated, distillation, quantization, caching and smaller checkpoints may reduce
+cost and latency, but each optimization reruns the locked quality gate.
+
+---
+
+## 8. Evaluation - what "Opus-level" means
+
+The claim is about the complete specialist system, not raw model intelligence. The comparison is
+therefore final rendered graphics produced from the same briefs under declared, bounded workflows.
+
+### 8.1 Evaluation sets
+
+- **Development bank:** visible briefs spanning broadcast genres, field shapes, brand inputs,
+  capacity stress, logo/image cases and motion requests. Used for engineering, never for the final
+  claim.
+- **Locked holdout:** unseen brief families and brands, stored separately and opened only for a
+  declared round. Minimum 40 joined items for a parity read; the final sample size is set by a
+  power calculation before the round.
+- **Adversarial bank:** long names, empty optional fields, literal `undefined`/`null`, multiline
+  values, non-Latin text, difficult logos, low-resolution assets, extreme but valid brand colors,
+  interrupted events and state recovery.
+- **Category banks:** a new type receives its own holdout and cannot inherit a lower-third verdict.
+
+Fixtures record brief, inputs, retrieval ids, plan, model/checkpoint hashes, prompts, code, every
+rendered state, measurements, critic findings, repairs, usage, cost and human verdict.
+
+### 8.2 Comparison arms
+
+At minimum, a quality round compares:
+
+1. the strongest open Pro system;
+2. the best current closed frontier baseline available through the same scaffold, tools, render
+   evidence and maximum repair count;
+3. the existing adapt-first product baseline.
+
+The open system may use retrieval and specialization because those are the product. The baseline
+receives the same NoaCG structural compiler and validation opportunities so the comparison does not
+confuse broken boilerplate with design intelligence. All output galleries are blinded and shuffled.
+
+### 8.3 Human judgement
+
+At least three independent reviewers with broadcast-design competence rate each joined item. The
+primary question is: **would you take this graphic to air after entering content and brand, without
+redesigning it?** Supporting reads cover:
+
+- brief and field correctness;
+- premium visual quality and originality;
+- typography and information hierarchy;
+- composition and production placement;
+- brand and logo handling;
+- motion quality and state continuity;
+- code/editability sampling after the visual verdict.
+
+Reviewers see the rendered result and behavior before machine findings or model identity. Ties are
+allowed. Disagreements are retained, not forced into consensus.
+
+### 8.4 Release gates
+
+Lower-third Pro does not enter product beta until all are true on the locked holdout:
+
+- 100% export-valid, field-operable and control-operable results among accepted outputs;
+- zero known baked-text ghosts, missing requested assets, visible upscaling, stretch, off-canvas
+  placement or unresolved critical critic finding;
+- at least 90% of supported holdout briefs return an accepted candidate without a manual repair,
+  manual selection or user-triggered rerun;
+- at least 95% accepted outputs judged airable after content and brand entry;
+- blind preference is statistically non-inferior to the frontier baseline within a predeclared
+  five-percentage-point margin, with no material loss in motion or editability;
+- it materially beats adapt-first on distinctiveness without losing adapt-first's correctness;
+- cost, latency, failure and retry distributions are published with the result.
+
+If a round misses, the failure taxonomy decides the next change. Re-rolling the same model and
+calling the better sample progress is not allowed.
+
+### 8.5 Ablations
+
+Every major mechanism must earn its complexity. The harness compares:
+
+- direct open code without grammar vs grammar plus deterministic scaffold;
+- full exemplars only vs exemplars plus design units;
+- no critic vs critic only vs critic plus repair;
+- one candidate vs best of two;
+- base open checkpoint vs later specialist fine-tune.
+
+An ablation uses identical briefs and pinned routes. A component that does not improve blind
+airability, correctness or diversity is removed rather than defended by theory.
+
+---
+
+## 9. Delivery plan and stopping gates
+
+No phase is scheduled by optimism. Each begins only when the prior phase's artifact and gate are
+complete. Work remains bench-only until Phase 5.
+
+### Phase 0 - freeze the evaluation contract
+
+**Build:** the rubric, development bank, locked holdout process, fixture manifest, human review
+form, cost ledger and frontier/adapt baseline procedure. Reclassify the existing paid Pro rounds as
+historical reconstruction evidence, not baselines for the new architecture.
+
+**Gate:** a dry run can reproduce shuffled galleries, join machine and human results, detect seeded
+defects and prevent holdout leakage. No model spend is needed to build it.
+
+**Stop if:** parity cannot be defined independently of model identity or reviewers cannot agree
+enough to support a useful decision.
+
+### Phase 1 - deterministic production spine and grammar
+
+**Build:** `BroadcastDesignPlan`, normalization, final-canvas placement, SPX scaffold compiler,
+safe creative regions, motion/state compilation and reference implementations authored by humans.
+Use existing `blocks`, `validation`, catalog geometry, state-machine and control systems; do not put
+a compiler in React or persist the plan.
+
+**Gate:** the reference set compiles to readable code, survives editing/export, updates every field,
+runs every state/control, passes long/empty/non-Latin cases and matches its approved 1920x1080
+renders. No root scaling and no visible asset upscale occur.
+
+**Stop if:** the grammar needs arbitrary-JS escape hatches or becomes a second editor model.
+
+### Phase 2 - open direct author
+
+**Build:** a bench-only planner/coder/repair route contract, open-checkpoint tournament and
+fixture-saving harness. Start with one candidate and no visual repair so failure ownership is clear.
+
+**Gate:** on the development bank, the best open route produces a high majority of structurally
+valid candidates, the visual code is genuinely more expressive than the old rectangle compiler,
+and failures are localizable to planner, compiler or coder.
+
+**Stop if:** no available open checkpoint can follow the bounded contracts even with retrieved
+examples. Keep the plan and revisit models later rather than weakening SPX safety.
+
+### Phase 3 - retrieve and compose design units
+
+**Build:** provenance-safe unit extraction, metadata, compatibility rules and integration with the
+existing retrieval engine. Human designers approve the first corpus. The model cites its selected
+units and transformations in the transient trace.
+
+**Gate:** a paired ablation shows higher human-rated taste and broader design-family distribution
+than direct generation alone, without greater structural failure or obvious source copying.
+
+**Stop if:** outputs become incoherent collages or retrieval merely selects one whole template and
+changes its colors.
+
+### Phase 4 - visual critic, repair and frontier comparison
+
+**Build:** state contact sheets, deterministic visual measurements, calibrated open critic, bounded
+repair and optional best of two. Seed a defect suite containing the exact historical failures:
+baked text, duplicate fields, wrong scale, lost logo/portrait, mismatched masks, bad paint order,
+unsafe placement and overflow.
+
+**Gate:** the critic meets its calibrated critical-defect recall, repair improves blind airability
+without increasing regressions, and the locked comparison meets the release gates in section 8.4.
+
+**Stop if:** critic and creator reward each other's artifacts while humans do not, or repair success
+depends on more than two rounds.
+
+### Phase 5 - product beta
+
+**Build:** Pro behind the existing Create with AI tier picker, using the shared gateway, telemetry,
+entitlement and BYO/self-host paths. The user sees generation, render, inspection and repair status;
+the accepted result enters the normal editor/export flow. A critical gate failure returns no result
+and a specific reason. There is no concept-image card or separate Pro editor.
+
+**Gate:** focused E2E, production SPX/CasparCG/OBS walkthroughs, build and CI; operational limits
+cover concurrency, timeout, model unavailability and cost. No closed fallback exists.
+
+**Stop if:** hosting economics require hiding the real price, or product behavior differs from the
+bench harness that earned the quality claim.
+
+### Phase 6 - fine-tune the specialist
+
+This is mechanism 5 and deliberately comes last.
+
+**Entry gate:** do not start a deployment fine-tune until there are at least 1,000 de-duplicated,
+licensed, human-reviewed accepted traces and 2,000 localized repair or rejection examples across
+the supported variation. A smaller research adapter may start after 500 accepted traces, but it
+cannot replace the base route from that evidence alone.
+
+**Dataset record:** brief, structured fields, brand and asset metadata, retrieved unit ids,
+normalized plan, code, all state renders, deterministic findings, critic findings, human ratings,
+rejected alternatives and successful repairs. Customer content is excluded unless explicitly
+opted in and suitable for that use.
+
+**Training sequence:**
+
+1. supervised fine-tuning for brief + retrieval -> plan and plan + scaffold -> creative code;
+2. a repair curriculum using real failures plus deterministic adversarial mutations;
+3. preference training from blinded accepted/rejected pairs;
+4. a separately trained or calibrated critic on localized visual findings;
+5. quantization and serving optimization only after quality parity.
+
+The planner/coder and critic do not need to be one model. A smaller specialist wins only if it
+beats its untuned base on the locked holdout, preserves critical-defect recall and remains
+non-inferior to the frontier baseline. If it memorizes catalog families, loses diversity or merely
+optimizes machine gates, the strongest base open route stays in service.
+
+---
+
+## 10. Cost, hosting and operations
+
+The retired pipeline's roughly $1 per 12-brief round was dominated by image generation. This plan
+removes that image call, but it does **not** promise that a frontier-scale open checkpoint with two
+candidates and repairs is immediately cheaper. Open weights remove provider dependence, not GPU
+cost.
+
+The operating policy is:
+
+- quality selects the first viable route;
+- every run records tokens, GPU/provider time, candidates, repair rounds, failures and cost per
+  accepted output;
+- one candidate and two repairs are hard defaults until an ablation authorizes more;
+- paid evaluations and new hosted-model rounds require explicit owner approval with a stated cap;
+- development may use a hosted open-weight checkpoint; the architecture must also support
+  self-hosting the pinned weights;
+- BYO/self-host is the first product funding posture unless a managed allowance is explicitly
+  costed through the task registry;
+- no model is needed at playback or export time;
+- the later smaller specialist, prompt-prefix caching and batching are cost optimizations only
+  after quality is secure.
+
+The product price is set from measured accepted-output cost after Phase 4, not invented in this
+plan. A cheap output that cannot go to air has infinite effective cost.
+
+---
+
+## 11. Security, licensing and provenance
+
+- Generated templates run through the existing safety and asset-integrity screens and in the
+  existing sandboxed preview/export posture.
+- Creative code cannot fetch remote scripts, fonts, images or data. URLs and unsupported browser
+  capabilities are rejected.
+- Brief text, retrieved source comments and rendered text are data, never instructions.
+- Checkpoint license, training-data terms and hosting terms are reviewed and recorded before a
+  route is allowed into a paid or product round.
+- Every design unit has source and license provenance. Restricted real-world corpora may inform
+  measurements but cannot become training or retrieval data unless their terms permit it.
+- Generated traces retain model, grammar, corpus and compiler versions so a result is auditable.
+- User assets and private customer graphics are not used for training by default.
+
+---
+
+## 12. Principal risks and planned falsification
+
+| risk | how it is tested | response |
 | --- | --- | --- |
-| Brief | `ProBrief` (typed, lower-third-only v1) | new, thin |
-| Concept generation | gateway image-output capability | **new seam** in `api/_lib/aiGateway.ts` |
-| Interpretation | one vision call, structured contract `ProInterpretationV1` | extends the `importAnalysis` contract family |
-| Normalization | deterministic clamp into `DesignFieldSpec`s + panel specs | same doctrine as `importAnalysis/normalize.ts` |
-| Reconstruction | `IMPORTED_DESIGN.create()` + `applyDesignFieldSpecs` (`addPlacedLine` / `setLineTextStyle` / `setLineFit`) + reconstructed panel CSS | existing funnel, one small additive part kind |
-| Motion | the `design-*` preset family + NOACG_ANIM data region | existing |
-| Validation | `productionSpxValidator` (static + runtime bench + safety screen) | existing |
-| Editor / export | ordinary `SpxTemplate`, all six targets | existing, untouched |
+| Open coder follows syntax but lacks taste | blind development and holdout review | strengthen retrieval/grammar or wait for a better open checkpoint; never weaken the rubric |
+| Grammar is too weak | human reference-set reproduction | extend explicit vocabulary before model work; no arbitrary-JS escape hatch |
+| Grammar becomes a hidden scene model | round-trip and editor-source review | keep it transient; edits after generation operate on code |
+| Retrieval causes sameness | chassis/unit concentration and novelty read | diversify relevant shortlist and corpus, not randomize final choice |
+| Retrieval causes collage | coherence ratings and compatibility violations | one dominant chassis/type system; reject incompatible units before prompting |
+| Critic misses obvious failures | seeded-defect recall | keep critical deterministic/image-diff tripwires and block release |
+| Critic and creator collude | independent checkpoints plus blinded human labels | retrain/recalibrate critic; human verdict remains authoritative |
+| Repair chases its tail | per-round finding and metric deltas | stop at two; reject no-improvement candidates |
+| Motion looks correct only at hold | entrance/update/next/exit contact sheet and video review | category motion bank and state-derived capture set |
+| Long or non-Latin text breaks hierarchy | adversarial field drive | platform fit/capacity gate; reject unsupported plans |
+| Largest open model is uneconomic | accepted-output cost and throughput | fine-tune/distill a smaller specialist after data exists; BYO/self-host first |
+| Fine-tune memorizes the catalog | family-disjoint holdout and retrieval-disabled ablation | de-duplicate, diversify, preference-train and keep base fallback |
+| Bench quality does not survive product integration | identical fixture/replay path in product and bench | do not ship a separate product implementation |
 
-There is **no second scene model**: the structured interpretation is an ephemeral
-proposal (like `ImportedGraphicAnalysisV1`), consumed by a deterministic compiler whose
-output is code. The code remains the single source of truth the moment the editor opens.
+---
 
-## 3. Provider architecture
+## 13. What happens to the old Pro experiment
 
-### 3.1 Capabilities, not providers
+This document replaces its strategy immediately; it does not authorize code deletion in this
+planning slice.
 
-Pro operations are named capabilities, resolved to routes independently:
+When implementation begins:
 
-- `image-generation` - concept images. New gateway modality (§3.2).
-- `image-edit` (clean plate) - declared in the capability model, deferred beyond v1
-  (see §5 for how v1 gets clean results without it).
-- `design-interpretation` - vision + structured output. Rides the existing gateway
-  exactly as import-analysis does.
-- Template planning / motion direction / repair - not separate calls in v1; the
-  interpretation contract carries motion intent, and repair is the gateway's existing
-  schema-revalidation + bounded retry.
+1. mark the raster reconstruction route retired in the AI area contract and attempt record;
+2. keep its paid round folders immutable as evidence;
+3. reuse generic gateway, telemetry, fixture and validation infrastructure only where it fits the
+   new contracts;
+4. remove Pro-specific concept, interpretation and reconstruction code once no test or migration
+   needs it;
+5. update `docs/GOALS.md`, `src/ai/AGENTS.md`, architecture edges and task registry in the same
+   implementation phase that changes their live truth;
+6. preserve the standard Create with AI entry and ordinary editor/export destination.
 
-### 3.2 The gateway grows one seam: image output
+No new work or spend should improve the retired reconstruction path.
 
-`api/_lib/aiGateway.ts` gains an image-output request mode (`expect: 'image'`):
-the adapter asks the route for an image, and the normalized result carries
-`images: [{ base64, mediaType, width, height }]` beside the usual usage/cost/attempts.
-V1 implements it for the **OpenRouter adapter** (chat completions `modalities:
-["image","text"]`), because that one adapter already reaches Gemini image models and a
-growing set of open-weight image models behind one API shape and one billing meter.
-Other adapters reject `expect: 'image'` with a normalized `unsupported` error; new
-adapters enter under the same `ProviderAdapter` interface, never beside it
-(`docs/AI_PROVIDER_GATEWAY.md` doctrine).
+---
 
-Model discovery: the existing OpenRouter discovery filters to `output_modalities=text`;
-Pro adds a second, separately-cached discovery list for `output_modalities=image` so the
-Pro settings UI can offer real image-capable routes with live prices.
+## 14. First future slice
 
-### 3.3 Who pays (v1): BYO-key, `surface: 'pro'`
+The first implementation slice, when separately authorized, is **Phase 0 only**: write the locked
+evaluation contract and fixture manifest, seed the historical defect bank, and establish the
+frontier/adapt comparison procedure. It makes no model call and changes no product path.
 
-Image generation prices sit far above the funded-route ceiling
-(`FUNDED_ROUTE_PRICE_CEILING`), and the project's standing cost policy is that hosted AI
-spends only on cheap routes until there is revenue. So v1 Pro is **not a
-NoaCG-funded task**: it runs through the ordinary `/api/ai/generate` gateway on the
-caller's own key (BYO or self-host managed key), exactly like the main SPX harness -
-client-owned prompts, server transport, content-free `ai_gateway_requests` ledger rows.
-
-- New gateway surface tag `'pro'` beside `'video'`, gated on a new entitlement key
-  `ai.pro` with the same honest enforcement note as `ai.video` (reaches recognised
-  accounts; an account-free caller on their own key is not stopped).
-- A managed, credit-weighted, server-owned Pro profile (task registry + approved routes
-  + quotas + an Auto route) is the designed follow-up once pricing exists; the task
-  registry checklist in `docs/AI_TASK_REGISTRY.md` is written for exactly that addition.
-  Nothing in v1's shape blocks it: the contracts are dependency-light and the prompts can
-  move server-side the way Lite's did.
-
-This keeps expensive model use explicit (the user chose the route, the UI shows the
-estimate) and measurable (the gateway ledger and the browser telemetry ring both record
-it - Pro runs record as kind `pro-generate` in `src/ai/telemetry.ts`).
-
-## 4. The structured intermediate: `ProInterpretationV1`
-
-`src/ai/pro/contract.ts`, versioned like `import-analysis-v1`, schema-forced and
-server-revalidated. It extends the `ImportedGraphicAnalysisV1` shape rather than
-inventing a parallel vocabulary:
-
-- canvas + safe margins, graphic type + confidence (v1 accepts only `lower-third`);
-- an independent `canvasPlacement`: intended displayed width and top-left position on a
-  1920x1080 canvas, normalized and deterministically clamped so source pixels only downscale;
-- regions: `kind: text | logo | image | panel | decorative`, normalized bboxes,
-  confidence, roles, sample text, typography (same **font honesty** rule: enum-locked to
-  the seven bundled faces, `matchQuality` can never claim exact);
-- panel regions additionally carry reconstructable geometry: fill (solid or two-stop
-  gradient), corner radius, opacity, optional accent-bar classification;
-- an explicit `editable` classification per region: `rebuild-text` / `rebuild-shape` /
-  `keep-asset` / `flattened` - the model's proposal, clamped by the deterministic
-  normalizer (text is ALWAYS rebuilt; uncertainty degrades to `flattened`, never to
-  pretend-editable);
-- motion intent: one of the `design-*` presets + direction + speed (the same enum
-  import-analysis uses), optional per-region stagger order;
-- warnings, verbatim and user-facing.
-
-Rendered words inside the image are content, never instructions (the established
-prompt-injection doctrine is restated in the Pro prompt).
-
-## 5. Reconstruction policy (v1)
-
-- **Text**: always rebuilt as placed fields through `addPlacedLine` - real DataFields,
-  canvas-draggable, fit-protected. Never left as pixels with an overlay.
-- **The primary panel and accent bars**: rebuilt as CSS layers when the interpretation
-  classifies them reconstructable. A reconstructed opaque panel *covers the baked
-  original including its baked placeholder text* - which is what makes a clean result
-  possible with a single image call and no clean-plate model.
-- **Baked text outside reconstructed panels**: the compile runs the existing deterministic
-  flat-fill erase (`assets/eraseRegion.ts`, the Import Graphic Prepare step's machinery)
-  over each such region of the crop. Only a flat verdict is applied - the Prepare step's
-  "use it anyway" has a human looking at a preview, the compiler runs unattended - so a
-  region the erase refuses stays in the plate with an honest warning naming the non-flat
-  background. `ProCompileReport.textErased` counts the clean removals.
-- **The crop's pad ring**: a side of the unit whose union edge is owned entirely by rebuilt
-  OPAQUE panels drops its pad - the CSS panel repaints that edge, so the tight crop loses
-  nothing and removes both the backdrop ring and the misregistered baked-panel peek (§10).
-  Sides that keep pad (text / logo / flattened raster at the edge) get a deterministic
-  matte pass (`matteRingTransparent`): a flat band is written as true transparency
-  (`ringMatted`), a non-flat one is reported, never guessed at. Dropping the raster
-  entirely (`artDropped`) additionally requires EVERY region to be rebuilt - a kept-raster
-  logo or flattened panel lives only in the crop, and dropping it would silently delete
-  them.
-- **Logos / portraits**: v1 keeps them in the plate and reports them (a replaceable slot
-  for a PORTRAIT is still a later slice); an explicit `filelist` slot is only added when the
-  brief asked for a logo field. When it did, the compile reports that slot
-  (`ProCompileReport.logoSlot`) and `fillProLogoSlot` (`src/ai/pro/logoAsset.ts`, the
-  pipeline's `logoMark` option) bundles the user's first "use it as it is" upload into it and
-  sets it as the slot's value - deterministically, so the mark the user attached is actually
-  in the graphic rather than merely asked for. It runs BETWEEN the compile and the validator,
-  because the as-is screen (`src/ai/assetIntegrity.ts`) finds a protected picture by its
-  `<img src>`: filling afterwards would leave the gate screening a template with an empty
-  slot, and the result card's readiness rows describing one. It writes no CSS, which is how
-  it passes that screen by construction; the region's outcome line then says the slot was
-  filled, and the "waiting for a file" warning is retired.
-- **Complex textures / illustrations / backgrounds**: stay raster in
-  `.imported-design-art`, by design. A `decorative` region rides the panel rules WHEN it
-  carries reconstructable geometry - models file accent bars and divider rules under
-  decorative (every 2026-07-31 fixture does), and CSS renders those exactly; a duplicate
-  region naming the same box twice (a 'panel' and a 'decorative' twin) becomes ONE layer.
-  Geometry-less decoration stays raster.
-- The compile returns a `ProCompileReport`: per region, what it became and why - the
-  editability score the product surfaces before the editor opens.
-
-The compile target is the `imported-design` structure (art layer + placed fields), so
-every existing behaviour - locks, Style tab, design presets, stretch, text-fit, export -
-applies verbatim. One additive change in `src/model/structure.ts`: `.{prefix}-panel-N`
-elements become selectable `panel` parts so reconstructed panels get canvas/timeline/
-Inspector presence. (Additive: no existing template emits that class.)
-
-Canvas placement is not inherited from the concept image. The image is requested as the graphic
-alone and tightly framed; interpretation chooses final width and top-left position separately.
-The normalizer clamps that decision to lower-third-safe bounds and a maximum scale of 1. The
-compiler keeps the crop at native resolution and applies the one resulting downscale through the
-imported-design `--scale`, so artwork, text, rebuilt panels, and logo slots retain one source
-coordinate system. A source that cannot reach the requested useful size without upscaling is
-reported as source-limited and fails the benchmark gate.
-
-## 6. Motion (v1)
-
-The interpretation's motion intent selects among the existing whole-unit `design-*`
-presets (fade / slide / pop / blur) with speed + direction, emitted exactly as the
-Import Graphic flow emits them - a NOACG_ANIM data region, timeline-editable,
-deterministic reverse for the exit. Reconstructed panels and placed lines are ordinary
-layers, so per-layer refinement (stagger, masked reveals) is normal timeline editing;
-richer generated motion (per-layer stagger plans, masked reveals chosen by the model)
-is a later slice and stays inside the validated preset/keyframe vocabulary.
-
-## 7. UX - Pro is a TIER of Create with AI (revised 2026-08-01)
-
-There is **no separate Pro wizard card**. Create with AI is the one AI creation entry
-point, and the ⚙ AI settings panel inside it carries the execution-tier picker:
-
-- **NoaCG Lite** - the managed free profile (offered when the server exposes it).
-- **NoaCG Pro** - this pipeline, on pinned standard routes. A normal Pro user never picks
-  a text, vision, or image model: `PRO_STANDARD_ROUTES` (src/ai/pro/pipeline.ts) documents
-  the curated choice and §7a records the reasoning.
-- **Custom provider** - the secondary advanced surface: bring your own provider, key, and
-  models (the established `AiProviderSettings` component, unchanged).
-
-Lite and Pro share the SAME brief, UI, and workflow systems - the prompt, the "More
-control" structured setup (category, data fields with kinds, look, fonts, animation), the
-purposed uploads, and the brand strip. `src/ai/pro/brief.ts` maps that shared brief onto
-the v1 `ProBrief` deterministically: the first two text fields become the name/title lines
-(example values ride into the concept), an as-is upload or a requested image field asks
-for the logo slot, which the pipeline then BUNDLES that upload into (§5,
-`fillProLogoSlot`) - and style/mood/avoid/brand-colour decisions travel as direction text.
-Category options clamp to what v1 compiles (lower thirds); a wider pick resets to 'auto'
-exactly as Lite clamps its own scope.
-
-One Generate press runs `concept -> interpret -> compile -> validate` with the stages
-streamed into the busy line; the result card carries the concept image with its real cost,
-the per-region editability report, and the shared readiness rows. Pro results offer no
-refine/repair calls in v1 - the compile is deterministic, so the honest move on a failure
-is a new concept, and the card says so.
-
-- Failures are actionable and never destroy prior state (same rules as the rest of AiStep).
-- Without an OpenRouter key the tier says so and runs the stub pipeline (deterministic
-  local concept + fixed interpretation), which keeps the whole flow e2e-testable without
-  tokens - the `stubProvider` pattern (e2e/pro.spec.ts).
-- No isolated Pro editor: Finish lands in the ordinary editor or the export window.
-
-### 7a. The standard routes (v1) - quality / cost / model-selection reasoning
-
-`PRO_STANDARD_ROUTES` pins concept generation to `google/gemini-3.1-flash-image` and
-interpretation to `google/gemini-2.5-flash`, both via OpenRouter:
-
-- **Quality**: the 2026-07-31 paid round (§10) measured 4/5 brief-bank passes after the
-  normalizer fixes, with the strongest text rendering among affordable image routes -
-  text fidelity is the binding constraint for a concept whose lines must be transcribable.
-- **Cost**: ~$0.067 per concept + **$0.009-0.011 per interpretation** = **~$0.077 per completed
-  generation**, roughly a tenth of premium image routes - and ~250x a NoaCG Lite generation
-  ($0.0003), which is the comparison that decides whether the tier is worth its price.
-  The interpretation figure was ~$0.002 under OpenRouter and is five times that on the managed
-  gateway, because **reasoning tokens bill**: the route spends 2,400-3,900 output tokens thinking
-  before it writes any JSON (measured 2026-08-08, benchmarks/pro/round-2026-08-08/ROUND.md §3).
-  A generation that FAILS after its concept still costs the full ~$0.077.
-- **Why one provider**: OpenRouter reaches both models behind one API shape, one billing
-  meter, and the gateway adapter that already implements `expect:'image'`.
-
-Changing either route requires re-running `npm run bench:pro` paid stages. Brief-driven
-model routing (picking routes per graphic type, references, or quality/latency budget) is
-deliberately deferred until the single standard path has been validated in use.
-
-## 8. Cost and observability
-
-- Browser telemetry: `startAiRun('pro-generate')` records stages (concept /
-  interpret / compile / validate), models, usage, retries, and the compile report's
-  editability summary in the existing local ring.
-- Server: `ai_gateway_requests` rows per call (already content-free), surface `'pro'`.
-- Explicit budgets: one concept call + one interpretation call + the gateway's bounded
-  retries; no automatic paid cascades. The repair loop for interpretation is schema
-  revalidation + at most one re-roll, matching import-analysis.
-
-## 9. Benchmarking
-
-`benchmarks/pro/v1/` + `scripts/pro-bench.mjs`:
-
-- A brief bank covering news / sports / entertainment / corporate / minimalist,
-  portrait+logo variants, long names, multiline titles, empty optional fields,
-  non-Latin text, broadcast-safe placement.
-- **Fixture-first**: checked-in concept images (locally rendered, no paid calls) and
-  hand-authored interpretation fixtures drive the deterministic stages - normalize,
-  compile, validate, runtime bench, export - so regression runs are free.
-- Paid stages (`--generate`, `--interpret`) are explicit, per-run cost-ceilinged, and
-  write their outputs back as new fixtures plus a review gallery (the `ai-bench.mjs`
-  pattern), keeping deterministic structural checks separate from subjective visual
-  scoring.
-
-## 10. Known limitations (v1, measured)
-
-- **The crop ring** (narrowed by the erase slice, still real). The pad is now per side:
-  a union edge owned by rebuilt opaque panels crops tight (no ring, and the misregistered
-  baked-panel peek below goes with it), and a retained flat band mattes to transparency.
-  What remains is the honest residue: a NON-flat backdrop behind a retained-pad side stays
-  in the crop and is reported as a warning. Measured on the six checked-in fixtures, that
-  residue is the common case for model-generated concepts - their "dark and quiet"
-  backdrops spread 200+ counts per channel across the band, far past `FLAT_BG_TOLERANCE`.
-  (Accent bars coming back as `kind: decorative` used to keep pad on their edges too;
-  decorative-with-geometry now rebuilds - §5.) The clean fix for the non-flat residue
-  remains the deferred image-edit clean-plate capability (or alpha matting).
-- **Paint order is an unmeasured dimension.** The runtime bench measures rects, not paint,
-  so a reconstructed opaque panel covering the live text passed every deterministic gate;
-  only a rendered-frame screenshot caught it (fixed by insertion order, and the bench
-  gallery is the standing tripwire). A vision judge over the hold frame is the general
-  answer, deferred with the Lite judge's calibration doctrine.
-- **Baked text outside reconstructed panels** now runs the deterministic flat-fill erase
-  (§5); a non-flat background still refuses and is reported. Note the coverage honesty:
-  none of the six checked-in fixtures exercises the clean path (their text is panel-covered
-  and their backdrops non-flat), so the erase and matte behaviours are pinned by
-  e2e/pro.spec.ts with hand-built flat and gradient concepts instead.
-
-Findings from the first PAID round (2026-07-31, gemini-3.1-flash-image concepts +
-gemini-2.5-flash interpretation, ~$2 total including debugging):
-
-- **Google's constrained decoding has a schema state budget.** Number enums are rejected
-  outright, and min/max bounds, string patterns, length caps and oneOf branches together
-  blew the "too many states for serving" limit. The wire schema now carries SHAPE only
-  (types, required, closed objects, string enums); every bound, cap and colour check
-  lives in the normalizer - which is where the platform doctrine wanted the meaning
-  enforced anyway. Do not re-add constraints without re-running a paid round.
-- **`fontSizeNorm` is not a measurement.** Models free-associate its meaning (the bbox
-  height as an image fraction in one answer, "0.6 of the region" in the next), so the
-  normalizer now ignores the claim and derives type size from the measured bbox height -
-  the erase-seed rule. This took the round's bank from 1/5 to 4/5 passing.
-- **Logo classification misses.** A requested logo area came back as `decorative`, so no
-  replaceable slot was placed (the one remaining bank failure). Interpretation-prompt
-  teaching, next round.
-- **Raster misregistration** - a rebuilt panel sits a percent or two off the baked one,
-  so crop pixels peek out beside it. The erase slice took the geometric half: a
-  rebuilt-opaque panel edge now crops tight (the peek outside the interpreted edge is cut
-  away), and `artDropped` fires whenever every region was rebuilt and one opaque panel
-  covers the now-unpadded unit. A peek beside an edge the crop must keep - a flattened
-  panel, a kept logo - remains, and remains a clean-plate argument.
-
-## 10a. The 2026-08-08 feasibility round - the measured answer to "does this work at all"
-
-`benchmarks/pro/round-2026-08-08/` (ROUND.md + MACHINE.md) is the round `docs/GOALS.md` asked for,
-and its verdict is that **the reconstruction is the thing that does not work**, not the concept.
-
-- **The image model designs well**: 11 of 12 concepts are credible broadcast lower thirds.
-- **The reconstruction ships a visibly broken graphic on 5 of 12** while the deterministic gates
-  report 11 of 12 passing. §10's "crop ring residue" and "paint is an unmeasured dimension" are
-  not residue: they are where Pro's output quality lives.
-- **The relationship is INVERSE.** The strongest concept in the bank (`sports-live`, angled panels,
-  layered accents) became the worst output in the bank, because a distinctive design is exactly the
-  one a rectangle-rebuilding compiler cannot reproduce or erase behind. A better image model makes
-  this worse, not better.
-- **Lite delivered a usable graphic on 12 of 12 of the same briefs**, at 1/250th the cost and 1/6th
-  the wall clock. Lite's weakness is sameness (9 of 12 on one chassis) - a ceiling on something that
-  works. Pro's is correctness reported as success.
-- **A truncation bug cost 5 of 12 concepts in the first bank** - `maxTokens: 4000` against a route
-  that spends ~96% of its output budget on reasoning tokens (§3 of the round doc). Fixed to 12,000.
-  Every hand-set `maxTokens` in the tree deserves the same check.
-
-**Re-opened 2026-08-09: `benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`** locates each failure inside
-the pipeline and corrects two of the claims above. The reconstruction carries four defects that are
-arithmetic and vocabulary rather than taste - a 0.72x frame-scale error, a 0.59x type-size error,
-fills that do not match the pixels, and zone re-bucketing that discards the designed position - plus
-a concept-prompt leak that broke a fifth brief before the compiler ran. "No gate in the tree can see
-the difference" is false: the compiler's own warning count separates broken from usable on 11 of 12,
-and the bench discards it. Re-run the measurements free with `node scripts/pro-geometry-audit.mjs`.
-**Also: the round did not pass `--save-fixtures`, so the twelve interpretations behind these twelve
-frames are gone. A paid round writes its fixtures.**
-
-**Paid verification 2026-08-10: `benchmarks/pro/round-2026-08-10/ROUND.md`.** The tight-concept,
-independent-placement change fixed the measured canvas defect: all twelve outputs used scale <= 1,
-nine fulfilled the interpreted size by downscaling, and three honestly reported `SOURCE-LIMITED`.
-The complete round cost $1.014569 and all twelve fixtures were saved. It did not make reconstruction
-reliable: the machine reported 9/12 pass, while the human read found 8/12 usable or degraded and
-4/12 broken. Three broken frames retain baked text under live fields; `portrait-logo` loses its
-portrait. This separates the findings cleanly - placement is verified, reconstruction remains parked.
-
-The round's recommendation is to PARK the interpret→compile path and keep the concept stage for two
-uses that do not require reconstruction: a generated concept fed back as a `layout` REFERENCE into
-the grounded adapt path (attacking Lite's sameness with Pro's strength), and concepts as input to
-human-built catalog chassis. Nothing here is a reason to change `PRO_STANDARD_ROUTES`; the failure
-is in the compiler's reach, not the route.
-
-**Q2, and it is not a Pro problem.** Pro cannot generate custom fields or a state machine by
-construction - `ProBrief` is `{brief, name, title, includeLogo}` and the compiled graphic carries
-two text fields, one step, no machine. The free-form coder DOES mint its own fields (6 correct,
-correctly typed, operable on `#/control/<id>`), but a machine cannot survive its pipeline:
-`convertEmittedRegion` → `importAnimData` returns `{version, root, speed, steps}` and mentions
-`machine` nowhere. No generation path in the repo asks any model for a state machine. That seam -
-a small structured MACHINE stage spliced in deterministically, the way `designSpec` already works -
-would serve every tier at once and needs no image model.
-
-## 11. What v1 deliberately does not do
-
-- No generated video or motion assets (architecture leaves room: a video background
-  would be one more capability + one more asset kind).
-- No image-edit clean-plate call (declared capability, deferred; §5's panel-cover +
-  erase policy is the v1 answer).
-- No multi-concept fan-out, no managed funded tier, no credit pricing UI.
-- No non-lower-third graphic types (the contract carries `graphicType` so widening is
-  an allowlist change plus per-type compile rules, not a redesign).
+Only after that review should Phase 1 define `BroadcastDesignPlan` and compile human-authored
+references. This ordering is intentional: NoaCG must decide what premium, correct and airable mean
+before optimizing any model to produce it.
