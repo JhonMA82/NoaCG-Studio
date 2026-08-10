@@ -44,7 +44,7 @@ export const pc03: TemplateVariant = defineMatchupVariant(
     html: playerMarkup(o),
     fields: compFieldsFor(PLAYER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Stats Matchup', call: 'revealStats', duration: 0.5 }],
+    revealSteps: [{ name: 'Stats', call: 'revealStats', duration: 0.5 }],
     runtimeExtraJs: PLAYER_RUNTIME_JS,
     css: `${playerStructureCss()}
 

@@ -54,8 +54,8 @@ export const ls04: TemplateVariant = defineVariant(
     return {
       html: `    <!-- One frosted card, two unequal columns: the guest leads, the host supports. -->
     <div class="lower-third-box">
-${personColumn(o, left, { column: 'lower-third-person lower-third-lead', name: 'lower-third-name Lower Third', role: 'lower-third-title' })}
-${personColumn(o, right, { column: 'lower-third-person lower-third-support', name: 'lower-third-extra Lower Third', role: 'lower-third-support-role' })}
+${personColumn(o, left, { column: 'lower-third-person lower-third-lead', name: 'lower-third-name', role: 'lower-third-title' })}
+${personColumn(o, right, { column: 'lower-third-person lower-third-support', name: 'lower-third-extra', role: 'lower-third-support-role' })}
     </div>`,
 
       css: `/* The card. Content-sized columns so the two names never fight for a fixed half;

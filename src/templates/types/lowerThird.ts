@@ -18,7 +18,7 @@ import { sampleName } from '../shared/sampleNames';
 
 export const lowerThirdType: GraphicType = {
   id: 'lower-third',
-  name: 'Lower third Lower Third',
+  name: 'Lower third',
   description: 'A name and a title, anchored bottom-left. The workhorse of live graphics.',
   frequency: 52,
   structure: {
@@ -55,7 +55,7 @@ export const lowerThirdType: GraphicType = {
   designs: [
     {
       id: 'lt11',
-      name: 'House Strap Lower Third',
+      name: 'House Strap',
       description: 'The NoaCG house strap: amber accent bar, void blur panel, mono kicker title.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -64,12 +64,12 @@ export const lowerThirdType: GraphicType = {
     },
     {
       id: 'lt02',
-      name: 'Underline Lower Third',
+      name: 'Underline',
       description: 'Panel-free name and title separated by a short accent underline.',
       styleTag: 'minimal',
       palette: paletteById('signal'),
       fontId: 'space-grotesk',
-      samples: { name: 'Marcus Chen Lower Third', title: 'Senior Analyst' },
+      samples: { name: 'Marcus Chen', title: 'Senior Analyst' },
       // The underline is the design's one accent moment, so line-reveal leads; it was never
       // drawn for a mask-wipe, which the type's list adds.
       animationPresets: ['line-reveal', 'slide-up', 'fade', 'slide-down', 'flip-3d'],
@@ -77,12 +77,12 @@ export const lowerThirdType: GraphicType = {
     },
     {
       id: 'lt05',
-      name: 'Angle Slab Lower Third',
+      name: 'Angle Slab',
       description: 'A forward-leaning dark slab with a chunky accent edge - fast, aggressive sport energy.',
       styleTag: 'sport',
       palette: paletteById('volt'),
       fontId: 'oswald',
-      samples: { name: 'JAKE MORRISON Lower Third', title: '24 PTS · 11 AST' },
+      samples: { name: 'JAKE MORRISON', title: '24 PTS · 11 AST' },
       // The design labels its lines "Player" and "Stat line" where the type says "Name" and
       // "Title" — but they are the same two roles: a player name is the primary identifier, a
       // stat line is the secondary descriptor. Sport-flavoured wording for a name and a title.
@@ -117,12 +117,12 @@ export const lowerThirdType: GraphicType = {
       // card but leads it with a real soft accent edge and holds to the two lines this type
       // declares.
       id: 'lt15',
-      name: 'Frost Strap Lower Third',
+      name: 'Frost Strap',
       description: 'A frosted glass strap led by a soft accent edge — name over a dimmed title.',
       styleTag: 'glass',
       palette: paletteById('frost'),
       fontId: 'manrope',
-      samples: { name: 'Sofia Lindqvist Lower Third', title: 'Creative Director' },
+      samples: { name: 'Sofia Lindqvist', title: 'Creative Director' },
       animationPresets: ['blur-in', 'pop-spring', 'line-reveal', 'fade', 'slide-down', 'flip-3d'],
       create: (_type, options) => lt15.create(options),
     },
@@ -130,12 +130,12 @@ export const lowerThirdType: GraphicType = {
       // The EDITORIAL cell. Promotable as written: a real .lower-third-accent element (the
       // masthead rule), exactly the two lines this type declares, and no logo slot.
       id: 'lt25',
-      name: 'Masthead Lower Third',
+      name: 'Masthead',
       description: 'A rule across the top, the name beneath it, the role as a tracked caps line.',
       styleTag: 'editorial',
       palette: paletteById('vermilion'),
       fontId: 'archivo',
-      samples: { name: 'Alexandra Riva Lower Third', title: 'Chief Correspondent' },
+      samples: { name: 'Alexandra Riva', title: 'Chief Correspondent' },
       // The design calls line 1 "Role" where this type says "Title". Same role in the graphic:
       // the secondary descriptor under a name. Editorial wording for a title line.
       semantics: 'Role = the title (the secondary descriptor under the name).',
@@ -148,12 +148,12 @@ export const lowerThirdType: GraphicType = {
       // The CINEMATIC cell. Same story: a real accent element (the hairline over the name),
       // two lines, no logo slot.
       id: 'lt32',
-      name: 'Scrim Lower Third',
+      name: 'Scrim',
       description: 'Name and role on a scrim that fades into the shot — no panel, no edges.',
       styleTag: 'cinematic',
       palette: paletteById('noir'),
       fontId: 'inter',
-      samples: { name: 'Alexandra Riva Lower Third', title: 'Marine Biologist' },
+      samples: { name: 'Alexandra Riva', title: 'Marine Biologist' },
       semantics: 'Role = the title (the secondary descriptor under the name).',
       // Cinematic motion is slow and still: a fade leads and nothing overshoots.
       animationPresets: ['fade', 'blur-in', 'line-reveal', 'slide-up', 'mask-wipe'],

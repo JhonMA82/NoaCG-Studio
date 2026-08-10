@@ -57,11 +57,11 @@ export const tickerType: GraphicType = {
       branches: [
         {
           id: 'advance',
-          name: 'Next item Ticker',
+          name: 'Next item',
           // The beat: the showing item lifts away, the next one rises in its place. The swap
           // happens at the midpoint, while nothing is visible.
           timeline: {
-            name: 'Advance Ticker',
+            name: 'Advance',
             duration: 0.6,
             ease: 'in',
             calls: [{ time: 0.3, call: 'tickerShowNext' }],
@@ -94,7 +94,7 @@ export const tickerType: GraphicType = {
           // Pose-only: entering it plays nothing. Pausing IS entering it — the machine cancels
           // the armed timer on the way out of the cycling state, and nothing re-arms it.
           id: 'paused',
-          name: 'Paused Ticker',
+          name: 'Paused',
           timeline: null,
           edges: [
             { from: { waypoint: 0 }, to: 'paused', trigger: 'operator', event: 'pause' },
@@ -123,7 +123,7 @@ export const tickerType: GraphicType = {
       // A design of its OWN rather than the marquee's: promoting tk05 would have turned the
       // house news wire into a rotator, and the marquee is a graphic people chose on purpose.
       id: 'tk07',
-      name: 'House Rotator Ticker',
+      name: 'House Rotator',
       description: 'The house strip, one story at a time — timed, and pausable on air.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -151,7 +151,7 @@ export const tickerType: GraphicType = {
       // glass / sport / minimal rotators are DESIGNED as rotators — each a strip that holds one
       // story long enough to read, the sibling of its family's lower third.
       id: 'tk08',
-      name: 'Frost Rotator Ticker',
+      name: 'Frost Rotator',
       description: 'A frosted strip that holds one story at a time — timed, and pausable on air.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -162,7 +162,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk09',
-      name: 'Volt Rotator Ticker',
+      name: 'Volt Rotator',
       description: 'A dark rail with a leaning accent chip, holding one story at a time — pausable on air.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -180,7 +180,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk10',
-      name: 'Wire Rotator Ticker',
+      name: 'Wire Rotator',
       description: 'A quiet strip that holds one story at a time, split by a thin accent keyline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -198,7 +198,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk21',
-      name: 'Editorial Desk Ticker',
+      name: 'Editorial Desk',
       description: 'A printed news strip that holds one story at a time beside a fine rule.',
       styleTag: 'editorial',
       palette: paletteById('vermilion'),
@@ -218,7 +218,7 @@ export const tickerType: GraphicType = {
       // normal rather than an accident. Packs resolve a family to its FIRST design, so tk07
       // stays the noacg cell and this is an explicit choice in the browse grid.
       id: 'tk19',
-      name: 'Advisory Rotator Ticker',
+      name: 'Advisory Rotator',
       description: 'Public advisories one at a time — timed, holdable, and read in full.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -240,7 +240,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk18',
-      name: 'Status Rotator Ticker',
+      name: 'Status Rotator',
       description: 'Service statuses one at a time — timed, pausable, and split into a name column.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

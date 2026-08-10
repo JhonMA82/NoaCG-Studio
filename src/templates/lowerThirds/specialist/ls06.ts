@@ -61,7 +61,7 @@ export const ls06: TemplateVariant = defineVariant(
     };
     const classes = {
       column: 'lower-third-person',
-      name: 'lower-third-caller Lower Third',
+      name: 'lower-third-caller',
       role: 'lower-third-callerrole',
     };
     const header = hasLine(o, 0)

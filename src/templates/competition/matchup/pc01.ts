@@ -46,7 +46,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
     fields: compFieldsFor(PLAYER_FIELDS, o),
     hasAccent: true,
     // The Continue press IS the reveal — a real step, so SPX's step count stays derived.
-    revealSteps: [{ name: 'Stats Matchup', call: 'revealStats', duration: 0.5 }],
+    revealSteps: [{ name: 'Stats', call: 'revealStats', duration: 0.5 }],
     runtimeExtraJs: PLAYER_RUNTIME_JS,
     css: `${playerStructureCss()}
 

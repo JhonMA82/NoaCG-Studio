@@ -42,7 +42,7 @@ import type { GraphicType } from './graphicType';
  */
 export const callToActionType: GraphicType = {
   id: 'call-to-action',
-  name: 'Call to action Lower Third',
+  name: 'Call to action',
   description: 'The ask: an imperative, what it points at, and why anyone should.',
   structure: {
     prefix: 'lower-third',
@@ -70,7 +70,7 @@ export const callToActionType: GraphicType = {
   designs: [
     {
       id: 'lt55',
-      name: 'House Call Lower Third',
+      name: 'House Call',
       description: 'The NoaCG call-to-action strap: an amber action chip beside the target it points at.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -79,7 +79,7 @@ export const callToActionType: GraphicType = {
     },
     {
       id: 'lt56',
-      name: 'Frost Call Lower Third',
+      name: 'Frost Call',
       description: 'A frosted call-to-action pill: an outlined chip, the target, and a drawn arrow.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -96,7 +96,7 @@ export const callToActionType: GraphicType = {
     },
     {
       id: 'lt57',
-      name: 'Volt Call Lower Third',
+      name: 'Volt Call',
       description: 'A leaning sport slab: the imperative in heavy caps over its target and reason.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -111,7 +111,7 @@ export const callToActionType: GraphicType = {
     },
     {
       id: 'lt58',
-      name: 'Clean Call Lower Third',
+      name: 'Clean Call',
       description: 'A quiet call-to-action: a hairline label, the target, and one reason line.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -141,7 +141,7 @@ export const callToActionType: GraphicType = {
  */
 export const goalMeterType: GraphicType = {
   id: 'goal-meter',
-  name: 'Goal meter Lower Third',
+  name: 'Goal meter',
   description: 'A running total against a target, with the share of the goal derived from both.',
   structure: {
     prefix: 'infographic',
@@ -172,7 +172,7 @@ export const goalMeterType: GraphicType = {
   designs: [
     {
       id: 'ig22',
-      name: 'House Goal Lower Third',
+      name: 'House Goal',
       description: 'The NoaCG goal meter: the running total over a progress bar toward its target.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -181,7 +181,7 @@ export const goalMeterType: GraphicType = {
     },
     {
       id: 'ig23',
-      name: 'Frost Goal Lower Third',
+      name: 'Frost Goal',
       description: 'A goal ring: the accent draws to the share of the target while the total counts up.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -195,7 +195,7 @@ export const goalMeterType: GraphicType = {
     },
     {
       id: 'ig30',
-      name: 'Clean Goal Lower Third',
+      name: 'Clean Goal',
       description: 'A quiet goal meter with a hairline track and a derived running share.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -206,7 +206,7 @@ export const goalMeterType: GraphicType = {
     },
     {
       id: 'ig31',
-      name: 'Volt Goal Lower Third',
+      name: 'Volt Goal',
       description: 'A high-impact goal meter with a hard-edged progress lane and oversized total.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -240,7 +240,7 @@ export const goalMeterType: GraphicType = {
  */
 export const milestoneTrackType: GraphicType = {
   id: 'milestone-track',
-  name: 'Milestone track Lower Third',
+  name: 'Milestone track',
   description: 'A rail of tiers with the passed ones lit and the line run out to where we are.',
   structure: {
     prefix: 'infographic',
@@ -266,7 +266,7 @@ export const milestoneTrackType: GraphicType = {
   designs: [
     {
       id: 'ig24',
-      name: 'House Milestones Lower Third',
+      name: 'House Milestones',
       description: 'The NoaCG tier rail: evenly spaced nodes on a void panel, the reached ones in amber.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -275,7 +275,7 @@ export const milestoneTrackType: GraphicType = {
     },
     {
       id: 'ig25',
-      name: 'Volt Milestones Lower Third',
+      name: 'Volt Milestones',
       description: 'A leaning sport slab carrying the same tier rail with hard-edged square markers.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -288,7 +288,7 @@ export const milestoneTrackType: GraphicType = {
     },
     {
       id: 'ig32',
-      name: 'Clean Milestones Lower Third',
+      name: 'Clean Milestones',
       description: 'A quiet tier rail with hairline markers and evenly spaced labels.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -299,7 +299,7 @@ export const milestoneTrackType: GraphicType = {
     },
     {
       id: 'ig33',
-      name: 'Frost Milestones Lower Third',
+      name: 'Frost Milestones',
       description: 'A translucent tier rail with softly lit reached nodes.',
       styleTag: 'glass',
       palette: paletteById('frost'),

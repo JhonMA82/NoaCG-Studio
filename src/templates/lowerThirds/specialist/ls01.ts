@@ -51,7 +51,7 @@ export const ls01: TemplateVariant = defineVariant(
     const { left, right } = duoSplitBalanced(o);
     const classes = {
       column: 'lower-third-person',
-      name: 'lower-third-name Lower Third',
+      name: 'lower-third-name',
       role: 'lower-third-title',
     };
     // The divider is drawn only when there is genuinely something on both sides — with a

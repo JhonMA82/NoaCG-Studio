@@ -47,7 +47,7 @@ import type { GraphicType } from './graphicType';
  *  ahead of three types that were on that list. */
 export const titleCardType: GraphicType = {
   id: 'title-card',
-  name: 'Title card Info Card',
+  name: 'Title card',
   description: 'The opener: a kicker, one large title, and a quiet supporting line.',
   frequency: 23,
   structure: {
@@ -73,7 +73,7 @@ export const titleCardType: GraphicType = {
   designs: [
     {
       id: 'card05',
-      name: 'House Title Info Card',
+      name: 'House Title',
       description: 'The NoaCG title card: mono kicker, one huge display title, soft accent glow.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -84,7 +84,7 @@ export const titleCardType: GraphicType = {
       // Designed FOR this cell: no minimal title card existed. Pure type, no panel — sibling
       // of lt01 Hairline / lt02 Underline, with the underline motif at opener scale.
       id: 'card07',
-      name: 'Clean Title Info Card',
+      name: 'Clean Title',
       description: 'A panel-free opener: a caps kicker over a large title and a quiet subtitle.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -98,7 +98,7 @@ export const titleCardType: GraphicType = {
       // Designed FOR this cell: no sport title card existed. The leaning slab as an opener —
       // sibling of lt05 Angle Slab / card02 Slab Card.
       id: 'card08',
-      name: 'Slab Title Info Card',
+      name: 'Slab Title',
       description: 'A leaning sport slab: an accent kicker over one huge condensed title and a subtitle.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -112,7 +112,7 @@ export const titleCardType: GraphicType = {
       // Designed FOR this cell: no glass title card existed. A frosted opener panel — sibling
       // of lt08 Frosted Card / card03 Frosted Panel.
       id: 'card09',
-      name: 'Frost Title Info Card',
+      name: 'Frost Title',
       description: 'A frosted panel opener: a soft accent kicker over a large title and a subtitle.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -129,7 +129,7 @@ export const titleCardType: GraphicType = {
     // built on one shared composition (infoCards/pack4/titles.ts) so they stay siblings.
     {
       id: 'card10',
-      name: 'Session Title Info Card',
+      name: 'Session Title',
       description: 'A panel-free session opener: track kicker, session title, then time and room.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -141,7 +141,7 @@ export const titleCardType: GraphicType = {
     },
     {
       id: 'card11',
-      name: 'Keynote Title Info Card',
+      name: 'Keynote Title',
       description: 'A frosted keynote opener: a soft kicker, the talk title, then who is giving it.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -153,7 +153,7 @@ export const titleCardType: GraphicType = {
     },
     {
       id: 'card12',
-      name: 'Segment Title Info Card',
+      name: 'Segment Title',
       description: 'A square sport slab with an accent top rail: numbered kicker, huge caps title.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -165,7 +165,7 @@ export const titleCardType: GraphicType = {
     },
     {
       id: 'card13',
-      name: 'Service Title Info Card',
+      name: 'Service Title',
       description: 'The house ceremony opener: amber bar and void panel, a date kicker over the service name.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -177,7 +177,7 @@ export const titleCardType: GraphicType = {
     },
     {
       id: 'card59',
-      name: 'Edition Title Info Card',
+      name: 'Edition Title',
       description: 'Printed editorial session or segment title with a masthead rule and generous spacing.',
       styleTag: 'editorial',
       palette: paletteById('broadsheet'),
@@ -189,7 +189,7 @@ export const titleCardType: GraphicType = {
     },
     {
       id: 'card67',
-      name: 'Chapter Scrim Info Card',
+      name: 'Chapter Scrim',
       description: 'Cinematic chapter title on a directional scrim with one hairline and wide light type.',
       styleTag: 'cinematic',
       palette: paletteById('noir'),
@@ -212,7 +212,7 @@ export const titleCardType: GraphicType = {
  *  what separates it from the opener above. */
 export const topicCardType: GraphicType = {
   id: 'topic-card',
-  name: 'Topic card Info Card',
+  name: 'Topic card',
   description: 'The question or topic under discussion, with room for its source.',
   frequency: 29,
   structure: {
@@ -239,7 +239,7 @@ export const topicCardType: GraphicType = {
   designs: [
     {
       id: 'card01',
-      name: 'Hairline Card Info Card',
+      name: 'Hairline Card',
       description: 'Pure typography beside one thin accent line — whitespace does the work.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -248,7 +248,7 @@ export const topicCardType: GraphicType = {
     },
     {
       id: 'card02',
-      name: 'Slab Card Info Card',
+      name: 'Slab Card',
       description: 'A forward-leaning stat slab with a chunky accent edge - lt05 Angle Slab, card-sized.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -267,7 +267,7 @@ export const topicCardType: GraphicType = {
     },
     {
       id: 'card03',
-      name: 'Frosted Panel Info Card',
+      name: 'Frosted Panel',
       description: 'A translucent blurred glass panel for schedules and lineups, with an optional logo slot.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -289,7 +289,7 @@ export const topicCardType: GraphicType = {
       // OPENER (kicker/title/subtitle); this is the house card that stays up DURING the
       // discussion — a heading and its points in the void panel. Sibling of lt11 House Strap.
       id: 'card06',
-      name: 'House Topic Info Card',
+      name: 'House Topic',
       description: 'The house topic card: an amber bar and void panel, a heading over quiet body lines.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -302,7 +302,7 @@ export const topicCardType: GraphicType = {
     // Shared composition in infoCards/pack4/topics.ts.
     {
       id: 'card14',
-      name: 'Chapter Card Info Card',
+      name: 'Chapter Card',
       description: 'A quiet chapter marker: the chapter, what it covers, and when it happened.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -314,7 +314,7 @@ export const topicCardType: GraphicType = {
     },
     {
       id: 'card15',
-      name: 'Question Card Info Card',
+      name: 'Question Card',
       description: 'A frosted question card: the question large, then what it turns on.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -326,7 +326,7 @@ export const topicCardType: GraphicType = {
     },
     {
       id: 'card16',
-      name: 'Topic Slab Info Card',
+      name: 'Topic Slab',
       description: 'A sport talking point: an accent rail over a heavy caps heading and two points.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -338,7 +338,7 @@ export const topicCardType: GraphicType = {
     },
     {
       id: 'card17',
-      name: 'Key Term Info Card',
+      name: 'Key Term',
       description: 'The explainer key-term card: a word in the void panel, then what it means.',
       styleTag: 'noacg',
       palette: HOUSE.palette,

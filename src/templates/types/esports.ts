@@ -30,7 +30,7 @@ import type { GraphicType } from './graphicType';
 
 export const esportsScoreType: GraphicType = {
   id: 'esports-score',
-  name: 'Esports scorebug Esports Score',
+  name: 'Esports scorebug',
   description: 'The match strip: two teams, the map score, the series pips, and the match phase.',
   structure: {
     prefix: 'esports-score',
@@ -58,7 +58,7 @@ export const esportsScoreType: GraphicType = {
         states: [
           {
             id: 'pre',
-            name: 'Pre-match Esports Score',
+            name: 'Pre-match',
             // Pose-only: the pre-match look is what the graphic comes on air wearing, and
             // play()'s mark clearing is what restores it. Nothing to animate on entry.
             timeline: null,
@@ -66,9 +66,9 @@ export const esportsScoreType: GraphicType = {
           },
           {
             id: 'live',
-            name: 'Live Esports Score',
+            name: 'Live',
             timeline: {
-              name: 'Go live Esports Score',
+              name: 'Go live',
               duration: 0.35,
               ease: 'in',
               calls: [{ time: 0, call: 'markLive' }],
@@ -82,9 +82,9 @@ export const esportsScoreType: GraphicType = {
           },
           {
             id: 'final',
-            name: 'Final Esports Score',
+            name: 'Final',
             timeline: {
-              name: 'Full time Esports Score',
+              name: 'Full time',
               duration: 0.4,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],
@@ -102,9 +102,9 @@ export const esportsScoreType: GraphicType = {
         states: [
           {
             id: 'running',
-            name: 'Running Esports Score',
+            name: 'Running',
             timeline: {
-              name: 'Resume Esports Score',
+              name: 'Resume',
               duration: 0.25,
               ease: 'in',
               calls: [{ time: 0, call: 'markRunning' }],
@@ -114,9 +114,9 @@ export const esportsScoreType: GraphicType = {
           },
           {
             id: 'paused',
-            name: 'Paused Esports Score',
+            name: 'Paused',
             timeline: {
-              name: 'Technical pause Esports Score',
+              name: 'Technical pause',
               duration: 0.25,
               ease: 'in',
               calls: [{ time: 0, call: 'markPaused' }],
@@ -144,7 +144,7 @@ export const esportsScoreType: GraphicType = {
   designs: [
     {
       id: 'es01',
-      name: 'Series Scorebug Esports Score',
+      name: 'Series Scorebug',
       description: 'The match-night strip: logos, big map scores, and a series pip row.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -153,7 +153,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es02',
-      name: 'House Series Esports Score',
+      name: 'House Series',
       description: 'The house scorebug: void panel, amber edge, amber map scores and series pips.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -164,7 +164,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es03',
-      name: 'Frost Series Esports Score',
+      name: 'Frost Series',
       description: 'A frosted match strip: glass score chips, a soft accent rule, series pips.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -174,7 +174,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es04',
-      name: 'Clean Series Esports Score',
+      name: 'Clean Series',
       description: 'A panel-free match strip: two names, a divider, and a quiet phase line.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -189,7 +189,7 @@ export const esportsScoreType: GraphicType = {
 
 export const mapRoundType: GraphicType = {
   id: 'map-round',
-  name: 'Map / round / veto indicator Esports Score',
+  name: 'Map / round / veto indicator',
   description: 'A map sequence with an operator-controlled current row and a completed state.',
   structure: {
     prefix: 'esports-score',
@@ -212,9 +212,9 @@ export const mapRoundType: GraphicType = {
         // single atomic change instead of a data write the graphic might animate ahead of.
         {
           id: 'advanced',
-          name: 'Map advanced Esports Score',
+          name: 'Map advanced',
           timeline: {
-            name: 'Advance Esports Score',
+            name: 'Advance',
             duration: 0.35,
             ease: 'in',
             calls: [{ time: 0, call: 'applyMapCursor' }],
@@ -231,9 +231,9 @@ export const mapRoundType: GraphicType = {
         // the opening state and mid-series, because either is where the last map ends.
         {
           id: 'decided',
-          name: 'Series decided Esports Score',
+          name: 'Series decided',
           timeline: {
-            name: 'Series final Esports Score',
+            name: 'Series final',
             duration: 0.4,
             ease: 'in',
             calls: [{ time: 0, call: 'markSeriesFinal' }],
@@ -263,7 +263,7 @@ export const mapRoundType: GraphicType = {
   designs: [
     {
       id: 'mr01',
-      name: 'Map Ladder Esports Score',
+      name: 'Map Ladder',
       description: 'The series as a ladder: every map, who took it, and where play is now.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -272,7 +272,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr02',
-      name: 'House Maps Esports Score',
+      name: 'House Maps',
       description: 'The house map card: void rows, mono numbers, an amber cursor on the live map.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -282,7 +282,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr03',
-      name: 'Round Strip Esports Score',
+      name: 'Round Strip',
       description: 'The series as a row of game chips — for the top of the frame during play.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -294,7 +294,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr05',
-      name: 'Clean Maps Esports Score',
+      name: 'Clean Maps',
       description: 'A panel-free map ladder with hairline rows and a quiet live-map cursor.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -304,7 +304,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr04',
-      name: 'Map Veto Esports Score',
+      name: 'Map Veto',
       description: 'A pick-and-ban ladder with the current decision moved atomically by the operator.',
       styleTag: 'sport',
       palette: paletteById('volt'),

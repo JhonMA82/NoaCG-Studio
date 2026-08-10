@@ -48,7 +48,7 @@ export const ls03: TemplateVariant = defineVariant(
     const { left, right } = duoSplitBalanced(o);
     const classes = {
       column: 'lower-third-person',
-      name: 'lower-third-name Lower Third',
+      name: 'lower-third-name',
       role: 'lower-third-title',
     };
     const divider = left.length > 0 && right.length > 0
