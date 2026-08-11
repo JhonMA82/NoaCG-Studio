@@ -82,7 +82,7 @@ function withNotificationHold(ease: string) {
     const steps = [...data.steps];
     const outAt = steps.length - 1;
     const hold: AnimStep = {
-      name: 'Hold Stream Notification',
+      name: 'Hold',
       duration: 0.01,
       ease,
       layers: {},
