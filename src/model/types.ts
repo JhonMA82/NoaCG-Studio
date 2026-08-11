@@ -48,6 +48,59 @@ export type TemplateType =
   | 'imported-design'
   | 'blank';
 
+/** The KIND word an operator reads at a glance beside a graphic's name — production pool
+ *  rows, cue rundown lines, dashboard layer chips, library rows. Singular and short on
+ *  purpose: it sits NEXT TO the user's own name for the graphic, which stays the primary
+ *  identity; this only answers "what sort of graphic is that". Total over TemplateType so
+ *  a new type without a word is a compile error, not a raw id leaking onto a chip. */
+export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
+  'lower-third': 'Lower third',
+  'info-card': 'Info card',
+  'end-credits': 'Credits',
+  'ticker': 'Ticker',
+  'alert': 'Alert',
+  'public-info': 'Public info',
+  'fullscreen': 'Full screen',
+  'bug': 'Bug',
+  'countdown': 'Timer',
+  'scoreboard': 'Scoreboard',
+  'info-box': 'Info box',
+  'starting-soon': 'Holding',
+  'infographic': 'Infographic',
+  'quiz': 'Quiz',
+  'frame': 'Frame',
+  'transition': 'Transition',
+  'esports-score': 'Esports score',
+  'matchup': 'Match-up',
+  'results-board': 'Results',
+  'reveal': 'Reveal',
+  'poll': 'Live vote',
+  'audience': 'Audience',
+  'stream-notification': 'Notification',
+  'imported-design': 'Imported',
+  'blank': 'Blank',
+};
+
+/** Assembler PREFIXES whose word differs from any TemplateType id — for surfaces that only
+ *  hold a graphic's CODE (the hosted dashboard reads the published payload, where the kind
+ *  is derived via detectPrefix rather than stored). */
+const PREFIX_KIND_LABELS: Record<string, string> = {
+  'game-timer': 'Timer',
+  'credits': 'Credits',
+  'corner-bug': 'Bug',
+  'versus': 'Versus',
+};
+
+/** The kind word for a TemplateType OR a detected code prefix; an unknown id humanises
+ *  rather than leaking kebab-case onto a chip. */
+export function graphicKindLabel(idOrPrefix: string): string {
+  const known =
+    TEMPLATE_TYPE_LABELS[idOrPrefix as TemplateType] ?? PREFIX_KIND_LABELS[idOrPrefix];
+  if (known) return known;
+  const text = idOrPrefix.replace(/-/g, ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 import type { Resolution } from './projectFormat';
 export type { AspectPreset, Resolution } from './projectFormat';
 export { ASPECTS, FPS_OPTIONS, RESOLUTIONS } from './projectFormat';

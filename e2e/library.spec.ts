@@ -620,7 +620,7 @@ test('the list view is a real table: headings over their own columns, and the to
     const cellBox = (await row.getByTestId(cell).boundingBox())!;
     expect(Math.abs(headBox.x - cellBox.x)).toBeLessThan(2);
   }
-  await expect(row.getByTestId('row-type')).toHaveText('lower-third');
+  await expect(row.getByTestId('row-type')).toHaveText('Lower third');
   await expect(row.getByTestId('row-folder')).toHaveText('—');
 
   // The choice is a device preference, so it survives a reload rather than resetting to cards.

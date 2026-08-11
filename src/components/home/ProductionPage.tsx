@@ -22,6 +22,7 @@ import {
   type Show,
   type ShowCue,
 } from '../../model/shows';
+import { graphicKindLabel } from '../../model/types';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
@@ -1414,6 +1415,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   <strong>{view.label}</strong>
                   <span className="muted">
                     {poolEntry ? `L${graphicLayer(poolEntry)} · ` : ''}
+                    {/* The KIND beside the name: the label above is the operator's own word for
+                        the cue, so this is what says "that one is the scoreboard" at a glance. */}
+                    {poolEntry ? `${graphicKindLabel(poolEntry.type)} · ` : ''}
                     {view.note || cueGraphic || 'missing graphic'}
                   </span>
                 </button>
@@ -1493,6 +1497,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   data-testid={`pool-${g.id}`}
                 >
                   <b>L{graphicLayer(g)}</b> {g.name}
+                  <span className="muted pd-chip-kind">{graphicKindLabel(g.type)}</span>
                   {liveCue[g.name] && <i className="pd-layer-live" data-testid="layer-live" />}
                   <button
                     onClick={() => {

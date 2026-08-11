@@ -3,6 +3,7 @@ import { useRouter } from '../../app/router';
 import { syncSampleData } from '../../store/templateStore';
 import { useExportUi } from '../ExportWindow';
 import { deleteGraphic, duplicateGraphic, updateGraphic, type GraphicDoc } from '../../model/library';
+import { graphicKindLabel } from '../../model/types';
 import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContaining } from '../../model/shows';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -237,7 +238,7 @@ export default function GraphicRow({
             column, so repeating them here would print every value twice. */}
         {view === 'grid' && (
           <span className="muted">
-            {g.type}
+            {graphicKindLabel(g.type)}
             {' · '}
             {new Date(g.updatedAt).toLocaleDateString()}
           </span>
@@ -245,7 +246,7 @@ export default function GraphicRow({
       </div>
       {view === 'list' && (
         <>
-          <span className="lib-cell lib-cell-mono" data-testid="row-type">{g.type}</span>
+          <span className="lib-cell lib-cell-mono" data-testid="row-type">{graphicKindLabel(g.type)}</span>
           <span className="lib-cell lib-cell-mono" data-testid="row-edited">
             {new Date(g.updatedAt).toLocaleDateString()}
           </span>

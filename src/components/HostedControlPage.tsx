@@ -23,6 +23,8 @@ import {
   type ResolvedControlShow,
 } from '../control/hostedControl';
 import { isBackendConfigured } from '../backend/config';
+import { detectPrefix } from '../model/structure';
+import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
 import PayloadStage, { type PayloadStageHandle } from './home/PayloadStage';
 
@@ -119,6 +121,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
   );
+  /** The KIND word per graphic, derived from the published CODE (detectPrefix) — the payload
+   *  predates any stored kind field, so deriving keeps every already-published production
+   *  labelled without a republish. Null when the code carries no recognisable box prefix. */
+  const kindByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const g of payload?.graphics ?? []) {
+      const prefix = detectPrefix(g.html);
+      if (prefix) map.set(g.key, graphicKindLabel(prefix));
+    }
+    return map;
+  }, [payload]);
 
   /** Show the selected cue on PREVIEW — local only, never the wire (§1: selection IS preview). */
   const previewCue = useCallback(
@@ -390,6 +403,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     <strong>{cue.label}</strong>
                     <span className="muted">
                       {layer !== null ? `L${layer} · ` : ''}
+                      {kindByKey.has(cue.graphic) ? `${kindByKey.get(cue.graphic)} · ` : ''}
                       {cue.note || cue.graphic}
                     </span>
                   </button>
@@ -413,6 +427,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                 .map((g) => (
                   <span key={g.key} className={`pd-layer-chip${liveCue[g.key] ? ' live' : ''}`}>
                     <b>L{g.layer ?? 1}</b> {g.key}
+                    {kindByKey.has(g.key) && <span className="muted pd-chip-kind">{kindByKey.get(g.key)}</span>}
                     {liveCue[g.key] && <i className="pd-layer-live" />}
                   </span>
                 ))}
