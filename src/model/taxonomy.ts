@@ -8,7 +8,7 @@
 // sliver in src/templates/meta.ts. Display labels live here so renames and localization never
 // touch stored ids.
 
-import type { AnimPresetId, TemplateCategory } from './wizard';
+import type { AnimPresetId } from './wizard';
 import type { StyleTag } from './fonts';
 
 // ── Facet A: programme families and formats ─────────────────────────────────
@@ -205,38 +205,9 @@ export function graphicCategoryById(id: GraphicCategoryId): GraphicCategory {
   return found;
 }
 
-/** The single-valued browse fallback for a variant with no declared meta (proposal §4):
- *  every old wizard category maps to exactly one graphic category, so the browser never
- *  crashes on a lazy variant — the factory just flags it. */
-export const OLD_CATEGORY_FALLBACK: Record<TemplateCategory, GraphicCategoryId | null> = {
-  'lower-third': 'lower-third',
-  'ticker': 'ticker',
-  'alert': 'alert',
-  // The public-service pack's notices are DECLARED per variant (meta.ts) because they scatter:
-  // an official notice is an alert, a numbered instruction and a disclaimer are information
-  // cards, a bilingual panel is a translation, a source label is a bug. The fallback names the
-  // one a future undeclared design is most likely to be.
-  'public-info': 'info',
-  'scoreboard': 'scoreboard',
-  'info-card': 'info',
-  'starting-soon': 'holding',
-  'end-credits': 'credits',
-  'corner-bug': 'bug',
-  'infographic': 'stats',
-  'game-timer': 'timer',
-  'versus': 'reveal',
-  'quiz': 'poll-quiz',
-  'frame': 'frame',
-  'transition': 'transition',
-  'esports-score': 'scoreboard',
-  'matchup': 'reveal',
-  'results-board': 'results',
-  'reveal': 'reveal',
-  'poll': 'poll-quiz',
-  'audience': 'question',
-  'stream-notification': 'notification',
-  'imported-design': null, // user content — never browsable
-};
+// The old per-assembler browse fallback table (`OLD_CATEGORY_FALLBACK`) is gone: the same
+// single-valued mapping lives as real declared meta in templates/meta.ts
+// `CATEGORY_DEFAULT_META`, which is total over `AssemblerId` — this copy had no consumers.
 
 // ── Facet C: structures ─────────────────────────────────────────────────────
 

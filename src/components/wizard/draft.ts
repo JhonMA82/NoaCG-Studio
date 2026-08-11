@@ -26,7 +26,7 @@ import type {
   ExtraFieldSpec,
   LineSpec,
   Palette,
-  TemplateCategory,
+  AssemblerId,
   TemplateVariant,
   WizardOptions,
   Zone9,
@@ -92,7 +92,7 @@ export interface WizardDraft {
    *  targets, the template FOLDER and FILE inside it — the name the operator reads in the
    *  playout server. Shipping `hairline/hairline.html` is the reason this field exists. */
   name: string;
-  category: TemplateCategory | null;
+  category: AssemblerId | null;
   variantId: string | null;
   aspectId: ProjectFormatSelection['aspectId'];
   resolutionId: ProjectFormatSelection['resolutionId'];

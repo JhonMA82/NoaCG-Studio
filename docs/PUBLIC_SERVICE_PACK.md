@@ -198,7 +198,7 @@ urgency on top of that, and urgency is a format, not a style: it leads with a se
 is read in one glance.
 
 **…and why they still browse under existing tiles.** `alert` and `public-info` are
-`TemplateCategory` ids — the ASSEMBLER and routing identity, which is what the paragraph above
+`AssemblerId` ids — the ASSEMBLER and routing identity, which is what the paragraph above
 is about. Discovery is a separate registry (docs/TEMPLATE_TAXONOMY_PROPOSAL.md), and neither
 category earns a tile of its own there:
 

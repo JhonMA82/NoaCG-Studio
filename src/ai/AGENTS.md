@@ -350,7 +350,7 @@ containment that would actually hold is denying the preview iframe the app's ori
 because SavedProject/GraphicDoc persist it as `aiSpec`) that rides `GenerateContext.spec` as TYPED data,
 never flattened into prose early. An empty spec injects nothing - the prompt-only flow is byte-identical.
 
-- `spec/categories.ts` - the 20-entry AI CATEGORY registry: each entry links a `TemplateCategory` and,
+- `spec/categories.ts` - the 20-entry AI CATEGORY registry: each entry links an `AssemblerId` and,
   where one models it, a `GraphicType` id (fields/machine/controls come from the type), plus suggested
   fields, workflow rules, and a machine hint. **Adding a category = one entry here + its id in the model
   union**; nothing else enumerates categories.

@@ -12,7 +12,7 @@
 // unsafeJsConstructs precedent (one question, one answer, one place to update).
 
 /**
- * Floors in CSS pixels at 1920x1080, keyed by `TemplateCategory`.
+ * Floors in CSS pixels at 1920x1080, keyed by `AssemblerId`.
  *
  * `corner-bug` is lower on purpose and is not a relaxation: a corner bug is a persistent
  * station mark read over minutes rather than a line read in four seconds, and the catalog's own

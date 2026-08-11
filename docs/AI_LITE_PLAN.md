@@ -58,7 +58,7 @@ These are binding and exist in no other file.
 1. **Scope: all catalog categories, BEST EFFORT.** Not a curated subset. Lite's allowlist widens to
    the whole browse catalog and each category is taken as far as it goes; a category that cannot be
    made good in time ships as good as it got, or is switched off, but it is not quietly dropped from
-   the plan. *(Count the union rather than quoting a number: `TemplateCategory` in
+   the plan. *(Count the union rather than quoting a number: `AssemblerId` in
    `src/model/wizard.ts` carries 22 browse categories once `imported-design` is excluded, while the
    root AGENTS.md map says 21.)*
 2. **Success test: the owner judges a GALLERY of real generations, per round.** Machine-valid is not

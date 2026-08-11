@@ -105,7 +105,7 @@ iframe to call `update()/play()/stop()`; store state via `useTemplateStore.getSt
 ## Template catalog sweep
 
 `node scripts/l3-sweep.mjs <shots-dir> <category>` (dev server must be running; any
-`TemplateCategory` id - `lower-third`, `info-card`, `end-credits`, `ticker`, `quiz`, `poll`,
+`AssemblerId` - `lower-third`, `info-card`, `end-credits`, `ticker`, `quiz`, `poll`,
 `audience`, …) validates every variant × preset × easing. Run it for the affected category after
 template changes. A category whose contract differs from the standard one gets its own branch in
 the script rather than a waiver (audience and quiz each have one).

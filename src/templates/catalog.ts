@@ -1,7 +1,7 @@
 // The template catalog: one place that knows every category's variants. The wizard,
 // Motion panel, and sweep script all resolve variants through here.
 
-import type { TemplateCategory, TemplateVariant } from '../model/wizard';
+import type { AssemblerId, TemplateVariant } from '../model/wizard';
 import { LOWER_THIRDS } from './lowerThirds';
 import { INFO_CARDS } from './infoCards';
 import { END_CREDITS } from './endCredits';
@@ -35,7 +35,7 @@ import { mergeCatalog, typeVariants } from './types/registry';
  * the two is what makes the capabilities gate checkable at all (docs/GRAPHIC_TYPES.md §5), and
  * `scripts/factory.mjs` reads it for exactly that.
  */
-export const HAND_WRITTEN: Partial<Record<TemplateCategory, TemplateVariant[]>> = {
+export const HAND_WRITTEN: Partial<Record<AssemblerId, TemplateVariant[]>> = {
   'lower-third': LOWER_THIRDS,
   'info-card': INFO_CARDS,
   'end-credits': END_CREDITS,
@@ -68,12 +68,12 @@ export const HAND_WRITTEN: Partial<Record<TemplateCategory, TemplateVariant[]>> 
  * A type that PROMOTES an existing variant replaces it by id and in place, so a promoted
  * design keeps its position in the grid and its identity everywhere else it is referenced.
  */
-export const CATALOG: Partial<Record<TemplateCategory, TemplateVariant[]>> = mergeCatalog(
+export const CATALOG: Partial<Record<AssemblerId, TemplateVariant[]>> = mergeCatalog(
   HAND_WRITTEN,
   typeVariants(),
 );
 
-export function variantsFor(category: TemplateCategory | null): TemplateVariant[] {
+export function variantsFor(category: AssemblerId | null): TemplateVariant[] {
   return (category && CATALOG[category]) || [];
 }
 

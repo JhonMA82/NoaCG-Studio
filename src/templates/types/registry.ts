@@ -6,7 +6,7 @@
 // design keeps its id everywhere it is already referenced (the AI's variant enum, saved
 // preferences, the sweeps).
 
-import type { TemplateCategory, TemplateVariant } from '../../model/wizard';
+import type { AssemblerId, TemplateVariant } from '../../model/wizard';
 import { variantsFromType, type GraphicType } from './graphicType';
 import { lowerThirdType } from './lowerThird';
 import { socialBugType, sponsorBugType } from './bugs';
@@ -157,13 +157,13 @@ export function typeById(id: string): GraphicType | undefined {
 }
 
 /** The types that build on a category's assembler. */
-export function typesFor(category: TemplateCategory): GraphicType[] {
+export function typesFor(category: AssemblerId): GraphicType[] {
   return TYPES.filter((t) => t.structure.category === category);
 }
 
 /** Every type's designs, compiled to variants and grouped by category. */
-export function typeVariants(): Partial<Record<TemplateCategory, TemplateVariant[]>> {
-  const out: Partial<Record<TemplateCategory, TemplateVariant[]>> = {};
+export function typeVariants(): Partial<Record<AssemblerId, TemplateVariant[]>> {
+  const out: Partial<Record<AssemblerId, TemplateVariant[]>> = {};
   for (const type of TYPES) {
     for (const variant of variantsFromType(type)) {
       (out[variant.category] ??= []).push(variant);
@@ -178,11 +178,11 @@ export function typeVariants(): Partial<Record<TemplateCategory, TemplateVariant
  * the browse grid or mint a second id for the same graphic. Anything new is appended.
  */
 export function mergeCatalog(
-  handWritten: Partial<Record<TemplateCategory, TemplateVariant[]>>,
-  compiled: Partial<Record<TemplateCategory, TemplateVariant[]>>,
-): Partial<Record<TemplateCategory, TemplateVariant[]>> {
-  const merged: Partial<Record<TemplateCategory, TemplateVariant[]>> = { ...handWritten };
-  for (const [category, variants] of Object.entries(compiled) as [TemplateCategory, TemplateVariant[]][]) {
+  handWritten: Partial<Record<AssemblerId, TemplateVariant[]>>,
+  compiled: Partial<Record<AssemblerId, TemplateVariant[]>>,
+): Partial<Record<AssemblerId, TemplateVariant[]>> {
+  const merged: Partial<Record<AssemblerId, TemplateVariant[]>> = { ...handWritten };
+  for (const [category, variants] of Object.entries(compiled) as [AssemblerId, TemplateVariant[]][]) {
     const existing = [...(merged[category] ?? [])];
     for (const variant of variants) {
       const at = existing.findIndex((v) => v.id === variant.id);

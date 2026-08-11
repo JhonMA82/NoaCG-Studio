@@ -58,8 +58,9 @@ was not drawn in.
 - **meta.ts** - the DECLARED sliver: per-type and per-variant graphic category / subtype /
   structures / field semantics, with a SINGLE-VALUED per-old-category fallback. Resolution
   order: `VARIANT_META[id]` → `TYPE_META[typeId]` → `CATEGORY_DEFAULT_META[category]`.
-  `TemplateCategory` stays the ASSEMBLER/routing id; the graphic category is presentation
-  metadata on top — no file moves, no id renames.
+  `AssemblerId` (model/wizard.ts, renamed from `TemplateCategory` 2026-08-11) stays the
+  ASSEMBLER/routing id, never rendered in UI; the graphic category is presentation metadata
+  on top — no file moves, no value renames.
 - **templateMeta.ts** - the DERIVED bulk, memoized per variant: field counts off the compiled
   schema (`visible` excludes `HIDDEN_CONFIG_FIELDS`; buckets match the reachable range by
   INTERSECTION), capabilities (declared extras ∪ schema/preset derivation), placement

@@ -6,7 +6,7 @@ import { aiConfigured, loadAiSettings, saveAiSettings, type AiTier } from '../..
 import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator } from '../../../ai/provider';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
-import { AI_CATEGORIES, aiCategoryForTemplateCategory } from '../../../ai/spec/categories';
+import { AI_CATEGORIES, aiCategoryForAssemblerId } from '../../../ai/spec/categories';
 import { variantById } from '../../../templates/catalog';
 import type { TemplateVariant } from '../../../model/wizard';
 import { mergeSafety } from '../../../ai/safety';
@@ -1568,7 +1568,7 @@ export default function AiStep({
                   Detected category:{' '}
                   <select
                     aria-label="Detected graphic category"
-                    value={aiCategoryForTemplateCategory(lastSpec.category)?.id ?? ''}
+                    value={aiCategoryForAssemblerId(lastSpec.category)?.id ?? ''}
                     onChange={(e) => {
                       const id = e.target.value as AiCategoryId | '';
                       if (!id) return;
