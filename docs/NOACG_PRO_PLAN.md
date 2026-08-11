@@ -1,7 +1,8 @@
 # NoaCG Pro - the open broadcast graphics specialist
 
-**OWNER-APPROVED DIRECTION, PLAN ONLY. Implementation has not started.** This plan replaced the
-image-guided reconstruction plan on 2026-08-10. Pro will become a narrow open-weight specialist for
+**OWNER-APPROVED DIRECTION AND ACTIVE ROADMAP.** This plan replaced the image-guided
+reconstruction plan on 2026-08-10; on 2026-08-11 the owner promoted it from parked to active, with
+**Phase 0 as the next implementation slice**. Pro will become a narrow open-weight specialist for
 premium HTML broadcast graphics, not an attempt to make an open model equal a frontier model at
 general reasoning.
 
@@ -9,9 +10,10 @@ The old concept-image -> interpretation -> raster reconstruction path is retired
 direction. Its code and fixtures remain an experiment until an implementation slice removes or
 archives them deliberately. Its evidence remains in `docs/AI_ATTEMPTS.md` and
 `benchmarks/pro/round-2026-08-08/`, `benchmarks/pro/round-2026-08-09/` and
-`benchmarks/pro/round-2026-08-10/`; this document does not rewrite that history. Approving this
-direction does not reorder the Student release: implementation remains parked until it is
-separately authorized.
+`benchmarks/pro/round-2026-08-10/`; this document does not rewrite that history. Phase 0 is
+bench-only and touches no Student release surface; product integration (Phase 5) still queues
+behind the Student release. Every paid round, including the Phase 0 spike, still needs an explicit
+owner OK with a stated cost cap before tokens burn.
 
 This plan combines four mechanisms in one pipeline:
 
@@ -43,14 +45,24 @@ This is an early go/no-go experiment, not evidence of frontier parity and not a 
 
 The spike should be a thin bench-only wrapper over systems that already exist:
 
+- before any token is spent, push one known-good hand-authored lower third through the complete
+  wrapper - scaffold, render set, gates and gallery - as a zero-token control; if the control
+  looks broken, the harness is broken. Two paid rounds have already been mis-read as model
+  failure when the platform was at fault, so the control rerun is mandatory after any wrapper
+  change;
 - start from the existing 12-brief lower-third bank, adjusting only inputs that were specific to
-  raster reconstruction; 10-15 representative briefs is the complete run;
+  raster reconstruction; those 12 briefs are the complete run and the section 0.3 denominators;
 - use `structuralIntent` and the lower-third type contract for fields and supported structure;
 - use `creative/neutralSkeleton.ts` or an equivalently minimal generated scaffold for the root,
   field ids, style variables and authoring-region contract;
-- retrieve two or three excellent **complete** lower-third exemplars through `shortlistFor`, which
-  already reuses `templates/search.ts`, `TemplateMeta` and the one structural-anchor table;
-- make one initial call to one strong, pinned, commercially usable open-weight checkpoint;
+- run every brief through two arms: one with two or three excellent **complete** lower-third
+  exemplars retrieved through `shortlistFor` (which already reuses `templates/search.ts`,
+  `TemplateMeta` and the one structural-anchor table), and one with no exemplars at all. The
+  no-exemplar arm is what separates the model's own eye from paraphrased catalog taste; without
+  it a pass could be mostly transfer;
+- make one initial call per brief and arm to a strong, pinned, commercially usable open-weight
+  checkpoint, with decoding parameters pinned in the fixtures; a second pinned checkpoint may run
+  the same protocol (section 0.3), never more than two;
 - use the existing `shared/repairLoop.ts` maximum of two rounds for deterministic blocking
   findings only;
 - validate through `productionSpxValidator`: `validateTemplate`, `benchTemplateRuntime`, safety
@@ -65,9 +77,15 @@ the later harness or is deleted after recording the result.
 ### 0.2 What humans inspect
 
 Every result is rendered at its actual final placement over neutral and video-like backgrounds.
-Review the settled hold, entrance, update and exit, with normal and stress text. The human notes are
-written **before** revealing the validator verdict, so a green machine result cannot frame a broken
-graphic as successful.
+Review the settled hold, entrance, update and exit, with normal and stress text. Motion is
+reviewed from sequences captured through the virtual clock - the timeline scrubbed to fixed
+timestamps for entrance, update and exit strips - because headless GSAP does not visibly tick on
+requestAnimationFrame; a spike that inspects only settled holds has not reviewed motion. The
+review gallery blind-mixes a few adapt-first outputs and strong catalog graphics among the
+candidates, so "coherent, deliberate composition" is judged against visible anchors rather than
+cold. The human notes are written **before** revealing the validator verdict or which arm and
+checkpoint produced each result, so a green machine result cannot frame a broken graphic as
+successful.
 
 The read is intentionally direct:
 
@@ -88,17 +106,26 @@ With a 12-brief run, continue only if human inspection finds all of the followin
   loop;
 - the promising results are not near-copies of an exemplar.
 
-These thresholds answer only whether there is enough visual signal to invest in the system. They
-do not establish a product success rate, a release bar or statistical parity.
+The gate is read on the exemplar arm of the better checkpoint. The no-exemplar arm does not have
+to pass anything; it exists to interpret the pass. An exemplar arm that clears the gate while the
+no-exemplar arm collapses into incoherence is a transfer result, not evidence of taste - treat it
+as ambiguous, not as go. These thresholds answer only whether there is enough visual signal to
+invest in the system. They do not establish a product success rate, a release bar or statistical
+parity.
 
 If the spike is clearly below the gate, stop. Record the renders and failure taxonomy, then revisit
 only when a materially stronger open checkpoint or a specific falsifiable technique exists. Do not
 build the grammar, unit architecture or critic in hope that infrastructure will manufacture taste.
-If the result is narrowly ambiguous because the chosen endpoint cannot follow the scaffold, one
-second checkpoint may be probed; that is endpoint diagnosis, not an open-ended prompt program.
+If the result is narrowly ambiguous - because the chosen endpoint cannot follow the scaffold,
+because taste sits just under the gate, or because the pass reads as transfer - the second pinned
+checkpoint answers it. Two checkpoints are the ceiling; a third requires a new planning decision.
+That is endpoint diagnosis, not an open-ended prompt program.
 
-The spike spends model tokens and therefore requires a separately approved route and cost ceiling.
-Nothing in this planning revision authorizes that spend.
+Estimated spend: 12 briefs, two arms, up to two checkpoints, inside the existing two-round repair
+ceiling, is on the order of $5-15 at current hosted open-weight pricing - the flat concept-image
+call that dominated the retired pipeline's cost does not exist here. The exact route and cap are
+still approved explicitly, with the estimate restated, before the round runs. This document
+schedules the spike; it does not authorize the spend.
 
 ---
 
@@ -359,7 +386,8 @@ The exemplars show coherent relationships among layout, type, shape and motion. 
 exactly what premature decomposition could lose. The model is asked to design an answer to the
 brief, not assemble pieces or repaint one of the examples.
 
-The first retrieval ablation is **no exemplar vs complete exemplars**. It must show a material human
+The first retrieval ablation is **no exemplar vs complete exemplars**. Phase 0's paired arms give
+the first read; the formal ablation on the development bank must still show a material human
 quality improvement before exemplar retrieval becomes part of the specialist. The whole catalog is
 never pasted into a prompt.
 
@@ -425,7 +453,9 @@ visibly broken frames, and the tight-placement round still had machine passes on
 ### 6.2 The render set
 
 Every candidate renders in Chromium at 1920x1080 with transparency made visible by a neutral
-checkerboard. The harness captures at least:
+checkerboard. Motion frames are captured by scrubbing the virtual clock to deterministic
+timestamps, never by trusting live requestAnimationFrame playback in a headless renderer. The
+harness captures at least:
 
 - initial/off pose;
 - entrance samples and settled hold;
@@ -556,9 +586,12 @@ version and exemplar versions are pinned in every fixture and round.
 ### 7.3 Quality before inference optimization
 
 The first route is the strongest open-weight combination that satisfies the license and can run
-the harness. Development cost and inference convenience do not outrank visible quality. After
-parity is demonstrated, distillation, quantization, caching and smaller checkpoints may reduce
-cost and latency, but each optimization reruns the locked quality gate.
+the harness. Development cost and inference convenience do not outrank visible quality. Assistive
+roles are the one early exception: the critic and the repairer may be filled by cheaper open
+checkpoints once calibration shows no loss against the strong checkpoint in that role - the
+authoring roles are never downgraded for cost ahead of the locked quality gate. After parity is
+demonstrated, distillation, quantization, caching and smaller checkpoints may reduce cost and
+latency, but each optimization reruns the locked quality gate.
 
 ---
 
@@ -612,8 +645,13 @@ models.
 ### 8.3 Human judgement
 
 At least three independent reviewers with broadcast-design competence rate each joined item. The
-primary question is: **would you take this graphic to air after entering content and brand, without
-redesigning it?** Supporting reads cover:
+panel is the owner plus reviewers recruited from the teaching cohort and the broadcast community;
+recruiting and onboarding them is Phase 2 work, not an afterthought - a gate that cannot staff
+its panel gets silently weakened, which is worse than an honestly smaller gate. The
+degraded-panel rule is predeclared: two reviewers produce a provisional verdict that cannot pass
+a release gate; a single reviewer only triages. The primary question is: **would you take this
+graphic to air after entering content and brand, without redesigning it?** Supporting reads
+cover:
 
 - brief and field correctness;
 - premium visual quality and originality;
@@ -673,13 +711,15 @@ can falsify it. Work remains bench-only until Phase 5.
 
 ### Phase 0 - small open-model go/no-go spike
 
-**Build:** only the thin experiment in section 0: 10-15 lower-third briefs, one strong open-weight
-checkpoint, the existing neutral scaffold, two or three hand-vetted complete exemplars, the shared
-repair loop, production validator, Chromium renderer, fixtures and review gallery. No plan schema,
-critic, unit corpus, tournament or product path.
+**Build:** only the thin experiment in section 0: the zero-token control run, the 12-brief
+lower-third bank, one or at most two strong open-weight checkpoints, the existing neutral
+scaffold, paired exemplar/no-exemplar arms with two or three hand-vetted complete exemplars, the
+shared repair loop, production validator, Chromium renderer with virtual-clock motion capture,
+fixtures and the anchor-mixed review gallery. No plan schema, critic, unit corpus, tournament or
+product path.
 
-**Gate:** humans inspect every rendered hold and motion sample before reading machine verdicts. The
-go/no-go rule is exactly section 0.3.
+**Gate:** the control run renders correctly first; then humans inspect every rendered hold and
+motion sample before reading machine verdicts. The go/no-go rule is exactly section 0.3.
 
 **Stop if:** the model lacks visible hierarchy, proportion, composition or variety, or promising
 frames need redesign rather than localized repair. Archive the evidence and spend nothing on later
@@ -703,9 +743,10 @@ becomes a second editor model. Remove unnecessary fields before adding more.
 ### Phase 2 - formal evaluation contract and human quality anchors
 
 **Build:** the rubric, development bank, locked holdout process, fixture manifest, human review
-form, cost ledger, excellent human-authored NoaCG anchors and frontier/adapt procedures. Reclassify
-the existing paid Pro rounds as historical reconstruction evidence, not baselines for the new
-architecture.
+form, cost ledger, excellent human-authored NoaCG anchors and frontier/adapt procedures - and the
+reviewer panel itself, recruited from the teaching cohort and broadcast community per section 8.3.
+Reclassify the existing paid Pro rounds as historical reconstruction evidence, not baselines for
+the new architecture.
 
 **Gate:** a dry run reproduces shuffled galleries, joins machine and human results, detects seeded
 defects, prevents holdout leakage and calibrates the premium rating band against the human anchors.
@@ -755,7 +796,9 @@ the accepted result enters the normal editor/export flow. A critical gate failur
 and a specific reason. There is no concept-image card or separate Pro editor.
 
 **Gate:** focused E2E, production SPX/CasparCG/OBS walkthroughs, build and CI; operational limits
-cover concurrency, timeout, model unavailability and cost. No closed fallback exists.
+cover concurrency, timeout, model unavailability and cost. The beta predeclares a
+generation-to-accepted latency budget taken from Phase 3/4 measurements rather than discovering
+it in production. No closed fallback exists.
 
 **Stop if:** hosting economics require hiding the real price, or product behavior differs from the
 bench harness that earned the quality claim.
@@ -848,6 +891,8 @@ plan. A cheap output that cannot go to air has infinite effective cost.
 
 | risk | how it is tested | response |
 | --- | --- | --- |
+| Harness bug reads as model failure | zero-token control run of a known-good template through the wrapper, rerun after wrapper changes | fix the harness before spending; a round judged on a broken wrapper is void |
+| Spike passes on transfer, not taste | paired exemplar/no-exemplar arms in Phase 0 | treat as ambiguous, probe the second checkpoint; copied coherence is not visual signal |
 | Open coder follows syntax but lacks taste | Phase 0 rendered spike | stop before building the specialist; revisit only for a materially stronger checkpoint or specific new hypothesis |
 | Minimal plan is too weak | rendered human references and plan/no-plan ablation | add only the observed relationship NoaCG must compile; no arbitrary-JS escape hatch |
 | Minimal plan becomes a hidden scene model | round-trip and editor-source review | delete visual-description fields; edits after generation operate on code |
@@ -883,17 +928,21 @@ When implementation begins:
    implementation phase that changes their live truth;
 6. preserve the standard Create with AI entry and ordinary editor/export destination.
 
-No new work or spend should improve the retired reconstruction path.
+No new work or spend should improve the retired reconstruction path. Until Phase 5 replaces the
+backend, the existing Pro tier entry in Create with AI stays as it is today; whether to relabel
+or hide it earlier is an owner product decision recorded outside this plan.
 
 ---
 
-## 14. First future slice
+## 14. First implementation slice - scheduled next
 
-The first implementation slice, when separately authorized, is **Phase 0 only**: build the thin
-bench wrapper, select one strong open-weight checkpoint through a license/capability preflight,
-render 10-15 lower thirds with the existing scaffold, complete exemplars, validator and repair
-loop, and inspect every result by eye. It changes no product path and requires separate approval
-before its capped model spend.
+The first implementation slice is **Phase 0 only**, and it is now the next scheduled work: build
+the thin bench wrapper, prove it with the zero-token control run, select one or two strong
+open-weight checkpoints through a license/capability preflight, render the 12-brief bank in
+paired exemplar/no-exemplar arms with the existing scaffold, validator and repair loop, and
+inspect every result by eye against blind-mixed anchors. It changes no product path. Its model
+spend still requires an explicit owner OK with a stated cap (estimated $5-15, section 0.3)
+before the round runs.
 
 Only a positive human go/no-go verdict unlocks Phase 1. The minimal plan and every later mechanism
 must then earn its place through rendered evidence. This ordering is intentional: falsify model
