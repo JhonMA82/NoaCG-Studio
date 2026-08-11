@@ -33,8 +33,26 @@ module.exports = {
         'would put an unratified pipeline behind a user-facing button, and arm A would stop ' +
         'being the frozen control the whole comparison rests on (§8). When phase E promotes ' +
         'something out of the pilot, delete this rule together with the promotion.',
-      from: { path: '^src/', pathNot: '^src/ai/creative/' },
+      // src/ai/spike/ is the OTHER bench rig and is exempted rather than excused: it is itself
+      // unreachable from the app (the rule below), so letting it read the neutral skeleton
+      // keeps two bench rigs sharing one de-anchored scaffold instead of growing a second
+      // copy - it cannot put anything behind a user-facing button, which is what this rule
+      // protects. Delete the exemption with the spike.
+      from: { path: '^src/', pathNot: '^src/ai/(creative|spike)/' },
       to: { path: '^src/ai/creative/' },
+    },
+    {
+      name: 'pro-phase0-spike-is-bench-only',
+      severity: 'error',
+      comment:
+        'The NoaCG Pro Phase 0 spike (src/ai/spike/, docs/NOACG_PRO_PLAN.md §0.1) is a BENCH ' +
+        'RIG: its only caller is scripts/pro-spike.mjs, outside this graph. No app module may ' +
+        'import it. The plan is explicit that the wrapper either graduates into the later ' +
+        'harness or is DELETED once the go/no-go verdict is recorded, and a production edge is ' +
+        'how a deletable experiment stops being deletable. Phase 1 promotes deliberately, and ' +
+        'deletes this rule in the same change.',
+      from: { path: '^src/', pathNot: '^src/ai/spike/' },
+      to: { path: '^src/ai/spike/' },
     },
   ],
 
