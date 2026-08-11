@@ -20,7 +20,7 @@ export const es03: TemplateVariant = defineEsportsVariant(
   {
     id: 'es03',
     category: 'esports-score',
-    name: 'Frost Series Esports Score',
+    name: 'Frost Series',
     styleTag: 'glass',
     description: 'A frosted match strip: glass score chips, a soft accent rule, series pips.',
     maxLines: 5,
@@ -38,7 +38,7 @@ export const es03: TemplateVariant = defineEsportsVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Frost Series Esports Score',
+    name: 'Frost Series',
     description:
       'The glass series scorebug: a frosted, softly-rounded strip with a soft accent rule ' +
       'under the stage line, team logos, map scores in glass chips, and the series pips ' +

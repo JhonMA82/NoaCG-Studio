@@ -13,7 +13,7 @@ export const lt30: TemplateVariant = defineVariant(
   {
     id: 'lt30',
     category: 'lower-third',
-    name: 'Dateline Lower Third',
+    name: 'Dateline',
     styleTag: 'editorial',
     description: 'Name, role and organisation over a ruled dateline — the reporting strap.',
     maxLines: 4,
@@ -30,7 +30,7 @@ export const lt30: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Dateline Lower Third',
+    name: 'Dateline',
     description:
       'The reporting strap: a name and role, the organisation under them, and a ruled dateline ' +
       'closing the block in tracked accent caps. Built for steps mode — reveal the dateline on a ' +

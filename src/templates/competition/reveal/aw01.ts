@@ -20,7 +20,7 @@ export const aw01: TemplateVariant = defineRevealVariant(
   {
     id: 'aw01',
     category: 'reveal',
-    name: 'House Award Reveal',
+    name: 'House Award',
     styleTag: 'noacg',
     description: 'The sealed envelope: category on screen, subject revealed on the press.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const aw01: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Award Reveal',
+    name: 'House Award',
     description:
       'The NoaCG award reveal: a void stage with a mono kicker and the category in house ' +
       'display type, the winner sealed until the press, then the name in amber with its logo ' +
@@ -47,7 +47,7 @@ export const aw01: TemplateVariant = defineRevealVariant(
     html: awardMarkup(o),
     fields: compFieldsFor(AWARD_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Open Reveal', call: 'openEnvelope', duration: 0.7 }],
+    revealSteps: [{ name: 'Open', call: 'openEnvelope', duration: 0.7 }],
     runtimeExtraJs: AWARD_RUNTIME_JS,
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 

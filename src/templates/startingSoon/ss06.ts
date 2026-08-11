@@ -13,7 +13,7 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss06',
     category: 'starting-soon',
-    name: 'Short Break Starting Soon',
+    name: 'Short Break',
     styleTag: 'noacg',
     description: 'The house BRB card — big headline, a line of reassurance, and a countdown that restarts each take.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const ss06: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Short Break Starting Soon',
+    name: 'Short Break',
     description:
       'The house break screen: the headline in big display type, one quiet line of ' +
       'reassurance beneath it, and the countdown across the bottom of the void panel as a ' +

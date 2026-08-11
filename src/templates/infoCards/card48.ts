@@ -28,7 +28,7 @@ export const card48: TemplateVariant = defineCardVariant(
   {
     id: 'card48',
     category: 'info-card',
-    name: 'House Sponsors Info Card',
+    name: 'House Sponsors',
     styleTag: 'noacg',
     description: 'A sponsor strip: a "presented by" label and four partner logo slots on one bar.',
     maxLines: 1,
@@ -40,7 +40,7 @@ export const card48: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Sponsors Info Card',
+    name: 'House Sponsors',
     description:
       'The NoaCG sponsor strip: an 8px amber bar fused to a void blur panel, a mono "presented ' +
       'by" label, and four partner logo slots divided by keylines. Every partner is on screen ' +

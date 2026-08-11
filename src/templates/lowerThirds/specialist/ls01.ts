@@ -18,7 +18,7 @@ export const ls01: TemplateVariant = defineVariant(
   {
     id: 'ls01',
     category: 'lower-third',
-    name: 'Split Interview Lower Third',
+    name: 'Split Interview',
     styleTag: 'minimal',
     description: 'Two people named side by side under one drawn rule — equal billing, independent fields.',
     maxLines: 4,
@@ -38,7 +38,7 @@ export const ls01: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Split Interview Lower Third',
+    name: 'Split Interview',
     description:
       'The two-person interview strap: two content-sized columns, each carrying its own ' +
       'name and role as independent SPX fields, separated by a hairline and bound by one ' +

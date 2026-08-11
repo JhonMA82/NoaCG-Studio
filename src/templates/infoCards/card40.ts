@@ -17,7 +17,7 @@ export const card40: TemplateVariant = defineCardVariant(
   {
     id: 'card40',
     category: 'info-card',
-    name: 'Volt Offer Info Card',
+    name: 'Volt Offer',
     styleTag: 'sport',
     description: 'A flash-offer slab: a huge discount claim over its terms, promo code, and deadline.',
     maxLines: 5,
@@ -35,7 +35,7 @@ export const card40: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Offer Info Card',
+    name: 'Volt Offer',
     description:
       'A forward-leaning sport slab with a chunky accent edge: a small accent kicker over one ' +
       'enormous discount claim, the terms line under it, then a solid promo-code chip and a ' +

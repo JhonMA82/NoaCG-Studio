@@ -10,7 +10,7 @@ export const lt36: TemplateVariant = defineVariant(
   {
     id: 'lt36',
     category: 'lower-third',
-    name: 'Frame Mark Lower Third',
+    name: 'Frame Mark',
     styleTag: 'cinematic',
     description: 'A leading production mark, a hairline column, then the name and role on a scrim.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt36: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Frame Mark Lower Third',
+    name: 'Frame Mark',
     description:
       'The documentary credit lock-up: a production or channel mark, a hairline column, then the ' +
       'name over a wide-tracked role — all on a scrim that fades into the shot. Leave the image ' +

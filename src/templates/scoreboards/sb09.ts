@@ -25,7 +25,7 @@ export const sb09: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb09',
     category: 'scoreboard',
-    name: 'House Match Board Scoreboard',
+    name: 'House Match Board',
     styleTag: 'noacg',
     description: 'The house match board: crests, club names, the score pair, clock and period breakdown.',
     maxLines: 1,
@@ -37,7 +37,7 @@ export const sb09: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Match Board Scoreboard',
+    name: 'House Match Board',
     description:
       'The NoaCG full scoreboard, sibling of sb05 House Scorebug and lt11 House Strap: a void ' +
       'panel with an amber top edge, a status row carrying the period and the clock, two crests ' +

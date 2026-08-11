@@ -11,7 +11,7 @@ export const lt13: TemplateVariant = defineVariant(
   {
     id: 'lt13',
     category: 'lower-third',
-    name: 'House Interview Lower Third',
+    name: 'House Interview',
     styleTag: 'noacg',
     description: 'Three-line interview strap: name, organisation, and a mono location line.',
     maxLines: 3,
@@ -27,7 +27,7 @@ export const lt13: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Interview Lower Third',
+    name: 'House Interview',
     description:
       'The house strap built for interviews: the 8px accent bar and void blur panel of lt11 ' +
       'carrying three voices — a bold name, a quiet organisation line, and a tracked mono ' +

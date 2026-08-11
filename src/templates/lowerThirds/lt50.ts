@@ -10,7 +10,7 @@ export const lt50: TemplateVariant = defineVariant(
   {
     id: 'lt50',
     category: 'lower-third',
-    name: 'House Tag Lower Third',
+    name: 'House Tag',
     styleTag: 'noacg',
     description: 'The house bar and void panel carrying a single name — the compact house strap.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const lt50: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Tag Lower Third',
+    name: 'House Tag',
     description:
       'The house strap reduced to one line: the 8 px amber bar with its restrained glow, the void ' +
       'blur panel, and a name. For a host the audience already knows, or as the quiet strap ' +

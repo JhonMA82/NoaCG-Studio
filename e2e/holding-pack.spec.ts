@@ -102,7 +102,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
     const t = useTemplateStore.getState().template;
     return { name: t.name, fields: t.fields.map((f) => f.title), type: t.type };
   });
-  expect(fields.name).toBe('In Memoriam Info Card');
+  expect(fields.name).toBe('In Memoriam');
   expect(fields.fields).toEqual(['Name', 'Years', 'Line']);
 });
 

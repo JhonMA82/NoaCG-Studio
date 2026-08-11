@@ -22,7 +22,7 @@ export const ls29: TemplateVariant = defineVariant(
   {
     id: 'ls29',
     category: 'lower-third',
-    name: 'Field Report Lower Third',
+    name: 'Field Report',
     styleTag: 'noacg',
     description: 'A dateline and live clock on one rail, with the reporter named beneath.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const ls29: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Field Report Lower Third',
+    name: 'Field Report',
     description:
       'The correspondent strap: the dateline set in the house mono above the name — apart ' +
       'from it, the way print sets a dateline apart from a byline — with a live clock on the ' +

@@ -14,7 +14,7 @@ export const tk12: TemplateVariant = defineTickerVariant(
   {
     id: 'tk12',
     category: 'ticker',
-    name: 'Upper Crawl Ticker',
+    name: 'Upper Crawl',
     styleTag: 'minimal',
     description: 'A slim crawl for the TOP of frame — accent edge below, tuned to sit under chrome.',
     maxLines: 2,
@@ -36,7 +36,7 @@ export const tk12: TemplateVariant = defineTickerVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Upper Crawl Ticker',
+    name: 'Upper Crawl',
     description:
       'The upper ticker: slimmer than a bottom strip, quieter type, and its accent edge on ' +
       'the underside so the strip reads as hanging from the top of frame rather than floating ' +

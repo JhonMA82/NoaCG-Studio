@@ -39,7 +39,7 @@ test('wizard: create a lower third with defaults', async ({ page }) => {
   await expect(page.locator('.wz-preview iframe')).toBeVisible();
   await createFromCurrentStep(page);
 
-  await expect(page.locator('.topbar .tpl-name')).toContainText('Hairline');
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Hairline');
   // The generated template renders and binds its first field.
   const frame = previewFrame(page);
   await expect(frame.locator('#f0')).toHaveText('Alexandra Riva');
@@ -64,7 +64,7 @@ test('wizard: blank project escape hatch', async ({ page }) => {
   // 20 s, same reason as createFromCurrentStep above: blank-create runs the same cold-Prettier
   // applyGenerated path (AGENTS.md's own documented gotcha for this exact create call).
   await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  await expect(page.locator('.topbar .tpl-name')).toContainText('Blank');
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Blank');
 });
 
 test('wizard: field titles flow into the Data panel', async ({ page }) => {

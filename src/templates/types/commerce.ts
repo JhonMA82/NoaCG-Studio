@@ -72,7 +72,7 @@ export const productCardType: GraphicType = {
   designs: [
     {
       id: 'card38',
-      name: 'House Product Info Card',
+      name: 'House Product',
       description: 'The NoaCG product card: a square shot beside the name, a large accent price, a benefit line.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -81,7 +81,7 @@ export const productCardType: GraphicType = {
     },
     {
       id: 'card39',
-      name: 'Frost Product Info Card',
+      name: 'Frost Product',
       description: 'A frosted product card: a wide shot over the name, its price, and one benefit line.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -100,14 +100,14 @@ export const productCardType: GraphicType = {
       create: (_type, options) => card39.create(options),
     },
     {
-      id: 'card72', name: 'Clean Product Info Card', description: 'A panel-light product card with a framed shot and hairline price hierarchy.',
+      id: 'card72', name: 'Clean Product', description: 'A panel-light product card with a framed shot and hairline price hierarchy.',
       styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
       samples: { product: 'Field Notes Desk Lamp', price: '€89', was: '€119', saving: 'Save 25%', detail: 'Warm dimming - five-year guarantee' },
       animationPresets: ['line-reveal', 'slide-up', 'fade', 'mask-wipe', 'slide-down', 'blur-in'],
       create: (_type, options) => card72.create(options),
     },
     {
-      id: 'card73', name: 'Volt Product Info Card', description: 'A hard-edged product slab with a large price and saving chip.',
+      id: 'card73', name: 'Volt Product', description: 'A hard-edged product slab with a large price and saving chip.',
       styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
       samples: { product: 'MATCHDAY PRO JACKET', price: '€129', was: '€179', saving: 'SAVE 28%', detail: 'WATERPROOF - CLUB DELIVERY INCLUDED' },
       animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
@@ -151,7 +151,7 @@ export const offerCardType: GraphicType = {
   designs: [
     {
       id: 'card40',
-      name: 'Volt Offer Info Card',
+      name: 'Volt Offer',
       description: 'A forward-leaning sport slab: a huge discount claim over its terms, code and deadline.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -160,7 +160,7 @@ export const offerCardType: GraphicType = {
     },
     {
       id: 'card41',
-      name: 'Clean Offer Info Card',
+      name: 'Clean Offer',
       description: 'A panel-free offer card: a large offer line over its terms, promo code, and deadline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -178,14 +178,14 @@ export const offerCardType: GraphicType = {
       create: (_type, options) => card41.create(options),
     },
     {
-      id: 'card74', name: 'House Offer Info Card', description: 'The house offer card with a large claim, code, and deadline on a void panel.',
+      id: 'card74', name: 'House Offer', description: 'The house offer card with a large claim, code, and deadline on a void panel.',
       styleTag: 'noacg', palette: paletteById('noacg'), fontId: 'space-grotesk',
       samples: { kicker: 'MEMBER OFFER', offer: '30% OFF', detail: 'ALL ANNUAL PLANS', code: 'ON-AIR30', ends: 'ENDS SUNDAY 23:59' },
       animationPresets: ['slide-up', 'line-reveal', 'mask-wipe', 'fade', 'slide-down', 'blur-in'],
       create: (_type, options) => card74.create(options),
     },
     {
-      id: 'card75', name: 'Frost Offer Info Card', description: 'A frosted offer panel with a luminous claim, outlined code, and deadline.',
+      id: 'card75', name: 'Frost Offer', description: 'A frosted offer panel with a luminous claim, outlined code, and deadline.',
       styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
       samples: { kicker: 'Private preview', offer: '20% off', detail: 'The new studio collection', code: 'PREVIEW20', ends: 'Through midnight' },
       animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'mid-right',
@@ -234,7 +234,7 @@ export const listingCardType: GraphicType = {
   designs: [
     {
       id: 'card42',
-      name: 'Clean Listing Info Card',
+      name: 'Clean Listing',
       description: 'A quiet keyline panel: a photo and title beside a labelled value block.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -243,7 +243,7 @@ export const listingCardType: GraphicType = {
     },
     {
       id: 'card43',
-      name: 'House Lot Info Card',
+      name: 'House Lot',
       description: 'The NoaCG listing card: the lot photo and title beside a live value in amber.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -260,14 +260,14 @@ export const listingCardType: GraphicType = {
       create: (_type, options) => card43.create(options),
     },
     {
-      id: 'card76', name: 'Volt Listing Info Card', description: 'A sport listing slab with a high-impact labelled value.',
+      id: 'card76', name: 'Volt Listing', description: 'A sport listing slab with a high-impact labelled value.',
       styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
       samples: { title: 'LOT 18 - SIGNED FINAL SHIRT', meta: '2026 FINAL - PLAYER WORN', valueLabel: 'CURRENT BID', value: '€2,400', status: 'BIDDING OPEN' },
       animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
       create: (_type, options) => card76.create(options),
     },
     {
-      id: 'card77', name: 'Frost Listing Info Card', description: 'A frosted listing card with a softly separated live value.',
+      id: 'card77', name: 'Frost Listing', description: 'A frosted listing card with a softly separated live value.',
       styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
       samples: { title: 'Harbour Loft, West Quay', meta: '2 bedrooms - 104 m² - sea view', valueLabel: 'Guide price', value: '£575,000', status: 'Private viewing' },
       animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'bottom-right',
@@ -319,7 +319,7 @@ export const qrCardType: GraphicType = {
   designs: [
     {
       id: 'card44',
-      name: 'House Scan Info Card',
+      name: 'House Scan',
       description: 'The NoaCG QR card: a white quiet-zone tile beside a headline and the address.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -328,7 +328,7 @@ export const qrCardType: GraphicType = {
     },
     {
       id: 'card45',
-      name: 'Clean Scan Info Card',
+      name: 'Clean Scan',
       description: 'A stacked QR card: the code tile above a headline, the address, and one detail line.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -344,14 +344,14 @@ export const qrCardType: GraphicType = {
       create: (_type, options) => card45.create(options),
     },
     {
-      id: 'card78', name: 'Volt Scan Info Card', description: 'A hard-edged QR slab with a protected white tile and written address.',
+      id: 'card78', name: 'Volt Scan', description: 'A hard-edged QR slab with a protected white tile and written address.',
       styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
       samples: { headline: 'SCAN FOR TICKETS', address: 'voltafc.com/final', detail: 'FINAL RELEASE - LIMITED SEATS' },
       animationPresets: ['snap-stinger', 'mask-wipe', 'slide-left', 'fade', 'slide-up', 'flip-3d'],
       create: (_type, options) => card78.create(options),
     },
     {
-      id: 'card79', name: 'Frost Scan Info Card', description: 'A frosted QR card with a protected white tile and readable address.',
+      id: 'card79', name: 'Frost Scan', description: 'A frosted QR card with a protected white tile and readable address.',
       styleTag: 'glass', palette: paletteById('frost'), fontId: 'manrope',
       samples: { headline: 'Continue the story', address: 'frost.media/aftershow', detail: 'Interviews and the full gallery' },
       animationPresets: ['pop-spring', 'blur-in', 'slide-up', 'fade', 'slide-down', 'flip-3d'], defaultZone: 'mid-right',

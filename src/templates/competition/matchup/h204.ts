@@ -17,7 +17,7 @@ export const h204: TemplateVariant = defineMatchupVariant(
   {
     id: 'h204',
     category: 'matchup',
-    name: 'Frost Compare Matchup',
+    name: 'Frost Compare',
     styleTag: 'glass',
     description: 'A frosted comparison board with glass rows and softly-rounded share bars.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const h204: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Compare Matchup',
+    name: 'Frost Compare',
     description:
       'The glass comparison board: frosted competitor cards, softly-keylined stat rows, ' +
       'rounded share bars, and a brighter accent-ringed side when the operator highlights it.',

@@ -17,7 +17,7 @@ export const card57: TemplateVariant = defineCardVariant(
   {
     id: 'card57',
     category: 'info-card',
-    name: 'Order of Service Info Card',
+    name: 'Order of Service',
     styleTag: 'minimal',
     description: 'The order number in an accent chip, the item beside it, and who is leading beneath.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const card57: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Order of Service Info Card',
+    name: 'Order of Service',
     description:
       'A service item card: the reference (“HYMN 342”, “READING”, “THE ADDRESS”) in a small ' +
       'accent chip beside the item title, with the person leading it underneath. Sits low in ' +

@@ -55,7 +55,7 @@ export const keyFactsType: GraphicType = {
   designs: [
     {
       id: 'ig14',
-      name: 'Fact Sheet Infographic',
+      name: 'Fact Sheet',
       description: 'A panel-free key-facts board — one "term | explanation" per line.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -67,7 +67,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig15',
-      name: 'Frost Facts Infographic',
+      name: 'Frost Facts',
       description: 'A frosted good-to-know board — one "term | explanation" per line.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -79,7 +79,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig16',
-      name: 'Volt Facts Infographic',
+      name: 'Volt Facts',
       description: 'A sport key-numbers board — one "term | number" per line, in heavy caps.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -91,7 +91,7 @@ export const keyFactsType: GraphicType = {
     },
     {
       id: 'ig17',
-      name: 'House Facts Infographic',
+      name: 'House Facts',
       description: 'The house explainer board — one "term | explanation" per line in the void panel.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -129,7 +129,7 @@ export const recapType: GraphicType = {
   designs: [
     {
       id: 'ig18',
-      name: 'Recap Board Infographic',
+      name: 'Recap Board',
       description: 'A panel-free recap board — one "owner | action" per line.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -141,7 +141,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig19',
-      name: 'Frost Recap Infographic',
+      name: 'Frost Recap',
       description: 'A frosted recap board — one "owner | action" per line.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -153,7 +153,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig20',
-      name: 'Volt Recap Infographic',
+      name: 'Volt Recap',
       description: 'A sport half-time board — one "unit | note" per line, in heavy caps.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -165,7 +165,7 @@ export const recapType: GraphicType = {
     },
     {
       id: 'ig21',
-      name: 'House Actions Infographic',
+      name: 'House Actions',
       description: 'The house action board — one "owner | action" per line in the void panel.',
       styleTag: 'noacg',
       palette: HOUSE.palette,

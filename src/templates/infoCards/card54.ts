@@ -18,7 +18,7 @@ export const card54: TemplateVariant = defineCardVariant(
   {
     id: 'card54',
     category: 'info-card',
-    name: 'Wedding Card Info Card',
+    name: 'Wedding Card',
     styleTag: 'minimal',
     description: 'The couple, the date, the place — set as printed stationery, between two short rules.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const card54: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Wedding Card Info Card',
+    name: 'Wedding Card',
     description:
       'A wedding title card set like stationery: the couple’s names large and light between ' +
       'two short accent rules, the date beneath in tracked caps, and the place quietest of ' +

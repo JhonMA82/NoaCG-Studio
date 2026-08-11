@@ -9,7 +9,7 @@ export const card03: TemplateVariant = defineCardVariant(
   {
     id: 'card03',
     category: 'info-card',
-    name: 'Frosted Panel Info Card',
+    name: 'Frosted Panel',
     styleTag: 'glass',
     description: 'A translucent blurred glass panel for schedules and lineups, with an optional logo slot.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card03: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Frosted Panel Info Card',
+    name: 'Frosted Panel',
     description:
       'The glass card at info-card scale: a translucent white panel frosts whatever plays ' +
       'behind it, lifted by one soft shadow and a hairline keyline. An imported logo sits ' +

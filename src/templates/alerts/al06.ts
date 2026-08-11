@@ -20,7 +20,7 @@ export const al06: TemplateVariant = defineAlertVariant(
   {
     id: 'al06',
     category: 'alert',
-    name: 'Civil Emergency Alert',
+    name: 'Civil Emergency',
     styleTag: 'minimal',
     description: 'A full-width emergency card: severity cap, hazard, instruction and source.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const al06: TemplateVariant = defineAlertVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Civil Emergency Alert',
+    name: 'Civil Emergency',
     description:
       'The interrupt card: a centred block that takes the frame, with the severity flag as a ' +
       'full-width cap, the hazard, the instruction, and the issuing authority. Sized for the ' +

@@ -12,7 +12,7 @@ export const bug25: TemplateVariant = defineBugVariant(
   {
     id: 'bug25',
     category: 'corner-bug',
-    name: 'House Event Bug Corner Bug',
+    name: 'House Event Bug',
     styleTag: 'noacg',
     description: 'The house event mark: the event logo, its name, and the day or venue beneath.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const bug25: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'House Event Bug Corner Bug',
+    name: 'House Event Bug',
     description:
       'The house event ident: the event logo (or the three-bar house placeholder) beside the ' +
       'event name, with the day, session or venue as a mono line underneath — on the void ' +

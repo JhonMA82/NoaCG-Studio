@@ -24,7 +24,7 @@ export const es04: TemplateVariant = defineEsportsVariant(
   {
     id: 'es04',
     category: 'esports-score',
-    name: 'Clean Series Esports Score',
+    name: 'Clean Series',
     styleTag: 'minimal',
     description: 'A panel-free match strip: two names, a divider, and a quiet phase line.',
     maxLines: 5,
@@ -42,7 +42,7 @@ export const es04: TemplateVariant = defineEsportsVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Clean Series Esports Score',
+    name: 'Clean Series',
     description:
       'The quiet series scorebug: no panel, a hairline accent rule under the stage line, two ' +
       'team names around a plain divider, and the match phase set in small caps.',

@@ -26,7 +26,7 @@ export const sb11: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb11',
     category: 'scoreboard',
-    name: 'Frost Match Board Scoreboard',
+    name: 'Frost Match Board',
     styleTag: 'glass',
     description: 'A frosted card board: competitors stacked as rows, set columns, and a match clock.',
     maxLines: 1,
@@ -38,7 +38,7 @@ export const sb11: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Match Board Scoreboard',
+    name: 'Frost Match Board',
     description:
       'The glass full scoreboard, sibling of sb07 Frost Scorebug and lt08 Frosted Card: a ' +
       'frosted card with a status row, the two competitors stacked as rows with a colour dot, ' +

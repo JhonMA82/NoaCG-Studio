@@ -12,7 +12,7 @@ export const qz11: TemplateVariant = defineQuizVariant(
   {
     id: 'qz11',
     category: 'quiz',
-    name: 'Frost Triple Quiz',
+    name: 'Frost Triple',
     styleTag: 'glass',
     description: 'A frosted board for three answers: the question over three tall glass answer chips.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const qz11: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Triple Quiz',
+    name: 'Frost Triple',
     description:
       'The glass three-answer board, sibling of qz03 Frost Quiz and lt08 Frosted Card: a frosted ' +
       'panel with the question over three tall glass answer chips, each led by a softly-rounded ' +

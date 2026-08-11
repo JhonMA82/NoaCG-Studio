@@ -8,7 +8,7 @@ export const ss15: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss15',
     category: 'starting-soon',
-    name: 'Volt Sign-off Starting Soon',
+    name: 'Volt Sign-off',
     styleTag: 'sport',
     description:
       'A hard-edged end card with a logo, bold sign-off, and the next fixture line.',
@@ -25,7 +25,7 @@ export const ss15: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Sign-off Starting Soon',
+    name: 'Volt Sign-off',
     description:
       'A sport full-frame sign-off with a hard slab, accent label, logo slot, and condensed next fixture line.',
     uicolor: '1',

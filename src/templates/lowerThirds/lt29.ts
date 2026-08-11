@@ -13,7 +13,7 @@ export const lt29: TemplateVariant = defineVariant(
   {
     id: 'lt29',
     category: 'lower-third',
-    name: 'Imprint Lower Third',
+    name: 'Imprint',
     styleTag: 'editorial',
     description: 'Name and role, a divider, then the publication mark closing the block on the right.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const lt29: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Imprint Lower Third',
+    name: 'Imprint',
     description:
       'The editorial lock-up with the mark on the trailing edge: name over a tracked role, a thin ' +
       'accent divider, then the publication or channel logo. Reads as a byline credit rather than ' +

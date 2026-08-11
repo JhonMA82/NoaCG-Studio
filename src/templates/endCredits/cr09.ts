@@ -32,7 +32,7 @@ export const cr09: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr09',
     category: 'end-credits',
-    name: 'Sponsor Board End Credit',
+    name: 'Sponsor Board',
     styleTag: 'noacg',
     description: 'A held acknowledgement board where each tier is visibly a tier — the contract made legible.',
     maxLines: 2,
@@ -47,7 +47,7 @@ export const cr09: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Sponsor Board End Credits',
+    name: 'Sponsor Board',
     description:
       'The house sponsor board: mono tier labels in the accent color, and each tier set a ' +
       'step smaller than the one above it — the first tier you type is the headline, the ' +

@@ -20,7 +20,7 @@ export const ls17: TemplateVariant = defineVariant(
   {
     id: 'ls17',
     category: 'lower-third',
-    name: 'Lectern Lower Third',
+    name: 'Lectern',
     styleTag: 'minimal',
     description: 'A name with its own post-nominals field, over a position and a set-apart institution.',
     maxLines: 4,
@@ -37,7 +37,7 @@ export const ls17: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Lectern Lower Third',
+    name: 'Lectern',
     description:
       'The academic credit: the name with its post-nominals as a separate SPX field trailing ' +
       'on the same baseline, the position beneath, and the institution set apart under a rule ' +

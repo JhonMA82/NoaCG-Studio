@@ -19,7 +19,7 @@ export const ls06: TemplateVariant = defineVariant(
   {
     id: 'ls06',
     category: 'lower-third',
-    name: 'Commentary Booth Lower Third',
+    name: 'Commentary Booth',
     styleTag: 'sport',
     description: 'A COMMENTARY header spanning two callers — the pair named as one unit.',
     maxLines: 5,
@@ -39,7 +39,7 @@ export const ls06: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Commentary Booth Lower Third',
+    name: 'Commentary Booth',
     description:
       'The booth strap: one accent header row naming the segment, spanning two callers set ' +
       'side by side beneath it, each with their own name and job as independent SPX fields. ' +

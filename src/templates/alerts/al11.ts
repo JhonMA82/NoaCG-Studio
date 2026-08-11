@@ -9,7 +9,7 @@ export const al11: TemplateVariant = defineAlertVariant(
   {
     id: 'al11',
     category: 'alert',
-    name: 'Breaking Edition Alert',
+    name: 'Breaking Edition',
     styleTag: 'editorial',
     description: 'Breaking strap with a printed masthead, set headline and explicit attribution.',
     maxLines: 3,
@@ -25,7 +25,7 @@ export const al11: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Breaking Edition Alert',
+    name: 'Breaking Edition',
     description:
       'The breaking strap in the lt25 Masthead family: two exact 2 px printed rules frame a ' +
       'wide-tracked status line, one set headline and an attribution on a flat ink surface.',

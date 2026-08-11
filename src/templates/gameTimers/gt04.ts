@@ -17,7 +17,7 @@ export const gt04: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt04',
     category: 'game-timer',
-    name: 'Stage Ring Game Timer',
+    name: 'Stage Ring',
     styleTag: 'sport',
     description: 'A dark stage disc with a glowing accent drain ring and a pill label — controlled pop, crisp ticks, one big payoff at zero.',
     maxLines: 1,
@@ -29,7 +29,7 @@ export const gt04: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Stage Ring Game Timer',
+    name: 'Stage Ring',
     description:
       'The composed kids’ game-show timer: a deep stage-dark disc with an accent ' +
       'border, a glowing accent ring that drains as time runs, bright accent digits, ' +

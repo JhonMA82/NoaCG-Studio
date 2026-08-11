@@ -19,7 +19,7 @@ export const mu02: TemplateVariant = defineMatchupVariant(
   {
     id: 'mu02',
     category: 'matchup',
-    name: 'House Match-up Matchup',
+    name: 'House Match-up',
     styleTag: 'noacg',
     description: 'The house match-up: void stage, amber seam, and an amber-keylined winner.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const mu02: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Match-up Matchup',
+    name: 'House Match-up',
     description:
       'The NoaCG match-up card: a void stage with an amber glowing seam, mono event and note ' +
       'lines, flat house display type, and a winner marked by an amber keyline and chip.',

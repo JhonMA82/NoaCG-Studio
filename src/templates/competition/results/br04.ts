@@ -18,7 +18,7 @@ export const br04: TemplateVariant = defineResultsVariant(
   {
     id: 'br04',
     category: 'results-board',
-    name: 'Frost Bracket Results Board',
+    name: 'Frost Bracket',
     styleTag: 'glass',
     description: 'A frosted knockout tree with glass ties and an accent-ringed live round.',
     maxLines: 1,
@@ -30,7 +30,7 @@ export const br04: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Bracket Results Board',
+    name: 'Frost Bracket',
     description:
       'The glass playoff bracket: one frosted board, softly-rounded tie tiles, a luminous ' +
       'cursor on the live round, and an accent-ringed final once a champion is crowned.',

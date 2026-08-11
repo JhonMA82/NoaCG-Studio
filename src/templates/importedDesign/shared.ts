@@ -336,7 +336,7 @@ ${fieldCss(o)}
 export const IMPORTED_DESIGN: TemplateVariant = {
   id: 'imp01',
   category: 'imported-design',
-  name: 'Imported design Imported Design',
+  name: 'Imported design',
   styleTag: 'minimal',
   description: 'Your own artwork, with editable text fields placed on top of it.',
   maxLines: 3,

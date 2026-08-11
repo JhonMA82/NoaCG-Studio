@@ -117,7 +117,7 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   await page.reload();
   await expect(page.locator('.wz-modal')).toBeHidden();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-  await expect(page.locator('.tpl-name')).toContainText('Winter headphones');
+  await expect(page.locator('.tpl-name')).toHaveText('Winter headphones');
 
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

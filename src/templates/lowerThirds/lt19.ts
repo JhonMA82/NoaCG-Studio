@@ -13,7 +13,7 @@ export const lt19: TemplateVariant = defineVariant(
   {
     id: 'lt19',
     category: 'lower-third',
-    name: 'Rule Under Lower Third',
+    name: 'Rule Under',
     styleTag: 'minimal',
     description: 'Name only, over a rule that draws itself to the name\'s own width.',
     maxLines: 1,
@@ -26,7 +26,7 @@ export const lt19: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Rule Under Lower Third',
+    name: 'Rule Under',
     description:
       'The name-only strap: one confident line of type with an accent rule under it and nothing ' +
       'else on screen. Use it when the person needs no introduction, or when a role line would ' +

@@ -16,7 +16,7 @@ export const sb07: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb07',
     category: 'scoreboard',
-    name: 'Frost Scorebug Scoreboard',
+    name: 'Frost Scorebug',
     styleTag: 'glass',
     description: 'A frosted scorebug pill: soft colour dots, a centred score pair, period and clock.',
     maxLines: 1,
@@ -28,7 +28,7 @@ export const sb07: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Frost Scorebug Scoreboard',
+    name: 'Frost Scorebug',
     description:
       'The glass compact scorebug, sibling of sb04 Frost Score and lt08 Frosted Card: one ' +
       'frosted pill holding two club colour dots, the team names against a centred score pair, ' +

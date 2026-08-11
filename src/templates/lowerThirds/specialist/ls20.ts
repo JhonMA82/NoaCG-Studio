@@ -22,7 +22,7 @@ export const ls20: TemplateVariant = defineVariant(
   {
     id: 'ls20',
     category: 'lower-third',
-    name: 'Candidate Bar Lower Third',
+    name: 'Candidate Bar',
     styleTag: 'minimal',
     description: 'A party-colour block with its short form, the candidate named, and the share right-aligned.',
     maxLines: 4,
@@ -41,7 +41,7 @@ export const ls20: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Candidate Bar Lower Third',
+    name: 'Candidate Bar',
     description:
       'The results strap: a filled party-colour block carrying the party’s short form, the ' +
       'candidate and constituency beside it, and the vote share right-aligned in tabular ' +

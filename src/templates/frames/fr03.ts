@@ -15,7 +15,7 @@ export const fr03: TemplateVariant = defineFrameVariant(
   {
     id: 'fr03',
     category: 'frame',
-    name: 'Volt Split Frame',
+    name: 'Volt Split',
     styleTag: 'sport',
     description: 'A split-screen surround: two full-height windows meeting at a leaning accent divider.',
     maxLines: 4,
@@ -32,7 +32,7 @@ export const fr03: TemplateVariant = defineFrameVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Split Frame',
+    name: 'Volt Split',
     description:
       'A sport split screen: two full-height camera windows meeting at a leaning accent divider ' +
       'down the centre, each with a heavy condensed name slab pinned across its bottom. Put the ' +

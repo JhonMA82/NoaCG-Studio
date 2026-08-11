@@ -9,7 +9,7 @@ import nodePath from 'node:path';
 // taken through its load/updateAction/playAction contract.
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline Lower Third' });
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
 async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | 'Post-production' | 'Both'): Promise<JSZip> {
@@ -68,9 +68,9 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   await createHairline(page);
   const zip = await downloadTarget(page, 'H2R Graphics export');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
-  expect(names.sort()).toEqual(['hairline_lower_third/FIELDS.md', 'hairline_lower_third/README.md', 'hairline_lower_third/hairline_lower_third.html']);
+  expect(names.sort()).toEqual(['hairline/FIELDS.md', 'hairline/README.md', 'hairline/hairline.html']);
 
-  const html = await zip.file('hairline_lower_third/hairline_lower_third.html')!.async('string');
+  const html = await zip.file('hairline/hairline.html')!.async('string');
   // The GDD block H2R parses into editable inputs — property keys match the element ids.
   // The script tag MUST carry name="graphics-data-definition": without it H2R never finds
   // the block and shows no editable fields (the bug the real-app test surfaced).
@@ -115,7 +115,7 @@ test('export target choice is remembered as the default across reloads', async (
         return loadProject()?.template.name ?? null;
       }),
     )
-    .toBe('Hairline Lower Third');
+    .toBe('Hairline');
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeHidden();
@@ -132,20 +132,20 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.sort()).toEqual([
-    'hairline_lower_third/FIELDS.md',
-    'hairline_lower_third/GETTING-ON-AIR.md',
-    'hairline_lower_third/README.md',
-    'hairline_lower_third/Start controller.cmd',
-    'hairline_lower_third/controlpanel.html',
-    'hairline_lower_third/hairline_lower_third.html',
-    'hairline_lower_third/payload.json',
-    'hairline_lower_third/relay.ps1',
-    'hairline_lower_third/relay.py',
-    'hairline_lower_third/start-controller.command',
-    'hairline_lower_third/start-controller.sh',
+    'hairline/FIELDS.md',
+    'hairline/GETTING-ON-AIR.md',
+    'hairline/README.md',
+    'hairline/Start controller.cmd',
+    'hairline/controlpanel.html',
+    'hairline/hairline.html',
+    'hairline/payload.json',
+    'hairline/relay.ps1',
+    'hairline/relay.py',
+    'hairline/start-controller.command',
+    'hairline/start-controller.sh',
   ]);
 
-  const html = await zip.file('hairline_lower_third/hairline_lower_third.html')!.async('string');
+  const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('Autoplay for browser sources');
   expect(html).toContain('spx-control-receiver'); // the BroadcastChannel receiver is inlined
   expect(html).not.toMatch(/src=["'](?:\.\/)?js\//); // nothing external left
@@ -165,15 +165,15 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   const zip = await downloadTarget(page, 'CasparCG export');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.sort()).toEqual([
-    'hairline_lower_third/FIELDS.md',
-    'hairline_lower_third/GETTING-ON-AIR.md',
-    'hairline_lower_third/README.md',
-    'hairline_lower_third/hairline_lower_third.html',
+    'hairline/FIELDS.md',
+    'hairline/GETTING-ON-AIR.md',
+    'hairline/README.md',
+    'hairline/hairline.html',
   ]);
 
   // FIELDS.md is what makes a CasparCG client usable: the client sends ids, and only the
   // package can say which id is the name and which the title (acceptance round 2, 2026-08-05).
-  const fields = await zip.file('hairline_lower_third/FIELDS.md')!.async('string');
+  const fields = await zip.file('hairline/FIELDS.md')!.async('string');
   expect(fields).toContain('| `f0` | Name |');
   expect(fields).toContain('| `f1` | Title |');
   expect(fields).toContain('<componentData id="f0">');
@@ -181,7 +181,7 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   // a student who has never sent a CG command cannot turn `CG 1-20 ADD …` into "which box do
   // I type the name in" (owner, 2026-08-05: they use the default CasparCG Client).
   expect(fields).toContain('## In the CasparCG Client');
-  expect(fields).toContain('locate\n   `hairline_lower_third`');
+  expect(fields).toContain('locate\n   `hairline`');
   expect(fields).toMatch(/Set the video layer to \d+/);
   // The key/value grid is pre-filled from this graphic's own defaults, keyed by ID.
   expect(fields).toMatch(/\| Key \| Value \|/);
@@ -190,11 +190,11 @@ test('casparcg: one self-contained html that speaks JSON and CasparCG XML', asyn
   expect(fields).toContain('CasparCG classic XML');
   // And the guide only ever describes what is actually in the folder — a CasparCG package
   // carries no relay on purpose, so it must not name the overlay flavour's launcher.
-  const guide = await zip.file('hairline_lower_third/GETTING-ON-AIR.md')!.async('string');
+  const guide = await zip.file('hairline/GETTING-ON-AIR.md')!.async('string');
   expect(guide).toContain('FIELDS.md');
   expect(guide).not.toContain('Start controller.cmd');
 
-  const html = await zip.file('hairline_lower_third/hairline_lower_third.html')!.async('string');
+  const html = await zip.file('hairline/hairline.html')!.async('string');
   expect(html).toContain('CasparCG data shim');
   expect(html).not.toMatch(/src=["'](?:\.\/)?js\//); // nothing external left
 
@@ -224,16 +224,16 @@ test('spx: the folder package plays like a host drives it, and a late update nev
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   // The template file carries the graphic's own name (an SPX rundown lists files; index.html
   // listed every NoaCG template as "index"), and the on-air guide travels in the package.
-  expect(names).toContain('hairline_lower_third/hairline_lower_third.html');
-  expect(names).toContain('hairline_lower_third/GETTING-ON-AIR.md');
+  expect(names).toContain('hairline/hairline.html');
+  expect(names).toContain('hairline/GETTING-ON-AIR.md');
   expect(names.filter((n) => n.endsWith('index.html'))).toEqual([]);
 
   // Inline the external refs so the folder package plays inside setContent.
   const inline = (src: string) => src.replace(/<\/script>/gi, '<\\/script>');
-  const css = await zip.file('hairline_lower_third/css/template.css')!.async('string');
-  const js = await zip.file('hairline_lower_third/js/template.js')!.async('string');
-  const gsap = await zip.file('hairline_lower_third/js/gsap.min.js')!.async('string');
-  const html = (await zip.file('hairline_lower_third/hairline_lower_third.html')!.async('string'))
+  const css = await zip.file('hairline/css/template.css')!.async('string');
+  const js = await zip.file('hairline/js/template.js')!.async('string');
+  const gsap = await zip.file('hairline/js/gsap.min.js')!.async('string');
+  const html = (await zip.file('hairline/hairline.html')!.async('string'))
     .replace(/<link[^>]*href=["'](?:\.\/)?css\/template\.css["'][^>]*>/i, `<style>${css}</style>`)
     .replace(/<script[^>]*src=["'](?:\.\/)?js\/gsap\.min\.js["'][^>]*><\/script>/i, () => `<script>${inline(gsap)}</script>`)
     .replace(/<script[^>]*src=["'](?:\.\/)?js\/template\.js["'][^>]*><\/script>/i, () => `<script>${inline(js)}</script>`);
@@ -263,28 +263,28 @@ test('liveos: the OGraf package with LiveOS instructions — same graphic, LiveO
   const names = Object.keys(liveosZip.files).filter((n) => !liveosZip.files[n].dir);
   expect(names).toEqual(
     expect.arrayContaining([
-      'hairline_lower_third/README.md',
-      'hairline_lower_third/graphic.mjs',
-      'hairline_lower_third/hairline_lower_third.ograf.json',
-      'hairline_lower_third/lib/gsap.min.js',
+      'hairline/README.md',
+      'hairline/graphic.mjs',
+      'hairline/hairline.ograf.json',
+      'hairline/lib/gsap.min.js',
     ]),
   );
-  const manifest = JSON.parse(await liveosZip.file('hairline_lower_third/hairline_lower_third.ograf.json')!.async('string'));
+  const manifest = JSON.parse(await liveosZip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.$schema).toBe('https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json');
   expect(manifest.main).toBe('graphic.mjs');
   expect(manifest.schema.properties.f0.title).toBe('Name');
-  const readme = await liveosZip.file('hairline_lower_third/README.md')!.async('string');
+  const readme = await liveosZip.file('hairline/README.md')!.async('string');
   expect(readme).toContain('LiveOS');
   expect(readme).toContain('OGraf');
 
   // The Graphic itself must be byte-identical to the OGraf export — the driven OGraf
   // contract test below covers this exact module, so the two targets can never drift.
   const ografZip = await downloadTarget(page, 'OGraf (EBU) export');
-  expect(await liveosZip.file('hairline_lower_third/graphic.mjs')!.async('string')).toBe(
-    await ografZip.file('hairline_lower_third/graphic.mjs')!.async('string'),
+  expect(await liveosZip.file('hairline/graphic.mjs')!.async('string')).toBe(
+    await ografZip.file('hairline/graphic.mjs')!.async('string'),
   );
-  expect(await liveosZip.file('hairline_lower_third/hairline_lower_third.ograf.json')!.async('string')).toBe(
-    await ografZip.file('hairline_lower_third/hairline_lower_third.ograf.json')!.async('string'),
+  expect(await liveosZip.file('hairline/hairline.ograf.json')!.async('string')).toBe(
+    await ografZip.file('hairline/hairline.ograf.json')!.async('string'),
   );
 });
 
@@ -293,9 +293,9 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   const zip = await downloadTarget(page, 'OGraf (EBU) export');
 
   // The manifest carries the spec's required fields + the field-driven data schema.
-  const manifest = JSON.parse(await zip.file('hairline_lower_third/hairline_lower_third.ograf.json')!.async('string'));
+  const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.$schema).toBe('https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json');
-  expect(manifest.id).toBe('hairline_lower_third');
+  expect(manifest.id).toBe('hairline');
   expect(manifest.main).toBe('graphic.mjs');
   expect(manifest.supportsRealTime).toBe(true);
   expect(manifest.supportsNonRealTime).toBe(false);
@@ -306,7 +306,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   // exactly like an OGraf renderer: define → load → updateAction → playAction → stopAction.
   const files = new Map<string, string>();
   for (const name of Object.keys(zip.files)) {
-    if (!zip.files[name].dir) files.set(name.replace(/^hairline_lower_third\//, ''), await zip.file(name)!.async('string'));
+    if (!zip.files[name].dir) files.set(name.replace(/^hairline\//, ''), await zip.file(name)!.async('string'));
   }
   await page.route('http://ograf-test.local/**', (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\//, '');
@@ -372,13 +372,13 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
   ]);
 
   const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Both');
-  const manifest = JSON.parse(await zip.file('hairline_lower_third/hairline_lower_third.ograf.json')!.async('string'));
+  const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.supportsRealTime).toBe(true);
   expect(manifest.supportsNonRealTime).toBe(true);
 
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(zip.files)) {
-    if (!zip.files[name].dir) files.set(name.replace(/^hairline_lower_third\//, ''), await zip.file(name)!.async('nodebuffer'));
+    if (!zip.files[name].dir) files.set(name.replace(/^hairline\//, ''), await zip.file(name)!.async('nodebuffer'));
   }
   await page.route('http://ograf-offline.local/**', (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\//, '');

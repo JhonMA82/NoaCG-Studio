@@ -13,7 +13,7 @@ export const lt21: TemplateVariant = defineVariant(
   {
     id: 'lt21',
     category: 'lower-third',
-    name: 'Right Rail Lower Third',
+    name: 'Right Rail',
     styleTag: 'minimal',
     description: 'Right-anchored twin of the hairline: type ragged-left against a right-edge rule.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt21: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Right Rail Lower Third',
+    name: 'Right Rail',
     description:
       'The hairline design mirrored for the right side of the frame: a thin vertical accent rule ' +
       'on the right, the name and title set ragged-left against it. Use it when the subject sits ' +

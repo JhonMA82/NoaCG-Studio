@@ -12,7 +12,7 @@ export const gt01: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt01',
     category: 'game-timer',
-    name: 'Clean Clock Game Timer',
+    name: 'Clean Clock',
     styleTag: 'minimal',
     description: 'Small-caps label over a large clock, split by a 2px accent hairline that draws in first.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const gt01: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Clean Clock Game Timer',
+    name: 'Clean Clock',
     description:
       'The quietest timer in the set — the lower-third sibling of lt02 (Underline): a ' +
       'dimmed small-caps label above a large tabular-figure clock, separated by a short ' +

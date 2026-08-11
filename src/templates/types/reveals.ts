@@ -92,7 +92,7 @@ export const nomineeRevealType: GraphicType = {
   designs: [
     {
       id: 'nm01',
-      name: 'House Nominees Reveal',
+      name: 'House Nominees',
       description: 'The finalists on a void stage — then the winner lifts into amber.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -101,7 +101,7 @@ export const nomineeRevealType: GraphicType = {
     },
     {
       id: 'nm02',
-      name: 'Frost Nominees Reveal',
+      name: 'Frost Nominees',
       description: 'Finalists on frosted tiles — the winner rings in the accent.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -110,7 +110,7 @@ export const nomineeRevealType: GraphicType = {
     },
     {
       id: 'nm03',
-      name: 'Clean Nominees Reveal',
+      name: 'Clean Nominees',
       description: 'A quiet finalist list — the winner is said with a rule, not a flood.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -119,7 +119,7 @@ export const nomineeRevealType: GraphicType = {
       create: (_type, options) => nm03.create(options),
     },
     {
-      id: 'nm04', name: 'Volt Nominees Reveal', description: 'A hard-edged finalist board where the winner takes the accent slab.',
+      id: 'nm04', name: 'Volt Nominees', description: 'A hard-edged finalist board where the winner takes the accent slab.',
       styleTag: 'sport', palette: paletteById('volt'), fontId: 'oswald',
       animationPresets: ['comp-impact', 'comp-cascade', 'comp-rise'],
       // The sport board is drawn around a PLAYER award rather than a play of the tournament,
@@ -202,7 +202,7 @@ export const verdictCardType: GraphicType = {
   designs: [
     {
       id: 'vd01',
-      name: 'Call Verdict Reveal',
+      name: 'Call Verdict',
       description: 'A ruling card: the question, then a full-frame tick or cross.',
       styleTag: 'sport',
       palette: paletteById('signal'),
@@ -211,7 +211,7 @@ export const verdictCardType: GraphicType = {
     },
     {
       id: 'vd02',
-      name: 'House Verdict Reveal',
+      name: 'House Verdict',
       description: 'The house ruling: void stage, mono labels, amber tick or red cross.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -227,7 +227,7 @@ export const verdictCardType: GraphicType = {
     },
     {
       id: 'vd03',
-      name: 'Clean Verdict Reveal',
+      name: 'Clean Verdict',
       description: 'A quiet ruling: the mark set in type, the word under a hairline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -243,7 +243,7 @@ export const verdictCardType: GraphicType = {
     },
     {
       id: 'vd04',
-      name: 'Frost Verdict Reveal',
+      name: 'Frost Verdict',
       description: 'A frosted ruling card with the verdict held in a softly-ringed medallion.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -329,7 +329,7 @@ export const winnerCardType: GraphicType = {
   designs: [
     {
       id: 'wn01',
-      name: 'Champion Card Reveal',
+      name: 'Champion Card',
       description: 'The champion fills the frame — the score lands on the press.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -338,7 +338,7 @@ export const winnerCardType: GraphicType = {
     },
     {
       id: 'wn02',
-      name: 'House Champion Reveal',
+      name: 'House Champion',
       description: 'The house result card: void stage, mono kicker, amber score on the press.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -348,7 +348,7 @@ export const winnerCardType: GraphicType = {
     },
     {
       id: 'wn03',
-      name: 'Frost Champion Reveal',
+      name: 'Frost Champion',
       description: 'The result on one frosted panel — the score arrives on the press.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -358,7 +358,7 @@ export const winnerCardType: GraphicType = {
     },
     {
       id: 'wn04',
-      name: 'Clean Champion Reveal',
+      name: 'Clean Champion',
       description: 'A quiet result card where a hairline separates the champion from the score.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -439,7 +439,7 @@ export const awardRevealType: GraphicType = {
   designs: [
     {
       id: 'aw01',
-      name: 'House Award Reveal',
+      name: 'House Award',
       description: 'The sealed envelope: category on screen, subject revealed on the press.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -448,7 +448,7 @@ export const awardRevealType: GraphicType = {
     },
     {
       id: 'aw02',
-      name: 'Frost Award Reveal',
+      name: 'Frost Award',
       description: 'A frosted category plate — the subject blooms out on the press.',
       styleTag: 'glass',
       palette: paletteById('orchid'),
@@ -476,7 +476,7 @@ export const awardRevealType: GraphicType = {
       create: (_type, options) => aw03.create(options),
     },
     {
-      id: 'aw04', name: 'Clean Award Reveal', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
+      id: 'aw04', name: 'Clean Award', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
       styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
       animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
       samples: { kicker: 'THE AWARD FOR', category: 'OUTSTANDING LIVE PRODUCTION', subject: 'NORTHLIGHT MEDIA' },

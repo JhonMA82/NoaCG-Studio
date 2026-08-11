@@ -9,7 +9,7 @@ export const card73: TemplateVariant = defineCardVariant(
   {
     id: 'card73',
     category: 'info-card',
-    name: 'Volt Product Info Card',
+    name: 'Volt Product',
     styleTag: 'sport',
     description:
       'A hard-edged product slab with a large price, saving chip, and square product shot.',
@@ -35,7 +35,7 @@ export const card73: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Product Info Card',
+    name: 'Volt Product',
     description:
       'A sport slab with a square product shot, condensed product name, and an accent-backed price row.',
     uicolor: '1',

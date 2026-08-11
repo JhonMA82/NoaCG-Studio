@@ -236,7 +236,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al12',
-      name: 'Quiet Warning Alert',
+      name: 'Quiet Warning',
       description: 'A restrained cinematic warning on a soft scrim with a single hairline.',
       styleTag: 'cinematic',
       palette: paletteById('noir'),
@@ -256,7 +256,7 @@ export const alertLevelType: GraphicType = {
       // than beside it, which is the reading order a weather bulletin needs. Packs resolve a
       // family to its FIRST design, so al01 stays the minimal cell and this one is a choice.
       id: 'al05',
-      name: 'Weather Warning Alert',
+      name: 'Weather Warning',
       description: 'A weather-warning card: severity cap on top, headline, area and validity below.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -276,7 +276,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al06',
-      name: 'Civil Emergency Alert',
+      name: 'Civil Emergency',
       description: 'A full-width emergency card: severity cap, hazard, instruction and source.',
       styleTag: 'minimal',
       palette: paletteById('signal'),

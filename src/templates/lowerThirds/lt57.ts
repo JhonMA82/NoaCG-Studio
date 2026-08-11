@@ -15,7 +15,7 @@ export const lt57: TemplateVariant = defineVariant(
   {
     id: 'lt57',
     category: 'lower-third',
-    name: 'Volt Call Lower Third',
+    name: 'Volt Call',
     styleTag: 'sport',
     description: 'A leaning call-to-action slab: the imperative in heavy caps over its target and reason.',
     maxLines: 3,
@@ -31,7 +31,7 @@ export const lt57: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Call Lower Third',
+    name: 'Volt Call',
     description:
       'A forward-leaning sport slab with a chunky accent edge: the call to action in huge heavy ' +
       'condensed caps, the address or handle it points at beneath it in the accent colour, and ' +

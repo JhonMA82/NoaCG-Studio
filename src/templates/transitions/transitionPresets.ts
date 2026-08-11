@@ -37,7 +37,7 @@ var easeOut = '${cfg.easeOut}';   // exit ease — starts naturally, leaves quic
 export const TRANSITION_PRESETS: AnimPreset[] = [
   {
     id: 'transition-slam' as AnimPresetId,
-    name: 'Slam Transition',
+    name: 'Slam',
     description: 'In: angled slabs slam across the frame and the mark snaps on. Out: they slam off the same way.',
     autoEase: { easeIn: 'power4.out', easeOut: 'power4.in' },
     emit: (cfg) => `${MARK_OPEN}

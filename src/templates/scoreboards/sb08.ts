@@ -22,7 +22,7 @@ export const sb08: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb08',
     category: 'scoreboard',
-    name: 'Club Scorebug Scoreboard',
+    name: 'Club Scorebug',
     styleTag: 'minimal',
     description: 'The amateur club bug: full team names, a hairline stack, and a count-up clock.',
     maxLines: 1,
@@ -34,7 +34,7 @@ export const sb08: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Club Scorebug Scoreboard',
+    name: 'Club Scorebug',
     description:
       'The local and amateur sports bug, sibling of sb02 Quiet Score and lt01 Hairline: a ' +
       'panel-free corner stack with one team per row, a club colour rule down the left, full ' +

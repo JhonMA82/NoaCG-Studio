@@ -12,7 +12,7 @@ export const lt47: TemplateVariant = defineVariant(
   {
     id: 'lt47',
     category: 'lower-third',
-    name: 'Glass Sign Lower Third',
+    name: 'Glass Sign',
     styleTag: 'glass',
     description: 'A frosted card signed off on the right by a logo, behind a soft accent divider.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const lt47: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Glass Sign Lower Third',
+    name: 'Glass Sign',
     description:
       'A frosted card with the mark on the trailing edge: name over a dimmed role, a soft accent ' +
       'divider, then the logo. Reads as a signature rather than a banner, which is what a ' +

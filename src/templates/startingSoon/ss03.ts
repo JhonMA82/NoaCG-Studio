@@ -10,7 +10,7 @@ export const ss03: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss03',
     category: 'starting-soon',
-    name: 'Frost Hold Starting Soon',
+    name: 'Frost Hold',
     styleTag: 'glass',
     description: 'A centered frosted card with the countdown breathing inside a soft glass pill.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ss03: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Hold Starting Soon',
+    name: 'Frost Hold',
     description:
       'The glass holding screen: one centered frosted card (lt08’s blur-and-keyline glass) ' +
       'with the title caps, the show name, and the countdown resting in a soft capsule that ' +

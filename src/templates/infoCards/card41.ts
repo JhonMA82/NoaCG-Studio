@@ -16,7 +16,7 @@ export const card41: TemplateVariant = defineCardVariant(
   {
     id: 'card41',
     category: 'info-card',
-    name: 'Clean Offer Info Card',
+    name: 'Clean Offer',
     styleTag: 'minimal',
     description: 'A panel-free offer card: a large offer line over its terms, promo code, and deadline.',
     maxLines: 5,
@@ -34,7 +34,7 @@ export const card41: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Clean Offer Info Card',
+    name: 'Clean Offer',
     description:
       'A panel-free offer card in the minimal family: a short accent rule over a tracked-caps ' +
       'kicker, one large offer line, its terms, and a footer with an outlined promo-code chip ' +

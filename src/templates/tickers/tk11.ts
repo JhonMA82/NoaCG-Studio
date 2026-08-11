@@ -13,7 +13,7 @@ export const tk11: TemplateVariant = defineTickerVariant(
   {
     id: 'tk11',
     category: 'ticker',
-    name: 'Headline Crawl Ticker',
+    name: 'Headline Crawl',
     styleTag: 'minimal',
     description: 'The classic news crawl framed by two fixed caps: a section label and a source.',
     maxLines: 3,
@@ -37,7 +37,7 @@ export const tk11: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Headline Crawl Ticker',
+    name: 'Headline Crawl',
     description:
       'A full-width crawl with a solid section label on the left and a quiet source cap on ' +
       'the right. The stories travel; the frame does not — which is what lets a viewer join ' +

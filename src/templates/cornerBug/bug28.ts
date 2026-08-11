@@ -10,7 +10,7 @@ export const bug28: TemplateVariant = defineBugVariant(
   {
     id: 'bug28',
     category: 'corner-bug',
-    name: 'Session Bug Corner Bug',
+    name: 'Session Bug',
     styleTag: 'minimal',
     description: 'A panel-free event mark: the logo, a thin rule, the event over its session line.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const bug28: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Session Bug Corner Bug',
+    name: 'Session Bug',
     description:
       'No panel: the event logo (or a hairline keyline placeholder) sits bare on the video, ' +
       'divided by a thin accent rule from the event name and its session, room or venue line. ' +

@@ -14,7 +14,7 @@ export const card17: TemplateVariant = defineCardVariant(
   {
     id: 'card17',
     category: 'info-card',
-    name: 'Key Term Info Card',
+    name: 'Key Term',
     styleTag: 'noacg',
     description: 'The explainer key-term card: a word in the void panel, then what it means.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card17: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Key Term Info Card',
+    name: 'Key Term',
     description:
       'The house explainer card: an 8px amber bar with the house glow fused to a void blur ' +
       'panel, the term at heading size, and marked lines saying what it means. For education ' +

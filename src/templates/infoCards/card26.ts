@@ -14,7 +14,7 @@ export const card26: TemplateVariant = defineCardVariant(
   {
     id: 'card26',
     category: 'info-card',
-    name: 'Clean Steps Info Card',
+    name: 'Clean Steps',
     styleTag: 'minimal',
     description: 'A numbered process: a heading and up to four steps, one revealed per Continue.',
     maxLines: 5,
@@ -29,7 +29,7 @@ export const card26: TemplateVariant = defineCardVariant(
     defaultSteps: true,
   },
   {
-    name: 'Clean Steps Info Card',
+    name: 'Clean Steps',
     description:
       'The minimal process card: an accent hairline down the left, a tracked-caps heading, and ' +
       'numbered steps that arrive one SPX Continue at a time. The numbers are CSS counters on ' +

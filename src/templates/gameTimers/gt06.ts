@@ -11,7 +11,7 @@ export const gt06: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt06',
     category: 'game-timer',
-    name: 'Frost Countdown Game Timer',
+    name: 'Frost Countdown',
     styleTag: 'glass',
     description: 'A frosted card with a soft label over a clock set in an accent-ringed glass pill.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const gt06: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Frost Countdown Game Timer',
+    name: 'Frost Countdown',
     description:
       'The glass countdown, sibling of lt08 Frosted Card and the ss03 Frost Hold: a ' +
       'translucent blurred card holding a soft rounded caps label above the clock, which ' +

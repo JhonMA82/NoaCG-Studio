@@ -81,7 +81,7 @@ ${MARK_CLOSE}`;
 export const AUDIENCE_PRESETS: AnimPreset[] = [
   {
     id: 'audience-rise' as AnimPresetId,
-    name: 'Audience rise Audience',
+    name: 'Audience rise',
     description: 'The card fades up, the kicker pops, the message wipes up and the attribution settles in.',
     autoEase: { easeIn: 'power3.out', easeOut: 'power2.in' },
     emit: (cfg) =>

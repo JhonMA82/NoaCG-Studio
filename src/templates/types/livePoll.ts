@@ -135,7 +135,7 @@ export const livePollType: GraphicType = {
   designs: [
     {
       id: 'pl01',
-      name: 'House Vote Poll',
+      name: 'House Vote',
       description: 'The house live-vote board: a void panel, amber edge, a VOTE NOW badge and growing amber bars.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -144,7 +144,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl02',
-      name: 'Volt Vote Poll',
+      name: 'Volt Vote',
       description: 'A results-night slab: condensed caps options, square accent bars, a called winner.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -158,7 +158,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl03',
-      name: 'Frost Vote Poll',
+      name: 'Frost Vote',
       description: 'A frosted live-vote board: a soft VOTE NOW pill over rounded glass bars.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -167,7 +167,7 @@ export const livePollType: GraphicType = {
     },
     {
       id: 'pl04',
-      name: 'Clean Vote Poll',
+      name: 'Clean Vote',
       description: 'A quiet live-vote board: an accent VOTE NOW label, a keyline, and slim growing bars.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

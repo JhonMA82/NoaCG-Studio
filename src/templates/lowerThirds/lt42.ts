@@ -10,7 +10,7 @@ export const lt42: TemplateVariant = defineVariant(
   {
     id: 'lt42',
     category: 'lower-third',
-    name: 'Right Slam Lower Third',
+    name: 'Right Slam',
     styleTag: 'sport',
     description: 'Right-anchored slab: accent bar on the outside edge, type ragged-left.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt42: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Right Slam Lower Third',
+    name: 'Right Slam',
     description:
       'The sport slab built for the right of the frame: the accent bar on the outside edge, the ' +
       'name and stat line ragged-left against it. Pairs with lt05 or lt40 on the opposite side ' +

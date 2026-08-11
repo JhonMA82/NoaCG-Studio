@@ -17,7 +17,7 @@ export const ls18: TemplateVariant = defineVariant(
   {
     id: 'ls18',
     category: 'lower-third',
-    name: 'Faculty Card Lower Third',
+    name: 'Faculty Card',
     styleTag: 'glass',
     description: 'The institution mark at the head of the card, with the speaker named beside it.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const ls18: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Faculty Card Lower Third',
+    name: 'Faculty Card',
     description:
       'The institutional speaker card: the organisation mark at the head as a real SPX image ' +
       'field — so the logo is swapped at playout, not baked in — with the speaker, their ' +

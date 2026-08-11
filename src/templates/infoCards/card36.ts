@@ -14,7 +14,7 @@ export const card36: TemplateVariant = defineCardVariant(
   {
     id: 'card36',
     category: 'info-card',
-    name: 'Translation Slab Info Card',
+    name: 'Translation Slab',
     styleTag: 'sport',
     description: 'A quote and its translation on a sport slab, with the speaker underneath.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card36: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Translation Slab Info Card',
+    name: 'Translation Slab',
     description:
       'The sport translation card: a flat near-black slab under a chunky accent rail, a caps ' +
       'label, the quote in readable sentence case, the original language behind its own accent ' +

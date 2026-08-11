@@ -26,7 +26,7 @@ export const card59: TemplateVariant = defineCardVariant(
   {
     id: 'card59',
     category: 'info-card',
-    name: 'Edition Title Info Card',
+    name: 'Edition Title',
     styleTag: 'editorial',
     description: 'Printed session or segment title with a masthead rule and generous paper spacing.',
     maxLines: 5,
@@ -38,7 +38,7 @@ export const card59: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Edition Title Info Card',
+    name: 'Edition Title',
     description:
       'The session and segment opener in the lt25 Masthead family: one printed rule, a tracked ' +
       'kicker, a set display title and a practical supporting line on a flat paper surface.',
@@ -117,7 +117,7 @@ export const card60: TemplateVariant = defineCardVariant(
   {
     id: 'card60',
     category: 'info-card',
-    name: 'Rundown Column Info Card',
+    name: 'Rundown Column',
     styleTag: 'editorial',
     description: 'Topic and coming-up hierarchy organised by a column rule and printed labels.',
     maxLines: 5,
@@ -129,7 +129,7 @@ export const card60: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Rundown Column Info Card',
+    name: 'Rundown Column',
     description:
       'The topic and coming-up card in the lt26 Byline family: a full-height printed rule, ' +
       'wide-tracked section labels and two clearly separated editorial beats.',
@@ -238,7 +238,7 @@ export const card61: TemplateVariant = defineCardVariant(
   {
     id: 'card61',
     category: 'info-card',
-    name: 'Fact Check Desk Info Card',
+    name: 'Fact Check Desk',
     styleTag: 'editorial',
     description: 'Claim, finding, context and source arranged as a printed fact-check panel.',
     maxLines: 4,
@@ -250,7 +250,7 @@ export const card61: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Fact Check Desk Info Card',
+    name: 'Fact Check Desk',
     description:
       'The quote and fact-check card in the lt25 Masthead family: a status kicker above the ' +
       'claim, a neutral finding block and an explicit source on a flat printed surface.',
@@ -340,7 +340,7 @@ export const card62: TemplateVariant = defineCardVariant(
   {
     id: 'card62',
     category: 'info-card',
-    name: 'Explainer Folio Info Card',
+    name: 'Explainer Folio',
     styleTag: 'editorial',
     description: 'Headline and readable explanation set beside a printed column rule.',
     maxLines: 4,
@@ -352,7 +352,7 @@ export const card62: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Explainer Folio Info Card',
+    name: 'Explainer Folio',
     description:
       'The explainer in the lt27 Column Rule family: a vertical printed rule, a tracked ' +
       'section label, one set headline, readable prose and an explicit source.',
@@ -446,7 +446,7 @@ export const card63: TemplateVariant = defineCardVariant(
   {
     id: 'card63',
     category: 'info-card',
-    name: 'Public Notice Sheet Info Card',
+    name: 'Public Notice Sheet',
     styleTag: 'editorial',
     description: 'Official notice with a printed authority header, action line and contact.',
     maxLines: 5,
@@ -458,7 +458,7 @@ export const card63: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Public Notice Sheet Info Card',
+    name: 'Public Notice Sheet',
     description:
       'The official notice in the lt25 Masthead family: a flat paper surface, printed top rule, ' +
       'undimmed action line and explicit issuing authority. Its existing notice-level machine ' +
@@ -572,7 +572,7 @@ export const card64: TemplateVariant = defineCardVariant(
   {
     id: 'card64',
     category: 'info-card',
-    name: 'Results Ledger Info Card',
+    name: 'Results Ledger',
     styleTag: 'editorial',
     description: 'Agenda or compact results board arranged as a ruled editorial ledger.',
     maxLines: 5,
@@ -590,7 +590,7 @@ export const card64: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Results Ledger Info Card',
+    name: 'Results Ledger',
     description:
       'The compact agenda and results board in the lt28 Feature Center family: a flat paper ' +
       'ledger with one masthead rule, aligned rows and a source line. No sports slabs or full-frame treatment.',
@@ -674,7 +674,7 @@ export const card65: TemplateVariant = defineCardVariant(
   {
     id: 'card65',
     category: 'info-card',
-    name: 'Sponsor Read Info Card',
+    name: 'Sponsor Read',
     styleTag: 'editorial',
     description: 'Prepared sponsor copy with disclosure, offer and destination in a print-led hierarchy.',
     maxLines: 4,
@@ -691,7 +691,7 @@ export const card65: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Sponsor Read Info Card',
+    name: 'Sponsor Read',
     description:
       'The sponsor-read panel in the lt29 Imprint family: a disclosure-first printed rule, ' +
       'prepared read, offer and destination. The logo is optional and never replaces the disclosure.',
@@ -776,7 +776,7 @@ export const card66: TemplateVariant = defineCardVariant(
   {
     id: 'card66',
     category: 'info-card',
-    name: 'Prepared Caption Info Card',
+    name: 'Prepared Caption',
     styleTag: 'editorial',
     description: 'Prepared caption band with a speaker label, full sentence and source.',
     maxLines: 3,
@@ -792,7 +792,7 @@ export const card66: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Prepared Caption Info Card',
+    name: 'Prepared Caption',
     description:
       'The prepared caption in the compact lt31 Standfirst family: a shallow flat ink band ' +
       'beneath a printed rule, with a cue, full sentence and source. It is prepared text, not a timed-text runtime.',

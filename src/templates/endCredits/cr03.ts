@@ -12,7 +12,7 @@ export const cr03: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr03',
     category: 'end-credits',
-    name: 'Pager End Credit',
+    name: 'Pager',
     styleTag: 'sport',
     description:
       'One-pager credit swaps: each section holds as a full centered card, then hands over ' +
@@ -42,7 +42,7 @@ export const cr03: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Pager End Credits',
+    name: 'Pager',
     description:
       'Sport end credits built as full-screen pages that swap section by section. Headings ' +
       'sit on forward-leaning dark slab chips with a volt edge (the lt05 lean, painted on a ' +

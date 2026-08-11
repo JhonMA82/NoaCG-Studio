@@ -9,7 +9,7 @@ export const card09: TemplateVariant = defineCardVariant(
   {
     id: 'card09',
     category: 'info-card',
-    name: 'Frost Title Info Card',
+    name: 'Frost Title',
     styleTag: 'glass',
     description: 'A frosted panel opener: a soft accent kicker over a large title and a subtitle.',
     maxLines: 5,
@@ -25,7 +25,7 @@ export const card09: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Title Info Card',
+    name: 'Frost Title',
     description:
       'The glass show opener, sibling of lt08 Frosted Card and card03 Frosted Panel: one ' +
       'translucent blurred panel holding a soft accent kicker above a large title and a ' +

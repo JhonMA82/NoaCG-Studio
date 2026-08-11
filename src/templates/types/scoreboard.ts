@@ -128,7 +128,7 @@ export const scoreboardType: GraphicType = {
   designs: [
     {
       id: 'sb01',
-      name: 'Match Strip Scoreboard',
+      name: 'Match Strip',
       description: 'The sport score strip: team names against big scores, one accent edge.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -137,7 +137,7 @@ export const scoreboardType: GraphicType = {
     },
     {
       id: 'sb02',
-      name: 'Quiet Score Scoreboard',
+      name: 'Quiet Score',
       description: 'Panel-free corner stack - two quiet rows split by a hairline, accent rule on the edge.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -155,7 +155,7 @@ export const scoreboardType: GraphicType = {
       // Designed FOR this cell: no noacg scoreboard existed. The house void strip with an
       // amber accent edge that doubles as the flag marker — sibling of lt11 House Strap.
       id: 'sb03',
-      name: 'House Score Scoreboard',
+      name: 'House Score',
       description: 'The house score strip: void panel, amber accent edge, scores in void chips.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -167,7 +167,7 @@ export const scoreboardType: GraphicType = {
       // Designed FOR this cell: no glass scoreboard existed. A frosted strip with a soft accent
       // bar that doubles as the flag marker — sibling of lt08 Frosted Card.
       id: 'sb04',
-      name: 'Frost Score Scoreboard',
+      name: 'Frost Score',
       description: 'A frosted score strip: soft accent bar, team names, scores in glass chips.',
       styleTag: 'glass',
       palette: paletteById('frost'),

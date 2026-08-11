@@ -10,7 +10,7 @@ export const card07: TemplateVariant = defineCardVariant(
   {
     id: 'card07',
     category: 'info-card',
-    name: 'Clean Title Info Card',
+    name: 'Clean Title',
     styleTag: 'minimal',
     description: 'A panel-free opener: a caps kicker over a large title and a quiet subtitle.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card07: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Clean Title Info Card',
+    name: 'Clean Title',
     description:
       'The minimal show opener, sibling of lt01/lt02: no panel at all — a small tracked-caps ' +
       'kicker in the accent color, a short accent underline, then a large confident title and ' +

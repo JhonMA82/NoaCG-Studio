@@ -15,7 +15,7 @@ export const ss09: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss09',
     category: 'starting-soon',
-    name: 'Thanks for Watching Starting Soon',
+    name: 'Thanks for Watching',
     styleTag: 'noacg',
     description: 'The sign-off / offline card — thanks, the show name, and when you are back next.',
     maxLines: 3,
@@ -31,7 +31,7 @@ export const ss09: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Thanks for Watching Starting Soon',
+    name: 'Thanks for Watching',
     description:
       'The house sign-off screen, the closing pair to ss04 House Hold: a mono kicker in the ' +
       'accent color, the show name in display type, an amber rule that breathes, and the ' +

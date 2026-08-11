@@ -12,7 +12,7 @@ export const lt40: TemplateVariant = defineVariant(
   {
     id: 'lt40',
     category: 'lower-third',
-    name: 'Chevron Lower Third',
+    name: 'Chevron',
     styleTag: 'sport',
     description: 'A clip-path chevron driving into a hard slab — name over a caps stat line.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const lt40: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Chevron Lower Third',
+    name: 'Chevron',
     description:
       'A chevron of accent colour driving into a dark slab, with the name above a caps stat or ' +
       'team line. The angle is cut with clip-path rather than skewed, so it holds its shape ' +

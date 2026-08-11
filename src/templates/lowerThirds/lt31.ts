@@ -10,7 +10,7 @@ export const lt31: TemplateVariant = defineVariant(
   {
     id: 'lt31',
     category: 'lower-third',
-    name: 'Standfirst Lower Third',
+    name: 'Standfirst',
     styleTag: 'editorial',
     description: 'Name only, opened by a short rule, set on a flat printed panel.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const lt31: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Standfirst Lower Third',
+    name: 'Standfirst',
     description:
       'One name on a flat ink panel, opened by a short accent rule. The compact editorial strap ' +
       'for when the role is already known — a returning guest, a named correspondent, a host. ' +

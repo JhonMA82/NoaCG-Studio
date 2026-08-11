@@ -21,7 +21,7 @@ export const tt04: TemplateVariant = defineResultsVariant(
   {
     id: 'tt04',
     category: 'results-board',
-    name: 'Clean Timing Results Board',
+    name: 'Clean Timing',
     styleTag: 'minimal',
     description: 'A quiet timing column: hairline rows, tabular gaps, no panel at all.',
     maxLines: 2,
@@ -36,7 +36,7 @@ export const tt04: TemplateVariant = defineResultsVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Clean Timing Results Board',
+    name: 'Clean Timing',
     description:
       'A panel-free timing tower: hairline rules between the rows, positions in small figures, ' +
       'the gap column tabular, and the leader marked in the accent once the stage is final.',

@@ -18,7 +18,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
   {
     id: 'pc01',
     category: 'matchup',
-    name: 'Player Card Matchup',
+    name: 'Player Card',
     styleTag: 'sport',
     description: 'Portrait, name and role — with the stat block revealed on the press.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const pc01: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Player Card Matchup',
+    name: 'Player Card',
     description:
       'The sport competitor card: a cropped portrait beside the name, role and crest on a ' +
       'dark stage, an accent slab down the portrait edge, and a stat block that arrives on ' +

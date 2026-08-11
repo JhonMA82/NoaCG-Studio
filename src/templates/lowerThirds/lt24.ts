@@ -14,7 +14,7 @@ export const lt24: TemplateVariant = defineVariant(
   {
     id: 'lt24',
     category: 'lower-third',
-    name: 'Credential Strap Lower Third',
+    name: 'Credential Strap',
     styleTag: 'minimal',
     description: 'Five inputs: name and role over a meta band of organisation, location and note.',
     maxLines: 5,
@@ -32,7 +32,7 @@ export const lt24: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Credential Strap Lower Third',
+    name: 'Credential Strap',
     description:
       'The full-credential strap for panels, hearings and conferences: name and role at reading ' +
       'size, then organisation, location and a status note as a band of small tracked labels ' +

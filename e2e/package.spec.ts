@@ -61,7 +61,11 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
     mimeType: 'font/woff2',
     buffer: Buffer.from(buf),
   });
-  await expect(page.getByTestId('font-option-custom')).toContainText('My Brand Font');
+  // The upload lands as the picker's "(Your typeface)" option and is selected at once.
+  await expect(page.getByTestId('font-select').first()).toHaveValue('custom');
+  await expect(
+    page.getByTestId('font-select').first().locator('option[value="custom"]'),
+  ).toHaveText('My Brand Font (Your typeface)');
   await create(page);
 
   // The generated code carries the embedded font; the export bundles the binary.
@@ -105,7 +109,7 @@ test('project brand: match toggle carries the look to another variant', async ({
 test('info card: creates, binds, and plays', async ({ page }) => {
   await toVariantStep(page, 'Topic', 'Slab Card');
   await create(page);
-  await expect(page.locator('.topbar .tpl-name')).toContainText('Slab Card');
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Slab Card');
   await expect(frame(page).locator('.info-card')).toBeAttached(); // the NEW document is loaded
   await page.getByRole('button', { name: '▶ Play' }).click();
   await expect

@@ -10,7 +10,7 @@ export const lt04: TemplateVariant = defineVariant(
   {
     id: 'lt04',
     category: 'lower-third',
-    name: 'Kicker Lower Third',
+    name: 'Kicker',
     styleTag: 'minimal',
     description: 'A light porcelain card: a small accent kicker above a heavy headline name.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt04: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Kicker Lower Third',
+    name: 'Kicker',
     description:
       'A near-white editorial card. The name sits big and heavy in near-black type, with a ' +
       'small uppercase kicker in the accent color perched above it — quiet, headline-first, ' +

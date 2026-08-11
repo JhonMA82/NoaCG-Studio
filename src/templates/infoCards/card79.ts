@@ -9,7 +9,7 @@ export const card79: TemplateVariant = defineCardVariant(
   {
     id: 'card79',
     category: 'info-card',
-    name: 'Frost Scan Info Card',
+    name: 'Frost Scan',
     styleTag: 'glass',
     description:
       'A frosted QR card with a protected white code tile, headline, and readable address.',
@@ -33,7 +33,7 @@ export const card79: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Frost Scan Info Card',
+    name: 'Frost Scan',
     description:
       'A translucent keylined QR card whose opaque white quiet-zone tile remains isolated from the family tint.',
     uicolor: '5',

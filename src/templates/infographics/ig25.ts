@@ -22,7 +22,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig25',
     category: 'infographic',
-    name: 'Volt Milestones Infographic',
+    name: 'Volt Milestones',
     styleTag: 'sport',
     description: 'A tier rail in the sport register: square markers lit as the line passes them.',
     maxLines: 2,
@@ -37,7 +37,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Volt Milestones Infographic',
+    name: 'Volt Milestones',
     description:
       'A forward-leaning sport slab with a chunky accent edge, carrying a tier rail: the label ' +
       'and running figure over a squared track with one square marker per milestone, lit as the ' +

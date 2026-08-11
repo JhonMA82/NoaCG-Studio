@@ -14,7 +14,7 @@ export const card33: TemplateVariant = defineCardVariant(
   {
     id: 'card33',
     category: 'info-card',
-    name: 'House Notice Info Card',
+    name: 'House Notice',
     styleTag: 'noacg',
     description: 'The house service notice: what has happened, and what the viewer should do.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card33: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Notice Info Card',
+    name: 'House Notice',
     description:
       'The house service notice, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, an accent notice chip, the headline, the details, and ' +

@@ -15,7 +15,7 @@ export const tk07: TemplateVariant = defineTickerVariant(
   {
     id: 'tk07',
     category: 'ticker',
-    name: 'House Rotator Ticker',
+    name: 'House Rotator',
     styleTag: 'noacg',
     description: 'The house strip, one story at a time — timed, and pausable on air.',
     maxLines: 2,
@@ -40,7 +40,7 @@ export const tk07: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Rotator Ticker',
+    name: 'House Rotator',
     description:
       'The NoaCG strip in rotating form: the same void blur, accent label block and clock ' +
       'cap as House Wire, but each story holds long enough to read before the next one takes ' +

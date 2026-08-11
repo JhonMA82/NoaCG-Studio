@@ -18,7 +18,7 @@ export const pc03: TemplateVariant = defineMatchupVariant(
   {
     id: 'pc03',
     category: 'matchup',
-    name: 'Frost Player Matchup',
+    name: 'Frost Player',
     styleTag: 'glass',
     description: 'A frosted competitor card: rounded portrait, glass stat tiles on the press.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const pc03: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Player Matchup',
+    name: 'Frost Player',
     description:
       'The glass competitor card: one frosted panel holding a rounded portrait and the ' +
       'identity block, with the stat figures arriving as glass tiles on the Continue press.',

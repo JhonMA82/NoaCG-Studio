@@ -19,7 +19,7 @@ export const nm01: TemplateVariant = defineRevealVariant(
   {
     id: 'nm01',
     category: 'reveal',
-    name: 'House Nominees Reveal',
+    name: 'House Nominees',
     styleTag: 'noacg',
     description: 'The finalists on a void stage — then the winner lifts into amber.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const nm01: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Nominees Reveal',
+    name: 'House Nominees',
     description:
       'The NoaCG nominee reveal: a void stage with an amber rule, the finalists in house ' +
       'display type, a suspense hold, and the winner lifted into amber while the rest fall away.',

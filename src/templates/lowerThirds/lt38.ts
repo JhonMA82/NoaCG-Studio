@@ -12,7 +12,7 @@ export const lt38: TemplateVariant = defineVariant(
   {
     id: 'lt38',
     category: 'lower-third',
-    name: 'Fade Rule Lower Third',
+    name: 'Fade Rule',
     styleTag: 'cinematic',
     description: 'Compact right-anchored pair, closed by a hairline that dissolves as it runs.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt38: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Fade Rule Lower Third',
+    name: 'Fade Rule',
     description:
       'The lightest strap in the set: a name, a tracked role beneath it, and a hairline under both ' +
       'that fades out as it travels. No scrim, no panel — use it over graded footage that is ' +

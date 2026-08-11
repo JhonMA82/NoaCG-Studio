@@ -27,7 +27,7 @@ export const tt02: TemplateVariant = defineResultsVariant(
   {
     id: 'tt02',
     category: 'results-board',
-    name: 'House Timing Results Board',
+    name: 'House Timing',
     styleTag: 'noacg',
     description: 'The house timing tower: void rows, mono times, an amber focus keyline.',
     maxLines: 2,
@@ -42,7 +42,7 @@ export const tt02: TemplateVariant = defineResultsVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'House Timing Results Board',
+    name: 'House Timing',
     description:
       'The NoaCG timing tower: a void blur column with an amber top edge, mono positions and ' +
       'times, an amber-keylined competitor in focus, and an amber leader chip once the ' +

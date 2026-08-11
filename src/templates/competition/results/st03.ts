@@ -18,7 +18,7 @@ export const st03: TemplateVariant = defineResultsVariant(
   {
     id: 'st03',
     category: 'results-board',
-    name: 'Frost Leaderboard Results Board',
+    name: 'Frost Leaderboard',
     styleTag: 'glass',
     description: 'A frosted leaderboard: ranked glass tiles with the position in an accent ring.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const st03: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Leaderboard Results Board',
+    name: 'Frost Leaderboard',
     description:
       'The glass leaderboard: frosted, softly-rounded row tiles with each position in an ' +
       'accent ring, any columns the operator declares, and an accent ring on the leader once ' +

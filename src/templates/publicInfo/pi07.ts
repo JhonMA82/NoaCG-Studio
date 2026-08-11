@@ -18,7 +18,7 @@ export const pi07: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi07',
     category: 'public-info',
-    name: 'Bilingual Panel Public Info',
+    name: 'Bilingual Panel',
     styleTag: 'minimal',
     description: 'One notice in two languages, side by side, both given equal weight.',
     maxLines: 5,
@@ -36,7 +36,7 @@ export const pi07: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Bilingual Panel Public Info',
+    name: 'Bilingual Panel',
     description:
       'One notice, two languages, both on screen: equal columns divided by a neutral keyline, ' +
       'with a single shared attribution beneath. Neither language is dimmed — the panel does ' +

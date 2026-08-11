@@ -11,7 +11,7 @@ export const bug19: TemplateVariant = defineBugVariant(
   {
     id: 'bug19',
     category: 'corner-bug',
-    name: 'Slab Sponsor Strip Corner Bug',
+    name: 'Slab Sponsor Strip',
     styleTag: 'sport',
     description: 'A sponsor slab: an accent kicker chip fused to a row of three partner slots.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const bug19: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Slab Sponsor Strip Corner Bug',
+    name: 'Slab Sponsor Strip',
     description:
       'The sport partner bar: an accent kicker chip fused to the left edge of a solid slab ' +
       'holding three sponsor logo slots. Square corners and a hard offset shadow — the ' +

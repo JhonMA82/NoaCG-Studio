@@ -212,7 +212,7 @@ function hideStepLines(cfg: PresetConfig): string {
  *  registry, the keyframe deriver, the Animations tab — handles them like any other id. */
 const SLIDE_DIRECTIONS = {
   up: {
-    name: 'Slide up Lower Third',
+    name: 'Slide up',
     description: 'Rises into place from below and sinks back down to leave. Quiet and universal.',
     comment: 'the whole graphic rises in from below; text lines follow in sequence',
     boxFrom: 'y: 26',

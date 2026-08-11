@@ -20,7 +20,7 @@ export const ls22: TemplateVariant = defineVariant(
   {
     id: 'ls22',
     category: 'lower-third',
-    name: 'Party Strap Lower Third',
+    name: 'Party Strap',
     styleTag: 'noacg',
     description: 'A politician named with their role, and their party set apart as a colour chip.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const ls22: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Party Strap Lower Third',
+    name: 'Party Strap',
     description:
       'The everyday political strap: the house bar and void panel carrying a name, the job ' +
       'title, and the party affiliation as a separate colour chip beside it — two different ' +

@@ -9,7 +9,7 @@ export const pi01: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi01',
     category: 'public-info',
-    name: 'Public Notice Public Info',
+    name: 'Public Notice',
     styleTag: 'minimal',
     description: 'A plain official notice: heading, the notice itself, and the issuing body.',
     maxLines: 3,
@@ -25,7 +25,7 @@ export const pi01: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Public Notice Public Info',
+    name: 'Public Notice',
     description:
       'The reference public notice: a small tracked heading, the notice in comfortable ' +
       'reading type, and the issuing body under a hairline. An accent rule on the reading ' +

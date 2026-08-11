@@ -13,7 +13,7 @@ export const tr02: TemplateVariant = defineTransitionVariant(
   {
     id: 'tr02',
     category: 'transition',
-    name: 'Clean Wipe Transition',
+    name: 'Clean Wipe',
     styleTag: 'minimal',
     description: 'A single band wipes across the frame behind a thin accent edge, then wipes on off.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const tr02: TemplateVariant = defineTransitionVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Wipe Transition',
+    name: 'Clean Wipe',
     description:
       'A quiet full-frame wipe: one solid band travels across the frame behind a thin accent ' +
       'leading edge, holds it covered so a cut can happen underneath, then carries on off the ' +

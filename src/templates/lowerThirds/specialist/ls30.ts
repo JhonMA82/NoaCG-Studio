@@ -22,7 +22,7 @@ export const ls30: TemplateVariant = defineVariant(
   {
     id: 'ls30',
     category: 'lower-third',
-    name: 'World Clock Lower Third',
+    name: 'World Clock',
     styleTag: 'glass',
     description: 'A city and its live local time, computed from a UTC offset the operator sets.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const ls30: TemplateVariant = defineVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'World Clock Lower Third',
+    name: 'World Clock',
     description:
       'The multi-region strap: a city, its zone abbreviation, and the live local time there — ' +
       'COMPUTED from a UTC offset the operator sets in a hidden SPX field, not typed. A typed ' +

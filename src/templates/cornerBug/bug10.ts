@@ -12,7 +12,7 @@ export const bug10: TemplateVariant = defineBugVariant(
   {
     id: 'bug10',
     category: 'corner-bug',
-    name: 'Frost Live Corner Bug',
+    name: 'Frost Live',
     styleTag: 'glass',
     description: 'A frosted live pill: a breathing accent dot beside a switchable status word.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const bug10: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Frost Live Corner Bug',
+    name: 'Frost Live',
     description:
       'A compact frosted pill carrying the on-air status: a breathing accent dot and the ' +
       'status word in soft caps. Live, Replay and Standby are real machine states the operator ' +

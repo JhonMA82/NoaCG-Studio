@@ -284,13 +284,13 @@ test('finish: the Create-with-AI export door saves the graphic and opens the exp
   await page.getByTestId('wz-finish-name').fill('Election Night Slate');
   await page.getByTestId('wz-finish-export').click();
 
-  // The export door is the same shape as every other mode: save, close onto Home, open the
-  // export window — the editor is never revealed.
-  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  // The export door is the same shape as every other mode: save, then open the export window
+  // OVER the wizard (closing it returns to the last creation step) — the editor is never
+  // revealed. Same contract wizard-finish.spec.ts pins since the dashboard redesign.
   const win = page.getByTestId('export-window');
   await expect(win).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await expect(win.locator('h2')).toContainText('Election Night Slate');
-  await expect(page).toHaveURL(/#\/home\/graphics/);
   await expect(win.locator('input[name="export-target"]')).toHaveCount(6);
 
   // The AI creation survives the session under the chosen name — an export-only run that

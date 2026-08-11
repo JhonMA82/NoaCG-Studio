@@ -10,7 +10,7 @@ export const bug03: TemplateVariant = defineBugVariant(
   {
     id: 'bug03',
     category: 'corner-bug',
-    name: 'Slab Bug Corner Bug',
+    name: 'Slab Bug',
     styleTag: 'sport',
     description: 'A solid slab with a chunky accent edge, holding a logo and a heavy caps caption.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const bug03: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Slab Bug Corner Bug',
+    name: 'Slab Bug',
     description:
       'A solid dark slab sitting hard in the corner, a chunky accent slab fused to its left ' +
       'edge in the sport way. The imported logo (or an accent-square placeholder) sits beside ' +

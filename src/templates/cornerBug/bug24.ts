@@ -13,7 +13,7 @@ export const bug24: TemplateVariant = defineBugVariant(
   {
     id: 'bug24',
     category: 'corner-bug',
-    name: 'Quiet Sponsor Rotation Corner Bug',
+    name: 'Quiet Sponsor Rotation',
     styleTag: 'minimal',
     description: 'A panel-free sponsor mark that cycles three partner logos on a timer.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const bug24: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Quiet Sponsor Rotation Corner Bug',
+    name: 'Quiet Sponsor Rotation',
     description:
       'No panel: a tiny tracked-caps kicker over a short accent rule, with one logo stage ' +
       'beneath cycling three partner slots straight on the video. Empty slots are skipped, and ' +

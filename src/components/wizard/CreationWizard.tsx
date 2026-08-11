@@ -681,7 +681,7 @@ export default function CreationWizard() {
    * the next Save. Returns the applied template (read back post-format) or null. Both Finish
    * doors go through here, so the editor and export endings stay byte-identical.
    */
-  const applyAiProject = async (skipNavigation?: boolean): Promise<SpxTemplate | null> => {
+  const applyAiProject = async (skipNavigation?: boolean, keepGalleryOpen?: boolean): Promise<SpxTemplate | null> => {
     if (!aiResult?.valid) return null;
     if (aiResult.generationId) acceptedAiGeneration.current = aiResult.generationId;
     commitStagedSelection();
@@ -689,7 +689,7 @@ export default function CreationWizard() {
     // The Finish name rides the built template, exactly as the catalog path's draftName does,
     // so it reaches the topbar, the Save prefill, and the export slug through one path.
     const template = aiResult.template.name === name ? aiResult.template : { ...aiResult.template, name };
-    await applyGenerated(template, skipNavigation);
+    await applyGenerated(template, skipNavigation, keepGalleryOpen);
     // AFTER the whole-project swap (which clears the store's spec AND conversation), adopt this
     // result's own so both ride the autosave slot + the next Save. Both Finish doors reach here.
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
@@ -713,10 +713,12 @@ export default function CreationWizard() {
   };
 
   /** The AI export door: create, SAVE, and go straight to the export window (mirrors
-   *  createAndExport). The save is not optional — an export-only creation that vanished would
-   *  cost the whole AI generation to reproduce. A failed save deliberately stays in the editor. */
+   *  createAndExport, including keeping the wizard open UNDER the window so closing it
+   *  returns to the last creation step). The save is not optional — an export-only creation
+   *  that vanished would cost the whole AI generation to reproduce. A failed save
+   *  deliberately stays in the editor. */
   const createFromAiAndExport = () => {
-    void applyAiProject(true).then(async (template) => {
+    void applyAiProject(true, true).then(async (template) => {
       if (!template) return;
       const saved = await saveGraphicAs(aiName(), { kind: 'standalone' });
       const s = useTemplateStore.getState();

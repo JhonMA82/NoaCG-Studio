@@ -9,7 +9,7 @@ export const bug34: TemplateVariant = defineBugVariant(
   {
     id: 'bug34',
     category: 'corner-bug',
-    name: 'Frost Location Chip Corner Bug',
+    name: 'Frost Location Chip',
     styleTag: 'glass',
     description: 'A frosted pill: the location and the status, split by a small accent dot.',
     maxLines: 2,
@@ -24,7 +24,7 @@ export const bug34: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Frost Location Chip Corner Bug',
+    name: 'Frost Location Chip',
     description:
       'A compact frosted pill carrying where we are and what is happening there: the place in ' +
       'the display voice, a small accent dot, then the status as a soft caps label. Small ' +

@@ -13,7 +13,7 @@ export const ss02: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss02',
     category: 'starting-soon',
-    name: 'Volt Hold Starting Soon',
+    name: 'Volt Hold',
     styleTag: 'sport',
     description: 'Centered sport stack — accent chip, huge condensed show name, slab-mounted countdown.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ss02: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Hold Starting Soon',
+    name: 'Volt Hold',
     description:
       'The sport pre-show screen, built from the lower-third family DNA: a skewed accent ' +
       'chip for the title (lt06’s solid accent bar), a huge condensed show name on a ' +

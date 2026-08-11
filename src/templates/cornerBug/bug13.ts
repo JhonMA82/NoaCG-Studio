@@ -11,7 +11,7 @@ export const bug13: TemplateVariant = defineBugVariant(
   {
     id: 'bug13',
     category: 'corner-bug',
-    name: 'House Mark Corner Bug',
+    name: 'House Mark',
     styleTag: 'noacg',
     description: 'Logo only: the house mark over a short amber rule, with no caption at all.',
     // Logo-only by design: the graphic has no text fields, so the wizard offers none.
@@ -24,7 +24,7 @@ export const bug13: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'House Mark Corner Bug',
+    name: 'House Mark',
     description:
       'The logo-only house bug: the imported logo — or, until one is picked, a LOGO placeholder ' +
       'box — over ' +

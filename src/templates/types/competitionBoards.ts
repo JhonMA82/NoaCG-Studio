@@ -112,7 +112,7 @@ export const rosterType: GraphicType = {
   designs: [
     {
       id: 'rs01',
-      name: 'Starting Line-up Results Board',
+      name: 'Starting Line-up',
       description: 'A team line-up with roles — and a spotlight the caster moves down it.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -121,7 +121,7 @@ export const rosterType: GraphicType = {
     },
     {
       id: 'rs02',
-      name: 'House Roster Results Board',
+      name: 'House Roster',
       description: 'The house line-up: void rows, mono roles, an amber spotlight block.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -131,7 +131,7 @@ export const rosterType: GraphicType = {
     },
     {
       id: 'rs03',
-      name: 'Clean Line-up Results Board',
+      name: 'Clean Line-up',
       description: 'A panel-free line-up: hairline rows, roles in small caps, a quiet spotlight.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -141,7 +141,7 @@ export const rosterType: GraphicType = {
     },
     {
       id: 'rs05',
-      name: 'Frost Roster Results Board',
+      name: 'Frost Roster',
       description: 'A frosted line-up board with rounded rows and an accent-ringed spotlight.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -151,7 +151,7 @@ export const rosterType: GraphicType = {
     },
     {
       id: 'rs04',
-      name: 'Initiative Order Results Board',
+      name: 'Initiative Order',
       description: 'A tabletop turn order with status notes and an operator-controlled current turn.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -261,7 +261,7 @@ export const standingsType: GraphicType = {
   designs: [
     {
       id: 'st01',
-      name: 'League Table Results Board',
+      name: 'League Table',
       description: 'A standings table with any columns you declare — and a FINAL state.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -270,7 +270,7 @@ export const standingsType: GraphicType = {
     },
     {
       id: 'st02',
-      name: 'House Standings Results Board',
+      name: 'House Standings',
       description: 'The house table: void rows, mono headers, amber positions and final mark.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -280,7 +280,7 @@ export const standingsType: GraphicType = {
     },
     {
       id: 'st03',
-      name: 'Frost Leaderboard Results Board',
+      name: 'Frost Leaderboard',
       description: 'A frosted leaderboard: ranked glass tiles with the position in an accent ring.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -292,7 +292,7 @@ export const standingsType: GraphicType = {
     },
     {
       id: 'st04',
-      name: 'Clean Results Results Board',
+      name: 'Clean Results',
       description: 'A quiet result table: hairline rules, tabular figures, nothing boxed.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -377,7 +377,7 @@ export const bracketType: GraphicType = {
   designs: [
     {
       id: 'br01',
-      name: 'Playoff Bracket Results Board',
+      name: 'Playoff Bracket',
       description: 'A knockout tree in round columns, with a cursor and a champion banner.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -386,7 +386,7 @@ export const bracketType: GraphicType = {
     },
     {
       id: 'br02',
-      name: 'House Bracket Results Board',
+      name: 'House Bracket',
       description: 'The house knockout tree: void ties, mono rounds, an amber cursor and crown.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -396,7 +396,7 @@ export const bracketType: GraphicType = {
     },
     {
       id: 'br03',
-      name: 'Clean Bracket Results Board',
+      name: 'Clean Bracket',
       description: 'A panel-free knockout tree with hairline ties and a quiet live-round cursor.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -406,7 +406,7 @@ export const bracketType: GraphicType = {
     },
     {
       id: 'br04',
-      name: 'Frost Bracket Results Board',
+      name: 'Frost Bracket',
       description: 'A frosted knockout tree with glass ties and an accent-ringed live round.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -548,7 +548,7 @@ export const timingTowerType: GraphicType = {
   designs: [
     {
       id: 'tt01',
-      name: 'Timing Tower Results Board',
+      name: 'Timing Tower',
       description: 'The live running order of a timed session — position, competitor, gap.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -557,7 +557,7 @@ export const timingTowerType: GraphicType = {
     },
     {
       id: 'tt02',
-      name: 'House Timing Results Board',
+      name: 'House Timing',
       description: 'The house timing tower: void rows, mono times, an amber focus keyline.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -569,7 +569,7 @@ export const timingTowerType: GraphicType = {
     },
     {
       id: 'tt03',
-      name: 'Frost Splits Results Board',
+      name: 'Frost Splits',
       description: 'A frosted timing column: ringed positions, frosted rows, split times.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -581,7 +581,7 @@ export const timingTowerType: GraphicType = {
     },
     {
       id: 'tt04',
-      name: 'Clean Timing Results Board',
+      name: 'Clean Timing',
       description: 'A quiet timing column: hairline rows, tabular gaps, no panel at all.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

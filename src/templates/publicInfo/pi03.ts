@@ -13,7 +13,7 @@ export const pi03: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi03',
     category: 'public-info',
-    name: 'Source Label Public Info',
+    name: 'Source Label',
     styleTag: 'minimal',
     description: 'A small corner attribution: where this came from, and when it was measured.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const pi03: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Source Label Public Info',
+    name: 'Source Label',
     description:
       'The attribution chip: a source line with a quieter qualifier under it, on a barely-' +
       'there panel. Built to sit under a chart or a map for minutes at a time without ever ' +

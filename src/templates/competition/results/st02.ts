@@ -19,7 +19,7 @@ export const st02: TemplateVariant = defineResultsVariant(
   {
     id: 'st02',
     category: 'results-board',
-    name: 'House Standings Results Board',
+    name: 'House Standings',
     styleTag: 'noacg',
     description: 'The house table: void rows, mono headers, amber positions and final mark.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const st02: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Standings Results Board',
+    name: 'House Standings',
     description:
       'The NoaCG standings board: a void blur panel with an amber top edge, mono column ' +
       'headers, amber positions, an amber-keylined highlighted row, and an amber leader row ' +

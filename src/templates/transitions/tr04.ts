@@ -19,7 +19,7 @@ export const tr04: TemplateVariant = defineTransitionVariant(
   {
     id: 'tr04',
     category: 'transition',
-    name: 'Frost Sweep Transition',
+    name: 'Frost Sweep',
     styleTag: 'glass',
     description: 'Frosted columns rise over the frame one after another, then lift away upward.',
     maxLines: 1,
@@ -31,7 +31,7 @@ export const tr04: TemplateVariant = defineTransitionVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Sweep Transition',
+    name: 'Frost Sweep',
     description:
       'A soft full-frame sweep: four frosted columns rise over the frame one after another until ' +
       'it is covered, the label resolves in the middle, then the whole thing lifts away upward. ' +

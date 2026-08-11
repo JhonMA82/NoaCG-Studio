@@ -16,7 +16,7 @@ export const card53: TemplateVariant = defineCardVariant(
   {
     id: 'card53',
     category: 'info-card',
-    name: 'Translation Info Card',
+    name: 'Translation',
     styleTag: 'glass',
     description: 'Spoken line above, translation below and brighter — the language the audience reads leads.',
     maxLines: 3,
@@ -32,7 +32,7 @@ export const card53: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Translation Info Card',
+    name: 'Translation',
     description:
       'A bilingual caption band: the spoken line small and dimmed behind an accent bar, the ' +
       'translation beneath it at full reading size and brightness, and an optional language ' +

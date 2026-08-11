@@ -12,7 +12,7 @@ export const lt15: TemplateVariant = defineVariant(
   {
     id: 'lt15',
     category: 'lower-third',
-    name: 'Frost Strap Lower Third',
+    name: 'Frost Strap',
     styleTag: 'glass',
     description: 'A frosted glass strap led by a soft accent edge — name over a dimmed title.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const lt15: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Frost Strap Lower Third',
+    name: 'Frost Strap',
     description:
       'The glass lower third with a real accent edge: lt08\'s frosted card, translucent and ' +
       'heavily blurred with a hairline keyline, led by a soft accent-tinted edge that fades ' +

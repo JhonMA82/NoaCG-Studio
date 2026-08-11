@@ -17,7 +17,7 @@ export const ig03: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig03',
     category: 'infographic',
-    name: 'Timing Tower Infographic',
+    name: 'Timing Tower',
     styleTag: 'sport',
     description: 'A live-timing standings stack - leaning slab rows with position chips and gaps.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const ig03: TemplateVariant = defineInfographicVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Timing Tower Infographic',
+    name: 'Timing Tower',
     description:
       'A race-control standings tower - the sibling of the Angle Slab and Split Bar lower ' +
       'thirds. Each row is a leaning dark slab: a skewed accent chip carries the position ' +

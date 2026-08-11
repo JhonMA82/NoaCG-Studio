@@ -67,7 +67,7 @@ function buildOutTimeline() {
 export const CREDITS_PRESETS: AnimPreset[] = [
   {
     id: 'credits-roll' as AnimPresetId,
-    name: 'Rolling credits End Credit',
+    name: 'Rolling credits',
     description: 'The classic upward roll — linear travel that stops with the logo + year centered.',
     autoEase: { easeIn: 'power2.out', easeOut: 'power2.in' },
     emit: (cfg) => `${MARK_OPEN}

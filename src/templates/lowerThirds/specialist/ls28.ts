@@ -21,7 +21,7 @@ export const ls28: TemplateVariant = defineVariant(
   {
     id: 'ls28',
     category: 'lower-third',
-    name: 'Live Remote Lower Third',
+    name: 'Live Remote',
     styleTag: 'minimal',
     description: 'A pulsing LIVE flag, the location, and a real ticking clock.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const ls28: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Live Remote Lower Third',
+    name: 'Live Remote',
     description:
       'The remote flag: a pulsing LIVE mark, the location beside it, and a clock that reads ' +
       'the playout machine’s own time rather than a value someone typed — so it cannot go ' +

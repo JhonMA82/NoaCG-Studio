@@ -44,7 +44,7 @@ export const sponsorBugType: GraphicType = {
   designs: [
     {
       id: 'bug02',
-      name: 'House Clock Corner Bug',
+      name: 'House Clock',
       description: 'The NoaCG house bug: the mark over a mono caption and a live accent clock.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -55,7 +55,7 @@ export const sponsorBugType: GraphicType = {
     },
     {
       id: 'bug01',
-      name: 'Glass Mark Corner Bug',
+      name: 'Glass Mark',
       description: 'A small frosted tile with a logo slot and a tiny caption — the persistent on-air mark.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -72,7 +72,7 @@ export const sponsorBugType: GraphicType = {
       // Designed FOR this cell, not promoted: no sport corner bug existed. A solid slab with
       // the accent fused to its left edge — the corner-scale sibling of lt05/lt06.
       id: 'bug03',
-      name: 'Slab Bug Corner Bug',
+      name: 'Slab Bug',
       description: 'A solid slab with a chunky accent edge, holding a logo and a heavy caps caption.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -86,7 +86,7 @@ export const sponsorBugType: GraphicType = {
       // Designed FOR this cell: the panel-free minimal bug — a logo over a short accent
       // underline and a tiny caption, the sibling of lt01 Hairline / lt02 Underline.
       id: 'bug04',
-      name: 'Hairline Bug Corner Bug',
+      name: 'Hairline Bug',
       description: 'A panel-free logo mark over a short accent underline and a tiny caps caption.',
       styleTag: 'minimal',
       palette: paletteById('signal'),
@@ -134,7 +134,7 @@ export const socialBugType: GraphicType = {
   designs: [
     {
       id: 'lt14',
-      name: 'House Handle Lower Third',
+      name: 'House Handle',
       description: 'The house social mark: compact void strip, amber bar, mono platform label.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -151,7 +151,7 @@ export const socialBugType: GraphicType = {
       // handles are DESIGNED as compact handle strips instead — small siblings of the lower
       // thirds in each family, each carrying a real accent element this type requires.
       id: 'lt16',
-      name: 'Frost Handle Lower Third',
+      name: 'Frost Handle',
       description: 'A compact frosted social strip: a handle over its platform, led by an accent dot.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -162,7 +162,7 @@ export const socialBugType: GraphicType = {
     },
     {
       id: 'lt17',
-      name: 'Volt Handle Lower Third',
+      name: 'Volt Handle',
       description: 'A compact sport strip with an accent edge — a handle in heavy caps over its platform.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -173,7 +173,7 @@ export const socialBugType: GraphicType = {
     },
     {
       id: 'lt18',
-      name: 'Line Handle Lower Third',
+      name: 'Line Handle',
       description: 'A panel-free social mark: a handle over its platform beside a thin accent hairline.',
       styleTag: 'minimal',
       palette: paletteById('signal'),

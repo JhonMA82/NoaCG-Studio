@@ -18,7 +18,7 @@ export const h203: TemplateVariant = defineMatchupVariant(
   {
     id: 'h203',
     category: 'matchup',
-    name: 'Clean Compare Matchup',
+    name: 'Clean Compare',
     styleTag: 'minimal',
     description: 'A quiet comparison table: hairline rows, accent on whichever side leads.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const h203: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Compare Matchup',
+    name: 'Clean Compare',
     description:
       'The quiet comparison board: no panels, hairline-separated stat rows, thin share bars, ' +
       'and the leading figure of each row set in the accent colour.',

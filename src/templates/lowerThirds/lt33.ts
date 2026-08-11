@@ -14,7 +14,7 @@ export const lt33: TemplateVariant = defineVariant(
   {
     id: 'lt33',
     category: 'lower-third',
-    name: 'Wide Caps Lower Third',
+    name: 'Wide Caps',
     styleTag: 'cinematic',
     description: 'One name in wide tracked caps, centred under a hairline on a soft scrim.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const lt33: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Wide Caps Lower Third',
+    name: 'Wide Caps',
     description:
       'The cinematic name card: a single line of widely tracked caps under a hairline, centred, ' +
       'on a scrim that fades away to both sides. For openings, chapter marks and any moment where ' +
