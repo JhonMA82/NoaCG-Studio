@@ -519,7 +519,7 @@ test('one design from each category exports to all six targets with its runtime 
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {
-  await createProject(page, { category: 'reveal', name: 'House Award' });
+  await createProject(page, { category: 'reveal', name: 'House Award Reveal' });
   const round = await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { createGraphic, graphicById } = await import('/src/model/library.ts');

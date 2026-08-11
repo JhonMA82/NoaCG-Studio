@@ -9,7 +9,7 @@ import nodePath from 'node:path';
 // taken through its load/updateAction/playAction contract.
 
 async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline Lower Third' });
 }
 
 async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | 'Post-production' | 'Both'): Promise<JSZip> {
@@ -306,7 +306,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   // exactly like an OGraf renderer: define → load → updateAction → playAction → stopAction.
   const files = new Map<string, string>();
   for (const name of Object.keys(zip.files)) {
-    if (!zip.files[name].dir) files.set(name.replace(/^hairline\//, ''), await zip.file(name)!.async('string'));
+    if (!zip.files[name].dir) files.set(name.replace(/^hairline_lower_third\//, ''), await zip.file(name)!.async('string'));
   }
   await page.route('http://ograf-test.local/**', (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\//, '');
@@ -378,7 +378,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
 
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(zip.files)) {
-    if (!zip.files[name].dir) files.set(name.replace(/^hairline\//, ''), await zip.file(name)!.async('nodebuffer'));
+    if (!zip.files[name].dir) files.set(name.replace(/^hairline_lower_third\//, ''), await zip.file(name)!.async('nodebuffer'));
   }
   await page.route('http://ograf-offline.local/**', (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\//, '');
