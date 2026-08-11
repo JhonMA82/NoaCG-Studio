@@ -394,7 +394,7 @@ const PLATE_H = 118;
 export const structuralFrames: TemplateVariant[] = [
   variant({
     id: 'fr05',
-    name: 'Programme 16:9 Frame',
+    name: 'Programme 16:9',
     shortLabel: '16:9 PROGRAMME',
     description: 'A full 16:9 programme source inside title-safe matte, with a production nameplate.',
     styleTag: 'noacg',
@@ -413,7 +413,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr06',
-    name: 'Classic 4:3 Frame',
+    name: 'Classic 4:3',
     shortLabel: '4:3 ARCHIVE',
     description: 'A centred 4:3 source with editorial side matte for archive, news, or legacy feeds.',
     styleTag: 'editorial',
@@ -432,7 +432,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr07',
-    name: 'Portrait Guest Frame',
+    name: 'Portrait Guest',
     shortLabel: 'PORTRAIT GUEST',
     description: 'A tall remote-guest source with a cinematic information field in the side matte.',
     styleTag: 'cinematic',
@@ -451,7 +451,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr08',
-    name: 'Two-up Interview Frame',
+    name: 'Two-up Interview',
     shortLabel: 'TWO-UP INTERVIEW',
     description: 'Two equal 16:9 remote sources with independent, safe-area nameplates.',
     styleTag: 'glass',
@@ -480,7 +480,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr09',
-    name: 'Three-person Panel Frame',
+    name: 'Three-person Panel',
     shortLabel: 'THREE-PERSON PANEL',
     description: 'Three equal panelist sources with consistent baselines and independent labels.',
     styleTag: 'noacg',
@@ -512,7 +512,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr10',
-    name: 'Share plus Presenter Frame',
+    name: 'Share plus Presenter',
     shortLabel: 'SCREEN SHARE',
     description: 'A large 16:9 screen share with a presenter camera inset and separate topic labels.',
     styleTag: 'minimal',
@@ -541,7 +541,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr11',
-    name: 'Gameplay plus Camera Frame',
+    name: 'Gameplay plus Camera',
     shortLabel: 'GAMEPLAY + CAM',
     description: 'A dominant gameplay source with a dedicated player camera and tournament labels.',
     styleTag: 'sport',
@@ -570,7 +570,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr12',
-    name: 'Reaction Layout Frame',
+    name: 'Reaction Layout',
     shortLabel: 'REACTION',
     description: 'A main programme source with a large reaction camera and a shared editorial label system.',
     styleTag: 'glass',
@@ -599,7 +599,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr13',
-    name: 'Sponsor Rail Frame',
+    name: 'Sponsor Rail',
     shortLabel: 'SPONSOR RAIL',
     description: 'A 16:9 programme source with a permanent three-logo partner rail and presenter label.',
     styleTag: 'noacg',
@@ -619,7 +619,7 @@ export const structuralFrames: TemplateVariant[] = [
   }),
   variant({
     id: 'fr14',
-    name: 'Vertical Programme 9:16 Frame',
+    name: 'Vertical Programme 9:16',
     shortLabel: '9:16 PROGRAMME',
     description: 'A true 9:16 programme layout that becomes full-height and title-safe on portrait outputs.',
     styleTag: 'cinematic',

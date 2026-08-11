@@ -14,7 +14,7 @@ export const card31: TemplateVariant = defineCardVariant(
   {
     id: 'card31',
     category: 'info-card',
-    name: 'Frost Advisory Info Card',
+    name: 'Frost Advisory',
     styleTag: 'glass',
     description: 'A frosted venue advisory: the policy, the detail, and what the audience should do.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card31: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Advisory Info Card',
+    name: 'Frost Advisory',
     description:
       'The glass venue advisory: a translucent blurred panel, an accent-filled advisory chip, ' +
       'the policy at heading size, the detail as a paragraph, and the instruction marked with ' +

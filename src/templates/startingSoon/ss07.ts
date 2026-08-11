@@ -13,7 +13,7 @@ export const ss07: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss07',
     category: 'starting-soon',
-    name: 'Intermission Starting Soon',
+    name: 'Intermission',
     styleTag: 'glass',
     description: 'The interval card — names the break, what returns, and counts to the scheduled resume time.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const ss07: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Intermission Starting Soon',
+    name: 'Intermission',
     description:
       'The glass interval card: a tracked kicker naming the break, the returning act as the ' +
       'headline, a line of house instruction, and the countdown resting in a soft capsule ' +

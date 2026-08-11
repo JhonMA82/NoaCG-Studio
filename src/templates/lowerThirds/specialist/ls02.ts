@@ -17,7 +17,7 @@ export const ls02: TemplateVariant = defineVariant(
   {
     id: 'ls02',
     category: 'lower-third',
-    name: 'Duo Frost Lower Third',
+    name: 'Duo Frost',
     styleTag: 'glass',
     description: 'Two frosted cards side by side — one per person, each with its own accent edge.',
     maxLines: 4,
@@ -36,7 +36,7 @@ export const ls02: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Duo Frost Lower Third',
+    name: 'Duo Frost',
     description:
       'Two frosted glass cards, one per person, with a real gap between them — the split-screen ' +
       'remote-interview strap. Each card carries its own name and role as independent SPX ' +

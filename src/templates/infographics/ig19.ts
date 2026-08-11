@@ -13,7 +13,7 @@ export const ig19: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig19',
     category: 'infographic',
-    name: 'Frost Recap Infographic',
+    name: 'Frost Recap',
     styleTag: 'glass',
     description: 'A frosted recap board — one "owner | action" per line.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig19: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Recap Infographic',
+    name: 'Frost Recap',
     description:
       'The glass recap board: a translucent blurred panel with a short accent stroke, a soft ' +
       'heading, and items as an accent owner column against the action. For intervals, ' +

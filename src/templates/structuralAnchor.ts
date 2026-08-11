@@ -13,7 +13,7 @@
 // updates both routing and satisfaction by itself (the brief-bank decay rule): the day a
 // stinger design lands, `full-frame-reveal` starts resolving and nothing here changes.
 
-import { CATEGORIES, type TemplateCategory } from '../model/wizard';
+import { CATEGORIES, type AssemblerId } from '../model/wizard';
 import { GRAPHIC_CATEGORIES } from '../model/taxonomy';
 import type { StructuralIntent } from '../model/structuralIntent';
 import { typeById, TYPES } from './types/registry';
@@ -22,7 +22,7 @@ import { CATEGORY_DEFAULT_META, TYPE_META } from './meta';
 
 /** Composition families the router can anchor to catalog structures. ADVISORY vocabulary:
  *  an unlisted family word routes like novel (create), it never fails. */
-export const FAMILY_ANCHORS: Record<string, { types?: string[]; categories?: TemplateCategory[] }> = {
+export const FAMILY_ANCHORS: Record<string, { types?: string[]; categories?: AssemblerId[] }> = {
   strap: { categories: ['lower-third'] },
   card: { categories: ['info-card'] },
   board: { categories: ['results-board', 'infographic'] },
@@ -42,7 +42,7 @@ export const FAMILY_ANCHORS: Record<string, { types?: string[]; categories?: Tem
  *  model happened to use for it. */
 export type StructuralAnchor = string;
 
-const categoryHasVariants = (c: TemplateCategory): boolean => variantsFor(c).length > 0;
+const categoryHasVariants = (c: AssemblerId): boolean => variantsFor(c).length > 0;
 
 /** One identifier resolved against EVERY vocabulary: a graphic-type id, a family word's
  *  live anchors, or a catalog category. Which vocabulary a word belongs to is not the
@@ -60,7 +60,7 @@ export function resolveAnchor(word: string | undefined): StructuralAnchor | null
     }
     return null;
   }
-  if (categoryHasVariants(word as TemplateCategory)) return `category:${word}`;
+  if (categoryHasVariants(word as AssemblerId)) return `category:${word}`;
   return null;
 }
 
@@ -92,7 +92,7 @@ export function structuralFit(intent: StructuralIntent): { fit: boolean; anchor?
 export function anchorResolves(anchor: StructuralAnchor): boolean {
   const [kind, id] = anchor.split(':');
   if (kind === 'type') return Boolean(typeById(id));
-  if (kind === 'category') return categoryHasVariants(id as TemplateCategory);
+  if (kind === 'category') return categoryHasVariants(id as AssemblerId);
   return false;
 }
 
@@ -147,7 +147,7 @@ export function intentCoversFrame(intent: StructuralIntent): boolean | null {
   const { anchor } = structuralFit(intent);
   if (!anchor) return null;
   const [kind, id] = anchor.split(':');
-  const declared = kind === 'type' ? TYPE_META[id] : CATEGORY_DEFAULT_META[id as TemplateCategory];
+  const declared = kind === 'type' ? TYPE_META[id] : CATEGORY_DEFAULT_META[id as AssemblerId];
   if (!declared) return null;
   const coverage = declared.coverage
     ?? GRAPHIC_CATEGORIES.find((c) => c.id === declared.category)?.coverage;

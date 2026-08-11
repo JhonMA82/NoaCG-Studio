@@ -98,7 +98,7 @@ interface Spec {
 const SPECS: Spec[] = [
   {
     id: 'rq01',
-    name: 'House Request Audience',
+    name: 'House Request',
     family: 'noacg',
     palette: 'noacg',
     fontId: 'space-grotesk',
@@ -107,7 +107,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'rq02',
-    name: 'Volt Request Audience',
+    name: 'Volt Request',
     family: 'sport',
     palette: 'volt',
     fontId: 'oswald',
@@ -116,7 +116,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'rq03',
-    name: 'Frost Request Audience',
+    name: 'Frost Request',
     family: 'glass',
     palette: 'frost',
     fontId: 'manrope',
@@ -125,7 +125,7 @@ const SPECS: Spec[] = [
   },
   {
     id: 'rq04',
-    name: 'Clean Request Audience',
+    name: 'Clean Request',
     family: 'minimal',
     palette: 'ivory',
     fontId: 'inter',

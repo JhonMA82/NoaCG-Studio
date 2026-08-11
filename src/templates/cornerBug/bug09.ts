@@ -14,7 +14,7 @@ export const bug09: TemplateVariant = defineBugVariant(
   {
     id: 'bug09',
     category: 'corner-bug',
-    name: 'House Live Corner Bug',
+    name: 'House Live',
     styleTag: 'noacg',
     description: 'The house live bug: a void chip, a breathing amber dot, and a switchable status word.',
     maxLines: 1,
@@ -26,7 +26,7 @@ export const bug09: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'House Live Corner Bug',
+    name: 'House Live',
     description:
       'The house on-air status mark: a small void chip with a breathing amber dot and the ' +
       'status word in mono caps. Live, Replay and Standby are real machine states — the ' +

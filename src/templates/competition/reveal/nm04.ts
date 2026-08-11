@@ -19,7 +19,7 @@ export const nm04: TemplateVariant = defineRevealVariant(
   {
     id: 'nm04',
     category: 'reveal',
-    name: 'Volt Nominees Reveal',
+    name: 'Volt Nominees',
     styleTag: 'sport',
     description: 'A hard-edged finalist board where the winner takes the accent slab.',
     maxLines: 2,
@@ -36,7 +36,7 @@ export const nm04: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Nominees Reveal',
+    name: 'Volt Nominees',
     description:
       'A sport finalist board with hard rows, a heavy category line, and an accent-filled ' +
       'winning state.',

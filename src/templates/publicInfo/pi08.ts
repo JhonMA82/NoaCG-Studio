@@ -20,7 +20,7 @@ export const pi08: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi08',
     category: 'public-info',
-    name: 'Language Rotator Public Info',
+    name: 'Language Rotator',
     styleTag: 'noacg',
     description: 'One notice, two languages taking turns in one block — timed, and holdable on air.',
     maxLines: 5,
@@ -38,7 +38,7 @@ export const pi08: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Language Rotator Public Info',
+    name: 'Language Rotator',
     description:
       'The house two-language notice: both versions occupy one block and cross-fade on the ' +
       'graphic’s own timer, so the panel never re-flows when the languages differ in length. ' +

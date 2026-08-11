@@ -15,7 +15,7 @@ export const card39: TemplateVariant = defineCardVariant(
   {
     id: 'card39',
     category: 'info-card',
-    name: 'Frost Product Info Card',
+    name: 'Frost Product',
     styleTag: 'glass',
     description: 'A frosted product card: a wide shot over the name, its price, and one benefit line.',
     maxLines: 5,
@@ -33,7 +33,7 @@ export const card39: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Frost Product Info Card',
+    name: 'Frost Product',
     description:
       'A translucent blurred glass card for live shopping: a wide product shot across the top, ' +
       'then the product name, a large price beside the struck-through previous price and an ' +

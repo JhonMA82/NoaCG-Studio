@@ -32,7 +32,7 @@ export const cr07: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr07',
     category: 'end-credits',
-    name: 'Thank You Wall End Credit',
+    name: 'Thank You Wall',
     styleTag: 'minimal',
     description: 'A held board of names in columns — a wall you can read, because nothing on it moves.',
     maxLines: 2,
@@ -47,7 +47,7 @@ export const cr07: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Thank You Wall End Credits',
+    name: 'Thank You Wall',
     description:
       'A wall of names, held still and set in balanced columns so a long list fits one ' +
       'screen: a tracked caps heading over its accent rule, then the names. Type one name ' +

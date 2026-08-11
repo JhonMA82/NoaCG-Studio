@@ -7,7 +7,7 @@
 // → CATEGORY_DEFAULT_META[variant.category]. The fallback is always single-valued
 // (proposal §4), so a variant nobody has described yet still browses sanely.
 
-import type { TemplateCategory } from '../model/wizard';
+import type { AssemblerId } from '../model/wizard';
 import type {
   CapabilityId,
   CoverageClass,
@@ -405,9 +405,9 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   pi10: { category: 'bug', subtype: 'source', structures: ['corner-chip', 'multi-line'], coverage: 'overlay', positionalSemantics: ['source', 'description'] },
 };
 
-// ── Per-old-category fallback (single-valued, proposal §4) ──────────────────
+// ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────
 
-export const CATEGORY_DEFAULT_META: Record<TemplateCategory, DeclaredTemplateMeta | null> = {
+export const CATEGORY_DEFAULT_META: Record<AssemblerId, DeclaredTemplateMeta | null> = {
   'lower-third': {
     category: 'lower-third', subtype: 'speaker', structures: ['name-role'],
     positionalSemantics: ['name', 'role', 'organization', 'description', 'description'],
@@ -513,7 +513,7 @@ export const CATEGORY_DEFAULT_META: Record<TemplateCategory, DeclaredTemplateMet
 /** Field ids that are hidden CONFIG inputs, excluded from the visible-field buckets
  *  (proposal §6.1). Keyed by wizard category because these are fixed per-category field
  *  contracts (self-assembled categories). */
-export const HIDDEN_CONFIG_FIELDS: Partial<Record<TemplateCategory, string[]>> = {
+export const HIDDEN_CONFIG_FIELDS: Partial<Record<AssemblerId, string[]>> = {
   'game-timer': ['f1'],
   'starting-soon': ['f2'],
   'quiz': ['f5', 'f6'],

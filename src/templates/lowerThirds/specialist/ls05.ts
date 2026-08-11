@@ -19,7 +19,7 @@ export const ls05: TemplateVariant = defineVariant(
   {
     id: 'ls05',
     category: 'lower-third',
-    name: 'Studio Pair Lower Third',
+    name: 'Studio Pair',
     styleTag: 'noacg',
     description: 'The guest on a full row with the host folded into a thin sub-bar beneath.',
     maxLines: 4,
@@ -38,7 +38,7 @@ export const ls05: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Studio Pair Lower Third',
+    name: 'Studio Pair',
     description:
       'The vertical pairing: the guest on their own full row over the house void panel, the ' +
       'host folded into a thin sub-bar below, name and role set inline behind a drawn middot. ' +

@@ -33,7 +33,7 @@ export const cr06: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr06',
     category: 'end-credits',
-    name: 'Credit Reel End Credit',
+    name: 'Credit Reel',
     styleTag: 'noacg',
     description: 'Production credits that loop seamlessly — for the long tail after a show, not a one-shot roll.',
     maxLines: 2,
@@ -48,7 +48,7 @@ export const cr06: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Credit Reel End Credits',
+    name: 'Credit Reel',
     description:
       'The house credit reel: mono section labels in the accent color, role above name in ' +
       'display type, and an amber-ruled sign-off block — all running as a seamless loop for ' +

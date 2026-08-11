@@ -17,7 +17,7 @@ export const ls25: TemplateVariant = defineVariant(
   {
     id: 'ls25',
     category: 'lower-third',
-    name: 'Now Playing Lower Third',
+    name: 'Now Playing',
     styleTag: 'glass',
     description: 'Square cover artwork beside the track title, with the artist and release beneath.',
     maxLines: 3,
@@ -40,7 +40,7 @@ export const ls25: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Now Playing Lower Third',
+    name: 'Now Playing',
     description:
       'The now-playing strap: square cover artwork as a real SPX image field beside the track ' +
       'title, with the artist and the release beneath. The track leads because on a DJ set or ' +

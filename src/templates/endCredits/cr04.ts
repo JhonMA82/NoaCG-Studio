@@ -25,7 +25,7 @@ export const cr04: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr04',
     category: 'end-credits',
-    name: 'Crawl End Credit',
+    name: 'Crawl',
     styleTag: 'minimal',
     description:
       'Ticker-style single-line credits crawling through a slim bottom strip with an ' +
@@ -42,7 +42,7 @@ export const cr04: TemplateVariant = defineCreditsVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Crawl End Credits',
+    name: 'Crawl',
     description:
       'A full-width bottom strip on a quiet panel, separated from the picture by a 2px ' +
       'accent top border (the lt02 underline, flipped). Everything renders inline on one ' +

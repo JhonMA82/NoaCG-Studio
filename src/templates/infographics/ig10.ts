@@ -13,7 +13,7 @@ export const ig10: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig10',
     category: 'infographic',
-    name: 'Volt Schedule Infographic',
+    name: 'Volt Schedule',
     styleTag: 'sport',
     description: 'A solid sport slab running order: heavy condensed times against show names.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ig10: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Schedule Infographic',
+    name: 'Volt Schedule',
     description:
       'The sport running order, sibling of lt06 Split Bar and card02 Slab Card: a solid dark ' +
       'slab with a heavy accent caps heading over an accent rule, and time/show rows with ' +

@@ -33,7 +33,7 @@ import type {
   LogoSupport,
   Palette,
   ResolvedOptions,
-  TemplateCategory,
+  AssemblerId,
   TemplateVariant,
   Zone9,
 } from '../../model/wizard';
@@ -76,7 +76,7 @@ export interface TypeStructure {
   /** The class prefix contract ('lower-third'); what detectPrefix keys off. */
   prefix: string;
   /** The category whose assembler and design builders this type reuses. */
-  category: TemplateCategory;
+  category: AssemblerId;
   parts: TypePart[];
 }
 

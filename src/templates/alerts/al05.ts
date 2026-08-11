@@ -17,7 +17,7 @@ export const al05: TemplateVariant = defineAlertVariant(
   {
     id: 'al05',
     category: 'alert',
-    name: 'Weather Warning Alert',
+    name: 'Weather Warning',
     styleTag: 'minimal',
     description: 'A weather-warning card: severity cap on top, headline, area and validity below.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const al05: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Weather Warning Alert',
+    name: 'Weather Warning',
     description:
       'The met-office card: the severity flag runs the full width as a cap, with the warning ' +
       'type, the affected area and the validity window stacked beneath it. Reading order is ' +

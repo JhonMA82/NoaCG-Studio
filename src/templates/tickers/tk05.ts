@@ -11,7 +11,7 @@ export const tk05: TemplateVariant = defineTickerVariant(
   {
     id: 'tk05',
     category: 'ticker',
-    name: 'House Wire Ticker',
+    name: 'House Wire',
     styleTag: 'noacg',
     description: 'The house news strip: accent label block, endless items, and a live clock cap.',
     maxLines: 2,
@@ -34,7 +34,7 @@ export const tk05: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'House Wire Ticker',
+    name: 'House Wire',
     description:
       'The NoaCG news wire: a void blur strip edged by a half-strength accent line, a solid ' +
       'accent label block in dark mono caps, stories separated by accent dots, and a live ' +

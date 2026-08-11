@@ -13,7 +13,7 @@ export const lt49: TemplateVariant = defineVariant(
   {
     id: 'lt49',
     category: 'lower-third',
-    name: 'Glass Board Lower Third',
+    name: 'Glass Board',
     styleTag: 'glass',
     description: 'A frosted card with a logo well and four lines — the remote-guest board.',
     maxLines: 4,
@@ -30,7 +30,7 @@ export const lt49: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Glass Board Lower Third',
+    name: 'Glass Board',
     description:
       'The remote-guest board: a rounded logo well, an accent edge, then name, role, organisation ' +
       'and a handle. Built to stay on screen for a whole answer, so every line after the role ' +

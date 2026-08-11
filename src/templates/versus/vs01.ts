@@ -15,7 +15,7 @@ export const vs01: TemplateVariant = defineVersusVariant(
   {
     id: 'vs01',
     category: 'versus',
-    name: 'Arena Duel Versus',
+    name: 'Arena Duel',
     styleTag: 'sport',
     description: 'An opaque dark arena - logo rings, a huge gradient VS, edge-lit team names.',
     maxLines: 3,
@@ -31,7 +31,7 @@ export const vs01: TemplateVariant = defineVersusVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Arena Duel Versus',
+    name: 'Arena Duel',
     description:
       'A fullscreen match-up card on an opaque dark arena stage: center glow, faint light ' +
       'rays and a vignette behind two circular logo rings, heavy caps team names with accent ' +

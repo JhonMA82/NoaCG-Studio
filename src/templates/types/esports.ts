@@ -144,7 +144,7 @@ export const esportsScoreType: GraphicType = {
   designs: [
     {
       id: 'es01',
-      name: 'Series Scorebug Esports Score',
+      name: 'Series Scorebug',
       description: 'The match-night strip: logos, big map scores, and a series pip row.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -153,7 +153,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es02',
-      name: 'House Series Esports Score',
+      name: 'House Series',
       description: 'The house scorebug: void panel, amber edge, amber map scores and series pips.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -164,7 +164,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es03',
-      name: 'Frost Series Esports Score',
+      name: 'Frost Series',
       description: 'A frosted match strip: glass score chips, a soft accent rule, series pips.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -174,7 +174,7 @@ export const esportsScoreType: GraphicType = {
     },
     {
       id: 'es04',
-      name: 'Clean Series Esports Score',
+      name: 'Clean Series',
       description: 'A panel-free match strip: two names, a divider, and a quiet phase line.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -263,7 +263,7 @@ export const mapRoundType: GraphicType = {
   designs: [
     {
       id: 'mr01',
-      name: 'Map Ladder Esports Score',
+      name: 'Map Ladder',
       description: 'The series as a ladder: every map, who took it, and where play is now.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -272,7 +272,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr02',
-      name: 'House Maps Esports Score',
+      name: 'House Maps',
       description: 'The house map card: void rows, mono numbers, an amber cursor on the live map.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -282,7 +282,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr03',
-      name: 'Round Strip Esports Score',
+      name: 'Round Strip',
       description: 'The series as a row of game chips — for the top of the frame during play.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -294,7 +294,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr05',
-      name: 'Clean Maps Esports Score',
+      name: 'Clean Maps',
       description: 'A panel-free map ladder with hairline rows and a quiet live-map cursor.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -304,7 +304,7 @@ export const mapRoundType: GraphicType = {
     },
     {
       id: 'mr04',
-      name: 'Map Veto Esports Score',
+      name: 'Map Veto',
       description: 'A pick-and-ban ladder with the current decision moved atomically by the operator.',
       styleTag: 'sport',
       palette: paletteById('volt'),

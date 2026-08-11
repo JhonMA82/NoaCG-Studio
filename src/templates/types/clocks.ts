@@ -95,7 +95,7 @@ export const countdownType: GraphicType = {
   designs: [
     {
       id: 'gt01',
-      name: 'Clean Clock Game Timer',
+      name: 'Clean Clock',
       description: 'A quiet label over big tabular digits — the timer that gets out of the way.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -104,7 +104,7 @@ export const countdownType: GraphicType = {
     },
     {
       id: 'gt02',
-      name: 'Power Clock Game Timer',
+      name: 'Power Clock',
       description: 'A corner slab clock with a leaning accent edge — flips to the accent and flashes at zero.',
       styleTag: 'sport',
       palette: paletteById('inferno'),
@@ -120,7 +120,7 @@ export const countdownType: GraphicType = {
       // Designed FOR this cell: no noacg countdown existed. The house strap as a timer —
       // amber bar, void panel, mono label, display clock. Sibling of lt11 House Strap.
       id: 'gt05',
-      name: 'House Countdown Game Timer',
+      name: 'House Countdown',
       description: 'The house timer: an amber bar and void panel, a mono label over a display clock.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -133,7 +133,7 @@ export const countdownType: GraphicType = {
       // Designed FOR this cell: no glass countdown existed. A frosted card with the clock in
       // an accent-ringed pill — sibling of lt08 Frosted Card and the ss03 Frost Hold.
       id: 'gt06',
-      name: 'Frost Countdown Game Timer',
+      name: 'Frost Countdown',
       description: 'A frosted card with a soft label over a clock set in an accent-ringed glass pill.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -182,7 +182,7 @@ export const holdingScreenType: GraphicType = {
       // Designed FOR this cell: no noacg holding screen existed. The house void panel as a
       // pre-show front door — sibling of lt11 House Strap and card05 House Title.
       id: 'ss04',
-      name: 'House Hold Starting Soon',
+      name: 'House Hold',
       description: 'The house holding screen: mono kicker, display show name, a breathing void clock chip.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -191,7 +191,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss01',
-      name: 'Quiet Hold Starting Soon',
+      name: 'Quiet Hold',
       description: 'A breathing hold screen: the show name, a countdown, and room to wait.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -200,7 +200,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss02',
-      name: 'Volt Hold Starting Soon',
+      name: 'Volt Hold',
       description: 'Centered sport stack — accent chip, huge condensed show name, slab-mounted countdown.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -210,7 +210,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss03',
-      name: 'Frost Hold Starting Soon',
+      name: 'Frost Hold',
       description: 'A centered frosted card with the countdown breathing inside a soft glass pill.',
       styleTag: 'glass',
       palette: paletteById('frost'),

@@ -85,7 +85,7 @@ export const eventNotificationType: GraphicType = {
   designs: [
     {
       id: 'sn01',
-      name: 'House Signal Stream Notification',
+      name: 'House Signal',
       description: sn01.description,
       styleTag: 'noacg',
       palette: paletteById('noacg'),

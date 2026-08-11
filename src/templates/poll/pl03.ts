@@ -9,7 +9,7 @@ export const pl03: TemplateVariant = definePollVariant(
   {
     id: 'pl03',
     category: 'poll',
-    name: 'Frost Vote Poll',
+    name: 'Frost Vote',
     styleTag: 'glass',
     description: 'A frosted live-vote board: a soft VOTE NOW pill over rounded glass bars.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const pl03: TemplateVariant = definePollVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Frost Vote Poll',
+    name: 'Frost Vote',
     description:
       'The glass live-vote board, sibling of lt08 Frosted Card and ig02 Glass Bars: a frosted ' +
       'panel with a soft accent-keyline VOTE NOW pill that leaves when the vote closes, the ' +

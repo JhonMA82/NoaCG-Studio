@@ -18,7 +18,7 @@ export const ls12: TemplateVariant = defineVariant(
   {
     id: 'ls12',
     category: 'lower-third',
-    name: 'Caster Deck Lower Third',
+    name: 'Caster Deck',
     styleTag: 'noacg',
     description: 'The caster handle led large, with the human name beneath and a role chip.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const ls12: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Caster Deck Lower Third',
+    name: 'Caster Deck',
     description:
       'The desk strap: the caster handle set large with the @ drawn by the CSS, the human ' +
       'name beneath it, and the job carried by a small mono chip rather than another line of ' +

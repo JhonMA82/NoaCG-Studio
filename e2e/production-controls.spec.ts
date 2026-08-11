@@ -139,7 +139,7 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   // data half that rides with the snap (reset is two operations). Asserting quiz-sel here is
   // what proves that update actually went — a snap alone would leave the lock without a pick.
   await judge.click();
-  await expect(chip).toContainText('Reveal');
+  await expect(chip).toHaveText('Reveal');
   await expect(program.locator('.quiz-correct')).toHaveCount(1);
   await page.getByTestId('machine-snap').selectOption({ label: 'Locked in' });
   await expect(chip).toHaveText('Locked in');

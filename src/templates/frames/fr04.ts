@@ -28,7 +28,7 @@ export const fr04: TemplateVariant = defineFrameVariant(
   {
     id: 'fr04',
     category: 'frame',
-    name: 'Clean Share Frame',
+    name: 'Clean Share',
     styleTag: 'minimal',
     description: 'A screen-share surround: a large content window, a presenter inset, and a topic label.',
     maxLines: 3,
@@ -44,7 +44,7 @@ export const fr04: TemplateVariant = defineFrameVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Share Frame',
+    name: 'Clean Share',
     description:
       'A quiet screen-share surround: a large 16:9 content window with a hairline edge, a small ' +
       'presenter inset in the top-right beside it, and a label strip under the content naming ' +

@@ -10,7 +10,7 @@ export const bug16: TemplateVariant = defineBugVariant(
   {
     id: 'bug16',
     category: 'corner-bug',
-    name: 'Clear Mark Corner Bug',
+    name: 'Clear Mark',
     styleTag: 'minimal',
     description: 'Logo only: the bare logo over the video, with nothing else around it.',
     // Logo-only by design: the graphic has no text fields, so the wizard offers none.
@@ -23,7 +23,7 @@ export const bug16: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Clear Mark Corner Bug',
+    name: 'Clear Mark',
     description:
       'The quietest bug in the catalog: the imported logo — or, until one is picked, a LOGO placeholder box — ' +
       'alone over the video, carried by a soft drop shadow. No panel, no caption, no accent — ' +

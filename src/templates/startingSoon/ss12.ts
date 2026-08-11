@@ -14,7 +14,7 @@ export const ss12: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss12',
     category: 'starting-soon',
-    name: 'Back Shortly Starting Soon',
+    name: 'Back Shortly',
     styleTag: 'glass',
     description: 'A compact glass capsule over the picture — reassurance and a countdown without hiding the shot.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const ss12: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Back Shortly Starting Soon',
+    name: 'Back Shortly',
     description:
       'A single frosted capsule at the bottom of frame: a breathing accent dot, the ' +
       'headline, a quiet note, and the countdown behind a divider — all on one row, so the ' +

@@ -14,7 +14,7 @@ export const ig08: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig08',
     category: 'infographic',
-    name: 'House Schedule Infographic',
+    name: 'House Schedule',
     styleTag: 'noacg',
     description: 'The house running order: a void panel with mono heading and time/show rows.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const ig08: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Schedule Infographic',
+    name: 'House Schedule',
     description:
       'The NoaCG running order, sibling of lt11 House Strap and card06 House Topic: the house ' +
       'void panel with an amber top edge, a tracked mono heading in the accent color over a ' +

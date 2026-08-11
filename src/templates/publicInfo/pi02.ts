@@ -14,7 +14,7 @@ export const pi02: TemplateVariant = definePublicInfoVariant(
   {
     id: 'pi02',
     category: 'public-info',
-    name: 'Emergency Instructions Public Info',
+    name: 'Emergency Instructions',
     styleTag: 'minimal',
     description: 'A numbered what-to-do list, revealable one instruction at a time.',
     maxLines: 5,
@@ -32,7 +32,7 @@ export const pi02: TemplateVariant = definePublicInfoVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Emergency Instructions Public Info',
+    name: 'Emergency Instructions',
     description:
       'The numbered action list: a heading, up to three instructions carrying automatic ' +
       'numbers, and the issuing authority. Turn on step mode and each instruction arrives on ' +

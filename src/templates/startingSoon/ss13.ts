@@ -15,7 +15,7 @@ export const ss13: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss13',
     category: 'starting-soon',
-    name: 'Up Next Starting Soon',
+    name: 'Up Next',
     styleTag: 'noacg',
     description: 'The between-items schedule hold — what is next, who brings it, and the slot time it starts.',
     maxLines: 4,
@@ -32,7 +32,7 @@ export const ss13: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Up Next Starting Soon',
+    name: 'Up Next',
     description:
       'The house schedule hold: a mono "UP NEXT" kicker, the next item as the headline, the ' +
       'presenter and room beneath it, and a countdown to the slot time along an amber rail. ' +

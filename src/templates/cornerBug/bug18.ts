@@ -10,7 +10,7 @@ export const bug18: TemplateVariant = defineBugVariant(
   {
     id: 'bug18',
     category: 'corner-bug',
-    name: 'Frost Sponsor Strip Corner Bug',
+    name: 'Frost Sponsor Strip',
     styleTag: 'glass',
     description: 'A frosted partner bar: the kicker inline at the left, three sponsor slots beside it.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const bug18: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Frost Sponsor Strip Corner Bug',
+    name: 'Frost Sponsor Strip',
     description:
       'The glass partner bar: a translucent blurred strip with the kicker set inline at the ' +
       'left, an accent hairline, and three sponsor logo slots running to its right. Each slot ' +

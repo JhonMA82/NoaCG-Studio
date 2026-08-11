@@ -13,7 +13,7 @@ export const lt43: TemplateVariant = defineVariant(
   {
     id: 'lt43',
     category: 'lower-third',
-    name: 'Center Slab Lower Third',
+    name: 'Center Slab',
     styleTag: 'sport',
     description: 'Centred slab with a full-width accent bar under the name and its caps line.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const lt43: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Center Slab Lower Third',
+    name: 'Center Slab',
     description:
       'The arena strap: a centred dark slab, the name in all-caps display, a caps support line ' +
       'under it, and a full-width accent bar closing the block. For ring walks, podiums, and any ' +

@@ -18,7 +18,7 @@ export const mr03: TemplateVariant = defineEsportsVariant(
   {
     id: 'mr03',
     category: 'esports-score',
-    name: 'Round Strip Esports Score',
+    name: 'Round Strip',
     styleTag: 'glass',
     description: 'The series as a row of game chips — for the top of the frame during play.',
     maxLines: 1,
@@ -30,7 +30,7 @@ export const mr03: TemplateVariant = defineEsportsVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Round Strip Esports Score',
+    name: 'Round Strip',
     description:
       'The glass round indicator: a frosted strip of game chips, one per map or round, the ' +
       'played ones marked with the side that took them and the live one carrying the accent ' +

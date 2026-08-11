@@ -17,7 +17,7 @@ export const tk09: TemplateVariant = defineTickerVariant(
   {
     id: 'tk09',
     category: 'ticker',
-    name: 'Volt Rotator Ticker',
+    name: 'Volt Rotator',
     styleTag: 'sport',
     description: 'A dark rail with a leaning accent chip, holding one story at a time — pausable on air.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const tk09: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Volt Rotator Ticker',
+    name: 'Volt Rotator',
     description:
       'The sport ticker in rotating form, sibling of lt05/lt06 and tk02 Volt Rail: a ' +
       'hard-cornered dark rail with a forward-leaning solid-accent label chip (the family -8° ' +

@@ -19,7 +19,7 @@ export const ls21: TemplateVariant = defineVariant(
   {
     id: 'ls21',
     category: 'lower-third',
-    name: 'Debate Podium Lower Third',
+    name: 'Debate Podium',
     styleTag: 'minimal',
     description: 'A compact, symmetric candidate card — reads correctly at bottom-left or bottom-right.',
     maxLines: 3,
@@ -37,7 +37,7 @@ export const ls21: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Debate Podium Lower Third',
+    name: 'Debate Podium',
     description:
       'The mirrored debate card: centred text over a party-colour floor, compact enough for ' +
       'two to sit on screen at once under the people speaking. Symmetric by design — the same ' +

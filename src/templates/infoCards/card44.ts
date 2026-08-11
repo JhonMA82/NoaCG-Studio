@@ -22,7 +22,7 @@ export const card44: TemplateVariant = defineCardVariant(
   {
     id: 'card44',
     category: 'info-card',
-    name: 'House Scan Info Card',
+    name: 'House Scan',
     styleTag: 'noacg',
     description: 'A QR card: your code image in a scannable quiet zone beside a headline and the URL.',
     maxLines: 3,
@@ -38,7 +38,7 @@ export const card44: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'House Scan Info Card',
+    name: 'House Scan',
     description:
       'The NoaCG QR card: an 8px amber bar fused to a void blur panel, holding a white quiet-zone ' +
       'tile for your QR image beside a headline, the written-out address, and a supporting line. ' +

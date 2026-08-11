@@ -31,7 +31,6 @@ import {
   type FieldBucket,
 } from '../../../templates/search';
 import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
-import { CATALOG } from '../../../templates/catalog';
 import type { TemplatePack } from '../../../templates/packs';
 import MiniPreview from '../MiniPreview';
 import KitPicker from './KitPicker';
@@ -179,18 +178,12 @@ function ResultCard({
   onToggleDetail: () => void;
 }) {
   const category = graphicCategoryById(r.meta.category);
-  const isTested = CATALOG[r.meta.category as keyof typeof CATALOG]?.[0]?.id === r.meta.id;
   const familyNames = FAMILIES.filter((f) => r.meta.programmeFamilies.includes(f.id))
     .slice(0, 2)
     .map((f) => f.name);
   return (
     <div className="wz-variant-cell">
-    <button 
-      className={`wz-variant ${selected ? 'selected' : ''}`} 
-      style={{ opacity: isTested ? 1 : 0.25, filter: isTested ? 'none' : 'grayscale(100%)' }}
-      onClick={onPick} 
-      title={isTested ? r.meta.description : `${r.meta.description} (Not tested in E2E)`}
-    >
+    <button className={`wz-variant ${selected ? 'selected' : ''}`} onClick={onPick} title={r.meta.description}>
       <MiniPreview variant={r.variant} />
       <div className="wz-variant-cap">
         <strong>{r.meta.name}</strong>
@@ -441,13 +434,13 @@ export default function BrowseStep({
         <label className="wz-browse-type">
           {/* Hidden wording, real label — same device the format picker uses: the select's own
               text already says "Lower thirds · 82", so a visible caption would repeat it. */}
-          <span className="project-format-label">Graphic type</span>
+          <span className="project-format-label">Category</span>
           <select
             data-testid="wz-browse-type"
             value={filters.category ?? ''}
             onChange={(e) => set({ category: (e.target.value || null) as GraphicCategoryId | null })}
           >
-            <option value="">All types · {catalogTotal}</option>
+            <option value="">All categories · {catalogTotal}</option>
             {tiles.map((tile) => (
               <option key={tile.category} value={tile.category}>
                 {tile.name} · {tile.count}

@@ -20,7 +20,7 @@ export const wn02: TemplateVariant = defineRevealVariant(
   {
     id: 'wn02',
     category: 'reveal',
-    name: 'House Champion Reveal',
+    name: 'House Champion',
     styleTag: 'noacg',
     description: 'The house result card: void stage, mono kicker, amber score on the press.',
     maxLines: 3,
@@ -36,7 +36,7 @@ export const wn02: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Champion Reveal',
+    name: 'House Champion',
     description:
       'The NoaCG final-result card: a void stage with an amber rule, a mono kicker, the ' +
       'champion in house display type, and the score line revealed in amber on the press.',
@@ -46,7 +46,7 @@ export const wn02: TemplateVariant = defineRevealVariant(
     html: winnerMarkup(o),
     fields: compFieldsFor(WINNER_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Result Reveal', call: 'revealResult', duration: 0.5 }],
+    revealSteps: [{ name: 'Result', call: 'revealResult', duration: 0.5 }],
     runtimeExtraJs: WINNER_RUNTIME_JS,
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 

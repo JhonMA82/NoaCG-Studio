@@ -19,7 +19,7 @@ export const ls14: TemplateVariant = defineVariant(
   {
     id: 'ls14',
     category: 'lower-third',
-    name: 'Pulpit Lower Third',
+    name: 'Pulpit',
     styleTag: 'minimal',
     description: 'A quiet speaker strap with the role above the name — calm entrance, hairline accent.',
     maxLines: 3,
@@ -37,7 +37,7 @@ export const ls14: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Pulpit Lower Third',
+    name: 'Pulpit',
     description:
       'The worship-service speaker strap: the role set small and coloured above the name, ' +
       'the congregation beneath, on a soft light panel with a hairline accent. The entrance ' +

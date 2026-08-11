@@ -6093,6 +6093,9 @@ h2 + .lib-row,
   white-space: nowrap;
 }
 .pd-layer-chip b { font-family: var(--mono, monospace); font-size: 10.5px; color: var(--text-dim); font-weight: 600; }
+/* The KIND word beside the graphic's name — quieter than the name, which stays the primary
+   identity; the ellipsis keeps a long custom name from pushing the chip past its row. */
+.pd-chip-kind { font-size: 10.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; }
 .pd-layer-chip.live { border-color: rgba(239, 68, 68, 0.7); background: rgba(239, 68, 68, 0.08); }
 .pd-layer-chip.live b { color: #ef4444; }
 /* A shared layer means two graphics replace each other on air — say so where the layer is

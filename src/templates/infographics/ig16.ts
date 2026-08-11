@@ -13,7 +13,7 @@ export const ig16: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig16',
     category: 'infographic',
-    name: 'Volt Facts Infographic',
+    name: 'Volt Facts',
     styleTag: 'sport',
     description: 'A sport key-numbers board — one "term | number" per line, in heavy caps.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const ig16: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Facts Infographic',
+    name: 'Volt Facts',
     description:
       'The sport key-numbers board: a flat near-black slab under a chunky accent rail, a ' +
       'tracked-caps heading, and rows of accent term over heavy condensed caps. For pre-match ' +

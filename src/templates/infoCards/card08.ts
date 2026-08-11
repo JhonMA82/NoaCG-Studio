@@ -11,7 +11,7 @@ export const card08: TemplateVariant = defineCardVariant(
   {
     id: 'card08',
     category: 'info-card',
-    name: 'Slab Title Info Card',
+    name: 'Slab Title',
     styleTag: 'sport',
     description: 'A leaning sport slab: an accent kicker over one huge condensed title and a subtitle.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const card08: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Slab Title Info Card',
+    name: 'Slab Title',
     description:
       'The sport show opener, sibling of lt05/card02: a near-black slab painted at the family ' +
       '-8° lean with a chunky accent edge fused to its leaning side, a small accent kicker ' +

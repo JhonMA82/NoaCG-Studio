@@ -18,7 +18,7 @@ export const sb13: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb13',
     category: 'scoreboard',
-    name: 'House Status Card Scoreboard',
+    name: 'House Status Card',
     styleTag: 'noacg',
     description: 'The house status card: a live pip, the status line, the score pair, and a note.',
     maxLines: 1,
@@ -30,7 +30,7 @@ export const sb13: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Status Card Scoreboard',
+    name: 'House Status Card',
     description:
       'The NoaCG match-status and final-score card, sibling of sb09 House Match Board: a void ' +
       'panel with an amber top edge, a pulsing live pip beside the status line, the two clubs ' +

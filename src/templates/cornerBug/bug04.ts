@@ -11,7 +11,7 @@ export const bug04: TemplateVariant = defineBugVariant(
   {
     id: 'bug04',
     category: 'corner-bug',
-    name: 'Hairline Bug Corner Bug',
+    name: 'Hairline Bug',
     styleTag: 'minimal',
     description: 'A panel-free logo mark over a short accent underline and a tiny caps caption.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const bug04: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Hairline Bug Corner Bug',
+    name: 'Hairline Bug',
     description:
       'No panel: the imported logo (or a hairline-keyline placeholder) sits bare over the ' +
       'video above a short accent underline and a tiny tracked-caps caption. Whitespace does ' +

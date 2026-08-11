@@ -17,7 +17,7 @@ import {
 import { blankTemplate } from './presets';
 import { specToTemplate, type DesignSpec } from './designSpec';
 import { shortlistFor } from './retrieval';
-import type { TemplateCategory } from '../model/wizard';
+import type { AssemblerId } from '../model/wizard';
 import type { StyleTag } from '../model/fonts';
 import { variantsFor } from '../templates/catalog';
 import { aiCategoryById } from './spec/categories';
@@ -70,7 +70,7 @@ const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 // Offline "grounded" generation: keyword → category → a real catalog assembly through the
 // same specToTemplate the AI harness uses, so the stub returns catalog-grade, panel- and
 // timeline-editable templates instead of bare building blocks.
-const CATEGORY_KEYWORDS: { test: RegExp; category: TemplateCategory; label: string }[] = [
+const CATEGORY_KEYWORDS: { test: RegExp; category: AssemblerId; label: string }[] = [
   { test: /lower ?third|name ?strap|\bstrap\b|presenter|speaker|guest/, category: 'lower-third', label: 'lower third' },
   { test: /ticker|crawl|scroll|news ?bar/, category: 'ticker', label: 'ticker' },
   { test: /score|\bvs\b|versus|match ?up/, category: 'scoreboard', label: 'scoreboard' },

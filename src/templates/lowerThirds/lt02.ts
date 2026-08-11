@@ -9,7 +9,7 @@ export const lt02: TemplateVariant = defineVariant(
   {
     id: 'lt02',
     category: 'lower-third',
-    name: 'Underline Lower Third',
+    name: 'Underline',
     styleTag: 'minimal',
     description: 'Panel-free name and title separated by a short accent underline.',
     maxLines: 2,
@@ -27,7 +27,7 @@ export const lt02: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Underline Lower Third',
+    name: 'Underline',
     description:
       'No panel at all — the name sits straight over the picture, with a short accent ' +
       'underline between it and the dimmed small-caps title. The underline is the only ' +

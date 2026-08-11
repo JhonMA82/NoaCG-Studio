@@ -13,7 +13,7 @@ export const tk13: TemplateVariant = defineTickerVariant(
   {
     id: 'tk13',
     category: 'ticker',
-    name: 'Results Rail Ticker',
+    name: 'Results Rail',
     styleTag: 'sport',
     description: 'A results crawl that boxes the score out of each fixture so the strip can be scanned.',
     maxLines: 3,
@@ -37,7 +37,7 @@ export const tk13: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Results Rail Ticker',
+    name: 'Results Rail',
     description:
       'The results crawl: fixtures travel past a leaning accent label, each one with its ' +
       'score lifted into a chip so the strip can be scanned rather than read. A fixed round ' +

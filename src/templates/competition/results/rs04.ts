@@ -35,7 +35,7 @@ export const rs04: TemplateVariant = defineResultsVariant(
   {
     id: 'rs04',
     category: 'results-board',
-    name: 'Initiative Order Results Board',
+    name: 'Initiative Order',
     styleTag: 'minimal',
     description: 'A tabletop turn order with status notes and an operator-controlled current turn.',
     maxLines: 2,
@@ -50,7 +50,7 @@ export const rs04: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Initiative Order Results Board',
+    name: 'Initiative Order',
     description:
       'A tabletop turn tracker with one row per combatant, an editable condition or hit-point ' +
       'note, and an operator-controlled current turn.',

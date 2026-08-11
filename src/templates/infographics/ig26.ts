@@ -23,7 +23,7 @@ export const ig26: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig26',
     category: 'infographic',
-    name: 'House Fixtures Infographic',
+    name: 'House Fixtures',
     styleTag: 'noacg',
     description: 'The house fixtures and results board: one row per match, played or upcoming.',
     maxLines: 3,
@@ -39,7 +39,7 @@ export const ig26: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Fixtures Infographic',
+    name: 'House Fixtures',
     description:
       'The NoaCG fixtures and results board, sibling of ig08 House Schedule and ig30 House ' +
       'Table: a void panel with a mono heading, the round beside it, and one row per match — ' +

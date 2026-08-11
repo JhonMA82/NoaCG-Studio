@@ -15,7 +15,7 @@ export const qz09: TemplateVariant = defineQuizVariant(
   {
     id: 'qz09',
     category: 'quiz',
-    name: 'Volt Triple Quiz',
+    name: 'Volt Triple',
     styleTag: 'sport',
     description: 'A leaning sport board for three answers: tall lettered rows under the question.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const qz09: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Volt Triple Quiz',
+    name: 'Volt Triple',
     description:
       'The sport three-answer board, sibling of qz01 Arena Quiz and lt06 Split Bar: a leaning ' +
       'dark slab carries the question in condensed heavy caps over three tall answer rows, each ' +

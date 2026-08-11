@@ -13,7 +13,7 @@ export const bug23: TemplateVariant = defineBugVariant(
   {
     id: 'bug23',
     category: 'corner-bug',
-    name: 'Slab Sponsor Rotation Corner Bug',
+    name: 'Slab Sponsor Rotation',
     styleTag: 'sport',
     description: 'A sponsor slab that cycles three partner logos on a timer, with an accent kicker chip.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const bug23: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Slab Sponsor Rotation Corner Bug',
+    name: 'Slab Sponsor Rotation',
     description:
       'The sport sponsor bug that rotates: an accent kicker chip fused to the left of a solid ' +
       'slab, with one logo stage cycling three partner slots. Empty slots are skipped, and the ' +

@@ -14,7 +14,7 @@ export const card25: TemplateVariant = defineCardVariant(
   {
     id: 'card25',
     category: 'info-card',
-    name: 'House Headline Info Card',
+    name: 'House Headline',
     styleTag: 'noacg',
     description: 'The house headline card: a mono kicker, the news, the paragraph, then where to read more.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card25: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'House Headline Info Card',
+    name: 'House Headline',
     description:
       'The house headline card, sibling of lt11 House Strap: an 8px amber bar with the house ' +
       'glow fused to a void blur panel, a mono release kicker, the headline, the paragraph ' +

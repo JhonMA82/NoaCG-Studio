@@ -19,7 +19,7 @@ export const h202: TemplateVariant = defineMatchupVariant(
   {
     id: 'h202',
     category: 'matchup',
-    name: 'House Compare Matchup',
+    name: 'House Compare',
     styleTag: 'noacg',
     description: 'The house comparison: void board, mono labels, amber share bars.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const h202: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'House Compare Matchup',
+    name: 'House Compare',
     description:
       'The NoaCG comparison board: a void stage, mono stat labels, amber share bars measured ' +
       'from the operator’s figures, and an amber-glowing highlight on the side being talked ' +

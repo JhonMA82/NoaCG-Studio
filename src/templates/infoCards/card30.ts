@@ -16,7 +16,7 @@ export const card30: TemplateVariant = defineCardVariant(
   {
     id: 'card30',
     category: 'info-card',
-    name: 'Public Notice Info Card',
+    name: 'Public Notice',
     styleTag: 'minimal',
     description: 'A public-information notice: authority chip, headline, detail, and what to do.',
     maxLines: 5,
@@ -28,7 +28,7 @@ export const card30: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Public Notice Info Card',
+    name: 'Public Notice',
     description:
       'The minimal public-information notice: an accent-filled authority chip, the headline, ' +
       'the details in paragraph type, and the instruction set apart with its own accent rule ' +

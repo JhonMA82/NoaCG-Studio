@@ -8,7 +8,7 @@ export const ss16: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss16',
     category: 'starting-soon',
-    name: 'Frost Sign-off Starting Soon',
+    name: 'Frost Sign-off',
     styleTag: 'glass',
     description:
       'A frosted end card with a logo, gracious sign-off, and optional next appointment.',
@@ -28,7 +28,7 @@ export const ss16: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Sign-off Starting Soon',
+    name: 'Frost Sign-off',
     description:
       'A translucent full-frame sign-off with soft keylines, a logo slot, and a calm next-broadcast line.',
     uicolor: '5',

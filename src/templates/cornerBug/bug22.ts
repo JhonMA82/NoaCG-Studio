@@ -13,7 +13,7 @@ export const bug22: TemplateVariant = defineBugVariant(
   {
     id: 'bug22',
     category: 'corner-bug',
-    name: 'Frost Sponsor Rotation Corner Bug',
+    name: 'Frost Sponsor Rotation',
     styleTag: 'glass',
     description: 'A frosted sponsor pill that cycles three partner logos on a timer.',
     maxLines: 1,
@@ -25,7 +25,7 @@ export const bug22: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Frost Sponsor Rotation Corner Bug',
+    name: 'Frost Sponsor Rotation',
     description:
       'The glass sponsor bug that rotates: a translucent blurred pill with a soft caps kicker ' +
       'inline at the left and one logo stage beside it, cycling through three partner slots ' +

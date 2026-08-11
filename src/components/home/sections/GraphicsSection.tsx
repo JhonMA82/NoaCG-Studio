@@ -10,30 +10,32 @@ import { addGraphicToShow, createShowNamedChecked, loadShows, productionsContain
 import { raiseStorageAlert } from '../../../store/storageAlert';
 import { loadPrefs, savePrefs } from '../../../model/prefs';
 import { commitDurableWrites } from '../../../model/durableStore';
-import type { TemplateType } from '../../../model/types';
+import { graphicKindLabel, type TemplateType } from '../../../model/types';
 import GraphicRow from '../GraphicRow';
 import RowMenu, { type RowMenuItem } from '../RowMenu';
 import { IconFolder, IconGrid, IconList, IconPencil, IconPlus, IconTrash, IconTv } from '../../icons';
 
 type SortKey = 'newest' | 'oldest' | 'name';
 
-/** Plurals the rule below gets wrong. Everything else humanises from its own id, so a new
- *  TemplateType needs no entry here — and one that reads badly gets a line, not a registry. */
+/** Plurals the rule below gets wrong. Everything else pluralises the shared kind word, so a
+ *  new TemplateType needs no entry here — and one that reads badly gets a line, not a registry. */
 const TYPE_PLURAL: Partial<Record<TemplateType, string>> = {
   quiz: 'Quizzes',
   'public-info': 'Public info',
-  'starting-soon': 'Starting soon',
+  'starting-soon': 'Holding screens',
+  'imported-design': 'Imported',
 };
 
-/** `lower-third` -> `Lower thirds`, for a chip that has to read as English. */
+/** The filter chip's word: the SAME kind vocabulary the rows show (model/types.ts
+ *  graphicKindLabel), pluralised — a chip saying "Countdowns" over rows saying "Timer"
+ *  would be two words for one kind on one screen. */
 function typeLabel(type: TemplateType): string {
   const named = TYPE_PLURAL[type];
   if (named) return named;
-  const words = type.split('-');
-  const last = words[words.length - 1];
-  words[words.length - 1] = /(s|x|ch|sh)$/.test(last) ? (last.endsWith('s') ? last : `${last}es`) : `${last}s`;
-  const text = words.join(' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  const label = graphicKindLabel(type);
+  const last = label.split(' ').pop() ?? label;
+  if (/(s|x|ch|sh)$/.test(last)) return last.endsWith('s') ? label : `${label}es`;
+  return `${label}s`;
 }
 
 /**

@@ -14,7 +14,7 @@ export const card23: TemplateVariant = defineCardVariant(
   {
     id: 'card23',
     category: 'info-card',
-    name: 'Frost Headline Info Card',
+    name: 'Frost Headline',
     styleTag: 'glass',
     description: 'A frosted announcement card: the news, the detail, and where to act on it.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card23: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Headline Info Card',
+    name: 'Frost Headline',
     description:
       'The glass announcement card: a translucent blurred panel, a soft accent kicker, the ' +
       'news at heading size, the detail in paragraph type, and a closing line saying where to ' +

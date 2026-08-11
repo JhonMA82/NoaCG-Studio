@@ -10,7 +10,7 @@ export const bug26: TemplateVariant = defineBugVariant(
   {
     id: 'bug26',
     category: 'corner-bug',
-    name: 'Frost Event Bug Corner Bug',
+    name: 'Frost Event Bug',
     styleTag: 'glass',
     description: 'A frosted event tile: the event logo above its name and the day or venue.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const bug26: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Frost Event Bug Corner Bug',
+    name: 'Frost Event Bug',
     description:
       'The glass event ident: a translucent blurred tile with the event logo (or an accent ' +
       'lozenge placeholder) centred above the event name and a soft caps line for the day, ' +

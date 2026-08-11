@@ -15,7 +15,7 @@ export const gt02: TemplateVariant = defineGameTimerVariant(
   {
     id: 'gt02',
     category: 'game-timer',
-    name: 'Power Clock Game Timer',
+    name: 'Power Clock',
     styleTag: 'sport',
     description: 'A corner slab clock with a leaning accent edge — flips to the accent and flashes at zero.',
     maxLines: 1,
@@ -27,7 +27,7 @@ export const gt02: TemplateVariant = defineGameTimerVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Power Clock Game Timer',
+    name: 'Power Clock',
     description:
       'A corner slab timer in the sport family (sibling of lt05/lt06): a dimmed caps ' +
       'label over a big heavy clock on a dark slab painted at the family -8° lean, with ' +

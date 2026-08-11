@@ -17,7 +17,7 @@ export const card55: TemplateVariant = defineCardVariant(
   {
     id: 'card55',
     category: 'info-card',
-    name: 'In Memoriam Info Card',
+    name: 'In Memoriam',
     styleTag: 'minimal',
     description: 'One name, the years, one line — with every decoration the other cards carry removed.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const card55: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'In Memoriam Info Card',
+    name: 'In Memoriam',
     description:
       'A memorial card stripped to three lines: the name set large and light, the years ' +
       'beneath a softened hairline in tabular figures, and one sentence at the bottom. No ' +

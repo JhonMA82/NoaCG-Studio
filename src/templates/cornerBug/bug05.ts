@@ -11,7 +11,7 @@ export const bug05: TemplateVariant = defineBugVariant(
   {
     id: 'bug05',
     category: 'corner-bug',
-    name: 'House Ident Corner Bug',
+    name: 'House Ident',
     styleTag: 'noacg',
     description: 'The house station ident: an amber bar, the channel logo, the channel over its show.',
     maxLines: 2,
@@ -26,7 +26,7 @@ export const bug05: TemplateVariant = defineBugVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'House Ident Corner Bug',
+    name: 'House Ident',
     description:
       'The house identity mark: an amber edge bar, the channel logo (or the three-bar house ' +
       'placeholder), and the channel name over the show currently on air — all on the void ' +

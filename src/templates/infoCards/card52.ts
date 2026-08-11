@@ -16,7 +16,7 @@ export const card52: TemplateVariant = defineCardVariant(
   {
     id: 'card52',
     category: 'info-card',
-    name: 'Quotation Info Card',
+    name: 'Quotation',
     styleTag: 'minimal',
     description: 'A pull quote with a subordinate attribution — the quote reads, the name receipts.',
     maxLines: 3,
@@ -32,7 +32,7 @@ export const card52: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Quotation Info Card',
+    name: 'Quotation',
     description:
       'A pull-quote card: an oversized accent quote mark, the words at reading size and ' +
       'measure, then a short rule with the speaker’s name and role beneath it at label ' +

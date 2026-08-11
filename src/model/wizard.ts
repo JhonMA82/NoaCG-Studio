@@ -11,7 +11,7 @@ import type { EasingId } from './easings';
 // ── Categories (the full catalog; lower thirds, info cards, end credits, and tickers live) ──
 
 export interface CategoryInfo {
-  id: TemplateCategory;
+  id: AssemblerId;
   name: string;
   /** How many designs this category will hold when complete. */
   plannedCount: number;
@@ -27,7 +27,16 @@ export interface CategoryInfo {
   group: 'essentials' | 'specials' | 'imported';
 }
 
-export type TemplateCategory =
+/**
+ * The ASSEMBLER/ROUTING id — which code builds a template and which field contract it uses
+ * (catalog buckets, field plans, hidden-config lists all key on it). It is NOT a taxonomy:
+ * the user-facing discovery categories are `GraphicCategoryId` in model/taxonomy.ts, declared
+ * per variant in templates/meta.ts. Renamed from `AssemblerId` (2026-08-11) because the
+ * old name kept inviting attempts to merge the two — they answer different questions
+ * (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18): several assemblers feed one graphic category and
+ * one assembler's variants scatter across several. Never render these ids in UI.
+ */
+export type AssemblerId =
   | 'lower-third'
   | 'info-card'
   | 'end-credits'
@@ -379,7 +388,7 @@ export type FieldPlan =
  * genuinely deviates can override via `TemplateVariant.fieldPlan`. Categories not named here
  * keep the standard 'lines' plan - the behavior they always had.
  */
-const CATEGORY_FIELD_PLANS: Partial<Record<TemplateCategory, FieldPlan>> = {
+const CATEGORY_FIELD_PLANS: Partial<Record<AssemblerId, FieldPlan>> = {
   // One hidden textarea IS the rundown of items; the runtime rebuilds the strip from it.
   ticker: { kind: 'list', itemLabel: 'Ticker items', itemHint: 'One item per row' },
   // `Role | Name` per row; the roll is built from them.
@@ -405,7 +414,7 @@ export interface TemplateVariant {
    *  back-pointer Phase 4's node editor and Phase 5's control generator look up. Absent on a
    *  hand-written variant that no type has claimed yet. */
   typeId?: string;
-  category: TemplateCategory;
+  category: AssemblerId;
   name: string;
   styleTag: StyleTag;
   description: string;

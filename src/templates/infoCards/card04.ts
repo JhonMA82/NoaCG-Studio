@@ -10,7 +10,7 @@ export const card04: TemplateVariant = defineCardVariant(
   {
     id: 'card04',
     category: 'info-card',
-    name: 'Quote Card Info Card',
+    name: 'Quote Card',
     styleTag: 'minimal',
     description: 'A panel-free centered quote: large accent quote marks, light italic text, a short hairline, quiet attribution.',
     maxLines: 3,
@@ -26,7 +26,7 @@ export const card04: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Quote Card Info Card',
+    name: 'Quote Card',
     description:
       'The minimal family at its most literary: no panel, just a centered quotation under a ' +
       'pair of large accent quote marks, closed by a short hairline and a quiet attribution. ' +

@@ -73,7 +73,7 @@ export const transitionType: GraphicType = {
   designs: [
     {
       id: 'tr03',
-      name: 'House Replay Transition',
+      name: 'House Replay',
       description: 'The house replay bumper: two void bands close over the frame with an amber seam and a chip.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -83,7 +83,7 @@ export const transitionType: GraphicType = {
     },
     {
       id: 'tr01',
-      name: 'Volt Stinger Transition',
+      name: 'Volt Stinger',
       description: 'A sport sting: leaning slabs slam across the frame and the mark snaps on over them.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -94,7 +94,7 @@ export const transitionType: GraphicType = {
     },
     {
       id: 'tr02',
-      name: 'Clean Wipe Transition',
+      name: 'Clean Wipe',
       description: 'A quiet band wipes across the frame behind a thin accent edge, then wipes on off.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -105,7 +105,7 @@ export const transitionType: GraphicType = {
     },
     {
       id: 'tr04',
-      name: 'Frost Sweep Transition',
+      name: 'Frost Sweep',
       description: 'Frosted columns rise over the frame one after another, then lift away upward.',
       styleTag: 'glass',
       palette: paletteById('frost'),

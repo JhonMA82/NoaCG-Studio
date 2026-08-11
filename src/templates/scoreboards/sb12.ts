@@ -24,7 +24,7 @@ export const sb12: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb12',
     category: 'scoreboard',
-    name: 'Club Match Board Scoreboard',
+    name: 'Club Match Board',
     styleTag: 'minimal',
     description: 'The amateur full-time board: full club names, a flat panel, halves along the bottom.',
     maxLines: 1,
@@ -36,7 +36,7 @@ export const sb12: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Club Match Board Scoreboard',
+    name: 'Club Match Board',
     description:
       'The local and amateur full scoreboard, sibling of sb08 Club Scorebug and lt01 Hairline: ' +
       'a flat solid panel with a hairline status row, full club names either side of the score ' +

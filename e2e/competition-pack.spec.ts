@@ -54,8 +54,7 @@ test('the pack ships its four categories, and every design creates and validates
       if (!info || !info.available) out.missingCategory.push(id);
       const variants = CATALOG[id] ?? [];
       out.counts[id] = variants.length;
-      if (variants.length > 0) {
-        const v = variants[0];
+      for (const v of variants) {
         const tpl = v.create({});
         const verdict = validateTemplate(tpl);
         if (!verdict.ok) out.problems.push(v.id + ': ' + verdict.errors.map((e) => e.rule).join(','));
@@ -478,7 +477,7 @@ test('a board with no data, and an image field with no file, degrade quietly', a
   expect(errors).toEqual([]);
 });
 
-test('one design from each category exports to all six targets with its runtime intact', async ({ page }) => {
+test('every design exports to all six targets with its runtime intact', async ({ page }) => {
   test.setTimeout(240_000);
   await toApp(page);
   const report = await page.evaluate(`(async () => {
@@ -486,14 +485,12 @@ test('one design from each category exports to all six targets with its runtime 
     const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
     const problems = [];
     let packages = 0;
+    // What "every design" means is READ from the catalog, so the assertion below stays "each of
+    // them built for each target" rather than "there are still 44 of them".
     let expected = 0;
+    for (const id of ${JSON.stringify(CATEGORIES)}) expected += (CATALOG[id] ?? []).length * EXPORT_TARGETS.length;
     for (const id of ${JSON.stringify(CATEGORIES)}) {
-      if ((CATALOG[id] ?? []).length > 0) expected += EXPORT_TARGETS.length;
-    }
-    for (const id of ${JSON.stringify(CATEGORIES)}) {
-      const variants = CATALOG[id] ?? [];
-      if (variants.length > 0) {
-        const variant = variants[0];
+      for (const variant of CATALOG[id] ?? []) {
         const tpl = variant.create({});
         for (const target of EXPORT_TARGETS) {
           try {
@@ -519,7 +516,7 @@ test('one design from each category exports to all six targets with its runtime 
 });
 
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {
-  await createProject(page, { category: 'reveal', name: 'House Award Reveal' });
+  await createProject(page, { category: 'reveal', name: 'House Award' });
   const round = await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { createGraphic, graphicById } = await import('/src/model/library.ts');

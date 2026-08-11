@@ -11,7 +11,7 @@ export const sb02: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb02',
     category: 'scoreboard',
-    name: 'Quiet Score Scoreboard',
+    name: 'Quiet Score',
     styleTag: 'minimal',
     description: 'Panel-free corner stack - two quiet rows split by a hairline, accent rule on the edge.',
     maxLines: 1,
@@ -23,7 +23,7 @@ export const sb02: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Quiet Score Scoreboard',
+    name: 'Quiet Score',
     description:
       'The lt01/lt02 sibling for scores: a panel-free stack floating in the corner. Each ' +
       'row pairs a tracking-wide caps team name with a tabular-figure score; a 2px hairline ' +

@@ -19,7 +19,7 @@ export const ls23: TemplateVariant = defineVariant(
   {
     id: 'ls23',
     category: 'lower-third',
-    name: 'Analysis Kicker Lower Third',
+    name: 'Analysis Kicker',
     styleTag: 'minimal',
     description: 'An ANALYSIS kicker set ahead of the name — marks interpretation as interpretation.',
     maxLines: 4,
@@ -38,7 +38,7 @@ export const ls23: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Analysis Kicker Lower Third',
+    name: 'Analysis Kicker',
     description:
       'The comment strap: a filled kicker — ANALYSIS, OPINION, COMMENT — set ahead of and ' +
       'above the name, in the one colour the bulletin reserves for it, with the analyst’s ' +

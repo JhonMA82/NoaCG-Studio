@@ -18,7 +18,7 @@ export const ls11: TemplateVariant = defineVariant(
   {
     id: 'ls11',
     category: 'lower-third',
-    name: 'Team Tag Lower Third',
+    name: 'Team Tag',
     styleTag: 'sport',
     description: 'A team tag chip in front of the in-game name, with role and org beneath.',
     maxLines: 4,
@@ -37,7 +37,7 @@ export const ls11: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Team Tag Lower Third',
+    name: 'Team Tag',
     description:
       'The league player tag: a filled team-tag chip in front of the in-game name, with the ' +
       'role and the legal name beneath. Tag and handle are separate SPX fields on purpose — ' +

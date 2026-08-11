@@ -18,7 +18,7 @@ export const ls13: TemplateVariant = defineVariant(
   {
     id: 'ls13',
     category: 'lower-third',
-    name: 'Desk Duo Lower Third',
+    name: 'Desk Duo',
     styleTag: 'sport',
     description: 'Two casters side by side on an accent floor, each with their own handle.',
     maxLines: 4,
@@ -35,7 +35,7 @@ export const ls13: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Desk Duo Lower Third',
+    name: 'Desk Duo',
     description:
       'The analysis-desk strap: two casters set side by side on a bright accent floor, each ' +
       'with their own name and handle as independent SPX fields. Bigger than a commentary ' +

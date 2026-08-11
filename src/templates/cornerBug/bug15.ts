@@ -10,7 +10,7 @@ export const bug15: TemplateVariant = defineBugVariant(
   {
     id: 'bug15',
     category: 'corner-bug',
-    name: 'Block Mark Corner Bug',
+    name: 'Block Mark',
     styleTag: 'sport',
     description: 'Logo only: a solid slab with the logo and a fused accent edge — no text.',
     // Logo-only by design: the graphic has no text fields, so the wizard offers none.
@@ -23,7 +23,7 @@ export const bug15: TemplateVariant = defineBugVariant(
     defaultZone: 'top-right',
   },
   {
-    name: 'Block Mark Corner Bug',
+    name: 'Block Mark',
     description:
       'The logo-only sport bug: the imported logo — or, until one is picked, a LOGO placeholder box — on a ' +
       'square-cornered slab with the accent fused along its bottom edge, lifted by the ' +

@@ -18,7 +18,7 @@ export const nm03: TemplateVariant = defineRevealVariant(
   {
     id: 'nm03',
     category: 'reveal',
-    name: 'Clean Nominees Reveal',
+    name: 'Clean Nominees',
     styleTag: 'minimal',
     description: 'A quiet finalist list — the winner is said with a rule, not a flood.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const nm03: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Nominees Reveal',
+    name: 'Clean Nominees',
     description:
       'The quiet nominee reveal: a soft scrim, the finalists as a hairline-ruled list, a ' +
       'suspense hold that lowers them all, and the winner marked by an accent rule.',

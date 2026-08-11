@@ -14,7 +14,7 @@ export const lt54: TemplateVariant = defineVariant(
   {
     id: 'lt54',
     category: 'lower-third',
-    name: 'House Ident Lower Third',
+    name: 'House Ident',
     styleTag: 'noacg',
     description: 'Name and mono role, the amber bar as a divider, then the channel mark.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt54: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'House Ident Lower Third',
+    name: 'House Ident',
     description:
       'The house strap signed with a mark: the void panel carries the name and a mono role, the ' +
       '8 px amber bar divides, and the channel or partner logo closes the block. Leave the image ' +

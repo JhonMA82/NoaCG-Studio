@@ -19,7 +19,7 @@ export const ls04: TemplateVariant = defineVariant(
   {
     id: 'ls04',
     category: 'lower-third',
-    name: 'Host & Guest Lower Third',
+    name: 'Host & Guest',
     styleTag: 'glass',
     description: 'The guest set large beside a quieter host — unequal by design, with role chips.',
     maxLines: 4,
@@ -38,7 +38,7 @@ export const ls04: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Host & Guest Lower Third',
+    name: 'Host & Guest',
     description:
       'The talk-show pairing: the guest set at full headline size, the host beside them at ' +
       'roughly half and dimmed, each with a small filled chip naming their part. All four ' +

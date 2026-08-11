@@ -14,7 +14,7 @@ export const bug30: TemplateVariant = defineBugVariant(
   {
     id: 'bug30',
     category: 'corner-bug',
-    name: 'Gala Award Bug Corner Bug',
+    name: 'Gala Award Bug',
     styleTag: 'glass',
     description: 'A frosted winner / nominee mark: the logo in an accent ring, the award word over its category.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const bug30: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Gala Award Bug Corner Bug',
+    name: 'Gala Award Bug',
     description:
       'The ceremony award mark: a translucent blurred tile holding the award or festival logo ' +
       'inside a soft accent ring, with the award word as a small caps kicker and the category ' +

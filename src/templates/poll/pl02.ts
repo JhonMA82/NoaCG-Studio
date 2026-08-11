@@ -10,7 +10,7 @@ export const pl02: TemplateVariant = definePollVariant(
   {
     id: 'pl02',
     category: 'poll',
-    name: 'Volt Vote Poll',
+    name: 'Volt Vote',
     styleTag: 'sport',
     description: 'A results-night slab: condensed caps options, square accent bars, a called winner.',
     maxLines: 4,
@@ -27,7 +27,7 @@ export const pl02: TemplateVariant = definePollVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Volt Vote Poll',
+    name: 'Volt Vote',
     description:
       'The sport live-vote board, sibling of lt06 Split Bar and ig12 Volt Poll: a solid leaning ' +
       'slab with condensed caps options, square-cut accent fills that grow to each share, and a ' +

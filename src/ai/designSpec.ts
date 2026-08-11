@@ -18,7 +18,7 @@ import {
   resolveOptions,
   type AnimSpeed,
   type Palette,
-  type TemplateCategory,
+  type AssemblerId,
   type TemplateVariant,
   type WizardOptions,
   type Zone9,
@@ -56,7 +56,7 @@ export interface DesignSpec {
   reason: string;
   name: string;
   summary: string;
-  category: TemplateCategory;
+  category: AssemblerId;
   /** The chassis (a catalog design id, e.g. "lt07") — a starting point, not a skin. */
   variantId?: string;
   /** The operator's visible text lines (1-3): label + realistic sample. */

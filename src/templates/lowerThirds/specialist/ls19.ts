@@ -19,7 +19,7 @@ export const ls19: TemplateVariant = defineVariant(
   {
     id: 'ls19',
     category: 'lower-third',
-    name: 'Session Speaker Lower Third',
+    name: 'Session Speaker',
     styleTag: 'noacg',
     description: 'The talk title as the headline, with the speaker and the track beneath.',
     maxLines: 4,
@@ -36,7 +36,7 @@ export const ls19: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Session Speaker Lower Third',
+    name: 'Session Speaker',
     description:
       'The multi-track conference strap: the talk title set as the headline — because a ' +
       'viewer joining mid-session needs the talk before the speaker — with the speaker and ' +

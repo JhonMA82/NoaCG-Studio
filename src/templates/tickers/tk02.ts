@@ -20,7 +20,7 @@ export const tk02: TemplateVariant = defineTickerVariant(
   {
     id: 'tk02',
     category: 'ticker',
-    name: 'Volt Rail Ticker',
+    name: 'Volt Rail',
     styleTag: 'sport',
     description: 'A dark zero-radius rail with a skewed volt label chip - fast, loud esport energy.',
     maxLines: 2,
@@ -35,7 +35,7 @@ export const tk02: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Volt Rail Ticker',
+    name: 'Volt Rail',
     description:
       'The sport rail: a hard-cornered dark slab strip with a forward-leaning solid-accent ' +
       'label chip - the same -8deg lean as Angle Slab. Items run in condensed uppercase with ' +

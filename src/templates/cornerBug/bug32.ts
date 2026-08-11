@@ -13,7 +13,7 @@ export const bug32: TemplateVariant = defineBugVariant(
   {
     id: 'bug32',
     category: 'corner-bug',
-    name: 'Laurel Bug Corner Bug',
+    name: 'Laurel Bug',
     styleTag: 'minimal',
     description: 'A panel-free winner / nominee mark: the logo in a hairline ring, the award word over its category.',
     maxLines: 2,
@@ -30,7 +30,7 @@ export const bug32: TemplateVariant = defineBugVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Laurel Bug Corner Bug',
+    name: 'Laurel Bug',
     description:
       'No panel: the award or festival logo sits inside a hairline accent ring, with the award ' +
       'word as a tiny tracked-caps kicker over the category. Soft shadows carry it over bright ' +

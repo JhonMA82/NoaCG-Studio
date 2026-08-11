@@ -13,7 +13,7 @@ export const lt41: TemplateVariant = defineVariant(
   {
     id: 'lt41',
     category: 'lower-third',
-    name: 'Team Bar Lower Third',
+    name: 'Team Bar',
     styleTag: 'sport',
     description: 'Crest well, accent bar, then player, club and a stat line — the roster strap.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const lt41: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Team Bar Lower Third',
+    name: 'Team Bar',
     description:
       'The roster strap: a crest in its own well, a heavy accent bar, then the player name, the ' +
       'club, and a stat or fixture line. The crest well is neutral on purpose, so a club badge in ' +

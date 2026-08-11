@@ -14,7 +14,7 @@ export const lt20: TemplateVariant = defineVariant(
   {
     id: 'lt20',
     category: 'lower-third',
-    name: 'Quiet Center Lower Third',
+    name: 'Quiet Center',
     styleTag: 'minimal',
     description: 'A short accent rule over a centred name and role — symmetric, bottom-centre.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt20: TemplateVariant = defineVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Quiet Center Lower Third',
+    name: 'Quiet Center',
     description:
       'A symmetric centre-stage strap: a short accent rule, then the name, then a dimmed role ' +
       'line, all centred under it. Made for single-presenter shots, stage cameras and any ' +

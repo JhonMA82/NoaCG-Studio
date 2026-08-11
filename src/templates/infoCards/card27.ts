@@ -14,7 +14,7 @@ export const card27: TemplateVariant = defineCardVariant(
   {
     id: 'card27',
     category: 'info-card',
-    name: 'Frost Checklist Info Card',
+    name: 'Frost Checklist',
     styleTag: 'glass',
     description: 'A frosted checklist: drawn tick boxes, one item revealed per Continue.',
     maxLines: 5,
@@ -27,7 +27,7 @@ export const card27: TemplateVariant = defineCardVariant(
     defaultSteps: true,
   },
   {
-    name: 'Frost Checklist Info Card',
+    name: 'Frost Checklist',
     description:
       'The glass checklist: a translucent blurred panel, a soft accent heading, and items with ' +
       'drawn tick boxes that arrive one SPX Continue at a time — so a producer can walk a ' +

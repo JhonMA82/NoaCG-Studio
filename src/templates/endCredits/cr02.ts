@@ -12,7 +12,7 @@ export const cr02: TemplateVariant = defineCreditsVariant(
   {
     id: 'cr02',
     category: 'end-credits',
-    name: 'Column Roll End Credit',
+    name: 'Column Roll',
     styleTag: 'glass',
     description:
       'A two-column credits roll on frosted glass — roles right-aligned left, names left-aligned right.',
@@ -41,7 +41,7 @@ export const cr02: TemplateVariant = defineCreditsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Column Roll End Credits',
+    name: 'Column Roll',
     description:
       'The glass-family credits roll, sibling of lt10 Soft Stack: a frosted panel (blur 18, ' +
       '16 px radius, one soft wide shadow) carrying a two-column grid — dimmed roles ' +

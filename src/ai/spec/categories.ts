@@ -1,14 +1,14 @@
 // The AI category registry: the ~20 broadcast graphics users most often create, measured
 // from the 60-format reference workbook (live_format_graphics_needs.xlsx — lower thirds in
 // 52 of 60 formats, title/topic cards in 44, sponsor bugs in 37, …). Each entry links the
-// systems that already model the graphic — the wizard's TemplateCategory (catalog digest +
+// systems that already model the graphic — the wizard's AssemblerId (catalog digest +
 // nearest worked example) and, where one exists, the GraphicType (real field roles, state
 // machine, control events) — plus suggested fields, and the workflow rules the model reads.
 //
 // ADDING A CATEGORY = adding one entry here. The wizard picker, the prompt assembly, and
 // the harness pinning all read this registry; none of them enumerate categories themselves.
 
-import type { AnimPresetId, TemplateCategory } from '../../model/wizard';
+import type { AnimPresetId, AssemblerId } from '../../model/wizard';
 import type { AiCategoryId, SpecFieldDef } from '../../model/generationSpec';
 import { variantsFor } from '../../templates/catalog';
 import { typeById } from '../../templates/types/registry';
@@ -23,7 +23,7 @@ export interface AiCategory {
   blurb: string;
   /** The wizard category whose assemblers/variants carry this graphic (catalog digest,
    *  nearest worked example, recommended presets). */
-  templateCategory: TemplateCategory;
+  templateCategory: AssemblerId;
   /** The GraphicType that models this graphic, when one exists — its fields, state machine
    *  and control events come along for free (templates/types/registry.ts). */
   typeId?: string;
@@ -386,6 +386,6 @@ export function recommendedPresetsFor(cat: AiCategory): AnimPresetId[] {
 /** The AI category that best matches an inferred wizard category (for showing an 'auto'
  *  run's inferred category as editable metadata). First registry entry wins — the registry
  *  is ordered by how common the graphic is. */
-export function aiCategoryForTemplateCategory(tc: TemplateCategory): AiCategory | undefined {
+export function aiCategoryForAssemblerId(tc: AssemblerId): AiCategory | undefined {
   return AI_CATEGORIES.find((c) => c.templateCategory === tc);
 }

@@ -10,7 +10,7 @@ export const card06: TemplateVariant = defineCardVariant(
   {
     id: 'card06',
     category: 'info-card',
-    name: 'House Topic Info Card',
+    name: 'House Topic',
     styleTag: 'noacg',
     description: 'The house topic card: an amber bar and void panel, a heading over quiet body lines.',
     maxLines: 5,
@@ -26,7 +26,7 @@ export const card06: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'House Topic Info Card',
+    name: 'House Topic',
     description:
       'The NoaCG topic card, sibling of lt11 House Strap: one 8px amber bar with the house ' +
       'glow fused to a void blur panel, a confident heading above quiet dimmed body lines. ' +

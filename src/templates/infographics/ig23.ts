@@ -16,7 +16,7 @@ export const ig23: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig23',
     category: 'infographic',
-    name: 'Frost Goal Infographic',
+    name: 'Frost Goal',
     styleTag: 'glass',
     description: 'A goal ring: the accent draws to the share of the target while the total counts up.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const ig23: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Frost Goal Infographic',
+    name: 'Frost Goal',
     description:
       'A translucent frosted panel holding a goal ring: a label on top, then an accent ring that ' +
       'draws to the share of the target while the running total counts up in its centre, and the ' +

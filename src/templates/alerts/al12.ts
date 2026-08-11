@@ -15,7 +15,7 @@ export const al12: TemplateVariant = defineAlertVariant(
   {
     id: 'al12',
     category: 'alert',
-    name: 'Quiet Warning Alert',
+    name: 'Quiet Warning',
     styleTag: 'cinematic',
     description: 'Restrained alert on a soft scrim with a genuine severity flag and one hairline.',
     maxLines: 3,
@@ -31,7 +31,7 @@ export const al12: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Quiet Warning Alert',
+    name: 'Quiet Warning',
     description:
       'The restrained alert in the lt32 Scrim family: the genuine semantic severity flag sits ' +
       'beside one 1 px hairline and light wide type on an edge-free scrim. The default fade uses sine easing.',

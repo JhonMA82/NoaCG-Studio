@@ -14,7 +14,7 @@ export const sb01: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb01',
     category: 'scoreboard',
-    name: 'Match Strip Scoreboard',
+    name: 'Match Strip',
     styleTag: 'sport',
     description: 'A leaning dark strip - team names flank two accent score chips. Match-night fast.',
     maxLines: 1,
@@ -26,7 +26,7 @@ export const sb01: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Match Strip Scoreboard',
+    name: 'Match Strip',
     description:
       'The classic broadcast score strip: TEAM A | score : score | TEAM B on one dark slab ' +
       'painted at the family -8deg lean, with a chunky accent edge and leaning solid-accent ' +

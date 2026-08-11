@@ -51,7 +51,7 @@ test.describe('community (configured / signed-in)', () => {
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: 'Use' }).click();
     await expect(page.locator('.pk-modal')).toBeHidden(); // gallery closes on a graphic import
-    await expect(page.locator('.topbar .tpl-name')).toContainText('Hairline');
+    await expect(page.locator('.topbar .tpl-name')).toHaveText('Hairline');
   });
 
   test('the publish gate blocks a template that is not self-contained', async ({ page }) => {

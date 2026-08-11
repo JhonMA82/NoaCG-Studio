@@ -193,7 +193,7 @@ export const twoAnswerBoardType: GraphicType = {
   designs: [
     {
       id: 'qz05',
-      name: 'Volt Split Quiz',
+      name: 'Volt Split',
       description: 'A leaning sport board for two answers: the question over two equal accent slabs.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -202,7 +202,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz06',
-      name: 'House Split Quiz',
+      name: 'House Split',
       description: 'The house board for two answers: a void panel, amber edge, two equal answer blocks.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -211,7 +211,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz07',
-      name: 'Frost Split Quiz',
+      name: 'Frost Split',
       description: 'A frosted board for two answers: the question over two equal glass answer blocks.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -220,7 +220,7 @@ export const twoAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz08',
-      name: 'Clean Split Quiz',
+      name: 'Clean Split',
       description: 'A quiet board for two answers: the question over two halves split by a hairline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -258,7 +258,7 @@ export const threeAnswerBoardType: GraphicType = {
   designs: [
     {
       id: 'qz09',
-      name: 'Volt Triple Quiz',
+      name: 'Volt Triple',
       description: 'A leaning sport board for three answers: tall lettered rows under the question.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -267,7 +267,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz10',
-      name: 'House Triple Quiz',
+      name: 'House Triple',
       description: 'The house board for three answers: a void panel, amber edge, three tall lettered rows.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -276,7 +276,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz11',
-      name: 'Frost Triple Quiz',
+      name: 'Frost Triple',
       description: 'A frosted board for three answers: the question over three tall glass answer chips.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -285,7 +285,7 @@ export const threeAnswerBoardType: GraphicType = {
     },
     {
       id: 'qz12',
-      name: 'Clean Triple Quiz',
+      name: 'Clean Triple',
       description: 'A quiet board for three answers: a question over a keyline, three hairline-split rows.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

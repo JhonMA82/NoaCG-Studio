@@ -45,7 +45,7 @@ export const aw03: TemplateVariant = defineRevealVariant(
     html: awardMarkup(o),
     fields: compFieldsFor(AWARD_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Open Reveal', call: 'openEnvelope', duration: 0.7 }],
+    revealSteps: [{ name: 'Open', call: 'openEnvelope', duration: 0.7 }],
     runtimeExtraJs: AWARD_RUNTIME_JS,
     css: `${revealStructureCss()}
 

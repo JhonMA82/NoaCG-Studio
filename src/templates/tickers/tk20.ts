@@ -17,7 +17,7 @@ export const tk20: TemplateVariant = defineTickerVariant(
   {
     id: 'tk20',
     category: 'ticker',
-    name: 'Split Deck Ticker',
+    name: 'Split Deck',
     styleTag: 'noacg',
     description: 'A double-decker: the current story held still on top, everything else crawling below.',
     maxLines: 3,
@@ -41,7 +41,7 @@ export const tk20: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Split Deck Ticker',
+    name: 'Split Deck',
     description:
       'The house double-decker: a top deck holding the current story still beside a mono ' +
       'label, and a lower deck running the rest of the wire past it. Each row does the job ' +

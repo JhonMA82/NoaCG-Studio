@@ -13,7 +13,7 @@ export const al10: TemplateVariant = defineAlertVariant(
   {
     id: 'al10',
     category: 'alert',
-    name: 'Standby Notice Alert',
+    name: 'Standby Notice',
     styleTag: 'noacg',
     description: 'A quiet house standby card: what is happening, and when to come back.',
     maxLines: 3,
@@ -29,7 +29,7 @@ export const al10: TemplateVariant = defineAlertVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Standby Notice Alert',
+    name: 'Standby Notice',
     description:
       'The house standby card: a mono status kicker over a plain statement and a time to ' +
       'come back for. Deliberately calm and low-contrast against the pack’s alerts — a pause ' +

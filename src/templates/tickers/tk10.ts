@@ -17,7 +17,7 @@ export const tk10: TemplateVariant = defineTickerVariant(
   {
     id: 'tk10',
     category: 'ticker',
-    name: 'Wire Rotator Ticker',
+    name: 'Wire Rotator',
     styleTag: 'minimal',
     description: 'A quiet strip that holds one story at a time, split by a thin accent keyline.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const tk10: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Wire Rotator Ticker',
+    name: 'Wire Rotator',
     description:
       'The minimal ticker in rotating form, sibling of lt01/lt02 and tk01 News Strip: a ' +
       'restrained near-black strip with a quiet tracked-caps label and a thin accent keyline ' +

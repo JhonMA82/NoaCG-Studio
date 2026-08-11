@@ -16,7 +16,7 @@ export const ss08: TemplateVariant = defineStartingSoonVariant(
   {
     id: 'ss08',
     category: 'starting-soon',
-    name: 'Please Stand By Starting Soon',
+    name: 'Please Stand By',
     styleTag: 'minimal',
     description: 'The technical-pause card — deliberately no countdown, because nobody can promise one.',
     maxLines: 2,
@@ -31,7 +31,7 @@ export const ss08: TemplateVariant = defineStartingSoonVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Please Stand By Starting Soon',
+    name: 'Please Stand By',
     description:
       'A calm technical-pause screen: tracked caps headline over one honest sentence, ' +
       'separated by a breathing accent rule. No countdown by design — a technical fault has ' +

@@ -18,7 +18,7 @@ export const mu03: TemplateVariant = defineMatchupVariant(
   {
     id: 'mu03',
     category: 'matchup',
-    name: 'Frost Match-up Matchup',
+    name: 'Frost Match-up',
     styleTag: 'glass',
     description: 'Two frosted panels either side of a soft seam — the pick brightens one.',
     maxLines: 3,
@@ -34,7 +34,7 @@ export const mu03: TemplateVariant = defineMatchupVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Match-up Matchup',
+    name: 'Frost Match-up',
     description:
       'The glass match-up card: each side on its own frosted, softly-rounded panel with a ' +
       'gradient accent seam between them. The picked winner brightens and takes an accent ' +

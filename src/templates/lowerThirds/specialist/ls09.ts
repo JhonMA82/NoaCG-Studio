@@ -19,7 +19,7 @@ export const ls09: TemplateVariant = defineVariant(
   {
     id: 'ls09',
     category: 'lower-third',
-    name: 'Player Stats Lower Third',
+    name: 'Player Stats',
     styleTag: 'sport',
     description: 'A compact player name over a rail of three equal stat cells.',
     maxLines: 5,
@@ -39,7 +39,7 @@ export const ls09: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Player Stats Lower Third',
+    name: 'Player Stats',
     description:
       'The replay strap: a compact name-and-club row over a rail of three equal stat cells. ' +
       'Each stat is an independent SPX field set in tabular figures, so a cell can be ' +

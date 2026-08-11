@@ -165,7 +165,7 @@ export const publicNoticeType: GraphicType = {
   designs: [
     {
       id: 'pi08',
-      name: 'Language Rotator Public Info',
+      name: 'Language Rotator',
       description: 'One notice, two languages taking turns in one block — timed, and holdable on air.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -174,7 +174,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi09',
-      name: 'Notice Rotator Public Info',
+      name: 'Notice Rotator',
       description: 'A plain two-language notice whose languages take turns — timed, and holdable.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -191,7 +191,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi11',
-      name: 'Slab Notice Rotator Public Info',
+      name: 'Slab Notice Rotator',
       description: 'A hard-edged two-language notice whose messages rotate in one solid slab.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -201,7 +201,7 @@ export const publicNoticeType: GraphicType = {
     },
     {
       id: 'pi12',
-      name: 'Frost Notice Rotator Public Info',
+      name: 'Frost Notice Rotator',
       description: 'A frosted two-language notice whose messages rotate in one stable panel.',
       styleTag: 'glass',
       palette: paletteById('frost'),

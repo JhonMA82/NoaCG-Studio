@@ -12,7 +12,7 @@ export const qz12: TemplateVariant = defineQuizVariant(
   {
     id: 'qz12',
     category: 'quiz',
-    name: 'Clean Triple Quiz',
+    name: 'Clean Triple',
     styleTag: 'minimal',
     description: 'A quiet board for three answers: a question over a keyline, three hairline-split rows.',
     maxLines: 1,
@@ -24,7 +24,7 @@ export const qz12: TemplateVariant = defineQuizVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Clean Triple Quiz',
+    name: 'Clean Triple',
     description:
       'The minimal three-answer board, sibling of qz04 Clean Quiz and lt01 Hairline: a restrained ' +
       'near-black panel with the question over a dim keyline and three answer rows split by thin ' +

@@ -17,7 +17,7 @@ export const vd04: TemplateVariant = defineRevealVariant(
   {
     id: 'vd04',
     category: 'reveal',
-    name: 'Frost Verdict Reveal',
+    name: 'Frost Verdict',
     styleTag: 'glass',
     description: 'A frosted ruling card with the verdict held in a softly-ringed medallion.',
     maxLines: 3,
@@ -33,7 +33,7 @@ export const vd04: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Verdict Reveal',
+    name: 'Frost Verdict',
     description:
       'The glass ruling card: a cool stage, the prompt on a frosted panel, and the verdict ' +
       'inside a rounded medallion whose ring takes the ruling colour.',

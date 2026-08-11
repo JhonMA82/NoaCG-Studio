@@ -19,7 +19,7 @@ export const br01: TemplateVariant = defineResultsVariant(
   {
     id: 'br01',
     category: 'results-board',
-    name: 'Playoff Bracket Results Board',
+    name: 'Playoff Bracket',
     styleTag: 'sport',
     description: 'A knockout tree in round columns, with a cursor and a champion banner.',
     maxLines: 1,
@@ -31,7 +31,7 @@ export const br01: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Playoff Bracket Results Board',
+    name: 'Playoff Bracket',
     description:
       'The sport playoff bracket: ties grouped into round columns automatically, an accent ' +
       'cursor on the round being played, and a champion banner that lands when the operator ' +

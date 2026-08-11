@@ -15,7 +15,7 @@ export const tk16: TemplateVariant = defineTickerVariant(
   {
     id: 'tk16',
     category: 'ticker',
-    name: 'Breaking Crawl Ticker',
+    name: 'Breaking Crawl',
     styleTag: 'minimal',
     description: 'A breaking-news crawl whose label carries a slow live dot — never a flash.',
     maxLines: 2,
@@ -37,7 +37,7 @@ export const tk16: TemplateVariant = defineTickerVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Breaking Crawl Ticker',
+    name: 'Breaking Crawl',
     description:
       'The developing-story crawl: a solid accent label with a slowly breathing live dot, ' +
       'and the story lines travelling beside it. The dot is paced to read as "current", not ' +

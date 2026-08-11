@@ -25,7 +25,7 @@ export const tt03: TemplateVariant = defineResultsVariant(
   {
     id: 'tt03',
     category: 'results-board',
-    name: 'Frost Splits Results Board',
+    name: 'Frost Splits',
     styleTag: 'glass',
     description: 'A frosted timing column: ringed positions, frosted rows, split times.',
     maxLines: 2,
@@ -40,7 +40,7 @@ export const tt03: TemplateVariant = defineResultsVariant(
     defaultZone: 'top-left',
   },
   {
-    name: 'Frost Splits Results Board',
+    name: 'Frost Splits',
     description:
       'A frosted timing tower: each position in an accent ring, each competitor on its own ' +
       'frosted tile, the split times in tabular figures, and an accent-ringed leader once the ' +

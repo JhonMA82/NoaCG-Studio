@@ -13,7 +13,7 @@ export const ig04: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig04',
     category: 'infographic',
-    name: 'Poll Ring Infographic',
+    name: 'Poll Ring',
     styleTag: 'glass',
     description: 'A frosted panel where an accent ring draws around a counting poll percentage.',
     maxLines: 2,
@@ -28,7 +28,7 @@ export const ig04: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Poll Ring Infographic',
+    name: 'Poll Ring',
     description:
       'A translucent frosted panel — the sibling of the Frosted Card / Gradient Pill lower ' +
       'thirds — showing one poll result. The question sits on top; below it an accent ring ' +

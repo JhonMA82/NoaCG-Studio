@@ -71,7 +71,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
 
   // The verdict. B is correct — the picked row lights as the winner.
   await page.getByTestId('cue-action-judge').click();
-  await expect(chip).toContainText('Reveal');
+  await expect(chip).toHaveText('Reveal');
   await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-correct/);
 
   // Audience result: type the percentages, fire the beat — the chips appear on the rows.

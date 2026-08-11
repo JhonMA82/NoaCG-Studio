@@ -18,7 +18,7 @@ export const rs03: TemplateVariant = defineResultsVariant(
   {
     id: 'rs03',
     category: 'results-board',
-    name: 'Clean Line-up Results Board',
+    name: 'Clean Line-up',
     styleTag: 'minimal',
     description: 'A panel-free line-up: hairline rows, roles in small caps, a quiet spotlight.',
     maxLines: 2,
@@ -33,7 +33,7 @@ export const rs03: TemplateVariant = defineResultsVariant(
     defaultZone: 'mid-left',
   },
   {
-    name: 'Clean Line-up Results Board',
+    name: 'Clean Line-up',
     description:
       'The quiet roster board: no panel, hairline-separated player rows with roles in small ' +
       'caps, and a spotlight said with an accent rule rather than a filled block.',

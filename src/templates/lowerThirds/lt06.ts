@@ -10,7 +10,7 @@ export const lt06: TemplateVariant = defineVariant(
   {
     id: 'lt06',
     category: 'lower-third',
-    name: 'Split Bar Lower Third',
+    name: 'Split Bar',
     styleTag: 'sport',
     description: 'Two stacked bars — a heavy dark name slab over a solid accent team bar.',
     maxLines: 2,
@@ -25,7 +25,7 @@ export const lt06: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Split Bar Lower Third',
+    name: 'Split Bar',
     description:
       'Two stacked bars that each hug their own text: a heavy dark slab for the name and a ' +
       'solid accent bar for the team line, touching with zero gap so unequal line lengths ' +

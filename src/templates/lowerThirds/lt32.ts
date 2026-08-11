@@ -13,7 +13,7 @@ export const lt32: TemplateVariant = defineVariant(
   {
     id: 'lt32',
     category: 'lower-third',
-    name: 'Scrim Lower Third',
+    name: 'Scrim',
     styleTag: 'cinematic',
     description: 'Name and role on a scrim that fades into the shot — no panel, no edges.',
     maxLines: 2,
@@ -32,7 +32,7 @@ export const lt32: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Scrim Lower Third',
+    name: 'Scrim',
     description:
       'The documentary name super: a soft scrim under the type instead of a panel, a 1 px hairline ' +
       'above the name, and wide-tracked setting throughout. Made for real locations — a boat deck, ' +

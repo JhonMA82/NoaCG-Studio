@@ -10,7 +10,7 @@ export const sb04: TemplateVariant = defineScoreboardVariant(
   {
     id: 'sb04',
     category: 'scoreboard',
-    name: 'Frost Score Scoreboard',
+    name: 'Frost Score',
     styleTag: 'glass',
     description: 'A frosted score strip: soft accent bar, team names, scores in glass chips.',
     maxLines: 1,
@@ -22,7 +22,7 @@ export const sb04: TemplateVariant = defineScoreboardVariant(
     defaultZone: 'top-center',
   },
   {
-    name: 'Frost Score Scoreboard',
+    name: 'Frost Score',
     description:
       'The glass score strip, sibling of lt08 Frosted Card: a translucent blurred panel with a ' +
       'soft accent bar on the left, team names in the family\'s heavier weight, and the two ' +

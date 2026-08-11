@@ -15,7 +15,7 @@ export const lt44: TemplateVariant = defineVariant(
   {
     id: 'lt44',
     category: 'lower-third',
-    name: 'Stat Strip Lower Third',
+    name: 'Stat Strip',
     styleTag: 'sport',
     description: 'Player and club over a row of three stat cells — five inputs, one glance.',
     maxLines: 5,
@@ -33,7 +33,7 @@ export const lt44: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Stat Strip Lower Third',
+    name: 'Stat Strip',
     description:
       'The five-input matchday strap: the player name, the club, and three stat cells in a row ' +
       'under an accent bar — points, assists, steals; laps, splits, position; sets, aces, breaks. ' +

@@ -9,7 +9,7 @@ export const lt03: TemplateVariant = defineVariant(
   {
     id: 'lt03',
     category: 'lower-third',
-    name: 'Side Tag Lower Third',
+    name: 'Side Tag',
     styleTag: 'minimal',
     description: 'A quiet keyline panel with a slim vertical accent bar - understated and professional.',
     maxLines: 3,
@@ -24,7 +24,7 @@ export const lt03: TemplateVariant = defineVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Side Tag Lower Third',
+    name: 'Side Tag',
     description:
       'A calm dark panel with a 1px keyline border and a 4px accent bar hugging its left edge. '
       + 'Big confident name, dimmed title, optional small-caps kicker in the accent color.',

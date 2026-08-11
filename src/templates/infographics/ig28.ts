@@ -21,7 +21,7 @@ export const ig28: TemplateVariant = defineInfographicVariant(
   {
     id: 'ig28',
     category: 'infographic',
-    name: 'Frost Fixtures Infographic',
+    name: 'Frost Fixtures',
     styleTag: 'glass',
     description: 'A frosted fixtures board: soft rows with the score in an accent-tinted pill.',
     maxLines: 3,
@@ -37,7 +37,7 @@ export const ig28: TemplateVariant = defineInfographicVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Fixtures Infographic',
+    name: 'Frost Fixtures',
     description:
       'The glass fixtures and results board, sibling of ig32 Frost Table and ig09 Frost ' +
       'Schedule: a frosted card with a soft heading, the round beside it, and one airy row per ' +

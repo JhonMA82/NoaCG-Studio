@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CATEGORIES, type TemplateCategory } from '../../../model/wizard';
+import { CATEGORIES, type AssemblerId } from '../../../model/wizard';
 import type { AssetFile } from '../../../model/types';
 import { fileToDataUrl, isImageAsset, uniqueAssetPath } from '../../../assets/assetUtils';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
@@ -15,7 +15,7 @@ interface Props {
   draft: WizardDraft;
   onDraft: (patch: DraftPatch) => void;
   onImages: (images: AssetFile[]) => void;
-  onContinue: (category: TemplateCategory) => void;
+  onContinue: (category: AssemblerId) => void;
 }
 
 /**
@@ -27,7 +27,7 @@ interface Props {
 export default function ImportStep({ images, draft, onDraft, onImages, onContinue }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [category, setCategory] = useState<TemplateCategory>('lower-third');
+  const [category, setCategory] = useState<AssemblerId>('lower-third');
 
   const addFiles = async (files: FileList | File[]) => {
     const next = [...images];
@@ -85,7 +85,7 @@ export default function ImportStep({ images, draft, onDraft, onImages, onContinu
 
       <div className="panel-section" style={{ marginTop: 18 }}>
         <h3>What are you making with these?</h3>
-        <select value={category} onChange={(e) => setCategory(e.target.value as TemplateCategory)}>
+        <select value={category} onChange={(e) => setCategory(e.target.value as AssemblerId)}>
           {/* 'imported' is not something you make WITH an image — it IS the image (the
               Import graphic entry). See CategoryInfo.group. */}
           {CATEGORIES.filter((c) => c.group !== 'imported').map((c) => (

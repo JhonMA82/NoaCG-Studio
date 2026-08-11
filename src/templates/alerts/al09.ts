@@ -16,7 +16,7 @@ export const al09: TemplateVariant = defineAlertVariant(
   {
     id: 'al09',
     category: 'alert',
-    name: 'Breaking Banner Alert',
+    name: 'Breaking Banner',
     styleTag: 'minimal',
     description: 'The breaking-news strap: an accent kicker block, the headline, the attribution.',
     maxLines: 3,
@@ -32,7 +32,7 @@ export const al09: TemplateVariant = defineAlertVariant(
     defaultZone: 'bottom-center',
   },
   {
-    name: 'Breaking Banner Alert',
+    name: 'Breaking Banner',
     description:
       'The breaking strap: a solid accent kicker block on the reading edge, the headline in ' +
       'the largest type the band will hold, and a quiet attribution line beneath. The kicker ' +

@@ -104,7 +104,7 @@ export const mr04: TemplateVariant = defineEsportsVariant(
   {
     id: 'mr04',
     category: 'esports-score',
-    name: 'Map Veto Esports Score',
+    name: 'Map Veto',
     styleTag: 'sport',
     description: 'A pick-and-ban ladder with the current decision moved atomically by the operator.',
     maxLines: 1,
@@ -116,7 +116,7 @@ export const mr04: TemplateVariant = defineEsportsVariant(
     defaultZone: 'mid-right',
   },
   {
-    name: 'Map Veto Esports Score',
+    name: 'Map Veto',
     description:
       'A live pick-and-ban ladder: every decision remains editable operator data while one ' +
       'cursor advances atomically through the draft and the completed state closes the board.',

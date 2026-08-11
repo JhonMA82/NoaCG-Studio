@@ -9,7 +9,7 @@ export const card77: TemplateVariant = defineCardVariant(
   {
     id: 'card77',
     category: 'info-card',
-    name: 'Frost Listing Info Card',
+    name: 'Frost Listing',
     styleTag: 'glass',
     description:
       'A frosted listing card: photo and title beside a softly separated live value.',
@@ -35,7 +35,7 @@ export const card77: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'Frost Listing Info Card',
+    name: 'Frost Listing',
     description:
       'A translucent keylined listing surface with rounded image framing and a softly tinted value column.',
     uicolor: '5',

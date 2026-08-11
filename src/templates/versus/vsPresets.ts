@@ -39,7 +39,7 @@ var easeOut = '${cfg.easeOut}';   // exit ease — starts naturally, leaves quic
 export const VS_PRESETS: AnimPreset[] = [
   {
     id: VS_SLAM_ID,
-    name: 'Versus slam Versus',
+    name: 'Versus slam',
     description: 'The two sides charge in and collide - the VS punches in on the impact.',
     autoEase: { easeIn: 'power4.out', easeOut: 'power3.in' },
     emit: (cfg) => `${MARK_OPEN}

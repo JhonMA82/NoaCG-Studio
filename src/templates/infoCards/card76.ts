@@ -8,7 +8,7 @@ export const card76: TemplateVariant = defineCardVariant(
   {
     id: 'card76',
     category: 'info-card',
-    name: 'Volt Listing Info Card',
+    name: 'Volt Listing',
     styleTag: 'sport',
     description:
       'A sport listing slab: photo and title beside a high-impact labelled value.',
@@ -34,7 +34,7 @@ export const card76: TemplateVariant = defineCardVariant(
     defaultZone: 'bottom-left',
   },
   {
-    name: 'Volt Listing Info Card',
+    name: 'Volt Listing',
     description:
       'A hard sport slab with a framed image, condensed listing copy, and an accent-filled value block.',
     uicolor: '1',

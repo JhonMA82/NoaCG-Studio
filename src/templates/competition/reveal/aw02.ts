@@ -19,7 +19,7 @@ export const aw02: TemplateVariant = defineRevealVariant(
   {
     id: 'aw02',
     category: 'reveal',
-    name: 'Frost Award Reveal',
+    name: 'Frost Award',
     styleTag: 'glass',
     description: 'A frosted category plate — the subject blooms out on the press.',
     maxLines: 3,
@@ -35,7 +35,7 @@ export const aw02: TemplateVariant = defineRevealVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Frost Award Reveal',
+    name: 'Frost Award',
     description:
       'The glass award reveal: the category on a frosted plate, the winner sealed until the ' +
       'press, then the subject blooming out beneath with its logo and note.',
@@ -45,7 +45,7 @@ export const aw02: TemplateVariant = defineRevealVariant(
     html: awardMarkup(o),
     fields: compFieldsFor(AWARD_FIELDS, o),
     hasAccent: true,
-    revealSteps: [{ name: 'Open Reveal', call: 'openEnvelope', duration: 0.7 }],
+    revealSteps: [{ name: 'Open', call: 'openEnvelope', duration: 0.7 }],
     runtimeExtraJs: AWARD_RUNTIME_JS,
     css: `${revealStructureCss()}
 

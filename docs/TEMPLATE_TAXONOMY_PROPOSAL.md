@@ -261,9 +261,10 @@ browser without an assignment falls back to a **single** per-old-category defaul
 → `lower-third`, `info-card` → `info`, `infographic` → `stats`) so the fallback is always
 well-defined.
 
-`TemplateCategory` stays as the **assembler/routing id** (it names which code builds the
+The wizard category stays as the **assembler/routing id** (it names which code builds the
 template); the graphic category becomes presentation metadata on top. No file moves, no id
-renames - see §17.
+renames - see §17. *(2026-08-11: the type was renamed `TemplateCategory` → `AssemblerId` in
+`src/model/wizard.ts` to make this split self-documenting; the ids themselves are unchanged.)*
 
 ---
 

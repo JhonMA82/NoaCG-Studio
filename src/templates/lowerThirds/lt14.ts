@@ -14,7 +14,7 @@ export const lt14: TemplateVariant = defineVariant(
   {
     id: 'lt14',
     category: 'lower-third',
-    name: 'House Handle Lower Third',
+    name: 'House Handle',
     styleTag: 'noacg',
     description: 'The house social mark: compact void strip, amber bar, mono platform label.',
     maxLines: 2,
@@ -29,7 +29,7 @@ export const lt14: TemplateVariant = defineVariant(
     defaultZone: 'bottom-right',
   },
   {
-    name: 'House Handle Lower Third',
+    name: 'House Handle',
     description:
       'A compact social strip in the house grammar: the amber bar against a void blur ' +
       'panel, the handle in display type, and the platform as a tracked mono label in the ' +

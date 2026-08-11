@@ -14,7 +14,7 @@ export const card34: TemplateVariant = defineCardVariant(
   {
     id: 'card34',
     category: 'info-card',
-    name: 'Statement Card Info Card',
+    name: 'Statement Card',
     styleTag: 'minimal',
     description: 'A long statement with a second language under it, and its attribution.',
     maxLines: 4,
@@ -26,7 +26,7 @@ export const card34: TemplateVariant = defineCardVariant(
     defaultZone: 'mid-center',
   },
   {
-    name: 'Statement Card Info Card',
+    name: 'Statement Card',
     description:
       'The minimal long-text card: an accent hairline down the left, a tracked-caps label, the ' +
       'statement set as prose, the same statement in a second language behind its own accent ' +

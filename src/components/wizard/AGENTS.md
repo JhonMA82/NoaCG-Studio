@@ -70,10 +70,12 @@ path; blank falls back to the design's catalog name), a read-back of what was ch
 doors:
 - **Open in the editor** - the classic ending. Creates and hands over; saving stays the
   user's move.
-- **Export it** - creates, SAVES to the library, closes onto `#/home/graphics`, and opens
-  ExportWindow. The editor is never revealed. The save is not optional: a graphic that was
-  configured, exported and dropped would cost every wizard choice to reproduce. A FAILED save
-  deliberately stays in the editor instead, where the topbar's failed status is visible.
+- **Export it** - creates, SAVES to the library, and opens ExportWindow OVER the wizard
+  (`applyTemplate`'s `keepGalleryOpen`); closing the window returns to the last creation
+  step, so a follow-up tweak costs no re-walk. The editor is never revealed. The save is not
+  optional: a graphic that was configured, exported and dropped would cost every wizard
+  choice to reproduce. A FAILED save deliberately stays in the editor instead, where the
+  topbar's failed status is visible.
 Both doors go through `applyDraftProject`, which is what keeps them byte-identical - the
 editor path formats through Prettier (`applyGenerated`), so an export path skipping it would
 ship different HTML for the same choices. The footer's quiet "Create project" shortcut stands
