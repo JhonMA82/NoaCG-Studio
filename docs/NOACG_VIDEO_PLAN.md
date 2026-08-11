@@ -76,8 +76,11 @@ the same discipline as Pro §1.1. The order:
 
 1. **Stinger / logo sting** (2-5 s, usually transparent, one-shot or loop; the wipe variant has
    a full-cover cut window) - closest to a graphic, deepest existing evidence.
-2. **Intro / opener** (5-15 s, opaque, title + brand, music optional as user-supplied audio
-   under the existing render audio path - never generated).
+2. **Intro / opener** (5-15 s, opaque, title + brand, music optional as a user-supplied file
+   muxed into the output at render/export time - never generated. **No such mux path exists
+   today**: the HyperFrames validator correctly bans `<audio>` inside compositions and the
+   render manifest/worker carry no audio at all, so building the mux is named Phase A platform
+   work, not an assumed capability).
 3. **Overlay loop** (seamless-loop ambient graphics: tickers, backgrounds, frames, bugs).
 4. **Silent explainer** (30-120 s, multi-scene, text-driven; no narration, no TTS - a later plan
    may add narration timing, this one does not).
@@ -114,7 +117,18 @@ The platform owns engineering; the model owns taste - Pro §2, translated to vid
 - Brand is data, not decoration: the user's logo asset, palette and typefaces enter as
   composition variables and assets; a generation without the logo it was given is a hard
   failure (the Lite lesson: a rule without a contract property is dead teaching - the logo
-  slot is part of the scaffold, not a prompt suggestion).
+  slot is part of the scaffold, not a prompt suggestion). Building this input is real Phase A
+  work: today's video harness consumes no project brand at all.
+- **"Style guide" v1 boundary:** the style input is the structured brand kit - logo, palette,
+  typefaces, and the brief's own words. A freeform style guide (a PDF, reference frames,
+  "match this look") has no ingestion path in this plan's early phases: cheap text routes
+  cannot read it, and a vision route costs real money per generation. Reference-image style
+  ingestion is a named later item (after Phase P, costed like the critic), so the product
+  promise and the plan cannot quietly diverge.
+- Audio never lives inside the composition (determinism). A user-supplied audio file may be
+  attached to a render/export job and muxed into the output file - the Phase A mux path above.
+  Stingers ship with their SFX or they are not stream-usable; a silent stinger export must be
+  an explicit user choice, not a platform limitation.
 - Editability survives: the Content panel edits declared variables live; regenerating preserves
   user-edited values (`mergeVideoInputs` behavior is contract, not accident).
 - The model authors only the creative region of a platform-emitted scaffold; variable
@@ -232,7 +246,12 @@ timestamp, no motion that never resolves to a readable settled state.
 Cheapness is a gate, not a footnote: the served route's cost per accepted output is recorded
 every round, and a round that only passes on a route too expensive for the hosted tier has not
 passed (the Lite economics: ~$0.0003/generation text routes exist; video briefs are longer and
-output larger, so the working budget is set from measured Phase 0 usage, not assumed).
+output larger, so the working budget is set from measured Phase 0 usage, not assumed). The
+ledger counts **tokens and render-service spend** - a repair round that re-renders MP4s costs
+sandbox minutes, not just tokens. And the binding affordability constraint is **output
+length**, not route price: cheap routes cap output tokens well below what a long composition
+needs, which is exactly why explainers are Phase E and why Phase 0 records the output-token
+distribution per brief.
 
 ---
 
@@ -273,6 +292,9 @@ Protocol, reusing Pro §0 discipline:
 - **Spend:** cheap-route arms are estimated low single-digit dollars; the optional frontier arm
   dominates any cap. Exact route and cap approved explicitly before the round, per standing
   rule. This document schedules the spike; it does not authorize spend.
+- **Measurements that outlive the spike:** the output-token distribution per brief and the
+  render-service cost per candidate are recorded regardless of the go/no-go verdict - they set
+  the §5 affordability budget and the Phase E feasibility read.
 
 **Stop if** the cheap arms show no compositional judgement even with exemplars: then the honest
 options are raising the served price, or waiting for cheaper-stronger checkpoints - record the
@@ -287,14 +309,20 @@ Phase P touches a product surface; the Student release keeps priority.
 
 - **Phase 0 (spike):** §6. Gate: go/no-go on human review.
 - **Phase A (stinger/intro/overlay contract):** harden the scaffold boundary, the three
-  `VideoDesignPlan` properties (§2.1), the video-specific gates (§4.2), and the render-set
-  builder. Gate: the bootstrap corpus and the promising spike cases compile, validate, render,
-  loop and export correctly, and humans confirm the contract did not flatten what passed the
-  spike.
+  `VideoDesignPlan` properties (§2.1), the video-specific gates (§4.2), the render-set
+  builder, the project-brand input into the harness (§2 - none exists today), and the
+  **audio mux path**: a user-supplied audio file attached to a render/export job via the
+  manifest and muxed by the render worker, never an element inside the composition. Gate: the
+  bootstrap corpus and the promising spike cases compile, validate, render, loop and export
+  correctly - a stinger with attached SFX plays with sound in OBS/vMix - and humans confirm
+  the contract did not flatten what passed the spike.
 - **Phase B (evaluation contract):** rubric, dev bank, locked holdout, fixtures, cost ledger,
   panel - shared with Pro Phase 2 where possible (same reviewers, same gallery tooling, video
-  rubric added). Gate: a zero-spend dry run detects seeded defects and calibrates the premium
-  band from the anchors.
+  rubric added). The dev bank includes a **refinement section** - follow-up edits to an
+  accepted result ("bigger logo", "slower entrance", "different color world") - because the
+  product surface is chat refinement, and a system judged only on first generations has not
+  been judged on how users actually use it. The locked holdout stays first-generation. Gate: a
+  zero-spend dry run detects seeded defects and calibrates the premium band from the anchors.
 - **Phase C (cheap-model tournament + retrieval):** systematic cheap-checkpoint comparison on
   the dev bank; exemplar ablation; corpus growth to ~30 compositions. Gate: a pinned cheap
   route holds a high structural-validity rate and human review confirms Phase 0's visual level
@@ -307,8 +335,12 @@ Phase P touches a product surface; the Student release keeps priority.
   in product and bench (Pro's rule: bench quality must survive integration unchanged).
 - **Phase E (silent explainers):** only after Phase P for the short types. Needs platform
   vocabulary first - sub-compositions (scenes) in the HyperFrames runtime and a scene/beat
-  extension of `VideoDesignPlan` - each grown under the §2.1 evidence rule. Its own brief bank,
-  corpus additions and blind round; a stinger verdict transfers nothing.
+  extension of `VideoDesignPlan` - each grown under the §2.1 evidence rule. It also needs its
+  own **cost model**: a 30-120 s explainer does not fit one cheap generation's output cap, so
+  a scene is likely its own generation and cost scales per scene - orchestration (scene plan
+  -> per-scene generation -> assembly) and its measured per-explainer cost are part of the
+  phase gate, not an afterthought. Its own brief bank, corpus additions and blind round; a
+  stinger verdict transfers nothing.
 - **Phase F (fine-tune):** video traces join the Pro Phase 6 dataset under the same entry gate
   and provenance rules; no separate video fine-tune program.
 
