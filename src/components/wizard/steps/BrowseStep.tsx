@@ -434,13 +434,13 @@ export default function BrowseStep({
         <label className="wz-browse-type">
           {/* Hidden wording, real label — same device the format picker uses: the select's own
               text already says "Lower thirds · 82", so a visible caption would repeat it. */}
-          <span className="project-format-label">Graphic type</span>
+          <span className="project-format-label">Category</span>
           <select
             data-testid="wz-browse-type"
             value={filters.category ?? ''}
             onChange={(e) => set({ category: (e.target.value || null) as GraphicCategoryId | null })}
           >
-            <option value="">All types · {catalogTotal}</option>
+            <option value="">All categories · {catalogTotal}</option>
             {tiles.map((tile) => (
               <option key={tile.category} value={tile.category}>
                 {tile.name} · {tile.count}

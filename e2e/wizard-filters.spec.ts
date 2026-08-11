@@ -119,7 +119,7 @@ test('the type dropdown offers exactly the categories the catalog has designs fo
   await toBrowseStep(page);
   // This used to name the one category that was empty - Products, then Captions - and each
   // naming rotted the moment a pack filled it. So assert the RULE: the options are exactly
-  // the graphic categories with content, plus the "All types" default.
+  // the graphic categories with content, plus the "All categories" default.
   const expected = await page.evaluate(async () => {
     const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
     const { GRAPHIC_CATEGORIES } = await import('/src/model/taxonomy.ts');
@@ -127,7 +127,7 @@ test('the type dropdown offers exactly the categories the catalog has designs fo
     return GRAPHIC_CATEGORIES.filter((c) => filled.has(c.id)).map((c) => c.name).sort();
   });
   const options = await page.getByTestId('wz-browse-type').locator('option').allInnerTexts();
-  expect(options[0]).toMatch(/^All types · \d+$/);
+  expect(options[0]).toMatch(/^All categories · \d+$/);
   // Each option reads "Name · count"; the count is live data, so only the name is compared.
   const rendered = options.slice(1).map((t) => t.split(' · ')[0].trim()).sort();
   expect(rendered).toEqual(expected);
