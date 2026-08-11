@@ -200,16 +200,22 @@ for (const candidate of candidates) {
     const { outputBudget } = await import('/src/ai/modelTypes.ts' + bust);
     const started = Date.now();
     try {
+      // THE PROMPT NAMES THE WHOLE PAYLOAD, and the first version did not. It said "emit the
+      // three files", so both candidates returned html/css/js and omitted name/type/summary -
+      // a schema miss the runner reported as REFUSED, which reads identically to an endpoint
+      // that cannot serve structured output at all. A probe that asks for less than the schema
+      // requires measures its own wording. (Found via NOACG_DEBUG_STRUCTURED=1, which prints
+      // the rejected paths server-side: `$.name:required,$.type:required,$.summary:required`.)
       const answer = await callModelDetailed({
         system: 'You make broadcast graphics as SPX / CasparCG HTML templates. Return the complete '
-          + 'template as three files via the emit_template tool. Keep it small - this is a capability '
-          + 'probe, not a design task.',
+          + 'template via the emit_template tool, filling EVERY property the tool declares. Keep the '
+          + 'design small - this is a capability probe, not a design task.',
         messages: [{
           role: 'user',
           content: [{
             type: 'text',
             text: 'A plain two-line lower third: a name field f0 and a role field f1, a dark panel, '
-              + 'one accent bar, a simple GSAP entrance and exit. Emit the three files.',
+              + 'one accent bar, a simple GSAP entrance and exit. Return it via the emit_template tool.',
           }],
         }],
         tool: TEMPLATE_TOOL,

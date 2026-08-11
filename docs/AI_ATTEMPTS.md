@@ -26,6 +26,26 @@ unblinded, single-arm, not comparable to the pairwise numbers.
 **RETRY WHEN** a route at ~$0.01/generation beats the frozen control on a blind pairwise of **20+
 joined items**. Frontier models already clear quality and fail price - that is Extreme, not this.
 
+### Reaching an open-weight checkpoint through the generic proxy's `json_schema`
+**2026-08-11 · 0 of 2 checkpoints, then 2 of 2 · BLOCKED on the transport, not the models.** The
+Phase 0 capability probe refused both pinned checkpoints (`moonshotai/kimi-k3`, `zai/glm-5.2`) with
+`malformed_response`. They are not incapable: `POST /api/ai/generate` is the only path a browser
+harness has, `surfaceRoutePolicy` never sets `structuredOutputMode`, so every generic gateway call
+goes out as `response_format: json_schema` with **`strict: false`** - a hint these endpoints do not
+honour. Asked the same question both ways against the gateway directly: under json_schema glm-5.2
+returned `{emit_template: {…}}` and kimi-k3 invented a whole SPX-definition-shaped object
+(`playserver`, `DataFields`, `dataformat`); under a **forced function tool** both returned exactly
+`name,type,summary,html,css,js`. The repo already believed this - `providerAllowlistFor` filters
+gateway endpoints on `tools` support and `src/ai/AGENTS.md` says forced-function tool use "is the
+capability the structured call actually rides on" - but the transport asks for the other thing.
+**RETRY WHEN** never as stated: json_schema is not the capability. The fix is a mode the generic
+proxy can express, and it is a shared-contract change (`AiGatewaySurface`, `surfaceRoutePolicy`,
+or the vercel adapter's default) that has to be verified against the paths already using it -
+Lite and import-analysis pin their own mode and are unaffected. **Standing instruction:** a probe
+that reports REFUSED must say which of the two it measured, because "the endpoint cannot serve
+structured output" and "we asked for the wrong kind" look identical from the caller.
+`NOACG_DEBUG_STRUCTURED=1` prints the rejected paths server-side and is what separated them here.
+
 ### `alibaba/qwen3.7-flash` as a Lite route
 **2026-08-08 · 0 of 6 · DISQUALIFIED.** Cheapest text route on the gateway (0.03/0.13), 991k context,
 and it cannot serve Lite at all: the endpoint downgrades `response_format: json_schema` to
