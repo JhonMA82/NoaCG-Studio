@@ -220,6 +220,9 @@ for (const candidate of candidates) {
         }],
         tool: TEMPLATE_TOOL,
         route: { provider: input.provider, model: input.modelId },
+        // The same surface the round itself uses, so the probe measures the transport the
+        // round will actually run on. A probe on a different transport certifies nothing.
+        surface: 'spike',
         maxTokens: outputBudget(4000),
         temperature: 0.7,
       });
@@ -252,9 +255,21 @@ for (const candidate of candidates) {
   findings.push(verdict);
 
   if (!result.ok) {
+    // WHICH REFUSAL IS THIS? The standing instruction in docs/AI_ATTEMPTS.md exists because
+    // "the endpoint cannot serve the contract" and "we asked it the wrong way" look identical
+    // from here, and this script asserted the first for both until it cost a diagnosis. A
+    // request the SERVER rejected never reached a model at all.
+    const ours = /invalid|surface|unsupported|not configured|missing key|authentication/i.test(result.error);
     console.log(`   REFUSED: ${result.error}`);
-    console.log('   This is an endpoint property, not a model opinion - the same class as the');
-    console.log('   qwen3.7-flash json_schema downgrade. Not a Phase 0 candidate.\n');
+    if (ours) {
+      console.log('   OUR REQUEST was refused before a model saw it - this measures the harness,');
+      console.log('   not the checkpoint. Fix the request and re-probe; draw no conclusion here.');
+    } else {
+      console.log('   The endpoint did not serve the contract - the same class as the qwen3.7-flash');
+      console.log('   json_schema downgrade. Confirm with NOACG_DEBUG_STRUCTURED=1, which prints the');
+      console.log('   rejected schema paths server-side, before ruling the checkpoint out.');
+    }
+    console.log('');
     continue;
   }
   const serves = result.emittedAllFiles && result.htmlLooksComplete && result.jsHasLifecycle;

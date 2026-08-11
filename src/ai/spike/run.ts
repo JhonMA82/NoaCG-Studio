@@ -141,6 +141,13 @@ export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunR
       messages,
       tool: TEMPLATE_TOOL,
       route,
+      // The `spike` surface exists for one reason: it is the only way a browser harness can
+      // ask the gateway for FORCED-FUNCTION tool use. Without it the call goes out as a
+      // non-strict `json_schema` hint, which both pinned open-weight checkpoints ignore -
+      // one wrapping its answer, the other inventing an SPX-definition-shaped object
+      // (api/_lib/aiSurfacePolicy.ts, docs/AI_ATTEMPTS.md). Dropping this line does not
+      // degrade the round, it ends it.
+      surface: 'spike',
       cacheSystem: true,
       temperature: decoding.temperature,
       seed: decoding.seed,

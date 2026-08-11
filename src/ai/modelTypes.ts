@@ -199,7 +199,7 @@ export interface AiGatewayErrorBody {
  *  grant or an instance-wide kill switch can withdraw, and without a discriminator those
  *  harnesses are indistinguishable from every other call on the same endpoint
  *  (docs/ADMIN.md, the enforcement table). */
-export type AiGatewaySurface = 'video' | 'pro';
+export type AiGatewaySurface = 'video' | 'pro' | 'spike';
 
 export interface AiGatewayRequestBody {
   request: ModelRequest;
