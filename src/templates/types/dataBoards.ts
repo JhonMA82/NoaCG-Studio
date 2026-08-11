@@ -26,7 +26,7 @@ const POLL_SAMPLE = 'Streaming | 78\nBroadcast | 54\nOn demand | 36';
  *  lineup, next-up). Promoted out of the infographic category, where it was a variant. */
 export const agendaType: GraphicType = {
   id: 'agenda',
-  name: 'Agenda Infographic',
+  name: 'Agenda',
   description: 'What is coming up, as a list of times and titles.',
   frequency: 22,
   structure: {
@@ -126,7 +126,7 @@ export const agendaType: GraphicType = {
  *  percentage bars, seat counts). Also promoted out of the infographic category. */
 export const pollType: GraphicType = {
   id: 'poll',
-  name: 'Poll result Infographic',
+  name: 'Poll result',
   description: 'A question and its answers as bars — the vote, the survey, the count.',
   frequency: 13,
   structure: {

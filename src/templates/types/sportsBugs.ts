@@ -57,9 +57,9 @@ function matchClockGroup(): TypeGroup {
     states: [
       {
         id: 'armed',
-        name: 'At period start Scoreboard',
+        name: 'At period start',
         timeline: {
-          name: 'Reset clock Scoreboard',
+          name: 'Reset clock',
           duration: 0.1,
           ease: 'out',
           calls: [{ time: 0, call: 'resetMatchClock' }],
@@ -72,9 +72,9 @@ function matchClockGroup(): TypeGroup {
       },
       {
         id: 'running',
-        name: 'Clock running Scoreboard',
+        name: 'Clock running',
         timeline: {
-          name: 'Start clock Scoreboard',
+          name: 'Start clock',
           duration: 0.1,
           ease: 'in',
           calls: [{ time: 0, call: 'startMatchClock' }],
@@ -87,9 +87,9 @@ function matchClockGroup(): TypeGroup {
       },
       {
         id: 'stopped',
-        name: 'Clock stopped Scoreboard',
+        name: 'Clock stopped',
         timeline: {
-          name: 'Stop clock Scoreboard',
+          name: 'Stop clock',
           duration: 0.1,
           ease: 'out',
           calls: [{ time: 0, call: 'stopMatchClock' }],
@@ -116,9 +116,9 @@ function playGroup(): TypeGroup {
     states: [
       {
         id: 'inPlay',
-        name: 'In play Scoreboard',
+        name: 'In play',
         timeline: {
-          name: 'Resume play Scoreboard',
+          name: 'Resume play',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'markInPlay' }],
@@ -128,9 +128,9 @@ function playGroup(): TypeGroup {
       },
       {
         id: 'interval',
-        name: 'Interval Scoreboard',
+        name: 'Interval',
         timeline: {
-          name: 'Interval Scoreboard',
+          name: 'Interval',
           duration: 0.25,
           ease: 'out',
           calls: [{ time: 0, call: 'markBreak' }],
@@ -152,12 +152,12 @@ function resultGroup(): TypeGroup {
     id: 'result',
     initial: 'live',
     states: [
-      { id: 'live', name: 'Live Scoreboard', timeline: null, edges: [] },
+      { id: 'live', name: 'Live', timeline: null, edges: [] },
       {
         id: 'final',
-        name: 'Full time Scoreboard',
+        name: 'Full time',
         timeline: {
-          name: 'Full time Scoreboard',
+          name: 'Full time',
           duration: 0.35,
           ease: 'in',
           calls: [{ time: 0, call: 'markFinal' }],
@@ -209,7 +209,7 @@ const TEAM_COLOURS: TypeField[] = [
 /** COMPACT SCOREBUG — score, clock and period in the smallest honest strip. */
 export const scorebugType: GraphicType = {
   id: 'scorebug',
-  name: 'Scorebug Scoreboard',
+  name: 'Scorebug',
   description: 'The persistent match strip: two teams, the score, the period and a running clock.',
   structure: {
     prefix: 'scoreboard',
@@ -297,7 +297,7 @@ export const scorebugType: GraphicType = {
 /** FULL MATCH BOARD — the scorebug plus crests, club colours and the period breakdown. */
 export const matchBoardType: GraphicType = {
   id: 'match-board',
-  name: 'Match board Scoreboard',
+  name: 'Match board',
   description: 'The full scoreboard: crests, club names, the score, the clock and a period breakdown.',
   structure: {
     prefix: 'scoreboard',
@@ -411,7 +411,7 @@ export const matchBoardType: GraphicType = {
  */
 export const matchStatusType: GraphicType = {
   id: 'match-status',
-  name: 'Match status Scoreboard',
+  name: 'Match status',
   description: 'Where the match stands — live, at the interval, or the final score.',
   structure: {
     prefix: 'scoreboard',
@@ -441,9 +441,9 @@ export const matchStatusType: GraphicType = {
         states: [
           {
             id: 'live',
-            name: 'Live Scoreboard',
+            name: 'Live',
             timeline: {
-              name: 'Back to live Scoreboard',
+              name: 'Back to live',
               duration: 0.25,
               ease: 'in',
               calls: [{ time: 0, call: 'markLive' }],
@@ -453,9 +453,9 @@ export const matchStatusType: GraphicType = {
           },
           {
             id: 'interval',
-            name: 'Interval Scoreboard',
+            name: 'Interval',
             timeline: {
-              name: 'Interval Scoreboard',
+              name: 'Interval',
               duration: 0.25,
               ease: 'out',
               calls: [{ time: 0, call: 'markBreak' }],
@@ -465,9 +465,9 @@ export const matchStatusType: GraphicType = {
           },
           {
             id: 'final',
-            name: 'Full time Scoreboard',
+            name: 'Full time',
             timeline: {
-              name: 'Full time Scoreboard',
+              name: 'Full time',
               duration: 0.4,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],
@@ -574,7 +574,7 @@ export const matchStatusType: GraphicType = {
  */
 export const matchEventType: GraphicType = {
   id: 'match-event',
-  name: 'Match event Scoreboard',
+  name: 'Match event',
   description: 'The transient card: a substitution, a booking, a penalty or a goal, with its minute.',
   structure: {
     prefix: 'scoreboard',
@@ -608,7 +608,7 @@ export const matchEventType: GraphicType = {
       branches: [
         {
           id: 'held',
-          name: 'Held on air Scoreboard',
+          name: 'Held on air',
           // Pose-only: holding a card must not replay its entrance. Entering this state does
           // nothing except take the graphic out of reach of the auto-clear timer.
           timeline: null,

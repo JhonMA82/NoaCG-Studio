@@ -46,7 +46,7 @@ import type { GraphicType } from './graphicType';
 
 export const rosterType: GraphicType = {
   id: 'roster',
-  name: 'Roster / ordered list Results Board',
+  name: 'Roster / ordered list',
   description: 'An ordered list with an operator-controlled focus row.',
   structure: {
     prefix: 'results-board',
@@ -66,9 +66,9 @@ export const rosterType: GraphicType = {
       branches: [
         {
           id: 'spotlight',
-          name: 'Player spotlit Results Board',
+          name: 'Player spotlit',
           timeline: {
-            name: 'Spotlight Results Board',
+            name: 'Spotlight',
             duration: 0.38,
             ease: 'in',
             calls: [{ time: 0, call: 'applySpotlight' }],
@@ -83,9 +83,9 @@ export const rosterType: GraphicType = {
         },
         {
           id: 'level',
-          name: 'Whole line-up Results Board',
+          name: 'Whole line-up',
           timeline: {
-            name: 'Clear spotlight Results Board',
+            name: 'Clear spotlight',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearSpotlight' }],
@@ -178,7 +178,7 @@ export const rosterType: GraphicType = {
 
 export const standingsType: GraphicType = {
   id: 'standings',
-  name: 'Standings / result table Results Board',
+  name: 'Standings / result table',
   description: 'A table of any columns, with a highlighted row and a final state.',
   structure: {
     prefix: 'results-board',
@@ -198,9 +198,9 @@ export const standingsType: GraphicType = {
       branches: [
         {
           id: 'highlighted',
-          name: 'Row highlighted Results Board',
+          name: 'Row highlighted',
           timeline: {
-            name: 'Highlight row Results Board',
+            name: 'Highlight row',
             duration: 0.36,
             ease: 'in',
             calls: [{ time: 0, call: 'applyHighlight' }],
@@ -215,9 +215,9 @@ export const standingsType: GraphicType = {
         },
         {
           id: 'plain',
-          name: 'Whole table Results Board',
+          name: 'Whole table',
           timeline: {
-            name: 'Clear highlight Results Board',
+            name: 'Clear highlight',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearHighlight' }],
@@ -229,9 +229,9 @@ export const standingsType: GraphicType = {
           // The claim that turns a standings board into a RESULT table. Reachable from the
           // plain board and from a highlighted one, because either is where a show declares it.
           id: 'final',
-          name: 'Final table Results Board',
+          name: 'Final table',
           timeline: {
-            name: 'Declare final Results Board',
+            name: 'Declare final',
             duration: 0.4,
             ease: 'in',
             calls: [{ time: 0, call: 'markFinal' }],
@@ -307,7 +307,7 @@ export const standingsType: GraphicType = {
 
 export const bracketType: GraphicType = {
   id: 'bracket',
-  name: 'Bracket Results Board',
+  name: 'Bracket',
   description: 'A knockout tree in round columns, with a live round and a champion.',
   structuralScope:
     'One single-elimination knockout tree: rounds in columns from one list, winners ' +
@@ -330,9 +330,9 @@ export const bracketType: GraphicType = {
       branches: [
         {
           id: 'advanced',
-          name: 'Round live Results Board',
+          name: 'Round live',
           timeline: {
-            name: 'Advance round Results Board',
+            name: 'Advance round',
             duration: 0.36,
             ease: 'in',
             calls: [{ time: 0, call: 'applyRound' }],
@@ -347,9 +347,9 @@ export const bracketType: GraphicType = {
           // One way only: a bracket does not un-finish. The champion's name is DATA — the
           // event says the moment came, the field says who it was.
           id: 'crowned',
-          name: 'Champion Results Board',
+          name: 'Champion',
           timeline: {
-            name: 'Crown the champion Results Board',
+            name: 'Crown the champion',
             duration: 0.5,
             ease: 'in',
             calls: [{ time: 0, call: 'crownChampion' }],
@@ -443,7 +443,7 @@ export const bracketType: GraphicType = {
  */
 export const timingTowerType: GraphicType = {
   id: 'timing-tower',
-  name: 'Timing tower Results Board',
+  name: 'Timing tower',
   description: 'The live order of a timed session — position, competitor, time — with a focus and a flag.',
   structure: {
     prefix: 'results-board',
@@ -463,9 +463,9 @@ export const timingTowerType: GraphicType = {
       branches: [
         {
           id: 'focused',
-          name: 'Competitor in focus Results Board',
+          name: 'Competitor in focus',
           timeline: {
-            name: 'Focus competitor Results Board',
+            name: 'Focus competitor',
             duration: 0.34,
             ease: 'in',
             calls: [{ time: 0, call: 'applyFocus' }],
@@ -480,9 +480,9 @@ export const timingTowerType: GraphicType = {
         },
         {
           id: 'level',
-          name: 'Whole field Results Board',
+          name: 'Whole field',
           timeline: {
-            name: 'Clear focus Results Board',
+            name: 'Clear focus',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearFocus' }],
@@ -506,9 +506,9 @@ export const timingTowerType: GraphicType = {
         states: [
           {
             id: 'running',
-            name: 'Session running Results Board',
+            name: 'Session running',
             timeline: {
-              name: 'Back to running Results Board',
+              name: 'Back to running',
               duration: 0.3,
               ease: 'out',
               calls: [{ time: 0, call: 'clearFinal' }],
@@ -519,9 +519,9 @@ export const timingTowerType: GraphicType = {
           },
           {
             id: 'final',
-            name: 'Session final Results Board',
+            name: 'Session final',
             timeline: {
-              name: 'Session final Results Board',
+              name: 'Session final',
               duration: 0.4,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],

@@ -119,7 +119,7 @@ export const nowNextType: GraphicType = {
   designs: [
     {
       id: 'card18',
-      name: 'Now & Next',
+      name: 'Now & Next Info Card',
       description: 'What is on air now, a hairline, and what follows it — panel-free.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -131,7 +131,7 @@ export const nowNextType: GraphicType = {
     },
     {
       id: 'card19',
-      name: 'Frost Now Next',
+      name: 'Frost Now Next Info Card',
       description: 'A frosted now-playing card: the track and artist, then what is coming up.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -143,7 +143,7 @@ export const nowNextType: GraphicType = {
     },
     {
       id: 'card20',
-      name: 'Volt Now Next',
+      name: 'Volt Now Next Info Card',
       description: 'A sport slab: the event on now with its detail, then the next one up.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -155,7 +155,7 @@ export const nowNextType: GraphicType = {
     },
     {
       id: 'card21',
-      name: 'House Now Next',
+      name: 'House Now Next Info Card',
       description: 'The house now/next card: amber bar and void panel, the session now and the one after.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -220,7 +220,7 @@ export const headlineCardType: GraphicType = {
   designs: [
     {
       id: 'card22',
-      name: 'News Headline',
+      name: 'News Headline Info Card',
       description: 'A panel-free headline card: kicker, headline, the story under it, then the byline.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -232,7 +232,7 @@ export const headlineCardType: GraphicType = {
     },
     {
       id: 'card23',
-      name: 'Frost Headline',
+      name: 'Frost Headline Info Card',
       description: 'A frosted announcement card: the news, the detail, and where to act on it.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -244,7 +244,7 @@ export const headlineCardType: GraphicType = {
     },
     {
       id: 'card24',
-      name: 'Volt Headline',
+      name: 'Volt Headline Info Card',
       description: 'A sport report card: a caps headline over the match report and its source.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -256,7 +256,7 @@ export const headlineCardType: GraphicType = {
     },
     {
       id: 'card25',
-      name: 'House Headline',
+      name: 'House Headline Info Card',
       description: 'The house headline card: a mono kicker, the news, the paragraph, then where to read more.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -329,7 +329,7 @@ export const processStepsType: GraphicType = {
   designs: [
     {
       id: 'card26',
-      name: 'Clean Steps',
+      name: 'Clean Steps Info Card',
       description: 'A numbered process: a heading and up to four steps, one revealed per Continue.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -341,7 +341,7 @@ export const processStepsType: GraphicType = {
     },
     {
       id: 'card27',
-      name: 'Frost Checklist',
+      name: 'Frost Checklist Info Card',
       description: 'A frosted checklist: drawn tick boxes, one item revealed per Continue.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -353,7 +353,7 @@ export const processStepsType: GraphicType = {
     },
     {
       id: 'card28',
-      name: 'Volt Process',
+      name: 'Volt Process Info Card',
       description: 'A sport runsheet: accent-chip numbers, heavy caps steps, one per Continue.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -365,7 +365,7 @@ export const processStepsType: GraphicType = {
     },
     {
       id: 'card29',
-      name: 'House Runbook',
+      name: 'House Runbook Info Card',
       description: 'The house process card: mono step numbers in the void panel, one per Continue.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -474,7 +474,7 @@ export const noticeCardType: GraphicType = {
   designs: [
     {
       id: 'card30',
-      name: 'Public Notice',
+      name: 'Public Notice Info Card',
       description: 'A public-information notice: authority chip, headline, detail, and what to do.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -486,7 +486,7 @@ export const noticeCardType: GraphicType = {
     },
     {
       id: 'card31',
-      name: 'Frost Advisory',
+      name: 'Frost Advisory Info Card',
       description: 'A frosted venue advisory: the policy, the detail, and what the audience should do.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -498,7 +498,7 @@ export const noticeCardType: GraphicType = {
     },
     {
       id: 'card32',
-      name: 'Alert Slab',
+      name: 'Alert Slab Info Card',
       description: 'A stadium announcement: caps headline, the detail, and the instruction in its own rule.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -510,7 +510,7 @@ export const noticeCardType: GraphicType = {
     },
     {
       id: 'card33',
-      name: 'House Notice',
+      name: 'House Notice Info Card',
       description: 'The house service notice: what has happened, and what the viewer should do.',
       styleTag: 'noacg',
       palette: HOUSE.palette,
@@ -563,7 +563,7 @@ export const statementCardType: GraphicType = {
   designs: [
     {
       id: 'card34',
-      name: 'Statement Card',
+      name: 'Statement Card Info Card',
       description: 'A long statement with a second language under it, and its attribution.',
       styleTag: 'minimal',
       palette: CLEAN.palette,
@@ -575,7 +575,7 @@ export const statementCardType: GraphicType = {
     },
     {
       id: 'card35',
-      name: 'Reading Card',
+      name: 'Reading Card Info Card',
       description: 'A frosted reading card: the passage, a second language, then the reference.',
       styleTag: 'glass',
       palette: FROST.palette,
@@ -587,7 +587,7 @@ export const statementCardType: GraphicType = {
     },
     {
       id: 'card36',
-      name: 'Translation Slab',
+      name: 'Translation Slab Info Card',
       description: 'A quote and its translation on a sport slab, with the speaker underneath.',
       styleTag: 'sport',
       palette: VOLT.palette,
@@ -599,7 +599,7 @@ export const statementCardType: GraphicType = {
     },
     {
       id: 'card37',
-      name: 'House Statement',
+      name: 'House Statement Info Card',
       description: 'The house statement card: a long passage, a second language, an attribution.',
       styleTag: 'noacg',
       palette: HOUSE.palette,

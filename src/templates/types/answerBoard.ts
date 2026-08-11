@@ -38,11 +38,11 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
     branches: [
       {
         id: 'selected',
-        name: 'Answer selected Quiz',
+        name: 'Answer selected',
         // Entering (or RE-entering) this state repaints the highlight from the data, which is
         // what makes "change the selection freely" a self-transition rather than a state.
         timeline: {
-          name: 'Select Quiz',
+          name: 'Select',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'applySelection' }],
@@ -55,12 +55,12 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
       },
       {
         id: 'locked',
-        name: 'Locked in Quiz',
+        name: 'Locked in',
         // Both painters: this state is entered from `selected` (pick already showing) AND from
         // `sealed` via revealChoice (pick hidden until now) — either way, entering means "the
         // pick is visible and final", so the entry paints the whole moment.
         timeline: {
-          name: 'Lock Quiz',
+          name: 'Lock',
           duration: 0.25,
           ease: 'in',
           calls: [
@@ -86,9 +86,9 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
         // pick hidden" are two different on-air moments, and which one you are in must never
         // depend on how you got there.
         id: 'sealed',
-        name: 'Locked, choice hidden Quiz',
+        name: 'Locked, choice hidden',
         timeline: {
-          name: 'Seal Quiz',
+          name: 'Seal',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'applyLock' }],
@@ -108,9 +108,9 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
         // painted as chips on the rows — after the verdict, as its own operator beat. Off the
         // default path, so SPX's dumb-stepping walk is untouched.
         id: 'audience',
-        name: 'Audience result Quiz',
+        name: 'Audience result',
         timeline: {
-          name: 'Audience Quiz',
+          name: 'Audience',
           duration: 0.3,
           ease: 'out',
           calls: [{ time: 0, call: 'applyAudienceResult' }],
@@ -173,7 +173,7 @@ function answerDropdowns(letters: string[]): GraphicType['fields'] {
  *  answers side by side instead of stacking them. */
 export const twoAnswerBoardType: GraphicType = {
   id: 'answer-board-2',
-  name: 'Two-answer board Quiz',
+  name: 'Two-answer board',
   description: 'A question and two answers — true/false, this or that — with the locked-in pick and the reveal.',
   structure: ANSWER_BOARD_STRUCTURE,
   fields: [
@@ -237,7 +237,7 @@ export const twoAnswerBoardType: GraphicType = {
  *  the answer type up, so the board reads from further back. */
 export const threeAnswerBoardType: GraphicType = {
   id: 'answer-board-3',
-  name: 'Three-answer board Quiz',
+  name: 'Three-answer board',
   description: 'A question and three answers, with the locked-in pick and the reveal.',
   structure: ANSWER_BOARD_STRUCTURE,
   fields: [

@@ -13,7 +13,7 @@ const EVENT_DWELL = 8;
 
 export const eventNotificationType: GraphicType = {
   id: 'event-notification',
-  name: 'Event notification Stream Notification',
+  name: 'Event notification',
   description: 'One queued streaming event - follower, member, donation, gift or raid - with optional artwork.',
   structure: {
     prefix: 'stream-notification',
@@ -57,7 +57,7 @@ export const eventNotificationType: GraphicType = {
       branches: [
         {
           id: 'manual-hold',
-          name: 'Manual hold Stream Notification',
+          name: 'Manual hold',
           timeline: null,
           edges: [
             { from: { waypoint: 0 }, to: 'manual-hold', trigger: 'operator', event: 'hold' },
@@ -95,7 +95,7 @@ export const eventNotificationType: GraphicType = {
     },
     {
       id: 'sn02',
-      name: 'Quiet Activity Stream Notification',
+      name: 'Quiet Activity',
       description: sn02.description,
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -105,7 +105,7 @@ export const eventNotificationType: GraphicType = {
     },
     {
       id: 'sn03',
-      name: 'Arena Event Stream Notification',
+      name: 'Arena Event',
       description: sn03.description,
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -115,7 +115,7 @@ export const eventNotificationType: GraphicType = {
     },
     {
       id: 'sn04',
-      name: 'Glass Bloom Stream Notification',
+      name: 'Glass Bloom',
       description: sn04.description,
       styleTag: 'glass',
       palette: paletteById('frost'),

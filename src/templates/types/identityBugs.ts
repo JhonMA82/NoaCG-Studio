@@ -65,7 +65,7 @@ import type { GraphicType, TypeBranch } from './graphicType';
  *  most persistent graphic there is; on many channels it never leaves the screen. */
 export const stationBugType: GraphicType = {
   id: 'station-bug',
-  name: 'Station ident Corner Bug',
+  name: 'Station ident',
   description: 'The channel logo with the channel name and the show currently on air.',
   structure: {
     prefix: 'corner-bug',
@@ -184,7 +184,7 @@ function statusState(id: string, name: string, event: string, call: string, reac
  *  it from the control panel; each mode owns its own wording as an ordinary field. */
 export const liveBugType: GraphicType = {
   id: 'live-bug',
-  name: 'Live status Corner Bug',
+  name: 'Live status',
   description: 'The on-air status mark: live, replay or standby, switched by the operator.',
   structure: {
     prefix: 'corner-bug',
@@ -286,7 +286,7 @@ export const liveBugType: GraphicType = {
  *  line fields to fill, so the wizard offers none and the operator cannot leave one blank. */
 export const logoBugType: GraphicType = {
   id: 'logo-bug',
-  name: 'Logo mark Corner Bug',
+  name: 'Logo mark',
   description: 'A logo and nothing else — the quietest way to keep a brand on screen.',
   structure: {
     prefix: 'corner-bug',
@@ -356,7 +356,7 @@ export const logoBugType: GraphicType = {
  *  its placeholder, so the same design serves one partner or three. */
 export const sponsorStripType: GraphicType = {
   id: 'sponsor-strip',
-  name: 'Sponsor strip Corner Bug',
+  name: 'Sponsor strip',
   description: 'A "supported by" kicker with up to three partner logos beside it.',
   structure: {
     prefix: 'corner-bug',
@@ -445,7 +445,7 @@ const SPONSOR_BEAT = 0.5;
  *  keeps the cycle running. The operator can skip ahead or hold a partner on screen. */
 export const sponsorRotatorType: GraphicType = {
   id: 'sponsor-rotator',
-  name: 'Sponsor rotation Corner Bug',
+  name: 'Sponsor rotation',
   description: 'One sponsor slot that cycles through its partners on a timer, pausable on air.',
   structure: {
     prefix: 'corner-bug',
@@ -469,10 +469,10 @@ export const sponsorRotatorType: GraphicType = {
       branches: [
         {
           id: 'advance',
-          name: 'Next sponsor Corner Bug',
+          name: 'Next sponsor',
           // The beat: the stage fades out, the next partner takes its place, the stage returns.
           timeline: {
-            name: 'Advance Corner Bug',
+            name: 'Advance',
             duration: SPONSOR_BEAT,
             ease: 'in',
             calls: [{ time: SPONSOR_BEAT / 2, call: 'sponsorShowNext' }],
@@ -500,7 +500,7 @@ export const sponsorRotatorType: GraphicType = {
           // the machine cancels the armed timer on the way out of the cycling state, and
           // nothing re-arms it until the operator resumes.
           id: 'held',
-          name: 'Held Corner Bug',
+          name: 'Held',
           timeline: null,
           edges: [
             { from: { waypoint: 0 }, to: 'held', trigger: 'operator', event: 'hold' },
@@ -577,7 +577,7 @@ export const sponsorRotatorType: GraphicType = {
  *  which event this is, and which day, session, round or venue you are watching. */
 export const eventBugType: GraphicType = {
   id: 'event-bug',
-  name: 'Event ident Corner Bug',
+  name: 'Event ident',
   description: 'The event logo with its name and the day, session, round or venue.',
   structure: {
     prefix: 'corner-bug',
@@ -653,7 +653,7 @@ export const eventBugType: GraphicType = {
  *  the first line is the label and the second carries the display weight. */
 export const awardBugType: GraphicType = {
   id: 'award-bug',
-  name: 'Award mark Corner Bug',
+  name: 'Award mark',
   description: 'The award word ("winner", "nominee") over the category it was given in.',
   structure: {
     prefix: 'corner-bug',
@@ -729,7 +729,7 @@ export const awardBugType: GraphicType = {
  *  would be an ident, and idents already have four designs of their own. */
 export const statusChipType: GraphicType = {
   id: 'status-chip',
-  name: 'Location chip Corner Bug',
+  name: 'Location chip',
   description: 'A compact chip: where the camera is, and what is happening there.',
   structure: {
     prefix: 'corner-bug',

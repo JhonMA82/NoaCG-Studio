@@ -181,7 +181,7 @@ export const alertLevelType: GraphicType = {
   designs: [
     {
       id: 'al01',
-      name: 'Signal',
+      name: 'Signal Alert',
       description: 'Flat alert band with a severity flag, a headline, a detail line and a source.',
       styleTag: 'minimal',
       palette: paletteById('signal'),
@@ -190,7 +190,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al02',
-      name: 'House',
+      name: 'House Alert',
       description: 'The house void bar as an alert: mono severity flag, headline, detail, source.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -205,7 +205,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al03',
-      name: 'Frost',
+      name: 'Frost Alert',
       description: 'A frosted alert panel with a full-height severity flag — for a busy picture.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -221,7 +221,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al04',
-      name: 'Volt',
+      name: 'Volt Alert',
       description: 'A hard-edged alert rail with a leaning severity flag and heavy caps.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -236,7 +236,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al12',
-      name: 'Quiet Warning',
+      name: 'Quiet Warning Alert',
       description: 'A restrained cinematic warning on a soft scrim with a single hairline.',
       styleTag: 'cinematic',
       palette: paletteById('noir'),
@@ -256,7 +256,7 @@ export const alertLevelType: GraphicType = {
       // than beside it, which is the reading order a weather bulletin needs. Packs resolve a
       // family to its FIRST design, so al01 stays the minimal cell and this one is a choice.
       id: 'al05',
-      name: 'Weather Warning',
+      name: 'Weather Warning Alert',
       description: 'A weather-warning card: severity cap on top, headline, area and validity below.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -276,7 +276,7 @@ export const alertLevelType: GraphicType = {
     },
     {
       id: 'al06',
-      name: 'Civil Emergency',
+      name: 'Civil Emergency Alert',
       description: 'A full-width emergency card: severity cap, hazard, instruction and source.',
       styleTag: 'minimal',
       palette: paletteById('signal'),

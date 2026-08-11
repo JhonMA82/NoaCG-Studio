@@ -17,7 +17,7 @@ import type { GraphicType } from './graphicType';
  *  brand bug, logo strip). Second only to the lower third. */
 export const sponsorBugType: GraphicType = {
   id: 'sponsor-bug',
-  name: 'Sponsor bug Corner Bug',
+  name: 'Sponsor bug',
   description: 'A logo and a caption, parked in a corner for as long as the segment runs.',
   frequency: 37,
   structure: {
@@ -104,7 +104,7 @@ export const sponsorBugType: GraphicType = {
  *  makes it the honest measure of what a type costs: a field list and a design. */
 export const socialBugType: GraphicType = {
   id: 'social-bug',
-  name: 'Social handle Corner Bug',
+  name: 'Social handle',
   description: 'A handle and its platform, small and persistent — the follow-me mark.',
   frequency: 17,
   structure: {
@@ -134,7 +134,7 @@ export const socialBugType: GraphicType = {
   designs: [
     {
       id: 'lt14',
-      name: 'House Handle Corner Bug',
+      name: 'House Handle Lower Third',
       description: 'The house social mark: compact void strip, amber bar, mono platform label.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -151,7 +151,7 @@ export const socialBugType: GraphicType = {
       // handles are DESIGNED as compact handle strips instead — small siblings of the lower
       // thirds in each family, each carrying a real accent element this type requires.
       id: 'lt16',
-      name: 'Frost Handle Corner Bug',
+      name: 'Frost Handle Lower Third',
       description: 'A compact frosted social strip: a handle over its platform, led by an accent dot.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -162,7 +162,7 @@ export const socialBugType: GraphicType = {
     },
     {
       id: 'lt17',
-      name: 'Volt Handle Corner Bug',
+      name: 'Volt Handle Lower Third',
       description: 'A compact sport strip with an accent edge — a handle in heavy caps over its platform.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -173,7 +173,7 @@ export const socialBugType: GraphicType = {
     },
     {
       id: 'lt18',
-      name: 'Line Handle Corner Bug',
+      name: 'Line Handle Lower Third',
       description: 'A panel-free social mark: a handle over its platform beside a thin accent hairline.',
       styleTag: 'minimal',
       palette: paletteById('signal'),

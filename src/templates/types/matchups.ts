@@ -122,7 +122,7 @@ export const matchupType: GraphicType = {
   designs: [
     {
       id: 'mu01',
-      name: 'Match-up Slam',
+      name: 'Match-up Slam Matchup',
       description: 'Two sides meet around an accent VS slab — then one is picked as the winner.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -131,7 +131,7 @@ export const matchupType: GraphicType = {
     },
     {
       id: 'mu02',
-      name: 'House Match-up',
+      name: 'House Match-up Matchup',
       description: 'The house match-up: void stage, amber seam, and an amber-keylined winner.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -141,7 +141,7 @@ export const matchupType: GraphicType = {
     },
     {
       id: 'mu03',
-      name: 'Frost Match-up',
+      name: 'Frost Match-up Matchup',
       description: 'Two frosted panels either side of a soft seam — the pick brightens one.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -151,7 +151,7 @@ export const matchupType: GraphicType = {
     },
     {
       id: 'mu04',
-      name: 'Clean Match-up',
+      name: 'Clean Match-up Matchup',
       description: 'Two names either side of a hairline seam — the pick is a rule, not a flood.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -232,7 +232,7 @@ export const headToHeadType: GraphicType = {
   designs: [
     {
       id: 'h201',
-      name: 'Head to Head',
+      name: 'Head to Head Matchup',
       description: 'Stat-by-stat comparison with share bars that grow from the operator figures.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -241,7 +241,7 @@ export const headToHeadType: GraphicType = {
     },
     {
       id: 'h202',
-      name: 'House Compare',
+      name: 'House Compare Matchup',
       description: 'The house comparison: void board, mono labels, amber share bars.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -250,7 +250,7 @@ export const headToHeadType: GraphicType = {
     },
     {
       id: 'h203',
-      name: 'Clean Compare',
+      name: 'Clean Compare Matchup',
       description: 'A quiet comparison table: hairline rows, accent on whichever side leads.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -259,7 +259,7 @@ export const headToHeadType: GraphicType = {
     },
     {
       id: 'h204',
-      name: 'Frost Compare',
+      name: 'Frost Compare Matchup',
       description: 'A frosted comparison board with glass rows and softly-rounded share bars.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -343,7 +343,7 @@ export const playerCardType: GraphicType = {
   designs: [
     {
       id: 'pc01',
-      name: 'Player Card',
+      name: 'Player Card Matchup',
       description: 'Portrait, name and role — with the stat block revealed on the press.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -352,7 +352,7 @@ export const playerCardType: GraphicType = {
     },
     {
       id: 'pc02',
-      name: 'House Player',
+      name: 'House Player Matchup',
       description: 'The house competitor card: void portrait frame, mono chip, amber figures.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -362,7 +362,7 @@ export const playerCardType: GraphicType = {
     },
     {
       id: 'pc03',
-      name: 'Frost Player',
+      name: 'Frost Player Matchup',
       description: 'A frosted competitor card: rounded portrait, glass stat tiles on the press.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -372,7 +372,7 @@ export const playerCardType: GraphicType = {
     },
     {
       id: 'pc04',
-      name: 'Clean Player',
+      name: 'Clean Player Matchup',
       description: 'A panel-free competitor card with a hairline identity block and ruled stats.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),

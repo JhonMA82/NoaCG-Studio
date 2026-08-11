@@ -46,7 +46,7 @@ const LIST_PARTS = [
  */
 export const fixturesType: GraphicType = {
   id: 'fixtures',
-  name: 'Fixtures & results Infographic',
+  name: 'Fixtures & results',
   description: 'Matches upcoming and played — the preview, the round-up, and the next-match board.',
   structure: { prefix: 'infographic', category: 'infographic', parts: LIST_PARTS },
   fields: [

@@ -57,9 +57,9 @@ export const scoreboardType: GraphicType = {
         states: [
           {
             id: 'none',
-            name: 'No flag Scoreboard',
+            name: 'No flag',
             timeline: {
-              name: 'Flag out Scoreboard',
+              name: 'Flag out',
               duration: 0.22,
               ease: 'out',
               layers: { accent: { opacity: [{ time: 0, value: 1 }, { time: 0.22, value: 0.35 }] } },
@@ -68,9 +68,9 @@ export const scoreboardType: GraphicType = {
           },
           {
             id: 'shown',
-            name: 'Flag Scoreboard',
+            name: 'Flag',
             timeline: {
-              name: 'Flag in Scoreboard',
+              name: 'Flag in',
               duration: 0.28,
               ease: 'in',
               layers: {
@@ -97,12 +97,12 @@ export const scoreboardType: GraphicType = {
         id: 'result',
         initial: 'live',
         states: [
-          { id: 'live', name: 'Live Scoreboard', timeline: null, edges: [] },
+          { id: 'live', name: 'Live', timeline: null, edges: [] },
           {
             id: 'final',
-            name: 'Final Scoreboard',
+            name: 'Final',
             timeline: {
-              name: 'Final Scoreboard',
+              name: 'Final',
               duration: 0.35,
               ease: 'in',
               calls: [{ time: 0, call: 'markFinal' }],

@@ -32,7 +32,7 @@ import type { GraphicType } from './graphicType';
 /** KEY FACTS / EXPLAINER — the terms and what they mean, one row per fact. */
 export const keyFactsType: GraphicType = {
   id: 'key-facts',
-  name: 'Key facts Infographic',
+  name: 'Key facts',
   description: 'The facts behind a story, as a term and its explanation per row.',
   structure: {
     prefix: 'infographic',
@@ -107,7 +107,7 @@ export const keyFactsType: GraphicType = {
 /** RECAP / ACTION ITEMS — who owns what, one row per item. */
 export const recapType: GraphicType = {
   id: 'recap-card',
-  name: 'Recap / actions Infographic',
+  name: 'Recap / actions',
   description: 'What was agreed and who is doing it, one row per item.',
   structure: {
     prefix: 'infographic',

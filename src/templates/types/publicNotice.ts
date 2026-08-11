@@ -85,7 +85,7 @@ function swapTimeline(to: 1 | 2): TypeTimeline {
 const branches: TypeBranch[] = [
   {
     id: 'language-2',
-    name: 'Language 2 Public Info',
+    name: 'Language 2',
     timeline: swapTimeline(2),
     edges: [
       // The cycle: language 1 is up when the graphic arrives, so the first swap is timed off
@@ -101,7 +101,7 @@ const branches: TypeBranch[] = [
   },
   {
     id: 'language-1',
-    name: 'Language 1 Public Info',
+    name: 'Language 1',
     timeline: swapTimeline(1),
     edges: [
       { from: 'language-2', to: 'language-1', trigger: 'timer', after: HOLD },
@@ -114,7 +114,7 @@ const branches: TypeBranch[] = [
     // cancels the armed timer on the way out of the cycling state and nothing re-arms it —
     // which IS the hold.
     id: 'hold-1',
-    name: 'Holding language 1 Public Info',
+    name: 'Holding language 1',
     timeline: null,
     edges: [
       { from: { waypoint: 0 }, to: 'hold-1', trigger: 'operator', event: 'hold' },
@@ -123,7 +123,7 @@ const branches: TypeBranch[] = [
   },
   {
     id: 'hold-2',
-    name: 'Holding language 2 Public Info',
+    name: 'Holding language 2',
     timeline: null,
     edges: [{ from: 'language-2', to: 'hold-2', trigger: 'operator', event: 'hold' }],
   },
@@ -131,7 +131,7 @@ const branches: TypeBranch[] = [
 
 export const publicNoticeType: GraphicType = {
   id: 'public-notice',
-  name: 'Two-language notice Public Info',
+  name: 'Two-language notice',
   description: 'A public notice that alternates between two languages on its own timer.',
   structure: {
     prefix: 'public-info',

@@ -10,7 +10,7 @@ import { optionalLine, type GraphicType } from './graphicType';
 
 export const signOffType: GraphicType = {
   id: 'sign-off',
-  name: 'Sign-off Starting Soon',
+  name: 'Sign-off',
   description:
     'The card a show ends on: closing line, thank-you, next appointment, and logo.',
   structure: {

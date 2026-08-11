@@ -37,7 +37,7 @@ import type { GraphicType } from './graphicType';
 
 export const nomineeRevealType: GraphicType = {
   id: 'nominee-reveal',
-  name: 'Nominee reveal Reveal',
+  name: 'Nominee reveal',
   description: 'The finalists, a suspense hold, and then the winner.',
   structure: {
     prefix: 'reveal',
@@ -61,9 +61,9 @@ export const nomineeRevealType: GraphicType = {
           // The beat before the name. A state rather than a fixed delay: the room decides how
           // long it lasts, and the operator holds it.
           id: 'suspense',
-          name: 'Suspense Reveal',
+          name: 'Suspense',
           timeline: {
-            name: 'Hold the room Reveal',
+            name: 'Hold the room',
             duration: 0.6,
             ease: 'in',
             calls: [{ time: 0, call: 'markSuspense' }],
@@ -133,7 +133,7 @@ export const nomineeRevealType: GraphicType = {
 
 export const verdictCardType: GraphicType = {
   id: 'verdict-card',
-  name: 'Verdict card Reveal',
+  name: 'Verdict card',
   description: 'Correct or incorrect — one state, and a field that says which.',
   structure: {
     prefix: 'reveal',
@@ -156,9 +156,9 @@ export const verdictCardType: GraphicType = {
           // so they are the same state — and a correction is a self-transition, not a
           // second graphic.
           id: 'judged',
-          name: 'Ruled Reveal',
+          name: 'Ruled',
           timeline: {
-            name: 'Rule Reveal',
+            name: 'Rule',
             duration: 0.5,
             ease: 'in',
             calls: [{ time: 0, call: 'applyVerdict' }],
@@ -172,9 +172,9 @@ export const verdictCardType: GraphicType = {
         },
         {
           id: 'unjudged',
-          name: 'No ruling Reveal',
+          name: 'No ruling',
           timeline: {
-            name: 'Clear the ruling Reveal',
+            name: 'Clear the ruling',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearVerdict' }],
@@ -261,7 +261,7 @@ export const verdictCardType: GraphicType = {
 
 export const winnerCardType: GraphicType = {
   id: 'winner-card',
-  name: 'Winner card Reveal',
+  name: 'Winner card',
   description: 'The final result: the champion, then the score, then the celebration.',
   structure: {
     prefix: 'reveal',
@@ -283,9 +283,9 @@ export const winnerCardType: GraphicType = {
       branches: [
         {
           id: 'celebrating',
-          name: 'Celebration Reveal',
+          name: 'Celebration',
           timeline: {
-            name: 'Celebrate Reveal',
+            name: 'Celebrate',
             duration: 0.55,
             ease: 'in',
             calls: [{ time: 0, call: 'markCelebration' }],
@@ -299,9 +299,9 @@ export const winnerCardType: GraphicType = {
         },
         {
           id: 'plain',
-          name: 'Plain result Reveal',
+          name: 'Plain result',
           timeline: {
-            name: 'Settle Reveal',
+            name: 'Settle',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearCelebration' }],
@@ -371,7 +371,7 @@ export const winnerCardType: GraphicType = {
 
 export const awardRevealType: GraphicType = {
   id: 'award-reveal',
-  name: 'Award / launch reveal Reveal',
+  name: 'Award / launch reveal',
   description: 'A sealed category, opened on the press — an award, an induction, a launch.',
   structure: {
     prefix: 'reveal',
@@ -393,9 +393,9 @@ export const awardRevealType: GraphicType = {
       branches: [
         {
           id: 'celebrating',
-          name: 'Applause Reveal',
+          name: 'Applause',
           timeline: {
-            name: 'Applause Reveal',
+            name: 'Applause',
             duration: 0.5,
             ease: 'in',
             calls: [{ time: 0, call: 'markCelebration' }],
@@ -409,9 +409,9 @@ export const awardRevealType: GraphicType = {
         },
         {
           id: 'settled',
-          name: 'Settled Reveal',
+          name: 'Settled',
           timeline: {
-            name: 'Settle Reveal',
+            name: 'Settle',
             duration: 0.3,
             ease: 'out',
             calls: [{ time: 0, call: 'clearCelebration' }],

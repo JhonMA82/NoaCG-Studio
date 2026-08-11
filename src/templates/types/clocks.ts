@@ -28,9 +28,9 @@ function clockGroup(): TypeGroup {
     states: [
       {
         id: 'running',
-        name: 'Running Game Timer',
+        name: 'Running',
         timeline: {
-          name: 'Resume Game Timer',
+          name: 'Resume',
           duration: 0.25,
           ease: 'in',
           calls: [{ time: 0, call: 'resumeClock' }],
@@ -40,9 +40,9 @@ function clockGroup(): TypeGroup {
       },
       {
         id: 'paused',
-        name: 'Paused Game Timer',
+        name: 'Paused',
         timeline: {
-          name: 'Pause Game Timer',
+          name: 'Pause',
           duration: 0.25,
           ease: 'out',
           calls: [{ time: 0, call: 'pauseClock' }],
@@ -63,7 +63,7 @@ const CLOCK_CONTROLS = [
  *  deal timer, break timer). A label and a clock; the duration is DATA the operator sets. */
 export const countdownType: GraphicType = {
   id: 'countdown',
-  name: 'Countdown Game Timer',
+  name: 'Countdown',
   description: 'A labelled clock counting down to zero, pausable on air.',
   frequency: 30,
   structure: {
@@ -151,7 +151,7 @@ export const countdownType: GraphicType = {
  *  show's title as well as the clock, and it breathes while it waits. */
 export const holdingScreenType: GraphicType = {
   id: 'holding-screen',
-  name: 'Holding screen Game Timer',
+  name: 'Holding screen',
   description: 'The pre-show screen: what is starting, and how long until it does.',
   frequency: 9,
   structure: {
@@ -182,7 +182,7 @@ export const holdingScreenType: GraphicType = {
       // Designed FOR this cell: no noacg holding screen existed. The house void panel as a
       // pre-show front door — sibling of lt11 House Strap and card05 House Title.
       id: 'ss04',
-      name: 'House Hold Game Timer',
+      name: 'House Hold Starting Soon',
       description: 'The house holding screen: mono kicker, display show name, a breathing void clock chip.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -191,7 +191,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss01',
-      name: 'Quiet Hold Game Timer',
+      name: 'Quiet Hold Starting Soon',
       description: 'A breathing hold screen: the show name, a countdown, and room to wait.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -200,7 +200,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss02',
-      name: 'Volt Hold Game Timer',
+      name: 'Volt Hold Starting Soon',
       description: 'Centered sport stack — accent chip, huge condensed show name, slab-mounted countdown.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -210,7 +210,7 @@ export const holdingScreenType: GraphicType = {
     },
     {
       id: 'ss03',
-      name: 'Frost Hold Game Timer',
+      name: 'Frost Hold Starting Soon',
       description: 'A centered frosted card with the countdown breathing inside a soft glass pill.',
       styleTag: 'glass',
       palette: paletteById('frost'),

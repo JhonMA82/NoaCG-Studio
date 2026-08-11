@@ -55,7 +55,7 @@ export const lowerThirdType: GraphicType = {
   designs: [
     {
       id: 'lt11',
-      name: 'House Strap',
+      name: 'House Strap Lower Third',
       description: 'The NoaCG house strap: amber accent bar, void blur panel, mono kicker title.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -64,7 +64,7 @@ export const lowerThirdType: GraphicType = {
     },
     {
       id: 'lt02',
-      name: 'Underline',
+      name: 'Underline Lower Third',
       description: 'Panel-free name and title separated by a short accent underline.',
       styleTag: 'minimal',
       palette: paletteById('signal'),
@@ -77,7 +77,7 @@ export const lowerThirdType: GraphicType = {
     },
     {
       id: 'lt05',
-      name: 'Angle Slab',
+      name: 'Angle Slab Lower Third',
       description: 'A forward-leaning dark slab with a chunky accent edge - fast, aggressive sport energy.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -117,7 +117,7 @@ export const lowerThirdType: GraphicType = {
       // card but leads it with a real soft accent edge and holds to the two lines this type
       // declares.
       id: 'lt15',
-      name: 'Frost Strap',
+      name: 'Frost Strap Lower Third',
       description: 'A frosted glass strap led by a soft accent edge — name over a dimmed title.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -130,7 +130,7 @@ export const lowerThirdType: GraphicType = {
       // The EDITORIAL cell. Promotable as written: a real .lower-third-accent element (the
       // masthead rule), exactly the two lines this type declares, and no logo slot.
       id: 'lt25',
-      name: 'Masthead',
+      name: 'Masthead Lower Third',
       description: 'A rule across the top, the name beneath it, the role as a tracked caps line.',
       styleTag: 'editorial',
       palette: paletteById('vermilion'),
@@ -148,7 +148,7 @@ export const lowerThirdType: GraphicType = {
       // The CINEMATIC cell. Same story: a real accent element (the hairline over the name),
       // two lines, no logo slot.
       id: 'lt32',
-      name: 'Scrim',
+      name: 'Scrim Lower Third',
       description: 'Name and role on a scrim that fades into the shot — no panel, no edges.',
       styleTag: 'cinematic',
       palette: paletteById('noir'),

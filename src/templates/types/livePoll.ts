@@ -42,7 +42,7 @@ const VOTING_WINDOW = 20;
 
 export const livePollType: GraphicType = {
   id: 'live-poll',
-  name: 'Live vote Poll',
+  name: 'Live vote',
   description: 'A question, the options an audience is voting on, and the moment the vote closes.',
   structure: {
     prefix: 'poll',
@@ -76,11 +76,11 @@ export const livePollType: GraphicType = {
       branches: [
         {
           id: 'closed',
-          name: 'Voting closed Poll',
+          name: 'Voting closed',
           // Closing the vote takes the badge away and nothing else — the figures are still the
           // result's job. Real keyframes, so a snap into this state lands the same pose.
           timeline: {
-            name: 'Close voting Poll',
+            name: 'Close voting',
             duration: 0.35,
             ease: 'out',
             layers: {
@@ -103,9 +103,9 @@ export const livePollType: GraphicType = {
         },
         {
           id: 'called',
-          name: 'Winner called Poll',
+          name: 'Winner called',
           timeline: {
-            name: 'Call winner Poll',
+            name: 'Call winner',
             duration: 0.45,
             ease: 'in',
             calls: [{ time: 0, call: 'pollCallWinner' }],

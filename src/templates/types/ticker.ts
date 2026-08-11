@@ -123,7 +123,7 @@ export const tickerType: GraphicType = {
       // A design of its OWN rather than the marquee's: promoting tk05 would have turned the
       // house news wire into a rotator, and the marquee is a graphic people chose on purpose.
       id: 'tk07',
-      name: 'House Rotator',
+      name: 'House Rotator Ticker',
       description: 'The house strip, one story at a time — timed, and pausable on air.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -151,7 +151,7 @@ export const tickerType: GraphicType = {
       // glass / sport / minimal rotators are DESIGNED as rotators — each a strip that holds one
       // story long enough to read, the sibling of its family's lower third.
       id: 'tk08',
-      name: 'Frost Rotator',
+      name: 'Frost Rotator Ticker',
       description: 'A frosted strip that holds one story at a time — timed, and pausable on air.',
       styleTag: 'glass',
       palette: paletteById('frost'),
@@ -162,7 +162,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk09',
-      name: 'Volt Rotator',
+      name: 'Volt Rotator Ticker',
       description: 'A dark rail with a leaning accent chip, holding one story at a time — pausable on air.',
       styleTag: 'sport',
       palette: paletteById('volt'),
@@ -180,7 +180,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk10',
-      name: 'Wire Rotator',
+      name: 'Wire Rotator Ticker',
       description: 'A quiet strip that holds one story at a time, split by a thin accent keyline.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
@@ -198,7 +198,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk21',
-      name: 'Editorial Desk',
+      name: 'Editorial Desk Ticker',
       description: 'A printed news strip that holds one story at a time beside a fine rule.',
       styleTag: 'editorial',
       palette: paletteById('vermilion'),
@@ -218,7 +218,7 @@ export const tickerType: GraphicType = {
       // normal rather than an accident. Packs resolve a family to its FIRST design, so tk07
       // stays the noacg cell and this is an explicit choice in the browse grid.
       id: 'tk19',
-      name: 'Advisory Rotator',
+      name: 'Advisory Rotator Ticker',
       description: 'Public advisories one at a time — timed, holdable, and read in full.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -240,7 +240,7 @@ export const tickerType: GraphicType = {
     },
     {
       id: 'tk18',
-      name: 'Status Rotator',
+      name: 'Status Rotator Ticker',
       description: 'Service statuses one at a time — timed, pausable, and split into a name column.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
