@@ -439,7 +439,7 @@ export const awardRevealType: GraphicType = {
   designs: [
     {
       id: 'aw01',
-      name: 'House',
+      name: 'House Award Reveal',
       description: 'The sealed envelope: category on screen, subject revealed on the press.',
       styleTag: 'noacg',
       palette: paletteById('noacg'),
@@ -448,7 +448,7 @@ export const awardRevealType: GraphicType = {
     },
     {
       id: 'aw02',
-      name: 'Frost',
+      name: 'Frost Award Reveal',
       description: 'A frosted category plate — the subject blooms out on the press.',
       styleTag: 'glass',
       palette: paletteById('orchid'),
@@ -476,7 +476,7 @@ export const awardRevealType: GraphicType = {
       create: (_type, options) => aw03.create(options),
     },
     {
-      id: 'aw04', name: 'Clean', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
+      id: 'aw04', name: 'Clean Award Reveal', description: 'A restrained envelope reveal where a hairline category gives way to the winning name.',
       styleTag: 'minimal', palette: paletteById('ivory'), fontId: 'inter',
       animationPresets: ['comp-rise', 'comp-bloom', 'comp-impact'],
       samples: { kicker: 'THE AWARD FOR', category: 'OUTSTANDING LIVE PRODUCTION', subject: 'NORTHLIGHT MEDIA' },
