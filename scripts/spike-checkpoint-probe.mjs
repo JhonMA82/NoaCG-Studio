@@ -70,7 +70,31 @@ const OPEN_WEIGHT_PREFIXES = [
   { prefix: 'google/gemma', licence: 'Gemma Terms of Use - commercial use with conditions' },
 ];
 
+/**
+ * Slugs whose FAMILY prefix is open but whose own weights are NOT published. A prefix table
+ * alone recommends these as Apache-2.0, and a proprietary checkpoint in an open-weight
+ * feasibility spike does not answer the spike's question - it answers a different one and
+ * looks like a result.
+ *
+ * `-max` is the whole reason this list exists: Alibaba publishes weights for the Qwen dense
+ * and MoE releases and does NOT publish them for the Qwen-Max line, which sits at the top of
+ * the gateway's price list and would therefore have been the first thing a "strongest wins"
+ * reading reached for. Mistral's Medium/Magistral-Medium/Large tiers are the same shape.
+ */
+const NOT_OPEN_PATTERNS = [
+  { test: /^alibaba\/qwen.*-max/, why: 'Qwen-Max is Alibaba\'s proprietary tier - no published weights' },
+  { test: /^mistral\/mistral-medium/, why: 'Mistral Medium is proprietary - no published weights' },
+  { test: /^mistral\/mistral-large/, why: 'Mistral Large is proprietary - no published weights' },
+  { test: /^mistral\/magistral-medium/, why: 'Magistral Medium is proprietary - no published weights' },
+  { test: /^mistral\/ministral/, why: 'Ministral is proprietary - no published weights' },
+];
+
+function notOpen(id) {
+  return NOT_OPEN_PATTERNS.find((e) => e.test.test(id)) ?? null;
+}
+
 function licenceFor(id) {
+  if (notOpen(id)) return null;
   const hit = OPEN_WEIGHT_PREFIXES.find((e) => id.startsWith(e.prefix));
   return hit ? hit.licence : null;
 }
@@ -106,6 +130,15 @@ if (flag('list') || args.length === 0) {
     console.log(`  ${m.id.padEnd(42)} ${String(m.context ?? '?').padStart(9)} ctx  ${price}`);
     console.log(`  ${' '.repeat(42)} licence: ${m.licence}`);
   }
+  const excluded = (listing.data ?? [])
+    .filter((m) => (m.type ?? 'language') === 'language')
+    .map((m) => ({ id: m.id, ruling: notOpen(m.id) }))
+    .filter((m) => m.ruling);
+  if (excluded.length) {
+    console.log('\nExcluded as NOT open-weight despite an open-looking family prefix:');
+    for (const m of excluded) console.log(`  ${m.id.padEnd(42)} ${m.ruling.why}`);
+  }
+
   console.log(`\n${models.length} candidate(s). A listing is not capability - probe before pinning:`);
   console.log('  node scripts/spike-checkpoint-probe.mjs --probe=vercel:<id>,vercel:<id>');
   process.exit(0);

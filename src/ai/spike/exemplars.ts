@@ -22,6 +22,7 @@
 // pool. Every degrade is reported in `reason` rather than silently filled.
 
 import { shortlistFor } from '../retrieval';
+import { resolveAnchor } from '../../templates/structuralAnchor';
 import { variantById } from '../../templates/catalog';
 import type { TemplateVariant } from '../../model/wizard';
 
@@ -66,6 +67,14 @@ export const EXEMPLAR_COUNT = 3;
  *
  * `shortlistFor` is given the lower-third anchor explicitly: the spike runs no intent stage,
  * and without an anchor retrieval returns FULL_CATALOG, which ranks nothing.
+ *
+ * The anchor is RESOLVED through the one anchor table rather than written as a literal. An
+ * anchor is a namespaced string (`category:lower-third`), and the bare word silently fails
+ * `anchorResolves` - which is not an error, it is the documented degrade to FULL_CATALOG. So
+ * the first version of this file ranked nothing and filled all three slots from pool order on
+ * every brief, while reporting a shortlist. Measured before the round rather than after:
+ * every brief would have been shown the same three designs and the arm would have been
+ * "three fixed exemplars", not retrieval.
  */
 export function exemplarsFor(brief: string, count = EXEMPLAR_COUNT): ExemplarSelection {
   const pool = VETTED_EXEMPLAR_IDS.map((id) => variantById(id)).filter(
@@ -76,7 +85,9 @@ export function exemplarsFor(brief: string, count = EXEMPLAR_COUNT): ExemplarSel
     throw new Error(`spike exemplar pool is stale - unresolvable ids: ${missing.join(', ')}`);
   }
 
-  const shortlist = shortlistFor(brief, null, { anchor: 'lower-third', limit: 40 });
+  const anchor = resolveAnchor('lower-third');
+  if (!anchor) throw new Error('spike exemplars: the lower-third anchor no longer resolves');
+  const shortlist = shortlistFor(brief, null, { anchor, limit: 40 });
   const inPool = new Set(pool.map((v) => v.id));
   const ranked = shortlist.full ? [] : shortlist.variants.filter((v) => inPool.has(v.id));
 
