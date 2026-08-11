@@ -68,7 +68,10 @@ The spike should be a thin bench-only wrapper over systems that already exist:
 - validate through `productionSpxValidator`: `validateTemplate`, `benchTemplateRuntime`, safety
   and asset-integrity checks;
 - render through `composeDocument` at 1920x1080 and reuse the fixture, screenshot, result-ledger
-  and review-gallery patterns in `pro-bench.mjs` and `ai-bench.mjs`.
+  and review-gallery patterns in `pro-bench.mjs` and `ai-bench.mjs`. One piece is new build, not
+  reuse: virtual-clock scrubbing today lives only in the render compose path
+  (`src/render/runtimeScript.ts`); the wrapper must wire it into the bench render for the motion
+  strips, and the zero-token control run is what proves that wiring.
 
 The spike does not need `BroadcastDesignPlan`, a visual critic, decomposed design units, best of
 two, a new retrieval index, a new repair loop or product wiring. The wrapper either graduates into
@@ -848,8 +851,9 @@ cost.
 
 The operating policy is:
 
-- the Phase 0 spike is one checkpoint, one candidate, 10-15 briefs and the existing two-round
-  deterministic repair ceiling; no critic, model tournament or frontier arm is paid for first;
+- the Phase 0 spike is one or at most two pinned checkpoints, one candidate per brief and arm,
+  the 12-brief bank in paired exemplar/no-exemplar arms and the existing two-round deterministic
+  repair ceiling; no critic, model tournament or frontier arm is paid for first;
 - human inspection of those rendered outputs decides whether later investment exists at all;
 - after a go decision, quality selects the first viable route;
 - every run records tokens, GPU/provider time, candidates, repair rounds, failures and cost per

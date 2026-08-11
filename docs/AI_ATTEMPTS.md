@@ -131,8 +131,9 @@ uppercase costs about a third of the characters a reader expects), or the suppor
 is deliberately lowered. Meanwhile the residue is measured, not silently reflowed: `bench-line-wrap`.
 
 ### Pro's interpret → compile reconstruction
-**2026-07-31 → 08-08 · visibly broken on 5 of 12 while the gates reported 11 of 12 passing · PARKED
-(`docs/NOACG_PRO_PLAN.md` §0 Q1, §10a).** The image model designs well - 11 of 12 credible concepts.
+**2026-07-31 → 08-08 · visibly broken on 5 of 12 while the gates reported 11 of 12 passing ·
+RETIRED as product direction 2026-08-10 (`docs/NOACG_PRO_PLAN.md` §13 - the plan replaced this
+direction with the open specialist).** The image model designs well - 11 of 12 credible concepts.
 The rectangle-rebuilding compiler cannot keep what they design. Lite delivered a usable graphic on
 12 of 12 of the same briefs, at 1/250th the cost.
 **Re-diagnosed 2026-08-09** (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`, free):

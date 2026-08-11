@@ -156,7 +156,7 @@ these are the commitments.
 | Tier | Who pays | What it is | State |
 |---|---|---|---|
 | **NoaCG Lite** | us, free to the user | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
-| **NoaCG Pro** | user, a little | Image-generation models produce a great-looking frame; further steps rebuild it as real HTML with live fields. | **measured 2026-08-08: the frame is good, the rebuild is not. Parked.** |
+| **NoaCG Pro** | user, a little | An open-weight specialist authors real HTML/CSS/SVG directly inside the platform scaffold; retrieval of proven catalog exemplars supplies the starting taste. | **direction replaced 2026-08-10 (`docs/NOACG_PRO_PLAN.md`); reconstruction retired; Phase 0 spike is the next slice** |
 | **NoaCG Extreme** | subscription | The newest OpenAI and Anthropic frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
 
 - [ ] **Lite: make it good. The price is already solved.** The target was 100 generations per
@@ -169,11 +169,13 @@ these are the commitments.
       catalog is the crutch AND the moat, through adapt-first (`docs/ADAPT_FIRST_PLAN.md`).
       **This is the gate for every other AI goal** - one good graphic must be reliable before
       anything multiplies it.
-- [ ] **Pro: reuse the concept, not the reconstruction.** "Does it work at all" is ANSWERED and
-      archived - not at broadcast quality on the rebuild approach, now parked
-      (`benchmarks/pro/round-2026-08-08/`, `docs/NOACG_PRO_PLAN.md` §10a). Open is the half that
-      measured WELL: the image model designs credible broadcast graphics. Feed a concept back as a
-      `layout` REFERENCE into the grounded adapt path - Pro's strength against Lite's sameness.
+- [ ] **Pro: the open broadcast specialist** (`docs/NOACG_PRO_PLAN.md`). Reconstruction is
+      retired (`benchmarks/pro/round-2026-08-08/` through `-10/` hold the evidence); the
+      replacement is a strong open-weight model authoring HTML/CSS/SVG directly in the platform
+      scaffold, complete-exemplar retrieval first, humans judging rendered output. Next slice:
+      the Phase 0 go/no-go spike - zero-token control run, then the 12-brief bank in paired
+      exemplar/no-exemplar arms on one or two pinned checkpoints, spend capped and approved
+      separately.
 - [ ] **A generated graphic can carry its own STATE MACHINE.** Every tier, not Pro. The platform has
       the engine, the node editor, the control pages and the hosted log - and **no generation path
       asks a model for a machine** (the only mention in `src/ai` is Lite's refusal code). A
