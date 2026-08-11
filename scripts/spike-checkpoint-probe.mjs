@@ -24,9 +24,16 @@
 //      populated files without truncating. A checkpoint that runs out of room mid-CSS looks
 //      exactly like a checkpoint with no taste.
 //
-// The probe brief is deliberately trivial (a plain two-line strap) because it is not
-// measuring design - it is measuring whether the call SHAPE survives the endpoint. Cost is a
-// few cents per candidate.
+// THE PROBE USES THE ROUND'S REAL PROMPT, and the first version did not. It sent a short
+// hand-written brief with a small output budget, and both originally-pinned checkpoints passed
+// in about 30 s. Against the actual prompt - the shipped coder system prompt, a 38,500-token
+// exemplar block, a 17,000-token budget - `zai/glm-5.2` spent the ENTIRE budget on reasoning
+// tokens and emitted nothing at all, twice, while `moonshotai/kimi-k3` took 235 s. A probe
+// that measures a smaller question than the round asks certifies a checkpoint the round cannot
+// use, which is the failure this whole script exists to prevent (docs/AI_ATTEMPTS.md).
+//
+// It still asks for a SMALL DESIGN - the probe is not judging taste - but the prompt shape,
+// the exemplar volume and the output budget are the round's own.
 //
 // SELECTION RULE (owner decision 2026-08-11): the STRONGEST open-weight checkpoint wins.
 // Cheap is not a criterion here. The probe therefore ranks nothing by price; it reports price
@@ -36,10 +43,15 @@
 // app's own gateway client, never a hand-rolled request - a probe that reimplements the
 // transport certifies a path the product does not use).
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
 import { readEnvFile } from './ai-bench-server.mjs';
 import { requireAllowedRoute } from './harness-route-policy.mjs';
+
+/** The round's own pinned decoding, so the probe measures the call the round will make. */
+const decoding = JSON.parse(await readFile(path.resolve('benchmarks/pro/v1/spike/decoding.json'), 'utf8'));
 
 const BASE = `http://localhost:${devPort()}`;
 const args = process.argv.slice(2);
@@ -206,25 +218,30 @@ for (const candidate of candidates) {
       // that cannot serve structured output at all. A probe that asks for less than the schema
       // requires measures its own wording. (Found via NOACG_DEBUG_STRUCTURED=1, which prints
       // the rejected paths server-side: `$.name:required,$.type:required,$.summary:required`.)
+      // THE ROUND'S OWN SYSTEM PROMPT, EXEMPLAR BLOCK AND OUTPUT BUDGET - see the header. The
+      // brief stays small because the probe is not judging design, but everything that decides
+      // whether the endpoint can SERVE the call is the real thing.
+      const spikeRun = await import('/src/ai/spike/run.ts' + bust);
+      const spikeExemplars = await import('/src/ai/spike/exemplars.ts' + bust);
+      const probeBrief = {
+        brief: 'A plain two-line lower third: a dark panel, one accent bar, a simple entrance and exit.',
+        name: 'Alexandra Riva',
+        title: 'Chief Political Correspondent',
+      };
+      const selection = spikeExemplars.exemplarsFor(probeBrief.brief);
       const answer = await callModelDetailed({
-        system: 'You make broadcast graphics as SPX / CasparCG HTML templates. Return the complete '
-          + 'template via the emit_template tool, filling EVERY property the tool declares. Keep the '
-          + 'design small - this is a capability probe, not a design task.',
+        system: spikeRun.spikeSystemPrompt(),
         messages: [{
           role: 'user',
-          content: [{
-            type: 'text',
-            text: 'A plain two-line lower third: a name field f0 and a role field f1, a dark panel, '
-              + 'one accent bar, a simple GSAP entrance and exit. Return it via the emit_template tool.',
-          }],
+          content: spikeRun.spikeUserMessage(probeBrief, spikeExemplars.exemplarBlock(selection.variants)),
         }],
         tool: TEMPLATE_TOOL,
         route: { provider: input.provider, model: input.modelId },
         // The same surface the round itself uses, so the probe measures the transport the
         // round will actually run on. A probe on a different transport certifies nothing.
         surface: 'spike',
-        maxTokens: outputBudget(4000),
-        temperature: 0.7,
+        maxTokens: outputBudget(input.expectedOutputTokens),
+        temperature: input.temperature,
       });
       const out = answer.output ?? {};
       return {
@@ -248,7 +265,7 @@ for (const candidate of candidates) {
     } catch (error) {
       return { ok: false, ms: Date.now() - started, error: String(error?.message ?? error).slice(0, 400) };
     }
-  }, { provider, modelId });
+  }, { provider, modelId, ...decoding });
 
   const licence = licenceFor(modelId);
   const verdict = { candidate, licence: licence ?? 'UNKNOWN - needs a human answer', ...result };

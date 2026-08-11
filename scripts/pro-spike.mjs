@@ -476,14 +476,26 @@ if (paid) {
       const fields = outcome.template.fields;
       const textFields = fields.filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea').length;
       const expected = entry.expect?.textFields ?? 2;
+      // EDITABILITY IS DEMOTED HERE FOR THE SAME REASON THE REPAIR LOOP DEMOTES IT, and the
+      // first paid brief is what showed the gate disagreeing with the pipeline: a fresh build
+      // whose ANIMATION region the converter cannot read still plays, still exports, and only
+      // loses its visual timeline, so the product path treats it as a warning. Counting it as
+      // a scaffold failure would fail §0.3's "preserve the scaffold and live-field contract"
+      // on a criterion that condition never meant - a gate scoring stricter than the pipeline
+      // it measures, which is the same shape of bug as pro-bench discarding the compiler's own
+      // warnings (docs/AI_ATTEMPTS.md). It is reported, never silently dropped.
+      const EDITABILITY_RULE = 'bench-editability';
+      const blockingErrors = outcome.validation.errors.filter((e) => !e.startsWith(`${EDITABILITY_RULE}:`));
       const contract = {
         textFields,
         expectedTextFields: expected,
         fieldsOk: textFields >= expected,
         logoExpected: Boolean(entry.expect?.logo ?? entry.brief.includeLogo),
         logoSlot: fields.some((f) => f.ftype === 'filelist'),
+        blockingErrors,
+        editabilityDemoted: outcome.validation.errors.length !== blockingErrors.length,
       };
-      contract.scaffoldOk = outcome.validation.ok && contract.fieldsOk
+      contract.scaffoldOk = blockingErrors.length === 0 && contract.fieldsOk
         && (!contract.logoExpected || contract.logoSlot);
 
       const captured = await captureSet({ ...outcome, slug });
@@ -507,9 +519,14 @@ if (paid) {
       };
       results.push(record);
       console.log(`  ${contract.scaffoldOk ? 'CONTRACT OK' : 'CONTRACT FAIL'} · fields ${textFields}`
+        + `${contract.editabilityDemoted ? ' · read-only timeline' : ''}`
         + ` · repairs ${record.repairRounds} · $${(record.costUsd ?? 0).toFixed(4)}`
         + ` · ${record.frames.length} motion frames · ${record.ms} ms`);
-      for (const error of record.validation.errors) console.log(`    ✗ ${error}`);
+      for (const error of contract.blockingErrors) console.log(`    ✗ ${error}`);
+      if (contract.editabilityDemoted) {
+        console.log('    · editability demoted to a warning (fresh build) - it plays and exports,'
+          + ' its timeline is read-only');
+      }
       await writeLedger();
     }
   }
@@ -627,8 +644,10 @@ function keyHtml(ledger) {
   <td>${r.kind}${r.arm ? ` · ${r.arm}` : ''}</td>
   <td>${r.provenance ?? r.slug}</td>
   <td>${r.skipped ? `skipped (${r.skipped})` : r.error ? 'ERROR'
-    : r.contract ? (r.contract.scaffoldOk ? 'contract OK' : 'contract FAIL') : '-'}</td>
-  <td>${r.validation ? (r.validation.ok ? 'valid' : r.validation.errors.join('<br>')) : '-'}</td>
+    : r.contract ? `${r.contract.scaffoldOk ? 'contract OK' : 'contract FAIL'}${
+      r.contract.editabilityDemoted ? '<br><small>read-only timeline (demoted)</small>' : ''}` : '-'}</td>
+  <td>${r.contract ? (r.contract.blockingErrors.length ? r.contract.blockingErrors.join('<br>') : 'valid')
+    : r.validation ? (r.validation.ok ? 'valid' : r.validation.errors.join('<br>')) : '-'}</td>
   <td>${r.repairRounds ?? '-'}</td>
   <td>${typeof r.costUsd === 'number' ? `$${r.costUsd.toFixed(4)}` : '-'}</td>
 </tr>`).join('\n');

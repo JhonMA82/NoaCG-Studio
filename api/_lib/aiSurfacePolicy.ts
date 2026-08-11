@@ -21,7 +21,7 @@
 //      guarantee about a hand-rolled request, which no server-side signal could provide.
 
 import { boolEnv } from './aiLiteProfile.js';
-import type { GatewayRoutingPolicy } from './aiGateway.js';
+import type { GatewayExecutionPolicy, GatewayRoutingPolicy } from './aiGateway.js';
 import type { AiGatewaySurface, ModelRoute } from '../../src/ai/modelTypes.js';
 
 /** Does this surface's managed traffic carry a routing policy? A surface absent from here is
@@ -103,4 +103,31 @@ export function surfaceRoutePolicy(
     sort: 'cost',
     tags: [`surface:${surface}`],
   };
+}
+
+/**
+ * The EXECUTION policy for a surface - attempt budget, timeout - as opposed to the routing
+ * policy above. Undefined for every surface but the spike, so nothing else changes.
+ *
+ * WHY THE SPIKE NEEDS ONE. `configuredTimeoutMs()` clamps the shared default to 300 s, which
+ * is right for the product: every managed surface answers a user who is waiting. The Phase 0
+ * spike answers nobody - it is a background bench run - and the checkpoints it measures are
+ * REASONING models. Measured 2026-08-11 on `zai/glm-5.2` against a 306-token prompt: 190 s and
+ * 10,671 output tokens, of which **8,607 were reasoning** before a single character of the
+ * answer. The spike's own prompt carries a 38,500-token exemplar block and asks for three
+ * complete files, so 300 s refuses a call the model would have served - which is what the
+ * first attempt at this round measured, 24 times, as "the AI provider timed out".
+ *
+ * Raising the shared clamp instead would lengthen how long a real user's failing generation
+ * hangs on every surface, to fix a bench rig. This is the containment.
+ *
+ * `retryLimit: 0` is the other half and it is about money, not patience. A timeout is
+ * classified retryable, so the default of one retry makes every slow call cost TWO full
+ * provider completions - and a call we abandoned still ran to completion upstream, so the
+ * waste is real spend with nothing to show for it. A bench run would rather fail a brief and
+ * record it than pay twice for the same answer.
+ */
+export function surfaceExecutionPolicy(surface: AiGatewaySurface | undefined): GatewayExecutionPolicy | undefined {
+  if (surface !== 'spike') return undefined;
+  return { timeoutMs: 900_000, retryLimit: 0 };
 }
