@@ -42,9 +42,14 @@ to put it on air.
 > text showing. §0.3's transfer test went the right way: the no-exemplar arm completed 12 of 12 and
 > was judged indistinguishable from the exemplar arm on the pair the owner singled out, so the pass
 > is not paraphrased catalog taste - and the exemplar block has not yet earned its ~34,500 tokens.
-> Honest limits: the exemplar arm holds 8 of 12 briefs (gateway failures), and only one of the two
-> planned checkpoints ran. Full record: `docs/AI_ATTEMPTS.md`, archive
-> `pro-phase0-kimi-k3-2026-08-12/`.
+> **Both planned checkpoints ran.** `alibaba/qwen3-coder` completed the identical protocol **24 of
+> 24, all contract-clean, for $0.263** - against kimi-k3's 21 of 24 at $5.032, about 19x cheaper and
+> more complete, because it spends no reasoning tokens and so never truncated or timed out. Neither
+> checkpoint is separated by CAPABILITY; which of them designs better is a human comparison still
+> to be made. kimi-k3's exemplar arm stopped at 9 of 12: two briefs never completed across four
+> attempts, and `corporate.exemplar` truncated at both the 17,000 and 25,000 token ceilings.
+> Full record: `docs/AI_ATTEMPTS.md`; archives `pro-phase0-kimi-k3-complete-2026-08-12/` and
+> `pro-phase0-qwen3-coder-2026-08-12/`.
 
 Before building a grammar, unit corpus, model tournament, visual critic or formal parity harness,
 run one deliberately small research spike. Its only question is:
@@ -967,9 +972,13 @@ this round, and one decision it should make early:
    (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`, `docs/AI_LITE_PLAN.md`
    §7). A GENERATED design has no catalog slot to declare, so the equivalent contract for authored
    graphics is genuinely new, and the MOTION half has no precedent anywhere in the repo.
-2. **Finish the evidence.** The exemplar arm holds 8 of 12 briefs and the second checkpoint
-   (`alibaba/qwen3-coder`) never ran. Neither changes the verdict; both are cheap to complete and
-   the gate's counts cannot be quoted at full denominator until they are.
+2. **Pick the checkpoint on a human read, not on cost.** Both ran. `alibaba/qwen3-coder` is
+   complete (24/24, all contract-clean) and ~19x cheaper; `moonshotai/kimi-k3` reached 21/24 and
+   could not finish three exemplar-arm briefs at all. Capability does not separate them, so the
+   choice is which one DESIGNS better - a blind comparison of the two galleries, which is exactly
+   the read §0.2 prescribes and has not been done. Note the owner's cost rule for this spike was
+   "strongest wins, cheap is not a criterion"; if the two look equal, cheap decides by default,
+   and that is a decision worth making explicitly rather than by drift.
 3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
    the round's spend - and on the pair the owner examined it produced a result indistinguishable
    from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this

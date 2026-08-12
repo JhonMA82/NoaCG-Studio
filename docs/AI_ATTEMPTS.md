@@ -55,9 +55,23 @@ so §0.3's counts cannot be read at full denominator; the verdict above is the o
 what rendered. Only ONE checkpoint ran: `alibaba/qwen3-coder` was chosen as the second and never
 executed. And the round cost more than it should have - four separate harness faults, each
 recorded in the commits, burned roughly $5 of the ~$16 total on findings rather than results.
-**RETRY WHEN** - not a retry; this is a GO into Phase 1 on the owner's read. Before that phase
-closes: finish the exemplar arm, run the second checkpoint, and settle whether the exemplar block
-survives at all given it changed so little.
+**SECOND CHECKPOINT, same day: `alibaba/qwen3-coder` ran the identical protocol and finished it.**
+**24 of 24 captured, 24 of 24 contract-clean, $0.263** - against kimi-k3's 21 of 24 at $5.032, so
+about **19x cheaper and more complete**. It carries no reasoning tokens, which is the whole
+difference: nothing truncated, nothing timed out, and the round needed no resume. One repair round
+fired across 24 generations (kimi-k3: zero). Four results carry a read-only timeline (kimi-k3:
+three). The two checkpoints are therefore NOT separated by whether they can do the job - both
+produce contract-clean broadcast lower thirds - and the visual comparison between them is a human
+read that has not been done yet.
+**kimi-k3's exemplar arm finished at 9 of 12.** `sports-live.exemplar` and `long-name.exemplar`
+never completed across four attempts (gateway `unavailable`), and `corporate.exemplar` truncated at
+BOTH the 17,000 and the 25,000 token ceiling - twice, exemplar arm only, so it is a repeatable
+property of that brief on that checkpoint rather than a blip. qwen3-coder ran all three without
+incident.
+**RETRY WHEN** - not a retry; this is a GO into Phase 1 on the owner's read. What is still owed:
+a human comparison of the two checkpoints' galleries, and an ablation settling whether the exemplar
+block survives at all - it costs ~34,500 tokens per call and, on the pair the owner examined,
+changed almost nothing.
 
 ### Cheap models designing a broadcast graphic unaided
 **2026-07-31 → 08-02, five paid rounds · SUPERSEDED by adapt-first.** Cheap open routes composing a
