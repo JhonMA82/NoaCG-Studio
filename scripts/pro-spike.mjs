@@ -42,7 +42,15 @@ import { readEnvFile } from './ai-bench-server.mjs';
 import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const OUT = path.resolve('pro-spike-out');
+// ONE OUT-DIR PER CHECKPOINT. Records are keyed by `<brief>.<arm>`, and so are the frames on
+// disk, so running a second checkpoint into the same directory silently overwrites the first
+// one's images while its ledger rows survive - a gallery that shows one checkpoint's pictures
+// under another's key, with nothing anywhere reporting the swap. `--out=` is how the second
+// checkpoint gets its own round. It is read before the flag helpers below only because OUT is
+// needed by the --rebuild and --reveal branches at the top of this file.
+const OUT = path.resolve(
+  process.argv.slice(2).find((a) => a.startsWith('--out='))?.slice('--out='.length) ?? 'pro-spike-out',
+);
 const BANK = path.resolve('benchmarks/pro/v1/briefs.json');
 const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
 
@@ -90,9 +98,7 @@ if (flag('rebuild')) {
   await blindTheFrames(ledger.results);
   await writeFile(path.join(OUT, 'results.json'), `${JSON.stringify(ledger, null, 2)}\n`);
   await writeFile(path.join(OUT, 'review.html'), reviewHtml(ledger.results));
-  const notes = path.join(OUT, 'notes.md');
-  const exists = await readFile(notes, 'utf8').then((t) => t.includes('- composition: ') && t.trim().length > 0).catch(() => false);
-  if (!exists) await writeFile(notes, notesTemplate(ledger.results));
+  await writeNotesTemplate(path.join(OUT, 'notes.md'), ledger.results);
   console.log(`Rebuilt ${path.join(OUT, 'review.html')} from ${ledger.results.length} record(s). No tokens spent.`);
   process.exit(0);
 }
@@ -609,10 +615,7 @@ const reviewFile = path.join(OUT, paid ? 'review.html' : 'control-review.html');
 const notesFile = path.join(OUT, paid ? 'notes.md' : 'control-notes.md');
 await blindTheFrames(results);
 await writeFile(reviewFile, reviewHtml(results));
-// Never clobber notes a human has already started writing.
-const notesExist = await readFile(notesFile, 'utf8').then(() => true).catch(() => false);
-if (!notesExist) await writeFile(notesFile, notesTemplate(results));
-else console.log(`Kept your existing ${path.basename(notesFile)} - delete it to regenerate the template.`);
+await writeNotesTemplate(notesFile, results);
 
 const candidates = results.filter((r) => r.kind === 'candidate' && !r.skipped && !r.error);
 console.log(`\n${candidates.length} candidate(s) captured, ${results.length - candidates.length} control/anchor/failed`
@@ -745,6 +748,28 @@ function hash(id) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return h;
+}
+
+/**
+ * Write the notes template ONLY when no notes file exists at all.
+ *
+ * The rule is deliberately that blunt, because the clever version destroyed a human's review.
+ * The first guard tested whether the file "looked like an unfilled template" by searching for
+ * a literal bullet string - and the owner's notes were written in prose that never contained
+ * it, so a free `--rebuild` (run to fix an unrelated presentation bug) silently replaced their
+ * verbatim §0.2 read with blank headings. It was recoverable only because the round had been
+ * archived minutes earlier.
+ *
+ * A notes file is a human artifact this script cannot reconstruct, so it does not get to
+ * decide when one is disposable. Existence is the whole test: delete the file to regenerate.
+ */
+async function writeNotesTemplate(file, all) {
+  const exists = await readFile(file, 'utf8').then(() => true).catch(() => false);
+  if (exists) {
+    console.log(`Kept the existing ${path.basename(file)} - delete it if you want a fresh template.`);
+    return;
+  }
+  await writeFile(file, notesTemplate(all));
 }
 
 function notesTemplate(all) {
