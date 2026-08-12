@@ -605,10 +605,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       await unpublishControlShow(show.id);
       setShowHostedSlug(show.id, undefined);
-      setShowAudienceSlugs(show.id, undefined);
+      // The AUDIENCE slugs are deliberately kept. Migration 0039 reserves every address a
+      // production has ever had, so re-publishing hands the same four back — and the readable
+      // join name is derived on the FIRST publish only, from `!show.joinSlug`. Clearing it here
+      // made every re-publish look like a first one, so the name could be re-derived and MOVE
+      // even though the database still had it. Nothing displays these while unpublished: the
+      // whole Links block is gated on `hostedSlug`, which is cleared above.
       setShows(setShowOutputSlug(show.id, undefined));
       setLiveCue({});
-      setNote('Production unpublished — the control link and the output URL no longer work.');
+      setNote('Production unpublished — its links stop working until you publish again, and come back unchanged when you do.');
     } catch (e) {
       setNote(`Unpublish failed: ${(e as Error).message}`);
     } finally {
@@ -1852,7 +1857,9 @@ function ProductionLinks({
               <button className="primary" onClick={onPublish} disabled={busy} data-testid="production-republish">
                 ⟳ Publish changes
               </button>
-              <button onClick={onUnpublish} disabled={busy}>Unpublish</button>
+              <button onClick={onUnpublish} disabled={busy} data-testid="production-unpublish">
+                Unpublish
+              </button>
             </div>
           </div>
         </>
