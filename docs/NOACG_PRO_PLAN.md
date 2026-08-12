@@ -964,6 +964,20 @@ or hide it earlier is an owner product decision recorded outside this plan.
 fenced off from the app by `.dependency-cruiser.cjs`. Phase 1 begins with three things owed from
 this round, and one decision it should make early:
 
+0a. **THE CODE IS THE DELIVERABLE, AND IT IS AN EVALUATION AXIS** (owner, 2026-08-12). Phase 0
+   judged rendered frames alone and did not keep the emitted HTML/CSS/JS at all, which is backwards
+   for a product whose artifact IS an HTML template: the frame is a derivative of the code, the
+   code is what a user edits, exports and puts on air, and **code quality is part of choosing a
+   winner, not a follow-up check.** Every round from here saves
+   `code/<brief>.<arm>/{index.html,template.css,template.js}` (already implemented), the review
+   reads the code beside the frames, and the ledger records what the code is like - not merely
+   whether it validated. Concretely, the house contract in `src/ai/AGENTS.md` already names what
+   good looks like and is what to score against: the `:root` variable contract with zero hardcoded
+   colours elsewhere, every pixel size through `calc(N * var(--scale))`, the structure spine, the
+   marked ANIMATION region in the authoring grammar, and simple readable ES5 with comments that
+   explain WHY. A generation that renders beautifully and emits unreadable or uneditable code has
+   failed the product, and Phase 0 could not have told the difference.
+
 0. **THE PREMISE TEST COMES FIRST: brand, not generic quality** (owner, 2026-08-12). Phase 0 asked
    whether a strong open checkpoint can design a broadcast lower third. It can. But every brief in
    the bank is generic - no brand palette, no brand typeface, no real mark - so the round never

@@ -69,7 +69,11 @@ BOTH the 17,000 and the 25,000 token ceiling - twice, exemplar arm only, so it i
 property of that brief on that checkpoint rather than a blip. qwen3-coder ran all three without
 incident.
 **CHECKPOINT DECISION (owner, 2026-08-12): `alibaba/qwen3-coder`.** Better on the owner's read of
-the two galleries and ~19x cheaper, so it is the checkpoint later phases build on.
+the two galleries and ~19x cheaper, so it is the checkpoint later phases build on. **`moonshotai/
+kimi-k3` is DROPPED on cost** - $5.03 against $0.26 for a round it could not even finish. It stays
+a valid checkpoint; it is not worth 19x for output the owner rated no higher.
+**RETRY WHEN** a round needs a second opinion that qwen3-coder cannot give, and the question is
+worth roughly twenty times the price of asking it.
 
 **THE ROUND SAVED NO CODE, AND THAT IS THIS ENTRY'S MOST EXPENSIVE MISTAKE.** Forty-five paid
 generations were reduced to PNG frames: the ledger kept verdicts, costs and pictures, and none of
