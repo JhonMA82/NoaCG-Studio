@@ -68,10 +68,45 @@ never completed across four attempts (gateway `unavailable`), and `corporate.exe
 BOTH the 17,000 and the 25,000 token ceiling - twice, exemplar arm only, so it is a repeatable
 property of that brief on that checkpoint rather than a blip. qwen3-coder ran all three without
 incident.
+**CHECKPOINT DECISION (owner, 2026-08-12): `alibaba/qwen3-coder`.** Better on the owner's read of
+the two galleries and ~19x cheaper, so it is the checkpoint later phases build on.
+
+**THE ROUND SAVED NO CODE, AND THAT IS THIS ENTRY'S MOST EXPENSIVE MISTAKE.** Forty-five paid
+generations were reduced to PNG frames: the ledger kept verdicts, costs and pictures, and none of
+the emitted HTML/CSS/JS. The standing instruction two entries below - *"a paid round must pass
+`--save-fixtures`"*, written after the 2026-08-08 Pro round lost its twelve interpretations the
+same way - was in this file the whole time and was not followed. The immediate cost: the alignment
+defect the owner named cannot be diagnosed from its own CSS, and nothing can be re-rendered,
+re-measured or turned into a fixture without paying for the round again. `pro-spike.mjs` now writes
+`code/<brief>.<arm>/{index.html,template.css,template.js}` per generation. **The rule generalises
+past fixtures: the model's OUTPUT is the irreplaceable artifact of a paid round, and a frame is a
+derivative of it.**
+
 **RETRY WHEN** - not a retry; this is a GO into Phase 1 on the owner's read. What is still owed:
-a human comparison of the two checkpoints' galleries, and an ablation settling whether the exemplar
-block survives at all - it costs ~34,500 tokens per call and, on the pair the owner examined,
-changed almost nothing.
+an ablation settling whether the exemplar block survives at all - it costs ~34,500 tokens per call
+and, on the pair the owner examined, changed almost nothing - and the round that actually matters,
+below.
+
+### What Phase 0 did NOT test: brand
+**2026-08-12 · the owner's framing, and the real question.** Every brief in the bank is generic:
+two text lines, no brand palette, no brand typeface, and no actual mark - `includeLogo` is a
+boolean that asks for an empty slot, and the one brief that set it rendered a broken image. The
+prompt passes no colours, no logo file and no brand system, so the round measured *"can a strong
+open checkpoint design a broadcast lower third"* and never asked *"can it design THIS customer's
+lower third."* The owner's verdict on the output was that it looks like something the free template
+gallery could carry - which is the correct reading of what was tested, and the reason the result
+does not yet justify a paid tier: **a generic graphic is not worth a paid generation when the
+catalog already ships 59 of them.**
+**THE NEXT ROUND IS BRAND-CONDITIONED**, and it is cheap on the chosen checkpoint (~$0.26 for 24
+generations): the same 12 briefs, each carrying a real mark (shape, backing and ink measured by
+`assets/assetInfo.ts` `probeMark`, the content-free contract Lite already uses), a brand palette
+and a brand typeface. Two things get measured that this round could not: whether the output is
+BRAND-FAITHFUL (the mark placed legibly and unaltered, the palette actually driving the design
+rather than decorating it), and whether outputs are DIFFERENT FROM EACH OTHER when the brand
+changes and the brief does not - the sameness tripwire the adapt-first route already lives under.
+**RETRY WHEN** - not a retry, this is the scheduled next experiment. It is also the honest test of
+the whole Pro premise: adapt-first already delivers catalog-grade generic graphics for a fraction
+of a cent, so Pro earns its cost only on originality conditioned by a customer's own brand.
 
 ### Cheap models designing a broadcast graphic unaided
 **2026-07-31 → 08-02, five paid rounds · SUPERSEDED by adapt-first.** Cheap open routes composing a

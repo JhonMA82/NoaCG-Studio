@@ -964,6 +964,21 @@ or hide it earlier is an owner product decision recorded outside this plan.
 fenced off from the app by `.dependency-cruiser.cjs`. Phase 1 begins with three things owed from
 this round, and one decision it should make early:
 
+0. **THE PREMISE TEST COMES FIRST: brand, not generic quality** (owner, 2026-08-12). Phase 0 asked
+   whether a strong open checkpoint can design a broadcast lower third. It can. But every brief in
+   the bank is generic - no brand palette, no brand typeface, no real mark - so the round never
+   asked whether it can design **this customer's** graphic, and the owner's reading of the output
+   was that it looks like something the free template gallery could carry. That reading is correct
+   and it is the whole problem: **adapt-first already delivers catalog-grade generic graphics for a
+   fraction of a cent, so a paid Pro generation earns nothing by matching it.** Pro's premise is
+   originality conditioned on a customer's own brand, and that has not been measured once.
+   The next round is the same 12 briefs carrying a real mark (shape/backing/ink via
+   `assets/assetInfo.ts` `probeMark`), a brand palette and a brand typeface, measuring two things:
+   brand FIDELITY (mark placed legibly and unaltered, palette driving the design rather than
+   decorating it) and brand-driven DIVERGENCE (different brands, same brief, visibly different
+   graphics - the sameness tripwire adapt-first already lives under). On the chosen checkpoint that
+   round costs about $0.26. Item 1 below is a precondition for it, not a parallel task.
+
 1. **The logo contract is the named gap and the first real work.** The owner's own words: find a
    structure and plan for how a mark is placed so it fits the design, and how it animates
    meaningfully. The Lite side already solved the placement half in a shape worth copying rather
@@ -972,13 +987,9 @@ this round, and one decision it should make early:
    (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`, `docs/AI_LITE_PLAN.md`
    §7). A GENERATED design has no catalog slot to declare, so the equivalent contract for authored
    graphics is genuinely new, and the MOTION half has no precedent anywhere in the repo.
-2. **Pick the checkpoint on a human read, not on cost.** Both ran. `alibaba/qwen3-coder` is
-   complete (24/24, all contract-clean) and ~19x cheaper; `moonshotai/kimi-k3` reached 21/24 and
-   could not finish three exemplar-arm briefs at all. Capability does not separate them, so the
-   choice is which one DESIGNS better - a blind comparison of the two galleries, which is exactly
-   the read §0.2 prescribes and has not been done. Note the owner's cost rule for this spike was
-   "strongest wins, cheap is not a criterion"; if the two look equal, cheap decides by default,
-   and that is a decision worth making explicitly rather than by drift.
+2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
+   galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
+   21/24 and could not finish three exemplar-arm briefs at all.
 3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
    the round's spend - and on the pair the owner examined it produced a result indistinguishable
    from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this

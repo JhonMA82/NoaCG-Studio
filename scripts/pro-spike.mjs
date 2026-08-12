@@ -558,9 +558,31 @@ if (paid) {
         && (!contract.logoExpected || contract.logoSlot);
 
       const captured = await captureSet({ ...outcome, slug });
+      // SAVE THE CODE. The frames are expensive; the emitted HTML/CSS/JS is IRREPLACEABLE, and
+      // this round shipped without it - forty-five paid generations reduced to pictures, so the
+      // one alignment defect the owner named could not be diagnosed from its own CSS and nothing
+      // could be re-rendered or re-analysed for free. docs/AI_ATTEMPTS.md already carried the
+      // standing instruction from the 2026-08-08 Pro round, whose twelve interpretations were
+      // lost the same way. Written per generation as real files rather than into results.json:
+      // the ledger is read whole by every consumer, and three code blobs per record would make
+      // it unreadable for a human and enormous for no benefit.
+      const codeDir = path.join(OUT, 'code', slug);
+      await mkdir(codeDir, { recursive: true });
+      await Promise.all([
+        writeFile(path.join(codeDir, 'index.html'), outcome.template.html),
+        writeFile(path.join(codeDir, 'template.css'), outcome.template.css),
+        writeFile(path.join(codeDir, 'template.js'), outcome.template.js),
+        writeFile(path.join(codeDir, 'emitted.json'), `${JSON.stringify({
+          name: outcome.emitted?.name,
+          type: outcome.emitted?.type,
+          summary: outcome.emitted?.summary,
+        }, null, 2)}\n`),
+      ]);
+
       const record = {
         blindId: blindId(),
         slug,
+        code: path.relative(OUT, codeDir).split(path.sep).join('/'),
         kind: 'candidate',
         arm,
         route,
