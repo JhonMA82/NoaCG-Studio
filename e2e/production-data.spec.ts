@@ -373,13 +373,16 @@ test('the empty workspace carries the doors and names the columns that would bin
   await expect(empty).toHaveCount(0);
   const actions = page.locator('.pd-data-head .pd-data-actions');
   await expect(actions).toBeVisible();
+  // ONE ROW is measured as the cluster's own HEIGHT, not by comparing the children's tops:
+  // they are centred on the line at slightly different heights (a select is a pixel taller than
+  // a button), so rounded tops disagree by one pixel on some platforms and read as two rows on a
+  // cluster that never wrapped. A wrapped cluster is two control heights plus the gap - far
+  // above any rounding.
   const layout = await page.evaluate(() => {
     const head = document.querySelector('.pd-data-head')!.getBoundingClientRect();
-    const cluster = document.querySelector('.pd-data-head .pd-data-actions')!;
-    const rows = new Set([...cluster.children].map((c) => Math.round(c.getBoundingClientRect().top)));
-    const box = cluster.getBoundingClientRect();
-    return { rows: rows.size, rightGap: Math.round(head.right - box.right) };
+    const box = document.querySelector('.pd-data-head .pd-data-actions')!.getBoundingClientRect();
+    return { height: Math.round(box.height), rightGap: Math.round(head.right - box.right) };
   });
-  expect(layout.rows).toBe(1);
+  expect(layout.height).toBeLessThan(50);
   expect(layout.rightGap).toBeLessThanOrEqual(1);
 });
