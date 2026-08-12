@@ -280,19 +280,54 @@ export async function reserveLiteCapacity(
   throw new Error('Lite capacity retry exhausted without a reservation result.');
 }
 
+/**
+ * What a failed generation records. Two shapes, because a failure either has an accounted model
+ * result or it does not:
+ *
+ * - WITH a result, the real model, tokens and cost are known and win.
+ * - WITHOUT one, the provider threw before producing anything accountable. That branch used to
+ *   write the reason and NOTHING else, which is why 23 of the first 43 production failures carried
+ *   a null model: the ledger recorded that something failed without ever recording WHAT, and no
+ *   amount of querying could attribute them to a route. So name the route that was dispatched to.
+ *
+ * Naming the primary route is honest rather than a guess: `executeGatewayRequest` walks
+ * `[primary, ...fallbacks]` and throws only once every one of them is exhausted, so a failure
+ * reaching here is one where the primary route provably failed.
+ *
+ * The cost stays the conservative worst case the reservation booked (`maxProviderCostUsd`) - with
+ * no usage report there is nothing to reconcile it against, and over-booking the fleet's daily
+ * budget is the safe direction to be wrong in.
+ */
+export function failurePatch(input: {
+  reason: string;
+  result?: ModelResult;
+  conservativeCostUsd?: number;
+  attemptedRoute?: { provider: string; model: string };
+}): Partial<LiteGenerationRecord> {
+  const { reason, result, conservativeCostUsd, attemptedRoute } = input;
+  return {
+    ...(result ? modelResultPatch(result) : {}),
+    ...(!result && conservativeCostUsd ? { providerCostUsd: conservativeCostUsd } : {}),
+    ...(!result && attemptedRoute
+      ? { provider: attemptedRoute.provider, model: attemptedRoute.model }
+      : {}),
+    status: 'failed',
+    rejectionReason: reason.slice(0, 80),
+  };
+}
+
 async function failRecord(
   record: LiteGenerationRecord | null,
   reason: string,
   result?: ModelResult,
   conservativeCostUsd?: number,
+  attemptedRoute?: { provider: string; model: string },
 ): Promise<void> {
   if (!record) return;
-  await (await getLiteGenerationStore()).update(record.id, {
-    ...(result ? modelResultPatch(result) : {}),
-    ...(!result && conservativeCostUsd ? { providerCostUsd: conservativeCostUsd } : {}),
-    status: 'failed',
-    rejectionReason: reason.slice(0, 80),
-  });
+  await (await getLiteGenerationStore()).update(
+    record.id,
+    failurePatch({ reason, result, conservativeCostUsd, attemptedRoute }),
+  );
 }
 
 function internalFailureCode(error: unknown): string {
@@ -513,6 +548,7 @@ export default {
         error instanceof GatewayError ? error.code : internalFailureCode(error),
         accountedResult,
         accountedResult ? undefined : profile.maxProviderCostUsd,
+        accountedResult ? undefined : profile.primary,
       );
       return error instanceof GatewayError
         ? gatewayResponse(error)
