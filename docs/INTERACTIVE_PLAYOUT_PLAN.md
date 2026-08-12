@@ -564,9 +564,19 @@ The exported control panel carries the same caption, per the one-control doctrin
 match-board chip; the clock running on air while a score bump is applied; multi-layer PROGRAM
 (quiz over match board over vote board); the audience inbox, presenter Now/Next pointers, the live
 tally (bars measured proportional), staging a vote to a cue and airing it - the aired board shows
-50/25/25 from `Label | count`. **Not fixed, recorded:** the Data workspace's empty state is a
-header and one sentence over ~830px of nothing, and its "⬇ Blank CSV" button wraps onto its own
-row away from the sibling buttons it belongs to.
+50/25/25 from `Label | count`. **Recorded then FIXED 2026-08-12:** the Data workspace's empty
+state was a header and one sentence over ~830px of nothing (measured again before the fix: 946px
+below a 17px sentence at 1080p), and its "⬇ Blank CSV" button wrapped onto its own row away from
+the sibling buttons it belongs to - because the three controls were loose children of the header
+beside a `<div class="spacer" />`, and there is no global `.spacer { flex: 1 }` to push anything
+(`src/components/AGENTS.md` says so about every dialog header). They are now ONE `.pd-data-actions`
+cluster that holds together and wraps together, `margin-left: auto` doing the pushing, and it
+renders in exactly one place at a time: in the header once tables exist, and INSIDE the empty state
+before that, where the actions are the whole answer. The empty state also names the column names
+that would bind on this production - its own graphics' field titles, the same words an imported
+header is matched against - so the surface's one hard question is answered where it is asked.
+Pinned by e2e/production-data.spec.ts ("the empty workspace carries the doors…"), whose layout half
+is asserted as GEOMETRY, since `toBeVisible` is blind to a button that wrapped.
 
 ## Audience backend design (for Phases 5–6; designed 2026-08-05, BUILT 2026-08-07)
 

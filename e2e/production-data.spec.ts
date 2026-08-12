@@ -347,3 +347,39 @@ test('a file that is not a table is refused with a reason', async ({ page }) => 
   await expect(page.getByTestId('import-note')).toContainText('list of rows');
   await expect(page.getByTestId('data-empty')).toBeVisible();
 });
+
+test('the empty workspace carries the doors and names the columns that would bind', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Empty Data');
+  await page.getByTestId('tab-data').click();
+
+  // With no tables the three doors live INSIDE the empty state - it used to be one grey
+  // sentence over most of the screen with the actions parked in a corner of the header.
+  const empty = page.getByTestId('data-empty');
+  await expect(empty).toBeVisible();
+  await expect(empty.getByTestId('add-dataset')).toBeVisible();
+  await expect(empty.getByTestId('download-dataset-template')).toBeVisible();
+  await expect(page.locator('.pd-data-head .pd-data-actions')).toHaveCount(0);
+
+  // And it answers the surface's one hard question - what do I call my columns? - with this
+  // production's own field titles, which is what an imported header is matched against.
+  await expect(empty.getByTestId('bindable-columns')).toContainText('Name');
+  await expect(empty.getByTestId('bindable-columns')).toContainText('Title');
+
+  // Create a table and the same cluster moves to the header, flush right and unbroken. Asserted
+  // as GEOMETRY: `toBeVisible` is blind to a button that wrapped onto a row of its own, which is
+  // exactly what the ⬇ Blank CSV button used to do beside a `.spacer` that pushes nothing.
+  await page.getByTestId('add-dataset').click();
+  await expect(empty).toHaveCount(0);
+  const actions = page.locator('.pd-data-head .pd-data-actions');
+  await expect(actions).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const head = document.querySelector('.pd-data-head')!.getBoundingClientRect();
+    const cluster = document.querySelector('.pd-data-head .pd-data-actions')!;
+    const rows = new Set([...cluster.children].map((c) => Math.round(c.getBoundingClientRect().top)));
+    const box = cluster.getBoundingClientRect();
+    return { rows: rows.size, rightGap: Math.round(head.right - box.right) };
+  });
+  expect(layout.rows).toBe(1);
+  expect(layout.rightGap).toBeLessThanOrEqual(1);
+});

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { saveAs } from 'file-saver';
 import {
   addDatasetColumn,
@@ -123,6 +123,53 @@ export default function ProductionDataWorkspace({
     );
   };
 
+  /**
+   * The three doors — pick a shape and make one, bring a file in, take the shape out — as ONE
+   * cluster rendered in ONE place at a time: in the header once tables exist, and inside the
+   * empty state before that. The actions are the whole answer to an empty workspace, so putting
+   * a second copy of them in a corner while the middle of the screen stays blank would be the
+   * defect this fixes, and keeping two live copies would be two things to hold in step.
+   */
+  const actions = (
+    <div className="pd-data-actions">
+      <select value={newKind} onChange={(e) => setNewKind(e.target.value as ShowDataset['kind'])} data-testid="new-dataset-kind">
+        <option value="quiz">Quiz questions</option>
+        <option value="teams">Teams</option>
+        <option value="roster">Line-up / roster</option>
+        <option value="generic">Blank table</option>
+      </select>
+      <button
+        className="primary"
+        onClick={() => setShows(addShowDataset(show.id, newKind).shows)}
+        data-testid="add-dataset"
+      >
+        ＋ New table
+      </button>
+      {/* IMPORT (Phase 7). A label wrapping a hidden input, so the control is a real file
+          picker with no click-through indirection and no second button to keep in step. */}
+      <label className="pd-data-import">
+        <input
+          type="file"
+          accept=".csv,.tsv,.txt,.json,text/csv,application/json"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // Clear the input so picking the SAME file twice fires again — re-importing after
+            // fixing a column name in the spreadsheet is the normal second act.
+            e.target.value = '';
+            if (file) void importFile(file);
+          }}
+          data-testid="import-dataset"
+        />
+        ⬆ Import CSV / JSON
+      </label>
+      {/* Beside Import because they are one workflow read in either direction: take the shape
+          out, fill it in, bring it back. */}
+      <button onClick={downloadTemplate} data-testid="download-dataset-template">
+        ⬇ Blank CSV
+      </button>
+    </div>
+  );
+
   return (
     <section className="pd-data" data-testid="production-data">
       <div className="pd-data-head">
@@ -132,42 +179,7 @@ export default function ProductionDataWorkspace({
           a cue whose field titles match a table's columns can load any row — into PREVIEW,
           never straight to air.
         </p>
-        <div className="spacer" />
-        <select value={newKind} onChange={(e) => setNewKind(e.target.value as ShowDataset['kind'])} data-testid="new-dataset-kind">
-          <option value="quiz">Quiz questions</option>
-          <option value="teams">Teams</option>
-          <option value="roster">Line-up / roster</option>
-          <option value="generic">Blank table</option>
-        </select>
-        <button
-          className="primary"
-          onClick={() => setShows(addShowDataset(show.id, newKind).shows)}
-          data-testid="add-dataset"
-        >
-          ＋ New table
-        </button>
-        {/* IMPORT (Phase 7). A label wrapping a hidden input, so the control is a real file
-            picker with no click-through indirection and no second button to keep in step. */}
-        <label className="pd-data-import">
-          <input
-            type="file"
-            accept=".csv,.tsv,.txt,.json,text/csv,application/json"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              // Clear the input so picking the SAME file twice fires again — re-importing after
-              // fixing a column name in the spreadsheet is the normal second act.
-              e.target.value = '';
-              if (file) void importFile(file);
-            }}
-            data-testid="import-dataset"
-          />
-          ⬆ Import CSV / JSON
-        </label>
-        {/* Beside Import because they are one workflow read in either direction: take the shape
-            out, fill it in, bring it back. */}
-        <button onClick={downloadTemplate} data-testid="download-dataset-template">
-          ⬇ Blank CSV
-        </button>
+        {datasets.length > 0 && actions}
       </div>
 
       {importNote && (
@@ -179,17 +191,75 @@ export default function ProductionDataWorkspace({
         </p>
       )}
 
-      {datasets.length === 0 && (
-        <p className="hint pd-data-empty" data-testid="data-empty">
-          No tables yet. A quiz bank holds one question per row; the quiz cue on the Playout tab
-          then loads them one by one.
-        </p>
-      )}
+      {datasets.length === 0 && <EmptyState show={show} actions={actions} />}
 
       {datasets.map((ds) => (
         <DatasetCard key={ds.id} show={show} dataset={ds} setShows={setShows} />
       ))}
     </section>
+  );
+}
+
+/**
+ * The empty workspace. It used to be one grey sentence over most of a screen — measured at
+ * 946px of nothing below it on a 1080p display — which says what the surface is called and
+ * nothing about how to start.
+ *
+ * It now answers the surface's one hard question in the place the operator is already looking:
+ * WHAT DO I CALL MY COLUMNS? The binding is the words (a column named like a field's title
+ * loads into that field), so the names that would bind are a fact about this production's own
+ * graphics — and a production with no graphics yet gets told that instead, because a column
+ * name list would be empty for a reason that has nothing to do with the table.
+ */
+function EmptyState({ show, actions }: { show: Show; actions: ReactNode }) {
+  // The field TITLES of every graphic in the pool — the same words `boundColumns` matches an
+  // imported header against, deduplicated and in pool order so the list reads like the rundown.
+  const titles: string[] = [];
+  const seen = new Set<string>();
+  for (const g of show.graphics) {
+    for (const f of g.template.fields ?? []) {
+      const title = f.title?.trim();
+      if (!title || seen.has(title.toLowerCase())) continue;
+      seen.add(title.toLowerCase());
+      titles.push(title);
+    }
+  }
+  const shown = titles.slice(0, 12);
+
+  return (
+    <div className="pd-data-empty" data-testid="data-empty">
+      <h3>No tables yet</h3>
+      <p className="hint">
+        A table is one row per entry — a question, a team, a name. Pick a shape below, or bring a
+        spreadsheet in. On the Playout tab a cue then loads any row into PREVIEW, never straight
+        to air.
+      </p>
+      {actions}
+      <div className="pd-data-bind">
+        {titles.length > 0 ? (
+          <>
+            <p className="hint">
+              Name a column after one of these and a cue on this production can load it:
+            </p>
+            <p className="pd-bind-chips" data-testid="bindable-columns">
+              {shown.map((t) => (
+                <span key={t} className="pd-bind-chip">
+                  {t}
+                </span>
+              ))}
+              {titles.length > shown.length && (
+                <span className="muted">+{titles.length - shown.length} more</span>
+              )}
+            </p>
+          </>
+        ) : (
+          <p className="hint" data-testid="bindable-columns-none">
+            This production has no graphics yet, so no column name binds to anything. Add one on
+            the Playout tab and its field names appear here.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
