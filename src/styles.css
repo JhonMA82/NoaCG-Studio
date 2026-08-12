@@ -5914,8 +5914,45 @@ h2 + .lib-row,
 .pd-aud-actions button.active { border-color: var(--accent); color: var(--accent); }
 /* The kind picker is one control, not a toolbar row — unconstrained, flex-wrap handed it a
    whole line of its own. */
-.pd-data-head select { flex: 0 0 auto; width: auto; max-width: 200px; }
-.pd-data-empty { margin-top: 18px; }
+.pd-data-actions select { flex: 0 0 auto; width: auto; max-width: 200px; }
+
+/* THE THREE DOORS AS ONE UNIT. They used to be loose children of the header beside a
+   `<div class="spacer" />`, which pushes nothing (there is no global `.spacer { flex: 1 }`) - so
+   the cluster sat wherever the heading's text left it, and the last button wrapped onto a row of
+   its own away from the two it belongs to. Grouped, they hold together and wrap together, and
+   `margin-left: auto` is what actually pushes them to the far edge. */
+.pd-data-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* `flex: 0 0 auto` is what makes "wraps together" true rather than merely likely. A flex item
+   that may wrap INSIDE itself has a small min-content width, so a narrow header would rather
+   squeeze the cluster and let it break internally than move it down as a unit - which is the
+   original orphaned-button defect wearing a different name. */
+.pd-data-head .pd-data-actions { margin-left: auto; flex: 0 0 auto; }
+
+/* THE EMPTY WORKSPACE. One sentence over ~950px of nothing said what the surface was called and
+   nothing about starting one, so the actions move in here while there is nothing else to show. */
+.pd-data-empty {
+  max-width: 620px;
+  margin: 40px auto;
+  padding: 22px 24px 20px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  text-align: center;
+}
+.pd-data-empty h3 { margin: 0 0 8px; font-size: 15px; }
+.pd-data-empty .hint { margin: 0 auto 16px; max-width: 460px; }
+.pd-data-empty .pd-data-actions { justify-content: center; }
+.pd-data-bind { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.pd-data-bind .hint { margin-bottom: 10px; }
+.pd-bind-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; }
+.pd-bind-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: 12px;
+}
 .pd-dataset {
   background: var(--bg-2, #14161c);
   border: 1px solid var(--border);
