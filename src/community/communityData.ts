@@ -14,6 +14,7 @@ import {
   rehydrateAssets,
   dataUrlToBlob,
   blobToDataUrl,
+  classifyAssetRefusal,
 } from '../backend/assets';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SpxTemplate } from '../model/types';
@@ -87,6 +88,10 @@ async function upload(sb: SupabaseClient, key: string, dataUrl: string): Promise
   // bytes. An "already exists" error means the identical bytes are already there — treat it as success.
   const { error } = await sb.storage.from(BUCKET).upload(key, blob, { contentType: blob.type, upsert: false });
   if (error && !/exist|duplicate/i.test(error.message)) {
+    // A capacity ceiling (migration 0039) is not a transport failure: say what was refused and
+    // what to do, rather than surfacing "new row violates row-level security policy" to a user.
+    const refusal = classifyAssetRefusal(error);
+    if (refusal) throw new Error(`This graphic cannot be published: ${refusal.reason}. ${refusal.fix}`);
     throw new Error(`asset upload failed: ${error.message}`);
   }
   uploaded.add(key);

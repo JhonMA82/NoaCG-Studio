@@ -13,7 +13,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 import { isSingleton, markPutDenied, toStoredRecord, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
-import { externalizeAssets, rehydrateAssets, dataUrlToBlob, blobToDataUrl } from './assets';
+import { externalizeAssets, rehydrateAssets, dataUrlToBlob, blobToDataUrl, classifyAssetRefusal } from './assets';
 import { deterministicUuid } from '../model/id';
 
 const TABLE = 'documents';
@@ -31,6 +31,9 @@ interface DocumentRow {
 export class SupabaseProvider implements StorageProvider {
   /** Per-instance dedupe so the same asset (same hash → same key) uploads at most once a session. */
   private uploaded = new Set<string>();
+
+  /** Keys Storage refused permanently (too large), with the reason - never re-sent this session. */
+  private refused = new Map<string, string>();
 
   private async client(): Promise<SupabaseClient> {
     const sb = await getSupabase();
@@ -124,9 +127,20 @@ export class SupabaseProvider implements StorageProvider {
 
   private async upload(sb: SupabaseClient, key: string, dataUrl: string): Promise<void> {
     if (this.uploaded.has(key)) return; // already uploaded this session (content-hash dedupe)
+    // A file the cloud has already refused for its SIZE is refused for the same reason every pass,
+    // and the key is a content hash - so the same bytes are never sent up the wire twice.
+    const known = this.refused.get(key);
+    if (known) throw new Error(`${known} - it stays on this device`);
     const blob = dataUrlToBlob(dataUrl);
     const { error } = await sb.storage.from(BUCKET).upload(key, blob, { contentType: blob.type, upsert: true });
-    if (error) throw new Error(`asset upload failed: ${error.message}`);
+    if (error) {
+      const refusal = classifyAssetRefusal(error);
+      if (refusal) {
+        if (refusal.permanent) this.refused.set(key, refusal.reason);
+        throw new Error(`${refusal.reason} - it stays on this device`);
+      }
+      throw new Error(`asset upload failed: ${error.message}`);
+    }
     this.uploaded.add(key);
   }
 
