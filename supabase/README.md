@@ -51,6 +51,58 @@ still open to everyone: anyone can create, preview, and export with no account. 
 Signup is **open** (migration `0006`); to re-close it to the invite allowlist, ship a migration
 restoring the `0002` body of `enforce_allowlist`.
 
+## Capacity - what fits inside the plan, and what stops us leaving it
+
+The hosted project runs on Supabase **Pro**, whose included quota is **8 GB of database disk**,
+**100 GB of Storage**, **250 GB of egress/month** and **100,000 monthly active users**. Overage is
+billed per GB ($0.125 database, $0.021 Storage, $0.09 egress), so "how many accounts fit" is a real
+number, not a shrug. Migration `0039` turns that number into ceilings the database enforces.
+
+**Sized for 1000 accounts.** Measured on 2026-08-12 with the live project at 22 MB of database and
+2.3 MB of Storage:
+
+| Resource | Per account | 1000 accounts | Included | Headroom |
+|---|---|---|---|---|
+| Database | ~1 MB (44 documents, 10 kB body average) | ~1-4 GB | 8 GB disk | ~2x |
+| Storage | 50 MB ceiling (`storage_quotas`) | 50 GB | 100 GB | 2x |
+| Egress | 50 MB, if every account pulls its assets once a month | 50 GB | 250 GB | 5x |
+| Auth | 1 MAU | 1000 MAU | 100,000 MAU | 100x |
+
+At that shape 1000 accounts cost the flat $25/month and nothing else. **Storage is what breaks
+first** if the estimate is wrong, which is why it is the resource with a hard ceiling rather than a
+hope.
+
+**What the ceilings are** (all in `0039`, tunable by updating `public.storage_quotas` as the
+service role - no migration needed):
+
+- **8 MB per file** on both buckets (`storage.buckets.file_size_limit`, previously unlimited). The
+  app's own caps are lower: 3 MB per video asset, 12 MB of media per shared template.
+- **50 MB per account** in `user-assets`, **200 MB per publisher** in `community-assets`, enforced
+  as a RESTRICTIVE policy on `storage.objects` that ANDs with the existing ownership policies.
+- **70 GB and 10 GB per bucket**, so even a signup wave stops writing at 80 GB total, well below
+  the 100 GB that starts billing.
+- **Retention crons** for every table that grows on its own: `control_events` 14 days (the publish
+  path already prunes at 7), `render_jobs` 30 days, `ai_gateway_requests` 180 days,
+  `ai_generations` 365 days, `funnel_events` 90 days (from `0037`).
+
+**What is deliberately NOT capped:** database row size. Assets are externalized to Storage before a
+row is written (`src/backend/assets.ts`), so `documents.body` holds code and field data - 10 kB on
+average, 244 kB at the worst measured. A cap there would buy nothing and could refuse a legitimate
+save.
+
+**Two limits that are not about size, and bite before any of the above:**
+
+- **Realtime peak connections: 500** (then $10 per 1000). The control plane sends over the
+  stateless REST broadcast endpoint and the audience plane polls, so a live show does not hold one
+  socket per viewer. Keep it that way.
+- **Storage image transformations: 100 per month**, then $5 per 1000. This is Pro-only and looks
+  free; it is not. Do not enable on-the-fly resizing for thumbnails without doing the arithmetic
+  first.
+
+Usage is visible per resource on the organization's usage page. The **Spend Cap** (billing
+settings) is the last line of defence: with it on, exceeding a quota restricts the project rather
+than billing for the overage.
+
 ## Contents
 
 - `config.toml` — project settings for the open features. Auth is **invite-only**: the
