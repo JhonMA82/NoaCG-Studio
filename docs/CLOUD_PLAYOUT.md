@@ -236,11 +236,11 @@ The URL is persistent by construction, and that now includes unpublishing. IDENT
 address a production) and PUBLICATION (whether they resolve) are separate: publication is the
 `control_shows` row, which unpublish still DELETES, so every capability 404s honestly the moment a
 production is taken down; identity is a `control_show_identity` row that the delete does not touch
-(migration 0039), and two triggers on `control_shows` remember every slug on the way out and hand
+(migration 0040), and two triggers on `control_shows` remember every slug on the way out and hand
 the same four back on the way in - control, output, join and presenter alike.
 
 So a production's output URL, once pasted into CasparCG or an OBS browser source, is good for the
-life of that production. It was NOT before 0039: unpublishing dropped the row and re-publishing
+life of that production. It was NOT before 0040: unpublishing dropped the row and re-publishing
 re-minted every slug from its column default, which is the mechanism behind the unexplained "the
 CasparCG URL stopped working" report in acceptance round 2 - and it contradicted what this section
 and the app's own publish confirmation both promised. The fix is in the database rather than in the

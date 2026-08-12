@@ -605,7 +605,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       await unpublishControlShow(show.id);
       setShowHostedSlug(show.id, undefined);
-      // The AUDIENCE slugs are deliberately kept. Migration 0039 reserves every address a
+      // The AUDIENCE slugs are deliberately kept. Migration 0040 reserves every address a
       // production has ever had, so re-publishing hands the same four back — and the readable
       // join name is derived on the FIRST publish only, from `!show.joinSlug`. Clearing it here
       // made every re-publish look like a first one, so the name could be re-derived and MOVE

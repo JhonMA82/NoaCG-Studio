@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createProject } from '../_create';
 import { haveCreds, signIn } from './_helpers';
 
-// A PRODUCTION'S URLS OUTLIVE UNPUBLISHING (docs/CLOUD_PLAYOUT.md §3, migration 0039).
+// A PRODUCTION'S URLS OUTLIVE UNPUBLISHING (docs/CLOUD_PLAYOUT.md §3, migration 0040).
 //
 // The output URL is pasted once into a CasparCG template or an OBS browser source and then left
 // alone for the life of the production — so the one thing it may never do is move. It used to:
@@ -13,7 +13,7 @@ import { haveCreds, signIn } from './_helpers';
 // This lives in the configured suite because it is a claim about the DATABASE. Offline there is
 // no row to delete, no trigger to fire and no slug to compare — the only honest proof runs the
 // real publish/unpublish path against the real backend. It also fails, correctly, against a
-// project that has not had 0039 applied yet.
+// project that has not had 0040 applied yet.
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 

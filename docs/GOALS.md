@@ -131,9 +131,9 @@ from ~80 places in the tree, so it never changes.*
       recovery defect is fixed but has never run against a real backend; the unexplained
       **"the CasparCG URL stopped working"** report from acceptance round 2 is a cloud-door report
       and the one mechanism that matched it - unpublishing deleted the row, so re-publishing minted
-      a new slug for every link - is **fixed 2026-08-12 by migration 0039**, which reserves a
+      a new slug for every link - is **fixed 2026-08-12 by migration 0040**, which reserves a
       production's four addresses for its lifetime and hands them back on re-publish
-      (`docs/CLOUD_PLAYOUT.md` §3). **0039 still has to be applied to production**, and until it is,
+      (`docs/CLOUD_PLAYOUT.md` §3). **0040 still has to be applied to production**, and until it is,
       an unpublish there still moves every URL. **Migration 0034 was NOT the third one** - it
       has been applied all along and the parking-lot line saying otherwise was stale (see below).
       **And the live suite is now load-bearing.** Run against the real project 2026-08-08: 7 of 18
