@@ -5922,7 +5922,12 @@ h2 + .lib-row,
    its own away from the two it belongs to. Grouped, they hold together and wrap together, and
    `margin-left: auto` is what actually pushes them to the far edge. */
 .pd-data-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pd-data-head .pd-data-actions { margin-left: auto; }
+/* `flex: 0 0 auto` is what makes "wraps together" true rather than merely likely. A flex item
+   that may wrap INSIDE itself has a small min-content width, so the header would rather squeeze
+   the cluster and let it break internally than move it down as a unit - which is the original
+   orphaned-button defect wearing a different name. CI caught exactly that on a narrower run than
+   the one it was written against. */
+.pd-data-head .pd-data-actions { margin-left: auto; flex: 0 0 auto; }
 
 /* THE EMPTY WORKSPACE. One sentence over ~950px of nothing said what the surface was called and
    nothing about starting one, so the actions move in here while there is nothing else to show. */
