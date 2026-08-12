@@ -184,6 +184,11 @@ first two are server-flagged off and gated on the loop producing a trustworthy s
 
 ## 7. Brand integration - a user's logo and colours in a Lite graphic
 
+**The forward MASTER PLAN for the brand push - the value-vs-templates kill test, the
+exact-colour contract, and the Ling 3.0 Tiny free-window campaign - is
+`docs/AI_LITE_BRAND_PLAN.md` (proposed 2026-08-12). This section stays the record of what is
+already built and measured.**
+
 **Status: DESIGNED, MEASURED and BUILT to step 3 on 2026-08-09. No round paid for.** This
 is the product promise the plan has never tested. v13 proved Lite can REPRODUCE a template;
 nobody has ever asked it to ADD something, and "a channel's own graphic" is the whole difference
