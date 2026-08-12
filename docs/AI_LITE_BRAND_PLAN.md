@@ -125,6 +125,17 @@ locally in the browser exactly like `probeMark`, hex values only ever leave the 
 
 ## 4. The Ling 3.0 Tiny free-window campaign - 2026-08-12 to ~2026-08-14
 
+**OUTCOME 2026-08-12, same day: Ling FAILED qualification (§4.1) on three independent measured
+grounds - no `response_format: json_schema`, forced `tool_choice` ignored at production schema
+size (text-notation tool calls with invalid JSON, whitespace/prose runaway to the budget on
+every probe), and no ZDR route. Five probes on the real prompt, 0 of 5 usable; the full audit
+is `docs/MODEL_ROUTE_AUDITS.md` (2026-08-12) and the incumbent stays per §4.5.
+`ling-3.0-flash-free` listed zero endpoints - not servable. §4.2-4.4 therefore run on the
+INCUMBENT at real price: the volume matrix costs ~$0.07-0.17 instead of $0, still inside the
+approved $0.50 cap. The qualification bought a reusable transport control:
+`GatewayRoutingPolicy.thinking: 'off'` / `AI_LITE_GATEWAY_THINKING`, the hybrid-inference
+Instant-mode switch any future Ling/Qwen candidate needs.**
+
 `inclusionai/ling-3.0-tiny-free` is free on Vercel AI Gateway until ~Aug 14, then renamed
 `inclusionai/ling-3.0-tiny` at ~$0.06 in / $0.18 out per million (7.9B MoE, 1.3B active, 256K
 context). The window is a volume gift: distribution-scale brand data at $0 model cost. It is NOT a

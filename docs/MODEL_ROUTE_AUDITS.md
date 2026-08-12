@@ -54,6 +54,49 @@ on for every managed call and is not configurable. Verified the same day on the 
 plan, where ZDR was still refused: the no-training-only call served, reporting "all 2 attempts
 disallow prompt training". That is what makes the retention floor survive a plan downgrade.
 
+## 2026-08-12 - `inclusionai/ling-3.0-tiny-free` - Lite candidate, REJECTED
+
+**Audited during the model's free window (through ~2026-08-14; it renames to
+`inclusionai/ling-3.0-tiny` after, list price ~$0.06/$0.18 per M). NOT added to
+`APPROVED_MODEL_CATALOG` - it cannot serve the Lite contract and cannot record a ZDR
+verification, and the campaign context is `docs/AI_LITE_BRAND_PLAN.md` §4.**
+
+**Method.** `node scripts/ai-lite-route-probe.mjs` - one real gateway call per probe through
+the production request path (`liteSystemPrompt` + `retrieveLiteReferenceSet` +
+`liteReadyOutputFor` + `liteRequestText` + `executeGatewayRequest`) on the locked
+`history-lecturer` semantic fixture, `maxAttempts: 1`, plus raw-body replays via the probe's
+`--dump-body`. The endpoints listing shows a single provider, `novita`, pricing all zeros
+during the window, and `supported_parameters` carrying `tools`/`tool_choice`/`reasoning` but
+no `response_format`. Sibling `inclusionai/ling-3.0-flash-free` listed **zero endpoints** the
+same day - not servable at all.
+
+| Probe | Result |
+|---|---|
+| `json-schema` mode, ZDR on | `provider_rejected` (502) |
+| `tool` mode, ZDR on | `provider_rejected` (502) - **so ZDR is unavailable on this route** |
+| `json-schema` mode, no ZDR | `provider_rejected` (502) - `response_format: json_schema` unsupported, matching the listing |
+| `tool` mode, no ZDR, 1,500-32,000 token budgets | thinking mode consumed the whole budget (`finish_reason: length`; 90s timeout at 32k) |
+| `tool` mode, no ZDR, thinking off, 1,500-6,000 budgets | `reasoning_tokens: 0`, still `length`: the forced `tool_choice` is IGNORED at production schema size - the model writes its own text-notation tool call in `content` (`[{"name": "emit_noacg_lite_design", "parameters": ...}]`) containing invalid JSON (`"speed": 1,5` - a decimal comma), then degenerates into a whitespace loop until the budget dies |
+| Raw replays: temperature 0, and a default-temperature repeat | worse - prose deliberation in `content` (21-23k chars), zero tool calls, budget death both times |
+
+A trivial forced tool call (one-property schema) DID return proper `tool_calls`, so the
+failure is schema-size dependent, not a blanket tool-calling absence. Five probes on the real
+prompt: 0 of 5 usable, three independent disqualifiers (no `json_schema`, unreliable forced
+tools at contract size, no ZDR). Per the predeclared verdict rule in
+`docs/AI_LITE_BRAND_PLAN.md` §4.5, the incumbent stays.
+
+**What the audit bought anyway.** The diagnosis added a reusable transport control, measured
+and tested: `GatewayRoutingPolicy.thinking: 'off'` emits
+`chat_template_kwargs: { enable_thinking: false }` - the Ling/Qwen hybrid-inference Instant
+switch (reasoning tokens 155 → 14 on the trivial probe; `AI_LITE_GATEWAY_THINKING=off` on the
+Lite profile). The gateway ACCEPTS `reasoning: { enabled: false }` but novita ignores it; the
+template kwarg is the one that works. Any future hybrid-inference candidate needs it.
+
+**What this does not establish.** Nothing about the paid `inclusionai/ling-3.0-tiny` route
+after the window - same weights, but a different serving is a different candidate identity
+(`docs/AI_LITE_PROMOTION.md`); re-probe before considering it. Nothing about quality - no
+probe produced a decision to judge.
+
 The register of hand-performed audits behind `APPROVED_MODEL_CATALOG`
 (`api/_lib/aiModelCatalog.ts`). `/admin` Models reports a route as **approved** only when it
 has an entry in that catalog, and the catalog's `zdrAvailable` flag is an **audited fact, never

@@ -193,6 +193,31 @@ test('an empty provider allowlist is omitted rather than sent as "no provider is
   );
 });
 
+test('thinking: off rides as chat_template_kwargs and is OMITTED unless asked for', async () => {
+  // The switch is model-family specific (Ling/Qwen hybrid inference), so the default body must
+  // stay byte-identical for routes that never heard of it - measured on the incumbent, asserted
+  // here. Measured 2026-08-12 on inclusionai/ling-3.0-tiny-free: thinking mode spent the whole
+  // Lite output budget reasoning; the template kwarg answered in 18 tokens.
+  let sent: Record<string, unknown> = {};
+  const reply = async (_input: unknown, init?: RequestInit) => {
+    sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: 'ok' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    }));
+  };
+
+  await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: reply }, {
+    gateway: { zeroDataRetention: true, disallowPromptTraining: true, thinking: 'off' },
+  });
+  assert.deepEqual(sent.chat_template_kwargs, { enable_thinking: false });
+
+  await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: reply }, {
+    gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+  });
+  assert.equal('chat_template_kwargs' in sent, false);
+});
+
 test('a ZDR refusal is reported as its own code, not as a bad credential', async () => {
   await assert.rejects(
     executeGatewayRequest(body('vercel', 'vendor/model'), {
