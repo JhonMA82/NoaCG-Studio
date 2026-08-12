@@ -95,3 +95,60 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
     r.readAsDataURL(blob);
   });
 }
+
+// ── refusals (the capacity ceilings from migration 0039) ─────────────────────────────────────────
+// Storage can now say no for two reasons that no amount of retrying will fix: the file is over the
+// bucket's per-file limit, or the account is over its storage quota. Both arrive as a generic
+// `StorageApiError`, and the raw text of the second one ("new row violates row-level security
+// policy") tells a user nothing at all. Translating them is what turns a permanently red sync pill
+// into something someone can act on.
+//
+// The two shapes, captured from the live project on 2026-08-12 (both carry HTTP status 400 and put
+// the real code in `statusCode`, as a string):
+//   over the per-file limit  → statusCode '413', "The object exceeded the maximum allowed size"
+//   over the account quota   → statusCode '403', "new row violates row-level security policy"
+
+/** Why Storage refused an upload, when the reason is one a person can do something about. */
+export interface AssetRefusal {
+  /** Sentence fragment naming the cause; each caller adds its own consequence. */
+  reason: string;
+  /** What the person can do about it - a whole sentence, for surfaces that have room for one. */
+  fix: string;
+  /**
+   * True when the same bytes will be refused every time, so the caller can fail fast instead of
+   * re-sending them. Only the per-file limit qualifies: a quota refusal depends on how much the
+   * account is holding right now, which changes as soon as anything is deleted.
+   */
+  permanent: boolean;
+}
+
+/**
+ * Classify a Supabase Storage error. Returns null for everything else - a network blip or a 5xx is
+ * transient, and the sync engine's ordinary retry is the right answer for those.
+ *
+ * Note on the 403: an RLS refusal could in principle also mean "not your folder", but every upload
+ * path in this app keys objects under the signed-in user's own uid, so quota is the only way a real
+ * session reaches it.
+ */
+export function classifyAssetRefusal(error: unknown): AssetRefusal | null {
+  if (!error || typeof error !== 'object') return null;
+  const { message, statusCode } = error as { message?: unknown; statusCode?: unknown };
+  const text = typeof message === 'string' ? message : '';
+  const code = typeof statusCode === 'string' ? statusCode : '';
+
+  if (code === '413' || /exceeded the maximum allowed size/i.test(text)) {
+    return {
+      reason: 'a file in it is larger than the cloud accepts in one upload',
+      fix: 'Replace that image or video with a smaller one.',
+      permanent: true,
+    };
+  }
+  if (code === '403' || /row-level security/i.test(text)) {
+    return {
+      reason: 'this account is out of cloud storage',
+      fix: 'Delete graphics you no longer need from the cloud, then try again.',
+      permanent: false,
+    };
+  }
+  return null;
+}
