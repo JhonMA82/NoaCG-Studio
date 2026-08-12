@@ -12,6 +12,15 @@ const sql = await readFile(
   'utf8',
 );
 
+const anonRevoke = await readFile(
+  new URL('../supabase/migrations/0041_storage_quota_anon_revoke.sql', import.meta.url),
+  'utf8',
+);
+
+/** The statements only. These migrations explain themselves at length, and prose about revoking a
+ *  role reads exactly like a revoke to a regex - so what a grant test asserts on must be SQL. */
+const statementsOf = (text) => text.replace(/--[^\n]*/g, '');
+
 test('both buckets get a per-file ceiling', () => {
   assert.match(sql, /update storage\.buckets\s+set file_size_limit = 8 \* 1024 \* 1024/i);
   assert.match(sql, /where id in \('user-assets', 'community-assets'\)/i);
@@ -31,6 +40,16 @@ test('the querying role can execute the function its policy calls', () => {
   // An RLS policy runs as the querying role; without this grant every upload fails closed.
   assert.match(sql, /grant execute on function public\.storage_within_quota\(text, text\) to authenticated/i);
   assert.match(sql, /revoke all on function public\.storage_within_quota\(text, text\) from public/i);
+});
+
+test('and nobody else can - anon is revoked by ROLE, not by PUBLIC', () => {
+  // Supabase's default privileges grant EXECUTE to anon/authenticated/service_role at CREATE
+  // time as explicit per-role grants, so revoking PUBLIC (which 0039 did, and which is kept
+  // above) removes nothing. 0041 revokes the role that actually holds the grant. Without this,
+  // an unauthenticated caller can run an aggregate over every row of a bucket, once per request.
+  assert.match(anonRevoke, /revoke execute on function public\.storage_within_quota\(text, text\) from anon/i);
+  // authenticated must NOT be revoked anywhere - the RESTRICTIVE policies would fail closed.
+  assert.doesNotMatch(statementsOf(anonRevoke), /revoke[^;]*\bfrom\b[^;]*authenticated/i);
 });
 
 test('the ceilings stay under the plan quota, and are tunable without a migration', () => {
