@@ -1418,6 +1418,18 @@ through the wizard or use Advanced mode; cloud publish requires an account (expo
       mean the re-test now doubles as the first real-hardware sighting of the contextual
       controls, so run it against a production whose rundown includes a scorebug cue.
 
+- [x] **A wizard-only student cannot send feedback.** The beta Feedback button lives in the editor
+      shell, which is Advanced mode now - so the people the release is FOR have no door to it,
+      while feedback is what feeds the Lite prompt. Found while repairing the live suite; the fix
+      is a surface decision (Home? the production page? the wizard's Finish step?), not a bug fix.
+      DONE: the door was opened on BOTH surfaces a wizard-only student actually stands on - Home's
+      topbar (`area="home"`, 2026-08-09) and the wizard's Finish step (`area="wizard"`,
+      2026-08-10). Both render nothing offline, and with a wizard open over a shell two buttons
+      are in the document at once, which is why each one names itself through `data-area`
+      (`src/components/feedback/BetaFeedback.tsx`). Pinned by e2e/feedback.spec.ts offline (the
+      whole surface absent) and e2e/configured/feedback.spec.ts on the live suite, which drives
+      the wizard door end to end.
+
 ### Kits, not one graphic at a time (2026-08-08 — the catalog half)
 
 - [x] **Catalog kits from the wizard.** ONE door. The separate "Start from a kit" Entry card is

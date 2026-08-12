@@ -143,10 +143,6 @@ from ~80 places in the tree, so it never changes.*
       in at 1366px the topbar overflowed and hung the ACCOUNT AVATAR off the screen edge. The rest
       was rot from the student release - it only ever runs by hand, so nothing reported any of it.
       **Run it before the class, and again after any change to publish, output or the topbar.**
-- [ ] **A wizard-only student cannot send feedback.** The beta Feedback button lives in the editor
-      shell, which is Advanced mode now - so the people the release is FOR have no door to it,
-      while feedback is what feeds the Lite prompt. Found while repairing the live suite; the fix
-      is a surface decision (Home? the production page? the wizard's Finish step?), not a bug fix.
 
 ---
 
