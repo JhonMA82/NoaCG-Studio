@@ -13,6 +13,53 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 ---
 
 ### Models designing a broadcast graphic unaided
+**2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
+IT AS A PASS, WITH LOGOS AS THE NAMED GAP.** The 2026-07-31 verdict below is superseded for
+STRONG OPEN-WEIGHT checkpoints; it stands for the cheap ones it measured.
+
+12 briefs x 2 arms (three hand-vetted complete exemplars retrieved through `shortlistFor` from
+the measured Lite chassis / no exemplars at all), one initial call each, the shipped coder
+prompt around `neutralSkeleton`, the shared two-round repair loop, `productionSpxValidator`, and
+a blind gallery mixing in the control, three catalog designs and two adapt-first compiles.
+Owner's verbatim read is in the archived `notes.md`: *"the graphics are fine if we can create
+this quality"*, with two named defects and one named gap.
+
+**The transfer question answered, and it went the right way.** §0.3 says an exemplar arm that
+passes beside a COLLAPSING no-exemplar arm is transfer rather than taste. The opposite happened:
+the no-exemplar arm completed 12 of 12, and on the one pair the owner singled out - `news-public`
+- the exemplar and no-exemplar results were judged indistinguishable ("B7 and B8 look the same
+but they are fine, just quite simple/boring"). Three complete catalog designs in the prompt bought
+essentially nothing over none. That is evidence of the model's own eye, and it also means the
+exemplar block is not yet earning its ~34,500 tokens per call.
+
+**Zero repair rounds fired across the whole round** - every result cleared the deterministic gate
+on its first emit. Three carry an unreadable ANIMATION region (playable and exportable, read-only
+timeline), which the product path also demotes on a fresh build.
+
+**THE ONE DEFECT EVERY MACHINE GATE PASSED IS THE LOGO.** `portrait-logo` on the no-exemplar arm
+rendered a broken-image icon with its alt text *"Channel mark"* visible in the finished frame -
+the model referenced a mark nothing bundled - and static validation, the runtime bench and the
+field-contract check all reported it fine. The owner named the same thing independently as the
+work to do next: *"find a good structure and plan for how to implement the logos so they fit the
+design And that they animate in a meaningful and smooth way."* The answer already has a precedent
+to copy rather than invent: on the Lite side **the design declares the slot and the compiler fills
+it - the model never places the mark** - and the declaration is gated against a rendered
+measurement (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`,
+`docs/AI_LITE_PLAN.md` §7). A generated design has no catalog slot to declare, so Phase 1 owes
+the equivalent contract for authored graphics, plus the motion half nothing measures yet.
+Second named defect, local: one strap's panel is not aligned to its own left accent line.
+
+**Honest limits of this round.** The exemplar arm holds 8 of 12 briefs - `sports-live`,
+`corporate`, `portrait-logo` and `long-name` were lost to repeated gateway `unavailable` errors -
+so §0.3's counts cannot be read at full denominator; the verdict above is the owner's judgement on
+what rendered. Only ONE checkpoint ran: `alibaba/qwen3-coder` was chosen as the second and never
+executed. And the round cost more than it should have - four separate harness faults, each
+recorded in the commits, burned roughly $5 of the ~$16 total on findings rather than results.
+**RETRY WHEN** - not a retry; this is a GO into Phase 1 on the owner's read. Before that phase
+closes: finish the exemplar arm, run the second checkpoint, and settle whether the exemplar block
+survives at all given it changed so little.
+
+### Cheap models designing a broadcast graphic unaided
 **2026-07-31 → 08-02, five paid rounds · SUPERSEDED by adapt-first.** Cheap open routes composing a
 lower third from a blank stylesheet: blind pairwise **0 of 5** and **0 of 6** decisive pairs against
 the frozen control, with **9-11 of every 12-16 pairs airable on neither side**. The repeating fault
@@ -25,6 +72,23 @@ root to 0x0) invalidated everything before 2026-08-02, and with both fixed a FRO
 unblinded, single-arm, not comparable to the pairwise numbers.
 **RETRY WHEN** a route at ~$0.01/generation beats the frozen control on a blind pairwise of **20+
 joined items**. Frontier models already clear quality and fail price - that is Extreme, not this.
+
+### `zai/glm-5.2` as a Phase 0 authoring checkpoint
+**2026-08-12 · 0 of 2 arms, nothing emitted at all · DISQUALIFIED for this task.** Chosen as one
+of the two pinned checkpoints on lineage diversity and a capability probe it passed in 34 s. The
+probe was the problem: it used a short brief and a small budget. Given the ROUND's real prompt -
+the shipped coder system prompt plus a ~34,500-token exemplar block - glm-5.2 spent **the entire
+17,000-token budget on reasoning tokens and returned `finish_reason: length` with no answer**, on
+the exemplar arm AND the bare no-exemplar arm, ~265 s each. At an 8,000 budget it did the same
+thing sooner. This is not latency and no timeout fixes it: a larger budget buys more thinking. On
+the same prompt `moonshotai/kimi-k3` spent 7,179 reasoning tokens and answered, and two
+coder-tuned checkpoints (`alibaba/qwen3-coder`, `moonshotai/kimi-k2.7-code`) spent ZERO and
+answered in 34 s and 9.5 s.
+**RETRY WHEN** its thinking can be bounded independently of the answer budget (a reasoning-effort
+control, or a non-thinking sibling). **Standing instruction, and the reason this entry exists:** a
+capability probe must ask the SAME SIZE question as the round - same system prompt, same
+retrieval volume, same output budget - or it certifies a checkpoint the round cannot use.
+`scripts/spike-checkpoint-probe.mjs` was rewritten to do exactly that.
 
 ### Reaching an open-weight checkpoint through the generic proxy's `json_schema`
 **2026-08-11 · 0 of 2 checkpoints, then 2 of 2 · BLOCKED on the transport, not the models.** The
