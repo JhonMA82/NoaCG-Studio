@@ -1,6 +1,6 @@
 # NoaCG Lite brand graphics - custom graphics that beat free templates, or nothing
 
-**Status: PROPOSED 2026-08-12, awaiting owner ratification.** This is the forward master plan for
+**Status: ACTIVE - ratified by the owner 2026-08-12 (§9).** This is the forward master plan for
 the Lite value pivot; the built-and-measured record it stands on is `docs/AI_LITE_PLAN.md` §7 and
 `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code contract stay `src/ai/AGENTS.md`;
 dead ends stay `docs/AI_ATTEMPTS.md`. Nothing here widens any product surface until its gate says so.
@@ -236,11 +236,12 @@ to DIY is just a bigger loss.
 P0 runs first only because the window closes; P1 and P2 are the plan's substance. A P2 fail makes
 P3/P4 moot - that is the design, not a risk.
 
-## 9. Open questions for the owner (asked 2026-08-12)
+## 9. Owner decisions (2026-08-12) - all three RATIFIED
 
-1. **Ratify the §2 value gate as the kill criterion** - especially the DIY arm as the honest
-   baseline and the predeclared fail consequence?
-2. **Approve the §4.6 campaign cap ($0.50, mostly $0)** - and the ZDR-off-for-bench posture in
-   §4.1.4 if Ling has no ZDR route?
-3. **Brand input scope for v1 (§3.5)**: logo + colours through the existing brand surface only,
-   or also the local logo-derived palette suggestion?
+1. **The §2 value gate stands as written**: the DIY wizard arm is the baseline, and a fail
+   retires custom AI generation in favour of free templates.
+2. **The §4 campaign is approved at a $0.50 total cap**, vision judge off, and benching with
+   ZDR off is allowed on synthetic briefs only when Ling has no ZDR route - production
+   promotion still requires a verified ZDR route.
+3. **Brand input v1 is the existing brand surface** (logo + colours; platform derives missing
+   slots deterministically). The local logo-derived palette suggestion is deferred.
