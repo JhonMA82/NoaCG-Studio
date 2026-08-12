@@ -54,6 +54,14 @@ const only = args.find((a) => !a.startsWith('--'))?.split(',').filter(Boolean) ?
 const control = flag('control');
 const paid = flag('generate');
 const reveal = flag('reveal');
+// Keep the generations a previous run already captured and attempt only what is missing.
+//
+// This is not "best of two" and must not become it: a brief is resumed only when it produced
+// NO result at all - a transport failure, a skipped ceiling - so every candidate in the final
+// ledger is still one initial call under the same pinned decoding. A brief that produced a
+// bad-but-complete result is left exactly as it is, because re-rolling that would be picking
+// the sample the reviewer prefers, which is a different experiment.
+const resume = flag('resume');
 
 if (!control && !paid && !reveal) {
   console.error('Pick a mode: --control (free, run this first), --generate (PAID), or --reveal.');
@@ -354,8 +362,28 @@ async function captureSet(item) {
 }
 
 // ── The run ────────────────────────────────────────────────────────────────────────────
+/** A previous run's captured candidates, when resuming. Keyed by slug (`<brief>.<arm>`). */
+const kept = new Map();
+let carriedSpendUsd = 0;
+if (resume) {
+  try {
+    const prior = JSON.parse(await readFile(path.join(OUT, 'results.json'), 'utf8'));
+    for (const record of prior.results ?? []) {
+      // Only COMPLETE candidates are kept. An error, a skip or a control/anchor row is
+      // re-derived: the free items are recaptured every run anyway, and a failed brief is
+      // exactly what resuming exists to retry.
+      if (record.kind === 'candidate' && !record.error && !record.skipped) kept.set(record.slug, record);
+    }
+    carriedSpendUsd = prior.spentUsd ?? 0;
+    console.log(`Resuming: ${kept.size} candidate(s) kept from the previous run`
+      + ` (~$${carriedSpendUsd.toFixed(3)} already spent).`);
+  } catch {
+    console.log('Nothing to resume from - running the whole plan.');
+  }
+}
+
 const results = [];
-let spentUsd = 0;
+let spentUsd = carriedSpendUsd;
 let blindCounter = 0;
 /** Opaque, stable-per-run ids. Sequential rather than hashed so a human can call one out in
  *  a note ("B-07 is the one with the collapsed strap") without transcribing a hash. */
@@ -407,6 +435,14 @@ if (paid) {
       const started = Date.now();
       const slug = `${entry.id}.${arm}`;
       console.log(`\n── ${slug} ──`);
+      const priorRecord = kept.get(slug);
+      if (priorRecord) {
+        // Re-issue the blind id so the gallery's ordering is this run's, not a stale one; the
+        // frames on disk are already correct and are not recaptured.
+        results.push({ ...priorRecord, blindId: blindId() });
+        console.log(`  kept from the previous run · $${(priorRecord.costUsd ?? 0).toFixed(4)}`);
+        continue;
+      }
       if (spentUsd >= maxCost) {
         console.log(`  SKIPPED: the $${maxCost.toFixed(2)} ceiling is spent ($${spentUsd.toFixed(3)}).`);
         results.push({ blindId: blindId(), slug, kind: 'candidate', arm, skipped: 'cost-ceiling' });
@@ -530,6 +566,21 @@ if (paid) {
       await writeLedger();
     }
   }
+}
+
+// CARRY FORWARD EVERY KEPT RECORD THE CURRENT PLAN DID NOT COVER.
+//
+// Without this, `--resume` with a brief SUBSET rebuilds the ledger from the subset alone and
+// silently drops every other brief's record - their frames stay on disk, orphaned, and their
+// verdicts, costs and exemplar ids are gone. That happened on this round and cost ten paid
+// generations' worth of metadata: resuming a few briefs is exactly when a subset gets passed,
+// so the two features broke each other the first time they were used together. Resume means
+// ADD TO what exists, never rebuild only what was named.
+const handled = new Set(results.map((r) => r.slug));
+for (const [slug, record] of kept) {
+  if (handled.has(slug)) continue;
+  results.push({ ...record, blindId: blindId() });
+  console.log(`  carried forward (outside this run's brief list): ${slug}`);
 }
 
 await writeLedger();

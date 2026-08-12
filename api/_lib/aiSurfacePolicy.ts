@@ -121,13 +121,17 @@ export function surfaceRoutePolicy(
  * Raising the shared clamp instead would lengthen how long a real user's failing generation
  * hangs on every surface, to fix a bench rig. This is the containment.
  *
- * `retryLimit: 0` is the other half and it is about money, not patience. A timeout is
- * classified retryable, so the default of one retry makes every slow call cost TWO full
- * provider completions - and a call we abandoned still ran to completion upstream, so the
- * waste is real spend with nothing to show for it. A bench run would rather fail a brief and
- * record it than pay twice for the same answer.
+ * `retryLimit` was 0 for one round, and the round is why it is 1 again. The reasoning was
+ * about money: a timeout is classified retryable, so a retry makes every slow call cost TWO
+ * full provider completions, and a call we abandoned still ran to completion upstream. What
+ * that argument missed is that TIMEOUTS ARE NOT THE COMMON FAILURE. Measured over 24
+ * generations on `moonshotai/kimi-k3`: eight died on transient `unavailable` errors from the
+ * gateway, on both the long exemplar arm and the short one, and with no retry each of those
+ * lost its brief outright - a third of a paid round thrown away to avoid a cost that mostly
+ * did not arise. A blip fails early and costs almost nothing to re-roll; losing a brief costs
+ * the whole brief. One retry, not the default two.
  */
 export function surfaceExecutionPolicy(surface: AiGatewaySurface | undefined): GatewayExecutionPolicy | undefined {
   if (surface !== 'spike') return undefined;
-  return { timeoutMs: 900_000, retryLimit: 0 };
+  return { timeoutMs: 900_000, retryLimit: 1 };
 }
