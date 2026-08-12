@@ -346,8 +346,11 @@ export function toTemplate(emitted: EmittedTemplate, ctx?: GenerateContext, base
   };
 }
 
-/** The runtime bench's house-editability rule (src/validation/runtimeBench.ts). */
-const EDITABILITY_RULE = 'bench-editability';
+/** The runtime bench's house-editability rule (src/validation/runtimeBench.ts). Exported so
+ *  a bench wrapper reproducing this path's repair policy reads the same constant rather than
+ *  keeping a second copy of the string - a demotion the two disagree about would silently
+ *  change how many repair rounds a measured round spent. */
+export const EDITABILITY_RULE = 'bench-editability';
 
 /**
  * Deterministic grounding of a free-form emit: the coder authors the ANIMATION region as

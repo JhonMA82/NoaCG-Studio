@@ -21,7 +21,7 @@
 //      guarantee about a hand-rolled request, which no server-side signal could provide.
 
 import { boolEnv } from './aiLiteProfile.js';
-import type { GatewayRoutingPolicy } from './aiGateway.js';
+import type { GatewayExecutionPolicy, GatewayRoutingPolicy } from './aiGateway.js';
 import type { AiGatewaySurface, ModelRoute } from '../../src/ai/modelTypes.js';
 
 /** Does this surface's managed traffic carry a routing policy? A surface absent from here is
@@ -37,6 +37,12 @@ const POLICIED_SURFACES: Record<AiGatewaySurface, boolean> = {
   // no ZDR-agreement provider serves - turning a privacy improvement into an outage on a
   // surface whose routes have never been audited. Audit them first, then flip this.
   video: false,
+  // The NoaCG Pro Phase 0 spike (docs/NOACG_PRO_PLAN.md §0, scripts/pro-spike.mjs). No user
+  // reaches it: it exists so a bench-only run can ask for the STRUCTURED-OUTPUT MODE the
+  // generic proxy otherwise cannot express (see `structuredOutputMode` below). Its privacy
+  // posture is the same as Pro's for the same reason - the brief bank carries invented names
+  // and roles, but it is third-party-shaped personal data on NoaCG's key either way.
+  spike: true,
 };
 
 /**
@@ -76,7 +82,56 @@ export function surfaceRoutePolicy(
     // role to an image model on NoaCG's key, which is the traffic least defensible to leave
     // trainable. Turning ZDR off must not quietly turn this off with it.
     disallowPromptTraining: true,
+    // FORCED-FUNCTION TOOL USE, on the spike surface only.
+    //
+    // Every other generic-proxy call goes out as `response_format: json_schema` with
+    // `strict: false` - a HINT. Measured 2026-08-11 against the two pinned open-weight
+    // checkpoints: `zai/glm-5.2` wrapped its answer in the schema's own name and
+    // `moonshotai/kimi-k3` invented an SPX-definition-shaped object, while a forced function
+    // tool got exactly the six declared properties out of both. The repo already believed
+    // this - `providerAllowlistFor` filters gateway endpoints on `tools` support and
+    // src/ai/AGENTS.md calls forced tool use "the capability the structured call actually
+    // rides on" - the transport simply asked for the other thing.
+    //
+    // SCOPED TO THIS SURFACE DELIBERATELY. Switching the adapter's default would change what
+    // the SPX harness, the video harness, brainstorm and Pro send on every gateway route, and
+    // the custom coder is the frozen benchmark control (src/ai/AGENTS.md) - changing its
+    // inputs would end the comparability of every arm-A result. That is the right eventual
+    // fix and it is a separate, deliberately verified change with its own re-baseline.
+    // docs/AI_ATTEMPTS.md carries the measurement.
+    ...(surface === 'spike' ? { structuredOutputMode: 'tool' as const } : {}),
     sort: 'cost',
     tags: [`surface:${surface}`],
   };
+}
+
+/**
+ * The EXECUTION policy for a surface - attempt budget, timeout - as opposed to the routing
+ * policy above. Undefined for every surface but the spike, so nothing else changes.
+ *
+ * WHY THE SPIKE NEEDS ONE. `configuredTimeoutMs()` clamps the shared default to 300 s, which
+ * is right for the product: every managed surface answers a user who is waiting. The Phase 0
+ * spike answers nobody - it is a background bench run - and the checkpoints it measures are
+ * REASONING models. Measured 2026-08-11 on `zai/glm-5.2` against a 306-token prompt: 190 s and
+ * 10,671 output tokens, of which **8,607 were reasoning** before a single character of the
+ * answer. The spike's own prompt carries a 38,500-token exemplar block and asks for three
+ * complete files, so 300 s refuses a call the model would have served - which is what the
+ * first attempt at this round measured, 24 times, as "the AI provider timed out".
+ *
+ * Raising the shared clamp instead would lengthen how long a real user's failing generation
+ * hangs on every surface, to fix a bench rig. This is the containment.
+ *
+ * `retryLimit` was 0 for one round, and the round is why it is 1 again. The reasoning was
+ * about money: a timeout is classified retryable, so a retry makes every slow call cost TWO
+ * full provider completions, and a call we abandoned still ran to completion upstream. What
+ * that argument missed is that TIMEOUTS ARE NOT THE COMMON FAILURE. Measured over 24
+ * generations on `moonshotai/kimi-k3`: eight died on transient `unavailable` errors from the
+ * gateway, on both the long exemplar arm and the short one, and with no retry each of those
+ * lost its brief outright - a third of a paid round thrown away to avoid a cost that mostly
+ * did not arise. A blip fails early and costs almost nothing to re-roll; losing a brief costs
+ * the whole brief. One retry, not the default two.
+ */
+export function surfaceExecutionPolicy(surface: AiGatewaySurface | undefined): GatewayExecutionPolicy | undefined {
+  if (surface !== 'spike') return undefined;
+  return { timeoutMs: 900_000, retryLimit: 1 };
 }

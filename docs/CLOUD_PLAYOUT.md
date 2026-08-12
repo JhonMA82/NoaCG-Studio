@@ -232,9 +232,25 @@ The page:
 - Offline build / bad slug: a neutral dark "not available" card (never on a production's
   air — this state only exists when the URL was wrong to begin with).
 
-The URL is persistent by construction: the slug lives on the `control_shows` row and survives
-every re-publish. Unpublishing deletes the row (the URL 404s honestly); re-publishing mints a
-new slug only if the row was deleted in between.
+The URL is persistent by construction, and that now includes unpublishing. IDENTITY (which URLs
+address a production) and PUBLICATION (whether they resolve) are separate: publication is the
+`control_shows` row, which unpublish still DELETES, so every capability 404s honestly the moment a
+production is taken down; identity is a `control_show_identity` row that the delete does not touch
+(migration 0040), and two triggers on `control_shows` remember every slug on the way out and hand
+the same four back on the way in - control, output, join and presenter alike.
+
+So a production's output URL, once pasted into CasparCG or an OBS browser source, is good for the
+life of that production. It was NOT before 0040: unpublishing dropped the row and re-publishing
+re-minted every slug from its column default, which is the mechanism behind the unexplained "the
+CasparCG URL stopped working" report in acceptance round 2 - and it contradicted what this section
+and the app's own publish confirmation both promised. The fix is in the database rather than in the
+publish path on purpose: restoring identity is an invariant of the table, not a step a writer can
+forget, and it changes no function, policy or authorization path, so it cannot leave a door open
+behind an unpublished production.
+
+One consequence worth knowing: a readable join name stays reserved by the production that held it
+even while that production is unpublished, so claiming it from another production is refused as
+taken. That is the same promise seen from the other side.
 
 ## 4. The operator surfaces
 

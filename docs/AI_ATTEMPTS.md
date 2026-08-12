@@ -13,6 +13,106 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 ---
 
 ### Models designing a broadcast graphic unaided
+**2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
+IT AS A PASS, WITH LOGOS AS THE NAMED GAP.** The 2026-07-31 verdict below is superseded for
+STRONG OPEN-WEIGHT checkpoints; it stands for the cheap ones it measured.
+
+12 briefs x 2 arms (three hand-vetted complete exemplars retrieved through `shortlistFor` from
+the measured Lite chassis / no exemplars at all), one initial call each, the shipped coder
+prompt around `neutralSkeleton`, the shared two-round repair loop, `productionSpxValidator`, and
+a blind gallery mixing in the control, three catalog designs and two adapt-first compiles.
+Owner's verbatim read is in the archived `notes.md`: *"the graphics are fine if we can create
+this quality"*, with two named defects and one named gap.
+
+**The transfer question answered, and it went the right way.** §0.3 says an exemplar arm that
+passes beside a COLLAPSING no-exemplar arm is transfer rather than taste. The opposite happened:
+the no-exemplar arm completed 12 of 12, and on the one pair the owner singled out - `news-public`
+- the exemplar and no-exemplar results were judged indistinguishable ("B7 and B8 look the same
+but they are fine, just quite simple/boring"). Three complete catalog designs in the prompt bought
+essentially nothing over none. That is evidence of the model's own eye, and it also means the
+exemplar block is not yet earning its ~34,500 tokens per call.
+
+**Zero repair rounds fired across the whole round** - every result cleared the deterministic gate
+on its first emit. Three carry an unreadable ANIMATION region (playable and exportable, read-only
+timeline), which the product path also demotes on a fresh build.
+
+**THE ONE DEFECT EVERY MACHINE GATE PASSED IS THE LOGO.** `portrait-logo` on the no-exemplar arm
+rendered a broken-image icon with its alt text *"Channel mark"* visible in the finished frame -
+the model referenced a mark nothing bundled - and static validation, the runtime bench and the
+field-contract check all reported it fine. The owner named the same thing independently as the
+work to do next: *"find a good structure and plan for how to implement the logos so they fit the
+design And that they animate in a meaningful and smooth way."* The answer already has a precedent
+to copy rather than invent: on the Lite side **the design declares the slot and the compiler fills
+it - the model never places the mark** - and the declaration is gated against a rendered
+measurement (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`,
+`docs/AI_LITE_PLAN.md` §7). A generated design has no catalog slot to declare, so Phase 1 owes
+the equivalent contract for authored graphics, plus the motion half nothing measures yet.
+Second named defect, local: one strap's panel is not aligned to its own left accent line.
+
+**Honest limits of this round.** The exemplar arm holds 8 of 12 briefs - `sports-live`,
+`corporate`, `portrait-logo` and `long-name` were lost to repeated gateway `unavailable` errors -
+so §0.3's counts cannot be read at full denominator; the verdict above is the owner's judgement on
+what rendered. Only ONE checkpoint ran: `alibaba/qwen3-coder` was chosen as the second and never
+executed. And the round cost more than it should have - four separate harness faults, each
+recorded in the commits, burned roughly $5 of the ~$16 total on findings rather than results.
+**SECOND CHECKPOINT, same day: `alibaba/qwen3-coder` ran the identical protocol and finished it.**
+**24 of 24 captured, 24 of 24 contract-clean, $0.263** - against kimi-k3's 21 of 24 at $5.032, so
+about **19x cheaper and more complete**. It carries no reasoning tokens, which is the whole
+difference: nothing truncated, nothing timed out, and the round needed no resume. One repair round
+fired across 24 generations (kimi-k3: zero). Four results carry a read-only timeline (kimi-k3:
+three). The two checkpoints are therefore NOT separated by whether they can do the job - both
+produce contract-clean broadcast lower thirds - and the visual comparison between them is a human
+read that has not been done yet.
+**kimi-k3's exemplar arm finished at 9 of 12.** `sports-live.exemplar` and `long-name.exemplar`
+never completed across four attempts (gateway `unavailable`), and `corporate.exemplar` truncated at
+BOTH the 17,000 and the 25,000 token ceiling - twice, exemplar arm only, so it is a repeatable
+property of that brief on that checkpoint rather than a blip. qwen3-coder ran all three without
+incident.
+**CHECKPOINT DECISION (owner, 2026-08-12): `alibaba/qwen3-coder`.** Better on the owner's read of
+the two galleries and ~19x cheaper, so it is the checkpoint later phases build on. **`moonshotai/
+kimi-k3` is DROPPED on cost** - $5.03 against $0.26 for a round it could not even finish. It stays
+a valid checkpoint; it is not worth 19x for output the owner rated no higher.
+**RETRY WHEN** a round needs a second opinion that qwen3-coder cannot give, and the question is
+worth roughly twenty times the price of asking it.
+
+**THE ROUND SAVED NO CODE, AND THAT IS THIS ENTRY'S MOST EXPENSIVE MISTAKE.** Forty-five paid
+generations were reduced to PNG frames: the ledger kept verdicts, costs and pictures, and none of
+the emitted HTML/CSS/JS. The standing instruction two entries below - *"a paid round must pass
+`--save-fixtures`"*, written after the 2026-08-08 Pro round lost its twelve interpretations the
+same way - was in this file the whole time and was not followed. The immediate cost: the alignment
+defect the owner named cannot be diagnosed from its own CSS, and nothing can be re-rendered,
+re-measured or turned into a fixture without paying for the round again. `pro-spike.mjs` now writes
+`code/<brief>.<arm>/{index.html,template.css,template.js}` per generation. **The rule generalises
+past fixtures: the model's OUTPUT is the irreplaceable artifact of a paid round, and a frame is a
+derivative of it.**
+
+**RETRY WHEN** - not a retry; this is a GO into Phase 1 on the owner's read. What is still owed:
+an ablation settling whether the exemplar block survives at all - it costs ~34,500 tokens per call
+and, on the pair the owner examined, changed almost nothing - and the round that actually matters,
+below.
+
+### What Phase 0 did NOT test: brand
+**2026-08-12 · the owner's framing, and the real question.** Every brief in the bank is generic:
+two text lines, no brand palette, no brand typeface, and no actual mark - `includeLogo` is a
+boolean that asks for an empty slot, and the one brief that set it rendered a broken image. The
+prompt passes no colours, no logo file and no brand system, so the round measured *"can a strong
+open checkpoint design a broadcast lower third"* and never asked *"can it design THIS customer's
+lower third."* The owner's verdict on the output was that it looks like something the free template
+gallery could carry - which is the correct reading of what was tested, and the reason the result
+does not yet justify a paid tier: **a generic graphic is not worth a paid generation when the
+catalog already ships 59 of them.**
+**THE NEXT ROUND IS BRAND-CONDITIONED**, and it is cheap on the chosen checkpoint (~$0.26 for 24
+generations): the same 12 briefs, each carrying a real mark (shape, backing and ink measured by
+`assets/assetInfo.ts` `probeMark`, the content-free contract Lite already uses), a brand palette
+and a brand typeface. Two things get measured that this round could not: whether the output is
+BRAND-FAITHFUL (the mark placed legibly and unaltered, the palette actually driving the design
+rather than decorating it), and whether outputs are DIFFERENT FROM EACH OTHER when the brand
+changes and the brief does not - the sameness tripwire the adapt-first route already lives under.
+**RETRY WHEN** - not a retry, this is the scheduled next experiment. It is also the honest test of
+the whole Pro premise: adapt-first already delivers catalog-grade generic graphics for a fraction
+of a cent, so Pro earns its cost only on originality conditioned by a customer's own brand.
+
+### Cheap models designing a broadcast graphic unaided
 **2026-07-31 → 08-02, five paid rounds · SUPERSEDED by adapt-first.** Cheap open routes composing a
 lower third from a blank stylesheet: blind pairwise **0 of 5** and **0 of 6** decisive pairs against
 the frozen control, with **9-11 of every 12-16 pairs airable on neither side**. The repeating fault
@@ -25,6 +125,43 @@ root to 0x0) invalidated everything before 2026-08-02, and with both fixed a FRO
 unblinded, single-arm, not comparable to the pairwise numbers.
 **RETRY WHEN** a route at ~$0.01/generation beats the frozen control on a blind pairwise of **20+
 joined items**. Frontier models already clear quality and fail price - that is Extreme, not this.
+
+### `zai/glm-5.2` as a Phase 0 authoring checkpoint
+**2026-08-12 · 0 of 2 arms, nothing emitted at all · DISQUALIFIED for this task.** Chosen as one
+of the two pinned checkpoints on lineage diversity and a capability probe it passed in 34 s. The
+probe was the problem: it used a short brief and a small budget. Given the ROUND's real prompt -
+the shipped coder system prompt plus a ~34,500-token exemplar block - glm-5.2 spent **the entire
+17,000-token budget on reasoning tokens and returned `finish_reason: length` with no answer**, on
+the exemplar arm AND the bare no-exemplar arm, ~265 s each. At an 8,000 budget it did the same
+thing sooner. This is not latency and no timeout fixes it: a larger budget buys more thinking. On
+the same prompt `moonshotai/kimi-k3` spent 7,179 reasoning tokens and answered, and two
+coder-tuned checkpoints (`alibaba/qwen3-coder`, `moonshotai/kimi-k2.7-code`) spent ZERO and
+answered in 34 s and 9.5 s.
+**RETRY WHEN** its thinking can be bounded independently of the answer budget (a reasoning-effort
+control, or a non-thinking sibling). **Standing instruction, and the reason this entry exists:** a
+capability probe must ask the SAME SIZE question as the round - same system prompt, same
+retrieval volume, same output budget - or it certifies a checkpoint the round cannot use.
+`scripts/spike-checkpoint-probe.mjs` was rewritten to do exactly that.
+
+### Reaching an open-weight checkpoint through the generic proxy's `json_schema`
+**2026-08-11 · 0 of 2 checkpoints, then 2 of 2 · BLOCKED on the transport, not the models.** The
+Phase 0 capability probe refused both pinned checkpoints (`moonshotai/kimi-k3`, `zai/glm-5.2`) with
+`malformed_response`. They are not incapable: `POST /api/ai/generate` is the only path a browser
+harness has, `surfaceRoutePolicy` never sets `structuredOutputMode`, so every generic gateway call
+goes out as `response_format: json_schema` with **`strict: false`** - a hint these endpoints do not
+honour. Asked the same question both ways against the gateway directly: under json_schema glm-5.2
+returned `{emit_template: {…}}` and kimi-k3 invented a whole SPX-definition-shaped object
+(`playserver`, `DataFields`, `dataformat`); under a **forced function tool** both returned exactly
+`name,type,summary,html,css,js`. The repo already believed this - `providerAllowlistFor` filters
+gateway endpoints on `tools` support and `src/ai/AGENTS.md` says forced-function tool use "is the
+capability the structured call actually rides on" - but the transport asks for the other thing.
+**RETRY WHEN** never as stated: json_schema is not the capability. The fix is a mode the generic
+proxy can express, and it is a shared-contract change (`AiGatewaySurface`, `surfaceRoutePolicy`,
+or the vercel adapter's default) that has to be verified against the paths already using it -
+Lite and import-analysis pin their own mode and are unaffected. **Standing instruction:** a probe
+that reports REFUSED must say which of the two it measured, because "the endpoint cannot serve
+structured output" and "we asked for the wrong kind" look identical from the caller.
+`NOACG_DEBUG_STRUCTURED=1` prints the rejected paths server-side and is what separated them here.
 
 ### `alibaba/qwen3.7-flash` as a Lite route
 **2026-08-08 · 0 of 6 · DISQUALIFIED.** Cheapest text route on the gateway (0.03/0.13), 991k context,

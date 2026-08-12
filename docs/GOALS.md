@@ -114,8 +114,10 @@ from ~80 places in the tree, so it never changes.*
       operator's own take as a page opening onto a live production and snapped to a stale "off"),
       black PROGRAM monitor and every ⚡ action greyed, on every offline take. Every spec took a
       cue instantly, inside the window the bug needed, so the suite was green over it. Fixed and
-      pinned by a spec that waits first; two shared-control defects fixed with it. Still owed:
-      the owner's own eyes, and the Data workspace's empty state
+      pinned by a spec that waits first; two shared-control defects fixed with it. The Data
+      workspace's empty state - a sentence over ~950px of nothing, with its ⬇ Blank CSV button
+      orphaned on a row of its own - was rebuilt 2026-08-12 around the three doors and the column
+      names that would bind. **Still owed: the owner's own eyes**
       (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Acceptance pass 2026-08-08").
 - [x] **Which door the class runs on: DECIDED 2026-08-08 - CLOUD FIRST, EXPORT AS THE BACKUP.**
       The class publishes and drives the persistent output URL with phone control; the export route
@@ -130,8 +132,11 @@ from ~80 places in the tree, so it never changes.*
       checklist alone, because an offline build cannot drive it) - its own copy of the first-take
       recovery defect is fixed but has never run against a real backend; the unexplained
       **"the CasparCG URL stopped working"** report from acceptance round 2 is a cloud-door report
-      and the one mechanism that matches it is that unpublishing mints a new slug
-      (`docs/INTERACTIVE_PLAYOUT_PLAN.md`, round 2). **Migration 0034 was NOT the third one** - it
+      and the one mechanism that matched it - unpublishing deleted the row, so re-publishing minted
+      a new slug for every link - is **fixed 2026-08-12 by migration 0040**, which reserves a
+      production's four addresses for its lifetime and hands them back on re-publish
+      (`docs/CLOUD_PLAYOUT.md` §3). **0040 still has to be applied to production**, and until it is,
+      an unpublish there still moves every URL. **Migration 0034 was NOT the third one** - it
       has been applied all along and the parking-lot line saying otherwise was stale (see below).
       **And the live suite is now load-bearing.** Run against the real project 2026-08-08: 7 of 18
       passed, then **17 of 18 after repair, 1 flaky** (the renderer showed the aired board later
@@ -140,10 +145,6 @@ from ~80 places in the tree, so it never changes.*
       in at 1366px the topbar overflowed and hung the ACCOUNT AVATAR off the screen edge. The rest
       was rot from the student release - it only ever runs by hand, so nothing reported any of it.
       **Run it before the class, and again after any change to publish, output or the topbar.**
-- [ ] **A wizard-only student cannot send feedback.** The beta Feedback button lives in the editor
-      shell, which is Advanced mode now - so the people the release is FOR have no door to it,
-      while feedback is what feeds the Lite prompt. Found while repairing the live suite; the fix
-      is a surface decision (Home? the production page? the wizard's Finish step?), not a bug fix.
 
 ---
 

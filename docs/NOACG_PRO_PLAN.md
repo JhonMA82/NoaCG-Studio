@@ -32,6 +32,25 @@ to put it on air.
 
 ## 0. First falsification - does an open model already have the eye?
 
+> **RUN 2026-08-12. OWNER VERDICT: GO, with logos as the named gap.** `moonshotai/kimi-k3`, 20 of
+> 24 generations captured, $4.58 on the round's own ledger. The owner's read of the blind gallery:
+> *"the graphics are fine if we can create this quality"*, plus two named defects (one strap's
+> panel not aligned to its own accent line; one near-identical pair judged simple but acceptable)
+> and one named gap: **there is no structure or plan for how a brand mark is placed so it fits the
+> design, nor for animating it meaningfully and smoothly.** That gap is also the one defect every
+> deterministic gate passed - the `portrait-logo` brief rendered a broken-image icon with its alt
+> text showing. §0.3's transfer test went the right way: the no-exemplar arm completed 12 of 12 and
+> was judged indistinguishable from the exemplar arm on the pair the owner singled out, so the pass
+> is not paraphrased catalog taste - and the exemplar block has not yet earned its ~34,500 tokens.
+> **Both planned checkpoints ran.** `alibaba/qwen3-coder` completed the identical protocol **24 of
+> 24, all contract-clean, for $0.263** - against kimi-k3's 21 of 24 at $5.032, about 19x cheaper and
+> more complete, because it spends no reasoning tokens and so never truncated or timed out. Neither
+> checkpoint is separated by CAPABILITY; which of them designs better is a human comparison still
+> to be made. kimi-k3's exemplar arm stopped at 9 of 12: two briefs never completed across four
+> attempts, and `corporate.exemplar` truncated at both the 17,000 and 25,000 token ceilings.
+> Full record: `docs/AI_ATTEMPTS.md`; archives `pro-phase0-kimi-k3-complete-2026-08-12/` and
+> `pro-phase0-qwen3-coder-2026-08-12/`.
+
 Before building a grammar, unit corpus, model tournament, visual critic or formal parity harness,
 run one deliberately small research spike. Its only question is:
 
@@ -938,9 +957,69 @@ or hide it earlier is an owner product decision recorded outside this plan.
 
 ---
 
-## 14. First implementation slice - scheduled next
+## 14. First implementation slice - DONE 2026-08-12; what Phase 1 inherits
 
-The first implementation slice is **Phase 0 only**, and it is now the next scheduled work: build
+**Phase 0 ran and the owner's verdict was GO** (the banner in section 0). The wrapper is
+`src/ai/spike/` + `scripts/pro-spike.mjs` + `scripts/spike-checkpoint-probe.mjs`, bench-only and
+fenced off from the app by `.dependency-cruiser.cjs`. Phase 1 begins with three things owed from
+this round, and one decision it should make early:
+
+0a. **THE CODE IS THE DELIVERABLE, AND IT IS AN EVALUATION AXIS** (owner, 2026-08-12). Phase 0
+   judged rendered frames alone and did not keep the emitted HTML/CSS/JS at all, which is backwards
+   for a product whose artifact IS an HTML template: the frame is a derivative of the code, the
+   code is what a user edits, exports and puts on air, and **code quality is part of choosing a
+   winner, not a follow-up check.** Every round from here saves
+   `code/<brief>.<arm>/{index.html,template.css,template.js}` (already implemented), the review
+   reads the code beside the frames, and the ledger records what the code is like - not merely
+   whether it validated. Concretely, the house contract in `src/ai/AGENTS.md` already names what
+   good looks like and is what to score against: the `:root` variable contract with zero hardcoded
+   colours elsewhere, every pixel size through `calc(N * var(--scale))`, the structure spine, the
+   marked ANIMATION region in the authoring grammar, and simple readable ES5 with comments that
+   explain WHY. A generation that renders beautifully and emits unreadable or uneditable code has
+   failed the product, and Phase 0 could not have told the difference.
+
+0. **THE PREMISE TEST COMES FIRST: brand, not generic quality** (owner, 2026-08-12). Phase 0 asked
+   whether a strong open checkpoint can design a broadcast lower third. It can. But every brief in
+   the bank is generic - no brand palette, no brand typeface, no real mark - so the round never
+   asked whether it can design **this customer's** graphic, and the owner's reading of the output
+   was that it looks like something the free template gallery could carry. That reading is correct
+   and it is the whole problem: **adapt-first already delivers catalog-grade generic graphics for a
+   fraction of a cent, so a paid Pro generation earns nothing by matching it.** Pro's premise is
+   originality conditioned on a customer's own brand, and that has not been measured once.
+   The next round is the same 12 briefs carrying a real mark (shape/backing/ink via
+   `assets/assetInfo.ts` `probeMark`), a brand palette and a brand typeface, measuring two things:
+   brand FIDELITY (mark placed legibly and unaltered, palette driving the design rather than
+   decorating it) and brand-driven DIVERGENCE (different brands, same brief, visibly different
+   graphics - the sameness tripwire adapt-first already lives under). On the chosen checkpoint that
+   round costs about $0.26. Item 1 below is a precondition for it, not a parallel task.
+
+1. **The logo contract is the named gap and the first real work.** The owner's own words: find a
+   structure and plan for how a mark is placed so it fits the design, and how it animates
+   meaningfully. The Lite side already solved the placement half in a shape worth copying rather
+   than reinventing - **the design declares the slot and the compiler fills it; the model never
+   places the mark** - with the declaration gated against a rendered measurement
+   (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`, `docs/AI_LITE_PLAN.md`
+   §7). A GENERATED design has no catalog slot to declare, so the equivalent contract for authored
+   graphics is genuinely new, and the MOTION half has no precedent anywhere in the repo.
+2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
+   galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
+   21/24 and could not finish three exemplar-arm briefs at all.
+3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
+   the round's spend - and on the pair the owner examined it produced a result indistinguishable
+   from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this
+   round is the first evidence against it, and an ablation is owed before Phase 3 builds on it.
+
+**Four harness faults cost roughly $5 of the round's ~$16**, every one of them a case of the rig
+measuring itself: a probe that asked a smaller question than the round, an output budget pinned
+from that undersized probe, retries disabled on reasoning that did not survive the actual failure
+mode, and a free control run that overwrote the paid ledger the cost ceiling counts from. All are
+fixed and commented where they happened. The transferable rule is the one already in
+`src/ai/AGENTS.md` about gates: **a bench that measures a smaller question than the round is not a
+cheaper bench, it is a wrong one.**
+
+---
+
+The original scope, kept for the record: build
 the thin bench wrapper, prove it with the zero-token control run, select one or two strong
 open-weight checkpoints through a license/capability preflight, render the 12-brief bank in
 paired exemplar/no-exemplar arms with the existing scaffold, validator and repair loop, and
@@ -948,7 +1027,9 @@ inspect every result by eye against blind-mixed anchors. It changes no product p
 spend still requires an explicit owner OK with a stated cap (estimated $5-15, section 0.3)
 before the round runs.
 
-Only a positive human go/no-go verdict unlocks Phase 1. The minimal plan and every later mechanism
-must then earn its place through rendered evidence. This ordering is intentional: falsify model
-taste before funding infrastructure, and never let infrastructure's own scores certify the visual
-work it exists to improve.
+Only a positive human go/no-go verdict unlocks Phase 1 - **given 2026-08-12**. The minimal plan and
+every later mechanism must still earn its place through rendered evidence. This ordering was
+intentional and it paid: falsify model taste before funding infrastructure, and never let
+infrastructure's own scores certify the visual work it exists to improve. This round is the
+argument for the second half of that sentence - every deterministic gate passed the frame with a
+broken brand mark in it, and a human found it in seconds.
