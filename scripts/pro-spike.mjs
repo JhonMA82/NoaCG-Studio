@@ -34,7 +34,7 @@
 // Requires the dev server on this checkout's port. From a worktree, compose the environment
 // first: `node scripts/bench-env.mjs --profile=pro`, then start the bench dev server.
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
@@ -63,8 +63,8 @@ const reveal = flag('reveal');
 // the sample the reviewer prefers, which is a different experiment.
 const resume = flag('resume');
 
-if (!control && !paid && !reveal) {
-  console.error('Pick a mode: --control (free, run this first), --generate (PAID), or --reveal.');
+if (!control && !paid && !reveal && !flag('rebuild')) {
+  console.error('Pick a mode: --control (free, run this first), --generate (PAID), --rebuild or --reveal.');
   process.exit(1);
 }
 if (control && paid) {
@@ -78,6 +78,23 @@ for (const arm of ARMS) {
     console.error(`Unknown arm "${arm}" - the arms are exemplar and none.`);
     process.exit(1);
   }
+}
+
+// ── --rebuild: regenerate the gallery from the ledger, FREE ────────────────────────────
+//
+// A presentation fix to the gallery must never require re-running a paid round. This reads
+// results.json, re-copies the blind frames and rewrites review.html, calling no model and
+// touching no capture. It is how the blinding fix reached a round that was already paid for.
+if (flag('rebuild')) {
+  const ledger = JSON.parse(await readFile(path.join(OUT, 'results.json'), 'utf8'));
+  await blindTheFrames(ledger.results);
+  await writeFile(path.join(OUT, 'results.json'), `${JSON.stringify(ledger, null, 2)}\n`);
+  await writeFile(path.join(OUT, 'review.html'), reviewHtml(ledger.results));
+  const notes = path.join(OUT, 'notes.md');
+  const exists = await readFile(notes, 'utf8').then((t) => t.includes('- composition: ') && t.trim().length > 0).catch(() => false);
+  if (!exists) await writeFile(notes, notesTemplate(ledger.results));
+  console.log(`Rebuilt ${path.join(OUT, 'review.html')} from ${ledger.results.length} record(s). No tokens spent.`);
+  process.exit(0);
 }
 
 // ── --reveal: join the blind ids back to what produced them ────────────────────────────
@@ -584,18 +601,82 @@ for (const [slug, record] of kept) {
 }
 
 await writeLedger();
-await writeFile(path.join(OUT, 'review.html'), reviewHtml(results));
-await writeFile(path.join(OUT, 'notes.md'), notesTemplate(results));
+// Mode-scoped for the same reason the ledger is: a control rerun after a paid round would
+// otherwise replace the blind gallery and the notes template - the two artifacts the human
+// review actually happens in - with a control-only version, and notes already written into
+// notes.md would go with them.
+const reviewFile = path.join(OUT, paid ? 'review.html' : 'control-review.html');
+const notesFile = path.join(OUT, paid ? 'notes.md' : 'control-notes.md');
+await blindTheFrames(results);
+await writeFile(reviewFile, reviewHtml(results));
+// Never clobber notes a human has already started writing.
+const notesExist = await readFile(notesFile, 'utf8').then(() => true).catch(() => false);
+if (!notesExist) await writeFile(notesFile, notesTemplate(results));
+else console.log(`Kept your existing ${path.basename(notesFile)} - delete it to regenerate the template.`);
 
 const candidates = results.filter((r) => r.kind === 'candidate' && !r.skipped && !r.error);
 console.log(`\n${candidates.length} candidate(s) captured, ${results.length - candidates.length} control/anchor/failed`
   + `${paid ? ` · spent ~$${spentUsd.toFixed(3)} of the $${maxCost.toFixed(2)} ceiling` : ''}`);
-console.log(`Blind gallery: ${path.join(OUT, 'review.html')}`);
-console.log(`Write notes into ${path.join(OUT, 'notes.md')} BEFORE running --reveal.`);
+console.log(`Blind gallery: ${reviewFile}`);
+console.log(`Write notes into ${notesFile} BEFORE running --reveal.`);
 await browser.close();
 
+/**
+ * THE CONTROL RUN MUST NEVER OVERWRITE A PAID LEDGER.
+ *
+ * `results.json` carries the round's cumulative spend, and `--resume` reads it to know what
+ * has already been paid for. The control mode used to write the same file, so the mandatory
+ * "rerun the control after any wrapper change" step silently reset the paid ledger to zero -
+ * and the next `--resume` found nothing to keep, regenerated all 24 briefs, and walked the
+ * round straight past its approved cost cap. The ceiling was never breached WITHIN a run; the
+ * number it counts from was destroyed between runs.
+ *
+ * A free run therefore writes its own file. Nothing is lost - the control's frames are named
+ * per item on disk exactly as before - and the paid ledger is the one artifact a free run
+ * cannot touch.
+ */
+// A function DECLARATION, not a const arrow: `writeLedger` is called from the capture loop
+// far above this point, and a const in temporal dead zone throws there instead of writing.
+function ledgerPath() {
+  return path.join(OUT, paid ? 'results.json' : 'control-results.json');
+}
+
+/**
+ * COPY EVERY FRAME THE GALLERY SHOWS TO A BLIND FILENAME.
+ *
+ * The captures are named after the brief and the arm - `sports-live.exemplar.hold.png` - and
+ * the gallery referenced them directly, so the one artifact whose entire purpose is to hide
+ * the arm, the checkpoint and the verdict announced all of it in every `img src`. A reviewer
+ * would not even have to look for it: the browser shows a filename on hover, on right-click,
+ * and in the network panel.
+ *
+ * §0.2 is explicit that the human notes are written before the arm and checkpoint are
+ * revealed, and a leak here does not merely weaken that - it silently converts a blind read
+ * into an informed one, which is the failure mode the whole anchor-mixing design exists to
+ * prevent. Copies rather than renames, so the by-slug originals stay for the key and for
+ * anything that has to be re-examined after the reveal.
+ */
+async function blindTheFrames(all) {
+  const dir = path.join(OUT, 'blind');
+  await mkdir(dir, { recursive: true });
+  for (const record of all) {
+    if (record.skipped || record.error) continue;
+    const copy = async (file, name) => {
+      if (!file) return null;
+      const blindName = `${record.blindId}.${name}.png`;
+      await copyFile(path.join(OUT, file), path.join(dir, blindName)).catch(() => undefined);
+      return `blind/${blindName}`;
+    };
+    record.blindHold = await copy(record.hold, 'hold');
+    record.blindStressHold = await copy(record.stressHold, 'stress');
+    for (const frame of record.frames ?? []) {
+      frame.blindFile = await copy(frame.file, `${frame.strip}-${frame.index}`);
+    }
+  }
+}
+
 async function writeLedger() {
-  await writeFile(path.join(OUT, 'results.json'), `${JSON.stringify({
+  await writeFile(ledgerPath(), `${JSON.stringify({
     base: BASE,
     mode: paid ? 'paid' : 'control',
     route: paid ? route : null,
@@ -620,7 +701,7 @@ function reviewHtml(all) {
       const frames = (r.frames ?? []).filter((f) => f.strip === strip);
       if (!frames.length) return '';
       return `<h3>${strip}</h3><div class="strip">${frames
-        .map((f) => `<figure><img src="${f.file}"><figcaption>${Math.round(f.atMs)} ms</figcaption></figure>`)
+        .map((f) => `<figure><img src="${f.blindFile ?? f.file}"><figcaption>${Math.round(f.atMs)} ms</figcaption></figure>`)
         .join('')}</div>`;
     }).join('');
     const note = r.plan?.note ? `<p class="note">${r.plan.note}</p>` : '';
@@ -629,8 +710,8 @@ function reviewHtml(all) {
   ${note}
   <h3>settled hold</h3>
   <div class="holds">
-    <figure><img src="${r.hold}"><figcaption>normal text</figcaption></figure>
-    <figure><img src="${r.stressHold}"><figcaption>stress text</figcaption></figure>
+    <figure><img src="${r.blindHold ?? r.hold}"><figcaption>normal text</figcaption></figure>
+    <figure><img src="${r.blindStressHold ?? r.stressHold}"><figcaption>stress text</figcaption></figure>
   </div>
   ${strips}
 </section>`;
