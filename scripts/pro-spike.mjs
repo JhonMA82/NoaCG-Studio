@@ -278,7 +278,7 @@ if (paid) {
  * render compose path (the only place a virtual clock exists).
  */
 async function captureHold(item, measure = false) {
-  await page.evaluate(async ({ template, data }) => {
+  const playError = await page.evaluate(async ({ template, data }) => {
     const bust = '?t=' + Date.now();
     const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
     document.getElementById('spike-hold-frame')?.remove();
@@ -291,10 +291,20 @@ async function captureHold(item, measure = false) {
     await new Promise((resolve) => { frame.onload = resolve; });
     await new Promise((resolve) => setTimeout(resolve, 300));
     const win = frame.contentWindow;
-    win.update(JSON.stringify(data));
-    win.play();
+    // A GENERATED template can throw inside its own lifecycle - a broken buildInTimeline
+    // killed a paid round here on 2026-08-13 (`Cannot set properties of undefined`) with ten
+    // paid generations behind it. A crash at play() is a RESULT to record and show, not a
+    // reason to stop measuring: capture whatever painted, and carry the error.
+    let error = null;
+    try {
+      win.update(JSON.stringify(data));
+      win.play();
+    } catch (e) {
+      error = String(e?.message ?? e).slice(0, 300);
+    }
     await win.document.fonts.ready;   // real glyphs or nothing
     await new Promise((resolve) => setTimeout(resolve, 1800));
+    return error;
   }, item);
   // Measure the SETTLED frame while it is still mounted: the rendered mark gate (the Phase 0
   // broken-image lesson - read the paint, not the markup) and the alignment-axis instrument.
@@ -313,7 +323,7 @@ async function captureHold(item, measure = false) {
   const file = `${item.slug}.hold.png`;
   await page.frameLocator('#spike-hold-frame').locator('body').screenshot({ path: path.join(OUT, file) });
   await page.evaluate(() => document.getElementById('spike-hold-frame')?.remove());
-  return { file, measured };
+  return { file, measured, playError };
 }
 
 /** The same hold, driven with the STRESS values §0.2 asks the human to review beside it. */
@@ -498,12 +508,13 @@ function markMotionSummary(frames) {
 
 /** Everything a human looks at, for one item - plus the measurements taken while it is up. */
 async function captureSet(item) {
-  const { file: hold, measured } = await captureHold(item, true);
+  const { file: hold, measured, playError } = await captureHold(item, true);
   const stressHold = await captureStressHold(item);
   const motion = await captureMotion(item);
   return {
     hold,
     stressHold,
+    ...(playError ? { playError } : {}),
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
@@ -748,28 +759,11 @@ if (paid) {
       contract.scaffoldOk = blockingErrors.length === 0 && contract.fieldsOk
         && (!contract.logoExpected || contract.logoSlot);
 
-      const captured = await captureSet({
-        ...outcome,
-        slug,
-        markFieldId: outcome.fill?.slotFieldId ?? null,
-        markProbe: brand?.mark.probe ?? null,
-      });
-      // The code axis (docs/NOACG_PRO_PLAN.md §14 item 0a): measured at capture time so the
-      // ledger carries it; scripts/spike-code-audit.mjs re-derives the same numbers from the
-      // saved files for free after the fact.
-      const codeAudit = auditTemplateCode({
-        html: outcome.template.html,
-        css: outcome.template.css,
-        js: outcome.template.js,
-      });
-      // SAVE THE CODE. The frames are expensive; the emitted HTML/CSS/JS is IRREPLACEABLE, and
-      // this round shipped without it - forty-five paid generations reduced to pictures, so the
-      // one alignment defect the owner named could not be diagnosed from its own CSS and nothing
-      // could be re-rendered or re-analysed for free. docs/AI_ATTEMPTS.md already carried the
-      // standing instruction from the 2026-08-08 Pro round, whose twelve interpretations were
-      // lost the same way. Written per generation as real files rather than into results.json:
-      // the ledger is read whole by every consumer, and three code blobs per record would make
-      // it unreadable for a human and enormous for no benefit.
+      // SAVE THE CODE - and save it BEFORE the captures. The frames are expensive; the emitted
+      // HTML/CSS/JS is IRREPLACEABLE, and Phase 0 shipped without saving it at all - forty-five
+      // paid generations reduced to pictures. The order matters for the same reason: the first
+      // brand round lost a paid generation's code because a capture crash sat between the model
+      // call and this write. The deliverable lands on disk the moment it exists.
       const codeDir = path.join(OUT, 'code', slug);
       await mkdir(codeDir, { recursive: true });
       await Promise.all([
@@ -782,6 +776,37 @@ if (paid) {
           summary: outcome.emitted?.summary,
         }, null, 2)}\n`),
       ]);
+      // The code axis (docs/NOACG_PRO_PLAN.md §14 item 0a): measured at capture time so the
+      // ledger carries it; scripts/spike-code-audit.mjs re-derives the same numbers from the
+      // saved files for free after the fact.
+      const codeAudit = auditTemplateCode({
+        html: outcome.template.html,
+        css: outcome.template.css,
+        js: outcome.template.js,
+      });
+
+      // A capture failure is a RESULT, never a round-ender: the generation is already paid for
+      // and its code is already saved, so a template the capture rig cannot render lands in the
+      // ledger with its cost, its validation and the capture error - and the round moves on.
+      // (captureHold survives a template throwing at play(); this guards everything else.)
+      let captured;
+      try {
+        captured = await captureSet({
+          ...outcome,
+          slug,
+          markFieldId: outcome.fill?.slotFieldId ?? null,
+          markProbe: brand?.mark.probe ?? null,
+        });
+      } catch (error) {
+        console.log(`  CAPTURE FAILED (kept the paid result): ${error.message.split('\n')[0]}`);
+        await page.evaluate(() => {
+          document.getElementById('spike-hold-frame')?.remove();
+          document.getElementById('spike-capture-frame')?.remove();
+          window.__spikeCapture?.dispose?.();
+          delete window.__spikeCapture;
+        }).catch(() => undefined);
+        captured = { captureError: error.message.slice(0, 500), frames: [], errors: [] };
+      }
 
       const record = {
         blindId: blindId(),
@@ -954,15 +979,20 @@ function reviewHtml(all) {
         .map((f) => `<figure><img src="${f.blindFile ?? f.file}"><figcaption>${Math.round(f.atMs)} ms</figcaption></figure>`)
         .join('')}</div>`;
     }).join('');
-    const note = r.plan?.note ? `<p class="note">${r.plan.note}</p>` : '';
+    const notes = [
+      r.plan?.note,
+      r.playError ? `this graphic THREW during play(): ${r.playError} - the hold shows whatever painted` : null,
+      r.captureError ? 'capture failed for this item - judge it from its code and validation in the key' : null,
+    ].filter(Boolean);
+    const note = notes.length ? `<p class="note">${notes.join('<br>')}</p>` : '';
+    const holds = [
+      (r.blindHold ?? r.hold) ? `<figure><img src="${r.blindHold ?? r.hold}"><figcaption>normal text</figcaption></figure>` : '',
+      (r.blindStressHold ?? r.stressHold) ? `<figure><img src="${r.blindStressHold ?? r.stressHold}"><figcaption>stress text</figcaption></figure>` : '',
+    ].join('');
     return `<section id="${r.blindId}">
   <h2>${r.blindId}</h2>
   ${note}
-  <h3>settled hold</h3>
-  <div class="holds">
-    <figure><img src="${r.blindHold ?? r.hold}"><figcaption>normal text</figcaption></figure>
-    <figure><img src="${r.blindStressHold ?? r.stressHold}"><figcaption>stress text</figcaption></figure>
-  </div>
+  ${holds ? `<h3>settled hold</h3>\n  <div class="holds">${holds}</div>` : ''}
   ${strips}
 </section>`;
   }).join('\n');
@@ -1047,6 +1077,7 @@ ${shown.map((r) => `## ${r.blindId}
 /** One compact cell for the rendered mark gate + the motion sampling. */
 function markCell(r) {
   if (!r.brand) return '-';
+  if (r.captureError) return 'capture failed';
   if (!r.markReport) return 'NO SLOT';
   const gate = r.markReport.findings.length ? r.markReport.findings.join(', ') : 'clean';
   const motion = r.markMotion
@@ -1105,7 +1136,8 @@ ${rows}
  * failure. Null when the round had no brands (a --no-brand run).
  */
 function divergenceHtml(ledger) {
-  const candidates = ledger.results.filter((r) => r.kind === 'candidate' && r.brand && !r.skipped && !r.error);
+  // A capture-failed record has no hold to compare - the key still carries it.
+  const candidates = ledger.results.filter((r) => r.kind === 'candidate' && r.brand && !r.skipped && !r.error && r.hold);
   if (!candidates.length) return null;
   const byBrief = new Map();
   for (const r of candidates) {
