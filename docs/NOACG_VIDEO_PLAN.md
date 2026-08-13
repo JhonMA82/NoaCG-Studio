@@ -332,19 +332,31 @@ outgoing feed during the entrance - no accent streak, no expanding outline, no f
 feed, a viewer has no way to tell decoration from a fault, so anything that is not the mark
 reads as an artifact. Found the expensive way: `logo-punch` ran an accent streak and an
 expanding accent ring ahead of its burst and both were read on review as "blue outlines flying
-in, definitely a mistake". Decoration is legal only once the frame is covered.
+in, definitely a mistake". Decoration is legal only once the frame is covered. **The covering
+surface's own leading edge is not an exception** - the accent rule on `replay-slab`'s slab and
+on `ink-sweep`'s bands is the boundary of the cover itself, and reads as the wipe. What the
+rule forbids is a free-floating flourish with nothing behind it.
+
+**The same rule applies on the way OUT, against the incoming picture.** A lockup that emerges
+from behind the retreating cover is the identical defect one beat later. `ink-sweep` keeps it
+structural rather than remembered: the lockup exits 2600 px on the same duration and ease as
+the ink's 2500 px, so it cannot outrun the edge it hides behind.
 
 **5. The cover does not have to be a full-frame rectangle** - but it does have to be a full
 cover. These two are easy to confuse. §2.2's coverage gate is non-negotiable for a stinger used
 as a TRANSITION, because the switcher cuts underneath it; what is free is the *shape and origin*
 of the covering surface. A mark's own ink flooding out from its silhouette, a solid emblem
 scaled past the frame edges, a burst - all of these satisfy the gate without a panel arriving
-and parking. **The honest limit:** a mark made of outlines and strokes (Aldervale's rings,
-Kestrel's skeleton letterforms) has no solid mass to fill a frame with, so a design that covers
-using the mark itself has to declare which mark shapes it can take, exactly as §2.4 rule 1
-makes a design declare the ink tone it can take. A logo that only flies over the picture
-without ever covering is a **logo sting**, a different graphic type - useful, and worth its own
-entry in the §1.2 order, but it cannot be sold as a transition.
+and parking. `ink-sweep` is the corpus's demonstration: the mark is the brush tip and brand ink
+lays down behind it in ragged bands, so you only ever see cover where the mark has already
+been. **The honest limit:** a mark made of outlines and strokes (Aldervale's rings, Kestrel's
+skeleton letterforms) has no solid mass to fill a frame with, so a design that covers using the
+mark's own silhouette has to declare which mark shapes it can take, exactly as §2.4 rule 1
+makes a design declare the ink tone it can take. That is why `ink-sweep` covers with ink the
+mark LAYS DOWN rather than with the mark itself - the trail works for every mark in the swap
+set. A logo that only flies over the picture without ever covering is a **logo sting**, a
+different graphic type - useful, and worth its own entry in the §1.2 order, but it cannot be
+sold as a transition.
 
 **A sixth rule, about the review rig rather than the design:** review one composition per page
 with a **mark picker**, never one page per mark. The rig's first version wrote 3 x 5 pages and

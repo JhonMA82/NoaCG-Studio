@@ -24,10 +24,11 @@ here is authored against it.
 | `stingers/replay-slab.html` | aggressive sports; the "to slow-motion replay" reference case | one heavy skewed slab drives across behind a bright accent edge | the mark crosses the live picture first, oversized, and the slab arrives behind it |
 | `stingers/aperture-bands.html` | precise editorial / news | eight vertical bands close the frame from alternating edges | the same eight columns open off the mark, so the reveal is the cover's own motion |
 | `stingers/logo-punch.html` | the mark IS the transition | the field bursts out from behind the flying mark, then breaks into three slabs | the logo produces the cover and destroys it |
+| `stingers/ink-sweep.html` | no panel at all | ten ragged bands of brand ink lay down behind the mark, then retreat the way they came | the mark is the brush tip; the cover is what it painted |
 
-Three files, three genuinely different *mechanisms* - lateral wipe, tiled close, burst and
-shatter - because a corpus of three variations on one move teaches a model nothing about the
-type.
+Four files, four genuinely different *mechanisms* - lateral wipe, tiled close, burst and
+shatter, painted trail - because a corpus of variations on one move teaches a model nothing
+about the type.
 
 ### The rules they are held to (owner review, 2026-08-13)
 
@@ -38,6 +39,11 @@ Binding, and the reason the second version of these files looks different from t
    The tone answer is that a brand supplies a field colour suited to its own mark's ink.
 2. **The cover is an event, not a parked panel.** Nothing in the covered stretch is static.
 3. **The mark helps produce the cover** wherever the design allows.
+4. **Before the cover, the mark is alone on the live picture** - and on the way out, nothing
+   emerges from behind the retreating cover onto the incoming one. The covering surface's own
+   leading edge is not decoration and is fine; a free-floating flourish is not.
+5. **The cover need not be a rectangle** - but it must be a full cover. A graphic that only
+   flies over without covering is a logo sting, a different type.
 
 ### The shared vocabulary
 
@@ -107,10 +113,20 @@ frame:
 | --- | --- | --- |
 | `replay-slab` | 50 | frame 0 empty, frame 99 empty, frames 23-56 covered, timeline 1.920 s vs last frame 1.980 s |
 | `aperture-bands` | 25 | frame 0 empty, frame 49 empty, frames 12-28 covered, timeline 1.850 s vs last frame 1.960 s |
-| `logo-punch` | 60 | frame 0 empty, frame 119 empty, frames 28-67 covered, timeline 1.920 s vs last frame 1.983 s |
+| `logo-punch` | 50 | frame 0 empty, frame 99 empty, frames 23-56 covered, timeline 1.920 s vs last frame 1.980 s |
+| `ink-sweep` | 25 and 50 | frame 0 empty, last frame empty, whole window covered, timeline 1.906 s vs last frame 1.960 / 1.980 s |
 
 Each was also probed at times where it *should* fail (mid-transition, before the cover closes,
-after it opens) and failed there, so none of the four passes is vacuous.
+after it opens) and failed there, so none of the passes is vacuous.
+
+Two design rules were measured on top of the gates:
+
+- **Before the cover, only the mark paints** (rule 4). At 0.08 / 0.16 / 0.24 s `ink-sweep`
+  paints exactly its ink bands and the mark; `logo-punch` paints exactly the mark.
+- **Nothing emerges from behind the retreating cover.** Sampled across `ink-sweep`'s whole
+  retreat, zero pixels of the lockup sit on the incoming picture. Mutation-tested: parking the
+  lockup at centre for one frame makes the same check report 163 exposed samples, so the zero
+  is a real result and not an empty loop.
 
 **Still unmeasured:** per-pixel alpha on rendered frames, which is the real §2.2 gate and the
 next work item (plan §4.2), and motion quality, which per the plan's own rule is judged from a
