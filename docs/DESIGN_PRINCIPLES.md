@@ -269,6 +269,30 @@ geometry, opposite verdicts. Tightening the ceiling to catch it would flag all t
 instrument stays quiet and the judgement stays human. That is the same honest limit the
 bounding-box-well check carries, and it is the boundary between principles 2 and 4 above.
 
+## First round with both instruments live (2026-08-13, $0.129)
+
+`pro-instruments-round-qwen3-coder-2026-08-13`, 12 briefs, the grammar arm, both instruments
+reporting into the ledger and the key. 12/12 captured, 12/12 contract-clean, 12/12 seated by the
+platform, and **11/12 marks clean - the best of any round so far.** What the two new instruments
+actually yield on fresh generations:
+
+| | catalog base rate | this round |
+| --- | --- | --- |
+| spacing | 1/90 | **2/12**, both `text-over-rule` |
+| proportion | 0/90 | **0/12** |
+
+Both spacing findings were looked at. One is unambiguous - an accent rule running straight
+through the first glyph of the name, exactly the "text on top of the line" complaint the
+instrument was built from. The other is marginal: the rule sits hard against the text and the
+boxes overlap by a pixel or two, which reads as a tight lockup rather than a defect. That split
+is the argument for reporting rather than gating, made by the instrument's own first outing.
+
+**So the instruments are not yet earning their place as gates, and should not become them on
+this evidence.** A finding rate of 2/12, one of which a human might wave through, does not
+support failing a generation. What it does support is the number beside the frame: a reviewer
+comparing two candidates now has the padding ratios, the gaps and the type step in front of
+them, which is what the §0.2 read had to eyeball before.
+
 ## What the proportion gate learned, which is mostly that it is not the problem (2026-08-13)
 
 Built second, on the assumption that "the text is too big for the banner" and "the box is way
