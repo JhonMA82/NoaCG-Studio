@@ -285,6 +285,31 @@ numbers exist and are re-run only where the harness changed. Read the ledger's
 
 ### 4.4 The volume brand matrix - what the free window is actually for
 
+**BATCH 1 RAN 2026-08-13 on the incumbent, post-P1: 20 of 25 machine-usable, and all five
+failures are ONE JOB** (`benchmarks/lite/MATRIX-2026-08-13.md`). The generator is
+`scripts/ai-lite-matrix-fixtures.mjs` (125 cells = 5 colour-neutral jobs x 5 marks x 5 palettes,
+ordered so any prefix covers every pairing); the runner takes a resumable window into it
+(`NOACG_LITE_EVAL_BANK=matrix`, `NOACG_LITE_EVAL_MATRIX_OFFSET`). Three findings, in the order
+they matter:
+
+1. **Mark shape and palette family predicted nothing; the brief did.** The five failures are five
+   different mark/palette cells and the same job every time, while the other four jobs are 20/20.
+   That separation is what crossing the ingredients bought.
+2. **The failure is `line_count_invalid`, REFUSED rather than repaired**: the model picks the
+   chassis that best matches an academic brief (`ls17`, minimum 3 lines) for a 2-line brief, and
+   the contract kills the generation instead of re-picking. Not a regression from §3.6.2 - the
+   same brief retrieves `ls17` first with no mark at all - but §3.6.2 is why it became reachable
+   for MARKED requests and therefore measurable. Deciding it is P1 work: the mark repair and the
+   palette repair both apply a ladder, and this one alone still refuses.
+3. **The bench found the §3.2 deploy-order hazard for real**: the first attempt failed 8/8 with
+   `rejection_reason = ledger_update` because the bench server writes to the production ledger and
+   `adjustments` does not exist there yet. Bench rows now go to `AI_LITE_EVAL_MEMORY_LEDGER=1`.
+   The eval's cost line reported $0.0000 for that wholesale failure while the ledger booked
+   ~$0.011 - failed rows' spend is uncounted, which matters most exactly when a round fails.
+
+100 cells remain (~$0.06). Running them before the line-count decision would re-measure the same
+job failure twenty more times.
+
 Brand briefs x 5 mark shapes x a palette bank (dark, light, pale-accent, high-chroma, mono,
 near-amber) - roughly 200-500 generations, all free. Scored by the deterministic funnel at scale:
 the 9 brand audit rules + `brand-accent-verbatim` + runtime bench + field paint. Human review
