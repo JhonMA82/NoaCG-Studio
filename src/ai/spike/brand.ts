@@ -129,8 +129,13 @@ a design decision like any other:
 
 - Add ONE image field to the SPX definition - \`"ftype": "filelist"\`, title "Logo" - after the
   text fields, bound to \`<img id="fN" class="…-logo" alt="">\` in the markup with NO src
-  attribute. The platform bakes the file in before validation; the shared runtime hides the img
-  whenever its field is empty.
+  attribute. The platform bakes the file in before validation.
+- DO NOT HIDE THE IMG YOURSELF. The empty state is already handled: \`setFieldValue\` sets
+  \`display: none\` on the img inline when the field is cleared and removes it when a file
+  arrives, so a \`display: none\` of your own in template.css is a mark that never appears -
+  the design has to un-hide it with a rule, and a rule keyed one level off leaves the customer
+  looking at an empty slot. If you want a layout that reacts to the mark's presence, key it on
+  \`.has-image\`, which lands on the img's PARENT.
 - Size the slot for the mark measured above: a fixed height with \`width: auto\` and
   \`object-fit: contain\`, so the mark keeps its own proportions - never crop it, round its
   corners, filter it, or scale it unevenly. The mark is the customer's; it arrives as-is.
@@ -156,6 +161,9 @@ export interface BrandFillReport {
   /** The model wrote its own src despite the contract - repaired (replaced), and recorded,
    *  because a repair that hides the violation would un-measure the contract. */
   hadOwnSrc: boolean;
+  /** `has-image` was stamped on the root and the box as well as wherever the runtime puts it
+   *  (see the fill below). Null when no prefix could be read off the markup. */
+  stampedHasImage?: boolean;
 }
 
 /**
@@ -192,15 +200,83 @@ export function fillBrandMark(
     return tag.replace(/^<img\b/, `<img src="${path}"`);
   });
 
+  const stamped = stampHasImage(html);
+  html = stamped.html;
+  const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`;
+
   return {
     template: {
       ...template,
       html,
+      css,
       fields,
       assets: [...template.assets, { path, data: brand.mark.dataUrl }],
     },
-    fill: { slotFieldId: slot.field, path, hadOwnSrc },
+    fill: { slotFieldId: slot.field, path, hadOwnSrc, stampedHasImage: stamped.stamped },
   };
+}
+
+/**
+ * THE FILLED MARK PAINTS. That is the contract, and this is the line that makes it true
+ * rather than likely.
+ *
+ * Stamping `has-image` (above) rescues a design whose reveal rule is keyed one level too high,
+ * but not one whose reveal targets the WRONG ELEMENT - `.PREFIX-logo-container.has-image {
+ * display: flex }` sets the container's display and never un-hides the `<img>` inside it, so
+ * the mark is gone no matter which ancestor carries the class. Both shapes start the same way:
+ * the design writes `display: none` on the img "until an image is provided" and then has to
+ * write a second rule to undo it, and the second rule is the one nothing in the prompt
+ * describes.
+ *
+ * It is redundant code to begin with. `setFieldValue` sets and clears `display` INLINE on the
+ * img, so the empty state never needed a stylesheet rule - which is also why this override is
+ * safe: an operator clearing the field still gets the inline `display: none`, and inline wins.
+ *
+ * Scoped to the one filled id and appended last, so it outranks the design's own class rule by
+ * specificity and order without touching anything else. `block` rather than `revert` because
+ * the UA default for an img is inline, and a slot styled `height: 100%; width: auto;
+ * object-fit: contain` is being drawn as a box.
+ */
+function filledMarkVisibilityCss(fieldId: string): string {
+  return `/* == PLATFORM: the mark's slot is filled, so it must paint. The design's own
+   "hidden until an image arrives" rule is redundant - the runtime sets display inline when the
+   operator clears the field, and inline still wins over this. == */
+#${fieldId} { display: block; }`;
+}
+
+/**
+ * STAMP `has-image` ON THE ROOT AND THE BOX, so a design that keys its mark's reveal there
+ * still shows the mark.
+ *
+ * The models have to guess where that class lands, because nothing tells them. The shared
+ * runtime's `setFieldValue` - the helper the prompt says to copy verbatim - toggles it on the
+ * img's PARENT (`templates/shared/base.ts`), while the prompt only says to use "the has-image
+ * pattern from the example" and the neutral skeleton the example slot carries has no image
+ * field in it at all. A prompt line pointing at an example that does not contain the thing is
+ * dead teaching, and it failed the way dead teaching does: five of the ablation round's twelve
+ * marks never painted, every one of them the same construction - the design hid its own
+ * `<img>` by default and wrote `.PREFIX.has-image .PREFIX-logo { display: block }` to bring it
+ * back, anchoring the class one level above where it actually appears.
+ *
+ * A mark that does not paint is worse than a mark on an ugly plate, so this repairs rather
+ * than reports (the Lite rule: a legibility rule must repair, not refuse). Adding a class can
+ * only ENABLE a rule the design already wrote, never hide anything - and the empty state is
+ * unaffected, because the runtime sets `display: none` INLINE when the field is cleared, which
+ * outranks any stylesheet reveal. The violation is still recorded: `hadOwnSrc` has a sibling
+ * now, and a design needing the stamp is a design whose own selector was wrong.
+ */
+function stampHasImage(html: string): { html: string; stamped: boolean } {
+  const prefix = html.match(/<div\s+class="([a-z][\w-]*)-box[\s"]/)?.[1];
+  if (!prefix) return { html, stamped: false };
+  let out = html.replace(
+    new RegExp(`<div\\s+class="${prefix}(?=["\\s])([^"]*)"`),
+    (tag, rest: string) => (/\bhas-image\b/.test(rest) ? tag : `<div class="${prefix}${rest} has-image"`),
+  );
+  out = out.replace(
+    new RegExp(`<div\\s+class="${prefix}-box(?=["\\s])([^"]*)"`),
+    (tag, rest: string) => (/\bhas-image\b/.test(rest) ? tag : `<div class="${prefix}-box${rest} has-image"`),
+  );
+  return { html: out, stamped: out !== html };
 }
 
 // ── The rendered GATE ──────────────────────────────────────────────────────────────────
