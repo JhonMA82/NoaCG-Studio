@@ -39,6 +39,10 @@ import {
   LITE_SEMANTIC_FIXTURES,
   LITE_SEMANTIC_FIXTURE_VERSION,
 } from './ai-lite-semantic-fixtures.mjs';
+import {
+  LITE_MATRIX_FIXTURES,
+  LITE_MATRIX_FIXTURE_VERSION,
+} from './ai-lite-matrix-fixtures.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve(outDir(process.argv[2], './lite-eval-out', 'Usage: node scripts/ai-lite-eval.mjs [out-dir] [label] [count]'));
@@ -58,22 +62,45 @@ const FIXTURE_IDS = new Set(
 // real mark and the brand colours it arrives with. `semantic` selects the locked provider-free
 // semantic bank, but replaces its authored decisions with real endpoint decisions. Only the
 // fixtures differ - the endpoint, ceilings, shared compile, capture and ledger stay identical.
+// `matrix` is the brand bank's ingredients CROSSED (scripts/ai-lite-matrix-fixtures.mjs): the
+// same marks, the same palettes, colour-neutral jobs, one cell per pairing. It sends exactly the
+// brand bank's request shape, so nothing below this line has to know which of the two it is.
 const BANK = (process.env.NOACG_LITE_EVAL_BANK ?? 'lower-third').trim();
-if (!['lower-third', 'brand', 'semantic'].includes(BANK)) {
-  console.error(`Unknown NOACG_LITE_EVAL_BANK "${BANK}". Use lower-third, brand or semantic.`);
+if (!['lower-third', 'brand', 'semantic', 'matrix'].includes(BANK)) {
+  console.error(`Unknown NOACG_LITE_EVAL_BANK "${BANK}". Use lower-third, brand, semantic or matrix.`);
   process.exit(1);
 }
-const BRAND = BANK === 'brand';
+const MATRIX = BANK === 'matrix';
 const SEMANTIC = BANK === 'semantic';
+// Both banks that carry a mark and a palette on the request. Every "does this round send brand
+// input" decision below reads this, never the bank name, so adding a third one is one line.
+const BRAND = BANK === 'brand' || MATRIX;
+// Where in the grid this batch starts. The per-round ceiling is 40 calls and the grid is larger,
+// so a matrix round is a SEQUENCE of batches; the offset is what stops batch two re-firing (and
+// re-paying for) batch one. Ignored by every other bank.
+const MATRIX_OFFSET = Math.max(0, Number(process.env.NOACG_LITE_EVAL_MATRIX_OFFSET) || 0);
+
+/** Which bank's version stamps this round. One function, because the summary and the review
+ *  gallery both answer it and a gallery pooling two banks' rounds is what the stamp prevents. */
+function bankFixtureVersion() {
+  if (MATRIX) return LITE_MATRIX_FIXTURE_VERSION;
+  if (BANK === 'brand') return LITE_BRAND_FIXTURE_VERSION;
+  if (SEMANTIC) return LITE_SEMANTIC_FIXTURE_VERSION;
+  return LITE_LOWER_THIRD_FIXTURE_VERSION;
+}
 // The brand bank carries three briefs for categories Lite cannot serve yet (§3 of the plan
 // widens to them). Sending those would spend money to be told `unsupported`, which is a known
 // answer, so the round takes only what is servable and SAYS how many it left out.
 const BRAND_SERVABLE = LITE_BRAND_FIXTURES.filter((fixture) => fixture.servable);
-const BANK_FIXTURES = BRAND
-  ? BRAND_SERVABLE.map((fixture) => [fixture.id, fixture.prompt, fixture])
-  : SEMANTIC
-    ? LITE_SEMANTIC_FIXTURES.map((fixture) => [fixture.id, fixture.request.prompt, fixture])
-    : LITE_LOWER_THIRD_FIXTURES;
+const BANK_FIXTURES = MATRIX
+  // The grid, from the offset on. Its order already makes any prefix a balanced sample across
+  // marks and palettes, so a batch is just a window into it.
+  ? LITE_MATRIX_FIXTURES.slice(MATRIX_OFFSET).map((fixture) => [fixture.id, fixture.prompt, fixture])
+  : BANK === 'brand'
+    ? BRAND_SERVABLE.map((fixture) => [fixture.id, fixture.prompt, fixture])
+    : SEMANTIC
+      ? LITE_SEMANTIC_FIXTURES.map((fixture) => [fixture.id, fixture.request.prompt, fixture])
+      : LITE_LOWER_THIRD_FIXTURES;
 const SELECTED_FIXTURES = (FIXTURE_IDS.size
   ? BANK_FIXTURES.filter(([fixtureId]) => FIXTURE_IDS.has(fixtureId))
   : BANK_FIXTURES
@@ -473,7 +500,7 @@ async function writeReviewPage() {
     // second bank existed: brand v1 and lower-third v1 would otherwise pool into one gallery
     // and read as candidates for the same brief.
     const sameBank = (parsed.bank ?? 'lower-third') === BANK;
-    const version = BRAND ? LITE_BRAND_FIXTURE_VERSION : LITE_LOWER_THIRD_FIXTURE_VERSION;
+    const version = bankFixtureVersion();
     if (sameBank && parsed.fixtureVersion === version) summaries.push(parsed);
   }
   const cards = SELECTED_FIXTURES.map(([fixtureId, prompt]) => {
@@ -547,8 +574,15 @@ if (BRAND) {
     await browser.close();
     process.exit(1);
   }
-  console.log(`Brand bank: ${SELECTED_FIXTURES.length} servable brief(s); `
-    + `${LITE_BRAND_FIXTURES.length - BRAND_SERVABLE.length} left out as not-yet-servable categories.`);
+  if (MATRIX) {
+    const last = MATRIX_OFFSET + SELECTED_FIXTURES.length;
+    console.log(`Matrix bank v${LITE_MATRIX_FIXTURE_VERSION}: cells ${MATRIX_OFFSET}-${last - 1} `
+      + `of ${LITE_MATRIX_FIXTURES.length} (${SELECTED_FIXTURES.length} this batch). `
+      + `Next batch: NOACG_LITE_EVAL_MATRIX_OFFSET=${last}.`);
+  } else {
+    console.log(`Brand bank: ${SELECTED_FIXTURES.length} servable brief(s); `
+      + `${LITE_BRAND_FIXTURES.length - BRAND_SERVABLE.length} left out as not-yet-servable categories.`);
+  }
   for (const [id, value] of Object.entries(MARK_PROBES)) {
     console.log(`  ${id}: ${JSON.stringify(value.descriptor)} `
       + `(aspect ${value.measured.aspect}, ink ${value.measured.inkLuminance})`);
@@ -564,6 +598,13 @@ for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
         palette: { id: 'brand', name: 'Brand', ...brandPalette },
         images: [{ path: brandMark.path, data: brandMark.data }],
       }
+    : null;
+  // The cell's own coordinates, carried onto EVERY row including the failures. The matrix
+  // exists to produce a failure rate per mark x palette family, and a failure row that records
+  // only its fixture id makes that table un-derivable from the artifacts - the id would have to
+  // be parsed back into its parts, which is a naming convention pretending to be data.
+  const cell = brandMark
+    ? { job: fixture.job ?? null, markId: fixture.markId, palette: fixture.palette }
     : null;
   if (providerCalls >= MAX_PROVIDER_CALLS || totalCostUsd >= MAX_COST_USD) break;
   const started = Date.now();
@@ -599,6 +640,7 @@ for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
       rows.push({
         fixtureId,
         candidate: LABEL,
+        ...(cell ? { cell } : {}),
         status: 'unsupported',
         latencyMs: Date.now() - started,
         costUsd,
@@ -643,6 +685,7 @@ for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
     rows.push({
       fixtureId,
       candidate: LABEL,
+      ...(cell ? { cell } : {}),
       status: measured.ok ? 'machine-usable' : 'invalid',
       category: measured.category,
       variantId: measured.variantId,
@@ -722,6 +765,7 @@ for (const [fixtureId, prompt, fixture] of SELECTED_FIXTURES) {
     rows.push({
       fixtureId,
       candidate: LABEL,
+      ...(cell ? { cell } : {}),
       status: 'failed',
       latencyMs: Date.now() - started,
       errorCode: error?.code ?? 'unknown',
@@ -738,11 +782,7 @@ const summary = {
   // and a summary that records only a version number leaves that ambiguous the moment a
   // second bank exists.
   bank: BANK,
-  fixtureVersion: BRAND
-    ? LITE_BRAND_FIXTURE_VERSION
-    : SEMANTIC
-      ? LITE_SEMANTIC_FIXTURE_VERSION
-      : LITE_LOWER_THIRD_FIXTURE_VERSION,
+  fixtureVersion: bankFixtureVersion(),
   candidate: LABEL,
   calls: providerCalls,
   sessions,
