@@ -109,9 +109,13 @@ heading, a mark whose height matches the text block it accompanies, a panel whos
 its longest line. Never size a container first and pour text into it - that is how "the text is
 too big for the banner so it looks crammed" happens.
 
-**Testable:** yes, and this is the highest-value unbuilt gate. Ratio of text block height to
-panel height, mark height to text height, panel area to frame area. All readable off the
-rendered frame.
+**Testable: BUILT, and it earned less than expected** - `src/ai/spike/proportionCheck.ts`,
+calibrated by `scripts/spike-proportion-calibrate.mjs`. Four ratios (type step, mark scale,
+panel fill, frame footprint), **0/90 catalog base rate**, and on the twelve generations the
+owner judged it caught exactly ONE thing the spacing gate had not: "the box is way too big" as
+a frame footprint of 0.12 against a catalog whose largest is 0.09. The rest of the owner's
+proportion-sounding complaints turned out to be spacing after all - see the note at the end of
+this file, which is the more useful result.
 
 ## 5. Hierarchy
 
@@ -264,6 +268,32 @@ measures 0.91 mark-heights - **identical to three items the same reviewer praise
 geometry, opposite verdicts. Tightening the ceiling to catch it would flag all three, so the
 instrument stays quiet and the judgement stays human. That is the same honest limit the
 bounding-box-well check carries, and it is the boundary between principles 2 and 4 above.
+
+## What the proportion gate learned, which is mostly that it is not the problem (2026-08-13)
+
+Built second, on the assumption that "the text is too big for the banner" and "the box is way
+too big" were proportion failures. Measured, they mostly are not:
+
+- **Panel fill cannot separate crammed from tight.** The owner's two crammed items fill 0.94 and
+  0.89 of their panel - and so does the catalog. A ceiling at 0.85 flags **14 of the 45 shipped
+  designs that have a panel**; even 0.95 flags 3. So proportionCheck ships with no fill ceiling
+  at all, and the two complaints stay with `spacingCheck`, which catches both on the thing that
+  actually differs (`padding-tight`, `text-over-rule`). A ratio that flags a third of the
+  catalog is not a strict gate, it is a wrong one.
+- **Frame footprint works, and is the one new catch.** Catalog largest 0.09; a 0.10 ceiling
+  flags none of it and catches "the box is way too big" at 0.12.
+- **Optically equal type is a pair, not a failed hierarchy.** ls20, ls27 and ls28 set two lines
+  at 0.94-0.95 because the specialist pack's interview straps deliberately give two people the
+  same weight. So "flat" is a BAND (0.86-0.93), which is the contrast principle stated as a
+  number: a ~10% size difference reads as a mistake, an optically identical pair reads as intent.
+- **Three of the four ratios have never fired** - on the catalog or on a flagged generation.
+  They are reported beside the frame as numbers rather than deleted, because a number a reviewer
+  can compare across two candidates is worth something even when no threshold is defensible yet.
+
+The transferable lesson is about naming: a complaint that SOUNDS like proportion ("too big for
+the banner") can be a spacing defect, and the way to find out is to measure both and see which
+one separates the owner's good items from the bad. Building the gate whose name matches the
+complaint would have shipped a fill ceiling that failed a third of the catalog.
 
 Sources for the general principles, kept so the vocabulary is not invented here:
 [Toptal, The 12 Principles of Design](https://www.toptal.com/designers/ui/principles-of-design),

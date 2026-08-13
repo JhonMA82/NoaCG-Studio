@@ -87,7 +87,7 @@ export interface SpacingReport {
   findings: SpacingFinding[];
 }
 
-interface Painted {
+export interface Painted {
   el: Element;
   desc: string;
   rect: { left: number; right: number; top: number; bottom: number };
@@ -119,7 +119,7 @@ function opaqueBackground(style: CSSStyleDeclaration): boolean {
   return true;
 }
 
-function collect(doc: Document): Painted[] {
+export function collectPainted(doc: Document): Painted[] {
   const win = doc.defaultView;
   if (!win) return [];
   const out: Painted[] = [];
@@ -151,7 +151,7 @@ function collect(doc: Document): Painted[] {
  * a viewer reads as "the box", and on a house-contract graphic it resolves to the `-box`
  * element without needing to know the prefix.
  */
-function findPanel(items: Painted[]): Painted | null {
+export function findPanel(items: Painted[]): Painted | null {
   const contains = (a: Painted, b: Painted): boolean =>
     a !== b && a.rect.left <= b.rect.left + 1 && a.rect.right >= b.rect.right - 1
     && a.rect.top <= b.rect.top + 1 && a.rect.bottom >= b.rect.bottom - 1;
@@ -164,12 +164,12 @@ function findPanel(items: Painted[]): Painted | null {
 }
 
 /** The unit: the largest painted text in the composition. */
-function primaryTypeSize(items: Painted[]): number | null {
+export function primaryTypeSize(items: Painted[]): number | null {
   const sizes = items.filter((p) => p.isText && p.fontSizePx > 0).map((p) => p.fontSizePx);
   return sizes.length ? Math.max(...sizes) : null;
 }
 
-function round2(n: number): number {
+export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
@@ -200,7 +200,7 @@ export function measureSpacing(doc: Document, options: SpacingOptions = {}): Spa
     panel: null, typeSizePx: null, padding: null, lineGaps: [], markGap: null, findings: [],
   };
 
-  const items = collect(doc);
+  const items = collectPainted(doc);
   const typeSize = primaryTypeSize(items);
   if (!typeSize) return report;
   report.typeSizePx = round2(typeSize);

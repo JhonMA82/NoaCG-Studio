@@ -353,6 +353,7 @@ async function captureHold(item, measure = false) {
     const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
     const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
+    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
     return {
@@ -360,6 +361,7 @@ async function captureHold(item, measure = false) {
       // Padding and gaps as ratios of type size - the other half of what the owner's blind
       // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
       spacing: measureSpacing(doc, { markFieldId: markFieldId ?? null }),
+      proportion: measureProportion(doc, { markFieldId: markFieldId ?? null }),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
   }, { markFieldId: item.markFieldId ?? null, markProbe: item.markProbe ?? null });
@@ -739,6 +741,7 @@ async function captureSet(item) {
     ...(playError ? { playError } : {}),
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
     ...(measured?.spacing ? { spacingReport: measured.spacing } : {}),
+    ...(measured?.proportion ? { proportionReport: measured.proportion } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
   };
@@ -1397,6 +1400,21 @@ function markCell(r) {
   return `${gate}${motion}${src}${surface}`;
 }
 
+/** Size RELATIONSHIPS - type step, mark scale, panel fill, frame footprint. Every number is
+ *  reported whether or not it produced a finding: three of the four have never fired on this
+ *  catalog OR on a flagged generation, so their value today is the number beside the frame,
+ *  not the verdict (docs/DESIGN_PRINCIPLES.md §4). */
+function proportionCell(r) {
+  const p = r.proportionReport;
+  if (!p) return '-';
+  const nums = `<small>type ${p.typeRatio ?? '-'} · mark ${p.markScale ?? '-'}`
+    + `<br>fill ${p.panelFill ?? '-'} · frame ${p.footprint ?? '-'}</small>`;
+  const found = p.findings.length
+    ? `<br>${p.findings.map((f) => `<small>${f.code}</small>`).join('<br>')}`
+    : '<br><small>clean</small>';
+  return `${nums}${found}`;
+}
+
 /** Padding and gap findings, with the ratios that produced them (docs/DESIGN_PRINCIPLES.md). */
 function spacingCell(r) {
   const s = r.spacingReport;
@@ -1437,6 +1455,7 @@ function keyHtml(ledger) {
   <td>${markCell(r)}</td>
   <td>${axisCell(r)}</td>
   <td>${spacingCell(r)}</td>
+  <td>${proportionCell(r)}</td>
   <td>${r.codeAudit ? `<small>${auditSummaryLine(r.codeAudit)}</small>` : '-'}</td>
   <td>${r.repairRounds ?? '-'}</td>
   <td>${typeof r.costUsd === 'number' ? `$${r.costUsd.toFixed(4)}` : '-'}</td>
@@ -1450,7 +1469,7 @@ th{color:#9aa0ab;font-weight:600} small{color:#9aa0ab}</style>
 <p>Spent $${(ledger.spentUsd ?? 0).toFixed(4)}${ledger.maxCost ? ` of a $${ledger.maxCost.toFixed(2)} ceiling` : ''}.
 Decoding: temperature ${ledger.decoding.temperature}, seed ${ledger.decoding.seed}.</p>
 <table>
-<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>spacing</th><th>code</th><th>repairs</th><th>cost</th></tr>
+<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>spacing</th><th>proportion</th><th>code</th><th>repairs</th><th>cost</th></tr>
 ${rows}
 </table>`;
 }
