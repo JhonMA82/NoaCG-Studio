@@ -26,7 +26,7 @@
 import { spawn } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,7 +63,13 @@ const require = createRequire(import.meta.url);
 const vitePkgPath = require.resolve('vite/package.json');
 const viteBin = join(dirname(vitePkgPath), require(vitePkgPath).bin.vite);
 
-const child = spawn(process.execPath, [viteBin, '--mode', 'bench'], {
+// `--import` preloads the bench dispatcher into the Vite process, which is where the api/
+// handlers run and therefore where the outbound model call is made. It raises undici's 300 s
+// header timeout - a limit no calling code can see, and the one that reported the Phase 0
+// round's minutes-long reasoning calls as "the AI provider could not be reached"
+// (scripts/bench-dispatcher.mjs). Bench server only; `npm run dev` is untouched.
+const dispatcher = join(root, 'scripts', 'bench-dispatcher.mjs');
+const child = spawn(process.execPath, ['--import', pathToFileURL(dispatcher).href, viteBin, '--mode', 'bench'], {
   cwd: root,
   stdio: ['inherit', 'pipe', 'pipe'],
 });

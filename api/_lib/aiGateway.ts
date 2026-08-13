@@ -757,7 +757,8 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
   // The surface discriminator is an ALLOWLIST, not a passthrough: an unknown value is refused
   // rather than dropped, so a client that means to name a gated surface can never have its
   // label silently discarded into "the general harness, which nothing gates".
-  if (body.surface !== undefined && body.surface !== 'video' && body.surface !== 'pro') {
+  if (body.surface !== undefined && body.surface !== 'video' && body.surface !== 'pro'
+    && body.surface !== 'spike') {
     throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
   }
   return {

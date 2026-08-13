@@ -192,7 +192,16 @@ export async function resolveUserEntitlement(userId: string | null): Promise<Ent
 /** Which feature key a gateway surface is gated on; null for the general harness, which no
  *  feature key gates. One map, so adding a gated surface is one line and cannot disagree with
  *  the enforcement table in docs/ADMIN.md. */
-const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = { video: 'ai.video', pro: 'ai.pro' };
+const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = {
+  video: 'ai.video',
+  pro: 'ai.pro',
+  // The Phase 0 spike gates on `ai.pro` rather than minting a key of its own. It IS Pro work
+  // (docs/NOACG_PRO_PLAN.md §0), it spends NoaCG's managed key, and a bench-only surface with
+  // a weaker gate than the product surface it belongs to would be a hole rather than a
+  // simplification. Nothing user-facing reaches it; it exists to ask for forced-tool
+  // structured output (api/_lib/aiSurfacePolicy.ts).
+  spike: 'ai.pro',
+};
 
 export function gatedFeature(surface: AiGatewaySurface | undefined): FeatureKey | null {
   return surface ? SURFACE_FEATURES[surface] : null;

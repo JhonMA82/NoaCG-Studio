@@ -2,7 +2,7 @@ import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.j
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
 import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
-import { surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
+import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
 import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
@@ -157,7 +157,17 @@ export default {
       // whole request while keyFor answers per provider.
       const byoPrimary = Boolean(userKeys[body.route.provider]);
       const gateway = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
-      result = await executeGatewayRequest(body, { keyFor }, gateway ? { gateway } : undefined);
+      // A surface may also carry an EXECUTION policy - attempt budget and timeout. Only the
+      // bench-only spike surface does today, and for a measured reason (aiSurfacePolicy.ts):
+      // a reasoning checkpoint spends minutes thinking before it writes, which the shared
+      // 300 s clamp refuses. Managed BYO traffic is excluded with the routing policy for the
+      // same reason - a caller's own key on their own model is not ours to pace.
+      const execution = byoPrimary ? undefined : surfaceExecutionPolicy(body.surface);
+      result = await executeGatewayRequest(
+        body,
+        { keyFor },
+        gateway || execution ? { ...execution, ...(gateway ? { gateway } : {}) } : undefined,
+      );
     } catch (error) {
       failure = error instanceof GatewayError
         ? error

@@ -21,6 +21,7 @@ import { estimateModelCost } from './aiGateway.js';
 import { liteJudgeConfigured, liteJudgePolicy, liteProfile, liteProfileConfigured, routePrice } from './aiLiteProfile.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { liteLedgerConfigured, MemoryLiteGenerationStore } from './aiLiteStore.js';
+import { failurePatch } from './lite/generations.js';
 import { readJson } from './http.js';
 
 const ENV = [
@@ -1026,4 +1027,51 @@ test('no Lite schema carries an enum a structured-output backend cannot express'
     `non-string enum(s) in a Lite schema - Gemini will 400 the whole request: ${offenders.join('; ')}. `
       + 'Use minimum/maximum plus a property description instead.',
   );
+});
+
+// ── what a failed generation records ────────────────────────────────────────────────────────────
+// The first 43 production failures split two ways: 20 carried a model and a real cost, and 23
+// carried neither, because the no-result branch wrote only the reason. Those 23 could never be
+// attributed to a route, which is precisely what makes a run of `malformed_response` undiagnosable.
+
+test('a failure with no accounted result still names the route that was dispatched to', () => {
+  const patch = failurePatch({
+    reason: 'malformed_response',
+    conservativeCostUsd: 0.007,
+    attemptedRoute: { provider: 'google', model: 'gemini-2.5-flash-lite' },
+  });
+  assert.equal(patch.status, 'failed');
+  assert.equal(patch.rejectionReason, 'malformed_response');
+  // The whole point: the ledger can answer WHICH route produced the failure.
+  assert.equal(patch.provider, 'google');
+  assert.equal(patch.model, 'gemini-2.5-flash-lite');
+  // With no usage report there is nothing to reconcile against, so the reservation's worst case
+  // stands - over-booking the fleet budget is the safe direction to be wrong in.
+  assert.equal(patch.providerCostUsd, 0.007);
+});
+
+test('an accounted result wins over the dispatched route and the conservative cost', () => {
+  const result = {
+    output: {},
+    usage: { inputTokens: 10, outputTokens: 20, estimatedCost: { amount: 0.0004, currency: 'USD' } },
+    provider: 'google',
+    model: 'gemini-2.5-flash-lite-actual',
+    attempts: [{ route: { provider: 'google', model: 'gemini-2.5-flash-lite-actual' }, attempts: 2 }],
+  } as unknown as Parameters<typeof failurePatch>[0]['result'];
+  const patch = failurePatch({
+    reason: 'intent_variant_mismatch',
+    result,
+    // Neither of these may override a measured result; both are absent on this path in production,
+    // and passing them here is the point of the test.
+    conservativeCostUsd: 0.007,
+    attemptedRoute: { provider: 'someone-else', model: 'not-the-model-that-ran' },
+  });
+  assert.equal(patch.model, 'gemini-2.5-flash-lite-actual');
+  assert.equal(patch.provider, 'google');
+  assert.equal(patch.providerCostUsd, 0.0004);
+});
+
+test('a long rejection reason is truncated to what the column holds', () => {
+  const patch = failurePatch({ reason: 'slot_role_mismatch:secondary,'.repeat(10) });
+  assert.equal((patch.rejectionReason ?? '').length, 80);
 });
