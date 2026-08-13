@@ -122,6 +122,25 @@ Today the palette rides in from the project brand. A first-time customer has a l
 hex. Add deterministic derivation: accent (+optional panel) in, full four-slot palette out,
 platform-owned, no model. Optionally suggest the accent from the logo's own pixels - measured
 locally in the browser exactly like `probeMark`, hex values only ever leave the machine.
+*(Owner 2026-08-12: v1 is the existing brand surface only; the pixel suggestion is deferred.)*
+
+### 3.6 Close the catalog SPLIT - measured 2026-08-13, the baseline's headline
+
+The P0 baseline (`benchmarks/lite/BRAND-BASELINE-2026-08-13.md`, 2/5 usable) attributed three
+of five brand-brief failures to one cause: **only 6 of 13 chassis carry the v14 brand slot** -
+the seven semantic-round additions (`lt30 lt37 lt41 lt49 ls12 ls17 ls29`) are `logo: false`,
+and retrieval ignores the mark when narrowing, so mark-carrying requests land on chassis that
+cannot hold a mark (`logo_not_supported` refusals, a dropped mark on lt37). The v14 "never
+drop the mark" promise is currently false on 7 of 13 chassis - regression by growth.
+
+1. **Retrieval narrows to `logo: true` entries when the request carries a mark.**
+   Deterministic, free, first.
+2. **Draw measured slots on the seven** - the §7.4 step-3 pattern from `docs/AI_LITE_PLAN.md`
+   (type capability + brand audit + `logoSlot` metadata), batched with the §3.4 opposite-tone
+   chassis.
+
+This slice goes BEFORE the §4.4 volume matrix - a matrix over the split catalog would multiply
+one known failure into every cell.
 
 ## 4. The Ling 3.0 Tiny free-window campaign - 2026-08-12 to ~2026-08-14
 
