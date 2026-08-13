@@ -12,6 +12,75 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 
 ---
 
+### The brand round - originality conditioned on a customer's own brand
+**2026-08-13 · NoaCG Pro Phase 1 · `alibaba/qwen3-coder` · 30 of 30 captured, $0.63 of a $1 cap ·
+OWNER READ: roughly half airable, and the new named defect is the MARK'S SURFACE, not its
+placement.** This is the round the entry below scheduled, run through the logo contract
+`docs/NOACG_PRO_PLAN.md` §14 item 1 shipped first (declare an empty slot / deterministic fill /
+rendered gate / motion sampled through the virtual clock).
+
+Protocol: the same 12 briefs, each conditioned on one of four SYNTHETIC brands
+(`benchmarks/pro/v1/spike/brands.json` - invented organisations; marks measured by `probeMark`),
+both arms, plus a DIVERGENCE cell re-running `news-public` and `entertainment` under every other
+brand on the no-exemplar arm. Owner's verbatim read: the archived `notes_filled.md`.
+
+**The machine half:** 29/30 contract-clean (the one failure is `assetIntegrity` catching rounded
+corners on the mark's container - the screen working); **30/30 declared a usable slot**, so Phase
+0's broken-image defect class did not recur at the contract level; 21/30 passed the rendered mark
+gate; 30/30 animate the mark in AND out. Four wrote their own `src` against the contract
+(repaired deterministically, recorded). Repairs fired on 17/30 against Phase 0's 1/24 - the mark
+contract works the loop hard.
+
+**The owner half: 14 airable (2 conditional), 11 one localized repair away, 3 not acceptable, 2
+unmarked.** The cross-cutting rules, written blind: lower thirds stay vertically COMPACT (mark
+BESIDE the text, never stacked above/below); a mark-sized white box around a transparent logo
+"looks like a JPEG pasted on top - not acceptable"; line-to-banner alignment can make a graphic
+unusable; thin hairlines are broadcast-risky; dark text needs a backing or outline; and stills
+cannot judge motion - the next round owes ANIMATED strips.
+
+**THE NEW NAMED DEFECT - the well that reads as a bounding box.** The contract taught "give the
+mark's ink a surface it reads on", and the model answered with mark-sized white plates on ~7
+results - technically contrast-correct and visually "broken alpha". The SAME white surface
+INTEGRATED into the composition (a real banner segment) was praised twice. So the teaching is
+half right: the missing half is that a well must be a compositional element, not a bounding box -
+and the owner explicitly asked for a machine check. It is measurable: a surface whose rect
+tracks the mark's rect within a small margin is a pasted box; one that joins the panel system is
+a design. The ink-contrast gate fired 6 times and measured the right area's WRONG dimension: the
+owner never objected to contrast, only to the box.
+
+**The own-field mark wins on today's contract.** The Ledger brand (a mark that brings its own
+field) took 6 of its 8 items to airable - no well decision to get wrong. The transparent
+dark-ink monogram (needs a light surface) collected most of the white boxes.
+
+**The compactness rule indicts the CATALOG's shared slot too.** The blind set included the
+hand-authored control with `applyLogoSlot`'s band - the mark ABOVE the text - and the owner gave
+it the same note as the generations: too tall, put it beside. `templates/shared/logoSlot.ts`
+needs a side-placement option; that is catalog work, not spike work.
+
+**Instruments earned their keep.** The alignment-axis instrument's ONE flagged near-miss
+candidate is exactly the item the owner called "currently unusable" for line-to-banner
+misalignment (`sports-live.kestrel.exemplar`; catalog false-positive base rate 3/90). The
+rendered gate's `not-painted` is the owner's "placeholder square". And **the code axis separated
+the arms where frames could not: exemplar arm 12/12 editable data-block timelines, no-exemplar
+arm 18/18 read-only.** The exemplar block's ~34,500 tokens buy the CONVERTIBLE authoring grammar
+- the first measured evidence FOR it, invisible to Phase 0's frame-only read. The cheaper
+falsification worth trying before Phase 3 leans on retrieval: teach the grammar-conformance
+lesson without three complete designs and see if conversion holds.
+
+**Divergence: no four-tints failure.** Same brief under four brands produced genuinely different
+designs (`divergence.html`). The round's only NOT-ACCEPTABLE results are world-crossed pairings
+(`entertainment` under the sport and institutional brands) - brand-brief coherence degrades
+output before sameness ever appears.
+
+**Harness lesson, paid for mid-round:** a generated template threw inside its own
+`buildInTimeline` and the capture rig let it kill the round at 11/30 - and the code-save sat
+AFTER the captures, so that generation's paid code was lost. Fixed the same hour: a lifecycle
+throw is a recorded RESULT, and the deliverable lands on disk the moment it exists.
+
+**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the well-integration
+teaching plus the bounding-box check the owner asked for, the catalog side-slot option, animated
+motion review, and the exemplar-vs-grammar-teaching ablation above.
+
 ### Models designing a broadcast graphic unaided
 **2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
 IT AS A PASS, WITH LOGOS AS THE NAMED GAP.** The 2026-07-31 verdict below is superseded for
@@ -92,6 +161,7 @@ and, on the pair the owner examined, changed almost nothing - and the round that
 below.
 
 ### What Phase 0 did NOT test: brand
+**RAN 2026-08-13 - the verdict is the brand-round entry at the top of this file.**
 **2026-08-12 · the owner's framing, and the real question.** Every brief in the bank is generic:
 two text lines, no brand palette, no brand typeface, and no actual mark - `includeLogo` is a
 boolean that asks for an empty slot, and the one brief that set it rendered a broken image. The

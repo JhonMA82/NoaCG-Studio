@@ -992,6 +992,11 @@ this round, and one decision it should make early:
    decorating it) and brand-driven DIVERGENCE (different brands, same brief, visibly different
    graphics - the sameness tripwire adapt-first already lives under). On the chosen checkpoint that
    round costs about $0.26. Item 1 below is a precondition for it, not a parallel task.
+   **RAN 2026-08-13: 30/30 for $0.63, owner-read blind. Verdict and the named follow-ups (the
+   mark-surface "bounding box" defect, the catalog side-slot, animated motion review) are the
+   top entry of `docs/AI_ATTEMPTS.md`; archive `pro-brand-qwen3-coder-2026-08-13`. No four-tints
+   sameness appeared; the exemplar arm's 12/12 editable timelines vs the no-exemplar arm's 0/18
+   is the first measured evidence for the exemplar block.**
 
 1. **The logo contract is the named gap and the first real work.** The owner's own words: find a
    structure and plan for how a mark is placed so it fits the design, and how it animates
