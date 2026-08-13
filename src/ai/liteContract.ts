@@ -290,8 +290,13 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Team Bar',
       description: 'Three-field layered sport bar for player, team, and competitive context.',
       style: 'sport',
-      logo: false,
-      logoSlot: null,
+      // MEASURED, not assumed: the design already draws a mark well, and
+      // `ai-lite-brand-audit.mjs --lite` reads a crest or a badge landing in it cleanly while a
+      // wordmark and a sponsor rail letterbox below the size floor. The narrow `fits` is the
+      // honest half of that answer - a claim above the measurement is the defect the gate exists
+      // to catch (docs/AI_LITE_BRAND_PLAN.md §3.6.2).
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square'] },
       intentKinds: ['person', 'team', 'event', 'promotion'],
       bestFor: ['sports', 'esports', 'live competitions', 'teams'],
       avoidFor: ['academic titles', 'documentary', 'quiet public information'],
@@ -305,8 +310,11 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Glass Board',
       description: 'Four-field translucent information-rich lower third with a clean technical hierarchy.',
       style: 'glass',
-      logo: false,
-      logoSlot: null,
+      // Same measurement as lt41, and this is the entry that lifts the marked-request field
+      // ceiling to four: until it was declared, a request carrying a mark could only be served
+      // from the six 2-field chassis.
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square'] },
       intentKinds: ['person', 'story', 'event', 'organization', 'team'],
       bestFor: ['technology', 'universities', 'modern conferences', 'data-led interviews'],
       avoidFor: ['urgent hard news', 'heritage documentary', 'minimal one-line credits'],

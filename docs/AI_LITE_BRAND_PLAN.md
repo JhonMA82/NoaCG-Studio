@@ -171,6 +171,16 @@ drop the mark" promise is currently false on 7 of 13 chassis - regression by gro
 2. **Draw measured slots on the seven** - the §7.4 step-3 pattern from `docs/AI_LITE_PLAN.md`
    (type capability + brand audit + `logoSlot` metadata), batched with the §3.4 opposite-tone
    chassis. Also what lifts the marked-request field ceiling past 2.
+   **Two of seven done 2026-08-13, and they were not design work at all**: `lt41` and `lt49`
+   already DRAW a mark well - the catalog declares them `logo: 'optional'` and the audit renders
+   a badge landing cleanly in both - and only the Lite metadata said otherwise. Declared as
+   measured: `surface: 'palette'`, `fits: ['portrait', 'square']` (a wordmark and a sponsor rail
+   letterbox below the size floor in these narrow wells, so the claim stops there). The
+   declaration gate drops from 7 problems to 5, and **the marked-request field ceiling is now 4
+   rather than 2**, since lt49 carries four visible fields.
+   The five that remain - `lt30 lt37 ls12 ls17 ls29` - have no slot element at all
+   (`no-slot-field`), so they need a well drawn into the design itself: real catalog work, the
+   five catalog gates, and the natural batch for §3.3 and §3.4.
 
 This slice goes BEFORE the §4.4 volume matrix - a matrix over the split catalog would multiply
 one known failure into every cell.
