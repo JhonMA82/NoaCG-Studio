@@ -286,7 +286,7 @@ untouched, neutralize to white or black). The old repair dropped the whole bespo
 the clamp could not reach, and the compile read the MODEL's echo of the palette rather than the
 request - so "exactly the brand's colours" could fail three silent ways at once: a near-miss hex,
 an omitted palette, a legibility floor deleting the package. Every divergence is now an
-`adjustments` code, and those reach `ai_generations.adjustments` (migration 0042) because a repair
+`adjustments` code, and those reach `ai_generations.adjustments` (migration 0043) because a repair
 the ledger cannot count is a promise nobody can check. The audit's positive twin is
 `brand-accent-verbatim` at TOLERANCE 0 - a near miss is the defect, not a pass. A palette nobody
 requested is still dropped: the contract widened for the user's colours, not for the model's.

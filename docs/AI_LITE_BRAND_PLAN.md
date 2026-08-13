@@ -44,7 +44,7 @@ Two standing constraints frame everything below:
 | Frozen banks + rigs | 30-brief bank, 8 semantic briefs, `ai-lite-eval.mjs` / `bench:lite` / `bench:lite:semantic` / `bench:preflight`, gallery + report | LIVE |
 | Category semantics | `CATEGORY_CONTRACTS`, 13 measured chassis, retrieval-narrowed enum | LIVE |
 | Brand palette contract | `applyLiteBrandPalette` - identity verbatim, furniture repaired, never dropped | LIVE, **§3.1 DONE 2026-08-13** |
-| Repair visibility | `ai_generations.adjustments` (migration 0042) | LIVE, **§3.2 DONE 2026-08-13** |
+| Repair visibility | `ai_generations.adjustments` (migration 0043) | LIVE, **§3.2 DONE 2026-08-13** |
 
 ## 2. The value gate - the kill criterion
 
@@ -120,13 +120,20 @@ widened for the USER's colours, not for the model's.
 ### 3.2 Adjustments become visible - DONE 2026-08-13
 
 `validateLiteDecision` returned `adjustments` and nobody stored them - a clamped or re-mapped
-brand colour was invisible in `ai_generations`. **Migration 0042 adds `adjustments text[] not
+brand colour was invisible in `ai_generations`. **Migration 0043 adds `adjustments text[] not
 null default '{}'`** and `api/_lib/lite/generations.ts` writes it (capped at 30, like the rule
 codes beside it), so brand-fidelity repair rates are countable per prompt version. Additive and
-defaulted, so pre-0042 rows read as "nothing repaired" rather than null; pinned in
+defaulted, so pre-0043 rows read as "nothing repaired" rather than null; pinned in
 `scripts/ai-lite-migration.test.mjs`.
 
-**Deploy order matters: apply 0042 BEFORE the code lands in production.** The endpoint writes
+**It was minted as 0042 and renumbered to 0043 before merging**, because `main` took
+`0042_identity_trigger_grants.sql` while this branch was in flight. That is the trap the plan
+names one paragraph up, and it is silent in the direction that matters: two files sharing a
+number merge cleanly, and `supabase db push` then SKIPS the second - a column that never exists
+in production while every local check stays green. Re-check the highest number on `main`, not
+just in this worktree, immediately before landing any migration.
+
+**Deploy order matters: apply 0043 BEFORE the code lands in production.** The endpoint writes
 the column on every ready decision, so code-first would make every Lite generation fail to
 persist its outcome.
 

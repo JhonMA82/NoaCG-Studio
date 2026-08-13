@@ -46,7 +46,7 @@ test('Lite quota RPCs fail closed to service-role-only execution', () => {
   );
 });
 
-// ── what the platform REPAIRED is recorded too (0042) ────────────────────────────────────
+// ── what the platform REPAIRED is recorded too (0043) ────────────────────────────────────
 //
 // `validation_rule_codes` says why a decision was refused; `adjustments` says what was fixed
 // without refusing anything - the brand palette applied over the model's, a furniture colour
@@ -55,7 +55,7 @@ test('Lite quota RPCs fail closed to service-role-only execution', () => {
 // ledger (docs/AI_LITE_BRAND_PLAN.md §3.2).
 test('the repair ledger column is additive, defaulted and content-free', async () => {
   const body = await readFile(
-    new URL('../supabase/migrations/0042_ai_generations_adjustments.sql', import.meta.url),
+    new URL('../supabase/migrations/0043_ai_generations_adjustments.sql', import.meta.url),
     'utf8',
   );
   // Additive with a default: rows written before it existed read as "nothing repaired"
