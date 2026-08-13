@@ -100,9 +100,11 @@ Ordered by what it would buy:
    `logo-punch` burst is one colour; three tones in sequence is a much stronger beat.
 2. **A light bar crossing the field** (Flat White). One high-contrast bar sweeping over the
    covering surface, at right angles to its travel. Three of the eight use some version of it.
-3. **Radial repetition with glow** (Kaleidoscope). The single highest richness-per-line
-   technique available: one shape repeated at N angles and radii, rotating, with a glow. This
-   is what makes cheap geometry look designed, and we have nothing like it in the corpus.
+3. ~~**Radial repetition with glow** (Kaleidoscope).~~ **DONE** - `radial-bloom` in the corpus.
+   The single highest richness-per-line technique available: one shape repeated at N angles and
+   radii, rotating, with a glow. 120 elements built by a loop, four rings turning at different
+   rates and directions, the glow applied once per ring rather than per element, and an iris
+   close for a reveal shape nothing else in the corpus has.
 4. **Hatched and halftone fills** (showreel). Circles filled with diagonal stripes or dot
    grids, used as secondary shapes. Pure CSS (`repeating-linear-gradient`, `radial-gradient`
    tiles) and instantly reads as a designed pack rather than flat colour.

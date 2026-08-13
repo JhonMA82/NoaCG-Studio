@@ -25,10 +25,20 @@ here is authored against it.
 | `stingers/aperture-bands.html` | precise editorial / news | eight vertical bands close the frame from alternating edges | the same eight columns open off the mark, so the reveal is the cover's own motion |
 | `stingers/logo-punch.html` | the mark drives the exit | the field bursts out of a point, then breaks into three slabs | the mark punches out of the burst, then through the lens, taking the field with it |
 | `stingers/ink-sweep.html` | no panel at all | ten ragged bands of brand ink stroke across, then retreat the way they came | the cover is the brand's own ink; the mark lands on it and is carried out by it |
+| `stingers/radial-bloom.html` | ornamented; the corpus's richest surface | a disc opens from a point, four rings of 120 repeated glowing elements bloom and turn, then the whole thing irises shut | the mark is the still centre of a turning pattern |
 
-Four files, four genuinely different *mechanisms* - lateral wipe, tiled close, burst and
-shatter, painted trail - because a corpus of variations on one move teaches a model nothing
-about the type.
+Five files, five genuinely different *mechanisms* - lateral wipe, tiled close, burst and
+shatter, painted trail, radial bloom and iris - because a corpus of variations on one move
+teaches a model nothing about the type. They also give a switcher five different **reveal
+shapes** to cut behind: sideways, vertically, outward, backward along the stroke, and from the
+outside in.
+
+`radial-bloom` is the one built from measured evidence rather than taste: the reference
+teardown (`benchmarks/video/v1/STINGER-REFERENCE-TEARDOWN.md`) found that the commercial clip
+which most looks like a rendered 3D effect is a pattern of flat shapes - one element repeated
+at many angles and radii, turning, with a glow - and that the corpus had nothing like it. Its
+120 ring elements are BUILT by a loop rather than typed out; a loop is exactly as
+deterministic, and 120 hand-written divs would be unreadable.
 
 ### The rules they are held to (owner review, 2026-08-13)
 
@@ -117,6 +127,7 @@ frame:
 | `aperture-bands` | 25 | frame 0 empty, frame 49 empty, frames 12-28 covered, timeline 1.850 s vs last frame 1.960 s |
 | `logo-punch` | 50 | frame 0 empty, frame 99 empty, frames 23-56 covered, timeline 1.920 s vs last frame 1.980 s |
 | `ink-sweep` | 25 and 50 | frame 0 empty, last frame empty, whole window covered, timeline 1.906 s vs last frame 1.960 / 1.980 s |
+| `radial-bloom` | 25 and 50 | frame 0 empty, last frame empty, whole window covered, timeline 1.920 s vs last frame 1.960 / 1.980 s |
 
 Each was also probed at times where it *should* fail (mid-transition, before the cover closes,
 after it opens) and failed there, so none of the passes is vacuous.
@@ -129,6 +140,7 @@ Two design rules were measured on top of the gates:
   | composition | frame covered | mark first painted |
   | --- | --- | --- |
   | `replay-slab` | 0.14 s | 0.45 s |
+  | `radial-bloom` | 0.14 s | 0.45 s |
   | `logo-punch` | 0.30 s | 0.43 s (ring 0.49 s) |
   | `ink-sweep` | 0.36 s | 0.45 s |
   | `aperture-bands` | 0.39 s | 0.45 s |
