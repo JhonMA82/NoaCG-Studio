@@ -592,10 +592,34 @@ export function retrieveLiteReferenceSet(
   const allowed = new Set(contract.compatibleReferenceChassis);
   const requestedFields = request.generationSpec?.fields.length ?? 0;
   const categoryPool = LITE_CATALOG.filter((entry) => entry.category === contract.id && allowed.has(entry.variantId));
-  const capacityPool = requestedFields
-    ? categoryPool.filter((entry) => requestedFields >= entry.visibleFields.min && requestedFields <= entry.visibleFields.max)
+  // A request carrying a MARK is served only from chassis whose drawn slot can hold it. The
+  // design declares the slot and the compiler fills it (docs/AI_LITE_PLAN.md §7.2), so a
+  // slotless chassis shown to a marked request is never a candidate the model should weigh: it
+  // resolves as either a silently dropped mark or a `logo_not_supported` refusal, and the
+  // 2026-08-13 baseline traced three of its five brand-brief failures to exactly that
+  // (benchmarks/lite/BRAND-BASELINE-2026-08-13.md). `fits` is measured slot geometry, so a
+  // request that knows its mark's shape narrows to the slots that hold that shape, while an
+  // older client sending only `hasLogo` narrows on the slot's existence alone.
+  //
+  // The mark filter comes BEFORE the capacity filter, and outranks it on conflict: a line
+  // count out of range CLAMPS at compile, but a mark with no slot has no repair. Degrades
+  // rather than empties, like every band here - an empty mark pool is a catalog defect (the
+  // `no mark shape servable by only one chassis` pin guards it), and stranding the request on
+  // it would refuse work the semantic mark repair can still save.
+  const markShape = request.mark?.shape ?? null;
+  const carriesMark = Boolean(request.hasLogo || request.mark);
+  const markPool = carriesMark
+    ? categoryPool.filter((entry) => {
+        if (!entry.logo || !entry.logoSlot) return false;
+        return !markShape || entry.logoSlot.fits.includes(markShape);
+      })
     : categoryPool;
-  const pool = capacityPool.length ? capacityPool : categoryPool;
+  const markNarrowed = carriesMark && markPool.length > 0;
+  const slotPool = markPool.length ? markPool : categoryPool;
+  const capacityPool = requestedFields
+    ? slotPool.filter((entry) => requestedFields >= entry.visibleFields.min && requestedFields <= entry.visibleFields.max)
+    : slotPool;
+  const pool = capacityPool.length ? capacityPool : slotPool;
   const terms = retrievalTerms(request);
   const relevance = (entry: LiteCatalogEntry): number => {
     const text = referenceText(entry);
@@ -613,6 +637,7 @@ export function retrieveLiteReferenceSet(
   return {
     entries,
     reason: `${entries.length} of ${pool.length} ${contract.id} references; ${terms.length} semantic terms`
+      + (markNarrowed ? `; mark-capable only${markShape ? ` (${markShape})` : ''}` : '')
       + (requestedFields ? `; ${requestedFields}-field capacity` : ''),
   };
 }

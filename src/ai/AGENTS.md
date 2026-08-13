@@ -265,7 +265,12 @@ mark cannot use that chassis at all. **The other half of the answer is the REQUE
 was a boolean, so the model knew a mark existed and nothing about it. `LiteGenerationRequest.mark`
 now carries shape, backing and ink, all measured in the browser by `assets/assetInfo.ts`
 `probeMark` and content-free by construction; `hasLogo` stays beside it because the quota check
-reads it and the request validator is a strict key allowlist. Design, findings and the catalog
+reads it and the request validator is a strict key allowlist. **Retrieval itself narrows a
+marked request to slot-carrying chassis** (`retrieveLiteReferenceSet`, and by shape when the
+descriptor names one) - the 2026-08-13 baseline traced three of five brand failures to slotless
+chassis being shown to marked requests after the semantic round added seven chassis without
+slots (`benchmarks/lite/BRAND-BASELINE-2026-08-13.md`; drawing their slots is
+`docs/AI_LITE_BRAND_PLAN.md` §3.6.2). Design, findings and the catalog
 work they bought: `docs/AI_LITE_PLAN.md` §7, `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
 
 **`zone` and `animation.presetId` stay in the schema although both decisions are dead.** The Lite spec

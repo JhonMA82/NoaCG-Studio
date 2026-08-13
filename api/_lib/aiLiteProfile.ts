@@ -76,6 +76,9 @@ export interface LiteProfile {
   gatewayProviders: string[];
   requireZdr: boolean;
   structuredMode: 'json-schema' | 'tool';
+  /** `off` switches a hybrid-inference route (Ling/Qwen family) to its non-thinking mode.
+   *  Unset sends nothing, so the incumbent's request body stays byte-identical. */
+  thinkingMode: 'default' | 'off';
   maxProviderCostUsd: number;
   dailySuccesses: number;
   monthlySuccesses: number;
@@ -245,6 +248,7 @@ export function liteProfile(): LiteProfile {
     structuredMode: process.env.AI_LITE_GATEWAY_STRUCTURED_MODE?.trim() === 'tool'
       ? 'tool'
       : 'json-schema',
+    thinkingMode: process.env.AI_LITE_GATEWAY_THINKING?.trim() === 'off' ? 'off' : 'default',
     maxProviderCostUsd: numberEnv('AI_LITE_MAX_COST_USD', 0.007, 0.0001, 0.1),
     dailySuccesses: intEnv('AI_LITE_DAILY_SUCCESSES', 3, 0, 1000),
     monthlySuccesses: intEnv('AI_LITE_MONTHLY_SUCCESSES', 20, 0, 10_000),
@@ -345,6 +349,7 @@ export function liteGatewayPolicy(profile: LiteProfile, routeValue: ModelRoute):
     sort: 'cost',
     tags: ['surface:lite'],
     structuredOutputMode: profile.structuredMode,
+    ...(profile.thinkingMode === 'off' ? { thinking: 'off' as const } : {}),
   };
 }
 

@@ -484,6 +484,7 @@ export const vercelGatewayAdapter: ProviderAdapter = {
       ...(request.expect === 'image' ? { modalities: ['image', 'text'] } : {}),
       ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
       ...(request.seed !== undefined ? { seed: request.seed } : {}),
+      ...(policy?.gateway?.thinking === 'off' ? { chat_template_kwargs: { enable_thinking: false } } : {}),
       ...(request.structuredOutput
         ? structuredMode === 'tool'
           ? {
@@ -940,6 +941,13 @@ export interface GatewayRoutingPolicy {
    *  is queryable per surface. */
   tags?: string[];
   structuredOutputMode?: 'json-schema' | 'tool';
+  /** Switch a hybrid-inference model (Ling/Qwen family) to its non-thinking mode via the
+   *  chat template. Off by default and OMITTED unless set: the field is model-family
+   *  specific, and a route that never heard of it must receive a byte-identical body.
+   *  Measured 2026-08-12 on `inclusionai/ling-3.0-tiny-free`: thinking mode spent the whole
+   *  1,500-token Lite budget reasoning (finish_reason `length`, then a 90s timeout at 32k),
+   *  while `chat_template_kwargs: { enable_thinking: false }` answered in 18 tokens. */
+  thinking?: 'off';
 }
 
 export interface GatewayExecutionPolicy {
