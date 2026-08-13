@@ -26,6 +26,12 @@
 //
 // scripts/pro-spike.mjs imports `auditTemplateCode` and records the same numbers per record
 // at capture time, so the ledger carries them and key.html can show them.
+//
+// ONE NUMBER IS NOT COMPUTABLE HERE and the file says so rather than approximating it: whether
+// the ANIMATION region is an EDITABLE timeline is `parseAnimData`'s answer, and this script has
+// no TypeScript runtime. The runner passes the parser's verdict in (`regionParses`); the
+// standalone CLI reports it as `unknown`. The first version guessed with a regex and got the
+// round's headline comparison wrong in the flattering direction - see `region.converted`.
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -69,8 +75,12 @@ function lineOf(text, index) {
 /**
  * Audit one generation's three files. Pure and dependency-free, so the browser-side runner
  * evaluation could load it too if it ever needs to; today only the node runner calls it.
+ *
+ * `regionParses` is the ONE answer this file cannot compute: whether `parseAnimData` accepts
+ * the ANIMATION region. The runner evaluates the real parser in the page and passes the
+ * verdict in; omit it and `region.converted` reports `null` instead of a guess.
  */
-export function auditTemplateCode({ html, css, js }) {
+export function auditTemplateCode({ html, css, js, regionParses }) {
   const cssClean = stripCssComments(css);
   const roots = rootBlocks(cssClean);
 
@@ -117,8 +127,25 @@ export function auditTemplateCode({ html, css, js }) {
     markers: /\/\* == ANIMATION\b/.test(js) && /== END ANIMATION == \*\//.test(js),
     buildIn: /function\s+buildInTimeline\s*\(/.test(js) || /NOACG_ANIM/.test(js),
     buildOut: /function\s+buildOutTimeline\s*\(/.test(js) || /NOACG_ANIM/.test(js),
-    /** The region converted to the NOACG_ANIM data block (visual-timeline editable). */
-    converted: /NOACG_ANIM/.test(js),
+    /** A `var NOACG_ANIM` declaration is PRESENT in the text. Not the same as editable. */
+    hasAnimBlock: /NOACG_ANIM/.test(js),
+    /**
+     * THE TIMELINE IS ACTUALLY EDITABLE - `parseAnimData` accepted the block.
+     *
+     * This used to be the regex above, and the regex was wrong in the one direction that
+     * mattered. On the 2026-08-13 brand round it called 10 of the 18 no-exemplar results
+     * "converted" while the validator demoted every one of them to a read-only timeline: the
+     * models wrote a block SHAPED like NOACG_ANIM that the parser rejects, and
+     * `convertEmittedRegion` leaves such an emit alone (its own parse fails, so it restores
+     * the model's code verbatim - text present, nothing editable). Re-parsed against the real
+     * parser, the arms are 12/12 editable and 0/18, agreeing with the demotion on 30 of 30.
+     *
+     * A regex cannot answer this - it is the parser's question - so the audit no longer
+     * guesses: the caller that has a DOM supplies the verdict, and the standalone CLI reports
+     * `null` rather than a number that reads as measured. `null` is not a failure; it is the
+     * honest answer when nothing parsed the region.
+     */
+    converted: typeof regionParses === 'boolean' ? regionParses : null,
   };
   region.ok = region.markers && region.buildIn && region.buildOut;
 
@@ -164,8 +191,12 @@ export function auditSummaryLine(audit) {
   const spine = audit.spine.ok ? 'ok' : 'BROKEN';
   const region = audit.region.ok ? 'ok' : 'MISSING';
   const vars = audit.missingRootVars.length ? `missing ${audit.missingRootVars.join(',')}` : 'ok';
+  // Said separately from `region`, because they are different questions and reading one as the
+  // other is what made the no-exemplar arm look half-editable when none of it was.
+  const timeline = audit.region.converted === null ? 'unknown'
+    : audit.region.converted ? 'editable' : 'READ-ONLY';
   return `colors:${audit.hardcodedColors}${audit.houseAmberSurvives ? ' +HOUSE-AMBER' : ''}`
-    + ` px:${audit.rawPx} vars:${vars} spine:${spine} region:${region}`
+    + ` px:${audit.rawPx} vars:${vars} spine:${spine} region:${region} timeline:${timeline}`
     + ` es5-drift:${audit.es5Drift.total} comments:${Math.round(audit.commentRatio * 100)}%`;
 }
 

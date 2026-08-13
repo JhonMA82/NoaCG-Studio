@@ -963,10 +963,25 @@ if (paid) {
       // The code axis (docs/NOACG_PRO_PLAN.md §14 item 0a): measured at capture time so the
       // ledger carries it; scripts/spike-code-audit.mjs re-derives the same numbers from the
       // saved files for free after the fact.
+      //
+      // The timeline verdict comes from the REAL parser, evaluated in the page - the audit
+      // script cannot load TypeScript, and its regex stand-in read a NOACG_ANIM-shaped block
+      // the parser rejects as a converted timeline. That is the same class of error as a gate
+      // measuring a smaller question than the round: it counted 10 read-only results as
+      // editable, on the exact axis the exemplar ablation is meant to decide.
+      const regionParses = await page.evaluate(async (js) => {
+        const { parseAnimData } = await import('/src/blocks/animData.ts?t=' + Date.now());
+        try {
+          return Boolean(parseAnimData(js));
+        } catch {
+          return false;
+        }
+      }, outcome.template.js);
       const codeAudit = auditTemplateCode({
         html: outcome.template.html,
         css: outcome.template.css,
         js: outcome.template.js,
+        regionParses,
       });
 
       // A capture failure is a RESULT, never a round-ender: the generation is already paid for

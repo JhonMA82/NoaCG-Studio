@@ -78,6 +78,20 @@ arm 18/18 read-only.** The exemplar block's ~34,500 tokens buy the CONVERTIBLE a
 falsification worth trying before Phase 3 leans on retrieval: teach the grammar-conformance
 lesson without three complete designs and see if conversion holds.
 
+**The 12/12-vs-0/18 claim is confirmed, and the ledger field that looked like it disagreed was
+the broken one (2026-08-13, free).** `codeAudit.region.converted` called 10 of the 18
+no-exemplar results converted while the validator demoted every one to a read-only timeline.
+Re-parsing all 30 saved templates with the real `parseAnimData` settles it: 12/12 and 0/18,
+agreeing with the demotion on 30 of 30. The audit field was a REGEX for the string `NOACG_ANIM`
+- and what those ten models did is write a block SHAPED like the data block that the parser
+rejects, which `convertEmittedRegion` cannot rescue (its own parse fails, so it restores the
+model's code verbatim: text present, nothing editable). That is a sharper finding than "they do
+not know the grammar" - unprompted, the model imitates the OUTPUT form it can see in the
+contract's name instead of writing the authoring GSAP the prompt asks for, so the ablation's
+lesson should forbid hand-writing `NOACG_ANIM` as explicitly as it teaches the builders. The
+audit now takes the parser's verdict from the page and reports `null` where nothing parsed it;
+a regex may not answer a parser's question.
+
 **Divergence: no four-tints failure.** Same brief under four brands produced genuinely different
 designs (`divergence.html`). The round's only NOT-ACCEPTABLE results are world-crossed pairings
 (`entertainment` under the sport and institutional brands) - brand-brief coherence degrades
