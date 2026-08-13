@@ -1099,6 +1099,12 @@ if (paid) {
           : record.markReport.findings.length ? record.markReport.findings.join(', ') : 'CLEAN'}`
           + `${outcome.fill?.hadOwnSrc ? ' · MODEL WROTE ITS OWN src (repaired)' : ''}`
           + `${record.markMotion ? ` · entrance ${record.markMotion.entranceAnimated ? 'animated' : 'STATIC'}` : ''}`);
+        // Whether the design's OWN panel carries this mark's ink, decided deterministically
+        // from the mark's probe and the design's declared --panel-bg. It is the question the
+        // surface argument turns on, and until this round nothing measured it.
+        if (outcome.fill?.surface) {
+          console.log(`    surface: ${outcome.fill.surface.surface} - ${outcome.fill.surface.reason}`);
+        }
         console.log(`    code: ${auditSummaryLine(codeAudit)}`);
         if (record.axisReport && (record.axisReport.nearMisses.length || record.axisReport.skewStraddles.length)) {
           console.log(`    axis: ${record.axisReport.nearMisses.length} near-miss(es),`
@@ -1374,7 +1380,11 @@ function markCell(r) {
     ? `<br><small>entrance ${r.markMotion.entranceAnimated ? 'animated' : 'STATIC'}, exit ${
       r.markMotion.exitAnimated ? 'animated' : 'STATIC'}</small>` : '';
   const src = r.fill?.hadOwnSrc ? '<br><small>model wrote its own src (repaired)</small>' : '';
-  return `${gate}${motion}${src}`;
+  // The platform's read of whether the design's own panel carries this mark's ink.
+  const surface = r.fill?.surface
+    ? `<br><small>panel: ${r.fill.surface.surface === 'none' ? 'carries the mark' : `needs a ${r.fill.surface.surface}`}</small>`
+    : '';
+  return `${gate}${motion}${src}${surface}`;
 }
 
 function axisCell(r) {

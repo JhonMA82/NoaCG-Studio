@@ -164,6 +164,127 @@ export interface BrandFillReport {
   /** `has-image` was stamped on the root and the box as well as wherever the runtime puts it
    *  (see the fill below). Null when no prefix could be read off the markup. */
   stampedHasImage?: boolean;
+  /** What the platform decided the mark's ink should sit on, and why. */
+  surface?: MarkSurfaceDecision;
+}
+
+// ── THE MARK'S SURFACE IS THE PLATFORM'S (owner decision, 2026-08-13) ───────────────────
+//
+// Teaching the model to draw a good surface was written twice and measured once, and it moved
+// the defect by nothing: 9/18 boxed untaught against 8/12 taught (docs/AI_ATTEMPTS.md). So the
+// surface stops being a thing a model can get wrong. This is the same split Lite already ships
+// and the same one the rest of this contract follows - the design declares the SLOT, the
+// platform decides what goes under it, the model never draws it - mapped onto authored
+// graphics: the model owns WHERE the mark sits and HOW BIG it is, because those are
+// composition; the platform owns what its ink reads against, because that is legibility.
+//
+// The decision is deterministic and needs no rendering, which is what lets it run inside the
+// fill (the ground step) rather than after a capture:
+//
+//   * an OWN-FIELD mark brings its own background and never needs one;
+//   * a TRANSPARENT mark is compared against the panel the design DECLARES (`--panel-bg` in
+//     its own `:root`), and a pair that already clears WCAG's 3:1 non-text floor is left alone
+//     - a surface nothing needs is furniture;
+//   * otherwise the platform draws a FIELD.
+//
+// The honest limit, stated rather than hidden: `--panel-bg` is what the design says its panel
+// is, not necessarily what the mark lands on - a slot placed outside the box sits on the
+// footage. When the token cannot be read the platform draws nothing and lets the rendered gate
+// report `ink-contrast`, because adding furniture on a guess is a visible defect and a missed
+// contrast finding is a reported one.
+
+export type MarkSurface = 'none' | 'light-field' | 'dark-field';
+
+export interface MarkSurfaceDecision {
+  surface: MarkSurface;
+  /** Why, in the vocabulary the ledger and the key print. */
+  reason: string;
+  /** The declared panel's contrast against the mark's ink, when both were readable. */
+  contrast?: number;
+}
+
+/** The two neutrals, fixed rather than derived from the brand palette - exactly the reasoning
+ *  `templates/shared/logoSlot.ts` `plateCss` already carries: the field exists BECAUSE the
+ *  design's own surface is the wrong tone, so deriving it from that design is how it comes out
+ *  wrong again. Both clear 3:1 against a pure white and a pure black mark with room to spare. */
+export const MARK_FIELD_LIGHT = '#f2f4f7';
+export const MARK_FIELD_DARK = '#12161c';
+
+function contrastRatio(a: number, b: number): number {
+  const [hi, lo] = a >= b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function hexLuminance(hex: string): number {
+  const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
+  return relativeLuminance([
+    parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16),
+  ]);
+}
+
+/**
+ * The WORST contrast the mark's ink gets against the panel the design declares - or null when
+ * the declaration carries no colour at all (a bare `var()` chain).
+ *
+ * Two things this has to handle, because both are what designs actually write and the first
+ * version of this gave up on both, leaving the whole mechanism inert on 11 of 15 generations:
+ *
+ *   * TRANSLUCENCY. `rgba(11, 14, 17, 0.92)` is a panel, not an unknown - the footage under it
+ *     contributes 8%. So the tone is composited over the two extremes a broadcast background
+ *     can be (black and white) and the WORSE result is used. Compositing in luminance rather
+ *     than per channel is an approximation, and an acceptable one for a threshold this far from
+ *     the boundary in every real case.
+ *   * GRADIENTS. `linear-gradient(90deg, #FFC838, #FF7A1A)` is two tones, and a mark has to read
+ *     on both, so every colour token in the declaration is evaluated and the worst wins.
+ */
+function worstPanelContrast(css: string, inkLuminance: number): number | null {
+  const declared = css.match(/--panel-bg\s*:\s*([^;}]+)/)?.[1]?.trim();
+  if (!declared) return null;
+  const tones: { luminance: number; alpha: number }[] = [];
+  for (const m of declared.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6})\b/gi)) {
+    tones.push({ luminance: hexLuminance(m[1]), alpha: 1 });
+  }
+  for (const m of declared.matchAll(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/gi)) {
+    const parsed = parseColor(m[0]);
+    if (parsed) tones.push({ luminance: relativeLuminance(parsed.rgb), alpha: parsed.alpha });
+  }
+  if (!tones.length) return null;
+  let worst = Infinity;
+  for (const tone of tones) {
+    for (const backdrop of [0, 1]) {
+      const composited = tone.alpha * tone.luminance + (1 - tone.alpha) * backdrop;
+      worst = Math.min(worst, contrastRatio(inkLuminance, composited));
+    }
+  }
+  return worst;
+}
+
+export function decideMarkSurface(css: string, probe: MarkProbe): MarkSurfaceDecision {
+  if (probe.backing === 'own-field') {
+    return { surface: 'none', reason: 'the mark brings its own field' };
+  }
+  const panel = worstPanelContrast(css, probe.inkLuminance);
+  if (panel === null) {
+    return { surface: 'none', reason: 'the design declares no readable --panel-bg - the rendered gate reports the contrast' };
+  }
+  if (panel >= MARK_INK_CONTRAST_FLOOR) {
+    return { surface: 'none', reason: `the declared panel already reads at ${panel.toFixed(2)}:1`, contrast: panel };
+  }
+  // WHICH neutral is COMPUTED, never assumed from whether the ink is "light" or "dark". A
+  // mid-tone mark is the case that breaks the assumption: the sunbeam roundel sits at 0.49, so
+  // an ink<0.5 rule would hand it the light field it reads on at 1.8:1 instead of the dark one
+  // it reads on at 9.4:1. Both are measured and the better one wins.
+  const light = contrastRatio(probe.inkLuminance, hexLuminance(MARK_FIELD_LIGHT.slice(1)));
+  const dark = contrastRatio(probe.inkLuminance, hexLuminance(MARK_FIELD_DARK.slice(1)));
+  const surface: Exclude<MarkSurface, 'none'> = light >= dark ? 'light-field' : 'dark-field';
+  const achieved = Math.max(light, dark);
+  // An honest failure beats a silent one: if neither neutral clears the floor the field still
+  // goes on (it is the best surface available) and the reason says the floor was not reached,
+  // so the round can see a mark no fixed neutral can carry.
+  const reason = achieved >= MARK_INK_CONTRAST_FLOOR
+    ? `the declared panel reads at ${panel.toFixed(2)}:1, under the ${MARK_INK_CONTRAST_FLOOR}:1 floor - the field reads at ${achieved.toFixed(2)}:1`
+    : `the declared panel reads at ${panel.toFixed(2)}:1 and NEITHER neutral clears the floor (best ${achieved.toFixed(2)}:1) - this mark needs a brand decision`;
+  return { surface, reason, contrast: panel };
 }
 
 /**
@@ -202,6 +323,8 @@ export function fillBrandMark(
 
   const stamped = stampHasImage(html);
   html = stamped.html;
+
+  const surface = decideMarkSurface(template.css, brand.mark.probe);
   const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`;
 
   return {
@@ -212,9 +335,40 @@ export function fillBrandMark(
       fields,
       assets: [...template.assets, { path, data: brand.mark.dataUrl }],
     },
-    fill: { slotFieldId: slot.field, path, hadOwnSrc, stampedHasImage: stamped.stamped },
+    fill: { slotFieldId: slot.field, path, hadOwnSrc, stampedHasImage: stamped.stamped, surface },
   };
 }
+
+/*
+ * WHY THE DECISION SHIPS AND THE DRAWING DOES NOT (2026-08-13, measured twice).
+ *
+ * Deciding the surface needs nothing from the design's layout, so it is deterministic and it
+ * is above. DRAWING one needs the design's layout to hold still, and it does not:
+ *
+ *   1. A wrapper with `align-self: stretch` and padding. The property computed to `stretch` on
+ *      all three generations that needed a field and the USED height stayed the mark's own -
+ *      the slot sits inside the design's own flex container and the mark's `height: 100%`
+ *      makes the cross size circular. So the field came out hugging the mark, which is the
+ *      defect it exists to remove, and its padding ate 24px of the mark on the way (two marks
+ *      dropped under the minimum legible size).
+ *   2. A `display: contents` wrapper painting the band from a bleeding `::before`. The mark
+ *      kept its exact size, and the band landed in the wrong place entirely - with no box of
+ *      its own the pseudo-element resolves against whatever ancestor happens to be positioned,
+ *      so it painted a slab across the middle of the panel, over the text. And the rendered
+ *      gate cannot see a pseudo-element at all: it walks real ancestors for a painted
+ *      background, so even a correct band would have reported `ink-contrast` as a failure.
+ *
+ * The lesson both attempts teach is the same one, and it is about the SPLIT rather than the
+ * CSS: a surface can only be "a band of the composition" if the platform knows the
+ * composition. Lite can draw one because Lite owns the placement too - `applyLogoSlot` puts
+ * the mark in a grid column of the box it controls. Taking the surface while leaving placement
+ * to the model asks the platform to draw a shape inside a layout it has never seen.
+ *
+ * So the honest structural version is the fuller one: the platform owns the mark's PLACEMENT
+ * as well as its surface. That is a bigger change than a fill-time CSS append and it takes
+ * composition back from the model, which is a product decision rather than an implementation
+ * one - docs/NOACG_PRO_PLAN.md §14 item 1 carries it.
+ */
 
 /**
  * THE FILLED MARK PAINTS. That is the contract, and this is the line that makes it true
@@ -265,9 +419,9 @@ function filledMarkVisibilityCss(fieldId: string): string {
  * outranks any stylesheet reveal. The violation is still recorded: `hadOwnSrc` has a sibling
  * now, and a design needing the stamp is a design whose own selector was wrong.
  */
-function stampHasImage(html: string): { html: string; stamped: boolean } {
-  const prefix = html.match(/<div\s+class="([a-z][\w-]*)-box[\s"]/)?.[1];
-  if (!prefix) return { html, stamped: false };
+function stampHasImage(html: string): { html: string; stamped: boolean; prefix: string | null } {
+  const prefix = html.match(/<div\s+class="([a-z][\w-]*)-box[\s"]/)?.[1] ?? null;
+  if (!prefix) return { html, stamped: false, prefix };
   let out = html.replace(
     new RegExp(`<div\\s+class="${prefix}(?=["\\s])([^"]*)"`),
     (tag, rest: string) => (/\bhas-image\b/.test(rest) ? tag : `<div class="${prefix}${rest} has-image"`),
@@ -276,7 +430,7 @@ function stampHasImage(html: string): { html: string; stamped: boolean } {
     new RegExp(`<div\\s+class="${prefix}-box(?=["\\s])([^"]*)"`),
     (tag, rest: string) => (/\bhas-image\b/.test(rest) ? tag : `<div class="${prefix}-box${rest} has-image"`),
   );
-  return { html: out, stamped: out !== html };
+  return { html: out, stamped: out !== html, prefix };
 }
 
 // ── The rendered GATE ──────────────────────────────────────────────────────────────────

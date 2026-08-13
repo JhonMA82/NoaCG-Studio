@@ -1026,6 +1026,32 @@ this round, and one decision it should make early:
    a mark-fill control (`control-mark`: the kestrel wordmark filled into lt11's shared band and
    measured CLEAN). The paid round itself still needs the owner's explicit OK with a stated cap.
 
+   **THE SURFACE HALF, ATTEMPTED STRUCTURALLY (owner decision 2026-08-13: "take it structurally
+   like Lite"). The DECISION shipped; the DRAWING is blocked on placement, which is a product
+   call.** `decideMarkSurface` now answers, deterministically and with no rendering, whether the
+   design's own panel carries this mark's ink: an own-field mark never needs a surface, and a
+   transparent one is compared against the design's declared `--panel-bg` - composited over black
+   AND white where the panel is translucent, evaluated at every stop where it is a gradient, worst
+   case wins. Which neutral a field would use is computed rather than assumed from "light ink" or
+   "dark ink", because the mid-tone case breaks that assumption (the sunbeam roundel at 0.49 reads
+   at 1.8:1 on the light neutral and 9.4:1 on the dark one). Measured over the ablation round's 15
+   generations it fires on exactly the three the rendered gate flags for `ink-contrast` - the
+   measurement and the need agree, and every record now carries the answer.
+   **DRAWING the field failed twice, and both failures say the same thing.** A wrapper using
+   `align-self: stretch` computed to `stretch` and was used at the mark's own height (the slot
+   sits in the design's own flex container and the mark's `height: 100%` makes the cross size
+   circular), so it hugged the mark - the defect it exists to remove - and its padding took two
+   marks under the minimum legible size. A `display: contents` wrapper painting a bleeding
+   `::before` kept every mark's size exactly and painted the band across the middle of the panel,
+   over the text, because a pseudo-element with no box of its own resolves against whatever
+   ancestor happens to be positioned; the rendered gate cannot see a pseudo-element either.
+   **A surface can only be "a band of the composition" if the platform knows the composition.**
+   Lite draws one because Lite owns PLACEMENT too - `applyLogoSlot` puts the mark in a grid column
+   of a box it controls. Taking the surface while leaving placement to the model asks the platform
+   to draw a shape inside a layout it has never seen. So the real structural version is the fuller
+   one - the platform owns where the mark sits as well as what it sits on - and that takes
+   composition back from the model, which is a product decision, not an implementation detail.
+
    **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
    Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
    `has-image` on the root and the box and appends a scoped display rule, after 5 of 12 marks in

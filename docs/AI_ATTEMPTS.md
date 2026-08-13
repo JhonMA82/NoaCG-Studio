@@ -140,11 +140,28 @@ The rate looked like it had improved (5/12) only because five marks were invisib
 invisible mark cannot be flagged for its surface.
 
 So the teaching has now been written twice and measured once, and prose is not what is missing.
-The next move is a DESIGN decision rather than another sentence: either the check keeps
-reporting and the surface stays a human read (it already never gates), or the platform takes
-the surface the way Lite does - the design declares the slot, the compiler decides what it sits
-on, the model never draws it. That is the doctrine the rest of the mark contract already
-follows, and it is the only version that cannot be got wrong.
+
+**TAKING IT STRUCTURALLY WAS TRIED (owner decision, same day): the DECISION shipped, the
+DRAWING did not, and the reason is the interesting part.** Deciding whether a mark needs a
+surface turns out to need nothing from the design - `decideMarkSurface` compares the mark's
+probed ink against the design's declared `--panel-bg`, compositing a translucent panel over
+black AND white and evaluating every stop of a gradient, worst case wins; which neutral a field
+would use is computed rather than assumed, because a mid-tone mark breaks the "light ink wants a
+dark field" rule (the sunbeam roundel reads 1.8:1 on the light neutral and 9.4:1 on the dark).
+Over the ablation's 15 generations it fires on exactly the three the rendered gate flags for
+`ink-contrast`. **Drawing the field failed twice**: a wrapper with `align-self: stretch` was used
+at the mark's own height (the slot sits in the design's own flex container and the mark's
+`height: 100%` makes the cross size circular), so it hugged the mark and its padding took two
+marks under the minimum legible size; a `display: contents` wrapper with a bleeding `::before`
+preserved every mark's size and painted the band across the middle of the panel over the text,
+because a pseudo-element with no box of its own resolves against whatever ancestor happens to be
+positioned - and the rendered gate cannot see a pseudo-element in the first place.
+**The transferable rule: a surface can only be "a band of the composition" if the platform knows
+the composition.** Lite can draw one because Lite owns PLACEMENT too. Taking the surface while
+leaving placement to the model asks the platform to draw a shape inside a layout it has never
+seen, which is why the same mistake produced two different-looking failures. The fuller version -
+the platform owns where the mark sits as well as what it sits on - takes composition back from
+the model and is a product decision rather than an implementation one.
 
 **AND THE MARKS WERE NOT EVEN PAINTING - 5 of 12, now repaired (free).** Every one the same
 construction: the design hid its own `<img>` "until an image is provided" and wrote a second
