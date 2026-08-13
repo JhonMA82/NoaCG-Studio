@@ -207,7 +207,28 @@ an anchor is hand-authored, and neither is a thing to infer from a stylesheet. R
 the same saved generations with the guard fixed: 11/11 placed, 8 clean, contrast failures 1 → 0,
 and the mark still hides when the field is cleared on all 11.
 
-**THE SEATED ROUND IS VOID, AND IT COST $0.25 TO LEARN THE OLDEST LESSON HERE AGAIN** (archive
+**THE MARK CONTRACT MEASURED WHOLE, ON FRESH GENERATIONS (2026-08-13, $0.083 of a $0.35 cap;
+archive `pro-seated-round-qwen3-coder-2026-08-13`).** 12 of 12 captured, 12 of 12 contract-clean,
+12 of 12 seated by the platform. The three grammar-arm rounds, same 12 briefs, same brands, same
+pinned decoding and checkpoint throughout:
+
+| | clean marks | never painted | box-well | contrast fail | cost |
+| --- | --- | --- | --- | --- | --- |
+| no teaching, no seat | 2/12 | 5 | 5 | 2 | $0.215 |
+| teaching only | 8/11 | 0 | 1 | 1 | $0.145 |
+| **teaching + platform seat** | **10/12** | **0** | **2** | **0** | **$0.083** |
+
+Cheaper as well as better, and for a reason worth keeping: the void round below spent three
+times as much because it burned two repair rounds on every brief fighting a definition it had
+itself deleted. **A harness bug is not only a wrong measurement, it is a bill.**
+
+The two residual box-wells are the honest floor already described - a panel barely taller than
+its mark leaves a full-height column and a mark-sized box the same rectangle. **What the round
+does NOT change: editable timelines are 0/12**, exactly where the grammar arm has always sat
+(1/12, 1/11). Seating a mark was never going to buy a convertible region, and the exemplar
+ablation above already said what does.
+
+**THE SEATED ROUND BEFORE IT IS VOID, AND IT COST $0.25 TO LEARN THE OLDEST LESSON HERE AGAIN** (archive
 `pro-seated-round-VOID-definition-lost-2026-08-13`). The first round with placement actually
 live captured 12 of 12, seated 12 of 12, and produced the best mark findings of any round -
 11/12 CLEAN - **on twelve templates that were all invalid.** The move serialized the document's

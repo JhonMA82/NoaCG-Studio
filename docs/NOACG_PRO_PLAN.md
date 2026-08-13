@@ -1059,6 +1059,14 @@ this round, and one decision it should make early:
    composition leads with the mark or leans on the text, the panel's air, what the mark sits
    beside. What is now ours: the seat and what its ink reads against.
 
+   **MEASURED WHOLE ON FRESH GENERATIONS, 2026-08-13 ($0.083, archive
+   `pro-seated-round-qwen3-coder-2026-08-13`): 12/12 captured, 12/12 contract-clean, 12/12 seated,
+   10/12 marks CLEAN, none unpainted, no contrast failures.** Across the three grammar-arm rounds
+   on the same briefs and brands: clean marks 2/12 → 8/11 (teaching) → 10/12 (teaching + seat),
+   unpainted 5 → 0, contrast failures 2 → 0. Item 1 is closed; the mark contract is a contract
+   rather than an instruction. Editable timelines stayed 0/12, which is the grammar arm's own
+   number and the exemplar ablation's business, not this one's.
+
    **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
    Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
    `has-image` on the root and the box and appends a scoped display rule, after 5 of 12 marks in
