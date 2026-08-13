@@ -209,7 +209,12 @@ const SEATED_CONTROL_CSS = `:root {
   position: absolute;
   left: calc(160px * var(--scale));
   bottom: calc(160px * var(--scale));
-  opacity: 0;
+  /* VISIBLE, unlike a real template, because this control carries no template.js and so has no
+     play() to reveal it. The first version copied the house opacity:0 and the owner's blind
+     read caught it in one line - "has nothing in it, it's empty fields". It also exposed a real
+     gap in the gate beside it: measureRenderedMark tests the img's OWN opacity, so this mark
+     measured CLEAN at 260x62 inside a root nobody could see. */
+  opacity: 1;
 }
 .seated-control-box {
   display: flex;

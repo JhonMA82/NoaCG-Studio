@@ -180,9 +180,13 @@ unrelated things more - proximity is what says "these belong together". Clear sp
 brand mark is non-negotiable and is usually specified by the brand itself (we use a quarter of
 the mark's height). When a layout is crowded the answer is less content, not less air.
 
-**Testable:** yes, and mostly built - clear space around marks is measured today. Panel padding
-and inter-element gaps as ratios of type size are the obvious next gate, and they are exactly
-what "how much padding and margin should the text and the banner have" is asking for.
+**Testable: BUILT** - `src/ai/spike/spacingCheck.ts`, calibrated by
+`scripts/spike-spacing-calibrate.mjs` over the 90 catalog lower thirds. Panel padding, gaps
+between stacked lines, gaps between text and the design's own rules, and the mark's clear space,
+all as ratios of type size. **1/90 catalog base rate**, and it catches three of the four spacing
+complaints in the owner's blind notes - including the one they asked for by name ("too much
+space beneath" fires as `padding-lopsided` on exactly that item). See the calibration notes at
+the end of this file for what it deliberately does not measure.
 
 ## 10. Movement
 
@@ -235,6 +239,31 @@ If you can only hold four: **hierarchy** decides what is read first, **proportio
 big it is relative to everything else, **white space** decides whether it can breathe, and
 **unity** decides whether it lines up with anything. Those four are where every failed review
 item in this project has landed. Contrast keeps it legible. The rest are refinements on top.
+
+## What the spacing gate learned from the catalog (2026-08-13)
+
+The first version of `spacingCheck.ts` flagged 5 of 90 shipped designs. Every one was the
+instrument being wrong, and each correction is a rule worth keeping:
+
+- **A band's unused side is not padding.** `lt55` and `ls15` carry a fixed-width strap with
+  left-aligned text, so their right "padding" is ~6.8 type sizes of empty band - read as a 10x
+  imbalance. Horizontal balance is only a spacing question when the panel HUGS its content;
+  otherwise the width was chosen. Vertical balance is always fair game, and that is where the
+  owner's complaint actually lives.
+- **Touching text boxes are ordinary typography.** `lt12` and `lt06` ship with adjacent lines at
+  exactly 0 gap, because line-height supplies the leading INSIDE each box. A floor above zero
+  fails correct designs; only a real overlap is a defect. The ratio is still reported.
+- **Touching is not overlapping.** `lt39` bolts its name to a solid accent block on purpose. A
+  zero distance is contact; overlap has to be a measured intersection on both axes.
+- **The "line" in the owner's notes is the accent rule, not a sibling text line.** The first
+  version only ever paired text with text and so could not have seen either of the two
+  complaints it was built for. Text-versus-rule is the measurement that matters.
+
+And what it will not chase: B-19's "maybe a bit too much space between the logo and the text"
+measures 0.91 mark-heights - **identical to three items the same reviewer praised**. Same
+geometry, opposite verdicts. Tightening the ceiling to catch it would flag all three, so the
+instrument stays quiet and the judgement stays human. That is the same honest limit the
+bounding-box-well check carries, and it is the boundary between principles 2 and 4 above.
 
 Sources for the general principles, kept so the vocabulary is not invented here:
 [Toptal, The 12 Principles of Design](https://www.toptal.com/designers/ui/principles-of-design),

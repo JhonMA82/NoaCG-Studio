@@ -352,10 +352,14 @@ async function captureHold(item, measure = false) {
     const bust = '?t=' + Date.now();
     const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
+    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
     return {
       axis: measureAxes(doc),
+      // Padding and gaps as ratios of type size - the other half of what the owner's blind
+      // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
+      spacing: measureSpacing(doc, { markFieldId: markFieldId ?? null }),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
   }, { markFieldId: item.markFieldId ?? null, markProbe: item.markProbe ?? null });
@@ -734,6 +738,7 @@ async function captureSet(item) {
     stressHold,
     ...(playError ? { playError } : {}),
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
+    ...(measured?.spacing ? { spacingReport: measured.spacing } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
   };
@@ -1392,6 +1397,21 @@ function markCell(r) {
   return `${gate}${motion}${src}${surface}`;
 }
 
+/** Padding and gap findings, with the ratios that produced them (docs/DESIGN_PRINCIPLES.md). */
+function spacingCell(r) {
+  const s = r.spacingReport;
+  if (!s) return '-';
+  const pad = s.padding
+    ? `<small>pad ${s.padding.top}/${s.padding.right}/${s.padding.bottom}/${s.padding.left}</small>`
+    : '<small>no panel</small>';
+  const gaps = s.lineGaps?.length ? `<br><small>gaps ${s.lineGaps.join(', ')}</small>` : '';
+  const mark = typeof s.markGap === 'number' ? `<br><small>mark ${s.markGap}</small>` : '';
+  const found = s.findings.length
+    ? `<br>${s.findings.map((f) => `<small>${f.code}</small>`).join('<br>')}`
+    : '<br><small>clean</small>';
+  return `${pad}${gaps}${mark}${found}`;
+}
+
 function axisCell(r) {
   if (!r.axisReport) return '-';
   const { nearMisses, skewStraddles } = r.axisReport;
@@ -1416,6 +1436,7 @@ function keyHtml(ledger) {
     : r.validation ? (r.validation.ok ? 'valid' : r.validation.errors.join('<br>')) : '-'}</td>
   <td>${markCell(r)}</td>
   <td>${axisCell(r)}</td>
+  <td>${spacingCell(r)}</td>
   <td>${r.codeAudit ? `<small>${auditSummaryLine(r.codeAudit)}</small>` : '-'}</td>
   <td>${r.repairRounds ?? '-'}</td>
   <td>${typeof r.costUsd === 'number' ? `$${r.costUsd.toFixed(4)}` : '-'}</td>
@@ -1429,7 +1450,7 @@ th{color:#9aa0ab;font-weight:600} small{color:#9aa0ab}</style>
 <p>Spent $${(ledger.spentUsd ?? 0).toFixed(4)}${ledger.maxCost ? ` of a $${ledger.maxCost.toFixed(2)} ceiling` : ''}.
 Decoding: temperature ${ledger.decoding.temperature}, seed ${ledger.decoding.seed}.</p>
 <table>
-<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>code</th><th>repairs</th><th>cost</th></tr>
+<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>spacing</th><th>code</th><th>repairs</th><th>cost</th></tr>
 ${rows}
 </table>`;
 }
