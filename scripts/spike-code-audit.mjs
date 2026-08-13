@@ -109,12 +109,24 @@ export function auditTemplateCode({ html, css, js, regionParses }) {
   const missingRootVars = REQUIRED_ROOT_VARS.filter((v) => !new RegExp(`${v}\\s*:`).test(cssClean));
 
   // The structure spine, off the emitted HTML (convertEmittedRegion's precondition).
-  const boxMatch = html.match(/<div\s+class="([a-z][\w-]*)-box"\s*>/i);
+  //
+  // `has-image` is allowed beside the box class because the PLATFORM puts it there - the shared
+  // runtime's setFieldValue toggles it and both the catalog's slot and the Pro fill bake it in.
+  // The house rule the "alone on the element" check exists to enforce is about a design inventing
+  // compound classes the editor cannot find, not about the platform's own marker: the real
+  // detector (`model/structure.ts` detectPrefix) parses the DOM and looks for any class ending
+  // in `-box`, and its own comment says the prefix is "a DOM fact, not a text pattern". This
+  // regex disagreeing with it read all 11 generations of the placement round as spine:BROKEN
+  // when nothing was broken - a measurement bug of exactly the shape `region.converted` was.
+  const boxMatch = html.match(/<div\s+class="([a-z][\w-]*)-box(?:\s+has-image)?"\s*>/i);
   const prefix = boxMatch?.[1] ?? null;
   const spine = {
     boxAloneOnElement: Boolean(boxMatch),
     prefix,
-    rootDiv: prefix ? new RegExp(`<div\\s+class="${prefix}"[\\s>]`).test(html) : false,
+    // Same `has-image` allowance as the box above: the platform stamps the class on the ROOT
+    // too, so a pattern demanding the quote immediately after the prefix reads a stamped root
+    // as a missing one.
+    rootDiv: prefix ? new RegExp(`<div\\s+class="${prefix}(?:\\s+has-image)?"[\\s>]`).test(html) : false,
     masks: prefix ? (html.match(new RegExp(`class="${prefix}-mask`, 'g')) ?? []).length : 0,
     accent: prefix ? html.includes(`${prefix}-accent`) : false,
   };

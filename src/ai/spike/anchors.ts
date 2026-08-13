@@ -129,7 +129,9 @@ export function markControlAnchor(brand: SpikeBrand): SpikeAnchor {
     ],
     logoEnabled: true,
   });
-  const { template, fill } = fillBrandMark(bare, brand);
+  // NOT placed by the platform: lt11 already carries the catalog's own shared slot, and this
+  // control exists to prove that slot still works. Two placement systems on one box collide.
+  const { template, fill } = fillBrandMark(bare, brand, { place: false });
   if (!fill.slotFieldId || !fill.path) {
     throw new Error('spike mark control: the shared logo slot was not found by the fill - the fill is broken');
   }

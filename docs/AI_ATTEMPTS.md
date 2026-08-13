@@ -185,6 +185,36 @@ mark-sized box are the same rectangle; `sports-live` reports a collision between
 and a SKEWED accent rule that visually passes between mark and text (the rect-vs-skew limit the
 axis instrument already documents).
 
+**AND THE FIRST GENERATIONS UNDER THE NEW CONTRACT (2026-08-13, $0.145 of a $0.30 cap, archive
+`pro-placement-round-qwen3-coder-2026-08-13`; 11 of 12 captured, one lost to the output-token
+ceiling). Clean marks 2/12 → 8/11, dead marks 5 → 0.** Same 12 briefs, brands, decoding and
+checkpoint as the ablation's grammar arm, so the comparison is like-for-like.
+
+**And it inverts the "teaching does not work" finding - because it is a different teaching.** The
+one that failed asked the model to DRAW a good surface (a judgement); this one tells it not to
+draw one at all and that the seat belongs to the platform (a boundary). A rule that removes a
+decision lands where a rule that refines one did not. **What it does not do is make the outcome
+independent of the model:** 8 of 11 complied, and compliance is what placement exists to stop
+depending on.
+
+**The round did not actually exercise placement, and the reason is worth more than the round
+was.** The guard meant to spare hand-authored CATALOG designs sniffed the CSS for
+`.{prefix}-box.has-image` - and every one of the 11 generated designs writes that rule, because
+reacting to the mark's presence is ordinary CSS. So the guard matched 11 of 11 and the platform
+placed nothing, in the round run to measure placing. Whether the platform owns a design's
+placement is now the CALLER's answer (`fillBrandMark(..., { place })`): a candidate is generated,
+an anchor is hand-authored, and neither is a thing to infer from a stylesheet. Re-measured over
+the same saved generations with the guard fixed: 11/11 placed, 8 clean, contrast failures 1 → 0,
+and the mark still hides when the field is cleared on all 11.
+
+**A third measurement bug of the same shape, caught by the same round.** The code audit read all
+11 as `spine: BROKEN` when nothing was broken: its box and root patterns demand the class
+attribute hold the prefix ALONE, and the platform's own `has-image` stamp sits beside it - while
+the real detector (`model/structure.ts` `detectPrefix`) parses the DOM and whose own comment says
+the prefix is "a DOM fact, not a text pattern". Three regexes now (`region.converted`, the box,
+the root) have answered a structural question wrongly in the flattering or the alarming
+direction. **A pattern over markup is a guess about markup.**
+
 **The control earned its keep again, mid-change.** `control-mark` went CLEAN → `collision` with
 its clear space at 0: the mark-fill anchor is a hand-authored CATALOG design that already carries
 `applyLogoSlot`'s slot, and the platform had laid its grid over the catalog's. A design whose CSS

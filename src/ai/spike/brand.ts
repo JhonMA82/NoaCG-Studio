@@ -306,6 +306,17 @@ export function decideMarkSurface(css: string, probe: MarkProbe): MarkSurfaceDec
 export function fillBrandMark(
   template: SpxTemplate,
   brand: SpikeBrand,
+  // WHETHER THE PLATFORM PLACES THE MARK IS THE CALLER'S ANSWER, NOT A GUESS OFF THE CSS.
+  //
+  // The first version sniffed for `.{prefix}-box.has-image` and read it as "this design already
+  // carries the catalog's slot, so leave its placement alone". It is not that signal at all:
+  // EVERY generated design in the 2026-08-13 placement round wrote that rule - reacting to the
+  // mark's presence is ordinary CSS - so the guard matched 11 of 11 and the platform placed
+  // nothing, in a round run to measure placement. The caller always knows which it has: a
+  // candidate is generated (place it), an anchor is a hand-authored catalog design whose slot
+  // `applyLogoSlot` already drew (do not - laying a second grid over it took the mark-fill
+  // control from CLEAN to `collision` with zero clear space).
+  { place = true }: { place?: boolean } = {},
 ): { template: SpxTemplate; fill: BrandFillReport } {
   const slot = template.fields.find(
     (f) => f.ftype === 'filelist' && new RegExp(`<img\\b[^>]*\\bid="${f.field}"`).test(template.html),
@@ -332,15 +343,7 @@ export function fillBrandMark(
   html = stamped.html;
 
   const surface = decideMarkSurface(template.css, brand.mark.probe);
-  // A design that ALREADY carries a placement contract keeps it. `.{prefix}-box.has-image` is
-  // the catalog's own slot signature (`templates/shared/logoSlot.ts` writes exactly that rule),
-  // so this is how a hand-authored design says "my mark already has a seat". Without the guard
-  // the platform lays its grid over the catalog's, and the zero-token control caught precisely
-  // that: the mark-fill anchor went from CLEAN to `collision` with its clear space down to 0.
-  // Two placement systems on one box is not a stricter contract, it is a broken one.
-  const carriesOwnSlot = stamped.prefix
-    ? new RegExp(`\\.${stamped.prefix}-box\\.has-image\\b`).test(template.css) : false;
-  const placed = stamped.prefix && !carriesOwnSlot ? placeMark(html, stamped.prefix, slot.field) : null;
+  const placed = place && stamped.prefix ? placeMark(html, stamped.prefix, slot.field) : null;
   if (placed?.placed) html = placed.html;
 
   const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`
