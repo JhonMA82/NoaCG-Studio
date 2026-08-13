@@ -80,6 +80,34 @@ break.
 **Remove the override when monaco vendors 3.4.12 or newer**, or it silently holds a future
 dompurify back. Nothing enforces that; it is why it is written here.
 
+**The `path-to-regexp` override (2026-08-13).** `package.json` pins
+`overrides: { "path-to-regexp": "6.3.0" }`, closing the ReDoS advisory (GHSA-9wv6-86v2-598j,
+range `4.0.0 - 6.2.2`) that `@vercel/routing-utils` drags in. As with dompurify, no upgrade
+existed: 6.4.1 IS the latest routing-utils, and it declares `path-to-regexp: 6.1.0` exactly
+while carrying the patched 6.3.0 alongside it as the alias `path-to-regexp-updated`. `npm audit
+fix --force` "solves" this by DOWNGRADING routing-utils to 4.0.0 — the package
+`check:vercel-config` is built on, and the one thing standing between an invalid `vercel.json`
+and a production freeze (`docs/DEPLOYMENT.md`). Never take that fix.
+
+The override just promotes the exact pin to the version upstream already ships beside it, so
+it is a smaller change than it reads as. It is also DEV-only in a second sense: routing-utils
+is a devDependency used by one build-time script that parses our own committed `vercel.json`,
+never a user's input, so the backtracking blowup had nothing to reach it with.
+`npm run check:vercel-config` and its seven tests — including every negative case, which is
+what exercises the regex compiler — pass on 6.3.0. **Remove the override when routing-utils
+declares a patched `path-to-regexp` itself**, or it holds a future one back.
+
+Both overrides existing at once is the signal worth reading: two of the last three high
+advisories here were in build tooling that no user ever loads, and neither had an upgrade path.
+That is exactly the noise the step ordering below defends against.
+
+**`npm audit` runs LAST in the job on purpose (2026-08-13).** It used to run first, and a step
+that exits non-zero ends the job — so from 2026-08-03 to 2026-08-13 two dev-only advisories
+kept `check:vendored` and `check:models` from running at all, for three consecutive weeks. Those
+are the checks that exist precisely because npm cannot see what they watch, and `check:models`
+is the only one here that catches a failure production alone would show. The noisiest input must
+never be able to hide the quietest signal; anything that can block one runs after it.
+
 The threshold cuts the other way too, so read the severity rather than the count: on 2026-08-03 a
 **high** undici advisory (response desynchronization; cross-user disclosure) sat in this list
 unnoticed behind two moderates, which means the blocking gate was genuinely failing and not

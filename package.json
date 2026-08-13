@@ -80,7 +80,8 @@
     "postinstall": "node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs"
   },
   "overrides": {
-    "dompurify": "3.4.13"
+    "dompurify": "3.4.13",
+    "path-to-regexp": "6.3.0"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
