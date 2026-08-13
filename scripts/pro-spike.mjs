@@ -789,7 +789,12 @@ const freeItems = await page.evaluate(async (markBrand) => {
   // The mark-fill control: the same fillBrandMark + rendered gate every candidate gets, on a
   // hand-authored slot - if ITS mark is broken, the wiring is broken, not the model.
   const markControl = markBrand ? spikeAnchors.markControlAnchor(markBrand) : null;
-  return [control, ...(markControl ? [markControl] : []), ...anchors].map((a) => ({
+  // And the SEATED control: the same fill with the platform's PLACEMENT on, which the
+  // catalog-slot control above deliberately skips. Until it existed the placement path had no
+  // zero-token coverage and a paid round found the hole instead (docs/AI_ATTEMPTS.md).
+  const seatedControl = markBrand ? spikeAnchors.seatedMarkControlAnchor(markBrand) : null;
+  return [control, ...(markControl ? [markControl] : []), ...(seatedControl ? [seatedControl] : []),
+    ...anchors].map((a) => ({
     id: a.id,
     kind: a.kind,
     provenance: a.provenance,

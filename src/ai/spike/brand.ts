@@ -414,7 +414,15 @@ function placeMark(
     oldParent.remove();
     droppedWrapper = true;
   }
-  return { html: doc.body.innerHTML, placed: true, droppedWrapper };
+  // SERIALIZE THE WHOLE DOCUMENT, NOT THE BODY.
+  //
+  // This returned `doc.body.innerHTML` and it cost a $0.25 round: an SPX template's
+  // `SPXGCTemplateDefinition` lives in a <script> outside the body, so every one of the twelve
+  // generations came back without its definition and failed the contract - the field list the
+  // operator drives the graphic by, deleted by the step that moves an image. The mark findings
+  // in that round were the best yet and every template was invalid.
+  const doctype = doc.doctype ? `<!DOCTYPE ${doc.doctype.name}>\n` : '';
+  return { html: doctype + doc.documentElement.outerHTML, placed: true, droppedWrapper };
 }
 
 /**

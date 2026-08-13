@@ -150,6 +150,134 @@ export function markControlAnchor(brand: SpikeBrand): SpikeAnchor {
 }
 
 /**
+ * THE SEATED-MARK CONTROL: the platform's own PLACEMENT path, exercised for free.
+ *
+ * The mark control above deliberately runs with `place: false`, because lt11 is a catalog
+ * design that already carries its slot - so until this existed, the placement path had NO
+ * zero-token coverage at all. A paid round then ran on it and every one of its twelve
+ * generations came back without its SPX definition, because the move serialized the document's
+ * BODY and an SPX definition lives in a <script> outside it. $0.25, and the control could not
+ * have caught it: the control never ran the code under test.
+ *
+ * That is the Phase 0 lesson arriving a third time, so this closes it structurally. The
+ * template is hand-authored HERE rather than taken from the catalog, in the shape a GENERATED
+ * design emits - a full document with a definition, its own logo container for the platform to
+ * empty, the structure spine - because that is what the fill will meet in a paid round. If the
+ * seat breaks the definition, drops the fields, loses the stylesheet link or fails to move the
+ * mark, this control says so before any tokens burn.
+ */
+const SEATED_CONTROL_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="css/template.css">
+<script src="js/gsap.min.js"></script>
+<script>
+  window.SPXGCTemplateDefinition = {
+    description: "Seated-mark control",
+    DataFields: [
+      { field: "f0", ftype: "textfield", title: "Name", value: "${CONTROL_BRIEF.name}" },
+      { field: "f1", ftype: "textfield", title: "Role", value: "${CONTROL_BRIEF.title}" },
+      { field: "f2", ftype: "filelist", title: "Logo", value: "", assetfolder: "./images/", extension: "png" }
+    ]
+  };
+</script>
+<script src="js/template.js"></script>
+</head>
+<body>
+  <div class="seated-control">
+    <div class="seated-control-box">
+      <!-- The design's own container, exactly what a generation writes and the fill empties. -->
+      <div class="seated-control-logo-holder"><img id="f2" class="seated-control-logo" alt=""></div>
+      <div class="seated-control-mask"><span id="f0" class="seated-control-name">${CONTROL_BRIEF.name}</span></div>
+      <div class="seated-control-mask"><span id="f1" class="seated-control-role">${CONTROL_BRIEF.title}</span></div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+const SEATED_CONTROL_CSS = `:root {
+  --accent: #f6a623;
+  --text-color: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.72);
+  --panel-bg: #101216;
+  --font-heading: Inter, system-ui, sans-serif;
+  --scale: 1;
+  --type-scale: 1;
+}
+.seated-control {
+  position: absolute;
+  left: calc(160px * var(--scale));
+  bottom: calc(160px * var(--scale));
+  opacity: 0;
+}
+.seated-control-box {
+  display: flex;
+  align-items: center;
+  gap: calc(20px * var(--scale));
+  padding: calc(24px * var(--scale));
+  background: var(--panel-bg);
+}
+.seated-control-logo-holder { display: flex; align-items: center; }
+.seated-control-logo { height: calc(56px * var(--scale)); width: auto; object-fit: contain; }
+.seated-control-mask { overflow: hidden; }
+.seated-control-name {
+  font: 700 calc(38px * var(--scale) * var(--type-scale)) / 1.1 var(--font-heading);
+  color: var(--text-color);
+}
+.seated-control-role {
+  font: 500 calc(20px * var(--scale) * var(--type-scale)) / 1.2 var(--font-heading);
+  color: var(--text-dim);
+}`;
+
+export function seatedMarkControlAnchor(brand: SpikeBrand): SpikeAnchor {
+  const bare: SpxTemplate = {
+    name: 'Seated-mark control',
+    type: 'lower-third',
+    resolution: { width: 1920, height: 1080, label: '1080p' },
+    fps: 25,
+    html: SEATED_CONTROL_HTML,
+    css: SEATED_CONTROL_CSS,
+    js: '',
+    fields: [
+      { field: 'f0', ftype: 'textfield', title: 'Name', value: CONTROL_BRIEF.name },
+      { field: 'f1', ftype: 'textfield', title: 'Role', value: CONTROL_BRIEF.title },
+      { field: 'f2', ftype: 'filelist', title: 'Logo', value: '' },
+    ],
+    settings: {} as SpxTemplate['settings'],
+    assets: [],
+    layers: [],
+  };
+  const { template, fill } = fillBrandMark(bare, brand);
+  // Every property the paid round lost. Each one is a throw rather than a finding: this is the
+  // harness checking itself, and a broken harness must stop the run, not score it.
+  if (!fill.placed) throw new Error('seated-mark control: the platform did not place the mark');
+  if (!fill.slotFieldId || !fill.path) throw new Error('seated-mark control: the fill found no slot');
+  if (!template.html.includes('SPXGCTemplateDefinition')) {
+    throw new Error('seated-mark control: placing the mark DESTROYED the SPX definition');
+  }
+  if ((template.html.match(/ftype:/g) ?? []).length < 3) {
+    throw new Error('seated-mark control: placing the mark lost DataFields from the definition');
+  }
+  if (!/^<!DOCTYPE html>/i.test(template.html.trim()) || !template.html.includes('css/template.css')) {
+    throw new Error('seated-mark control: placing the mark lost the document head');
+  }
+  if (template.html.includes('seated-control-logo-holder')) {
+    throw new Error('seated-mark control: the emptied container the mark left was not removed');
+  }
+  const stress = stressFor(CONTROL_BRIEF);
+  return {
+    id: 'control-seated-mark',
+    kind: 'control',
+    provenance: `hand-authored generation-shaped design, mark PLACED by the platform from the "${brand.name}" brand`,
+    template,
+    data: { f0: CONTROL_BRIEF.name, f1: CONTROL_BRIEF.title, [fill.slotFieldId]: fill.path },
+    stressData: { f0: stress.f0, f1: stress.f1, [fill.slotFieldId]: fill.path },
+    markFieldId: fill.slotFieldId,
+  };
+}
+
+/**
  * Strong catalog graphics for the blind gallery.
  *
  * THREE CONSTRAINTS, and the first control run found two of them the hard way:

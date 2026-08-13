@@ -207,6 +207,24 @@ an anchor is hand-authored, and neither is a thing to infer from a stylesheet. R
 the same saved generations with the guard fixed: 11/11 placed, 8 clean, contrast failures 1 → 0,
 and the mark still hides when the field is cleared on all 11.
 
+**THE SEATED ROUND IS VOID, AND IT COST $0.25 TO LEARN THE OLDEST LESSON HERE AGAIN** (archive
+`pro-seated-round-VOID-definition-lost-2026-08-13`). The first round with placement actually
+live captured 12 of 12, seated 12 of 12, and produced the best mark findings of any round -
+11/12 CLEAN - **on twelve templates that were all invalid.** The move serialized the document's
+BODY, and an SPX definition lives in a `<script>` outside it, so every generation came back
+with no `SPXGCTemplateDefinition` and no DataFields: the field list the operator drives the
+graphic by, deleted by the step that moves an image. Nothing else in the round was wrong.
+
+**The control could not have caught it, and that is the finding.** The rig's whole first mode
+exists so a paid round never measures the harness - but the only marked control runs the
+CATALOG slot with placement OFF, so the seat had no zero-token coverage at all and the paid
+round was the first thing ever to execute it. **A control that does not run the code under test
+is not a control.** `control-seated-mark` now exercises the platform's seat every free run, on
+a hand-authored GENERATION-SHAPED document (full head, real definition, its own logo container
+to empty), and throws rather than reports on each property that round lost: the mark placed,
+the definition intact, three DataFields surviving, the doctype and stylesheet link kept, the
+emptied container gone. A broken harness must stop a run, not score it.
+
 **A third measurement bug of the same shape, caught by the same round.** The code audit read all
 11 as `spine: BROKEN` when nothing was broken: its box and root patterns demand the class
 attribute hold the prefix ALONE, and the platform's own `has-image` stamp sits beside it - while
