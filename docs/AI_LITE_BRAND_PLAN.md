@@ -210,6 +210,15 @@ drop the mark" promise is currently false on 7 of 13 chassis - regression by gro
    All five take a wide lockup as well as a crest, which is what lifts a WORDMARK brand past the
    two-field ceiling: before this, every wordmark-capable chassis was a 2-field design.
 
+   Gates run for the catalog change: `type-floor`, `overflow-sweep --baseline --with-images`,
+   `field-coverage`, `numerals`, `test:e2e:catalog` (22/22) and `l3-sweep lower-third` (90 designs,
+   zero issues). Two baselines were re-recorded because the change is deliberate - the overflow
+   baseline gained six image rows, each an exact duplicate of the bare row already recorded for
+   the same design (and four of those six were already missing before this branch, proved by
+   re-running the sweep with the working tree stashed), and `e2e/catalog-baseline` re-recorded the
+   five designs' html/css hashes and their DOM geometry. The no-logo look of all five is
+   unchanged, checked against the l3 shots before re-recording.
+
    **What the render refused, and what it cost:** lt37's first placement put the mark in its own
    column beside the words, and because the strap's width is capped that column took its width
    from them - the audit read the name wrapping onto a second row (`logo-costs-text`) on all five
