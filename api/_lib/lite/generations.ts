@@ -529,6 +529,13 @@ export default {
         resolvedCategory,
         resolvedVariantId,
         intentKind,
+        // What the platform had to repair to honour this request - a brand palette restored
+        // over the model's version, a furniture colour clamped, a mark's chassis re-picked.
+        // Discarding it made brand fidelity unmeasurable in production: the promise is
+        // "exactly the brand's colours", and a silent repair is how that claim goes wrong
+        // without anyone counting (docs/AI_LITE_BRAND_PLAN.md §3.2). Capped like the rule
+        // codes beside it, because both are written from a model-shaped response.
+        adjustments: (semantic.adjustments ?? []).slice(0, 30),
         rejectionReason: semantic.decision.status === 'unsupported' ? semantic.decision.code : null,
         expiresAt: Date.now() + capacityPlan.activeLeaseMs,
       });

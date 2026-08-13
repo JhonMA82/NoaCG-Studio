@@ -80,7 +80,7 @@ const HOUSE_AMBER = [246, 166, 35];
  * chassis can therefore declare which SHAPES it holds as a fixed list, and answer the tone
  * question with one word about the surface - and neither claim goes stale when the other moves.
  */
-const TONE_CODES = new Set(['ink-contrast', 'field-separation']);
+const TONE_CODES = new Set(['ink-contrast', 'field-separation', 'brand-accent-verbatim']);
 const geometryFailures = (failures) => failures.filter((code) => !TONE_CODES.has(code));
 // The broadcast backdrop every contrast composite ends on (blocks/cssVars.ts).
 const BACKDROP = [16, 18, 22];
@@ -473,23 +473,36 @@ await page.evaluate(([rules, backdrop, houseAmber]) => {
     if (inkRatio < inkFloor) failures.push(field ? 'field-separation' : 'ink-contrast');
 
     // 6. The accent came from the brand, and the house amber did not survive it.
+    //
+    // TWO rules, one scan, because they are the two halves of one question. The negative twin
+    // (`house-accent-survives`) catches NoaCG's amber left behind at tolerance 12, which is
+    // slack enough to catch a blend of it. The positive twin (`brand-accent-verbatim`,
+    // docs/AI_LITE_BRAND_PLAN.md §3.1) asks whether the brand's OWN accent reached the frame,
+    // and it is measured at TOLERANCE 0: "exactly the brand's colours" is the product claim,
+    // so a near-miss is the defect, not a pass. Nothing else in the tree asks it - a graphic
+    // that quietly lost its accent to a chassis default paints a perfectly valid frame, and
+    // every existing rule here measures the MARK.
+    const brandAccent = hexRgb(spec.palette.accent);
     let amber = '';
+    let accentSeen = '';
+    const sample = (c, where) => {
+      if (!c || c[3] <= 0.2) return;
+      if (near(c, houseAmber, 12)) amber = amber || where;
+      if (brandAccent && near(c, brandAccent, 0)) accentSeen = accentSeen || where;
+    };
     for (const el of doc.body.querySelectorAll('*')) {
       const ecs = w.getComputedStyle(el);
       if (ecs.display === 'none') continue;
       for (const prop of ['background-color', 'color', 'border-top-color', 'border-left-color', 'fill']) {
-        const c = rgba(ecs.getPropertyValue(prop));
-        if (c && c[3] > 0.2 && near(c, houseAmber, 12)) { amber = amber || `${prop} on ${el.tagName.toLowerCase()}`; }
+        sample(rgba(ecs.getPropertyValue(prop)), `${prop} on ${el.tagName.toLowerCase()}`);
       }
       const image = ecs.backgroundImage;
       if (image && image !== 'none') {
-        for (const m of image.matchAll(/rgba?\([^)]+\)/g)) {
-          const c = rgba(m[0]);
-          if (c && c[3] > 0.2 && near(c, houseAmber, 12)) amber = amber || 'background-image stop';
-        }
+        for (const m of image.matchAll(/rgba?\([^)]+\)/g)) sample(rgba(m[0]), 'background-image stop');
       }
     }
     if (amber) failures.push('house-accent-survives');
+    if (!accentSeen) failures.push('brand-accent-verbatim');
 
     // 7. The mark did not cost the identity lines their shape.
     const withLines = identityLines(frame);
@@ -512,6 +525,9 @@ await page.evaluate(([rules, backdrop, houseAmber]) => {
       // it can host: a mark's own colours are the user's, but the surface is the design's.
       surfaceLum: Math.round(lum(surface) * 1000) / 1000,
       amber,
+      // Where the brand's exact accent landed, so a `brand-accent-verbatim` failure can be
+      // read as "nowhere" rather than investigated from scratch.
+      accent: accentSeen,
       baseLines, withLines,
     };
   };
@@ -543,7 +559,7 @@ console.log(`Brand-mark absorption, measured at 1920x1080. Fixture bank v${LITE_
 console.log(`Rules: mark >= ${RULES.minMarkPx}px tall, lockup >= ${RULES.minLockupPx}px wide, `
   + `clear space >= ${RULES.clearRatio} x painted height, transparent-mark ink >= `
   + `${RULES.inkContrast}:1, own-field mark >= ${RULES.fieldSeparation}:1, `
-  + `aspect within ${RULES.aspectTolerance * 100}%.\n`);
+  + `aspect within ${RULES.aspectTolerance * 100}%, brand accent painted at tolerance 0.\n`);
 
 console.log('chassis  logo      mark              painted    fit        clear/need  ink    verdict');
 for (const r of results) {

@@ -35,6 +35,7 @@ interface GenerationRow {
   reasoning_tokens: number;
   provider_cost_usd: number;
   validation_rule_codes: string[];
+  adjustments: string[];
   runtime_ms: number | null;
   rejection_reason: string | null;
   feedback_reason: string | null;
@@ -67,6 +68,7 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     reasoningTokens: row.reasoning_tokens,
     providerCostUsd: Number(row.provider_cost_usd),
     validationRuleCodes: row.validation_rule_codes ?? [],
+    adjustments: row.adjustments ?? [],
     runtimeMs: row.runtime_ms,
     rejectionReason: row.rejection_reason,
     feedbackReason: row.feedback_reason,
@@ -86,7 +88,8 @@ function patchRow(patch: Partial<LiteGenerationRecord>): Partial<GenerationRow> 
     ['attemptCount', 'attempt_count'], ['repairCount', 'repair_count'], ['inputTokens', 'input_tokens'],
     ['outputTokens', 'output_tokens'], ['cachedInputTokens', 'cached_input_tokens'],
     ['reasoningTokens', 'reasoning_tokens'], ['providerCostUsd', 'provider_cost_usd'],
-    ['validationRuleCodes', 'validation_rule_codes'], ['runtimeMs', 'runtime_ms'],
+    ['validationRuleCodes', 'validation_rule_codes'], ['adjustments', 'adjustments'],
+    ['runtimeMs', 'runtime_ms'],
     ['rejectionReason', 'rejection_reason'], ['feedbackReason', 'feedback_reason'],
     ['expiresAt', 'expires_at'],
   ];

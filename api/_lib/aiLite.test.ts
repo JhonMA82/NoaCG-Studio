@@ -476,6 +476,74 @@ test('a low-contrast palette is clamped to the floor instead of failing the gene
   assert.ok(ratio(grey.textDim, grey.panel) >= 3);
 });
 
+test('a REQUESTED brand palette is applied verbatim in identity and never dropped', () => {
+  const entry = LITE_CATALOG[0];
+  const decisionWith = (palette: Record<string, string> | undefined) => ({
+    status: 'ready',
+    aiCategory: entry.aiCategory,
+    spec: {
+      fit: 'catalog',
+      reason: 'Brand colours.',
+      name: 'Brand Strap',
+      summary: 'A branded lower third.',
+      category: entry.category,
+      variantId: entry.variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Marco Benedetti', role: 'person-name' },
+        { title: 'Role', sample: 'Jury President', role: 'person-role' },
+      ],
+      ...(palette ? { palette } : {}),
+      flourish: '',
+    },
+  });
+  const shippedPalette = (result: ReturnType<typeof validateLiteDecision>) =>
+    (result.decision as { spec: { palette: Record<string, string> } }).spec.palette;
+
+  // The identity slots are the brand. A model that returns its own idea of the accent - or a
+  // near-miss on the same hex - loses: the request wins verbatim, and the ledger sees why.
+  const brand = { accent: '#0b6efd', text: '#ffffff', textDim: '#cfd8e3', panel: '#0d1b2a' };
+  const overridden = validateLiteDecision(
+    decisionWith({ ...brand, accent: '#0b6ffe', panel: '#101010' }),
+    { ...request(), palette: brand },
+  );
+  assert.deepEqual(overridden.errors, []);
+  assert.deepEqual(shippedPalette(overridden), brand);
+  assert.ok(overridden.adjustments?.includes('brand_palette_overridden'));
+
+  // Omitting the palette used to hand the graphic to the chassis default with no trace, which
+  // is the silent way "exactly the brand's colours" fails.
+  const missing = validateLiteDecision(decisionWith(undefined), { ...request(), palette: brand });
+  assert.deepEqual(shippedPalette(missing), brand);
+  assert.ok(missing.adjustments?.includes('brand_palette_missing'));
+
+  // Case is not a change of colour.
+  const cased = validateLiteDecision(
+    decisionWith({ ...brand, accent: brand.accent.toUpperCase() }),
+    { ...request(), palette: brand },
+  );
+  assert.deepEqual(cased.adjustments ?? [], []);
+
+  // Rung 1 of the furniture ladder: the brand's own two tones swap roles rather than the
+  // platform inventing one. Grey primary reads at 3.78:1 on this panel (short of 4.5), white
+  // dim reads at 21:1 - so the pair is legal the other way round, and no hue is touched.
+  const inverted = { accent: '#0b6efd', text: '#6f6f6f', textDim: '#ffffff', panel: '#101010' };
+  const remapped = validateLiteDecision(decisionWith(inverted), { ...request(), palette: inverted });
+  const swapped = shippedPalette(remapped);
+  assert.ok(remapped.adjustments?.includes('palette_furniture_slots_remapped'));
+  assert.equal(swapped.text, inverted.textDim);
+  assert.equal(swapped.textDim, inverted.text);
+  assert.equal(swapped.accent, inverted.accent, 'identity is untouched by a furniture repair');
+  assert.equal(swapped.panel, inverted.panel);
+  assert.ok(!remapped.adjustments?.some((code) => code.includes('clamped')), 'a remap needs no clamp');
+
+  // No requested palette, so a model-authored one is still dropped - the contract widened for
+  // the user's colours, not for the model's.
+  const invented = validateLiteDecision(decisionWith(brand), request());
+  assert.equal(shippedPalette(invented), undefined);
+  assert.ok(invented.adjustments?.includes('unrequested_palette_dropped'));
+});
+
 test('repair guidance names the EDIT, not the verdict', () => {
   // The measured failure: handed only codes, the model re-emitted its decision verbatim.
   const [roleFix] = liteRepairInstructions(['requested_role_missing:person-name']);

@@ -1643,25 +1643,96 @@ export const LITE_CONTRAST_FLOOR = { primary: 4.5, secondary: 3 } as const;
  *  the same 3:1 `scripts/ai-lite-brand-audit.mjs` measures a rendered mark against. */
 export const LITE_MARK_CONTRAST_FLOOR = 3;
 
+/** Pure white or pure black against this panel - whichever reads better. The last rung of the
+ *  furniture ladder, and the one that cannot fail: at the current floors one extreme always
+ *  clears (white is short only above panel luminance 0.183, black only below 0.175, and no
+ *  panel is both). Body text in a neutral is what broadcast practice does anyway; body text in
+ *  a brand colour never was. */
+function neutralOn(panel: string): string {
+  return (contrastRatio('#ffffff', panel) ?? 0) >= (contrastRatio('#000000', panel) ?? 0)
+    ? '#ffffff'
+    : '#000000';
+}
+
 /**
- * Bring a bespoke palette up to the contrast floor. Returns the repaired palette plus a
- * content-free note per adjustment, or null when the floor is unreachable at any lightness
- * - the caller then drops the palette and lets the chassis default carry, so a generation
- * never dies over colour. At the CURRENT floors that null is a guard rather than a live
- * path: 4.5:1 is out of white's reach only for a panel lighter than luminance 0.183 and
- * out of black's only below 0.175, and no panel is both, so one extreme always reaches.
- * It stays because the floors are configuration, not physics.
+ * Bring a palette's FURNITURE (text, textDim) up to the contrast floor against its own panel,
+ * leaving accent and panel exactly as given. Three rungs, cheapest first:
+ *
+ *   1. RE-MAP - when the primary tone is short and the brand's own secondary tone clears both
+ *      floors the other way round, the two swap roles. No colour is invented and the package
+ *      keeps every hue it walked in with.
+ *   2. CLAMP - the smallest lightness move that clears the floor, hue and saturation untouched.
+ *   3. NEUTRALIZE - white or black. Only reachable when the floors move (see `neutralOn`), and
+ *      it exists so the ladder terminates in a legible graphic rather than in a dropped brand.
+ *
+ * Never returns null: dropping the palette wholesale is what this function used to do when the
+ * clamp could not reach, and for a REQUESTED brand palette that silently deletes the identity
+ * the user came for (`docs/AI_LITE_BRAND_PLAN.md` §3.1). A legibility floor costs a furniture
+ * ROLE at worst, never the brand.
  */
 export function clampLitePalette(
   palette: NonNullable<LiteDesignSpec['palette']>,
-): { palette: NonNullable<LiteDesignSpec['palette']>; adjustments: string[] } | null {
-  const text = clampLightnessForContrast(palette.text, palette.panel, LITE_CONTRAST_FLOOR.primary);
-  const textDim = clampLightnessForContrast(palette.textDim, palette.panel, LITE_CONTRAST_FLOOR.secondary);
-  if (text === null || textDim === null) return null;
+): { palette: NonNullable<LiteDesignSpec['palette']>; adjustments: string[] } {
   const adjustments: string[] = [];
-  if (text !== palette.text) adjustments.push('palette_text_lightness_clamped');
-  if (textDim !== palette.textDim) adjustments.push('palette_text_dim_lightness_clamped');
-  return { palette: { ...palette, text, textDim }, adjustments };
+  const { primary, secondary } = LITE_CONTRAST_FLOOR;
+  const ratio = (color: string): number => contrastRatio(color, palette.panel) ?? 0;
+  let source = palette;
+  if (ratio(palette.text) < primary && ratio(palette.textDim) >= primary && ratio(palette.text) >= secondary) {
+    source = { ...palette, text: palette.textDim, textDim: palette.text };
+    adjustments.push('palette_furniture_slots_remapped');
+  }
+  const repair = (color: string, target: number, code: string): string => {
+    const clamped = clampLightnessForContrast(color, source.panel, target);
+    if (clamped === color) return color;
+    if (clamped !== null) {
+      adjustments.push(`palette_${code}_lightness_clamped`);
+      return clamped;
+    }
+    adjustments.push(`palette_${code}_neutralized`);
+    return neutralOn(source.panel);
+  };
+  return {
+    palette: {
+      ...source,
+      text: repair(source.text, primary, 'text'),
+      textDim: repair(source.textDim, secondary, 'text_dim'),
+    },
+    adjustments,
+  };
+}
+
+/** Hex equality that ignores case and the optional alpha pair, so `#E8AC57` and `#e8ac57`
+ *  are not reported as the model having changed the brand. */
+function sameHex(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * THE BRAND PALETTE CONTRACT (`docs/AI_LITE_BRAND_PLAN.md` §3.1). When the request carries a
+ * palette, that palette IS the graphic's colours - the model gets no vote on them:
+ *
+ * - **accent and panel are IDENTITY**: taken verbatim from the request, never altered, never
+ *   dropped. "Exactly the brand's colours" is the whole product claim, and it used to be able
+ *   to fail three silent ways at once - the model echoing a near-miss hex, the model omitting
+ *   the palette so the chassis default carried, and the contrast repair dropping the whole
+ *   package when the furniture could not be clamped.
+ * - **text and textDim are FURNITURE**: the request's values are preferred, then the ladder in
+ *   `clampLitePalette` owns them, because a name nobody can read is not brand fidelity either.
+ *
+ * Every divergence is recorded as an adjustment, which is the point: a brand repair the ledger
+ * cannot count is a promise nobody can check (§3.2).
+ */
+export function applyLiteBrandPalette(
+  requested: NonNullable<LiteDesignSpec['palette']>,
+  emitted: LiteDesignSpec['palette'] | undefined,
+): { palette: NonNullable<LiteDesignSpec['palette']>; adjustments: string[] } {
+  const adjustments: string[] = [];
+  if (!emitted) adjustments.push('brand_palette_missing');
+  else if (!(['accent', 'panel', 'text', 'textDim'] as const).every((slot) => sameHex(emitted[slot], requested[slot]))) {
+    adjustments.push('brand_palette_overridden');
+  }
+  const repaired = clampLitePalette(requested);
+  return { palette: repaired.palette, adjustments: [...adjustments, ...repaired.adjustments] };
 }
 
 // ── Deterministic skin repair ─────────────────────────────────────────────────────────
@@ -1908,7 +1979,10 @@ export function validateLiteDecision(
   let logoReselect: string | null = null;
   let logoPlate: 'light' | 'dark' | null = null;
   if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
-    const panel = spec.palette?.panel ?? request.palette?.panel ?? null;
+    // The REQUEST's panel outranks the model's: under the brand palette contract below, a
+    // requested panel is what ships, so judging the mark against the model's version would
+    // measure a colour the frame never paints.
+    const panel = request.palette?.panel ?? spec.palette?.panel ?? null;
     const markShape = request.mark.shape;
     const ink = request.mark.ink;
     // A `dark` surface is the PICTURE behind the graphic, which no palette repaints
@@ -1949,27 +2023,22 @@ export function validateLiteDecision(
       else logoPlate = ink === 'light' ? 'dark' : 'light';
     }
   }
-  // The contrast floor is APPLIED, not refused: clamp the requested colours, and when no
-  // lightness can reach it, drop the bespoke palette so the chassis default carries. A
-  // legibility floor should cost the palette at worst, never the whole generation.
+  // Colour is decided by WHO ASKED, not by what the model returned (`applyLiteBrandPalette`):
+  // a requested brand palette is applied verbatim in its identity slots and repaired only in
+  // its furniture, and a palette nobody requested is dropped.
   const adjustments: string[] = [];
   if (blankLinesDropped > 0) adjustments.push('blank_line_dropped');
   let palette = spec.palette;
-  if (palette && !request.palette) {
+  if (request.palette) {
+    const brand = applyLiteBrandPalette(request.palette, palette);
+    palette = brand.palette;
+    adjustments.push(...brand.adjustments);
+  } else if (palette) {
     // A model-authored palette is never requested - the prompt explicitly says to omit it.
     // Keeping one can make panel-less editorial designs paint black text over the programme
     // picture while passing contrast against a light panel the chassis does not draw.
     palette = undefined;
     adjustments.push('unrequested_palette_dropped');
-  } else if (palette) {
-    const clamped = clampLitePalette(palette);
-    if (clamped) {
-      palette = clamped.palette;
-      adjustments.push(...clamped.adjustments);
-    } else {
-      palette = undefined;
-      adjustments.push('palette_dropped_contrast_unreachable');
-    }
   }
   const requested = request.generationSpec?.category;
   if (requested && requested !== 'auto' && requested !== aiCategory) errors.push('requested_category_ignored');

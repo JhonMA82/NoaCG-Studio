@@ -43,7 +43,8 @@ Two standing constraints frame everything below:
 | Brand brief bank | `scripts/ai-lite-brand-fixtures.mjs` (8 briefs, 5 authored mark shapes) | LIVE |
 | Frozen banks + rigs | 30-brief bank, 8 semantic briefs, `ai-lite-eval.mjs` / `bench:lite` / `bench:lite:semantic` / `bench:preflight`, gallery + report | LIVE |
 | Category semantics | `CATEGORY_CONTRACTS`, 13 measured chassis, retrieval-narrowed enum | LIVE |
-| Contrast repair | `clampLitePalette` - lightness clamp, else drop the bespoke palette | LIVE, **wrong for brand (§3.1)** |
+| Brand palette contract | `applyLiteBrandPalette` - identity verbatim, furniture repaired, never dropped | LIVE, **§3.1 DONE 2026-08-13** |
+| Repair visibility | `ai_generations.adjustments` (migration 0042) | LIVE, **§3.2 DONE 2026-08-13** |
 
 ## 2. The value gate - the kill criterion
 
@@ -74,14 +75,28 @@ First read at 8 briefs x 3 arms; a pass is confirmed at 20+ joined items before 
 
 "Exactly the brand's colours" is currently not guaranteed. The gaps, in priority order:
 
-### 3.1 The palette contract: identity vs furniture
+### 3.1 The palette contract: identity vs furniture - DONE 2026-08-13
 
-Today `clampLitePalette` may lighten brand text colours, and when contrast is unreachable it
-**drops the bespoke palette wholesale** (`palette_dropped_contrast_unreachable`) - the chassis
-default carries and the user's brand silently vanishes. Correct for a model-invented palette;
+`clampLitePalette` used to lighten brand text colours, and when contrast was unreachable it
+**dropped the bespoke palette wholesale** (`palette_dropped_contrast_unreachable`) - the chassis
+default carried and the user's brand silently vanished. Correct for a model-invented palette;
 wrong for a requested brand.
 
-New contract:
+**Shipped** (`applyLiteBrandPalette` in `src/ai/liteContract.ts`, called from
+`validateLiteDecision`): when the request carries a palette, that palette IS the graphic's
+colours and the model gets no vote on them. Identity slots are copied verbatim from the
+REQUEST, which closed a hole the plan had not named - the model's echo was what shipped, so a
+near-miss hex (`brand_palette_overridden`) or an omitted palette (`brand_palette_missing`) took
+the brand with it, and neither left a trace. Furniture runs the ladder below and the wholesale
+drop is gone. The audit's positive twin `brand-accent-verbatim` is live in
+`scripts/ai-lite-brand-audit.mjs` at tolerance 0, guard-tested by mutation and green on all 40
+slot-carrying pairs. Rungs 3-4 of the ladder (re-pick the chassis, paint a well) are NOT built:
+they need the per-chassis surface metadata §3.3 measures, and guessing it is exactly the
+adjective-instead-of-measurement mistake `supportingLineChars` cost. Rung 3 (neutralize) is a
+guard at the current floors, like the drop it replaces - the clamp's own endpoint is white or
+black - and it stays because the floors are configuration, not physics.
+
+The contract:
 
 - **Identity colours (accent, panel): verbatim hex, never altered, never dropped.** They are the
   brand.
@@ -96,12 +111,24 @@ New contract:
   somewhere on the frame at tolerance 0. Rule 9 (`house-accent-survives`) stays as the negative
   twin.
 
-### 3.2 Adjustments become visible
+Adjustment codes this contract emits: `brand_palette_missing`, `brand_palette_overridden`,
+`palette_furniture_slots_remapped`, `palette_text_lightness_clamped`,
+`palette_text_dim_lightness_clamped`, `palette_text_neutralized`,
+`palette_text_dim_neutralized`. `unrequested_palette_dropped` is unchanged - the contract
+widened for the USER's colours, not for the model's.
 
-`validateLiteDecision` returns `adjustments` and nobody stores them - a clamped or re-mapped brand
-colour is invisible in `ai_generations`. Add the column (versioned migration, checked ledger
-number - two branches minting one number is a known trap) so brand-fidelity repair rates are
-measurable in production, per prompt version.
+### 3.2 Adjustments become visible - DONE 2026-08-13
+
+`validateLiteDecision` returned `adjustments` and nobody stored them - a clamped or re-mapped
+brand colour was invisible in `ai_generations`. **Migration 0042 adds `adjustments text[] not
+null default '{}'`** and `api/_lib/lite/generations.ts` writes it (capped at 30, like the rule
+codes beside it), so brand-fidelity repair rates are countable per prompt version. Additive and
+defaulted, so pre-0042 rows read as "nothing repaired" rather than null; pinned in
+`scripts/ai-lite-migration.test.mjs`.
+
+**Deploy order matters: apply 0042 BEFORE the code lands in production.** The endpoint writes
+the column on every ready decision, so code-first would make every Lite generation fail to
+persist its outcome.
 
 ### 3.3 The scrim weld (owner decision 1, 2026-08-09)
 
@@ -264,7 +291,7 @@ to DIY is just a bigger loss.
 | phase | work | gate to pass |
 | --- | --- | --- |
 | **P0 - now, 2 days** | §4.1-4.4: qualify Ling, control run, frozen replays, volume matrix | data captured before the window closes |
-| **P1** | §3.1-3.5 brand-fidelity gaps | audit green incl. `brand-accent-verbatim`; adjustments visible in ledger; scrim weld gated; opposite-tone chassis drawn |
+| **P1** | §3.1-3.5 brand-fidelity gaps (§3.1 + §3.2 DONE 2026-08-13; §3.3, §3.4, §3.6.2 open) | audit green incl. `brand-accent-verbatim`; adjustments visible in ledger; scrim weld gated; opposite-tone chassis drawn |
 | **P2** | §2 value-gate round (8 briefs x 3 arms, blind) | pass rule met - else retire the path per §2 |
 | **P3** | route decision at real prices (§4.5) | promotion criteria or incumbent stays |
 | **P4** | ride category widening; then the §6 kit story | per-category gallery + control-page parity, per `docs/AI_LITE_PLAN.md` |

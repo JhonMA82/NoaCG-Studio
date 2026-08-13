@@ -273,6 +273,21 @@ slots (`benchmarks/lite/BRAND-BASELINE-2026-08-13.md`; drawing their slots is
 `docs/AI_LITE_BRAND_PLAN.md` §3.6.2). Design, findings and the catalog
 work they bought: `docs/AI_LITE_PLAN.md` §7, `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
 
+**A REQUESTED palette is the platform's to apply, not the model's to return** (`applyLiteBrandPalette`).
+Colour splits in two: **identity** (accent, panel) is copied verbatim from the REQUEST - never
+altered, never dropped - and **furniture** (text, textDim) is legibility-owned, repaired by a
+three-rung ladder (re-map the two furniture slots, clamp lightness with hue and saturation
+untouched, neutralize to white or black). The old repair dropped the whole bespoke palette when
+the clamp could not reach, and the compile read the MODEL's echo of the palette rather than the
+request - so "exactly the brand's colours" could fail three silent ways at once: a near-miss hex,
+an omitted palette, a legibility floor deleting the package. Every divergence is now an
+`adjustments` code, and those reach `ai_generations.adjustments` (migration 0042) because a repair
+the ledger cannot count is a promise nobody can check. The audit's positive twin is
+`brand-accent-verbatim` at TOLERANCE 0 - a near miss is the defect, not a pass. A palette nobody
+requested is still dropped: the contract widened for the user's colours, not for the model's.
+Design and what is deliberately NOT built (chassis re-pick and well, which need §3.3's measured
+per-chassis surface metadata): `docs/AI_LITE_BRAND_PLAN.md` §3.1-3.2.
+
 **`zone` and `animation.presetId` stay in the schema although both decisions are dead.** The Lite spec
 object is `additionalProperties: false`, so a property the model still EMITS becomes a refusal rather
 than a no-op - deleting them cost 29/30 → 26/30. Teach a field away in its DESCRIPTION first, measure the

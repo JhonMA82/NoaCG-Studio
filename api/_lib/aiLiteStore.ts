@@ -62,6 +62,11 @@ export interface LiteGenerationRecord {
   reasoningTokens: number;
   providerCostUsd: number;
   validationRuleCodes: string[];
+  /** What the platform deterministically REPAIRED on the way to this decision - the brand
+   *  palette restored over a model override, a furniture colour clamped, a mark's chassis
+   *  re-picked. Content-free codes, so brand-fidelity repair rates are countable per prompt
+   *  version in production (`docs/AI_LITE_BRAND_PLAN.md` §3.2). Empty on an untouched run. */
+  adjustments: string[];
   runtimeMs: number | null;
   rejectionReason: string | null;
   feedbackReason: string | null;
@@ -158,6 +163,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     // Reserve the worst-case session amount until provider usage reconciles it.
     providerCostUsd: input.profile.maxProviderCostUsd,
     validationRuleCodes: [],
+    adjustments: [],
     runtimeMs: null,
     rejectionReason: null,
     feedbackReason: null,

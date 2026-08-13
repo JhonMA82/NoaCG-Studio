@@ -46,6 +46,27 @@ test('Lite quota RPCs fail closed to service-role-only execution', () => {
   );
 });
 
+// ── what the platform REPAIRED is recorded too (0042) ────────────────────────────────────
+//
+// `validation_rule_codes` says why a decision was refused; `adjustments` says what was fixed
+// without refusing anything - the brand palette applied over the model's, a furniture colour
+// clamped, a mark's chassis re-picked. Lite's claim is "exactly the brand's colours", and
+// until this column existed a repaired brand looked identical to an untouched one in the
+// ledger (docs/AI_LITE_BRAND_PLAN.md §3.2).
+test('the repair ledger column is additive, defaulted and content-free', async () => {
+  const body = await readFile(
+    new URL('../supabase/migrations/0042_ai_generations_adjustments.sql', import.meta.url),
+    'utf8',
+  );
+  // Additive with a default: rows written before it existed read as "nothing repaired"
+  // rather than as null, so every consumer can count without a null branch.
+  assert.match(body, /add column if not exists adjustments text\[\] not null default '\{\}'/i);
+  // A column carrying codes, never content - and it must not smuggle in access either.
+  const code = body.replace(/--[^\n]*/g, '');
+  assert.doesNotMatch(code, /\b(prompt|conversation|design_spec|template|generated_code|provider_response|raw_ip)\b/i);
+  assert.doesNotMatch(code, /create policy|grant/i);
+});
+
 test('Lite quality priors store only non-content facets and stay server-only', () => {
   assert.match(qualitySql, /resolved_variant_id text/i);
   assert.match(qualitySql, /intent_kind text/i);
